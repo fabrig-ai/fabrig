@@ -1,8 +1,8 @@
 # Landings
 
 Provisional, 2026-11-12, revised 2026-11-17, from
-`../../draft/landed-qa.md`, section 3, milestone Q1 of
-`../../draft/landed-qa.execution.md`. The watcher: how
+`../../draft/archive/landed-qa.md`, section 3, milestone Q1 of
+`../../draft/archive/landed-qa.execution.md`. The watcher: how
 landed QA sees a goal land on main, and how it learns which landings a
 kept build holds.
 
@@ -35,7 +35,7 @@ kept build holds.
 
 - **The first read** records the head as the ledger's `head` and no
   landing: the baseline, as a tier's start has one
-  (`../../domain/after-landing.md`, 2). What landed before it is no
+  (`../../domain/after-landing-runs.md`, 1). What landed before it is no
   pass's.
 - **The same head** records nothing.
 - **A new head:** `git rev-list --topo-order --reverse --parents NEW

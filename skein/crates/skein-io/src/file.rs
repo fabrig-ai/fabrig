@@ -4,11 +4,11 @@
 //! Files remain open across positioned operations; names stay beneath a root.
 
 use crate::digest::Digest;
-use crate::kernel::Fd;
+use crate::kernel::{Fd, Kind, Stat};
 use alloc::boxed::Box;
 use skein_lib::Token;
 
-/// The target version a store's owner permits replacing (runtime/io/files.md, section 2).
+/// The target version a store's owner permits replacing (runtime/io/files.md, section 10).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Expect {
     /// The owner permits replacing any target, without reading its content.
@@ -41,7 +41,7 @@ pub enum Request {
         path: Box<[u8]>,
         mode: u32,
     },
-    /// Opens or makes a private root: `Opened`, `Refused` or `Failed` (runtime/io/files.md, 3).
+    /// Opens or makes a private root: `Opened`, `Refused` or `Failed` (runtime/io/files.md, 11).
     OpenPrivate {
         owner: Token,
         root: Token,
@@ -348,22 +348,45 @@ impl core::fmt::Debug for Request {
 #[derive(PartialEq, Eq, Debug)]
 pub struct Entry {
     pub name: Box<[u8]>,
-    pub kind: crate::kernel::Kind,
+    pub kind: Kind,
 }
 
-/// The unsafe metadata io found before reading a private root or file (runtime/io/files.md, 3).
+/// The unsafe metadata io found before reading a private root or file (runtime/io/files.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unsafe {
     /// The requested name or a parent is a symbolic link.
     Link,
     /// The opened root is not a directory or its file is not regular.
-    Kind(crate::kernel::Kind),
+    Kind(Kind),
     /// The opened node has these group or other permission bits.
     Mode(u32),
     /// The opened file has this link count, rather than one.
     Links(u32),
     /// The opened node belongs to someone other than the configured effective user.
     Owner { found: u32, expected: u32 },
+}
+
+impl Unsafe {
+    /// Checks the metadata of an opened private file before any read.
+    #[must_use]
+    pub fn private_file(stat: Stat, expected: u32) -> Option<Self> {
+        if stat.owner != expected {
+            return Some(Self::Owner { found: stat.owner, expected });
+        }
+        if stat.kind == Kind::Symlink {
+            return Some(Self::Link);
+        }
+        if stat.kind != Kind::File {
+            return Some(Self::Kind(stat.kind));
+        }
+        if stat.mode & 0o077 != 0 {
+            return Some(Self::Mode(stat.mode & 0o077));
+        }
+        if stat.links != 1 {
+            return Some(Self::Links(stat.links));
+        }
+        None
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -420,7 +443,7 @@ pub enum Event {
     /// Kind, size, permissions, owner and links of the open file or directory.
     Stated {
         owner: Token,
-        stat: crate::kernel::Stat,
+        stat: Stat,
     },
     Written {
         owner: Token,
@@ -456,7 +479,7 @@ pub enum Event {
         owner: Token,
         error: crate::kernel::Error,
         /// A Store's rename succeeded before this failure. The new file is
-        /// present; its durability may be unknown (runtime/io/files.md, section 2).
+        /// present; its durability may be unknown (runtime/io/files.md, section 10).
         /// False for failures of other file requests.
         committed: bool,
         /// A temporary still beside the target after its removal failed.

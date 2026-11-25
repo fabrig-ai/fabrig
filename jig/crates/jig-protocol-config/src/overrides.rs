@@ -68,6 +68,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         b"documents" => set_documents(&mut core.documents, field, value),
         b"core" => set_core(core, field, value),
         b"retention" => set_core(core, name, value),
+        b"waits" => set_waits(&mut core.waits, field, value),
         b"link" => set_link(link, field, value),
         b"clients" => {
             if let Some(field) = field.strip_prefix(b"public.") {
@@ -507,6 +508,7 @@ fn set_notes(limits: &mut jig_domain_notes::Limits, name: &[u8], value: u64) -> 
 
 fn set_hub(limits: &mut jig_domain_host::Limits, name: &[u8], value: u64) -> Result<(), What> {
     let jig_domain_host::Limits {
+        drain_grace: _,
         application_ask_bytes: _,
         application_answer_bytes: _,
         program_sources,
@@ -584,6 +586,7 @@ fn set_documents(
     Ok(())
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive destructure names each core limit's owner")]
 fn set_core(limits: &mut jig_domain_core_vocabulary::Limits, name: &[u8], value: u64) -> Result<(), What> {
     if let Some(field) = name.strip_prefix(b"public.") {
         let value = u16::try_from(value).or(Err(What::Override))?;
@@ -598,6 +601,7 @@ fn set_core(limits: &mut jig_domain_core_vocabulary::Limits, name: &[u8], value:
     }
     let jig_domain_core_vocabulary::Limits {
         retention,
+        waits: _,
         routes: _,
         public: _,
         settings,
@@ -684,6 +688,25 @@ fn set_core(limits: &mut jig_domain_core_vocabulary::Limits, name: &[u8], value:
         b"brief_core_budgets.now" => *now = count(value)?,
         _ => return Err(What::Override),
     }
+    Ok(())
+}
+
+fn set_waits(limits: &mut jig_domain_core_vocabulary::Figures, name: &[u8], value: u64) -> Result<(), What> {
+    if value == 0 {
+        return Err(What::Override);
+    }
+    let field = match name {
+        b"question_ms" => &mut limits.question,
+        b"party_ms" => &mut limits.party,
+        b"news_ms" => &mut limits.news,
+        b"host_ms" => &mut limits.host,
+        b"account_ms" => &mut limits.account,
+        b"step_ms" => &mut limits.step,
+        b"room_ms" => &mut limits.room,
+        b"sign_off_ms" => &mut limits.sign_off,
+        _ => return Err(What::Override),
+    };
+    *field = millis(value)?;
     Ok(())
 }
 
@@ -1036,7 +1059,7 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
             }
             fits.hub.expect("hub fit checked")
         }
-        Some(b"link" | b"clients_http") => true,
+        Some(b"link" | b"clients_http" | b"waits") => true,
         Some(b"clients") => jig_protocol_engine_clients::valid(&limits.clients),
         Some(
             b"core" | b"tasks" | b"people" | b"fleet" | b"authority" | b"brief" | b"accounts" | b"notes" | b"views"

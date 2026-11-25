@@ -169,7 +169,7 @@ fn a_placed_hold_keeps_a_concluded_gathering_until_lift_or_release() {
                     owner: t::Owner::Party { person: PERSON },
                     mode: t::Mode::Stop,
                     scope: t::Scope::Subtree { task: 1 },
-                    reason: Box::new([]),
+                    reason: Box::from(b"Parked".as_slice()),
                     placed_at: 0,
                     revision: 1,
                     exempt: Box::new([]),
@@ -217,6 +217,7 @@ fn an_amendment_cannot_add_a_dependency_to_a_gathering() {
     let before = world.records.clone();
     assert!(matches!(
         response(&mut world, |reply_to| Event::Amend {
+            reads_project: false,
             reply_to,
             by: PERSON_PARTY,
             places: Box::new([]),

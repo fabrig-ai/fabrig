@@ -1,4 +1,4 @@
-//! The byte pin's committed goldens (data/codec/README.md, section 6).
+//! The byte pin's committed goldens (data/codec/golden.md, section 1).
 
 #[cfg(test)]
 mod tests {
@@ -25,7 +25,7 @@ mod tests {
                 let name = path.file_name().expect("golden name").to_str().expect("UTF-8 golden name");
                 let context = format!("every-v{version}/{name}");
                 let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{context}: {error}"));
-                let decl = generic::golden_root(&schema, name);
+                let decl = generic::named_root(&schema, name);
                 let root = family
                     .roots
                     .iter()

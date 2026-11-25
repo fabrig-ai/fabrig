@@ -8,8 +8,13 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 3;
+pub const LAYOUT: [u8; 32] = [
+    0x30, 0x2d, 0xe7, 0x09, 0x99, 0x0f, 0x71, 0x73, 0xe8, 0x73, 0x94, 0x15, 0x0f, 0xec, 0xba, 0xac, 0xdb, 0xe0, 0xc1,
+    0x64, 0x5d, 0x90, 0x15, 0x75, 0x70, 0xf2, 0xf6, 0x5c, 0xd4, 0x09, 0x63, 0xbb,
+];
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub wire_name: u32,
@@ -50,17 +55,33 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.wire_name).expect("room for every named limit");
-        values.push(self.wires_wires).expect("room for every named limit");
-        values.push(self.count_family).expect("room for every named limit");
-        values.push(self.manifest_counts).expect("room for every named limit");
-        values.push(self.checkpoint_build).expect("room for every named limit");
-        values.push(self.checkpoint_files).expect("room for every named limit");
-        values.push(self.restore_intent_source).expect("room for every named limit");
-        values.push(self.restore_intent_safety).expect("room for every named limit");
-        values.push(self.floor_build).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.wire_name,
+            self.wires_wires,
+            self.count_family,
+            self.manifest_counts,
+            self.checkpoint_build,
+            self.checkpoint_files,
+            self.restore_intent_source,
+            self.restore_intent_safety,
+            self.floor_build,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            wire_name: self.wire_name.min(most),
+            wires_wires: self.wires_wires.min(most),
+            count_family: self.count_family.min(most),
+            manifest_counts: self.manifest_counts.min(most),
+            checkpoint_build: self.checkpoint_build.min(most),
+            checkpoint_files: self.checkpoint_files.min(most),
+            restore_intent_source: self.restore_intent_source.min(most),
+            restore_intent_safety: self.restore_intent_safety.min(most),
+            floor_build: self.floor_build.min(most),
+        }
     }
 }
 
@@ -85,319 +106,87 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const LEVELS_SKEIN: Path = Path::new(0, 0);
-    pub const LEVELS_SMITH: Path = Path::new(0, 1);
-    pub const LEVELS_JIG: Path = Path::new(0, 2);
-    pub const LEVELS_APPLICATION: Path = Path::new(0, 3);
-    pub const LEVELS_TAIL: Path = Path::new(0, 4);
-    pub const WIRE_NAME: Path = Path::new(1, 0);
-    pub const WIRE_VERSION: Path = Path::new(1, 1);
-    pub const WIRE_TAIL: Path = Path::new(1, 2);
-    pub const WIRES_WIRES: Path = Path::new(2, 0);
-    pub const WIRES_VERSION: Path = Path::new(2, 1);
-    pub const WIRES_TAIL: Path = Path::new(2, 2);
-    pub const FORMAT_COMPONENT: Path = Path::new(3, 0);
-    pub const FORMAT_CORE: Path = Path::new(3, 1);
-    pub const FORMAT_TASKS: Path = Path::new(3, 2);
-    pub const FORMAT_PEOPLE: Path = Path::new(3, 3);
-    pub const FORMAT_NOTES: Path = Path::new(3, 4);
-    pub const FORMAT_ACCOUNTS: Path = Path::new(3, 5);
-    pub const FORMAT_SETTINGS: Path = Path::new(3, 6);
-    pub const FORMAT_APPLICATION: Path = Path::new(3, 7);
-    pub const FORMAT_DEPLOYMENT: Path = Path::new(3, 8);
-    pub const FORMAT_LEVELS: Path = Path::new(3, 9);
-    pub const FORMAT_VERSION: Path = Path::new(3, 10);
-    pub const FORMAT_TAIL: Path = Path::new(3, 11);
-    pub const COUNT_FAMILY: Path = Path::new(4, 0);
-    pub const COUNT_BEFORE: Path = Path::new(4, 1);
-    pub const COUNT_AFTER: Path = Path::new(4, 2);
-    pub const COUNT_TAIL: Path = Path::new(4, 3);
-    pub const MANIFEST_GENERATION: Path = Path::new(5, 0);
-    pub const MANIFEST_FROM: Path = Path::new(5, 1);
-    pub const MANIFEST_BEFORE: Path = Path::new(5, 2);
-    pub const MANIFEST_AFTER: Path = Path::new(5, 3);
-    pub const MANIFEST_COUNTS: Path = Path::new(5, 4);
-    pub const MANIFEST_STORE: Path = Path::new(5, 5);
-    pub const MANIFEST_SECRETS: Path = Path::new(5, 6);
-    pub const MANIFEST_WRITTEN: Path = Path::new(5, 7);
-    pub const MANIFEST_VERSION: Path = Path::new(5, 8);
-    pub const MANIFEST_TAIL: Path = Path::new(5, 9);
-    pub const CHECKPOINT_FILE_PART: Path = Path::new(6, 0);
-    pub const CHECKPOINT_FILE_NUMBER: Path = Path::new(6, 1);
-    pub const CHECKPOINT_FILE_LENGTH: Path = Path::new(6, 2);
-    pub const CHECKPOINT_FILE_WAY: Path = Path::new(6, 3);
-    pub const CHECKPOINT_FILE_TAIL: Path = Path::new(6, 4);
-    pub const CHECKPOINT_STORE: Path = Path::new(7, 0);
-    pub const CHECKPOINT_SECRETS: Path = Path::new(7, 1);
-    pub const CHECKPOINT_MADE: Path = Path::new(7, 2);
-    pub const CHECKPOINT_BUILD: Path = Path::new(7, 3);
-    pub const CHECKPOINT_DEPLOYMENT: Path = Path::new(7, 4);
-    pub const CHECKPOINT_LEVELS: Path = Path::new(7, 5);
-    pub const CHECKPOINT_FILES: Path = Path::new(7, 6);
-    pub const CHECKPOINT_VERSION: Path = Path::new(7, 7);
-    pub const CHECKPOINT_TAIL: Path = Path::new(7, 8);
-    pub const RESTORE_INTENT_GENERATION: Path = Path::new(8, 0);
-    pub const RESTORE_INTENT_ACTIVE: Path = Path::new(8, 1);
-    pub const RESTORE_INTENT_SOURCE: Path = Path::new(8, 2);
-    pub const RESTORE_INTENT_SAFETY: Path = Path::new(8, 3);
-    pub const RESTORE_INTENT_MADE: Path = Path::new(8, 4);
-    pub const RESTORE_INTENT_VERSION: Path = Path::new(8, 5);
-    pub const RESTORE_INTENT_TAIL: Path = Path::new(8, 6);
-    pub const TRANSCRIPT_LENGTH: Path = Path::new(9, 0);
-    pub const TRANSCRIPT_WINDOW: Path = Path::new(9, 1);
-    pub const TRANSCRIPT_VERSION: Path = Path::new(9, 2);
-    pub const TRANSCRIPT_TAIL: Path = Path::new(9, 3);
-    pub const ATTEMPT_FIRST: Path = Path::new(10, 0);
-    pub const ATTEMPT_VERSION: Path = Path::new(10, 1);
-    pub const ATTEMPT_TAIL: Path = Path::new(10, 2);
-    pub const HISTORY_LOG_RECORD: Path = Path::new(11, 0);
-    pub const HISTORY_LOG_VERSION: Path = Path::new(11, 1);
-    pub const HISTORY_LOG_TAIL: Path = Path::new(11, 2);
-    pub const TURN_LOG_WINDOW: Path = Path::new(12, 0);
-    pub const TURN_LOG_VERSION: Path = Path::new(12, 1);
-    pub const TURN_LOG_TAIL: Path = Path::new(12, 2);
-    pub const LOG_ATTEMPT_FIRST: Path = Path::new(13, 0);
-    pub const LOG_ATTEMPT_VERSION: Path = Path::new(13, 1);
-    pub const LOG_ATTEMPT_TAIL: Path = Path::new(13, 2);
-    pub const FLOOR_NUMBER: Path = Path::new(14, 0);
-    pub const FLOOR_BUILD: Path = Path::new(14, 1);
-    pub const FLOOR_VERSION: Path = Path::new(14, 2);
-    pub const FLOOR_TAIL: Path = Path::new(14, 3);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Levels.skein",
-        "Levels.smith",
-        "Levels.jig",
-        "Levels.application",
-        "Levels (tail)",
-    ],
-    &[
-        "Wire.name",
-        "Wire.version",
-        "Wire (tail)",
-    ],
-    &[
-        "Wires.wires",
-        "Wires (version)",
-        "Wires (tail)",
-    ],
-    &[
-        "Format.component",
-        "Format.core",
-        "Format.tasks",
-        "Format.people",
-        "Format.notes",
-        "Format.accounts",
-        "Format.settings",
-        "Format.application",
-        "Format.deployment",
-        "Format.levels",
-        "Format (version)",
-        "Format (tail)",
-    ],
-    &[
-        "Count.family",
-        "Count.before",
-        "Count.after",
-        "Count (tail)",
-    ],
-    &[
-        "Manifest.generation",
-        "Manifest.from",
-        "Manifest.before",
-        "Manifest.after",
-        "Manifest.counts",
-        "Manifest.store",
-        "Manifest.secrets",
-        "Manifest.written",
-        "Manifest (version)",
-        "Manifest (tail)",
-    ],
-    &[
-        "CheckpointFile.part",
-        "CheckpointFile.number",
-        "CheckpointFile.length",
-        "CheckpointFile.way",
-        "CheckpointFile (tail)",
-    ],
-    &[
-        "Checkpoint.store",
-        "Checkpoint.secrets",
-        "Checkpoint.made",
-        "Checkpoint.build",
-        "Checkpoint.deployment",
-        "Checkpoint.levels",
-        "Checkpoint.files",
-        "Checkpoint (version)",
-        "Checkpoint (tail)",
-    ],
-    &[
-        "RestoreIntent.generation",
-        "RestoreIntent.active",
-        "RestoreIntent.source",
-        "RestoreIntent.safety",
-        "RestoreIntent.made",
-        "RestoreIntent (version)",
-        "RestoreIntent (tail)",
-    ],
-    &[
-        "Transcript.length",
-        "Transcript.window",
-        "Transcript (version)",
-        "Transcript (tail)",
-    ],
-    &[
-        "Attempt.first",
-        "Attempt (version)",
-        "Attempt (tail)",
-    ],
-    &[
-        "HistoryLog.record",
-        "HistoryLog (version)",
-        "HistoryLog (tail)",
-    ],
-    &[
-        "TurnLog.window",
-        "TurnLog (version)",
-        "TurnLog (tail)",
-    ],
-    &[
-        "LogAttempt.first",
-        "LogAttempt (version)",
-        "LogAttempt (tail)",
-    ],
-    &[
-        "Floor.number",
-        "Floor.build",
-        "Floor (version)",
-        "Floor (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 0 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 2 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 4 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 6 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7] },
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[9, 10] },
-    skein_codec::bounds::Node::List { limit: 1, item: 11, size: size_of::<Wire>() },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[12] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(16),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[14, 15, 16, 17, 18, 19, 20, 21, 22, 8] },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[24, 25, 26] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 29 },
-    skein_codec::bounds::Node::List { limit: 3, item: 27, size: size_of::<Count>() },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 33 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[28, 30, 8, 8, 31, 32, 34, 35] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[37, 38, 39, 40] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 4 },
-    skein_codec::bounds::Node::Scalar(16),
-    skein_codec::bounds::Node::List { limit: 5, item: 41, size: size_of::<CheckpointFile>() },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[42, 43, 44, 45, 46, 8, 47] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Bytes { limit: 6 },
-    skein_codec::bounds::Node::Bytes { limit: 7 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[49, 50, 51, 52, 53] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[55, 56] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[58] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 60 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[61] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 63 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[64] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[66] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Bytes { limit: 8 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[68, 69] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    8,
-    11,
-    13,
-    23,
-    27,
-    36,
-    41,
-    48,
-    54,
-    57,
-    59,
-    62,
-    65,
-    67,
-    70,
-];
-
-const CEILING_VALUES: &[u32] = &[
-    32,
-    16,
-    64,
-    64,
-    128,
-    65_536,
-    37,
-    37,
-    64,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const LEVELS_SKEIN: Path = Path::new("Levels.skein");
+    pub const LEVELS_SMITH: Path = Path::new("Levels.smith");
+    pub const LEVELS_JIG: Path = Path::new("Levels.jig");
+    pub const LEVELS_APPLICATION: Path = Path::new("Levels.application");
+    pub const LEVELS_TAIL: Path = Path::new("Levels (tail)");
+    pub const WIRE_NAME: Path = Path::new("Wire.name");
+    pub const WIRE_VERSION: Path = Path::new("Wire.version");
+    pub const WIRE_TAIL: Path = Path::new("Wire (tail)");
+    pub const WIRES_WIRES: Path = Path::new("Wires.wires");
+    pub const WIRES_VERSION: Path = Path::new("Wires (version)");
+    pub const WIRES_TAIL: Path = Path::new("Wires (tail)");
+    pub const FORMAT_COMPONENT: Path = Path::new("Format.component");
+    pub const FORMAT_CORE: Path = Path::new("Format.core");
+    pub const FORMAT_TASKS: Path = Path::new("Format.tasks");
+    pub const FORMAT_PEOPLE: Path = Path::new("Format.people");
+    pub const FORMAT_NOTES: Path = Path::new("Format.notes");
+    pub const FORMAT_ACCOUNTS: Path = Path::new("Format.accounts");
+    pub const FORMAT_SETTINGS: Path = Path::new("Format.settings");
+    pub const FORMAT_APPLICATION: Path = Path::new("Format.application");
+    pub const FORMAT_DEPLOYMENT: Path = Path::new("Format.deployment");
+    pub const FORMAT_LEVELS: Path = Path::new("Format.levels");
+    pub const FORMAT_VERSION: Path = Path::new("Format (version)");
+    pub const FORMAT_TAIL: Path = Path::new("Format (tail)");
+    pub const COUNT_FAMILY: Path = Path::new("Count.family");
+    pub const COUNT_BEFORE: Path = Path::new("Count.before");
+    pub const COUNT_AFTER: Path = Path::new("Count.after");
+    pub const COUNT_TAIL: Path = Path::new("Count (tail)");
+    pub const MANIFEST_GENERATION: Path = Path::new("Manifest.generation");
+    pub const MANIFEST_FROM: Path = Path::new("Manifest.from");
+    pub const MANIFEST_BEFORE: Path = Path::new("Manifest.before");
+    pub const MANIFEST_AFTER: Path = Path::new("Manifest.after");
+    pub const MANIFEST_COUNTS: Path = Path::new("Manifest.counts");
+    pub const MANIFEST_STORE: Path = Path::new("Manifest.store");
+    pub const MANIFEST_SECRETS: Path = Path::new("Manifest.secrets");
+    pub const MANIFEST_WRITTEN: Path = Path::new("Manifest.written");
+    pub const MANIFEST_VERSION: Path = Path::new("Manifest (version)");
+    pub const MANIFEST_TAIL: Path = Path::new("Manifest (tail)");
+    pub const CHECKPOINT_FILE_PART: Path = Path::new("CheckpointFile.part");
+    pub const CHECKPOINT_FILE_NUMBER: Path = Path::new("CheckpointFile.number");
+    pub const CHECKPOINT_FILE_LENGTH: Path = Path::new("CheckpointFile.length");
+    pub const CHECKPOINT_FILE_WAY: Path = Path::new("CheckpointFile.way");
+    pub const CHECKPOINT_FILE_TAIL: Path = Path::new("CheckpointFile (tail)");
+    pub const CHECKPOINT_STORE: Path = Path::new("Checkpoint.store");
+    pub const CHECKPOINT_SECRETS: Path = Path::new("Checkpoint.secrets");
+    pub const CHECKPOINT_MADE: Path = Path::new("Checkpoint.made");
+    pub const CHECKPOINT_BUILD: Path = Path::new("Checkpoint.build");
+    pub const CHECKPOINT_DEPLOYMENT: Path = Path::new("Checkpoint.deployment");
+    pub const CHECKPOINT_LEVELS: Path = Path::new("Checkpoint.levels");
+    pub const CHECKPOINT_FILES: Path = Path::new("Checkpoint.files");
+    pub const CHECKPOINT_VERSION: Path = Path::new("Checkpoint (version)");
+    pub const CHECKPOINT_TAIL: Path = Path::new("Checkpoint (tail)");
+    pub const RESTORE_INTENT_GENERATION: Path = Path::new("RestoreIntent.generation");
+    pub const RESTORE_INTENT_ACTIVE: Path = Path::new("RestoreIntent.active");
+    pub const RESTORE_INTENT_SOURCE: Path = Path::new("RestoreIntent.source");
+    pub const RESTORE_INTENT_SAFETY: Path = Path::new("RestoreIntent.safety");
+    pub const RESTORE_INTENT_MADE: Path = Path::new("RestoreIntent.made");
+    pub const RESTORE_INTENT_VERSION: Path = Path::new("RestoreIntent (version)");
+    pub const RESTORE_INTENT_TAIL: Path = Path::new("RestoreIntent (tail)");
+    pub const TRANSCRIPT_LENGTH: Path = Path::new("Transcript.length");
+    pub const TRANSCRIPT_WINDOW: Path = Path::new("Transcript.window");
+    pub const TRANSCRIPT_VERSION: Path = Path::new("Transcript (version)");
+    pub const TRANSCRIPT_TAIL: Path = Path::new("Transcript (tail)");
+    pub const ATTEMPT_FIRST: Path = Path::new("Attempt.first");
+    pub const ATTEMPT_VERSION: Path = Path::new("Attempt (version)");
+    pub const ATTEMPT_TAIL: Path = Path::new("Attempt (tail)");
+    pub const HISTORY_LOG_RECORD: Path = Path::new("HistoryLog.record");
+    pub const HISTORY_LOG_VERSION: Path = Path::new("HistoryLog (version)");
+    pub const HISTORY_LOG_TAIL: Path = Path::new("HistoryLog (tail)");
+    pub const TURN_LOG_WINDOW: Path = Path::new("TurnLog.window");
+    pub const TURN_LOG_VERSION: Path = Path::new("TurnLog (version)");
+    pub const TURN_LOG_TAIL: Path = Path::new("TurnLog (tail)");
+    pub const LOG_ATTEMPT_FIRST: Path = Path::new("LogAttempt.first");
+    pub const LOG_ATTEMPT_VERSION: Path = Path::new("LogAttempt (version)");
+    pub const LOG_ATTEMPT_TAIL: Path = Path::new("LogAttempt (tail)");
+    pub const FLOOR_NUMBER: Path = Path::new("Floor.number");
+    pub const FLOOR_BUILD: Path = Path::new("Floor.build");
+    pub const FLOOR_VERSION: Path = Path::new("Floor (version)");
+    pub const FLOOR_TAIL: Path = Path::new("Floor (tail)");
 }
 
 // Type: Levels.
@@ -410,16 +199,42 @@ pub struct Levels {
 }
 
 // Record: Levels.
+impl Levels {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for Levels {
     type Limits = Limits;
     const TAIL: Path = paths::LEVELS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Levels")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Levels")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -448,16 +263,36 @@ pub struct Wire {
 }
 
 // Record: Wire.
+impl Wire {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, wire_name) },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
 impl Record for Wire {
     type Limits = Limits;
     const TAIL: Path = paths::WIRE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 11)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Wire")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 11)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Wire")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -481,16 +316,27 @@ pub struct Wires {
 }
 
 // Record: Wires.
+impl Wires {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Wire"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, wires_wires), item: 0, size: size_of::<Wire>() },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 6;
+}
+
 impl Record for Wires {
     type Limits = Limits;
     const TAIL: Path = paths::WIRES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Wires")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Wires")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -532,16 +378,35 @@ pub struct Format {
 }
 
 // Record: Format.
+impl Format {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(16),
+        skein_codec::bounds::Node::Named("Levels"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 56;
+}
+
 impl Record for Format {
     type Limits = Limits;
     const TAIL: Path = paths::FORMAT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Format")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Format")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -594,16 +459,37 @@ pub struct Count {
 }
 
 // Record: Count.
+impl Count {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, count_family) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
 impl Record for Count {
     type Limits = Limits;
     const TAIL: Path = paths::COUNT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 27)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Count")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 27)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Count")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -636,16 +522,36 @@ pub struct Manifest {
 }
 
 // Record: Manifest.
+impl Manifest {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Named("Levels"),
+        skein_codec::bounds::Node::Named("Levels"),
+        skein_codec::bounds::Node::Named("Count"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, manifest_counts), item: 5, size: size_of::<Count>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 4, 6, 7, 9, 10] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 88;
+}
+
 impl Record for Manifest {
     type Limits = Limits;
     const TAIL: Path = paths::MANIFEST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Manifest")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Manifest")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -695,16 +601,38 @@ pub struct CheckpointFile {
 }
 
 // Record: CheckpointFile.
+impl CheckpointFile {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for CheckpointFile {
     type Limits = Limits;
     const TAIL: Path = paths::CHECKPOINT_FILE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 41)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CheckpointFile")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 41)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "CheckpointFile")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -738,16 +666,33 @@ pub struct Checkpoint {
 }
 
 // Record: Checkpoint.
+impl Checkpoint {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, checkpoint_build) },
+        skein_codec::bounds::Node::Scalar(16),
+        skein_codec::bounds::Node::Named("Levels"),
+        skein_codec::bounds::Node::Named("CheckpointFile"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, checkpoint_files), item: 6, size: size_of::<CheckpointFile>() },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 3, 4, 5, 7] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 70;
+}
+
 impl Record for Checkpoint {
     type Limits = Limits;
     const TAIL: Path = paths::CHECKPOINT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 48)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Checkpoint")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 48)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Checkpoint")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -796,16 +741,30 @@ pub struct RestoreIntent {
 }
 
 // Record: RestoreIntent.
+impl RestoreIntent {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, restore_intent_source) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, restore_intent_safety) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 3, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 58;
+}
+
 impl Record for RestoreIntent {
     type Limits = Limits;
     const TAIL: Path = paths::RESTORE_INTENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 54)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RestoreIntent")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 54)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RestoreIntent")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -847,16 +806,27 @@ pub struct Transcript {
 }
 
 // Record: Transcript.
+impl Transcript {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 18;
+}
+
 impl Record for Transcript {
     type Limits = Limits;
     const TAIL: Path = paths::TRANSCRIPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 57)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Transcript")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 57)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Transcript")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -891,16 +861,26 @@ pub struct Attempt {
 }
 
 // Record: Attempt.
+impl Attempt {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Attempt {
     type Limits = Limits;
     const TAIL: Path = paths::ATTEMPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 59)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Attempt")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 59)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Attempt")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -933,16 +913,27 @@ pub struct HistoryLog {
 }
 
 // Record: HistoryLog.
+impl HistoryLog {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for HistoryLog {
     type Limits = Limits;
     const TAIL: Path = paths::HISTORY_LOG_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 62)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HistoryLog")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 62)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HistoryLog")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -975,16 +966,27 @@ pub struct TurnLog {
 }
 
 // Record: TurnLog.
+impl TurnLog {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 11;
+}
+
 impl Record for TurnLog {
     type Limits = Limits;
     const TAIL: Path = paths::TURN_LOG_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 65)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TurnLog")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 65)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "TurnLog")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1017,16 +1019,26 @@ pub struct LogAttempt {
 }
 
 // Record: LogAttempt.
+impl LogAttempt {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for LogAttempt {
     type Limits = Limits;
     const TAIL: Path = paths::LOG_ATTEMPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 67)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LogAttempt")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 67)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LogAttempt")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1060,16 +1072,27 @@ pub struct Floor {
 }
 
 // Record: Floor.
+impl Floor {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, floor_build) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 10;
+}
+
 impl Record for Floor {
     type Limits = Limits;
     const TAIL: Path = paths::FLOOR_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 70)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Floor")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 70)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Floor")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1097,3 +1120,43 @@ impl Record for Floor {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Attempt", nodes: Attempt::SHAPE },
+    skein_codec::bounds::Declaration { name: "Checkpoint", nodes: Checkpoint::SHAPE },
+    skein_codec::bounds::Declaration { name: "CheckpointFile", nodes: CheckpointFile::SHAPE },
+    skein_codec::bounds::Declaration { name: "Count", nodes: Count::SHAPE },
+    skein_codec::bounds::Declaration { name: "Floor", nodes: Floor::SHAPE },
+    skein_codec::bounds::Declaration { name: "Format", nodes: Format::SHAPE },
+    skein_codec::bounds::Declaration { name: "HistoryLog", nodes: HistoryLog::SHAPE },
+    skein_codec::bounds::Declaration { name: "Levels", nodes: Levels::SHAPE },
+    skein_codec::bounds::Declaration { name: "LogAttempt", nodes: LogAttempt::SHAPE },
+    skein_codec::bounds::Declaration { name: "Manifest", nodes: Manifest::SHAPE },
+    skein_codec::bounds::Declaration { name: "RestoreIntent", nodes: RestoreIntent::SHAPE },
+    skein_codec::bounds::Declaration { name: "Transcript", nodes: Transcript::SHAPE },
+    skein_codec::bounds::Declaration { name: "TurnLog", nodes: TurnLog::SHAPE },
+    skein_codec::bounds::Declaration { name: "Wire", nodes: Wire::SHAPE },
+    skein_codec::bounds::Declaration { name: "Wires", nodes: Wires::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.wire_name,
+    CEILINGS.wires_wires,
+    CEILINGS.count_family,
+    CEILINGS.manifest_counts,
+    CEILINGS.checkpoint_build,
+    CEILINGS.checkpoint_files,
+    CEILINGS.restore_intent_source,
+    CEILINGS.restore_intent_safety,
+    CEILINGS.floor_build,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

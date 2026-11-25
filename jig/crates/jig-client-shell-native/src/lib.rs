@@ -1,4 +1,4 @@
-//! The native client's HTTP transport (protocol/client/sign-in.md and protocol/client/README.md, section 9).
+//! The native client's HTTP transport (protocol/client/sign-in.md and protocol/client/shells.md, section 1).
 #![forbid(unsafe_code)]
 mod connections;
 pub mod diagnostics;

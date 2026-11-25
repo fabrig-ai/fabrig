@@ -1,6 +1,6 @@
 //! The records that cross the boundary with the run's parent, the top-level
 //! domain (skein/docs/foundation/programming-model.md, section 4.5). The run defines them; its parent depends on it.
-//! Contracts: smith/docs/design/domain/run.md, sections 3, 5, 6 and 8 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9;
+//! Contracts: smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run.md, section 5, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run-delivery.md, section 1 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9;
 //! smith/docs/design/protocol/channel.md, sections 4, 5 and 7; smith/docs/design/protocol/transcript.md, section 2.
 //!
 //! All three of the run's faces cross here:
@@ -11,7 +11,7 @@
 //!   [`Event::Cancel`] can name it. A run's host call, [`Request::Deliver`], is
 //!   ended by exactly one [`Event::Delivered`]. After submission the
 //!   host operation is never abandoned; its deadline bounds the host terminal.
-//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 9).
+//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run-delivery.md, section 1, and smith/docs/design/domain/run.md, section 9).
 //! - io's, for what the run itself does in its workspace, which the parent
 //!   routes to and from the protocol layer. A [`Request::Read`] is ended by
 //!   exactly one [`Event::Read`], a [`Request::Probe`] by one
@@ -30,7 +30,7 @@
 //!   the run runs the race: past it, the run stops work before submission and
 //!   returns it as timed out once that settles. A submitted delivery always
 //!   owes its host terminal, including after withdrawal or expiry;
-//!   caller-only expiry does not decide the run's shutdown (smith/docs/design/domain/run.md, 8.2 and 9).
+//!   caller-only expiry does not decide the run's shutdown (smith/docs/design/domain/run-delivery.md, 1.2, and smith/docs/design/domain/run.md, 9).
 //!
 //! A request's `owner` is the run's token for what asked: the run itself for
 //! a read or a probe, or a delivery call for a check and its abort or host
@@ -105,6 +105,8 @@ pub enum Event {
         transcript: Option<Token>,
         /// The root selected a concrete transcript for main, independently of its binding.
         resumed: bool,
+        /// Ask every conversation to tell its answer and result parts.
+        tell_parts: bool,
     },
 
     /// Parent-labelled live message; names, including zero, are opaque and
@@ -145,7 +147,9 @@ pub enum Event {
     /// answered, or decided how it ends, ignores it.
     Cancel { run: Token },
     /// From the host: finish the current main turn, then end as cancelled.
-    Drain { run: Token },
+    Drain { run: Token, grace: Option<Duration> },
+    /// Durable prefix of activation-local parts.
+    PartKept { run: Token, number: u32 },
     /// The conversation was admitted, and `peer` names it from now on.
     Started { conversation: Token, peer: Token },
     /// The addressed session has settled every job cancelled for a writer.
@@ -237,7 +241,7 @@ pub enum Event {
     Delivered { owner: Token, delivery: Delivery },
 }
 
-/// Why the run refuses a host message at its entrance (smith/docs/design/domain/run.md, section 6).
+/// Why the run refuses a host message at its entrance (smith/docs/design/domain/run-messages.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MessageRefusal {
     /// The label, separator and text exceed the rendered-byte bound.
@@ -358,6 +362,8 @@ pub enum Request {
         owner: Token,
         /// IO-confined check executable, run as a contained process tree.
         program: Place,
+        /// Optional host-retained results directory for this check.
+        results: Option<Box<[u8]>>,
         bound: Duration,
         cap: Time,
         /// Last output bytes retained under the caller's cap.
@@ -368,7 +374,7 @@ pub enum Request {
     Abort { owner: Token },
     /// To the host: checks of the run it names `host_run` start with
     /// `deadline`, so its watchdog waits that long. A check's reported wait
-    /// may extend this within the call's deadline (domain/run.md, 8.1). A notice,
+    /// may extend this within the call's deadline (domain/run-delivery.md, 1.1). A notice,
     /// with no terminal. It is a request, not only a fact (`CheckStarted`),
     /// because the watchdog decides on it, and nothing may depend on whether
     /// a fact is kept.
@@ -639,6 +645,8 @@ pub enum Read {
     reason = "independent immutable tool descriptors and finish policy, not lifecycle states"
 )]
 pub struct Opening {
+    /// Tell each answer and result before its whole turn.
+    pub tell_parts: bool,
     /// Session-owned final answer for a child; main follows its charter lifecycle in the run.
     pub final_turn: Option<FinalTurn>,
     /// The run identity shared by all its conversations.

@@ -1,4 +1,4 @@
-//! Schema tables converted to the generator tree (data/codec/README.md, section 7).
+//! Schema tables converted to the generator tree (data/codec/run-time.md, section 1).
 
 use core::fmt;
 
@@ -181,6 +181,7 @@ pub(crate) fn with_tables(source: &str) -> Result<(Schema, schema::Schema), Erro
         family: spelling(&parsed, parsed.family()),
         version: parsed.version(),
         declarations: (0..parsed.declarations()).map(|at| declaration(&parsed, DeclIx::new(at))).collect(),
+        layout: parsed.fingerprints().family().digest(),
     };
     check::check(&schema)?;
     Ok((schema, parsed))

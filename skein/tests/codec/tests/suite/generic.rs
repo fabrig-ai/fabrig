@@ -1,4 +1,4 @@
-//! Every schema's goldens agree with the generic decoder (data/codec/README.md, 8.3).
+//! Every schema's fixed-rule values agree with the generic decoder (data/codec/run-time.md, 2.3).
 
 extern crate alloc;
 
@@ -29,8 +29,8 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::panic, reason = "a refused golden reports the generated path and reason")]
-    fn every_golden_decodes_generically_to_its_own_bytes_and_tree() {
+    #[expect(clippy::panic, reason = "a refused fixed-rule value reports the generated path and reason")]
+    fn every_fixed_value_decodes_generically_to_its_own_bytes_and_tree() {
         let mut paths = std::fs::read_dir("schema")
             .expect("schema directory")
             .map(|entry| entry.expect("schema entry").path())
@@ -45,43 +45,44 @@ mod tests {
             let current = generated::current_text(path.to_str().expect("schema path"));
             let text = current.map_or_else(|| std::fs::read_to_string(&path).expect("schema readable"), str::to_owned);
             let schema = skein_codec::schema::parse(text.as_bytes()).expect("schema valid");
-            let goldens = current.map_or_else(
-                || skein_codegen::goldens(&skein_codegen::parse(&text).expect("generator schema")),
-                |text| skein_codegen::values(text).goldens.clone(),
+            let fixed_values = current.map_or_else(
+                || skein_codegen::fixed_values(&skein_codegen::parse(&text).expect("generator schema")),
+                |text| skein_codegen::values(text).fixed.clone(),
             );
             let family = generated::families().into_iter().find(|family| family.text == text);
-            for golden in goldens {
-                let root = generic::golden_root(&schema, &golden.name);
-                let node =
-                    value.decode(&schema, root, golden.bytes.clone().into_boxed_slice()).expect("golden decodes");
-                assert_eq!(value.bytes(), golden.bytes, "{path:?}: {}", golden.name);
+            for fixed_value in fixed_values {
+                let root = generic::named_root(&schema, &fixed_value.name);
+                let node = value
+                    .decode(&schema, root, fixed_value.bytes.clone().into_boxed_slice())
+                    .expect("fixed-rule value decodes");
+                assert_eq!(value.bytes(), fixed_value.bytes, "{path:?}: {}", fixed_value.name);
                 if let Some(family) = &family {
                     let name = schema.spelled(schema.declaration(root).name);
                     let generated_root =
                         family.roots.iter().find(|root| root.name.as_bytes() == name).expect("generated decoder");
-                    match (generated_root.decode)(&golden.bytes) {
+                    match (generated_root.decode)(&fixed_value.bytes) {
                         generated::Decoded::Value { debug, bytes, .. } => {
                             assert_eq!(
                                 generic::render(&schema, &value, node, root),
                                 debug,
                                 "{path:?}: {}",
-                                golden.name
+                                fixed_value.name
                             );
                             assert_eq!(value.bytes(), bytes);
                         }
                         generated::Decoded::Problem { path, reason } => {
-                            panic!("golden {}: {path}: {reason:?}", golden.name)
+                            panic!("fixed_value {}: {path}: {reason:?}", fixed_value.name)
                         }
                     }
-                    compared = compared.checked_add(1).expect("golden count");
+                    compared = compared.checked_add(1).expect("fixed-rule value count");
                 }
-                count = count.checked_add(1).expect("golden count");
+                count = count.checked_add(1).expect("fixed-rule value count");
             }
         }
-        // The codec fixtures contribute 388 goldens, including mapped's 234 and
+        // The codec fixtures contribute 394 fixed-rule values, including mapped's 240 and
         // growth's two; the UI schema contributes 12.
-        assert_eq!(count, 400);
-        assert_eq!(compared, 386);
+        assert_eq!(count, 406);
+        assert_eq!(compared, count);
     }
 }
 

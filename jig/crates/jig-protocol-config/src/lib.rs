@@ -23,7 +23,7 @@ pub use domain::{
 pub use projects::{Policy, Project, policies};
 mod check;
 mod worker;
-pub use worker::{Agent, FixedWorker, Graces, Worker, stop_bound, worker, worker_over};
+pub use worker::{Agent, DEFAULT_DRAIN_GRACE, FixedWorker, Graces, Worker, stop_bound, worker, worker_over};
 pub mod clients;
 mod files;
 pub mod hosts;
@@ -48,7 +48,7 @@ pub use document::{DocumentLimits, document};
 pub use forms::{digest, secret};
 pub use problem::{CodecBound, PROBLEMS, Path, Problem, Problems, Segment, What};
 /// Where an engine's settings defaults come from (configuration.md, 1;
-/// domain/engine/settings.md, 1 and 7).
+/// domain/engine/settings.md, 1, and domain/engine/settings-store.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Defaults {
     /// The document's `charters`, `templates`, `policies` and `rules`.
@@ -58,7 +58,7 @@ pub enum Defaults {
     /// All defaults, including providers, passed by the application.
     PassedProviders,
 }
-/// The engine's protocol configuration (configuration.md, 3).
+/// The engine's protocol configuration (protocol/configuration-engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct Engine {
     /// With `Passed`, the four settings fields are empty until `pass` gives them.

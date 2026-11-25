@@ -7,7 +7,7 @@
   The client draws it, or the application gives it as a name (below).
 - **Answered once durable:** the answer waits for the commit of the
   decision it reports, as every output that someone outside could act on
-  does (`../../../domain/engine/README.md`, 5.2).
+  does (`../../../domain/engine/decisions.md`, 1.2).
 - **Ordinary answers kept for a retention:** an ordinary deciding
   request's durable original answer is saved under its key, success and
   permanent routed refusal alike, and a request sent again within the
@@ -70,23 +70,23 @@ becomes. Their rules are the domain's (`../../../domain/people/acts.md`, 1
 and 2; `../../../domain/tasks/README.md`, section 4 and `../../../domain/tasks/changes.md` and `../../../domain/tasks/proposals.md`). A party and an
 agent ask the same operations and pass the same check, from different
 sources: the party's role and pool, or the task's authority and what it
-has left (`../../../domain/authority.md`, 8.1 and 8.4).
+has left (`../../../domain/authority-checks.md`, 1.1 and 1.4).
 
 | Operation | Names | Becomes |
 |---|---|---|
 | `Create` | a project; a batch: for each task its executor (an agent's charter, a procedure and its parameters, a person, or a role, which is the project's: roles are per project, `../../../domain/people/README.md`, section 1), spec, result contract (a report, a change or a verdict: an approval is a procedure's, `../../../domain/people/README.md`, section 7), authority, whose spend and deadline are the task's budget and deadline (`../../../domain/authority.md`, section 3), that budget as named there or `AsAllowed`, that deadline a wall or a span (below), wake policy, or none for its executor's default (`../../../domain/tasks/messages.md`, 3), as an agent's delegate may leave it, dependencies and inputs, the grants named after it (`../../../domain/authority.md`, section 4), tracked and priority, label and flags, and its LLM choice (its main model with its effort, the models its run's sub-agents may use with theirs, and an account, any of them left out for its charter's default, and optionally `later`, a main model with its effort and sub-agents with theirs for every run after its first activation's: `../../../domain/tasks/README.md`, section 3); and the dependencies among its tasks. The other resources a task will write are those its connectors name from its executor and spec (`../../../domain/tasks/README.md`, section 4) | the batch checked whole and made at once (`../../../domain/tasks/README.md`, section 4), its tasks numbered consecutively in the batch's order, the first and the last answered, and the `AsAllowed` task, if any, with what it was given |
-| `Delegate` | a project; a task, beneath which the batch is made; a batch, as `Create` names one (`../../../domain/tasks/README.md`, section 4) | the batch checked whole and made at once, the task's delegates: their requester and funder the task (`../../../domain/authority.md`, 8.4); answered as a `Create`'s |
+| `Delegate` | a project; a task, beneath which the batch is made; a batch, as `Create` names one (`../../../domain/tasks/README.md`, section 4) | the batch checked whole and made at once, the task's delegates: their requester and funder the task (`../../../domain/authority-checks.md`, 1.4); answered as a `Create`'s |
 | `Conclude` | a project; a gathering (`../../../domain/tasks/gatherings.md`) | no delegate joins it from that decision, and it ends done once its delegates have ended (section 3 of it); answered done, also for one already concluded, which changes nothing |
-| `Propose` | a project; the action: a batch, or an amendment (a widening of a task's authority among them); a party makes no effect (`../../../domain/people/acts.md`, 1); or, in the deployment's scope, a change of settings, as `ChangeSettings` names it but for whether running work moves (`../../../domain/engine/settings.md`, 6); a reason | a proposal to whoever may accept it, its number answered (5) |
+| `Propose` | a project; the action: a batch, or an amendment (a widening of a task's authority among them); a party makes no effect (`../../../domain/people/acts.md`, 1); or, in the deployment's scope, a change of settings, as `ChangeSettings` names it but for whether running work moves (`../../../domain/engine/settings-proposals.md`, 1); a reason | a proposal to whoever may accept it, its number answered (5) |
 | `Withdraw` | the party's own pending proposal | withdrawn |
 | `Message` | a task; the words | words in its inbox, their message number answered |
 | `Talk` | a task that stands; the words | its words as a `Message`'s, and a talk opened or carried on (`../../../domain/tasks/standing.md`, 5.6), their message number answered |
 | `Leave` | a task that stands | its talk ended, and its session (`../../../domain/tasks/standing.md`, 5.6) |
-| `Amend` | a task; its spec's revision, or a person task's for its address; the change: spec and parameters, instructions, authority, wake policy, its dependencies as a whole list (those it names anew added, those it leaves out removed: `../../../domain/tasks/changes.md`), a person task's address, tracked and priority, its LLM choice, which its next run takes, replacing the task's whole, its `later` with it, so one without `later` leaves the task none; a reason | amended; an active task given a pending dependency kept until it is done (`../../../domain/tasks/lifecycle.md`, 8). A change of priority alone names no revision: the first commit decides |
+| `Amend` | a task; its spec's revision, or a person task's for its address; the change: spec and parameters, instructions, authority, wake policy, its dependencies as a whole list (those it names anew added, those it leaves out removed: `../../../domain/tasks/changes.md`), a person task's address, tracked and priority, its LLM choice, which its next run takes, replacing the task's whole, its `later` with it, so one without `later` leaves the task none; a reason | amended; an active task given a pending dependency kept until it is done (`../../../domain/tasks/lifecycle-endings.md`, 1). A change of priority alone names no revision: the first commit decides |
 | `Cancel` | a task; a reason; a grace, or none | it and its tree closing; with a grace, the task first hears that it is asked to finish, as it hears an amendment, and is cancelled when the grace ends unless it ended first |
 | `Release` | a held task; its hold's revision; for an uncertain effect that cannot be recovered, whether to make it again | its hold lifted, judged afresh |
-| `Stop` | a task | its run cancelled, the task held for the party: a placed hold of the party's, stop, over the task's subtree (`../../../domain/tasks/lifecycle.md`, 10) |
-| `Hold` | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason | a placed hold, its number and revision answered (`../../../domain/tasks/lifecycle.md`, 10) |
+| `Stop` | a task; a reason, never empty, within a message's bytes | its run cancelled, the task held for the party: a placed hold of the party's, stop, over the task's subtree, with that reason (`../../../domain/tasks/lifecycle-holds.md`, 2); an empty reason is refused as a limit, empty |
+| `Hold` | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason, never empty | a placed hold, its number and revision answered (`../../../domain/tasks/lifecycle-holds.md`, 2) |
 | `Lift` | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
 | `Move` | a task the party may amend; a reason; or a live task the party may amend as its new requester | the party its requester, its reservation moved to their pool (`../../../domain/tasks/changes.md`); or that task its requester |
 | `Succeed` | an ended task in the party's tree, a live task in their tree | the live task the ended one's successor (`../../../domain/tasks/changes.md`) |
@@ -94,16 +94,17 @@ has left (`../../../domain/authority.md`, 8.1 and 8.4).
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
 | `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a completed answer (1; `../../../domain/people/README.md`, section 5) |
-| `ChangeModel` | the deployment, its scope (`README.md`, 5.5); the act: a model's number and whether a picker shows it, or a provider and a name to add | one change of the `model` setting at the newest revision, running work staying, decided and answered as `ChangeSettings`, and never stale (`../../../domain/engine/settings.md`, 11) |
-| `ChangeSettings` | the deployment, its scope (`README.md`, 5.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template, a policy, a model or a worker by number, the rules, an application's kind, scope and number, or a project's own policy by its project; a worker's number its client's to choose, `../../../domain/engine/workers.md`, 2) and what becomes of it: set to a value whole, a charter's instructions and its parts' as text, each part's `on` as its reasons (`../../../domain/tasks/messages.md`, 6), or, for a charter with a default, set to an overlay over it (`../../../domain/engine/overlays.md`), removed, or reset to its default, a project's policy set alone and at most one, decided by that project's owners and, beside the deployment's items, by a party who owns both; whether running work stays or moves (`../../../domain/engine/settings.md`, 2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (4) |
-| `MoveToNewest` | the deployment, its scope (`README.md`, 5.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../../domain/engine/settings.md`, 4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
-| `Restore` | the deployment, its scope (`README.md`, 5.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its items jig's kinds, an application's and each project's policy a later revision set, its number answered, with what it leaves out: the settings and the policy of each project deleted since, by kind, project and number (`../../../domain/engine/settings.md`, 10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
-| `MakeProject` | the deployment, its scope (`README.md`, 5.5); the new project's name (`../../../domain/model.md`, 6.1); the number of a policy among the settings, the newest's (`../../../domain/engine/settings.md`, 1) | a project, its policy a copy of that one, its maker its owner and only party (`../../../domain/people/acts.md`, 2), its number answered; the maker's `me` gains it. Not among a compound request's operations (4) |
-| `RemoveProject` | a project, by its owner; a grace, or none, within the tasks child's bound, as a `Cancel`'s: the chat template's, as `shapes::remove_project` gives it (../client/helpers.md) | the project closed in the decision that admits it, answered removed with its number, marked deleted, and deleted whole in the steps that follow (`../../../domain/people/acts.md`, 2): every `me` loses it, its read answers gone (`README.md`, section 4), and every other request and watch on it is refused unknown, as on a project that never was. A project with a live task is refused *live tasks*, naming its live roots (`README.md`, section 3), and nothing deleted, so the grace finds no conversation to close. Sent again under its key, it is answered removed, while the deletion lasts and after it, within the answers' retention; a project already being deleted, under another key, is refused unknown; a grace past its bound is refused, a limit, and nothing deleted. Not among a compound request's operations (4) |
+| `ChangeModel` | the deployment, its scope (`watches.md`, 1.5); the act: a model's number and whether a picker shows it, or a provider and a name to add | one change of the `model` setting at the newest revision, running work staying, decided and answered as `ChangeSettings`, and never stale (`../../../domain/engine/settings-catalogue.md`, 1) |
+| `ChangeSettings` | the deployment, its scope (`watches.md`, 1.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template, a policy, a model or a worker by number, the rules, an application's kind, scope and number, or a project's own policy by its project; a worker's number its client's to choose, `../../../domain/engine/workers.md`, 2) and what becomes of it: set to a value whole, a charter's instructions and its parts' as text, each part's `on` as its reasons (`../../../domain/tasks/messages.md`, 6), or, for a charter with a default, set to an overlay over it (`../../../domain/engine/overlays.md`), removed, or reset to its default, a project's policy set alone and at most one, decided by that project's owners and, beside the deployment's items, by a party who owns both; whether running work stays or moves (`../../../domain/engine/settings.md`, 2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (4) |
+| `MoveToNewest` | the deployment, its scope (`watches.md`, 1.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../../domain/engine/settings.md`, 4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
+| `Restore` | the deployment, its scope (`watches.md`, 1.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its items jig's kinds, an application's and each project's policy a later revision set, its number answered, with what it leaves out: the settings and the policy of each project deleted since, by kind, project and number (`../../../domain/engine/settings.md`, 10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
+| `ReissueService` | the deployment, its scope (`watches.md`, 1.5); a service's party, by its number | the service's sign-ins ended and a new credential drawn (`../../../domain/people/acts.md`, 1), answered `Made::Reissued { party }`, the credential handed to the application once as a made service's is, never kept in the small store (`../../../protocol/client/sign-in.md`, a service's credential); sent again under its key, it reissues again. Not among a compound request's operations (4) |
+| `MakeProject` | the deployment, its scope (`watches.md`, 1.5); the new project's name (`../../../domain/model.md`, 6.1); the number of a policy among the settings, the newest's (`../../../domain/engine/settings.md`, 1) | a project, its policy a copy of that one, its maker its owner and only party (`../../../domain/people/acts.md`, 2), its number answered; the maker's `me` gains it. Not among a compound request's operations (4) |
+| `RemoveProject` | a project, by its owner; a grace, or none, within the tasks child's bound, as a `Cancel`'s: the chat template's, as `shapes::remove_project` gives it (../client/helpers.md) | the project closed in the decision that admits it, answered removed with its number, marked deleted, and deleted whole in the steps that follow (`../../../domain/people/acts.md`, 2): every `me` loses it, its read answers gone (`reads.md`, section 1), and every other request and watch on it is refused unknown, as on a project that never was. A project with a live task is refused *live tasks*, naming its live roots (`answers.md`, section 1), and nothing deleted, so the grace finds no conversation to close. Sent again under its key, it is answered removed, while the deletion lasts and after it, within the answers' retention; a project already being deleted, under another key, is refused unknown; a grace past its bound is refused, a limit, and nothing deleted. Not among a compound request's operations (4) |
 | `SetVisibility` | a project, by its owner; public or private | the project public or private from that decision (`../../../domain/people/public-reading.md`, 2); every `me` of its parties marked. Project 0, and a project being deleted, refused |
-| the project's own | notes, by the revision recalled; its name (`../../../domain/model.md`, 6.1); the policy, its templates' overrides among them (6), and its ceiling, edited whole within the deployment's rules (`../../../domain/authority.md`, section 6), so that rules widened by a change of settings reach a project its owners widen; its spend per period, which resizes its open period (`../../../domain/authority.md`, section 7); roles, a role's spend per period alone (`RoleSpend`) among their edits, resizing its parties' open pools; a party's pool; services, a service's credential answered once; as `../../../domain/people/acts.md`, 1 and 2 | the note or the project changed |
+| the project's own | notes, by the revision recalled; its name (`../../../domain/model.md`, 6.1); the policy, its templates' overrides among them (6), and its ceiling, edited whole within the deployment's rules (`../../../domain/authority.md`, section 6), so that rules widened by a change of settings reach a project its owners widen; its spend per period, which resizes its open period (`../../../domain/authority-budgets.md`, section 1); roles, a role's spend per period alone (`RoleSpend`) among their edits, resizing its parties' open pools; a party's pool; services, a service's credential answered once; as `../../../domain/people/acts.md`, 1 and 2 | the note or the project changed |
 | adopting a resource | the application's own request (3), its form the application's; the engine's root makes the people request on the party's behalf | the project changed |
-| the party's LLM accounts | as `../../../domain/accounts.md`, section 5 has them: signing in with an LLM provider; finishing the party's sign-in under way with the address its browser was sent to, carrying it as its value (1), of at most the bytes `me` states (`documents.md`, 1); signing a source out; adding or replacing a key, carrying its value (1), of at most the bytes `me` states (`documents.md`, 1), and removing one; declaring a program's login under a name; checking a program source's login; logging a program in through a terminal the party lends, cancelling that login, and the lending client's report of its end (`../../../domain/terminal-login.md`, 3 and 4); reading a provider's lists again (`ReadLists`, a provider, reading each account of it the party may act on that has a list, answered with how many, the reads ending on the `accounts` watch; `../../../domain/accounts.md`, 3.7); an account's place among the holder's and its sources' order; its uses; resuming a limited source; removing an account, which signs each of its sources out and erases its keys; moving an account out, saying it *written* by the move's number, and moving one in, carrying the moved file as its value (1; `../../../domain/accounts.md`, section 6). The party's own accounts, or, for an owner, the deployment's | an account made, renewed or changed. A sign-in is answered done with the address to open in a browser, and ends on the `accounts` watch (`README.md`, 5.1), made, renewed or refused; a finish is answered *finishing* once the sign-in has taken the address, and the sign-in ends on the watch; a sign-out's answer says whether the provider confirmed revocation, and names each host that did not sign a program's login out; a program's login declared is answered with the source's name, by which the application's own command signs the program in on each host; a login through a lent terminal is answered with its number, and ends on the `accounts` watch, its cancel and its report answered done; a move out is answered *moving out*, naming the account and the move's number, with the moved record to write, once (1); *written* is answered done; a move in is answered *moved in*, naming the account and whether it renewed one |
+| the party's LLM accounts | as `../../../domain/accounts.md`, section 5 has them: signing in with an LLM provider; finishing the party's sign-in under way with the address its browser was sent to, carrying it as its value (1), of at most the bytes `me` states (`documents.md`, 1); signing a source out; adding or replacing a key, carrying its value (1), of at most the bytes `me` states (`documents.md`, 1), and removing one; declaring a program's login under a name; checking a program source's login; logging a program in through a terminal the party lends, cancelling that login, and the lending client's report of its end (`../../../domain/terminal-login.md`, 3 and 4); reading a provider's lists again (`ReadLists`, a provider, reading each account of it the party may act on that has a list, answered with how many, the reads ending on the `accounts` watch; `../../../domain/accounts-lists.md`, 1); an account's place among the holder's and its sources' order; its uses; resuming a limited source; removing an account, which signs each of its sources out and erases its keys; moving an account out, saying it *written* by the move's number, and moving one in, carrying the moved file as its value (1; `../../../domain/accounts.md`, section 6). The party's own accounts, or, for an owner, the deployment's | an account made, renewed or changed. A sign-in is answered done with the address to open in a browser, and ends on the `accounts` watch (`watches.md`, 1.1), made, renewed or refused; a finish is answered *finishing* once the sign-in has taken the address, and the sign-in ends on the watch; a sign-out's answer says whether the provider confirmed revocation, and names each host that did not sign a program's login out; a program's login declared is answered with the source's name, by which the application's own command signs the program in on each host; a login through a lent terminal is answered with its number, and ends on the `accounts` watch, its cancel and its report answered done; a move out is answered *moving out*, naming the account and the move's number, with the moved record to write, once (1); *written* is answered done; a move in is answered *moved in*, naming the account and whether it renewed one |
 
 - **A task's fields cross as data** (`../../../domain/tasks/README.md`,
   section 3): *tracked* and *priority*, which the engine acts on; a
@@ -111,7 +112,7 @@ has left (`../../../domain/authority.md`, 8.1 and 8.4).
   gives no meaning and no rule of the engine's keys; and flags, each
   with engine semantics: *conversation* (its turns are entries for its
   requester, with their read position and an unread count), *listed*
-  (once ended, it is found by its project and label, `README.md`, 4.1), and its
+  (once ended, it is found by its project and label, `reads.md`, 1.1), and its
   *retention class*, *kept* or *forgotten once read*. A `Create` names them, and a
   task keeps them; documents carry them, with the two the engine keeps
   on every task: its *last activity* and what it is *waiting on* (`documents.md`, 1).
@@ -127,12 +128,12 @@ has left (`../../../domain/authority.md`, 8.1 and 8.4).
   made". The engine makes it a wall from the wall time of the decision
   that makes the task, a `Create`'s admission or the acceptance of the
   proposal that asks for it, as it checks the batch
-  (`../../../domain/authority.md`, section 7), and the task keeps that
+  (`../../../domain/authority-budgets.md`, section 1), and the task keeps that
   wall. A request so carries no clock of its sender's, and is the same
   ask each time it is sent, under its key or its name (1).
 - **Where a party may reach.** A party's `Create` or `Delegate` may depend on a live
   task, or on one that has ended (one done adds no wait, one failed or
-  cancelled refuses it, *dependency*: `README.md`, section 3), or take an ended task's result as an input, in their tree, or
+  cancelled refuses it, *dependency*: `answers.md`, section 1), or take an ended task's result as an input, in their tree, or
   any task of the project for a maintainer; a `Create`'s tasks' requester is the
   party, a `Delegate`'s the task it names. An agent reaches its
   delegates and the tasks it was introduced to (`../../../domain/tasks/messages.md`,
@@ -142,7 +143,7 @@ has left (`../../../domain/authority.md`, 8.1 and 8.4).
 - **A party's root has someone to escalate to.** A party may create a
   root task only when its escalations have a holder: their role covers
   escalations, or the project's policy names an escalation role. It is
-  refused otherwise, saying so (`README.md`, section 3), as a proposal nobody may
+  refused otherwise, saying so (`answers.md`, section 1), as a proposal nobody may
   accept is (5).
 - **What stays asymmetric:** procedures decide nothing
   (`../../../domain/tasks/proposals.md`); only parties execute person
@@ -157,7 +158,7 @@ has left (`../../../domain/authority.md`, 8.1 and 8.4).
   whose connector reads it.
 - **A watch is not a keyed request.** It changes nothing and needs no
   answer kept: it is admitted on the party's sign-in and role, and ends
-  when its client leaves (`README.md`, section 5).
+  when its client leaves (`watches.md`, section 1).
 
 Authority payloads carry an optional model selector: ALL or an explicit
 list of at most 64 unique, nonempty UTF-8 names, each at most 4,096 bytes.
@@ -188,14 +189,14 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
 - **admitted by the people child** (`../../../domain/people/acts.md`, 1) by
   key, as jig's are: duplicates joined, the party's sign-in checked,
   and, by the scope the request names as a read or a subject does
-  (`README.md`, 5.5), their role in its project, their role in the deployment, or
+  (`watches.md`, 1.5), their role in its project, their role in the deployment, or
   nothing more for the party's own; a key sent again with another
   request is told apart by a digest of the request's encoding, which
   the protocol layer gives the domain with it;
 - **refused at admission with jig's refusal:** a request the people
   child refuses there (its party's role in the request's scope, a key
   sent again with another request, a limit), or one whose sign-in has
-  ended, is answered as jig's are (`README.md`, section 3) and never reaches its
+  ended, is answered as jig's are (`answers.md`, section 1) and never reaches its
   connector. The client hands that answer to the application under the
   request's key and owner, which shows it as a refusal, never as its
   object gone;
@@ -211,7 +212,7 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   keeps the outcome under that token, durably, for the retention, and
   gives it again when the request is sent again, as the core asks a
   connector for any value it does not own (`../../../domain/model.md`,
-  section 5; `../../../domain/connectors.md`, 5.5). A connector whose
+  section 5; `../../../domain/connectors-facts.md`, 1.5). A connector whose
   own table of kept outcomes is full may make room, dropping the
   outcome whose retention ends first, never a request still pending:
   that key, sent again, is answered unknown, as one past its retention
@@ -255,7 +256,7 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   1): in order, each operation as it would be alone after those
   before it, with one pool counted across them; every operation's task
   in the request's project; at most *operations per request*, refused
-  at admission past it as a limit (`README.md`, section 3), enough to close a
+  at admission past it as a limit (`answers.md`, section 1), enough to close a
   conversation with every delegate live, or reorder every goal of a
   project, in one request (`../../../protocol/limits.md`
   ).
@@ -295,7 +296,7 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   agent. A `Create` or an `Amend` whose authority, budget, deadline or
   grants pass what the party may give alone is refused as lacking
   authority: what it lacked and by how much, and whether a proposal of
-  it could be accepted (`README.md`, section 3); to whom it would go, the offer says
+  it could be accepted (`answers.md`, section 1); to whom it would go, the offer says
   (`documents.md`, 3). Nothing is proposed on the party's behalf.
 - **`Propose` asks.** The party proposes the action, which waits for the
   roles the project's policy names for its kind
@@ -308,7 +309,7 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   amendment's as a batch's, so its decision, and a rejection's reason,
   reach them.
 - **Why:** a person is never asked by accident, the reason
-  `../../../domain/engine/executors.md`, 3 gives for agents, and a service is a
+  `../../../domain/engine/executors-tools.md`, 1 gives for agents, and a service is a
   program. Proposing when beyond is sugar: a helper that sends
   `Propose` where the offer says a draft is beyond the party (`documents.md`, 3).
 
@@ -319,7 +320,7 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   numbered and never renumbered, in the application's configuration.
   What each carries, jig's two defaults (chat, template 1; goal,
   template 2), and what a project's policy may override, are
-  `../../../protocol/configuration.md`'s, 3.1, with their JSON in its
+  `../../../protocol/configuration-templates.md`'s, 1, with their JSON in its
   section 10.
 - **The engine never expands or checks one.** It keeps the
   configuration's templates and each policy's overrides only to serve
@@ -331,4 +332,4 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   limits still hold.
 - **Permissions stay primitive,** with no "may use template", and a
   task keeps the values it was made with
-  (`../../../protocol/configuration.md`, 3.1).
+  (`../../../protocol/configuration-templates.md`, 1).

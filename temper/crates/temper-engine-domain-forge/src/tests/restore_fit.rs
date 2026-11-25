@@ -20,6 +20,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             closer: temper_engine_domain_forge_closer::Closer::new(),
             making: None,
             close_changes: Box::new([]),
+            superseded: Box::new([]),
             landing_changes: Box::new([]),
             relay: temper_engine_domain_forge_closer::relay::Relay::new(),
             done: false,
@@ -59,9 +60,11 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
         }),
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
+            read_hold: None,
             last_event: None,
             turn_since: None,
             waiting: None,
+            follows: None,
             flake_reruns: Box::new([]),
             room: None,
             job: None,
@@ -259,6 +262,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             signature: None,
             seen: None,
             blame: None,
+            repair: None,
             cleared: None,
         }),
         RecordKind::Red => Stored::Red(Red {
@@ -557,8 +561,7 @@ fn references_refuse_before_mutation_and_first_failure_stops_recovery() {
     for event in [
         Event::Restore { record: row(RecordKind::Binding, 1) },
         Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
-        Event::ReadAfresh,
-        Event::SettleOutbox,
+        Event::CatchUp,
         Event::Settle,
     ] {
         assert!(outputs(&mut d, event).is_empty());
@@ -764,9 +767,11 @@ fn landing(members: u32, gates: u32) -> LandingRow {
         landed: None,
     };
     LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
+        follows: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -1130,6 +1135,7 @@ fn tier_row(number: u32) -> TierRow {
         tier: Box::from(b"tier".as_slice()),
         record: temper_engine_domain_forge_tiers::Record {
             sequence: 0,
+            last_run: None,
             judged: None,
             failing: temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])),
             flakes: Box::new([]),

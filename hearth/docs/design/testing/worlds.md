@@ -146,16 +146,16 @@ section 10.
   templates, with 64 targets, runs through the builder at the shipped
   limits, in the fuzzy suite, under a ceiling of its own: it is the
   measure that the defaults fit a modest machine
-  (hearth/docs/design/domain/render/README.md, 5.4). A client that stops reading
+  (hearth/docs/design/domain/render/crates.md, 1.4). A client that stops reading
   has a ceiling too, in the focused suite: it is the measure that the
   watermark holds render, and removing the watermark passes it.
 - **Replay:** a seed replays to the same trace, the same fake machine,
   whose state the fake digests itself, and the same digest of hearth's
   own state: a digest over the state types' derived `Hash`, which
-  hearth asks of skein (hearth/docs/design/README.md, 7.1; `skein/docs/design/runtime/lib.md`, 5.1). Each
+  hearth asks of skein (hearth/docs/design/README.md, 7.1; `skein/docs/design/runtime/lib-containers.md`, 1.1). Each
   process's `state_digest` and the fake machine's are read at the end of
   a run, and after every iteration when a world asks (
-  `skein/docs/design/testing/README.md`, section 5).
+  `skein/docs/design/testing/service-tiers.md`, section 1).
 - **Transition coverage:** `cargo llvm-cov` over both suites lists the
   handlers never reached; each is a missing scenario.
 - **Fuzzing:** each machine and decoder alone; step functions fed
@@ -194,5 +194,5 @@ same repository (`vm.md`, 3).
 | a builder that hangs | steward | the scripted builder never answers a build | at the job's deadline the steward stops the builder's cgroup; the job lost and tried again (hearth/docs/design/domain/steward.md, 5.2) |
 | the bless's render fails | steward, system | in the new slot, the render of the slot's revision fails: a configuration error in one seed, the builder lost twice in another | the steward asks to fall back, never to bless; the default never moved; `a` boots, and `b`'s prepare key is refused (hearth/docs/design/domain/steward.md, section 6) |
 | a release that renders another output | steward, system | the new slot's builder renders the slot's revision to another output key | the bless is asked and given; a `render changed` fact; the next pass builds that output and tries it |
-| a client that stops reading | builder | many targets, with the client's output held until render has stopped | render waits at the watermark (hearth/docs/design/domain/render/README.md, 5.4): the peak stays under its ceiling, and once the output moves every record prints, in order, with the call's exit |
+| a client that stops reading | builder | many targets, with the client's output held until render has stopped | render waits at the watermark (hearth/docs/design/domain/render/crates.md, 1.4): the peak stays under its ceiling, and once the output moves every record prints, in order, with the call's exit |
 | a steward that dies with a builder running | activator, system | the steward killed in the middle of a build | the activator empties `steward/` with `cgroup.kill` before it spawns a new steward, so no builder outlives its steward; the next builder's startup scan settles the staging layer; the pass goes on (hearth/docs/design/domain/steward.md, 5.4) |

@@ -88,6 +88,20 @@ pub(crate) const OPEN_CHANGE: &[&str] = &[
     "--key",
     "open-change",
 ];
+pub(crate) const FINDING_REPAIR_CALL: &[&str] =
+    &["finding", "repair", "1/3", "shop/5", "repair together", "--key", "repair"];
+pub(crate) const FINDING_BLAME_LANDING_CALL: &[&str] = &[
+    "finding",
+    "blame",
+    "1/3",
+    "--landing",
+    "1234567890abcdef1234567890abcdef12345678",
+    "this landing",
+    "--key",
+    "blame-landing",
+];
+pub(crate) const FINDING_BLAME_NONE_CALL: &[&str] =
+    &["finding", "blame", "1/3", "--none", "no landing", "--key", "blame-none"];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["link", "--out", "record"],
     &["deployment", "checkpoint"],
@@ -110,6 +124,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["finding", "route", "3/12", "--goal", "41", "--key", "route"],
     &["finding", "backlog", "3/12", "--key", "backlog"],
     &["finding", "drop", "3/12", "duplicate", "--key", "drop"],
+    FINDING_REPAIR_CALL,
+    FINDING_BLAME_LANDING_CALL,
+    FINDING_BLAME_NONE_CALL,
     &[
         "need",
         "ask",
@@ -283,6 +300,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["worker", "pause", "w1"],
     &["worker", "drain", "w1"],
     &["worker", "resume", "w1"],
+    PARTY_REISSUE_CALL,
 ];
 
 pub(crate) const WORKER_ADD: &[&str] = &[
@@ -425,6 +443,8 @@ use jig_client::{self as client, contract as c};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 /// Distinct from the other party in recovery tests.
 pub(crate) const PARTY: u64 = 73;
+pub(crate) const SERVICE_PARTY: u64 = 9;
+pub(crate) const PARTY_REISSUE_CALL: &[&str] = &["party", "reissue", "9", "--out", "service"];
 /// The first goal read throughout this session.
 pub(crate) const TASK: u64 = 41;
 /// A second task makes call correlation observable out of order.
@@ -484,6 +504,7 @@ pub(crate) fn me(party: u64) -> c::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(1_800_000_000_000_000_000),
         party: c::MeParty {
             number: party,
             kind: c::PartyKind::Service,
@@ -853,7 +874,12 @@ pub(crate) fn kept(prefix: u32) -> List<skein_lib::RequestRecord<client::Held>> 
         first_sent: None,
         request: client::Held {
             key: client::Key { asker: root::RUNNER.asker(), number: (u64::from(prefix) << 32u32) | 1 },
-            request: client::Ask::Jig(Box::new(c::Ask::Stop { project: PROJECT, task: TASK })),
+            request: client::Ask::Jig(Box::new(c::Ask::Stop {
+                project: PROJECT,
+                task: TASK,
+                reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            })),
         },
     })
     .expect("one kept request");
@@ -931,7 +957,7 @@ pub(crate) fn long_path() -> List<Box<[u8]>> {
 /// Start one read of the common waiting goal before its answer is supplied.
 pub(crate) fn task_read() -> (Harness, u32, c::Task) {
     let (root, call) = read_call(TASK_CALL);
-    (root, call, goal(TASK, waiting_on_me()))
+    (root, call, waiting_goal())
 }
 /// The same task is requested in JSON without repeating its command.
 pub(crate) const TASK_JSON_CALL: &[&str] = &[TASK_CALL[0], TASK_CALL[1], TASK_CALL[2], "--json"];

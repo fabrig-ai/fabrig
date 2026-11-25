@@ -53,8 +53,16 @@ pub(crate) fn category(kind: &MessageKind) -> u8 {
     }
 }
 
+/// Every message wakes an agent holding a pending escalation (domain/tasks/messages.md, 3).
 pub(crate) fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
     let task = record(domain, number).expect("inbox task live");
+    let agent = match task.executor {
+        crate::Executor::Agent { .. } => true,
+        crate::Executor::Person(_) | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
+    };
+    if agent && crate::escalation::has_waiting(domain, number) {
+        return WakeRule::Immediate;
+    }
     let live_run = match task.phase {
         Phase::Active(Active::Claimed { .. } | Active::Running { .. }) => true,
         Phase::Waiting
@@ -79,6 +87,8 @@ pub(crate) fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
         | MessageKind::Proposal { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
         | MessageKind::Escalation { .. } => WakeRule::Immediate,
         MessageKind::PersonStalled { .. } => task.wake.news,
         MessageKind::Question => {
@@ -183,7 +193,7 @@ fn batch_state(domain: &Domain, number: u64, word: &Word) -> (u32, Wall, bool) {
     (hits, oldest, latched)
 }
 
-/// Admit root's numbered notice only while the kept task can go on (domain/tasks/lifecycle.md, 8).
+/// Admit root's numbered notice only while the kept task can go on (domain/tasks/lifecycle-endings.md, 1).
 pub(crate) fn met(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -250,6 +260,8 @@ pub(crate) fn after_message(
             | MessageKind::SettingsDecision { .. }
             | MessageKind::ProposalDecision { .. }
             | MessageKind::Proposal { .. }
+            | MessageKind::PassedQuestion { .. }
+            | MessageKind::PassedAnswer { .. }
             | MessageKind::Escalation { .. }
             | MessageKind::Question
             | MessageKind::Answer { .. }
@@ -366,7 +378,11 @@ pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out
         return;
     }
     // Only an idle task judges its entries again: a live run already heard them.
-    for entries in [crate::proposals::waiting_for(domain, number), crate::escalation::waiting_for(domain, number)] {
+    for entries in [
+        crate::proposals::waiting_for(domain, number),
+        crate::escalation::waiting_for(domain, number),
+        crate::questions::waiting_for(domain, number),
+    ] {
         for word in entries {
             if record(domain, number).expect("decision holder live").phase != Phase::Active(Active::Idle) {
                 return;
@@ -412,7 +428,7 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     }
 }
 
-fn schedule(domain: &mut Domain, env: &Env<Limits>, number: u64) {
+pub(crate) fn schedule(domain: &mut Domain, env: &Env<Limits>, number: u64) {
     let task = record(domain, number).expect("batch task live");
     let mut oldest: Option<u64> = None;
     for word in &task.inbox {

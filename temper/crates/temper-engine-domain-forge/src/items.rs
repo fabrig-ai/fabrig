@@ -1,7 +1,7 @@
 //! Checkout items (jig's domain/connectors.md, section 10). The connector
 //! selects starts and write destinations from its adopted and procedure facts.
 //! Items are returned whole with their byte size; no copy is retained here.
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Domain, Role};
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -13,6 +13,21 @@ pub use temper_engine_domain_forge_vocabulary::items::*;
 type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>, Option<Box<[u8]>>, bool);
 
 impl Domain {
+    /// Workspace selection waits for the restart's forge facts (domain/forge/catching-up.md, 4).
+    #[must_use]
+    pub fn workspace_reads_waiting(&self) -> bool {
+        !crate::domain::fresh_reads_in(self)
+    }
+
+    /// A producer whose selection was deferred can retry once its goal branch facts are in.
+    #[must_use]
+    pub fn producer_workspace_waiting(&self, task: u64, parent: u64) -> bool {
+        let Some(row) = self.change(parent) else { return false };
+        row.delegate == Some((task, change::Delegate::Produce))
+            && (self.goal_branch_read_waiting(row.repository, &row.branch)
+                || self.goal_branch_read_waiting(row.repository, &row.base))
+    }
+
     /// One landing job's repository and new writable branch (temper/docs/design/domain/worker/jobs.md).
     #[must_use]
     pub fn prepare_item(
@@ -65,6 +80,13 @@ impl Domain {
     /// (temper/docs/design/domain/forge/branches.md, 3).
     #[must_use]
     pub fn design_workspace_waiting(&self, task: u64) -> bool {
+        self.goal_workspace_waiting(task, true)
+    }
+
+    /// A goal's checkout waits for its making, even when it does not write design
+    /// (temper/docs/design/domain/forge/branches.md, 1).
+    #[must_use]
+    pub fn goal_workspace_waiting(&self, task: u64, modify: bool) -> bool {
         for (name, hold) in &self.holds {
             if hold.task != task {
                 continue;
@@ -76,7 +98,7 @@ impl Domain {
             }
             if let Some((_, goal)) = goal_branch(name, &repository.prefix)
                 && goal == task
-                && self.design_branch_waiting(name)
+                && self.goal_checkout_waiting(name, modify)
             {
                 return true;
             }
@@ -84,7 +106,15 @@ impl Domain {
         false
     }
 
-    fn design_branch_waiting(&self, name: &crate::Name) -> bool {
+    fn goal_checkout_waiting(&self, name: &crate::Name, modify: bool) -> bool {
+        if !self.repository_fresh(api::Repository { forge: name.forge, repository: name.repository })
+            || self.goal_branch_waiting(name)
+        {
+            return true;
+        }
+        if !modify {
+            return false;
+        }
         let undrifted = match self.holds.get(name) {
             Some(hold) => hold.drift.is_none(),
             None => false,
@@ -93,7 +123,7 @@ impl Domain {
             Some(head) => head.owned,
             None => false,
         };
-        !undrifted || !owned || self.goal_branch_waiting(name)
+        !undrifted || !owned
     }
 
     /// Select one checkout item from the task's saved and procedure state.
@@ -118,7 +148,15 @@ impl Domain {
         let (mut start, mut push, holder, selected_landing, delivers) = match inherited {
             Some((row, kind)) => match kind {
                 change::Delegate::Produce => {
-                    let existing = branch_head(self, seed.repository, &row.branch).is_some();
+                    if seed.saved_branch.is_none()
+                        && (!self.repository_fresh(seed.repository)
+                            || self.goal_branch_read_waiting(seed.repository, &row.branch))
+                    {
+                        return None;
+                    }
+                    // A saved start replaces this selection below and needs no branch observation.
+                    let existing =
+                        seed.saved_branch.is_some() || branch_head(self, seed.repository, &row.branch).is_some();
                     let start = if existing {
                         Start::Branch(row.branch.clone())
                     } else if let change::Early::Started(heads) = &row.change.early {
@@ -186,6 +224,11 @@ impl Domain {
             if merge_landing {
                 match &start {
                     Start::Branch(branch) | Start::Saved(branch) => {
+                        if !self.repository_fresh(seed.repository)
+                            || self.goal_branch_read_waiting(seed.repository, &row.base)
+                        {
+                            return None;
+                        }
                         start = Start::Merge {
                             branch: branch.clone(),
                             base: branch_head(self, seed.repository, &row.base)?,
@@ -285,6 +328,9 @@ impl Domain {
     /// other tasks start at the repository's base
     /// (temper/docs/design/domain/forge/branches.md, 1).
     fn task_workspace_item(&self, seed: &Seed, repository: &crate::Repository) -> Option<CheckoutSelection> {
+        if seed.modify && repository.role != Role::Context && !self.repository_fresh(seed.repository) {
+            return None;
+        }
         if repository.role != Role::Context {
             for (name, hold) in &self.holds {
                 if name.forge != seed.repository.forge
@@ -295,8 +341,7 @@ impl Domain {
                 }
                 if let Some((_, task)) = goal_branch(name, &repository.prefix)
                     && task == seed.task
-                    && seed.modify
-                    && self.design_branch_waiting(name)
+                    && self.goal_checkout_waiting(name, seed.modify)
                 {
                     return None;
                 }

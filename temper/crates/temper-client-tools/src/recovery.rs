@@ -1,4 +1,4 @@
-//! Kept names, replay admission and diagnostics (client/ctl/README.md, 5 and 6.2).
+//! Kept names, replay admission and diagnostics (client/ctl/requests.md, 1, and client/ctl/command-line.md, 1.2).
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Ask, Client, Held, Key, Record};
 use jig_client_protocol_link::{Limits, translate};
@@ -131,25 +131,13 @@ pub fn restore(entry: &Record, limits: &Limits) -> Option<RequestRecord<Held>> {
     }
     let mut reader = Reader::new(&entry.bytes);
     let kept = w::Kept::decode(limits.wire(), &mut reader).ok()?;
-    if reader.remaining() != 0 || kept.store_version != jig_client_domain::TABLE_VERSION {
+    if reader.remaining() != 0 || kept.layout != w::LAYOUT {
         return None;
     }
     let mut reader = Reader::new(kept.record.as_ref());
     let row = translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader).ok()?, limits).ok()?;
     if reader.remaining() != 0 || row.key.as_slice() != entry.key.as_ref() {
         return None;
-    }
-    if let Ask::Family { record, .. } = &row.request.request {
-        let mut declared = false;
-        for owner in limits.client().owners {
-            if owner.family == record.family && owner.version == record.version {
-                declared = true;
-                break;
-            }
-        }
-        if !declared {
-            return None;
-        }
     }
     Some(row)
 }

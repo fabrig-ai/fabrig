@@ -201,6 +201,9 @@ pub(crate) fn load_outputs(
                         cut,
                     ),
                     Some(Waiting::Document) => crate::route::document::loaded(domain, waiter, rows, next, cut, out),
+                    Some(Waiting::CloserReport) => {
+                        crate::route::forge_route::goal_report::loaded(domain, waiter, rows, next, cut, out);
+                    }
                     Some(Waiting::Remember) => crate::route::remember::loaded(domain, waiter, rows, next, cut, out),
                     Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
                     Some(Waiting::GoalWords) if cut.is_none() && next.is_none() => {
@@ -253,7 +256,7 @@ pub(crate) fn load_outputs(
                     ),
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
                     Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
-                    Some(Waiting::Notes) => note_failed(domain, waiter),
+                    Some(Waiting::Notes | Waiting::CloserReport) => note_failed(domain, waiter),
                     Some(Waiting::Input) => input_failed(domain, waiter),
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
                     Some(Waiting::Transcript) => transcript_unread(domain, waiter),
@@ -356,7 +359,7 @@ pub(crate) fn startup_page(
     close(domain, env, decision, out);
 }
 
-/// Translate only the phase selected by the core (temper/docs/design/domain/root.md, 8.1).
+/// Translate only the phase selected by the core (temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, action: Action) {
     if domain.core.stopping() || domain.start_stop().is_some() {
         return;
@@ -384,9 +387,7 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                 Phase::Link => domain.work.push(Work::ForgeRestored),
                 Phase::Sweep => sweep(domain, env, decision),
                 Phase::Switch => {
-                    if domain.rehearsal.is_some() {
-                        domain.rehearsal = Some(true);
-                    } else if domain.start_pending {
+                    if domain.start_pending {
                         assert!(crate::domain::now(domain, Request::Store(crate::StoreRequest::Switch)), "switch door");
                     } else {
                         domain.work.push(Work::StartDone(phase));
@@ -404,14 +405,6 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                         domain.work.push(Work::Core(jig_domain_core::Event::Fill { bytes }));
                     }
                     domain.work.push(Work::StartDone(phase));
-                }
-                Phase::ReadAfresh { connector } => {
-                    assert_eq!(connector, domain.config.forge_connector, "configured forge connector");
-                    domain.work.push(Work::Forge(forge::Event::ReadAfresh));
-                }
-                Phase::SettleOutbox { connector } => {
-                    assert_eq!(connector, domain.config.forge_connector, "configured forge connector");
-                    domain.work.push(Work::Forge(forge::Event::SettleOutbox));
                 }
                 Phase::Open => {
                     for index in 0..domain.core.projects.len() {
@@ -485,33 +478,18 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
 }
 
 pub(crate) fn connector_start_done(domain: &mut Domain, stage: jig_domain_core::effects::connector::RestartStage) {
+    use jig_domain_core::effects::connector::RestartStage;
     if domain.core.stopping() || domain.settling.active() {
         return;
     }
     let connector = domain.config.forge_connector;
-    let phase = match stage {
-        jig_domain_core::effects::connector::RestartStage::Restored => Phase::Link,
-        jig_domain_core::effects::connector::RestartStage::ReadAfresh => Phase::ReadAfresh { connector },
-        jig_domain_core::effects::connector::RestartStage::Settled => Phase::SettleOutbox { connector },
-    };
-    domain.work.push(Work::StartDone(phase));
-}
-
-pub(crate) fn connector_restarting(domain: &Domain) -> bool {
-    match domain.start_phase() {
-        Some(Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. }) => true,
-        Some(
-            Phase::LoadCore
-            | Phase::LoadInbox
-            | Phase::RestoreConnector { .. }
-            | Phase::Link
-            | Phase::Sweep
-            | Phase::Switch
-            | Phase::Wires
-            | Phase::AdoptRuns
-            | Phase::Open,
-        )
-        | None => false,
+    match stage {
+        RestartStage::Restored => domain.work.push(Work::StartDone(Phase::Link)),
+        RestartStage::ReadAfresh => {
+            domain.core.catch_up_done(connector, stage);
+            crate::route::forge_route::limit_holds::restart(domain);
+        }
+        RestartStage::Settled => domain.core.catch_up_done(connector, stage),
     }
 }
 
@@ -521,7 +499,7 @@ fn stop_load(domain: &mut Domain, failure: loads::Failure) {
 }
 
 /// Rebuild child state and transient proof correlations before linking
-/// (temper/docs/design/domain/root.md, 8.1). Archive history stays outside the live map.
+/// (temper/docs/design/domain/root-restart.md, 1.1). Archive history stays outside the live map.
 pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Record) {
     match row {
         Record::Core(row) => {
@@ -594,7 +572,7 @@ fn census_page(
 }
 
 /// Supply defaults after every forge row has been routed, before completing its restore
-/// (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root.md, 8.1).
+/// (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn restore_connector_done(domain: &mut Domain) {
     give_settings_defaults(domain);
     domain.work.push(Work::StartDone(Phase::RestoreConnector { connector: domain.config.forge_connector }));

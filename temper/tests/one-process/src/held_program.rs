@@ -1,5 +1,4 @@
-//! Stop with a program turn held (temper/docs/design/testing/README.md, 2.5;
-//! temper/docs/design/protocol/setup/box.md, 2).
+//! Host a signed-in program source for the stop and landing stories (temper/docs/design/testing/tiers.md, 1.5).
 use crate::{
     ctl::{Caller, Command},
     fixtures,
@@ -19,6 +18,10 @@ use temper_playground::{
     machine::{self, Machine},
     programs::{self, Harness},
 };
+
+pub mod landing;
+mod model_check;
+pub use model_check::welcome_trial;
 
 const CLAUDE: &[u8] = b"/usr/bin/claude";
 const RELAY: &[u8] = b"/world/relay";
@@ -40,9 +43,19 @@ impl Harness for Held {
         value["world_settings"]["llm"]["providers"][0]["sources"]["programs"] = json!(["claude_code"]);
         value["world_settings"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
         value["world_settings"]["llm"]["endpoints"][0]["program"] = "claude_code".into();
+        if model_check::active() {
+            model_check::configure(value);
+        }
+        if landing::active() {
+            landing::configure(value);
+        }
     }
     fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
-        documents::given_with(document, false, false)
+        let mut given = documents::given_with(document, model_check::active(), false);
+        if landing::active() {
+            landing::give(&mut given);
+        }
+        given
     }
     fn agent_settings() -> temper_service::settings::Agent {
         let mut agent = documents::agent();
@@ -106,8 +119,9 @@ impl Host for Local {
     }
 }
 
-/// The program's absolute namespace is the worker disk; all other roots keep
-/// the shared world's meanings. The fake opens its config and MCP files here.
+/// The program's absolute namespace is the worker disk. Under `/.` the fake
+/// can open both `/programs` run files and `/workspaces` built-in act paths.
+/// Other startup roots keep the shared world's meanings.
 struct ProgramMachine(Machine);
 impl skein_world::Machine for ProgramMachine {
     fn open_root(&mut self, path: &[u8]) -> Result<skein_sim::Handle, Error> {
@@ -151,6 +165,14 @@ fn service(inherited: &Inherited) -> Proc {
     )
     .expect("program resources");
     host.service.configure_program_sources(resources).expect("program source");
+    if landing::active() {
+        let mut document = programs::parameters().deployment.as_ref().clone();
+        Held::configure(&mut document);
+        let limits = temper_service::limits::engine(&document.jig, &document.limits).expect("landing engine limits");
+        let codec = jig_protocol_store::codec::limits(&document.jig.core).expect("landing store codec");
+        let families = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("landing families");
+        host.observer.set_codec(&codec, &families);
+    }
     Proc::Service(host)
 }
 
@@ -176,6 +198,9 @@ fn agent_configuration() -> smith_agent_service::Config {
     configuration
 }
 fn agent(_: &Spawn, inherited: &Inherited) -> Proc {
+    let is_programs = |name: &[u8]| name == b"programs";
+    let programs = inherited.roots.iter().find(|(name, _)| is_programs(name)).expect("programs root").1;
+    let workspace = inherited.roots.iter().filter(|(name, _)| !is_programs(name)).map(|(_, fd)| *fd).collect();
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).expect("agent pipe").1;
     let (errors, capture) = skein_sim_world::PipeWriter::new(pipe(2), 4096);
     let agent = smith_agent_shell::Agent::new(
@@ -196,17 +221,17 @@ fn agent(_: &Spawn, inherited: &Inherited) -> Proc {
             seed: fixtures::SEED,
             pid: 101,
             trace: None,
-            roots: Some(Box::new([])),
+            roots: Some(workspace),
             programs: Some(smith_agent_shell::ProgramResources {
                 relay: "/world/relay".into(),
                 entropy: Secret::new(Box::new([7; 32])),
-                directory: Some(inherited.roots[0].1),
+                directory: Some(programs),
             }),
         },
         Box::new(errors),
     )
     .expect("program-enabled agent");
-    Proc::Agent(Box::new(machine::Rooted::new(capture.host(agent), inherited)))
+    Proc::Agent(Box::new(machine::Rooted::new(capture.host(agent), inherited).with_hosted_workspace(CLAUDE)))
 }
 fn fake_launch(spawn: &Spawn) -> Spawn {
     let mut launch = Spawn {
@@ -218,7 +243,8 @@ fn fake_launch(spawn: &Spawn) -> Spawn {
         dir: spawn.dir.clone(),
         pipes: spawn.pipes.clone(),
     };
-    if launch.args.first().is_some_and(|arg| arg.as_ref() == b"-p") {
+    // Workspace prints already have a path from Start; the other prints run below /programs.
+    if launch.args.first().is_some_and(|arg| arg.as_ref() == b"-p") && !launch.dir.starts_with(b"/") {
         launch.dir = [b"/programs/", launch.dir.as_ref()].concat().into();
     }
     launch
@@ -243,6 +269,60 @@ fn relay(spawn: &Spawn, inherited: &Inherited) -> Proc {
     ))))
 }
 
+fn host_programs<R: skein_world::Referee<Proc>>(simulation: &mut skein_world::World<Proc, R, ProgramMachine>) {
+    for (mut program, roots) in programs::programs::<Held>() {
+        if program.program.as_ref() == documents::PINNED_AGENT_PROGRAM {
+            program.make = agent;
+            program.operations =
+                smith_agent_service::program_operations(&agent_configuration()).expect("program operations") + 8;
+            simulation.host_roots(program, agent_roots);
+        } else {
+            simulation.host_roots(program, roots);
+        }
+    }
+    let factory = smith_fake_claude::hosted(CLAUDE);
+    simulation.host_startup(
+        skein_world::HostedProgram {
+            program: factory.program,
+            make: fake,
+            instances: 2,
+            operations: factory.operations,
+        },
+        |spawn| {
+            let launch = fake_launch(spawn);
+            smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
+        },
+        |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
+    );
+    simulation.host(skein_world::HostedProgram {
+        program: RELAY.into(),
+        make: relay,
+        instances: 1,
+        operations: smith_agent_shell::relay::operations(),
+    });
+}
+
+fn lay_source(disk: &mut skein_fake_machine::Machine, source: &str, story: &smith_fake_claude::Story) {
+    for (name, bytes) in
+        [(smith_fake_claude::STORY_FILE, story.encode()), (smith_fake_claude::LOGIN_FILE, b"claude.ai".to_vec())]
+    {
+        machine::lay_handover(disk, format!("/worker/programs/{source}/{name}").as_bytes(), &bytes);
+    }
+}
+
+fn observations(machine: &ProgramMachine, source: &str) -> Vec<u8> {
+    let mut disk = machine.0.0.borrow_mut();
+    let root = disk.reopen_root(1);
+    let file = disk
+        .open(root, format!("programs/{source}/{}", smith_fake_claude::OBSERVATIONS_FILE).as_bytes(), How::ReadNoFollow)
+        .expect("fake observations");
+    let size = u32::try_from(disk.stat(file).size).expect("bounded observations");
+    let bytes = disk.read(file, 0, size).expect("observations read");
+    disk.close(file);
+    disk.close(root);
+    bytes
+}
+
 struct Judge {
     controls: skein_world::Controls,
     stage: u32,
@@ -253,6 +333,43 @@ struct Judge {
 fn command(caller: &mut Caller, words: &[&str]) {
     caller.commands.push_back(Command::new(&words.iter().map(|word| word.as_bytes()).collect::<Vec<_>>()));
 }
+fn sign_in(caller: &mut Caller, link: Box<[u8]>) {
+    let mut sign_in = Command::new(&[b"sign-in", b"-"]);
+    sign_in.input = link;
+    caller.commands.push_back(sign_in);
+}
+
+fn declare(caller: &mut Caller) {
+    command(caller, &["account", "declare", "1", "claude_code", SOURCE, "--key", "held-source"]);
+    command(caller, &["account", "list", "--json"]);
+}
+
+fn verify(caller: &mut Caller, list: usize) -> Result<(), String> {
+    let listed: Value = serde_json::from_slice(&caller.answers[list].output).map_err(|why| why.to_string())?;
+    let account = listed["accounts"]["party"]
+        .as_array()
+        .and_then(|accounts| accounts.iter().find(|account| account["sources"][0]["kind"] == "program"))
+        .ok_or_else(|| format!("declared program account: {listed}"))?;
+    let number = account["number"].as_u64().ok_or_else(|| String::from("account number"))?.to_string();
+    for words in [
+        vec!["account", "verify", &number, "--source", "program", "--json"],
+        vec!["account", "list", "--until", "settled", "--json"],
+        vec!["account", "list", "--until", "usable", "--json"],
+    ] {
+        command(caller, &words);
+    }
+    Ok(())
+}
+
+fn task_number(output: &[u8]) -> Result<&str, String> {
+    let output = std::str::from_utf8(output).map_err(|why| why.to_string())?;
+    output
+        .split("done: task ")
+        .nth(1)
+        .and_then(|suffix| suffix.split(|c: char| !c.is_ascii_digit()).next())
+        .ok_or_else(|| format!("chat task: {output}"))
+}
+
 impl Judge {
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (services, rest) = procs.split_at_mut(1);
@@ -264,15 +381,8 @@ impl Judge {
         if self.stage == 0
             && let Some(link) = service.service.links().pop()
         {
-            let mut sign_in = Command::new(&[b"sign-in", b"-"]);
-            sign_in.input = link;
-            caller.commands.push_back(sign_in);
-            for words in [
-                vec!["account", "declare", "1", "claude_code", SOURCE, "--key", "held-source"],
-                vec!["account", "list", "--json"],
-            ] {
-                command(caller, &words);
-            }
+            sign_in(caller, link);
+            declare(caller);
             self.stage = 1;
         }
         while self.answered < caller.answers.len() {
@@ -290,30 +400,12 @@ impl Judge {
             self.deadline = now.saturating_add(temper_client_shell_cli::limits::DEADLINE);
         }
         if self.stage == 1 && self.answered == 3 {
-            let listed: Value = serde_json::from_slice(&caller.answers[2].output).map_err(|why| why.to_string())?;
-            let account = listed["accounts"]["party"]
-                .as_array()
-                .and_then(|accounts| accounts.iter().find(|account| account["sources"][0]["kind"] == "program"))
-                .ok_or_else(|| format!("declared program account: {listed}"))?;
-            let number = account["number"].as_u64().ok_or_else(|| String::from("account number"))?.to_string();
-            for words in [
-                vec!["account", "verify", &number, "--source", "program", "--json"],
-                vec!["account", "list", "--until", "settled", "--json"],
-                vec!["account", "list", "--until", "usable", "--json"],
-                vec!["chat", "start", "--project", "1", "--key", "held-chat", "Hello"],
-            ] {
-                command(caller, &words);
-            }
+            verify(caller, 2)?;
+            command(caller, &["chat", "start", "--project", "1", "--key", "held-chat", "Hello"]);
             self.stage = 2;
         }
         if self.stage == 2 && self.answered == 7 {
-            let output = std::str::from_utf8(&caller.answers[6].output).map_err(|why| why.to_string())?;
-            let task = output
-                .split("done: task ")
-                .nth(1)
-                .and_then(|suffix| suffix.split(|c: char| !c.is_ascii_digit()).next())
-                .ok_or_else(|| format!("chat task: {output}"))?
-                .to_owned();
+            let task = task_number(&caller.answers[6].output)?.to_owned();
             command(caller, &["task", "show", &task, "--until", "phase:running"]);
             self.stage = 3;
         }
@@ -370,94 +462,20 @@ impl skein_world::Referee<Proc> for Judge {
 }
 
 /// Start a chat on a signed-in program source and signal serve during its held turn.
-#[expect(clippy::too_many_lines, reason = "the story owns its program registry, startup roots and end observations")]
 pub fn stop() {
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Restart);
     world::lower_store(Some(Rc::new(RefCell::new(Store::new()))));
-    let mut disk = machine::fresh();
-    machine::setup(&mut disk);
     let story = smith_fake_claude::Story {
         turns: vec![smith_fake_claude::Turn::new(vec![smith_fake_claude::Step::Hang])],
         ..smith_fake_claude::Story::default()
     };
-    for (name, bytes) in
-        [(smith_fake_claude::STORY_FILE, story.encode()), (smith_fake_claude::LOGIN_FILE, b"claude.ai".to_vec())]
-    {
-        machine::lay_handover(&mut disk, format!("/worker/programs/{SOURCE}/{name}").as_bytes(), &bytes);
-    }
-    let caller = disk.reopen_root(2);
-    let machine = Machine::new(disk);
-    let transport = stories::forge(Story::Adopt);
-    let parameters = world::parameters(&machine, transport.clone());
-    let outcome = programs::with(parameters, || {
-        let mut simulation = skein_world::World::new_controlled(
-            fixtures::SEED,
-            skein_sim::Config::calm(),
-            skein_world::Memory::Unchecked,
-            |controls| Judge {
-                controls,
-                stage: 0,
-                answered: 0,
-                finding: None,
-                deadline: Time::ZERO.saturating_add(temper_client_shell_cli::limits::DEADLINE),
-            },
-        )
-        .with_machine(ProgramMachine(machine));
-        for (mut program, roots) in programs::programs::<Held>() {
-            if program.program.as_ref() == documents::PINNED_AGENT_PROGRAM {
-                program.make = agent;
-                program.operations =
-                    smith_agent_service::program_operations(&agent_configuration()).expect("program operations") + 8;
-                simulation.host_roots(program, |_| {
-                    vec![StartupRoot { name: b"programs".as_slice().into(), path: b"/programs".as_slice().into() }]
-                });
-            } else {
-                simulation.host_roots(program, roots);
-            }
-        }
-        simulation.host_roots(
-            crate::ctl::program(|spawn, inherited| {
-                Proc::Other(Local::World(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited).capturing()))))
-            }),
-            crate::ctl::roots,
-        );
-        let mut roots = programs::service_roots();
-        roots.push(StartupRoot { name: b"programs_parent".as_slice().into(), path: b"worker".as_slice().into() });
-        simulation.spawn_restartable(roots, service);
-        simulation.spawn_root(skein_sim::Handle::new(caller.raw()), |root| {
-            Proc::Other(Local::World(HarnessProcess::Calls(Box::new(Caller::scripted(root)))))
-        });
-        let factory = smith_fake_claude::hosted(CLAUDE);
-        simulation.host_startup(
-            skein_world::HostedProgram {
-                program: factory.program,
-                make: fake,
-                instances: 2,
-                operations: factory.operations,
-            },
-            |spawn| {
-                let launch = fake_launch(spawn);
-                smith_fake_claude::config_root(&launch)
-                    .into_iter()
-                    .chain(smith_fake_claude::mcp_root(&launch))
-                    .collect()
-            },
-            |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
-        );
-        simulation.host(skein_world::HostedProgram {
-            program: RELAY.into(),
-            make: relay,
-            instances: 1,
-            operations: smith_agent_shell::relay::operations(),
-        });
-        simulation.spawn(|| {
-            Proc::Forge(Box::new(machine::SignalHost::new(
-                temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
-                None,
-            )))
-        });
-        simulation.run()
+    let outcome = run(&story, &stories::forge(Story::Adopt), |controls| Judge {
+        controls,
+        stage: 0,
+        answered: 0,
+        finding: None,
+        deadline: Time::ZERO.saturating_add(temper_client_shell_cli::limits::DEADLINE),
     });
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert_eq!(service.service.end(), Some(&temper_service::End::Engine(temper_service::EngineEnd::Drained)));
@@ -471,18 +489,63 @@ pub fn stop() {
     assert!(!programs.is_empty(), "the source ran its program");
     assert!(programs.iter().all(|program| program.exit().is_some()), "no hosted program survives serve");
     assert!(outcome.procs.iter().all(Host::is_empty), "held-program world drains every process");
-    let mut disk = outcome.machine.0.0.borrow_mut();
-    let root = disk.reopen_root(1);
-    let file = disk
-        .open(root, format!("programs/{SOURCE}/{}", smith_fake_claude::OBSERVATIONS_FILE).as_bytes(), How::ReadNoFollow)
-        .expect("fake observations");
-    let size = u32::try_from(disk.stat(file).size).expect("bounded observations");
-    let seen = smith_fake_claude::seen(&disk.read(file, 0, size).expect("observations read"));
-    disk.close(file);
-    disk.close(root);
+    let seen = smith_fake_claude::seen(&observations(&outcome.machine, SOURCE));
     assert!(
         seen.contains(&smith_fake_claude::Seen::Interrupted),
         "agent's cancel must interrupt its program: {seen:?}"
     );
     world::lower_store(None);
+}
+
+fn agent_roots(spawn: &Spawn) -> Vec<StartupRoot> {
+    let mut roots = if landing::active() { machine::agent_roots::<Held>(spawn) } else { Vec::new() };
+    roots.push(StartupRoot { name: b"programs".as_slice().into(), path: b"/programs".as_slice().into() });
+    roots
+}
+
+fn run<R: skein_world::Referee<Proc>>(
+    story: &smith_fake_claude::Story,
+    transport: &temper_fake_git_hosted::Typed,
+    judge: impl FnOnce(skein_world::Controls) -> R,
+) -> skein_world::Outcome<Proc, ProgramMachine> {
+    let mut disk = machine::fresh();
+    machine::setup(&mut disk);
+    lay_source(&mut disk, SOURCE, story);
+    let caller = disk.reopen_root(2);
+    let machine = Machine::new(disk);
+    let parameters = world::parameters(&machine, transport.clone());
+    programs::with(parameters, || {
+        let mut simulation = skein_world::World::new_controlled(
+            fixtures::SEED,
+            skein_sim::Config::calm(),
+            skein_world::Memory::Unchecked,
+            judge,
+        )
+        .with_machine(ProgramMachine(machine));
+        host_programs(&mut simulation);
+        simulation.host_roots(
+            crate::ctl::program(|spawn, inherited| {
+                Proc::Other(Local::World(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited).capturing()))))
+            }),
+            crate::ctl::roots,
+        );
+        let mut roots = programs::service_roots();
+        roots.push(StartupRoot { name: b"programs_parent".as_slice().into(), path: b"worker".as_slice().into() });
+        simulation.spawn_restartable(roots, service);
+        simulation.spawn_root(skein_sim::Handle::new(caller.raw()), |root| {
+            Proc::Other(Local::World(HarnessProcess::Calls(Box::new(Caller::scripted(root)))))
+        });
+        simulation.spawn(|| {
+            Proc::Forge(Box::new(machine::SignalHost::new(
+                temper_playground::fakes::forge_peer(transport, fixtures::SEED),
+                None,
+            )))
+        });
+        if landing::active() {
+            simulation.spawn(|| {
+                Proc::Peer(Box::new(machine::SignalHost::new(fixtures::scripted_provider(Box::new([])), None)))
+            });
+        }
+        simulation.run()
+    })
 }

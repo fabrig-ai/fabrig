@@ -1,7 +1,7 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
 use crate::boundary::{BriefConnector, BriefSection, EndedRead, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
-use crate::restart::{connector_restarting, request_load};
+use crate::restart::request_load;
 use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
 use crate::translate::{Config, RootConfig, environment_forge};
 use crate::{CallKey, Decision, Delivery, Journal, JournalOutput as Output, Range, Write, loads};
@@ -16,7 +16,7 @@ use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
 use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
 
-/// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 8.1).
+/// Why a start stopped before decisions opened (temper/docs/design/domain/root-restart.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartStop {
     /// jig's start refused a fit at this phase (jig/docs/design/domain/engine/restart.md).
@@ -133,6 +133,7 @@ pub struct Domain {
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
+    pub(crate) closer_reports: Map<u64, forge_route::goal_report::Observation>,
     pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     /// One forming drains its make before admission (domain/landing-forming.md, 2).
@@ -149,7 +150,7 @@ pub struct Domain {
     /// Loads of durable rows outside the working set: a run's preparation
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
-    /// Ended tasks wait for archive and load room, in the core's read-flight bound (root.md, 7).
+    /// Ended tasks wait for archive and load room, in the core's read-flight bound (domain/root.md, 7).
     pub(crate) ended_waiting: Queue<EndedRead>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,
@@ -161,7 +162,7 @@ pub struct Domain {
     pub(crate) facts_lost: u64,
 }
 
-/// Volatile operator queues (temper/docs/design/domain/worker/README.md, 4.3).
+/// Volatile operator queues (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
 #[derive(Hash, Debug)]
 pub(crate) struct RunDiagnostics {
     /// Accepted failed answers awaiting the operator sink.
@@ -182,6 +183,26 @@ impl Domain {
     pub fn hold_landings(&mut self, held: bool) {
         self.forge.hold_landings(held);
     }
+    /// The armed retry of this change's refused train (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_forming_retry(&self, task: u64) -> Option<Wall> {
+        if self.forge.landing_held() {
+            return None;
+        }
+        let row = self.forge.change(task)?;
+        let (at, _, judged) = self.forge_refused.get(&(row.repository, row.base.clone()))?;
+        if *judged {
+            return None;
+        }
+        Some(Wall::from_nanos(at.as_nanos().saturating_add(self.limits.forge.queue_window.as_nanos())))
+    }
+
+    /// Whether this child's contract pushes for its change (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_pushing_child(&self, child: u64) -> bool {
+        forge_route::change_pushing_child(self, child)
+    }
+
     #[must_use]
     pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way {
         self.forge.landing_way(project)
@@ -255,7 +276,7 @@ impl Domain {
         identities.into_boxed()
     }
 
-    /// Whole current model settings (jig/docs/design/domain/engine/settings.md, 11).
+    /// Whole current model settings (jig/docs/design/domain/engine/settings-catalogue.md, 1).
     #[must_use]
     pub fn catalogue(&self) -> Box<[jig_domain_core::settings::CatalogueModel]> {
         let mut rows = List::with_capacity(jig_domain_tasks::MODELS);
@@ -277,10 +298,28 @@ impl Domain {
         self.core.fleet.reply_bound(Token::new(key.task), Token::new(key.attempt)).or(self.limits.host_reply_bytes)
     }
 
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn forge(&self) -> &temper_engine_domain_forge::Domain {
+        &self.forge
+    }
+
+    /// Jig's core, for a world to inspect between iterations.
+    #[must_use]
+    pub const fn core(&self) -> &Core {
+        &self.core
+    }
+
     /// The live task arena, for a world to inspect between iterations.
     #[must_use]
     pub const fn tasks(&self) -> &tasks::Domain {
         &self.core.tasks
+    }
+
+    /// The run channel admitted at this worker's configured position.
+    #[must_use]
+    pub fn worker_channel(&self, position: u32) -> Option<Token> {
+        self.core.fleet.worker_channel(position)
     }
 
     /// Tasks whose prepared assignment has not yet been handed to a worker.
@@ -357,7 +396,7 @@ impl Domain {
         self.core.current.newest()
     }
 
-    /// The deployment's current welcome (protocol/configuration/settings.md, 2).
+    /// The deployment's current welcome (protocol/configuration/settings-kinds.md, 1).
     #[must_use]
     pub fn welcome(&self) -> bool {
         self.forge.welcome()
@@ -397,12 +436,12 @@ impl Domain {
         self.forge.installation(forge, installation)
     }
 
-    /// Restore as at a start, ending before the switch (domain/root.md, 8.1).
+    /// Restore as at a start, ending at the opening (domain/root-restart.md, 1.1).
     pub fn rehearse(&mut self) {
         assert!(self.start_wall.is_none(), "rehearsal set before restart");
         self.rehearsal = Some(false);
     }
-    /// The rehearsal reached the switch without asking for it.
+    /// The rehearsal opened, with the connector's catching up begun.
     #[must_use]
     pub fn rehearsed(&self) -> bool {
         self.rehearsal == Some(true)
@@ -670,6 +709,7 @@ impl Domain {
             forge_delegating: Map::with_capacity(limits.forge.changes),
             forge_forming: None,
             forge_refused: Map::with_capacity(limits.forge.changes),
+            closer_reports: Map::uncapped(),
             closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
@@ -735,16 +775,22 @@ impl Domain {
         backlog(self)
     }
 
-    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings.md, 7).
+    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings-store.md, 1).
     #[must_use]
     pub fn settings_kept(&self) -> Box<[jig_domain_core::settings::Setting]> {
         self.core.settings_kept()
     }
 
-    /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 8.1).
+    /// Decisions open and the journal is not stopped (temper/docs/design/domain/root-restart.md, 1.1).
     #[must_use]
     pub fn ready(&self) -> bool {
         self.opened && self.start_stop().is_none() && !self.journal.stopped()
+    }
+
+    /// Both halves of this connector's catching up have reported to the core.
+    #[must_use]
+    pub fn caught_up(&self, connector: u16) -> bool {
+        self.core.caught_up(connector)
     }
 
     pub(crate) fn start_runtime(&self) -> bool {
@@ -759,7 +805,7 @@ impl Domain {
                 | Phase::Switch
                 | Phase::Wires,
             ) => false,
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+            Some(Phase::AdoptRuns | Phase::Open) => true,
             None => self.opened,
         }
     }
@@ -877,14 +923,14 @@ impl Domain {
     }
 
     /// Take the oldest accepted failed answer's operator evidence, once.
-    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/README.md, 4.3).
+    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
     pub fn pop_run_diagnostic(&mut self) -> Option<crate::RunDiagnostic> {
         self.changed();
         self.run_diagnostics.failed.pop()
     }
 
     /// Take the oldest accepted refusal's operator evidence, once.
-    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/README.md, 4.3).
+    /// Both socket and in-process worker answers pass through this queue (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
     pub fn pop_run_refusal(&mut self) -> Option<crate::RunRefusalDiagnostic> {
         self.changed();
         self.run_diagnostics.refused.pop()
@@ -1183,10 +1229,7 @@ fn release_one(domain: &mut Domain, out: &mut Queue<Request>) -> skein_lib::Rele
 
 pub(crate) fn send_commit(domain: &mut Domain, out: &mut Queue<Request>) {
     // Unsent decisions stay in the journal until a store answer frees credit.
-    if domain.journal.stopped()
-        || domain.sent_commit.checked_sub(domain.durable_commit).expect("store answers only sent commits")
-            >= u64::from(domain.limits.journal.commits)
-    {
+    if domain.journal.stopped() || domain.commits_in_flight() >= u64::from(domain.limits.journal.commits) {
         return;
     }
     match crate::commit(&mut domain.journal, &domain.limits.journal) {
@@ -1232,7 +1275,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     }
     // From the stop on, nothing that would make a commit is taken: connector
     // work stays with the connector and no run is placed (jig's
-    // `domain/engine/restart.md`, 1).
+    // `domain/engine/restart.md`, 5).
     if domain.core.stopping() {
         if domain.core.finish_owed() {
             domain.settled = None;
@@ -1241,7 +1284,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         }
         return;
     }
-    if domain.ready() || connector_restarting(domain) {
+    if domain.ready() {
         if domain.forge.is_ready() {
             domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -1250,9 +1293,6 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             forge_route::outputs(domain, env, &mut decision, &mut child);
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
-            return;
-        }
-        if !domain.ready() {
             return;
         }
         if !domain.settling.active()
@@ -1321,8 +1361,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
         let routed = jig_domain_core::fire(&mut domain.core, &environment_core(env), timer);
         route_core_requests(domain, env, &mut decision, routed);
     }
-    let restarting = connector_restarting(domain);
-    if (restarting || domain.ready() || domain.settling.active()) && !domain.core.stopping() {
+    if (domain.ready() || domain.settling.active()) && !domain.core.stopping() {
         let mut forge_out = Queue::uncapped();
         forge::fire(&mut domain.forge, &environment_forge(env), &mut forge_out);
         forge_route::outputs(domain, env, &mut decision, &mut forge_out);
@@ -1474,6 +1513,7 @@ fn released_into(
         | Delivery::LimitSettingsCommitted { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
+        | Delivery::PartBusy { .. }
         | Delivery::TurnBusy { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => out.push(crate::boundary::delivery_output(delivery)),
@@ -1481,7 +1521,7 @@ fn released_into(
 }
 
 /// Configuration `Domain::new` asserts against (or, for `Workers`, returns),
-/// refused at start before the root is made (domain/root.md, 5), each naming
+/// refused at start before the root is made (domain/root-translation.md, 1), each naming
 /// the part that breaks it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {
@@ -1521,6 +1561,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::GoalWords(_)
         | Read::InputCheck(_)
         | Read::Parts(_)
+        | Read::CloserReport(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }

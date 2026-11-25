@@ -20,6 +20,7 @@ fn funded_tree() -> Harness {
     child.numbers.budget = 20;
     child.funder = Funder::Task(ROOT);
     h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -89,6 +90,7 @@ fn refunding_changes_the_payer_of_financial_descendants() {
     let mut h = funded_tree();
     h.send(Event::CarvePool { reply_to: to(), project: PROJECT, person: OTHER, period: 0, budget: 100 });
     h.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: Some(Funder::Pool { project: PROJECT, person: OTHER, period: 0 }),
             task: ROOT,

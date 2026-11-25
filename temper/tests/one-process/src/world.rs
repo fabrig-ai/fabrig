@@ -1,9 +1,15 @@
 //! One real startup, native person, hosted agent and git, and loopback byte peers.
+mod line_sign_in;
+pub use line_sign_in::{LineSignIn, line_sign_in};
+
 use crate::{
     fixtures,
     referee::{self, Capture, Store, Wire},
     stories,
 };
+mod hooks;
+pub use crate::ctl::Answer as CtlAnswer;
+pub use hooks::HookReceipt;
 use jig_client_protocol_link::Signing;
 use skein_fake_peers::forge::{Delivery, Observation};
 use skein_fake_person::{Doing, Face, Find, Found, Next, Step, TreeFace};
@@ -41,6 +47,7 @@ pub enum Story {
 #[derive(Debug)]
 pub struct Outcome {
     pub stopped: Option<Stopped>,
+    pub store_checks: crate::store_check::Report,
     pub verdict: skein_world::domain::Verdict,
     pub peaks: Option<Vec<u64>>,
     /// Names in the same process-index order as `peaks`.
@@ -61,8 +68,10 @@ pub struct Outcome {
     pub adoption_window: Option<(u32, u32)>,
     pub playground: Option<stories::playground::Outcome>,
     pub model_list: Option<crate::model_list::Outcome>,
+    hook_receipt: Option<HookReceipt>,
+    adopt_answer: Option<CtlAnswer>,
 }
-/// The signal's run and its next start (temper/docs/design/protocol/README.md, 6).
+/// The signal's run and its next start (temper/docs/design/protocol/service-process.md, 1).
 #[derive(Debug)]
 pub struct Stopped {
     pub task: u64,
@@ -89,12 +98,21 @@ pub struct Counts {
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Phase {
+    /// Stop after the first durable image, for the store check's isolation comparison.
+    #[cfg(test)]
+    Committed,
     Story,
+    LandedRestart,
     SignIn,
+    ForgeReceipt,
+    CtlAdopt,
     Drain,
     Restart,
     Refused,
-    Fault { cut: skein_world::Cut, before: u32 },
+    Fault {
+        cut: skein_world::Cut,
+        before: u32,
+    },
 }
 #[derive(Default)]
 struct Progress {
@@ -126,6 +144,7 @@ fn process_name(process: &Proc) -> &'static str {
         Proc::Shell(_) => "shell",
         Proc::Visitor(_) => "visitor",
         Proc::Other(HarnessProcess::Client(_)) => "terminal client + person",
+        Proc::Other(HarnessProcess::Line(_)) => "line terminal",
         Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => "ctl",
         Proc::Other(HarnessProcess::ProgramSource(_)) => "fake program provider",
         Proc::Other(HarnessProcess::Push(_)) => "fake push service",
@@ -162,11 +181,14 @@ pub(crate) type ServiceHost = temper_playground::service::ServiceHost<OneProcess
 impl Harness for OneProcess {
     type Service = ServiceObserver;
     type Process = HarnessProcess;
-    fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
-        crate::across_versions::worker_wires()
-    }
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         OWNER_SETS.with(std::cell::Cell::get)
+    }
+    fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
+        Some(crate::schemas::binary_schemas())
+    }
+    fn checked_opening_limits(limits: &jig_protocol_store::Checked) {
+        crate::store_check::opening_limits(limits);
     }
     fn github() -> bool {
         crate::lower::github::active()
@@ -195,6 +217,7 @@ impl Harness for OneProcess {
     }
     fn complete(role: Role, complete: &Complete) {
         use crate::m15::observer::{self, Role as Observed};
+        crate::restarts::observe(role, complete);
         let role = match role {
             Role::Service => Observed::Service,
             Role::Agent => Observed::Agent,
@@ -237,13 +260,15 @@ impl Harness for OneProcess {
         temper_playground::documents::settings::seed_configuration(engine, &document);
     }
     fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
-        if stories::playground() {
-            return temper_playground::documents::given(document);
-        }
-        if stories::adoption() {
-            return fixtures::adoption_given();
-        }
-        stories::given(&fixtures::document())
+        crate::store_check::given(|| {
+            if stories::playground() {
+                temper_playground::documents::given(document)
+            } else if stories::adoption() {
+                fixtures::adoption_given()
+            } else {
+                stories::given(&fixtures::document())
+            }
+        })
     }
 }
 /// Scope the harness's scenario documents and shared forge around its world.
@@ -261,12 +286,15 @@ pub(crate) fn parameters(machine: &Machine, forge: temper_fake_git_hosted::Typed
 pub(crate) struct ServiceObserver {
     pub(crate) hooks: Option<SocketAddr>,
     bound_hooks: Option<(Fd, SocketAddr)>,
+    hook_listener: Option<Fd>,
+    hook_wire: Option<Box<hooks::Hooks>>,
     capture: Capture,
     store: Rc<RefCell<Store>>,
     pub(crate) commits: Vec<crate::referee::durable::Commit>,
     pub(crate) finding: Option<String>,
     pub(crate) wire: Wire,
     pub(crate) attached: bool,
+    pub(crate) worker_notes: Option<Vec<temper_service::worker_alone::Note>>,
     pub(crate) cut_before: Option<u32>,
     pub(crate) submitted: u32,
     pub(crate) before_iteration: u32,
@@ -285,12 +313,15 @@ impl Observe for ServiceObserver {
         Self {
             hooks: None,
             bound_hooks: None,
+            hook_listener: None,
+            hook_wire: None,
             capture,
             store: store.clone(),
             commits: Vec::new(),
             finding: None,
             wire: Wire::new(store),
             attached: false,
+            worker_notes: None,
             cut_before: None,
             submitted: 0,
             before_iteration: 0,
@@ -320,7 +351,12 @@ impl Observe for ServiceObserver {
             return None;
         }
         if let Some(bound) = hooks_address(&mut self.bound_hooks, &complete) {
+            let skein_io::kernel::Op::Listen { fd, .. } = complete.kind else { unreachable!("bound listener") };
             self.hooks = Some(bound);
+            self.hook_listener = Some(fd);
+        }
+        if let (Some(listener), Some(wire)) = (self.hook_listener, &mut self.hook_wire) {
+            wire.complete(listener, &complete);
         }
         self.capture.complete(&complete);
         if self.finding.is_none() {
@@ -330,9 +366,14 @@ impl Observe for ServiceObserver {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
         while let Some(note) = service.notes().pop() {
-            crate::across_versions::note(&note);
+            crate::worker_openings::note(&note);
             if stories::playground() {
                 eprintln!("story A at {} ns: service {note:?}", now.as_nanos());
+            }
+            if let Some(notes) = &mut self.worker_notes
+                && let temper_service::Note::Worker(note) = note
+            {
+                notes.push(note);
             }
         }
         self.before_iteration = self.submitted;
@@ -344,7 +385,12 @@ impl Observe for ServiceObserver {
                 &self.families,
             );
             match observed {
-                Ok(commits) => self.commits.extend(commits),
+                Ok(commits) => {
+                    for commit in &commits {
+                        crate::store_check::observed(commit.number);
+                    }
+                    self.commits.extend(commits);
+                }
                 Err(why) => self.finding = Some(why),
             }
         }
@@ -398,6 +444,7 @@ pub(crate) enum HarnessProcess {
     Ctl(Box<crate::ctl::Recorded>),
     Calls(Box<crate::ctl::Caller>),
     Client(Box<SignalHost<Person>>),
+    Line(Box<temper_client_shell_terminal::terminal::Terminal>),
     ProgramSource(Box<smith_fake_claude::Fake>),
     Push(Box<skein_fake_peers::push::Peer>),
 }
@@ -407,6 +454,7 @@ impl HarnessProcess {
             Self::Ctl(h) => h.as_ref(),
             Self::Calls(h) => h.as_ref(),
             Self::Client(h) => h.as_ref(),
+            Self::Line(h) => h.as_ref(),
             Self::ProgramSource(h) => h.as_ref(),
             Self::Push(h) => h.as_ref(),
         }
@@ -416,6 +464,7 @@ impl HarnessProcess {
             Self::Ctl(h) => h.as_mut(),
             Self::Calls(h) => h.as_mut(),
             Self::Client(h) => h.as_mut(),
+            Self::Line(h) => h.as_mut(),
             Self::ProgramSource(h) => h.as_mut(),
             Self::Push(h) => h.as_mut(),
         }
@@ -431,7 +480,7 @@ impl Host for HarnessProcess {
             let role = match self {
                 Self::Ctl(_) => Role::Ctl,
                 Self::Calls(_) | Self::Push(_) => Role::Caller,
-                Self::Client(_) => Role::Client,
+                Self::Client(_) | Self::Line(_) => Role::Client,
                 Self::ProgramSource(_) => Role::Agent,
             };
             for complete in self.host_mut().completions().iter() {
@@ -489,6 +538,10 @@ pub(crate) struct Person {
 }
 const CHAT_WITHIN: Duration = Duration::from_secs(5);
 impl Person {
+    pub(crate) fn tree(&self) -> &skein_ui::Tree {
+        self.client.as_ref().expect("native person is open").tree()
+    }
+
     /// Drive welcome forms before the first project exists.
     pub(crate) fn welcome(root: Fd, steps: Box<[Step<temper_client_domain::Address>]>) -> Self {
         let mut person = Self::pages(root, steps);
@@ -543,6 +596,10 @@ impl Person {
         );
     }
     fn new(root: Fd, scenario: Story) -> Self {
+        Self::scripted(root, scenario, None)
+    }
+    fn scripted(root: Fd, scenario: Story, landing_read: Option<bool>) -> Self {
+        let after_crash = landing_read == Some(true);
         let (playground_steps, playground_replies) = if matches!(scenario, Story::PlaygroundA) {
             stories::playground::person()
         } else {
@@ -567,6 +624,7 @@ impl Person {
                 Step::See { find: Find::text("gpt-future · estimated prices · new".as_bytes()), within: CHAT_WITHIN },
             ],
             Story::Adoption => stories::adoption_person(),
+            Story::Adopt if landing_read.is_some() => stories::recovery::person(after_crash),
             Story::Adopt | Story::Merge | Story::CodingAtStop => stories::person(),
             Story::HeldChange if stories::first_start() => stories::person(),
             Story::HeldChange => Vec::new(),
@@ -578,7 +636,7 @@ impl Person {
                 Step::See { find: Find::named(skein_ui::Role::Heading { level: 1 }, b"Inbox"), within: CHAT_WITHIN },
             ],
         };
-        let mut offset = PROGRESS.with(|progress| progress.borrow().at);
+        let mut offset = if after_crash { 0 } else { PROGRESS.with(|progress| progress.borrow().at) };
         if matches!(scenario, Story::Adoption) && offset < fixtures::ADOPTION_REPLY_STEP {
             offset = 0;
         }
@@ -590,8 +648,12 @@ impl Person {
             progress.borrow_mut().life += 1;
             progress.borrow().life
         });
+        let mut wire = referee::client::Wire::default();
+        if landing_read.is_some() {
+            wire.watch_landing();
+        }
         Self {
-            wire: referee::client::Wire::default(),
+            wire,
             cache: referee::client::cache::Cache::new(
                 root,
                 life,
@@ -601,7 +663,7 @@ impl Person {
             root: Some(root),
             actor: skein_fake_person::Person::new(remaining.into_boxed_slice()),
             provision_after: 0,
-            provision: (offset == 0 && !matches!(scenario, Story::PlaygroundA | Story::NoWelcome))
+            provision: (!after_crash && offset == 0 && !matches!(scenario, Story::PlaygroundA | Story::NoWelcome))
                 .then(|| skein_fake_person::Person::new(fixtures::account_steps())),
             wake: None,
             signed_in: 0,
@@ -649,7 +711,7 @@ impl Person {
 }
 // Select the story's project and provision its real account before its own acts.
 /// The switcher's button for a project `me` leaves unnamed, "Project N"
-/// (client/view.md, 3).
+/// (client/view-navigation.md, 1).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)
@@ -1000,7 +1062,15 @@ pub fn adoption(settings: Settings) -> Outcome {
 }
 #[must_use]
 pub fn drain_mid_run(settings: Settings, scenario: Story, restart: bool) -> Outcome {
-    let run = Rc::new(RefCell::new(referee::Run::default()));
+    drain_run(settings, scenario, restart, &Rc::new(RefCell::new(referee::Run::default())))
+}
+
+pub(crate) fn drain_run(
+    settings: Settings,
+    scenario: Story,
+    restart: bool,
+    run: &Rc<RefCell<referee::Run>>,
+) -> Outcome {
     let (mut outcome, disk, store) =
         run_phase(settings, scenario, Phase::Drain, machine::fresh(), Store::new(), run.clone());
     if restart {
@@ -1051,6 +1121,17 @@ pub fn require_pending_at_cut(outcome: &Outcome, seed: u64, before: u32) {
             panic!("seed {seed}, before {before}: pending adoption at cut; original sent {:?}; answers {:?}; frames {:?}; private cache {:?}", progress.sent, progress.answers, progress.press_had_frame, progress.cache.borrow());
         });
     }
+}
+pub(crate) fn landing_person(inherited: &Inherited) -> Proc {
+    let root = inherited.roots.first().expect("client root").1;
+    let restarted = PROGRESS.with(|progress| progress.borrow().life != 0);
+    let mut person = Person::scripted(root, Story::Adopt, Some(restarted));
+    if restarted {
+        person.saved();
+        // No new printed link: the read must be authorized by the saved sign-in.
+        person.signed_in = 1;
+    }
+    Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(person, Some(inherited.signal)))))
 }
 fn person(inherited: &Inherited) -> Proc {
     let root = inherited.roots.first().expect("client root").1;
@@ -1124,6 +1205,35 @@ pub fn sign_in_again(settings: Settings) -> [Outcome; 2] {
     [first, again]
 }
 
+/// The same hooked Forgejo fixture as the adoption-and-git story, with just an outside push.
+#[must_use]
+pub fn signed_push(settings: Settings) -> (Vec<Delivery>, HookReceipt) {
+    let (outcome, _, _) =
+        run_phase(settings, Story::Adopt, Phase::ForgeReceipt, machine::fresh(), Store::new(), Rc::default());
+    (outcome.deliveries, outcome.hook_receipt.expect("push receipt"))
+}
+
+/// Adopt the fixture through the hosted ctl and read the repository rows from committed storage.
+#[must_use]
+pub fn ctl_adoption(settings: Settings) -> (CtlAnswer, Vec<temper_engine_domain_forge::Repository>) {
+    let (outcome, _, store) =
+        run_phase(settings, Story::Adopt, Phase::CtlAdopt, machine::fresh(), Store::new(), Rc::default());
+    let repositories = store
+        .rows
+        .into_values()
+        .filter_map(|record| {
+            let temper_engine_domain::Record::Forge { row } = record else {
+                return None;
+            };
+            let temper_engine_domain_forge::Stored::Repository(repository) = *row else {
+                return None;
+            };
+            Some(repository)
+        })
+        .collect();
+    (outcome.adopt_answer.expect("adoption answer"), repositories)
+}
+
 fn sign_ins(store: &Store) -> Vec<(u64, u64, Wall)> {
     store
         .rows
@@ -1147,12 +1257,19 @@ fn token_bytes(disk: &mut skein_fake_machine::Machine) -> Vec<u8> {
     bytes
 }
 
-fn write_settings(disk: &mut skein_fake_machine::Machine) {
+fn write_settings(disk: &mut skein_fake_machine::Machine, phase: Phase) {
     if stories::needs_settings() || stories::first_start() {
-        let root = disk.lay(&[
-            skein_fake_machine::Item::file(b"settings.json", stories::settings_file()),
-            skein_fake_machine::Item::file(b"admin.token", crate::restart_control::ADMIN_TOKEN).mode(0o600),
-        ]);
+        let mut files = vec![skein_fake_machine::Item::file(b"settings.json", stories::settings_file())];
+        if matches!(phase, Phase::ForgeReceipt) {
+            // A connected Forgejo's pasted credentials include the listener's shared secret.
+            let tokens = temper_playground::documents::hosted_git::TOKEN;
+            let file =
+                [b"api ", tokens, b"\ngit ", tokens, b"\nwebhook_secret ", fixtures::HOOK_SECRET, b"\n"].concat();
+            files.push(skein_fake_machine::Item::file(b"forge.tokens", &file).mode(0o600));
+        } else {
+            files.push(skein_fake_machine::Item::file(b"admin.token", crate::restart_control::ADMIN_TOKEN).mode(0o600));
+        }
+        let root = disk.lay(&files);
         disk.close(root);
     }
 }
@@ -1194,13 +1311,32 @@ pub fn restart_held_change(settings: Settings) -> Outcome {
     run_phase(settings, Story::HeldChange, Phase::SignIn, disk, store, run).0
 }
 
+/// Read a managed adoption's landing, cut every process and read it on the kept sign-in.
+#[must_use]
+pub fn restart_landed_change(settings: Settings) -> Outcome {
+    stories::recovery::with_merge(|| {
+        run_phase(
+            settings,
+            Story::Adopt,
+            Phase::LandedRestart,
+            machine::fresh(),
+            Store::new(),
+            Rc::new(RefCell::new(referee::Run::default())),
+        )
+        .0
+    })
+}
+
 /// Restore a persisted policy past a smaller read bound, with the box's held listener.
 #[must_use]
 pub fn refused_restore(settings: Settings) -> Outcome {
     let scenario = Story::Chat { words: b"Hello" };
     let run = Rc::new(RefCell::new(referee::Run::default()));
     let (_, disk, store) = run_phase(settings, scenario, Phase::SignIn, machine::fresh(), Store::new(), run.clone());
-    run_phase(settings, scenario, Phase::Refused, disk, store, run).0
+    crate::store_check::with_policy(
+        jig_conformance::store_check::StoreChecks::none("persisted policy exceeds the smaller restore bound"),
+        || run_phase(settings, scenario, Phase::Refused, disk, store, run).0,
+    )
 }
 
 fn ended(procs: &[Proc], phase: Phase) -> Option<temper_service::End> {
@@ -1224,21 +1360,33 @@ fn model_list_agent(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> P
     crate::model_list::agent(inherited)
 }
 
-#[expect(clippy::too_many_lines, reason = "the scenario owns its registry, restartable processes and outcome together")]
 pub(crate) fn run_phase(
+    settings: Settings,
+    scenario: Story,
+    phase: Phase,
+    disk: skein_fake_machine::Machine,
+    previous: Store,
+    run: Rc<RefCell<referee::Run>>,
+) -> (Outcome, skein_fake_machine::Machine, Store) {
+    try_run_phase(settings, scenario, phase, disk, previous, run).unwrap_or_else(|why| panic!("{why}"))
+}
+
+#[expect(clippy::too_many_lines, reason = "the scenario owns its registry, restartable processes and outcome together")]
+pub(crate) fn try_run_phase(
     settings: Settings,
     scenario: Story,
     phase: Phase,
     mut disk: skein_fake_machine::Machine,
     previous: Store,
     run: Rc<RefCell<referee::Run>>,
-) -> (Outcome, skein_fake_machine::Machine, Store) {
+) -> Result<(Outcome, skein_fake_machine::Machine, Store), String> {
     stories::set(scenario);
     REFUSE_START.with(|refused| refused.set(matches!(phase, Phase::Refused)));
     stories::setup_settings(phase);
-    write_settings(&mut disk);
+    write_settings(&mut disk, phase);
     PROGRESS.with(|progress| *progress.borrow_mut() = Progress::default());
-    let client = matches!(phase, Phase::Story | Phase::SignIn | Phase::Drain).then(|| disk.reopen_root(2));
+    let client = matches!(phase, Phase::Story | Phase::SignIn | Phase::Drain | Phase::ForgeReceipt | Phase::CtlAdopt)
+        .then(|| disk.reopen_root(2));
     let store = Rc::new(RefCell::new(previous));
     STORE.with(|cell| {
         *cell.borrow_mut() = Some(store.clone());
@@ -1251,7 +1399,10 @@ pub(crate) fn run_phase(
     });
     let transport =
         start.as_ref().map_or_else(|| forge_for_run(&run, scenario, phase), |start| start.fakes.forge.clone());
-    let observed_forge = Rc::new(RefCell::new(referee::forge::Forge::new(transport.clone(), scenario)));
+    let observed_forge = referee::forge::Forge::new(transport.clone(), scenario);
+    let observed_forge =
+        if matches!(phase, Phase::LandedRestart) { observed_forge.keeping_ledger() } else { observed_forge };
+    let observed_forge = Rc::new(RefCell::new(observed_forge));
 
     let machine = Machine::new(disk);
     run.borrow_mut().disk = Some(machine.0.clone());
@@ -1263,64 +1414,101 @@ pub(crate) fn run_phase(
         parameters.links = start.links;
         (start.fakes.llm, start.fakes.peer)
     });
-    let outcome = programs::with(parameters, || {
-        let mut world =
-            skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
-                referee::Referee::new(controls, store.clone(), scenario, observed_forge.clone(), run.clone(), phase)
-            })
-            .with_machine(machine);
-        for (mut program, roots) in programs::programs::<OneProcess>() {
-            if matches!(scenario, Story::ModelsList)
-                && program.program.as_ref() == temper_playground::documents::PINNED_AGENT_PROGRAM
-            {
-                program.make = model_list_agent;
-            }
-            world.host_roots(program, roots);
-        }
-        world.host_roots(
-            crate::ctl::program(|spawn, inherited| {
-                Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited))))
-            }),
-            crate::ctl::roots,
-        );
-        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
-        match phase {
-            Phase::Fault { cut, before } => {
-                world.spawn_restartable(
-                    vec![skein_world::StartupRoot {
-                        name: b"private".as_slice().into(),
-                        path: b"client".as_slice().into(),
-                    }],
-                    person,
+    let (outcome, store_checks) =
+        crate::store_check::scope(settings, machine.0.clone(), parameters.deployment.clone(), || {
+            programs::with(parameters, || {
+                let mut world =
+                    skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
+                        if let Some(injector) = &run.borrow().restart_faults {
+                            injector.borrow_mut().attach(controls.clone());
+                        }
+                        referee::Referee::new(
+                            controls,
+                            store.clone(),
+                            scenario,
+                            observed_forge.clone(),
+                            run.clone(),
+                            phase,
+                        )
+                    })
+                    .with_machine(machine);
+                for (mut program, roots) in programs::programs::<OneProcess>() {
+                    if matches!(scenario, Story::ModelsList)
+                        && program.program.as_ref() == temper_playground::documents::PINNED_AGENT_PROGRAM
+                    {
+                        program.make = model_list_agent;
+                    }
+                    world.host_roots(program, roots);
+                }
+                world.host_roots(
+                    crate::ctl::program(|spawn, inherited| {
+                        Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited))))
+                    }),
+                    crate::ctl::roots,
                 );
-                world.spawn_restartable(vec![], programs::llm::<OneProcess>);
-                world.spawn_restartable(vec![], programs::forge::<OneProcess>);
-                crate::oracle::spawn(&mut world);
-                world.cut(0, before, cut);
-            }
-            Phase::Restart | Phase::Refused => {
-                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
-                world.spawn(|| {
-                    Proc::Forge(Box::new(SignalHost::new(
-                        temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
-                        None,
-                    )))
-                });
-            }
-            Phase::Story | Phase::SignIn | Phase::Drain => {
-                world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
-                    Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::new(root, scenario), None))))
-                });
-                let (llm, forge) = peers.unwrap_or_else(|| {
-                    (stories::provider(scenario), temper_playground::fakes::forge_peer(&transport, fixtures::SEED))
-                });
-                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm, None))));
-                world.spawn(|| Proc::Forge(Box::new(SignalHost::new(forge, None))));
-            }
-        }
-        world.run()
-    });
-    if matches!(scenario, Story::Adopt) {
+                world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+                match phase {
+                    #[cfg(test)]
+                    Phase::Committed => {}
+                    Phase::Fault { cut, before } => {
+                        world.spawn_restartable(
+                            vec![skein_world::StartupRoot {
+                                name: b"private".as_slice().into(),
+                                path: b"client".as_slice().into(),
+                            }],
+                            person,
+                        );
+                        world.spawn_restartable(vec![], programs::llm::<OneProcess>);
+                        world.spawn_restartable(vec![], programs::forge::<OneProcess>);
+                        crate::oracle::spawn(&mut world);
+                        world.cut(0, before, cut);
+                    }
+                    Phase::Restart | Phase::Refused => {
+                        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
+                        world.spawn(|| {
+                            Proc::Forge(Box::new(SignalHost::new(
+                                temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
+                                None,
+                            )))
+                        });
+                    }
+                    Phase::LandedRestart => {
+                        stories::recovery::spawn(&mut world);
+                    }
+                    Phase::Story | Phase::SignIn | Phase::Drain | Phase::ForgeReceipt | Phase::CtlAdopt => {
+                        world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
+                            if matches!(phase, Phase::ForgeReceipt | Phase::CtlAdopt) {
+                                Proc::Other(HarnessProcess::Calls(Box::new(crate::ctl::Caller::scripted(root))))
+                            } else {
+                                Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
+                                    Person::new(root, scenario),
+                                    None,
+                                ))))
+                            }
+                        });
+                        let (llm, forge) = peers.unwrap_or_else(|| {
+                            (
+                                stories::provider(scenario),
+                                temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
+                            )
+                        });
+                        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm, None))));
+                        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(forge, None))));
+                    }
+                }
+                let injector = run.borrow().restart_faults.clone();
+                if let Some(injector) = injector {
+                    world.try_run_with_inputs(|sim, pids, procs| injector.borrow_mut().inputs(sim, pids, procs))
+                } else {
+                    world.try_run()
+                }
+            })
+        });
+    let mut outcome = outcome.inspect_err(|_| STORE.with(|cell| *cell.borrow_mut() = None))?;
+    if let Some(injector) = &run.borrow().restart_faults {
+        injector.borrow_mut().end_phase(outcome.end);
+    }
+    if matches!(scenario, Story::Adopt) && matches!(phase, Phase::Story) {
         assert!(referee::forge::Forge::hooks_complete(&outcome.procs), "the required push-hook prefix was delivered");
     }
     let signed_in = outcome
@@ -1341,6 +1529,7 @@ pub(crate) fn run_phase(
             | Proc::Other(
                 HarnessProcess::Ctl(_)
                 | HarnessProcess::Calls(_)
+                | HarnessProcess::Line(_)
                 | HarnessProcess::ProgramSource(_)
                 | HarnessProcess::Push(_),
             ) => None,
@@ -1363,8 +1552,38 @@ pub(crate) fn run_phase(
         *cell.borrow_mut() = None;
     });
     let records = std::mem::take(&mut *store.borrow_mut());
+    let hook_receipt = if matches!(phase, Phase::ForgeReceipt) {
+        let signed_push = referee::forge::Forge::signed_push(&outcome.procs);
+        let Proc::Service(service) = &mut outcome.procs[0] else { unreachable!("service first") };
+        let mut receipt = service.observer.hook_wire.take().expect("recorded hook wire").receipt;
+        receipt.signed_push = signed_push;
+        Some(receipt)
+    } else {
+        None
+    };
+    let adopt_answer = if matches!(phase, Phase::CtlAdopt) {
+        let caller = outcome
+            .procs
+            .iter_mut()
+            .find_map(|proc| match proc {
+                Proc::Other(HarnessProcess::Calls(caller)) => Some(caller),
+                _ => None,
+            })
+            .expect("hosted forge caller");
+        let answer = caller.answers.pop().expect("repository adopt answer");
+        assert_eq!(caller.answers.len(), 3, "sign-in, forge connect, then forge list");
+        for setup in &caller.answers {
+            assert_eq!(setup.exit, Exit::Code(0), "forge setup: {setup:?}");
+        }
+        Some(answer)
+    } else {
+        None
+    };
     let result = Outcome {
         stopped: None,
+        hook_receipt,
+        adopt_answer,
+        store_checks,
         peaks: outcome.peaks(),
         process_names: outcome.procs.iter().map(process_name).collect(),
         verdict: skein_world::domain::Verdict::Passed,
@@ -1385,7 +1604,7 @@ pub(crate) fn run_phase(
         model_list: matches!(scenario, Story::ModelsList).then(|| crate::model_list::outcome(&outcome.procs, &records)),
     };
     drop(run);
-    (result, std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), records)
+    Ok((result, std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), records))
 }
 
 #[cfg(test)]
@@ -1408,14 +1627,30 @@ pub(crate) fn lower_store(store: Option<Rc<RefCell<Store>>>) {
 }
 
 impl ServiceObserver {
+    pub(crate) fn record_hooks(&mut self) {
+        self.hook_wire.get_or_insert_with(Box::default);
+    }
+
+    pub(crate) fn hook_answered(&self) -> bool {
+        self.hook_wire.as_ref().is_some_and(|wire| !wire.receipt.responses.is_empty())
+    }
+
     /// Decode durable records under the scenario's configured record bounds.
     pub(crate) fn with_codec(
         mut self,
         codec: &jig_protocol_store::codec::View,
         families: &temper_protocol_store::Bounds,
     ) -> Self {
+        self.set_codec(codec, families);
+        self
+    }
+
+    pub(crate) fn set_codec(
+        &mut self,
+        codec: &jig_protocol_store::codec::View,
+        families: &temper_protocol_store::Bounds,
+    ) {
         self.codec = *codec;
         self.families = families.clone();
-        self
     }
 }

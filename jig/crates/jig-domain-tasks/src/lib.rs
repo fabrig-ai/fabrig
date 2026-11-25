@@ -30,7 +30,7 @@
 //! `Ended`, the retained task row, and original-source
 //! posting share one atomic decision. The current root exposes person result notices and
 //! delays outward replies/effects until durability; retained result reads
-//! remain the root's route (domain/tasks/lifecycle.md, section 7; domain/engine/README.md, section 5.6, and domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
+//! remain the root's route (domain/tasks/lifecycle.md, section 7; domain/engine/decisions.md, section 1.6, and domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
 //!
 //! `fire` expires at most one projected retry timer per call and advances bounded
 //! cascades into an uncapped output queue. `valid` checks edge and retained-count
@@ -93,13 +93,17 @@ pub use flags::shaped;
 pub use flags::{Closer, EndedBy, Flags, Retention};
 mod funders;
 mod hold_origin;
+mod hold_words;
+pub use hold_words::{HOLD_WORDS, HoldWords, hold_words};
 mod holds;
 mod inbox;
 mod words;
 pub use words::directing_words;
 mod index;
+mod inspect;
 mod questions;
 mod reasons;
+mod refusal_words;
 pub use index::{Edge, EndedByParty, EndedByProject, Endings, Newest, ResultRow, Update, UpdateObject};
 pub use reasons::{ALWAYS_OFFERED_NAMES, REASON_NAMES, Reasons, offered};
 mod limits;
@@ -111,7 +115,7 @@ mod periods;
 mod placed;
 mod positions;
 pub use placed::{Mode, Owner, PlacedHold, Scope};
-pub use positions::{AnswerLine, ProposalRow, QuestionLine};
+pub use positions::{AnswerLine, ProposalRow, QuestionAnswerNotice, QuestionLine, QuestionResolution};
 mod person;
 mod person_proposals;
 mod procedure;
@@ -137,6 +141,7 @@ pub use summary::{
 };
 mod stored;
 pub use stored::failure::{RestoreBound, RestoreCause, RestoreFailure, RestoreLlmWhy};
+pub use subscriptions::kept_capacity as subscription_capacity;
 mod subscriptions;
 #[cfg(test)]
 mod tests;
@@ -155,21 +160,21 @@ pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
     InvalidResult, JobSpec, KeptStart, Key, Kind, Message, MessageKind, Name, New, NewsClass, NoticeState, Parameter,
-    Party, PersonAddress, PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureDecision,
-    ProcedureEnd, ProcedureInput, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState, RecurringTemplate,
-    Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions,
-    RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind,
-    SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
-    WriterSlot,
+    Party, PersonAddress, PersonAnswer, PersonOffer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem,
+    ProcedureDecision, ProcedureEnd, ProcedureInput, QuestionAnswerer, QuestionCredit, QuestionNotice, QuestionOffer,
+    QuestionRelay, RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess,
+    ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision,
+    Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy, Suspended, Suspension, Taken,
+    TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
-pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken};
+pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
-    AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Held, History,
-    HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
+    AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Fail, Held,
+    History, HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
-pub use domain::{Domain, ViewTask, fire, step, view_phase};
+pub use domain::{Domain, ViewTask, deadline, fire, step, view_phase};
 pub use escalation::{
     Escalation, EscalationContext, EscalationDecider, EscalationDecision, EscalationHolder, EscalationOutcome,
 };
@@ -177,11 +182,11 @@ pub use facts::Fact;
 pub use failures::{Class, Retries, Retry, Tries};
 pub use funders::FundingRecord;
 pub use grace::Grace;
-pub use holds::valid_name;
+pub use holds::{Report as ResourceReport, valid_name};
 pub use limits::{Limits, VERDICT_FIELDS, valid};
 pub use llm::{AccountWhy, CharterModels, LlmChoice, LlmFault, LlmLater, MODELS, ModelEffort};
 pub use moving::Move;
-pub use owned::{batch_bytes, phase_bytes, stored_bytes, task_bytes, terminal_bytes};
+pub use owned::{batch_bytes, phase_bound, phase_bytes, stored_bytes, task_bytes, terminal_bytes};
 pub use parts::{Part, PartKey, PartKind};
 pub use periods::PeriodTimes;
 pub use proposals::{
@@ -189,7 +194,7 @@ pub use proposals::{
     ProposalDecision, ProposalHolder, ProposalKind, ProposalOutcome, ProposalState, SETTINGS_ITEMS, Setting,
     SettingEdit, SettingHead, SettingsDecision, SettingsOutcome,
 };
-pub use questions::{OpenQuestion, open_question_reason};
+pub use questions::{OpenQuestion, QuestionTicket, open_question_reason};
 pub use runtime::{REASON_BYTES, RetryNotice};
 pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,

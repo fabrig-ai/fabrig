@@ -19,18 +19,21 @@
     its record's bytes (../contract/requests.md, 3).
 
   The client reads a family's request only by its owner, version and size
-  (`README.md`, 4.3); its domain recognizes top-level jig `Seen` to decide whether to
+  (`vocabulary.md`, 1.3); its domain recognizes top-level jig `Seen` to decide whether to
   keep it (below).
+
+## 1. Request keys and names
+
 - **The key is the application's name for a request:** its asker, and a
   number the asker draws from its seed, fresh for each request it means.
   A second `Send` under a key the client holds is joined to the first
   when it carries the same request, so a double press or a retry makes
   one request; with another request, it is a key conflict, a mistake of
-  the application's, and loud (`../../../README.md`, 6.5). The engine knows
+  the application's, and loud (`../../../rails.md`, 1.5). The engine knows
   the request by its engine key, scoped to the party (../contract/requests.md,
   1): the key the table draws, or a name (next bullet). The client
   keeps it beside the application's key in the request's record, so a
-  kept request comes back under its key (`README.md`, section 8).
+  kept request comes back under its key (`small-store.md`, section 1).
 - **A `Send` may carry a name:** an engine key the application gives,
   which the table admits in place of a drawn one (skein's `runtime/lib.md`,
   section 12). The request's record keeps it as the engine's key beside
@@ -49,14 +52,17 @@
     another request is still a key conflict, loud.
   - *Not joined.* The table keeps one asker per named entry, `Seen`
     included.
+
+## 2. The request table
+
 - **Through skein-lib's request table** (skein's `runtime/lib.md`, section 12),
   which the client holds. It is the client's only way out for a keyed
   request without a carried value, as the journal is the engine's root's
-  (`../../../README.md`, 6.2); a request carrying a value (below) is the
+  (`../../../rails.md`, 1.2); a request carrying a value (below) is the
   one request that does not go through it. It:
   - *keeps ordinary requests before sending:* the request's record leaves
     in a `Save`, and its first `Exchange` only once the transport says
-    `Stored` (`README.md`, section 8);
+    `Stored` (`small-store.md`, section 1);
   - *sends it again under its key,* after a backoff drawn from the seed,
     while its answer is busy, not ready, or lost with the link live; and
     *parks it* while the link is down or the party signed out;
@@ -65,7 +71,7 @@
     request first sent longer ago than the retention, less a margin, is
     never sent again, and is answered unknown;
   - *retires it not kept* when the last write that carried its record
-    is not stored, whatever its state, parked included (`README.md`, section 8);
+    is not stored, whatever its state, parked included (`small-store.md`, section 1);
   - *is bounded:* requests held, and their bytes, a family's included. A
     `Send` past them is answered at once, refused by the client's limit,
     and never queued.
@@ -81,6 +87,9 @@
   after completion a retry checks current subject and authority and may
   answer `Unknown` after forget or `Role` after authority loss
   (../contract/requests.md, 1 and 2).
+
+## 3. Requests carrying values
+
 - **A request carrying a value,** such as an LLM account's key added or
   replaced, or a moved file moved in (../contract/requests.md, 2), or an
   application's request's credential, is sent once and never kept, so
@@ -113,6 +122,9 @@
   keeps the record: the file is the application's shell's, written
   new, private and synced before *written*, and removed once a move
   in is answered, or once a *written* is refused *cancelled*.
+
+## 4. Progress and answers
+
 - **Progress, for showing.** `Pending { key }` says the request's
   progress changed: in flight, retrying, parked (offline, signed out, or
   another party's), or held for its owner's version (`watches.md`, 2). Retrying
@@ -125,7 +137,7 @@
   - *done,* with its outcome: what the engine made or decided, or, where
     another party decided first, who, how and when; for a family's
     request, its owner's outcome, as bytes;
-  - *refused,* with its facts (../contract/README.md, section 3): jig's, typed, for
+  - *refused,* with its facts (../contract/answers.md, section 1): jig's, typed, for
     every request the people child refuses at admission, a family's
     included; the connector's own outcome, as bytes, for a family's
     request it refused;
@@ -133,10 +145,10 @@
     made it is unknown, and the presentation, which knows the request by
     its key, says where to look;
   - *not kept,* the client's own: its record could not be written, so the
-    client never sent it (`README.md`, section 8).
+    client never sent it (`small-store.md`, section 1).
   - *unconfirmed,* the client's own: sent before `me` named the party,
     so no record could say whose it is. It is answered at once, and
-    nothing of it is kept or sent (`README.md`, section 8).
+    nothing of it is kept or sent (`small-store.md`, section 1).
   - *held,* the client's own: the name the `Send` carries is held by
     another request. It is answered at once, and nothing of it is kept
     or sent (above).
@@ -148,6 +160,9 @@
   (`../../../domain/model.md`, section 11), so the client never says done
   before it is. Nothing a presentation shows as done may come before
   this answer.
+
+## 5. Proposals and decisions
+
 - **Proposing is explicit.** A `Create` or an `Amend` beyond the party's
   authority is refused, naming what it lacked and whether a proposal
   could be accepted; `Propose` asks (../contract/requests.md, 5). Each document's
@@ -165,8 +180,11 @@
   with each live delegate cancelled or moved to the party; amending a
   held task and releasing it; reordering goals). The client never chains
   two requests, so nothing is left to undo when the second is refused.
+
+## 6. A version not served
+
 - **A version not served** keeps the request: while its owner's version
   is not served (`watches.md`, 2), the request is kept and unsent, held for its
   owner's version, and it is sent under its key once a hello serves that
   version again. A client updated to another version of the owner drops
-  it at start (`README.md`, section 8).
+  it at start (`small-store.md`, section 1).

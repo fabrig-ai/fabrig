@@ -198,6 +198,7 @@ pub(super) fn encode_owner_notice_state(
         jig_client::contract::NoticeState::Done => out.string(b"done"),
         jig_client::contract::NoticeState::Failed => out.string(b"failed"),
         jig_client::contract::NoticeState::Cancelled => out.string(b"cancelled"),
+        jig_client::contract::NoticeState::Unreadable => out.string(b"unreadable"),
     }
 }
 
@@ -296,8 +297,20 @@ fn encode_message_notice(
 #[cfg(test)]
 mod tests {
     use super::encode_owner_message_kind;
-    use jig_client::contract::{MessageKind, SettingsOutcome};
+    use jig_client::contract::{MessageKind, NoticeState, SettingsOutcome};
     use skein_json::writer::{Encoder, Limits};
+
+    #[test]
+    fn an_unreadable_watch_notice_has_a_named_state_in_json() {
+        let limits = Limits { depth: 8, length: 256 };
+        let kind = MessageKind::Notice { subscription: 3, target: 7, state: NoticeState::Unreadable };
+        let mut budget = super::super::Cut { room: 0, left: 0, turn: None, subject: false, digest: None };
+        let mut measured = Encoder::measure(&limits);
+        encode_owner_message_kind(&kind, &mut measured, &mut budget);
+        let mut encoded = Encoder::write(measured.measured().expect("bounded notice"), &limits);
+        encode_owner_message_kind(&kind, &mut encoded, &mut budget);
+        assert_eq!(encoded.finish().as_ref(), br#"{"notice":{"subscription":3,"target":7,"state":"unreadable"}}"#);
+    }
 
     #[test]
     fn settings_decisions_encode_all_three_outcomes() {

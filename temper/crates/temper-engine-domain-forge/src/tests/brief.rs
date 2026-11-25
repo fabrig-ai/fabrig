@@ -12,7 +12,7 @@ const SECTION: Token = Token::new(99);
 const STEP: &[u8] = b"Each pull request adds changes/<its number>.md";
 #[expect(clippy::disallowed_macros, reason = "the regression embeds recorded runner fixture bytes")]
 const RUNNER_LOG: &[u8] = include_bytes!("fixtures/ci/red-changes.log");
-const HEAD: [u8; 32] = [
+pub(super) const HEAD: [u8; 32] = [
     0xc1, 0xfb, 0x35, 0x99, 0xfa, 0x12, 0xc9, 0x76, 0x6f, 0x9c, 0xc1, 0x62, 0x84, 0x44, 0x16, 0xe8, 0x7a, 0x92, 0x91,
     0x82, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
@@ -429,8 +429,8 @@ fn stale_files_pause_a_pull_section_and_wake_its_change_even_with_a_partner() {
         );
         assert!(out.is_empty());
         assert!(d.take_brief(SECTION).is_none(), "capacity never becomes words");
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
     }
 }
@@ -633,8 +633,8 @@ fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
             })
         );
         assert!(out.is_empty());
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let resumed = ready(&mut d);
         assert!(resumed.contains(&Request::WakeProcedure { task: fixtures::CHANGE }), "{writer:?}: {resumed:?}");
     }
@@ -1293,9 +1293,11 @@ fn kept_landing_failure(d: &mut Domain) {
     let mut round = policy::Round::new(b"temper/1/l61".as_slice().into());
     round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
     let row = LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
+        follows: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -1507,7 +1509,10 @@ fn a_deferred_section_requires_its_own_read() {
 }
 
 fn pending_checks() -> (Domain, Token) {
-    let mut d = domain();
+    pending_checks_with(domain())
+}
+
+pub(super) fn pending_checks_with(mut d: Domain) -> (Domain, Token) {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pull = Some(1);

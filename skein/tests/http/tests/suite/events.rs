@@ -31,16 +31,16 @@ fn a_stream_cut_and_delivered_at_random_reads_whole() {
 
 #[test]
 fn neighbours_that_end_early_fail_or_close_at_any_moment_leave_a_consistent_run() {
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..80 {
         let mut rng = Rng::new(seed);
-        let mut stream = stream(seed);
-        if rng.chance(500) {
-            stream = generate::mutate(&mut rng, &stream);
-        }
+        let stream = stream(seed);
+        let stream = if rng.chance(500) { generate::mutate(&mut rng, &stream) } else { stream.into() };
         let limits = sse_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, stream.len());
-        let _ = sse_world::check(&stream, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, stream.input().len());
+        let _ = mutations.judge(stream, |stream| sse_world::check(&stream, &settings, seed));
     }
+    mutations.finish();
 }
 
 #[test]
@@ -124,13 +124,21 @@ fn a_user_that_stops_asking_stops_the_reading_and_the_stream_below_holds_the_res
 
 #[test]
 fn a_seed_replays_to_the_same_run() {
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..20 {
         let mut rng = Rng::new(seed);
         let stream = generate::mutate(&mut rng, &stream(seed));
         let limits = sse_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, stream.len());
-        assert_eq!(sse_world::run(&stream, &settings, seed), sse_world::run(&stream, &settings, seed), "seed {seed}");
+        let settings = Settings::chaotic(&mut rng, limits, stream.input().len());
+        mutations.judge(stream, |stream| {
+            assert_eq!(
+                sse_world::run(&stream, &settings, seed),
+                sse_world::run(&stream, &settings, seed),
+                "seed {seed}"
+            );
+        });
     }
+    mutations.finish();
 }
 
 #[test]

@@ -1,4 +1,4 @@
-//! Two checkouts and a real link over scripted IO (worker-restarts.md, 9, test 7).
+//! Two checkouts and a real link over scripted IO (draft/archive/worker-restarts.md, 9, test 7).
 #![expect(
     clippy::disallowed_methods,
     reason = "ordinary worker integration tests inspect link frames, Git spawns and diagnostics"
@@ -125,17 +125,19 @@ impl Story {
             "update-ref",
             "fetch-missing-branch",
             "update-ref",
+            "counts-absent",
+            "counts-delete",
             "checkout-1",
             "checkout-2",
             "object-format",
         ] {
             let mut invocation = Invocation::captured(capture);
             if capture == "fetch-branch" {
-                invocation.transcript.stdout = b"* 0000000000000000000000000000000000000000 0000000000000000000000000000000000000001 refs/temper/0/fetched\n".as_slice().into();
+                invocation.stdout = b"* 0000000000000000000000000000000000000000 0000000000000000000000000000000000000001 refs/temper/0/fetched\n".as_slice().into();
             }
             self.stand.below.script.invocations.push_back(invocation);
         }
-        self.stand.below.script.invocations.back_mut().unwrap().transcript.stdout =
+        self.stand.below.script.invocations.back_mut().unwrap().stdout =
             b"0000000000000000000000000000000000000001\n".as_slice().into();
         for _ in 0..STEPS {
             self.cycle();
@@ -199,7 +201,8 @@ fn a_changed_remote_timeout_is_read_by_the_next_operation_not_the_one_in_flight(
     for capture in ["object-format", "init", "remote-add", "init"] {
         story.stand.below.script.invocations.push_back(Invocation::captured(capture));
     }
-    let _fetch = story.hold(b"fetch");
+    // Run B's first remote operation under the new figures fetches main, before its landing pin.
+    let _fetch_main = story.hold(b"fetch");
     story.deadline(story.link.now, 30);
     assert_eq!(story.stand.worker.root.workspaces(), 2);
     assert_eq!(story.stand.below.signals, 0);

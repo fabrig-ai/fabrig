@@ -282,6 +282,10 @@ fn keep(world: &mut World, start: Option<s::FollowStart>, key: u8) {
     assert_eq!(revision(world), against + 1, "{:?}; adoptions {:?}", world.web_replies, world.adopted);
 }
 fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
+    start_change_setting(world, value, key);
+    settle(world);
+}
+pub(crate) fn start_change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
     let against = revision(world);
     let kinds = value
         .clone()
@@ -314,9 +318,8 @@ fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
         }),
         kinds,
     }));
-    settle(world);
 }
-fn world(start: s::FollowStart) -> World {
+pub(crate) fn world(start: s::FollowStart) -> World {
     world_passing(start, 1000)
 }
 fn world_passing(start: s::FollowStart, passes: u32) -> World {
@@ -332,6 +335,9 @@ fn configured_follow(start: s::FollowStart, passes: u32, gate: Gate, cued: bool)
     world
 }
 fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> World {
+    unaccepted_follow_with_tables(passes, gate, cued, context, false)
+}
+fn unaccepted_follow_with_tables(passes: u32, gate: Gate, cued: bool, context: bool, tiny: bool) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -341,6 +347,10 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         None,
         StoryLimits {
             second_project: true,
+            forge_entries: tiny.then_some(2),
+            forge_pending: tiny.then_some(2),
+            forge_calls: tiny.then_some(2),
+            sign_ins: tiny.then_some(2),
             forge_pages: Some(b"https://forge.example"),
             project_landing: cued.then(|| {
                 (
@@ -400,7 +410,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
     world.send(protocol::hello_slots(Token::new(7), 4, Box::new([])));
     world
 }
-fn push(world: &mut World, message: &[u8]) -> skein_forge::api::Commit {
+pub(crate) fn push(world: &mut World, message: &[u8]) -> skein_forge::api::Commit {
     let raw::Answer::Commit(parent) =
         world.external_at(b"org/vsr", 1, raw::Op::Read(raw::Read::Branch { branch: b"main".as_slice().into() }))
     else {
@@ -455,10 +465,10 @@ fn start(world: &mut World, after: skein_forge::api::Commit) {
     world.send(engine::Event::Resume);
     settle(world);
 }
-fn change(world: &World, after: skein_forge::api::Commit) -> u64 {
+pub(crate) fn change(world: &World, after: skein_forge::api::Commit) -> u64 {
     row(world).queue.iter().find(|entry| entry.after == after).expect("queued commit").change.expect("made change")
 }
-fn cancel(world: &mut World, task: u64, key: u8) {
+pub(crate) fn cancel(world: &mut World, task: u64, key: u8) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         sign_in: world.signed_in.expect("owner signed in"),
@@ -476,7 +486,7 @@ fn advance_follow_timer(world: &mut World) {
         && world.store.pending.is_empty()
         && let Some(due) = world.root.next_deadline(&world.env)
     {
-        world.env.now = world.env.now.max(due);
+        world.advance_to(world.env.now.max(due));
     }
 }
 fn hint_target(world: &mut World) {
@@ -523,7 +533,7 @@ fn push_target(world: &mut World, change: u64) {
         },
     })));
 }
-fn produce(world: &mut World, change: u64, producer: &engine::Assignment) {
+pub(crate) fn produce(world: &mut World, change: u64, producer: &engine::Assignment) {
     push_target(world, change);
     let event = world.protocol.answer(
         Token::new(7),
@@ -552,7 +562,7 @@ fn ended_task(world: &World, task: u64) -> &tasks::TaskRecord {
     };
     row
 }
-fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assignment {
+pub(crate) fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assignment {
     for _ in 0..temper_engine_domain_world::tier_runs::RUN_TICKS {
         world.tick();
         if let Some((child, _)) = questions::row(world, change).delegate
@@ -808,7 +818,7 @@ fn restart_keeps_the_made_change_and_makes_an_unmade_entry_once() {
         reply_to: ReplyTo::new(Token::new(126)),
         sign_in: world.signed_in.expect("owner signed in"),
         key: [126; 16],
-        ask: people::Ask::Stop { project: 2, task: follow_task },
+        ask: people::Ask::Stop { project: 2, task: follow_task, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     settle(&mut world);
     let raw::Answer::Commit(parent) =

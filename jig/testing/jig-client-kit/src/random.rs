@@ -1,4 +1,4 @@
-//! Seeded public truth and fake-person exploration (testing.md, section 7; skein's ui/README.md, 14.1).
+//! Seeded public truth and fake-person exploration (jig/docs/design/client/domain/testing.md, section 7; skein's ui/testing.md, 1.1).
 use crate::{Outcome, Scripted, Test, Until, World, stories};
 use jig_client_domain::contract::{ObjectKey, ReadValue};
 use jig_client_scripted_engine::Change;

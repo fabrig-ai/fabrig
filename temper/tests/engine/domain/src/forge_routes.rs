@@ -18,6 +18,9 @@ use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
+#[path = "restarts.rs"]
+pub mod restarts;
+
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
 
@@ -94,11 +97,23 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    /// Seeded engine faults; absent in all existing stories.
+    pub restarts: Option<restarts::Injector>,
+    pub(crate) workload_deadlines: Option<crate::outcome::Deadlines>,
+    pub(crate) workload_worker: Option<(jig_domain_link::Bounds, Box<[jig_domain_link::JobBound]>, u32)>,
+    restart_calls: Option<Vec<(fake::Event, fake::Config)>>,
+    checks: crate::checks::Checks,
+    /// Optional bounds sweep, sampled at every checked quiet point.
+    pub(crate) bounds: Option<(Vec<skein_world::faults::Kind>, skein_world::faults::FaultLedger)>,
+    iteration: u64,
+    pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
     restart_config: engine::Config,
     /// Delivered forge documents, including updates to a live watch.
     pub oracle_documents: Vec<(Token, forge_top::Document)>,
+    /// Delivered deployment forge rows, including updates to a live watch.
+    pub forges_documents: Vec<(Token, forge_top::Forges)>,
     /// Core query documents, including parts-watch updates.
     pub documents: Vec<(Token, jig_domain_core::documents::Document)>,
     /// Answers to milestone totals reads at the party boundary.
@@ -120,18 +135,25 @@ pub struct World {
     fake_out: Queue<fake::Request>,
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
     pending_repositories: BTreeMap<Token, Box<[u8]>>,
+    /// Physical reply rights are never reused, even when a process restarts.
+    wire_calls: BTreeMap<Token, Token>,
     located_names: BTreeMap<u32, Box<[u8]>>,
     run_repositories: BTreeMap<Token, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
+    /// Attempt times for persistent scripted read faults, when a story observes retry spacing.
+    pub scripted_forge_attempts: Option<Vec<(Time, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     /// Durable limit-setting words at the service face.
     pub limit_settings: Vec<engine::Request>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
+    pub finding_triages: Vec<forge_top::TriageFindingAnswer>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
+    /// Assignments queued at the engine boundary, not yet received by a worker.
+    pub held_assignments: Option<Vec<engine::Assignment>>,
     pub jobs: Vec<host::JobAssignment>,
     pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
@@ -168,7 +190,15 @@ pub struct World {
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
     pub hold_reads_at_any_step: bool,
+    /// Hold one admitted forge read belonging to this change's step.
+    pub hold_read_for: Option<u64>,
     pub busy_reads: bool,
+    /// Answer every engine forge call before it reaches the peer.
+    pub unavailable: bool,
+    pub unavailable_calls: Vec<skein_forge::api::Op>,
+    /// Fail every issue-creation find; ordinary fresh listings still answer.
+    pub fail_issue_finds: bool,
+    pub failed_issue_finds: u32,
     /// Source comparisons withheld before their terminal, including across a cold restart.
     pub held_comparisons: Option<Vec<engine::Request>>,
     /// An unusable comparison must conservatively keep a source landing.
@@ -194,6 +224,8 @@ pub struct World {
     pub forgejo_merge_divergence: bool,
     pub fail_issue_writes: bool,
     pub fail_open_writes: bool,
+    /// Limit the permanent open refusal to one repository; None means every one.
+    pub fail_open_in: Option<skein_forge::api::Repository>,
     pub issue_write_times: Vec<Wall>,
     /// The durable commit number observed when the root drained.
     pub drained: Option<u64>,
@@ -210,11 +242,14 @@ pub struct World {
 #[derive(Clone, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
+    /// The workload's independent scheduling stream, before the fake forge is seeded.
+    pub scheduling_seed: Option<u64>,
     /// Gather startup edits before constructing either the store or the root.
     pub second_project: bool,
     pub forge_entries: Option<u32>,
     pub forge_holds: Option<u32>,
     pub forge_pending: Option<u32>,
+    pub sign_ins: Option<u32>,
     pub forge_calls: Option<u32>,
     pub forge_rate: Option<u32>,
     pub forge_rows: Option<u32>,
@@ -224,6 +259,8 @@ pub struct StoryLimits {
     pub forge_tasks: Option<u32>,
     pub close_job: Option<(Option<Box<[u8]>>, bool)>,
     pub goal_closer: bool,
+    /// Ceiling for a scripted change tree deeper than the default four levels.
+    pub delegation_depth: Option<u32>,
     pub landing_attempts: Option<u8>,
     pub landing_deployment: Option<Box<[engine::LandingRule]>>,
     pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
@@ -253,7 +290,9 @@ pub struct StoryLimits {
     pub dispatch_by_test: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
+    /// Zero stages a waiting batch under the operator hold, with a one-member engine limit.
     pub landing_members: Option<u32>,
+    pub landings: Option<u32>,
     pub batch: Option<u16>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
@@ -280,6 +319,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// Files accumulated by the workload's disjoint edits on main.
+    pub forge_files: Option<u32>,
     /// A complete CI diagnostic and its metadata may exceed the tiny client's answer.
     pub forge_answer_bytes: Option<u32>,
     /// The peer's pull bodies may exceed the issue-projection bound in landing stories.
@@ -519,6 +560,21 @@ impl World {
             Some((defaults, model, Some(limits))),
             &[],
         )
+    }
+
+    /// Give the workload's two people independent owner identities at bootstrap.
+    #[must_use]
+    pub fn with_workload_parties(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.core.owners =
+            Box::new([7, 8].map(|user| people::InitialOwner { project: 1, identity: forge_top::user_key(1, user) }));
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("workload owners");
+        self
     }
 
     /// Keep the project's roles distinct from its policy template before bootstrap.
@@ -871,7 +927,7 @@ impl World {
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = tree_tasks.unwrap_or(12);
-                    rules.ceiling.delegation.depth = 4;
+                    rules.ceiling.delegation.depth = timing.delegation_depth.unwrap_or(4);
                 }
                 let mut policy = config.core.seed_projects[0].policy.policy.clone();
                 policy.ceiling.tools = authority::Tools(tools.unwrap_or(1023));
@@ -909,9 +965,12 @@ impl World {
                     limits.tasks.result_bytes = 256 + RESULT_MESSAGE_BYTES;
                     limits.tasks.inbox_bytes += limits.tasks.inbox_messages * RESULT_MESSAGE_BYTES;
                     limits.journal.run_bytes = 32768;
+                    if let Some(slots) = timing.landings {
+                        limits.forge.landings = slots;
+                    }
                     if let Some(slots) = landing_members {
-                        limits.forge.landing_members = slots;
-                        limits.tasks.holdings = limits.tasks.holdings.max(slots);
+                        limits.forge.landing_members = slots.max(1);
+                        limits.tasks.holdings = limits.tasks.holdings.max(slots.max(1));
                     }
                     let mut grants = List::with_capacity(15);
                     for grant in &rules.ceiling.grants {
@@ -1369,6 +1428,9 @@ impl World {
             if let Some(holds) = timing.forge_holds {
                 limits.forge.holds = holds;
             }
+            if let Some(sign_ins) = timing.sign_ins {
+                limits.people.sign_ins = sign_ins;
+            }
             if let Some(pending) = timing.forge_pending {
                 limits.forge.client.pending = pending;
             }
@@ -1443,13 +1505,16 @@ impl World {
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
         charter_documents: &[jig_domain_core::Document],
     ) -> Self {
-        let [(bootstrap, mut limits), (config, _)] =
+        let [(bootstrap, mut limits), (mut config, _)] =
             Self::configurations(with_read, with_change, gate, documents, timing, stock, charter_documents);
         let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = *timing;
         let mut fake_config = forge_world::fake_config();
         fake_config.limits.repositories = 2;
         if let Some(commits) = timing.forge_commits {
             fake_config.limits.commits = commits;
+        }
+        if let Some(files) = timing.forge_files {
+            fake_config.limits.files = files;
         }
         if let Some(branches) = timing.forge_branches {
             fake_config.limits.branches = branches;
@@ -1478,7 +1543,7 @@ impl World {
             // The two failed test cases and JUnit wrapper exceed a source file's 128 bytes.
             fake_config.limits.content_bytes = 512;
         }
-        let mut fake = fake::Domain::new(&fake_config, 71);
+        let mut fake = fake::Domain::new(&fake_config, timing.scheduling_seed.unwrap_or(71));
         let setup = raw::Setup {
             workflows: crate::tier_runs::workflows(
                 tier,
@@ -1655,11 +1720,26 @@ impl World {
         }
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
+        if landing_members == Some(0) {
+            config.landing_held = true;
+        }
         let period_budget = config.core.defaults.rules.period_spend;
+        let checks = crate::checks::Checks::new(config.core.seed);
+        let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         Self {
+            restarts: None,
+            workload_deadlines: None,
+            workload_worker: None,
+            restart_calls: None,
+            checks,
+            bounds: None,
+            iteration: 0,
+            ends,
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
             oracle_documents: Vec::new(),
+            forges_documents: Vec::new(),
             documents: Vec::new(),
             milestone_reads: Vec::new(),
             oracle_watcher: 0x4e33,
@@ -1678,17 +1758,21 @@ impl World {
             fake_out: Queue::uncapped(),
             pending: BTreeMap::new(),
             pending_repositories: BTreeMap::new(),
+            wire_calls: BTreeMap::new(),
             located_names: BTreeMap::new(),
             run_repositories: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
             scripted_forge_reads: Vec::new(),
+            scripted_forge_attempts: None,
             adopted: Vec::new(),
             limit_settings: Vec::new(),
             follow_answers: Vec::new(),
+            finding_triages: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
             assigned: Vec::new(),
+            held_assignments: None,
             jobs: Vec::new(),
             job_workspaces: BTreeMap::new(),
             auto_prepare: turn,
@@ -1716,7 +1800,12 @@ impl World {
             gate,
             held_reads: None,
             hold_reads_at_any_step: false,
+            hold_read_for: None,
             busy_reads: false,
+            unavailable: false,
+            unavailable_calls: Vec::new(),
+            fail_issue_finds: false,
+            failed_issue_finds: 0,
             held_comparisons: None,
             fail_comparisons: false,
             hold_write_answers: None,
@@ -1730,6 +1819,7 @@ impl World {
             forgejo_merge_divergence: false,
             fail_issue_writes: false,
             fail_open_writes: false,
+            fail_open_in: None,
             issue_write_times: Vec::new(),
             drained: None,
             restarting: Vec::new(),
@@ -1881,6 +1971,24 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid box setup");
+        self
+    }
+
+    /// Start with only the offered sign-in provider, without a seeded deployment payer.
+    #[must_use]
+    pub fn with_personal_plan(mut self, provider: jig_domain_accounts::Provider) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "plan provider precedes world startup");
+        let config = &mut self.restart_config;
+        config.core.settings.llm_providers.providers = Box::new([provider]);
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
+        self.store = crate::fixtures::first_start_over(
+            Store::with_limits(&self.env.limits),
+            crate::oracle::config::copy(config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(config), &self.env.limits)
+            .expect("valid plan provider configuration");
         self
     }
 
@@ -2301,6 +2409,15 @@ impl World {
             .expect("held start");
         self
     }
+    /// Drive forming before observing quiescence after a story releases its start hold.
+    pub fn release_landings(&mut self) {
+        self.root.hold_landings(false);
+        engine::fire(&mut self.root, &self.env);
+        engine::release(&mut self.root, &self.env, &mut self.out);
+        self.collect();
+        self.flush();
+    }
+
     pub fn restart_with_landing_held(&mut self, held: bool) {
         self.restart_config.landing_held = held;
         self.restart_same();
@@ -2322,6 +2439,12 @@ impl World {
         crate::oracle::config::landing(&mut self.restart_config, 1).batch = batch;
         self.restart_same();
     }
+    /// Restart a staged batch after removing the operator's landing hold.
+    pub fn restart_with_unheld_batch(&mut self, batch: u16) {
+        self.restart_config.landing_held = false;
+        self.restart_with_batch(batch);
+    }
+
     /// Restart with a project's new landing configuration, retaining only durable rows.
     pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) {
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
@@ -2338,6 +2461,24 @@ impl World {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }
 
+    /// Crash at a tick boundary, not a drained cut (draft/reconciling-start.md, 7).
+    /// The independent forge keeps running; only this process's reply rights and
+    /// uncommitted store work are lost. Hosted worker attempts survive as on `restart_same`.
+    pub fn crash_restart(&mut self, seed: u64) {
+        self.store.crash(seed);
+        self.pending.clear();
+        self.pending_repositories.clear();
+        self.wire_calls.clear();
+        self.run_repositories.clear();
+        self.fake_out = Queue::uncapped();
+        self.immediate.clear();
+        for held in [&mut self.held_reads, &mut self.held_comparisons, &mut self.held_merge_calls].into_iter().flatten()
+        {
+            held.clear();
+        }
+        self.restart_same();
+    }
+
     fn restart_domain(&mut self, mut config: engine::Config, with_change: bool) {
         for worker in &mut config.core.defaults.workers {
             worker.places = self.env.limits.fleet.slots;
@@ -2348,6 +2489,7 @@ impl World {
         self.root =
             engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
         self.restart_config = config;
+        self.ends.restarted(self.env.now);
         self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
@@ -2362,10 +2504,10 @@ impl World {
         self.adopted.clear();
         self.period = None;
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
-        if !self.assigned.is_empty() {
+        if self.oracle_peer.is_some() || !self.assigned.is_empty() {
             let mut bounds = protocol::bounds();
             bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
-            self.events.push_back(protocol::hello_with(
+            let mut hello = protocol::hello_with(
                 Token::new(7),
                 0,
                 self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
@@ -2377,7 +2519,18 @@ impl World {
                         protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)
                     })
                     .collect(),
-            ));
+            );
+            if let Some(worker) = &self.workload_worker
+                && let engine::Event::Worker(engine::WorkerInput::Link {
+                    link: engine::Link::Hello { hello, .. }, ..
+                }) = &mut hello
+            {
+                hello.bounds = worker.0.clone();
+                hello.jobs.clone_from(&worker.1);
+                hello.slots = worker.2;
+                hello.fresh = false;
+            }
+            self.events.push_back(hello);
         }
     }
 
@@ -2453,6 +2606,40 @@ impl World {
                     }));
                 }
                 engine::Request::Forge { call, repository, op } => {
+                    if self.unavailable {
+                        self.unavailable_calls.push(op);
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::Unavailable),
+                            },
+                        ))));
+                        continue;
+                    }
+                    if self.fail_issue_finds
+                        && matches!(
+                            op,
+                            skein_forge::api::Op::Read(skein_forge::api::Read::Items {
+                                kind: Some(skein_forge::api::Kind::Issue),
+                                ..
+                            })
+                        )
+                    {
+                        self.failed_issue_finds += 1;
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: Err(skein_forge::api::Error::Unavailable),
+                            },
+                        ))));
+                        continue;
+                    }
                     if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
                         self.held_reads.get_or_insert_with(Vec::new).push(engine::Request::Forge {
                             call,
@@ -2481,9 +2668,18 @@ impl World {
                     }
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
-                        && (self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
-                            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
-                                if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))))
+                        && match self.hold_read_for {
+                            Some(task) => reads.is_empty() && self.root.forge().inspection_client().holders().iter().any(|holder| {
+                                holder.repository == repository
+                                    && matches!((&holder.call, &op),
+                                        (skein_forge_client::Holding::Read(held), skein_forge::api::Op::Read(read)) if held == read)
+                                    && matches!(holder.owner, skein_forge_client::CallOwner::Read(owner)
+                                        if self.root.forge().inspection_read_task(owner) == Some(task))
+                            }),
+                            None => self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
+                                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
+                                    if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))),
+                        }
                     {
                         reads.push(engine::Request::Forge { call, repository, op });
                         continue;
@@ -2508,6 +2704,9 @@ impl World {
                     if let skein_forge::api::Op::Read(read) = &op
                         && let Some((_, result)) = self.scripted_forge_reads.iter().find(|(asked, _)| asked == read)
                     {
+                        if let Some(attempts) = &mut self.scripted_forge_attempts {
+                            attempts.push((self.env.now, read.clone()));
+                        }
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
                             skein_forge_client::Event::Answered {
                                 free: 0,
@@ -2536,6 +2735,7 @@ impl World {
                         self.issue_write_times.push(self.env.wall);
                     }
                     let fail_open = self.fail_open_writes
+                        && self.fail_open_in.is_none_or(|only| only == repository)
                         && matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { .. }));
                     if (self.fail_issue_writes && issue_write) || fail_open {
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
@@ -2705,6 +2905,8 @@ impl World {
                     };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
+                    let wire = Token::new(u64::from(self.forge_calls));
+                    assert!(self.wire_calls.insert(wire, call).is_none(), "unique physical reply right");
                     let mut limits = self.fake_env.limits.clone();
                     if slow {
                         limits.latency_min = self.slow_branch_latency;
@@ -2715,17 +2917,17 @@ impl World {
                         limits.latency_max = delay;
                     }
                     let fake_env = self.fake_env.with(limits);
-                    fake::step(
-                        &mut self.fake,
-                        &fake_env,
-                        fake::Event::Call {
-                            reply_to: ReplyTo::new(call),
-                            user: 1,
-                            repository: Box::from(name),
-                            op: raw,
-                        },
-                        &mut self.fake_out,
-                    );
+                    let event = fake::Event::Call {
+                        reply_to: ReplyTo::new(wire),
+                        user: 1,
+                        repository: Box::from(name),
+                        op: raw,
+                    };
+                    if let Some(calls) = &mut self.restart_calls {
+                        calls.push((event, fake_env.limits));
+                    } else {
+                        fake::step(&mut self.fake, &fake_env, event, &mut self.fake_out);
+                    }
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {
@@ -2735,7 +2937,13 @@ impl World {
                     Delivery::WebReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } => {
                         self.signed_in = Some(sign_in);
                     }
-                    Delivery::Assigned { assignment, .. } => self.assigned.push(assignment),
+                    Delivery::Assigned { assignment, .. } => {
+                        if let Some(held) = &mut self.held_assignments {
+                            held.push(assignment);
+                        } else {
+                            self.assigned.push(assignment);
+                        }
+                    }
                     Delivery::AssignedJob { job, workspace, .. } => {
                         if let Some(workspace) = workspace {
                             self.job_workspaces.insert(job.run.raw(), workspace);
@@ -2756,6 +2964,7 @@ impl World {
                         self.events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
                     }
                     Delivery::ForgeDocument { watcher, document } => self.oracle_documents.push((watcher, *document)),
+                    Delivery::Forges { watcher, forges } => self.forges_documents.push((watcher, forges)),
                     Delivery::Link {
                         down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: true, text }, .. },
                         ..
@@ -2786,6 +2995,7 @@ impl World {
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
                         Some(engine::ApplicationAnswer::Follow(outcome)) => self.follow_answers.push(outcome),
+                        Some(engine::ApplicationAnswer::TriageFinding(outcome)) => self.finding_triages.push(outcome),
                         Some(
                             engine::ApplicationAnswer::Looked(_)
                             | engine::ApplicationAnswer::FileFinding(_)
@@ -2980,6 +3190,7 @@ impl World {
     pub fn drain_cut(&mut self) {
         for _ in 0..STEPS {
             if self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty() {
+                self.check_quiet();
                 return;
             }
             self.tick();
@@ -3029,6 +3240,7 @@ impl World {
                 answerer: tasks::Party::Task(change),
                 asked: tasks::Party::Task(change),
                 line: sender.activity,
+                offer: None,
             });
             sender.questions = credits.into_boxed_slice();
         }
@@ -3071,6 +3283,28 @@ impl World {
         question
     }
 
+    fn quiet(&self) -> bool {
+        self.events.is_empty()
+            && self.immediate.is_empty()
+            && self.out.is_empty()
+            && self.fake_out.is_empty()
+            && self.store.idle()
+            && !self.fake.is_due(self.env.now)
+            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
+            && self.root.quiescent()
+    }
+
+    fn check_quiet(&mut self) {
+        if self.quiet() {
+            self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            if let Some((kinds, ledger)) = &mut self.bounds {
+                let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+                temper_engine_inspect::inspect(&self.root, &mut inspection);
+                ledger.saturation(kinds, &[&inspection], self.env.now).expect("monotonic quiet points");
+            }
+        }
+    }
+
     fn idle_until_timer(&mut self) -> bool {
         if self.period.is_none()
             || !self.events.is_empty()
@@ -3093,9 +3327,8 @@ impl World {
         true
     }
 
-    /// Observe the entire fixed-tick horizon, jumping only over ticks with no
-    /// immediate work and strictly before either machine's next timer. Timers
-    /// still fire on the first tick of the story's grid at or after their due time.
+    /// Observe the fixed-tick horizon, skipping only idle ticks before either
+    /// machine's next timer or the next inspection bound.
     pub fn advance_ticks(&mut self, mut ticks: u32) {
         if ticks > 0 && !self.oracle_running {
             self.sync_clock();
@@ -3103,7 +3336,9 @@ impl World {
         while ticks > 0 {
             let interval = self.tick_interval.as_nanos();
             if !self.oracle_running && interval > 0 && self.idle_until_timer() {
+                self.check_quiet();
                 let root = self.idle_revision.expect("idle root revision").1;
+                let root = root.into_iter().chain(self.checks.next_bound()).min();
                 let due = match (root, self.fake.next_deadline()) {
                     (Some(root), Some(fake)) => Some(root.min(fake)),
                     (root, None) => root,
@@ -3115,9 +3350,14 @@ impl World {
                 let skip = u32::try_from(skip.min(u64::from(ticks))).expect("bounded by remaining ticks");
                 if skip > 0 {
                     self.changed_tasks.clear();
-                    self.env.now =
-                        self.env.now.saturating_add(Duration::from_nanos(interval.saturating_mul(u64::from(skip))));
+                    for _ in 0..skip {
+                        self.env.now = self.env.now.saturating_add(self.tick_interval);
+                        self.iteration += 1;
+                        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+                        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+                    }
                     self.sync_clock();
+                    self.check_quiet();
                     self.fake.reclaim();
                     ticks -= skip;
                     continue;
@@ -3135,24 +3375,57 @@ impl World {
     }
 
     pub fn tick(&mut self) {
+        self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Rehearse the workload's final committed store through a cold opening.
+    pub(crate) fn check_workload_store(&self) -> Result<(), String> {
+        crate::check::store(&self.store, &self.restart_config, &self.env.limits, self.env.wall, self.store.applied)
+    }
+
+    /// A tick whose referee finding is returned to a check's own test.
+    pub fn try_tick(&mut self) -> Result<(), String> {
+        // Do not move the large inline ledger on iterations with no injector.
+        if self.restarts.is_some() {
+            let mut injector = self.restarts.take().expect("enabled restart injector");
+            injector.tick(self);
+            self.restarts = Some(injector);
+        }
+        if self.restart_calls.is_some() {
+            self.dispatch_restart_calls(None);
+        }
         self.tick_with_reply_cut(None, true);
+        self.check_ends()?;
         if self.auto_prepare {
             self.complete_prepare();
         }
+        Ok(())
     }
 
     /// Let inputs, commits and API outcomes advance without an owner Resume.
     pub fn tick_without_resume(&mut self) {
         self.tick_with_reply_cut(None, false);
+        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Apply the step saving a reply to `target`, losing its commit terminal.
     /// Other decisions and the clock follow an ordinary world tick.
     pub fn tick_losing_reply_commit(&mut self, target: u64) -> bool {
-        self.tick_with_reply_cut(Some(target), true)
+        let lost = self.tick_with_reply_cut(Some(target), true);
+        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+        lost
+    }
+
+    fn check_ends(&mut self) -> Result<(), String> {
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
+        self.ends.step(self.env.now, &self.store)
     }
 
     fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
+        self.check_quiet();
+        self.iteration += 1;
         self.changed_tasks.clear();
         // A Busy retry keeps the offered change step in flight. Drain that
         // read's timer before snapshotting; an idle procedure's poll is not work.
@@ -3172,19 +3445,23 @@ impl World {
                 .root
                 .next_deadline(&self.env)
                 .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
+        let mut next = self.env.now;
         if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
-            self.env.now = self.env.now.max(due);
+            next = next.max(due);
         }
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
             {
-                self.env.now = self.env.now.max(due);
+                next = next.max(due);
             }
         } else {
-            self.env.now = self.env.now.saturating_add(self.tick_interval);
+            next = next.saturating_add(self.tick_interval);
         }
+        let lost = self.visit_bounds(next, target, resume);
+        self.env.now = next;
         self.sync_clock();
+        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
         // An idle shell has no input, output or owner continuation to run.
         // Keep the tick's observation instant, including both timer boundaries.
         if !self.oracle_running
@@ -3195,7 +3472,70 @@ impl World {
             self.fake.reclaim();
             return false;
         }
-        self.tick_at_now(target, resume, retrying_change)
+        self.tick_at_now(target, resume, retrying_change) || lost
+    }
+
+    /// Move the story's clock through every kept bound, draining its timers at
+    /// that instant. Other timers keep the story's ordinary tick policy.
+    pub fn jump(&mut self, duration: Duration) {
+        self.advance_to(self.env.now.saturating_add(duration));
+    }
+
+    /// An absolute clock move for stories that choose a deadline themselves.
+    pub fn advance_to(&mut self, at: Time) {
+        self.try_advance_to(at).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Refuse a backwards clock move without changing the world.
+    pub fn try_advance_to(&mut self, at: Time) -> Result<(), String> {
+        if at < self.env.now {
+            return Err("the story clock moves forward".to_owned());
+        }
+        self.check_quiet();
+        self.visit_bounds(at, None, true);
+        self.env.now = at;
+        self.sync_clock();
+        self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+        Ok(())
+    }
+
+    fn visit_bounds(&mut self, at: Time, target: Option<u64>, resume: bool) -> bool {
+        let mut lost = false;
+        while let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if bound < self.env.now {
+                self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+            self.env.now = bound;
+            self.sync_clock();
+            let mut drained = false;
+            for _ in 0..STEPS {
+                self.iteration += 1;
+                self.checks.step(bound, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+                lost |= self.tick_at_now(target, resume, true);
+                if self.auto_prepare {
+                    self.complete_prepare();
+                }
+                self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+                if self.quiet() {
+                    self.check_quiet();
+                    drained = true;
+                    break;
+                }
+            }
+            assert!(
+                drained,
+                "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in {STEPS} steps",
+                self.restart_config.core.seed,
+                bound.as_nanos(),
+                self.iteration
+            );
+            // A wait still standing at the bound must not pin the clock forever:
+            // its next move is the referee's finding, not another drain.
+            if self.checks.next_bound().is_some_and(|next| next <= bound) {
+                self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+        }
+        lost
     }
 
     #[expect(
@@ -3228,12 +3568,15 @@ impl World {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
         }
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
         if self.period.is_none() && self.root.ready() {
             self.period = Some(1);
             let period = engine::PartyInput::Period { project: 1, period: 1, budget: self.period_budget, next: None };
             self.send(engine::Event::Party(period));
             // The repository's git identity, an application credential from
-            // temper's own source (domain/root.md, 6.1).
+            // temper's own source (domain/root-translation.md, 2.1).
             self.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         }
         if self.fake.is_due(self.fake_env.now) {
@@ -3242,7 +3585,8 @@ impl World {
         for _ in 0..self.fake_out.len() {
             match self.fake_out.pop().expect("counted fake output") {
                 fake::Request::Reply { to, result } => {
-                    let call = to.into_token();
+                    // A crash abandons reply rights, not the remote operation.
+                    let Some(call) = self.wire_calls.remove(&to.into_token()) else { continue };
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let repository = self.pending_repositories.remove(&call).expect("pending call's repository");
                     let result = match result {
@@ -3277,7 +3621,7 @@ impl World {
                                 )
                             {
                                 // The provider-neutral fake reports divergence; Forgejo's
-                                // dialect keeps its 500 as Timeout (forge/forgejo.md, 1.2).
+                                // dialect keeps its 500 as Timeout (skein/docs/design/forge/forgejo-operations.md, 1).
                                 Err(skein_forge::api::Error::Timeout)
                             } else {
                                 Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
@@ -3331,6 +3675,7 @@ impl World {
         self.flush();
         self.root.reclaim();
         self.fake.reclaim();
+        self.check_quiet();
         lost
     }
 
@@ -3387,6 +3732,12 @@ impl World {
 
     pub fn sign_in(&mut self) {
         self.until(Until::Ready);
+        self.request_sign_in();
+        self.until(Until::SignedIn);
+    }
+
+    /// Ask without draining unrelated forge retries before the local request.
+    pub fn request_sign_in(&mut self) {
         self.send(engine::Event::Party(engine::PartyInput::SignedIn {
             until: None,
             held: None,
@@ -3397,7 +3748,6 @@ impl World {
                 name: Box::from(&b"Owner"[..]),
             },
         }));
-        self.until(Until::SignedIn);
     }
 
     pub fn adopt_landing(&mut self, landing: &[u8]) {
@@ -3513,12 +3863,23 @@ pub fn change_world_in(
     change_world_funded(world, policy, 40)
 }
 
-#[expect(clippy::too_many_lines, reason = "the root change fixture builds both producer and review routes")]
 #[must_use]
 pub fn change_world_funded(
+    world: World,
+    policy: paths::Change,
+    spend: u64,
+) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
+    change_world_with_result_words(world, policy, spend, 32)
+}
+
+/// Prepare the same producer with room for a story's landing result words.
+#[expect(clippy::too_many_lines, reason = "the root change fixture builds both producer and review routes")]
+#[must_use]
+pub fn change_world_with_result_words(
     mut world: World,
     policy: paths::Change,
     spend: u64,
+    words: u32,
 ) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
     let paths::Change { no_ci, owner_gate: _, tracked } = policy;
     if no_ci {
@@ -3612,11 +3973,11 @@ pub fn change_world_funded(
                         ]),
                         inputs: Box::new([]),
                     },
-                    // Reserve 32 bytes for landing identity beside its live result label.
+                    // Keep landing identity beside its live result label.
                     contract: tasks::Contract::Change {
                         connector: 0,
                         kind: 1,
-                        words: 32 + RESULT_MESSAGE_BYTES,
+                        words: words + RESULT_MESSAGE_BYTES,
                         choices: Box::new([]),
                     },
                     authority: child_authority,
@@ -3799,6 +4160,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -3833,10 +4195,12 @@ impl World {
     /// Settle, read the public documents, crash the same store, and compare.
     pub fn close(&mut self) {
         if self.broken {
+            self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
             return;
         }
         self.oracle_running = true;
         self.oracle_settle();
+        self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         let forges = self.root.forges();
         let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows, self.env.wall);
         for (sign_in, read) in &snapshot.queries {
@@ -3858,8 +4222,9 @@ impl World {
         std::mem::swap(&mut self.out, &mut fresh.out);
         std::mem::swap(&mut self.events, &mut fresh.events);
         std::mem::swap(&mut self.store, &mut fresh.store);
-        fresh.broken = crate::oracle::Fixture::Broken;
+        fresh.broken("temporary driver transfers its cold root to the forge world");
         self.drained = None;
+        self.ends.restarted(self.env.now);
         self.period = Some(1);
         self.events.push_back(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         if let Some((channel, worker, slots)) = self.oracle_peer {
@@ -3886,13 +4251,16 @@ impl World {
         }
         self.oracle_settle();
         self.oracle_running = false;
+        self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Drain immediate terminals while permitting tasks that wait on an account or a host.
     pub fn oracle_settle(&mut self) {
         // These are the world's held terminals, not new actions from surviving peers.
         self.release_write_answers();
-        if let Some(reads) = self.held_reads.take() {
+        if self.hold_read_for.is_none()
+            && let Some(reads) = self.held_reads.take()
+        {
             for read in reads {
                 self.out.push(read);
             }

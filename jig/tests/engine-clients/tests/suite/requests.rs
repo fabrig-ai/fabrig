@@ -81,6 +81,76 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
     );
 }
 
+/// A parked act leaves room on the shared sign-in: the other request can be
+/// answered while the resend waits for the parked act's answer.
+#[test]
+fn a_parked_act_holds_no_exchange() {
+    // jig-protocol-config's standard profile: two exchanges per shared sign-in.
+    const STOCK_EXCHANGES_PER_SIGN_IN: u32 = 2;
+    let mut limits = fixtures::limits();
+    limits.exchanges_per_client = STOCK_EXCHANGES_PER_SIGN_IN;
+    let mut peer =
+        Peer::signed_in_with_bounds(&fixtures::settings(), fixtures::FIRST_SIGN_IN, limits, fixtures::http_limits());
+    let parked = peer.post_signed(b"/jig/v1/request", request());
+    let Some(core::Event::People(people::Event::Ask { reply_to: parked_reply, sign_in, key, ask, .. })) =
+        peer.take_core()
+    else {
+        panic!("parked act reaches the core");
+    };
+    assert_eq!(sign_in, fixtures::FIRST_SIGN_IN);
+    assert_eq!(key, [5; 16]);
+    assert_eq!(peer.answered(parked), None);
+
+    peer.cut_exchange(parked);
+    let resend = peer.post_signed(b"/jig/v1/request", request());
+    let Some(core::Event::People(people::Event::Ask {
+        reply_to: resend_reply,
+        sign_in: resend_sign_in,
+        key: resend_key,
+        ask: resend_ask,
+        ..
+    })) = peer.take_core()
+    else {
+        panic!("resend reaches the core");
+    };
+    assert_eq!((resend_sign_in, resend_key, resend_ask), (sign_in, key, ask));
+    assert_eq!(peer.answered(resend), None);
+
+    let other = peer.post_signed(
+        b"/jig/v1/request",
+        keyed([6; 16], &w::Ask::Message(w::Message { project: 3, task: 8, words: Box::from(b"another".as_slice()) })),
+    );
+    if let Some(bytes) = peer.answered(other) {
+        let answer =
+            w::KeyedAnswer::decode(&fixtures::limits().wire, &mut skein_lib::Reader::new(bytes)).expect("wire answer");
+        assert_ne!(answer, w::KeyedAnswer::Busy, "a parked act and its resend must leave room on the sign-in");
+    }
+    let Some(core::Event::People(people::Event::Ask { reply_to: other_reply, sign_in: other_sign_in, key, .. })) =
+        peer.take_core()
+    else {
+        panic!("another request reaches the core while the act is parked");
+    };
+    assert_eq!(other_sign_in, sign_in);
+    assert_eq!(key, [6; 16]);
+    peer.answer_request(other_reply, people::Reply::Outcome(people::Outcome::Said { task: 8, message: 10 }));
+    assert_eq!(final_answer(&peer, other), said_answer(10));
+
+    // The scripted core releases the kept outcome to both callers of the same key.
+    let answer = people::Reply::Outcome(people::Outcome::Said { task: 8, message: 9 });
+    peer.answer_request(parked_reply, answer.clone());
+    peer.answer_request(resend_reply, answer);
+    assert_eq!(peer.answered(parked), None);
+    assert_eq!(final_answer(&peer, resend), said_answer(9));
+}
+
+fn said_answer(message: u64) -> w::Final {
+    w::Final::Done(w::Done {
+        outcome: w::Outcome::Document(w::OutcomeDocument {
+            value: w::DocumentOutcome::Said(w::OutcomeSaid { task: 8, message }),
+        }),
+    })
+}
+
 fn owner_authority(spend: u64) -> w::Authority {
     w::Authority {
         models: None,
@@ -329,9 +399,10 @@ fn a_carried_value_is_kept_before_the_application_sees_its_request() {
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("jig");
-    settings.served.push(Served { family: Some(1), first: 1, last: 1 }).expect("family");
+    settings.served.push(Served { family: Some(1), first: 1, last: 1, layout: [1; 32] }).expect("family");
     let mut peer = Peer::started(&settings);
     let bearer = fixtures::signed_in(&mut peer);
     let socket = peer.post(b"/jig/v1/request", carrying_request(b"a carried key"), Some(&bearer));

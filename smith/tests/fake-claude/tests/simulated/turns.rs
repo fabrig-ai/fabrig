@@ -1,5 +1,5 @@
 //! Print conversations through the simulated process face, per
-//! smith/docs/design/protocol/programs.md, sections 5 and 8.
+//! smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8.
 
 use crate::support;
 
@@ -57,6 +57,22 @@ fn a_turn_answers_each_user_message_with_its_result() {
     assert_eq!(assistant["message"]["usage"]["input_tokens"], 10);
     assert!(assistant["message"]["id"].is_string());
     assert!(assistant["parent_tool_use_id"].is_null());
+}
+
+#[test]
+fn a_plain_turn_finishes_cleanly_when_stdin_closes() {
+    let invocation = print::invocation(1).first_input_after("status");
+    let run = print::run(Story::default(), invocation, None, Some(MCP));
+    let records = messages(&run);
+    let [init, status, assistant, result] = records.as_slice() else {
+        panic!("expected four records for one turn, got {records:?}");
+    };
+    assert_eq!(init["subtype"], "init");
+    assert_eq!(status["subtype"], "status");
+    assert_eq!(assistant["type"], "assistant");
+    assert_eq!(result["type"], "result");
+    assert_eq!(result["result"], "Done.");
+    assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
 }
 
 #[test]
@@ -150,6 +166,7 @@ fn an_error_result_carries_its_status() {
                 resets_at: Some(123),
                 terminal_reason: Some("limited".into()),
                 errors: vec!["limit".into()],
+                result: None,
             },
         ),
         1,

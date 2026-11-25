@@ -24,6 +24,9 @@ still open is listed in `README.md`, section 8.
   its models' prices.
 - **The host tools are temper's** (`tools.md`): jig's core's tools under temper's
   own names, and the forge's reads, effect and topics.
+  - `tools-forge.md`: the agent's forge reads.
+  - `tools-change.md`: a change in the run's words.
+  - `tools-goal.md`: a goal in the run's words.
 - **Which tools a run is declared** (`declarations.md`): its charter's
   families' tools, each in a short declared form within 1,024 bytes, its
   whole form on the `host-tools` page, and the contract the declarations
@@ -88,7 +91,7 @@ agent    smith: LLM work, one run per process, reporting to its worker
   driver. A run's grants reach it through its worker and smith's host
   half: for each LLM provider it uses, a credential with its scheme, or
   a program source's name, whose login the host checks and the program
-  reads (`../../protocol/credentials.md`, section 3; jig's
+  reads (`../../protocol/credentials-llm-accounts.md`, section 1; jig's
   `protocol/llm.md`, section 6). The agent runs the loop itself, or
   through the program (smith's `protocol/programs.md`, section 2).
 
@@ -126,7 +129,7 @@ worker commits exactly the tree the run checked, with the result's
 `title` and `body`, and pushes it as a fast-forward, never forced, to the
 branch the assignment names; a merge in progress is committed as the
 merge, with both parents. Its outcomes, in smith's terms (smith's
-`domain/run.md`, 8.2):
+`domain/run-delivery.md`, 1.2):
 
 | The push | smith's delivery |
 |---|---|
@@ -146,7 +149,7 @@ pushes that head again and answers delivered
 the stock charter's `deliver`, then `finish` as a change
 (`../../../charters/stock/implementer.md`), holds across a question.
 smith still refuses a genuine nothing, a clean tree with no delivery of
-the task's own (smith's `domain/run.md`, 8.2).
+the task's own (smith's `domain/run-delivery.md`, 1.2).
 
 A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worker/checkouts.md
 ) has outcomes of its own, and is never stale:
@@ -162,7 +165,7 @@ A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worke
 
 What it delivers is the tree, not the run's history: a checkout is detached
 (../worker/checkouts.md), and the worker commits on its own record of the head,
-never on HEAD (`../../protocol/git.md`, 4.7). So a run's own commits, resets and
+never on HEAD (`../../protocol/git-operations.md`, 1.7). So a run's own commits, resets and
 rebases keep their files and lose their history, and a saved tree that is
 delivered unchanged lands the save's commit, the delivery's title and body
 unused (../worker/checkouts.md). The head delivered names what is on the branch,
@@ -175,7 +178,7 @@ question`, with no body, and a landed save's receipt reads `saved <head> to
 branch <branch>, unchecked: no check ran; your checkout stays detached, as
 expected`. Its other outcomes are the table's. A save's push moves the
 change's own branch as a delivery's does, so the engine hears of it as of
-any push the run left (../worker/README.md, 4.2). When it accepts the head the
+any push the run left (../worker/hosted-runs.md, 1.2). When it accepts the head the
 attempt left under its writer claim, it records that head in the change as
 well as the branch, however the head reached it: reported in the run's
 answer, or found by the read that frees the attempt's writer when no answer
@@ -206,14 +209,14 @@ a run copies what it reads. That holds for a receipt and for every other word
 that prints a whole head, a cancel's reason among them.
 
 A push that lands is the result, even if the run was winding down. The
-answer carries what the run left on the forge (../worker/README.md, 4.2), and the
+answer carries what the run left on the forge (../worker/hosted-runs.md, 1.2), and the
 forge's change procedure goes on from it (../forge/change/README.md).
 
 ## 6. Turns and transcripts
 
 Turns are smith's bytes (smith's `domain/session.md`, section 3), which
 the worker relays and the engine keeps opaque, by conversation and
-window (jig's `domain/engine/executors.md`, 2; jig's `domain/hosts/hub.md`, 4).
+window (jig's `domain/engine/executors-transcripts.md`, 1; jig's `domain/hosts/hub.md`, 4).
 temper's client decodes them as jig's client does (jig's
 `client/domain/client/conversations.md`). A run that resumes is given its
 transcript's current window and the calls committed after its last turn;
@@ -221,7 +224,7 @@ past the resume limit, or when smith refuses the transcript, the next
 run starts fresh, its brief carrying the tail when it is readable. If
 the saved window is unread, the first load spends a transient try; its
 retry starts fresh without the tail, keeping the person's pending words
-(jig's `domain/engine/executors.md`, 2).
+(jig's `domain/engine/executors-transcripts.md`, 1).
 
 An unidentified startup fault keeps its agent-failure classification and
 bounded operator diagnostic through cleanup (jig's `domain/hosts/hub.md`, 3).
@@ -257,7 +260,7 @@ host:
   hears its person's words, parks, and resumes from its transcript; a
   host tool answered busy by the engine, asked again and decided once.
 - **A person's words during a turn,** in the system world
-  (`../../testing/README.md`, 2.1): an Open chat's first model call
+  (`../../testing/tiers.md`, 1.1): an Open chat's first model call
   held, as the world's absence stories hold one, the person's words
   said to the chat while it is held, then the call answered and the
   run going on. Two model calls, both answered, with no nudge or retry;
@@ -280,7 +283,7 @@ host:
 
 - Ask temper before M3b: `ask-temper.md`, section 5.
 
-- A real chat choosing `change`: `tools.md`, section 3.
+- A real chat choosing `change`: `tools.md`, section 9.
 
 - **Forge-read fallout with real agents** (`agents.md`): the existing
   ChatGPT and Claude Code owned-forge landing stories check that a real
@@ -296,7 +299,7 @@ host:
 - A real model asking its person: `agents.md`, section 5.
 - A permission for its own requester alone: `agents.md`, section 5.
 
-- Proposal-form diagnostics: `tools.md`, section 3.
+- Proposal-form diagnostics: `tools.md`, section 9.
 
 - A real model revising a proposal: `agents.md`, section 5.
 
@@ -307,17 +310,17 @@ host:
   coding charter and the reference's tell a run its own history isn't kept. A
   deployment's own charter is its author's, so a run under one isn't told.
   Default: so.
-- A charter where the process has no local agent: `tools.md`, section 3.
+- A charter where the process has no local agent: `tools.md`, section 9.
 - A `see` answer by its worker's reply bound: `ask-temper.md`, section 5.
 - The person's forge identity in a chat's brief,: `agents.md`, section 5.
-- A collaborator's login in `read_forge what=collaborators`: `tools.md`, section 3.
-- `read_forge what=permission`'s login held to the settings family: `tools.md`, section 3.
+- A collaborator's login in `read_forge what=collaborators`: `tools.md`, section 9.
+- `read_forge what=permission`'s login held to the settings family: `tools.md`, section 9.
 - A person known by a login alone: `agents.md`, section 5.
-- Which host tools a charter offers: `tools.md`, section 3.
+- Which host tools a charter offers: `tools.md`, section 9.
 - What sizes temper's own way: `agents.md`, section 5.
 - QA in temper's own way: `agents.md`, section 5.
 - Ask temper woken by a landing: `agents.md`, section 5.
-- Who may name a plan's members of `change`: `tools.md`, section 3.
+- Who may name a plan's members of `change`: `tools.md`, section 9.
 - A goal's question kept with its chat: `agents.md`, section 5.
 - Who else writes a question's line form: `agents.md`, section 5.
 - **A larger whole compare** (`tools.md`). Nine files, nine commits or one line
@@ -326,10 +329,10 @@ host:
   comparison would change what the settled answer holds. Default: keep
   the bounds and direct the run to pull-file pages and selected file reads,
   until a real landing shows that recovery cannot serve the change.
-- A cancel's grace: `tools.md`, section 3.
-- **A code graph** for a workspace (../worker/checkouts.md, section 2), as an MCP
+- A cancel's grace: `tools.md`, section 9.
+- **A code graph** for a workspace (../worker/checkouts.md, section 30), as an MCP
   tool source once smith has one.
-- A change produced by a job of any kind: `tools.md`, section 3.
+- A change produced by a job of any kind: `tools.md`, section 9.
 - A document moved within one call: `ask-temper.md`, section 5.
 - Parts of a settings proposal across a restart: `ask-temper.md`, section 5.
 - How the settings' addresses read: `ask-temper.md`, section 5.

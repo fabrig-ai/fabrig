@@ -7,10 +7,10 @@ one setting of a project's, of which Away becomes a modifier. It is
 4 and 5, where Away's kinds are four bits of the person's own, only
 goals decide and a project keeps 64 decided rows; `../domain/forge/change/questions.md`, 2 and `../domain/forge/queues.md`
 , where a change waiting on a person's approval holds its
-branch's queue; `../domain/agent/tools.md`'s `decided`; `stock-ways.md`,
+branch's queue; `../domain/agent/tools.md`'s `decided`; `archive/stock-ways.md`,
 section 2, where a way sets how work starts and lands and nothing else, as a
 way now also sets the classes' defaults (`what-reaches-you.md`, section 2); what kind 6, a project's
-question route (`../protocol/configuration/settings.md`, 2), and Start goal's
+question route (`../protocol/configuration/settings-kinds.md`, 1), and Start goal's
 "Always ask" (`Asks: always`, `../domain/forge/attention.md`, 5;
 `../client/pages/goal.md`, 3) mean beside the classes (`what-reaches-you.md`, section 2); and
 `../client/pages/README.md`'s Away and Needs you, and it gives 5.13's
@@ -57,7 +57,7 @@ passes them by.
 ## 2. Three classes
 
 A project's setting, decided by its owners and proposed by Ask temper like
-any other (`../protocol/configuration/settings.md`, 2; `../domain/agent/ask-temper.md`,
+any other (`../protocol/configuration/settings-kinds.md`, 1; `../domain/agent/ask-temper.md`,
 2): a table of kinds, each in one class.
 
 - **Agents decide, then tell you:** the asker decides, and the decision is
@@ -98,7 +98,7 @@ The kinds, each named in the asker's call (section 4):
   settings and an escalation still wait for their decider, whatever the
   table says (jig's `domain/tasks/proposals.md`).
 - **Kind 6 stays the route,** the classes the gate: a project's question
-  route (`../protocol/configuration/settings.md`, 2) still says which way a
+  route (`../protocol/configuration/settings-kinds.md`, 1) still says which way a
   change's question goes up the tree, through a foreman or to its maker
   (`../domain/forge/change/questions.md`, 1). The classes judge only where a question
   would reach a person.
@@ -107,7 +107,7 @@ The kinds, each named in the asker's call (section 4):
   judged as if every item of the table asked, Away included, as 5.9 answers
   such a goal today.
 
-**The defaults,** set by a project's way (`stock-ways.md`, section 2) and
+**The defaults,** set by a project's way (`archive/stock-ways.md`, section 2) and
 changed afterwards as any setting is:
 
 | Way | Agents decide, then tell you | Asks you; Away may decide | Asks you, even when away |
@@ -183,7 +183,7 @@ agents decide is the project's table.
   sent it and its class, from the decision that said ask: "Reached you
   because it changes vsr's protocol core, which asks you, even when away."
   A need with no item, a question routed to its person by kind 6
-  (`../protocol/configuration/settings.md`, 2), says so.
+  (`../protocol/configuration/settings-kinds.md`, 1), says so.
 - **Stop asking** is one link on the line. It opens, in place, the
   narrowest change that would have decided this need: the item moved to
   "agents decide, then tell you"; or, for a path set, the item with words
@@ -191,7 +191,7 @@ agents decide is the project's table.
 - **The client composes it,** from the need's reason, with no model, and
   the person proposes it as their own; an owner may apply it directly
   instead. It is never a procedure's proposal, which jig's
-  `domain/engine/settings.md`, 6 rules out. Ask temper writes one in words when
+  `domain/engine/settings-proposals.md`, 1 rules out. Ask temper writes one in words when
   the person asks for something else (`../domain/agent/ask-temper.md`, 2).
 - **An owner accepts it in place,** one press, and new questions follow it.
   The need in hand still waits for its answer: the rule changes what comes
@@ -229,7 +229,7 @@ own" (the Team example on fabrig.ai's home page says so).
   landing branch's own edits to a path set makes no change touch it. A
   change whose files the forge can't give whole, too many to list or a read
   that failed, counts as touching every path set, as an unknown overlap
-  wakes in `../domain/forge/README.md`, 5.3.
+  wakes in `../domain/forge/topics.md`, 1.3.
 - **Enforced by temper's landing:** the forge judges requirement 5, *the
   landing rules* (`../protocol/configuration/settings.md`, 3), over the rules
   covering the branch and, for a rule with path sets, the paths the change
@@ -262,7 +262,7 @@ own" (the Team example on fabrig.ai's home page says so).
   where the forge enforces it stays `../README.md`, section 8's open
   question.
 - **The path** draws the sign-off as a stop for that path set alone
-  (`stock-ways.md`, section 4; `surfaces.md`, section 7).
+  (`archive/stock-ways.md`, section 4; `surfaces.md`, section 7).
 
 ## 8. Only you
 
@@ -273,7 +273,7 @@ addressed to them that asks for an act rather than a choice (jig's
 
 - **Listed apart,** under its own head on Needs you, "Only you", after the
   needs and before Decided for you.
-- **Read, not stored:** the accounts' states (`../client/pages/accounts.md`, 2)
+- **Read, not stored:** the accounts' states (`../client/pages/accounts-words.md`, 1)
   and the person's tasks of that kind, as the approvals' wait is a read
   (`../domain/forge/change/questions.md`, 2).
 - **Work goes around them:** runs that need the account wait for it, as

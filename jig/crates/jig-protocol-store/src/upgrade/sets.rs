@@ -1,4 +1,7 @@
-//! Static owner data handed in by the shell (protocol/store/records.md, 3, and protocol/store/opening.md, 3).
+//! Static owner data handed in by the shell (protocol/store/records.md, 3, and protocol/store/opening-owners.md, 1).
+use alloc::boxed::Box;
+use skein_codec::schema::{self, Schema};
+use skein_lib::{List, Set};
 
 /// Whose patch levels the format row keeps, upstream first.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -18,7 +21,7 @@ pub struct OwnerSet {
     pub level: Option<u32>,
     pub jobs: &'static [crate::jobs::Job],
 }
-/// Which of the deployment's two maps a kept family's records live in (protocol/store/secrets.md, protocol/store/opening.md, 3).
+/// Which of the deployment's two maps a kept family's records live in (protocol/store/secrets.md, protocol/store/opening-owners.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum KeptMap {
     Store,
@@ -30,7 +33,7 @@ pub struct KeptFamily {
     pub name: &'static str,
     pub map: KeptMap,
     pub keys: &'static [Keys],
-    /// The frames' family's texts and patches (protocol/store/transcripts.md, 6).
+    /// The frames' family's registry value type (protocol/store/transcripts.md, 6).
     pub frames: Option<Frames>,
     /// The binary's schema text.
     pub current: &'static str,
@@ -39,12 +42,12 @@ pub struct KeptFamily {
     pub retired: &'static [Retired],
 }
 
-/// A frames' family's history, read by its machine alone (protocol/store/transcripts.md, 6).
+/// A frames' family's value type and pre-registry seed texts (protocol/store/transcripts.md, 6).
 #[derive(Clone, Copy, Debug)]
 pub struct Frames {
     pub root: &'static str,
+    pub number: u16,
     pub texts: &'static [&'static str],
-    pub patches: &'static [&'static str],
 }
 
 /// A value type whose ranges must hold nothing (protocol/store/layouts.md, 2).
@@ -79,9 +82,37 @@ pub struct OwnerSets {
 }
 impl OwnerSets {
     pub const NONE: OwnerSets = OwnerSets { sets: &[] };
+
+    /// Parses each distinct text in first-seen order, leaving malformed texts for open to refuse.
+    /// The shell can retain the result for `Store::prepared_schemas` (protocol/store/opening-owners.md, 1).
+    #[must_use]
+    pub fn prepare(&self) -> Box<[Schema]> {
+        let mut seen = Set::with_capacity(u32::MAX);
+        let mut prepared = List::uncapped();
+        for set in self.sets {
+            for family in set.families {
+                prepare_text(family.current, &mut seen, &mut prepared);
+                if let Some(frames) = &family.frames {
+                    for text in frames.texts {
+                        prepare_text(text, &mut seen, &mut prepared);
+                    }
+                }
+            }
+        }
+        prepared.into_boxed()
+    }
 }
 
-/// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening.md, 3).
+fn prepare_text(text: &'static str, seen: &mut Set<&'static str>, prepared: &mut List<Schema>) {
+    if !seen.insert(text).expect("the binary's distinct texts fit a u32 count") {
+        return;
+    }
+    if let Ok(schema) = schema::parse(text.as_bytes()) {
+        prepared.push(schema).expect("no more schemas than distinct texts");
+    }
+}
+
+/// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening-owners.md, 1).
 pub const JIG: OwnerSet = OwnerSet {
     jobs: &[],
     owner: Owner::Jig,

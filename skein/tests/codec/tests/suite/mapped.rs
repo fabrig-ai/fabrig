@@ -78,11 +78,23 @@ fn mapped_values_round_trip_through_records_and_wire() {
         assert_eq!(d::decode(&bytes, &context), Ok(value));
     }
     for value in [d::LongChoice::Slot00, d::LongChoice::Slot98] {
-        let record = maps::long_choice_to_record(&value, &context).expect("long enum to record");
+        let record = maps::long_choice_to_record(&value);
         let bytes = record.encode(&r::CEILINGS).expect("long enum encode");
         let decoded = r::LongChoice::decode(&r::CEILINGS, &mut Reader::new(&bytes)).expect("long enum decode");
-        assert_eq!(maps::long_choice_to_domain(decoded, &context), Ok(value));
+        assert_eq!(maps::long_choice_to_domain(decoded), value);
     }
+}
+
+#[test]
+fn one_way_and_split_maps_translate_a_stands_for_slice() {
+    let sent = d::SentRows { rows: Box::new([3, 1, 4, 2]) };
+    let direct = r::RowsNotice { payload: r::Rows { rows: List::from_boxed(sent.rows.clone()) } };
+    assert_eq!(maps::rows_notice_to_record(&sent), Ok(direct));
+
+    let record = maps::rows_exchange_to_record(&sent).expect("outgoing rows");
+    let bytes = record.encode(&r::CEILINGS).expect("encode");
+    let decoded = r::RowsExchange::decode(&r::CEILINGS, &mut Reader::new(&bytes)).expect("decode");
+    assert_eq!(maps::rows_exchange_to_domain(decoded), d::ReceivedRows { received: sent.rows });
 }
 
 #[test]

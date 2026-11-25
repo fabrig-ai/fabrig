@@ -1,4 +1,4 @@
-//! A worker's startup values and its bounded end (configuration.md, 4; protocol/channel/README.md, 9.1).
+//! A worker's startup values and its bounded end (configuration.md, 4; protocol/channel/worker-link.md, 1.1).
 use crate::{Address, Directories, Directory, Limits, Path, Problems, What, check, overrides, read, stock};
 use alloc::boxed::Box;
 use skein_json::Document;
@@ -19,7 +19,7 @@ pub struct Worker {
     pub limits: Option<Limits>,
     pub memory: Option<u64>,
 }
-/// Members an application fixes (protocol/configuration.md, 3.4).
+/// Members an application fixes (protocol/configuration-templates.md, 4).
 #[derive(Clone, Copy, Debug)]
 pub struct FixedWorker {
     pub graces: Option<Graces>,
@@ -29,6 +29,8 @@ impl FixedWorker {
     pub const NONE: Self = Self { graces: None, check_interval: None };
 }
 const DEFAULT_DRAIN: Duration = Duration::from_millis(180_000);
+/// Calls in flight at a drained answer get ten seconds unless configured otherwise.
+pub const DEFAULT_DRAIN_GRACE: Duration = Duration::from_millis(10_000);
 
 /// Worker stop deadlines (jig/docs/design/domain/hosts/hub.md, 6 and 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -36,6 +38,8 @@ pub struct Graces {
     pub grace: Duration,
     /// How long a worker told to stop lets runs end their turns before cancelling them.
     pub drain: Duration,
+    /// Time for calls in flight at a parts-telling run's drained answer.
+    pub drain_grace: Duration,
     pub agent_stop: Duration,
     pub delivery: Duration,
     pub save: Duration,
@@ -168,11 +172,28 @@ fn parse_graces(document: &Document, at: u32, path: &Path, problems: &mut Proble
             }
         };
     }
+    let mut drain_grace = Some(DEFAULT_DRAIN_GRACE);
+    if let Some(at) = object.member(document, b"drain_grace_ms") {
+        drain_grace = match read::duration(document, at) {
+            Ok(value) => Some(value),
+            Err(what) => {
+                problems.push(path.member(b"drain_grace_ms"), what);
+                None
+            }
+        };
+    }
     let agent_stop = check::duration(&mut object, document, b"agent_stop_ms", path, problems);
     let delivery = check::duration(&mut object, document, b"delivery_ms", path, problems);
     let save = check::duration(&mut object, document, b"save_ms", path, problems);
     object.finish(document, path, problems);
-    Some(Graces { grace: grace?, drain: drain?, agent_stop: agent_stop?, delivery: delivery?, save: save? })
+    Some(Graces {
+        grace: grace?,
+        drain: drain?,
+        drain_grace: drain_grace?,
+        agent_stop: agent_stop?,
+        delivery: delivery?,
+        save: save?,
+    })
 }
 fn parse_agent(
     document: &Document,

@@ -1,11 +1,10 @@
 # temper's tools and fixtures
 
-Provisional, 2026-11-11, from `../draft/cli-c8-tools.md`, milestone C8
+Provisional, 2026-11-11, from `../draft/archive/cli-c8-tools.md`, milestone C8
 of `../draft/cli.execution.md`, with landed QA's tool from milestone Q1
-of `../draft/landed-qa.execution.md`, and the redeploy's tool from
-milestone R6 of `../draft/redeploys.execution.md`. The binaries temper's
-development, tests, QA and its deployments' operator run beside its
-products: each an internal binary in a package
+of `../draft/archive/landed-qa.execution.md`. The binaries temper's
+development, tests and QA run beside its products: each an internal
+binary in a package
 of its own under `temper/bin/`, built as the repository's command line
 says (`skein/docs/foundation/cli.md`). What each one does is designed
 with its subject (section 2); this document says how each is laid out,
@@ -26,19 +25,21 @@ named, answered and tested.
 - **One front:** `skein-shell`'s `Table::front` answers `-h`, `--help`,
   `help`, `--version`, a command's `--help` and a command the table
   lacks, and `Table::refusal` words a command's refused arguments
-  (`skein/docs/design/runtime/shell.md`, 14.5; here 4.2).
+  (`skein/docs/design/runtime/shell-table.md`, 1.5; here 4.2).
 - **Read once:** the crate's `main` captures the arguments and the
   environment, and every variable it reads after is a declared entry of
   its table (4.3).
 - **Callers follow** the moved paths and the three new names: recipes,
   scripts, documents, tests, the tiers and the checks (section 5).
-- **One table test per binary,** in the focused suite (section 6).
+- **Its table in steps:** a table's answers are its crate's unit tests,
+  and its package's suite launches the binary once per path through
+  `main` (section 6).
 
 ## 2. The binaries
 
 Each binary's line is its table's, word for word: help's opening
 paragraph prints it after the binary's name, wrapped at 80 columns
-(`skein/docs/design/runtime/shell.md`, 14.2): where `BINARY: LINE` is
+(`skein/docs/design/runtime/shell-table.md`, 1.2): where `BINARY: LINE` is
 longer than 80 columns, as the gallery's, the journeys', the
 transcripts' and playground-serve's are, it takes two lines of the page.
 
@@ -49,10 +50,9 @@ transcripts' and playground-serve's are, it takes two lines of the page.
 | `temper-client-walk` | new, the walks' | a journey's walk in a world, printed as its pages. | `../client/journey-walks.md`, 5 |
 | `temper-git-transcripts` | `temper/tools/git-transcripts`, package and binary `git-transcripts` | git's transcripts, recorded from real git against a throwaway Forgejo. | `../protocol/git.md`, 9 |
 | `temper-playground-serve` | binary `playground-serve` of `temper-client-browser-world`, `temper/tests/client-browser/src/bin/` | the browser tier's static host for the playground's bundle. | `../playground.md`, 7 |
-| `temper-stage-one` | `temper/tools/stage-one`, package and binary `temper-stage-one` | configuring's stage 1: its golden, check, judge and evidence. | `checks.md`, 5 |
+| `temper-stage-one` | `temper/tools/stage-one`, package and binary `temper-stage-one` | configuring's stage 1: its golden, check, judge and evidence. | `checks-stage-one.md`, 1 |
 | `temper-twin` | `temper/tools/twin`, package `temper-twin`, binary `twin` | a live run's twin: a fake LLM document that replays its agents. | `fakes.md`, 1; `real-loop.md` |
 | `temper-qa` | new, landed QA's | QA after landing: main's landings triaged into cases, and passes run on builds kept for them. | `qa/README.md` |
-| `temper-redeploy` | new, the redeploy's | a deployment's redeploy: the engine alone by default, workers in turn, every part together across a breaking change, and its referee. | `../redeploy.md` |
 
 Their forms are today's:
 
@@ -63,6 +63,12 @@ Their forms are today's:
   NAME`, the session and a journey on a box (`../client/drive.md`, 2.1
   and 2.7); `temper-client-journeys recipe hash NAME`, `recipe list` and
   `recipe walk NAME`, QA's recipes (`../client/recipe.md`, 5);
+  `temper-client-journeys writer [--project PROJECT (--budget AMOUNT |
+  --as-allowed)] [--branch NAME] [--push REMOTE] [--prepared DIR]
+  [--within DURATION]` and `temper-client-journeys look-refresh`, the
+  journeys' writer's run and the look requests' refresh, which
+  `scripts/journey-pages.sh` and `scripts/look-refresh.sh` run
+  (`../client/journey-writer.md`, 4 and 6);
 - `temper-client-walk print [--out DIR] [NAME]...` and
   `temper-client-walk pages`, the journeys' writer's print
   (`../client/journey-walks.md`, 5; `../client/journey-writer.md`, 3);
@@ -75,11 +81,7 @@ Their forms are today's:
   TASK=PHRASE]... [--replace OLD=NEW]...`;
 - `temper-qa run`, `temper-qa build keep COMMIT DIR`, `temper-qa triage
   none WHY`, `temper-qa triage case FILE`, `temper-qa show` and
-  `temper-qa lines` (`qa/README.md`, 2), new, its arguments its own;
-- `temper-redeploy stage DESCRIPTION COMMIT`, `temper-redeploy run
-  DESCRIPTION COMMIT --record FILE [--workers | --together]` and
-  `temper-redeploy referee DESCRIPTION RECORD` (`../redeploy.md`, 3, 4
-  and 6), new.
+  `temper-qa lines` (`qa/README.md`, 2), new, its arguments its own.
 
 ## 3. A binary and its crate
 
@@ -138,11 +140,11 @@ Their forms are today's:
 
 ### 4.1 The entries
 
-- **The table** (`skein/docs/design/runtime/shell.md`, 14.1): its binary,
-  its line (section 2), an empty version and commit, which its `main`
+- **The table** (`skein/docs/design/runtime/shell-table.md`, 1.1): its binary,
+  its line (`tools.md`, section 2), an empty version and commit, which its `main`
   fills with what its binary hands in (4.2), its commands, no settings
   of its own, its variables, and as its last line where to read more:
-  its design document from section 2, by path from the repository's
+  its design document from `tools.md`, section 2, by path from the repository's
   root, and for a binary with commands of words,
   `BINARY COMMAND --help prints a command;` before it.
 - **Its commands** are its forms (section 2), each `Set::Internal`,
@@ -151,7 +153,7 @@ Their forms are today's:
   help says: the saved recording's print keeps its redaction, replay and
   scan cautions in `print`'s notes, and `print --help` prints them.
 - **Their flags:** a flag with a value is a setting of the command's
-  group (`skein/docs/design/runtime/shell.md`, 6.5), internal, with no
+  group (`skein/docs/design/runtime/shell-startup.md`, 1.5), internal, with no
   twin, `Fallback::Refuse` where it's required and its default where it
   has one; one that repeats, as `--cue`, `--replace` or `--redact`, says
   so in its notes, and the tool reads it itself. A flag without a value,
@@ -175,7 +177,7 @@ Their forms are today's:
 - **The front first:** the crate's `main` hands the captured arguments
   to the front of its table with the identity filled in, `Table {
   version, commit, ..TABLE }.front(&arguments)`
-  (`skein/docs/design/runtime/shell.md`, 14.5), and
+  (`skein/docs/design/runtime/shell-table.md`, 1.5), and
   writes what it prints to stdout with exit 0, or what it refuses to
   stderr with exit 2. So `-h`, `--help`, `help` and `--version` are the
   front's in every binary, and neither `OUT` can be named `help`.
@@ -185,7 +187,10 @@ Their forms are today's:
   `TABLE.refusal`'s words and exit 2, where each tool printed a usage
   line of its own. Past its arguments, a run's output, its words for
   what failed or what it refused, and its exit codes are the tool's, as
-  before, under the binary's new name where they print one. A failure
+  before, under the binary's new name where they print one. The
+  journeys' `writer` and `look-refresh` keep their scripts' words
+  whole, their arguments' refusals among them, under the scripts'
+  names (`journey-pages: WHY`, `look-refresh: WHY`). A failure
   that Rust's `Result` from `main` reported, `Error: "WHY"` or `Error:
   WHY` with exit 1, as the transcripts' tool and the playground's host
   did, is `BINARY: WHY` with exit 1.
@@ -226,7 +231,7 @@ it byte for byte in its crate's tests.
   its library stays in its crate.
 - **A test of another package** finds the binary in its target's
   profile directory, through `skein_scratch::paths::built`
-  (`skein/docs/design/testing/README.md`, 6), as the browser world finds
+  (`skein/docs/design/testing/layout.md`, 1), as the browser world finds
   `temper-box` (`temper/tests/client-browser/src/lib.rs`, `temper`), and its tier
   builds it first: the browser tier's playground story runs
   `temper-playground-serve`, which `tools/tiers/packages.toml` lists
@@ -247,34 +252,51 @@ it byte for byte in its crate's tests.
   (`tests/suite/boundary.rs`, which reads every crate under
   `temper/crates/`) skips the tools' crates by name, as it never read
   `temper/tools/`: the tools spawn builds, browsers, git and agents by design,
-  outside the setup's process boundary (`../protocol/setup/README.md`,
-  7). Every other crate stays scanned as before, and the twin's per-file
+  outside the setup's process boundary (`../protocol/setup/crate-layout.md`,
+  1). Every other crate stays scanned as before, and the twin's per-file
   `ExitCode` exemption goes with the skip.
 
 ## 6. Its tests
 
-- **One table test per binary,** its package's `tests/suite/main.rs`,
-  in the focused suite: each row runs the built binary with its
-  arguments, a cleared environment and stdin closed, in a scratch
-  directory, and checks its exit code, stdout and stderr, as
-  `temper-worker`'s does. The rows:
+- **Its table, in its crate's unit tests:** the table's answers without
+  a process, through `Table { version, commit, ..TABLE }.front` with an
+  identity of the test's own, such as `("0.0.0", "0123456789ab")`:
   - `--help`, `-h` and `help` print the same page, whose opening
     paragraph is `BINARY: LINE` as help wraps it, at spaces to 80
-    columns (`skein/docs/design/runtime/shell.md`, 14.2), and which names
-    no internal command: a row checks that paragraph, its lines joined
+    columns (`skein/docs/design/runtime/shell-table.md`, 1.2), and which names
+    no internal command: a test checks that paragraph, its lines joined
     by single spaces, never the page's first line alone;
-  - `--version` prints `BINARY VERSION (COMMIT)`, the commit twelve
-    hexadecimal digits, with `-dirty` or not, or `unknown`;
+  - `--version` prints `BINARY VERSION (COMMIT)` with the test's
+    identity;
   - each command of words answers `--help` with a page whose opening
     paragraph, wrapped and joined as above, is `internal: not part of
-    BINARY's public command line; it may change without notice.`;
-  - a command the table lacks is refused, exit 2: with the front's words
-    where the table has no bare command, and otherwise by its bare
-    command, with `TABLE.refusal`'s words, as is a flag the bare command
-    doesn't declare.
-
+    BINARY's public command line; it may change without notice.`, and
+    the notes its design keeps (4.1);
+  - a command the table lacks is refused: with the front's words where
+    the table has no bare command, and otherwise by its bare command,
+    with `TABLE.refusal`'s words, as is a flag the bare command
+    doesn't declare;
+  - each command's arguments refused with the words its run gives them,
+    from the arguments alone, its parsing a function of the crate's
+    that returns them rather than exiting.
+- **One launch per path, its package's `tests/suite/`,** in the focused
+  suite: the built binary with its arguments, a cleared environment and
+  stdin closed, in a scratch directory, checking its exit code, stdout
+  and stderr, for `--help`; for `--version`, the commit twelve
+  hexadecimal digits, with `-dirty` or not, or `unknown`; for one
+  refused invocation, exit 2, its words on stderr; and for each
+  command's run whose
+  effects only a process shows: the journeys' one print from its
+  arguments through its report and destination, and the writer's and
+  refresh's scripts (`../client/journey-writer.md`, 7); stage one's
+  `collect` naming a `temper` it can't start; the twin's conversion and
+  `--from`, each with its report. Every other row is the unit tests'.
   None starts a browser, a forge or a box, and none writes outside its
-  scratch directory.
+  scratch directory. QA's table test keeps the `--help`, `--version` and
+  refused-command rows alone; the same rows for `-h`, `help` and each
+  command's page, and each command's own refusals, are its crate's steps
+  over the table's answer, which the binary's `main` prints
+  (`qa/README.md`, 6).
 - **The tools' own tests** keep what they check, their expected words
   following 4.2, in their crate or their binary's package (section 5).
 - **Slower tiers:** a browser or process story a move touches is changed

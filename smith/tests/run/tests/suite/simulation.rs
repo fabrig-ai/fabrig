@@ -35,6 +35,7 @@ impl CrashHost {
         let start = self.starts.remove(0);
         let run::Event::Start { charter, workspace, .. } = start else { panic!("scripted host starts a run") };
         run::Event::Start {
+            tell_parts: false,
             messages: Box::default(),
             reply_to: skein_lib::ReplyTo::new(Token::new(88)),
             host_run: Token::new(91),

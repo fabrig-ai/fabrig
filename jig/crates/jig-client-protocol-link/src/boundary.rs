@@ -11,11 +11,7 @@ pub struct Record {
     pub key: Box<[u8]>,
     pub bytes: Box<[u8]>,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Saved {
-    pub version: u16,
-    pub record: RequestRecord<jig_client_domain::Held>,
-}
+pub type Saved = RequestRecord<jig_client_domain::Held>;
 pub enum Event {
     SignIn {
         with: With,
@@ -162,6 +158,7 @@ pub enum Request {
     Hello {
         family: Option<u16>,
         versions: Option<contract::VersionRange>,
+        served: bool,
     },
     /// A lost read may be sent once more if its token is still current.
     ReadAgain {
@@ -181,14 +178,14 @@ pub enum Request {
 pub enum Fact {
     UndecodableAnswer,
     UndecodableDocument,
-    /// A stream record refused as malformed or of another version (protocol/client/README.md, 6).
+    /// A stream record refused as malformed or of another version (protocol/client/versions.md, 1).
     UndecodableEvent,
     UndecodableWatchAnswer,
     StreamDropped,
     UndecodableStore,
 }
 
-/// Authentication held by the link (client/domain/client/README.md, 9).
+/// Authentication held by the link (client/domain/client/sign-in.md, 1).
 #[derive(Debug, PartialEq, Eq)]
 pub enum With {
     Service(Secret),
@@ -271,7 +268,7 @@ pub enum AuthorizeWhy {
     NotAPerson,
 }
 
-/// Why an approval take installed nothing (jig/docs/design/client/domain/client/README.md, 9).
+/// Why an approval take installed nothing (jig/docs/design/client/domain/client/sign-in.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Taking {
     Waiting,
@@ -282,7 +279,7 @@ pub enum Taking {
     Unknown,
 }
 
-/// An asked link's transient answer (jig/docs/design/client/domain/client/README.md, 9).
+/// An asked link's transient answer (jig/docs/design/client/domain/client/sign-in.md, 1).
 #[derive(Debug, PartialEq, Eq)]
 pub enum AskedLink {
     Asked { secret: Secret, expires: u64 },

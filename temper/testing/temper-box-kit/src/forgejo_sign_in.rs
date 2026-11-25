@@ -1,6 +1,6 @@
-//! Owned Forgejo signing in a Google member or its box owner through temper.
-//! temper/docs/design/protocol/openid-provider.md, 9.
-//! temper/docs/design/testing/process-tier.md.
+//! One owned Forgejo signing in its owner and a Google member through temper.
+//! temper/docs/design/protocol/openid-provider.md, 8 and 9.
+//! temper/docs/design/testing/process-tier.md, Forgejo signing in through temper.
 use super::{
     configuration,
     forge_sign_in::{command, configure, success},
@@ -156,63 +156,78 @@ fn member_named(instance: &skein_throwaway_forgejo::Instance) {
     assert_eq!(member["login_name"], "3:sam@example.com");
 }
 
-/// The one process proof of Forgejo's settings and the provider's claims.
+/// The real Forgejo proof for both clients and their claims.
 pub fn run(directory: &Path) {
-    if let Err(error) = run_owned(directory, false) {
+    if let Err(error) = run_owned(directory) {
         story_socket::finish(error);
     }
 }
 
-/// The real Forgejo proof for the box's public client and repeatable source command.
-pub fn public(directory: &Path) {
-    if let Err(error) = run_owned(directory, true) {
-        story_socket::finish(error);
-    }
-}
-fn run_owned(directory: &Path, public: bool) -> io::Result<()> {
+fn run_owned(directory: &Path) -> io::Result<()> {
     let clock = skein_shell::Clock::new();
     let whole = clock.now().now;
     let forge = super::owned::tier_configuration(directory);
     let [temper] = super::free_addresses(&[forge]);
-    let (_google, instructions) = client_configuration(directory, forge, temper, public);
+    public_configuration(directory, forge, temper);
     fixture_bundle(directory);
     success(&super::owned::prepare(directory, 1));
     assert!(!directory.join("box/groups").exists(), "prepare needs no group's file");
     let running = super::owned::run(directory, "forgejo");
     let instance = super::owned::attach(directory, forge.port(), running);
     let past_start = clock.now().now;
-    let mut serve = start_serve(directory);
-    let stdout = serve.child.stdout.take().expect("stdout pipe");
-    let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
-    if let Some(instructions) = instructions {
-        confidential_source(directory, &instructions);
-    } else {
-        public_source(directory);
-    }
-    let link = std::str::from_utf8(&link).expect("printed link");
-    let mut browser = Browser::default();
-    sign_in(&mut browser, temper, forge, link)?;
-    if public {
+
+    {
+        let (serve, _stdout, link) = start_serve(directory, "public");
+        let id = public_source(directory);
+        sign_in(&mut Browser::default(), temper, forge, &link)?;
         owner_named(directory, &instance);
+        // Keep the owner's link while freeing the name for the printed command.
+        rename_public_source(directory, &id);
         serve.stop();
-        instance.stop().expect("public Forgejo stopped");
-        eprintln!("public Forgejo source and token exchange: {:?}", clock.now().now.saturating_since(whole));
-        return Ok(());
     }
+    let owner_signed_in = clock.now().now;
+    instance.stop().expect("Forgejo stopped to drop the cached public provider");
+    // Jig seeds owners only on the first start. Keep separate temper stores
+    // for the two owner identities, while keeping one Forgejo database.
+    fs::rename(directory.join("state"), directory.join("public-state")).expect("set aside the public owner's store");
+
+    // Serve fixes its clients and the printed link's identity at startup.
+    let (_google, instructions) = confidential_configuration(directory, forge, temper);
+    let (serve, _stdout, link) = start_serve(directory, "confidential");
+    confidential_source(directory, &instructions);
+    // The CLI updates the database, not the running Forgejo's providers.
+    let before_source_restart = clock.now().now;
+    let running = super::owned::run(directory, "forgejo");
+    let instance = super::owned::attach(directory, forge.port(), running);
+    let source_restart = clock.now().now.saturating_since(before_source_restart);
+    // First registration is still enabled; there is no account to auto-link.
+    no_sam(&instance);
+    sign_in(&mut Browser::default(), temper, forge, &link)?;
     member_named(&instance);
+    serve.stop();
     let member_signed_in = clock.now().now;
-    let instance = no_registration(directory, &mut browser, temper, forge, instance)?;
+
+    instance.stop().expect("Forgejo stopped for links-only preparation");
+    success(&super::owned::prepare_no_registration(directory, 1));
+    // Discovery must answer when Forgejo loads the saved source at startup.
+    let (serve, stdout, link) = start_serve(directory, "links-only");
+    let running = super::owned::run(directory, "forgejo");
+    let instance = super::owned::attach(directory, forge.port(), running);
+    let mut browser = Browser::default();
+    spend_link(&mut browser, temper, &link)?;
+    no_registration(&mut browser, temper, forge, &instance)?;
     let registration_checked = clock.now().now;
-    connect(directory, forge, temper, &stdout, link, &mut browser)?;
+    connect(directory, forge, temper, &stdout, &link, &mut browser)?;
     let connected = clock.now().now;
     serve.stop();
     instance.stop().expect("Forgejo stopped");
     assert!(!directory.join("box/groups").exists(), "the walk needs no group's file");
     eprintln!(
-        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}; member sign-in {:?}; no registration {:?}; admin connect {:?}; shutdown {:?}",
+        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}; owner sign-in {:?}; member sign-in {:?}; no registration {:?}; admin connect {:?}; shutdown {:?}; Forgejo source restart {source_restart:?}",
         clock.now().now.saturating_since(whole),
         clock.now().now.saturating_since(past_start),
-        member_signed_in.saturating_since(past_start),
+        owner_signed_in.saturating_since(past_start),
+        member_signed_in.saturating_since(owner_signed_in),
         registration_checked.saturating_since(member_signed_in),
         connected.saturating_since(registration_checked),
         clock.now().now.saturating_since(connected)
@@ -220,16 +235,15 @@ fn run_owned(directory: &Path, public: bool) -> io::Result<()> {
     Ok(())
 }
 
-fn client_configuration(
+fn confidential_configuration(
     directory: &Path,
     forge: std::net::SocketAddr,
     temper: std::net::SocketAddr,
-    public: bool,
-) -> (Option<skein_fake_peers::oauth::Peer>, Option<std::process::Output>) {
-    if public {
-        public_configuration(directory, forge, temper);
-        return (None, None);
-    }
+) -> (skein_fake_peers::oauth::Peer, std::process::Output) {
+    // The links-only preparation uses sign_in.forges, not the box's auto-linking setup.
+    let mut setup = super::owned::setup_value(directory, 1, "owned");
+    setup["sign_in"] = Value::Null;
+    super::configuration::setup(directory, 1, setup);
     let [listener] = super::reserve_listeners(&[forge, temper]);
     let google = listener.local_addr().expect("issuer address");
     configure(directory, &forge.to_string(), &temper.to_string(), &google.to_string());
@@ -237,8 +251,8 @@ fn client_configuration(
     let google =
         super::sign_in::issuer(listener, &registration, format!("http://{temper}/sign-in/google/return").as_bytes());
     let instructions = command(directory).output().expect("sign-in instructions");
-    success(&instructions);
-    (Some(google), Some(instructions))
+    assert!(instructions.status.success(), "forge sign-in failed");
+    (google, instructions)
 }
 
 fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: std::net::SocketAddr) {
@@ -272,10 +286,10 @@ fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: s
     assert!(!directory.join("google.secret").exists(), "box needs no Google sign-in");
 }
 
-fn start_serve(directory: &Path) -> Serve {
-    let log = fs::File::create(directory.join("sign-in-serve.log")).expect("private log");
-    Serve {
-        child: Command::new(skein_scratch::paths::binary("temper-box"))
+fn start_serve(directory: &Path, leg: &str) -> (Serve, std::process::ChildStdout, String) {
+    let log = fs::File::create(directory.join(format!("sign-in-{leg}-serve.log"))).expect("private log");
+    let mut serve = Serve {
+        child: Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .arg("serve")
             .args(configuration::flags(directory))
             .current_dir(directory)
@@ -286,7 +300,10 @@ fn start_serve(directory: &Path) -> Serve {
             .spawn()
             .expect("serve"),
         reaped: false,
-    }
+    };
+    let stdout = serve.child.stdout.take().expect("stdout pipe");
+    let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
+    (serve, stdout, String::from_utf8(link).expect("printed link"))
 }
 
 fn confidential_source(directory: &Path, instructions: &std::process::Output) {
@@ -308,9 +325,9 @@ fn confidential_source(directory: &Path, instructions: &std::process::Output) {
     }
 }
 
-fn public_source(directory: &Path) {
+fn public_source(directory: &Path) -> String {
     for _ in 0..2 {
-        let added = Command::new(skein_scratch::paths::binary("temper-box"))
+        let added = Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .args(["forge", "source"])
             .args(configuration::flags(directory))
             .arg("1")
@@ -320,24 +337,57 @@ fn public_source(directory: &Path) {
         success(&added);
         assert_eq!(added.stdout, b"source added\n", "{}", String::from_utf8_lossy(&added.stdout));
     }
-    let list = Command::new(super::owned::binaries().0)
-        .arg("--work-path")
-        .arg(directory.join("forge-1/forgejo"))
-        .arg("--config")
-        .arg(directory.join("forge-1/forgejo/app.ini"))
-        .args(["admin", "auth", "list"])
-        .output()
-        .expect("real auth list");
-    success(&list);
-    assert!(temper_forge_setup::sign_in::source_present(&list.stdout));
-    let renamed = String::from_utf8_lossy(&list.stdout).replace("temper", "temper-other");
+    let list = auth_list(directory);
+    assert!(temper_forge_setup::sign_in::source_present(&list));
+    let table = String::from_utf8_lossy(&list);
+    let renamed = table.replace("temper", "temper-other");
     assert!(!temper_forge_setup::sign_in::source_present(renamed.as_bytes()), "source names are exact columns");
-    let count = String::from_utf8_lossy(&list.stdout)
-        .lines()
-        .filter(|line| line.split_whitespace().nth(1) == Some("temper"))
-        .count();
+    let count = table.lines().filter(|line| line.split_whitespace().nth(1) == Some("temper")).count();
     assert_eq!(count, 1, "a second source command keeps exactly one source");
-    eprintln!("public source list: {}", String::from_utf8_lossy(&list.stdout));
+    eprintln!("public source list: {table}");
+    let id = temper_forge_setup::sign_in::source_id(&list).expect("public source id");
+    std::str::from_utf8(id).expect("source id text").into()
+}
+
+fn admin_auth(forgejo: &Path, directory: &Path) -> Command {
+    let work = directory.join("forge-1/forgejo");
+    let mut command = Command::new(forgejo);
+    command.arg("--work-path").arg(&work).arg("--config").arg(work.join("app.ini")).args(["admin", "auth"]);
+    command
+}
+
+fn auth_list(directory: &Path) -> Vec<u8> {
+    let list = admin_auth(&super::owned::binaries().0, directory).arg("list").output().expect("real auth list");
+    success(&list);
+    list.stdout
+}
+
+const PUBLIC_SOURCE_NAME: &str = "temper-public";
+
+/// Renames the public source in place so the owner's link keeps its source ID.
+#[must_use]
+pub fn rename_public_source_command(forgejo: &Path, directory: &Path, id: &str) -> Command {
+    let mut command = admin_auth(forgejo, directory);
+    command.args(["update-oauth", "--id", id, "--name", PUBLIC_SOURCE_NAME]);
+    command
+}
+
+fn rename_public_source(directory: &Path, id: &str) {
+    let renamed = super::story_command::standalone(
+        &mut rename_public_source_command(&super::owned::binaries().0, directory, id),
+        "Forgejo renaming the public source",
+        super::WITHIN,
+    );
+    success(&renamed);
+    let list = auth_list(directory);
+    assert!(!temper_forge_setup::sign_in::source_present(&list), "temper is free for the new source");
+    assert!(
+        String::from_utf8_lossy(&list).lines().any(|line| {
+            let mut columns = line.split_whitespace();
+            columns.next() == Some(id) && columns.next() == Some(PUBLIC_SOURCE_NAME)
+        }),
+        "the renamed source keeps the owner's source ID"
+    );
 }
 
 fn owner_named(directory: &Path, instance: &skein_throwaway_forgejo::Instance) {
@@ -373,6 +423,19 @@ fn sign_in(
     forge: std::net::SocketAddr,
     link: &str,
 ) -> io::Result<()> {
+    let page = browser.call(&format!("http://{temper}/"), None)?;
+    assert_eq!(page.status, 200);
+    assert!(
+        !String::from_utf8(page.body).expect("bundle page").contains("temper-forge-sign-in"),
+        "a forge not yet connected has no sign-in meta"
+    );
+    spend_link(browser, temper, link)?;
+    let landed = through_temper(browser, temper, forge)?;
+    assert_eq!(landed.status, 200);
+    Ok(())
+}
+
+fn spend_link(browser: &mut Browser, temper: std::net::SocketAddr, link: &str) -> io::Result<()> {
     let secret = base64::decode(Alphabet::Url, link.split_once("secret=").expect("link secret").1.as_bytes(), 32)
         .expect("link encoding");
     let record = wire::LinkSignIn { secret: skein_lib::Secret::new(secret) };
@@ -381,17 +444,9 @@ fn sign_in(
             .expect("record size"),
     );
     record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("link wire");
-    let page = browser.call(&format!("http://{temper}/"), None)?;
-    assert_eq!(page.status, 200);
-    assert!(
-        !String::from_utf8(page.body).expect("bundle page").contains("temper-forge-sign-in"),
-        "a forge not yet connected has no sign-in meta"
-    );
     let signed = browser.call(&format!("http://{temper}/jig/v1/sign-in/link"), Some(&out.finish()))?;
     assert_eq!(signed.status, 200);
     assert!(browser.cookies.iter().any(|(name, _, _)| name == "jig-sign-in"), "printed link set the browser cookie");
-    let landed = through_temper(browser, temper, forge)?;
-    assert_eq!(landed.status, 200);
     Ok(())
 }
 
@@ -435,19 +490,12 @@ fn through_temper(
 /// The real settings' registration and password-linking proof
 /// (temper/docs/design/draft/dogfood-hacks.md, 2.8).
 fn no_registration(
-    directory: &Path,
     browser: &mut Browser,
     temper: std::net::SocketAddr,
     forge: std::net::SocketAddr,
-    instance: skein_throwaway_forgejo::Instance,
-) -> io::Result<skein_throwaway_forgejo::Instance> {
+    instance: &skein_throwaway_forgejo::Instance,
+) -> io::Result<()> {
     use skein_throwaway_forgejo::Outgoing;
-    instance.stop().expect("Forgejo stopped for preparation");
-    success(&super::owned::prepare_no_registration(directory, 1));
-    let running = super::owned::run(directory, "forgejo");
-    let instance = super::owned::attach(directory, forge.port(), running);
-
-    browser.signed_out_of_forgejo();
     let linked = through_temper(browser, temper, forge)?;
     landing("(2) already linked", &linked);
     assert_eq!(linked.status, 200);
@@ -458,10 +506,10 @@ fn no_registration(
         .exchange(&Outgoing::json("DELETE", "/api/v1/admin/users/sam", Some(&instance.admin().token), b"{}"))
         .expect("delete member");
     assert_eq!(deleted.status, 204, "admin deletes sam");
-    no_sam(&instance);
+    no_sam(instance);
     browser.signed_out_of_forgejo();
     let missing = through_temper(browser, temper, forge)?;
-    no_sam(&instance);
+    no_sam(instance);
     link_page("(1) no account", &missing, forge);
 
     let csrf = csrf(&missing.body);
@@ -482,7 +530,7 @@ fn no_registration(
     let signup = browser.form(&format!("http://{forge}/user/sign_up"), &fields)?;
     eprintln!("(3) POST /user/sign_up: {}", signup.status);
     assert_eq!(signup.status, 403);
-    no_sam(&instance);
+    no_sam(instance);
 
     let body = serde_json::to_vec(
         &json!({"username":"sam", "email":"sam@example.com", "password":password, "must_change_password":false}),
@@ -511,7 +559,7 @@ fn no_registration(
     assert_eq!(once.status, 200);
     assert!(!once.address.contains("/user/link_account"));
     signed_in_as_sam(browser, forge)?;
-    Ok(instance)
+    Ok(())
 }
 
 fn landing(leg: &str, landed: &Landed) {
@@ -672,7 +720,7 @@ fn connect(
 
 fn ctl(directory: &Path, arguments: &[&str]) -> std::process::Output {
     super::story_command::standalone(
-        Command::new(skein_scratch::paths::binary("temper-box"))
+        Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .arg("ctl")
             .arg(directory.join("ctl"))
             .args(arguments)
@@ -684,7 +732,7 @@ fn ctl(directory: &Path, arguments: &[&str]) -> std::process::Output {
 }
 
 fn owned_command(directory: &Path, printed_command: &str) -> String {
-    // temper/docs/design/protocol/setup/owned.md, 8: sign-in instructions name no kept forge.
+    // temper/docs/design/protocol/setup/owned-sign-in.md, 1: sign-in instructions name no kept forge.
     // Supply this disposable server's binary and work path around that generic command.
     let quote = |path: &Path| {
         use std::os::unix::ffi::OsStrExt;

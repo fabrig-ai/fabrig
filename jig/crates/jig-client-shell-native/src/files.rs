@@ -1,4 +1,4 @@
-//! Private token and whole small-store files (protocol/client/sign-in.md and protocol/client/README.md, 7).
+//! Private token and whole small-store files (protocol/client/sign-in.md and protocol/client/small-store.md, 1).
 //! Each batch is answered in order (client/domain/client/README.md, 13).
 use skein_io::{
     file::{self, Expect},
@@ -74,6 +74,10 @@ impl Files {
         self.io = FileIo::with_limits(&self.file_limits).with_effective_user(user);
         self.io.seed_randomness(seed);
         self.root = Some(self.io.adopt_root(fd).expect("root room"));
+    }
+    pub(crate) fn use_directory(&mut self, directory: Box<[u8]>) {
+        assert!(self.stage == Stage::Unopened && !self.closing, "choose the directory before loading files");
+        self.directory = directory;
     }
     pub(crate) fn ready(&self) -> bool {
         self.stage == Stage::Ready && self.failure.is_none() && self.batches == 0 && self.credential.is_none()
@@ -168,6 +172,13 @@ impl Files {
         }
         let root = self.root.unwrap_or(OWNER);
         match self.stage {
+            Stage::Unopened if self.closing => {
+                if let Some(file) = self.root {
+                    self.request(now, Stage::ClosingRoot, file::Request::Close { owner: OWNER, file });
+                } else {
+                    self.stage = Stage::Closed;
+                }
+            }
             Stage::Unopened if self.root.is_some() => self.request(
                 now,
                 Stage::Opening,
@@ -321,7 +332,7 @@ impl Files {
 }
 
 /// Read one record from the native shell's whole small-store file, without opening a transport.
-/// An invalid file or an absent key reads as none (protocol/client/README.md, 7).
+/// An invalid file or an absent key reads as none (protocol/client/small-store.md, 1).
 #[must_use]
 pub fn store_record(bytes: &[u8], key: &[u8]) -> Option<jig_client::Record> {
     let mut records = decode_store(bytes)?;

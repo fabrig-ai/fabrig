@@ -16,7 +16,7 @@
     task, for its first member and `temper/<root>/l<task>-<n>` for its
     member n, each held by the landing from its making, deleted as a
     round that changed its prefix ends unlanded and as the landing
-    closes (`../landing.md`, 5.1);
+    closes (`../landing-prepare.md`, 1.1);
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (1);
   - an agent's task's own branch, for runs that push outside a change,
@@ -50,7 +50,7 @@
 - **Landing branches are never made by a push.** A landing branch must
   exist when it is adopted or named; a goal's own branch (1) is made
   at its base's tip as its goal's hold is taken, as the taking's effect
-  (jig's `domain/connectors.md`, 4.7), and a change into it reads it
+  (jig's `domain/connectors-effects.md`, 1.7), and a change into it reads it
   once it is made.
 - **Deleted as their tasks close,** as the release of their holds (jig's
   `domain/tasks/holds.md`, 5): a landed change's branch, a cancelled one's,
@@ -76,7 +76,7 @@ A task's saved work is named by the set its task's record keeps of the
 repositories a next attempt would resume from (`../worker/checkouts.md`). As
 its task's release begins, each branch of that set becomes a hold of the
 closing task, with no writer, and goes as any hold does: deleted, a branch
-already gone counting as deleted (skein's `forge/client.md`, section 7);
+already gone counting as deleted (skein's `forge/client-effects.md`, section 1);
 or, if its task failed and is not its tree's root, kept for a person to
 read and deleted as the root closes. Such a hold has no holding in the
 hub, and no head is read for it. A branch outside that set stays until
@@ -116,11 +116,16 @@ own, never a change's:
   choice is made with the goal.
 - **Held by its goal for its whole life,** an exclusive hold that
   refuses, and made at the tip of the home's landing branch, the one its
-  adoption names (`adoption.md`, 8), as the hold is taken, as the taking's effect. A making that fails for good holds the
+  adoption names (`adoption.md`, 12), as the hold is taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
   A making waits for the outbox's room and never fails for it: with the
   outbox full (`forge.entries`), it holds nothing and polls nothing, as a
-  read answered `Busy` waits for the client's room (`keeping-up.md`, 5).
+  read answered `Busy` waits for the client's room. Its reads, the
+  branch's and the landing branch's tip, wait for the client's room in
+  the read line, in arrival order beside the connector's other reads
+  waiting there, each on a deadline and retried at it for as long as it
+  waits, the log saying when it begins to wait and when it is admitted
+  (`keeping-up.md`, 3, *Reads waiting for room take turns*).
   It gives up its entry number while it waits, so it reserves nothing:
   a kept number would stop every later entry's handoff, and an outbox
   full of those would never free. It waits in the outbox's line beside
@@ -136,29 +141,42 @@ own, never a change's:
   adopted, `the repository is not adopted`; one adopted to be read,
   `the repository is adopted to be read, not written`; one whose
   adoption takes no branch writes, `the repository's adoption takes no
-  branch writes` (`adoption.md`, 2); and an entry number already in the
+  branch writes` (`adoption.md`, 6); and an entry number already in the
   outbox, `its outbox entry N is already in use`, N that number. Access
   is judged first, so a full outbox never hides a making that could
   never be sent.
 - **Made whatever restarts.** temper alone makes and deletes a goal's
-  own branch, so its making is conditional (`README.md`, section 4): while the goal
+  own branch, so its making is conditional (`effects.md`, section 1): while the goal
   holds the branch and none of its name exists, it is made, and never
   reset once it exists. A restart's making is two steps, a read and a
-  write, and only the read belongs to the start:
-  - **Its read** is part of reading afresh (`README.md`, section 9): is
-    the branch there, at which commit, and is a creation entry of its
-    own in the outbox. There, it is the goal's; missing, with its
-    making's entry restored, that entry settles as its class says, its
-    find answering not found sending it again at its commit.
-  - **Its write** comes after the outbox settles. Missing, with no entry
+  write, and only the read belongs to the forge's fresh reads as it
+  catches up after the opening (`catching-up.md`, 2):
+  - **Its read** is one of the fresh reads (`effects.md`, section 2)
+    while it is out: is the branch there, at which commit, and is a
+    creation entry of its own in the outbox. There, it is the goal's;
+    missing, with its making's entry restored, that entry settles as its
+    class says, its find answering not found sending it again at its
+    commit. A read the client refuses for room, or one waiting out its
+    forge's absence or its connection (`keeping-up.md`, 5), is no fresh
+    read until it is out again: it waits in the read line and is asked
+    in its turn, as any making's read waiting for room is
+    (`keeping-up.md`, 3), and the start's fresh reads end without it.
+    The branch's own readers wait for its making whatever the fresh
+    reads say: a change into it, its design writers, its closer and a
+    release that judges it decide nothing on its head while its making
+    is pending (`catching-up.md`, 4). Counted as a fresh read, a read
+    waiting for room would hold its repository's fresh reads, and every
+    procedure on the goal's home with them, for a call that others keep
+    taking; the start goes on and the making is asked after.
+  - **Its write** waits in the outbox's line. Missing, with no entry
     (the restart cut its making before it committed one), the making
-    takes a place in the outbox's line, behind the places restored with
-    their records (`room.md`, 4), and asks nothing more while the start
-    reads: no entry number, no landing branch's tip. Once the restored
-    outbox has settled, the line asks it in its place's order as room
-    frees, as any making waiting for room: it takes a fresh entry
-    number from the root, reads the landing branch's tip afresh and
-    makes it there.
+    takes a place in the line, behind the places restored with
+    their records (`room.md`, 4), and asks nothing more while it
+    reads: no entry number, no landing branch's tip. The line asks it
+    in its place's order as room frees from the beginning of catching
+    up (`catching-up.md`, 3), as any making waiting for room: it takes
+    a fresh entry number from the root, reads the landing branch's tip
+    afresh and makes it there, its entry sent behind its lane.
 
   So reading afresh ends on reads alone, whatever room the outbox has:
   a full outbox delays a making, never the start. A change into the
@@ -193,23 +211,23 @@ own, never a change's:
   and otherwise by the goal on its held branch (`change/README.md`, 1); and deleted as the
   goal closes once that change has landed it (`branches.md`); otherwise
   kept as the goal closes. A goal takes the base only by a catch-up
-  (`README.md`, section 6) for one of its changes that needs what the
+  (`updates.md`, section 1) for one of its changes that needs what the
   base gained since its branch was made, never to stay current
   (`../../draft/squash-in.md`, 4): its landing takes the base at the
   front of the base's queue, as any change does (`change/README.md`,
   2), and a conflict goes to the merge job and a resolution
   (`change/repairs.md`). A landing into the base that touches its open
-  work reaches it as news (`README.md`, 5.3), for it to judge whether a
+  work reaches it as news (`topics.md`, 1.3), for it to judge whether a
   change needs it. A project's rule may require or forbid a catch-up.
 
 ## 2. A goal's closer
 
 A goal from a template that names it is ended by temper's goal closer
-(jig's `domain/tasks/lifecycle.md`, 11): when nothing is left for its agent to
+(jig's `domain/tasks/lifecycle-endings.md`, 3): when nothing is left for its agent to
 judge, jig makes the closer as the goal's own delegate, and the closer
 does with no model what a goal's run did once its plan's changes had
 ended: it settles the goal's branch, lands it, and reports. The goal's
-agent wakes for judgement alone (`../../draft/goal-runs-itself.md`,
+agent wakes for judgement alone (`../../draft/archive/goal-runs-itself.md`,
 section 6).
 
 - **The forge's procedure 6,** the goal closer, beside the change (2),
@@ -219,7 +237,7 @@ section 6).
   changes, its delegates and theirs. A template names it as `ended_by`
   `{"closer": {"connector": 1, "code": 6}}` (`../../protocol/configuration/stock.md` and `../../protocol/configuration/reference.md`
   ). Its state is a row of the forge's, kept under its
-  task's number as a change's is, and restored with it (`README.md`, section 9).
+  task's number as a change's is, and restored with it (`effects.md`, section 2).
 - **Its steps, in order,** each a change of its own, made as its
   delegate and waited for:
   1. **Close,** where the goal holds a goal branch and its project names
@@ -239,7 +257,7 @@ section 6).
      branch into its base, as the goal's `"branch": "mine"` would make
      it (`change/README.md`, 1), made by the closer on the goal's behalf: its branch the
      goal's, held by the goal and not by the closer or the change; its
-     landing branch the repository's (`adoption.md`, 8); its words the
+     landing branch the repository's (`adoption.md`, 12); its words the
      goal's title, the first line of the goal's words, then a blank
      line and `Draft: PATH`, where the goal's words hold a line
      `Draft: PATH`, as a goal started from a draft's do, and nothing
@@ -252,7 +270,53 @@ section 6).
      (`../after-landing.md`, section 6). A goal with no goal branch, or whose base
      already holds its tip, skips it.
   3. **Report:** the closer's result, below, and its end: done, which
-     ends the goal (jig's `domain/tasks/lifecycle.md`, 11).
+     ends the goal (jig's `domain/tasks/lifecycle-endings.md`, 3).
+- **What its goal's report leaves holds it first.** A goal's own
+  record of what it has not done is its report's `Left:` line
+  (`../agent/agents.md`, 3, *A goal's report*), kept as its charter
+  says: each part it planned and has not cut into changes, and what it
+  leaves undone, with why, and no line where nothing is left. A goal
+  that ends done while that line stands ends with its work missing and
+  its design describing it as built, so the closer reads the line
+  before it makes its first step, or reports where it makes none, and
+  again before any step it makes once new work has ended (*New work
+  waits for, and reopens, the steps*, below):
+  - *The read:* the newest note in the goal's scope whose description
+    opens `report: `, by `changed` then number, and its `Left:` line,
+    each as the client takes them (`../agent/agents.md`, 3): the last
+    line whose start, past spaces, is `Left: `, its words past that,
+    trimmed. No such note, or none with a `Left:` line, passes, so a
+    charter that asks for no report meets no check. A read that fails
+    is made again after a wait, as an unknown containment is (below).
+  - *Held:* a `Left:` line no release has passed holds the closer,
+    before it makes any step, its words `the goal's report leaves work
+    undone: WORDS`, WORDS the line's words, cut from their end where
+    they pass what a hold's words hold and marked `…`. It escalates to
+    the goal as any of its holds does (above). The goal cuts what the
+    line names, its changes the closer's new work, and takes it off the
+    line; or, for a part it drops, has its design's status record it as
+    not built and gives why on the line; then releases.
+  - *Released:* the release is the goal's word that what the line still
+    names stays undone. The closer goes on to its steps, waiting first
+    for any new work as ever, and holds on the line no more in its
+    life; it still reads the line before each step new work makes, for
+    its report. One release, final, keeps the goal's word its own and
+    the closer out of a loop over wording.
+  - *On its row:* the line it last read, none where it read none, and
+    where its check stands, unread, held or released, so that a restart
+    neither holds again past a release nor loses what its report
+    names. They are added fields of the closer's row in `temper-store`,
+    a registered family (jig's `protocol/store/layouts.md`, 1), read as
+    unread and none in a row stored before.
+  - *Why the close refuses, not the result alone:* the hold reaches the
+    goal while its branch is unlanded and its judgement is to be had,
+    so an uncut part is cut into the same landing, or dropped with its
+    design's status saying so, before its base takes a design that
+    describes it as built. A result naming the line alone would end the
+    goal done with that design landed, the repair left to its
+    requester, and a goal outside a milestone has no one above it to
+    catch it. temper reads no word of a plan: what is left is the
+    goal's own line, written as its charter says.
 - **What wakes the goal meanwhile** is what wakes it for any delegate:
   a step's change held past its bounds, its resolution or repair
   failing, escalates past the closer, a procedure, to the goal (jig's
@@ -264,8 +328,8 @@ section 6).
   `ClosingStep`, by its attempts (below), its words naming the step,
   the change and why, which escalates to the goal: its release makes
   the step's change again, and its cancel ends the closer, the goal's
-  branch kept. A question its step change passes up reaches the goal
-  through the closer (below).
+  branch kept. A question any of its open steps' changes passes up
+  reaches the goal through the closer (below).
 - **Its changes' questions go up to the goal.** The closer makes each
   step's change with questions `up` (`change/questions.md`, 1; `"questions":
   "up"` in the change it makes, whatever the project's questions), so that
@@ -275,54 +339,90 @@ section 6).
   closer, one at a time. The closer, a procedure, decides nothing: it
   relays as a change does, one level up, and its goal answers as it
   answers its own changes.
-  - *Taken:* at a step, a question in its inbox from its live step
+  - *Its open steps:* the step whose change it runs, and its landing
+    while the landing's change is live. A landing that new work
+    interrupts with a status settlement stays open as its change goes
+    on (*New work waits for, and reopens, the steps*, below), so while
+    that settlement runs both steps are open, and once it has ended
+    the landing alone, until its change ends. A step whose change has
+    ended is open no longer. Each open step's change is the closer's
+    to relay for, whichever of them the closer runs.
+  - *Taken:* at a step, a question in its inbox from an open step's
     change is taken and kept on its row: its asker, the asker's number
-    for it, its words as they came, and where it stands (taken, or
-    asked with the number of the closer's own question). At most one
-    stands, since its one live step change passes up one at a time; a
-    second from that change while one stands, and a question from any
-    other task, is answered, in the answer form to its number,
-    `The goal's closer decides nothing; it relays its own change's
-    questions to its goal.` Any other task's words are taken and
-    dropped, as before.
+    for it, the asker's step, its words as they came, and where it
+    stands (taken, or asked with the number of the closer's own
+    question). One question stands at a time, the one the closer
+    passes up; the others wait on its row in the order taken, and the
+    first waiting stands once the one before is settled, its answer
+    relayed down or dropped (below). Each open step's change passes up
+    one at a time, so with two steps open at most one waits; a second
+    from a change whose first still stands waits in turn as any does. A question from any other task, which no open step is
+    left to relay for, is answered, in the answer form to its number,
+    `This question reached no one: the goal's closer decides nothing
+    and relays only the questions its open steps ask.` Any other
+    task's words are taken and dropped.
+  - *Why one at a time:* the closer matches the question it passes up
+    to the credit jig admits it with (*Room and admission*, below), and
+    one asked of its goal at a time keeps that match whole. Two
+    options were turned down: asking the goal several at once, which
+    needs a match per question, and answering a second open step's
+    question with the canned words, which leaves a landing's repairs
+    unanswered whenever a settlement runs during it.
   - *Passed up:* the closer asks its goal in the question form, its
     words `Change C, the goal's STEP, asks:`, a blank line, then the
     question's words whole, cut from their end to the message bound
-    and marked `…`; C the change's task number and STEP `landing` or
-    `status settlement`. The goal is woken by it as by any question
-    (jig's `domain/tasks/messages.md`, 3) and reads it labelled with how
-    to answer, the closer as its target.
+    and marked `…`; C the change's task number and STEP the asker's
+    step, `landing` or `status settlement`. The goal is woken by it as
+    by any question (jig's `domain/tasks/messages.md`, 3) and reads it
+    labelled with how to answer, the closer as its target.
   - *The answer relayed down:* the goal's answer, in the answer form to
     the closer's question, is taken at the step that reads it and
     relayed to the change in the answer form to the asker's number, its
     words whole, cut from their end to the message bound and marked
     `…`, as the change cuts what it relays down
     (`change/questions.status.md`, Departs). The change relays it to its
-    own asker, whose run goes on from where it parked; the closer's
-    record clears. Words from the goal answer nothing.
-  - *Its step change's words,* its notices of an asker that ended
-    (`change/questions.md`, 1), are passed up to the goal as words,
-    `Change C: ` then the words, cut and marked as above.
+    own asker, whose run goes on from where it parked; the standing
+    question clears, and the first waiting one stands, passed up at
+    the closer's next step, which its standing makes due at once.
+    Words from the goal answer nothing.
+  - *Its open steps' words,* their changes' notices of an asker that
+    ended (`change/questions.md`, 1), are passed up to the goal as
+    words, `Change C: ` then the words, cut and marked as above.
   - *A change that ends first,* with its question on the closer's
     record, ends it there: the closer drops it and tells its goal once,
     in words, `Change C ended with its question open; it reached no
-    one: LINE` where the goal was not yet asked, and, where it was,
-    takes and drops the goal's answer when it comes, saying `Change C
+    one: LINE` where the goal was not yet asked, a waiting question
+    told so as its turn to stand comes, and, where it was asked, takes
+    and drops the goal's answer when it comes, saying `Change C
     ended; your answer to question Q goes no further: LINE`, Q the
-    closer's question and LINE the question's first line. The next
-    step's change starts with none.
+    closer's question and LINE the question's first line; the first
+    waiting stands after either. A question is its asker's, not the
+    step's: a step's change that ends drops its own alone, and another
+    open step's question stays where it stands or waits.
   - *Room and admission:* these messages share the step's `tasks.batch`
     with the step's other messages; what finds no room stays on the
     record and makes the next step due at once. The record is saved
     only once jig admits the step, as a change's relay is
-    (`change/questions.md`, 1).
-  - *Kept across a restart:* the question, with where it stands, is
-    stored with the closer's row (`README.md`, section 9) and restored
-    with it; a row stored before reads as none.
-  - The closer counts no bound of its own: the change counts each
-    question against `forge.change_policy.questions` and holds past it
-    (`change/questions.md`, 1), and that hold escalates past the
-    closer to the goal as any of its holds does (above).
+    (`change/questions.md`, 1), and the question passed up at a step is
+    asked with the number of the credit jig admits that step's
+    question with.
+  - *Reporting waits* while a question stands or waits, or a notice is
+    still to send, as for any of the closer's retained messages.
+  - *Kept across a restart:* the questions, standing and waiting, with
+    where each stands, are stored with the closer's row (`effects.md`,
+    section 2) and restored with it, the waiting ones a field of the
+    stored relay that defaults to none (`ClosingRelay`'s `waiting`, a
+    field of the store's registered family, so no version moves); a
+    row stored before reads as none standing and none waiting, and one
+    stored with a standing question alone as none waiting.
+  - The closer has no question allowance of its own: the change counts
+    each question against `forge.change_policy.questions` and holds
+    past it (`change/questions.md`, 1), and that hold escalates past
+    the closer to the goal as any of its holds does (above). The
+    waiting list has one slot per possible open step, two in all, and
+    the store bounds it at that count. A procedure step consumes its
+    offered inbox prefix, so a question beyond the waiting bound gets
+    the same canned answer. The inbox still bounds retained replies.
 - **A landing that ended is never the end.** When the land step's
   change ends cancelled or failed, the closer first reads afresh
   whether the base holds the goal's branch (the land step's own test,
@@ -365,6 +465,12 @@ section 6).
   - A release makes one attempt more, past the bound too, and its end
     counts as any. A `landing_attempts` of 1 holds on every ended
     change.
+  - A close step's change the closer superseded for new work (*New
+    work waits for, and reopens, the steps*, below) is no attempt: the
+    closer keeps the changes it superseded with its row, as `Closer`'s
+    `superseded`, a field of the store's registered family that
+    defaults to none, so no version moves, and leaves them out of the
+    count, and, as its own, out of the goal's changes.
   - The hold's words name why, after the change's ending:
     `, held for its branch: WHAT`, WHAT `repairs`, `conflict
     resolutions`, `a rejection`, `its pull request closed` or `its
@@ -372,15 +478,15 @@ section 6).
     project's bound L`. So `the landing T41 ended cancelled; attempts
     ended without landing: 3, the project's bound 3`.
 - **Its authority across attempts.** The closer's budget and task
-  count (jig's `domain/tasks/lifecycle.md`, 11) fund each attempt up to
+  count (jig's `domain/tasks/lifecycle-endings.md`, 3) fund each attempt up to
   the bound:
   - *Spend:* each step's change is given half of what the closer has
     left, its budget less what it spent, what its ended delegates spent
     and what it holds reserved. An ended change's unspent share goes
-    back to the closer as it ends (jig's `domain/authority.md`, section
-    7), so an attempt costs the closer what it spent, never its share.
+    back to the closer as it ends (jig's `domain/authority-budgets.md`, section
+    1), so an attempt costs the closer what it spent, never its share.
   - *Lent to its goal's run:* while a run of its goal holds the
-    closer's funds (jig's `domain/tasks/lifecycle.md`, 11), a step the
+    closer's funds (jig's `domain/tasks/lifecycle-endings.md`, 3), a step the
     closer cannot fund waits, with no hold, keeping the step to make;
     that run's answer gives the funds back and makes the closer due,
     and the step is made then. So a release the goal's run makes takes
@@ -408,14 +514,35 @@ section 6).
     now fits.
 - **New work waits for, and reopens, the steps.** A change the goal
   makes while its closer lives is the closer's dependency (jig's
-  `domain/tasks/lifecycle.md`, 11). The closer, kept, makes no new step while it
+  `domain/tasks/lifecycle-endings.md`, 3). The closer, kept, makes no new step while it
   is pending, and a step's change already made goes on: a landing into
-  whose branch the new work lands takes it as its new head (`change/README.md`, 3). Once
-  the work has ended, the closer reads afresh: a change of the goal that
+  whose branch the new work lands takes it as its new head (`change/drift.md`, 1). Once
+  the work has ended, the closer reads afresh, its goal's report first
+  (*What its goal's report leaves holds it first*, above): a change of the goal that
   landed into the goal's branch since its close step makes the close
-  step again, and a landing whose result is in while the goal's branch
+  step again, beside a landing whose change is still live, which stays
+  open meanwhile, its questions relayed (*Its open steps*, above), and
+  a landing whose result is in while the goal's branch
   has moved past what it landed makes the land step again; then it
   reports.
+  - *A close step's change that runs no close job,* held on its job's
+    failure or released and waiting (`change/repairs-releases.md`, 1),
+    makes none while the work is pending, whoever releases it. Once the
+    work has ended, where a change of the goal landed into the goal's
+    branch since that close step, the closer supersedes it: it cancels
+    it, its reason `superseded by the goal's new work: changes N, M
+    landed into its branch`, N and M those changes' task numbers,
+    ascending, and makes the close step again at once, its request
+    naming them. Where none landed, it wakes one that waits, which
+    decides afresh, and leaves one held for its goal's release, the
+    escalation the goal already holds.
+  - *Why* (2026-11-24): a goal that makes a repair or a catch-up and
+    then releases its held close, as its charter says, or leaves it
+    held, has its close made once, after the work has landed, with a
+    request that names it. A held close step counted as pending before,
+    so nothing reopened it once the repair landed, and a release made a
+    fresh job at once with the old request, at a branch the repair had
+    not reached.
 - **Never a catch-up:** the closer makes none; a goal it ends makes
   one only for a change that needs it (1).
 - **Whether the base holds the goal's tip** is read afresh before a land
@@ -442,6 +569,7 @@ Landed:
   LINE
 Ended without landing:
 - TN TITLE: WHY
+Left by the goal: WORDS
 The landing: pull request #P, merged into BASE as COMMIT; repairs TN, TN; resolutions TN.
 CI selection:
 - pull request #P: LINE
@@ -463,6 +591,9 @@ CI selection:
   closer's own left out, ascending: why, `cancelled`,
   `failed: ` then its failure's first line, or `no change: ` then its
   result's first line. The part is left out where none did.
+- **What the goal left:** the `Left:` line its report last read
+  (*What its goal's report leaves holds it first*, above), its words
+  whole, on one line; left out where it read none.
 - **The landing:** its pull request, the base, its merge commit (the
   first line of its result's words), and the task numbers of the
   repairs and the resolutions its change made, each list left out where
@@ -475,16 +606,16 @@ CI selection:
   a goal with no goal branch each of its changes), the selection line
   its CI's jobs'
   logs begin with: the first line of a job's log, read by its start
-  (skein's `forge/README.md`, 3.2, `Job`'s `Start`, its first 4,096 bytes),
+  (skein's `forge/vocabulary.md`, 1.2, `Job`'s `Start`, its first 4,096 bytes),
   when it begins `selection: `, the line whole, cut to 256 bytes; the
   first job of the pull's merged head, in the forge's order, that has
   one gives it; `unknown` where no job's log reads one, a log not read,
   a job with no identity, or a forge that names no job among them. The
   part is left out where no pull landed into the base.
 - **Cut to the contract's bound** as any report is: where the whole
-  passes the contract's words bound, the `Left` sections are cut first,
-  from the last change's back, each cut one replaced by `  Left: [N
-  bytes cut]`; then, if it still passes, the report keeps its first
+  passes the contract's words bound, the changes' `Left` sections are
+  cut first, from the last change's back, each cut one replaced by `  Left: [N
+  bytes cut]`, the goal's own line never among them; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
   N what it dropped.
 
@@ -501,14 +632,14 @@ fast-forward never forced. Its repository's other writes are as before.
 
 - **Its first run among them.** A goal's run prepared while its goal
   branch is still being made (the taking's effect in flight, jig's
-  `domain/connectors.md`, 4.7) or not yet confirmed (its head not yet
+  `domain/connectors-effects.md`, 1.7) or not yet confirmed (its head not yet
   recorded as temper's own) waits, as a write into a branch still being
   made does, and starts once g is made and confirmed, at g's tip, a
   design writer like any later run. A modifying goal holding g never
   starts on its base or with its workspace's writes read-only, so its
   first run can deliver the first wave's design before it cuts its
   changes. A making that fails for good holds the goal (1); a drifted
-  g holds it (`change/README.md`, 3), and its run starts once a release settles it.
+  g holds it (`change/drift.md`, 1), and its run starts once a release settles it.
 - **How it calls it:** smith's `deliver`, with a `title` and a `body`
   as a change's delivery has them, at any point in its run and as often
   as it likes; the project's checks run at it (`../agent/README.md`, section 5).
@@ -526,7 +657,7 @@ fast-forward never forced. Its repository's other writes are as before.
   it in the store, so a restart keeps them.
 - **Its pushes are g's own.** While g has a design writer, a forward
   move by temper's identity is that writer's push, never drift, as
-  while any writer holds a branch (`change/README.md`, 3); a move by another identity, or
+  while any writer holds a branch (`change/drift.md`, 1); a move by another identity, or
   not forward, is drift as before. When the design writer's run
   answers, or its attempt is lost, g is read afresh, as a lost writer's
   branch is (`branches.md`): a tip that descends from the head temper last
@@ -564,16 +695,26 @@ fast-forward never forced. Its repository's other writes are as before.
 
   The answer drops the head beside and W, and frees g if nothing else
   writes it. A record that finds no head beside, or g's head already
-  moved off it, takes W at once, as before. Drift is unchanged: a head
+  moved off it, takes W at once, as before.
+  - *While the forge catches up.* Before a restart's fresh reads are in
+    (`catching-up.md`, 4), a record of W on a held branch whose recorded
+    head H is restored from the store keeps W beside H in the same way,
+    with no design writer, and takes the same comparison. The hold is
+    stored, so another restart reads it again, and the write holds the
+    branch until the answer, so the fresh read judges no drift on W.
+    A record on a branch with no hold or no recorded head takes W at
+    once.
+
+  Drift is unchanged: a head
   none of temper's writes made, even on top of g's head, and a move not
-  forward from it, still hold the goal (`change/README.md`, 3).
+  forward from it, still hold the goal (`change/drift.md`, 1).
 - **Written while any writes it.** The forge's keep counts g as written
   while a design writer lives, a run holds its slot, a merge into it
   is in flight, or a write's head waits on its comparison (above); each
   of them ending leaves g written while another stands.
 - **Changes on g take it.** A change on g (the goal's landing,
   `"branch": "mine"`, the closer's land step) treats a live design
-  writer as its requester's own run (`change/README.md`, 3): a forward move is its new
+  writer as its requester's own run (`change/drift.md`, 1): a forward move is its new
   head, checked again, never "branch moved".
 - **Its brief says so**: one line, that `deliver` pushes the
   checkout's Markdown straight to the goal branch, merging its moved tip
@@ -582,7 +723,7 @@ fast-forward never forced. Its repository's other writes are as before.
   itself stays a change (`../../draft/goal-as-designer.md`, section 2): its
   producer delivers its change's branch, and its design reaches g by
   that change's pull request, as any change's does. A push to g from
-  anywhere but a design writer holds as drift (`change/README.md`, 3).
+  anywhere but a design writer holds as drift (`change/drift.md`, 1).
 
 ## 4. Open questions
 

@@ -65,9 +65,10 @@ is testing-strategy.md.
   a process ends once everything it owns has reported closed (5.2).
 - **A small Rust.** Structs, enums, `match`, functions, references, moves
   and a short list of library types. No `async`, closures, trait objects,
-  user-defined traits or generics, `Rc` or `RefCell`, `Drop` impls, or
+  user-defined traits or generics (except lib's and the codecs' written-once
+  code, 10.2), `Rc` or `RefCell`, `Drop` impls, or
   `unsafe` outside one module (in tests, also the counting allocator and
-  the fork kit's process boundary: skein's ../design/testing/README.md, section 6). Panics
+  the fork kit's process boundary: skein's ../design/testing/layout.md, section 1). Panics
   abort.
 
 ## 2. The loop
@@ -175,7 +176,7 @@ to a file.
   `ring` draws from the kernel; `zeroize`, `subtle` and `once_cell`,
   beneath rustls, a few lines each. In tests, `unsafe` is confined to the
   counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
-  documented process-boundary module (skein's ../design/testing/README.md, section 6).
+  documented process-boundary module (skein's ../design/testing/layout.md, section 1).
 - **In a client compiled to WebAssembly, the glue crates are the only
   `unsafe` code,** since they make every platform call: `wasm-bindgen`,
   `js-sys` and `web-sys`, pinned to exact versions, their dependencies,
@@ -194,11 +195,11 @@ to a file.
   bans them all.
 - **No threads, and no file written beside the ring.** The shell starts
   no thread and writes no file on the service's behalf. A trace or a log
-  is an io stream on a file opened to append (../design/runtime/io/files.md, 1); a record kept
-  between runs is replaced whole through io (../design/runtime/io/files.md, 2); what the shell
+  is an io stream on a file opened to append (../design/runtime/io/files.md, 9); a record kept
+  between runs is replaced whole through io (../design/runtime/io/files.md, 10); what the shell
   reads off the service between iterations, it reads in the loop's hook
   (../design/runtime/shell.md, 11). Before the loop, startup reads its configuration and
-  certificates with the kit (../design/runtime/shell.md, 6).
+  certificates with the kit (../design/runtime/shell-startup.md, 1).
 - **Panics abort.** A panic anywhere is fail-stop, and a supervisor
   restarts the process. The release and web profiles say `panic =
   "abort"`. The dev profile unwinds, as the test harness needs, so that a
@@ -207,7 +208,7 @@ to a file.
   anything else, which reports the panic and aborts before anything
   unwinds, and each repository's gate checks that it does. A binary that
   changed its terminal gives the hook a restoration to run before its
-  report (`before_report`; ../design/runtime/shell.md, 6.3), so the report reaches the
+  report (`before_report`; ../design/runtime/shell-startup.md, 1.3), so the report reaches the
   person's own screen. In a client compiled
   to WebAssembly the abort is a trap, and its shell restarts the client,
   in a browser by reloading its page.
@@ -256,8 +257,9 @@ What "pure" means, and what holds it:
   sets are lib's `Map` and `Set`, ordered by key. There is no formatting
   in step code, so no address can be printed.
 - **No hidden state.** No `static` (a mutable one needs `unsafe`, and
-  atomics and cells are disallowed types), no closures carrying state
-  between calls; all state is in the arguments.
+  atomics and cells are disallowed types) but generated codecs' immutable
+  tables (10.2), no closures carrying state between calls; all state is in
+  the arguments.
 - **No hidden control flow or effects.** Outcomes are returned; panics are
   fail-stop. There are no `Drop` impls in step code: closing is a
   request, and reclaiming follows *closed* (5.2). Dropping a `Box<[u8]>`
@@ -1056,18 +1058,34 @@ hand-written impls of std traits for its own types, `Vec`, `BTreeMap` and
 container's capacity. It is written once and tested hard. Application code
 does not hand-roll data structures: what is missing goes into lib.
 
-`skein-codec` takes lib's exception for its codecs alone: the `Record`
-trait and the generic helpers that check, measure, encode, decode and
-bound each kind of field, with `Field`, the helpers' trait, which a
-private supertrait seals so that no other crate implements it.
-Generated codec code implements `Record` and calls the helpers; no
-hand-written code implements either trait, and a boundary test refuses
-it (skein's ../design/data/codec/README.md, sections 1 and 4).
+`skein-codec` takes lib's written-once, tested-hard exception for its codecs
+alone: the `Record` trait and the generic helpers that check, measure,
+encode, decode and bound each kind of field, with `Field`, the helpers'
+trait. A private supertrait seals `Field`; its implementations for integers,
+`Fixed`, `Sequence`, `Optional` and records are written by hand inside
+`skein-codec`. Generated codec code implements `Record` and calls the
+helpers. Outside `skein-codec`, only generated code implements `Record`,
+and nothing implements `Field`.
+`tests/boundary/tests/codec_impls.rs` refuses a hand-written implementation
+of either outside the crate (skein's ../design/data/codec/README.md,
+sections 1 and 4).
+
+The helpers and generated code keep 10.1's guarantees: bounded execution,
+checked arithmetic, no panic a peer can trigger, no hidden state. The
+workspace's lints run over them as over lib, with scoped
+`#[expect(..., reason = "...")]` only where a module says why, never
+`#[allow]`. Generated translation (skein's ../design/data/codec/maps.md,
+4.1) is ordinary subset code, with no part in this exception.
+
+Generated codec code holds each module's bounds table and its ceilings in
+immutable `static` items of plain data, the one `static` the subset admits:
+nothing in them changes, so they hold no state. Every record's bounds name
+them, and a `const` would be copied into the binary at each mention.
 
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
 counting allocator's `unsafe impl GlobalAlloc` and the fork kit's one
-documented process-boundary module (skein's ../design/testing/README.md, section 6).
+documented process-boundary module (skein's ../design/testing/layout.md, section 1).
 
 ### 10.3 What is out
 
@@ -1078,10 +1096,10 @@ documented process-boundary module (skein's ../design/testing/README.md, section
 | `async`, `.await` | the loop schedules; state hides in generated futures, neither total nor snapshottable | review |
 | closures, function pointers | captured state, and calls the reader cannot follow | review |
 | `dyn Trait`, `impl Trait` | dynamic dispatch, hidden types | review; clippy `impl_trait_in_params` |
-| defining traits, generic items, hand-written trait impls | one way to call code, on concrete types | review |
+| defining traits, generic items, hand-written trait impls outside lib and the codecs (10.2) | one way to call code, on concrete types | review |
 | lifetime parameters on types, references in fields | a stored borrow; state stops being a plain value | review |
 | `Rc`, `Arc`, `Cell`, `RefCell`, atomics | shared ownership, interior mutability, global state | clippy `disallowed_types` |
-| `static`, `thread_local!` | global state | review; compiler (`no_std`) |
+| `static`, `thread_local!`, but generated codec tables (10.2) | global state | review; compiler (`no_std`) |
 | `Vec`, `VecDeque`, `String`, `vec!`, `format!` | growth without a check; formatting | clippy `disallowed_types`, `disallowed_macros` |
 | `BTreeMap`, `BTreeSet` | growth without a check: lib's `Map` and `Set` are bounded | review |
 | `impl Drop`, `Deref`, operator overloading, `Index` | hidden calls and hidden effects | review |

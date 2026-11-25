@@ -1,6 +1,7 @@
 # Testing hearth: status
 
-2026-11-11. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-23. Where hearth's code lags or departs from [README.md](README.md).
+
 
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated

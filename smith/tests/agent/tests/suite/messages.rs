@@ -1,5 +1,5 @@
 //! Shared-fake root/run/session messages and replay histories.
-//! Contract: smith/docs/design/domain/run.md, sections 6, 9 and 12; smith/docs/design/domain/session.md, section 3;
+//! Contract: smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, sections 9 and 12; smith/docs/design/domain/session.md, section 3;
 //! skein/docs/foundation/testing-strategy.md, sections 2.3 and 7.
 
 use skein_fake_llm_domain::api::Part;
@@ -21,6 +21,18 @@ fn waiting(seed: u64) -> Settings {
         network: Span::millis(0, 0),
         ..calm
     }
+}
+
+#[test]
+fn an_outer_clock_keeps_later_provider_events_pending() {
+    let mut world = World::new(waiting(963));
+    let until = Time::from_nanos(1_000_000);
+    for _ in 0..32 {
+        assert!(!world.drive_until(1, until));
+        assert!(world.now() <= until, "a composed driver owns its clock horizon");
+    }
+    world.run(2000);
+    assert!(matches!(world.answer(), run::Answer::Parked { .. }), "ordinary driving still finishes the same script");
 }
 
 fn history(world: &World) -> smith_domain::Transcript {

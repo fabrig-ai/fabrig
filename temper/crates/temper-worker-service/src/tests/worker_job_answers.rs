@@ -68,7 +68,9 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         | Op::Reset { .. }
         | Op::Pack { .. }
         | Op::Point { .. }
+        | Op::Counts { .. }
         | Op::Store { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::Clone { .. }
         | Op::Create { .. }
@@ -229,7 +231,6 @@ fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
         &fixtures::worker_limits(),
         &fixtures::worker_files(),
         crate::WorkerRuntime {
-            wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
@@ -245,7 +246,7 @@ fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
     panic!("git start finishes");
 }
 
-/// temper/docs/design/domain/worker/jobs.md; jig/docs/design/protocol/channel/records.md, 4, and jig/docs/design/protocol/channel/README.md, 5.2.
+/// temper/docs/design/domain/worker/jobs.md; jig/docs/design/protocol/channel/records.md, 4, and jig/docs/design/protocol/channel/owners.md, 1.2.
 #[test]
 fn a_delivering_job_answers_with_left_parts_and_replays_until_acknowledged() {
     let (mut worker, mut peer) = merge_worker();
@@ -414,9 +415,11 @@ fn failed_job_preparations_log_once_across_reconnect() {
         panic!("failed job preparation");
     };
     assert!(detail.starts_with(b"host worker-a: "));
-    for want in
-        [Want::Branch { branch: b"temper/task-7".as_slice().into() }, Want::Commit { commit: Commit::new(MERGE_BASE) }]
-    {
+    for what in [
+        Git::Fetch { want: Want::Branch { branch: b"temper/task-7".as_slice().into() }, into: Into::Fetched },
+        Git::Counts,
+        Git::Fetch { want: Want::Commit { commit: Commit::new(MERGE_BASE) }, into: Into::Fetched },
+    ] {
         assert_eq!(
             worker.notes().pop(),
             Some(crate::worker_alone::Note::Git {
@@ -424,7 +427,7 @@ fn failed_job_preparations_log_once_across_reconnect() {
                 attempt: 2,
                 job: Some((3, b"merge".as_slice().into())),
                 repository: b"app".as_slice().into(),
-                what: Git::Fetch { want, into: Into::Fetched },
+                what,
             })
         );
     }
@@ -451,7 +454,7 @@ fn failed_job_preparations_log_once_across_reconnect() {
     assert!(worker.notes().is_empty(), "neither job nor preparation logs again on replay");
 }
 
-/// Operator notes pass through without becoming link records (README.md, 4.3).
+/// Operator notes pass through without becoming link records (domain/worker/hosted-runs.md, 1.3).
 #[test]
 #[expect(clippy::manual_map, reason = "the crate's subset names each optional job kind")]
 fn checkout_notes_keep_the_assignment_and_operation() {

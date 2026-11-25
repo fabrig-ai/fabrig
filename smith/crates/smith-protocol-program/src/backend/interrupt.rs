@@ -1,4 +1,4 @@
-//! One program control request (protocol/programs.md, 5.7 and 5.9).
+//! One program control request (protocol/programs-claude-code.md, 1.7 and 1.9).
 //! Keeps its process-local sequence, unsent line and acknowledgement together.
 //! A result may precede the acknowledgement; neither consumes the other's data.
 //! `prepare`, `offer`, `send` and `acknowledge` own the wire transitions.

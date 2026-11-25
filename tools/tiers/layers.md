@@ -1,6 +1,6 @@
 # Layers
 
-Provisional, 2026-11-20. Which layer of the pyramid each test binary is in: `tools/tiers/layers.toml`, and the boundary check that keeps it whole. Written from `temper/docs/design/draft/test-budgets.md`, 4.
+Provisional, 2026-11-21. Which layer of the pyramid each test binary is in: `tools/tiers/layers.toml`, the boundary check that keeps it whole, and which layers run where: the gate's and the delivery check's runs the layers that replay, each tree's real pair the real loop and end to end after landing. Written from `temper/docs/design/draft/test-budgets.md`, 4 and 7.
 
 ## 1. In one page
 
@@ -8,8 +8,10 @@ Provisional, 2026-11-20. Which layer of the pyramid each test binary is in: `too
 - **Every test binary is in one layer,** since CPU is measured per process and a process runs one binary's tests (`tools/tiers/design.md`, 11). A binary's tests are of its layer (the strategy's 8.1), and a binary of the real loop or end to end holds no test that replays (section 6.1).
 - **By rule, with no line:** a library's own tests and a binary's own are step tests; every binary of a package outside the five trees is the repository's checks (section 4).
 - **Every other binary has a line** in `tools/tiers/layers.toml`: its id and its layer, under its tree's table, as its tree's testing document places it (sections 5 and 6).
-- **A boundary check keeps the table whole** (section 7): from `cargo metadata`, which builds nothing, every test binary has its layer, and every line names a binary that exists, in its own tree, at a layer the file names.
-- **Who reads it:** the boundary check, and the suites' summaries by layer once they are built (section 8).
+- **A boundary check keeps the table whole** (section 7): from `cargo metadata`, which builds nothing, every test binary has its layer, and every line names a binary that exists, in its own tree, at a layer the file names; and each tree's real pair names every real-loop and end-to-end line of the tree.
+- **The gate runs what replays** (section 9): `tools/tiers/one-process`, for the focused and fuzzy profiles, runs by default only the binaries of the layers that replay and the repository's checks, and judges only those layers; a caller asks for others with `--layers`.
+- **The real loop and end to end after landing** (section 9.2): each tree's pair `real-TREE` runs its real-loop and end-to-end tests that the focused and fuzzy suites select, as the after-landing tier runs every slow pair.
+- **Who reads it:** the boundary check, the suites' summaries by layer, and one-process's choice of what to run (section 8).
 
 ## 2. The layers
 
@@ -79,7 +81,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 
 ## 6. Placing a binary
 
-- **What a test checks places it, never its cost** (the strategy's 8.1). Its tree's testing document places it: `skein/docs/design/testing/README.md`, 2; `smith/docs/design/testing.md`, 2; `jig/docs/design/domain/testing.md`; `temper/docs/design/testing/README.md`, 2, where the client's world is a system world (2.1); `hearth/docs/design/testing/README.md`, 2. Where the document says nothing of it, the strategy's table (section 2) does, by what the binary runs real and what it fakes, and the line carries a comment.
+- **What a test checks places it, never its cost** (the strategy's 8.1). Its tree's testing document places it: `skein/docs/design/testing/README.md`, 2; `smith/docs/design/testing-tiers.md`; `jig/docs/design/domain/testing.md`; `temper/docs/design/testing/tiers.md`, 1, where the client's world is a system world (2.1); `hearth/docs/design/testing/README.md`, 2. Where the document says nothing of it, the strategy's table (`layers.md`, section 2) does, by what the binary runs real and what it fakes, and the line carries a comment.
 - **A binary whose tests span two layers** is split, or takes the higher one until it is, its comment naming both, where both replay. One whose tests include some that replay and some that don't is split (section 6.1).
 - **The slow tiers' binaries** have layers too, by the same rule: the process and live tiers' are end to end; a browser binary, which runs a real browser on what ships, is end to end unless its tree's document places it lower.
 - **A binary that calls the real kernel or real programs without the loop** (real sockets, locks or children, a real tool run synchronously and its output compared, hearth's conformance among them) is in the real loop: the lowest layer that runs what is real below, and does not replay (the strategy's 2.8, "real programs' output"). One that runs a program or script as it ships is end to end. Its comment names the real calls.
@@ -100,21 +102,51 @@ The gate runs the layers that replay, and the real loop and end to end run after
 
 ## 7. The boundary check
 
-A focused test of `fabrig-boundary`, `tests/boundary/tests/layers.rs` (`.config/gate/README.md`, the gate's 16th item), reads `cargo metadata --no-deps --format-version 1 --locked` and `tools/tiers/layers.toml`, and lists, each naming the binary's id or the line and why:
+A focused test of `fabrig-boundary`, `tests/boundary/tests/layers.rs` (`.config/gate/README.md`, the gate's 16th item), reads `cargo metadata --no-deps --format-version 1 --locked`, `tools/tiers/layers.toml`, `.config/nextest.toml` and `tools/tiers/packages.toml`, and lists, each naming the binary's id or the line and why:
 
 - a test binary of a tree, placed by no rule, with no line;
 - a line naming no test binary of the workspace, or one placed by rule (section 4);
 - a line under a table other than its binary's tree, or a table that is no tree's;
-- a line whose layer the `layers` list doesn't name, a `layers` list with a name twice or without `step`, or anything at the top but that list and the trees' tables.
+- a line whose layer the `layers` list doesn't name, a `layers` list with a name twice or without `step`, or anything at the top but that list and the trees' tables;
+- from `.config/nextest.toml`'s text, for a tree with a line at `real-loop` or `end-to-end`: no `[profile.real-TREE]`, or one whose `default-filter` doesn't name, by `binary_id(=ID)`, each such line of the tree, or names by `binary_id(=…)` an id that is no such line of the tree (section 9.2). A `real-TREE` profile for a tree with no such line is a finding too.
+- from `tools/tiers/packages.toml`, for each such tree: no `real-TREE` list, a package of one of those lines missing from it, or a package on it that is no such line's. The lines of binaries the slow tiers own by name, `browser_*`, `conformance_*`, `recorded_*`, `live` and `live_github`, need no package there, since the pair's clause leaves them out (section 9.2): the runner builds only the packages its list names, so a missing one's tests run nowhere.
+- from `tools/tiers/packages.toml`'s `[binaries]` table: a pair's list not sorted and unique by package then binary, which the runner refuses before any command (`tools/tiers/design.md`, 2.1).
 
-The check passes with no finding. Its findings are computed from the metadata's and the table's text, so its own tests run it on small fixtures of both, and once on the workspace's.
+The check passes with no finding. Its findings are computed from the metadata's, the table's and the configuration's text, so its own tests run it on small fixtures of each, and once on the workspace's.
 
 ## 8. Who reads it
 
 - **The boundary check** (section 7).
 - **The suites' summaries:** `tools/tiers/one-process` places each binary it runs by the file and section 4's rules, as the check does, and sums CPU by tree, suite and layer (`tools/tiers/budgets.md`, 3 and 4).
+- **What a run runs:** one-process leaves out the binaries of the layers its run doesn't run (section 9), and a real pair's summary places its tests' binaries by the file (`tools/tiers/budgets.md`, 4.2).
 - **The budgets:** `tools/tiers/budgets.toml`'s gate tables name their layers from the file's `layers` list (`tools/tiers/budgets.md`, 2).
 
-## 9. Later
+## 9. The layers a run runs
+
+The gate runs the layers that replay, and the real loop and end to end run after landing (`temper/docs/design/draft/test-budgets.md`, 4). The switch lives in the tree, in what `tools/tiers/one-process` runs by default, so the gate's runner, which runs one-process from the candidate's own checkout, changes nothing (the user, 11-21), and the delivery check, which runs it too (`tools/pre-pr/design.md`, 1), follows the same day.
+
+### 9.1 What one-process runs
+
+- **The layers that replay** are every name of the file's `layers` list but `real-loop` and `end-to-end`: today `step`, `domain`, `system`, `machine`, `protocol`, `io` and `simulated` (section 2). A layer a later change adds to the list replays unless this section says otherwise.
+- **The default.** `tools/tiers/one-process [--layers LAYERS] …` (`tools/tiers/design.md`, 11.9). For the focused and fuzzy profiles, `default` and `fuzzy`, a run runs the binaries of the layers that replay and the repository's checks (`checks`, section 4), and leaves out every binary placed `real-loop` or `end-to-end`, whatever else its arguments say: with or without `--gate`, `--ledger` or `--walls`, a `-p` selection or a filter of the caller's. For any other profile it runs every layer, as before.
+- **`--layers LAYERS`** asks for others: a comma-separated list of names of the file's `layers` list and `checks`, or `all` for every layer, as before this section. `--layers real-loop,end-to-end` runs those alone; `--layers all` runs everything the profile selects. A name the file's list doesn't hold, but `checks` and `all`, an empty list, or `--layers` beside `--again` or `--alone` is an invalid invocation (exit 2), refused before anything runs. Without the layers file, the default and `all` run every binary, as section 4's rules place them or unplaced, and record no layers (`tools/tiers/budgets.md`, 4.1); any other list is refused.
+- **An unplaced binary runs** whatever the layers: its missing line is the boundary check's red (section 7), and a run never leaves out a binary it can't place.
+- **After nextest's selection, never a filter.** The run places each binary its listing names (`tools/tiers/budgets.md`, 3) and leaves out those of a layer it doesn't run, after nextest has selected; it passes nextest no filter of its own. Nextest joins two `-E` filters by `or`, so a filter added to a caller's would widen it. A caller's filter thus selects within the layers the run runs: the gate's rerun of a named test, `-E 'binary_id(=B) & test(=T)'`, runs it where the default ran it, and selects nothing where the default left its binary out, as the default did.
+- **What it builds.** Where the run narrows its listing to the targets its profiles can select (`TIERS_PRE_PR_TARGETS`, `TIERS_PROFILE_TARGETS`: `tools/tiers/design.md`, 11.9), it also leaves out the targets of the layers it doesn't run, so the delivery check builds no binary it won't run. `tools/tiers/build-profile-targets` builds as before, every layer, since a caller may run any.
+- **It says so.** A run that leaves out a binary prints one line before its lanes start, naming the layers it left out and how many binaries they held, and `results.json` holds `selected_layers`: the names it ran, in the file's order, then `checks` (`tools/tiers/budgets.md`, 4.1). A selection left empty follows `--no-tests` as nextest's own empty selection does (`tools/tiers/design.md`, 11.2).
+- **A process again and at the base.** `--again` and `--alone` (`tools/tiers/design.md`, 11.9) run what they name, whatever its layer: a run's own selection chose it.
+- **Judged by what it ran.** A run judges only the layers it ran: no row, budget, warning or red for a layer it left out, and its `ledger.json` keeps no figure for one (`tools/tiers/budgets.md`, 4.1).
+- **The gate's walls stay** 270 s focused and 215 s fuzzy until the user sets the new runs' figures (draft, 7).
+
+### 9.2 The real pairs
+
+The real loop and end to end don't stop running: each tree with a line at `real-loop` or `end-to-end` has a slow pair, `real-TREE` (`real-skein`, `real-smith`, `real-jig`, `real-temper`, `real-hearth`), run by `tools/tiers/run TREE real` as every pair is (`tools/tiers/design.md`, 1 and 6). Adding them to the after-landing tier's list, outside this repository, is the user's (`temper/docs/design/draft/test-budgets.execution.md`, 2).
+
+- **What it runs:** the tests that the focused or the fuzzy profile selects in the tree's real-loop and end-to-end binaries, the ones one-process now leaves out of the gate. Its `[profile.real-TREE]` in `.config/nextest.toml` has the `default-filter` `(FOCUSED) | (FUZZY)` and'ed with `binary_id(=ID) | …` for every line of the tree at `real-loop` or `end-to-end`, FOCUSED and FUZZY copies of the tree's own clause of `[profile.default]`'s and `[profile.fuzzy]`'s `default-filter`. The clauses already leave out what the slow tiers own (`browser_*`, `live`, `process`, `conformance_*` and the rest), so the list names every such line, those included, and the boundary check holds it to the table (section 7). A change to a tree's clause in either profile changes its copy.
+- **Its settings:** `junit = { path = "junit.xml" }`, as every pair writes its report, and no `global-timeout`, `slow-timeout` or `test-threads` of its own: it takes `[profile.default]`'s, 810 s and a 6 s period, and its overrides after its own, until the user sets the pair's figures. Its macOS overrides double its Linux slow periods, as every profile's do (`temper/docs/design/testing/macos.md`, 7).
+- **Its packages** in `tools/tiers/packages.toml`: the packages of the binaries it selects tests from, sorted, as the map is generated (`tools/tiers/design.md`, 1 and 6), and the boundary check holds the list to the tree's lines (section 7). Its `[binaries]` list holds what its tree's `[test-binaries]` list holds, since the tests that run another package's program are its own now: `smith-fake-claude`'s `fake-claude` for `real-smith`, an empty list for the others.
+- **Its budgets** are the tree's `real-loop` and `end-to-end` ceilings of both suites in `tools/tiers/budgets.toml`'s gate tables, reported by its runs as warnings, never red (draft, 11; `tools/tiers/budgets.md`, 4.2). It has no table of its own; a table the user adds later applies as any pair's.
+
+## 10. Later
 
 - **Splitting binaries** that span two layers that replay, where the table's comments name them. Each takes the higher layer meanwhile, and the gate runs both (section 6.1).

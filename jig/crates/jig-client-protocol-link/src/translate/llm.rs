@@ -1,77 +1,37 @@
 //! A task's LLM choice and `me`'s models, by configured names (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
 use super::{too_large, w};
 use crate::Limits;
+use crate::generated::client;
+use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use skein_lib::{List, bytes};
 
-pub(crate) fn wire_choice(
-    value: Option<&c::LlmChoice>,
-    limits: &w::Limits,
-) -> Result<Option<w::LlmChoice>, w::Problem> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
-    let mut subagents = List::with_capacity(value.subagents.len());
-    for item in &value.subagents {
-        subagents.push(wire_model_effort(item, limits)?).expect("same capacity");
+pub(crate) fn wire_choice(value: Option<&c::LlmChoice>) -> Option<w::LlmChoice> {
+    match value {
+        Some(value) => Some(client::llm_choice_to_record(value)),
+        None => None,
     }
-    Ok(Some(w::LlmChoice {
-        account: value.account,
-        main: wire_model_effort(&value.main, limits)?,
-        subagents,
-        later: match &value.later {
-            Some(later) => Some(wire_later(later, limits)?),
-            None => None,
-        },
-    }))
 }
-fn wire_later(value: &c::LlmLater, limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
-    let mut subagents = List::with_capacity(value.subagents.len());
-    for item in &value.subagents {
-        subagents.push(wire_model_effort(item, limits)?).expect("same capacity");
-    }
-    Ok(w::LlmLater { main: wire_model_effort(&value.main, limits)?, subagents })
-}
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn wire_model_effort(value: &c::ModelEffort, _limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
-    Ok(w::ModelEffort {
+pub(crate) fn model_effort_to_record(value: &c::ModelEffort) -> w::ModelEffort {
+    w::ModelEffort {
         model: bytes::copy_of(value.model.bytes()),
         effort: match &value.effort {
             Some(effort) => Some(bytes::copy_of(effort.bytes())),
             None => None,
         },
-    })
+    }
 }
 pub(crate) fn choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Result<Option<c::LlmChoice>, w::Problem> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
-    let mut subagents = List::with_capacity(value.subagents.len());
-    for item in &value.subagents {
-        subagents.push(model_effort(item, limits)?).expect("same capacity");
+    match value {
+        Some(value) => Ok(Some(client::llm_choice_to_domain(value.clone(), limits)?)),
+        None => Ok(None),
     }
-    Ok(Some(c::LlmChoice {
-        account: value.account,
-        main: model_effort(&value.main, limits)?,
-        subagents,
-        later: match &value.later {
-            Some(later) => Some(restore_later(later, limits)?),
-            None => None,
-        },
-    }))
 }
-fn restore_later(value: &w::LlmLater, limits: &Limits) -> Result<c::LlmLater, w::Problem> {
-    let mut subagents = List::with_capacity(value.subagents.len());
-    for item in &value.subagents {
-        subagents.push(model_effort(item, limits)?).expect("same capacity");
-    }
-    Ok(c::LlmLater { main: model_effort(&value.main, limits)?, subagents })
-}
-fn model_effort(value: &w::ModelEffort, limits: &Limits) -> Result<c::ModelEffort, w::Problem> {
+pub(crate) fn model_effort_to_domain(value: w::ModelEffort, limits: &Limits) -> Result<c::ModelEffort, w::Problem> {
     Ok(c::ModelEffort {
-        model: name(&value.model, limits.receiving().model_effort_model)?,
-        effort: match &value.effort {
-            Some(effort) => Some(name(effort, limits.receiving().model_effort_effort_some)?),
+        model: checked_name(value.model, limits.receiving().model_effort_model)?,
+        effort: match value.effort {
+            Some(effort) => Some(checked_name(effort, limits.receiving().model_effort_effort_some)?),
             None => None,
         },
     })
@@ -125,11 +85,7 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
                     None => None,
                 },
                 number: value.number,
-                source: match &value.source {
-                    w::ModelSource::Stock => c::ModelSource::Stock,
-                    w::ModelSource::List => c::ModelSource::List,
-                    w::ModelSource::Person => c::ModelSource::Person,
-                },
+                source: client::model_source_to_domain(value.source.clone()),
                 estimated: value.estimated,
                 name: name(&value.name, limits.receiving().me_model_name)?,
                 provider: value.provider,
@@ -140,13 +96,7 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
                 shown,
                 accounts: value.accounts.clone(),
                 picker: value.picker,
-                prices: c::ModelPrices {
-                    input: prices.input,
-                    cached: prices.cached,
-                    cache_write: prices.cache_write,
-                    output: prices.output,
-                    unit: prices.unit,
-                },
+                prices: client::me_prices_to_domain(prices.clone()),
                 description,
             })
             .expect("same capacity");
@@ -156,18 +106,14 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
 pub(crate) fn refusal(value: &w::RefusalLlm, limits: &Limits) -> Result<c::Refusal, w::Problem> {
     Ok(c::Refusal::Llm {
         model: name(&value.model, limits.receiving().refusal_llm_model)?,
-        why: match &value.why {
-            w::LlmWhy::Unconfigured => c::LlmWhy::Unconfigured,
-            w::LlmWhy::Effort => c::LlmWhy::Effort,
-            w::LlmWhy::Charter => c::LlmWhy::Charter,
-            w::LlmWhy::Authority => c::LlmWhy::Authority,
-            w::LlmWhy::Procedure => c::LlmWhy::Procedure,
-            w::LlmWhy::Repeated => c::LlmWhy::Repeated,
-        },
+        why: client::llm_why_to_domain(value.why.clone()),
     })
 }
 fn name(value: &[u8], limit: u32) -> Result<c::Text, w::Problem> {
-    match c::Text::new(bytes::copy_of(value), limit) {
+    checked_name(bytes::copy_of(value), limit)
+}
+fn checked_name(value: Box<[u8]>, limit: u32) -> Result<c::Text, w::Problem> {
+    match c::Text::new(value, limit) {
         Ok(text) => Ok(text),
         Err(_) => Err(too_large()),
     }
@@ -176,12 +122,7 @@ fn name(value: &[u8], limit: u32) -> Result<c::Text, w::Problem> {
 pub(crate) fn defaults(values: &List<w::MeDefault>, limits: &Limits) -> Result<List<c::MeDefault>, w::Problem> {
     let mut defaults = List::with_capacity(values.len());
     for value in values {
-        defaults
-            .push(c::MeDefault {
-                template: value.template,
-                choice: choice(Some(&value.choice), limits)?.expect("present choice"),
-            })
-            .expect("same capacity");
+        defaults.push(client::me_default_to_domain(value.clone(), limits)?).expect("same capacity");
     }
     Ok(defaults)
 }

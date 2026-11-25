@@ -1,5 +1,5 @@
 //! Immediate accessibility queries, never drawing data or style tokens.
-//! The preorder subtree sizes scope queries (skein's ui/README.md, section 14.1).
+//! The preorder subtree sizes scope queries (skein's ui/testing.md, section 1.1).
 use crate::{Face, Find, Found, Target};
 use alloc::vec::Vec;
 use skein_ui::{Act, takes};
@@ -83,6 +83,15 @@ fn matches(nodes: &[Node], index: usize, target: &Target) -> bool {
                 && exactly_named(nodes, index, node.role, name)
         }
         Target::Text { text: words } => !node.text.is_empty() && contains(&text(node), words),
+        Target::ParagraphText { text: words } => {
+            if node.role != Role::Paragraph {
+                return false;
+            }
+            let end =
+                index.checked_add(usize::try_from(node.size).expect("subtree fits usize")).expect("subtree end fits");
+            let rendered: Vec<u8> = nodes[index..end].iter().flat_map(text).collect();
+            rendered.as_slice() == words.as_ref()
+        }
     }
 }
 

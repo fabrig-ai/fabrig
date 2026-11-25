@@ -1,5 +1,6 @@
 //! Watch subjects and terminal reasons (protocol/client/README.md, 5).
 use super::{documents, live, objects, pages};
+use crate::generated::client;
 use crate::{Limits, Undecodable};
 use alloc::boxed::Box;
 use jig_client_domain::Watchable;
@@ -9,35 +10,14 @@ use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{List, Reader, Writer, length::len_u64};
 
-pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::Problem> {
-    Ok(match value {
-        c::Subject::Settings => w::Subject::Settings,
-        c::Subject::Me => w::Subject::Me,
-        c::Subject::Task { task } => w::Subject::Task(w::SubjectTask { task: *task }),
-        c::Subject::Tree { task, window } => w::Subject::Tree(w::SubjectTree { task: *task, window: *window }),
-        c::Subject::Chips { tasks } => w::Subject::Chips(w::SubjectChips { tasks: tasks.clone() }),
-        c::Subject::Inbox { window } => w::Subject::Inbox(w::SubjectInbox { window: *window }),
-        c::Subject::Tasks { query, window } => {
-            w::Subject::Tasks(w::SubjectTasks { query: super::queries::query(query, limits)?, window: *window })
-        }
-        c::Subject::Run { task, turn, offset } => {
-            let turn = match turn {
-                Some(turn) => {
-                    Some(w::ProvisionalTurnName { attempt: turn.attempt, number: turn.number, retry: turn.retry })
-                }
-                None => None,
-            };
-            w::Subject::Run(w::SubjectRun { task: *task, turn, offset: *offset })
-        }
-        c::Subject::Deployment => w::Subject::Deployment,
-        c::Subject::Accounts => w::Subject::Accounts,
-        c::Subject::Terminal { terminal } => w::Subject::Terminal(w::SubjectTerminal { terminal: *terminal }),
-    })
+#[must_use]
+pub fn subject(value: &c::Subject) -> w::Subject {
+    client::subject_to_record(value)
 }
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
     let (owner, version, record) = match value {
         Watchable::Jig(value) => {
-            let value = subject(&value, limits)?;
+            let value = subject(&value);
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
             value.write(limits, &mut writer).expect("measured subject");
             (w::Owner::Jig, VERSION, writer.finish())
@@ -52,12 +32,7 @@ pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Proble
 }
 #[must_use]
 pub fn refused(value: &w::WatchRefusal) -> c::WatchEnd {
-    match value {
-        w::WatchRefusal::Unknown => c::WatchEnd::Unknown,
-        w::WatchRefusal::NotAllowed => c::WatchEnd::NotAllowed,
-        w::WatchRefusal::Busy => c::WatchEnd::Busy,
-        w::WatchRefusal::SignedOut => c::WatchEnd::SignedOut,
-    }
+    client::watch_refusal_to_domain(value.clone())
 }
 #[must_use]
 pub fn ended(value: &w::WatchEnd) -> c::WatchEnd {
@@ -97,7 +72,7 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
             }))
         }
         w::DeliveryValue::Settings(value) => {
-            c::Delivery::Settings(Box::new(match super::settings::restore_settings_document(&value, limits) {
+            c::Delivery::Settings(Box::new(match client::settings_document_to_domain(value, limits) {
                 Ok(value) => value,
                 Err(problem) => return Err(super::classify(problem)),
             }))
@@ -160,14 +135,8 @@ fn tree(record: w::Tree, limits: &Limits) -> Result<c::Tree, Undecodable> {
         Err(problem) => return Err(super::classify(problem)),
     };
     let mut folded = List::with_capacity(record.folded.len());
-    for value in &record.folded {
-        folded
-            .push(c::TreeFold {
-                parent: value.parent,
-                phases: documents::phase_counts_fields(&value.phases),
-                held_below: value.held_below,
-            })
-            .expect("bounded folds");
+    for value in record.folded.into_boxed() {
+        folded.push(client::tree_fold_to_domain(value)).expect("bounded folds");
     }
     let next = match &record.next {
         Some(value) => Some(match documents::cursor_fields(value, limits) {

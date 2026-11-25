@@ -104,6 +104,7 @@ fn first_run_words(
                 event: jig_client::Event::Up {
                     up: jig_client::Up::FamilyServed {
                         family: temper_client_protocol_wire::FORGE,
+                        served: true,
                         versions: Some(c::VersionRange {
                             first: temper_client_protocol_wire::CLIENT_VERSION,
                             last: temper_client_protocol_wire::CLIENT_VERSION,
@@ -607,6 +608,7 @@ fn demo_forges() -> Box<[u8]> {
     let mut forges = skein_lib::List::with_capacity(1);
     forges
         .push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: skein_lib::List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),

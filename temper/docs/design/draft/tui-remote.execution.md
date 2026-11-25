@@ -52,10 +52,10 @@ the nearest thing, and says so in the draft's status.
   resolved at start), 5.2 and 5.5 (the sign-in screen at a name, by a
   typed code, Enter its one key), 6 (a directory per deployment, and the
   move from today's) and 7 (a build refused).
-- **Design:** `../client/tui/README.md`, 1 to 3;
+- **Design:** `../client/tui/README.md`, 1, and `../client/tui/directory.md`, 1, and `../client/tui/host.md`, 1;
   `../client/tui/pages/README.md`, 3; `../client/tui/pages/chat.md`, 1;
-  `../client/tui/pages/sign-in.md`, 1 and 2; `../client/README.md`, 4
-  and 4.1; jig's `protocol/client/README.md`, 9.
+  `../client/tui/pages/sign-in.md`, 1 and 2; `../client/sign-in.md`, 1
+  and 1.1; jig's `protocol/client/shells.md`, 1.
 - **Builds:** `temper https://NAME` and its refusals; jig's native shell
   over skein's TLS client with the machine's roots; the binary's
   resolving at start; the TUI's directory per origin and the move; the
@@ -80,11 +80,11 @@ the nearest thing, and says so in the draft's status.
 - **Design:** jig's `protocol/client/sign-in.md`, *A sign-in approved by
   a browser*; jig's `protocol/client/default-http.md`, 3 and 4; jig's
   `protocol/client/wire.md`, 2.1 and 2.2; jig's
-  `client/domain/client/README.md`, 4.1 and 9; jig's
-  `protocol/configuration.md`, 3 and 8; jig's `protocol/client/README.md`,
+  `client/domain/client/vocabulary.md`, 1.1, and `client/domain/client/sign-in.md`, 1; jig's
+  `protocol/configuration-engine.md`, 1, and `protocol/configuration.md`, 8; jig's `protocol/client/README.md`,
   10 and 12; `../protocol/sign-in.md`, 2.1 and 2.3;
-  `../client/pages/README.md`, 2, *The approval page*;
-  `../client/web/README.md`, 2.3.
+  `../client/pages/shared-behaviour.md`, 1, *The approval page*;
+  `../client/web/addresses.md`, 1.
 - **Builds:** the engine end's source address, from `X-Forwarded-For`
   by the public name and the peer otherwise; the ask's kind; the
   per-source count; the deciding browser's source beside the ask's; the
@@ -102,8 +102,8 @@ the nearest thing, and says so in the draft's status.
   `127.0.0.1`, the ask with its loopback return where there is an
   opener, the take with the grant, the redirect back, Enter for a typed
   code instead.
-- **Design:** `../client/README.md`, 4.1; `../client/tui/pages/sign-in.md`,
-  3 and 4; `../client/tui/README.md`, 3 and 4;
+- **Design:** `../client/sign-in.md`, 1.1; `../client/tui/pages/sign-in.md`,
+  3 and 4; `../client/tui/host.md`, 1, and `../client/tui/README.md`, 4;
   `../client/tui/journeys.md`, 3.2 and 5.
 - **Builds:** the TUI's one-shot listener on skein-io; the one-click ask
   and its lines; the take by grant; the listener's closing.

@@ -1,5 +1,5 @@
 //! An amendment waits without deciding, then repeats admission on current state
-//! (`domain/engine/README.md`, 5.3; `domain/tasks/changes.md`).
+//! (`domain/engine/decisions.md`, 1.3; `domain/tasks/changes.md`).
 use crate::routing::{Work, party::dispatch::Party};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -84,6 +84,9 @@ pub(crate) fn missing(
             match by {
                 tasks::Party::Task(amender) => {
                     let Some(holder) = core.tasks.task(amender) else { break };
+                    if row.project == holder.project && core.task_reads_project(amender) {
+                        break;
+                    }
                     if row.root != holder.root || row.depth <= holder.depth {
                         break;
                     }

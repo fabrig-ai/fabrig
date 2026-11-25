@@ -143,14 +143,17 @@ fn first_link_accepts_4096_bytes_and_refuses_one_more() {
 }
 
 #[test]
-fn a_held_descriptor_is_refused_as_held() {
-    use std::os::fd::AsRawFd;
-    let file = fs::File::open("/dev/null").expect("open a non-socket");
-    let fd = skein_io::kernel::Fd::new(file.as_raw_fd());
-    let held = vec![(fd, std::num::NonZeroU16::new(4).expect("nonzero port"))];
+fn first_link_uses_the_supplied_seed_for_serve_and_its_url() {
+    const SEED: [u8; temper_service::clients::LINK_SECRET_BYTES] = [7; temper_service::clients::LINK_SECRET_BYTES];
+    let link = crate::box_command::first_link_with_seed(&first_link_named(), &first_link_steps(), || {
+        Ok(skein_lib::Secret::new(Box::new(SEED)))
+    })
+    .expect("supplied seed")
+    .expect("first link");
+    assert_eq!(link.secret.expose(), &SEED);
     assert_eq!(
-        crate::box_command::held_listeners(held),
-        Err(format!("held listener: fd {} is not a socket", fd.raw()))
+        link.url.as_ref(),
+        b"https://temper.example.invalid:8443/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
     );
 }
 

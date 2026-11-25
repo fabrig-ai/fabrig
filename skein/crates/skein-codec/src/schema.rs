@@ -1,4 +1,4 @@
-//! Bounded schema tables and layout checks (data/codec/README.md, section 7).
+//! Bounded schema tables and layout checks (data/codec/run-time.md, section 1).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Map, bytes, usize_of};
@@ -39,7 +39,7 @@ impl DeclIx {
     }
 }
 
-/// An index in the schema's fields, in the text's order.
+/// An index in the schema's fields: live fields first, then tombstones, each in text order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FieldIx(u32);
 
@@ -158,7 +158,7 @@ pub struct Variant {
     pub boxed: bool,
 }
 
-/// A part whose former names are kept separately (data/codec/README.md, 7.3).
+/// A part whose former names are kept separately (data/codec/run-time.md, 1.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Named {
     /// A declaration in the schema.
@@ -292,7 +292,7 @@ pub enum Wrong {
 pub enum Expected {
     /// A name after was.
     Name,
-    /// A value after = or some.
+    /// A tombstone's = or a value after = or some.
     Default,
     /// The family keyword.
     Family,
@@ -308,14 +308,16 @@ pub enum Expected {
     Declaration,
 }
 
-/// A schema's owned text and bounded tables (data/codec/README.md, section 7.3).
-#[derive(Debug)]
+/// A schema's owned text and bounded tables (data/codec/run-time.md, section 1.3).
+#[derive(Clone, Debug)]
 pub struct Schema {
     text: Box<[u8]>,
     family: Span,
     version: u16,
     declarations: List<Declaration>,
     fields: List<Field>,
+    tombstones: List<(FieldIx, u32)>,
+    droppable: List<bool>,
     variants: List<Variant>,
     types: List<Type>,
     names: Map<Box<[u8]>, DeclIx>,
@@ -336,6 +338,8 @@ impl Schema {
         Self {
             declarations: List::from_boxed(self.declarations.into_boxed()),
             fields: List::from_boxed(self.fields.into_boxed()),
+            tombstones: List::from_boxed(self.tombstones.into_boxed()),
+            droppable: List::from_boxed(self.droppable.into_boxed()),
             variants: List::from_boxed(self.variants.into_boxed()),
             types: List::from_boxed(self.types.into_boxed()),
             minimum: List::from_boxed(self.minimum.into_boxed()),
@@ -391,6 +395,19 @@ impl Schema {
     #[must_use]
     pub fn field(&self, at: FieldIx) -> Field {
         *self.fields.get(at.0).expect("field index belongs to this schema")
+    }
+
+    /// The first tombstone and count for a record, in text order after all live fields.
+    /// The count is zero for an enumeration or a record without tombstones.
+    #[must_use]
+    pub fn tombstones(&self, record: DeclIx) -> (FieldIx, u32) {
+        *self.tombstones.get(record.index()).expect("declaration index belongs to this schema")
+    }
+
+    /// Whether the field is marked `droppable`. Tombstones are never marked.
+    #[must_use]
+    pub fn droppable(&self, at: FieldIx) -> bool {
+        *self.droppable.get(at.index()).expect("field index belongs to this schema")
     }
 
     /// The variant at its table index.
@@ -454,7 +471,7 @@ impl Schema {
         self.names.get(name).copied()
     }
 
-    /// The fewest encoded bytes of a type (data/codec/README.md, section 7.3).
+    /// The fewest encoded bytes of a type (data/codec/run-time.md, section 1.3).
     #[must_use]
     pub fn fewest_bytes(&self, at: TypeIx) -> u32 {
         match self.ty(at) {
@@ -495,40 +512,14 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
         return Err(SchemaError { line: 1, at: Span { start: 0, end: 0 }, wrong: Wrong::Long });
     }
     // A token occupies at least one text byte. Allocate once at that bound,
-    // already included by schema_bound, and check characters in the same pass
-    // that retains their spans.
+    // and check characters in the same pass that retains their spans.
     let mut tokens = List::with_capacity(u32::try_from(text.len()).expect("text passed its ceiling"));
     let final_line = tokens::scan(text, &mut tokens)?;
     let parser = grammar::Parser::new(bytes::copy_of(text), tokens, final_line);
     let mut parsed = parser.parse()?;
-    layout::check(&mut parsed)?;
+    layout::check(&mut parsed, text)?;
     metadata::check(&mut parsed.schema)?;
     Ok(parsed.schema.fitted())
-}
-
-/// Bounds schema parse workspace and tables.
-/// Text bounds every token and type; names occupy disjoint spans of the text.
-pub(crate) fn schema_bound(text: u32) -> Option<u64> {
-    let declarations = text.min(MAX_DECLARATIONS);
-    let mut total = u64::from(text).checked_mul(3)?; // owned text and both name sets
-    for bytes in [
-        List::<tokens::Token>::price(text)?,
-        List::<Declaration>::price(declarations)?,
-        List::<Field>::price(text)?,
-        List::<Variant>::price(text)?,
-        List::<Type>::price(text)?,
-        List::<Span>::price(text)?.checked_mul(4)?, // references and former name ranges
-        List::<Span>::price(declarations)?,
-        List::<Option<Span>>::price(text)?.checked_mul(2)?, // defaults and encoded ranges
-        u64::from(text).checked_mul(8)?,                    // encoded constants
-        List::<Option<Span>>::price(text)?,
-        List::<u32>::price(declarations)?.checked_mul(2)?,
-        Map::<Box<[u8]>, DeclIx>::price(declarations)?,
-        skein_lib::Set::<(u32, Box<[u8]>)>::price(text)?,
-    ] {
-        total = total.checked_add(bytes)?;
-    }
-    Some(total)
 }
 
 fn spelled(text: &[u8], span: Span) -> &[u8] {

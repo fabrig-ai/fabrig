@@ -10,6 +10,7 @@ use crate::{
     Core, Limits,
     documents::{Cursor, Missing, Proposer, Window},
 };
+use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
@@ -125,7 +126,7 @@ pub(super) fn hold_for(
     party: u64,
     row: &tasks::TaskRecord,
 ) -> Result<Option<HoldPhaseLine>, Missing> {
-    let mut line = hold(limits, row)?;
+    let mut line = hold(limits, row, Some(&core.tasks))?;
     if let Some(line) = &mut line {
         line.placed = placed(core, limits, party, row.number)?;
     }
@@ -134,20 +135,38 @@ pub(super) fn hold_for(
 
 pub(super) fn placed(core: &Core, limits: &Limits, party: u64, task: u64) -> Result<Option<PlacedLine>, Missing> {
     let Some(hold) = core.tasks.placed_on(task) else { return Ok(None) };
-    if hold.reason.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
-        return Err(Missing::TooLarge);
-    }
     Ok(Some(PlacedLine {
         number: hold.number,
         owner: crate::admission::roles::hold_owner(hold.owner),
         mode: hold.mode,
         scope: hold.scope,
-        reason: hold.reason.clone(),
+        reason: placed_reason(&hold.reason, limits.documents.text_bytes),
         placed_at: Wall::from_nanos(hold.placed_at.checked_mul(1_000_000).ok_or(Missing::TooLarge)?),
         revision: hold.revision,
         lifted: hold.lifted,
         may_lift: core.party_hold_admit(party, hold).is_ok(),
     }))
+}
+
+fn placed_reason(reason: &[u8], maximum: u32) -> Box<[u8]> {
+    let maximum = skein_lib::length::usize_of(maximum);
+    if reason.len() <= maximum {
+        return skein_lib::bytes::copy_of(reason);
+    }
+    let mark = "…".as_bytes();
+    if maximum < mark.len() {
+        return Box::new([]);
+    }
+    let room = maximum.saturating_sub(mark.len());
+    let prefix = if skein_lib::bytes::is_utf8(reason) {
+        skein_lib::bytes::utf8_prefix(reason, room)
+    } else {
+        reason.get(..room).expect("room is less than the reason length")
+    };
+    let mut words = skein_lib::Writer::new(prefix.len().saturating_add(mark.len()));
+    words.put(prefix).expect("measured placed reason prefix");
+    words.put(mark).expect("measured cut mark");
+    words.finish()
 }
 
 pub(super) fn link(core: &Core, limits: &Limits, party: u64, number: u64) -> Result<TaskLink, Missing> {
@@ -360,6 +379,7 @@ fn task_with_lineage(
     };
     let acts = super::offers::task(core, limits, party, row, decision)?;
     let authority = authority(limits, &crate::translate::tasks_authority(&row.authority))?;
+    let projection = crate::runs::waits::read(core, limits, row);
     Ok(Task {
         tasks_left: match core.tasks.delegation(number) {
             Some(context) => context.tasks_left,
@@ -379,7 +399,11 @@ fn task_with_lineage(
             }),
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
-        waits_on: crate::runs::waits::from_row(core, limits, row),
+        waits_on: projection.on,
+        wait: projection.waits.first,
+        nearest: projection.waits.nearest,
+        waits: projection.waits.own,
+        wait_count: projection.waits.count,
         label: row.label,
         flags: row.flags,
         last_activity: row.last_activity,
@@ -422,7 +446,14 @@ fn task_with_lineage(
         },
         llm: core.document_llm(row),
         kept_account: row.kept_account,
-        run_wait: super::task_wait::waiting(core, row),
+        run_wait: match row.phase {
+            tasks::Phase::Active(tasks::Active::Preparing) => super::task_wait::waiting(core, row),
+            tasks::Phase::Active(_)
+            | tasks::Phase::Waiting
+            | tasks::Phase::Held { .. }
+            | tasks::Phase::Closing(_)
+            | tasks::Phase::Ended(_) => projection.due_wait,
+        },
         resources,
         inputs: links(core, limits, party, &row.spec.inputs)?,
         dependencies: links(core, limits, party, &row.dependencies)?,
@@ -611,7 +642,7 @@ pub(super) fn dependency_facts(core: &Core, limits: &Limits, row: &tasks::TaskRe
     }
     facts
 }
-/// A retained ended root has no live subtree (client/domain/contract/README.md, 5.2).
+/// A retained ended root has no live subtree (client/domain/contract/watches.md, 1.2).
 pub(crate) fn ended_tree(core: &Core, limits: &Limits, party: u64, row: &tasks::TaskRecord) -> Result<Tree, Missing> {
     if !(core.open_project(row.project) && core.people.role(party, row.project).is_some() || person_funded(row, party))
     {

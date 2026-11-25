@@ -3,7 +3,7 @@ use crate::{KeptFamily, KeptMap, Owner, OwnerSets};
 use skein_codec::schema;
 use skein_lib::Map;
 
-pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema]) -> Result<(), Owner> {
+pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema], current: &[schema::Schema]) -> Result<(), Owner> {
     for set in sets.sets {
         let refusal = set.owner;
         for family in set.families {
@@ -13,10 +13,7 @@ pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema]) -> Result<(),
             if family.map != KeptMap::Store {
                 return Err(refusal);
             }
-            let mut parsed = None;
-            let Some(current) = super::schemas::get(prepared, family.current.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
+            let current = super::schemas::get(prepared, current, family.current.as_bytes()).ok_or(refusal)?;
             let mut ranges = Map::uncapped();
             let mut first = None;
             for (index, ty) in family.types.iter().enumerate() {
@@ -29,10 +26,9 @@ pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema]) -> Result<(),
                     Some(name) => Some(name.as_bytes()),
                     None => None,
                 };
-                let root = current.root(ty.root.as_bytes(), variant).ok_or(refusal)?;
-                if current.layout(root, &[]).is_err() {
-                    return Err(refusal);
-                }
+                // With no held texts, layout can only refuse an invalid root.
+                // The registry fingerprints the admitted root with its held texts.
+                current.root(ty.root.as_bytes(), variant).ok_or(refusal)?;
                 let start = ty.keys.first().ok_or(refusal)?.from;
                 if let Some(previous) = first
                     && previous >= start

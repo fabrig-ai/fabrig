@@ -1,8 +1,9 @@
-//! Provisional current run documents (client/domain/contract/README.md, 5.3).
+//! Provisional current run documents (client/domain/contract/watches.md, 1.3).
 use super::Undecodable;
 use super::classify;
-use super::documents::{current_call_fields, live_call_fields, run_state_fields, run_text_fields};
+use super::documents::{current_call_fields, run_text_fields};
 use crate::Limits;
+use crate::generated::client;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
@@ -14,7 +15,7 @@ pub fn run_state(record: w::RunState, limits: &Limits) -> Result<c::RunState, Un
     {
         return Err(Undecodable::TooLarge);
     }
-    match run_state_fields(&record, limits) {
+    match client::run_state_to_domain(record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
@@ -53,7 +54,7 @@ pub fn live_call(record: w::LiveCall, limits: &Limits) -> Result<c::LiveCall, Un
     {
         return Err(Undecodable::TooLarge);
     }
-    match live_call_fields(&record, limits) {
+    match client::live_call_to_domain(record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

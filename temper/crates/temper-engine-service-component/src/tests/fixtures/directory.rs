@@ -1,7 +1,7 @@
 //! Directory opens and restarts on the fake machine (jig protocol/store/jobs.md, 2–3).
 use crate::{Service, store::Store};
 use jig_protocol_store::{Event, Get, OwnerSet, OwnerSets, Request, Row};
-use skein_fake_machine::{Machine, serve};
+use skein_fake_machine::{Machine, Opened, serve};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_sim::{Config, Handle, Pid, Sim};
 
@@ -41,6 +41,14 @@ impl Directory {
     pub fn new() -> Self {
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(&[]);
+        Self::at(machine, handle)
+    }
+    pub fn fork(&self) -> Self {
+        let mut machine = self.machine.fork();
+        let handle = machine.reopen_root(0);
+        Self::at(machine, handle)
+    }
+    fn at(machine: Machine, handle: Opened) -> Self {
         let mut sim = Sim::new(1, Config::calm());
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
@@ -59,20 +67,21 @@ impl Directory {
         store.adopt(self.fd, 0).expect("directory adopted");
         service
     }
-    /// Open the directory before settings resolution constructs the root.
-    pub fn open_limits(&mut self, store: &mut Store) {
+    pub fn open(&mut self, store: &mut Store) -> Event {
         store.adopt(self.fd, 0).expect("directory adopted");
         for _ in 0..PASSES {
             self.io(store);
             if let Some(event) = store.events().pop() {
-                let Event::Opened { installation, pending, .. } = event else {
-                    panic!("directory open: {event:?}");
-                };
-                store.opened_limits(installation, pending);
-                return;
+                return event;
             }
         }
-        panic!("directory opened");
+        panic!("directory open answered");
+    }
+    /// Open the directory before settings resolution constructs the root.
+    pub fn open_limits(&mut self, store: &mut Store) {
+        let event = self.open(store);
+        let Event::Opened { installation, pending, .. } = event else { panic!("directory open: {event:?}") };
+        store.opened_limits(installation, pending);
     }
     /// Drive the whole service, including its listener and worker IO.
     pub fn full_turn(&mut self, service: &mut Service) {
@@ -126,7 +135,10 @@ impl Directory {
     }
     /// Complete a first start under the old job list, append the story's rows, then close.
     pub fn seed(&mut self, rows: Box<[temper_engine_domain::Write]>) {
-        let mut service = self.service_with_sets(Some(old_sets()));
+        self.seed_with_sets(rows, Some(old_sets()));
+    }
+    pub fn seed_with_sets(&mut self, rows: Box<[temper_engine_domain::Write]>, sets: Option<OwnerSets>) {
+        let mut service = self.service_with_sets(sets);
         for _ in 0..PASSES {
             self.turn(&mut service);
             assert_eq!(service.end(), None, "first start");

@@ -92,6 +92,7 @@ fn fixed(refusal: &Refusal) -> bool {
         | Refusal::Circle { .. }
         | Refusal::Dependency { .. }
         | Refusal::Unlinked { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Concluded { .. }
         | Refusal::Kept { .. } => false,
     }

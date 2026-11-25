@@ -10,7 +10,7 @@ pub(in crate::codec) fn wire_history_row(
             w::HistoryRow::Change(Box::new(w::HistoryRowChange { value: wire_history_line(value, limits)? }))
         }
         c::HistoryRow::Attempt(value) => {
-            w::HistoryRow::Attempt(w::HistoryRowAttempt { value: wire_attempt_line(value, limits)? })
+            w::HistoryRow::Attempt(w::HistoryRowAttempt { value: wire_attempt_line(value) })
         }
         c::HistoryRow::Hold(value) => w::HistoryRow::Hold(w::HistoryRowHold { value: wire_hold_line(value, limits)? }),
     })

@@ -36,7 +36,7 @@ use crate::{HostedProgram, Inherited, StartupAppends, StartupRoots};
 use std::os::unix::ffi::OsStrExt;
 
 /// A story's Linux bound, doubled on the slower macOS host
-/// (skein/docs/design/testing/README.md, 5). No budget or product deadline scales.
+/// (skein/docs/design/testing/service-tiers.md, 1). No budget or product deadline scales.
 #[must_use]
 pub const fn host_bound(linux: Duration) -> Duration {
     host_bound_on(linux, cfg!(target_os = "macos"))
@@ -192,7 +192,7 @@ pub fn try_run<P: Host, R: Referee<P>>(
 }
 
 /// A killed hosted child, reported after its operations and descriptors settle
-/// (skein/docs/design/testing/README.md, 5).
+/// (skein/docs/design/testing/service-tiers.md, 1).
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Killed {
@@ -227,7 +227,7 @@ impl Killed {
 impl core::fmt::Display for Killed {
     #[expect(
         clippy::use_debug,
-        reason = "the kill record's Display names Exit with its Debug form (testing/README.md, 5)"
+        reason = "the kill record's Display names Exit with its Debug form (testing/service-tiers.md, 1)"
     )]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "host {} ({}", self.host, self.program)?;
@@ -522,6 +522,20 @@ struct Child {
     exit: Option<Exit>,
     waiters: Vec<Submit>,
     placeholder_open: bool,
+}
+
+impl Child {
+    fn admitted(host: usize, program: usize, args: &[Box<[u8]>], signal_writer: Fd) -> Self {
+        Self {
+            host,
+            program,
+            argument: args.first().map(|arg| String::from_utf8_lossy(arg).into_owned()),
+            signal_writer,
+            exit: None,
+            waiters: Vec::new(),
+            placeholder_open: true,
+        }
+    }
 }
 
 struct Running<P, R> {
@@ -998,7 +1012,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             let Some(control) = self.world.controls.pending.borrow_mut().pop() else { break };
             let (host, signal) = match control {
                 Control::Signal { host, signal } => (host, signal),
-                Control::Cut { .. } => crate::fail("referee cuts need a simulated world"),
+                Control::Cut { .. } | Control::KillUnit { .. } => crate::fail("referee cuts need a simulated world"),
             };
             assert!(
                 self.processes.get(host).expect("a signal names an admitted host").exit.is_none(),
@@ -1031,6 +1045,10 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
 
     fn reap(&mut self, kernel: &mut Kernel) {
         kernel.reap(&mut self.ring.arrived);
+        self.accept_reaped();
+    }
+
+    fn accept_reaped(&mut self) {
         while let Some(complete) = self.ring.arrived.pop() {
             if let Some(host) = self.housekeeping.remove(&complete.op) {
                 let process = self.processes.get_mut(host).expect("cleanup names a process");
@@ -1230,18 +1248,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 });
                 self.world.signals.insert(child, SignalSource::Pipe(pipes.signal_writer));
                 self.placeholders.insert(pipes.pidfd, child);
-                self.children.insert(
-                    child,
-                    Child {
-                        host: child,
-                        program,
-                        argument: spawn.args.first().map(|arg| String::from_utf8_lossy(arg).into_owned()),
-                        signal_writer: pipes.signal_writer,
-                        exit: None,
-                        waiters: Vec::new(),
-                        placeholder_open: true,
-                    },
-                );
+                self.children.insert(child, Child::admitted(child, program, &spawn.args, pipes.signal_writer));
                 Ok(Done::Spawned { pidfd: pipes.pidfd, sender: hosted_sender(child) })
             }
             Err(error) => {
@@ -1434,7 +1441,7 @@ mod tests {
     use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
     use alloc::rc::Rc;
     use core::cell::RefCell;
-    use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Reason, Submit};
+    use skein_io::kernel::{Complete, Done, Error, Exit, Family, Fd, Op, Reason, Signal, Submit, Target};
     use skein_lib::{Duration, Queue, Time, Token, Wall};
 
     #[test]
@@ -1819,6 +1826,200 @@ mod tests {
         assert_eq!(finding, "seed 7: the third observation failed");
         assert_eq!(calls.get(), 3);
         assert_eq!(running.world.procs.iter().map(|proc| proc.iterations).collect::<Vec<_>>(), [1, 0, 0]);
+    }
+
+    const ROOT: usize = 0;
+    const HOSTED: usize = 1;
+    const GRANDCHILD: usize = 2;
+    const HOSTED_PROGRAM: usize = 0;
+    const REQUESTER_PROGRAM: usize = 1;
+    const HOSTED_PIDFD: Fd = Fd::new(41);
+    const HOSTED_SIGNAL_WRITER: Fd = Fd::new(42);
+    const KILL_AT: Time = Time::from_nanos(13);
+    const CLEANUP_AT: Time = Time::from_nanos(29);
+    const WAIT: Token = Token::new(1);
+    const SIGNAL: Token = Token::new(2);
+
+    fn supply_admission(running: &mut Running<Idle, Quiet>, child: Child, pidfd: Fd) {
+        let host = child.host;
+        *running.children.get_mut(&host).expect("a provisioned child") = child;
+        running.placeholders.insert(pidfd, host);
+    }
+
+    fn root_with_hosted_child(program: &[u8], args: &[Box<[u8]>]) -> Running<Idle, Quiet> {
+        let mut running = children_after_descriptor_cleanup();
+        running.world.programs.get_mut(HOSTED_PROGRAM).expect("a registered program").program = Box::from(program);
+        let child = Child::admitted(HOSTED, HOSTED_PROGRAM, args, HOSTED_SIGNAL_WRITER);
+        supply_admission(&mut running, child, HOSTED_PIDFD);
+        running
+    }
+
+    fn send(running: &mut Running<Idle, Quiet>, host: usize, op: Token, kind: Op, now: Time) {
+        let record = running.ring.register(host, Submit { op, kind });
+        running.submit(record, now);
+    }
+
+    fn wait_for(running: &mut Running<Idle, Quiet>, host: usize, pidfd: Fd) {
+        send(running, host, WAIT, Op::Wait { pidfd, reap: false }, Time::ZERO);
+    }
+
+    fn send_kill(running: &mut Running<Idle, Quiet>, requester: usize, pidfd: Fd, to: Target, reason: Reason) {
+        send(running, requester, SIGNAL, Op::Signal { pidfd, to, signal: Signal::Kill, reason }, KILL_AT);
+    }
+
+    fn wait_exit(running: &mut Running<Idle, Quiet>, host: usize) -> Option<Exit> {
+        let mut returned = Queue::with_capacity(2);
+        running.ring.deliver(host, &mut returned);
+        while let Some(complete) = returned.pop() {
+            if complete.op == WAIT
+                && let Ok(Done::Exit(exit)) = complete.result
+            {
+                return Some(exit);
+            }
+        }
+        None
+    }
+
+    fn only_kill(running: &Running<Idle, Quiet>) -> &super::Killed {
+        const ONE_KILL: usize = 1;
+        assert_eq!(running.killed.len(), ONE_KILL, "one kill record: {:?}", running.killed);
+        let killed = running.killed.first().expect("the settled kill");
+        assert_eq!(killed.exit, Exit::Signal(9));
+        assert_eq!(killed.at, KILL_AT, "the record reads the kill's submission, not its settlement");
+        killed
+    }
+
+    fn reap_record(running: &mut Running<Idle, Quiet>, record: Submit, result: Result<Done, Error>) {
+        running.ring.arrived.push(Complete { op: record.op, kind: record.kind, result });
+        running.accept_reaped();
+    }
+
+    #[test]
+    fn an_asked_kill_is_recorded_at_submission_only_after_the_child_settles() {
+        let mut running = root_with_hosted_child(b"hosted", &[Box::from(&b"argument"[..])]);
+        let read_fd = Fd::new(43);
+        let process = running.processes.get_mut(HOSTED).expect("the hosted child");
+        process.cleaned = false;
+        process.fds.insert(read_fd);
+        send(&mut running, HOSTED, Token::new(1), Op::PipeRead { fd: read_fd, buf: Box::new([0; 1]) }, Time::ZERO);
+        let read = running.ring.submits.pop().expect("the child's pending read");
+        wait_for(&mut running, ROOT, HOSTED_PIDFD);
+        send_kill(&mut running, ROOT, HOSTED_PIDFD, Target::Child, Reason::Asked);
+        running.settle_children();
+        assert!(running.killed.is_empty(), "the pending read holds settlement");
+        running.submit_cleanup(8);
+        let cancel = running.ring.submits.pop().expect("cancellation of the pending read");
+        assert_eq!(cancel.kind, Op::Cancel { target: read.op });
+        reap_record(&mut running, cancel, Ok(Done::Nothing));
+        running.settle_children();
+        assert!(running.killed.is_empty(), "acknowledging cancellation does not return the read");
+
+        reap_record(&mut running, read, Err(Error::Cancelled));
+        running.settle_children();
+        assert!(running.killed.is_empty(), "the read's terminal is not yet discarded");
+        assert!(running.drive(CLEANUP_AT, Wall::from_nanos(0)).expect("discard the killed child's return").is_none());
+        running.settle_children();
+        assert!(running.killed.is_empty(), "the descriptor closes are only queued");
+        assert!(running.waiting_children.values().any(|host| *host == HOSTED), "the parent's wait still waits");
+        running.submit_cleanup(8);
+        let read_close = running.ring.submits.pop().expect("close the read descriptor");
+        assert_eq!(read_close.kind, Op::Close { fd: read_fd });
+        reap_record(&mut running, read_close, Ok(Done::Nothing));
+        running.settle_children();
+        assert!(running.killed.is_empty(), "the signal writer still has a close in flight");
+        let signal_close = running.ring.submits.pop().expect("close the signal writer");
+        assert_eq!(signal_close.kind, Op::Close { fd: HOSTED_SIGNAL_WRITER });
+        reap_record(&mut running, signal_close, Ok(Done::Nothing));
+        assert!(running.drive(CLEANUP_AT, Wall::from_nanos(0)).expect("drive the cleanup turn").is_none());
+        running.settle_children();
+
+        let exit = wait_exit(&mut running, ROOT);
+        let killed = only_kill(&running);
+        assert_eq!(Some(killed.exit), exit);
+        assert_eq!(killed.host, HOSTED);
+        assert_eq!(killed.program, "hosted");
+        assert_eq!(killed.argument.as_deref(), Some("argument"));
+        assert_eq!(killed.requester, ROOT);
+        assert_eq!(killed.requester_program, None);
+        assert_eq!(killed.reason, Reason::Asked);
+        assert_eq!(
+            killed.to_string(),
+            "host 1 (hosted argument) killed at 13 ns by host 0 (a root): asked for; exit Signal(9)"
+        );
+    }
+
+    #[test]
+    fn a_group_kill_records_the_close_while_running_reason() {
+        let mut running = root_with_hosted_child(b"hosted", &[Box::from(&b"argument"[..])]);
+        wait_for(&mut running, ROOT, HOSTED_PIDFD);
+        send_kill(&mut running, ROOT, HOSTED_PIDFD, Target::Group, Reason::Closed);
+        running.settle_children();
+        assert_eq!(wait_exit(&mut running, ROOT), Some(Exit::Signal(9)));
+        let killed = only_kill(&running);
+        assert_eq!(killed.reason, Reason::Closed);
+        assert!(killed.to_string().ends_with(": closed while running; exit Signal(9)"));
+    }
+
+    #[test]
+    fn a_deadline_kill_records_the_hosted_requester_and_lossy_admitted_words() {
+        let mut running = children_after_descriptor_cleanup();
+        running.world.host(HostedProgram {
+            program: Box::from(&b"parent\xff"[..]),
+            make: |_, _| idle(),
+            instances: 1,
+            operations: 2,
+        });
+        running.instances = vec![1, 1];
+        let requester = Child::admitted(HOSTED, REQUESTER_PROGRAM, &[], HOSTED_SIGNAL_WRITER);
+        supply_admission(&mut running, requester, HOSTED_PIDFD);
+        let pidfd = Fd::new(43);
+        let child = Child::admitted(
+            GRANDCHILD,
+            HOSTED_PROGRAM,
+            &[Box::from(&b"run\xff"[..]), Box::from(&b"not the first word"[..])],
+            Fd::new(44),
+        );
+        supply_admission(&mut running, child, pidfd);
+        wait_for(&mut running, ROOT, HOSTED_PIDFD);
+        wait_for(&mut running, HOSTED, pidfd);
+        send_kill(&mut running, HOSTED, pidfd, Target::Group, Reason::Deadline);
+        running.settle_children();
+        assert_eq!(wait_exit(&mut running, HOSTED), Some(Exit::Signal(9)));
+        running.processes.get_mut(HOSTED).expect("the hosted requester").exit = Some(Exit::Code(0));
+        running.settling_children.insert(HOSTED);
+        running.settle_children();
+        assert_eq!(wait_exit(&mut running, ROOT), Some(Exit::Code(0)));
+        let killed = only_kill(&running);
+        assert_eq!(killed.host, GRANDCHILD);
+        assert_eq!(killed.program, "hosted");
+        assert_eq!(killed.argument.as_deref(), Some("run\u{fffd}"));
+        assert_eq!(killed.requester, HOSTED);
+        assert_eq!(killed.requester_program.as_deref(), Some("parent\u{fffd}"));
+        assert_eq!(killed.reason, Reason::Deadline);
+        assert_eq!(
+            killed.to_string(),
+            "host 2 (hosted run\u{fffd}) killed at 13 ns by host 1 (parent\u{fffd}): at its deadline; exit Signal(9)"
+        );
+    }
+
+    #[test]
+    fn kills_without_an_argument_record_the_remaining_reasons() {
+        for (reason, words) in [
+            (Reason::Unknown, "no reason given"),
+            (Reason::Grace, "forced after its grace"),
+            (Reason::Cancelled, "cancelled"),
+        ] {
+            let mut running = root_with_hosted_child(b"hosted\xff", &[]);
+            send_kill(&mut running, ROOT, HOSTED_PIDFD, Target::Group, reason);
+            running.settle_children();
+            let killed = only_kill(&running);
+            assert_eq!(killed.argument, None);
+            assert_eq!(killed.reason, reason);
+            assert_eq!(
+                killed.to_string(),
+                format!("host 1 (hosted\u{fffd}) killed at 13 ns by host 0 (a root): {words}; exit Signal(9)")
+            );
+        }
     }
 
     #[test]

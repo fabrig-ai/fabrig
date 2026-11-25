@@ -28,7 +28,7 @@
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
-  -  the real-process update-recovery trial remains `../README.status.md`, 6 and 10.
+  -  the real-process update-recovery trial remains `../updates.status.md`, 1, and `../README.status.md`, 10.
   - `README.md`, 2, step 3: the base-first deployment proof remains `README.status.md`, 2, step 3.
   -  the repair-cause and cleanup deployment proof remains `../branches.status.md` (Not yet, the whole document).
   - 1, *Which target*: the coding charter's sentence and the refusal's words
@@ -43,11 +43,11 @@
     record proves the `resume-told` request's resumed producer and its answerers
     read the tree rightly (`../../worker/checkouts.status.md` and `../../worker/README.status.md`, section 9).
   -  the browser readoption story remains `gates.status.md`, 3.
-  -  the boxless removal gap remains `../adoption.status.md`, 1.
+  -  the boxless removal gap remains `../adoption-connection.status.md`, 1.
   -  the GitHub status and dispatch gap remains `gates.status.md`, 1.
   -  the native-queue gap remains `../queues.status.md`, 1.
   -  the findings projection gap remains `../issues.status.md` (Not yet, the whole document).
-  -  the parked landing hold remains `../README.status.md`, 5.3.
+  -  the parked landing hold remains `../topics.status.md`, 1.3.
   -  the per-change bounds and gates gap remains `README.status.md`, 1.
   -  the empty issue-title gap remains `../issues.status.md` (Not yet).
   -  the goal-issue link remains `README.status.md`, 2.
@@ -62,9 +62,9 @@
   -  the failed-resolution release gap remains `repairs.status.md` (Not yet, the whole document).
   -  the remaining green-head repair stories remain `repairs.status.md` (Not yet, the whole document).
   -  the conflicting goal-landing story remains `../branches.status.md`, 1.
-  -  the retarget-on-release gap remains `README.status.md`, 3.
+  -  the retarget-on-release gap remains `drift.status.md`, 1.
   -  the no-CI adoption choice remains `gates.status.md`, 2.
-  -  the panel's wait and charter facts remain `README.status.md`, 5.
+  -  the panel's wait and charter facts remain `panel.status.md`, 1.
   -  the change drain remains `README.status.md`, 6.
   - 1: a dependent's landing holding its dependency's pushed head in
     g's ancestry is unobserved in stories, the fake forge squashing
@@ -80,7 +80,7 @@
   -  participating objects and external merges remain `../README.status.md`, 7.
   -  upstream contributions remain `../README.status.md`, 8.
   -  the rule-change gate stories remain `gates.status.md`, 3.
-- **Design departs:** `repairs.md`, `questions.md`, 1 and jig's `domain/tasks/lifecycle.md`, 8, from the request
+- **Design departs:** `repairs.md`, `questions.md`, 1 and jig's `domain/tasks/lifecycle-endings.md`, 1, from the request
   `producer-failure` of 2026-11-05, each decided by its plan's cut, for the user
   to see:
   - 1, and jig's `../attention.md`, 3: the request recommends refusing an asker's `finish` at

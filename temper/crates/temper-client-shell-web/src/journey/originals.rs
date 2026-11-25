@@ -1,11 +1,11 @@
-//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md).
+//! The originals of a recording (temper/docs/design/client/web/journeys-recordings.md, 1.3 and temper/docs/design/client/web/journey-redaction.md).
 use super::{Kind, Line, Originals};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::Reader;
 use skein_ui::Act;
 
-/// How an event shows a secret's length (client/web/journeys.md, 3.3).
+/// How an event shows a secret's length (client/web/journeys-recordings.md, 1.3).
 pub const SECRET_EVENT: &[u8] = b"Secret { len: ";
 
 /// Read the originals of a recording's lines and the given texts (client/web/journey-redaction.md).
@@ -123,6 +123,7 @@ pub fn typed(line: &Line) -> bool {
 }
 
 /// A whole `Kept` value's head length, decoded under the wire ceilings.
+/// Redaction preserves the head at any layout without interpreting its payload.
 #[must_use]
 pub fn kept_head(value: &[u8]) -> Option<usize> {
     if u32::try_from(value.len()).is_err() {

@@ -982,7 +982,12 @@ fn an_agent_s_pause_and_resume_are_sent_at_once() {
         (
             offered_task(c::ActKind::Stop, Some(c::Admission::Allowed)),
             Act::Pause,
-            c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK },
+            c::Ask::Stop {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                reason: jig_client::contract::Text::new(Box::from(b"Paused from the web".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            },
             Sending::Stop,
         ),
         (
@@ -2082,7 +2087,12 @@ fn a_milestone_pauses_resumes_and_confirms_close_like_a_task() {
         (
             offered_task(c::ActKind::Stop, Some(c::Admission::Allowed)),
             Act::Pause,
-            c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK },
+            c::Ask::Stop {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                reason: jig_client::contract::Text::new(Box::from(b"Paused from the web".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            },
         ),
         (
             paused_agent(),

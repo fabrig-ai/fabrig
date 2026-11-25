@@ -804,7 +804,7 @@ fn run(run: forge::Run) -> client::Run {
         jobs: Box::new([]),
     }
 }
-/// A run read also asks for its jobs, as the dialect does (forge/forgejo.md, 1.2).
+/// A run read also asks for its jobs, as the dialect does (forge/forgejo-operations.md, 1).
 #[must_use]
 pub fn run_jobs(jobs: Box<[forge::Job]>) -> Box<[client::RunJob]> {
     jobs.into_iter()

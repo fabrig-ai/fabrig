@@ -1,0 +1,27 @@
+# Jig's fourth split pass: the rest of the domain (temper/docs/design/draft/design-upkeep.md, 4.3), at 0b2b2edef2def3aaefec9b7c3d5a0ec6864aecf7.
+# jig/docs/design/domain/accounts.md: 62,112 bytes. Sources and states, provider lists, and account uses get their own pages; client setup, account values, holders and bounds, what people do, and moving an account stay.
+title jig/docs/design/domain/accounts-sources.md: LLM accounts: sources and states
+title jig/docs/design/domain/accounts-lists.md: LLM accounts: an account's list and what a provider says
+title jig/docs/design/domain/accounts-uses.md: LLM accounts: uses and account selection
+jig/docs/design/domain/accounts.md 3.4 -> jig/docs/design/domain/accounts-sources.md 1
+jig/docs/design/domain/accounts.md 3.5 -> jig/docs/design/domain/accounts-sources.md 2
+jig/docs/design/domain/accounts.md 3.7 -> jig/docs/design/domain/accounts-lists.md 1
+jig/docs/design/domain/accounts.md 4 -> jig/docs/design/domain/accounts-uses.md 1
+
+# jig/docs/design/domain/testing.md: 60,079 bytes. Fakes and kits, including what the adapter reports to the checks, get their own page; the tiers, worlds, referee, application additions and budgets stay.
+title jig/docs/design/domain/testing-fakes.md: Testing the domain: fakes and kits
+jig/docs/design/domain/testing.md 7 -> jig/docs/design/domain/testing-fakes.md 1
+
+# jig/docs/design/domain/authority.md: 59,935 bytes. Budgets and spend, and checks get their own pages; authority as a value, resources, fitting, origins, proposals, requirements and the world stay.
+title jig/docs/design/domain/authority-budgets.md: Authority: budgets and spend
+title jig/docs/design/domain/authority-checks.md: Authority: checks
+jig/docs/design/domain/authority.md 7 -> jig/docs/design/domain/authority-budgets.md 1
+jig/docs/design/domain/authority.md 8 -> jig/docs/design/domain/authority-checks.md 1
+
+# jig/docs/design/domain/connectors.md: 59,205 bytes. Effects and the outbox, facts and events, and procedures get their own pages; placement, resources, verdicts, projections and reads, workspaces, ownership, adoption, load, restart, the world and settings stay.
+title jig/docs/design/domain/connectors-effects.md: Connectors: effects and the outbox
+title jig/docs/design/domain/connectors-facts.md: Connectors: facts and events
+title jig/docs/design/domain/connectors-procedures.md: Connectors: procedures
+jig/docs/design/domain/connectors.md 4 -> jig/docs/design/domain/connectors-effects.md 1
+jig/docs/design/domain/connectors.md 5 -> jig/docs/design/domain/connectors-facts.md 1
+jig/docs/design/domain/connectors.md 6 -> jig/docs/design/domain/connectors-procedures.md 1

@@ -88,6 +88,9 @@ pub(crate) fn document(
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
+                | core::Held::TaskPartKept { .. }
+                | core::Held::AcknowledgePart { .. }
+                | core::Held::PartBusy { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained
@@ -178,12 +181,14 @@ pub(crate) fn read(
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }
+            | connector::Request::Waits { .. }
             | connector::Request::Answer { .. }
             | connector::Request::Ready { .. }
             | connector::Request::Section { .. }
             | connector::Request::Workspace { .. }
             | connector::Request::DriftResource { .. }
             | connector::Request::Changed { .. }
+            | connector::Request::ReadAfreshDone
             | connector::Request::RestartDone
             | connector::Request::Described { .. }
             | connector::Request::EffectRefused { .. }

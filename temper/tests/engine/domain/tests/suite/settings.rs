@@ -3,6 +3,8 @@
 mod kinds;
 #[path = "settings/limit_settings.rs"]
 mod limit_settings;
+#[path = "settings/references.rs"]
+mod references;
 
 use crate::stock;
 use temper_engine_domain_world::journal_limits as journal;
@@ -17,7 +19,7 @@ use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, store::St
 const SEED: u64 = 9761;
 const SETTINGS_CHARTER: u32 = 17;
 const SETTINGS_TEMPLATE: u32 = 12;
-// Restoration keeps two archived revisions; pruning keeps one (jig's domain/engine/settings.md, 7).
+// Restoration keeps two archived revisions; pruning keeps one (jig's domain/engine/settings-store.md, 1).
 const HISTORY: u32 = 2;
 const PRUNED_HISTORY: u32 = 1;
 const OWNER_PERSON: u64 = 1;

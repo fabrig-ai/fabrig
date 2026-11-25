@@ -1,6 +1,6 @@
 //! The page's life, frame and fail-stop hook (temper/docs/design/playground.md, 6;
 //! skein/docs/design/playground.md, 7).
-use super::{Control, STORIES, control, memory_words, printed_link, slice_words, speed_words, time_words};
+use super::{Control, Figures, PACES, STORIES, control, memory_words, printed_link, slice_words, time_words};
 use jig_client_shell_web::sign_in;
 use skein_lib::{Time, Wall};
 use skein_ui_web::{
@@ -106,6 +106,7 @@ pub fn start() {
         facts: platform::facts(),
         story: "a",
         speed: Speed::ONE,
+        figures: Figures::new(),
         failed: false,
     };
     life.reset(&inbox);
@@ -121,6 +122,7 @@ struct Life {
     facts: platform::Facts,
     story: &'static str,
     speed: Speed,
+    figures: Figures,
     failed: bool,
 }
 
@@ -225,9 +227,13 @@ impl Life {
         }
         let mut now = self.shell.as_mut().map(Shell::begin);
         let mut new_page = false;
+        let mut carried = false;
         while let Some(report) = inbox.next() {
             match report {
                 Report::Frame(control) => {
+                    if matches!(control, Control::Reset | Control::Story(_)) {
+                        carried = false;
+                    }
                     self.control(control);
                     now = self.shell.as_mut().map(Shell::begin);
                     new_page = false;
@@ -267,9 +273,11 @@ impl Life {
                 | Report::Returned(_)) => {
                     if !self.failed
                         && let Some(shell) = &mut self.shell
-                        && let Some(shown) = shell.report(inbox, report)
                     {
-                        new_page = shown;
+                        carried = true;
+                        if let Some(shown) = shell.report(inbox, report) {
+                            new_page = shown;
+                        }
                     }
                 }
                 report @ (Report::Mark | Report::Save) => {
@@ -285,7 +293,13 @@ impl Life {
             && let Some(shell) = &mut self.shell
         {
             let now = now.unwrap_or_else(|| shell.begin());
-            shell.draw(new_page, now);
+            if shell.needs_draw() {
+                shell.draw(new_page, now);
+            } else if carried {
+                shell.finish_unchanged(new_page, now);
+            } else {
+                shell.retime(now);
+            }
         }
         self.figures();
     }
@@ -316,28 +330,31 @@ impl Life {
         }
     }
 
-    fn figures(&self) {
-        if let Some(worker) = self.worker() {
+    fn figures(&mut self) {
+        let reading = self.worker().map(|worker| {
             let (now, _) = worker.clocks();
             let (memory, slice) = worker.high_water();
-            element(super::TIME).set_text_content(Some(&time_words(now)));
-            element(super::MEMORY).set_text_content(Some(&memory_words(memory)));
-            element(super::SLICE).set_text_content(Some(&slice_words(slice)));
+            (now, memory, slice)
+        });
+        let writes = self.figures.update(reading, self.speed, document().hidden());
+        if let Some(millis) = writes.millis {
+            element(super::TIME).set_text_content(Some(&time_words(millis)));
         }
-        element(super::PACE).set_text_content(Some(if document().hidden() {
-            "Paused (tab hidden)"
-        } else {
-            speed_words(self.speed)
-        }));
-        for (id, speed) in [
-            (super::PAUSE, Speed::PAUSED),
-            (super::HALF, Speed(500)),
-            (super::ONE, Speed::ONE),
-            (super::TEN, Speed(10_000)),
-        ] {
-            element(id)
-                .set_attribute("aria-pressed", if self.speed == speed { "true" } else { "false" })
-                .expect("selected pace");
+        if let Some(tenths) = writes.tenths {
+            element(super::MEMORY).set_text_content(Some(&memory_words(tenths)));
+        }
+        if let Some(micros) = writes.micros {
+            element(super::SLICE).set_text_content(Some(&slice_words(micros)));
+        }
+        if let Some(pace) = writes.pace {
+            element(super::PACE).set_text_content(Some(pace));
+        }
+        for ((id, _), pressed) in PACES.into_iter().zip(writes.pressed) {
+            if let Some(pressed) = pressed {
+                element(id)
+                    .set_attribute("aria-pressed", if pressed { "true" } else { "false" })
+                    .expect("selected pace");
+            }
         }
     }
 }

@@ -1,0 +1,46 @@
+records temper_protocol_worker_wire::v1
+use e = temper_engine_domain
+use own = crate::translate
+refuses own::head_to_domain
+refuses own::head_to_record
+direction to record
+
+record Merge
+record Merged { heads slice }
+record Branch stands for branch
+record Commit stands for commit
+enum Start = e::ForgeStart { base tuple, branch tuple, commit tuple, saved tuple }
+record Writable by hand
+record Prefixes by hand
+enum Access by hand
+record Repository by hand
+record Items by hand
+record Landed = temper_engine_domain_forge::Pushed to domain
+record Left by hand
+enum Landing by hand
+record SavedRepository by hand
+record Saved by hand
+enum Missing = e::Missing to domain
+record Missed by hand
+record Tag by hand
+record Conflicted by hand
+enum Preparation by hand
+record Token by hand
+record Entries by hand
+enum Kind by hand
+record Identity by hand
+record Flake = e::wire::Flake to domain
+enum Verdict = e::wire::Verdict to domain
+record CheckResults = e::wire::CheckResults to domain {
+    check_number = check
+    tree via own::head
+    base via own::head
+    passed slice
+    failed slice
+    flakes slice
+}
+record Head
+enum Ask = e::wire::Ask to domain { results tuple }
+record Red = e::RunRed { head via own::head }
+record Reds by hand
+enum Answer by hand

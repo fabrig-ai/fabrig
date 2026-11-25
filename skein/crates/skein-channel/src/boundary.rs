@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Token, stream};
 
-use super::{Frame, Term};
+use super::{Frame, Term, Version};
 
 /// The most owner events one entry point emits.
 pub const MAX_UP: u32 = 3;
@@ -17,6 +17,8 @@ pub enum Request {
     Open { credential: Box<[u8]> },
     /// The responder selects a version offered by both peers.
     Accept { version: u16 },
+    /// The responder selects a common version and supplies that version's kinds.
+    AcceptWith { table: Version },
     /// Either owner ends with a bounded reason and text.
     Refuse { reason: u16, text: Box<[u8]> },
     /// The owner grants one application frame read.
@@ -31,12 +33,13 @@ pub enum Request {
     Close,
 }
 
-// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 5: a credential prints as its length.
+// skein/docs/design/runtime/lib-bytes.md, 1 and skein/docs/design/net/channel.md, 5: a credential prints as its length.
 impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Self::Open { credential } => f.debug_struct("Open").field("credential_len", &credential.len()).finish(),
             Self::Accept { version } => f.debug_struct("Accept").field("version", version).finish(),
+            Self::AcceptWith { table } => f.debug_struct("AcceptWith").field("table", table).finish(),
             Self::Refuse { reason, text } => {
                 f.debug_struct("Refuse").field("reason", reason).field("text", text).finish()
             }
@@ -116,7 +119,7 @@ pub enum Event {
     Closed { why: Closed, text: Box<[u8]> },
 }
 
-// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 3 and 5: bodies and credentials print lengths.
+// skein/docs/design/runtime/lib-bytes.md, 1 and skein/docs/design/net/channel.md, 3 and 5: bodies and credentials print lengths.
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

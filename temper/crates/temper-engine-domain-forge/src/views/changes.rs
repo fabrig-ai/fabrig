@@ -1,6 +1,6 @@
 //! A project's whole queues and retained titles (temper/docs/design/domain/forge/queues.md;
 //! temper/docs/design/client/forge/records.md; temper/docs/design/client/forge/README.md, 3).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{ChangeRow, Domain, LandingRed, Limits};
 use alloc::boxed::Box;
 use core::cmp::Reverse;
@@ -89,6 +89,7 @@ impl Domain {
             }
         }
         let mut view = ChangesView {
+            catching_up: self.project_catching_up(project),
             project,
             landing: Box::default(),
             queues: queues.into_boxed(),
@@ -100,6 +101,19 @@ impl Domain {
         };
         self.changes_history(&mut view, limits)?;
         Some(view)
+    }
+
+    fn project_catching_up(&self, project: u32) -> Option<crate::CatchingUp> {
+        let mut forge = None;
+        for (repository, adopted) in &self.repositories {
+            if adopted.project == project && (forge.is_none() || adopted.home) {
+                forge = Some(repository.forge);
+                if adopted.home {
+                    break;
+                }
+            }
+        }
+        self.catching_up(forge?)
     }
 
     fn train_landing(&self, change: &ChangeRow) -> Option<TrainLanding> {

@@ -16,6 +16,20 @@ use crate::domain::{Config, Domain};
 use crate::git::{self, Object};
 use crate::store::{Repository, fit_names, fit_numbers, fits};
 
+/// A lagging pull-request view (testing/fakes/forge.md, 2.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Lag {
+    pub chance: u32,
+    pub min: Duration,
+    pub max: Duration,
+}
+
+/// Sets the chance and span of lagging views; zero disables new views.
+pub fn lag(domain: &mut Domain, lag: Lag) {
+    assert!(lag.min <= lag.max, "a lag span is a range");
+    domain.lag = if lag.chance == 0 { None } else { Some(lag) };
+}
+
 /// Adds the repository `setup` describes, its default branch at a first
 /// commit of its tree, and returns that commit.
 pub fn repository(domain: &mut Domain, config: &Config, setup: Setup) -> u64 {
@@ -145,6 +159,36 @@ pub fn manual_merges(domain: &mut Domain, repository: &[u8], settings: crate::ap
     domain.repositories.get_mut(id).expect("a repository of the forge").manual_merges = settings;
 }
 
+/// Refuses explicit closes of this pull request, without preventing branch deletion.
+/// The setting is ephemeral and an image keeps none (testing/fakes/forge.md, 2.2).
+pub fn refuse_close(domain: &mut Domain, repository: &[u8], number: u64, refused: bool) {
+    let id = domain.id(repository);
+    let stored = domain.repositories.get(id).expect("a repository of the forge");
+    assert!(stored.item(number).expect("a retained item").pull.is_some(), "a pull request");
+    if refused {
+        if !domain.refused_closes.contains_key(&id) {
+            domain
+                .refused_closes
+                .insert(id, skein_lib::Set::with_capacity(stored.items.capacity()))
+                .expect("one refusal set per repository");
+        }
+        domain
+            .refused_closes
+            .get_mut(&id)
+            .expect("refusal set")
+            .insert(number)
+            .expect("one refusal per retained pull request");
+    } else if let Some(refusals) = domain.refused_closes.get_mut(&id) {
+        refusals.remove(&number);
+    }
+}
+
+/// Limits simultaneous dispatched jobs across the forge; `None` removes the pool.
+/// Existing jobs keep their runner until they end (testing/fakes/forge.md, 2.3).
+pub fn runners(domain: &mut Domain, runners: Option<u32>) {
+    domain.runners.limit = runners;
+}
+
 /// Makes `repository` reachable by git, or not.
 pub fn set_reachable(domain: &mut Domain, repository: &[u8], reachable: bool) {
     let id = domain.id(repository);
@@ -260,6 +304,17 @@ pub fn advance(
     Ok(commit)
 }
 
+/// Stores a fixture's root commit without naming a reference or starting CI.
+/// # Errors
+/// Refuses a tree or object store past the fixture's limits.
+pub fn root_commit(domain: &mut Domain, config: &Config, files: Box<[File]>) -> Result<u64, Error> {
+    let tree = git::tree(&config.limits, files)?;
+    git::store(
+        domain,
+        Object { parent: None, merge_parent: None, tree, message: Box::new([]), author: None, committer: None },
+    )
+}
+
 /// Git's commit-tree stores even an unchanged tree, without moving a branch.
 pub fn commit_tree(
     domain: &mut Domain,
@@ -318,6 +373,39 @@ pub fn set_opening(domain: &mut Domain, repository: &[u8], context: &[u8], bytes
         .opening
         .get_mut(found.expect("a context of the repository's checks"))
         .expect("one opening per context") = copy_of(bytes);
+}
+
+/// Replaces one dispatched job's step log within the repository's content bound
+/// (skein/docs/design/testing/fakes/forge.md, 2.4).
+pub fn set_job_log(domain: &mut Domain, repository: &[u8], job: u64, step: u32, bytes: &[u8]) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    let mut run = None;
+    for (number, kept) in &repository.dispatched {
+        for found in &kept.jobs {
+            if found.id == job {
+                run = Some(*number);
+                break;
+            }
+        }
+        if run.is_some() {
+            break;
+        }
+    }
+    let kept = repository.dispatched.get_mut(&run.ok_or(Error::Missing(What::Job))?).expect("found run");
+    for found in kept.jobs.iter_mut() {
+        if found.id != job {
+            continue;
+        }
+        for found in &mut found.steps {
+            if found.number == step {
+                fits(bytes, repository.opening_limit)?;
+                found.log = copy_of(bytes);
+                return Ok(());
+            }
+        }
+    }
+    Err(Error::Missing(What::Job))
 }
 
 /// Starts checking the pull's mergeability for `span` on the forge's clock.

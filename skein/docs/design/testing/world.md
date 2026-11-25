@@ -4,7 +4,7 @@ Provisional, 2026-10-26. The design of `skein-sim-world`: a service's
 processes hosted over the simulator and run a step at a time, as a
 product a playground ships, and the two loops that run it, the world
 harness's and a playground's. The harness (`skein-world`) is
-../examples.md, section 6 and README.md, section 5; the simulator is
+../examples.md, section 6 and service-tiers.md, section 1; the simulator is
 simulator.md; a world run in a browser is ../playground.md.
 
 ## 1. In one page
@@ -15,7 +15,7 @@ simulator.md; a world run in a browser is ../playground.md.
   a spawn, and the clock. It runs no loop of its own. It gives a
   world's steps, and two loops run them: the world harness's run,
   which adds a scenario's referee and every world's checks
-  (README.md, 5), and a playground's slices, paced by a browser's
+  (service-tiers.md, 1), and a playground's slices, paced by a browser's
   clock (../playground.md, 3).
 - **A product, not a test kit.** A playground ships it, so it lives in
   `crates/` and links no crate under `testing/`: no referee, no
@@ -72,7 +72,7 @@ simulator.md; a world run in a browser is ../playground.md.
   push is charged to its process (../../foundation/testing-strategy.md, 6). The harness
   chooses `Memory::Checked`, `Within(ceiling)` or `Unchecked` and reports
   measured peaks alone through `Outcome::peaks()`, `real::Outcome::peaks()`
-  and `Killed::peak()` (README.md, 5); the product world has no meter.
+  and `Killed::peak()` (service-tiers.md, 1); the product world has no meter.
 
 ## 3. Steps
 
@@ -156,7 +156,7 @@ simulator.md; a world run in a browser is ../playground.md.
   settled within its steps (a million), or that is idle,
   unsettled, with nothing due, fails the test: the harness's
   `World::try_run*` return each as a finding, and its `run*` panic on it
-  (README.md, 5). A playground's
+  (service-tiers.md, 1). A playground's
   loop takes neither as a failure: its world idles waiting for its
   visitor, and runs as long as the page does.
 
@@ -187,7 +187,7 @@ simulator.md; a world run in a browser is ../playground.md.
   cleanup, observation and settlement mechanics without a real kernel.
   Real-loop and end-to-end tests cover paths through those backends and
   binaries. Its real-clock `Deadline`, starvation verdict and a settled
-  binary's counts are the contracts of README.md, section 5.
+  binary's counts are the contracts of service-tiers.md, section 1.
 - **For the portable target:** the gate checks `skein-sim-world`, the
   simulator, the fake machine and the shell's portable face with
   clippy for `wasm32-unknown-unknown` (README.md, 10).

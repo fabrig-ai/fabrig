@@ -543,7 +543,12 @@ pub fn kept(number: u8, party: u64) -> skein_lib::RequestRecord<jig_client::Held
         first_sent: Some(Wall::EPOCH),
         request: jig_client::Held {
             key: Key { asker: jig_client::Asker::JIG, number: u64::from(number) },
-            request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 8 })),
+            request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop {
+                project: 1,
+                task: 8,
+                reason: contract::Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            })),
         },
     }
 }

@@ -5,7 +5,10 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
         self.observer.delivered(self.wall, &mut delivery)?;
-        if !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
+        let internal_read =
+            matches!(&delivery, root::Delivery::Core(core::Held::ReadLoad { range, .. }) if range.party == 0);
+        if !internal_read
+            && !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
             && let Some(mut walking) = self.walking.take()
         {
             walking.delivered(self, delivery);
@@ -27,7 +30,9 @@ impl World {
         if let Some(peers) = &mut self.peers {
             peers.delivered(&delivery);
             if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = delivery {
-                peers.reply(to, &reply);
+                let token = to.into_token();
+                self.people_replies.push((token, reply.clone()));
+                peers.reply(ReplyTo::new(token), &reply);
                 self.people_answers.push(reply);
                 return Ok(());
             }
@@ -123,12 +128,19 @@ impl World {
                 self.stop_deliveries.push(held);
             }
             root::Delivery::CallAnswer { name, call, .. } => self.host_answers.push((name, call)),
-            root::Delivery::Message { word, .. } => self.inbound.push(word),
+            root::Delivery::Message { task, attempt, word, .. } => {
+                self.inbound_runs.push((task, attempt, word.number));
+                self.inbound.push(word);
+            }
             root::Delivery::Assigned { assignment, .. } => {
                 self.last_read = None;
                 self.assignments.push((assignment.task, assignment.attempt));
-                self.assignment_transcripts
-                    .push(super::AssignedTranscript { task: assignment.task, turns: assignment.transcript.clone() });
+                self.assignment_transcripts.push(super::AssignedTranscript {
+                    task: assignment.task,
+                    attempt: assignment.attempt,
+                    turns: assignment.transcript.clone(),
+                    messages: assignment.messages.clone(),
+                });
                 self.assigned = Some(assignment);
             }
             root::Delivery::AssignedJob { channel, job, .. } => {
@@ -164,12 +176,8 @@ impl World {
                 call: connector::SystemRequest::ReadFact { resource, observed },
             } => {
                 let call = connector::SystemRequest::ReadFact { resource, observed };
-                if let Some(phase @ core::start::Phase::ReadAfresh { connector }) = self.domain.start_phase() {
-                    assert_eq!(connector, number);
-                    if self.restart_steps.last() != Some(&phase) {
-                        self.restart_steps.push(phase);
-                    }
-                    self.restart_reads.insert(number, phase);
+                if !self.domain.core_mut().caught_up(number) {
+                    self.restart_reads.insert(number);
                 }
                 self.pending_reads.push((number, call));
             }
@@ -191,8 +199,9 @@ impl World {
             }
             root::Delivery::Core(core::Held::PeopleReply {
                 reply: reply @ people::Reply::SignedIn { sign_in, .. },
-                ..
+                to,
             }) => {
+                self.people_replies.push((to.into_token(), reply.clone()));
                 let initial = self.sign_in.is_none();
                 self.sign_in = Some(sign_in);
                 self.people_answers.push(reply);
@@ -231,7 +240,10 @@ impl World {
                     self.answers.push((token, key, part));
                 }
             }
-            root::Delivery::Core(core::Held::PeopleReply { reply, .. }) => self.people_answers.push(reply),
+            root::Delivery::Core(core::Held::PeopleReply { to, reply }) => {
+                self.people_replies.push((to.into_token(), reply.clone()));
+                self.people_answers.push(reply);
+            }
             root::Delivery::ApplicationDocument { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::Core(
@@ -245,6 +257,9 @@ impl World {
                 | core::Held::Relay { .. }
                 | core::Held::NeedArrived { .. }
                 | core::Held::Result { .. }
+                | core::Held::TaskPartKept { .. }
+                | core::Held::AcknowledgePart { .. }
+                | core::Held::PartBusy { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
                 | core::Held::NotesWritten { .. }

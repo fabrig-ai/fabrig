@@ -1,4 +1,4 @@
-//! The existing contents commit API, decoded as one bounded batch (skein/docs/design/testing/fakes/forge.md, 4).
+//! The existing contents commit API, decoded as one bounded batch (skein/docs/design/testing/fakes/forgejo.md, 1).
 use super::writes::WriteKind;
 use crate::forgejo::{
     decode::{

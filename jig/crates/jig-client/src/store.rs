@@ -1,4 +1,4 @@
-//! Which write last carried each request record (client/domain/client/README.md, 8 and 13).
+//! Which write last carried each request record (client/domain/client/small-store.md, 1, and client/domain/client/README.md, 13).
 use skein_lib::{Map, RequestKey};
 #[derive(Debug)]
 pub(super) struct Store {

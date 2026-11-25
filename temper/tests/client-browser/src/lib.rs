@@ -114,7 +114,7 @@ pub fn bundle() -> PathBuf {
 pub fn first_chat(title: &[u8]) -> Find {
     Find::exactly_named(Role::Heading { level: 1 }, &[b"T1 \xc2\xb7 ".as_slice(), title].concat())
 }
-/// Open the rail's new box and choose a change (temper/docs/design/client/view.md, 3).
+/// Open the rail's new box and choose a change (temper/docs/design/client/view-navigation.md, 1).
 #[must_use]
 pub fn start_change(drafts: bool) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
@@ -199,7 +199,7 @@ fn live() -> Find {
     Find::exactly_named(Role::Button, b"Owner")
 }
 /// Read the positive Live DOM marker, which the project rail hides from accessibility
-/// (temper/docs/design/client/view.md, 3), after the page's readiness observation.
+/// (temper/docs/design/client/view-navigation.md, 1), after the page's readiness observation.
 #[must_use]
 pub fn connected() -> Step {
     Step::Keep {
@@ -244,8 +244,8 @@ impl Tier {
         configuration::demo(scratch.path(), &temper(), &bundle());
         Self { scratch, forged: forgery::request() }
     }
-    /// The demo with reading's replies on a private bundle, whose stylesheet turns the browser's
-    /// anchoring off at `reading::anchoring_off`'s height alone (temper/docs/design/client/web/testing.md, 3).
+    /// The demo with reading's replies on a private bundle, with the position story's
+    /// anchoring switch and the long story's compact footer at its shorter height.
     #[must_use]
     pub fn reading(name: &str) -> Self {
         let tier = Self::demo(name);
@@ -260,6 +260,19 @@ impl Tier {
         let mut css = fs::read(&path).expect("bundle stylesheet");
         css.extend_from_slice(
             b"\n@media (height: 801px) { #app > .temper-session .temper-thread > [role=log] { overflow-anchor: none !important; margin-top: 7px !important; } }\n",
+        );
+        // Leave room on both sides of the read margins at the shorter height.
+        // Use whole-pixel line heights there so the box of the same paragraph
+        // height is not rounded differently in the two windows.
+        css.extend_from_slice(
+            format!(
+                "\n@media (height: {}px) {{\n\
+                 #app > .temper-session .temper-session-foot {{ padding-block: 0; }}\n\
+                 #app > .temper-session .temper-by-agent > .temper-says p {{ line-height: 24px; }}\n\
+                 #app > .temper-session > .temper-session-top {{ padding-block: 6px; }}\n}}\n",
+                reading::LATER_HEIGHT
+            )
+            .as_bytes(),
         );
         let mut compressed = vec![0; skein_http::gzip::bound(css.len()).expect("stylesheet gzip bound")];
         let length = skein_http::gzip::encode(&css, &mut compressed).expect("compressed private stylesheet");
@@ -411,7 +424,7 @@ impl Tier {
     pub fn setup(&self) -> Setup<'_> {
         configuration::install(self.scratch.path(), &temper());
         // The box supplies serve's pipe and --box at every start, including its welcome default
-        // (temper/docs/design/protocol/configuration/settings.md, 2, kind 20).
+        // (temper/docs/design/protocol/configuration/settings-kinds.md, 1, kind 20).
         let args = configuration::flags(self.scratch.path());
         Setup {
             server: temper(),

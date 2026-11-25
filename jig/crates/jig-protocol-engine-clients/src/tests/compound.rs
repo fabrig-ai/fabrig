@@ -10,7 +10,11 @@ const FIRST_MESSAGE: u64 = 19;
 fn compound(project: u32, stop_project: u32) -> w::Ask {
     let values = [
         w::Operation::Message(w::Message { project, task: TASK, words: b"words".as_slice().into() }),
-        w::Operation::Stop(w::Stop { project: stop_project, task: TASK }),
+        w::Operation::Stop(w::Stop {
+            project: stop_project,
+            task: TASK,
+            reason: Box::from(b"Parking the task".as_slice()),
+        }),
     ];
     f::compound(project, &values)
 }
@@ -18,7 +22,7 @@ fn compound(project: u32, stop_project: u32) -> w::Ask {
 fn a_compound_reaches_the_people_child_in_order() {
     let mut expected = List::with_capacity(2);
     expected.push(p::Operation::Message { task: TASK, words: b"words".as_slice().into() }).unwrap();
-    expected.push(p::Operation::Stop { task: TASK }).unwrap();
+    expected.push(p::Operation::Stop { task: TASK, reason: Box::from(b"Parking the task".as_slice()) }).unwrap();
     assert_eq!(
         asks::ask(compound(PROJECT, PROJECT), &f::models(), &f::wire()),
         Ok(p::Ask::Compound { project: PROJECT, operations: expected })

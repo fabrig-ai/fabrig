@@ -67,7 +67,7 @@
     the brief*: its section 1, *Tell temper*, says nothing of it, where
     `phone-tell.html` says "It comes back in your Home's brief once it's
     routed or fixed."
-  - 11: `../client/tui/README.md`, 3, `../client/tui/pages/launchpad.md` and
+  - 11: `../client/tui/host.md`, 1, `../client/tui/pages/launchpad.md` and
     `../client/tui/pages/README.md` hold the launchpad as 11.1 draws it, its
     brief, Where you left off and Needs you across the person's projects,
     its team lines and `/talk` in Start, 11.4's commands, `/talk` and
@@ -163,7 +163,7 @@
     stops its live run and holds the role and every task it started
     until Resume, where this section's Pause stops its wakes alone, since
     a person's hold is placed over a subtree (jig's
-    `domain/tasks/lifecycle.md`, 10) and none holds one task alone yet.
+    `domain/tasks/lifecycle-holds.md`, 2) and none holds one task alone yet.
     Its Now's kicker says "written at 06:58" alone, without "when its
     last session ended", since no client read gives a session's record
     (jig's `domain/tasks/standing.md`, 7). Decided by goal 713's design,
@@ -272,7 +272,7 @@
     an item, already is one. Decided by goal 2173's design, 2026-11-13;
     an agent judging before filing is that document's open question
     (section 2).
-  - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
+  - 10 and 13: on a phone, `../client/view-navigation.md`, 1, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and
     Deployment from the person's menu: `phone-home.html` draws no

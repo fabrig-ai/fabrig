@@ -1,4 +1,4 @@
-//! Shared workflow following, independent of its owning procedure (domain/landing.md, 7).
+//! Shared workflow following, independent of its owning procedure (domain/landing-proof.md, 2).
 //! An outage spends no unseen lifetime (temper/docs/design/domain/forge/keeping-up.md, 5).
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -57,7 +57,7 @@ pub(crate) fn tests_input(tests: &[Box<[u8]>]) -> api::Input {
     api::Input { name: Box::from(b"temper_tests".as_slice()), value: value.finish() }
 }
 
-/// One caller-owned dispatch and its current run. The caller persists its outbox entry.
+/// One caller-owned dispatch and its current run. The caller persists its follow window.
 #[derive(Clone, Hash, Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the dispatch wall key is internal to the follower's callers")]
 pub struct Follow {
@@ -373,6 +373,11 @@ pub fn verdict(run: &api::Run, candidate: api::Commit) -> policy::Verdict {
 
 impl Follow {
     pub(crate) fn restore(&mut self, flight: &crate::TierFlight, actor: u64) {
+        self.clock = flight.clock;
+        self.wall = match flight.clock {
+            Some(clock) => Some(clock.since),
+            None => None,
+        };
         self.entry = flight.entry;
         self.start = flight.start;
         self.since = flight.since;
@@ -426,6 +431,7 @@ impl Follow {
             }
         }
         crate::TierFlight {
+            clock: self.clock,
             entry: self.entry,
             start: self.start,
             since: self.since,

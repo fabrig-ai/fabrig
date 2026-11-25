@@ -120,3 +120,77 @@ fn a_forced_exit_is_a_host_notice_in_the_product_stream() {
     assert_eq!(notices.len(), 0);
     assert!(matches!(records.last().map(|r| &r.event), Some(Event::SessionEnded(_))));
 }
+
+#[test]
+fn a_program_exec_traces_its_run_to_the_agent_file() {
+    use smith_events::Block;
+    use smith_fake_claude::{Step, Story, Turn};
+
+    let files = Files::new();
+    let prompt = b"Ask first";
+    const ANSWER: &str = "Program answer";
+    let mut world = World::traced(19, &files, Placement::Spawned, ANSWER.as_bytes());
+    world.exec(prompt, ANSWER.as_bytes());
+    world.on_program(Story {
+        turns: vec![Turn::new(vec![Step::Outcome {
+            input: serde_json::json!({"outcome":{"form":"report","text":ANSWER,"fields":{}}}),
+        }])],
+        ..Story::default()
+    });
+    world.settle();
+    let product = assert_exec_accepted(&mut world);
+    assert!(matches!(product.first().map(|record| &record.event), Some(Event::SessionStarted(_))));
+    assert!(matches!(product.last().map(|record| &record.event), Some(Event::SessionEnded(_))));
+    assert!(
+        product.iter().all(|record| matches!(
+            record.event,
+            Event::SessionStarted(_) | Event::SessionEnded(_) | Event::RunCompleted(_) | Event::Notice(_)
+        )),
+        "detailed records belong to the child process"
+    );
+    let agent = world.agent_records();
+    assert_run_started(&agent, false);
+    assert!(
+        agent.iter().any(|record| matches!(&record.event, Event::ResponseStarted(start)
+        if start.prompt.as_ref().is_some_and(|capture| capture.messages.iter().any(|message|
+            message.blocks.iter().any(|block| matches!(block, Block::Text { text }
+                if skein_lib::bytes::find(text, prompt).is_some())))))),
+        "the task reached the agent trace"
+    );
+    assert!(
+        agent.iter().any(|record| matches!(&record.event, Event::ToolCompleted(tool)
+        if tool.tool.as_ref() == b"finish" && tool.verdict == smith_events::Verdict::Result)),
+        "the agent records the finish completion"
+    );
+}
+
+pub(super) fn assert_exec_accepted(world: &mut World) -> Vec<smith_events::Record> {
+    assert_eq!(world.exit(), Some(skein_io::kernel::Exit::Code(0)));
+    let records = world.records();
+    let completed = super::run_completed(&records);
+    assert_eq!(completed.len(), 1, "one product answer");
+    assert_eq!(completed[0].status, smith_events::Status::Accepted);
+    assert!(completed[0].result.is_some(), "accepted result");
+    let ends: Vec<_> = records
+        .iter()
+        .filter_map(|record| match &record.event {
+            Event::SessionEnded(end) => Some(end),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(ends.len(), 1, "one product terminal");
+    assert_eq!(ends[0].exit, 0);
+    assert!(ends[0].answered && !ends[0].aborted, "the product answered and drained");
+    records
+}
+
+pub(super) fn assert_run_started(records: &[smith_events::Record], resumed: bool) {
+    let starts: Vec<_> = records
+        .iter()
+        .filter_map(|record| match &record.event {
+            Event::RunStarted(start) => Some(start.resumed),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(starts, [resumed], "one run starts with the expected resume state");
+}

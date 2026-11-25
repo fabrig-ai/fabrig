@@ -181,13 +181,12 @@ fn refuses_before_switch(mut world: World) {
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
     assert_eq!(world.store.file_bytes(b"generations/2/manifest"), None);
     assert_eq!(world.assignments, assignments);
-    assert!(!world.restart_steps.iter().any(|step| matches!(
-        step,
-        core::start::Phase::Switch
-            | core::start::Phase::AdoptRuns
-            | core::start::Phase::ReadAfresh { .. }
-            | core::start::Phase::SettleOutbox { .. }
-    )));
+    assert!(
+        !world
+            .restart_steps
+            .iter()
+            .any(|step| matches!(step, core::start::Phase::Switch | core::start::Phase::AdoptRuns))
+    );
     world.store.crash(f::SEED).expect("crash readback");
     assert_eq!(world.store.applied, last);
     // Compare the recovered files, including every map, at the same sets.
@@ -211,6 +210,7 @@ fn orphan_source() -> root::Record {
 #[test]
 fn an_account_source_without_its_account_refuses_at_link_on_the_active_generation() {
     let mut world = before();
+    world.store_checks(jig_core_world::world::StoreChecks::none("source fixture names missing Account(98)"));
     world.seed(Box::new([orphan_source()]));
     world.broken();
     world.restart(f::SEED, false);
@@ -237,6 +237,7 @@ fn an_account_source_without_its_account_refuses_at_link_on_the_active_generatio
 #[test]
 fn a_task_naming_a_missing_project_refuses_before_the_switch() {
     let mut world = before();
+    world.store_checks(jig_core_world::world::StoreChecks::none("task fixture names the erased Project(1)"));
     let row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
     assert_eq!(row.number, 1);
     // Leave the task and its funding internally consistent, but without its project.

@@ -7,4 +7,4 @@ acts:
 result: Completed
   widget --csv prints the table
   and preserves its column order
-digest: task b8465c4ea53e2eac
+digest: task 025bc8b63d1287c4

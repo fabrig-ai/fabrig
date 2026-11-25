@@ -1,4 +1,5 @@
 //! Admission of only protocol/git.md's builder vectors and whole environments.
+use crate::answer::explicit_path;
 use skein_io::kernel::Spawn;
 use skein_lib::{Secret, base64};
 use std::collections::BTreeMap;
@@ -16,9 +17,9 @@ pub type Credential = (Box<[u8]>, Secret);
 #[derive(Debug)]
 pub struct Checked {
     pub command: Command,
-    /// The named work tree, or the bare directory for commands without one.
+    /// The named work tree or bare directory, relative to the held file root.
     pub at: Box<[u8]>,
-    /// Explicit metadata selection; no repository discovery reads the work tree.
+    /// Explicit metadata path relative to the held file root; no work tree discovery.
     pub git_dir: Option<Box<[u8]>>,
     /// The spawn's directory, beneath which init and clone resolve their operands.
     pub root: Box<[u8]>,
@@ -107,12 +108,16 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::Repack { .. }
             | Command::Format
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::SnapshotFetch { .. }
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::DiffPaths { .. }
             | Command::MergeBases { .. }
             | Command::BringsList { .. }
@@ -133,7 +138,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         return Err(Refusal::Broken("commit author"));
     }
     let credential = if remote(&command).is_some()
-        || matches!(command, Command::CheckOut { .. } | Command::Merge { .. })
+        || matches!(command, Command::CheckOut { .. } | Command::Merge { .. } | Command::MergeHistory { .. })
         || (matches!(command, Command::IsAncestor { .. }) && env.contains_key(b"GIT_CONFIG_COUNT".as_slice()))
     {
         Some(read_credential(&mut env, spawn)?)
@@ -145,7 +150,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
     }
     if author.is_none()
         && credential.is_none()
-        && !matches!(command, Command::UpdateRef { .. })
+        && !matches!(command, Command::UpdateRef { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts)
         && (committer.0.as_ref() != b"temper" || committer.1.as_ref() != b"temper@temper.invalid")
     {
         return Err(Refusal::Broken("placeholder committer"));
@@ -154,9 +159,15 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         .env
         .iter()
         .find_map(|e| e.strip_prefix(b"GIT_CONFIG_VALUE_0=Authorization: ").map(|value| Secret::new(value.into())));
+    // Git's relative options start at its working directory, not the file root.
+    let git_dir = git_dir.map(|directory| explicit_path(&spawn.dir, &directory).into_boxed_slice());
+    let at = work_tree
+        .map(|directory| explicit_path(&spawn.dir, &directory).into_boxed_slice())
+        .or_else(|| git_dir.clone())
+        .unwrap_or_else(|| spawn.dir.clone());
     Ok(Checked {
         command,
-        at: work_tree.or_else(|| git_dir.clone()).unwrap_or_else(|| spawn.dir.clone()),
+        at,
         git_dir,
         root: spawn.dir.clone(),
         home,
@@ -221,6 +232,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         Command::Store { remote, .. }
         | Command::SnapshotFetch { remote, .. }
         | Command::Fetch { remote, .. }
+        | Command::FetchCounts { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote),
         Command::Reds(_)
@@ -235,9 +247,12 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Repack { .. }
         | Command::Format
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add
@@ -337,6 +352,10 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [b"remote", b"add", b"origin", b"--", remote] => {
             Command::Remote { remote: (*remote).into(), format: invocation::Format::Sha1 }
         }
+        [b"update-ref", b"-d", crate::counts::REFERENCE] => Command::DeleteCounts,
+        [b"update-ref", crate::counts::REFERENCE, commit] => {
+            Command::UpdateCounts { commit: invocation::object(commit)? }
+        }
         [b"update-ref", reference, commit] => Command::UpdateRef {
             into: match *reference {
                 b"refs/temper/fetched" => git::Into::Fetched,
@@ -345,6 +364,22 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             },
             commit: invocation::object(commit)?,
         },
+        [
+            b"fetch",
+            b"--porcelain",
+            b"--verbose",
+            b"--no-filter",
+            b"--no-tags",
+            b"--no-write-fetch-head",
+            b"--no-recurse-submodules",
+            b"--",
+            url,
+            spec,
+        ] => {
+            let token = spec.strip_prefix(b"+refs/temper/counts:refs/temper/")?.strip_suffix(b"/counts")?;
+            let workspace = skein_lib::Token::new(std::str::from_utf8(token).ok()?.parse().ok()?);
+            Command::FetchCounts { remote: (*url).into(), workspace }
+        }
         [
             b"fetch",
             b"--porcelain",
@@ -384,6 +419,17 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => {
             Command::Merge { theirs: invocation::object(theirs)? }
         }
+        [
+            b"-c",
+            b"remote.origin.promisor=true",
+            b"log",
+            b"--no-merges",
+            b"-M",
+            b"--diff-filter=R",
+            b"--format=%H",
+            range,
+            b"--",
+        ] => Command::MergeHistory { theirs: invocation::object(range.strip_prefix(b"HEAD...")?)? },
         [b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"] => Command::Unmerged,
         [b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"] => Command::Add,
         [b"diff-tree", b"--no-commit-id", b"--name-only", b"--no-renames", b"-r", b"-z", before, after, b"--"] => {

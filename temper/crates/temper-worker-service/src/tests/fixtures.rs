@@ -1,11 +1,12 @@
 use crate::settings;
+pub use crate::testing::fixtures::DIALECT;
 use jig_domain_link::{Bounds, EndpointBound};
-pub const DIALECT: u32 = 3;
-mod agent;
 mod worker;
 mod worker_git;
 pub(crate) mod worker_peers;
-pub use agent::agent;
+pub fn agent() -> settings::Agent {
+    crate::testing::fixtures::agent(smith_agent_world::LIMITS.run)
+}
 pub use worker::*;
 pub use worker_git::*;
 pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
@@ -13,7 +14,6 @@ pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
 }
 pub fn worker_runtime() -> crate::WorkerRuntime {
     crate::WorkerRuntime {
-        wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
         agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),

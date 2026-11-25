@@ -1,0 +1,8 @@
+finding repair FINDING... TEXT --key KEY
+  FINDING (findings): P/N: a project name or number, then a finding number; repeated, at most 16. One to sixteen findings of one project, each named once
+  TEXT (words): text, at most 1048576 bytes, or - to read stdin; required. The repair's words, 1 to 4096 bytes
+Make one repair goal for findings of one project
+Prints: repair goal G made for P/N, P/M
+--json: the record finding_repaired.
+Key: --key KEY, required.
+Only the holder or a project owner may triage. A refusal prints its words, exit 2.

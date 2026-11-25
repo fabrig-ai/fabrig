@@ -117,6 +117,7 @@ fn refused(value: &c::Refusal, words: &Words, answer: bool) -> Feedback {
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }
         | c::Refusal::Unlinked { .. }
+        | c::Refusal::QuestionAnswered { .. }
         | c::Refusal::Concluded { .. }
         | c::Refusal::Provider => None,
     };

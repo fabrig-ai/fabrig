@@ -1,17 +1,17 @@
 //! Live host operations become named channel records (protocol/channel.md,
-//! sections 3–5; domain/run.md, sections 5 and 8).
+//! sections 3–5; domain/run.md, section 5, and domain/run-delivery.md, section 1).
 //!
 //! This module keeps no state. The component retains each live relay until its
 //! one host answer; these encoders know neither host policy nor callbacks.
 
 use alloc::boxed::Box;
 use skein_channel::Frame;
-use skein_lib::{Duration, List};
+use skein_lib::Duration;
 use smith_channel as wire;
 use smith_channel::Record;
 use smith_domain::run;
 
-use crate::Error;
+use crate::{Error, generated::channel};
 
 /// Encode a declared host tool relay without interpreting its attested input.
 pub(crate) fn host_call(
@@ -33,17 +33,8 @@ pub(crate) fn delivery_call(
     deadline: Duration,
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
-    let Ok(count) = u32::try_from(change.fields.len()) else {
-        return Err(Error::Capacity);
-    };
-    let mut fields = List::with_capacity(count);
-    for field in change.fields {
-        let value = wire::Field { name: field.name, text: field.value };
-        if fields.push(value).is_err() {
-            return Err(Error::Capacity);
-        }
-    }
-    let ask = wire::Ask::Deliver(wire::DeliverAsk { fields });
+    let record = channel::deliver_ask_to_record(&change).or(Err(Error::Capacity))?;
+    let ask = wire::Ask::Deliver(record);
     call(name, run::HostEffect::Write, ask, deadline, limits)
 }
 
@@ -59,11 +50,8 @@ fn call(
     deadline: Duration,
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
-    let name = wire::CallName { activation: name.activation, completion: name.completion, position: name.position };
-    let effect = match effect {
-        run::HostEffect::Read => wire::Effect::Read,
-        run::HostEffect::Write => wire::Effect::Write,
-    };
+    let name = channel::call_name_to_record(&name);
+    let effect = channel::effect_to_record(&effect);
     let record = wire::Call { name, effect, deadline, ask };
     match record.measure(limits) {
         Ok(_) => (),
@@ -78,7 +66,7 @@ fn call(
 
 /// Ask the host to settle one relay without releasing its durable name.
 pub(crate) fn withdraw(name: run::CallName, limits: &wire::Limits) -> Result<Frame, Error> {
-    let name = wire::CallName { activation: name.activation, completion: name.completion, position: name.position };
+    let name = channel::call_name_to_record(&name);
     let record = wire::Withdraw { name };
     match record.measure(limits) {
         Ok(_) => (),

@@ -17,6 +17,8 @@
 //!   case, under the counting allocator (testing/simulator.md, 5), and once
 //!   settled checks that every process holds
 //!   nothing and the simulator nothing in flight;
+//! - [`inspect`]: frozen component records and shared checks for live wakes
+//!   and bounded tables, filled by each component's own inspection adapter;
 //! - [`real`]: the same processes and referee in one loop over the real
 //!   shared ring, hosting spawns over real pipes with per-service signals,
 //!   on the real clock (testing-strategy.md, 2.8).
@@ -29,6 +31,13 @@
 //! traces and an observation referee. Services keep their own fakes and
 //! scenario expectations; these utilities are shared by temper and smith.
 //!
+//! [`streams`] derives independent workload, fault, party and scheduling RNGs
+//! from one seed, with a separate sequence for each named part.
+//!
+//! [`faults`] records each run's injected faults, intervals, identities and counters.
+//! [`sweep`] checks configured faults across seeds and excludes named combinations
+//! before injection, never findings.
+//!
 //! A scenario's processes are one type, the scenario's own (an enum of its
 //! service and its fakes, say), implementing [`Host`]; the boundary
 //! contracts are each process's to keep, as its loop is its own.
@@ -38,12 +47,14 @@ extern crate alloc;
 #[cfg(unix)]
 pub mod deadline;
 #[cfg(unix)]
-pub use deadline::{Deadline, Expired, Figures, Starved, pass_starved, starved_passes};
+pub use deadline::{Deadline, DeadlineOrigin, Expired, Figures, ProcessWatch, Starved, pass_starved, starved_passes};
 pub mod domain;
 #[cfg(unix)]
 pub mod end_to_end;
+pub mod faults;
 pub mod files;
 mod heap;
+pub mod inspect;
 mod outcome;
 use skein_sim_world::program;
 #[cfg(unix)]
@@ -52,9 +63,17 @@ mod referee;
 #[cfg(unix)]
 pub mod ring;
 pub mod stream;
+pub mod streams;
+pub mod sweep;
+#[cfg(unix)]
+#[doc(hidden)]
+pub mod testing;
 #[cfg(unix)]
 mod tree;
 mod world;
+
+#[cfg(test)]
+mod tests;
 
 pub use heap::Memory;
 pub use outcome::Outcome;

@@ -16,6 +16,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
             elapsed: Duration::ZERO,
             end: None,
             restored: true,
+            catching_up: Box::new([]),
             done: true,
             open_failure: None,
         };
@@ -35,6 +36,7 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
                 elapsed: Duration::ZERO,
                 end: None,
                 restored: false,
+                catching_up: Box::new([]),
                 done: true,
                 open_failure: None,
             };
@@ -57,6 +59,70 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
 }
 
 #[test]
+fn opening_report_names_elapsed_milliseconds_and_each_forges_remaining_work() {
+    use temper_engine_domain_forge::CatchingUp;
+    let mut report = rehearsal();
+    report.restored = true;
+    report.elapsed = Duration::from_nanos(42_999_999);
+    report.catching_up = Box::new([
+        (
+            1,
+            Some(CatchingUp {
+                fresh: 3,
+                gathers: 2,
+                ci: 1,
+                goal_files: 1,
+                lost_writers: 1,
+                goal_branches: 6,
+                uncertain: 2,
+            }),
+        ),
+        (
+            2,
+            Some(CatchingUp {
+                fresh: 0,
+                gathers: 0,
+                ci: 0,
+                goal_files: 0,
+                lost_writers: 0,
+                goal_branches: 0,
+                uncertain: 1,
+            }),
+        ),
+        (
+            3,
+            Some(CatchingUp {
+                fresh: 0,
+                gathers: 0,
+                ci: 0,
+                goal_files: 0,
+                lost_writers: 0,
+                goal_branches: 0,
+                uncertain: 0,
+            }),
+        ),
+        (4, None),
+    ]);
+    let (text, code) = lines("temper-box", &report, &directories(), b"/checkpoint");
+    assert_eq!(code, 0);
+    assert_eq!(
+        text,
+        format!(
+            "temper-box upgrade: whole rehearsal/tool time: 42999999 ns\n\
+         temper-box upgrade: registry commit, jobs and restores pass; opened in 42 ms\n\
+         temper-box upgrade: forge 1 would catch up: 3 fresh reads, 2 landing reads, 1 CI read, 1 goal-file read, 1 lost-writer read, 6 goal-branch reads, 2 uncertain writes\n\
+         temper-box upgrade: forge 2 would catch up: 1 uncertain write\n\
+         temper-box upgrade: forge 3 would catch up: nothing\n\
+         temper-box upgrade: forge 4 would catch up: nothing\n{COMPATIBLE}"
+        )
+    );
+    report.restored = false;
+    let (text, code) = lines("temper-box", &report, &directories(), b"/checkpoint");
+    assert_eq!(code, 1);
+    assert!(!text.contains("opened in") && !text.contains("would catch up"), "{text}");
+}
+
+#[test]
 fn workers_lines_count_files_before_the_checks_verdict_for_yes_no_and_unknown() {
     let dirs = directories();
     for verdict in ["yes", "no", "unknown"] {
@@ -70,7 +136,8 @@ fn workers_lines_count_files_before_the_checks_verdict_for_yes_no_and_unknown() 
         let mut report = super::tests::report(Event::Rehearsing {
             owner: Token::new(1),
             wires: if verdict == "unknown" { None } else { Some(kept()) },
-            openings: Box::new([w1, w2]),
+            openings: Box::new([KeptOpening::Current(w1), KeptOpening::Current(w2)]),
+            workers: Some(Box::new([])),
             linked: 12,
             copied: 3,
         });
@@ -164,7 +231,7 @@ fn workers_lines_exclude_whole_rehearsal_progress() {
                 "temper-box upgrade: decoded 17 records\n\
                  temper-box upgrade: ran temper fixture-job: 2 rows in 1 commits; time unavailable\n\
                  temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\n\
-                 temper-box upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed\n\
+                 temper-box upgrade: registry commit, jobs and restores pass; opened in 1000 ms\n\
                  {COMPATIBLE}"
             ),
             0,
@@ -235,6 +302,104 @@ fn workers_open_failures_keep_the_checks_words_and_fail() {
     );
 }
 
+#[test]
+fn checking_an_empty_deployment_names_the_missing_generation() {
+    use jig_protocol_store::{Generations, OpenRefusal};
+    use temper_engine_service::{End, Stop};
+
+    let why = OpenRefusal::Generations { why: Generations::Unreadable };
+    let mut report = super::tests::report(Event::OpenRefused { owner: Token::new(1), why: why.clone() });
+    report.end = Some(End::Stopped(Stop::StoreOpen { why }));
+    assert_eq!(
+        lines("temper-engine", &report, &directories(), b"/state"),
+        (concat!(
+            "temper-engine upgrade: whole rehearsal/tool time: 1000000000 ns\n",
+            "temper-engine serve: The `active` file in /state does not name a generation, and this start has changed nothing in it. ",
+            "Restore /state from a backup, or write `active` again to name a generation under `generations/` that stands, and start again.\n",
+            "temper-engine upgrade: workers may stay: unknown; the copy keeps no wires\n",
+        ).into(), 1)
+    );
+}
+
+#[test]
+fn going_back_on_an_empty_deployment_names_the_unreadable_directory() {
+    let report = super::tests::report(Event::BackRefused { owner: Token::new(1), why: BackRefusal::Unreadable });
+    for binary in ["temper-engine", "temper-box"] {
+        assert_eq!(
+            lines(binary, &report, &directories(), b"/state"),
+            (
+                format!(
+                    "{binary} upgrade: the deployment could not be read; check its directory and permissions, or restore a backup\n\
+                 {binary} upgrade: whole rehearsal/tool time: 1000000000 ns\n"
+                ),
+                1
+            )
+        );
+    }
+}
+
+#[test]
+fn checking_and_starting_name_the_same_restore_refusals() {
+    use jig_domain_core::{
+        HeldLimit, Key,
+        settings::Setting,
+        start::{Failure, LiveSet, Numbered, Phase},
+    };
+    use jig_domain_people::{Key::Person, RestoreBound::IdentityBytes};
+    use temper_engine_service::{End, Stop};
+
+    // The simulated fixtures hold an eight-byte identity at a seven-byte limit,
+    // and one version above the standard profile's sixteen.
+    const HELD_IDENTITY: u64 = 8;
+    const IDENTITY_LIMIT: u64 = 7;
+    const PERSON: u64 = 1;
+    const STOCK_VERSIONS: u32 = 16;
+    const HELD_VERSIONS: u32 = STOCK_VERSIONS + 1;
+    const FIRST_PAST_OWN: u32 = 65;
+    const FIRST_STOCK_CHARTER: u32 = 1;
+    let dirs = directories();
+    for (failure, words) in [
+        (
+            Failure::LiveSet {
+                set: LiveSet::PeopleBound(IdentityBytes),
+                key: Key::People(Person(PERSON)),
+                held: HELD_IDENTITY,
+                limit: IDENTITY_LIMIT,
+            },
+            "PeopleBound(IdentityBytes), key People(Person(1)), held 8, limit 7",
+        ),
+        (
+            Failure::Numbers {
+                settings: Box::new([Numbered { setting: Setting::Charter(FIRST_PAST_OWN), changed: true }]),
+            },
+            "settings out of their numbers (the stock's 1 to 32, a deployment's own 33 to 64): changed charter 65",
+        ),
+        (
+            Failure::Taken { settings: Box::new([Setting::Charter(FIRST_STOCK_CHARTER)]) },
+            "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): charter 1; move each to 33 to 64 on the build that runs now, then start this one",
+        ),
+        (
+            Failure::HeldPastLimit { which: HeldLimit::Versions, held: HELD_VERSIONS, limit: STOCK_VERSIONS },
+            "Versions, held 17, limit 16",
+        ),
+    ] {
+        let expected = format!("temper-engine serve: restart refused during core restore: {words}\n");
+        let mut report = rehearsal();
+        report.end = Some(End::Stopped(Stop::StartRefused { phase: Some(Phase::LoadCore), failure }));
+        assert_eq!(
+            crate::lines::ending_with_binary("temper-engine", report.end.as_ref(), false, &dirs, b"/state", &[]),
+            (expected.clone(), 1)
+        );
+        let (text, exit) = lines("temper-engine", &report, &dirs, b"/state");
+        assert_eq!(exit, 1);
+        assert_eq!(
+            text.split_inclusive('\n').filter(|line| line.contains("restart refused")).collect::<String>(),
+            expected
+        );
+        assert!(!text.contains("registry commit, jobs and restores pass"), "{text}");
+    }
+}
+
 fn directories() -> Directories {
     Directories {
         config: b"/config".as_slice().into(),
@@ -248,27 +413,23 @@ fn rehearsal() -> Report {
     super::tests::report(Event::Rehearsing {
         owner: Token::new(1),
         wires: Some(kept()),
-        openings: Box::new([opening("w1"), opening("w2")]),
+        openings: Box::new([opening("w1"), opening("w2")].map(KeptOpening::Current)),
+        workers: Some(Box::new([])),
         linked: 12,
         copied: 3,
     })
 }
 
-// A single sending kind keeps the report tests about routing judge's verdict, not schema derivation.
 pub(super) fn configured() -> Workers {
+    let jig = jig_protocol_worker_wire::spoken();
+    let application =
+        temper_protocol_worker_wire::application(&temper_protocol_worker_wire::v1::CEILINGS).expect("application");
     Workers {
+        defaults: List::from_boxed(Box::new([kept_worker(1, "w1", false), kept_worker(2, "w2", false)])),
         room: 4096,
-        schema: skein_channel::Schema {
-            magic: *b"test",
-            versions: List::from_boxed(Box::new([skein_channel::Version {
-                version: jig_protocol_worker_wire::wire::VERSION,
-                kinds: List::from_boxed(Box::new([skein_channel::Kind {
-                    kind: 0x0180,
-                    direction: skein_channel::Direction::FromResponder,
-                    largest: 8,
-                }])),
-            }])),
-        },
+        limits: jig_protocol_worker_wire::CEILINGS,
+        spoken: List::from_boxed(jig.iter().chain(&application.spoken).cloned().collect()),
+        roots: application.roots,
     }
 }
 
@@ -281,28 +442,59 @@ fn kept() -> Box<[KeptWire]> {
 }
 
 fn opening(name: &str) -> WorkerOpening {
+    let configured = configured();
+    let schema = jig_protocol_worker_wire::schema(&configured.limits).expect("fixture table");
+    let table = schema.version(jig_protocol_worker_wire::VERSION).expect("current version");
     WorkerOpening {
         worker: name.into(),
-        wires: temper_engine_service::wires()
+        wires: configured
+            .spoken
             .iter()
-            .filter(|wire| worker_wire(wire.name))
             .map(|wire| jig_protocol_store::OpenedWire {
                 name: wire.name.into(),
-                lowest: wire.lowest,
-                layouts: wire.layouts.clone().into_boxed(),
+                layout: wire.layout,
+                text: wire.text.as_bytes().into(),
             })
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-        output: 4096,
-        terms: Box::new([jig_protocol_store::OpenedTerm { kind: 0x0180, largest: 8 }]),
+            .collect(),
+        output: configured.room,
+        terms: table
+            .kinds
+            .iter()
+            .filter(|kind| kind.direction == skein_channel::Direction::FromResponder)
+            .map(|kind| jig_protocol_store::OpenedTerm { kind: kind.kind, largest: kind.largest })
+            .collect(),
         at: Wall::from_nanos(1_794_564_000_123_456_789),
     }
 }
 
+fn kept_worker(number: u32, name: &str, withdrawn: bool) -> KeptWorker {
+    KeptWorker { number, name: name.as_bytes().into(), withdrawn }
+}
+
 fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>) -> String {
-    let mut report =
-        super::tests::report(Event::Rehearsing { owner: Token::new(1), wires, openings, linked: 12, copied: 3 });
-    report.workers = configured();
+    verdict_with_workers(
+        wires,
+        openings.into_iter().map(KeptOpening::Current).collect(),
+        Some(Box::new([])),
+        configured().defaults,
+    )
+}
+
+fn verdict_with_workers(
+    wires: Option<Box<[KeptWire]>>,
+    openings: Box<[KeptOpening]>,
+    workers: Option<Box<[KeptWorker]>>,
+    defaults: List<KeptWorker>,
+) -> String {
+    let mut report = super::tests::report(Event::Rehearsing {
+        owner: Token::new(1),
+        wires,
+        openings,
+        workers,
+        linked: 12,
+        copied: 3,
+    });
+    report.workers.defaults = defaults;
     report.restored = true;
     let dirs =
         temper_shell::directories::resolve(&[], &[(b"HOME".as_slice().into(), b"/home/test".as_slice().into())], b"/")
@@ -310,7 +502,7 @@ fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>) -> St
             .0;
     let (text, code) = lines("temper-box", &report, &dirs, b"/state");
     assert_eq!(code, 0, "worker compatibility changes no exit code");
-    text.strip_prefix("temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\ntemper-box upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed\n").expect("other rehearsal lines unchanged").into()
+    text.strip_prefix("temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\ntemper-box upgrade: registry commit, jobs and restores pass; opened in 1000 ms\n").expect("other rehearsal lines unchanged").into()
 }
 
 const COUNTS: &str = "temper-box upgrade: rehearsal linked 12 files, copied 3\n";
@@ -318,83 +510,122 @@ const COMPATIBLE: &str = "temper-box upgrade: worker w1 may stay: opened 2026-11
 const NO: &str = "temper-box upgrade: workers may stay: no\n";
 
 #[test]
-fn compatible_openings_follow_the_stored_openings() {
+fn compatible_openings_follow_worker_number_not_opening_order() {
     let mut wires = kept().into_vec();
     // Only the engine's own contracts are read from Wires, not a worker's wires.
     wires.retain(|wire| wire.name.as_ref() != "smith-charter");
     wires.push(KeptWire { name: "retired".into(), version: 999 });
-    assert_eq!(verdict(Some(wires.into_boxed_slice()), Box::new([opening("w1"), opening("w2")])), COMPATIBLE);
     assert_eq!(
-        verdict(Some(kept()), Box::new([opening("unconfigured")])),
-        "temper-box upgrade: worker unconfigured may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: workers may stay: yes\n"
+        verdict(Some(wires.into_boxed_slice()), Box::new([opening("w2"), opening("unconfigured"), opening("w1")])),
+        COMPATIBLE
     );
 }
 
 #[test]
-fn worker_refusals_keep_the_openings_wire_and_limits_words() {
-    let charter = temper_engine_service::wires()
-        .into_boxed()
+fn an_opening_with_derived_wire_plans_may_stay() {
+    let mut derived = opening("w2");
+    let wire = derived.wires.iter_mut().find(|wire| wire.name.as_ref() == "jig-worker-wire").expect("channel");
+    // Each side has a defaulted field and an optional kind the other lacks, with roots unchanged.
+    let text = jig_protocol_worker_wire::SCHEMA
+        .replace("    fresh: bool = false\n", "")
+        .replace("value: FactValue }", "value: FactValue worker_note: u32 = 19 }")
+        .replace("enum FromWorker {", "record WorkerOnly { value: u8 }\nenum FromWorker {")
+        .replace("paused: Paused, part: Part", "paused: Paused, part: Part, worker_only: WorkerOnly")
+        .replace(", part_busy: PartBusy", "");
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("derived text");
+    let layout = schema.fingerprints().family().digest();
+    assert_ne!(wire.layout, layout);
+    wire.layout = layout;
+    wire.text = text.into_bytes().into_boxed_slice();
+    // The responder's remaining kinds keep their tags and byte bounds.
+    derived.terms = derived
+        .terms
         .into_iter()
-        .find(|wire| wire.name == "smith-charter")
-        .expect("charter");
-    let version = charter.highest();
-    let mut hex = String::new();
-    for byte in charter.layout(version).expect("current layout").iter().take(8) {
-        write!(hex, "{byte:02x}").expect("string write");
-    }
+        .filter(|term| term.kind != jig_protocol_worker_wire::Kind::PartBusy.number())
+        .collect();
+    assert_eq!(verdict(Some(kept()), Box::new([opening("w1"), derived])), COMPATIBLE);
+}
+
+#[test]
+fn worker_refusals_keep_the_openings_wire_and_limits_words() {
     let mut layout = opening("w2");
-    *layout
-        .wires
-        .iter_mut()
-        .find(|wire| wire.name.as_ref() == "smith-charter")
-        .expect("charter")
-        .layouts
-        .last_mut()
-        .expect("current layout") = [0xcd; 32];
-    let mut disjoint = opening("w2");
-    disjoint.wires.iter_mut().find(|wire| wire.name.as_ref() == "smith-charter").expect("charter").lowest =
-        version.checked_add(1).expect("test version");
+    let charter = layout.wires.iter_mut().find(|wire| wire.name.as_ref() == "smith-charter").expect("charter");
+    charter.layout = [0xcd; 32];
+    charter.text = b"not a schema".as_slice().into();
+    let mut no_plan = opening("w2");
+    let charter = no_plan.wires.iter_mut().find(|wire| wire.name.as_ref() == "smith-charter").expect("charter");
+    let text =
+        str::from_utf8(&charter.text).expect("schema text").replace("instructions: text 262144", "instructions: u32");
+    charter.layout =
+        skein_codec::schema::parse(text.as_bytes()).expect("retyped schema").fingerprints().family().digest();
+    charter.text = text.into_bytes().into_boxed_slice();
+    let mut missing = opening("w2");
+    missing.wires = missing.wires.into_iter().filter(|wire| wire.name.as_ref() != "smith-charter").collect();
     let mut output = opening("w1");
     output.output = 4095;
     let mut terms = opening("w2");
     terms.terms[0].largest = 7;
     for (opening, name, other, reason) in [
+        (layout, "w2", "w1", "wires: wire smith-charter: the worker's text does not parse at line 1"),
         (
-            layout,
+            no_plan,
             "w2",
             "w1",
-            format!(
-                "wires: wire smith-charter version {version}: the engine's layout {hex}, the worker's cdcdcdcdcdcdcdcd"
-            ),
+            "wires: wire smith-charter Charter: no plan to the worker: retyped at Charter.instructions",
         ),
-        (
-            disjoint,
-            "w2",
-            "w1",
-            format!(
-                "wires: wire smith-charter: the engine speaks {}..{version}, the worker {}..{}",
-                charter.lowest,
-                version + 1,
-                version + u16::try_from(charter.layouts.len()).expect("range")
-            ),
-        ),
+        (missing, "w2", "w1", "wires: wire smith-charter: the worker states none"),
         (
             output,
             "w1",
             "w2",
-            "limits: engine io.output 4096 bytes differs from worker io.output 4095 bytes; change io.output to agree"
-                .into(),
+            "limits: engine io.output 4096 bytes differs from worker io.output 4095 bytes; change io.output to agree",
         ),
-        (terms, "w2", "w1", "limits: 384".into()),
+        (terms, "w2", "w1", "limits: 384"),
     ] {
-        // The failing worker precedes the compatible worker in stored opening order.
-        assert_eq!(
-            verdict(Some(kept()), Box::new([opening, self::opening(other)])),
-            format!(
-                "temper-box upgrade: worker {name} may not stay: {reason}\ntemper-box upgrade: worker {other} may stay: opened 2026-11-13T10:00:00Z\n{NO}"
-            )
-        );
+        let first = format!("temper-box upgrade: worker {name} may not stay: {reason}\n");
+        let second = format!("temper-box upgrade: worker {other} may stay: opened 2026-11-13T10:00:00Z\n");
+        let expected = if name == "w1" { format!("{first}{second}{NO}") } else { format!("{second}{first}{NO}") };
+        assert_eq!(verdict(Some(kept()), Box::new([opening, self::opening(other)])), expected);
     }
+}
+
+#[test]
+fn earlier_and_missing_openings_have_distinct_unknown_lines() {
+    assert_eq!(
+        verdict_with_workers(
+            Some(kept()),
+            Box::new([KeptOpening::BeforeLayouts { worker: "w1".into() }]),
+            Some(Box::new([])),
+            configured().defaults,
+        ),
+        format!(
+            "temper-box upgrade: worker w1 unknown: opened before layouts\ntemper-box upgrade: worker w2 unknown: no opening kept since the engine's last start\n{NO}"
+        )
+    );
+}
+
+#[test]
+fn stored_worker_settings_overlay_defaults_by_number_and_hide_withdrawals() {
+    let defaults = List::from_boxed(Box::new([kept_worker(1, "local", false), kept_worker(3, "retired", false)]));
+    let changes =
+        Box::new([kept_worker(1, "local", true), kept_worker(2, "w2", false), kept_worker(3, "retired", true)]);
+    assert_eq!(
+        verdict_with_workers(
+            Some(kept()),
+            Box::new([opening("local"), opening("retired"), opening("w2")].map(KeptOpening::Current)),
+            Some(changes),
+            defaults,
+        ),
+        "temper-box upgrade: worker w2 may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: workers may stay: yes\n"
+    );
+}
+
+#[test]
+fn unreadable_worker_settings_make_the_verdict_unknown() {
+    assert_eq!(
+        verdict_with_workers(Some(kept()), Box::new([]), None, configured().defaults),
+        "temper-box upgrade: workers may stay: unknown; the copy's workers cannot be read\n"
+    );
 }
 
 #[test]

@@ -3,4 +3,3 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod jobs;
 mod listing;
-mod removal;

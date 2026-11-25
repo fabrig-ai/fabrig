@@ -90,6 +90,8 @@ impl HostReply {
 /// Scripted typed host; terminal choices are sealed only at submission.
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
+    /// Endpoint identity used by this host activation; a resume may choose another.
+    pub endpoint: u32,
     /// Usable context window shared by the model declaration and charter.
     pub window: u32,
     /// The fake endpoint's admitted output tokens, independent of the supplied charter.
@@ -133,6 +135,7 @@ impl Settings {
     pub fn calm(seed: u64) -> Settings {
         let provider = smith_session_world::Settings::calm(seed).provider;
         Settings {
+            endpoint: 0,
             window: 65_536,
             output: 4096,
             resume: false,
@@ -226,7 +229,8 @@ enum Delivery {
     Host { relay: run::RelayName, reply: run::HostReply },
     Job { owner: Token },
     Cancel,
-    Drain,
+    Drain { grace: Option<Duration> },
+    PartKept { number: u32 },
     Grant { grant: Grant },
     Input { event: Box<Event> },
 }
@@ -288,6 +292,15 @@ pub enum CompletionTerminal {
     Cancelled,
 }
 
+/// An account notice sent to the host, retained until the outside world drains it.
+#[derive(Debug)]
+pub enum AccountNotice {
+    /// The provider reports the account's allowance spent.
+    Limited { account: u32, reset: Option<Duration> },
+    /// The provider refuses the account, with its bounded diagnostic.
+    Refused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
+}
+
 /// The provider call that submits the next delivery, independent of its fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DeliveryCall {
@@ -304,6 +317,7 @@ pub struct World<B: Backend = Typed> {
     writing_opened: BTreeSet<u32>,
     settings: Settings,
     unauthorized: Vec<(Time, GrantName)>,
+    account_notices: Vec<(Time, AccountNotice)>,
     now: Time,
     rng: Rng,
     agent: agent::Domain,
@@ -325,16 +339,20 @@ pub struct World<B: Backend = Typed> {
     answer_detail: Box<[u8]>,
     answered: Option<Time>,
     checked: Vec<bool>,
+    check_marker: Option<Vec<u8>>,
+    check_results: Vec<(Box<[u8]>, bool)>,
     check_notices: Vec<(Time, bool)>,
     long_notices: Vec<(Time, Option<smith_domain::Operation>, Option<Time>)>,
     check_terminals: Vec<Time>,
     pushes: Vec<run::Delivery>,
     delivery_names: Vec<(run::CallName, Time)>,
     host_history: crate::host_referee::History,
+    resumed_host: Option<Box<[u8]>>,
     host_pending: BTreeMap<(u64, u32), Option<Key>>,
     host_decision: Option<run::HostAnswer>,
     host_decisions: u32,
     host_terminals: Vec<(run::RelayName, Time, run::HostReply)>,
+    host_withdrawals: Vec<(Time, run::RelayName)>,
     snapshots: BTreeMap<Token, Vec<u8>>,
     landed: Vec<u8>,
     prompts: Vec<provider::api::Query>,
@@ -342,6 +360,8 @@ pub struct World<B: Backend = Typed> {
     model_prices: BTreeMap<Box<[u8]>, run::Prices>,
     main_prices: run::Prices,
     turns: Vec<agent::Turn>,
+    parts: Vec<(Time, u32, u32, agent::session::record::Part)>,
+    command_writes: BTreeMap<Vec<u8>, Vec<(Duration, Vec<u8>)>>,
     messages_seen: Vec<(Time, crate::messages_referee::Seen)>,
     turn_metadata: Vec<(u32, Option<Token>, run::Spend)>,
     auto_ack: bool,
@@ -353,6 +373,7 @@ pub struct World<B: Backend = Typed> {
     trace: Trace,
     referee: Referee<Meeting>,
     terminals: u32,
+    pub(crate) fault_runs: Option<crate::faults::Observations>,
 }
 
 fn choose_start(
@@ -362,6 +383,7 @@ fn choose_start(
     workspace: Option<run::Workspace>,
     selected_charter: Option<run::Charter>,
     selected_start: Option<Event>,
+    renewable: bool,
 ) -> (Event, Token) {
     match selected_start {
         Some(Event::Start(mut start)) => {
@@ -376,7 +398,7 @@ fn choose_start(
                 workspace,
                 transcript,
                 answered,
-                ..fixture::start(selected_charter.unwrap_or_else(|| charter(settings)))
+                ..fixture::start(selected_charter.unwrap_or_else(|| charter(settings)), renewable)
             }),
             Token::new(1),
         ),
@@ -448,6 +470,7 @@ impl<B: Backend> World<B> {
         let root = fixture::seed(&mut disk);
         let workspace = Some(run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: Token::new(root),
@@ -465,6 +488,10 @@ impl<B: Backend> World<B> {
     )]
     /// Start with caller-owned checkout, history and optional complete Start.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one world initializer binds the fake boundary, its observations and the selected host start"
+    )]
     pub fn with_selected_backend(
         settings: &Settings,
         transcript: Option<agent::Transcript>,
@@ -477,8 +504,15 @@ impl<B: Backend> World<B> {
     ) -> Self {
         let mut stage = Stage::uncapped(settings.limits);
         let supplied_start = selected_start.is_some();
-        let (start, reply_to) =
-            choose_start(settings, transcript, answered, workspace, selected_charter, selected_start);
+        let (start, reply_to) = choose_start(
+            settings,
+            transcript,
+            answered,
+            workspace,
+            selected_charter,
+            selected_start,
+            backend.renewable(),
+        );
         let Event::Start(smith_domain::Start { host_run, charter, workspace, messages, .. }) = &start else {
             unreachable!("the selected event is Start")
         };
@@ -494,7 +528,7 @@ impl<B: Backend> World<B> {
                 Job::Coding | Job::Delegating | Job::Wandering | Job::MidReport | Job::MidChange | Job::MarkerReport
             );
         let within = charter.budget.time.saturating_add(Duration::from_secs(120));
-        let config = configuration(settings.window, settings.output);
+        let config = configuration(settings.endpoint, settings.window, settings.output);
         let main_prices = charter.llm.prices;
         let mut model_prices = BTreeMap::new();
         model_prices.insert(charter.llm.model.clone(), charter.llm.prices);
@@ -543,16 +577,20 @@ impl<B: Backend> World<B> {
             answer_detail: Box::new([]),
             answered: None,
             checked: Vec::new(),
+            check_marker: None,
+            check_results: Vec::new(),
             check_notices: Vec::new(),
             long_notices: Vec::new(),
             check_terminals: Vec::new(),
             pushes: Vec::new(),
             delivery_names: Vec::new(),
             host_history: crate::host_referee::History::with_reply_cap(settings.limits.run.host_reply_bytes),
+            resumed_host: None,
             host_pending: BTreeMap::new(),
             host_decision: None,
             host_decisions: 0,
             host_terminals: Vec::new(),
+            host_withdrawals: Vec::new(),
             snapshots: BTreeMap::new(),
             landed: Vec::new(),
             prompts: Vec::new(),
@@ -560,6 +598,8 @@ impl<B: Backend> World<B> {
             model_prices,
             main_prices,
             turns: Vec::new(),
+            parts: Vec::new(),
+            command_writes: BTreeMap::new(),
             messages_seen,
             turn_metadata: Vec::new(),
             auto_ack: false,
@@ -573,13 +613,49 @@ impl<B: Backend> World<B> {
             trace: Trace::default(),
             referee,
             terminals: 0,
+            fault_runs: None,
             unauthorized: Vec::new(),
+            account_notices: Vec::new(),
         }
+    }
+
+    /// Record this host's run and account, and project response records for its fault judge.
+    /// Call before the first iteration; judging is once per seed.
+    pub fn record_fault_runs(&mut self, run: &str, account: &str) {
+        assert!(self.admitted.is_none() && self.fault_runs.is_none());
+        self.fault_runs = Some(crate::faults::Observations::new(self.now, run, account));
+    }
+
+    /// Judge recorded retries and the host's answer against this seed's ledger.
+    /// # Errors
+    /// Returns each finding from smith's run-blame table.
+    pub fn judge_faults(&mut self, ledger: &mut skein_world::faults::FaultLedger) -> Result<(), String> {
+        self.fault_runs.as_mut().expect("run observations enabled").judge(ledger)
+    }
+
+    /// Drain account notices; at most 1,024 may wait between drains.
+    pub fn take_account_notices(&mut self) -> Vec<(Time, AccountNotice)> {
+        core::mem::take(&mut self.account_notices)
+    }
+
+    fn account_notice(&mut self, notice: AccountNotice) {
+        assert!(self.account_notices.len() < 1024, "drain the bounded account notices");
+        self.account_notices.push((self.now, notice));
     }
 
     /// Read only the selected lower backend's outside observations.
     pub fn backend(&self) -> &B {
         &self.backend
+    }
+
+    /// Return the settled provider face for a following process activation.
+    pub fn into_backend(self) -> B {
+        self.backend
+    }
+
+    /// Configure the selected fake backend at a boundary between iterations.
+    pub fn backend_mut(&mut self) -> &mut B {
+        &mut self.backend
     }
 
     /// Inject the host wall clock independently of monotonic time.
@@ -687,6 +763,13 @@ impl<B: Backend> World<B> {
         self.schedule.send(self.now, Delivery::Cancel);
     }
 
+    /// The session policy's shortest first backoff, for fault exclusion conditions.
+    #[must_use]
+    pub fn shortest_backoff(&self) -> Duration {
+        let limits = &self.settings.limits.session;
+        Duration::from_nanos(limits.backoff_base.min(limits.backoff_max).as_nanos() / 2)
+    }
+
     /// Current injected monotonic clock, for outside chronology controls.
     #[must_use]
     pub const fn now(&self) -> Time {
@@ -700,7 +783,102 @@ impl<B: Backend> World<B> {
 
     /// Ask the host to finish the current main turn, without cutting its calls.
     pub fn drain_at(&mut self, at: Time) {
-        self.schedule.send(at, Delivery::Drain);
+        self.drain_with_grace_at(at, None);
+    }
+
+    /// Ask for parts before the pending start is admitted.
+    pub fn tell_parts(&mut self) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.tell_parts = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Resume the cut turn from the host's durable parts.
+    pub fn resume_parts(&mut self, parts: Box<[agent::session::record::Resumed]>, activation: u64) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.parts = parts;
+        start.activation = activation;
+        start.tell_parts = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Return the settled fake checkout for a later activation.
+    pub fn take_checkout(&mut self) -> Checkout {
+        assert!(self.answer.is_some(), "only a settled activation releases its tree");
+        std::mem::take(&mut self.disk)
+    }
+
+    /// Take the checkout at a crash, without draining any in-flight work.
+    /// The abandoned activation must not be driven again.
+    pub fn take_crashed_checkout(&mut self) -> Checkout {
+        std::mem::take(&mut self.disk)
+    }
+
+    /// A scripted check writes a persistent marker under `SMITH_CHECK_RESULTS`.
+    pub fn check_marker(&mut self, name: &[u8]) {
+        self.check_marker = Some(name.into());
+    }
+
+    /// Results directory and whether the check found the previous marker.
+    pub fn check_results(&self) -> &[(Box<[u8]>, bool)] {
+        &self.check_results
+    }
+
+    /// Set the host's answered calls on the pending activation.
+    pub fn resume_answers(&mut self, answered: Box<[agent::AnsweredCall]>) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.answered = answered;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Grant the saved-turn fixture its unchecked-save tool.
+    pub fn grant_save(&mut self) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.charter.grants.save = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Messages carried by a resumed start, before any scheduling.
+    pub fn waking_messages(&mut self, messages: Box<[run::Message]>) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.messages = messages;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Supply the prefix the host kept before the cut answer.
+    pub fn resume_history(&mut self, transcript: agent::Transcript) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.transcript = Some(transcript);
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Set one directory's persistent check-results path.
+    pub fn results_directory(&mut self, path: &[u8]) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.workspace.as_mut().expect("mounted workspace").directories[0].results = Some(path.into());
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Set the pending start's durable record window.
+    pub fn record_window(&mut self, window: agent::Window) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.window = window;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Supply the host's grace for an answer-boundary drain.
+    pub fn drain_with_grace_at(&mut self, at: Time, grace: Option<Duration>) {
+        self.schedule.send(at, Delivery::Drain { grace });
+    }
+
+    /// A scripted command's bytes written at each elapsed time.
+    pub fn command_writes(&mut self, command: &[u8], writes: Vec<(Duration, Vec<u8>)>) {
+        self.command_writes.insert(command.to_vec(), writes);
+    }
+
+    /// Durable prefix of parts, independently of whole turns.
+    pub fn part_kept_at(&mut self, at: Time, number: u32) {
+        self.schedule.send(at, Delivery::PartKept { number });
     }
 
     /// Script durable host acknowledgement of this turn and its prefix.
@@ -772,6 +950,16 @@ impl<B: Backend> World<B> {
     /// clock and returns control; it never advances a deadline in place of that
     /// Parent. The caller schedules the reply before driving settlement.
     pub fn drive(&mut self, iterations: u32) -> bool {
+        self.drive_bounded(iterations, None)
+    }
+
+    /// Drive with an outer world's clock horizon, leaving later timers pending.
+    pub fn drive_until(&mut self, iterations: u32, until: Time) -> bool {
+        assert!(until >= self.now, "the outer clock never moves backward");
+        self.drive_bounded(iterations, Some(until))
+    }
+
+    fn drive_bounded(&mut self, iterations: u32, until: Option<Time>) -> bool {
         for _ in 0..iterations {
             if let Some(orders) = &mut self.orders {
                 orders.round += 1;
@@ -845,7 +1033,7 @@ impl<B: Backend> World<B> {
                 || self.backend.has_events()
                 || self.agent.is_ready();
             if !immediate {
-                self.now = [
+                let next = [
                     self.schedule.next_time(),
                     self.agent.next_deadline(),
                     self.backend.next_deadline(),
@@ -855,6 +1043,7 @@ impl<B: Backend> World<B> {
                 .flatten()
                 .min()
                 .expect("an unsettled world has a next boundary");
+                self.now = until.map_or(next, |until| next.min(until));
             }
         }
         false
@@ -921,6 +1110,9 @@ impl<B: Backend> World<B> {
 
     fn gather(&mut self) {
         while let Some(fact) = self.agent.pop_fact() {
+            if let Some(observations) = &mut self.fault_runs {
+                observations.fact(&fact);
+            }
             if let Some(orders) = &mut self.orders {
                 orders.facts.push(fact.clone());
             }
@@ -947,6 +1139,16 @@ impl<B: Backend> World<B> {
     )]
     fn request(&mut self, request: Request) {
         match request {
+            Request::Part { host_run, number, turn, part } => {
+                assert_eq!(host_run, self.host_run);
+                assert_eq!(usize::try_from(number).expect("part number"), self.parts.len() + 1);
+                assert_eq!(usize::try_from(turn).expect("turn number"), self.turns.len() + 1);
+                self.parts.push((self.now, number, turn, part));
+                if self.auto_ack {
+                    let run = self.admitted.expect("part follows admission");
+                    self.stage.push(Event::PartKept { run, number });
+                }
+            }
             Request::Turn { host_run, number, position, read, spent, opens_window, turn } => {
                 assert_eq!(host_run, self.host_run);
                 assert_eq!(usize::try_from(number).expect("bounded output number"), self.turns.len() + 1);
@@ -993,6 +1195,9 @@ impl<B: Backend> World<B> {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::Admitted));
             }
             Request::Answer { to, answer, read, detail } => {
+                if let Some(observations) = &mut self.fault_runs {
+                    observations.ended(self.now, &answer);
+                }
                 if matches!(&answer, run::Answer::Failed { .. }) {
                     self.host_history.shutdown(self.now);
                 }
@@ -1035,15 +1240,56 @@ impl<B: Backend> World<B> {
                     self.check_notices.push((self.now, false));
                 }
             }
+            Request::Lower(smith_domain::Lower::Classify { owner, content, tools, served, asker, .. }) => {
+                let completion = crate::translate::classify(content, tools, &served, asker);
+                if let Some(completion) = &completion {
+                    for block in &completion.content {
+                        if let llm::Said::ToolCall { id, call: llm::Decoded::Served { ask }, .. } = block {
+                            match ask {
+                                run::Ask::Host { .. } => self.resumed_host = Some(id.clone()),
+                                run::Ask::Deliver { .. } => self.delivery_call = DeliveryCall::MidRun,
+                                run::Ask::Finish { .. } => self.delivery_call = DeliveryCall::Finish,
+                                run::Ask::Save | run::Ask::Wait | run::Ask::SubAgent { .. } => {}
+                            }
+                        }
+                    }
+                }
+                self.stage.push(Event::Below(agent::Below::Classified { owner, completion }));
+            }
             request @ Request::Lower(smith_domain::Lower::Complete { .. }) => {
                 let Request::Lower(smith_domain::Lower::Complete { owner, ref prompt, grant, .. }) = request else {
                     unreachable!("completion")
                 };
+                if let Some(observations) = &mut self.fault_runs {
+                    let name = observations.request(self.now, owner, prompt);
+                    self.backend.name_call(owner, &name);
+                }
                 if prompt.asker == llm::Asker::Child
                     && (prompt.tools.modify || prompt.tools.shell)
                     && self.writing_opened.insert(prompt.affinity.thread)
                 {
                     self.observe(Seen::WritingChild);
+                }
+                if let Some(saved_id) = self.resumed_host.take()
+                    && !self.host_history.submissions().is_empty()
+                {
+                    for (message, value) in prompt.messages.iter().enumerate() {
+                        for (position, block) in value.content.iter().enumerate() {
+                            if let llm::Block::ToolCall { id, name, input, .. } = block
+                                && *id == saved_id
+                            {
+                                self.host_history
+                                    .called(
+                                        u32::try_from(message).expect("bounded"),
+                                        u32::try_from(position).expect("bounded"),
+                                        id.clone(),
+                                        name.clone(),
+                                        input.clone(),
+                                    )
+                                    .expect("resumed host call");
+                            }
+                        }
+                    }
                 }
                 self.host_history.prompt(prompt).expect("exact feedback for observed provider host call");
                 self.observe(Seen::Completing { owner });
@@ -1192,7 +1438,18 @@ impl<B: Backend> World<B> {
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Lower(smith_domain::Lower::Check { owner, program, bound, cap, tail }) => {
+            Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
+                if let Some(marker) = &self.check_marker {
+                    let results = results.expect("scripted check requires its results directory");
+                    let path = results.strip_prefix(b"/").unwrap_or(&results);
+                    let root = self.disk.root(path);
+                    let present = self.disk.load(root, marker, 4096).is_ok();
+                    let mut file = path.to_vec();
+                    file.push(b'/');
+                    file.extend_from_slice(marker);
+                    self.disk.write(&file, b"passed earlier check step");
+                    self.check_results.push((results, present));
+                }
                 let deadline = self.now.saturating_add(bound).min(cap);
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
@@ -1213,7 +1470,19 @@ impl<B: Backend> World<B> {
             Request::Lower(smith_domain::Lower::Abort { owner }) => {
                 self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
             }
-            Request::Save { .. } => panic!("this scripted charter does not offer saving"),
+            Request::Save { host_run, owner, name, deadline } => {
+                assert_eq!(host_run, self.host_run);
+                assert!(self.now < deadline);
+                self.delivery_names.push((name, self.now));
+                let tree = self.code();
+                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing: false, checked: false });
+                self.snapshots.insert(owner, tree);
+                self.flights.open(
+                    (Family::Delivery, owner),
+                    Flight { key: None, cancelled: false, completion_message: None, completion_index: None },
+                );
+                self.send(Family::Delivery, owner, Event::Delivered { owner, delivery: self.settings.push.terminal() });
+            }
             Request::Deliver { host_run, owner, change, name, deadline } => {
                 // The fixture host takes title/body for change deliveries and
                 // an opaque ticket for its report-only delivery policy.
@@ -1232,9 +1501,17 @@ impl<B: Backend> World<B> {
                 }
                 assert_eq!(host_run, self.host_run, "the push names the scripted host's request");
                 self.delivery_names.push((name, self.now));
-                let tree = self.code();
+                // The parent owns the full checkout and its evidence. A parent workspace
+                // need not contain the standalone referee's example file.
+                let tree = if self.parent_deliveries {
+                    self.root
+                        .and_then(|root| self.disk.load(root, fixture::CODE, u64::MAX).ok())
+                        .map_or_else(Vec::new, |(bytes, _)| bytes)
+                } else {
+                    self.code()
+                };
                 let finishing = self.delivery_call == DeliveryCall::Finish;
-                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing });
+                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing, checked: true });
                 self.snapshots.insert(owner, tree);
                 self.flights.open(
                     (Family::Delivery, owner),
@@ -1377,14 +1654,17 @@ impl<B: Backend> World<B> {
                 assert!(self.host_pending.insert((relay.owner.raw(), relay.attempt), Some(key)).is_none());
             }
             Request::WithdrawHost { relay } => {
+                self.host_withdrawals.push((self.now, relay));
                 self.host_history.withdraw(relay).expect("withdraw retains terminal");
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
             Request::Unauthorized { grant } => self.unauthorized.push((self.now, grant)),
+            Request::Limited { account, reset } => self.account_notice(AccountNotice::Limited { account, reset }),
+            Request::Refused { account, code, reason } => {
+                self.account_notice(AccountNotice::Refused { account, code, reason });
+            }
             Request::MessageRefused { .. }
-            | Request::Refused { .. }
             | Request::Usage { .. }
-            | Request::Limited { .. }
             | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
         }
     }
@@ -1413,7 +1693,7 @@ impl<B: Backend> World<B> {
         if flight.cancelled {
             return;
         }
-        if flight.key.is_some() && self.rng.chance(self.settings.races) {
+        if (flight.key.is_some() || family == Family::Completion) && self.rng.chance(self.settings.races) {
             return;
         }
         if let Some(key) = flight.key {
@@ -1447,9 +1727,13 @@ impl<B: Backend> World<B> {
                 self.stage.push(Event::HostReturned { relay, reply });
                 self.terminals += 1;
             }
-            Delivery::Drain => {
+            Delivery::PartKept { number } => {
+                let run = self.admitted.expect("part follows admission");
+                self.stage.push(Event::PartKept { run, number });
+            }
+            Delivery::Drain { grace } => {
                 if let Some(run) = self.admitted {
-                    self.stage.push(Event::Drain { run });
+                    self.stage.push(Event::Drain { run, grace });
                 }
             }
             Delivery::Cancel => {
@@ -1536,15 +1820,18 @@ impl<B: Backend> World<B> {
             Event::HostReturned { .. }
             | Event::Start(_)
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Renewals { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Delivered { .. }
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1558,7 +1845,16 @@ impl<B: Backend> World<B> {
         assert!(self.completions[index].terminal.replace((self.now, outcome)).is_none());
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one terminal feeds the boundary and message observations before delivery"
+    )]
     fn terminal(&mut self, family: Family, owner: Token, event: Event) {
+        if family == Family::Completion
+            && let Some(observations) = &mut self.fault_runs
+        {
+            observations.terminal(&event);
+        }
         let flight = self.flights.end((family, owner));
         self.terminals += 1;
         if let Some(index) = flight.completion_index {
@@ -1607,15 +1903,18 @@ impl<B: Backend> World<B> {
             }
             Event::HostReturned { .. }
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Start(_)
             | Event::Renewals { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1634,8 +1933,10 @@ impl<B: Backend> World<B> {
             }
             Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Start(_)
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Renewals { .. }
             | Event::Grant { .. }
@@ -1644,6 +1945,7 @@ impl<B: Backend> World<B> {
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
@@ -1744,10 +2046,22 @@ impl<B: Backend> World<B> {
         &self.turns
     }
 
+    /// Told parts with their clock, number and owning main turn.
+    #[must_use]
+    pub fn parts(&self) -> &[(Time, u32, u32, agent::session::record::Part)] {
+        &self.parts
+    }
+
     /// Activation numbers/read fences/token usage.
     #[must_use]
     pub fn turn_metadata(&self) -> &[(u32, Option<Token>, run::Spend)] {
         &self.turn_metadata
+    }
+
+    /// Host calls withdrawn, with the withdrawal's clock.
+    #[must_use]
+    pub fn host_withdrawals(&self) -> &[(Time, run::RelayName)] {
+        &self.host_withdrawals
     }
 
     /// Settled Waiting notices.
@@ -1902,7 +2216,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
             }]),
         },
     };
-    let llm = main_model(settings.window);
+    let llm = main_model(settings.endpoint, settings.window);
     run::Charter {
         check_timeout: None,
         mode: run::Mode::Finite,
@@ -2057,13 +2371,13 @@ fn opening_observations(
     messages_seen
 }
 
-fn configuration(window: u32, output: u32) -> agent::Config {
+fn configuration(endpoint: u32, window: u32, output: u32) -> agent::Config {
     agent::Config {
         programs: Box::new([]),
-        endpoints: Box::new([run::charter::Endpoint(0)]),
+        endpoints: Box::new([run::charter::Endpoint(endpoint)]),
         limits: Box::new([smith_domain::EndpointLimits {
             protocol_allowance: 0,
-            endpoint: run::charter::Endpoint(0),
+            endpoint: run::charter::Endpoint(endpoint),
             window,
             output,
             head: Duration::from_secs(60),
@@ -2072,13 +2386,13 @@ fn configuration(window: u32, output: u32) -> agent::Config {
     }
 }
 
-fn main_model(window: u32) -> run::charter::Llm {
+fn main_model(endpoint: u32, window: u32) -> run::charter::Llm {
     use run::charter::{Endpoint, Llm};
     Llm {
         effort: None,
         prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         account: Some(0),
-        endpoint: Endpoint(0),
+        endpoint: Endpoint(endpoint),
         model: b"fake-1".as_slice().into(),
         window,
         output: 4096,
@@ -2116,6 +2430,11 @@ pub fn world(settings: &Settings, charter: run::Charter, granted: &[u32]) -> Wor
 }
 
 impl World<Typed> {
+    /// The typed fake's account-fault entrances, on the same provider that answers queries.
+    pub fn provider_mut(&mut self) -> &mut provider::Domain {
+        &mut self.backend.provider
+    }
+
     /// Creates one host request and a fresh agent tree. Fixed queue slack
     /// exercises output pressure; finite trace and delivery caps fail fast.
     #[must_use]
@@ -2189,7 +2508,7 @@ impl World<Typed> {
         charter.grants.wait = true;
         let start = Event::Start(smith_domain::Start {
             window: agent::Window { turns: 100, bytes: u64::MAX },
-            ..fixture::start(charter)
+            ..fixture::start(charter, true)
         });
         Self::with_start(settings, start)
     }
@@ -2197,7 +2516,7 @@ impl World<Typed> {
     /// Start a scripted run with the host's specified acknowledgement credit.
     #[must_use]
     pub fn with_window(settings: Settings, window: agent::Window) -> World {
-        let start = Event::Start(smith_domain::Start { window, ..fixture::start(charter(&settings)) });
+        let start = Event::Start(smith_domain::Start { window, ..fixture::start(charter(&settings), true) });
         Self::with_start(settings, start)
     }
 
@@ -2211,14 +2530,7 @@ impl World<Typed> {
         disk: Checkout,
         scripts: Box<[provider::api::Script]>,
     ) -> World {
-        let mut backend = Typed::new(&settings);
-        backend.provider = provider::Domain::configured(
-            &settings.provider,
-            settings.seed ^ 0x25,
-            scripts,
-            smith_session_world::provider::menu(),
-        )
-        .expect("caller scripts obey provider admission");
+        let backend = Typed::scripted(&settings, scripts);
         Self::with_selected_backend(&settings, transcript, Box::default(), workspace, disk, backend, None, None)
     }
 
@@ -2235,14 +2547,7 @@ impl World<Typed> {
         scripts: Box<[provider::api::Script]>,
         charter: run::Charter,
     ) -> World {
-        let mut backend = Typed::new(&settings);
-        backend.provider = provider::Domain::configured(
-            &settings.provider,
-            settings.seed ^ 0x25,
-            scripts,
-            smith_session_world::provider::menu(),
-        )
-        .expect("caller scripts obey provider admission");
+        let backend = Typed::scripted(&settings, scripts);
         Self::with_selected_backend(
             &settings,
             transcript,
@@ -2264,14 +2569,7 @@ impl World<Typed> {
         scripts: Box<[provider::api::Script]>,
         start: Event,
     ) -> World {
-        let mut backend = Typed::new(&settings);
-        backend.provider = provider::Domain::configured(
-            &settings.provider,
-            settings.seed ^ 0x25,
-            scripts,
-            smith_session_world::provider::menu(),
-        )
-        .expect("caller scripts obey provider admission");
+        let backend = Typed::scripted(&settings, scripts);
         Self::with_selected_backend(&settings, None, Box::default(), None, disk, backend, None, Some(start))
     }
 

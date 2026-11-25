@@ -1,5 +1,5 @@
 //! Golden bytes for each run call terminal and its nested refusal vocabulary.
-//! Contract: smith/docs/design/domain/run.md, sections 5.2, 7, 8 and 9; skein/docs/foundation/testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 7, and smith/docs/design/domain/run-delivery.md, section 1, and smith/docs/design/domain/run.md, section 9; skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_lib::Duration;
 use smith_domain::{feedback, run};
@@ -289,7 +289,7 @@ fn every_model_fault_and_completion_failure_keeps_its_evidence() {
     }
 }
 
-fn failure_fields() -> Vec<(smith_domain::llm::Failure, run::CompletionFailure)> {
+fn failure_fields(rate_limit_wait: Duration) -> Vec<(smith_domain::llm::Failure, run::CompletionFailure)> {
     use smith_domain::llm;
     let retry_after = Duration::from_millis(7);
     vec![
@@ -314,7 +314,10 @@ fn failure_fields() -> Vec<(smith_domain::llm::Failure, run::CompletionFailure)>
         (llm::Failure::Refused, run::CompletionFailure::Refused),
         (llm::Failure::Unsupported, run::CompletionFailure::Unsupported),
         (llm::Failure::Unauthorized, run::CompletionFailure::Unauthorized),
-        (llm::Failure::RateLimited { retry_after }, run::CompletionFailure::RateLimited { retry_after }),
+        (
+            llm::Failure::RateLimited { retry_after: rate_limit_wait },
+            run::CompletionFailure::RateLimited { retry_after: rate_limit_wait },
+        ),
         (
             llm::Failure::Exhausted { retry_after: Some(retry_after) },
             run::CompletionFailure::Exhausted { retry_after: Some(retry_after) },
@@ -336,10 +339,11 @@ fn every_completion_failure_reaches_the_answer_with_its_fields() {
 fn completion_answer_fields() {
     use smith_agent_world::{Settings, World};
     use smith_domain::llm;
-    for (source, expected) in failure_fields() {
-        let mut settings = Settings::calm(6807);
-        settings.limits.session.retries = 0;
-        let charter = smith_agent_world::scripted_charter(&settings);
+    let mut settings = Settings::calm(6807);
+    settings.limits.session.retries = 0;
+    let charter = smith_agent_world::scripted_charter(&settings);
+    // A rate limit does not spend a retry. It ends the run as limited when the wait outlasts it.
+    for (source, expected) in failure_fields(charter.budget.time) {
         let mut world = World::with_failure(settings, source, llm::Evidence::Response { status: Some(503) });
         world.failure_report(smith_domain::llm::Report {
             status: None,
@@ -368,17 +372,20 @@ fn completion_answer_fields() {
             (
                 &run::Answer::Failed { failure: run::RunFailure::Model(fault), spent: run::Spend::ZERO, turns: 0 },
                 expected_model
-            )
+            ),
+            "{source:?}"
         );
     }
 }
 
 fn expected_fault(expected: run::CompletionFailure, world: &smith_agent_world::World) -> run::Fault {
+    let limited = |retry_after: Option<Duration>| {
+        let at = world.completions()[0].terminal.expect("provider failed").0;
+        run::Fault::Limited { account: 0, reset_at: retry_after.map(|reset| at.saturating_add(reset)) }
+    };
     match expected {
-        run::CompletionFailure::Exhausted { retry_after } => {
-            let at = world.completions()[0].terminal.expect("provider failed").0;
-            run::Fault::Limited { account: 0, reset_at: retry_after.map(|reset| at.saturating_add(reset)) }
-        }
+        run::CompletionFailure::RateLimited { retry_after } => limited(Some(retry_after)),
+        run::CompletionFailure::Exhausted { retry_after } => limited(retry_after),
         run::CompletionFailure::Refused => {
             run::Fault::Refused { account: 0, code: Box::from(b"provider-code".as_slice()) }
         }
@@ -392,8 +399,7 @@ fn expected_fault(expected: run::CompletionFailure, world: &smith_agent_world::W
         | run::CompletionFailure::TimedOut { .. }
         | run::CompletionFailure::ContextTooLong
         | run::CompletionFailure::Invalid
-        | run::CompletionFailure::Unauthorized
-        | run::CompletionFailure::RateLimited { .. } => run::Fault::Completion {
+        | run::CompletionFailure::Unauthorized => run::Fault::Completion {
             failure: expected,
             evidence: run::CompletionEvidence::Response { status: Some(503) },
             model: 0,

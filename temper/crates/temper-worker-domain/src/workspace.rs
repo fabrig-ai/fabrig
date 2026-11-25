@@ -57,7 +57,7 @@ use crate::route;
 use crate::translate;
 
 /// A run's workspace items and what became of them (jig's
-/// `protocol/channel/README.md`, 5.2): the hub names them by the record's token, as
+/// `protocol/channel/owners.md`, 1.2): the hub names them by the record's token, as
 /// its workspace's items, what the run left and saved, and the resource a
 /// prepare failed on. Kept from the assignment until the engine has the
 /// run's answer, as the hub keeps the answer, so the parts go up beside
@@ -71,6 +71,7 @@ pub(crate) struct Items {
     from_saved: Box<[bool]>,
     landed: Map<u64, ([u8; 32], bool)>,
     saved: Option<Box<[wire::SavedRepository]>>,
+    recovered: bool,
     delivery: Option<agent::Delivery>,
     preparation: Option<wire::Preparation>,
 }
@@ -78,7 +79,7 @@ pub(crate) struct Items {
 /// Stages an engine assignment's workspace items at the root, and gives the
 /// hub its assignment, naming them: no workspace when it has no repository,
 /// and a save only where there is a writable destination. The checkout commits
-/// merges before saving them (`domain/worker/README.md`, 4.2, step 7). Items come with
+/// merges before saving them (`domain/worker/hosted-runs.md`, 1.2, step 7). Items come with
 /// a workstream, which the caller checked. Refused as busy, keeping nothing,
 /// when every record is taken: one for each of the hub's slots, a run hosted
 /// or its answer kept, and one for an assignment the hub has yet to take or
@@ -165,6 +166,7 @@ fn stage_items(
         from_saved: from_saved.into_boxed(),
         landed: Map::with_capacity(count),
         saved: None,
+        recovered: false,
         delivery: None,
         preparation: None,
     };
@@ -229,6 +231,7 @@ fn work_parts(
     if let Some(work) = work {
         if let Some(left) = work.left {
             let items = domain.items.get(&left).expect("a run's items live to its answer");
+            saved.clone_from(&items.saved);
             landed = List::with_capacity(items.landed.len());
             for (tag, (commit, checked)) in &items.landed {
                 landed
@@ -433,10 +436,18 @@ pub(crate) enum Write {
 pub(crate) fn release(domain: &mut Domain, env: &Env<Limits>, workspace: Token) {
     let id = Id::<Workspace>::from_token(workspace);
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
+    let keep = cut_saved(&domain.host, record.items);
     let mut then = Then::NOTHING;
     let state = mem::replace(&mut record.state, State::Closed);
     record.state = match state {
-        State::Ready { hold, directory: _, asked: None } => releasing(hold, &mut then),
+        State::Ready { hold, directory: _, asked: None } => {
+            if keep {
+                then.checkout = Some(checkout::Event::Keep { hold });
+                State::Releasing
+            } else {
+                releasing(hold, &mut then)
+            }
+        }
         State::Ready { asked: Some(_), .. } => unreachable!("the host releases a workspace with nothing in flight"),
         State::Preparing { .. } | State::Releasing | State::Closed => {
             unreachable!("the host releases a workspace it was given, once")
@@ -463,6 +474,28 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, client: Token, hold: 
 pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, prepared: checkout::Prepared) {
     let id = Id::<Workspace>::from_token(client);
     let prepared = match prepared {
+        checkout::Prepared::Recovered { workspace, conflicts, saved } => {
+            let record = domain.workspaces.get(id).expect("preparing workspace");
+            let items = domain.items.get_mut(&record.items).expect("assignment items");
+            let mut repositories = List::with_capacity(record.repositories);
+            for (index, repository) in saved.into_iter().enumerate() {
+                let tag = *items.tags.get(index).expect("each repository has a tag");
+                let from_saved = *items.from_saved.get(index).expect("each repository has a start");
+                let writable = items.branches.get(index).expect("each repository has an access").is_some();
+                let landing = if writable {
+                    wire::Landing::Landed { commit: repository.commit.raw() }
+                } else {
+                    wire::Landing::Unchanged
+                };
+                repositories.push(wire::SavedRepository { tag, from_saved, landing }).expect("each saved repository");
+                if writable {
+                    *items.from_saved.get_mut(index).expect("each repository has a start") = true;
+                }
+            }
+            items.saved = Some(repositories.into_boxed());
+            items.recovered = true;
+            checkout::Prepared::Ready { workspace, conflicts }
+        }
         checkout::Prepared::Candidate { workspace, outcome } => {
             let owner = domain.workspaces.get(id).expect("preparing workspace").run;
             crate::jobs::candidate(domain, owner, &outcome);
@@ -481,7 +514,9 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
             let items = domain.items.get(&items).expect("the assignment lives through prepare");
             Some(translate::failure(*failure, &items.tags))
         }
-        checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
+        checkout::Prepared::Candidate { .. } | checkout::Prepared::Recovered { .. } => {
+            unreachable!("special preparation moved to workspace metadata")
+        }
         checkout::Prepared::Ready { .. } | checkout::Prepared::Aborted => None,
     };
     if let Some(failure) = failure {
@@ -492,7 +527,9 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
     let state = mem::replace(&mut record.state, State::Closed);
     record.state = match state {
         State::Preparing { hold, abandoned } => match prepared {
-            checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
+            checkout::Prepared::Candidate { .. } | checkout::Prepared::Recovered { .. } => {
+                unreachable!("special preparation moved to workspace metadata")
+            }
             checkout::Prepared::Ready { workspace, conflicts } => {
                 record.conflicts = conflicts;
                 ended(
@@ -622,6 +659,15 @@ fn record_written(
     } else {
         let mut saved = List::with_capacity(u32::try_from(next.tags.len()).expect("checked item count"));
         for (index, landing) in landings.into_iter().enumerate() {
+            if next.recovered
+                && landing == wire::Landing::Unchanged
+                && let Some(previous) = &next.saved
+            {
+                saved
+                    .push(previous.get(index).expect("every recovered repository").clone())
+                    .expect("room for every saved item");
+                continue;
+            }
             let tag = *next.tags.get(index).expect("every item has a tag");
             let from_saved = *next.from_saved.get(index).expect("every item has a start");
             saved.push(wire::SavedRepository { tag, from_saved, landing }).expect("room for every saved item");
@@ -724,7 +770,9 @@ fn ended(
     then: &mut Then,
 ) -> State {
     match prepared {
-        checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
+        checkout::Prepared::Candidate { .. } | checkout::Prepared::Recovered { .. } => {
+            unreachable!("special preparation moved to workspace metadata")
+        }
         checkout::Prepared::Ready { workspace: directory, conflicts } => {
             assert!(conflicts.is_empty(), "conflicts moved to the workspace record before the transition");
             assert!(!abandoned, "a released hold's prepare ends aborted");
@@ -783,6 +831,7 @@ pub(crate) fn directories(domain: &mut Domain, workspace: Token) -> (Token, Box<
     for root in &record.roots {
         roots
             .push(agent::Directory {
+                results: None,
                 root: directory,
                 name: copy_of(&root.name),
                 host: Box::new([]),
@@ -870,7 +919,7 @@ pub(crate) fn report_owner(domain: &Domain, client: Token) -> Option<Token> {
 }
 
 /// The hosted owner of a checkout hold, during prepare and throughout its
-/// prepared life (domain/worker/README.md, 4.3).
+/// prepared life (domain/worker/hosted-runs.md, 1.3).
 pub(crate) fn hold_owner(domain: &Domain, hold: Token) -> Option<Token> {
     for (_, workspace) in &domain.workspaces {
         let checkout_hold = match workspace.state {
@@ -902,6 +951,46 @@ pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, owner: Token, action:
     } else {
         false
     }
+}
+
+/// The hub has made its answer before emitting Release. Only a shutdown cut
+/// with a completed save may keep the workspace.
+fn cut_saved(hub: &host::Hub, items: Token) -> bool {
+    for index in 0..hub.kept_answers() {
+        let Some(answer) = hub.answer_at(index) else { continue };
+        let answer = match answer {
+            host::LinkUp::Answer { answer, .. } => answer,
+            host::LinkUp::Paused { .. }
+            | host::LinkUp::Ask { .. }
+            | host::LinkUp::Draining
+            | host::LinkUp::Usage { .. }
+            | host::LinkUp::UsageRead { .. }
+            | host::LinkUp::ListRead { .. }
+            | host::LinkUp::JobAnswer { .. }
+            | host::LinkUp::Piece { .. }
+            | host::LinkUp::Logins { .. }
+            | host::LinkUp::SignedOut { .. }
+            | host::LinkUp::Activity { .. }
+            | host::LinkUp::Unauthorized { .. }
+            | host::LinkUp::Limited { .. }
+            | host::LinkUp::AccountRefused { .. }
+            | host::LinkUp::Part { .. }
+            | host::LinkUp::Turn { .. }
+            | host::LinkUp::Call { .. } => continue,
+        };
+        match answer.ending {
+            host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Shutdown), work, .. }
+                if work.saved == Some(items) =>
+            {
+                return true;
+            }
+            host::Ending::Refused(_)
+            | host::Ending::Ended { .. }
+            | host::Ending::Parked { .. }
+            | host::Ending::Failed { .. } => {}
+        }
+    }
+    false
 }
 
 #[cfg(test)]

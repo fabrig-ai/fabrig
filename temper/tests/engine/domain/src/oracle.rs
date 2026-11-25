@@ -1,9 +1,10 @@
-//! Cold restart/readback (jig/docs/design/domain/engine/README.md, 9;
-//! temper/docs/design/testing/README.md, 4.2).
+//! Cold restart/readback (jig/docs/design/domain/engine/world.md, 1;
+//! temper/docs/design/testing/scenarios.md, 1.2).
 pub(crate) enum Fixture {
     Checked,
     Closed,
     Broken,
+    Transferred,
 }
 
 pub mod config;
@@ -19,6 +20,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
 use std::{borrow::Cow, collections::BTreeMap};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
+use temper_engine_domain_forge::Document as ForgeDocument;
 
 /// The one inventory of rows rebuilt by startup, with the step's reason.
 #[must_use]
@@ -35,6 +37,17 @@ pub fn rebuilt(key: &Key) -> Option<&'static str> {
     } else {
         None
     }
+}
+
+/// The unprojected readback of a successful closing restart, when requested.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct CloseObservation {
+    pub queries: Vec<(u64, Read)>,
+    pub before: Vec<Answer>,
+    pub after: Vec<Answer>,
+    pub forge_subjects: Vec<(u64, u32, u64)>,
+    pub forge_before: Vec<Option<ForgeDocument>>,
+    pub forge_after: Vec<Option<ForgeDocument>>,
 }
 
 /// Last answers and retained rows at a quiescent boundary.
@@ -95,17 +108,9 @@ impl Snapshot {
 
     pub fn compare_answer(&self, index: usize, answer: Answer) -> Result<(), String> {
         let (sign_in, read) = &self.queries[index];
-        let mut before = durable::answer(self.answers[index].clone());
-        let mut after = durable::answer(answer);
-        for answer in [&mut before, &mut after] {
-            if let Answer::Document(document) = answer
-                && let core::documents::Document::Task(task) = document.as_mut()
-            {
-                // jig/docs/design/client/domain/contract/documents.md 1: an omitted choice derives from current accounts and hosts.
-                // compare_rows still compares the stored choice, including every named one.
-                task.llm = None;
-            }
-        }
+        let mut before = self.answers[index].clone();
+        let mut after = answer;
+        durable::answers(&mut before, &mut after);
         if before != after {
             return Err(format!(
                 "assertion `left == right` failed: restart oracle document {read:?}, sign-in {sign_in}, field {}\n  left: {before:?}\n right: {after:?}",
@@ -168,7 +173,7 @@ fn empty_repository_live(record: &skein_forge_client::LiveRecord) -> bool {
 }
 
 impl Driver {
-    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/README.md 4.2): settle, snapshot,
+    /// The restart oracle (jig jig/docs/design/domain/engine/world.md 1; temper testing/scenarios.md 1.2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
     /// Panics naming the first difference (document or row, field, key).
     pub fn close(&mut self) {
@@ -179,16 +184,33 @@ impl Driver {
     pub fn broken(&mut self, reason: &str) {
         assert!(!reason.is_empty(), "a broken fixture names its reason");
         self.broken = Fixture::Broken;
+        self.ends.no_opening(self.env.now);
     }
 
     /// Fixture fault at the snapshot/restart boundary, returning the oracle's first difference.
     pub fn close_erasing(&mut self, erase: Option<Key>) -> Result<(), String> {
-        if !matches!(self.broken, Fixture::Checked) {
-            return Ok(());
-        }
-        // A finding ends this attempt too; Drop must not repeat a failed readback.
-        self.broken = Fixture::Closed;
+        let result = if self.store_finding.is_some() {
+            self.broken = Fixture::Closed;
+            self.check_store()
+        } else {
+            match self.broken {
+                Fixture::Checked => {
+                    // A finding ends this attempt too; Drop must not repeat a failed readback.
+                    self.broken = Fixture::Closed;
+                    self.restart_oracle(erase)
+                }
+                Fixture::Broken | Fixture::Closed => self.ends.close(self.env.now, &self.store),
+                Fixture::Transferred => Ok(()),
+            }
+        };
+        let kept = self.store_checks.finish(&self.restart_config);
+        result.and(kept)
+    }
+
+    fn restart_oracle(&mut self, erase: Option<Key>) -> Result<(), String> {
+        let mut observation = self.close_observation.take();
         self.oracle_settle();
+        self.ends.close(self.env.now, &self.store)?;
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
         let forges = self.root.forges();
         let mut snapshot = Snapshot::new(&self.store.rows, self.env.wall);
@@ -213,18 +235,34 @@ impl Driver {
         self.events.clear();
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
         self.period_sent = true;
+        self.ends.restarted(self.env.now);
         self.oracle_settle();
         snapshot.compare_rows(&self.store.rows)?;
         compare_forges(forges, self.root.forges())?;
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read);
+            if let Some(observation) = &mut observation {
+                observation.after.push(answer.clone());
+            }
             snapshot.compare_answer(index, answer)?;
         }
         for ((sign_in, project, subject), before) in subjects.iter().zip(documents) {
             let after = self.oracle_document(*sign_in, *project, *subject);
+            if let Some(observation) = &mut observation {
+                observation.forge_before.push(before.clone());
+                observation.forge_after.push(after.clone());
+            }
             compare_forge(*project, *subject, before, after)?;
         }
         self.oracle_settle();
+        self.ends.close(self.env.now, &self.store)?;
+        self.check_store()?;
+        if let Some(observation) = &mut observation {
+            observation.queries = snapshot.queries;
+            observation.before = snapshot.answers;
+            observation.forge_subjects = subjects;
+        }
+        self.close_observation = observation;
         Ok(())
     }
 
@@ -248,9 +286,7 @@ impl Driver {
                 && let Some(due) = self.root.next_deadline(&self.env)
                 && due <= self.env.now.saturating_add(skein_lib::Duration::from_secs(1))
             {
-                let span = due.as_nanos().saturating_sub(self.env.now.as_nanos());
-                self.env.wall = skein_lib::Wall::from_nanos(self.env.wall.as_nanos().saturating_add(span));
-                self.env.now = self.env.now.max(due);
+                self.advance_to(self.env.now.max(due));
                 engine::fire(&mut self.root, &self.env);
                 engine::release(&mut self.root, &self.env, &mut self.out);
                 self.collect();
@@ -259,6 +295,7 @@ impl Driver {
             if self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
+                    self.check_quiet();
                     return;
                 }
             } else {
@@ -335,6 +372,7 @@ impl Driver {
             | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. }
             | Delivery::Load { .. }
             | Delivery::Result { .. } => None,
@@ -377,6 +415,8 @@ pub fn close_world(
     std::mem::swap(&mut driver.protocol, protocol);
     driver.env = env.with(env.limits);
     driver.period_sent = true;
+    // The borrowed root already opened in its owning world's driver.
+    driver.ends.no_opening(env.now);
     driver.events.clear();
     let finding = driver.close_erasing(None);
     std::mem::swap(&mut driver.root, root);
@@ -467,9 +507,11 @@ pub fn compare_forges(
 
 impl Drop for Driver {
     fn drop(&mut self) {
-        if !std::thread::panicking() {
-            self.close();
+        let result = if std::thread::panicking() { Ok(()) } else { self.close_erasing(None) };
+        if !matches!(self.broken, Fixture::Transferred) {
+            eprintln!("{}", self.store_check_counts().report());
         }
+        result.unwrap_or_else(|finding| panic!("{finding}"));
     }
 }
 
@@ -499,6 +541,65 @@ mod tests {
         let finding = snapshot.compare_answer(0, Answer::None(core::reads::Why::Gone)).expect_err("changed readback");
         assert!(finding.contains("restart oracle document Result { task: 7 }, sign-in 42, field"), "{finding}");
         assert!(finding.contains("Unknown") && finding.contains("Gone"), "{finding}");
+    }
+
+    #[test]
+    fn task_answers_compare_only_durable_wait_projections() {
+        use jig_domain_core::documents::{Document, PhaseLine, TaskRunWait, TaskSourceState, TaskWaitWhy};
+        use jig_domain_core::{AtBound, Bound, Nearest, Wait, WaitKind, WaitObject};
+        use skein_lib::Wall;
+
+        let (mut driver, assignment) = Driver::chat();
+        let sign_in = driver.session();
+        let task = assignment.task;
+        let read = Read::Task { task };
+        let Answer::Document(document) = driver.oracle_read(sign_in, &read) else { panic!("task answer") };
+        let Document::Task(mut cold) = *document else { panic!("task document") };
+        cold.chip.phase = PhaseLine::Active(tasks::Active::Due);
+        assert!(cold.wait.is_none() && cold.nearest.is_none() && cold.waits.is_empty());
+        let answer = |row| Answer::Document(Box::new(Document::Task(row)));
+        let at = Wall::from_nanos(100);
+        let then = AtBound::Hold;
+        let run_wait = TaskRunWait::Account {
+            account: Some(1),
+            source: Some(1),
+            why: TaskWaitWhy::Source(TaskSourceState::Limited { until: None }),
+        };
+        let account = Wait {
+            task,
+            kind: WaitKind::Account,
+            object: WaitObject::Run(run_wait),
+            since: Wall::EPOCH,
+            bound: Bound::At { at, then },
+            hears: None,
+        };
+        let mut waiting = cold.clone();
+        waiting.run_wait = Some(run_wait);
+        waiting.wait = Some(account.clone());
+        waiting.nearest = Some(Nearest { at, then, kind: account.kind });
+        waiting.waits.push(account.clone()).expect("account wait line");
+        waiting.wait_count = 1;
+        let mut snapshot = Snapshot::new(&BTreeMap::new(), Wall::EPOCH);
+        snapshot.queries.push((sign_in, read));
+        snapshot.answers.push(answer(waiting));
+        assert_eq!(snapshot.compare_answer(0, answer(cold.clone())), Ok(()));
+
+        let dependency = Wait { kind: WaitKind::Dependency, object: WaitObject::Task(task + 1), ..account };
+        cold.wait = Some(dependency.clone());
+        cold.nearest = Some(Nearest { at, then, kind: dependency.kind });
+        cold.waits.push(dependency).expect("dependency wait line");
+        cold.wait_count = 1;
+        snapshot.answers[0] = answer(cold.clone());
+        for field in ["wait", "nearest"] {
+            let mut changed = cold.clone();
+            if field == "wait" {
+                changed.wait = None;
+            } else {
+                changed.nearest = None;
+            }
+            let finding = snapshot.compare_answer(0, answer(changed)).expect_err("durable projection changed");
+            assert!(finding.contains(&format!("field {field}\n")), "{finding}");
+        }
     }
 
     #[test]

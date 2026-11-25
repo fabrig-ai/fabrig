@@ -7,14 +7,14 @@
 - **Checked:** 2026-11-05 at `741eaadc57`
 - **Value:** low (330 shared distinct lines, largely braces and adapter calls; the hosts' invariants already share one implementation)
 - **Size:** M
-- **Status:** kept (the overlap left is composition jig/docs/design/protocol/service.md, section 11, assigns to each application)
+- **Status:** kept (the overlap left is composition jig/docs/design/protocol/service-parts.md, section 1, assigns to each application)
 - **Paid when:** the measure falls below 200 while the services keep their application-owned passes, routing, tokens and settings.
 - **Measure:** `for f in accounts program_sources server store worker_route clients workers; do comm -12 <(sed 's/^ *//' temper/crates/temper-service/src/$f.rs | sort -u) <(sed 's/^ *//' jig/testing/jig-test-service/src/$f.rs | sort -u) | wc -l; done | awk '{s+=$1} END {print s}'` (bash): 330
 
 ## What
 
-Both services compose all seven jig protocol parts (`jig/docs/design/protocol/service.md`,
-11): accounts, program sources, worker route, store, workers, server and clients.
+Both services compose all seven jig protocol parts (`jig/docs/design/protocol/service-parts.md`,
+1): accounts, program sources, worker route, store, workers, server and clients.
 The composition half of this item's condition holds; its numerical bound does not.
 The measure is 330: `accounts.rs` 25, `program_sources.rs` 6, `server.rs` 0,
 `store.rs` 65, `worker_route.rs` 17, `clients.rs` 159, `workers.rs` 58.
@@ -50,10 +50,10 @@ The survey's small moves are made: both services use
 admission test lives with its check in `jig-protocol-store`.
 The survey at debt-10's cut sorted 356 lines by hand: about 127 generic
 (braces, imports, signatures), about 176 owned by the application under
-`jig/docs/design/protocol/service.md`, 11 or by this item (passes, tokens,
+`jig/docs/design/protocol/service-parts.md`, 1 or by this item (passes, tokens,
 sizes), and about 53 movable. Applying that approximate sorting to the
 measured 330 leaves about 27 movable. The survey estimated that every move
-consistent with `jig/docs/design/protocol/service.md`, section 11 would
+consistent with `jig/docs/design/protocol/service-parts.md`, section 1 would
 leave about 310; below 200 needs a clients' part holding the pass, which
 11.6 rules out.
 The user's answer of 2026-11-05 keeps this item: the overlap left is the

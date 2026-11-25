@@ -1,6 +1,6 @@
 //! Pinned model tiers retain only choices in agents/models.toml.
 //! `lookup` refuses an unresolved working tier rather than guessing the user's
-//! model (../../docs/design/benchmarks/README.md, section 7).
+//! model (../../docs/design/benchmarks/agents.md, section 2).
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -43,5 +43,10 @@ impl ModelTiers {
 
 /// Read model tiers without selecting a default for an unresolved entry.
 pub fn read_model_tiers(file: &Path) -> Result<ModelTiers, Refusal> {
-    crate::formats::read_document(file)
+    read_model_tiers_with(&crate::files::Native, file)
+}
+
+/// Read model tiers on the supplied filesystem.
+pub fn read_model_tiers_with(files: &dyn crate::files::Files, file: &Path) -> Result<ModelTiers, Refusal> {
+    crate::formats::read_document_with(files, file)
 }

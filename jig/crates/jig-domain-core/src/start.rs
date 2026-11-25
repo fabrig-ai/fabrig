@@ -27,12 +27,14 @@ pub(crate) struct Script {
     pub(crate) held: crate::Queue<crate::Request>,
     waiting_tasks: crate::Queue<tasks::Request>,
     pub(crate) sweep: crate::Queue<people::Stored>,
+    caught_up: skein_lib::Map<u16, (bool, bool)>,
     pub(crate) projections: Option<skein_lib::Map<u64, projections::Assembly>>,
 }
 
 impl Script {
     pub(crate) fn new() -> Self {
         Self {
+            caught_up: skein_lib::Map::with_capacity(0),
             consumed: false,
             phase: None,
             failure: None,
@@ -71,7 +73,7 @@ impl Core {
             ) => {
                 unreachable!("runtime input requires durable Wires")
             }
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) | None => {}
+            Some(Phase::AdoptRuns | Phase::Open) | None => {}
         }
     }
 
@@ -88,6 +90,10 @@ impl Core {
         false
     }
 
+    pub(crate) fn start_floor_time(&self) -> Option<Wall> {
+        if self.start.phase.is_some() { Some(self.start.at) } else { None }
+    }
+
     /// Begin the start once, capturing the expiry instant before loading.
     pub fn start_begin(&mut self, pending: bool, at: Wall) -> Action {
         assert!(!self.start.consumed, "the start begins before input once");
@@ -96,6 +102,11 @@ impl Core {
         self.authority.start_restore();
         self.start.phase = Some(Phase::LoadCore);
         self.start.at = at;
+        self.start.caught_up =
+            skein_lib::Map::with_capacity(u32::try_from(self.connectors.len()).expect("configured connectors"));
+        for &connector in &self.connectors {
+            self.start.caught_up.insert(connector, (false, false)).expect("one report pair per connector");
+        }
         self.start_pending = pending;
         self.people.end_seeding();
         self.counters.begin_start();
@@ -134,7 +145,28 @@ impl Core {
 }
 
 impl Core {
-    pub(crate) fn ready(&self) -> bool {
+    #[must_use]
+    pub fn ready(&self) -> bool {
         self.start.phase.is_none() && !self.start_stopped()
+    }
+}
+
+impl Core {
+    /// Record one half of catching up after decisions have opened.
+    pub fn catch_up_done(&mut self, connector: u16, stage: crate::effects::connector::RestartStage) {
+        use crate::effects::connector::RestartStage;
+        assert!(self.start_opened(), "catching up follows the opening");
+        let reports = self.start.caught_up.get_mut(&connector).expect("configured connector reports");
+        match stage {
+            RestartStage::Restored => unreachable!("restoration is not a half of catching up"),
+            RestartStage::ReadAfresh => reports.0 = true,
+            RestartStage::Settled => reports.1 = true,
+        }
+    }
+
+    /// Both halves have reported since this start's opening.
+    #[must_use]
+    pub fn caught_up(&self, connector: u16) -> bool {
+        self.start.caught_up.get(&connector) == Some(&(true, true))
     }
 }

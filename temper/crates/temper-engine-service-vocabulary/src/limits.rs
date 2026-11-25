@@ -1,4 +1,5 @@
 //! The stock and checked field overrides (protocol/configuration/limits.md).
+//! Journal row admission follows `temper/docs/design/domain/root.md`, section 9.
 #[cfg(test)]
 mod development;
 mod names;
@@ -194,7 +195,7 @@ const FORGE: forge::Limits = forge::Limits {
     gates: 2,
     receipts_per_gate: 4,
     ignored_paths: 4,
-    // Entries of a repository root read to make one landing key (domain/landing.md, 6.1).
+    // Entries of a repository root read to make one landing key (domain/landing-proof.md, 1.1).
     key_entries: 256,
     key_path_bytes: 1024,
     trees_in_flight: 2,
@@ -285,8 +286,8 @@ const ROOT: Root = Root {
         writes: 12288,
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
-        // The stock’s deep task row before source derivation; derive() supplies the resume carrier.
-        transcript_bytes: 22_468_344,
+        // stock() fills this from the deep row bound; derive() supplies the resume carrier.
+        transcript_bytes: 0,
         // At least brief.brief_bytes and jig stock people.words: the root's worst case.
         result_bytes: BRIEF.brief_bytes,
         // Holds the stock goal agent's charter and room for an overlay.
@@ -349,7 +350,7 @@ const BRIEF: engine::BriefLimits = engine::BriefLimits {
     gather: Duration::from_secs(300),
 };
 const CLIENTS: Clients = Clients {
-    // Files of a bundle, the page and both forms among them (client/web/README.md, 2.2).
+    // Files of a bundle, the page and both forms among them (client/web/serving.md, 1).
     bundle_files: 128,
     // Bytes of both forms in all, read into memory at start (protocol/configuration/limits.md).
     bundle_bytes: 32 << 20,
@@ -361,7 +362,7 @@ pub const SOCKETS: u32 = 256;
 #[must_use]
 pub fn stock() -> Limits {
     let shared = temper_service_core::limits::stock();
-    Limits {
+    let mut limits = Limits {
         live_goals: temper_service_core::derived::LIVE_GOALS,
         tool_payload: temper_service_core::derived::STOCK.payload,
         picker: Picker { page: 30 },
@@ -384,7 +385,11 @@ pub fn stock() -> Limits {
             url_bytes: 2048,
             secret_bytes: 512,
         },
-    }
+    };
+    let root = engine_candidate(&jig_protocol_config::stock(), &limits);
+    let bytes = temper_engine_domain_limits::row_bound(&root).expect("the stock row bound fits u64");
+    limits.root.journal.transcript_bytes = u32::try_from(bytes).expect("the stock row fits the journal carrier");
+    limits
 }
 /// The one deployment store base (configuration/limit-settings.md, 3).
 /// Typed bases retain their profile's ceilings; the stock's value and page
@@ -439,7 +444,18 @@ pub fn base(
         path: jig_protocol_config::Path::root().member(b"limits"),
         what: jig_protocol_config::What::Bound,
     })?;
-    Ok((jig, own))
+    // A smaller agent turn does not shrink the largest wrapped child row.
+    if let Some(row) = engine::row_bound(&engine_candidate(&jig, &own))
+        && let Ok(row) = u32::try_from(row)
+    {
+        own.root.journal.transcript_bytes = own.root.journal.transcript_bytes.max(row);
+        Ok((jig, own))
+    } else {
+        Err(jig_protocol_config::Problem {
+            path: jig_protocol_config::Path::root().member(b"root.journal.transcript_bytes"),
+            what: jig_protocol_config::What::Bound,
+        })
+    }
 }
 /// Apply temper's carriers before the document's overrides (configuration/derived.md, 5.1).
 pub fn derive(limits: &mut Limits, sources: temper_service_core::derived::Sources) -> Option<()> {
@@ -519,6 +535,7 @@ pub fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limits) -> e
         public_reads: jig.clients.public.reads,
         public: jig.core.public,
         retention: jig.core.retention,
+        waits: jig.core.waits,
         journal: limits.root.journal,
         loads: limits.root.loads,
         brief: limits.root.brief,

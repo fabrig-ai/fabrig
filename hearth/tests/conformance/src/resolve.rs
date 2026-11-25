@@ -90,10 +90,6 @@ impl Resolve {
         inputs(&self.pin, case)
     }
     #[must_use]
-    pub fn version(&self) -> &str {
-        &self.version
-    }
-    #[must_use]
     pub fn run(&self, case: &Case) -> Resolved {
         self.run_under(case, &limits::SHIPPED)
     }

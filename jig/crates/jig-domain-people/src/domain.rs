@@ -12,13 +12,17 @@ pub use ended::EndedMark;
 pub(crate) mod acts;
 mod applications;
 mod asks;
+mod inspect;
 mod parties;
 mod requests;
 use applications::admission;
 pub use applications::{application_part, application_part_done, holds as account_holder_reads};
 pub(crate) use asks::{invalid_ask, valid_ask};
 use asks::{note_pattern_bytes, project, valid_adoption};
-use parties::{SignIn, apply_roles, deadline, end_signin, has_person, make_service, role, seed, signin, valid_roles};
+use parties::{
+    SignIn, apply_roles, deadline, end_signin, has_person, make_service, reissue_service, replace_roles, role, seed,
+    signin, valid_roles,
+};
 pub(crate) use requests::{Answered, Pending};
 use requests::{admit_ask, again, answer_decided, answer_expiry, answer_reservations, decided, refused, signed_out};
 mod start;
@@ -26,7 +30,7 @@ use inbox::{ChatTotal, Recent, conversation_seen_decision, mark_seen, prune_unhe
 
 use crate::{
     Again, Ask, Entry, Event, Fact, Holding, Identity, IdentityKey, InitialOwner, Key, Kind, Limits, NeedSource,
-    Outcome, ProjectRole, Reply, Request, RequestKey, ResultRef, Role, Seed, Stored, Whom,
+    Outcome, ProjectRole, Reply, Request, RequestKey, ResultRef, Role, Seed, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Env, Id, List, Map, Queue, Set, Slab, Time, Token, Wall};
@@ -72,8 +76,8 @@ pub struct Domain {
     /// The deployment's first owners, who decide its LLM accounts (accounts.md, 3.2) for as long
     /// as it runs; their first sign-ins seed their roles only while `seeding`.
     owners: Box<[InitialOwner]>,
-    /// The deployment's first start, until the core begins a restore (protocol/configuration.md,
-    /// 3: owners seed the first start only).
+    /// The deployment's first start, until the core begins a restore (protocol/configuration-engine.md,
+    /// 1: owners seed the first start only).
     seeding: bool,
     answers: Map<RequestKey, Answered>,
     acted: Map<crate::ActKey, acts::Acted>,
@@ -466,8 +470,8 @@ impl Domain {
         }
     }
 
-    /// End the first owners' seeding when the core begins restore (protocol/configuration.md,
-    /// 3: owners seed the first start only); they stay the deployment's first owners.
+    /// End the first owners' seeding when the core begins restore (protocol/configuration-engine.md,
+    /// 1: owners seed the first start only); they stay the deployment's first owners.
     pub fn end_seeding(&mut self) {
         self.input();
         self.seeding = false;
@@ -515,7 +519,7 @@ impl Domain {
 
 /// The most outputs one step emits.
 /// Bootstrap writes one roles record per configured owner match, alongside person/sign-in records
-/// and reply, plus one expired sign-in's erase; completion answers every bounded waiter.
+/// and reply, plus one expired sign-in's erase; reissue may erase every sign-in and answer its waiters.
 /// Internal output queues are uncapped; callers count output payload bytes separately.
 #[must_use]
 pub fn outputs_bound(limits: &Limits) -> u32 {
@@ -523,7 +527,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
         .initial_owners
         .saturating_add(4)
         .max(limits.waiters.saturating_add(2))
-        .max(limits.sign_ins.saturating_add(1))
+        .max(limits.sign_ins.saturating_add(limits.waiters.max(1)))
         .max(limits.holdings.saturating_add(1))
         .max(limits.people.saturating_add(1))
         .max(limits.requests)
@@ -565,6 +569,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             inbox::forget_event(domain, env, task, project, party, last_reply, out);
         }
         Event::MakeService { request, person } => make_service(domain, env, request, person, out),
+        Event::ReissueService { request } => reissue_service(domain, env, request, out),
         Event::Seed { project, collaborators } => seed(domain, &env.limits, project, &collaborators, out),
         Event::Waiting { source, entries } => {
             domain.assert_projection_event();
@@ -609,12 +614,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 return;
             }
             match valid_roles(domain, &env.limits, project, &holdings) {
-                Ok(()) => {
-                    out.push(Request::Save { record: Stored::Roles { project, holdings: holdings.clone() } });
-                    let saved = domain.roles.insert(project, holdings);
-                    assert!(saved.is_ok(), "roles admitted before mutation");
-                    prune_unheld_roles(domain, project);
-                }
+                Ok(()) => replace_roles(domain, project, holdings, out),
                 Err(outcome) => out.push(Request::RolesRefused { project, outcome }),
             }
         }

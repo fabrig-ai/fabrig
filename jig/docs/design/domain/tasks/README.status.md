@@ -1,12 +1,12 @@
 # tasks: status
 
-2026-11-16. Where jig's code lags or departs from [README.md](README.md).
+2026-11-24. Where jig's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4).
 - **Not yet:** 3: a standing task's session (`standing.md`, 5.1).
 
-`lifecycle.md`, section 6's classified activation cause has no known gap. `FailedWithReason`
+`lifecycle-holds.md`, section 1's classified activation cause has no known gap. `FailedWithReason`
 uses the existing reason bound and retry policy, and keeps its UTF-8 words
 on the retry notice and exhausted hold through task restoration. The job
 failure table checks the notice, hold and restored source.
@@ -17,7 +17,7 @@ saved work, spends no try, adds no backoff and makes the task due again.
 A crash retains the lost-or-not-started recovery rule. The core restart
 table and one-process drain story check the distinction.
 
-`lifecycle.md`, sections 6 and 7 have no known gap in a start its host refused
+`lifecycle-holds.md`, section 1, and `lifecycle.md`, section 7 have no known gap in a start its host refused
 before the run's first turn, or in an agent's finish while its task's
 delegates are live. A refused transcript is transient, any other invalid
 start permanent, and an agent's busy refusal no failure
@@ -48,7 +48,7 @@ Unlisted sections have no known gap.
 `proposals.md`'s replacement of a run's own pending settings proposal has no
 known gap: refusal preserves the old set, late acceptance changes nothing,
 and a restart retains only the fresh pending proposal. The deployment
-proposal bound remains as specified in `../engine/settings.md`, 6, and `../engine/README.md`, 7 here.
+proposal bound remains as specified in `../engine/settings-proposals.md`, 1, and `../engine/README.md`, 7 here.
 `changes.md`'s next-turn LLM amendments have no known gap, including silent
 LLM-only amendments, the durable live-run mark and a stop whose terminal
 parks without spending a try.
@@ -60,7 +60,7 @@ parks without spending a try.
   (`jig-domain-tasks/src/wake.rs`, `after_message` and `rule`;
   `waiting.rs`, `next`).
 
-- **Not yet:**  the drain, placed-hold scope, release proposal and parked hold remain `lifecycle.status.md`, 10.
+- **Not yet:**  the drain, placed-hold scope, release proposal and parked hold remain `lifecycle-holds.status.md`, 2.
    widening, moves, successors and surviving questions remain `changes.status.md` (Not yet, the whole document).  markers remain `messages.status.md`, 3.
    conversation questions remain `messages.status.md`, 5.
   7: the stories of these.

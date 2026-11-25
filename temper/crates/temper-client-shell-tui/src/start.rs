@@ -1,7 +1,7 @@
-//! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1 and 2).
+//! The TUI's arguments and start (temper/docs/design/client/tui/README.md, 1, and temper/docs/design/client/tui/directory.md, 1).
 use crate::{
     limits,
-    run::{Front, Run, Settings},
+    run::{Front, PreparedOrigin, Run, Settings},
 };
 use skein_io::{
     file::Expect,
@@ -20,6 +20,7 @@ use temper_client_tui::{Note, Origin, Scheme, Unaddressed};
 use temper_shell::{directories, link_file};
 
 mod deployment;
+pub(crate) mod testing;
 
 pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
@@ -258,12 +259,15 @@ pub fn depth(environment: &[EnvironmentEntry]) -> Depth {
     }
 }
 
-#[must_use]
-pub fn terminal_refusal(name: &str, given: bool) -> String {
+fn terminal_refusal(name: &str, given: bool) -> String {
     if given { Refused::NotATerminal.line(name) } else { format!("{name}: no command; {name} --help lists them\n") }
 }
 
-#[must_use]
+fn require_terminal(name: &str, argument: Option<&[u8]>, terminal: bool) -> Result<(), (u8, String)> {
+    if terminal { Ok(()) } else { Err((1, terminal_refusal(name, argument.is_some()))) }
+}
+
+/// Start the bare TUI, returning any startup refusal for the binary to print.
 pub fn run(
     name: &str,
     argument: Option<&[u8]>,
@@ -271,18 +275,10 @@ pub fn run(
     working: &[u8],
     version: &[u8],
     clock: &Clock,
-) -> u8 {
-    if skein_shell::terminal_modes(Fd::new(0)).is_err() || skein_shell::terminal_modes(Fd::new(1)).is_err() {
-        eprint!("{}", terminal_refusal(name, argument.is_some()));
-        return 1;
-    }
-    match start(argument, environment, working, version, clock, None) {
-        Ok(code) => code,
-        Err(why) => {
-            eprint!("{}", why.line(name));
-            1
-        }
-    }
+) -> Result<u8, (u8, String)> {
+    let terminal = skein_shell::terminal_modes(Fd::new(0)).is_ok() && skein_shell::terminal_modes(Fd::new(1)).is_ok();
+    require_terminal(name, argument, terminal)?;
+    start(argument, environment, working, version, clock, None).map_err(|why| (1, why.line(name)))
 }
 
 struct BoxStart {
@@ -382,7 +378,7 @@ fn start(
         select(given, saved.clone(), link_path(environment, working), &|path| link_file::read(path, user));
     let engine = engine(&origin, environment, &|name, port| (name, port).to_socket_addrs().map(Iterator::collect))?;
     let (origin_directory, made) = deployment::prepare(&directory, &origin, user)?;
-    let theme = deployment::theme(&directory, &origin, user, made);
+    let theme = deployment::theme(&directory, &origin, saved.as_ref(), user, made);
     let note = read_note(&origin_directory, &origin, user);
     let link_file = front.as_ref().map_or(link_file, |front| front.link.clone());
     let scheme = scheme(environment);
@@ -456,25 +452,23 @@ fn start(
     };
     let mut run = run.with_kept(kept);
     let exit = if in_front {
-        drive_front(&mut kernel, clock, &mut run)
+        drive_front(&mut kernel, clock, &mut run, &directory, saved.as_ref(), user)
     } else {
         skein_shell::drive(&mut kernel, clock, &mut run)
     };
     skein_fail_stop::before_report(None);
     run.restore_terminal();
     say_recording(&directory, run.recording_save(), &mut std::io::stderr().lock());
+    if let Some(why) = run.handoff_refusal() {
+        return Err(why);
+    }
     if run.refused() {
         return Err(Refused::Directory(format!("{}: cannot open its files", directory.display())));
     }
     if run.terminated() {
         return Ok(1);
     }
-    if let Some(signed_in) = run.signed_in() {
-        let bytes = signed_in.print();
-        if self::kept(&bytes) != saved {
-            keep_address(parent, bytes, user, seed, clock);
-        }
-    }
+    update_address(saved.as_ref(), run.signed_in(), |bytes| keep_address(parent, bytes, user, seed, clock));
     Ok(exit_code(&run, exit))
 }
 
@@ -501,7 +495,14 @@ fn exit_code(run: &Run, exit: Exit) -> u8 {
 
 // A termination signal is the process's shutdown path: the kernel may still own the box's
 // wait and pipe reads. Its buffers stay owned by Kernel's shutdown path until process exit.
-fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
+fn drive_front(
+    kernel: &mut Kernel,
+    clock: &Clock,
+    run: &mut Run,
+    directory: &Path,
+    saved: Option<&Origin>,
+    user: u32,
+) -> Exit {
     loop {
         kernel.reap(run.completions());
         let skein_shell::Now { now, wall } = clock.now();
@@ -513,6 +514,10 @@ fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
             assert_eq!(kernel.in_flight(), 0, "a drained run has no kernel operation in flight");
             return run.exit().expect("a drained run's exit");
         }
+        if let Some(origin) = run.handed_origin() {
+            let prepared = prepare_handed(directory, origin, saved, user);
+            run.prepared_origin(prepared);
+        }
         let deadline = clock.until(run.next_deadline());
         let wait = if run.work_pending(now) {
             skein_shell::Wait::No
@@ -521,6 +526,21 @@ fn drive_front(kernel: &mut Kernel, clock: &Clock, run: &mut Run) -> Exit {
         };
         kernel.submit(run.submissions(), wait);
     }
+}
+
+fn prepare_handed(
+    directory: &Path,
+    origin: &Origin,
+    saved: Option<&Origin>,
+    user: u32,
+) -> Result<PreparedOrigin, Refused> {
+    // The legacy move belongs to process startup, not to a handed origin.
+    let (destination, made) = deployment::open(directory, origin, user)?;
+    Ok(PreparedOrigin {
+        directory: Path::new("tui").join(deployment::relative(origin)).as_os_str().as_bytes().into(),
+        theme: deployment::theme(directory, origin, saved, user, made),
+        note: read_note(&destination, origin, user),
+    })
 }
 
 #[must_use]
@@ -537,6 +557,13 @@ pub fn local_run(mut settings: Settings, root: Fd, user: u32, seed: u64, signals
     let Some(parent) = self::path(&path).parent() else { return run };
     let Ok(root) = skein_shell::open_root(parent) else { return run };
     run.with_local_link(root, &path)
+}
+
+/// Publish the new last address after a run closed, only if it signed in somewhere new.
+pub fn update_address(saved: Option<&Origin>, signed_in: Option<&Origin>, write: impl FnOnce(Box<[u8]>)) {
+    if let Some(origin) = signed_in.filter(|origin| Some(*origin) != saved) {
+        write(origin.print());
+    }
 }
 
 pub fn keep_address(parent: &std::path::Path, bytes: Box<[u8]>, user: u32, seed: u64, clock: &Clock) {

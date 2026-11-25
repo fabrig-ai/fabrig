@@ -1,17 +1,17 @@
-//! Harness login layout and existence-only admission (../../../docs/design/benchmarks/README.md, section 10).
+//! Harness login layout and existence-only admission (../../../docs/design/benchmarks/isolation.md, section 1).
 //! The developer creates these paths; the harness never writes them.
 
 use crate::{Fault, FaultKind, credential};
 use std::path::Path;
 
+use crate::files::{Files, Kind, Native};
 use crate::isolate::SetupStep;
 
 /// Shared account declarations for the attempt layer and documented setup.
 pub const ACCOUNTS: &str = include_str!("../../agents/smith/accounts.toml");
 
-fn present(path: &Path, directory: bool) -> bool {
-    std::fs::symlink_metadata(path)
-        .is_ok_and(|metadata| !metadata.is_symlink() && if directory { metadata.is_dir() } else { metadata.is_file() })
+fn present(files: &dyn Files, path: &Path, directory: bool) -> bool {
+    files.symlink_metadata(path).is_ok_and(|facts| facts.kind == if directory { Kind::Directory } else { Kind::File })
 }
 
 /// Require only the selected smith account's setup, without opening its record.
@@ -27,7 +27,7 @@ pub fn smith(directory: &Path, account: &str) -> Result<(), Fault> {
             });
         }
     };
-    if required.iter().all(|(path, directory_kind)| present(&directory.join(path), *directory_kind)) {
+    if required.iter().all(|(path, directory_kind)| present(&Native, &directory.join(path), *directory_kind)) {
         return Ok(());
     }
     Err(Fault {
@@ -49,7 +49,12 @@ fn key(present: bool) -> Result<(), Fault> {
 
 /// Require the harness's Codex record before reading its access fields.
 pub fn codex(directory: &Path) -> Result<(), Fault> {
-    if present(&directory.join("auth.json"), false) {
+    codex_with(&Native, directory)
+}
+
+/// Inspect the Codex login's presence on the supplied filesystem without opening it.
+pub fn codex_with(files: &dyn Files, directory: &Path) -> Result<(), Fault> {
+    if present(files, &directory.join("auth.json"), false) {
         return Ok(());
     }
     Err(Fault {
@@ -115,22 +120,6 @@ mod tests {
             claude(&[], Path::new("/synthetic")).expect_err("missing Claude").detail,
             "Claude Code is missing: install `claude` on the attempt's PATH"
         );
-    }
-
-    #[test]
-    fn one_claude_login_holds_one_serial_lock() {
-        let scratch = skein_scratch::Scratch::new("bench-logins");
-        let root = scratch.path().to_path_buf().join(format!("smith-bench-serial-{}", std::process::id()));
-        std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private root");
-        let guard = crate::guard::Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[])
-            .expect("guard");
-        let login = root.join("state/smith-bench/logins/smith");
-        let first = serial(&guard, &login).expect("first program attempt");
-        let second = std::fs::File::open(root.join("state/smith-bench/locks/claude.lock")).expect("same lock");
-        assert!(second.try_lock().is_err());
-        drop(first);
-        second.try_lock().expect("next program attempt after settlement");
-        drop(second);
     }
 
     #[test]

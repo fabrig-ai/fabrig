@@ -1,7 +1,7 @@
 //! Ordered host sections through observed main/child sessions and native restore.
 //! Expected system bodies are handwritten outside literals; concrete history,
 //! child results, usage and lower settlement come from the composed routes.
-//! Contract: domain/run.md, sections 3.1, 3.3, 5.3, 6 and 12;
+//! Contract: domain/run-start.md, sections 1.1 and 1.3, and domain/run.md, section 5.3, and domain/run-messages.md, section 1, and domain/run.md, section 12;
 //! testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_fake_checkout::Checkout;
@@ -102,6 +102,7 @@ fn workspace() -> (Checkout, run::Workspace) {
     let mounted = run::Workspace {
         directories: Box::new([
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: Token::new(disk.root(b"work")),
@@ -110,6 +111,7 @@ fn workspace() -> (Checkout, run::Workspace) {
                 conflicts: Box::new([]),
             },
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"archive".as_slice().into(),
                 root: Token::new(disk.root(b"archive")),
@@ -325,7 +327,7 @@ fn anthropic_breakpoints_account_for_thinking_and_a_large_tool_batch() {
     settings.limits.session.completion_blocks = bounds.client.output_items;
     settings.limits.session.failure_bytes = bounds.client.detail_bytes;
     let batch = 16_usize;
-    // Each read asks a window its whole result fits, so every result stays below the line (smith/docs/design/domain/session.md, 8.1).
+    // Each read asks a window its whole result fits, so every result stays below the line (smith/docs/design/domain/session-context.md, 1.1).
     let read = || call(b"read", br#"{"path":"data.txt","window":64}"#);
     let scripts = Box::new([Script {
         cue: b"@brief-native".as_slice().into(),

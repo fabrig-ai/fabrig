@@ -4,33 +4,29 @@ use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets};
 use jig_test_domain as root;
-use jig_test_patches_smith as fixture;
+use jig_test_layouts::{FIXTURE_SMITH_OWNER, frames::TURN_ROOT, layouts::FRAME_TURN_KEPT};
 
 const TURN: KeptFamily = KeptFamily {
     retired: &[],
-    current: fixture::patches::kept::fixture_turn::TEXTS[0],
+    current: FRAME_TURN_KEPT,
     types: &[],
     name: "fixture-turn",
     map: KeptMap::Store,
     keys: &[],
-    frames: Some(jig_protocol_store::Frames {
-        root: fixture::ROOT,
-        texts: &[fixture::patches::kept::fixture_turn::TEXTS[0]],
-        patches: &[],
-    }),
+    frames: Some(jig_protocol_store::Frames { root: TURN_ROOT, texts: &[FRAME_TURN_KEPT], number: 0 }),
 };
 const FIXTURE: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Smith, name: fixture::NAME, families: &[TURN], level: Some(0) };
+    OwnerSet { jobs: &[], owner: Owner::Smith, name: FIXTURE_SMITH_OWNER, families: &[TURN], level: Some(0) };
 pub const SETS: OwnerSets = OwnerSets { sets: &[FIXTURE] };
 // The fixture binary renders the said field of each loaded v1 turn.
 pub const TAIL: &[u8] = b"closed windowwindow continuation";
 
 fn turn_text(bytes: &[u8]) -> Option<Box<[u8]>> {
     let schema = skein_codec::schema::parse(TURN.current.as_bytes()).ok()?;
-    let root = schema.find(fixture::ROOT.as_bytes())?;
+    let root = schema.find(TURN_ROOT.as_bytes())?;
     let mut value = skein_codec::value::Value::with_room(3);
     let turn = value.decode(&schema, root, bytes.into()).ok()?;
-    let said = value.field(turn, fixture::patches::kept::fixture_turn::v1::turn::SAID).ok()?;
+    let said = value.field(turn, skein_codec::schema::FieldIx::new(0)).ok()?;
     Some(value.content(said).ok()?.into())
 }
 
@@ -42,7 +38,7 @@ pub fn turn(said: &[u8]) -> Box<[u8]> {
         bytes.extend(field);
     }
     let schema = skein_codec::schema::parse(TURN.current.as_bytes()).expect("kept v1 schema");
-    let root = schema.find(fixture::ROOT.as_bytes()).expect("fixture root");
+    let root = schema.find(TURN_ROOT.as_bytes()).expect("fixture root");
     // One record and its two fields: validate the independent bytes against
     // the kept text, then take the value's canonical encoding.
     let mut value = skein_codec::value::Value::with_room(3);

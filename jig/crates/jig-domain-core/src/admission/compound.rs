@@ -141,7 +141,7 @@ fn check(
             let message = if grace.is_some() { Some(0) } else { None };
             Ok(tasks::Operation::Cancel(tasks::Cancel { task, reason, grace, message }))
         }
-        people::Operation::Stop { .. } => {
+        people::Operation::Stop { reason, .. } => {
             core.control_admit(
                 route.task(task),
                 crate::routing::party::dispatch::Control::Stop,
@@ -149,7 +149,7 @@ fn check(
                 admission,
             )?;
             crate::acts::mutable_phase(&row.phase)?;
-            Ok(tasks::Operation::Stop { task, hold: 0 })
+            Ok(tasks::Operation::Stop { task, hold: 0, reason })
         }
         people::Operation::Release { revision, again, .. } => {
             core.control_admit(

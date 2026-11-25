@@ -7,6 +7,9 @@
   client asks for that person's browser; a service's credential; and a
   sign-in approved by a browser, for another client of a person signed
   in there (below).
+
+## 1. Credentials
+
 - **A credential** is a sign-in's number beside 32 random bytes, so the
   engine finds its digest by number (`../README.md`, section 8; `../store/secrets.md`
   ). Credentials come from a cryptographic generator of the
@@ -18,12 +21,15 @@
   that ends or expires, and the component erases its digest then. A
   sign-in kept by the printed link (below) is no sign-in made: nothing
   is committed, drawn or kept.
+
+## 2. The application's sign-in
+
 - **The application's sign-in.** An application whose people sign in
   another way (an OAuth or OpenID server, a company's directory, a chat
   platform's identity) runs that flow on its own routes, redirects
   included, in its own server, verifies the identity, and gives the
   component `Mint { exchange, identity }`: a provider's number, as its
-  configuration numbers it (`../configuration.md`, section 3, providers),
+  configuration numbers it (`../configuration-engine.md`, section 1, providers),
   the subject there, and a login and a name for display. The component
   makes a sign-in for it, as above, and answers `Minted` with its
   credential and the sign-in's expiry; or `MintRefused`, saying why: a
@@ -40,6 +46,9 @@
   - *jig keeps nothing of the flow:* what it returned is the
     application's, kept or dropped as its own (`../../domain/people/README.md`,
     section 3).
+
+## 3. The printed link
+
 - **The printed link,** on one person's machine: at start the component
   draws a one-time secret, valid for the profile's `link_span`, and gives it
   to the application's startup, `Link { secret }`, which prints a URL carrying
@@ -124,7 +133,7 @@
     where the printed link is not enabled is dropped, no link being live.
     The first local link's secret may be given alike, `local_secret`, so
     that the startup can hand it to a native client it starts itself, as a
-    box hands its front end one (temper's `protocol/setup/box.md`, 6): taken
+    box hands its front end one (temper's `protocol/setup/box-front.md`, 1): taken
     in the first local link's draw's place, its `link_span` from that
     taking, no `LocalLink` said for it, spent and drawn again as any local
     link; refused at start for any length but 32 bytes, and dropped where
@@ -172,9 +181,12 @@
   - *Reuse extends nothing:* the kept sign-in's expiry, the cookie's
     `Max-Age` and the bearer's file stay as they were.
 
-  It is enabled by configuration (`../configuration.md`, section 3,
+  It is enabled by configuration (`../configuration-engine.md`, section 1,
   clients), and only where the application's clients' listener is on
   loopback, which its startup checks (`../service.md`, section 3).
+
+## 4. The asked link
+
 - **The asked link,** for the browser of a person signed in already:
   once the printed links are spent, a client signed in as a person asks
   the component for a fresh one-time link, and gives it to the person's
@@ -255,6 +267,9 @@
     a browser's (below) by the credential each exchange carries.
 
   It is enabled where the printed link is, and only there (above).
+
+## 5. Browser approval
+
 - **A sign-in approved by a browser,** for that browser's own party:
   a client that can't open the printed link, a program in a terminal
   on the person's machine or on another, asks; the person's browser,
@@ -409,13 +424,16 @@
     ```
 
   It is enabled by configuration apart from the printed link
-  (`../configuration.md`, section 3, clients, `approval`), and only where
+  (`../configuration-engine.md`, section 1, clients, `approval`), and only where
   the application's clients' listener is on loopback, which its startup
   checks as for the link (`../service.md`, section 3). An application at
   a public name has that listener behind its TLS proxy, so the same
   switch enables asks by the public name too, under their kinds' rules
   above, with no second switch. Its fixed bounds are `README.md`,
   section 10's.
+
+## 6. A service's credential
+
 - **A service's credential** is issued when an owner makes the service:
   the component draws it, keeps its digest in the secrets' store under
   the service's number (`../store/secrets.md`), and answers the owner's
@@ -439,12 +457,43 @@
   - *Replaced* when an owner reissues it: a new credential is drawn, its
     digest replaces the old, durable before the answer, which carries it
     once; the sign-ins made with the old end.
+    - *Asked:* `ReissueService { party }`, keyed, as any of jig's
+      requests; the component hands it to people as
+      `Ask::ReissueService { party }`, which ends the service's sign-ins
+      in the decision that admits it and answers `ServiceReissued {
+      party }` (`../../domain/people/acts.md`, 1).
+    - *Drawn at each answer:* at `ServiceReissued`, the component draws
+      a credential of the shape above, keeps its digest under the
+      service's number with the store's `Keep`, which replaces the one
+      kept, and once it is kept answers `Made::reissued`, the party and
+      the credential, as a made service's. People keeps no answer for a
+      reissue, so a request sent again under its key reissues again and
+      is answered a credential of its own. A keep for the same service
+      in flight, a make's or another reissue's, is waited for before the
+      draw, so the digest kept last is the credential answered last.
+    - *No sign-in outlives it:* from the moment the component sends a
+      reissue of a service to the core until that reissue's digest is
+      kept, or the reissue is answered otherwise, a sign-in as that
+      service is answered busy once its credential is checked, and never
+      sent to the core; its client signs in again after its backoff,
+      against the new digest. A service's sign-in sent to the core before
+      the reissue is the core's before it, since the component's events
+      reach the core in the order sent, and the reissue ends it.
+    - *Its records,* in `jig-client-protocol-wire`'s schema, a change
+      of its layout (`versions.md`, section 1), each appended
+      last: `record ReissueService { party: u64 }`, `Ask`'s
+      `reissue_service: ReissueService`, and `Made`'s `reissued:
+      MadeService`, the record a made service is answered with, since
+      both are a service's party and its credential, answered once.
   - *Ended* when an owner removes the service: its digest is erased and
     its sign-ins end.
+
+## 7. Holding and ending a credential
+
 - **Where a sign-in's credential is held:** by the client, as a secret,
   when its transport needs it in hand; the application keeps it across a
   restart, where its platform keeps secrets, and gives it back as held
-  (`../../client/domain/client/README.md`, section 9). A transport may keep it
+  (`../../client/domain/client/sign-in.md`, section 1). A transport may keep it
   itself, as a browser's cookie the client never sees: a sign-in's
   answer then carries none, and every exchange leaves with none, the
   transport adding it (`default-http.md`, 3). A link's answer that carries none to a
@@ -453,7 +502,7 @@
 - **Signed out:** a credential the engine does not know, or a sign-in
   ended or expired, is answered signed out on every exchange and ends
   the stream, and the client reports signed out to the application
-  (`../../client/domain/client/README.md`, section 9). Signing out is a message
+  (`../../client/domain/client/sign-in.md`, section 1). Signing out is a message
   that ends the sign-in whose credential it carries, its digest erased;
   a transport that keeps the credential clears it then. Sent with a
   credential whose sign-in has ended, it is answered signed out like
@@ -461,20 +510,23 @@
   lost one clears nothing on the client's side. Its answer, signed out
   or lost, is the sign-in's whose credential it carried: a client that
   has since authenticated a newer sign-in drops it, and keeps the newer
-  credential (`../../client/domain/client/README.md`, section 9).
+  credential (`../../client/domain/client/sign-in.md`, section 1).
+
+## 8. Installing a credential
+
 - **Installing a credential** ends every pending read visibly in the
   client domain (`README.md`, section 4), including `Held` or `Transport` before
   the first `me`. A `Link` or `Service` exchange that fails, is refused,
   is lost, is not ready, busy or full and installs no credential leaves old reads
   pending; reads made during it still belong to the old credential.
   A read made under that credential cannot answer under its replacement.
-- **While the engine stops** (`../../domain/engine/restart.md`, 1), a sign-in, a
+- **While the engine stops** (`../../domain/engine/restart.md`, 5), a sign-in, a
   sign-out and a `Mint` are answered not ready, as a keyed request is:
   nothing is committed, kept or erased, and a link's secret is not
   spent. Not ready is *again* (`README.md`, section 3): a service's client signs in
   again after its backoff, reaching the next engine; a person's sign-out
   shows as one that did not reach the engine
-  (`../../client/domain/client/README.md`, section 9). A refusal would tell the
+  (`../../client/domain/client/sign-in.md`, section 1). A refusal would tell the
   person their sign-in failed, and an answer with no record would be
   *lost*, which cannot tell a sign-in not taken from one taken whose
   answer was lost.

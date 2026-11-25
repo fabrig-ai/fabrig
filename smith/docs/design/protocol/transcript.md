@@ -17,7 +17,7 @@ section 8).
   - what it used and cost.
 
   A window turn is a compaction's: its messages are the new window's
-  opening (domain/session.md, section 8.2).
+  opening (../domain/session-context.md, section 1.2).
 - **A transcript is the current window's turns, in order:** from the
   conversation's first turn, or from its last window turn. A host keeps
   each turn's bytes as it was told and sends back, in order, those from
@@ -27,18 +27,18 @@ section 8).
 - **The affinity, the account and the backend are kept once,** in the
   transcript's opening turn, so a resumed conversation keeps its
   affinity, and a resume knows whether its window ran as its charter
-  now asks (domain/session.md, sections 2 and 8.2).
+  now asks (../domain/session.md, section 2, and ../domain/session-context.md, section 1.2).
 - **A window is carried over, not refused,** when it ran on another
   endpoint, dialect, account or backend: it is compacted on the
   charter's LLM, and a new window opens there (section 4). Whether a
   host offers one from another endpoint or backend at all is the
-  host's decision (domain/run.md, section 6).
+  host's decision (../domain/run-messages.md, section 1).
 - **Usage counts are optional.** A count the provider did not report is
   absent, not zero.
 - **Opaque provider blocks travel verbatim,** tagged with the dialect that
   wrote them, and go back only to the same endpoint and dialect. A
   window carried over sends none of them, and a program backend's turns
-  hold none (programs.md, 5.5).
+  hold none (programs-claude-code.md, 1.5).
 - **Results are kept as the domain holds them.** Text that the domain wrote
   is kept as text. A workspace tool's outcome is kept typed, and rendered
   for the LLM again when the conversation resumes.
@@ -53,7 +53,7 @@ section 8).
 A versioned record. Every turn starts with its version.
 
 - **kind:** ordinary, or window, a compaction that opened a new window
-  (domain/session.md, section 8.2);
+  (../domain/session-context.md, section 1.2);
 - **endpoint:** the name of the endpoint it ran on, as the agent's
   configuration names it, and the dialect of its provider, by its number
   (protocol/agent.md, section 4); for a window turn, those of the window
@@ -63,10 +63,10 @@ A versioned record. Every turn starts with its version.
   the model and effort of the window it opens, the charter's, whatever
   model and effort its compaction ran with. So the last turn always
   names the window's model, which a resume compares with its charter's
-  (domain/session.md, 8.2). The compaction's own model, usage and cost
+  (../domain/session-context.md, 1.2). The compaction's own model, usage and cost
   are its conversation's records in the event stream (events.md, 3.4
   and 3.5), and the window turn's usage and spend stay the compaction's
-  (domain/session.md, 8.2);
+  (../domain/session-context.md, 1.2);
 - **its place in the conversation:** from one, going on across the
   activations that resume it and across windows. The channel numbers turns
   per activation (channel.md, section 4);
@@ -109,7 +109,14 @@ A versioned record. Every turn starts with its version.
       a directory refused as not empty, a command's exit and output, a
       command answered `running` with its job's number and its output so
       far, a job's output since its last answer with its end or
-      `running`);
+      `running`, and, from version 8, a command or a `job` wait a
+      drain cut midway, `interrupted`: how long it ran, in
+      milliseconds, absent when not known, and its output read before
+      the cut as `running` keeps it, its head, its last bytes and the
+      bytes dropped between (domain/turn-parts.md, section 4); the same
+      outcome, its time absent and its output empty, is a command's
+      start, told as it starts so that a crash leaves it interrupted
+      (domain/turn-parts.md, section 3));
     - text the domain wrote, as a result or an error: a served tool's, or a
       host tool's answer;
     - invalid, with the problem found in the call (domain/tools.md,
@@ -128,6 +135,11 @@ A versioned record. Every turn starts with its version.
 
 A call's typed form is not kept. The agent decodes the input again when it
 resumes, as it did when the call was made.
+
+A turn's part, an answer or a result told as it comes to a host that
+asks (domain/turn-parts.md, section 2), is this record too, holding the
+messages that part holds, and never enters a transcript: what it is,
+its thread and its call ride beside its bytes (channel.md, section 4).
 
 A window turn's messages are one user message holding text blocks, in
 this order: the conversation's task, the summary preamble and the
@@ -184,24 +196,24 @@ section 3):
 - no unresolved ticket;
 - room for the waking prompt and a completion within its byte limits. A
   history that has that room but fails the window check is compacted
-  before its first ordinary completion (domain/session.md, section 8.1).
+  before its first ordinary completion (../domain/session-context.md, section 1.1).
 
 **A window carried over.** A transcript whose window ran on another
 endpoint or dialect than its charter's main LLM, one the agent's
 configuration does not name, another account or another backend, or
-on a program whose session its host does not hold (programs.md, 5.8),
+on a program whose session its host does not hold (programs-claude-code.md, 1.8),
 is not refused. The session compacts it on the charter's LLM before its
 first ordinary completion, sending its history without opaque blocks or
 provider's replay, which go back only to the dialect that wrote them,
 and opens the new window there; its window turn records the new
-endpoint, dialect, account and backend (domain/session.md, 8.2). A
+endpoint, dialect, account and backend (../domain/session-context.md, 1.2). A
 message that history leaves with no block keeps a fixed text block in
-its place (domain/session.md, 8.2). A host may instead start the run
+its place (../domain/session-context.md, 1.2). A host may instead start the run
 fresh rather than offer a window from another endpoint or backend, and
-jig's engine does (domain/run.md, section 6).
+jig's engine does (../domain/run-messages.md, section 1).
 
 Each refusal is distinct, and the run fails as transient, saying which
-(domain/run.md, section 6):
+(../domain/run-messages.md, section 1):
 
 - another version;
 - malformed;
@@ -232,26 +244,29 @@ jobs of every earlier window and activation.
 
 ## 6. Versions
 
-- **Version 7 is current** (`transcript-v7.schema`). The local host
-  records its layout in each chat's `format` (host.md, 5.3), so
-  a local chat whose layout differs is refused as an older store.
+- **Version 8 is current** (`transcript-v8.schema`), adding the
+  `interrupted` outcome (section 2), the one value of version 8 that a
+  plan to version 7's layout refuses (skein's `data/codec/layouts.md`,
+  2). The local host records its layout in each chat's
+  `format` (host.md, 5.3), so a local chat whose layout differs is
+  refused as an older store.
 - **A resuming reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
   version*, and nothing is translated: its host starts the run afresh
-  from its brief (domain/run.md, section 6). A transcript of an older
+  from its brief (../domain/run-messages.md, section 1). A transcript of an older
   version is refused the same way, and is never carried over to another
   endpoint.
 - **An archival client also reads version 6** by preserving its fields and
   marking its missing system context absent. It never reconstructs the
   supplied instructions or brief. This is a read adapter, not resumable
-  history or an owner patch.
+  history.
 - **A host may keep turns of several versions** for people to read. A
   reader is handed a transcript in one version, and only one in the
   current version resumes.
-- **From the baseline, a host that keeps turns patches them** to the
-  current version as it reads them, by smith's patches, so its agent
-  and its people read the current version alone (section 12). Before
-  it, a turn of another version stays refused.
+- **From the baseline, a host that keeps turns converts them** to the
+  current layout as it reads them, by plans from the texts it keeps, so
+  its agent and its people read the current layout alone (section 12).
+  Before it, a turn of another version stays refused.
 
 ## 7. Limits
 
@@ -281,7 +296,7 @@ jobs of every earlier window and activation.
   conversation.
 - **Generated bounds** describe one value: `encoded_bound` bounds its
   wire encoding, and `decoded_bound` its decoded ownership. Neither is
-  a process heap sum (limits.md, section 3).
+  a process heap sum (limits-derivation.md, section 1).
 - **A host that keeps turns** bounds what it keeps unacknowledged with the
   channel's window (channel.md, section 7).
 
@@ -298,9 +313,9 @@ jobs of every earlier window and activation.
 ## 9. The world
 
 - **The codec:**
-  - records-only drift and no unpinned constructs (skein's
-    `data/codec/README.md`, section 6); tests build their values through
-    constructors or fixed-rule values from embedded text, without stored
+  - records-only drift (skein's
+    `data/codec/golden.md`, section 1); tests build their values with
+    public fields or take fixed-rule values from embedded text, without stored
     family goldens or generated test targets; they check blocks, results,
     turn kinds, opening affinity, and usage counts absent and zero;
   - each decoder fuzzed;
@@ -328,29 +343,30 @@ jobs of every earlier window and activation.
 
 - **A window too large to carry over:** one larger than the charter's
   model's window fails as a compaction's *context too long* does
-  (domain/session.md, 8.2). Cutting it first, oldest turns first, waits
+  (../domain/session-context.md, 1.2). Cutting it first, oldest turns first, waits
   on a host that needs it.
-- **A search's hits under a patch:** pieces are copied by a patch, not
-  opened (skein's `data/codec/patches.md`, 3), so a patch that changes `Hit` is
-  refused until skein opens them (its section 13). Until then, from the
-  baseline, a change of `Hit` waits for them.
+- **A search's hits under a change:** a plan opens pieces and converts
+  each by its item type (skein's `data/codec/layouts.md`, 2), so a change
+  of `Hit` converts as a record's does.
 - **The channel's records a host keeps as bytes:** jig's store keeps a
   settled call's name and a delivery's evidence as the channel encodes
   them (jig's `protocol/store/README.md`, section 11). The channel is versioned
   whole, so its records carry no version of their own, and no host can
   learn from their bytes which code reads them. Either smith keeps them as
-  a versioned family of their own, kept and patched as the turn is, or a
+  a versioned family of their own, kept and converted as the turn is, or a
   host keeps them in its own vocabulary, translated as a run's result is.
 
-## 12. Kept, and patched
+## 12. Kept, and converted
 
 A host keeps turns beyond a release: jig's store keeps each in its
 transcript's frames and reads them back after its engine is upgraded
-(jig's `protocol/store/transcripts.md`, 6; temper's `draft/upgrades.md`, 7.2). From
-the baseline, that host patches a turn of an older version to the
-current one as it reads it, by smith's patches, so a run resumes across
-a change of turns and people read old turns in the current version. Every
-other reader reads one version (`transcript.md`, section 6), and its host hands it no
+(jig's `protocol/store/transcripts.md`, 6; temper's `draft/upgrades.md`, 7.2). That
+host keeps each turn at the layout it was written at and converts it to
+the current one as it reads it, by plans from the texts its registry
+holds, so a run resumes across a change of turns and people read old
+turns in the current layout; on the wire, jig's engine converts turns
+by plans too (jig's `protocol/channel/layouts.md`, 2.1). Every
+other reader reads one layout, its own (`transcript.md`, section 6), and its host hands it no
 other.
 
 - **The kept families** are the turn's and the local host's store's:
@@ -361,16 +377,14 @@ other.
     (`smith-local-protocol`'s `local-store-v1.schema`: its state, its
     turns and its deliveries), read after an upgrade by smith's local
     host alone (host.md, 5.3). It is kept like the turn from
-    the baseline, under an owner of its own, `smith-local`, since an
-    owner's patches and kept texts are one crate's (skein's `data/codec/command.md`,
-    1); its `Turn.body` already says `holds smith-transcript Turn`, so
-    a turn it keeps is patched by the turn's set, its own patches
-    pinned after smith's where they need its turns. Its set takes this
-    section's shape, written with the local host's reads at the
-    baseline; no other host takes it.
+    the baseline, under an owner of its own, `smith-local`; its
+    `Turn.body` already says `holds smith-transcript Turn`, so a turn it
+    keeps moves by the turn's own layout. Its set takes this section's
+    shape, written with the local host's reads at the baseline; no other
+    host takes it.
 
   Nothing else of smith's is kept for a later release's reader:
-  - **results:** a tool's outcome is part of its turn, kept and patched
+  - **results:** a tool's outcome is part of its turn, kept and converted
     with it. A run's result is its charter's (charter.md, section 3),
     which its host translates into its own records (temper into jig's
     tasks' results) and never keeps as smith's bytes;
@@ -390,51 +404,29 @@ other.
   schema says it holds the turn: jig's `transcript: bytes 33554432 holds
   smith-transcript Turn`.
 - **The set, as data:** `smith-transcript` exports, as `&'static`
-  constants, what a host's store takes for an owner's patches, naming no
-  host:
-  - `OWNER`, `"smith"`, the owner as its patches' headers spell it;
-    `FAMILY`, `"smith-transcript"`, as its texts spell it; and `ROOT`,
-    `"Turn"`, the declaration a kept turn is, where a machine starts;
-  - `patches::PATCHES`, the patches' texts in number order, and
-    `patches::kept::smith_transcript::TEXTS`, the kept texts in version
-    order, with the patches' `Context` and `written`, in the module
-    skein's command generates (skein's `data/codec/command.md`, 1 and 3);
-  - `FRESH_WINDOWS`, `"fresh-windows"`, the mark below.
+  constants, what a host's store takes, naming no host:
+  - `OWNER`, `"smith"`, the owner its store set names; `FAMILY`,
+    `"smith-transcript"`, as its texts spell it; and `ROOT`, `"Turn"`,
+    the declaration a kept turn is;
+  - `SCHEMA`, its current text, at 8; and `SEED`, the texts a store
+    registers for frames written before its registry, in version order:
+    the one older text it keeps, `schema/seed/smith-transcript-v7.schema`
+    at 7, then `SCHEMA` (jig's `protocol/store/transcripts.md`, 6).
 
-  Before the baseline the module is written by hand (`src/patches.rs`)
-  in the generated shape, and is empty: no kept text, no patch, a
-  `written` that answers every site `NoSite`. The baseline's run of the
-  command (`--baseline`) keeps the current text as the first and
-  generates `patches/mod.rs` in its place, under the same name. jig's store takes the constants into its `Smith` slot (jig's
-  `protocol/store/opening.md`, 3), handed by the host's shell.
-- **The mark:** a smith patch whose change an agent would misread on a
-  resume, such as a provider's replay it cannot carry or a call whose
-  meaning moved, carries `mark fresh-windows` in its header (skein's
-  `data/codec/patches.md`, 1). A host closes each live window across it, and the
-  next run starts afresh from its brief with the transcript's tail (jig's
-  `domain/engine/executors.md`, 2), never resumed from patched turns. A patch
-  without it is resumed across. The word is `FRESH_WINDOWS` and its
-  meaning smith's; a host reads it from the constant, as data. A patch
-  may carry the mark and change no declaration.
-- **Written functions** over a turn read that turn alone, with a
-  `Default` `Context`: a host patches a turn each time it reads it, in any
-  order, and keeps the bytes as they were written. A holder's own
-  functions never read the turn it holds, so that the order of its
-  patches and smith's changes no byte (jig's `protocol/store/transcripts.md`, 6).
-- **Frozen texts.** Once a landed patch names a version of
-  `smith-transcript`, that version's kept text is frozen: a variant
-  appended, a bound widened or a declaration added takes a patch the
-  command writes and a version move, from the first release on (skein's
-  `data/codec/command.md`, 2, step 3; temper's `draft/upgrades.md`, 4.3). Before the
-  baseline there is no kept text and no patch. Version 6 remains available
-  to archival readers without system context; version 7 adds that context
-  and is the only resumable version (`transcript.md`, section 6).
-- **The tests** sit low, in the codec's world (`tests/codecs`), over a
-  fixture family of their own (`tests/transcript-patches`): a fixture turn
-  at version 1 and 2, made by skein's command, its first patch marked
-  `fresh-windows`; each fixed-rule version-1 value built from its kept
-  text and patched by skein's `Patcher` to the stored version-2 patch
-  golden; the header marked by `FRESH_WINDOWS`; the pieces
-  word read from the schema at run time; and the real set's constants as
-  spelled, empty before the baseline; and the fixture owner's landed-data
-  check. These are focused tests; skein owns the patcher's mechanics.
+  jig's store takes the constants into its `Smith` slot (jig's
+  `protocol/store/opening-owners.md`, 1), handed by the host's shell.
+  `SEED`'s older text goes once dev.fabrig.ai's store holds the rows
+  (temper's `draft/archive/store-floor.md`); no other old text is kept,
+  and none is a wire's (temper's `protocol/wires.md`, 3.1).
+- **Frozen version.** `smith-transcript`'s version is frozen at 8, its
+  layout its text's fingerprint: a variant appended, a bound widened or a
+  declaration added is made in the current text alone and moves no
+  version, and a change no plan derives needs a written converter on the
+  wire (jig's `protocol/channel/layouts.md`, 6) and a job in the store
+  (jig's `protocol/store/jobs.md`, 4). Version 6 remains available to
+  archival readers without system context; version 7 adds that context,
+  and version 8 the `interrupted` outcome (section 6).
+- **The tests** sit low, in the codec's world (`tests/codecs`): the real
+  set's constants as spelled, `SEED`'s texts parsing at 7 and 8, and the
+  pieces word read from the schema at run time. These are focused tests;
+  the plans' mechanics are skein's (skein's `data/codec/layouts.md`).

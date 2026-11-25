@@ -7,7 +7,7 @@ admitted at, and its agents' profile and endpoints. It also covers the
 agent configuration temper writes from them, the `agents` setting, and
 what a worker's document no longer holds. It carries
 `../../draft/config.md`, 6.3, and, from 2026-11-20, the figures a running
-worker takes live (`../../draft/worker-restarts.md`, 8). The record and
+worker takes live (`../../draft/archive/worker-restarts.md`, 8). The record and
 the two openings that carry it are jig's (jig's
 `protocol/channel/figures.md`).
 
@@ -117,9 +117,9 @@ filled so:
    run on the places it's built with.
 4. **The agent configuration** is written from the figures and the
    machine (6), and pinned in the worker's root as today's file is
-   (`../../domain/worker/README.md`, section 5).
+   (`../../domain/worker/agent-processes.md`, section 1).
 5. **Checked and built** as today's start does from its document and
-   agent configuration (`README.md`, sections 2 to 4). A problem refuses
+   agent configuration (`README.md`, section 2, and `worker.md`, sections 1 to 2). A problem refuses
    the start, naming the figure and saying the engine sent it, such as
    `the engine's figures: hub.turn_bytes 1048576 is below the agent's
    turn, 18431842`.
@@ -155,9 +155,9 @@ filled so:
     and the hub's turn among them; `io.output`, which its link's opening
     states; `link.ping_ms` and `link.silence_ms`, which make the stop
     bound its hello states, which the engine checks against its grace
-    and holds its runs by (`../../draft/redeploys.md`, 5.3); and the
+    and holds its runs by (`../../draft/archive/redeploys.md`, 5.3); and the
     `agents` profile and endpoints, which re-pin its agent
-    (`../../draft/redeploys.md`, 4.4).
+    (`../../draft/archive/redeploys.md`, 4.4).
 - **How it takes them,** on figures that differ from those in force on
   it:
   1. It reads them over the stock as its start does (3.1, step 3),
@@ -239,10 +239,10 @@ filled so:
 
 ## 5. The `agents` setting
 
-- **Kind 21,** one of temper's (`settings.md`, section 2): the
+- **Kind 21,** one of temper's (`settings-kinds.md`, section 1): the
   deployment's scope, number 1, decided by the deployment's owners. It
   applies at each worker's next start, since it re-pins the worker's
-  agent (`../../draft/redeploys.md`, 4.4). Kind 20 remains the deployment's welcome; kinds 16 to 19 are left for the draft's other milestones.
+  agent (`../../draft/archive/redeploys.md`, 4.4). Kind 20 remains the deployment's welcome; kinds 16 to 19 are left for the draft's other milestones.
 - **Its value,** a record of the client's wire:
 
   ```
@@ -258,7 +258,7 @@ filled so:
   providers' endpoints. `fallback` is the limits of an endpoint the value
   doesn't name.
 - **Its default is today's stock agent configuration:** the figures
-  `temper-box init` writes in `agent.json` (`../setup/init.md`, 3). That
+  `temper-box init` writes in `agent.json` (`../setup/init.md`, 6). That
   is the profile's eleven, the four endpoints' limits (`openai`,
   `anthropic`, `anthropic-api` and `demo`), and `openai`'s limits as
   the fallback.
@@ -314,7 +314,7 @@ written as JSON by the worker's start:
   Claude Code, a shell command and the checkout's check alike. It's the
   worker's own, never the engine's or a setting's
   (`../../draft/config.md`, 6.3), from the document's
-  `application.environment` (`README.md`, section 3) and the worker
+  `application.environment` (`worker.md`, section 1) and the worker
   process's own environment, by one rule:
   - **Absent,** it's the worker process's own `HOME`, then its own
     `PATH`, each where the process has it. A deployment that writes
@@ -340,7 +340,7 @@ written as JSON by the worker's start:
 
 - **Pinned as today's file is:** `agent/agent.json` under the worker's
   root, private, with the agent program copied beside it, both afresh at
-  each start (`../../domain/worker/README.md`, section 5). smith's
+  each start (`../../domain/worker/agent-processes.md`, section 1). smith's
   decoder reads the bytes back before the start goes on, so smith's
   checks hold them.
 - **The agent program is temper's own,** derived and never written. The
@@ -367,7 +367,7 @@ written as JSON by the worker's start:
   No `application.workers` entry is written.
 
 - **`temper-box init`** writes neither the worker's `limits` and
-  `agent` nor `agent.json` (`../setup/init.md`, 2 and 3).
+  `agent` nor `agent.json` (`../setup/init.md`, 5 and 6).
 
 ## 8. Upgrades
 
@@ -389,8 +389,9 @@ written as JSON by the worker's start:
   kind 21, and takes the live ones it holds. So an engine and its
   workers redeploy in either order, and no store or setting changes
   form.
-- **`temper-client-wire` moves its version** for the Limits page's
-  word for a live limit (`limit-settings.md`, 7; `../wires.md`, 9).
+- **`temper-client-wire` changes its layout** for the Limits page's
+  word for a live limit, its version frozen (`limit-settings.md`, 7;
+  `../wires.md`, 9).
 - **The agents' environment moves no version.** `application.environment`
   is a member the document gains, absent by default, and the pinned
   configuration keeps smith's form. A deployment whose agents need no
@@ -436,7 +437,7 @@ compiled, and run after landing.
   operation in flight keeps its deadline; the next git operation of the
   other run is sent with the new one; no run is cancelled, drained,
   saved or ended, and no hello is sent again
-  (`../../draft/worker-restarts.md`, 9, test 7). A lowering is taken the
+  (`../../draft/archive/worker-restarts.md`, 9, test 7). A lowering is taken the
   same way.
 - **The rows and the worker agree,** focused, in the same tests: for
   each name of either names table that a worker reads, figures with that

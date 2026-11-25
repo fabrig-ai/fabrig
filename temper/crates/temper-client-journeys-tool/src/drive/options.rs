@@ -2,7 +2,7 @@
 use crate::EnvironmentEntry;
 use std::{
     ffi::{OsStr, OsString},
-    fs,
+    fs, io,
     os::unix::{
         ffi::OsStrExt,
         fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
@@ -293,62 +293,71 @@ pub(super) fn check_destinations(program: &Program, scratch: &Path) -> Result<()
     }
     Ok(())
 }
-pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) -> Result<Plan, String> {
+pub(super) fn prepare(options: Options, environment: &[EnvironmentEntry]) -> Result<Plan, String> {
+    prepare_with(options, environment, &mut Disk)
+}
+
+pub(super) fn prepare_with(
+    mut options: Options,
+    environment: &[EnvironmentEntry],
+    disk: &mut impl PreflightDisk,
+) -> Result<Plan, String> {
     validate_journey(options.journey, options.ctl, !options.widths.is_empty())?;
     if !options.widths.is_empty() {
         parse_widths(&options.widths.iter().map(u32::to_string).collect::<Vec<_>>().join(","))?;
     }
     if let Some(files) = &mut options.files {
-        *files = absolute(files)?;
-        if !files.is_dir() {
+        *files = absolute(disk, files)?;
+        if !disk.facts(files, true).is_ok_and(|facts| facts.directory) {
             return Err(format!("{}: --files needs a directory", files.display()));
         }
     }
-    options.bin = absolute(&options.bin)?;
+    options.bin = absolute(disk, &options.bin)?;
     for name in ["temper-box", "fake-claude", "temper"] {
-        executable(&options.bin.join(name))?;
+        executable(disk, &options.bin.join(name))?;
     }
     if let Some(deployment) = &mut options.deployment {
         if options.ports.is_none() {
             return Err("--deployment requires --ports LIST".into());
         }
         for name in ["temper-engine", "temper-worker", "temper-agent"] {
-            executable(&options.bin.join(name))?;
+            executable(disk, &options.bin.join(name))?;
         }
-        let scratch = absolute(&options.scratch)?;
-        let held = scratch.join("config").exists() && scratch.join("data").exists();
+        let scratch = absolute(disk, &options.scratch)?;
+        let held = disk.facts(&scratch.join("config"), true).is_ok() && disk.facts(&scratch.join("data"), true).is_ok();
         *deployment = if held {
-            std::env::current_dir().map_err(|why| why.to_string())?.join(&*deployment)
+            disk.current_dir().map_err(|why| why.to_string())?.join(&*deployment)
         } else {
-            absolute(deployment)?
+            absolute(disk, deployment)?
         };
-        if !held && !deployment.is_dir() {
+        if !held && !disk.facts(deployment, true).is_ok_and(|facts| facts.directory) {
             return Err(format!("{}: --deployment needs a directory", deployment.display()));
         }
     } else if options.bundle.is_none() {
         return Err("missing --bundle DIR".into());
     }
     if let Some(bundle) = &mut options.bundle {
-        *bundle = absolute(bundle)?;
-        if !bundle.join("index.html").is_file() {
+        *bundle = absolute(disk, bundle)?;
+        if !disk.facts(&bundle.join("index.html"), true).is_ok_and(|facts| facts.file) {
             return Err(format!("{} is not a file", bundle.join("index.html").display()));
         }
     }
-    options.scratch = absolute(&options.scratch)?;
-    let metadata = fs::metadata(&options.scratch).map_err(|error| format!("{}: {error}", options.scratch.display()))?;
-    if !metadata.is_dir() || metadata.uid() != skein_shell::effective_user() || metadata.mode() & 0o077 != 0 {
+    options.scratch = absolute(disk, &options.scratch)?;
+    let metadata =
+        disk.facts(&options.scratch, true).map_err(|error| format!("{}: {error}", options.scratch.display()))?;
+    if !metadata.directory || metadata.owner != disk.effective_user() || metadata.mode & 0o077 != 0 {
         return Err(format!("{} is not an owned private scratch directory", options.scratch.display()));
     }
     for script in &mut options.scripts {
-        *script = absolute(script)?;
+        *script = absolute(disk, script)?;
     }
     let chromium = if options.ctl {
         PathBuf::new()
     } else {
         let chromium =
             crate::table::CHROMIUM.value(environment).ok_or("set SKEIN_TEST_CHROMIUM to the Chromium executable")?;
-        let chromium = absolute(Path::new(OsStr::from_bytes(chromium)))?;
-        executable(&chromium)?;
+        let chromium = absolute(disk, Path::new(OsStr::from_bytes(chromium)))?;
+        executable(disk, &chromium)?;
         chromium
     };
     let mut plan =
@@ -357,26 +366,95 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
         .iter()
         .find(|(name, _)| name.as_ref() == b"DISPLAY")
         .map(|(_, value)| OsStr::from_bytes(value).to_os_string());
-    fresh_session(&plan.options.scratch)
+    fresh_session(disk, &plan.options.scratch)
         .map_err(|error| format!("cannot prepare {}/session: {error}", plan.options.scratch.display()))?;
     Ok(plan)
 }
-fn absolute(path: &Path) -> Result<PathBuf, String> {
-    fs::canonicalize(path).map_err(|error| format!("{}: {error}", path.display()))
+pub(super) struct FileFacts {
+    pub(super) directory: bool,
+    pub(super) file: bool,
+    pub(super) owner: u32,
+    pub(super) mode: u32,
 }
-fn executable(path: &Path) -> Result<(), String> {
-    let metadata = fs::metadata(path).map_err(|error| format!("{}: {error}", path.display()))?;
-    if !metadata.is_file() || metadata.permissions().mode() & 0o111 == 0 {
+
+pub(super) trait PreflightDisk {
+    fn canonicalize(&mut self, path: &Path) -> io::Result<PathBuf>;
+    fn facts(&mut self, path: &Path, follow: bool) -> io::Result<FileFacts>;
+    fn current_dir(&mut self) -> io::Result<PathBuf>;
+    fn effective_user(&self) -> u32;
+    fn remove_dir_all(&mut self, path: &Path) -> io::Result<()>;
+    fn remove_file(&mut self, path: &Path) -> io::Result<()>;
+    fn make_session_dir(&mut self, path: &Path) -> io::Result<()>;
+    fn link(&mut self, target: &Path, path: &Path) -> io::Result<()>;
+    fn make_session_file(&mut self, path: &Path) -> io::Result<()>;
+}
+
+struct Disk;
+
+impl PreflightDisk for Disk {
+    fn canonicalize(&mut self, path: &Path) -> io::Result<PathBuf> {
+        fs::canonicalize(path)
+    }
+
+    fn facts(&mut self, path: &Path, follow: bool) -> io::Result<FileFacts> {
+        let metadata = if follow { fs::metadata(path) } else { fs::symlink_metadata(path) }?;
+        Ok(FileFacts {
+            directory: metadata.is_dir(),
+            file: metadata.is_file(),
+            owner: metadata.uid(),
+            mode: metadata.mode(),
+        })
+    }
+
+    fn current_dir(&mut self) -> io::Result<PathBuf> {
+        std::env::current_dir()
+    }
+
+    fn effective_user(&self) -> u32 {
+        skein_shell::effective_user()
+    }
+
+    fn remove_dir_all(&mut self, path: &Path) -> io::Result<()> {
+        fs::remove_dir_all(path)
+    }
+
+    fn remove_file(&mut self, path: &Path) -> io::Result<()> {
+        fs::remove_file(path)
+    }
+
+    fn make_session_dir(&mut self, path: &Path) -> io::Result<()> {
+        fs::DirBuilder::new().mode(0o700).create(path)?;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+    }
+
+    fn link(&mut self, target: &Path, path: &Path) -> io::Result<()> {
+        std::os::unix::fs::symlink(target, path)
+    }
+
+    fn make_session_file(&mut self, path: &Path) -> io::Result<()> {
+        let made = fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(path)?;
+        made.set_permissions(fs::Permissions::from_mode(0o600))
+    }
+}
+
+fn absolute(disk: &mut impl PreflightDisk, path: &Path) -> Result<PathBuf, String> {
+    disk.canonicalize(path).map_err(|error| format!("{}: {error}", path.display()))
+}
+
+fn executable(disk: &mut impl PreflightDisk, path: &Path) -> Result<(), String> {
+    let metadata = disk.facts(path, true).map_err(|error| format!("{}: {error}", path.display()))?;
+    if !metadata.file || metadata.mode & 0o111 == 0 {
         return Err(format!("{} is not an executable regular file", path.display()));
     }
     Ok(())
 }
-fn fresh_session(scratch: &Path) -> std::io::Result<()> {
+
+fn fresh_session(disk: &mut impl PreflightDisk, scratch: &Path) -> io::Result<()> {
     let session = scratch.join("session");
-    match fs::symlink_metadata(&session) {
-        Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(&session)?,
-        Ok(_) => fs::remove_file(&session)?,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+    match disk.facts(&session, false) {
+        Ok(metadata) if metadata.directory => disk.remove_dir_all(&session)?,
+        Ok(_) => disk.remove_file(&session)?,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => return Err(error),
     }
     for dir in [
@@ -393,15 +471,13 @@ fn fresh_session(scratch: &Path) -> std::io::Result<()> {
         "bin",
         "looks",
     ] {
-        fs::DirBuilder::new().mode(0o700).create(session.join(dir))?;
-        fs::set_permissions(session.join(dir), fs::Permissions::from_mode(0o700))?;
+        disk.make_session_dir(&session.join(dir))?;
     }
     for name in ["xdg-open", "open"] {
-        std::os::unix::fs::symlink("/usr/bin/true", session.join("bin").join(name))?;
+        disk.link(Path::new("/usr/bin/true"), &session.join("bin").join(name))?;
     }
     for file in ["lines", "box.log"] {
-        let made = fs::OpenOptions::new().create_new(true).write(true).mode(0o600).open(session.join(file))?;
-        made.set_permissions(fs::Permissions::from_mode(0o600))?;
+        disk.make_session_file(&session.join(file))?;
     }
     Ok(())
 }

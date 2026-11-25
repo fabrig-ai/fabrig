@@ -113,7 +113,7 @@ and its mandatory details together.
 |---|---|
 | waiting | waiting for T2, T3: each a chip, with its phase; or for a hold: "waiting for a slot in staging" |
 | active, an agent: idle | waiting on what its task says it waits on (a party, its delegates, news), and what would wake it, from its wake policy |
-| active, kept by its dependencies | kept until T7, T8 are done: each a chip, with its phase, and who added it and when ("kept until T7 is done, added by P at 10:42"); a run still live is shown as running is, and then that it parked (`../../domain/tasks/lifecycle.md`, 8) |
+| active, kept by its dependencies | kept until T7, T8 are done: each a chip, with its phase, and who added it and when ("kept until T7 is done, added by P at 10:42"); a run still live is shown as running is, and then that it parked (`../../domain/tasks/lifecycle-endings.md`, 1) |
 | due, preparing, claimed | starting |
 | running | running: writing, or a tool (which, when its host names it), on its host's last report (`../../domain/hosts/hub.md`, 5), and working otherwise; its attempt, for how long |
 | backing off | retrying at a time, and why: "host lost, try 2 of 3"; from a brief that failed, its reason too, after the count: "try 2 of 3. Why: pull: the forge's answer did not match its read" (`../../domain/engine/briefs.md`, 1.1) |
@@ -124,7 +124,7 @@ and its mandatory details together.
 | done, failed, cancelled | ended so, when, and by whom for a cancel |
 
 A closing task's effects are its connectors'
-(`../../domain/connectors.md`, 4.2): the chip names each connector it
+(`../../domain/connectors-effects.md`, 1.2): the chip names each connector it
 waits on to settle, in the connector's own words (a part), and never
 counts their effects. How many, and which, the connector shows in its
 panel on the task's page (pages.md, 5.2).
@@ -184,10 +184,12 @@ Proposal from I, incident: checkout errors                waiting 4 min
 ## 5. Escalation, and holds by reason
 
 A held task whose escalation reached the party
-(`../../domain/tasks/lifecycle.md`, 6 and `../../domain/tasks/proposals.md`).
+(`../../domain/tasks/lifecycle-holds.md`, 1 and `../../domain/tasks/proposals.md`).
 
 - **The task,** from `Escalation.task`, and **why it is held,**
-  from its hold, in words with the supplied details (the table below).
+  from its hold: its words, which name its cause, its object, since when
+  and its way out (`../../domain/tasks/lifecycle-holds.md`, 3), with the
+  supplied details (the table below).
 - **What it had done:** its phase before the hold; its result, if it was
   closing.
 - **Where it waits:** the hold's supplied escalation state and
@@ -222,6 +224,7 @@ A held task whose escalation reached the party
 | past its deadline | its deadline | move the deadline and release; cancel |
 | stopped | by whom, and when | release; amend and release; cancel |
 | waiting for a hold past its bound | the resource, and who holds it | release, to wait again; amend to drop it; cancel |
+| a wait past its bound | what it waited for, since when, and its figure: its hold's words | release, to wait again; amend; cancel |
 | a circle of waits | the circle's tasks, as chips in order, each waiting for the next; that the hold lifts on its own once the circle breaks (`../../domain/tasks/holds.md`, 7) | amend a task on the circle to drop a dependency; cancel; release, judged afresh |
 | its pool lost its allocation | the pool, and its slots (a part) | release, to wait for a slot; cancel |
 | its procedure needs a decision | the procedure's reason, in its connector's words (a part) | release, its counts reset; amend and release; cancel |
@@ -231,10 +234,10 @@ A held task whose escalation reached the party
 - **Widening a budget** is funded by whoever gives it: the party's pool
   when it is within their authority, the accepter's when it is
   proposed; from then the giver is the task's funder
-  (`../../domain/authority.md`, section 7).
+  (`../../domain/authority-budgets.md`, section 1).
 - **A person deciding an uncertain effect** decides whether to make it
   again, which only someone who looks at the system can
-  (`../../domain/connectors.md`, 4.3); the card says where to look, as
+  (`../../domain/connectors-effects.md`, 1.3); the card says where to look, as
   its connector's part, and that the engine will do as they say.
 
 ## 6. Question
@@ -277,7 +280,7 @@ A task whose executor is the party, or a role they hold
   answer at once; the others see who took it; *hand it back* (a
   `HandBack`).
 - **Its stall:** when it will become news for its requester.
-- **Kept by its dependencies** (`../../domain/tasks/lifecycle.md`, 8): the card
+- **Kept by its dependencies** (`../../domain/tasks/lifecycle-endings.md`, 1): the card
   names the pending ones, as chips, and offers no answer until they are
   done; it may still be taken.
 
@@ -303,11 +306,11 @@ on it, an approval the procedure that asked for it.
 ## 9. Refusal
 
 What a request asked, and why it was refused, from the refusal's facts
-(contract/README.md, section 3):
+(contract/answers.md, section 1):
 
 - **the role,** or the authority it lacked, said as what was missing
   ("your pool has 12 left; this needs 40"), and whether a proposal could
-  be accepted, and, from the offer, by whom (contract/README.md, section 3, and contract/documents.md, section 3
+  be accepted, and, from the offer, by whom (contract/answers.md, section 1, and contract/documents.md, section 3
   );
 - **a limit:** the project's live tasks, the inbox full, the chat's words
   too long, a compound request's operations past their bound;
@@ -346,7 +349,7 @@ across windows and gaps (client/helpers.md):
 - **its calls to the engine, as cards:** a delegation as the chips of the
   tasks it made; a proposal as its card; a message to a delegate; an
   effect and what it made; a note and a link to it; a decision and what
-  was decided (`../../domain/engine/executors.md`, 2 and 3);
+  was decided (`../../domain/engine/executors-transcripts.md`, 1, and `../../domain/engine/executors-tools.md`, 1);
 - **the proposals waiting in its subtree** (its task's document,
   contract/documents.md, 1) that no call or decision of it shows, as their cards
   after its lines: a delegate's proposal, which none of the
@@ -376,7 +379,7 @@ will do:
   policy; its dependencies, added and removed until it closes, the form
   saying what an add does (a waiting task waits longer; an active one is
   kept, its live run finishing its turn and its next waiting for them:
-  `../../domain/tasks/lifecycle.md`, 8); its authority,
+  `../../domain/tasks/lifecycle-endings.md`, 1); its authority,
   narrowed freely and widened within the party's own (beyond it,
   proposed); its charter's instructions. A procedure's parameters are
   its connector's, amended through its form in a slot, as the
@@ -412,7 +415,7 @@ will do:
   jig's words, that effects not yet made are withdrawn and those in
   flight settle. The core never counts a connector's effects, and its
   closing asks every connector to settle the tree's (`objects.md`, section 3;
-  `../../domain/connectors.md`, 4.2): which, and how many, each
+  `../../domain/connectors-effects.md`, 1.2): which, and how many, each
   connector's panel says.
 - **Close,** for a chat: asks it to finish and cancels it if it has not
   within a grace. A chat with live delegates asks first what becomes of

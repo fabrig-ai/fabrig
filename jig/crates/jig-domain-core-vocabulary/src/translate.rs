@@ -1,6 +1,7 @@
 //! Translations between the core's child vocabularies
 //! (jig/docs/design/domain/engine/README.md, 3; jig/docs/design/domain/authority.md, 2–4).
 
+use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -61,18 +62,80 @@ pub fn tasks_authority(value: &tasks::Authority) -> authority::Authority {
             })
             .expect("executor capacity");
     }
+    authority_with_collections(value, grants.into_boxed(), kinds.into_boxed(), note_resources.into_boxed())
+}
+
+fn authority_with_collections(
+    value: &tasks::Authority,
+    grants: Box<[authority::Grant]>,
+    kinds: Box<[authority::Executor]>,
+    note_resources: Box<[authority::ResourceScope]>,
+) -> authority::Authority {
     authority::Authority {
         tools: authority::Tools(value.tools.0),
         models: authority::Models::from_parts(value.models.bits(), value.models.is_all()),
-        grants: grants.into_boxed(),
-        delegation: authority::Delegation {
-            kinds: kinds.into_boxed(),
-            tasks: value.delegation.tasks,
-            depth: value.delegation.depth,
-        },
+        grants,
+        delegation: authority::Delegation { kinds, tasks: value.delegation.tasks, depth: value.delegation.depth },
         budget: authority::Budget { spend: value.budget.spend, deadline: value.budget.deadline },
         notes: authority::Scopes(value.notes.0),
-        note_resources: note_resources.into_boxed(),
+        note_resources,
+    }
+}
+
+/// Check a task holder in the authority vocabulary. When the need names no
+/// grants, executors or resource scopes, only the bounds on those collections
+/// matter, so there is no need to copy them out of the task's row.
+#[must_use]
+pub fn task_holder_covers(
+    domain: &authority::Domain,
+    needed: &authority::Authority,
+    row: &tasks::TaskRecord,
+    tasks_left: u32,
+    below: u32,
+) -> bool {
+    let value = &row.authority;
+    let authority =
+        if needed.grants.is_empty() && needed.delegation.kinds.is_empty() && needed.note_resources.is_empty() {
+            if !task_authority_fits(value, domain.limits()) {
+                return false;
+            }
+            authority_with_collections(value, Box::new([]), Box::new([]), Box::new([]))
+        } else {
+            tasks_authority(value)
+        };
+    authority::covers(
+        domain,
+        needed,
+        &authority::Holder::Task {
+            project: row.project,
+            authority,
+            numbers: authority_numbers(row.numbers),
+            tasks_left,
+        },
+        below,
+    )
+}
+
+fn task_authority_fits(value: &tasks::Authority, limits: &authority::Limits) -> bool {
+    if !limits.authority_counts_fit(value.grants.len(), value.delegation.kinds.len(), value.note_resources.len()) {
+        return false;
+    }
+    for grant in &value.grants {
+        if !task_pattern_fits(&grant.pattern, limits) {
+            return false;
+        }
+    }
+    for scope in &value.note_resources {
+        if !task_pattern_fits(&scope.pattern, limits) {
+            return false;
+        }
+    }
+    true
+}
+
+fn task_pattern_fits(pattern: &tasks::Pattern, limits: &authority::Limits) -> bool {
+    match &pattern.last {
+        tasks::Last::Exact(last) | tasks::Last::Open(last) => limits.pattern_parts_fit(&pattern.segments, last),
     }
 }
 

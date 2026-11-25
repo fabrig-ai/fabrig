@@ -85,9 +85,19 @@ pub(crate) fn allowed(core: &Core, project: u32, batch: Box<[authority::Delegate
     allowed_action(core, project, &authority::Action::Batch(batch))
 }
 fn allowed_action(core: &Core, project: u32, action: &authority::Action) -> Result<(), people::Refusal> {
+    policy_proposal_allowed(&core.authority, project, action)
+}
+
+/// The policy and deployment preflight shared by party proposals and settings tests.
+/// See `domain/authority.md`, 9: what may be proposed.
+pub fn policy_proposal_allowed(
+    domain: &authority::Domain,
+    project: u32,
+    action: &authority::Action,
+) -> Result<(), people::Refusal> {
     let needs = authority::needs(action).ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
-    let policy = core.authority.policy(project).ok_or(people::Refusal::Unknown)?;
-    let rules = core.authority.rules();
+    let policy = domain.policy(project).ok_or(people::Refusal::Unknown)?;
+    let rules = domain.rules();
     let cap = policy.period_spend.min(rules.period_spend);
     if needs.budget.spend > cap {
         return Err(nobody(people::Lack::Budget { needs: needs.budget.spend, left: cap }));

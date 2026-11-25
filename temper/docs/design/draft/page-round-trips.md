@@ -72,7 +72,7 @@ is not this draft's (section 9).
 - **Its answer streams.** `200`, its body a sequence of replies, each framed
   by its length and naming its member, written in the order they are
   released: a read's once every commit it reflects is durable (jig's
-  `client/domain/contract/README.md`, section 4), a watch's opening once
+  `client/domain/contract/reads.md`, section 1), a watch's opening once
   admitted or refused. One slow read holds back nothing else. The engine holds
   at most the route's bound of replies unwritten, and writes them as the
   connection takes them. A watch's values come over the stream, as now.
@@ -113,7 +113,7 @@ is not this draft's (section 9).
 
 - **jig's open question, settled** (jig's `client/domain/contract/README.md`,
   section 9, *Bundling parts*): a task query, read or watched (jig's
-  `client/domain/contract/README.md`, 4.1), may name an application's part,
+  `client/domain/contract/reads.md`, 1.1), may name an application's part,
   by its owner, its kind and the owner's version. The engine's root asks the
   application's connector for each row's part as the row is made for an
   answer or a delivery. The row carries it in its owner's versioned envelope,
@@ -173,7 +173,7 @@ is not this draft's (section 9).
   What waits for `me` (the templates' labels, the party) is ready when the
   stream is.
 - **The party's own and the deployment's need no `me`.** Their reads and
-  watches name no party (jig's `client/domain/contract/README.md`, 5.5), so
+  watches name no party (jig's `client/domain/contract/watches.md`, 1.5), so
   they go in the first batch with everything else.
 - **No narrower twin.** A watch whose subject differs from an open one only by
   a smaller window is served by the open one: the rail's facts that a project
@@ -184,8 +184,8 @@ is not this draft's (section 9).
     the engine moves whenever its ended group would read otherwise (a task its
     query selects ending, an ended row's part changing), given with the
     opening's ended read and with every delivery. Comparing live rows can't
-    tell, since deliveries coalesce (jig's `client/domain/contract/README.md`,
-    5.2).
+    tell, since deliveries coalesce (jig's `client/domain/contract/watches.md`,
+    1.2).
   - *the needs' selection:* read again as `me`'s `needs_total` or the inbox's
     mark moves, never for the goals' first delivery.
   - *a setting:* its read answers with the revision it read, and the settings'
@@ -250,7 +250,7 @@ All focused, with no walk or measure in a plan.
 
 - jig's client wire and HTTP mapping and temper's client family move their
   versions, unbridged: a page of an earlier version is refused by name and
-  reloads to the engine's bundle (`redeploys.md`, section 8). The hello keeps
+  reloads to the engine's bundle (`archive/redeploys.md`, section 8). The hello keeps
   its served ranges first, so that refusal stays readable whatever `me`'s
   layout.
 - A part is versioned by its owner, as the owner's reads are, so temper's

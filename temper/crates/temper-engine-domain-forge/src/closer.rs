@@ -1,5 +1,5 @@
 //! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge/branches.md, 2).
-use crate::{Domain, Key, Limits, Request, Stored};
+use crate::{Domain, Key, Limits, Name, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Duration, Env, List, Map, Queue, Token, Wall};
@@ -11,6 +11,7 @@ pub(crate) struct State {
     pub(crate) rows: Map<u64, CloserRow>,
     pub(crate) reads: Map<Token, Reading>,
     pub(crate) selection_reads: Map<Token, (u64, Repository)>,
+    pub(crate) branch_waits: Map<u64, Name>,
     checked: Map<u64, (u64, Result<bool, Error>)>,
     waits: Map<u64, Duration>,
 }
@@ -34,6 +35,7 @@ impl State {
         self.rows.raise(tasks);
         self.reads.raise(tasks);
         self.selection_reads.raise(tasks);
+        self.branch_waits.raise(tasks);
         self.checked.raise(tasks);
         self.waits.raise(tasks);
     }
@@ -42,6 +44,7 @@ impl State {
             rows: Map::with_capacity(tasks),
             reads: Map::with_capacity(tasks),
             selection_reads: Map::with_capacity(tasks),
+            branch_waits: Map::with_capacity(tasks),
             checked: Map::with_capacity(tasks),
             waits: Map::with_capacity(tasks),
         }
@@ -51,6 +54,23 @@ impl Domain {
     #[must_use]
     pub fn closer(&self, task: u64) -> Option<&CloserRow> {
         self.closing.rows.get(&task)
+    }
+
+    /// Park this closer only while its goal branch is being made.
+    #[must_use]
+    pub fn park_closer_for_goal_branch(&mut self, task: u64, name: &Name) -> bool {
+        if self.goal_branch_waiting(name) {
+            self.closing.branch_waits.insert(task, name.clone()).expect("one branch wait per closer");
+            true
+        } else {
+            self.closing.branch_waits.remove(&task);
+            false
+        }
+    }
+
+    /// New work during an offered step can invalidate its containment answer.
+    pub fn discard_closer_answer(&mut self, task: u64) {
+        self.closing.checked.remove(&task);
     }
 
     #[must_use]
@@ -82,6 +102,7 @@ pub(crate) fn forget(d: &mut Domain, goal: u64, out: &mut Queue<Request>) {
     }
 }
 fn discard_check(d: &mut Domain, task: u64) {
+    d.closing.branch_waits.remove(&task);
     d.closing.checked.remove(&task);
     d.closing.waits.remove(&task);
     d.offered_change(task);
@@ -349,6 +370,15 @@ pub(crate) fn selection_answered(
 }
 
 pub(crate) fn release_repository(d: &mut Domain, repository: Repository) {
+    let mut tasks = List::with_capacity(d.closing.branch_waits.len());
+    for (task, name) in &d.closing.branch_waits {
+        if name.forge == repository.forge && name.repository == repository.repository {
+            tasks.push(*task).expect("bounded closer waits");
+        }
+    }
+    for task in &tasks {
+        d.closing.branch_waits.remove(task);
+    }
     let mut keys = List::with_capacity(d.closing.reads.len());
     for (key, row) in &d.closing.reads {
         if row.repository == repository {

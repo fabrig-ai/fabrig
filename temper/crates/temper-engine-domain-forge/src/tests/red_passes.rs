@@ -66,6 +66,7 @@ fn merged_pull() -> PendingStep {
         branch_fresh: false,
         base_tip: Some(FIRST),
         base_read: Some(FIRST),
+        close_landing: None,
         pull: Some(skein_forge::api::Pull {
             number: 1,
             head: b"temper/51".as_slice().into(),
@@ -121,9 +122,11 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                 .insert(
                     61,
                     LandingRow {
+                        read_hold: None,
                         last_event: None,
                         turn_since: None,
                         waiting: None,
+                        follows: None,
                         flake_reruns: Box::new([]),
                         room: None,
                         job: None,

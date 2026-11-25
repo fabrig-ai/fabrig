@@ -1,4 +1,4 @@
-//! Whole document decoding (protocol/client/wire.md, 1; client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
+//! Whole document decoding (protocol/client/wire.md, 1; client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{Undecodable, classify, piece_problem, too_large};
 use crate::Limits;
 use alloc::boxed::Box;
@@ -14,8 +14,14 @@ pub(crate) use accounts::*;
 
 mod authority;
 pub(crate) use authority::*;
-mod capacity;
-pub(crate) use capacity::*;
+#[cfg(test)]
+pub(crate) fn hello_refusal_fields(value: &w::HelloRefusal) -> c::HelloRefusal {
+    crate::generated::client::hello_refusal_to_domain(value.clone())
+}
+#[cfg(test)]
+pub(crate) fn person_capacity_action_fields(value: &w::PersonCapacityAction) -> c::PersonCapacityAction {
+    crate::generated::client::person_capacity_action_to_domain(value.clone())
+}
 mod chips;
 pub(crate) use chips::*;
 mod deployment;
@@ -76,7 +82,7 @@ pub fn task(record: w::Task, limits: &Limits) -> Result<c::Task, Undecodable> {
     {
         return Err(Undecodable::TooLarge);
     }
-    match task_fields(&record, limits) {
+    match task_from_record(record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

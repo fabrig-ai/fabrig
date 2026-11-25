@@ -13,8 +13,12 @@ use smith_protocol_llm as llm;
 pub mod fake;
 pub mod list_world;
 pub mod probe;
+pub mod program_contract;
 pub mod program_world;
 pub mod wire;
+
+#[doc(hidden)]
+pub mod testing;
 
 pub mod events;
 mod tracing;
@@ -285,7 +289,7 @@ pub fn host() -> ScriptedPeer {
 fn host_with_limits(mut limits: channel::Limits) -> ScriptedPeer {
     let schema = channel::schema_for_start(&limits.bodies, limits.start_bytes).expect("joint Start schema");
     // The scripted host sends the initiator's kinds, with the same joint
-    // Start as the agent receives (smith/docs/design/protocol/limits.md, section 3, rule 6).
+    // Start as the agent receives (smith/docs/design/protocol/limits-derivation.md, section 1, rule 6).
     let mut largest = 0;
     for version in &schema.versions {
         for kind in &version.kinds {
@@ -337,6 +341,8 @@ pub(crate) fn start_workspace_message(
         messages.push(message.clone()).expect("one selected host message");
     }
     let record = smith_channel::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live,
         messages,
         identity: None,
@@ -349,6 +355,7 @@ pub(crate) fn start_workspace_message(
             {
                 directories
                     .push(smith_channel::Directory {
+                        results: None,
                         name: name.into(),
                         path: path.into(),
                         writable: false,
@@ -415,7 +422,9 @@ pub fn charter() -> Box<[u8]> {
     })
 }
 
-pub use world::{Order, OrderSnapshot, TraceCase, World, long_child_answer};
+pub use world::{
+    CODING_LINES, CODING_OUTPUT, Order, OrderSnapshot, TraceCase, World, large_coding_write, long_child_answer,
+};
 
 /// Panics on the direct provider stream's first conformance finding.
 pub fn assert_event_conformance(records: &[smith_events::Record]) {
@@ -440,7 +449,7 @@ pub use grants::{bearer, key, program};
 fn charter_fixture() -> Vec<u8> {
     let values = skein_codegen::values(smith_charter::SCHEMA);
     values
-        .goldens
+        .fixed
         .clone()
         .into_iter()
         .find(|value| value.name == "record_charter_smallest.bin")

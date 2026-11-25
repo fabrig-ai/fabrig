@@ -12,9 +12,9 @@
 | a cancel | the same; the deployment, closing a conversation (../people/acts.md, 3) | always |
 | words | a party; a task holding a reference to it | a party's, yes; a task's, by policy |
 | news: a connector's event, classified | its subscriptions (4) | by policy |
-| a notice: a task it references done or held; a proposal passing through; a hold it waits for | its subscriptions; the core | by policy |
+| a notice: a task it watches done or held, or no longer read by its tree's requester (4); a proposal passing through; a hold it waits for | its subscriptions; the core | by policy |
 | a notice: nothing left to await (`lifecycle.md`, 2) | the core | yes |
-| a notice: its last pending dependency done or removed (`lifecycle.md`, 8) | the core | yes |
+| a notice: its last pending dependency done or removed (`lifecycle-endings.md`, 1) | the core | yes |
 | a timer | itself | yes |
 
 Proposals and escalations waiting for its decision are not messages: they
@@ -52,17 +52,47 @@ again when a run leaves one undecided only as 6 says.
   sender's entrance, as words past the inbox's bound are.
 - **Open questions stay in front of it.** A question asked of the task
   is open until it hears an answer or the question ends
-  (`lifecycle.md`, 8). Read or not, an open question is shown to every
+  (`lifecycle-endings.md`, 1). Read or not, an open question is shown to every
   run that starts from a brief: in its waiting section, with its asker,
   its number and how to answer, unless the run's start carries it as a
   message (../engine/briefs.md, 1.2). It is among
   every run's reasons (6), and, left open by a run that parks idle,
   wakes the task again (`lifecycle.md`, 2).
+- **A question left past its bound passes up**
+  (`temper/docs/design/draft/bounded-waits.md`, 4.2). One asked of a task,
+  unanswered `waits.question` after its asking, and one waiting at a
+  person (`../people/README.md`, 5), unanswered `waits.party` after it
+  reached them, each capped by its asker's deadline
+  (`../engine/waits.md`, 5), is offered to the next holder that covers
+  it, found as its asker's escalation would be past that holder
+  (`proposals.md`, *Where they wait*): the nearest task above that may
+  decide, then the tree's requesting person, then the project's
+  escalation role. The core's bound alarm does it
+  (`lifecycle-holds.md`, 1). It stays one question:
+  - *Who may answer:* its first holder, the task or person it was asked
+    of, and its current holder, each as its first holder may: a task in
+    the answer form, naming its number; a party with `Answer` in their
+    inbox, a role's holder as a person. The first answer settles it and
+    reaches its asker as its answer; a later one is refused, naming who
+    answered.
+  - *Where it shows:* at a task, as an entry, as an escalation is,
+    relayed and read in order with its messages, taking none of their
+    room, and waking it on arrival; at a party, as a question in their
+    inbox. Its first holder keeps it as before.
+  - *Onward:* at its current holder it has that holder's bound again,
+    `waits.question` at a task and `waits.party` at a party, from its
+    arrival there, and passes on; at the project's last holder it is
+    overdue (`proposals.md`, *Overdue at the last holder*), with no timer
+    after. Its asker's wait follows it: one wait, at its current holder.
+  - *Kept:* its asker's credit keeps its current holder and since when,
+    an optional member that the previous build's records lack, read as
+    none, so a restart finds the same, and its asker hears nothing of a
+    move but the answer.
 - **Words that direct it stay until a run records them.** A task
   **keeps words** when it is an agent task whose runs start from a
-  brief, never resuming (../engine/executors.md, 2), that is no
+  brief, never resuming (../engine/executors-transcripts.md, 1), that is no
   conversation, does not stand (`standing.md`) and is not ended by its
-  requester (`lifecycle.md`, 9): a task that resumes holds what it read
+  requester (`lifecycle-endings.md`, 2): a task that resumes holds what it read
   in its window, and a conversation or a standing task is read by its
   person turn by turn. In a task that keeps words, a words message (1)
   from a person, or from its requester where that is a task, is
@@ -75,7 +105,7 @@ again when a run leaves one undecided only as 6 says.
     next run will find it, in a spec it writes or in a note, and says
     so: by naming it in `mark_read`, the act that says it was read, or
     in the `records` of a `note`, which records it once the note is
-    written (../engine/executors.md, 3). What records it is that act,
+    written (../engine/executors-tools.md, 1). What records it is that act,
     never the core's reading of a spec or a note. Only a run of the
     task records its words; a number naming none of them records
     nothing and is answered so.
@@ -96,8 +126,8 @@ again when a run leaves one undecided only as 6 says.
     asks dropped by one goal; two messages lost by another whose hung
     run was stopped).
 - **Within what a run reads.** Every message an inbox admits fits a
-  run's message bound as it is rendered (smith's `protocol/limits.md`,
-  3.9), so no run refuses one as too large: words and questions larger
+  run's message bound as it is rendered (smith's `protocol/limits-derivation.md`,
+  1.9), so no run refuses one as too large: words and questions larger
   are refused at their sender's entrance as too large, never cut (a
   party's by the people child, whose bound is at most the run's;
   ../people/acts.md, 1), and every other kind fits by its own bound.
@@ -172,6 +202,25 @@ task: no policy may keep a decision from whoever must make it. One a run
 was offered under a part that covered it and left undecided wakes the
 task again only when it changes (6).
 
+**An escalation waiting for a task makes every message wake it.** While
+an escalation waits for a task's decision, from its arrival until it is
+decided, ends with its hold or waits elsewhere, every message the task's
+inbox admits wakes the task at once, whatever its policy says of the
+message's kind: a result that would ride along under `last_or_failure`
+or `never`, news a pace or a batch holds or its connector keeps, and a
+question, an answer, a notice or a timer the policy doesn't wake on.
+Each is the change the escalation waits for (6). It is judged so
+wherever the policy is read: its kind is among the reasons of the run it
+wakes, a live run is relayed each result as one its policy lets wake it,
+and a message a run leaves unread or isn't offered is judged so again
+when the run ends, the park so left due waiting a pause first (below). Once no
+escalation waits for the task, the policy judges as before, and a message
+a batch or a pace holds wakes by its timer. A proposal waiting for its
+decision changes no policy (`proposals.md`, Open questions). So a task
+that parks leaving an escalation undecided, as a goal parks on its
+repair, runs again on the next thing it hears, the repair's result among
+them (decided 2026-11-24).
+
 A message a run refused, left unread or wasn't offered (2 and 6) is
 judged again when the run ends, as if it arrived then: it wakes the task
 if its kind does, and otherwise waits for the next activation.
@@ -179,7 +228,7 @@ if its kind does, and otherwise waits for the next activation.
 **A park that wakes at once waits a pause first.** A run that parks and
 leaves its task due again at once, so judged, on a message, a proposal or
 an escalation it left in place, claims again only after the pause a
-refusal takes (`lifecycle.md`, 6): no try spent, the pause growing with
+refusal takes (`lifecycle-holds.md`, 1): no try spent, the pause growing with
 each such park in a row, and from the first again once a park leaves its
 task idle. The run after the pause is woken by the same message, as it
 would have been at once. What arrives meanwhile waits for it, as for any
@@ -187,16 +236,16 @@ pause. So a run that parks without reading what wakes it never has one
 start assigned again without backoff (the user, 2026-11-19).
 
 Each charter brings a default policy, named with the charter in
-configuration (`../../protocol/configuration.md`, section 3) and kept with
+configuration (`../../protocol/configuration-engine.md`, section 1) and kept with
 it in the settings: an agent task made under the charter, by a batch
 entry that names no policy or from a template, which names none
-(`../../protocol/configuration.md`, 3.1), takes the charter's default as
+(`../../protocol/configuration-templates.md`, 1), takes the charter's default as
 the settings hold it when the task is made, and keeps it as its own;
 its creator narrows or widens it by naming a whole policy in the entry,
 and an amendment changes it as any policy. A chat's default wakes on
 its person's words and on its delegates' results; a coordinator's on
 questions, escalations, failures and its last delegate's result
-(`last_or_failure`; for a task its closer ends, a failure alone: `lifecycle.md`, 11),
+(`last_or_failure`; for a task its closer ends, a failure alone: `lifecycle-endings.md`, 3),
 words from its delegates and its person's words, at once, and on news
 its connectors class as waking at a pace, at most once in a span (the
 reference's coordinator: 30 minutes); most other agents' on
@@ -213,31 +262,59 @@ A subscription is a task's standing interest in what changes:
 
 - **a connector's topic,** such as a service's alerts or the landings on
   a branch: kept by the connector, which names the task by its number and
-  classifies each event for it (../connectors.md, 5.3);
+  classifies each event for it (../connectors-facts.md, 1.3);
 - **another task's state:** done, held, or its result; for a task it
-  references;
+  references, or any live task of its project that its tree's
+  requester reads (5, *Waits by reading*);
 - **a timer.**
 
 Subscriptions end with the task. A goal's subscriptions to the topics its
 connectors offer for goals are the core's to keep, not its executor's
-(../model.md, 6.2). Their number per task is bounded, by `subscriptions`
-(`README.md`, section 6), but for one topic asked apart:
+(../model.md, 6.2).
 
-- **One topic apart.** An application may ask a connector's topic for a
-  task apart from the bound (the tasks child's `SubscribeTopicApart`,
-  beside `SubscribeTopic`): admitted while the task holds at most
-  `subscriptions` subscriptions, so one past the bound, and refused
-  otherwise only as any topic is (its task closing or ended, its number
-  taken, no room in its inbox for its news, 2). Every other
-  subscription stops at the bound, counting it. Nothing marks it once
-  made: it is a topic subscription as any other, and the task holds at
-  most one more than the bound, however many it is asked apart. So
-  news the application owes a task, whatever the task subscribed to
-  itself, such as a work item's to the one that holds it, isn't crowded
-  out.
-- **Kept to the bound and one more:** a task's record, its restore and
-  the store's row hold `subscriptions` and one more; a client's view of
-  them keeps its own bound (`../../client/domain/pages.md`).
+- **One room, every kind alike.** A task holds at most `subscriptions`
+  and one more (`README.md`, section 6): to tasks, topics and timers,
+  counted alike and in any order, whoever asks, its run, its procedure,
+  or the application for news it owes the task, such as a work item's
+  topic for the task that holds it. So with the stock `subscriptions`
+  of 4, a task watching four person tasks and holding a work item's
+  topic fits, whichever came first. One past the room is refused
+  `Busy`, naming the room; any other refusal is as before (its task
+  closing or ended, its number taken, no room in its inbox for its
+  news, 2). An application's topic is asked as any other
+  (`SubscribeTopic`), and a route the room refuses keeps what it owes
+  unheard, saying so, as one the inbox refuses does (decided
+  2026-11-24).
+- **A restored task keeps what it holds.** A task's record, its restore
+  and the store's row hold as many as the store's schema does, not the
+  configured room: a task restored holding more than its room, as after
+  `subscriptions` was lowered, keeps every one, and each new one is
+  refused until it holds fewer than its room. Its timers are armed as
+  any are. A start whose restored timers pass the timers' table, its room
+  for every live task, is refused, naming the table, as a restore past a
+  table's room is (`README.md`, section 6). A client's view of them keeps
+  its own bound (`../../client/domain/pages.md`).
+- **A watch by reading ends with the reading.** When a party no longer
+  holds a role in a project (../people/acts.md), the core tells the
+  tasks child, which ends, in each tree whose root that party requested
+  there, every task watch whose target its subscriber does not
+  reference (5, *By reference*): the subscription goes, and the
+  subscriber hears its last notice, state `unreadable`, in that
+  subscription's merged slot (2), judged as that subscription's
+  notices are (3). A watch by reference stays. A dependency made by
+  reading stays a prerequisite, bounded by its task's deadline: ending
+  it would release its dependent early. A project's deletion ends its
+  tasks, and needs nothing more. The state is stored as the others are,
+  in the tasks family's schema, an added variant moving no version
+  (`../../protocol/store/layouts.md`), and carried to clients, in the
+  client wire's next version.
+
+*Why one room:* a topic admitted one past the bound fitted in one order
+and not the other: a holder that took the topic first had its own
+subscriptions stop one short. Its one more is now every kind's, so no
+task holds fewer than it could, and no figure moves. The price is that
+a task that fills the room with its own subscriptions is refused an
+application's topic as any other, its route saying so.
 
 ## 5. Who may message whom
 
@@ -247,6 +324,21 @@ connectors offer for goals are the core's to keep, not its executor's
   introduces two tasks it references by giving each a reference to the
   other, within their limits. References are kept with the task, and end
   with it.
+- **Waits by reading.** A task may also depend on, or watch, any task of
+  its project that the party who requested its tree reads: one holding
+  a role in the project reads all of it (../people/public-reading.md, 4).
+  The core judges it, since roles are the people child's: with each
+  task-made batch, amendment and watch, it tells the tasks child whether
+  the creator's tree's root has a person requester holding a role in the
+  creator's project, and the tasks child admits by that, at the edge's
+  admission; a tree a deployment requested reads nothing by it. A
+  dependency so made passes the circle check as any other (`holds.md`,
+  7). Reading gives no reference: such a task is not messaged, amended or
+  introduced by it. A batch's dependency by reading names a live task
+  (`README.md`, section 4); an amendment's may name an ended one, on its
+  stored row (`changes.md`, *An ended one*); a watch names a live one. A
+  later loss of the reading ends the watch (4); a person's batch and a
+  maker's keep the reach they have (../people/acts.md, 1).
 - **Parties** message the tasks their role lets them see (../people/acts.md
   ).
 - **No broadcast.** Who may talk to whom stays visible and bounded.
@@ -274,15 +366,16 @@ those parts are for.
   kinds of message that woke it, each named as jig's store names it
   (`../../protocol/store/records.md`). `first` lasts until a run of the task
   parks idle or finishes: a run parked kept, by its own question, a question
-  it owes or a dependency (`lifecycle.md`, 8), leaves the run that continues it `first`
-  too, and so does a failed attempt for its retry (`lifecycle.md`, 6). A first run's
+  it owes or a dependency (`lifecycle-endings.md`, 1), leaves the run that continues it `first`
+  too, and so does a failed attempt for its retry (`lifecycle-holds.md`, 1). A first run's
   reasons are `first` plus the kinds that woke it, such as a person's words
   waiting at its start.
 - **The kinds that woke it:** each kind of a message waiting in its inbox,
   or of an entry waiting for its decision (`proposals.md`), that its wake policy
   lets wake it when it is activated (3). A kind that rides along without
   waking it is no reason: a non-last result under `last_or_failure`, or
-  news a pace holds, gives none.
+  news a pace holds, gives none, unless an escalation waits for the task,
+  when every message wakes it (3).
 - **An open question is a reason.** While a question asked of the task
   is open (2), `question` is among the reasons of each of its runs,
   whatever woke it and whatever its policy, as an entry waiting for its
@@ -332,10 +425,12 @@ those parts are for.
   takes what waits: under `each`, every result; under `last_or_failure`, a
   failure or a cancel, and the result that leaves the task no live
   delegate, for a task its closer ends too, since a live run is no idle
-  task and makes no closer (`lifecycle.md`, 11). Such a result chooses no part of the
-  live run, which keeps the instructions it started with; one the run
-  leaves unread is judged again when the run ends (3), where, for a task
-  its closer ends, a last success wakes nothing (`lifecycle.md`, 11).
+  task and makes no closer (`lifecycle-endings.md`, 3); and under any
+  policy, every result while an escalation waits for the task (3). Such a
+  result chooses no part of the live run, which keeps the instructions it
+  started with; one the run leaves unread is judged again when the run
+  ends (3), where, for a task its closer ends, a last success wakes
+  nothing (`lifecycle-endings.md`, 3) unless an escalation waits for it.
 - **Every reason waiting at its claim.** A message or an entry that
   arrives between a run's preparation and its claim, and whose kind would
   join its reasons (one its wake policy lets wake it, of a kind that
@@ -359,9 +454,13 @@ those parts are for.
     again by itself. It is offered to the task's next run, whatever wakes
     it, its kind among that run's reasons (3), and it wakes the task
     when it changes: a new hold of its held task or a new holder makes a
-    new entry, which wakes as an entry's arrival does (`proposals.md`), and a
-    message about it, such as its person delegate's result or a notice of
-    its held task, wakes by its own kind.
+    new entry, which wakes as an entry's arrival does (`proposals.md`).
+    For an escalation, every message the task's inbox admits while it
+    waits is such a change and wakes the task, whatever its policy says
+    of the kind (3): a delegate's result that would ride along, its
+    person delegate's among them, news, or a notice of its held task.
+    For a proposal, a message about it, such as a notice, wakes by its
+    own kind.
   - *not covered:* no part the run read names the kind, as a cut whose
     part is for `first` alone names no escalation. The task is woken
     again for the entry's kind, as an unread message would wake it, and

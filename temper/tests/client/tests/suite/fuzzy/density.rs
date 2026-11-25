@@ -903,6 +903,7 @@ fn generate(seed: u64) -> World {
             event: jig_client::Event::Up {
                 up: Up::FamilyServed {
                     family: wire::FORGE,
+                    served: true,
                     versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
                 },
             },
@@ -1101,6 +1102,7 @@ fn frame(projects: u32) -> c::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 512,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: c::MeParty { number: 1, kind: c::PartyKind::Person, login: text(b"person"), name: text(b"Person") },
         projects: List::from_boxed(projects.into_boxed_slice()),
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
@@ -1264,6 +1266,10 @@ fn task_document(task: u64, project: u32) -> c::Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: chip(task, project),
         goal: None,
         priority: None,

@@ -1,4 +1,5 @@
-//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/README.md`, section 9).
+//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/world.md`, section 1).
+//! Wait projections follow `jig/docs/design/domain/engine/waits.md`, sections 4 and 6.
 use crate::{reads, world::World};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
@@ -8,13 +9,18 @@ use jig_protocol_store::keys;
 use jig_test_domain as root;
 use std::collections::{BTreeMap, BTreeSet};
 
+type Answers = BTreeMap<(u64, Option<u64>), core::reads::Answer>;
+
+/// The documents compared by the closing oracle, keyed by sign-in and optional task.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Documents {
+    pub before: Answers,
+    pub after: Answers,
+}
+
 pub(crate) fn configuration(source: &root::Config) -> root::Config {
     let core = &source.core;
     let settings = &core.settings;
-    let mut policies = skein_lib::Map::with_capacity(core.defaults.policies.capacity());
-    for (key, value) in &core.defaults.policies {
-        policies.insert(*key, value.clone()).expect("configuration policies fit");
-    }
     root::Config {
         first: source.first.clone(),
         second: source.second.clone(),
@@ -38,7 +44,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
                 models: core.defaults.models.clone(),
                 charters: core.defaults.charters.clone(),
                 templates: core.defaults.templates.clone(),
-                policies,
+                policies: core.defaults.policies.clone(),
                 rules: core.defaults.rules.clone(),
             },
             connectors: core.connectors.clone(),
@@ -72,6 +78,7 @@ impl Drop for World {
         if !std::thread::panicking() {
             self.close();
         }
+        self.report_store_checks();
     }
 }
 
@@ -81,7 +88,7 @@ impl World {
         self.broken = true;
     }
 
-    /// The restart oracle (domain/engine/README.md 9): settle, snapshot what the parties were last
+    /// The restart oracle (domain/engine/world.md 1): settle, snapshot what the parties were last
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {
@@ -90,9 +97,19 @@ impl World {
         }
     }
 
-    /// Run the closing cold restart and readback once, returning its first finding.
+    /// Close the restart oracle, then rehearse the kept commit. Return the first finding.
     pub fn finish(&mut self) -> Result<(), String> {
-        self.close_oracle()
+        let oracle = self.close_oracle();
+        let check = self.finish_store_check();
+        self.report_store_checks();
+        oracle.and(check)
+    }
+
+    fn report_store_checks(&mut self) {
+        if !self.store_checks_reported {
+            eprintln!("{}", self.store_checks.report());
+            self.store_checks_reported = true;
+        }
     }
 
     fn close_oracle(&mut self) -> Result<(), String> {
@@ -109,17 +126,19 @@ impl World {
         let inventory = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
         let records =
             self.store.readback_of(&inventory).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let forgotten = self.forgotten_due(&records);
         let (parties, tasks) = self.oracle_read_set(&records);
-        let before = self.oracle_documents(&parties, &tasks);
+        let mut before = self.oracle_documents(&parties, &tasks);
         self.restart_configured(configuration(&self.restart_config.0))?;
         self.settle_oracle()?;
         if !self.domain.ready() {
             return Err("restart oracle: decisions did not open".into());
         }
-        let after = self.oracle_documents(&parties, &tasks);
-        for (key, expected) in &before {
-            let found = after.get(key).expect("same oracle read set");
-            compare_answer(key, expected, found)?;
+        let mut after = self.oracle_documents(&parties, &tasks);
+        for (key, expected) in &mut before {
+            let found = after.get_mut(key).expect("same oracle read set");
+            durable_answers(expected, found);
+            compare_answer(key, expected, found, &forgotten)?;
         }
         let restored = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
         let recovered =
@@ -144,6 +163,9 @@ impl World {
             let expired = exception.is_some()
                 && !restored.contains_key(key)
                 && keys::decode(key).is_some_and(|key| self.expired(&records, &key));
+            let forgotten_erasure = inventory.contains_key(key)
+                && !restored.contains_key(key)
+                && forgotten_remains(key, &forgotten, &records);
             let refreshed_move = keys::decode(key).is_some_and(|key| {
                 let key = root::Key::Core(key);
                 refreshed_move(records.get(&key), recovered.get(&key))
@@ -161,7 +183,7 @@ impl World {
                 }
                 _ => false,
             };
-            if !(orphan || refreshed_move || exception.is_some() && (header || wires || expired))
+            if !(orphan || forgotten_erasure || refreshed_move || exception.is_some() && (header || wires || expired))
                 && inventory.get(key) != restored.get(key)
             {
                 return Err(format!(
@@ -175,8 +197,12 @@ impl World {
             }
         }
         for (key, row) in &records {
+            let forgotten_erasure = matches!(key,
+                root::Key::Core(core::Key::Core(core::CoreKey::Turn { task, .. })) if forgotten.contains(task))
+                && !recovered.contains_key(key);
             if matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(_))))
                 && Some(row) != recovered.get(key)
+                && !forgotten_erasure
             {
                 return Err(format!(
                     "restart oracle transcript key {key:?}: expected {row:?}, found {:?}",
@@ -184,6 +210,7 @@ impl World {
                 ));
             }
         }
+        self.closed_documents = Some(Documents { before, after });
         Ok(())
     }
 
@@ -234,6 +261,24 @@ impl World {
         (parties, tasks)
     }
 
+    /// A restart runs the due Forgotten pass (jig/docs/design/protocol/store/retention.md, 6.4).
+    fn forgotten_due(&self, records: &BTreeMap<root::Key, root::Record>) -> BTreeSet<u64> {
+        let wall = self.clocks().1;
+        records
+            .values()
+            .filter_map(|row| {
+                if let root::Record::Core(core::Record::Tasks(tasks::Stored::Retention(row))) = row
+                    && row.stage == tasks::RetentionStage::Forgotten
+                    && row.since <= wall
+                {
+                    Some(row.number)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     fn expired(&self, records: &BTreeMap<root::Key, root::Record>, key: &core::Key) -> bool {
         let Some(root::Record::Core(core::Record::People(row))) = records.get(&root::Key::Core(key.clone())) else {
             return false;
@@ -252,8 +297,8 @@ impl World {
 
     fn settle_oracle(&mut self) -> Result<(), String> {
         for _ in 0..300 {
-            self.drain();
-            self.release_commits();
+            self.try_drain()?;
+            self.try_release_commits()?;
             if self.stopped {
                 return Err(match self.domain.start_failure() {
                     Some((phase, failure)) => format!("restart oracle: start refused at {phase:?}: {failure:?}"),
@@ -272,11 +317,7 @@ impl World {
         Err("restart oracle: held delivery at store readback boundary".into())
     }
 
-    fn oracle_documents(
-        &mut self,
-        parties: &BTreeSet<u64>,
-        tasks: &BTreeSet<u64>,
-    ) -> BTreeMap<(u64, Option<u64>), core::reads::Answer> {
+    fn oracle_documents(&mut self, parties: &BTreeSet<u64>, tasks: &BTreeSet<u64>) -> Answers {
         let reads = self.reads.take();
         let client = self.client_peer.take();
         let sign_in = self.sign_in;
@@ -287,11 +328,7 @@ impl World {
             for task in std::iter::once(None).chain(tasks.iter().copied().map(Some)) {
                 let read = task.map_or(core::reads::Read::Frame, |task| core::reads::Read::Task { task });
                 reads::ask(self, 0, read);
-                let mut answer = reads::latest(self).clone();
-                if let core::reads::Answer::Document(document) = &mut answer {
-                    **document = durable(*document.clone());
-                }
-                found.insert((*party, task), answer);
+                found.insert((*party, task), reads::latest(self).clone());
             }
         }
         self.reads = reads;
@@ -329,6 +366,65 @@ fn refreshed_move(before: Option<&root::Record>, after: Option<&root::Record>) -
     false
 }
 
+/// Only a due task's remains may disappear (protocol/store/retention.md, 6.4).
+fn forgotten_remains(key: &[u8], forgotten: &BTreeSet<u64>, records: &BTreeMap<root::Key, root::Record>) -> bool {
+    // Log extents carry a log number, not a domain key (protocol/store/logs.md, 1).
+    if let Some(suffix) = key.strip_prefix(&jig_protocol_store::logs::EXTENTS) {
+        return <[u8; 8]>::try_from(suffix).is_ok_and(|bytes| {
+            let log = u64::from_be_bytes(bytes);
+            forgotten.iter().any(|task| {
+                jig_protocol_store::logs::history(*task) == Some(log)
+                    || jig_protocol_store::logs::turns(*task) == Some(log)
+            })
+        });
+    }
+    let task = match keys::decode(key) {
+        Some(
+            core::Key::Tasks(
+                tasks::Key::Summary(task)
+                | tasks::Key::Retention { stage: tasks::RetentionStage::Forgotten, number: task, .. }
+                | tasks::Key::History { task, .. }
+                | tasks::Key::Activity { task, .. }
+                | tasks::Key::Attempt { task, .. }
+                | tasks::Key::Hold { task, .. }
+                | tasks::Key::Delegate { task, .. }
+                | tasks::Key::EndedDelegate { task, .. }
+                | tasks::Key::EndedByParty { task, .. }
+                | tasks::Key::EndedByProject { task, .. },
+            )
+            | core::Key::People(people::Key::EndedRead { task, .. } | people::Key::ReadConversation { task, .. })
+            | core::Key::Core(
+                core::CoreKey::Terminal { task, .. }
+                | core::CoreKey::Turn { task, .. }
+                | core::CoreKey::ProposalDecision { proposer: people::Proposer::Task(task), .. }
+                | core::CoreKey::EscalationDecision { task, .. },
+            ),
+        ) => Some(task),
+        Some(core::Key::Tasks(tasks::Key::Update { task, .. })) => Some(task.value()),
+        Some(key @ core::Key::Tasks(tasks::Key::Result { .. })) => {
+            // The result's key has no task number; its retained row identifies its owner.
+            if let Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Result(row)))) =
+                records.get(&root::Key::Core(key))
+            {
+                Some(row.task)
+            } else {
+                None
+            }
+        }
+        _ => match keys::decode_own(key) {
+            Some(
+                keys::Own::Transcript { task }
+                | keys::Own::Attempt { task, .. }
+                | keys::Own::History { task }
+                | keys::Own::TurnLog { task }
+                | keys::Own::LogAttempt { task, .. },
+            ) => Some(task),
+            _ => None,
+        },
+    };
+    task.is_some_and(|task| forgotten.contains(&task))
+}
+
 /// Every exception names its rebuilding step; other keys are durable.
 fn rebuilt(key: &[u8]) -> Option<&'static str> {
     if keys::decode_own(key) == Some(keys::Own::Wires) {
@@ -352,9 +448,34 @@ fn rebuilt(key: &[u8]) -> Option<&'static str> {
     }
 }
 
+fn durable_answers(before: &mut core::reads::Answer, after: &mut core::reads::Answer) {
+    use core::reads::Answer;
+    if let (Answer::Document(left), Answer::Document(right)) = (&mut *before, &mut *after)
+        && let (Document::Task(left), Document::Task(right)) = (left.as_mut(), right.as_mut())
+    {
+        let (left_wait, left_bound) = durable_waits(left);
+        let (right_wait, right_bound) = durable_waits(right);
+        // A discarded winner can expose a different wait on the other side. The
+        // retained wait lines still compare; only the affected projection is masked.
+        if left_wait || right_wait {
+            left.wait = None;
+            right.wait = None;
+        }
+        if left_bound || right_bound {
+            left.nearest = None;
+            right.nearest = None;
+        }
+    }
+    for answer in [before, after] {
+        if let Answer::Document(document) = answer {
+            durable(document);
+        }
+    }
+}
+
 /// Fields rebuilt by the restart script; fields in doubt stay durable.
-fn durable(mut document: Document) -> Document {
-    match &mut document {
+fn durable(document: &mut Document) {
+    match document {
         // Engine 6 step 1 restores the accounts, not the last sign-in's runtime end.
         Document::Accounts(row) => {
             row.last_end = None;
@@ -402,14 +523,78 @@ fn durable(mut document: Document) -> Document {
         | Document::Deployment(_)
         | Document::Settings(_) => {}
     }
-    document
 }
 
+/// Keep durable wait episodes and report whether first or nearest projected a
+/// volatile one (jig/docs/design/domain/engine/waits.md, 4).
+fn durable_waits(row: &mut core::documents::Task) -> (bool, bool) {
+    use core::WaitKind;
+    use core::documents::{ChipWork, PhaseLine, WaitsOn};
+    let volatile: fn(WaitKind) -> bool = match row.chip.phase {
+        PhaseLine::Active(tasks::Active::Due) if row.run_wait.is_some() => {
+            |kind| matches!(kind, WaitKind::Account | WaitKind::Host)
+        }
+        PhaseLine::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. })
+            if row.chip.details.live_delegates == 0
+                && row.chip.details.observation.as_ref().is_some_and(|value| value.work == ChipWork::Waiting) =>
+        {
+            |kind| kind == WaitKind::News
+        }
+        _ => return (false, false),
+    };
+    let mut durable = skein_lib::List::with_capacity(row.waits.capacity());
+    for wait in &row.waits {
+        if !volatile(wait.kind) {
+            durable.push(wait.clone()).expect("durable waits are a subset of the document lines");
+        }
+    }
+    row.waits = durable;
+    if row.waits_on == WaitsOn::News && volatile(WaitKind::News) {
+        row.waits_on = WaitsOn::Nothing;
+    }
+    // Count one volatile episode for the matched phase, even if its line is cut.
+    row.wait_count = row.wait_count.saturating_sub(1);
+    (row.wait.as_ref().is_some_and(|wait| volatile(wait.kind)), row.nearest.is_some_and(|bound| volatile(bound.kind)))
+}
+
+fn procedure_wait(kind: core::WaitKind) -> bool {
+    matches!(kind, core::WaitKind::Step | core::WaitKind::Room | core::WaitKind::Turn | core::WaitKind::SignOff)
+}
+
+// The reported waits and their news fallback come last.
+// A visible report means the durable prefix fits. Keep first and nearest only
+// where each points outside that last group.
+fn without_report(row: &core::documents::Task) -> core::documents::Task {
+    let mut row = row.clone();
+    let reported_group = |kind| procedure_wait(kind) || kind == core::WaitKind::News;
+    if row.wait.as_ref().is_some_and(|wait| reported_group(wait.kind)) {
+        row.wait = None;
+    }
+    if row.nearest.is_some_and(|bound| reported_group(bound.kind)) {
+        row.nearest = None;
+    }
+    let prefix = row.waits.iter().take_while(|wait| !reported_group(wait.kind));
+    row.wait_count = u32::try_from(prefix.count()).expect("bounded wait lines");
+    row.waits.truncate(row.wait_count);
+    if row.waits_on == core::documents::WaitsOn::News {
+        row.waits_on = core::documents::WaitsOn::Nothing;
+    }
+    row
+}
+
+#[expect(clippy::too_many_lines, reason = "field-level diagnostics enumerate both document contracts")]
 fn compare_answer(
     key: &(u64, Option<u64>),
     expected: &core::reads::Answer,
     found: &core::reads::Answer,
+    forgotten: &BTreeSet<u64>,
 ) -> Result<(), String> {
+    if key.1.is_some_and(|task| forgotten.contains(&task))
+        && *expected == core::reads::Answer::None(core::reads::Why::Gone)
+        && *found == core::reads::Answer::None(core::reads::Why::Unknown)
+    {
+        return Ok(());
+    }
     let document = key.1.map_or_else(|| "Frame".to_owned(), |task| format!("Task {task}"));
     macro_rules! fields {
         ($left:expr, $right:expr; $($field:ident),+ $(,)?) => {$(
@@ -423,9 +608,20 @@ fn compare_answer(
     }
     if let (core::reads::Answer::Document(left), core::reads::Answer::Document(right)) = (expected, found) {
         if let (Document::Task(left), Document::Task(right)) = (&**left, &**right) {
+            let durable;
+            let (left, right) = if left.waits.iter().chain(&right.waits).any(|wait| procedure_wait(wait.kind)) {
+                durable = (without_report(left), without_report(right));
+                (&durable.0, &durable.1)
+            } else {
+                (left.as_ref(), right.as_ref())
+            };
             fields!(left, right;
-                settings,
                 waits_on,
+                wait,
+                nearest,
+                waits,
+                wait_count,
+                settings,
                 label,
                 flags,
                 last_activity,
@@ -465,6 +661,9 @@ fn compare_answer(
                 proposals,
                 cut,
             );
+            if left == right {
+                return Ok(());
+            }
         }
         if let (Document::Frame(left), Document::Frame(right)) = (&**left, &**right) {
             fields!(left, right;

@@ -1,10 +1,14 @@
-//! The real store in domain worlds (protocol/store/README.md, 9).
+//! The real store in domain worlds (protocol/store/testing.md, 1).
 #![forbid(unsafe_code)]
 mod disk;
 mod files;
 pub use files::Files;
 mod durable;
 mod store;
-pub use store::{Fault, KillFrom, Pending, ReadbackFinding, Store, component_limits};
+pub use store::{Fault, KillFrom, Pending, ReadbackFinding, Store, StoreImage, component_limits};
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::disk::testing::fork_first_operation;
+}
 #[cfg(test)]
 mod tests;

@@ -1,4 +1,4 @@
-//! Root stories for temper/docs/design/domain/after-landing.md, 3–6 and 12.
+//! Root stories for temper/docs/design/domain/after-landing-runs.md, 2–3, and temper/docs/design/domain/after-landing.md, 5–6 and 12.
 use super::*;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers as policy;
@@ -442,6 +442,7 @@ fn switching_a_red_landing_files_its_verdict_once_and_holds_the_next_runs_ids() 
     assert_eq!(
         finding.blame,
         Some(forge_top::FindingBlame {
+            moved: None,
             strength: forge_top::BlameStrength::Owned,
             landings: Box::new([forge_top::BlamedLanding {
                 commit,

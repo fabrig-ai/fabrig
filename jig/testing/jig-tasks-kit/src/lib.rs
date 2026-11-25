@@ -53,5 +53,5 @@ pub fn refused(reply: Reply, task: u64, why: Refusal, blocked: &[u64]) {
 pub fn step(world: &mut World, task: u64, decision: ProcedureDecision) -> Reply {
     let step = world.record(task).attempt + 1;
     let read = world.contexts[&task].inbox.last().map(|word| word.number);
-    response(world, |reply_to| Event::Procedure { reply_to, task, step, read, decision })
+    response(world, |reply_to| Event::Procedure { reads_project: false, reply_to, task, step, read, decision })
 }

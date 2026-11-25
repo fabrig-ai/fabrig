@@ -1,5 +1,5 @@
 //! Child entry points and their requests in the core's vocabulary
-//! (`domain/engine/README.md`, sections 3 and 4). A root receives a whole child
+//! (`domain/engine/README.md`, section 3, and `domain/engine/vocabulary.md`, section 1). A root receives a whole child
 //! request batch and routes it within the same decision.
 
 #![expect(clippy::mod_module_files, reason = "the route split keeps dispatch in routing/mod.rs")]
@@ -65,7 +65,7 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 use crate::routing::run::turns::route_accepted_turn;
 
-/// Only a widening replaces the funder (jig/docs/design/domain/authority.md, 7).
+/// Only a widening replaces the funder (jig/docs/design/domain/authority-budgets.md, 1).
 pub(crate) fn amendment_funder(
     core: &Core,
     before: &tasks::Authority,
@@ -179,10 +179,10 @@ impl Core {
         };
         let family = self.tool_family(&kind);
         let call = match kind {
-            ToolKind::Message { target } => authority::Call::Message {
-                referenced: task.requester == tasks::Party::Task(target)
-                    || task.delegates.contains(&target)
-                    || task.references.contains(&target),
+            ToolKind::Message { target } => authority::Call::Message { referenced: message_reference(task, target) },
+            ToolKind::AnswerQuestion { target, question } => authority::Call::Message {
+                referenced: message_reference(task, target)
+                    || self.tasks.question_answer_reference(target, key.task, question),
             },
             ToolKind::Note { scope } => {
                 let scope = match scope {
@@ -269,7 +269,9 @@ impl Core {
     fn tool_family(&self, kind: &ToolKind) -> authority::Tools {
         match kind {
             ToolKind::Delegate => self.settings.tools.delegate,
-            ToolKind::Message { .. } | ToolKind::MarkRead => self.settings.tools.message,
+            ToolKind::Message { .. } | ToolKind::AnswerQuestion { .. } | ToolKind::MarkRead => {
+                self.settings.tools.message
+            }
             ToolKind::Control => self.settings.tools.control,
             ToolKind::Decide => self.settings.tools.decide,
             ToolKind::Propose => self.settings.tools.propose,
@@ -367,6 +369,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
     if core.start_failure().is_some() {
@@ -388,6 +391,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut work = Queue::uncapped();
     let mut out = route_account(core, env, &mut work, accounts::Event::Want);
     assert!(work.is_empty(), "wanting the accounts answers no party");
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     if core.start_phase().is_some() {
         let mut writes = Queue::uncapped();
@@ -410,10 +414,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 fn takes_connector_resource(phase: crate::start::Phase, connector: u16) -> bool {
     match phase {
         crate::start::Phase::RestoreConnector { connector: expected } => connector == expected,
-        crate::start::Phase::AdoptRuns
-        | crate::start::Phase::ReadAfresh { .. }
-        | crate::start::Phase::SettleOutbox { .. }
-        | crate::start::Phase::Open => true,
+        crate::start::Phase::AdoptRuns | crate::start::Phase::Open => true,
         crate::start::Phase::LoadCore
         | crate::start::Phase::LoadInbox
         | crate::start::Phase::Link
@@ -455,6 +456,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -546,6 +548,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             view::part_marks::records(core, connector, &tasks);
             stopping::empty()
         }
+        Event::Waits { connector, task, waits } => crate::runs::waits::report(core, env, connector, task, waits),
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
             party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)
@@ -663,6 +666,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             crate::admission::deletion::advance(core, env, &mut out);
             out
         }
+        Event::PartPayload { record } => core.keep_part(record),
         Event::TurnPayload { run, attempt, turn, body, read, cumulative, refused } => {
             route_turn_payload(core, work, run, attempt, crate::TurnProof { turn, cumulative, read }, body, refused)
         }
@@ -787,7 +791,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
     }
     core.run_now = env.now;
     core.run_wall = env.wall;
-    if (core.stopping && jig_domain_core_vocabulary::vocabulary::waits(timer)) || (core.settling && timer.new_work()) {
+    if core.inspection_timer_withheld(timer) {
         return stopping::empty();
     }
     let oldest = core.current.oldest;
@@ -800,6 +804,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             assert!(work.is_empty(), "people expirations produce no sibling continuations");
             requests
         }
+        Timer::WaitBounds => crate::runs::waits::alarm::fire(core, env),
         Timer::Tasks => {
             let mut out = Queue::uncapped();
             step::fire_tasks(core, env, &mut out);
@@ -866,6 +871,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
     };
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -905,4 +911,10 @@ pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, o
     }
     assert!(work.is_empty(), "deletion sibling routes drained");
     let _previous = core.deletions.route(previous);
+}
+
+fn message_reference(task: &tasks::TaskRecord, target: u64) -> bool {
+    task.requester == tasks::Party::Task(target)
+        || task.delegates.contains(&target)
+        || task.references.contains(&target)
 }

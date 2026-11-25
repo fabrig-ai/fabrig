@@ -61,7 +61,11 @@ pub struct ChipDetails {
     pub observation: Option<ChipObservation>,
 }
 
-pub fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipDetails, Missing> {
+pub fn from_row(
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+    domain: Option<&tasks::Domain>,
+) -> Result<ChipDetails, Missing> {
     let needs_resources = match row.phase {
         tasks::Phase::Waiting | tasks::Phase::Held { .. } => true,
         tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
@@ -104,7 +108,7 @@ pub fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipDetails,
         retry: row.retry_notice.clone(),
         wake: row.wake,
         person_wait: row.person_wait,
-        hold: super::task_tree::hold(limits, row)?,
+        hold: super::task_tree::hold(limits, row, domain)?,
         budget: super::task_tree::budget(row),
         activity: row.activity,
         resources_cut: needs_resources && skein_lib::length::usize_of(resources.len()) < row.holdings.len(),
@@ -162,7 +166,7 @@ pub fn heap_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let path = List::<Box<[u8]>>::price(limits.lines)?.checked_add(lines.checked_mul(text)?)?;
     u64::try_from(size_of::<ChipDetails>())
         .ok()?
-        .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))?
+        .checked_add(u64::try_from(tasks::HOLD_WORDS).ok()?)?
         .checked_add(text.checked_mul(8)?)?
         .checked_add(List::<u64>::price(limits.lines)?)?
         .checked_add(List::<u16>::price(limits.lines)?)?

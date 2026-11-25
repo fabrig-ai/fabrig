@@ -93,6 +93,7 @@ fn standing_live_at_a_period_start_renews_in_the_decision_ending_its_run() {
         assert_eq!(world.record(1).funder, fresh(0));
         let reply_to = world.to();
         world.stage(Event::Activation {
+            reads_project: false,
             reply_to,
             task: 1,
             attempt: 1,

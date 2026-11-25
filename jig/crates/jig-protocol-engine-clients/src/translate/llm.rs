@@ -2,6 +2,7 @@
 //! configuration's order, the client by name (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1; domain/tasks/README.md, 3).
 use super::w;
 use crate::Model;
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_authority::Models;
@@ -10,7 +11,7 @@ use jig_domain_tasks as t;
 use skein_lib::{List, Reader, bytes};
 
 /// The current catalogue in numbered positions, including empty rows for holes
-/// (jig/docs/design/domain/engine/settings.md, 11).
+/// (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 #[must_use]
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn catalogue(models: &[jig_domain_core_vocabulary::settings::CatalogueModel]) -> Box<[Model]> {
@@ -78,9 +79,10 @@ pub fn catalogue(models: &[jig_domain_core_vocabulary::settings::CatalogueModel]
 }
 
 /// A complete permission selector by names, preserving literal ALL even with 64 models.
-pub fn authority(value: Models, models: &[Model], _limits: &w::Limits) -> Result<Option<w::ModelSet>, w::Problem> {
+#[must_use]
+pub fn authority(value: Models, models: &[Model]) -> Option<w::ModelSet> {
     if value.is_all() {
-        return Ok(Some(w::ModelSet::All));
+        return Some(w::ModelSet::All);
     }
     let mut names = List::with_capacity(p::MODELS);
     for (at, model) in models.iter().enumerate() {
@@ -96,7 +98,7 @@ pub fn authority(value: Models, models: &[Model], _limits: &w::Limits) -> Result
     for name in names {
         rows.push(name).expect("same model count");
     }
-    Ok(Some(w::ModelSet::Names(w::ModelSetNames { names: rows })))
+    Some(w::ModelSet::Names(w::ModelSetNames { names: rows }))
 }
 
 /// Collect only names the ask uses; admission of unknown names follows people's replay lookup.
@@ -220,11 +222,7 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
 }
 
 /// The core's offer, retaining configuration order and each model's candidate accounts.
-pub fn models(
-    offer: &[jig_domain_core_vocabulary::Offered],
-    models: &[Model],
-    _limits: &w::Limits,
-) -> Result<List<w::MeModel>, w::Problem> {
+pub fn models(offer: &[jig_domain_core_vocabulary::Offered], models: &[Model]) -> Result<List<w::MeModel>, w::Problem> {
     let mut rows = List::with_capacity(u32::try_from(offer.len()).expect("checked models"));
     for offered in offer {
         let model = models
@@ -243,11 +241,7 @@ pub fn models(
                 None => None,
             },
             number: model.number,
-            source: match model.source {
-                jig_domain_core_vocabulary::settings::ModelSource::Stock => w::ModelSource::Stock,
-                jig_domain_core_vocabulary::settings::ModelSource::List => w::ModelSource::List,
-                jig_domain_core_vocabulary::settings::ModelSource::Person => w::ModelSource::Person,
-            },
+            source: mapped::model_source_to_record(&model.source),
             estimated: model.estimated,
             name: bytes::copy_of(&model.name),
             provider: model.provider,
@@ -258,13 +252,7 @@ pub fn models(
             shown: model.shown.clone(),
             accounts: offered.accounts.clone(),
             picker: model.picker,
-            prices: w::MePrices {
-                input: model.prices.input,
-                cached: model.prices.cached,
-                cache_write: model.prices.cache_write,
-                output: model.prices.output,
-                unit: model.prices.unit,
-            },
+            prices: mapped::me_prices_to_record(&model.prices),
             description: model.description.clone(),
         })
         .expect("same capacity");
@@ -274,36 +262,32 @@ pub fn models(
 
 /// A kept choice by its names; a model or effort past configuration is a problem, as the core
 /// keeps only configured ones.
-pub fn choice(
-    value: Option<&t::LlmChoice>,
-    models: &[Model],
-    limits: &w::Limits,
-) -> Result<Option<w::LlmChoice>, w::Problem> {
+pub fn choice(value: Option<&t::LlmChoice>, models: &[Model]) -> Result<Option<w::LlmChoice>, w::Problem> {
     let Some(value) = value else {
         return Ok(None);
     };
     let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded sub-agents"));
     for item in &value.subagents {
-        subagents.push(model_effort(*item, models, limits)?).expect("same capacity");
+        subagents.push(model_effort(*item, models)?).expect("same capacity");
     }
     Ok(Some(w::LlmChoice {
         account: value.account,
-        main: model_effort(value.main, models, limits)?,
+        main: model_effort(value.main, models)?,
         subagents,
         later: match &value.later {
-            Some(later) => Some(later_choice(later, models, limits)?),
+            Some(later) => Some(later_choice(later, models)?),
             None => None,
         },
     }))
 }
-fn later_choice(value: &t::LlmLater, models: &[Model], limits: &w::Limits) -> Result<w::LlmLater, w::Problem> {
+fn later_choice(value: &t::LlmLater, models: &[Model]) -> Result<w::LlmLater, w::Problem> {
     let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded sub-agents"));
     for item in &value.subagents {
-        subagents.push(model_effort(*item, models, limits)?).expect("same capacity");
+        subagents.push(model_effort(*item, models)?).expect("same capacity");
     }
-    Ok(w::LlmLater { main: model_effort(value.main, models, limits)?, subagents })
+    Ok(w::LlmLater { main: model_effort(value.main, models)?, subagents })
 }
-fn model_effort(value: t::ModelEffort, models: &[Model], _limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
+fn model_effort(value: t::ModelEffort, models: &[Model]) -> Result<w::ModelEffort, w::Problem> {
     let unknown = w::Problem { path: w::paths::MODEL_EFFORT_MODEL, reason: skein_codec::Reason::Bound };
     let Some(model) = models.get(usize::from(value.model)) else {
         return Err(unknown);
@@ -323,7 +307,7 @@ fn model_effort(value: t::ModelEffort, models: &[Model], _limits: &w::Limits) ->
 
 /// A choice naming a model or an effort configuration lacks is refused before the core sees the
 /// ask, as a project mismatch is: by the model's name, and for a compound request the place of its
-/// operation (client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3).
+/// operation (client/domain/contract/requests.md, 2, and client/domain/contract/answers.md, 1).
 pub(crate) fn refused(
     record: &w::Ask,
     models: &[Model],
@@ -368,6 +352,7 @@ pub(crate) fn refused(
         | w::Ask::ChangePolicy(_)
         | w::Ask::SetRoles(_)
         | w::Ask::MakeService(_)
+        | w::Ask::ReissueService(_)
         | w::Ask::SignIn(_)
         | w::Ask::AccountChange(_)
         | w::Ask::SignOut(_)
@@ -381,10 +366,8 @@ pub(crate) fn refused(
     let answer = w::Final::Refused(w::Refused { refusal, at });
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
     answer.write(limits, &mut out).expect("measured answer");
-    match super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits) {
-        Ok(value) => Ok(Some(value)),
-        Err(problem) => Err(problem),
-    }
+    let value = super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish());
+    Ok(Some(value))
 }
 /// A model a choice names that configuration lacks, or whose effort its model lacks.
 struct Lacking {
@@ -523,26 +506,14 @@ fn indices(value: &w::ModelEffort, models: &[Model]) -> Result<p::ModelEffort, w
 
 /// A model the core refused, by its configured name; an index past configuration is a problem,
 /// as the core names only configured ones.
-pub(crate) fn refusal(
-    model: u8,
-    why: p::LlmWhy,
-    models: &[Model],
-    _limits: &w::Limits,
-) -> Result<w::Refusal, w::Problem> {
+pub(crate) fn refusal(model: u8, why: p::LlmWhy, models: &[Model]) -> Result<w::Refusal, w::Problem> {
     let Some(model) = models.get(usize::from(model)) else {
         return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     };
     if model.name.is_empty() {
         return Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound });
     }
-    let why = match why {
-        p::LlmWhy::Unconfigured => w::LlmWhy::Unconfigured,
-        p::LlmWhy::Effort => w::LlmWhy::Effort,
-        p::LlmWhy::Charter => w::LlmWhy::Charter,
-        p::LlmWhy::Authority => w::LlmWhy::Authority,
-        p::LlmWhy::Procedure => w::LlmWhy::Procedure,
-        p::LlmWhy::Repeated => w::LlmWhy::Repeated,
-    };
+    let why = crate::generated::client::llm_why_to_record(&why);
     Ok(w::Refusal::Llm(w::RefusalLlm { model: bytes::copy_of(&model.name), why }))
 }
 

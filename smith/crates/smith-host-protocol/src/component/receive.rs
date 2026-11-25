@@ -4,14 +4,15 @@
 
 use super::{CallKey, Component, Received, State};
 use crate::Error;
+use crate::generated::channel as mapped;
 use alloc::boxed::Box;
 use skein_lib::{Reader, Token};
 use smith_channel::Record;
 use smith_host_domain::channel;
 
 use smith_channel::kind::{
-    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, SIGNALLED, TURN,
-    UNAUTHORIZED, USAGE, WAITING, WITHDRAW,
+    ACCOUNT_REFUSED, ADMITTED, ANSWER, CALL, FACT, LIMITED, LIVE, LONG, LONG_DONE, MESSAGE_REFUSED, PART, SIGNALLED,
+    TURN, UNAUTHORIZED, USAGE, WAITING, WITHDRAW,
 };
 
 /// What a refusal says of a record it could not take: its order, its call, or its kind.
@@ -34,6 +35,7 @@ pub(super) fn refusal_text(kind: u16, error: Error) -> &'static [u8] {
         CALL => b"invalid call",
         WITHDRAW => b"invalid withdrawal",
         TURN => b"invalid turn",
+        PART => b"invalid part",
         WAITING => b"invalid waiting record",
         SIGNALLED => b"invalid signal notice",
         LONG | LONG_DONE => b"invalid long operation",
@@ -59,6 +61,7 @@ impl Component {
                     CALL => self.call(&body)?,
                     WITHDRAW => return self.withdraw(&body),
                     TURN => self.turn(&body)?,
+                    PART => self.part(&body)?,
                     WAITING => self.waiting(&body)?,
                     SIGNALLED => self.signalled(&body)?,
                     LONG => self.long(&body)?,
@@ -159,10 +162,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let signal = match record.signal {
-            smith_channel::Signal::Interrupt => smith_host_domain::parent::Signal::Interrupt,
-            smith_channel::Signal::Terminate => smith_host_domain::parent::Signal::Terminate,
-        };
+        let signal = mapped::signal_to_domain(record.signal);
         Ok(Received::Message { message: channel::Up::Signalled { signal, from: record.from } })
     }
 
@@ -191,6 +191,11 @@ impl Component {
         };
         self.sequence = value.sequence;
         self.live.turn(turn.number);
+        if self.turn_number.checked_add(1) != Some(turn.number) {
+            return Err(Error::Order);
+        }
+        self.turn_number = turn.number;
+        self.answered_turn = false;
         let body =
             smith_host_domain::TurnValue::new(value, u64::MAX).expect("codec bounds ensure representable ownership");
         Ok(Received::Message {
@@ -209,17 +214,43 @@ impl Component {
         })
     }
 
+    fn part(&mut self, body: &[u8]) -> Result<Received, Error> {
+        let part = smith_channel::Part::decode(&self.bodies, &mut Reader::new(body))?;
+        if !self.tell_parts
+            || self.part_number.checked_add(1) != Some(part.number)
+            || self.turn_number.checked_add(1) != Some(part.turn)
+            || (part.kind == smith_channel::PartKind::Result && !self.answered_turn)
+        {
+            return Err(Error::Order);
+        }
+        let value = smith_protocol_translate::decode_part(&part.body, &self.transcript, &self.endpoints)
+            .or(Err(Error::Value))?;
+        let body = smith_host_domain::TurnValue::new(value, u64::MAX).ok_or(Error::Value)?;
+        let kind = mapped::part_kind_to_domain(part.kind.clone());
+        self.part_number = part.number;
+        if part.thread == 0 && part.kind == smith_channel::PartKind::Answer {
+            self.answered_turn = true;
+        }
+        Ok(Received::Message {
+            message: channel::Up::Part {
+                part: channel::ToldPart {
+                    number: part.number,
+                    turn: part.turn,
+                    thread: part.thread,
+                    call: part.call,
+                    kind,
+                    body,
+                },
+            },
+        })
+    }
+
     fn long(&mut self, body: &[u8]) -> Result<Received, Error> {
         let record = match smith_channel::Long::decode(&self.bodies, &mut Reader::new(body)) {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let operation = match &record.operation {
-            smith_channel::Operation::Check => smith_domain::Operation::Checks,
-            smith_channel::Operation::Completion => smith_domain::Operation::Completion,
-            smith_channel::Operation::Command => smith_domain::Operation::Command,
-            smith_channel::Operation::Grant => smith_domain::Operation::Grant,
-        };
+        let operation = mapped::operation_to_domain(record.operation);
         self.long_open = self.long_open.checked_add(1).ok_or(Error::Order)?;
         Ok(Received::Message { message: smith_host_domain::Up::Long { operation, span: record.span } })
     }
@@ -238,12 +269,7 @@ impl Component {
             Ok(record) => record,
             Err(problem) => return Err(Error::Body(problem)),
         };
-        let reason = match &record.reason {
-            smith_channel::MessageRefusal::TooLarge => smith_host_domain::MessageRefusal::TooLarge,
-            smith_channel::MessageRefusal::Full => smith_host_domain::MessageRefusal::Full,
-            smith_channel::MessageRefusal::NameInUse => smith_host_domain::MessageRefusal::NameInUse,
-            smith_channel::MessageRefusal::Ending => smith_host_domain::MessageRefusal::Ending,
-        };
+        let reason = mapped::message_refusal_to_domain(record.reason);
         Ok(Received::Message {
             message: smith_host_domain::Up::MessageRefused { name: Token::new(record.name), reason },
         })

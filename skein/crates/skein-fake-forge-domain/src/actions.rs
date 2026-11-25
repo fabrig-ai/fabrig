@@ -30,7 +30,7 @@ pub enum JobWait {
     Runner,
     Needs,
 }
-/// A run's identity and current outcome (forge/forgejo.md, 1.2).
+/// A run's identity and current outcome (forge/forgejo-operations.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Run {
     pub id: u64,
@@ -119,6 +119,7 @@ pub(crate) fn start(
 pub(crate) fn rerun(domain: &mut Domain, id: Id<Repository>, commit: u64, context: u32) {
     let repository = domain.repositories.get_mut(id).expect("a CI repository");
     let kept = repository.runs.get_mut(&commit).expect("a CI run");
+    kept.run.cancelled_by = None;
     let job = kept.jobs.get_mut(context).expect("a CI job");
     job.attempt = job.attempt.checked_add(1).expect("attempts fit");
     job.state = RunState::Running;
@@ -265,7 +266,11 @@ pub(crate) fn view(domain: &Domain, limits: &crate::Limits, repository: &Reposit
             outcome_steps(
                 &job.name,
                 state,
-                *repository.failing.get(usize_of(job.index)).expect("CI context"),
+                if job.conclusion == Some(Conclusion::Cancelled) {
+                    Failing::NoStep
+                } else {
+                    *repository.failing.get(usize_of(job.index)).expect("CI context")
+                },
                 cue.as_ref(),
                 kept.pull,
                 opening,

@@ -10,14 +10,16 @@ and writes the documents and tokens; the component holds what lives,
 its codes and access tokens, and decides who is signed in. The routes
 and their addresses are the application's (`default-http.md`, 1: no provider route).
 
-- **Configured** by `clients.provider` (`../configuration.md`, section 3):
+- **Configured** by `clients.provider` (`../configuration-engine.md`, section 1):
   its signing key (a 3072-bit RSA key, PKCS#8, a file of the
   service's own user, mode 0600, made on its host and never copied,
   printed or logged; any other form, size, mode or owner refuses the
   start, each with its reason), its clients (each an id, a secret and
   one redirect URI) and the providers whose subjects are verified
-  addresses. Its tests, from the key file's reader up, use a 3072-bit
-  key generated in their scratch directory, one per test binary. With
+  addresses. Its tests, from the key file's reader up, use fixed
+  3072-bit test keys committed beside them, made for the tests and no
+  deployment's, and a fixed client secret, so that each run signs the
+  same bytes and none waits on a key's generation. With
   none, the component is no provider: `Authorize` is refused
   `no_provider`, and a `Redeem` or a `Claims` is answered as an unknown
   client.
@@ -91,11 +93,22 @@ and their addresses are the application's (`default-http.md`, 1: no provider rou
   restart drops them all: a sign-in under way fails, and the person
   signs in again.
 - **On the default mapping,** `POST <prefix>/v1/authorize` (`default-http.md`, 1).
-- **Testing:** the component's world (`tests/engine-clients`) plays the
-  application's page and server and a client of the provider's: a
-  sign-in through `Authorize`, `Redeem` and `Claims` with the same
-  `sub`; a code spent once; a code past its minute; a wrong redirect
-  URI, at the authorization and at the exchange; a wrong secret; a
-  wrong verifier; signed out, then signed in; a service refused; the
-  codes full. skein's issuer world checks the protocol against skein's
-  client; the application's process tier, against a real client.
+- **Testing:** the component's protocol world
+  (`jig-engine-clients-world::protocol`) plays the application's page
+  and server and a client of the provider's, on the world's own clock,
+  holding back people's or the credential's read where a story needs it
+  outstanding: a sign-in through `Authorize`, `Redeem` and `Claims` with
+  the same `sub`, its ID token signed with the fixed key and checked by
+  skein's RS256 verification, which a different signing input fails; a
+  code spent once; a code past its minute and an access token past its
+  five; a wrong redirect URI, at the authorization and at the exchange;
+  a wrong secret; a wrong verifier; signed out, then signed in; a
+  service refused; the codes full and the tokens full; a restart
+  keeping no code or token; no provider. Clients added and removed
+  while it runs: an added one signing in as the same person; a removal
+  dropping only its own codes and tokens, which re-adding it revives
+  none of; each change's refusal named, leaving the registrations as
+  they were; and a removal while people or the credential is being
+  read, after which the late reply draws no code. skein's issuer world
+  checks the protocol against skein's client; the application's
+  process tier, against a real client.

@@ -2,7 +2,7 @@
 //! A person keeps a script, its position, the first time of the current wait,
 //! and a terminal failure. It knows no client or engine state. A face searches
 //! the current tree or answers Pending while a browser query is outstanding.
-//! `next` consumes at most one step (skein's ui/README.md, section 14.1).
+//! `next` consumes at most one step (skein's ui/testing.md, section 1.1).
 //!
 //! | Step/event | Next state | Reports |
 //! |---|---|---|
@@ -58,6 +58,11 @@ impl Find {
     pub fn text(text: &[u8]) -> Self {
         Self { nth: 0, within: Box::new([]), target: Target::Text { text: Box::from(text) } }
     }
+    /// Find a paragraph by its whole displayed text, rather than an accessible name.
+    #[must_use]
+    pub fn paragraph_text(text: &[u8]) -> Self {
+        Self { nth: 0, within: Box::new([]), target: Target::ParagraphText { text: Box::from(text) } }
+    }
     /// The n-th match in the tree's (the document's) order, from 0.
     #[must_use]
     pub fn nth(mut self, nth: u32) -> Self {
@@ -83,6 +88,8 @@ pub enum Target {
     TextBox { name: Box<[u8]> },
     /// Words in visible text, including a drawing's ordinary fallback.
     Text { text: Box<[u8]> },
+    /// A paragraph and its exact visible words, including case.
+    ParagraphText { text: Box<[u8]> },
 }
 
 /// One instruction, with the application's own address type.
@@ -114,7 +121,7 @@ pub struct Person<A> {
     script: Box<[Step<A>]>,
     at: u32,
     since: Option<Time>,
-    failed: Option<Why>,
+    failed: Option<(Why, Option<Duration>)>,
 }
 
 /// The next operation or the reason the script cannot progress.
@@ -189,18 +196,23 @@ impl<A: Clone> Person<A> {
     pub fn at(&self) -> u32 {
         self.at
     }
+    /// The bound of a failed expectation, or none for an immediate failure.
+    #[must_use]
+    pub fn expired(&self) -> Option<Duration> {
+        self.failed.as_ref().and_then(|(_, bound)| *bound)
+    }
     fn advance(&mut self) {
         self.at = self.at.checked_add(1).expect("script length fits step numbers");
         self.since = None;
     }
-    fn fail(&mut self, why: Why) -> Next<A> {
-        self.failed = Some(why.clone());
+    fn fail(&mut self, why: Why, bound: Option<Duration>) -> Next<A> {
+        self.failed = Some((why.clone(), bound));
         Next::Failed { step: self.at, why }
     }
     /// Query the face and report at most one operation. A failure stays terminal.
     #[must_use]
     pub fn next<F: Face>(&mut self, face: &mut F, now: Time) -> Next<A> {
-        if let Some(why) = &self.failed {
+        if let Some((why, _)) = &self.failed {
             return Next::Failed { step: self.at, why: why.clone() };
         }
         let Some(step) = self.script.get(usize::try_from(self.at).expect("step fits usize")) else {
@@ -222,11 +234,11 @@ impl<A: Clone> Person<A> {
                 Found::Node(node) => {
                     let act = Act::Near { edge: *edge };
                     if !face.allows(node, &act) {
-                        return self.fail(Why::Unexpected { find: find.clone() });
+                        return self.fail(Why::Unexpected { find: find.clone() }, None);
                     }
                     Next::Do(Doing::Act { node, act })
                 }
-                Found::Absent => return self.fail(Why::Missing { find: find.clone() }),
+                Found::Absent => return self.fail(Why::Missing { find: find.clone() }, None),
                 Found::Pending => return Next::Wait { until: None },
             },
             Step::Press { find } | Step::Type { find, .. } | Step::Send { find } => match face.find(find) {
@@ -253,11 +265,11 @@ impl<A: Clone> Person<A> {
                         }
                     };
                     if !face.allows(node, &act) {
-                        return self.fail(Why::Unexpected { find: find.clone() });
+                        return self.fail(Why::Unexpected { find: find.clone() }, None);
                     }
                     Next::Do(Doing::Act { node, act })
                 }
-                Found::Absent => return self.fail(Why::Missing { find: find.clone() }),
+                Found::Absent => return self.fail(Why::Missing { find: find.clone() }, None),
                 Found::Pending => return Next::Wait { until: None },
             },
             Step::See { find, within } | Step::Gone { find, within } => {
@@ -292,7 +304,7 @@ impl<A: Clone> Person<A> {
                     | Step::Reload
                     | Step::Pause { .. } => unreachable!("expectation step"),
                 };
-                return self.fail(why);
+                return self.fail(why, Some(*within));
             }
         };
         self.advance();
@@ -325,6 +337,9 @@ impl fmt::Display for Target {
                 write!(f, "text box named exactly {}", alloc::string::String::from_utf8_lossy(name))
             }
             Self::Text { text } => write!(f, "text containing {}", alloc::string::String::from_utf8_lossy(text)),
+            Self::ParagraphText { text } => {
+                write!(f, "paragraph with exact text {}", alloc::string::String::from_utf8_lossy(text))
+            }
         }
     }
 }

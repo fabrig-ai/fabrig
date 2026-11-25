@@ -38,6 +38,8 @@ fn merge_key(kind: &MessageKind) -> Option<(u8, u64)> {
         | MessageKind::Words
         | MessageKind::Question
         | MessageKind::QuestionAnswered { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Answer { .. }
         | MessageKind::Proposal { .. }
@@ -186,7 +188,7 @@ pub(crate) fn room_staged(
         return false;
     };
     // Amendment, grace and Met each have a separately priced slot. A notice
-    // that the task may go on cannot consume a sender's room (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 2).
+    // that the task may go on cannot consume a sender's room (domain/tasks/lifecycle-endings.md, 1, and domain/tasks/messages.md, 2).
     let mut extra_count = 0_usize;
     let mut extra_bytes = 0_usize;
     for word in record.inbox {
@@ -263,8 +265,15 @@ pub(crate) fn message(
 pub(crate) struct MessagePlan {
     pub(crate) number: u64,
     pub(crate) prepared: Prepared,
-    pub(crate) answer: Option<u64>,
+    pub(crate) answer: Option<Answering>,
     pub(crate) asked_by: Option<u64>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct Answering {
+    pub(crate) question: u64,
+    pub(crate) by: crate::QuestionAnswerer,
+    pub(crate) notice: bool,
 }
 
 #[expect(clippy::too_many_lines, reason = "one inbox entrance preflights message and answer credits before mutation")]
@@ -293,9 +302,22 @@ pub(crate) fn check_message(
             capacity: None,
         }));
     };
+    let task_answer = match (&word.kind, word.from) {
+        (MessageKind::Answer { question }, Party::Task(source)) if task.project == project => {
+            let mut admitted = false;
+            for credit in &task.questions {
+                admitted |= credit.number == *question && credit.ticket(number).task_may_answer(source);
+            }
+            if !admitted && let Some(why) = domain.late_task_answer(number, source, *question) {
+                return Err(Box::new(crate::Problem::new(Some(number), why)));
+            }
+            admitted
+        }
+        _ => false,
+    };
     let requester = match word.from {
         Party::Person(person) => task.requester == Party::Person(person) || authorized && person != 0,
-        Party::Task(source) => crate::refs::allows(domain, source, number),
+        Party::Task(source) => task_answer || crate::refs::allows(domain, source, number),
         Party::Deployment { .. } => false,
     };
     let spoken = match word.kind.family() {
@@ -362,15 +384,7 @@ pub(crate) fn check_message(
         Spoken::Words | Spoken::Question => None,
         Spoken::Answer { question } => {
             let valid = match word.from {
-                Party::Task(answerer) => {
-                    let mut found = false;
-                    for credit in &task.questions {
-                        if credit.number == question && Party::Task(answerer) == credit.answerer {
-                            found = true;
-                        }
-                    }
-                    found
-                }
+                Party::Task(_) => task_answer,
                 Party::Person(person) => {
                     let mut found = false;
                     if task.requester == Party::Person(person) {
@@ -396,12 +410,18 @@ pub(crate) fn check_message(
                 }));
             }
             match word.from {
-                Party::Task(_) => Some(question),
+                Party::Task(task) => {
+                    Some(Answering { question, by: crate::QuestionAnswerer::Task(task), notice: true })
+                }
                 Party::Person(person) => {
                     let mut direct = None;
                     for credit in &task.questions {
                         if credit.number == question && credit.answerer == Party::Person(person) {
-                            direct = Some(question);
+                            direct = Some(Answering {
+                                question,
+                                by: crate::QuestionAnswerer::Person(person),
+                                notice: false,
+                            });
                         }
                     }
                     direct
@@ -410,7 +430,7 @@ pub(crate) fn check_message(
             }
         }
     };
-    if let Some(question) = answer {
+    if let Some(Answering { question, .. }) = answer {
         word.eligible = false;
         for credit in &task.questions {
             if credit.number == question && credit.asked == task.requester {
@@ -470,22 +490,25 @@ pub(crate) fn apply_message(
     out: &mut Queue<Request>,
 ) -> (u64, Word) {
     let MessagePlan { number, prepared, answer, asked_by } = plan;
-    let sender = prepared.word.from;
     let task = task_mut(domain, number).expect("admitted task still live");
     task.record.last_activity = env.wall;
     task.record.last_message = prepared.word.number;
     task.record.inbox = prepared.inbox;
     crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
-    if let Some(question) = answer {
+    if let Some(answer) = answer {
+        let mut selected = None;
         let mut credits = List::with_capacity(env.limits.inbox_messages);
         for credit in &task.record.questions {
-            if credit.number != question {
+            if credit.number == answer.question {
+                selected = Some(credit.clone());
+            } else {
                 credits.push(credit.clone()).expect("credit subset bounded");
             }
         }
         task.record.questions = credits.into_boxed();
         let heard = crate::AnswerLine { task: number, position: task.record.activity };
-        crate::positions::sent_answer(domain, env, sender, question, heard, out);
+        let selected = selected.expect("admitted answer has its credit");
+        crate::questions::settle(domain, env, &selected, answer, heard, &prepared.word, out);
     }
     publish(domain, env, number, out);
     if let Some(source) = asked_by {
@@ -602,9 +625,11 @@ fn entry(domain: &Domain, task: u64, number: u64) -> bool {
             return true;
         }
     }
-    for word in crate::escalation::waiting_for(domain, task) {
-        if word.number == number {
-            return true;
+    for entries in [crate::escalation::waiting_for(domain, task), crate::questions::waiting_for(domain, task)] {
+        for word in entries {
+            if word.number == number {
+                return true;
+            }
         }
     }
     false
@@ -671,6 +696,23 @@ pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding:
         }
         task.unrecorded = ordered.into_boxed();
         task.inbox = kept.into_boxed();
+        for line in &mut task.question_lines {
+            if let Some(resolution) = &mut line.resolution
+                && let Some(notice) = &resolution.notice
+                && notice.number <= number
+                && offered_notice(outstanding, notice.number)
+                && !task.refused.contains(&notice.number)
+            {
+                resolution.notice = None;
+            }
+        }
+    }
+}
+
+fn offered_notice(outstanding: Option<&[u64]>, number: u64) -> bool {
+    match outstanding {
+        Some(offered) => offered.contains(&number),
+        None => true,
     }
 }
 
@@ -689,6 +731,7 @@ pub(crate) fn question_credit(domain: &Domain, source: u64, asked: u64, word: &W
         answerer,
         asked: Party::Task(asked),
         line: record(domain, source).expect("question source live").activity.checked_add(1).expect("activity room"),
+        offer: None,
     }
 }
 

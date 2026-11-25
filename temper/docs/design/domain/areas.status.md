@@ -1,6 +1,6 @@
 # areas: status
 
-2026-11-18. Where temper's code lags or departs from [areas.md](areas.md).
+2026-11-24. Where temper's code lags or departs from [areas.md](areas.md).
 
 
 - **Not yet:** 2, 3 and 6: kinds 14 and 15, a project's areas and its triager, as settings: their values, judged by the forge and by the root from the core, kept, erased with their project, named in settings files and a run's tools [in flight: change 733].
@@ -11,5 +11,3 @@
 - **Not yet:** 6, *A way names it*: Draft first's kind 15, `charter 14`, and its triager started by the way's act [in flight: change 748].
 - **Not yet:** 7, *Through*: `temper ctl`'s `finding` group [in flight: change 749].
 - **Not yet:** 7, *Through*: the agents' `finding` tool [in flight: change 750].
-- **Not yet:** 7: the act `blame` on red findings [in flight: change 10372].
-- **Not yet:** 7: the act `repair` on red findings [in flight: change 10375].

@@ -30,6 +30,7 @@ pub fn frame(party: u64) -> Me {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: MeParty {
             number: party,
             kind: PartyKind::Person,
@@ -191,6 +192,10 @@ pub fn task() -> Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: skein_lib::List::with_capacity(0),
+        wait_count: 0,
         chip: Chip {
             task: 9,
             title: DocumentText::complete(text(b"Chat nine")),
@@ -306,6 +311,8 @@ pub fn chat_world(seed: u64) -> World<Test, Scripted> {
                         ended_at: None,
                         budget: task.budget.clone(),
                         waits_on: jig_client_domain::contract::WaitsOn::Nothing,
+                        wait: None,
+                        nearest: None,
                         phases: jig_client_domain::contract::PhaseCounts {
                             waiting: 0,
                             idle: 0,

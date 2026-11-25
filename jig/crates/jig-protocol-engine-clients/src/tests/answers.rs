@@ -118,7 +118,7 @@ fn an_account_sign_in_is_answered_with_its_source_and_address() {
         let outcome = p::Outcome::AccountSignInStarted { source: u32::MAX, address: address.clone() };
         let expected =
             w::DocumentOutcome::AccountSignInStarted(w::OutcomeAccountSignInStarted { source: u32::MAX, address });
-        assert_eq!(f::translated(&p::Reply::Outcome(outcome), &limits), account_sign_in_done(expected, &limits));
+        assert_eq!(f::translated(&p::Reply::Outcome(outcome), &limits), account_sign_in_done(expected));
     }
 }
 #[test]
@@ -134,7 +134,7 @@ fn an_account_sign_out_is_answered_with_whether_it_was_confirmed() {
                 &p::Reply::Outcome(p::Outcome::AccountSignedOut { confirmed, failed_hosts: Box::new([]) }),
                 &limits
             ),
-            account_sign_in_done(expected, &limits)
+            account_sign_in_done(expected)
         );
     }
 }
@@ -284,7 +284,7 @@ fn a_sparse_ending_past_its_piece_bound_is_refused() {
     );
 }
 
-const UNSERVED_VERSION: u32 = jig_client_protocol_wire::VERSION - 1;
+const UNSERVED_VERSION: u32 = 43;
 const REFUSED_WATCH: u64 = 71;
 #[test]
 fn a_keyed_request_outside_its_owners_range_is_answered_not_served() {
@@ -315,7 +315,7 @@ fn an_opening_outside_its_owners_range_is_answered_not_served() {
     assert!(exchange.out.is_empty());
 }
 
-fn account_sign_in_done(value: w::DocumentOutcome, _limits: &w::Limits) -> w::Final {
+fn account_sign_in_done(value: w::DocumentOutcome) -> w::Final {
     let outcome = w::Outcome::Document(w::OutcomeDocument { value });
     w::Final::Done(w::Done { outcome })
 }

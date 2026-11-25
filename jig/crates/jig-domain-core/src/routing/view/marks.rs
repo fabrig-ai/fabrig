@@ -1,5 +1,5 @@
 //! Bounded subject marks gathered while a decision routes.
-//! `client/domain/contract/README.md`, 5.2. Task saves gather the affected watched
+//! `client/domain/contract/watches.md`, 1.2. Task saves gather the affected watched
 //! subjects; party-entry updates gather frame and inbox subjects. Marks hold
 //! no state snapshots and coalesce in a set. Once projection handoffs finish,
 //! the views child asks for documents from the decision's final live state.
@@ -16,7 +16,7 @@ use jig_domain_views as views;
 use skein_lib::{Env, List, Queue, Set, Token};
 
 impl Core {
-    /// A rate changes only documents that carry its holder's account facts (accounts.md, 3.7).
+    /// A rate changes only documents that carry its holder's account facts (domain/accounts-lists.md, 1).
     pub(crate) fn touch_account_rate(&mut self, holder: jig_domain_accounts::Holder) {
         for (id, _) in &self.flights {
             let Some(binding) = self.watch_binding(id.token()) else { continue };
@@ -68,6 +68,7 @@ impl Core {
 
     /// Host or account changes can replace a due agent's next-run wait.
     pub(crate) fn touch_run_waits(&mut self) {
+        self.wait_alarms.changed_run_waits();
         for (_, flight) in &self.flights {
             let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
             let Subject::Task { task } = &self.view_names.get(binding.subject).expect("bound subject").subject else {
@@ -317,6 +318,7 @@ pub(crate) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
         | people::Event::CloseProject { .. }
         | people::Event::ForgetProject { .. }
         | people::Event::MakeService { .. }
+        | people::Event::ReissueService { .. }
         | people::Event::Seed { .. }
         | people::Event::ApplyRoles { .. }
         | people::Event::SignedIn { .. }

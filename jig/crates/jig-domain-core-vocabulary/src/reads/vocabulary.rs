@@ -1,4 +1,4 @@
-//! Read pages and the owner-keyed store transport (`client/domain/contract/README.md`, section 4).
+//! Read pages and the owner-keyed store transport (`client/domain/contract/reads.md`, section 1).
 //! Cursors name a query and an owner key. The client only echoes them.
 use crate::{
     CoreRecord, Key, Record,
@@ -62,10 +62,10 @@ pub struct Filter {
 /// Identity of a store query, independent of its continuation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Scope {
-    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store/README.md, 6.1;
+    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store/growth.md, 1.1;
     /// jig/docs/design/domain/people/acts.md, 2).
     EndedTasks,
-    /// Summary-only deletion sweep (protocol/store/README.md, 6.1).
+    /// Summary-only deletion sweep (protocol/store/growth.md, 1.1).
     TaskSummaries,
     /// Due stage prefix (protocol/store/retention.md, 4–5).
     Retention { stage: tasks::RetentionStage, through: Wall },
@@ -77,7 +77,7 @@ pub enum Scope {
     TaskOwnRows { task: u64 },
     /// History, attempts, holds, activity, terminals, decisions, ended reads and the
     /// party proposal and update rows whose task link names this owner
-    /// (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/domain/people/acts.md, 2).
+    /// (jig/docs/design/protocol/store/growth.md, 1.1; jig/docs/design/domain/people/acts.md, 2).
     TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },
@@ -133,7 +133,7 @@ pub enum Cursor {
     /// Exclusive owner key; `None` starts the stored portion after live rows.
     Store { scope: Scope, after: Option<Position> },
 }
-/// Which side of an activity line to read (client/domain/contract/README.md, section 4).
+/// Which side of an activity line to read (client/domain/contract/reads.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
     Earlier,
@@ -232,7 +232,7 @@ pub enum Read {
         task: u64,
         before: Option<Cursor>,
     },
-    /// The page next to a line of a task's activity, that line left out (client/domain/contract/README.md, section 4).
+    /// The page next to a line of a task's activity, that line left out (client/domain/contract/reads.md, section 1).
     ActivityBeside {
         task: u64,
         position: u64,
@@ -401,7 +401,7 @@ pub enum PageTurn {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PageRow {
     /// The common task line.
-    Line(documents::TaskLine),
+    Line(Box<documents::TaskLine>),
     /// An ended delegate's status and outcome.
     EndedDelegate(documents::EndedDelegate),
     /// A semantic task change.
@@ -523,6 +523,7 @@ pub fn record_bytes(value: &Record) -> Option<u64> {
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Projection(_),
         )
@@ -566,7 +567,7 @@ pub fn row_bytes(row: &Row) -> Option<u64> {
     }
     Some(total)
 }
-/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract/README.md, 4).
+/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract/reads.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDocument {
     pub overlay: Option<Box<crate::settings::Overlay>>,

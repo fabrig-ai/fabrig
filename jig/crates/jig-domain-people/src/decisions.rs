@@ -48,6 +48,8 @@ pub enum HoldReason {
     HoldsWaited,
     /// Joining a queue would close a circle of waits (domain/tasks/holds.md, 7).
     Circle,
+    /// One of its waits reached its bound.
+    Waited,
     /// A required resource is unavailable.
     ResourceUnavailable,
     /// Adoption no longer permits its workspace writes.

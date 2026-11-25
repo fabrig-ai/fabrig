@@ -1,4 +1,4 @@
-//! Workers and their plaintext listeners (configuration.md, 3).
+//! Workers and their plaintext listeners (protocol/configuration-engine.md, 1).
 use crate::{Address, Path, Problems, Segment, What, address, check};
 use alloc::boxed::Box;
 use skein_json::Document;

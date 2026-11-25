@@ -77,6 +77,8 @@ impl Room {
         }
         let terms = skein_channel::control_frame(&Control::Terms { entries }, &self.limits.channel).unwrap();
         let start = smith_channel::Start {
+            parts: Box::default(),
+            tell_parts: false,
             identity: None,
             activation: 1,
             charter: charter_fixture(),
@@ -211,7 +213,7 @@ impl Room {
 
 fn charter_fixture() -> Box<[u8]> {
     let values = skein_codegen::values(smith_charter::SCHEMA);
-    for value in values.goldens.clone() {
+    for value in values.fixed.clone() {
         if value.name == "record_charter_smallest.bin" {
             return value.bytes.into_boxed_slice();
         }

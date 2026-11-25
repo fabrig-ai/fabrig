@@ -1,8 +1,8 @@
 # Restoring a checkpoint
 
 2026-11-17. Bringing a checkpoint back over a stopped deployment,
-crash-safe (temper's `draft/checkpoints.md`, section 5.3; milestone C2
-of `draft/checkpoints.execution.md`). The component first takes a
+crash-safe (temper's `draft/archive/checkpoints.md`, section 5.3; milestone C2
+of `temper/docs/design/draft/archive/checkpoints.execution.md`). The component first takes a
 safety checkpoint of the deployment as it stands. It then stages the
 next generation and a transcript tree from the checkpoint, writes a
 durable intent, and rolls forward: the transcript trees are swapped by
@@ -45,7 +45,7 @@ In the deployment's directory, beside `active` (`README.md`, section
 | `transcripts.staged/` | the staged transcript tree, laid out as `transcripts/` (`transcripts.md`, 1) | renamed into place at 4.7, step 2; a stray with no intent |
 | `transcripts.aside/` | the live tree, set aside at 4.7, step 1 | 4.7, step 5; a stray with no intent |
 | `restore` | the intent (2.2) | 4.7, step 4 |
-| `restore.skein-<16 hex>` | the temporary of the intent's durable replace (skein's `runtime/io/files.md`, 2) | swept with `active`'s temporaries (`opening.md`, 1.5) |
+| `restore.skein-<16 hex>` | the temporary of the intent's durable replace (skein's `runtime/io/files.md`, 10) | swept with `active`'s temporaries (`opening.md`, 1.5) |
 
 - **The tree's names are fixed,** not drawn. At most one restore runs,
   under the deployment's lock. An open removes whatever an unfinished
@@ -65,7 +65,7 @@ was (`checkpoints.md`, 2.3):
 ```
 versioned record RestoreIntent {
     generation: u64        # the staged generation, N + 1
-    active: fixed 32       # the digest of `active` as the restore read it (skein's runtime/io/files.md, 2)
+    active: fixed 32       # the digest of `active` as the restore read it (skein's runtime/io/files.md, 10)
     source: text 37        # the checkpoint restored, <20 digits>-<16 hex>
     safety: text 37        # the safety checkpoint
     made: u64              # env.wall as the intent is written, in Manifest.written's unit
@@ -195,7 +195,8 @@ Adoption::Restore { name: CheckpointName, draw: [u8; 16] }
   naming only the layouts the older build registered, which it opens
   in place, with nothing to register or run. A redeploy's going
   back after the upgraded generation's first commit restores with the
-  new build, then starts the previous one (temper's `redeploy.md`, 4.6).
+  new build, then starts the previous one (temper's
+  `protocol/checkpoints.md`, 2.5).
 
 ### 4.4 The staged generation
 
@@ -223,7 +224,7 @@ it. Then the source's files, in the record's order, on the store's
   source manifest's `after`, `counts` empty, `store` the record's
   `store`, `secrets` its `secrets`, `written` env.wall as staging ends.
   With no `from`, `--back` refuses the restored generation
-  `NoPrevious` (`opening.md`, 5). Going back assumes the transcripts
+  `NoPrevious` (`opening-rehearsal.md`, 1). Going back assumes the transcripts
   are as the previous generation left them, and a restore has changed
   them.
 - **Synced** deepest first: `store/logs/` and each directory in it,
@@ -272,7 +273,7 @@ taken again from what stands after a cut (5):
 Then the locks are let go (4.1), and the request is answered
 `Restored`. The next start opens N + 1 as any start opens a
 generation. A build at later levels upgrades it into N + 2, and
-`--back` may then return to N + 1 (`opening.md`, 2 and 5). Generation
+`--back` may then return to N + 1 (`opening.md`, 2, and `opening-rehearsal.md`, 1). Generation
 N stays as N + 1's previous by number until an upgrade drops it
 (`opening.md`, 2, step 1). Nothing names it again: `--back` follows a
 manifest's `from`, and N + 1's names none.
@@ -324,7 +325,7 @@ name the intent's generation (g).
   generation's is (a transcript's depth allowed), then the top synced.
   A staged generation that no intent named is a stray generation
   already.
-- **A rehearsal** (`opening.md`, 5) writes nothing in the directory it
+- **A rehearsal** (`opening-rehearsal.md`, 1) writes nothing in the directory it
   is given, so it can't roll forward. A directory holding `restore`
   refuses `Generations::Unfinished` before it copies anything:
   "`<deployment>` holds a restore that has not finished, and this
@@ -354,7 +355,7 @@ nothing else:
 | step 4 made, during step 5 | no intent; part of `transcripts.aside/` | removes the rest as a stray; opens N + 1 |
 
 - **A cut per write, sync, link and rename,** each run from its own
-  start in the store's world (`README.md`, section 9), not their
+  start in the store's world (`testing.md`, section 1), not their
   product, as `opening.md`, 4 runs its own.
 - **A failed file request** at any step is answered as 4.8 says, and
   the next open finds what the cut at that step leaves.
@@ -377,7 +378,8 @@ nothing else:
 ## 8. Tests
 
 - **Step tests,** in `jig-protocol-store`: the intent's bytes, with
-  golden bytes; `RestoreRefusal::words`; the resolution from each row
+  fixed-rule values built from the schema's text; `RestoreRefusal::words`;
+  the resolution from each row
   of 5's table, and `Unmatched` from a state outside it and from an
   intent that doesn't decode; the strays with no intent standing; a
   rehearsal refusing `Unfinished`; the staging table of 4.4 over a
@@ -389,7 +391,8 @@ nothing else:
   (`records.md`, 3) and registry are the source's, without N's layout,
   and B then opens it in place, with no refusal and no new generation,
   at the checkpoint's state, so that a redeploy's going back by
-  restore starts the previous build (temper's `redeploy.md`, 4.6).
+  restore starts the previous build (temper's
+  `protocol/checkpoints.md`, 2.5).
 - **The store's world,** `jig-store-world`, on its simulated disk,
   focused. A checkpoint is taken, more is committed, and the checkpoint
   is restored. The next open finds the state at C by the referee: both

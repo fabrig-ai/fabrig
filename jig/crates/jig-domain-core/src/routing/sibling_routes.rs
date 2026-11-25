@@ -1,4 +1,4 @@
-//! Routes between the core's children (domain/engine/README.md, 4.4). These
+//! Routes between the core's children (domain/engine/vocabulary.md, 1.4). These
 //! translations use only the children's vocabularies; the application root
 //! carries their events and handles the resulting store and host requests.
 
@@ -96,80 +96,58 @@ impl Core {
             Some(number) => tasks::MessageKind::Answer { question: number },
             None => tasks::MessageKind::Words,
         };
-        if self.person_answers
-            && let Some(question) = question
+        let word = tasks::Word {
+            number: message,
+            from: tasks::Party::Person(person),
+            kind,
+            words,
+            at,
+            hits: 1,
+            eligible: false,
+        };
+        if let Some(question) = question
+            && let Some(ticket) = self.tasks.question_ticket(task, question)
         {
-            let destination = self.tasks.question_asker(task, person, question).ok_or(people::Refusal::Unknown)?;
-            let notice = fresh(&mut self.counters, Family::Message)
-                .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
-            let request = self.fly(Flight::Saying { request, task: destination, question: Some(question) });
-            return Ok(tasks::Event::PersonQuestionAnswer {
-                reply_to: skein_lib::ReplyTo::new(request),
-                project,
-                asked: task,
-                person,
-                question,
-                notice,
-                word: tasks::Word {
-                    number: message,
-                    from: tasks::Party::Person(person),
-                    kind,
-                    words,
-                    at,
-                    hits: 1,
-                    eligible: false,
-                },
-            });
+            if crate::acts::at_question_offer(ticket, task, project, person, self.people.role(person, project)) {
+                let request = self.fly(Flight::Saying { request, task, question: Some(question) });
+                return Ok(tasks::Event::AnswerOfferedQuestion {
+                    reply_to: skein_lib::ReplyTo::new(request),
+                    project,
+                    asker: task,
+                    word,
+                });
+            }
+            if self.person_answers || ticket.holder.is_some() {
+                let notice = fresh(&mut self.counters, Family::Message)
+                    .ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
+                let request = self.fly(Flight::Saying { request, task: ticket.asker, question: Some(question) });
+                return Ok(tasks::Event::PersonQuestionAnswer {
+                    reply_to: skein_lib::ReplyTo::new(request),
+                    project,
+                    asked: task,
+                    person,
+                    question,
+                    notice,
+                    word,
+                });
+            }
         }
         let request = self.fly(Flight::Saying { request, task, question });
         let event = match question {
             Some(_) => tasks::Event::Message {
                 reply_to: skein_lib::ReplyTo::new(request),
                 project,
-                operation: tasks::Message {
-                    task,
-                    word: tasks::Word {
-                        number: message,
-                        from: tasks::Party::Person(person),
-                        kind,
-                        words,
-                        at,
-                        hits: 1,
-                        eligible: false,
-                    },
-                },
+                operation: tasks::Message { task, word },
             },
             None if talk => tasks::Event::Talk {
                 reply_to: skein_lib::ReplyTo::new(request),
                 project,
-                operation: tasks::Message {
-                    task,
-                    word: tasks::Word {
-                        number: message,
-                        from: tasks::Party::Person(person),
-                        kind,
-                        words,
-                        at,
-                        hits: 1,
-                        eligible: false,
-                    },
-                },
+                operation: tasks::Message { task, word },
             },
             None => tasks::Event::AuthorizedMessage {
                 reply_to: skein_lib::ReplyTo::new(request),
                 project,
-                operation: tasks::Message {
-                    task,
-                    word: tasks::Word {
-                        number: message,
-                        from: tasks::Party::Person(person),
-                        kind,
-                        words,
-                        at,
-                        hits: 1,
-                        eligible: false,
-                    },
-                },
+                operation: tasks::Message { task, word },
             },
         };
         Ok(event)
@@ -306,6 +284,7 @@ impl Core {
             run: Token::new(task),
             attempt: Token::new(attempt),
             kept,
+            kept_part: self.last_part(task, attempt),
         });
     }
 

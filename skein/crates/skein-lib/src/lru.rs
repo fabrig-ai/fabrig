@@ -1,8 +1,8 @@
-//! Bounded least-recently-used tables (runtime/lib.md, 5 and 5.1).
+//! Bounded least-recently-used tables (runtime/lib-containers.md, 1 and 1.1).
 use crate::{Map, Set};
 use core::hash::{Hash, Hasher};
 
-/// A bounded table that drops the entry used longest ago (runtime/lib.md, 5).
+/// A bounded table that drops the entry used longest ago (runtime/lib-containers.md, 1).
 #[derive(Debug)]
 pub struct Lru<K, V> {
     by_use: Set<(u64, K)>,
@@ -15,7 +15,7 @@ impl<K: Ord + Copy, V> Lru<K, V> {
         Lru { by_use: Set::with_capacity(capacity), by_key: Map::with_capacity(capacity), clock: 0 }
     }
 
-    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    /// Raises the capacity in place, allocating nothing (runtime/lib-containers.md, 1).
     pub fn raise(&mut self, capacity: u32) {
         assert!(capacity >= self.by_key.capacity(), "a capacity never falls");
         self.by_use.raise(capacity);
@@ -42,7 +42,7 @@ impl<K: Ord + Copy, V> Lru<K, V> {
         assert!(self.by_use.insert((*used, key)).is_ok(), "removing the old use makes room");
         Some(value)
     }
-    /// Keeps `value`, most recently used; hands back what left (runtime/lib.md, 5).
+    /// Keeps `value`, most recently used; hands back what left (runtime/lib-containers.md, 1).
     pub fn insert(&mut self, key: K, value: V) -> Option<(K, V)> {
         if self.by_key.capacity() == 0 {
             return Some((key, value));

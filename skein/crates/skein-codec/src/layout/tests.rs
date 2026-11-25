@@ -1,6 +1,6 @@
 //! Hand-written wire examples, not a value decoder (data/codec/layouts.md, 6).
 #![expect(clippy::disallowed_macros, reason = "small schema fixtures are formatted inline")]
-use super::{Misconverted, Plan, Why, Workspace};
+use super::{Misconverted, Mode, Plan, Refused, Underived, Why, Workspace};
 use crate::schema::{self, Root, Schema};
 use skein_lib::Buffer;
 
@@ -10,10 +10,29 @@ fn schema(body: &str, version: u16) -> Schema {
 fn root(schema: &Schema, variant: Option<&[u8]>) -> Root {
     schema.root(b"R", variant).expect("root")
 }
+fn strict(
+    old: &Schema,
+    old_root: Root,
+    old_held: &[&Schema],
+    new: &Schema,
+    new_root: Root,
+    new_held: &[&Schema],
+) -> Result<Plan, Underived> {
+    let plan = Plan::derive(old, old_root, old_held, new, new_root, new_held)?;
+    let read = Plan::between(Mode::Read, old, old_root, old_held, new, new_root, new_held).expect("Read derives");
+    assert_eq!(read, plan, "the store uses the same plan as Read");
+    assert!(!read.refuses());
+    Ok(plan)
+}
+fn between(mode: Mode, old: &str, new: &str) -> Result<Plan, Underived> {
+    let old = schema(old, 1);
+    let new = schema(new, 2);
+    Plan::between(mode, &old, root(&old, None), &[], &new, root(&new, None), &[])
+}
 fn plan(old: &str, new: &str) -> Plan {
     let old = schema(old, 1);
     let new = schema(new, 2);
-    Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("derived")
+    strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("derived")
 }
 fn check(plan: &Plan, old: &[u8], new: &[u8], keeps: bool) {
     assert_eq!(plan.keeps(), keeps);
@@ -29,7 +48,7 @@ fn check(plan: &Plan, old: &[u8], new: &[u8], keeps: bool) {
 fn refused(old: &str, new: &str, why: Why, part: Option<&[u8]>, in_old: bool) {
     let old = schema(old, 1);
     let new = schema(new, 2);
-    let error = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("written change");
+    let error = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("written change");
     assert_eq!(error.why, why);
     assert_eq!(error.old, in_old);
     let text = if in_old { &old } else { &new };
@@ -51,8 +70,21 @@ fn repeated_named_reaches_share_readers_and_conversions() {
 #[test]
 fn added_field_uses_default_or_names_no_default() {
     let old = "record R { x: u8 }";
-    check(&plan(old, "record R { x: u8 a: u32 = 7 }"), &[5], &[5, 0, 0, 0, 7], false);
-    refused(old, "record R { x: u8 a: u32 }", Why::NoDefault, Some(b"a"), false);
+    let with = "record R { x: u8 a: u32 = 7 }";
+    let without = "record R { x: u8 a: u32 }";
+    check(&plan(old, with), &[5], &[5, 0, 0, 0, 7], false);
+    refused(old, without, Why::NoDefault, Some(b"a"), false);
+    let read = between(Mode::Read, old, with).expect("Read inserts the default");
+    let keep = between(Mode::Keep, old, with).expect("Keep inserts the default");
+    assert_eq!(read, keep, "a target-only field is handled alike in both modes");
+    assert!(!keep.refuses());
+    check(&keep, &[5], &[5, 0, 0, 0, 7], false);
+    for mode in [Mode::Read, Mode::Keep] {
+        let error = between(mode, old, without).expect_err("a default is required");
+        assert_eq!(error.why, Why::NoDefault);
+        assert!(!error.old);
+        assert_eq!(schema(without, 2).spelled(error.part.expect("added field")), b"a");
+    }
 }
 
 #[test]
@@ -71,13 +103,231 @@ fn dropped_fields_are_scanned_and_kept_fields_reordered() {
 }
 
 #[test]
+fn read_skips_a_source_only_field_while_keep_compares_its_default() {
+    let old = "versioned record R { x: u8 f: u16 = 7 z: u8 }";
+    let new = "versioned record R { z: u8 x: u8 }";
+    let read = plan(old, new);
+    let keep = between(Mode::Keep, old, new).expect("drop at the default");
+    assert!(keep.refuses());
+    assert_eq!(keep.refusal(1), None);
+    check(&read, &[0, 1, 9, 0, 7, 8], &[0, 2, 8, 9], false);
+    check(&read, &[0, 1, 9, 0, 6, 8], &[0, 2, 8, 9], false);
+    check(&keep, &[0, 1, 9, 0, 7, 8], &[0, 2, 8, 9], false);
+    // Even the record head waits for all drop checks.
+    check_refusal(&keep, &[0, 1, 9, 0, 6, 8], &[], (Refused::Field, "R", "f"));
+}
+
+#[test]
+fn tombstone_supplies_a_missing_field_unless_it_has_its_own_default() {
+    let scalar = "record R { a: u8 dropped b: u16 = 9 }";
+    let rows: [(&str, &str, &[u8]); 3] = [
+        (scalar, "record R { a: u8 b: u16 }", &[1, 0, 9]),
+        (scalar, "record R { a: u8 b: u16 = 4 }", &[1, 0, 4]),
+        (
+            "enum E { a b } record R { a: u8 dropped b: option E = some b }",
+            "enum E { c } record R { a: u8 b: option E = none }",
+            &[1, 0],
+        ),
+    ];
+    for (old, new, wire) in rows {
+        check(&plan(old, new), &[1], wire, false);
+        for mode in [Mode::Read, Mode::Keep] {
+            let forward = between(mode, old, new).expect("the missing field has a default");
+            check(&forward, &[1], wire, false);
+        }
+        let back = between(Mode::Read, new, old).expect("Read drops the restored field");
+        check(&back, wire, &[1], false);
+    }
+}
+
+#[test]
+fn tombstone_supplies_the_compared_default_unless_the_field_has_its_own() {
+    let new = "record R { a: u8 dropped b: u16 = 9 }";
+    for (old, accepted, refused) in
+        [("record R { a: u8 b: u16 }", [1, 0, 9], [1, 0, 8]), ("record R { a: u8 b: u16 = 4 }", [1, 0, 4], [1, 0, 9])]
+    {
+        let keep = between(Mode::Keep, old, new).expect("Keep checks the dropped field");
+        assert!(keep.refuses());
+        check(&keep, &accepted, &[1], false);
+        check_refusal(&keep, &refused, &[], (Refused::Field, "R", "b"));
+        let read = plan(old, new);
+        check(&read, &accepted, &[1], false);
+        check(&read, &refused, &[1], false);
+        let back = between(Mode::Read, new, old).expect("Read restores the compared default");
+        check(&back, &[1], &accepted, false);
+    }
+}
+
+#[test]
+fn tombstone_restores_an_enum_default_at_its_target_tag() {
+    let old = "enum E { a b } record R { x: u8 dropped e: E = b }";
+    for new in ["enum E { c a b } record R { x: u8 e: E }", "enum E { c a renamed was b } record R { x: u8 e: E }"] {
+        check(&plan(old, new), &[5], &[5, 2], false);
+        for mode in [Mode::Read, Mode::Keep] {
+            check(&between(mode, old, new).expect("restored enum field"), &[5], &[5, 2], false);
+        }
+        check(&between(Mode::Read, new, old).expect("Read drops the restored field"), &[5, 2], &[5], false);
+    }
+}
+
+#[test]
+fn tombstone_compares_an_enum_default_at_its_live_tag() {
+    let old = "enum E { a b } record R { x: u8 e: E }";
+    let new = "enum E { c a b } record R { x: u8 dropped e: E = b }";
+    let keep = between(Mode::Keep, old, new).expect("compared enum default");
+    check(&keep, &[5, 1], &[5], false);
+    check_refusal(&keep, &[5, 0], &[], (Refused::Field, "R", "e"));
+    for read in [plan(old, new), between(Mode::Read, old, new).expect("Read skips the field")] {
+        for wire in [[5, 0], [5, 1]] {
+            check(&read, &wire, &[5], false);
+        }
+    }
+    check(&between(Mode::Read, new, old).expect("Read restores the compared default"), &[5], &[5, 1], false);
+}
+
+#[test]
+fn tombstone_with_an_unconvertible_default_names_the_live_field() {
+    let dead = "enum E { a b } record R { x: u8 dropped e: E = b }";
+    for live in ["enum E { a } record R { x: u8 e: E }", "record P {} enum E { a b: P } record R { x: u8 e: E }"] {
+        refused(dead, live, Why::Retyped, Some(b"e"), false);
+        for (mode, old, new, in_old) in
+            [(Mode::Read, dead, live, false), (Mode::Keep, dead, live, false), (Mode::Keep, live, dead, true)]
+        {
+            let error = between(mode, old, new).expect_err("the default's variant cannot be converted");
+            assert_eq!(error.why, Why::Retyped);
+            assert_eq!(error.old, in_old);
+            let text = schema(live, if in_old { 1 } else { 2 });
+            assert_eq!(text.spelled(error.decl), b"R");
+            assert_eq!(text.spelled(error.part.expect("live field")), b"e");
+        }
+        check(&plan(live, dead), &[5, 0], &[5], false);
+        check(&between(Mode::Read, live, dead).expect("Read does not use the default"), &[5, 0], &[5], false);
+    }
+}
+
+#[test]
+fn tombstone_default_ignores_sibling_variants() {
+    let old = "enum E { a b } record R { x: u8 dropped e: E = a }";
+    for (new, tag) in [("enum E { a } record R { x: u8 e: E }", 0), ("enum E { c a } record R { x: u8 e: E }", 1)] {
+        check(&plan(old, new), &[5], &[5, tag], false);
+        for mode in [Mode::Read, Mode::Keep] {
+            let forward = between(mode, old, new).expect("only the default's variant must convert");
+            assert!(!forward.refuses());
+            check(&forward, &[5], &[5, tag], false);
+        }
+    }
+}
+
+#[test]
+fn tombstone_converts_the_enum_default_beneath_options() {
+    let new = "enum E { c a b } record R { x: u8 e: option E }";
+    for (old, wire) in [
+        ("enum E { a b } record R { x: u8 dropped e: option E = some b }", &[5, 1, 2][..]),
+        ("enum E { only } record R { x: u8 dropped e: option E = none }", &[5, 0][..]),
+    ] {
+        check(&plan(old, new), &[5], wire, false);
+        for mode in [Mode::Read, Mode::Keep] {
+            check(&between(mode, old, new).expect("restored option field"), &[5], wire, false);
+        }
+        let keep = between(Mode::Keep, new, old).expect("compared option default");
+        check(&keep, wire, &[5], false);
+        check_refusal(&keep, &[5, 1, 0], &[], (Refused::Field, "R", "e"));
+    }
+}
+
+#[test]
+fn tombstone_does_not_require_a_droppable_field_to_equal_the_default() {
+    let old = "record R { a: u8 droppable b: u16 }";
+    let new = "record R { a: u8 dropped b: u16 = 9 }";
+    let read = plan(old, new);
+    let keep = between(Mode::Keep, old, new).expect("Keep drops the marked field without a check");
+    assert!(!keep.refuses());
+    for wire in [[1, 0, 0], [1, 0, 9], [1, 255, 255]] {
+        check(&keep, &wire, &[1], false);
+        check(&read, &wire, &[1], false);
+    }
+    let back = between(Mode::Read, new, old).expect("Read restores the tombstone default");
+    check(&back, &[1], &[1, 0, 9], false);
+
+    let bare = between(Mode::Keep, old, "record R { a: u8 }").expect("a mark alone permits a drop");
+    assert!(!bare.refuses());
+    check(&bare, &[1, 0, 8], &[1], false);
+}
+
+#[test]
+fn tombstone_matches_former_names_on_either_side() {
+    for (without, with) in [
+        ("record R { a: u8 dropped old: u16 = 9 }", "record R { a: u8 b was old: u16 }"),
+        ("record R { a: u8 dropped b was old: u16 = 9 }", "record R { a: u8 old: u16 }"),
+    ] {
+        let read_back = plan(without, with);
+        let keep = between(Mode::Keep, with, without).expect("the tombstone names the dropped field");
+        check(&keep, &[1, 0, 9], &[1], false);
+        check(&read_back, &[1], &[1, 0, 9], false);
+    }
+}
+
+#[test]
+fn tombstone_of_another_type_refuses_the_plan_and_names_the_live_field() {
+    for (live, dead) in [
+        ("record R { a: u8 droppable b was old: u16 = 4 }", "record R { a: u8 dropped old: u32 = 9 }"),
+        ("record R { a: u8 b: list 1 option u8 }", "record R { a: u8 dropped b: list 2 option u8 = [] }"),
+    ] {
+        let live = schema(live, 1);
+        let dead = schema(dead, 2);
+        for (old, new, in_old) in [(&live, &dead, true), (&dead, &live, false)] {
+            let ar = root(old, None);
+            let br = root(new, None);
+            let error = Plan::derive(old, ar, &[], new, br, &[]).expect_err("tombstone type differs");
+            assert_eq!(error.why, Why::Retyped);
+            assert_eq!(error.old, in_old);
+            assert_eq!(live.spelled(error.decl), b"R");
+            assert_eq!(live.spelled(error.part.expect("live field")), b"b");
+            for mode in [Mode::Read, Mode::Keep] {
+                let between = Plan::between(mode, old, ar, &[], new, br, &[]).expect_err("tombstone type differs");
+                assert_eq!(between, error);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_source_only_field_without_default_is_planned_but_always_refuses_in_keep() {
+    let old = "record R { f: u8 }";
+    let new = "record R {}";
+    let read = plan(old, new);
+    let keep = between(Mode::Keep, old, new).expect("no default still makes a Keep plan");
+    assert!(keep.refuses());
+    for byte in [u8::MIN, 7, u8::MAX] {
+        check(&read, &[byte], &[], false);
+        check_refusal(&keep, &[byte], &[], (Refused::Field, "R", "f"));
+    }
+}
+
+#[test]
+fn zero_byte_list_items_still_refuse_source_only_fields_without_defaults() {
+    let old = "record E { f: fixed 0 } record R { items: list 4294967295 E }";
+    let new = "record E {} record R { items: list 4294967295 E }";
+    let keep = between(Mode::Keep, old, new).expect("the empty field still needs a default");
+    check(&keep, &[0, 0, 0, 0], &[0, 0, 0, 0], false);
+    check_refusal(&keep, &[255; 4], &[255; 4], (Refused::Field, "E", "f"));
+}
+
+#[test]
 fn appended_variants_keep_inserted_tags_move_and_drops_are_written() {
     let old = "enum E { a b } record R { pad: u8 e: E }";
     check(&plan(old, "enum E { a b c } record R { pad: u8 e: E }"), &[9, 1], &[9, 1], true);
-    check(&plan(old, "enum E { c a b } record R { pad: u8 e: E }"), &[9, 1], &[9, 2], false);
+    let inserted = "enum E { c a b } record R { pad: u8 e: E }";
+    check(&plan(old, inserted), &[9, 1], &[9, 2], false);
+    for mode in [Mode::Read, Mode::Keep] {
+        let p = between(mode, old, inserted).expect("the inserted tag moves the old tags");
+        assert!(!p.refuses());
+        check(&p, &[9, 0], &[9, 1], false);
+        check(&p, &[9, 1], &[9, 2], false);
+    }
     let old = schema(old, 1);
     let new = schema("enum E { a } record R { pad: u8 e: E }", 2);
-    let error = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("variant dropped");
+    let error = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("variant dropped");
     assert_eq!(error.why, Why::VariantDropped);
     assert!(error.old);
     assert_eq!(old.spelled(error.decl), b"E");
@@ -95,35 +345,84 @@ fn dropping_whole_enum_refuses_before_between_and_after_kept_variants() {
         let new = schema(&format!("record A {{ x: u8 }} enum W was V {{ {variants} }}"), 2);
         let old_root = old.root(b"V", None).expect("whole old enum");
         let new_root = new.root(b"W", None).expect("whole new enum");
-        let strict = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect_err("variant dropped");
+        let strict = strict(&old, old_root, &[], &new, new_root, &[]).expect_err("variant dropped");
         assert_eq!(strict.why, Why::VariantDropped);
         assert!(strict.old);
         assert_eq!(old.spelled(strict.decl), b"V");
         assert_eq!(old.spelled(strict.part.expect("variant")), dropped.as_bytes());
-        let p = Plan::derive_dropping(&old, old_root, &[], &new, new_root, &[]).expect("drops refused per value");
-        assert!(p.drops());
-        assert!(!p.keeps());
-        for &(from, to) in kept {
-            check(&p, &[from, 7], &[to, 7], false);
+        for mode in [Mode::Read, Mode::Keep] {
+            let p = Plan::between(mode, &old, old_root, &[], &new, new_root, &[]).expect("drops refused per value");
+            assert!(p.refuses());
+            assert!(!p.keeps());
+            for &(from, to) in kept {
+                check(&p, &[from, 7], &[to, 7], false);
+            }
+            let tag = match dropped {
+                "a" => 0,
+                "b" => 1,
+                "c" => 2,
+                _ => unreachable!("fixture name"),
+            };
+            check_refusal(&p, &[tag, 7], &[], (Refused::Variant, "V", dropped));
+            // Dispatch refuses the tag before reading or writing the dropped payload.
+            check_refusal(&p, &[tag], &[], (Refused::Variant, "V", dropped));
+            assert_eq!(p.refusal(1), None);
+            assert_eq!(p.refusal(u16::MAX), None);
+            let mut work = Workspace::new();
+            assert!(work.fit(&p));
+            assert_eq!(p.convert(&[3, 7], &mut Buffer::with_capacity(16), &mut work), Err(Misconverted::Tag));
         }
-        let tag = match dropped {
-            "a" => 0,
-            "b" => 1,
-            "c" => 2,
-            _ => unreachable!("fixture name"),
-        };
-        check_dropped(&p, &[tag, 7], &[], ("V", dropped));
-        // Dispatch refuses the tag before reading or writing the dropped payload.
-        check_dropped(&p, &[tag], &[], ("V", dropped));
-        assert_eq!(p.dropped(1), None);
-        assert_eq!(p.dropped(u16::MAX), None);
-        let mut work = Workspace::new();
-        assert!(work.fit(&p));
-        assert_eq!(p.convert(&[3, 7], &mut Buffer::with_capacity(16), &mut work), Err(Misconverted::Tag));
     }
 }
 
-fn check_dropped(p: &Plan, wire: &[u8], prefix: &[u8], names: (&str, &str)) {
+#[test]
+fn split_enum_conversion_uses_the_whole_plan_without_room_for_the_tag() {
+    let old = schema("record P { n: u8 } enum R { first: P, dropped, empty }", 1);
+    let new = schema("record P { n: u16 } enum R { empty, next was first: P }", 2);
+    let plan = Plan::between(Mode::Keep, &old, root(&old, None), &[], &new, root(&new, None), &[])
+        .expect("whole enumeration derives");
+    let mut work = Workspace::new();
+    let mut whole = Buffer::with_capacity(3);
+    let mut payload = Buffer::with_capacity(2);
+    assert_eq!(plan.convert_variant(0, &[1], &mut payload, &mut work), Err(Misconverted::Room));
+    assert!(work.fit(&plan));
+    for encoded in [&[0, 82][..], &[2][..]] {
+        let (&tag, body) = encoded.split_first().expect("tag precedes body");
+        plan.convert(encoded, &mut whole, &mut work).expect("whole value converts");
+        let (&target, rest) = whole.as_slice().split_first().expect("target tag precedes body");
+        let allocations = skein_heap::Span::start();
+        assert_eq!(plan.convert_variant(tag, body, &mut payload, &mut work), Ok(target));
+        assert_eq!(allocations.made(), 0);
+        assert_eq!(plan.variant_tag(tag), Ok(target));
+        assert_eq!(payload.as_slice(), rest);
+    }
+    assert_eq!(plan.variant_tag(0), Ok(1));
+    assert_eq!(plan.variant_tag(2), Ok(0));
+    assert_eq!(plan.variant_tag(3), Err(Misconverted::Tag));
+    assert_eq!(plan.convert_variant(3, &[], &mut payload, &mut work), Err(Misconverted::Tag));
+    let Misconverted::Refused(index) = plan.variant_tag(1).expect_err("the target lacks this variant") else {
+        panic!("expected an indexed refusal");
+    };
+    assert_eq!(plan.refusal(index), Some((Refused::Variant, "R", "dropped")));
+    assert_eq!(plan.convert_variant(1, &[], &mut payload, &mut work), Err(Misconverted::Refused(index)));
+    assert_eq!(plan.convert_variant(0, &[82], &mut Buffer::with_capacity(1), &mut work), Err(Misconverted::Room));
+    assert_eq!(plan.convert_variant(0, &[], &mut payload, &mut work), Err(Misconverted::Short));
+    assert_eq!(plan.convert_variant(2, &[82], &mut payload, &mut work), Err(Misconverted::Trailing));
+    let variant =
+        Plan::between(Mode::Read, &old, root(&old, Some(b"first")), &[], &new, root(&new, Some(b"next")), &[])
+            .expect("single variant derives");
+    assert_eq!(variant.variant_tag(0), Err(Misconverted::Tag));
+    assert_eq!(variant.convert_variant(0, &[82], &mut payload, &mut work), Err(Misconverted::Tag));
+
+    let identity =
+        Plan::between(Mode::Read, &old, root(&old, None), &[], &old, root(&old, None), &[]).expect("identity derives");
+    assert!(identity.keeps() && work.fit(&identity));
+    assert_eq!(identity.convert_variant(0, &[82], &mut payload, &mut work), Ok(0));
+    assert_eq!(payload.as_slice(), &[82]);
+    assert_eq!(identity.convert_variant(3, &[], &mut payload, &mut work), Err(Misconverted::Tag));
+}
+
+fn check_refusal(p: &Plan, wire: &[u8], prefix: &[u8], why: (Refused, &str, &str)) {
     let mut work = Workspace::new();
     assert!(work.fit(p));
     let mut out = Buffer::with_capacity(64);
@@ -131,38 +430,41 @@ fn check_dropped(p: &Plan, wire: &[u8], prefix: &[u8], names: (&str, &str)) {
     let converted = p.convert(wire, &mut out, &mut work);
     assert_eq!(allocations.made(), 0, "a refused pass allocates nothing");
     let index = match converted {
-        Err(Misconverted::Dropped(index)) => index,
-        other => panic!("expected dropped variant, got {other:?}"),
+        Err(Misconverted::Refused(index)) => index,
+        other => panic!("expected a value refusal, got {other:?}"),
     };
-    assert_eq!(p.dropped(index), Some(names));
-    assert_eq!(out.as_slice(), prefix, "no dropped tag or payload was written");
+    assert_eq!(p.refusal(index), Some(why));
+    assert_eq!(out.as_slice(), prefix, "nothing of the refused part was written");
 }
 
 #[test]
 fn nested_drops_prevent_copying_otherwise_kept_record_spans() {
     let old = schema("enum V { a b c } record Inner { v: V } record R { pad: u8 inner: Inner }", 1);
     let new = schema("enum V { a } record Inner { v: V } record R { pad: u8 inner: Inner }", 2);
-    let strict =
-        Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("nested variant dropped");
+    let strict = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("nested variant dropped");
     assert_eq!(strict.why, Why::VariantDropped);
-    let p = Plan::derive_dropping(&old, root(&old, None), &[], &new, root(&new, None), &[])
-        .expect("nested drop refused per value");
-    // The plan owns its names, not spans borrowed from the schemas.
+    let plans = [Mode::Read, Mode::Keep].map(|mode| {
+        Plan::between(mode, &old, root(&old, None), &[], &new, root(&new, None), &[])
+            .expect("nested drop refused per value")
+    });
+    // The plans own their names, not spans borrowed from the schemas.
     drop(old);
     drop(new);
-    assert!(p.drops());
-    check(&p, &[9, 0], &[9, 0], false);
-    check_dropped(&p, &[9, 1], &[9], ("V", "b"));
-    check_dropped(&p, &[9, 2], &[9], ("V", "c"));
-    assert_eq!(p.dropped(2), None);
+    for p in plans {
+        assert!(p.refuses());
+        check(&p, &[9, 0], &[9, 0], false);
+        check_refusal(&p, &[9, 1], &[9], (Refused::Variant, "V", "b"));
+        check_refusal(&p, &[9, 2], &[9], (Refused::Variant, "V", "c"));
+        assert_eq!(p.refusal(2), None);
+    }
 }
 
 #[test]
 fn dropping_still_refuses_fields_without_defaults() {
     let old = schema("enum V { a b } record R { v: V }", 1);
     let new = schema("enum V { a } record R { v: V added: u8 }", 2);
-    let strict = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("missing default");
-    let dropping = Plan::derive_dropping(&old, root(&old, None), &[], &new, root(&new, None), &[])
+    let strict = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("missing default");
+    let dropping = Plan::between(Mode::Read, &old, root(&old, None), &[], &new, root(&new, None), &[])
         .expect_err("missing default even when drops allowed");
     assert_eq!(dropping, strict);
     assert_eq!(dropping.why, Why::NoDefault);
@@ -175,11 +477,11 @@ fn dropping_without_drops_matches_strict_keeps_and_conversion() {
         [("versioned record R { x: u8 }", &[0, 2, 7][..]), ("versioned record R { x: u16 }", &[0, 2, 0, 7][..])]
     {
         let new = schema(body, 2);
-        let strict = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("strict");
+        let strict = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("strict");
         let dropping =
-            Plan::derive_dropping(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("no drops");
-        assert!(!dropping.drops());
-        assert_eq!(dropping.dropped(0), None);
+            Plan::between(Mode::Read, &old, root(&old, None), &[], &new, root(&new, None), &[]).expect("no drops");
+        assert!(!dropping.refuses());
+        assert_eq!(dropping.refusal(0), None);
         assert_eq!(dropping.workspace_bound(), strict.workspace_bound());
         check(&strict, &[0, 1, 7], expected, strict.keeps());
         check(&dropping, &[0, 1, 7], expected, strict.keeps());
@@ -190,6 +492,76 @@ fn dropping_without_drops_matches_strict_keeps_and_conversion() {
 fn integers_widen_but_do_not_narrow() {
     check(&plan("record R { a: u8 }", "record R { a: u32 }"), &[5], &[0, 0, 0, 5], false);
     refused("record R { a: u32 }", "record R { a: u8 }", Why::Retyped, Some(b"a"), false);
+}
+
+#[test]
+fn narrowing_integers_and_bounds_is_checked_per_value_in_both_modes() {
+    for (from, to, fits, writes, exceeds) in [
+        ("u32", "u16", &[0, 0, 0, 7][..], &[0, 7][..], &[0, 1, 17, 112][..]), // 70000
+        ("list 4 u8", "list 2 u8", &[0, 0, 0, 2, 1, 2], &[0, 0, 0, 2, 1, 2], &[0, 0, 0, 3, 1, 2, 3]),
+        ("text 8", "text 4", b"\x00\x00\x00\x03hey", b"\x00\x00\x00\x03hey", b"\x00\x00\x00\x05hello"),
+        ("bytes 4", "bytes 2", &[0, 0, 0, 2, 8, 9], &[0, 0, 0, 2, 8, 9], &[0, 0, 0, 3, 8, 9, 10]),
+        ("secret 4", "secret 2", &[0, 0, 0, 2, 8, 9], &[0, 0, 0, 2, 8, 9], &[0, 0, 0, 3, 8, 9, 10]),
+    ] {
+        let old = format!("record R {{ f: {from} }}");
+        let new = format!("record R {{ f: {to} }}");
+        refused(&old, &new, Why::Retyped, Some(b"f"), false);
+        let read = between(Mode::Read, &old, &new).expect("Read checks narrowing per value");
+        let keep = between(Mode::Keep, &old, &new).expect("Keep checks narrowing per value");
+        assert_eq!(read, keep);
+        for p in [read, keep] {
+            assert!(p.refuses());
+            assert_eq!(p.refusal(1), None);
+            check(&p, fits, writes, false);
+            check_refusal(&p, exceeds, &[], (Refused::Narrowed, "R", "f"));
+        }
+    }
+}
+
+#[test]
+fn a_nested_narrowed_bound_prevents_an_enclosing_record_from_keeping() {
+    let old = "record Leaf { n: option bytes 3 } record R { pad: u8 leaf: Leaf }";
+    let new = "record Inner was Leaf { size was n: option bytes 2 } record R { pad: u8 leaf: Inner }";
+    for mode in [Mode::Read, Mode::Keep] {
+        let p = between(mode, old, new).expect("former names match");
+        check(&p, &[9, 1, 0, 0, 0, 2, 5, 6], &[9, 1, 0, 0, 0, 2, 5, 6], false);
+        check_refusal(&p, &[9, 1, 0, 0, 0, 3, 5, 6, 7], &[9, 1], (Refused::Narrowed, "Leaf", "n"));
+    }
+}
+
+#[test]
+fn read_unwraps_with_the_outer_field_default_but_keep_refuses_absence() {
+    let old = "record R { f: option u8 }";
+    for (new, default) in [("record R { f: u8 = 4 }", Some(4)), ("record R { f: u8 }", None)] {
+        refused(old, new, Why::Retyped, Some(b"f"), false);
+        let read = between(Mode::Read, old, new).expect("Read unwraps");
+        let keep = between(Mode::Keep, old, new).expect("Keep unwraps");
+        assert!(keep.refuses());
+        assert_eq!(read.refuses(), default.is_none());
+        assert_eq!(read == keep, default.is_none());
+        for p in [&read, &keep] {
+            check(p, &[1, 7], &[7], false);
+        }
+        if let Some(default) = default {
+            assert_eq!(read.refusal(0), None);
+            check(&read, &[0], &[default], false);
+        } else {
+            check_refusal(&read, &[0], &[], (Refused::Absent, "R", "f"));
+        }
+        check_refusal(&keep, &[0], &[], (Refused::Absent, "R", "f"));
+    }
+}
+
+#[test]
+fn an_option_inside_a_list_cannot_use_the_fields_default() {
+    let old = "record R { f: list 2 option u8 }";
+    let new = "record R { f: list 2 u8 = [] }";
+    refused(old, new, Why::Retyped, Some(b"f"), false);
+    for mode in [Mode::Read, Mode::Keep] {
+        let p = between(mode, old, new).expect("list item unwraps");
+        check(&p, &[0, 0, 0, 2, 1, 7, 1, 8], &[0, 0, 0, 2, 7, 8], false);
+        check_refusal(&p, &[0, 0, 0, 2, 1, 7, 0], &[0, 0, 0, 2, 7], (Refused::Absent, "R", "f"));
+    }
 }
 
 #[test]
@@ -217,7 +589,13 @@ fn wrappers_convert_level_by_level_but_retypes_are_written() {
         false,
     );
     refused("record R { a: option u8 }", "record R { a: u8 }", Why::Retyped, Some(b"a"), false);
-    refused("record R { a: u8 }", "record R { a: bool }", Why::Retyped, Some(b"a"), false);
+    let old = "record R { a: u8 }";
+    let new = "record R { a: bool }";
+    refused(old, new, Why::Retyped, Some(b"a"), false);
+    let read = between(Mode::Read, old, new).expect_err("Read cannot retype");
+    let keep = between(Mode::Keep, old, new).expect_err("Keep cannot retype");
+    assert_eq!(read, keep);
+    assert_eq!(read.why, Why::Retyped);
 }
 
 #[test]
@@ -226,7 +604,7 @@ fn root_heads_are_replaced_inserted_and_removed() {
     check(&plan("record R { a: u8 }", "versioned record R { a: u8 }"), &[5], &[0, 2, 5], false);
     check(&plan("versioned record R { a: u8 }", "record R { a: u8 }"), &[99, 42, 5], &[5], false);
     let s = schema("versioned record R { a: u8 }", 1);
-    let identity = Plan::derive(&s, root(&s, None), &[], &s, root(&s, None), &[]).expect("identity");
+    let identity = strict(&s, root(&s, None), &[], &s, root(&s, None), &[]).expect("identity");
     check(&identity, &[99, 42, 5], &[0, 1, 5], true);
 }
 
@@ -235,7 +613,7 @@ fn nested_heads_prevent_keeps_until_their_versions_are_equal() {
     let body = "versioned record A { a: u8 } record R { a: A }";
     check(&plan(body, body), &[0, 1, 5], &[0, 2, 5], false);
     let s = schema(body, 1);
-    let identity = Plan::derive(&s, root(&s, None), &[], &s, root(&s, None), &[]).expect("identity");
+    let identity = strict(&s, root(&s, None), &[], &s, root(&s, None), &[]).expect("identity");
     check(&identity, &[0, 1, 5], &[0, 1, 5], true);
 }
 
@@ -249,16 +627,14 @@ fn broad_root_ignores_siblings_but_not_its_tag_or_tail() {
         "record A { x: u8 } record B { x: bool } enum E { a: A b: B } versioned record R { value: E models: list 2 u8 }",
         2,
     );
-    let p = Plan::derive(&old, root(&old, Some(b"a")), &[], &new, root(&new, Some(b"a")), &[])
-        .expect("sibling not reached");
+    let p = strict(&old, root(&old, Some(b"a")), &[], &new, root(&new, Some(b"a")), &[]).expect("sibling not reached");
     check(&p, &[0, 1, 0, 5, 0, 0, 0, 1, 8], &[0, 2, 0, 5, 0, 0, 0, 1, 8], true);
     let moved = schema("record A { x: u8 } enum E { c a: A } versioned record R { value: E models: list 2 u8 }", 2);
-    let p =
-        Plan::derive(&old, root(&old, Some(b"a")), &[], &moved, root(&moved, Some(b"a")), &[]).expect("tag derived");
+    let p = strict(&old, root(&old, Some(b"a")), &[], &moved, root(&moved, Some(b"a")), &[]).expect("tag derived");
     check(&p, &[0, 1, 0, 5, 0, 0, 0, 0], &[0, 2, 1, 5, 0, 0, 0, 0], false);
-    let p = Plan::derive_dropping(&old, root(&old, Some(b"a")), &[], &moved, root(&moved, Some(b"a")), &[])
+    let p = Plan::between(Mode::Read, &old, root(&old, Some(b"a")), &[], &moved, root(&moved, Some(b"a")), &[])
         .expect("siblings outside reach are not drops");
-    assert!(!p.drops());
+    assert!(!p.refuses());
     check(&p, &[0, 1, 0, 5, 0, 0, 0, 0], &[0, 2, 1, 5, 0, 0, 0, 0], false);
     let mut work = Workspace::new();
     assert!(work.fit(&p));
@@ -271,19 +647,18 @@ fn held_records_convert_in_their_length_and_enforce_the_new_bound() {
     let new = schema("record R { held: bytes 4 holds g T }", 2);
     let a = schema::parse(b"family g 1 versioned record T { a: u8 }").expect("held old");
     let b = schema::parse(b"family g 9 versioned record T { a: u16 }").expect("held new");
-    let p = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&b]).expect("held plan");
+    let p = strict(&old, root(&old, None), &[&a], &new, root(&new, None), &[&b]).expect("held plan");
     check(&p, &[0, 0, 0, 3, 0, 1, 5], &[0, 0, 0, 4, 0, 9, 0, 5], false);
     let large = schema::parse(b"family g 9 versioned record T { a: u32 }").expect("large held");
-    let p = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&large])
-        .expect("bound is checked per value");
+    let p =
+        strict(&old, root(&old, None), &[&a], &new, root(&new, None), &[&large]).expect("bound is checked per value");
     let mut work = Workspace::new();
     assert!(work.fit(&p));
     assert_eq!(p.convert(&[0, 0, 0, 3, 0, 1, 5], &mut Buffer::with_capacity(64), &mut work), Err(Misconverted::Bound));
-    let error =
-        Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[]).expect_err("one held text missing");
+    let error = strict(&old, root(&old, None), &[&a], &new, root(&new, None), &[]).expect_err("one held text missing");
     assert_eq!(error.why, Why::Held);
     assert_eq!(new.spelled(error.part.expect("field")), b"held");
-    let p = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("both opaque");
+    let p = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect("both opaque");
     check(&p, &[0, 0, 0, 3, 0, 1, 5], &[0, 0, 0, 3, 0, 1, 5], true);
 }
 
@@ -292,19 +667,19 @@ fn held_enumerations_keep_append_and_convert_whole_without_a_head() {
     let old = schema("record R { held: bytes 8 holds g E }", 1);
     let new = schema("record R { held: bytes 8 holds g E }", 2);
     let a = schema::parse(b"family g 1 enum E { a b }").expect("held enum");
-    let same = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&a]).expect("held identity");
+    let same = strict(&old, root(&old, None), &[&a], &new, root(&new, None), &[&a]).expect("held identity");
     check(&same, &[0, 0, 0, 1, 1], &[0, 0, 0, 1, 1], true);
     let initial = old.layout(root(&old, None), &[&a]).expect("held enum fingerprint");
     for (text, tag, keeps) in
         [(b"family g 9 enum E { a b c }".as_slice(), 1, true), (b"family g 9 enum E { c a b }".as_slice(), 2, false)]
     {
         let b = schema::parse(text).expect("changed held enum");
-        let plan = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&b]).expect("held enum plan");
+        let plan = strict(&old, root(&old, None), &[&a], &new, root(&new, None), &[&b]).expect("held enum plan");
         check(&plan, &[0, 0, 0, 1, 1], &[0, 0, 0, 1, tag], keeps);
         assert_ne!(initial, new.layout(root(&new, None), &[&b]).expect("changed enum fingerprint"));
     }
     let absent = schema::parse(b"family g 9 record Other { n: u8 }").expect("not the named held declaration");
-    let refusal = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&absent])
+    let refusal = strict(&old, root(&old, None), &[&a], &new, root(&new, None), &[&absent])
         .expect_err("held type is not a record or enumeration");
     assert_eq!(refusal.why, Why::Held);
     assert_eq!(new.layout(root(&new, None), &[&absent]), Err(schema::LayoutError::Root));
@@ -328,32 +703,63 @@ fn pieces_copy_kept_items_and_open_changed_items() {
 fn former_declaration_field_and_variant_names_match() {
     let old = schema("record A { a: u8 } enum R { a: A }", 1);
     let new = schema("record B was A { b was a: u8 } enum R { b was a: B }", 2);
-    let p = Plan::derive(&old, root(&old, Some(b"a")), &[], &new, root(&new, Some(b"b")), &[]).expect("former names");
+    let p = strict(&old, root(&old, Some(b"a")), &[], &new, root(&new, Some(b"b")), &[]).expect("former names");
     check(&p, &[0, 5], &[0, 5], true);
+}
+
+#[test]
+fn between_matches_former_names_in_both_directions() {
+    let old = schema("record A { a: u8 n: u16 } enum R { off, a: A }", 1);
+    let new = schema("record B was A { n: u16 b was a: u8 } enum S was R { b was a: B, off }", 2);
+    let old_root = root(&old, Some(b"a"));
+    let new_root = new.root(b"S", Some(b"b")).expect("renamed root and variant");
+    let before = &[1, 5, 0, 9];
+    let after = &[0, 0, 9, 5];
+    for mode in [Mode::Keep, Mode::Read] {
+        let forward =
+            Plan::between(mode, &old, old_root, &[], &new, new_root, &[]).expect("match target's former names");
+        check(&forward, before, after, false);
+        let back = Plan::between(mode, &new, new_root, &[], &old, old_root, &[]).expect("match source's former names");
+        check(&back, after, before, false);
+    }
+}
+
+#[test]
+fn between_restores_the_unmatched_field_when_two_live_names_are_in_a_history() {
+    let old = "record R { a: u8 b: u8 = 7 }";
+    let new = "record R { c was a was b: u8 }";
+    let keep = between(Mode::Keep, old, new).expect("c matches a, not both a and b");
+    check(&keep, &[5, 7], &[5], false);
+    check_refusal(&keep, &[5, 9], &[], (Refused::Field, "R", "b"));
+    let read = between(Mode::Read, new, old).expect("only a is restored from c");
+    check(&read, &[5], &[5, 7], false);
 }
 
 #[test]
 fn unmatched_roots_reshapes_and_changed_payloads_are_underived() {
     let old = schema("record R {}", 1);
     let new = schema("record S {}", 2);
-    let error = Plan::derive(&old, root(&old, None), &[], &new, new.root(b"S", None).expect("S"), &[])
-        .expect_err("different roots");
+    let error =
+        strict(&old, root(&old, None), &[], &new, new.root(b"S", None).expect("S"), &[]).expect_err("different roots");
     assert_eq!(error.why, Why::Root);
     let old = schema("record R {}", 1);
     let new = schema("enum R { a }", 2);
-    let error = Plan::derive(&old, root(&old, None), &[], &new, root(&new, Some(b"a")), &[]).expect_err("root shape");
+    let error = strict(&old, root(&old, None), &[], &new, root(&new, Some(b"a")), &[]).expect_err("root shape");
     assert_eq!(error.why, Why::Root);
     let old = schema("record A {} record R { a: A }", 1);
     let new = schema("enum A { a } record R { a: A }", 2);
-    let error = Plan::derive(&old, root(&old, None), &[], &new, root(&new, Some(b"a")), &[]).expect_err("broad shape");
+    let error = strict(&old, root(&old, None), &[], &new, root(&new, Some(b"a")), &[]).expect_err("broad shape");
     assert_eq!(error.why, Why::Root);
     let old = schema("record A {} record R { pad: u8 a: A }", 1);
     let new = schema("enum A { a } record R { pad: u8 a: A }", 2);
-    let error = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("reshape reached");
+    let error = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("reshape reached");
     assert_eq!(error.why, Why::Reshaped);
+    for mode in [Mode::Read, Mode::Keep] {
+        assert_eq!(Plan::between(mode, &old, root(&old, None), &[], &new, root(&new, None), &[]), Err(error.clone()));
+    }
     let old = schema("record A {} record B {} enum E { a: A } record R { pad: u8 e: E }", 1);
     let new = schema("record A {} record B {} enum E { a: B } record R { pad: u8 e: E }", 2);
-    let error = Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("payload changed");
+    let error = strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("payload changed");
     assert_eq!(error.why, Why::Payload);
     assert_eq!(new.spelled(error.decl), b"E");
     assert_eq!(new.spelled(error.part.expect("variant")), b"a");
@@ -367,10 +773,7 @@ fn nesting_is_refused_past_max_depth() {
     );
     let old = schema(&body, 1);
     let new = schema(&body, 2);
-    assert_eq!(
-        Plan::derive(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("deep").why,
-        Why::Deep
-    );
+    assert_eq!(strict(&old, root(&old, None), &[], &new, root(&new, None), &[]).expect_err("deep").why, Why::Deep);
     let at_bound = format!(
         "record R {{ a: {}u8 }}",
         "option ".repeat(skein_lib::usize_of(super::MAX_DEPTH.checked_sub(2).expect("depth exceeds two")))

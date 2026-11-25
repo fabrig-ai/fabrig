@@ -21,7 +21,7 @@ use crate::{agents, jobs, tooling, translate};
 
 /// What the host reads: this iteration's times, and its own limits.
 pub(crate) fn host_env(env: &Env<Limits>) -> Env<host::Limits> {
-    env.with(env.limits.host)
+    env.with(host::Limits { drain_grace: env.limits.drain_grace, ..env.limits.host })
 }
 
 /// What the checkout reads.
@@ -74,6 +74,11 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             host_step(domain, env, opened);
         }
         Event::Lost => host_step(domain, env, host::Event::LinkLost),
+        Event::ResendPart { run, attempt, part } => {
+            if let Some(part) = domain.host.part(run, attempt, part) {
+                out.push(Request::Link(host::LinkUp::Part { run, attempt, part }));
+            }
+        }
         Event::GracePassed => {
             domain.past = true;
             crate::stopping::contact(domain, env);
@@ -315,6 +320,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Part { .. }
                         | host::LinkUp::Turn { .. }
                         | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. }) => out.push(Request::Link(up)),
@@ -347,7 +353,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
 }
 
 /// The first answer logs a failed preparation; replay only sends the answer
-/// (temper/docs/design/domain/worker/checkouts.md, 1.3).
+/// (temper/docs/design/domain/worker/checkouts-prepare.md, 12.3).
 fn note_unprepared(run: Token, attempt: Token, ending: &host::Ending, out: &mut Queue<Request>) {
     match ending {
         host::Ending::Failed { failure: host::Failure::Unprepared(failure), detail, .. } => {
@@ -378,17 +384,19 @@ fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAn
 }
 
 /// Each fetch and check out gets an operator note before its io request
-/// (domain/worker/README.md, 4.3). Unowned operations still reach io.
+/// (domain/worker/hosted-runs.md, 1.3). Unowned operations still reach io.
 fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queue<Request>) {
     use crate::Git;
     use checkout::git::Op;
 
     let (at, what) = match op {
         Op::Fetch { at, want, into, .. } => (at, Git::Fetch { want: want.clone(), into: *into }),
+        Op::Counts { at, .. } => (at, Git::Counts),
         Op::CheckOut { at, commit, .. } => (at, Git::CheckOut { commit: *commit }),
         Op::Pack { .. }
         | Op::Reset { .. }
         | Op::Reds { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::Store { .. }
         | Op::Look { .. }

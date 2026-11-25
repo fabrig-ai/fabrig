@@ -1,4 +1,4 @@
-//! Clock projection and ordered timer selection (jig/docs/design/domain/engine/README.md, 4.1).
+//! Clock projection and ordered timer selection (jig/docs/design/domain/engine/vocabulary.md, 1.1).
 use crate::tests::*;
 use jig_domain_link::{Form, Scheme};
 
@@ -133,6 +133,7 @@ fn with_task_alarm() -> (Core, Limits) {
         &mut core.tasks,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
         tasks::Event::Subscribe {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(3)),
             task: 1,
             subscription: tasks::Subscription {

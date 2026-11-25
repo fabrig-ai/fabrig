@@ -169,7 +169,7 @@ fn out_of_date_disables_adopt_and_keeps_the_pending_request() {
         &fixtures::env(&limits),
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None },
+                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None, served: false },
             },
         },
         &mut out,
@@ -319,7 +319,7 @@ fn a_family_the_engine_does_not_serve_marks_the_form_out_of_date() {
         &fixtures::env(&limits),
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None },
+                up: jig_client::Up::FamilyServed { family: fixtures::FORGE, versions: None, served: false },
             },
         },
         &mut out,
@@ -330,7 +330,7 @@ fn a_family_the_engine_does_not_serve_marks_the_form_out_of_date() {
 }
 
 const NEXT_FORGE_VERSION: u32 = temper_client_protocol_wire::CLIENT_VERSION + 1;
-fn version_answer(_limits: &jig_client_protocol_link::Limits) -> Box<[u8]> {
+fn version_answer() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let owner = w::Owner::Family(w::Family { number: fixtures::FORGE });
     let mut served = skein_lib::List::with_capacity(1);
@@ -367,11 +367,11 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
     link.step(skein_lib::Time::ZERO, link::Event::Send { attempt, key, ask, value }, &mut sent);
     link.settle(&mut sent);
     let Some(link::Request::Exchange { exchange, .. }) = sent.pop() else { panic!("keyed exchange") };
-    link.step(skein_lib::Time::ZERO, link::Event::Reply { exchange, message: version_answer(&bounds) }, &mut sent);
+    link.step(skein_lib::Time::ZERO, link::Event::Reply { exchange, message: version_answer() }, &mut sent);
     while let Some(request) = sent.pop() {
         let up = match request {
-            link::Request::Hello { family: Some(family), versions } => {
-                jig_client::Up::FamilyServed { family, versions }
+            link::Request::Hello { family: Some(family), versions, served } => {
+                jig_client::Up::FamilyServed { family, versions, served }
             }
             link::Request::Answer { attempt, envelope, answer, why } => {
                 jig_client::Up::Answer { attempt, envelope, answer, why }
@@ -430,6 +430,7 @@ fn first_rows(
     let mut rows = skein_lib::List::with_capacity(3);
     for (number, mode) in [(1, w::Mode::Fake), (2, w::Mode::Owned), (3, w::Mode::Owned)] {
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: skein_lib::List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),

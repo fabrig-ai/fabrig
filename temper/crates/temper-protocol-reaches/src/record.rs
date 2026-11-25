@@ -1,7 +1,7 @@
-//! The table and reach records (temper/docs/design/protocol/configuration/settings.md, 2).
+//! The table and reach records (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 use crate::{
-    Class, Classes, ITEMS, Item, Kind, NAME_BYTES, PATTERN_BYTES, PATTERNS, PathSet, Reach, Reason, SETS, Subject,
-    WORDS_BYTES,
+    Class, Classes, ITEMS, Item, NAME_BYTES, PATTERN_BYTES, PATTERNS, PathSet, Reach, SETS, Subject, WORDS_BYTES,
+    generated::client_wire as maps,
 };
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -11,112 +11,41 @@ use v1::Record;
 /// Every record decodes to a table; `Classes::check` judges it.
 #[must_use]
 pub fn classes_from(record: &v1::ProjectClasses) -> Classes {
-    let mut items = List::with_capacity(record.items.len());
-    for item in &record.items {
-        items
-            .push(Item {
-                subject: subject_from(&item.subject),
-                words: item.words.clone(),
-                class: class_from(&item.class),
-            })
-            .expect("same item count");
-    }
-    let mut sets = List::with_capacity(record.sets.len());
-    for set in &record.sets {
-        sets.push(PathSet { number: set.number, name: set.name.clone(), patterns: set.patterns.clone().into_boxed() })
-            .expect("same set count");
-    }
-    Classes { items: items.into_boxed(), sets: sets.into_boxed() }
+    maps::project_classes_to_domain(record.clone())
 }
 
 /// None where the table passes a record's bound.
 #[must_use]
 pub fn classes_record(classes: &Classes) -> Option<v1::ProjectClasses> {
-    let mut items = List::with_capacity(u32::try_from(classes.items.len()).ok()?);
-    for item in &classes.items {
-        items
-            .push(v1::ClassItem {
-                subject: subject_record(item.subject),
-                words: item.words.clone(),
-                class: class_record(item.class),
-            })
-            .ok()?;
-    }
-    let mut sets = List::with_capacity(u32::try_from(classes.sets.len()).ok()?);
-    for set in &classes.sets {
-        let mut patterns = List::with_capacity(u32::try_from(set.patterns.len()).ok()?);
-        for pattern in &set.patterns {
-            patterns.push(pattern.clone()).ok()?;
-        }
-        sets.push(v1::PathSet { number: set.number, name: set.name.clone(), patterns }).ok()?;
-    }
-    {
-        let record = v1::ProjectClasses { items, sets };
-        record.measure(&v1::CEILINGS).ok()?;
-        Some(record)
-    }
+    let record = maps::project_classes_to_record(classes).ok()?;
+    record.measure(&v1::CEILINGS).ok()?;
+    Some(record)
 }
 
 #[must_use]
 pub fn subject_from(record: &v1::ClassSubject) -> Subject {
-    match record {
-        v1::ClassSubject::Kind(kind) => Subject::Kind(kind_from(&kind.kind)),
-        v1::ClassSubject::Set(set) => Subject::Set(set.number),
-    }
+    maps::class_subject_to_domain(record.clone())
 }
 
 #[must_use]
 pub fn subject_record(subject: Subject) -> v1::ClassSubject {
-    match subject {
-        Subject::Kind(kind) => v1::ClassSubject::Kind(v1::ReachKindOf { kind: kind_record(kind) }),
-        Subject::Set(number) => v1::ClassSubject::Set(set_record(number)),
-    }
-}
-
-fn set_record(number: u8) -> v1::ReachSet {
-    v1::ReachSet { number }
+    maps::class_subject_to_record(&subject)
 }
 
 /// None for a reason naming set 0 or a set past `SETS`.
 #[must_use]
 pub fn reach_from(record: &v1::Reach) -> Option<Reach> {
-    let reason = match &record.reason {
-        v1::ReachReason::Kind => Reason::Kind,
-        v1::ReachReason::Always => Reason::Always,
-        v1::ReachReason::Set(set) => {
-            if set.number == 0 || usize::from(set.number) > SETS {
-                return None;
-            }
-            Reason::Set(set.number)
-        }
-    };
-    Some(Reach {
-        kind: kind_from(&record.kind),
-        class: class_from(&record.class),
-        reason,
-        under: record.under,
-        sets: record.sets,
-        matched: record.matched,
-        away: record.away,
-    })
+    if let v1::ReachReason::Set(set) = &record.reason
+        && (set.number == 0 || usize::from(set.number) > SETS)
+    {
+        return None;
+    }
+    Some(maps::reach_to_domain(record.clone()))
 }
 
 #[must_use]
 pub fn reach_record(reach: &Reach) -> v1::Reach {
-    let reason = match reach.reason {
-        Reason::Kind => v1::ReachReason::Kind,
-        Reason::Set(number) => v1::ReachReason::Set(set_record(number)),
-        Reason::Always => v1::ReachReason::Always,
-    };
-    v1::Reach {
-        kind: kind_record(reach.kind),
-        class: class_record(reach.class),
-        reason,
-        under: reach.under,
-        sets: reach.sets,
-        matched: reach.matched,
-        away: reach.away,
-    }
+    maps::reach_to_record(reach)
 }
 
 /// A checked table full at every record bound.
@@ -146,54 +75,4 @@ pub fn largest() -> Classes {
         .expect("bounded sets");
     }
     Classes { items: items.into_boxed(), sets: sets.into_boxed() }
-}
-
-fn kind_from(record: &v1::ReachKind) -> Kind {
-    match record {
-        v1::ReachKind::Wording => Kind::Wording,
-        v1::ReachKind::Retry => Kind::Retry,
-        v1::ReachKind::Implementation => Kind::Implementation,
-        v1::ReachKind::Tests => Kind::Tests,
-        v1::ReachKind::Dependency => Kind::Dependency,
-        v1::ReachKind::Departure => Kind::Departure,
-        v1::ReachKind::Money => Kind::Money,
-        v1::ReachKind::Irreversible => Kind::Irreversible,
-        v1::ReachKind::Rules => Kind::Rules,
-        v1::ReachKind::Other => Kind::Other,
-        v1::ReachKind::Findings => Kind::Findings,
-    }
-}
-
-fn kind_record(value: Kind) -> v1::ReachKind {
-    match value {
-        Kind::Wording => v1::ReachKind::Wording,
-        Kind::Retry => v1::ReachKind::Retry,
-        Kind::Implementation => v1::ReachKind::Implementation,
-        Kind::Tests => v1::ReachKind::Tests,
-        Kind::Dependency => v1::ReachKind::Dependency,
-        Kind::Departure => v1::ReachKind::Departure,
-        Kind::Money => v1::ReachKind::Money,
-        Kind::Irreversible => v1::ReachKind::Irreversible,
-        Kind::Rules => v1::ReachKind::Rules,
-        Kind::Other => v1::ReachKind::Other,
-        Kind::Findings => v1::ReachKind::Findings,
-    }
-}
-
-fn class_from(record: &v1::ReachClass) -> Class {
-    match record {
-        v1::ReachClass::Decide => Class::Decide,
-        v1::ReachClass::Ask => Class::Ask,
-        v1::ReachClass::AskAway => Class::AskAway,
-        v1::ReachClass::Wait => Class::Wait,
-    }
-}
-
-fn class_record(value: Class) -> v1::ReachClass {
-    match value {
-        Class::Decide => v1::ReachClass::Decide,
-        Class::Ask => v1::ReachClass::Ask,
-        Class::AskAway => v1::ReachClass::AskAway,
-        Class::Wait => v1::ReachClass::Wait,
-    }
 }

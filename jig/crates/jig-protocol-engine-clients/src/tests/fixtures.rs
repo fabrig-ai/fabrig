@@ -10,6 +10,7 @@ use super::super::*;
 pub use envelope::*;
 use skein_lib::{Duration, List, Secret, Wall, Writer};
 pub const NUMBER: u64 = 41;
+pub const SIGN_IN_EXPIRES: Wall = Wall::from_nanos(86_400_000_000_000);
 // Keep the old intake's 256-byte cap, enough for these small message records.
 pub const MESSAGE_BYTES: u32 = 256;
 pub fn message_bytes(size: usize) -> Box<[u8]> {
@@ -36,9 +37,10 @@ pub fn settings() -> Settings {
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("one jig range");
-    served.push(crate::Served { family: Some(9), first: 2, last: 2 }).expect("one family range");
+    served.push(crate::Served { family: Some(9), first: 2, last: 2, layout: [1; 32] }).expect("one family range");
     Settings {
         private: crate::Private::none(),
         provider: None,
@@ -131,7 +133,7 @@ pub fn env() -> Env<Limits> {
         },
     }
 }
-pub fn start(_limits: &w::Limits) -> w::Ask {
+pub fn start() -> w::Ask {
     w::Ask::Message(w::Message { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
 }
 pub fn revision(value: u64) -> w::Revision {
@@ -184,10 +186,7 @@ impl Exchange {
         let mut out = Queue::with_capacity(8);
         let component = Component::new(settings, &env, &mut out).expect("starts");
         out.pop();
-        let mut token = Writer::new(40);
-        token.put(&NUMBER.to_be_bytes()).expect("number");
-        token.put(&[7; 32]).expect("random bytes");
-        Self { component, env, out, token: token.finish(), via: crate::Via::Listener, source: None }
+        Self { component, env, out, token: sign_in_token(NUMBER), via: crate::Via::Listener, source: None }
     }
     pub fn send(&mut self, message: crate::Message) -> Token {
         let owner = self.component.name();
@@ -223,17 +222,20 @@ impl Exchange {
         owner
     }
     pub fn authenticate(&mut self) {
-        self.authenticate_until(Wall::from_nanos(86_400_000_000_000));
+        self.authenticate_until(SIGN_IN_EXPIRES);
     }
     pub fn authenticate_until(&mut self, expires: Wall) {
+        self.authenticate_sign_in_until(NUMBER, expires);
+    }
+    pub fn authenticate_sign_in_until(&mut self, sign_in: u64, expires: Wall) {
         let Some(Request::Secrets(SecretsRequest::Get { owner })) = self.out.pop() else {
             panic!("digest get");
         };
-        assert_eq!(owner, SecretOwner::SignIn(NUMBER));
+        assert_eq!(owner, SecretOwner::SignIn(sign_in));
         self.component.down(
             &self.env,
             Event::Secrets(SecretsAnswer::Got {
-                owner: SecretOwner::SignIn(NUMBER),
+                owner,
                 value: Some(Kept { digest: sign_in::digest(&self.token), expires }),
             }),
             &mut self.out,
@@ -256,8 +258,14 @@ impl Exchange {
     }
 }
 
+pub fn sign_in_token(sign_in: u64) -> Box<[u8]> {
+    let mut token = Writer::new(40);
+    token.put(&sign_in.to_be_bytes()).expect("number");
+    token.put(&[7; 32]).expect("random bytes");
+    token.finish()
+}
+
 pub fn other_asks() -> [(w::Ask, people::Ask); 17] {
-    let limits = wire();
     let mut holdings = List::with_capacity(1);
     holdings
         .push(w::Holding { party: 7, role: w::HeldRole::Policy(w::HeldRolePolicy { role: u32::MAX }) })
@@ -265,33 +273,33 @@ pub fn other_asks() -> [(w::Ask, people::Ask); 17] {
     let mut references = List::with_capacity(1);
     references.push(u64::MAX).expect("room");
     [
-        write_case(&limits),
-        answer_question_case(&limits),
-        take_case(&limits),
-        hand_back_case(&limits),
-        release_case(&limits),
-        stop_case(&limits),
-        cancel_case(&limits),
-        take_over_case(&limits),
-        set_pool_case(&limits),
-        mark_seen_case(&limits),
-        answer_person_case(&limits),
-        decide_proposal_case(&limits),
-        set_roles_case(&limits, holdings),
-        make_service_case(&limits),
-        change_policy_case(&limits),
-        delete_note_case(&limits),
-        edit_note_case(&limits, references),
+        write_case(),
+        answer_question_case(),
+        take_case(),
+        hand_back_case(),
+        release_case(),
+        stop_case(),
+        cancel_case(),
+        take_over_case(),
+        set_pool_case(),
+        mark_seen_case(),
+        answer_person_case(),
+        decide_proposal_case(),
+        set_roles_case(holdings),
+        make_service_case(),
+        change_policy_case(),
+        delete_note_case(),
+        edit_note_case(references),
     ]
 }
-fn write_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn write_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Message(w::Message { project: 3, task: 8, words: Box::from(b"say".as_slice()) }),
         p::Ask::Say { project: 3, task: 8, words: Box::from(b"say".as_slice()) },
     )
 }
-fn answer_question_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn answer_question_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         answer(w::AnswerOn::Question(w::AnswerQuestion {
@@ -302,47 +310,50 @@ fn answer_question_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::AnswerQuestion { project: 3, task: 8, question: 19, words: Box::from(b"answer".as_slice()) },
     )
 }
-fn take_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn take_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (w::Ask::Take(w::Take { project: 3, task: 8 }), p::Ask::TakePerson { project: 3, task: 8 })
 }
-fn hand_back_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn hand_back_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (w::Ask::HandBack(w::HandBack { project: 3, task: 8 }), p::Ask::HandBackPerson { project: 3, task: 8 })
 }
-fn release_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn release_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Release(w::Release { project: 3, task: 8, revision: revision(6), again: Some(false) }),
         p::Ask::Release { project: 3, task: 8, revision: 6, again: Some(false) },
     )
 }
-fn stop_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn stop_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
-    (w::Ask::Stop(w::Stop { project: 3, task: 8 }), p::Ask::Stop { project: 3, task: 8 })
+    (
+        w::Ask::Stop(w::Stop { project: 3, task: 8, reason: Box::from(b"Parking the task".as_slice()) }),
+        p::Ask::Stop { project: 3, task: 8, reason: Box::from(b"Parking the task".as_slice()) },
+    )
 }
-fn cancel_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn cancel_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Cancel(w::Cancel { grace: None, project: 3, task: 8, reason: Box::from(b"cancel".as_slice()) }),
         p::Ask::Cancel { project: 3, task: 8, reason: Box::from(b"cancel".as_slice()), grace: None },
     )
 }
-fn take_over_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn take_over_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::MoveTask(w::Move { project: 3, task: 8, reason: Box::from(b"take".as_slice()) }),
         p::Ask::Move { project: 3, task: 8, reason: Box::from(b"take".as_slice()) },
     )
 }
-fn set_pool_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn set_pool_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::SetPool(w::SetPool { project: 3, party: u64::MAX, budget: u64::MAX }),
         p::Ask::SetPool { project: 3, person: u64::MAX, budget: u64::MAX },
     )
 }
-fn mark_seen_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn mark_seen_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::Seen(w::Seen {
@@ -351,7 +362,7 @@ fn mark_seen_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::MarkSeen { seen: p::Seen::Conversation { task: 8, through: u64::MAX } },
     )
 }
-fn answer_person_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn answer_person_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         answer(w::AnswerOn::Person(w::AnswerPerson {
@@ -370,7 +381,7 @@ fn answer_person_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn decide_proposal_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn decide_proposal_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         decide(w::DecideOn::Proposal(w::DecideProposal {
@@ -387,7 +398,7 @@ fn decide_proposal_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn set_roles_case(_limits: &w::Limits, holdings: List<w::Holding>) -> (w::Ask, people::Ask) {
+fn set_roles_case(holdings: List<w::Holding>) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::SetRoles(w::SetRoles { project: 3, holdings }),
@@ -397,7 +408,7 @@ fn set_roles_case(_limits: &w::Limits, holdings: List<w::Holding>) -> (w::Ask, p
         },
     )
 }
-fn make_service_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn make_service_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::MakeService(w::MakeService {
@@ -408,7 +419,7 @@ fn make_service_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::MakeService { project: 3, name: Box::from(b"service".as_slice()), role: p::Role::Owner },
     )
 }
-fn change_policy_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn change_policy_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::ChangePolicy(w::ChangePolicy {
@@ -418,7 +429,7 @@ fn change_policy_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
         p::Ask::ChangePolicy { project: 3, change: p::PolicyChange::ProjectSpend { period_spend: u64::MAX } },
     )
 }
-fn delete_note_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
+fn delete_note_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::DeleteNote(w::DeleteNote {
@@ -435,7 +446,7 @@ fn delete_note_case(_limits: &w::Limits) -> (w::Ask, people::Ask) {
         },
     )
 }
-fn edit_note_case(_limits: &w::Limits, references: List<u64>) -> (w::Ask, people::Ask) {
+fn edit_note_case(references: List<u64>) -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
     (
         w::Ask::EditNote(w::EditNote {
@@ -549,7 +560,7 @@ impl Exchange {
         self.ask_version(jig_client_protocol_wire::VERSION)
     }
     pub fn ask_version(&mut self, version: u32) -> (Token, ReplyTo) {
-        let body = keyed(w::Owner::Jig, version, encode_ask(&start(&self.env.limits.wire)));
+        let body = keyed(w::Owner::Jig, version, encode_ask(&start()));
         let owner = self.send(crate::Message::Request(body));
         self.authenticate();
         let Some(Request::Core(event)) = self.out.pop() else {

@@ -54,6 +54,10 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
                         Into::Landing => " into landing",
                     });
                 }
+                Git::Counts => {
+                    line.push_str(" counts ");
+                    escape_detail(&mut line, &repository);
+                }
                 Git::CheckOut { commit } => {
                     line.push_str(" check out ");
                     escape_detail(&mut line, &repository);
@@ -78,6 +82,13 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
             "{binary} worker: the engine said it restarts: runs kept up to {} ms after the link drops\n",
             keep.as_millis()
         ),
+        service::Note::Unswept { path, error } => {
+            use std::fmt::Write as _;
+            let mut line = format!("{binary} worker: trash entry not removed: ");
+            escape_detail(&mut line, &path);
+            writeln!(line, ": {error:?}").expect("format trash error");
+            line
+        }
         service::Note::ResultsIgnored { owner, tag, reason } => {
             run_detail_line(format!("{binary} worker: owner {owner} repository {tag} check results ignored: "), &reason)
         }
@@ -113,9 +124,6 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::CannotSendWhole { wire, version } => format!(
             "{binary} worker: the engine speaks {wire} {version}, below what this worker sends whole: restart the engine first\n"
         ),
-        service::Note::Untranslated { kind, halt } => {
-            format!("{binary} worker: cannot encode record {kind}: {halt:?}\n")
-        }
         service::Note::OpeningRefused { reason, text } => format!(
             "{binary} worker: the engine refused the opening: {}: {}\n",
             opening_reason(reason),
@@ -155,9 +163,9 @@ fn worker_job_ending(ending: &temper_worker_service::WorkerJobEnding) -> (String
         WorkerJobEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
             (String::from("refused Invalid(Start)"), why)
         }
+        WorkerJobEnding::Refused(JobRefusal::Untranslated(words)) => (String::from("refused"), words),
         WorkerJobEnding::Refused(
-            reason @ (JobRefusal::Untranslated(_)
-            | JobRefusal::Busy
+            reason @ (JobRefusal::Busy
             | JobRefusal::Invalid(
                 JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
             )),
@@ -242,7 +250,6 @@ fn worker_loss(why: temper_worker_service::WorkerLoss) -> String {
         Loss::Full => "full".into(),
         Loss::Busy => "busy".into(),
         Loss::Fault => "fault".into(),
-        Loss::EngineStatesNoWires => "the engine states no wires: restart the engine first".into(),
         Loss::Unreachable => "unreachable".into(),
     }
 }

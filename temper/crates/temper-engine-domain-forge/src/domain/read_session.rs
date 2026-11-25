@@ -29,7 +29,9 @@ impl Session {
 
 pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, task: u64, since: Wall) {
     if d.changes.contains_key(&task) {
-        d.read_sessions.insert(task, Session::new(env, since.min(env.wall))).expect("one clock per change");
+        let mut session = Session::new(env, since.min(env.wall));
+        session.exempt = !super::fresh_reads_in(d);
+        d.read_sessions.insert(task, session).expect("one clock per change");
     }
 }
 
@@ -54,7 +56,8 @@ pub(crate) fn pause(d: &mut Domain, task: u64) {
 
 pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
     let Some(row) = d.changes.get(&pending.task) else { return };
-    let mut exempt = row.room.is_some()
+    let mut exempt = !super::fresh_reads_in(d)
+        || row.room.is_some()
         || pending.heard.delegate_live
         || waits_for_dependencies(row, pending)
         || connection_wait::waiting(d, row.task, row.repository.forge);
@@ -77,11 +80,24 @@ pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) 
 }
 
 pub(super) fn until(d: &Domain, task: u64) -> Option<Wall> {
+    if !super::fresh_reads_in(d) {
+        return None;
+    }
     let session = d.read_sessions.get(&task)?;
     if session.exempt { None } else { Some(session.until) }
 }
 
+pub(super) fn inspection_bound(d: &Domain, task: u64) -> Option<Wall> {
+    if !d.read_sessions.get(&task)?.started {
+        return None;
+    }
+    until(d, task)
+}
+
 pub(super) fn deadline(d: &Domain) -> Option<Wall> {
+    if !super::fresh_reads_in(d) {
+        return None;
+    }
     let mut next: Option<Wall> = None;
     for (task, session) in &d.read_sessions {
         let Some(row) = d.changes.get(task) else { continue };
@@ -100,6 +116,9 @@ pub(super) fn deadline(d: &Domain) -> Option<Wall> {
 }
 
 pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if !super::fresh_reads_in(d) {
+        return;
+    }
     let mut due = List::with_capacity(env.limits.changes);
     for (task, session) in &d.read_sessions {
         if session.started && !session.exempt && session.until <= env.wall {
@@ -142,6 +161,26 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             d.steps.insert(owner, pending).expect("gather keeps its room");
         }
     }
+}
+
+/// A restart's reads spend none of a session's stall allowance (forge/catching-up.md, 4).
+pub(super) fn fresh(d: &mut Domain, env: &Env<Limits>) {
+    let mut sessions = skein_lib::Map::with_capacity(d.read_sessions.capacity());
+    for (task, prior) in &d.read_sessions {
+        let mut session = Session::new(env, env.wall);
+        session.started = prior.started;
+        sessions.insert(*task, session).expect("existing read clocks");
+    }
+    // A restored taking can get its first procedure step after the fresh pass.
+    // Its stored since predates that pass just as an already-started session's does.
+    for (task, row) in &d.changes {
+        if let change::State::Taking { .. } = row.change.state
+            && !sessions.contains_key(task)
+        {
+            sessions.insert(*task, Session::new(env, env.wall)).expect("one clock per change");
+        }
+    }
+    d.read_sessions = sessions;
 }
 
 pub(super) fn connection(d: &mut Domain, env: &Env<Limits>, forge: u16, connected: bool) {

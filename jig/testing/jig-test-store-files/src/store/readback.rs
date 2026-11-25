@@ -1,14 +1,14 @@
-//! Complete fixture readers (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/transcripts.md, 3, and jig/docs/design/protocol/store/README.md, 9).
+//! Complete fixture readers (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/transcripts.md, 3, and jig/docs/design/protocol/store/testing.md, 1).
 use super::{Store, protocol, root};
 use jig_domain_core as core;
 use jig_protocol_store::core_v6::Record as _;
 use protocol::{Event, Get, Request, codec, keys};
 use skein_lib::{Queue, Reader, Token};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 
 const READER: Token = Token::new(0);
 
-/// The first finding of a complete readback (jig/docs/design/domain/testing.md, 7).
+/// The first finding of a complete readback (jig/docs/design/domain/testing-fakes.md, 1).
 #[derive(Debug)]
 pub enum ReadbackFinding {
     NotQuiescent,
@@ -65,8 +65,8 @@ impl Store {
                 .expect("component")
                 .retained_page(
                     after.as_deref(),
-                    self.component_limits.store.page.rows,
-                    u64::from(self.component_limits.store.page.bytes),
+                    self.checked.limits().store.page.rows,
+                    u64::from(self.checked.limits().store.page.bytes),
                 )
                 .map_err(|failure| ReadbackFinding::Inventory {
                     key: after.clone(),
@@ -95,7 +95,7 @@ impl Store {
 
     pub(super) fn readback_query(&mut self, request: Request) -> Result<Event, ReadbackFinding> {
         self.readback_boundary()?;
-        let mut requests = VecDeque::from([request]);
+        let mut request = Some(request);
         let mut above = Queue::uncapped();
         let mut below = protocol::Below {
             store: Queue::uncapped(),
@@ -113,16 +113,10 @@ impl Store {
                 disk.drive(self.component.as_mut().expect("component"), &env, &mut above);
             }
             if let Some(event) = above.pop() {
-                if matches!(event, Event::Site { .. }) {
-                    // Sites need no registered flight; the fixture route
-                    // answers NoSite just as it does during ordinary reads.
-                    self.route(event, &mut requests);
-                } else {
-                    assert!(captured.replace(event).is_none(), "one helper query terminal");
-                }
+                assert!(captured.replace(event).is_none(), "one helper query terminal");
                 continue;
             }
-            if let Some(request) = requests.pop_front() {
+            if let Some(request) = request.take() {
                 if let Some(disk) = &mut self.disk {
                     disk.request(self.component.as_mut().expect("component"), &env, request, &mut above);
                 } else {
@@ -169,7 +163,7 @@ impl Store {
         let mut attempts = Vec::new();
         let mut log_transcripts = BTreeMap::new();
         let mut windows = Vec::new();
-        let installation = keys::installation(self.component_limits.store.key).expect("installation key");
+        let installation = keys::installation(self.checked.limits().store.key).expect("installation key");
         for (key, value) in rows {
             if let Some(decoded) = keys::decode(key) {
                 let event = self.readback_query(Request::Get { owner: READER, key: Get::Jig(decoded.clone()) })?;
@@ -220,6 +214,9 @@ impl Store {
                 if log % 2 == 1 {
                     log_transcripts.insert(log / 2, codec::component::Transcript { length, window: length });
                 }
+            } else if keys::decode_order(key).is_some() {
+                protocol::registry_v1::Order::decode(&protocol::registry_v1::CEILINGS, &mut Reader::new(value))
+                    .map_err(|failure| inventory(key, format!("registry order: {failure:?}")))?;
             } else {
                 match keys::decode_own(key).ok_or_else(|| inventory(key, "recognized retained key"))? {
                     keys::Own::History { task } => {
@@ -275,9 +272,10 @@ impl Store {
                         protocol::registry_v1::Job::decode(&protocol::registry_v1::CEILINGS, &mut Reader::new(value))
                             .expect("job row");
                     }
+                    keys::Own::Opening(_) if value.starts_with(&1_u16.to_be_bytes()) => {}
                     keys::Own::Opening(worker) => {
-                        let opening = protocol::openings_v1::WorkerOpening::decode(
-                            &protocol::openings_v1::CEILINGS,
+                        let opening = protocol::openings_v2::WorkerOpening::decode(
+                            &protocol::openings_v2::CEILINGS,
                             &mut Reader::new(value),
                         )
                         .map_err(|failure| inventory(key, format!("opening row: {failure:?}")))?;
@@ -328,7 +326,7 @@ impl Store {
             let forwards = self.transcript(*task, false)?;
             let mut backwards = self.transcript(*task, true)?;
             backwards.reverse();
-            let key = keys::encode_own(&keys::Own::Transcript { task: *task }, self.component_limits.store.key)
+            let key = keys::encode_own(&keys::Own::Transcript { task: *task }, self.checked.limits().store.key)
                 .expect("transcript key");
             if forwards != backwards {
                 return Err(inventory(&key, "complete transcript frame orders agree"));
@@ -355,8 +353,8 @@ impl Store {
                     scope: core::reads::Scope::TaskOwnRows { task },
                     after,
                     backwards: false,
-                    rows: self.component_limits.store.page.rows,
-                    bytes: u64::from(self.component_limits.store.page.bytes),
+                    rows: self.checked.limits().store.page.rows,
+                    bytes: u64::from(self.checked.limits().store.page.bytes),
                 },
             })?;
             let Event::Read { result: core::reads::Loaded::Page { rows, next, .. }, .. } = event else {
@@ -366,7 +364,7 @@ impl Store {
                 });
             };
             for row in rows {
-                let key = keys::encode(&row.value.key(), self.component_limits.store.key).expect("history key");
+                let key = keys::encode(&row.value.key(), self.checked.limits().store.key).expect("history key");
                 if keys::logged(&key) == Some(task) {
                     found.push(row.value);
                 }
@@ -401,8 +399,8 @@ impl Store {
             let event = self.readback_query(Request::Transcript {
                 owner: READER,
                 read: protocol::TranscriptRead::Page { task, backwards, after },
-                rows: self.component_limits.store.page.rows,
-                bytes: u64::from(self.component_limits.store.page.bytes),
+                rows: self.checked.limits().store.page.rows,
+                bytes: u64::from(self.checked.limits().store.page.bytes),
             })?;
             let reason = match &event {
                 Event::Turns { owner: READER, turns, next, cut: None } => {

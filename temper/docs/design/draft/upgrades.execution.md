@@ -2,7 +2,7 @@
 
 2026-11-11. How [upgrades.md](upgrades.md)'s sections 3 to 13 get
 built, with dev.fabrig.ai's settled store as the floor (4.1;
-`store-floor.md`, section 3). It designs nothing: each milestone's
+`archive/store-floor.md`, section 3). It designs nothing: each milestone's
 design is the documents it names, written before its changes.
 
 ## 1. In one page
@@ -18,7 +18,7 @@ design is the documents it names, written before its changes.
   rehearsing and going back; temper's commands; the upgrade story
   and power loss; the catch-up; every record decoded. Their current
   forms use the floor, registry and jobs, not the baseline's patches
-  (`store-floor.md`, sections 4 and 5).
+  (`archive/store-floor.md`, sections 4 and 5).
 - **No walk:** the user's request of 2026-11-11 set none; each
   milestone is held by focused and fuzzy tests alone.
 - **Out:** the process tier's drill on a real Forgejo (`upgrades.md`,
@@ -39,7 +39,7 @@ design is the documents it names, written before its changes.
 - **The live store opens at every landing:** the floor and explicit
   levels are checked before registry planning or jobs. A store below
   the floor is refused by name, with bridge build `3d1c717d379e`
-  (`store-floor.md`, section 3, with its status's departures).
+  (`archive/store-floor.md`, section 3, with its status's departures).
 - **The fixture is at the floor:** it opens and serves; the older
   store's test holds the named refusal, not an upgrade path (section 3,
   M5). Neither keeps a table of map patches.
@@ -63,7 +63,7 @@ design is the documents it names, written before its changes.
 
 ### M4. The level rule and floor
 
-- **Design:** jig's `protocol/store/records.md`, 3; `store-floor.md`,
+- **Design:** jig's `protocol/store/records.md`, 3; `archive/store-floor.md`,
   section 3, with its status's departures.
 - **Current scope:** explicit levels jig 6 and temper 14, the floor
   check before any planning, the named older-store refusals. The
@@ -73,7 +73,7 @@ design is the documents it names, written before its changes.
 
 ### M5. The floor's fixture
 
-- **Design:** `store-floor.md`, 4.4; jig's `protocol/store/opening.md`,
+- **Design:** `archive/store-floor.md`, 4.4; jig's `protocol/store/opening.md`,
   1.8.
 - **Current scope:** the one-process world's fixture at the floor
   opens and serves; the older store is refused by name, naming the
@@ -81,8 +81,8 @@ design is the documents it names, written before its changes.
 
 ### M6. Current texts and owner sets
 
-- **Design:** jig's `protocol/store/opening.md`, 3, and
-  `protocol/store/layouts.md`, 1 to 5; `store-floor.md`, 4.1 and 4.2.
+- **Design:** jig's `protocol/store/opening-owners.md`, 1, and
+  `protocol/store/layouts.md`, 1 to 5; `archive/store-floor.md`, 4.1 and 4.2.
 - **Current scope:** current families and value types, held-family
   links, frame roots and jobs handed by the shell; levels held
   explicitly and printed by `temper versions`. Registered texts of
@@ -93,7 +93,7 @@ design is the documents it names, written before its changes.
 
 ### M7. The policy and the gate
 
-- **Design:** `AGENTS.md`, 2; `store-floor.md`, 4.4.
+- **Design:** `AGENTS.md`, 2; `archive/store-floor.md`, 4.4.
 - **Current scope:** registered defaults, former names and jobs; the
   boundary's patches check for wires and formats outside the registry.
   No deleted map patch or edited old registered text is a mutation
@@ -101,21 +101,21 @@ design is the documents it names, written before its changes.
 
 ### M8. Rehearsing and going back
 
-- **Design:** jig's `protocol/store/opening.md`, 5.
+- **Design:** jig's `protocol/store/opening-rehearsal.md`, 1.
 - **Builds:** `Request::Rehearse`, `Request::Back`, `Request::Close`
   and their events in jig's store, with its store world's stories.
 
 ### M9. temper's commands
 
 - **Design:** `../protocol/binaries.md` (`upgrade`, job lines);
-  `../domain/root.md`, 8.1.
+  `../domain/root-restart.md`, 1.1.
 - **Builds:** both binaries' `upgrade --check` and `--back`, the
   rehearsing root, the job lines; the one-process world's rehearsal
   and going-back stories.
 
 ### M10. A story through an upgrade
 
-- **Design:** `../testing/README.md`, 2.5; `store-floor.md`, 4.4.
+- **Design:** `../testing/tiers.md`, 1.5; `archive/store-floor.md`, 4.4.
 - **Current scope:** the story on a registry change and job, its
   referee, the unsettled stop, and a fuzzy sweep of power lost during
   the upgrade's start. Levels and versions stay.
@@ -123,12 +123,12 @@ design is the documents it names, written before its changes.
 ### M11. The catch-up
 
 Landed; its patches, old texts, goldens and patch-count table are
-removed by store-floor's F2 (`store-floor.md`, 4.1 and 4.4). No
+removed by store-floor's F2 (`archive/store-floor.md`, 4.1 and 4.4). No
 catch-up work remains. Changes use the registry and jobs (M6).
 
 ### M12. Every record decoded
 
-- **Design:** jig's `protocol/store/opening.md`, 5 ("Every record
+- **Design:** jig's `protocol/store/opening-rehearsal.md`, 1 ("Every record
   decoded"); `../protocol/binaries.md` (`upgrade --check`).
 - **Current scope:** the rehearsal decodes every registered value
   from its layout's text in the store's registry, other records from

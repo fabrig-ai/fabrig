@@ -97,7 +97,7 @@ impl Config {
     }
 
     /// The joint client story's finite recovery profile. Its actual owner
-    /// deadline remains committed before every attempt (connectors.md, 4.3).
+    /// deadline remains committed before every attempt (domain/connectors-effects.md, 1.3).
     #[must_use]
     pub fn client_recovery(mut self) -> Self {
         self.limits.infrastructure.retry_after_seconds = 1;
@@ -186,14 +186,12 @@ impl Application for Ops {
     type Domain = root::Domain;
     type Store = Store;
     type Config = Config;
+    type PeerSetup = jig_conformance::core::Observer;
     type Systems = Systems;
     type Peers = Peers;
     type Event = root::Event;
     type Delivery = Delivery;
 
-    fn store(_: &Config) -> Self::Store {
-        Store::default()
-    }
     fn build(config: &Config) -> root::Domain {
         let mut configuration = config.configuration.as_ref().clone();
         if !config.close_grant {
@@ -204,6 +202,21 @@ impl Application for Ops {
         }
         root::Domain::new(configuration, &config.limits).expect("fixture core configuration")
     }
+    fn rehearse(domain: &mut root::Domain) {
+        domain.rehearse();
+    }
+    fn rehearsed(domain: &root::Domain) -> bool {
+        domain.rehearsed()
+    }
+    fn refused(domain: &root::Domain) -> Option<String> {
+        domain.start_failure().map(|(_, failure)| format!("{failure:?}"))
+    }
+    fn start_phase(domain: &root::Domain) -> String {
+        match domain.start_phase() {
+            Some(phase) => format!("{phase:?}"),
+            None => "none".into(),
+        }
+    }
     fn systems(_: &Config, _: u64) -> Systems {
         let mut production = production::Production::new(0, production::Backend::Fake);
         production.add_service(production::ServiceName::new("production", "checkout"), "v2", 3);
@@ -211,9 +224,12 @@ impl Application for Ops {
         production.set_pool_quota("staging", 5);
         Systems { production, now: 0 }
     }
-    fn peers(config: &Config, _: u64) -> Peers {
+    fn bootstrap(config: &Config) -> (Store, Self::PeerSetup) {
+        (Store::default(), observations::observer(&config.configuration, config.story == Story::Environment))
+    }
+    fn peers(config: &Config, _: u64, setup: &Self::PeerSetup) -> Peers {
         Peers {
-            observer: observations::observer(&config.configuration, config.story == Story::Environment),
+            observer: setup.clone(),
             applied: 0,
             observed: Vec::new(),
             application_observed: Vec::new(),

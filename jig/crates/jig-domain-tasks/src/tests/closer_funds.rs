@@ -1,4 +1,4 @@
-//! A closer's funds follow its task's runs (jig/docs/design/domain/tasks/lifecycle.md, 11).
+//! A closer's funds follow its task's runs (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 use super::revisions::{Harness, amendment, task, to};
 use crate::{
     Active, AuthorityExecutor, Cause, Closer, End, EndedBy, Event, Funder, Numbers, Party, Phase, ProcedureDecision,
@@ -11,7 +11,7 @@ const CLOSER: u64 = 2;
 const ENDED: u64 = 3;
 const LIVE: u64 = 4;
 
-fn start(h: &mut Harness, number: u64, budget: u64) {
+pub(super) fn start(h: &mut Harness, number: u64, budget: u64) {
     let row = h.domain.task(number).expect("fixture task");
     if row.phase == Phase::Active(Active::Idle) {
         let message = row.last_message.checked_add(1).expect("fixture message");
@@ -68,9 +68,10 @@ fn start(h: &mut Harness, number: u64, budget: u64) {
     }
 }
 
-fn answer(h: &mut Harness, number: u64, spent: u64, end: End) {
+pub(super) fn answer(h: &mut Harness, number: u64, spent: u64, end: End) {
     let attempt = h.domain.task(number).expect("running task").attempt;
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: number,
         attempt,
@@ -84,6 +85,7 @@ fn wait(h: &mut Harness) {
     let step = h.domain.task(CLOSER).expect("live closer").attempt.checked_add(1).expect("fixture step");
     let read = h.domain.procedure_offered(CLOSER);
     h.send(Event::Procedure {
+        reads_project: false,
         reply_to: to(),
         task: CLOSER,
         step,
@@ -93,7 +95,7 @@ fn wait(h: &mut Harness) {
     assert_eq!(h.domain.task(CLOSER).expect("waiting closer").phase, Phase::Active(Active::Idle));
 }
 
-fn fixture() -> Harness {
+pub(super) fn fixture() -> Harness {
     let mut h = Harness::new();
     let mut new = task(TASK, &[]);
     new.flags.ended_by = EndedBy::Closer(Closer { connector: 1, code: 6 });
@@ -117,6 +119,7 @@ fn child(h: &mut Harness, parent: u64, number: u64, budget: u64) {
     new.numbers.budget = budget;
     new.funder = Funder::Task(parent);
     h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),

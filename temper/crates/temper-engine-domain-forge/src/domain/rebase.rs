@@ -1,4 +1,4 @@
-//! A prepare's in-flight rewrite is its own (domain/landing.md, 5.2).
+//! A prepare's in-flight rewrite is its own (domain/landing-prepare.md, 1.2).
 //! Keeps compare with the original head; prepare instead needs the requested main.
 use super::{Domain, child, drift, from_client, record_change_head};
 use crate::{DriftChange, Limits, Request};
@@ -134,6 +134,9 @@ pub(super) fn observe(
 }
 
 pub(super) fn reading(d: &Domain, owner: Token) -> bool {
+    if d.rebase_fresh.contains_key(&owner) {
+        return true;
+    }
     for (_, observation) in &d.rebases {
         if observation.read == Some(owner) {
             return true;
@@ -149,6 +152,10 @@ pub(super) fn answered(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
+    if let Some((task, entry)) = d.rebase_fresh.remove(&owner) {
+        fresh_answered(d, env, task, entry, result, out);
+        return;
+    }
     let mut task = None;
     for (number, observation) in &d.rebases {
         if observation.read == Some(owner) {
@@ -227,26 +234,93 @@ fn judge(d: &mut Domain, env: &Env<Limits>, observation: &Observation, out: &mut
 pub(super) fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut branches = List::with_capacity(env.limits.changes);
     for (task, row) in &d.changes {
-        if let Some((_, from, _)) = pending(d, *task) {
-            let resource = Resource { repository: row.repository, what: What::Branch(row.branch.clone()) };
-            if let Some(cached) = d.client.cached(&resource)
-                && let Some(head) = cached.tip
-                && head != from
-            {
-                branches
-                    .push((resource, DriftChange::Branch { expected: from, observed: Some(head) }))
-                    .expect("one branch per change");
-            }
+        if let Some((entry, _, _)) = pending(d, *task) {
+            branches.push((*task, entry, row.repository, row.branch.clone())).expect("one branch per change");
         }
     }
-    for (resource, movement) in branches.into_boxed() {
-        if !observe(d, env, &resource, &movement, out) {
-            drift(d, env, resource, movement, out);
+    for (task, entry, repository, branch) in branches.into_boxed() {
+        d.sequence = d.sequence.checked_add(1).expect("rebase branch read sequence");
+        let owner = Token::new(d.sequence | (1_u64 << 63));
+        d.rebase_fresh.insert(owner, (task, entry)).expect("one read per preparing change");
+        child(d, env, Event::Read { owner, repository, read: Read::Branch { branch } }, out);
+    }
+}
+
+fn fresh_answered(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    entry: u64,
+    result: Result<Answer, Error>,
+    out: &mut Queue<Request>,
+) {
+    let Some((current, from, _)) = pending(d, task) else { return };
+    if current != entry {
+        return;
+    }
+    let observed = match result {
+        Ok(Answer::Commit(head)) if head == from => return,
+        Ok(Answer::Commit(head)) => Some(head),
+        Err(error) => {
+            if error != Error::Missing {
+                return;
+            }
+            None
         }
+        Ok(
+            Answer::Located { .. }
+            | Answer::Items { .. }
+            | Answer::Item { .. }
+            | Answer::Pull(_)
+            | Answer::Reviews { .. }
+            | Answer::Statuses { .. }
+            | Answer::Remarks { .. }
+            | Answer::Branches(_)
+            | Answer::PullFiles { .. }
+            | Answer::Compare { .. }
+            | Answer::Checks(_)
+            | Answer::JobState { .. }
+            | Answer::Job { .. }
+            | Answer::File { .. }
+            | Answer::Directory { .. }
+            | Answer::Protection(_)
+            | Answer::Settings(_)
+            | Answer::Collaborators { .. }
+            | Answer::Permission(_)
+            | Answer::Created(_)
+            | Answer::Commented(_)
+            | Answer::Reviewed(_)
+            | Answer::Merged(_)
+            | Answer::Queued
+            | Answer::Branch(_)
+            | Answer::Runs { .. }
+            | Answer::Run(_)
+            | Answer::Tree { .. }
+            | Answer::Commits { .. }
+            | Answer::Done,
+        ) => return,
+    };
+    let row = d.changes.get(&task).expect("pending change");
+    let resource = Resource { repository: row.repository, what: What::Branch(row.branch.clone()) };
+    let movement = DriftChange::Branch { expected: from, observed };
+    if !observe(d, env, &resource, &movement, out) {
+        drift(d, env, resource, movement, out);
     }
 }
 
 pub(super) fn release_repository(d: &mut Domain, repository: skein_forge::api::Repository) {
+    let mut reads = List::with_capacity(d.rebase_fresh.len());
+    for (owner, (task, _)) in &d.rebase_fresh {
+        if match d.changes.get(task) {
+            Some(row) => row.repository == repository,
+            None => true,
+        } {
+            reads.push(*owner).expect("bounded fresh rebase reads");
+        }
+    }
+    for owner in reads.into_boxed() {
+        d.rebase_fresh.remove(&owner);
+    }
     let mut keys = List::with_capacity(d.rebases.len());
     for (key, row) in &d.rebases {
         if row.resource.repository == repository {

@@ -27,6 +27,9 @@ pub fn llm_config() -> skein_fake_llm_domain::Config {
         cache_entries: 16,
         strict: false,
         unscoped_reads: 0,
+        accounts: 0,
+        unserved: 0,
+        cut: 0,
     }
 }
 /// The scripted LLM's HTTP and document limits.

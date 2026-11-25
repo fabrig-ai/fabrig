@@ -2,10 +2,10 @@
 
 Provisional, 2026-10-20. `skein_forge::github`: GitHub's documents and
 call plans, beside Forgejo's (`skein_forge::forgejo`), holding what
-README.md 4.1 says a dialect holds. It renders README.md's vocabulary on
+dialects.md 1.1 says a dialect holds. It renders README.md's vocabulary on
 github.com's REST API at one API version, with three GraphQL documents
 for what REST lacks, and adds to the vocabulary what GitHub needs
-(README.md, sections 3 and 8). The component that runs it is
+(vocabulary.md, section 1, and README.md, section 8). The component that runs it is
 connection.md's; the setup plans that run its setup documents are
 setup/README.md's; the fake's GitHub layer and GitHub's conformance are
 ../testing/fakes/github.md's, sections 1 and 2.
@@ -23,11 +23,11 @@ setup/README.md's; the fake's GitHub layer and GitHub's conformance are
 - **REST, and three GraphQL documents:** the bot's identity (`viewer`),
   entering the merge queue (`enqueuePullRequest`) and a pull request's
   landed commit and queue entry (`mergeCommit`, `mergeQueueEntry`).
-- **Every call of the vocabulary is answered** (section 4), with
+- **Every call of the vocabulary is answered** (`github-operations.md`, section 1), with
   GitHub's shapes told in each decoder: pull requests among issues,
   `merged` absent from listings, `mergeable` null until computed, pages
   by `Link`, CI from check runs and statuses read apart.
-- **A merge tries REST first** (section 5): `PUT .../merge` with `sha`,
+- **A merge tries REST first** (`github-operations.md`, section 2): `PUT .../merge` with `sha`,
   and on GitHub's merge-queue refusal it enters the queue with
   `expectedHeadOid` and answers `Queued`. A moved head is `Stale` on
   either route. The plan keeps no state, so it holds when a branch's
@@ -43,25 +43,25 @@ setup/README.md's; the fake's GitHub layer and GitHub's conformance are
 - **The App's documents:** the JSON Web Token's signing input and its
   assembly (the signature is the component's, `skein_tls::sign_rs256`),
   the mint of an installation's token, the installations and their
-  repositories, and the start's identity read (section 8).
+  repositories, and the start's identity read (`github-app.md`, section 1).
 - **The delivery log is the hint feed:** its list page, with a cursor
   and a validator, and one delivery whole; a pushed delivery and a
   logged one decode to the same `github::Delivery` (section 9).
 - **A job's log is a redirect,** parsed into `Redirect { origin, target
   }`; the component follows it to an origin it knows (section 10).
 - **Setup's documents:** the manifest, the form, the install page, the
-  conversion, the App's own reads and its hook (section 11). The plans
+  conversion, the App's own reads and its hook (`github-app.md`, section 2). The plans
   that run them are setup/README.md's.
 - **Ids are exact,** `u64` in decimal; a delivery's id has 19 digits.
 
 ## 2. What the module holds
 
-By README.md 4.1's list, what holds for both dialects alike sitting at
-the crate's root (README.md, 4.4):
+By dialects.md 1.1's list, what holds for both dialects alike sitting at
+the crate's root (dialects.md, 1.4):
 
 - **Each request,** as a sized encoder, and **each answer,** as a
   decoder over skein-json's tokens with a bounded stack, keeping only
-  its fields (sections 3, 4 and 6).
+  its fields (`github.md`, section 3, and `github-operations.md`, section 1, and `github.md`, section 6).
 - **The server's side of each document,** for the fake's GitHub layer:
   the decoder of each request and the encoder of each answer
   (../testing/fakes/github.md, section 1).
@@ -69,17 +69,17 @@ the crate's root (README.md, 4.4):
   `Error` (section 7).
 - **The deliveries:** the headers, the events, each payload's decoder
   and encoder, the table to hints, and the log's documents (section 9).
-- **The setup's documents** (section 11).
+- **The setup's documents** (`github-app.md`, section 2).
 - **Names, times and ids** (section 3).
 - **How a credential renders:** `Authorization: Bearer <t>`, for a
   token, an installation's token and the App's JSON Web Token alike.
-- **The start's reads:** the identity read (section 8.4); the page cap
+- **The start's reads:** the identity read (`github-app.md`, section 1.4); the page cap
   is GitHub's constant 100 (`PAGE_CAP`), so no read is made for it.
 - **The renewal:** the mint's request and decoder, and the JSON Web
-  Token's bytes (section 8). When it is due, and which installation, is
+  Token's bytes (`github-app.md`, section 1). When it is due, and which installation, is
   the component's (connection.md, section 5).
-- **The pin** (section 12), **the call plans** (sections 4 and 5) and
-  **its limits,** `github::Limits`, with README.md 4.1's fields; `check`
+- **The pin** (section 12), **the call plans** (`github-operations.md`, sections 1 and 2) and
+  **its limits,** `github::Limits`, with dialects.md 1.1's fields; `check`
   refuses a zero, a `json.string` below `string_bytes` or `body_bytes`,
   and a depth below 10 (a logged delivery wraps its payload in two more
   levels than a pushed one).
@@ -88,17 +88,17 @@ The plans hear `github::Head`: the status and the header fields `Date`,
 `Retry-After`, `Link` (whether it has `rel="next"`, and that link's
 `cursor`), `ETag`, `Location`, `Content-Type` (JSON or not),
 `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset`,
-`x-ratelimit-resource` and `Connection: close`. Each else as README.md
-4.2 says: `Row`, `Done` with the body, or `Failed` (`Unseen`, `Seen`).
+`x-ratelimit-resource` and `Connection: close`. Each else as dialects.md
+1.2 says: `Row`, `Done` with the body, or `Failed` (`Unseen`, `Seen`).
 
 The plans' tables are the module's own except for the root's logins'
-table (README.md, 4.4); the component keeps and hands them as it does
-Forgejo's (README.md, 4.2):
+table (dialects.md, 1.4); the component keeps and hands them as it does
+Forgejo's (dialects.md, 1.2):
 
 - **A repository's row:** its `owner` and `name` (its path), its
   owner's account id (by which the component chooses the installation,
   connection.md, section 5), whether that owner is an
-  organization, the merge method (5.1) and its `html_url`. Object ids
+  organization, the merge method (`github-operations.md`, 2.1) and its `html_url`. Object ids
   are SHA-1's, 40 digits: GitHub has no other format.
 - **A user's row:** an id and its login.
 
@@ -117,7 +117,7 @@ Forgejo's (README.md, 4.2):
   `User-Agent` that is not empty, checked at start.
 - **JSON in and out,** as forgejo.md 1.1. A GraphQL request is
   `{"query": <document>, "variables": {...}}`, the document a constant
-  of the module (`github.md`, section 4.3).
+  of the module (`github-operations.md`, section 1.3).
 - **Repositories by id.** R is `/repos/{owner}/{name}`, from the
   repository's row. A call whose repository has no row resolves it
   first with `GET /repositories/{id}`, which counts in its cost.
@@ -147,281 +147,18 @@ Forgejo's (README.md, 4.2):
   says (a file with the sides asked; comments end with `more`). A
   listing has more when its `Link` has `rel="next"`, or when cut; a page
   that comes full without one has none. `Reviews`, `Remarks` and `PullFiles` pass
-  their page's first `skip` rows as they stream (`README.md`, 3.2). The
+  their page's first `skip` rows as they stream (`vocabulary.md`, 1.2). The
   delivery log pages by cursor (9.3).
 - **Users by id,** with the login from the users' table, filled by `GET
   /user/{id}` (`user-by-id-reads`), one request in the cost.
 
 ## 4. Each operation
 
-### 4.1 Reads
-
-R as in section 3; `<size>` the page size; `GQ` a GraphQL request
-(4.3). Several requests run in turn on one connection, as forgejo.md 1.2.
-"Every page" in Pull's and Checks' rows stops at 50 pages a listing:
-the call fails `TooLarge` when a 50th page still has a next.
-
-| Call | Requests | Answer from |
-|---|---|---|
-| `Read::Items { since, page, kind }` | `GET R/issues?state=all[&since=<since>]&sort=updated&direction=asc&per_page=<size>&page=<page>` | omit `since` at zero: an epoch `since` lists nothing; otherwise send the UTC bound, inclusive. Each row a `Summary`: `number`; a `pull_request` member makes it a pull, and its `merged_at` makes one closed merged; `state`; `user.id`; `labels[].name`; `updated_at`; `title`; `body` (null as empty) and its key. A row of the other kind than the call's is skipped, and counts toward the page. Rows of one second are put in order of number before the page answers. `more` from `Link`; `now` from `Date` |
-| `Read::Item { number, after, since }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?[since=<since>&]per_page=<size>&page=<n>` from page 1, `since` only when not 0, until the answer is full or a page has no next | the issue as a `Summary`; its comments with ids above `after`, oldest first, as forgejo.md 1.2's: `id`, `user.id`, `created_at`, `body` and its key, provenance, revision; `more` when one is left |
-| `Read::Pull { number, ci }` | `GET R/pulls/<number>`; when `ci`, `GET R/commits/<head.sha>/status?per_page=1` and `GET R/commits/<head.sha>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; `GQ pull` when the pull is open and the repository's owner an organization, or merged (`merge_commit_sha` is absent at the pin) | `number`; `state`, `merged` making it merged; `head.ref`, `base.ref`, `head.sha`, `base.sha`; `merged` from `merge_commit_sha`, else `mergeCommit.oid`; `mergeable`, null as false; `requested_reviewers[].id`; `queued` from `mergeQueueEntry.position`; `dequeued` from the last `RemovedFromMergeQueueEvent`'s `reason`; `size` from `changed_files` as `files`, `additions` and `deletions`, at `head.sha`, none when one is absent, null or no whole number (README.md, 3.6); `Ci` from both (4.4), `None` without `ci` |
-| `Read::PullFor { head, base }` | `GET R/pulls?state=open&head=<owner>:<head>&base=<base>&per_page=1`; when none, `GET R/pulls?state=all&head=<owner>:<head>&base=<base>&sort=created&direction=asc&per_page=1`; then as `Pull` without `ci` for the number found | the open pull request for the head and base, else the oldest; `Missing` when there is none. `<owner>` is the repository's own: a fork's head is not followed (temper's `draft/github.md`, 18) |
-| `Read::Reviews { number, page, skip }` | `GET R/pulls/<number>/reviews?per_page=<size>&page=<page>` | as forgejo.md 1.2; `state` mapped `APPROVED` to `Approve`, `CHANGES_REQUESTED` to `RequestChanges`, `COMMENTED` and `DISMISSED` to `Comment`; `PENDING` and a null `submitted_at` skipped, counting toward the page; `commit_id`; `official` when `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR` (`github.md`, section 15) |
-| `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?per_page=<size>&page=<page>` | `Ci` from `state` and `total_count`, 0 being `None`; each `statuses[]` row: `updated_at`, `context`, `state`, `description`, `target_url`; no job; `more` from `Link` |
-| `Read::Remarks { number, review, page, skip }` | `GET R/pulls/<number>/reviews/<review>/comments?per_page=<size>&page=<page>` | `id`, `user.id`, `path`, `line`, else `original_line`, else 0, `body`; `more` from `Link` |
-| `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.sha` |
-| `Read::Branches { prefix }` | `GET R/branches?per_page=<size>&page=<n>`, from 1 until no next | only names starting with the nonempty prefix, within `string_bytes`; a longer one skipped; only matches count against the answer bound, with no row bound (README.md, 3.7), past it `TooLarge`; an empty prefix is `Empty` before any GET |
-| `Read::PullFiles { number, head, page, skip, sides }` | `GET R/pulls/<number>`; when `sides`, `GET R/compare/<base.sha>...<head.sha>?per_page=1`, for `merge_base_commit.sha`; `GET R/pulls/<number>/files?per_page=<size>&page=<page>`; when `sides`, for each file kept, the raw read (below) at the merge base, at `previous_filename` for `renamed`, but for `added`, and at the head but for `removed` | as forgejo.md 1.2; a `head.sha` other than `head` is `Stale` before any file is read; `more` from `Link` |
-| `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?per_page=1` | `files[].filename`, kept while they fit `rows` and the answer's bound, and each counted in `changed`; `ahead` from `ahead_by`, `behind` from `behind_by`; no raw read; `TooLarge` when `files` holds 300, GitHub's cap (`compare-files-capped-300`) |
-| `Read::Range { before, after }` | `GET R/compare/<before>...<after>?per_page=1` | `total_commits` as `commits`; the one commit and the files it lists skipped as they stream |
-| `Read::Checks { commit }` | `GET R/commits/<commit>/status?per_page=<size>&page=<n>`, every page; `GET R/commits/<commit>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; for each failed Actions check with a resolvable link, `GET R/actions/jobs/<job>` | each status as for `Statuses`; each check run as a `Status` (4.4), its `job` the commit, the run from `run_id`, the job its `id` and the attempt its `run_attempt`, after validating the linked run and job and the requested head (4.4), none otherwise |
-| `Read::Job { attempt, max_bytes, part }` | `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs`, answered `302`; the redirect followed (section 10) | the failed step: the first of `steps[]` whose `conclusion` is `failure`, its `number` and `name`; for `End`, the log's last `max_bytes` bytes (10), for `Start`, its first (10); `MissingJob` on a `404` or `410`, or when `run_id`, `run_attempt` or `head_sha` is not the attempt's |
-| `Read::File { head, path, max_bytes }` | the raw read of `path` at `head` | the first `max_bytes` bytes, `truncated` when more came; `Missing` on a `404`, and on a JSON answer (a directory's listing) |
-| `Read::Protection { branch }` | `GET R/rules/branches/<branch>?per_page=100&page=<n>`, every page; for each ruleset named, `GET R/rulesets/<ruleset_id>`; `GET R/branches/<branch>/protection` | section 5.3 |
-| `Read::Settings` | `GET /repositories/<id>` | `default_branch`; `allow_merge_commit`, `allow_squash_merge`, `allow_rebase_merge`; the row kept afresh |
-| `Read::Collaborators { page }` | `GET R/collaborators?affiliation=all&per_page=<size>&page=<page>` | each `id` and `role_name` as below; `more` from `Link` |
-| `Read::Permission { user }` | for the bot (the identity read's `databaseId`, 8.4), none; otherwise `GET R/collaborators/<login>/permission` | the bot's from its installation (8.2): `Write` when the full mint's `permissions` hold `contents: write` and `pull_requests: write`, `Read` when they hold `contents` at `read` or above, `None` otherwise; another user's from `role_name`: `admin` and `maintain` `Admin`, `write` `Write`, `triage` and `read` `Read`, `none` and the empty string `None` |
-| `Read::Locate { owner, name }` | `GET /repos/<owner>/<name>` | `id`; the row kept |
-
-The dropped rows are names the client can't hold, such as queue branches
-past the bound; the client makes no name past `string_bytes`, so it never
-looks for a branch it dropped (`Read::Branches { prefix }`, 5.3's row).
-
-- **Compare reads one page.** Its first page carries the files for the
-  whole comparison, capped at 300, and its counts; later pages carry
-  commits alone, which Compare keeps none of, so it asks for one commit a
-  page and reads no later page. Containment is `behind_by == 0`, for a
-  diverged comparison too; a nonzero `ahead_by` alone does not show it.
-  PullFiles with `sides` asks for only the merge base and keeps `per_page=1`.
-- **The raw read** is `GET R/contents/<path>?ref=<commit>` with `Accept:
-  application/vnd.github.raw+json`, the path's slashes kept: a `200`
-  that is not JSON is the file's bytes, a `404` an absent side.
-- **No `Range` header.** skein sends none: a file and a log are read through,
-  and cut as they stream (section 6). The signed job-log blob honours
-  Range; skein requests the whole body.
-- **The keep-up listing** is as Forgejo's (forgejo.md, 1.2), in GitHub's
-  words: `sort=updated&direction=asc`. A new issue can be missing from
-  the first listing after it (`new-issue-may-miss-listing`): the next
-  pass, from the same `since`, finds it, since `since` is inclusive
-  (`issues-since-inclusive`).
-- **An item's comments are paged by GitHub,** oldest first: the call
-  reads pages from the first and keeps those above `after`; each page
-  counts in its cost (section 15).
-
-### 4.2 Writes
-
-| Call | Requests | Answer from |
-|---|---|---|
-| `Write::CreateIssue { key, title, body }` | `POST R/issues` `{title, body}`, the body behind the key's marker | `Created` from `number` (`201`) |
-| `Write::OpenPull { title, body, head, base }` | `POST R/pulls` `{title, body, head, base}` | `Created` from `number` (`201`); a `422` "No commits between ..." `NothingToMerge`, and "A pull request already exists for ..." `Exists` (section 7) |
-| `Write::Post { number, key, body }` | `POST R/issues/<number>/comments` `{body}`, behind the marker | `Commented` from `id` (`201`) |
-| `Write::Review { number, key, verdict, body }` | `POST R/pulls/<number>/reviews` `{event, body}`, `event` `APPROVE`, `REQUEST_CHANGES` or `COMMENT`, behind the marker | `Reviewed` from `id` (`200`) |
-| `Write::Edit { number, title, body }` | `PATCH R/issues/<number>` `{title, body}`, each only when given | `Done` (`200`) |
-| `Write::SetReviewers { number, reviewers }` | `GET R/pulls/<number>`; `POST R/pulls/<number>/requested_reviewers` `{reviewers: [logins]}` for those missing (`201`); `DELETE` the same with those extra (`200`) | `Done` |
-| `Write::Close { number }`, `Write::Reopen { number }` | `PATCH R/issues/<number>` `{state: closed\|open}` | `Done` (`200`) |
-| `Write::Merge { number, head }` | section 5.1 | `Merged`, or `Queued` |
-| `Write::Update { number }` | `GET R/pulls/<number>`; `PUT R/pulls/<number>/update-branch` `{expected_head_sha: <head.sha>}` | `Done` (`202`); section 5.2 |
-| `Write::Status { commit, context, check }` | `POST R/statuses/<commit>` `{state: pending\|success\|failure, context}` | `Done` (`201`); `Forbidden` where the App has no `statuses` write (below) |
-| `Write::CreateBranch { branch, commit }` | `POST R/git/refs` `{ref: refs/heads/<branch>, sha}` | `Branch(Created)` (`201`); a `422` "Reference already exists" `Branch(Exists)` |
-| `Write::DeleteBranch { branch }` | `DELETE R/git/refs/heads/<branch>` | `Done` (`204`); a `422` "Reference does not exist" `Missing` |
-
-- **Opening asks GitHub,** which refuses a head with nothing to merge
-  and a second open pull request itself, each with its own message: one
-  request, where Forgejo's compares first (forgejo.md, 1.2).
-- **A status needs `statuses` write.** The fixture App's installation token
-  receives `Forbidden`, GitHub's `403` "Resource not accessible by integration";
-  the fixture person tokens receive `403` "Resource not accessible by personal
-  access token". The queue cases use the fixture workflow's check run instead
-  (section 16). This is the call GitHub answers otherwise than Forgejo
-  (README.md, 3.7).
-- **Keys and markers** are as Forgejo's (README.md, section 5).
-
-### 4.3 The GraphQL documents
-
-Constants of the module, each sent as `POST /graphql` with its
-variables, on the installation's token. A GraphQL answer is `200` with
-`data`, or with `errors[]`, each with a `type` and a `message`; an
-answer with `errors` is a refusal (section 7).
-
-- **`viewer`:** `query { viewer { login databaseId } }`, the identity
-  (8.4).
-- **`pull`:** `query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) { pullRequest(number: $number)
-  { id mergeCommit { oid } mergeQueueEntry { position } timelineItems(last:
-  1, itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT]) { nodes { ... on
-  RemovedFromMergeQueueEvent { reason } } } } } }`, a pull request's node
-  id, its landed commit, its queue position and why the queue last
-  ejected it.
-- **`enqueue`:** `mutation($id: ID!, $head: GitObjectID!) {
-  enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid:
-  $head}) { mergeQueueEntry { position } } }`.
-
-Batched reads are later (temper's `draft/github.md`, 18).
-
-### 4.4 CI
-
-- **A check run as a `Status`:** `completed_at`, else `started_at`, as
-  its time; `name` as its context; `output.title` as its description;
-  `html_url` as its link. Its `Check`: a `conclusion` of `success`,
-  `neutral` or `skipped` is passed; `failure`, `timed_out`,
-  `cancelled`, `action_required`, `startup_failure` or `stale` failed;
-  a run not `completed` (`queued`, `in_progress`, `waiting`,
-  `requested`, `pending`) pending.
-- **A status's state:** `success` passed, `failure` and `error` failed,
-  `pending` pending.
-- **`Ci` on a pull request** is both read apart: failed when any status
-  or check run failed, else pending when any is pending, else passed
-  when any is there, else `None`. The combined status's `pending` with
-  `total_count` 0 is no status (`combined-pending-with-no-status`), and
-  another App's suite with no run lists no check run.
-- **Which checks are CI** is the adoption's, the client's: the branch's
-  required checks when its rules name them, else the Actions workflows'
-  (temper's `draft/github.md`, 9). The dialect reads them all.
-- **An Actions job** has its own id, separate from the check-run id.
-  For a failed check, `html_url` with the repository's owner and name and
-  `/actions/runs/<run>/job/<job>` supplies candidate run and job ids;
-  an optional query is ignored. `app.slug` may be `github-actions` or
-  absent; an explicit other App and classic statuses have no job pin.
-  The link is only a candidate: skein requests the job through the
-  configured API, never the link's origin, and pins it only when `id`,
-  `run_id` and `head_sha` match that candidate and the requested head,
-  and `run_attempt` is positive. An unresolvable link leaves no pin;
-  conflicting job metadata fails the call. `Read::Job` revalidates the
-  full head/run/job/attempt before reading the log.
-
-### 4.5 Actions, trees, refs and labels
-
-The GitHub routes of README.md 3.2's Actions, tree, ref and label calls.
-
-| Call | Requests | Answer from |
-|---|---|---|
-| `Write::Dispatch { workflow, branch, inputs }` | `POST R/actions/workflows/<workflow>/dispatches` `{ref, inputs}` | `Done`; the owner finds the run by `Runs`, as on Forgejo (GitHub's `return_run_details` is not asked: one way to find a run on both forges) |
-| `Read::Runs { workflow, commit, page }` | `GET R/actions/workflows/<workflow>/runs?head_sha=<commit>&page=<page>&per_page=<size>` | each run as a `Run`, its event from `event`, its user from `triggering_actor.id` |
-| `Read::Run { run }` | `GET R/actions/runs/<run>`; `GET R/actions/runs/<run>/jobs` | as README.md's row, the failed step from each job's `steps` |
-| `Write::Rerun { attempt }` | `POST R/actions/jobs/<job>/rerun` | `Done`; `Refused` for a run not completed (`403` naming it) |
-| `Read::Artifact { run, name, max_bytes }` | `GET R/actions/runs/<run>/artifacts?name=<name>`; its `archive_download_url` | as README.md's row |
-| `Read::Tree { object, page }` | `GET R/git/trees/<object>` | entries from `tree`; GitHub answers a tree whole up to its own cut, `truncated` past it, which is `TooLarge` |
-| `Read::Commits { before, after, page }` | `GET R/compare/<before>...<after>?page=<page>&per_page=<size>` | its `commits`, oldest first |
-| `Write::UpdateRef { branch, to }` | `PATCH R/git/refs/heads/<branch>` `{sha: <to>, force: false}` | `Done`; `Stale` for a `422` "Update is not a fast forward"; `Protected` for a rule the credential may not bypass |
-| `Write::Labels`, `Write::CreateLabel`, `CreateIssue`'s labels | `PUT R/issues/<number>/labels` `{labels}`; `POST R/labels`; `POST R/issues` `{labels}` | as README.md's rows |
-
-- **A commit range keeps commits alone.** Its decoder requires
-  `total_commits` and `commits`, including each sha, parent sha and
-  commit message, and skips changed files and their contents. The page
-  preserves GitHub's oldest-first order. `more` follows the next link;
-  a terminal page short of the remaining total fails `InvalidAnswer`,
-  so a missing commit list cannot prove an empty range.
-- **A ref update is a push** to GitHub's rules: it passes a rule that
-  requires a pull request only for a credential on that rule's
-  ruleset's bypass list with `Always`. `Protection` carries both apart
-  (5.3): `pulls_required`, whether any rule on the branch requires a
-  pull request, and `pulls_bypass`, the App's bypass of the rulesets
-  that do (`Never`, `PullsOnly` or `Always`, the least of them), beside
-  the aggregate `bypass`.
-- **Stories against the fake GitHub** (../testing/fakes/github.md, sections 1 and
-  2): a workflow dispatched and its run found; a
-  status posted on a commit; a ref update fast-forwarded under `Always`;
-  one refused as not a fast-forward; one refused under a rule without
-  `Always`; a lost ref update's answer found made by its branch.
-- **To check before relying on them** (section 13): a dispatched run
-  found by `Runs` at its commit; a rerun's refusal; a ref update's refusal when not a
-  fast-forward and under a rule; whether a ref update bringing a change
-  under `.github/workflows/` is refused without `workflows`; the
-  per-repository "Auto-close issues with merged linked pull requests"
-  read by `Read::Settings`.
+Moved to [`github-operations.md`](github-operations.md), section 1.
 
 ## 5. Merging, updating, and the rules
 
-### 5.1 The merge
-
-1. `PUT R/pulls/<number>/merge` `{sha: <head>, merge_method: <the
-   row's method>}`. A `200` answers `Merged` from `sha`.
-2. A `405` whose message names the merge queue ("Changes must be made
-   through the merge queue", section 7): `GQ pull`, for the node id;
-   then `GQ enqueue` with `expectedHeadOid` the call's `head`. Its entry
-   answers `Queued`.
-3. Every other refusal is section 7's.
-
-- **A row with no merge method** makes `Merge` answer `Refused` before
-  anything is sent, and so does a `Merge` with `how` `Recorded`: GitHub
-  records no pull request merged by hand (`README.md`, 3.2).
-- **A lost enqueue is never resent.** When nothing is heard from `GQ
-  enqueue` the call is a `Timeout`, and the client reads the pull: an
-  observed `queued` entry is adopted as the call's `Queued`.
-
-- **REST first, always.** The plan keeps nothing between calls, so it
-  learns of a queue by GitHub's refusal, which costs one request on a
-  queued branch and holds when the rules change after adoption: a
-  branch that came to require the queue is entered, and one that
-  stopped is merged. The latest `Protection` saying `queue` is the
-  client's to show; the plan never takes it for GitHub's answer.
-- **A repeat merge on a merged pull** answers `200`, `merged: true`, with
-  the same merge sha, even when the supplied head sha differs. A REST pull
-  read omits `merge_commit_sha` at the pinned 2026-03-10 version, for open
-  and merged pulls alike; 2022-11-28 sends it. Every merged `Read::Pull`
-  therefore costs the additional `GQ pull` read for `mergeCommit.oid`.
-  The conformance compares that plan answer with both PUTs' sha.
-- **An open pull's moved head is `Stale`** on both routes: `409` "Head branch was
-  modified. Review and try the merge again." at the merge, and
-  `UNPROCESSABLE` "... expected head oid does not match the current head
-  oid" at the queue.
-- **`Queued` is final for the call.** The landing, or the ejection,
-  comes later: the log's `pull_request` `dequeued`, with its reason, and
-  `merge_group` `destroyed` (section 9) hint the item; the client reads
-  the pull, whose `merged` is the group's commit, from `mergeCommit`
-  (4.1). An ejected pull is open with no `queued`, and its `dequeued`
-  holds the queue's reason, as GitHub words it: a hint carries no
-  payload, so the reason is read with the pull.
-- **The method** is the row's: the first of merge, squash and rebase
-  that the repository allows (`allow_merge_commit`,
-  `allow_squash_merge`, `allow_rebase_merge`). A queue merges by its own
-  method.
-- **The merge's answer carries its commit** (`sha`): no read follows,
-  as Forgejo's must (forgejo.md, 1.2).
-
-### 5.2 The update
-
-`Update` reads the pull's head, then sends it as `expected_head_sha`, so
-a push between the two is refused (`422` "expected head sha didn’t
-match current head ref.", the apostrophe U+2019 as GitHub writes it).
-That refusal is ambiguous: the plan reads the pull once more, without
-repeating the update. A head different from the pinned head is `Stale`;
-an open pull still at that head is `Conflict`. A closed pull is `Closed`.
-The refusal and the unchanged head take precedence over the read's
-mergeability hint, including `mergeable: true`. A failed verification
-read keeps its read failure; it cannot establish a conflict. GitHub merges
-the base into the head later (`202`), and the
-move is heard as any push. A head the client saw would need `Update` to
-carry it (section 15).
-
-### 5.3 The protection
-
-`Protection` reads both sources GitHub applies, and takes neither's
-absence for the other's (`classic-protection-404-under-rulesets`):
-
-- **Rulesets:** `rules/branches/<branch>` lists the rules that apply,
-  each with its `ruleset_id`; each ruleset is read once for its
-  `current_user_can_bypass` (`always`, `pull_requests_only`, `never`),
-  the App's own, since the bypass list is not readable
-  (`rules-branches-current-user-can-bypass`). The rules kept:
-  `pull_request` (`required_approving_review_count`,
-  `dismiss_stale_reviews_on_push`, `require_code_owner_review`),
-  `required_status_checks` (each `context`), `merge_queue`,
-  `required_signatures`, `required_linear_history`. Others are skipped.
-- **Classic protection:** `branches/<branch>/protection`, a `404`
-  "Branch not protected" being none: `required_status_checks.contexts`,
-  `required_pull_request_reviews` (`required_approving_review_count`,
-  `dismiss_stale_reviews`, `require_code_owner_reviews`),
-  `required_signatures.enabled`, `required_linear_history.enabled`.
-- **One `Protection`,** none when neither source has a rule kept:
-  `branch` the call's; `contexts` the union, in order of first seen;
-  `approvals` the largest; `dismiss_stale`, `code_owners`, `signatures`,
-  `linear` and `queue` each true when any source says so; `bypass` the
-  least of every ruleset with a rule kept, classic protection counting
-  as `Never`.
-- **Its cost:** two requests and one per ruleset named, bounded by
-  `inner`; a branch under more rulesets than `inner` is `TooLarge`.
+Moved to [`github-operations.md`](github-operations.md), section 2.
 
 ## 6. Decoding answers
 
@@ -434,7 +171,7 @@ bound, revisions, markers and malformed answers; and GitHub's:
 - **Raw bodies cut as they stream.** A file's first `max_bytes` bytes
   and a log's last are kept within what is left of `answer_bytes`, and
   the rest read through within `body_bytes_in`
-  (connection.md, section 7); `truncated` says so.
+  (connection-machines.md, section 1); `truncated` says so.
 - **Absent headers.** An `Items` answer without `Date` is malformed. A
   listing without `Link` has no next. An answer without
   `x-ratelimit-*` carries no `Rate`, as the JSON Web Token's never do.
@@ -460,13 +197,13 @@ bound, revisions, markers and malformed answers; and GitHub's:
 | every other `404` or `410` that ends the call, including repository resolution by id, its own GET and listings (`Asked::Read`) | `Missing`, the row dropped (`Drop::Row`); `MissingJob` on `Job`'s |
 | `409` on `Merge`, "Head branch was modified. Review and try the merge again." | `Stale` |
 | `405` on `Merge`, "Pull Request is not mergeable" | `Conflict` |
-| `405` on `Merge`, "Repository rule violations found" and the merge queue's line | the queue (5.1) |
+| `405` on `Merge`, "Repository rule violations found" and the merge queue's line | the queue (`github-operations.md`, 2.1) |
 | `405` on `Merge`, "Repository rule violations found" and any other line | `Protected` |
 | `405` on `Merge`, "... merges are not allowed on this repository." | `Refused`, the row dropped |
 | GraphQL `UNPROCESSABLE`, "... expected head oid does not match the current head oid" | `Stale` |
 | GraphQL `UNPROCESSABLE`, "Pull request Required status check ..." on `enqueue` | `Protected` |
 | any other GraphQL error on `enqueue` | `Refused` |
-| `422` on `Update`, "expected head sha didn’t match current head ref." | one pull read: moved head `Stale`, unchanged open head `Conflict`, closed `Closed` (5.2) |
+| `422` on `Update`, "expected head sha didn’t match current head ref." | one pull read: moved head `Stale`, unchanged open head `Conflict`, closed `Closed` (`github-operations.md`, 2.2) |
 | `422` on `Update`, "merge conflict between base and head" | `Conflict` |
 | `422` on `OpenPull`, "No commits between ..." | `NothingToMerge` |
 | `422` on `OpenPull`, "A pull request already exists for ..." | `Exists` |
@@ -498,7 +235,7 @@ bound, revisions, markers and malformed answers; and GitHub's:
 - **Repeating a successful merge with the same sha** answers 200 with the
   same merge sha and merged true. A different sha on that merged pull is
   inferred to be 409; the fake keeps the stale-head check before mergeability.
-- **A `304`** is not a failure: it answers a conditional read (8.5).
+- **A `304`** is not a failure: it answers a conditional read (`github-app.md`, 1.5).
 
 A repository gone or outside the installation loses its row at its next
 repository-level call. An absent leaf alone does not invalidate the
@@ -506,93 +243,7 @@ repository that answered it.
 
 ## 8. The App's documents
 
-### 8.1 The JSON Web Token
-
-- **`github::jwt::signing_input(app, issued, expires) ->
-  Option<Box<[u8]>>`**: the base64url, unpadded, of the header
-  `{"alg":"RS256","typ":"JWT"}`, a `.`, and the base64url of the claims
-  `{"iat":<issued>,"exp":<expires>,"iss":"<app>"}`, the times in whole
-  seconds since the epoch, rounded down, and the App's id in decimal.
-  None when `expires` is not after `issued` or is more than 600 seconds
-  after it, which GitHub refuses.
-- **`github::jwt::token(input, signature: &[u8; 256]) -> Secret`**: the
-  input, a `.`, and the signature's base64url.
-- **`github::jwt::JWT_BYTES`,** 512, bounds a token's length: the
-  header's 36 bytes, the claims' at most 96 (two times of 11 digits, an
-  id of 20), the signature's 342 and the two dots, with room. The
-  component bounds a request's head by it (connection.md,
-  section 7).
-- **The component signs** (`skein_tls::sign_rs256`, the App's 2048-bit
-  key), and chooses the times: `issued` a minute before its clock, and
-  `expires` ten minutes after `issued` (connection.md, section 5).
-
-### 8.2 The mint
-
-- **`POST /app/installations/<id>/access_tokens`,** on the JSON Web
-  Token, `201`, either `Full`, with no body, or `Contents`, with
-  `{"permissions":{"contents":"write"}}`, the git token of a forge's
-  `Event::GitToken`.
-- **Its decoder** keeps `token`, as a `Secret` within `string_bytes`,
-  `expires_at`, and the `contents` and `pull_requests` levels of
-  `permissions` (`read`, `write`, absent or another word as none). The
-  full mint's levels are the installation's: the connection keeps them
-  beside the token, each mint replacing them, and answers the bot's
-  `Read::Permission` from them (4.1). GitHub answers a bot's
-  collaborator permission `{"permission":"none","role_name":""}`
-  (`bot-permission-is-not-a-role`): an App's access is its
-  installation's, never a role. A repository outside a selected
-  installation is refused at its read (`404`), before any permission.
-- **A token minted for Contents creates issues but cannot edit them:** the
-  observed mint permissions are `contents: write`, `metadata: read`, with
-  `repository_selection: selected`. Issue creation answers `201`, with
-  `x-accepted-github-permissions: issues=write`; a title PATCH with that
-  token answers `403` "Resource not accessible by integration", with
-  `x-accepted-github-permissions: issues=write; pull_requests=write`
-  (`token-narrowed-creates-not-edits`). The dialect mints the same tokens;
-  its mint decoder reads token, expiry and the contents and pull_requests
-  levels (8.2).
-- **So the git token is not a boundary:** for its hour it can open
-  issues as the bot, though it is refused an edit (observed 2026-10-20).
-  The narrowing stays; a second App would close the gap, and that is the
-  user's call (connection.md, section 5.3).
-
-### 8.3 Installations
-
-- **`GET /app/installations?per_page=100&page=<n>`,** on the JSON Web
-  Token, every page: each row's `id`, `account.login`, `account.id`,
-  `account.type` (`User` or `Organization`), `created_at`, and
-  `suspended_at` not null as suspended.
-- **An installation's repositories:** `GET
-  /installation/repositories?per_page=100&page=<n>`, on that
-  installation's token, every page: each `id`, `owner.id`,
-  `owner.login`, `name` and `private` (`github::Reachable`), which
-  temper's picker shows.
-- **The App's uninstall** is `DELETE /app/installations/<id>`, on the
-  JSON Web Token, `204` (section 11).
-
-### 8.4 The identity read
-
-`GQ viewer` on an installation's token: `databaseId` the bot user's id,
-and `login`. REST's `GET /user` is a `403` on that token
-(`user-on-installation-403`). Counted in no call's cost, as Forgejo's.
-
-### 8.5 The rate and validators
-
-- **`api::Rate { limit, remaining, reset_at }`,** from
-  `x-ratelimit-limit`, `-remaining` and `-reset` (seconds since the
-  epoch), on every answer that has all three; the client's budget takes
-  it in place of its own (client.md, section 6). GitHub's core
-  allows an installation 5000 an hour (`rate-core-5000`); the App's own
-  calls carry none (`jwt-calls-no-rate`).
-- **`api::Validator`,** an answer's `ETag`, at most 128 bytes of
-  printable ASCII, else none kept. A request sent with it
-  (`If-None-Match`) is answered `304`, with no body, as
-  `Answered.free`: GitHub does not count it (`etag-304-free`). The
-  fact uses an installation token's two reads of an unchanging repository,
-  with the first ETag on the second and the same remaining rate. A changing
-  delivery log may answer a new body instead. Every read sends the
-  validators the component kept for it (connection.md, 4.6), the
-  delivery log's first page among them (9.3).
+Moved to [`github-app.md`](github-app.md), section 1.
 
 ## 9. Deliveries
 
@@ -606,8 +257,8 @@ As README.md section 6, in GitHub's words:
   `X-GitHub-Delivery`. The verdicts are README.md 6's.
 - **Not yet reached:** GitHub delivers from the internet, and temper's
   App points its hook at an address that does not resolve (temper's
-  `draft/github.md`, 5). Every delivery fails and is listed in the log, which the
-  component reads (9.3). A public address is later (temper's `draft/github.md`, 18);
+  `draft/github-app.md`, 1). Every delivery fails and is listed in the log, which the
+  component reads (9.3). A public address is later (temper's `draft/archive/github.md`, 18);
   the fake's layer pushes to a listener when a test asks (../testing/fakes/github.md,
   section 1).
 
@@ -618,7 +269,7 @@ As README.md section 6, in GitHub's words:
 `request.payload` give the same. The guid is a UUID's text, read into
 `[u8; 16]`; another text is malformed. The App receives `installation`,
 `installation_repositories` and `installation_target` without
-subscribing; the others are `EVENTS`' (section 11), and no more.
+subscribing; the others are `EVENTS`' (`github-app.md`, section 2), and no more.
 
 | `X-GitHub-Event` | `github::Delivery` | `Hint` |
 |---|---|---|
@@ -641,7 +292,7 @@ subscribing; the others are `EVENTS`' (section 11), and no more.
 - **`Installation { installation, account, change }`**: the
   installation's id, its account's login and id, and the change:
   `Created`, `Deleted`, `Suspended`, `Unsuspended`, `Repositories`
-  (with no names: the owner reads them again, 8.3) or `Renamed {
+  (with no names: the owner reads them again, `github-app.md`, 1.3) or `Renamed {
   login }`. The component makes them `Event::Installation`
   (connection.md, section 5).
 - **Bounded.** A push's `commits`, a pull's diff fields and every
@@ -676,7 +327,7 @@ subscribing; the others are `EVENTS`' (section 11), and no more.
   re-encoded, so no HMAC is checked; the read is the App's own, over
   TLS, on its token.
 - **The puller** (which guid is newest, `log_poll`, `log_catch_up`) is
-  the component's (connection.md, section 6).
+  the component's (connection-webhooks.md, section 1).
 
 ## 10. A job's log
 
@@ -692,7 +343,7 @@ subscribing; the others are `EVENTS`' (section 11), and no more.
   `InvalidAnswer`. A plaintext origin is never among temper's defaults.
 - **The component follows it** to an origin among its `log_origins`,
   sending nothing of the forge's, and an origin it does not know is
-  `Refused` and a diagnostic (connection.md, section 4).
+  `Refused` and a diagnostic (connection-calls.md, section 1).
 - **The log is read whole** as it streams, within the component's input
   bound. GitHub serves the job's log. With a failed step in the validated
   metadata, `Retention::FailedStep` keeps at most `max_bytes` ending at
@@ -712,55 +363,7 @@ subscribing; the others are `EVENTS`' (section 11), and no more.
 
 ## 11. The setup's documents
 
-Pure functions and decoders; setup/README.md's plans run them.
-
-- **`github::setup::manifest(values)`,** the manifest's JSON: `name`,
-  `url`, `public` true, `redirect_url`, `setup_url`, `setup_on_update`
-  true, `hook_attributes { url, active: true }`, `default_permissions`
-  and `default_events`. The values are the name, the url, the hook's
-  url and the two return addresses; the permissions and events are the
-  module's constants, `PERMISSIONS` and `EVENTS` (contents, pull
-  requests, issues and merge queues write; checks, statuses, actions, administration and metadata read; the fourteen
-  events).
-- **The form's target:** `<web>/settings/apps/new?state=<s>` for a
-  person or `<web>/organizations/<org>/settings/apps/new?state=<s>` for
-  an organization, `<web>` being `https://github.com` or the fake's
-  origin. The page whose form posts the manifest there, in its
-  `manifest` field, is the owner's (setup/github.md, 1.1): the dialect
-  makes no HTML.
-- **The install page:** `<web>/apps/<slug>/installations/new?state=<s>`.
-- **The conversion:** `POST /app-manifests/<code>/conversions`, with no
-  credential, `201`: `id`, `slug`, `owner.login`, `owner.id`, `pem` and
-  `webhook_secret` as `Secret`s; the OAuth client's id and secret are
-  skipped.
-- **The bot user:** `GET /users/<slug>%5Bbot%5D`, no credential: `id`.
-- **The App's own reads,** on the JSON Web Token:
-  - `GET /app` for `id`, `slug`, `owner`, `permissions` and `events`:
-    reading `id` and `slug` back proves a conversion's key, and checks a
-    pasted App, which the plan takes for another App when they differ
-    (setup/github.md, section 1). `owner` is the App's account, with `id`,
-    `login` and `type`, `User` or `Organization`. GitHub's documentation
-    lists them as required; the dialect accepts an answer without an
-    account. An `owner` that is absent or `null`, lacks one of the three
-    or has a `null` for it, has an id of 0, an empty `login` or another
-    `type` is no account, and the document still decodes. A non-null field
-    of the wrong JSON kind is `InvalidAnswer`, as anywhere. Permissions retain every name and its
-    `read`, `write` or `admin` access; another access is `InvalidAnswer`.
-    Permission and event names fit `string_bytes`, each list fits `inner`,
-    and a name or list past its bound is `TooLarge`. Missing permissions
-    or events read as empty lists; id and slug remain required. Unknown
-    fields are skipped. `setup::lacks(&App)` names the wanted permissions
-    and events absent from these lists, in manifest order; admin covers
-    write and read, and write covers read;
-  - `GET /app/hook/config` for `url`;
-  - `GET /app/installations/<id>`, one installation's row as 8.3's,
-    which the plan's accept reads; strays are found from 8.3's
-    listing, by `created_at`.
-- **The App's writes,** on the JSON Web Token: `PATCH /app/hook/config`
-  `{url}` (`200`); `DELETE /app/installations/<id>` (`204`). The
-  conformance sends neither live (../testing/fakes/github.md, section 2).
-- **The key** is the conversion's PEM; the setup's host converts it to
-  the DER that `Credential::App` holds (README.md, section 7).
+Moved to [`github-app.md`](github-app.md), section 2.
 
 ## 12. The pin
 
@@ -924,9 +527,9 @@ component's worlds run it (../testing/fakes/github.md, sections 1 and 2).
 
 ## 15. Open questions
 
-- **Stricter App account decoding** (section 11). Default: a missing or
+- **Stricter App account decoding** (`github-app.md`, section 2). Default: a missing or
   incomplete account leaves the answer usable without one. Live evidence
-  for `app-owner-id-login-type` (section 13) precedes any stricter rule;
+  for `app-owner-id-login-type` (`github.md`, section 13) precedes any stricter rule;
   the dialect assigns no authority from the account it answers.
 - **Conditional reads beyond the log.** GitHub answers `304`, free, on a
   stable repository (`etag-304-free`); broader use would keep validators
@@ -947,7 +550,7 @@ component's worlds run it (../testing/fakes/github.md, sections 1 and 2).
   the vocabulary widens `Repository`.
 - **The blob host's address:** connection.md, section 11's runtime-DNS question.
 - **A classic rule's merge queue** is not read by `Protection`: the
-  merge's refusal finds it (5.1). Default: so.
+  merge's refusal finds it (`github-operations.md`, 2.1). Default: so.
 
 ## 16. The live conformance's organization selection
 

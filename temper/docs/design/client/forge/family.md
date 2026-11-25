@@ -33,7 +33,7 @@ its number or its path.
   above, its last segment as it is; an open end is its prefix followed
   by `…` ("branch temper/7/… of acme/shop on forge.example").
 - **A kind,** by the forge's numbering (`temper-engine-domain-forge`'s
-  `effect_shape`; `../../domain/forge/README.md`, section 4):
+  `effect_shape`; `../../domain/forge/effects.md`, section 1):
 
   | Kind | Words | Kind | Words |
   |---|---|---|---|
@@ -159,7 +159,7 @@ request state and refusals remain above the foot.
 4 and 5): the chats page's "Adopt a repository" opens this form into
 its project, always a project's: no form makes a project. While a
 set up's first repository is made and adopted nowhere
-(`../../protocol/setup/owned.md`, 7), as the `forges` watch's rows say it (a
+(`../../protocol/setup/owned-repositories.md`, 1), as the `forges` watch's rows say it (a
 real forge's row whose `first` is made, and no row's `repositories`
 naming its organization and name, `records.md`), the form opens filled for it,
 so that adopting it is one choice away: its forge's number, its
@@ -232,11 +232,11 @@ the person to check existence and grant the repository to the App.
   a field or leaves the page. Adopted, the fields go back to their
   defaults (written by the domain, so the view writes them).
 - **Out of date:** when the engine does not serve this client's version
-  of the forge's records (jig's `protocol/client/README.md`, section 6), the
+  of the forge's records (jig's `protocol/client/versions.md`, section 1), the
   page says so in its shell's words: the terminal's "This temper is out
   of date for adopting repositories: run the temper the engine runs.",
   the browser's "This page is out of date for adopting repositories:
-  reload it." (`../web/README.md`, 2.2). The button is disabled, the
+  reload it." (`../web/serving.md`, 1). The button is disabled, the
   picker sends nothing, and a pending adoption stays in the small store.
 
 ## 5. Its address and state
@@ -258,7 +258,7 @@ the person to check existence and grant the repository to the App.
 
 | Outcome | The form says |
 |---|---|
-| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It lands into BRANCH.", BRANCH the landing branch its record keeps (`../../domain/forge/adoption.md`, 8), where the outcome names one; "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `repositories.md`, 1 words it, on Forgejo its branch protection alone |
+| adopted | "Adopted OWNER/NAME on forge F as ROLE." then "It lands into BRANCH.", BRANCH the landing branch its record keeps (`../../domain/forge/adoption.md`, 12), where the outcome names one; "It is the project's home." if so; "temper may: KINDS." in the forge's words; "temper's forge user can only read OWNER/NAME on forge F: work there fails until it has write." if it may not push and the role isn't context; on GitHub, "Commit statuses stay temper's own: GitHub's rules cannot require them."; "temper's forge user may not read the branch protection: the forge shows it to repository administrators only." if unknown; "It merges by STYLE."; then each rule as `repositories.md`, 1 words it, on Forgejo its branch protection alone |
 | refused by the core | jig's words for its refusal |
 | no such forge | "No forge F is configured." |
 | not connected | "Forge F is not connected.", linked to the forges' page (`../pages/README.md`) |
@@ -329,14 +329,14 @@ client removes no account and closes no chat of its own.
   as leaving the same way, until the read answers none.
 - **The scripted model, the playground's alone.** Only the playground's
   project allows it, and no other project does (`../../protocol/setup/playground.md`
-  ; jig's `domain/accounts.md`, 4.2). The client names its LLM
+  ; jig's `domain/accounts-uses.md`, 1.2). The client names its LLM
   provider from the read and leaves its account out of the accounts'
   lists and counts and its provider out of the ways to connect a model
-  (`../pages/README.md`, `../pages/accounts.md`, 2). A model is usable for the welcome, Ready and the
+  (`../pages/README.md`, `../pages/accounts-words.md`, 1). A model is usable for the welcome, Ready and the
   composer's line by an account of another provider: the person's own,
   from the `accounts` document, or, for a person whose deployment role
   is owner, the deployment's, from the `deployment` document (jig's
-  `client/domain/contract/README.md`, 5.1), an account held by the deployment,
+  `client/domain/contract/watches.md`, 1.1), an account held by the deployment,
   uncut, with a usable source; that document counts only by such an
   account, and while it is not delivered, or is cut, it adds none. An
   account of the person's own added while the playground runs, or
@@ -410,7 +410,7 @@ client removes no account and closes no chat of its own.
   is listed, and adopting one the project holds is refused by the
   engine as any adoption; the request naming the project, the engine
   leaving those out, is the candidate (`README.md`, section 8).
-- A connect's end told: `deployment.md`, section 1.
+- A connect's end told: `deployment.md`, section 4.
 - **The pull request's link on the card** ("OWNER/NAME#N on
   Playground forge"): the forge's part, which the forge's
   side does not read yet (2). Default: the link to the task's page.

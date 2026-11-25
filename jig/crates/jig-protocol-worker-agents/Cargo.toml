@@ -10,19 +10,23 @@ publish.workspace = true
 [dependencies]
 jig-domain-host.workspace = true
 jig-domain-link.workspace = true
+skein-codec.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
-skein-codec.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
 smith-transcript.workspace = true
 smith-domain-run.workspace = true
+smith-domain-session.workspace = true
+smith-protocol-translate.workspace = true
 smith-host-domain.workspace = true
 smith-host-protocol.workspace = true
 smith-protocol-channel.workspace = true
 smith-protocol-program.workspace = true
 
 [dev-dependencies]
+smith-agent-profile.workspace = true
+smith-agent-profile-fixtures.workspace = true
 jig-protocol-charter.workspace = true
 smith-host-protocol-fixtures.workspace = true
 

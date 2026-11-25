@@ -25,7 +25,12 @@ fn a_fresh_timer_emits_nothing() {
 fn an_absent_application_part_is_unknown() {
     let (mut domain, _) = fresh();
     assert_eq!(
-        application_part(&mut domain, &env(), Token::new(1), Ask::Stop { project: 1, task: 1 }),
+        application_part(
+            &mut domain,
+            &env(),
+            Token::new(1),
+            Ask::Stop { project: 1, task: 1, reason: Box::from(b"Paused".as_slice()) }
+        ),
         Err(Outcome::Refused(Refusal::Unknown))
     );
 }
@@ -89,7 +94,12 @@ fn the_start_preserves_direct_noop_and_refusal_behavior() {
     domain.end_seeding();
     domain.cancel_moves(None);
     assert_eq!(
-        application_part(&mut domain, &env, Token::new(1), Ask::Stop { project: 1, task: 1 }),
+        application_part(
+            &mut domain,
+            &env,
+            Token::new(1),
+            Ask::Stop { project: 1, task: 1, reason: Box::from(b"Paused".as_slice()) }
+        ),
         Err(Outcome::Refused(Refusal::Unknown))
     );
     application_part_done(&mut domain, Token::new(1));
@@ -126,7 +136,7 @@ fn explicit_start_keeps_fixed_expiry_through_forward_and_backward_clock_changes(
             Stored::SignIn { number: 1, person: 1, expires: Wall::from_nanos(Duration::from_secs(121).as_nanos()) },
             Stored::Answer {
                 key: RequestKey { person: 1, key: [1; 16] },
-                ask: Box::new(Ask::Stop { project: 0, task: 0 }),
+                ask: Box::new(Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) }),
                 models: Box::new([]),
                 outcome: Outcome::Stopped { task: 0 },
                 at: Wall::from_nanos(Duration::from_secs(1).as_nanos()),
@@ -401,7 +411,7 @@ fn explicit_empty_start_blocks_admission_and_roles_until_completion() {
                 reply_to: skein_lib::ReplyTo::new(Token::new(1)),
                 sign_in: 1,
                 key: [1; 16],
-                ask: Ask::Stop { project: 1, task: 1 },
+                ask: Ask::Stop { project: 1, task: 1, reason: Box::from(b"Paused".as_slice()) },
                 models: Box::new([]),
             },
             &mut out,
@@ -498,7 +508,11 @@ fn explicit_start_all_families_use_equality_and_keep_identity_after_signin_expir
     load(&mut domain, &env, person(1), &mut out);
     let rows = [
         Stored::SignIn { number: 1, person: 1, expires: env.wall },
-        answer(1, Ask::Stop { project: 0, task: 0 }, Outcome::Stopped { task: 0 }),
+        answer(
+            1,
+            Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
+            Outcome::Stopped { task: 0 },
+        ),
         Stored::Acted {
             key: ActKey { connector: 1, key: [1; 16] },
             act: Act::RemoveAccount { account: 1 },
@@ -532,7 +546,11 @@ fn explicit_start_live_answer_and_act_expire_only_through_timers_after_open() {
         let rows = [
             person(1),
             Stored::SignIn { number: 1, person: 1, expires: Wall::from_nanos(1) },
-            answer(1, Ask::Stop { project: 0, task: 0 }, Outcome::Stopped { task: 0 }),
+            answer(
+                1,
+                Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
+                Outcome::Stopped { task: 0 },
+            ),
             Stored::Acted {
                 key: ActKey { connector: 1, key: [1; 16] },
                 act: Act::RemoveAccount { account: 1 },
@@ -579,7 +597,7 @@ fn explicit_start_refuses_each_required_local_link_before_sweep() {
         (
             Stored::Answer {
                 key: RequestKey { person: 99, key: [1; 16] },
-                ask: Box::new(Ask::Stop { project: 1, task: 1 }),
+                ask: Box::new(Ask::Stop { project: 1, task: 1, reason: Box::from(b"Paused".as_slice()) }),
                 models: Box::new([]),
                 outcome: Outcome::Stopped { task: 1 },
                 at: Wall::EPOCH,
@@ -644,7 +662,11 @@ fn explicit_start_nested_representation_bounds_are_exact() {
             let env = env();
             let (mut domain, mut out) = new_start(&env);
             load(&mut domain, &env, person(1), &mut out);
-            let mut row = answer(1, Ask::Stop { project: 0, task: 0 }, Outcome::Stopped { task: 0 });
+            let mut row = answer(
+                1,
+                Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
+                Outcome::Stopped { task: 0 },
+            );
             match field {
                 0 => {
                     let Stored::Answer { models, .. } = &mut row else { unreachable!() };
@@ -674,7 +696,7 @@ fn explicit_start_nested_representation_bounds_are_exact() {
                 4 => {
                     row = answer(
                         1,
-                        Ask::Stop { project: 0, task: 0 },
+                        Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
                         Outcome::AccountSignInStarted {
                             source: 0,
                             address: skein_lib::bytes::zeroed(usize::try_from(ADDRESS + extra).unwrap()),
@@ -795,9 +817,11 @@ fn selected_capacity_details_include_the_incoming_row() {
                 }
                 RestoreBound::ReadResults => Stored::ReadResults { party: number, through: 0 },
                 RestoreBound::ReadConversations => Stored::ReadConversation { party: 1, task: number, through: 0 },
-                RestoreBound::Requests if number == 1 => {
-                    answer(1, Ask::Stop { project: 0, task: 0 }, Outcome::SignedOut)
-                }
+                RestoreBound::Requests if number == 1 => answer(
+                    1,
+                    Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
+                    Outcome::SignedOut,
+                ),
                 RestoreBound::Requests => Stored::Acted {
                     key: ActKey { connector: 2, key: [2; 16] },
                     act: Act::RemoveAccount { account: 0 },
@@ -912,7 +936,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                         operations: {
                             let mut ops = skein_lib::List::with_capacity(LIMITS.operations + extra);
                             for _ in 0..LIMITS.operations + extra {
-                                ops.push(Operation::Stop { task: 1 }).unwrap();
+                                ops.push(Operation::Stop { task: 1, reason: Box::from(b"Paused".as_slice()) }).unwrap();
                             }
                             ops
                         },
@@ -976,7 +1000,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                     )
                 }
                 6 => (
-                    Ask::Stop { project: 0, task: 0 },
+                    Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
                     Outcome::AccountRemoved {
                         confirmed: false,
                         failed_hosts: copies(
@@ -989,7 +1013,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                     LIMITS.program_hosts,
                 ),
                 7 => (
-                    Ask::Stop { project: 0, task: 0 },
+                    Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
                     Outcome::AccountSignedOut {
                         confirmed: false,
                         failed_hosts: Box::new([AccountHostFailure {
@@ -1004,7 +1028,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                     LIMITS.program_host_name_bytes,
                 ),
                 8 => (
-                    Ask::Stop { project: 0, task: 0 },
+                    Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
                     Outcome::CompoundRefused {
                         at: 0,
                         why: Refusal::Circle { tasks: copies(7_u64, NAMED_TASKS + extra), cut: false },
@@ -1014,7 +1038,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                     NAMED_TASKS,
                 ),
                 9 => (
-                    Ask::Stop { project: 0, task: 0 },
+                    Ask::Stop { project: 0, task: 0, reason: Box::from(b"Paused".as_slice()) },
                     Outcome::Refused(Refusal::Kept { pending: copies(7_u64, 64 + extra) }),
                     RestoreBound::KeptPending,
                     64 + extra,
@@ -1271,7 +1295,11 @@ fn retained_answer_view_borrows_outcomes_in_key_order() {
         load(
             &mut domain,
             &env,
-            answer(person, Ask::Stop { project: 1, task: 7 }, Outcome::Stopped { task: 7 }),
+            answer(
+                person,
+                Ask::Stop { project: 1, task: 7, reason: Box::from(b"Paused".as_slice()) },
+                Outcome::Stopped { task: 7 },
+            ),
             &mut out,
         );
     }

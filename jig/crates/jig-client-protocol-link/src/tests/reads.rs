@@ -28,7 +28,7 @@ fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
     );
     skein_codec::piece::write(&mut pieces, &encoded.finish()).unwrap();
     let page = w::ActivityPage { rows: pieces.finish(), cut: false, before: None, after: None };
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     let exchange = h.read(Readable::Jig(c::Read::Activity { task: 7, before: None }));
     h.answer(exchange, &fixtures::jig_read_value_answer(&w::ReadValue::Activity(page)));
     let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page)))) = h.read_answered() else {
@@ -61,7 +61,7 @@ fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
 
 #[test]
 fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
-    let actual = translate::reads::read(&fixtures::history_read(), fixtures::limits().wire()).unwrap();
+    let actual = translate::reads::read(&fixtures::history_read());
     let w::Read::History(record) = actual else { panic!("history record") };
     assert_eq!(record.task, 7);
     assert!(record.subtree);
@@ -71,7 +71,7 @@ fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
 fn a_read_cursor_past_its_wire_bound_is_refused() {
     let mut limits = *fixtures::limits().wire();
     limits.cursor_value = 47;
-    let problem = translate::reads::read(&fixtures::history_read(), &limits).unwrap().encode(&limits).unwrap_err();
+    let problem = translate::reads::read(&fixtures::history_read()).encode(&limits).unwrap_err();
     assert_eq!(problem.path, w::paths::CURSOR_VALUE);
     assert_eq!(problem.reason, skein_codec::Reason::Bound);
 }
@@ -86,7 +86,7 @@ fn a_notes_read_keeps_its_scope_and_filter_with_its_cursor() {
             *scope = c::NoteScope::Party { party };
             expected = w::NoteScope::Party(w::NoteScopeParty { party });
         }
-        let actual = translate::reads::read(&read, fixtures::limits().wire()).unwrap();
+        let actual = translate::reads::read(&read);
         let w::Read::Notes(record) = actual else { panic!("notes record") };
         assert_eq!((&record.scope), &expected);
         assert_eq!(record.description.as_deref(), Some(b"filter".as_slice()));
@@ -171,7 +171,7 @@ fn a_read_lost_twice_stays_unreachable() {
     h.read_unreachable();
     h.answer(exchange, &fixtures::read_none_answer(w::ReadNone::Unknown));
     assert_eq!(h.read_terminals(), 1);
-    assert_eq!(h.link.next_deadline(), None);
+    assert_eq!(h.link.next_deadline(), Some(fixtures::past_two_heartbeats()));
 }
 #[test]
 fn a_read_lost_twice_is_answered_once() {
@@ -183,7 +183,7 @@ fn a_read_lost_twice_is_answered_once() {
     h.read_unreachable();
     h.answer(exchange, &fixtures::read_none_answer(w::ReadNone::Busy));
     assert_eq!(h.read_terminals(), 1);
-    assert_eq!(h.link.next_deadline(), None);
+    assert_eq!(h.link.next_deadline(), Some(fixtures::past_two_heartbeats()));
 }
 #[test]
 fn a_read_none_answer_keeps_each_wire_reason_once() {
@@ -239,7 +239,7 @@ fn a_malformed_read_body_is_malformed() {
 #[test]
 fn reads_and_attempts_share_transport_credit_not_logical_admission() {
     let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
-    let mut h = fixtures::Harness::new(&limits);
+    let mut h = fixtures::Harness::with_hello(&limits);
     h.send(fixtures::ATTEMPT, fixtures::KEY, fixtures::message());
     h.link.step(
         Time::ZERO,
@@ -262,7 +262,7 @@ fn a_read_is_answered_once_with_its_value() {
     h.answer(exchange, &fixtures::read_none_answer(w::ReadNone::Unknown));
     assert_eq!(h.read_answered(), Some(&fixtures::expected_frame_read()));
     assert_eq!(h.read_terminals(), 1);
-    assert_eq!(h.link.next_deadline(), None);
+    assert_eq!(h.link.next_deadline(), Some(fixtures::past_two_heartbeats()));
 }
 #[test]
 fn a_value_past_the_client_s_limits_is_malformed_and_reported() {
@@ -347,7 +347,7 @@ fn me_s_projects_past_the_document_bytes_are_refused_as_too_large() {
 
 #[test]
 fn a_turn_read_keeps_all_three_numbers() {
-    let value = translate::reads::read(&fixtures::turn_read(), fixtures::limits().wire()).unwrap();
+    let value = translate::reads::read(&fixtures::turn_read());
     let w::Read::Turn(value) = value else { panic!("turn read") };
     assert_eq!((value.task, value.attempt, value.turn), (7, 44, 3));
 }
@@ -362,7 +362,7 @@ fn a_turn_read_keeps_its_archive_metadata() {
         Some(&Readout::Jig(c::ReadResult::Value(c::ReadValue::Turn(Box::new(fixtures::expected_single_turn())))))
     );
     assert_eq!(harness.read_terminals(), 1);
-    assert_eq!(harness.link.next_deadline(), None);
+    assert_eq!(harness.link.next_deadline(), Some(fixtures::past_two_heartbeats()));
 }
 #[test]
 fn a_turn_at_the_document_bound_decodes() {
@@ -386,7 +386,7 @@ fn a_turn_past_the_document_bound_keeps_its_size() {
         Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::TooLarge { bytes: fixtures::TURN_PAYLOAD_BYTES })))
     );
     assert_eq!(harness.read_terminals(), 1);
-    assert_eq!(harness.link.next_deadline(), None);
+    assert_eq!(harness.link.next_deadline(), Some(fixtures::past_two_heartbeats()));
 }
 #[test]
 fn an_undecodable_single_turn_is_malformed() {
@@ -451,9 +451,7 @@ fn a_too_linked_read_keeps_its_bound_after_decoding() {
 fn source_text_reads_keep_offsets_and_reject_false_continuations() {
     let limits = fixtures::limits();
     let field = c::TaskTextField::Result;
-    let w::Read::TaskText(read) =
-        translate::reads::read(&c::Read::TaskText { task: 7, field, from: 127 }, limits.wire()).unwrap()
-    else {
+    let w::Read::TaskText(read) = translate::reads::read(&c::Read::TaskText { task: 7, field, from: 127 }) else {
         panic!("source read")
     };
     assert_eq!(read.from, 127);
@@ -489,9 +487,8 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
 
 #[test]
 fn a_tasks_read_is_sent_with_its_project() {
-    let limits = fixtures::limits();
     let read = c::Read::Notes { scope: c::NoteScope::Tasks { project: 7 }, description: None, after: None };
-    let w::Read::Notes(value) = translate::reads::read(&read, limits.wire()).unwrap() else { panic!("notes read") };
+    let w::Read::Notes(value) = translate::reads::read(&read) else { panic!("notes read") };
     let w::NoteScope::Tasks(scope) = &value.scope else { panic!("tasks scope") };
     assert_eq!(scope.project, 7);
     assert_eq!((&value.description), &None);

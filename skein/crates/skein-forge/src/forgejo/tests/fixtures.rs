@@ -120,7 +120,7 @@ pub const REPO: crate::api::Repository = crate::api::Repository { forge: 1, repo
 
 pub const START_USER: u64 = 7;
 pub const TOKEN: &[u8] = b"secret";
-/// A canned server's positive page cap (forge/README.md, section 4.1).
+/// A canned server's positive page cap (forge/dialects.md, section 1.1).
 pub const PAGE_CAP: u32 = 50;
 
 pub fn credential() -> crate::credential::Credential {

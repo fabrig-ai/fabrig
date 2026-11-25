@@ -7,7 +7,7 @@ mockups as their look (section 13). It is drawn green field, on the
 user's word: "take it as greenfield, doesn't matter what we have now,
 let's design optimizing for the vision". It revises the greenfield
 mock's rail (`../client/web/greenfield/README.md`), the client's rail, tab
-bar and Settings (`../client/view.md`, 3 and `../client/pages/README.md`, *Settings*), and
+bar and Settings (`../client/view-navigation.md`, 1 and `../client/pages/README.md`, *Settings*), and
 the terminal's direction and what it leaves after its first pass
 (`tui.md`, sections 3, 6 and 7): the launchpad as drawn here, the side
 pane, needs from elsewhere and talking with a role become v0.1.0's
@@ -54,8 +54,8 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   12); "Ask temper"; a hairline; "How work runs"; then "+ New draft or
   change". At its foot: the Away switch, while it shows; on All
   projects it sets every project the person is in, and reads "Away on 2
-  of 4" while they differ; "Deployment"; the person's menu; the night switch, as today (`../client/view.md`,
-  3).
+  of 4" while they differ; "Deployment"; the person's menu; the night switch, as today (`../client/view-navigation.md`,
+  1).
 - **All projects** is the switcher's first row, once the person has a
   second project. On Home and Needs you it is where a sign-in lands. Work,
   Team and How work runs are a project's: chosen under All projects, they
@@ -241,11 +241,11 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   changes", the settings' revisions.
 - **The path of a change,** the one drawing Ask temper's ways use
   (`../client/pages/chat/conversation.md`, 3): a column a step, the stops of the
-  project's derived path (`stock-ways.md`, section 4), a person's and an
+  project's derived path (`archive/stock-ways.md`, section 4), a person's and an
   agent's above the authority line and code's below it, each by its mark,
-  each opening its card (`stock-ways.md`, section 5); the line "no merge
+  each opening its card (`archive/stock-ways.md`, section 5); the line "no merge
   tool above", as fabrig.ai draws it. The ways stay its tabs, over the
-  drawing, with "Use this" and "Keep it" as `stock-ways.md`, section 5,
+  drawing, with "Use this" and "Keep it" as `archive/stock-ways.md`, section 5,
   has them, and "Yours", current, for a project that runs no stock way, as
   a project with rules by path does. What each stop does in full is its
   card's. A stop of a rule by path says so in its words, as "you, if
@@ -499,7 +499,7 @@ them, shows exactly its parts, and moving along it never flips a page.
   on a deployment of their own. Their words,
   parts, order and look bind; their figures don't.
 - **Their look is the greenfield mock's,** paper and ink with one signal
-  colour, and night as the client has it (`../client/view.md`, 3). Who
+  colour, and night as the client has it (`../client/view-navigation.md`, 1). Who
   acts is a mark, those of the client's path (`../client/pages/chat/conversation.md`,
   3), on its stops and on the chips: a person an orange ring, an agent
   an ink star, code a grey square. Orange is the person's alone, so
@@ -507,7 +507,7 @@ them, shows exactly its parts, and moving along it never flips a page.
   line's rise to it, from the signal colour to ink, in Ask temper's ways
   too. The terminal's frames are the dark theme's, 110 columns wide.
 - **Refined after they're built,** on their journeys, by look requests
-  (`look-requests.md`).
+  (`archive/look-requests.md`).
 
 ## 14. Its acceptance
 

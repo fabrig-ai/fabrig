@@ -26,6 +26,7 @@ pub struct Operation {
     pub asked: Option<Asked>,
     pub to: Option<c::Recipient>,
     pub party: Option<u64>,
+    pub reissued_party: Option<u64>,
     pub retry: Option<Box<[u8]>>,
     pub value_name: Option<crate::jig::key::Name>,
     pub proposal_project: Option<u32>,
@@ -176,6 +177,7 @@ impl Operation {
                 c::Ask::RemoveProject { .. } => (b"remove-project", None),
                 c::Ask::Rename { .. } => (b"rename", None),
                 c::Ask::MakeService { .. } => (b"make-service", None),
+                c::Ask::ReissueService { .. } => (b"reissue-service", None),
                 c::Ask::SetPool { .. } => (b"set-pool", None),
                 c::Ask::Withdraw { .. } => (b"withdraw", None),
                 c::Ask::SignIn { .. } => (b"connect", None),
@@ -233,6 +235,7 @@ impl Operation {
             asked: None,
             to: None,
             party: None,
+            reissued_party: reissued_party(ask),
             retry: None,
             value_name: None,
             proposal_project: proposal_project(ask),
@@ -241,6 +244,15 @@ impl Operation {
             start_model: start_model::Start::of(ask, word),
             worker: None,
         }
+    }
+}
+fn reissued_party(ask: &Ask) -> Option<u64> {
+    if let Ask::Jig(ask) = ask
+        && let c::Ask::ReissueService { party } = ask.as_ref()
+    {
+        Some(*party)
+    } else {
+        None
     }
 }
 fn settings_revision(ask: &Ask) -> Option<u32> {
@@ -482,6 +494,12 @@ fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
         out.number(*party);
         return;
     }
+    if let c::Outcome::Made { what: c::Made::Reissued { party } } = done {
+        out.put(b"reissued: party ");
+        out.number(*party);
+        out.put(b"; its sign-ins have ended");
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::Left { task }) = done {
         out.put(b"left: task ");
         out.number(*task);
@@ -647,6 +665,18 @@ fn encode(
         out.object_start();
         out.key(b"revision");
         out.unsigned(u64::from(changed.revision));
+        out.object_end();
+        return;
+    }
+    if !kept
+        && let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Made { what: c::Made::Reissued { party } }))) =
+            outcome
+    {
+        out.object_start();
+        out.key(b"operation");
+        out.string(operation.word);
+        out.key(b"outcome");
+        document::reissued_json(*party, out);
         out.object_end();
         return;
     }
@@ -928,6 +958,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::RESTORE_AT => &rows::RESTORE,
         rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
         rows::PARTY_MAKE_AT => &rows::PARTY_MAKE,
+        rows::PARTY_REISSUE_AT => &rows::PARTY_REISSUE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
         rows::PROJECT_DELETE_AT => &rows::PROJECT_DELETE,
@@ -1087,7 +1118,7 @@ fn refused_text(
     prefix: &[u8],
     out: &mut Text,
 ) {
-    if worker_refusal(operation, refusal, out) {
+    if worker_refusal(operation, refusal, out) || reissue_refusal(operation, refusal, prefix, out) {
         return;
     }
     if super::roles::refusal(operation.word, refusal, me, out) {
@@ -1190,6 +1221,22 @@ fn refused_text(
     }
 }
 
+fn reissue_refusal(operation: &Operation, refusal: &c::Refusal, prefix: &[u8], out: &mut Text) -> bool {
+    let Some(party) = operation.reissued_party else { return false };
+    let why = if let c::Refusal::Role { .. } = refusal {
+        b"'s credential is reissued by an owner of the deployment, or of every project it holds a role in".as_slice()
+    } else if *refusal == c::Refusal::NotOffered {
+        b" is not a service; only a service's credential is reissued"
+    } else {
+        return false;
+    };
+    out.put(prefix);
+    out.put(b": refused: party ");
+    out.number(party);
+    out.put(why);
+    true
+}
+
 /// Worker refusals retain the settings answer's status and do not retry (client/ctl/workers.md, 2).
 fn worker_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
     let Some(worker) = &operation.worker else { return false };
@@ -1212,7 +1259,8 @@ fn worker_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -
             out.put(worker);
             out.put(b" is not linked");
         }
-        c::Refusal::Concluded { .. }
+        c::Refusal::QuestionAnswered { .. }
+        | c::Refusal::Concluded { .. }
         | c::Refusal::Judged { .. }
         | c::Refusal::SignInRedirect { .. }
         | c::Refusal::Forgotten { .. }
@@ -1445,6 +1493,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::ChangePolicy { .. }
             | c::Ask::SetRoles { .. }
             | c::Ask::MakeService { .. }
+            | c::Ask::ReissueService { .. }
             | c::Ask::RemoveProject { .. }
             | c::Ask::SetVisibility { .. }
             | c::Ask::Rename { .. }
@@ -1537,6 +1586,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
         | c::Refusal::Unlinked { .. }
+        | c::Refusal::QuestionAnswered { .. }
         | c::Refusal::Concluded { .. }
         | c::Refusal::Llm { .. } => false,
     }

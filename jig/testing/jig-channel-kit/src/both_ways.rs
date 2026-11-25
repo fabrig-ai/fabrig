@@ -1,4 +1,4 @@
-//! One Claude model reached by a program login or a key (domain/accounts.md, 3.4 and 4.3).
+//! One Claude model reached by a program login or a key (domain/accounts-sources.md, 1, and domain/accounts-uses.md, 1.3).
 use crate::{
     account_setup, fixtures,
     processes::{self, Proc},
@@ -530,19 +530,8 @@ impl Judge {
             }
         }
         let mut run = self.shared.borrow_mut();
-        run.turns = world::turns(&self.store).into_iter().cloned().collect();
-        run.terminals = self
-            .store
-            .rows
-            .values()
-            .filter_map(|row| {
-                if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row {
-                    Some(answer.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
+        run.turns = self.store.turns().cloned().collect();
+        run.terminals = self.store.terminals().cloned().collect();
         self.done = run.terminals.iter().any(|answer| answer.end != jig_domain_tasks::End::Parked);
         run.sources =
             self.store

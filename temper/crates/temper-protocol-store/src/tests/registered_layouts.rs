@@ -3,6 +3,48 @@
 
 use skein_codec::Record;
 #[test]
+fn an_earlier_finding_reply_keeps_its_result_and_defaults_repair_and_blame_context() {
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let reply = family.current.lines().find(|line| line.starts_with("record FindingReply {")).unwrap();
+    let before = family
+        .current
+        .replace(reply, "record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult }")
+        .replace(", repaired: Number, blamed", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"call")).unwrap();
+    let new_root = new.root(b"Row", Some(b"call")).unwrap();
+    let stored = d::Stored::Call {
+        key: d::NamedCall { task: 40, attempt: 1, completion: 2, position: 3 },
+        answer: d::CallPayload::Finding(Box::new(d::FindingReply {
+            project: 3,
+            number: 12,
+            area: Some(b"tests".as_slice().into()),
+            result: Ok(d::FindingDone::Routed(99)),
+            more: Box::new([]),
+            landing: None,
+        })),
+    };
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("reply additions default");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(current.as_slice(), &bounds), Ok(stored));
+}
+
+#[test]
 fn a_registered_layout_defaults_an_added_list() {
     let old = skein_codec::schema::parse(b"family fixture 1\nrecord Item { taken: u32 }\n").unwrap();
     let new = skein_codec::schema::parse(b"family fixture 1\nrecord Item { taken: u32 waiting: list 16 u64 = [] }\n")
@@ -25,6 +67,52 @@ fn a_registered_layout_defaults_an_added_list() {
 }
 
 #[test]
+fn an_earlier_closer_defaults_to_an_unread_report() {
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_closer::{Closer, ReportCheck, relay::Relay};
+    use temper_engine_domain_forge_vocabulary::{CloserRow, Stored};
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before =
+        family.current.replace("report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none ", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"closer")).unwrap();
+    let new_root = new.root(b"Row", Some(b"closer")).unwrap();
+    let mut row = CloserRow {
+        task: 8,
+        goal: 7,
+        closer: Closer::new(),
+        making: None,
+        close_changes: Box::new([]),
+        superseded: Box::new([]),
+        landing_changes: Box::new([]),
+        relay: Relay::new(),
+        done: false,
+    };
+    let expected = Stored::Closer(row.clone());
+    assert_eq!(row.closer.report_check, ReportCheck::Unread);
+    assert_eq!(row.closer.goal_left, None);
+    row.closer.report_check = ReportCheck::Held;
+    row.closer.goal_left = Some(b"an earlier layout cannot retain this".as_slice().into());
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&Stored::Closer(row)), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("closer additions default");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let limits = &super::fixtures::LIMITS;
+    let bounds = crate::bounds(limits, limits.client.op_bytes).unwrap();
+    assert_eq!(crate::records::decode(current.as_slice(), &bounds), Ok(expected));
+}
+
+#[test]
 fn a_landing_layout_without_wait_defaults_it_to_cleared() {
     landing_layout_defaults(" wait: SettingsLandingWait = cleared");
 }
@@ -36,7 +124,7 @@ fn landing_layout_defaults(field: &str) {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::{Stored, settings as d};
@@ -47,7 +135,7 @@ fn landing_layout_defaults(field: &str) {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"setting")).unwrap();
     let new_root = new.root(b"Row", Some(b"setting")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = Stored::Setting(d::SettingRow {
@@ -78,8 +166,8 @@ fn a_change_layout_without_source_or_kept_defaults_both_to_none() {
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
     for (root, bytes) in [
-        (b"ChangeCold".as_slice(), golden(family.current, "record_change_cold_smallest.bin")),
-        (b"ChangeHot".as_slice(), golden(family.current, "record_change_hot_smallest.bin")),
+        (b"ChangeCold".as_slice(), fixed_value(family.current, "record_change_cold_smallest.bin")),
+        (b"ChangeHot".as_slice(), fixed_value(family.current, "record_change_hot_smallest.bin")),
     ] {
         let plan = skein_codec::layout::Plan::derive(
             &old,
@@ -117,6 +205,31 @@ fn the_current_layout_has_no_whole_change_value_type() {
 }
 
 #[test]
+fn a_change_layout_without_measured_tips_defaults_to_none() {
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = super::dev_layouts::DEV;
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"ChangeHot", None).unwrap(),
+        &[],
+        &new,
+        new.root(b"ChangeHot", None).unwrap(),
+        &[],
+    )
+    .expect("measured tips have a default in the registered layout");
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = skein_lib::Buffer::with_capacity(1024);
+    let earlier = fixed_value(before, "record_change_hot_smallest.bin");
+    plan.convert(&earlier, &mut out, &mut work).unwrap();
+    let row =
+        crate::v25::ChangeHot::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(out.as_slice())).unwrap();
+    assert!(row.close_at.is_none());
+}
+
+#[test]
 fn a_change_layout_without_regate_defaults_it_to_none() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let before = family.current.replacen("regate: option Regate = none ", "", 1);
@@ -134,7 +247,7 @@ fn a_change_layout_without_regate_defaults_it_to_none() {
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));
     let mut out = skein_lib::Buffer::with_capacity(1024);
-    let current = golden(family.current, "record_change_hot_smallest.bin");
+    let current = fixed_value(family.current, "record_change_hot_smallest.bin");
     // The earlier row lacks the first option's absent byte.
     plan.convert(&current[1..], &mut out, &mut work).unwrap();
     let row =
@@ -147,7 +260,7 @@ fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::{Protection, Stored};
@@ -159,7 +272,7 @@ fn a_repository_layout_without_landing_defaults_it_to_its_default_branch() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"repository")).unwrap();
     let new_root = new.root(b"Row", Some(b"repository")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = fixtures::adopted(Protection::Absent);
@@ -184,7 +297,7 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
     use super::{fixtures, jobs};
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::{ApplicationOutcome, Stored};
@@ -200,7 +313,7 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"application")).unwrap();
     let new_root = new.root(b"Row", Some(b"application")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut stored = jobs::application(fixtures::REPO);
@@ -228,7 +341,7 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
 #[test]
 fn earlier_landing_members_and_change_rows_default_goal_facts() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -285,7 +398,7 @@ fn earlier_landing_members_and_change_rows_default_goal_facts() {
     ] {
         let old_root = old.root(b"Row", Some(variant)).unwrap();
         let new_root = new.root(b"Row", Some(variant)).unwrap();
-        let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+        let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
         let mut work = Workspace::new();
         assert!(work.fit(&write_old));
         let mut earlier = skein_lib::Buffer::with_capacity(4096);
@@ -305,7 +418,7 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::Stored;
@@ -321,7 +434,7 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"finding")).unwrap();
     let new_root = new.root(b"Row", Some(b"finding")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut row = fixtures::finding();
@@ -339,9 +452,85 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
     assert_eq!(decoded, Stored::Finding(row), "an old finding keeps its signature, without blame or clearing");
 }
 
-fn golden(text: &'static str, name: &str) -> Box<[u8]> {
+#[test]
+fn an_earlier_tier_defaults_its_last_judged_run_number_to_none() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::Stored;
+    let family = crate::OWNER_SET.families.first().expect("store family");
+    let before = family.current.replace(" last_run: option u64 = none", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).expect("earlier tier schema");
+    let new = schema::parse(family.current.as_bytes()).expect("current tier schema");
+    let old_root = old.root(b"Row", Some(b"tier")).expect("earlier tier root");
+    let new_root = new.root(b"Row", Some(b"tier")).expect("current tier root");
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).expect("drop run number");
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut row = fixtures::tier_row();
+    row.record.last_run = Some(7);
+    let mut earlier = skein_lib::Buffer::with_capacity(1_048_576);
+    write_old.convert(&records::encode(&Stored::Tier(row.clone())), &mut earlier, &mut work).expect("earlier bytes");
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("run number defaults");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(1_048_576);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).expect("default run number");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("store bounds");
+    row.record.last_run = None;
+    assert!(records::decode(current.as_slice(), &bounds) == Ok(Stored::Tier(row)), "earlier tiers have no run number");
+}
+
+#[test]
+fn an_earlier_finding_defaults_repair_and_blame_move() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Mode, Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::{BlameStrength, Stored};
+
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").expect("store family");
+    let mut before = family.current.to_owned();
+    for field in [" repair: option FindingRepair = none", " moved: option BlameMove = none"] {
+        assert!(before.contains(field));
+        before = before.replacen(field, "", 1);
+    }
+    before = before.replace(
+        "enum BlameStrength { owned, suspected, none, moved }",
+        "enum BlameStrength { owned, suspected, none }",
+    );
+    let old = schema::parse(before.as_bytes()).expect("earlier finding schema");
+    let new = schema::parse(family.current.as_bytes()).expect("current schema");
+    let old_root = old.root(b"Row", Some(b"finding")).expect("earlier finding root");
+    let new_root = new.root(b"Row", Some(b"finding")).expect("current finding root");
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).expect("drop additions");
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut row = fixtures::finding();
+    row.blame.as_mut().expect("blame").strength = BlameStrength::Owned;
+    let mut earlier = skein_lib::Buffer::with_capacity(1_048_576);
+    write_old.convert(&records::encode(&Stored::Finding(row.clone())), &mut earlier, &mut work).expect("earlier bytes");
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("repair and move default to none");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(1_048_576);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).expect("default additions");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("store bounds");
+    row.repair = None;
+    row.blame.as_mut().expect("blame").moved = None;
+    assert!(
+        records::decode(current.as_slice(), &bounds) == Ok(Stored::Finding(row)),
+        "an earlier finding reads with no repair or move"
+    );
+}
+
+fn fixed_value(text: &'static str, name: &str) -> Box<[u8]> {
     skein_codegen::values(text)
-        .goldens
+        .fixed
         .clone()
         .into_iter()
         .find(|value| value.name == name)
@@ -355,7 +544,7 @@ fn an_earlier_landing_red_defaults_test_ids_and_many_names() {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -366,7 +555,7 @@ fn an_earlier_landing_red_defaults_test_ids_and_many_names() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
     let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = d::Stored::LandingLog(d::LandingLog {
@@ -432,7 +621,7 @@ fn an_earlier_landing_red_defaults_test_ids_and_many_names() {
 #[test]
 fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -445,7 +634,7 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
     let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let stored = d::Stored::LandingLog(d::LandingLog {
@@ -492,7 +681,7 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
 #[test]
 fn an_earlier_landing_member_defaults_fixes() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary as d;
@@ -524,7 +713,7 @@ fn an_earlier_landing_member_defaults_fixes() {
             }]),
         }]),
     });
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut earlier = skein_lib::Buffer::with_capacity(4096);
@@ -543,7 +732,7 @@ fn an_earlier_landing_member_defaults_fixes() {
 #[test]
 fn an_earlier_tier_defaults_waiting_and_unkept() {
     use skein_codec::{
-        layout::{Plan, Workspace},
+        layout::{Mode, Plan, Workspace},
         schema,
     };
     use temper_engine_domain_forge_vocabulary::Stored;
@@ -554,7 +743,7 @@ fn an_earlier_tier_defaults_waiting_and_unkept() {
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"tier")).unwrap();
     let new_root = new.root(b"Row", Some(b"tier")).unwrap();
-    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let write_old = Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[]).unwrap();
     let mut work = Workspace::new();
     assert!(work.fit(&write_old));
     let mut row = super::fixtures::tier_row();

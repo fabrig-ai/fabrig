@@ -1,4 +1,4 @@
-//! Admission while the engine drains (domain/engine/restart.md, 1).
+//! Admission while the engine drains (domain/engine/restart.md, 5).
 use crate::{Core, Event, Held, Limits, Now, Request, effects::projections, routing};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
@@ -22,7 +22,7 @@ impl Core {
 }
 
 /// Settle each agent claim on a host in this process as interrupted, then
-/// refuse what would commit (jig/docs/design/domain/engine/restart.md, 1).
+/// refuse what would commit (jig/docs/design/domain/engine/restart.md, 5).
 pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut claims = List::with_capacity(core.proofs.len());
     for (&task, proof) in &core.proofs {
@@ -57,6 +57,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
             core,
             env,
             tasks::Event::Activation {
+                reads_project: false,
                 reply_to: ReplyTo::new(token),
                 task: run.raw(),
                 attempt: attempt.raw(),
@@ -175,6 +176,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::Census(..)
         | Event::Parts { .. }
         | Event::PartsMarked { .. }
+        | Event::Waits { .. }
         | Event::Marked { .. }
         | Event::ReadLoaded { .. }
         | Event::Read { .. }
@@ -197,6 +199,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::Tasks(_)
         | Event::ConnectorRepair { .. }
         | Event::PersonTask { .. }
+        | Event::PartPayload { .. }
         | Event::TurnPayload { .. }
         | Event::AnswerPayload { .. }
         | Event::AcceptedTurn { .. }
@@ -236,6 +239,7 @@ fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
         | people::Event::ForgetProject { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
+        | people::Event::ReissueService { .. }
         | people::Event::Seed { .. }
         | people::Event::Waiting { .. }
         | people::Event::ApplyRoles { .. }

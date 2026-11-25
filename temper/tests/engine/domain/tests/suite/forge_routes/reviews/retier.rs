@@ -1,4 +1,4 @@
-//! Held reviewers remain readable after restart (temper/docs/design/testing/README.md, 2.1).
+//! Held reviewers remain readable after restart (temper/docs/design/testing/tiers.md, 1.1).
 use super::*;
 
 fn unclaimed_review() -> (World, u64) {
@@ -59,7 +59,7 @@ fn held_reviewers_remain_readable_after_cold_restart() {
                 reply_to: ReplyTo::new(Token::new(980)),
                 sign_in: world.signed_in.expect("owner signed in"),
                 key: [80; 16],
-                ask: people::Ask::Stop { project: 1, task: review },
+                ask: people::Ask::Stop { project: 1, task: review, reason: Box::from(b"Parking the task".as_slice()) },
             }));
             (world, review, 0)
         };

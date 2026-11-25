@@ -1,5 +1,5 @@
 //! Task-child decisions routed to people, hosts and connectors
-//! (`domain/engine/README.md`, section 4.4).
+//! (`domain/engine/vocabulary.md`, section 1.4).
 
 mod done;
 mod escalations;
@@ -90,6 +90,7 @@ pub(crate) fn route_connector_repair(
         work.push(Work::Event(Event::Tasks(event)));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
@@ -132,6 +133,7 @@ pub(crate) fn route_person_task(
         work.push(Work::Event(Event::Tasks(event)));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
@@ -165,6 +167,11 @@ pub(crate) fn route_tasks(
     work: &mut Queue<Work>,
     event: tasks::Event,
 ) -> Queue<Request> {
+    if let tasks::Event::Claim { task, attempt, .. } = &event
+        && !super::run::preparation::claim_fits(core, *task, *attempt)
+    {
+        return super::run::preparation::route_claim_refused(core, work, *task);
+    }
     route_batch(core, env, work, event, None)
 }
 
@@ -178,7 +185,6 @@ pub(crate) fn resume_resources(
     route_batch(core, env, work, event, Some(batch.deadline))
 }
 
-#[expect(clippy::too_many_lines, reason = "batch admission keeps all preflight refusals before child mutation")]
 fn route_batch(
     core: &mut Core,
     env: &Env<Limits>,
@@ -191,7 +197,7 @@ fn route_batch(
     {
         return route_proposal(core, env, event);
     }
-    let mut event = if let tasks::Event::Procedure { reply_to, task, step, read, decision } = event {
+    let mut event = if let tasks::Event::Procedure { reply_to, task, step, read, decision, .. } = event {
         return super::effect::procedure::apply(core, env, reply_to, task, step, read, decision);
     } else {
         event
@@ -216,30 +222,17 @@ fn route_batch(
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    if let tasks::Event::Make { reply_to, creator, batch, .. } = &mut event {
-        let mut tracked = 0_u32;
-        for row in batch.as_ref() {
-            if row.tracked.is_some() {
-                tracked = tracked.checked_add(1).expect("bounded make batch");
-            }
-        }
-        if tracked > env.limits.tasks.tasks.saturating_sub(core.projections.len()) {
-            let capacity = tasks::Capacity::batch(
-                *creator,
-                batch,
-                None,
-                tasks::CapacityCause::Tasks { limit: env.limits.tasks.tasks },
-            );
+    if let tasks::Event::Make { reply_to, creator, batch, .. } = &mut event
+        && let Err(problem) = core.make_room(&env.limits, *creator, batch)
+    {
+        if let Some(capacity) = problem.capacity {
             core.tasks.remember_capacity(env.wall, capacity);
-            let reply_to = super::flight::take_reply(reply_to);
-            out.push(tasks::Request::Refused {
-                reply_to,
-                problem: tasks::Problem::capacity(None, tasks::Refusal::Live, capacity),
-            });
-            return tag_task_outputs(core, env, out);
         }
+        let reply_to = super::flight::take_reply(reply_to);
+        out.push(tasks::Request::Refused { reply_to, problem });
+        return tag_task_outputs(core, env, out);
     }
-    let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places } = event {
+    let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places, .. } = event {
         if let Err(problem) = core.admit_batch(creator, &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
@@ -258,7 +251,7 @@ fn route_batch(
                 return tag_task_outputs(core, env, out);
             }
         }
-    } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, mut batch } = event {
+    } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, mut batch, .. } = event {
         if let Err(problem) = core.admit_batch(tasks::Party::Task(proposer), &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
@@ -361,9 +354,12 @@ pub(crate) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u
 }
 
 fn follow(core: &mut Core, env: &Env<Limits>, event: tasks::Event, pending: &mut Queue<tasks::Request>) {
-    let (event, procedure) = if let tasks::Event::Procedure { reply_to, task, step, read, decision } = event {
+    let (event, procedure) = if let tasks::Event::Procedure { reply_to, task, step, read, decision, .. } = event {
         let token = reply_to.into_token();
-        (tasks::Event::Procedure { reply_to: ReplyTo::new(token), task, step, read, decision }, Some(token))
+        (
+            tasks::Event::Procedure { reads_project: false, reply_to: ReplyTo::new(token), task, step, read, decision },
+            Some(token),
+        )
     } else {
         (event, None)
     };
@@ -487,6 +483,7 @@ fn tag_tasks(
         }
         tasks::Request::Refused { reply_to, problem } => refused::refused(core, env, reply_to, problem, pending, out),
         tasks::Request::PersonStallDue { task } => notices::person_stall_due(core, env, task, pending),
+        tasks::Request::PersonStallRestored { task } => notices::person_stall_restored(core, env, task, pending),
         tasks::Request::QuestionOwedDue { task } => notices::question_owed_due(core, env, task, pending),
         tasks::Request::NothingAwaitedDue { task } => notices::nothing_awaited_due(core, env, task, pending),
         tasks::Request::QuestionParked { task, question } => {

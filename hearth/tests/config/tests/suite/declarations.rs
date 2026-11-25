@@ -42,7 +42,7 @@ fn the_reads_example_decodes_to_its_three_reads_cut_anywhere() {
     for seed in 0..8 {
         let settings = Settings::calm(&mut Rng::new(seed), SHIPPED);
         let declaration = world::declare(examples::task("reads").bytes, &settings, seed)
-            .expect("hearth/docs/design/protocol/format/README.md, 5.4");
+            .expect("hearth/docs/design/protocol/format/schema.md, 1.4");
         assert_eq!(declaration.reads.len(), 3);
         for (read, expected) in declaration.reads.iter().zip(READS) {
             assert_eq!(
@@ -62,7 +62,7 @@ fn the_reads_example_keeps_each_setting_at_its_string() {
     for seed in 0..8 {
         let settings = Settings::calm(&mut Rng::new(seed), SHIPPED);
         let declaration = world::declare(examples::task("reads").bytes, &settings, seed)
-            .expect("hearth/docs/design/protocol/format/README.md, 5.4");
+            .expect("hearth/docs/design/protocol/format/schema.md, 1.4");
         let observed: Vec<_> = declaration
             .reads
             .iter()

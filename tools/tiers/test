@@ -1,0 +1,65 @@
+#!/bin/sh
+# `cargo nextest run ARGS`, each test counted through count-runner.c (tools/tiers/design.md, 11.10).
+# Where the host can't count, it runs nextest plainly; a budget line follows only where main's counts
+# were fetched. Shell, not Python, so that a run by name pays nothing it doesn't need.
+here=$(cd "${0%/*}" && pwd) || exec cargo nextest run "$@"
+root=${here%/tools/tiers}
+plain() { exec cargo nextest run "$@"; }
+case $(uname -sm 2>/dev/null) in
+    'Linux x86_64') key=CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER ;;
+    'Linux aarch64') key=CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER ;;
+    *) plain "$@" ;;
+esac
+eval "given=\${$key:-}"
+[ -z "$given" ] || plain "$@"
+for arg in "$@"; do
+    case $arg in --) break ;; --config|--config=*) plain "$@" ;; esac
+done
+# dash's read returns 1 on a /proc file it has read, so judge the value alone.
+paranoid=
+IFS= read -r paranoid 2>/dev/null < /proc/sys/kernel/perf_event_paranoid
+[ "${paranoid:-3}" -le 2 ] 2>/dev/null || plain "$@"
+command -v cc >/dev/null 2>&1 || plain "$@"
+# A runner some cargo configuration already sets stands: no cargo metadata, just the files cargo reads.
+dir=$PWD
+while :; do
+    for config in "$dir/.cargo/config.toml" "$dir/.cargo/config"; do
+        [ -f "$config" ] && grep -q -e runner -e include "$config" && plain "$@"
+    done
+    [ "$dir" = / ] && break
+    dir=${dir%/*}; [ -n "$dir" ] || dir=/
+done
+for config in "${CARGO_HOME:-$HOME/.cargo}/config.toml" "${CARGO_HOME:-$HOME/.cargo}/config"; do
+    [ -f "$config" ] && grep -q -e runner -e include "$config" && plain "$@"
+done
+target=$root/target
+runner=$target/tiers-count-runner
+case $runner in *[[:space:]]*) plain "$@" ;; esac
+if [ ! -x "$runner" ] || [ "$here/count-runner.c" -nt "$runner" ]; then
+    mkdir -p "$target" && cc -O2 "$here/count-runner.c" -o "$runner.$$" >/dev/null 2>&1 \
+        && chmod 755 "$runner.$$" && mv -f "$runner.$$" "$runner" || { rm -f "$runner.$$"; plain "$@"; }
+fi
+out=$(mktemp "$target/tiers-counts-XXXXXXXX") || plain "$@"
+# The terminal's interrupt reaches cargo and nextest, which cancel; this shell only cleans up after.
+trap 'rm -f "$out"' EXIT
+trap ':' INT
+TIERS_COUNTS_OUT=$out NEXTEST_LOG=${NEXTEST_LOG:-info,cargo_nextest::dispatch=warn} \
+    env "$key=$runner" cargo nextest run "$@"
+status=$?
+# main's allowances.tsv, beside counts.json in refs/temper/counts (tools/tiers/budgets.md, 7.1), read locally.
+if [ -s "$out" ] && table=$(GIT_NO_LAZY_FETCH=1 git -C "$root" cat-file blob refs/temper/counts:allowances.tsv 2>/dev/null); then
+    profile=${NEXTEST_PROFILE:-default}
+    next=
+    for arg in "$@"; do
+        if [ -n "$next" ]; then profile=$arg; next=; continue; fi
+        case $arg in
+            --) break ;;
+            -P|--profile) next=1 ;;
+            --profile=*) profile=${arg#--profile=} ;;
+            -P=*) profile=${arg#-P=} ;;
+            -P*) profile=${arg#-P} ;;
+        esac
+    done
+    printf '%s\n' "$table" | awk -v profile="$profile" -f "$here/budget-lines.awk" - "$out" | sort >&2
+fi
+exit $status

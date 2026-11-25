@@ -3,56 +3,44 @@ use crate::config::{ConfigurationRefusal, from_value, profile_from_value};
 use smith_agent_profile::profile::{Check, Layer, LimitName, Refusal, Value};
 
 #[cfg(unix)]
-fn executable(path: &std::path::Path) {
-    use std::os::unix::fs::PermissionsExt;
-    // An invalid executable is enough: finding must never run it.
-    std::fs::write(path, b"not an executable format\n").expect("rg stand-in");
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
+#[test]
+fn rg_finding_skips_relative_directories_and_a_directory_named_rg() {
+    use crate::config::native::{FileFacts, find_rg_with};
+    use std::{os::unix::ffi::OsStrExt, path::PathBuf};
+
+    let mut checked = Vec::new();
+    let path = std::env::join_paths(["relative", "/fixture/directory"]).expect("PATH");
+    let found = find_rg_with(Some(path.as_bytes()), |candidate| {
+        checked.push(candidate.to_path_buf());
+        Some(FileFacts { is_file: candidate == std::path::Path::new("relative/rg"), mode: 0o700 })
+    });
+    assert_eq!(found, None, "neither relative entries nor directories are programs");
+    assert_eq!(checked, [PathBuf::from("/fixture/directory/rg")], "only the absolute entry is checked");
 }
 
 #[cfg(unix)]
 #[test]
 fn rg_finding_takes_the_first_executable_file_on_path() {
-    use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
-    let scratch = skein_scratch::Scratch::new("smith-rg-path");
-    for directory in ["A", "B", "C"] {
-        std::fs::create_dir(scratch.path().join(directory)).expect("PATH directory");
-        executable(&scratch.path().join(directory).join("rg"));
-    }
-    std::fs::set_permissions(scratch.path().join("A/rg"), std::fs::Permissions::from_mode(0o600))
-        .expect("non-executable mode");
-    let path = std::env::join_paths([
-        std::path::PathBuf::from("rel"),
-        scratch.path().join("missing"),
-        scratch.path().join("A"),
-        scratch.path().join("B"),
-        scratch.path().join("C"),
-    ])
-    .expect("PATH");
-    assert_eq!(
-        crate::config::find_rg(Some(path.as_bytes())),
-        Some(scratch.path().join("B/rg")),
-        "first executable file"
-    );
-}
+    use crate::config::native::{FileFacts, find_rg_with};
+    use std::{os::unix::ffi::OsStrExt, path::PathBuf};
 
-#[cfg(unix)]
-#[test]
-fn rg_finding_skips_relative_directories_and_a_directory_named_rg() {
-    use std::os::unix::ffi::OsStrExt;
-    let scratch = skein_scratch::Scratch::new("smith-rg-relative");
-    std::fs::create_dir(scratch.path().join("rel")).expect("relative PATH directory");
-    executable(&scratch.path().join("rel/rg"));
-    std::fs::create_dir_all(scratch.path().join("directory/rg")).expect("directory named rg");
-    let up: std::path::PathBuf =
-        std::env::current_dir().expect("working directory").components().skip(1).map(|_| "..").collect();
-    let relative = up.join(scratch.path().strip_prefix("/").expect("absolute scratch")).join("rel");
-    assert!(relative.join("rg").is_file(), "relative entry holds the executable fixture");
-    let path = std::env::join_paths([relative, scratch.path().join("directory")]).expect("PATH");
+    let path =
+        std::env::join_paths(["rel", "/fixture/missing", "/fixture/A", "/fixture/B", "/fixture/C"]).expect("PATH");
+    let mut checked = Vec::new();
+    let found = find_rg_with(Some(path.as_bytes()), |candidate| {
+        checked.push(candidate.to_path_buf());
+        match candidate.to_str().expect("fixture path") {
+            "/fixture/missing/rg" => None,
+            "/fixture/A/rg" => Some(FileFacts { is_file: true, mode: 0o600 }),
+            "rel/rg" | "/fixture/B/rg" | "/fixture/C/rg" => Some(FileFacts { is_file: true, mode: 0o700 }),
+            other => panic!("unexpected candidate {other}"),
+        }
+    });
+    assert_eq!(found, Some("/fixture/B/rg".into()), "first executable file");
     assert_eq!(
-        crate::config::find_rg(Some(path.as_bytes())),
-        None,
-        "neither relative entries nor directories are programs"
+        checked,
+        ["/fixture/missing/rg", "/fixture/A/rg", "/fixture/B/rg"].map(PathBuf::from),
+        "only absolute candidates through the first executable are inspected"
     );
 }
 
@@ -66,14 +54,24 @@ fn rg_finding_has_no_result_for_empty_or_absent_path() {
 #[cfg(unix)]
 #[test]
 fn resolving_finds_rg_after_decoding_without_running_it() {
-    let scratch = skein_scratch::Scratch::new("smith-rg-startup");
+    use std::path::Path;
+
     let mut document = shaped_document();
-    document["environment"] = serde_json::json!([{"name":"PATH", "value":scratch.path()}]);
+    document["environment"] = serde_json::json!([{"name":"PATH", "value":"/fixture/bin"}]);
     let decoded = crate::config::decode(&serde_json::to_vec(&document).expect("document JSON"))
         .expect("decode without filesystem effects");
-    let rg = scratch.path().join("rg");
-    executable(&rg);
-    let configuration = decoded.resolve(&mut Vec::new()).expect("native resolution");
+    let rg = Path::new("/fixture/bin/rg");
+    let configuration = decoded
+        .resolve_native(
+            &mut Vec::new(),
+            |path| {
+                crate::config::native::find_rg_with(path, |file| {
+                    (file == rg).then_some(crate::config::native::FileFacts { is_file: true, mode: 0o700 })
+                })
+            },
+            crate::config::native::RootReader::Native,
+        )
+        .expect("configuration resolution");
     assert_eq!(configuration.service.rg.as_ref(), rg.as_os_str().as_encoded_bytes(), "startup's rg");
 }
 
@@ -216,6 +214,47 @@ fn decoding_keeps_unresolved_names_and_unread_trust_sources() {
     document["endpoints"][0]["trust_der"] = serde_json::json!(scratch.path().join("absent.der"));
     let bytes = serde_json::to_vec(&document).expect("configuration JSON");
     super::decode(&bytes).expect("decode neither resolves the name nor opens the absent trust source");
+}
+
+#[cfg(unix)]
+#[test]
+fn resolving_takes_supplied_roots_and_refusals() {
+    use skein_shell::{Roots, RootsRefusal, Trust, Unread};
+    use std::path::Path;
+
+    let path = Path::new("absent-fixture-root.der");
+    let mut document = shaped_document();
+    let endpoint = document.pointer_mut("/endpoints/0").expect("fixture endpoint");
+    endpoint["transport"] = serde_json::json!("tls");
+    endpoint["server_name"] = serde_json::json!("example.test");
+    endpoint["trust_der"] = serde_json::json!(path);
+    let bytes = serde_json::to_vec(&document).expect("configuration JSON");
+    let root = include_bytes!("../../../../../tests/protocol-llm/fixtures/root.der");
+    let mut errors = Vec::new();
+    let decode = || super::decode(&bytes).expect("pure decode");
+    let check_source = |source: &Trust| {
+        assert!(matches!(source, Trust::Der(at) if at == path), "named DER source: {source:?}");
+    };
+    decode()
+        .resolve_with_roots(&mut errors, |source, _bounds| {
+            check_source(source);
+            Ok(Roots {
+                certificates: Box::new([Box::from(root.as_slice())]),
+                path: path.into(),
+                other_blocks: 0,
+                malformed: 0,
+            })
+        })
+        .expect("supplied DER resolves without its file");
+    let refusal = decode()
+        .resolve_with_roots(&mut errors, |source, _bounds| {
+            check_source(source);
+            Err(RootsRefusal::Unread { path: path.into(), why: Unread::Absent })
+        })
+        .err()
+        .expect("supplied refusal refuses resolve");
+    assert_eq!(refusal.detail(), "trust certificate absent-fixture-root.der: Absent", "native read's refusal words");
+    assert!(errors.is_empty(), "neither the valid root nor the read refusal writes to the operator: {errors:?}");
 }
 
 #[test]

@@ -1,4 +1,5 @@
 //! Every declared delivery variant with its document's smallest value.
+use super::TASK_ZERO_BYTES;
 use crate::*;
 use skein_lib::{List, Reader};
 
@@ -16,8 +17,8 @@ macro_rules! value {
 pub fn delivery_values(limits: &Limits) -> List<(&'static str, DeliveryValue)> {
     let mut values = List::with_capacity(16);
     value!(values, limits, Project, Project, 116);
-    value!(values, limits, Me, Me, 83);
-    value!(values, limits, Task, Task, 281, Box::new);
+    value!(values, limits, Me, Me, 91);
+    value!(values, limits, Task, Task, TASK_ZERO_BYTES, Box::new);
     value!(values, limits, Proposal, Proposal, 61);
     value!(values, limits, Tree, Tree, 17);
     value!(values, limits, Chips, Chips, 4);

@@ -10,7 +10,7 @@ use temper_engine_domain as root;
 fn another_temper_keyed_version_is_not_served_and_admits_nothing() {
     use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};
-    for version in [35, temper_client_protocol_wire::CLIENT_VERSION + 1] {
+    for version in [35, 41, temper_client_protocol_wire::CLIENT_VERSION + 1] {
         let mut service = super::fixtures::ready();
         let link = service.links().pop().expect("sign-in link");
         let engine = service.engine.as_mut().expect("engine");
@@ -68,12 +68,18 @@ fn with_given_secrets() -> crate::Service {
 }
 
 fn with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
+    let mut service = before_start_with_secrets(local_secret);
+    super::fixtures::restart(&mut service);
+    service
+}
+
+fn before_start_with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
     let mut service = super::fixtures::started();
     let settings = super::fixtures::engine();
     let mut seeds = super::fixtures::seeds();
     seeds.link_secret = Some(given_secret());
     seeds.local_secret = local_secret;
-    service.engine.as_mut().expect("engine").clients = crate::clients::Clients::new(
+    *service.engine.as_mut().expect("engine").clients = crate::clients::Clients::new(
         &jig_protocol_config::Directories::working(),
         &settings.jig,
         &settings.clients,
@@ -84,13 +90,16 @@ fn with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
         &[],
     )
     .expect("clients with a given secret");
-    super::fixtures::restart(&mut service);
     service
 }
 
+fn link_post(engine: &mut crate::engine::Engine, link: &[u8]) -> peer::Peer {
+    let body = peer::link_body(link);
+    peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None)
+}
+
 fn sign_in_with_link(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::SignInAnswer {
-    let body = peer::link_body(engine, link);
-    let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    let mut peer = link_post(engine, link);
     peer.pump(engine, true);
     peer.sign_in_answer(engine)
 }
@@ -167,8 +176,13 @@ fn a_spent_given_secret_prints_a_fresh_link() {
     let engine = service.engine.as_mut().expect("engine");
     let link = given_link();
     let _signed_in = sign_in_with_link(engine, &link);
-    let answer = sign_in_with_link(engine, &link);
+    let mut spent = link_post(engine, &link);
+    spent.pump(engine, true);
+    let mut body = spent.sign_in_body();
+    let answer = jig_client_protocol_wire::SignInAnswer::read(&engine.clients.env.limits.wire, &mut body)
+        .expect("a sign-in answer");
     assert!(answer == jig_client_protocol_wire::SignInAnswer::LinkUsed, "a spent secret is used");
+    assert_eq!(body.remaining(), 0, "LinkUsed consumes the whole response body");
     super::fixtures::turn(&mut service);
     let fresh = service.links().pop().expect("a fresh link is printed");
     assert!(local != link && local != fresh, "the file never holds a printed link");
@@ -262,7 +276,7 @@ fn a_link_printed_on_the_first_clock_tick_is_live() {
         &mut engine.accounts,
     );
     let link = engine.clients.links.pop().expect("printed link");
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump_at(engine, false, PROCESS_UPTIME, skein_lib::Wall::EPOCH);
     assert_eq!(engine.clients.early.len(), 1, "the printed link reaches the root");
@@ -375,18 +389,20 @@ fn the_component_prints_one_sign_in_link_at_start() {
     );
     assert!(clients.links.is_empty());
 }
-#[test]
-fn closing_a_listener_during_start_closes_the_component() {
-    let mut clients = super::fixtures::clients();
-    let mut events = skein_lib::Queue::uncapped();
+fn client_close_turn(clients: &mut crate::clients::Clients) {
     clients.iterate(
         skein_lib::Time::ZERO,
         skein_lib::Wall::EPOCH,
-        &mut events,
-        &crate::tests::fixtures::forge_table(&[]),
+        &mut skein_lib::Queue::uncapped(),
+        &super::fixtures::forge_table(&[]),
         None,
         &mut None,
     );
+}
+
+fn clients_with_listener_in_flight() -> (crate::clients::Clients, Token, skein_io::Addr) {
+    let mut clients = super::fixtures::clients();
+    client_close_turn(&mut clients);
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     let Some(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames }) = clients.secrets.pop() else {
         panic!("startup public names lookup")
@@ -398,27 +414,55 @@ fn closing_a_listener_during_start_closes_the_component() {
             expires: skein_lib::Wall::from_nanos(u64::MAX),
         }),
     }));
+    (clients, owner, addr)
+}
+
+#[test]
+fn closing_a_listener_during_start_closes_the_component() {
+    let (mut clients, owner, addr) = clients_with_listener_in_flight();
     clients.down(kit::Event::Close);
     assert!(clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
-    clients.iterate(
-        skein_lib::Time::ZERO,
-        skein_lib::Wall::EPOCH,
-        &mut events,
-        &crate::tests::fixtures::forge_table(&[]),
-        None,
-        &mut None,
-    );
+    client_close_turn(&mut clients);
     let Some(skein_io::Request::Close { entity }) = clients.io.pop() else { panic!("late listener close") };
     assert_eq!(entity, LISTENER);
     assert!(clients.up(skein_io::Event::Closed { owner }));
-    clients.iterate(
-        skein_lib::Time::ZERO,
-        skein_lib::Wall::EPOCH,
-        &mut events,
-        &crate::tests::fixtures::forge_table(&[]),
-        None,
-        &mut None,
-    );
+    client_close_turn(&mut clients);
+    assert!(clients.closed);
+}
+
+#[test]
+fn closing_clients_wait_idle_for_the_socket_terminal() {
+    const SOCKET: Token = Token::new(78);
+    // One turn each for the component's Closed and the server's finish,
+    // with room for the listener and socket close requests to drain.
+    const CLOSE_TURNS: u32 = 4;
+    let now = skein_lib::Time::ZERO;
+    let (mut clients, listener_owner, addr) = clients_with_listener_in_flight();
+    clients.up(skein_io::Event::Listening { owner: listener_owner, listener: LISTENER, addr });
+    clients.up(skein_io::Event::Accepted { owner: listener_owner, socket: SOCKET, peer: addr });
+    client_close_turn(&mut clients);
+    let Some(skein_io::Request::Bind { owner: socket_owner, .. }) = clients.io.pop() else { panic!("socket bound") };
+    clients.down(kit::Event::Stop);
+    clients.down(kit::Event::Close);
+    client_close_turn(&mut clients);
+    let Some(skein_io::Request::Close { entity: listener }) = clients.io.pop() else { panic!("listener close") };
+    let Some(skein_io::Request::Close { entity: socket }) = clients.io.pop() else { panic!("socket close") };
+    assert_eq!((listener, socket), (LISTENER, SOCKET));
+    clients.up(skein_io::Event::Closed { owner: listener_owner });
+
+    for _ in 0..CLOSE_TURNS {
+        if !clients.work_pending(now) {
+            break;
+        }
+        client_close_turn(&mut clients);
+    }
+    assert!(!clients.work_pending(now), "an unanswered close must not keep the loop awake");
+    assert!(!clients.closed);
+    assert_eq!(clients.next_deadline(), None);
+    assert!(clients.io.is_empty(), "the close is sent only once");
+
+    clients.up(skein_io::Event::Closed { owner: socket_owner });
+    client_close_turn(&mut clients);
     assert!(clients.closed);
 }
 
@@ -497,7 +541,7 @@ fn the_next_clients_stream_opens_once_a_peer_ends_its_own() {
     const CLIENTS: u32 = 3;
     let mut service = super::fixtures::ready();
     let link = service.links().pop().unwrap();
-    let body = peer::link_body(service.engine.as_ref().expect("engine"), &link);
+    let body = peer::link_body(&link);
     let mut sign_in =
         peer::Peer::new(service.engine.as_mut().expect("engine"), b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(service.engine.as_mut().expect("engine"), true);
@@ -551,7 +595,7 @@ fn getting_the_printed_links_page_leaves_its_secret_for_the_links_post() {
 fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     let mut service = super::fixtures::ready();
     let link = service.links().pop().unwrap();
-    let body = peer::link_body(service.engine.as_ref().expect("engine"), &link);
+    let body = peer::link_body(&link);
     let mut peer =
         peer::Peer::new(service.engine.as_mut().expect("engine"), b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(service.engine.as_mut().expect("engine"), true);
@@ -577,10 +621,7 @@ fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     assert!(stream.streaming(), "the issued bearer authenticates through the stored digest");
     assert_eq!(engine.end, None);
 }
-#[test]
-fn a_request_before_decisions_open_is_answered_not_ready() {
-    let mut service = super::fixtures::started();
-    let engine = service.engine.as_mut().expect("engine");
+fn listen_before_decisions_open(engine: &mut crate::engine::Engine) {
     engine.clients.iterate(
         skein_lib::Time::ZERO,
         skein_lib::Wall::EPOCH,
@@ -599,16 +640,50 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
         engine.demo.as_ref(),
         &mut engine.accounts,
     );
-    let link = engine.clients.links.pop().unwrap();
-    let body = peer::link_body(engine, &link);
-    let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
-    peer.pump(engine, false);
+}
+
+fn early_link_post(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::SignInAnswer {
+    let mut peer = link_post(engine, link);
+    peer.handoff(engine);
     assert_eq!(engine.clients.early.len(), 1, "request staged during restoration");
     crate::engine::iterate(engine, skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
     peer.pump(engine, false);
-    assert_eq!(peer.sign_in_answer(engine), jig_client_protocol_wire::SignInAnswer::NotReady);
+    let answer = peer.sign_in_answer(engine);
+    if !peer.is_closed() {
+        peer.close(engine);
+    }
+    answer
+}
+
+#[test]
+fn a_request_before_decisions_open_is_answered_not_ready() {
+    let mut service = super::fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    listen_before_decisions_open(engine);
+    let link = engine.clients.links.pop().unwrap();
+    assert_eq!(early_link_post(engine, &link), jig_client_protocol_wire::SignInAnswer::NotReady);
     assert!(!engine.domain.ready());
 }
+
+#[test]
+fn a_box_given_link_signs_in_after_early_not_ready() {
+    use jig_client_protocol_wire::SignInAnswer;
+    let mut service = before_start_with_secrets(None);
+    let engine = service.engine.as_mut().expect("engine");
+    listen_before_decisions_open(engine);
+    let link = given_link();
+    assert_eq!(early_link_post(engine, &link), SignInAnswer::NotReady);
+    assert!(!engine.domain.ready(), "the first answer precedes decisions opening");
+
+    super::fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().expect("engine");
+    let SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &link) else {
+        panic!("the same given link signs in after startup");
+    };
+    assert_eq!(answer.party, OWNER_PARTY, "the given link signs in the owner");
+    assert!(answer.token.is_some(), "the sign-in returns a credential");
+}
+
 #[test]
 fn a_clients_listener_failure_stops_the_engine() {
     let mut service = super::fixtures::started();
@@ -705,7 +780,7 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
     });
     let mut service = super::fixtures::started();
     let engine = service.engine.as_mut().unwrap();
-    engine.clients = crate::clients::Clients::new(
+    *engine.clients = crate::clients::Clients::new(
         &jig_protocol_config::Directories::working(),
         &config.jig,
         &config.clients,
@@ -746,7 +821,7 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
     let mut service = super::fixtures::ready();
     let link = service.links().pop().expect("sign-in link");
     let engine = service.engine.as_mut().expect("engine");
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut login = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     login.pump(engine, true);
     let w::SignInAnswer::SignedIn(answer) = login.sign_in_answer(engine) else { panic!("signed in") };

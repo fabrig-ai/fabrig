@@ -4,6 +4,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
 use temper_config_shell::{FILE, FORMER};
+use temper_service_shell::configuration::Read;
 use temper_shell::directories::Directories;
 
 const ENGINE: &str = r#"listen = "127.0.0.1:7100"
@@ -67,19 +68,11 @@ fn toml_engine_stopped_tools_read_the_file() {
     assert_eq!(deployment.as_ref(), scratch.path().join("state").as_os_str().as_bytes());
 }
 
-#[test]
-fn toml_engine_refuses_a_box_file_without_workers() {
-    let (_scratch, directories) = fixture("listen = \"127.0.0.1:7100\"\n");
-    let Err(why) = crate::serve::prepare_in_with(
-        "temper-engine",
-        &[],
-        b"/",
-        &directories,
-        &temper_engine_service::stock::Given::Stock,
-    ) else {
-        panic!("engine requires workers listener")
-    };
-    assert_eq!(why, format!("temper-engine serve: {FILE}: workers: required in temper-engine's file\n"));
+pub(super) fn read_scripted(bytes: &[u8], shape: temper_config_shell::Shape) -> Result<Read, String> {
+    let facts = temper_config_shell::Facts { login: "sam".into(), hostname: "fixture".into(), provider_key: false };
+    let temper_config_shell::Read { file, document, keys } =
+        temper_config_shell::parse(bytes, shape, &facts).map_err(|why| why.to_string())?;
+    Ok(Read { file, document, keys })
 }
 
 fn fake_setup(directories: &Directories) {
@@ -95,10 +88,131 @@ fn fake_setup(directories: &Directories) {
 
 #[test]
 fn toml_engine_forge_prepare_reads_the_document() {
-    let (scratch, directories) = fixture(ENGINE);
-    fake_setup(&directories);
-    assert_eq!(crate::forge::start(&directories, &["prepare".into(), "7".into()], None, &[]).unwrap(), 0);
-    assert!(scratch.path().join("playground-7/admin_token").is_file());
+    use crate::forge::{Inputs, Preparation, start_with_preparation};
+    use skein_fake_machine::{How, Is, Item, Machine};
+    use std::{cell::RefCell, path::Path};
+    use temper_config_shell::Shape;
+    use temper_forge_setup::{machine::BoxKind, setup_file};
+
+    let fixture = Path::new("/fixture");
+    let directories = crate::test_configuration::directories(fixture);
+    let jig = temper_service_shell::jig_directories(&directories);
+    let user = 1000;
+    let mut machine = Machine::for_user(user);
+    let root = machine.lay(&[Item::file(FILE.as_bytes(), ENGINE.as_bytes())]);
+    let machine = RefCell::new(machine);
+    let relative = |path: &Path| path.strip_prefix(fixture).unwrap().as_os_str().as_bytes().to_vec();
+    let inputs = Inputs {
+        reader: crate::setup::check,
+        listener_at: |_| panic!("prepare needs no listener"),
+        setup: &|_, number, verb, _| {
+            assert_eq!((number, verb), (7, "prepare"));
+            setup_file::chosen(BoxKind::Fake, 3007, b"sam", false, &jig).map_err(|why| format!("{why:?}"))
+        },
+        configuration: &|directories, shape| {
+            let file = crate::path(&directories.config).join(FILE);
+            let mut machine = machine.borrow_mut();
+            let opened = machine.open(root, &relative(&file), How::Read).unwrap();
+            let length = u32::try_from(machine.stat(opened).size).unwrap();
+            let bytes = machine.read(opened, 0, length).unwrap();
+            machine.close(opened);
+            read_scripted(&bytes, shape)
+        },
+        sign_in: &|_, _, _, _, _| panic!("prepare dispatches no sign-in"),
+    };
+    let preparation = Preparation {
+        directory: &|directory, create| {
+            assert!(create);
+            machine.borrow_mut().make_directory(root, &relative(directory), 0o700).unwrap();
+            Ok(user)
+        },
+        fake: &|file| {
+            let mut machine = machine.borrow_mut();
+            let opened = machine.open(root, &relative(file), How::Create { mode: 0o600 }).unwrap();
+            machine.close(opened);
+            Ok(())
+        },
+    };
+    assert_eq!(
+        start_with_preparation(
+            "temper",
+            Shape::EngineAlone,
+            &directories,
+            &["prepare".into(), "7".into()],
+            None,
+            &[],
+            (&inputs, &preparation),
+        )
+        .unwrap(),
+        0
+    );
+    let mut machine = machine.into_inner();
+    let prepared = machine.open(root, b"playground-7/admin_token", How::PathNoFollow).unwrap();
+    assert_eq!(machine.stat(prepared).is, Is::File);
+    machine.close(prepared);
+}
+
+#[test]
+fn forge_prepare_and_run_refuse_moved_limits_before_preparing() {
+    use crate::forge::{Inputs, Preparation, report_exit, start_with_preparation};
+    use std::{cell::Cell, path::Path};
+    use temper_config_shell::Shape;
+    use temper_forge_setup::setup_file;
+
+    let directories = crate::test_configuration::directories(Path::new("/fixture"));
+    let jig = temper_service_shell::jig_directories(&directories);
+    let owned = setup_file::decode(
+        br#"{"version":1,"kind":"owned","listen":{"socket":"127.0.0.1:3000"},
+          "remote":"http://127.0.0.1:3000","forgejo":"/opt/forgejo","runner":null,
+          "person":{"login":"ada","email":"ada@example.invalid"}}"#,
+        &jig,
+    )
+    .expect("owned setup without a runner");
+    let preparation = Preparation {
+        directory: &|_, _| panic!("configuration refusal must precede directory preparation and launch"),
+        fake: &|_| panic!("configuration refusal must precede token preparation"),
+    };
+    for words in [&["prepare", "1"][..], &["run", "1", "forgejo"][..], &["run", "1", "runner"][..]] {
+        let arguments: Vec<_> = words.iter().map(std::ffi::OsString::from).collect();
+        let setup_read = Cell::new(false);
+        let inputs = Inputs {
+            reader: |_, _| panic!("no deployment document from a refused configuration"),
+            listener_at: |_| panic!("LISTEN_FDS is absent"),
+            setup: &|given, number, verb, flags| {
+                assert_eq!(given.config, directories.config);
+                assert_eq!((number, verb, flags), (1, words[0], &[][..]));
+                assert!(!setup_read.replace(true), "the forge setup is read once");
+                Ok(owned.clone())
+            },
+            configuration: &|given, shape| {
+                assert!(setup_read.get(), "the forge setup is read before the configuration");
+                assert_eq!(given.config, directories.config);
+                assert_eq!(shape, Shape::Standalone);
+                read_scripted(b"limits = {}\n", shape)
+            },
+            sign_in: &|_, _, _, _, _| panic!("prepare and run do not sign in"),
+        };
+        let result = start_with_preparation(
+            "temper-box",
+            Shape::Standalone,
+            &directories,
+            &arguments,
+            None,
+            &[],
+            (&inputs, &preparation),
+        );
+        let mut stderr = String::new();
+        let code = report_exit("temper-box", &arguments, result, |_| panic!("no stdout"), |line| stderr = line);
+        assert_eq!(code, 1, "{words:?}");
+        assert_eq!(
+            stderr,
+            format!(
+                "temper-box forge {}: forge 1: {FILE}:1: limits: moved: limits are settings; ask temper, or use temper ctl settings apply\n",
+                words[0]
+            ),
+            "{words:?}"
+        );
+    }
 }
 
 #[test]

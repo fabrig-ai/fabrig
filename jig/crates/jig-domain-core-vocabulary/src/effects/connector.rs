@@ -33,8 +33,8 @@ impl PersonSeed {
     }
 }
 
-/// Core-authorized connector procedure, funded by its project or a person's pool
-/// (jig/docs/design/domain/authority.md, 6 and 6.2).
+/// Core-allocated connector work, funded by its project, a person's pool or its requesting task
+/// (jig/docs/design/domain/authority.md, 6–6.3).
 #[derive(Hash, Debug)]
 pub struct RepairSeed {
     pub number: u64,
@@ -46,6 +46,21 @@ pub struct RepairSeed {
     pub budget: u64,
 }
 
+/// Application-made agent goal delegated by a live task (jig/docs/design/domain/authority.md, 6.3).
+#[derive(Hash, Debug)]
+pub struct SeededGoal {
+    pub charter: u32,
+    pub spec: tasks::Spec,
+    pub contract: tasks::Contract,
+    pub authority: tasks::Authority,
+    pub llm: Option<tasks::LlmChoice>,
+    pub budget: u64,
+    pub tracked: Option<u32>,
+    pub label: u32,
+    pub flags: tasks::Flags,
+    pub holdings: Box<[tasks::Holding]>,
+}
+
 impl RepairSeed {
     /// The allocated task number for root-owned connector holding translation.
     #[must_use]
@@ -53,8 +68,62 @@ impl RepairSeed {
         self.number
     }
 
+    /// Make an application-narrowed goal with its task's reservation, never cutting its budget
+    /// to fit (jig/docs/design/domain/authority.md, 6.3).
+    pub fn goal(
+        self,
+        task: u64,
+        context: &tasks::DelegationContext,
+        goal: SeededGoal,
+    ) -> Result<tasks::Event, tasks::Refusal> {
+        if context.tasks_left == 0 {
+            return Err(tasks::Refusal::Tree);
+        }
+        if context.authority.delegation.depth == 0 {
+            return Err(tasks::Refusal::Depth);
+        }
+        let mut authority = goal.authority;
+        authority.delegation.depth = authority.delegation.depth.checked_sub(1).ok_or(tasks::Refusal::Depth)?;
+        let available = context
+            .numbers
+            .budget
+            .saturating_sub(context.numbers.spent)
+            .saturating_sub(context.numbers.spent_below)
+            .saturating_sub(context.numbers.reserved);
+        if available < goal.budget {
+            return Err(tasks::Refusal::Funding);
+        }
+        authority.budget.spend = goal.budget;
+        Ok(tasks::Event::Make {
+            reads_project: false,
+            maker: None,
+            places: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),
+            creator: tasks::Party::Task(task),
+            batch: Box::new([tasks::New {
+                number: self.number,
+                project: self.project,
+                executor: tasks::Executor::Agent { charter: goal.charter },
+                spec: goal.spec,
+                contract: goal.contract,
+                numbers: tasks::Numbers { budget: goal.budget, spent: 0, spent_below: 0, reserved: 0 },
+                authority,
+                funder: tasks::Funder::Task(task),
+                deadline: tasks::Deadline::Named,
+                label: goal.label,
+                flags: goal.flags,
+                llm: goal.llm,
+                dependencies: Box::new([]),
+                holdings: goal.holdings,
+                wake: tasks::WakePolicy::DEFAULT,
+                recurring: None,
+                tracked: goal.tracked,
+            }]),
+        })
+    }
+
     /// Root-made procedure delegate, checking its requester's room, depth and funding,
-    /// without requiring an agent-selectable delegation kind (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    /// without requiring an agent-selectable delegation kind (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     pub fn delegate(
         self,
         task: u64,
@@ -81,6 +150,7 @@ impl RepairSeed {
             return Err(tasks::Refusal::Funding);
         }
         Ok(tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),
@@ -179,7 +249,7 @@ pub enum EffectRefusal {
 }
 
 /// A default a connector stored that the application no longer gives
-/// (jig/docs/design/domain/engine/settings.md, 5; jig/docs/design/domain/connectors.md, section 17).
+/// (jig/docs/design/domain/engine/settings-application.md, 1; jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct DroppedDefault {
     pub kind: u32,
@@ -188,7 +258,7 @@ pub struct DroppedDefault {
 }
 
 /// A connector's answer in jig's vocabulary, after root translation.
-/// Application settings: jig/docs/design/domain/engine/settings.md, 5;
+/// Application settings: jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Hash, Debug)]
 pub enum Event {
@@ -302,7 +372,7 @@ pub enum OutboxOutcome {
     },
 }
 
-/// The connector's place in the core-owned restart order.
+/// Restoration and the two halves of a connector's catching up.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RestartStage {
     Restored,
@@ -326,7 +396,7 @@ pub struct AdoptedParty {
     pub role: people::Role,
 }
 
-/// A connector's judgment of one item (jig/docs/design/domain/engine/settings.md, 5;
+/// A connector's judgment of one item (jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Judged {
@@ -335,7 +405,7 @@ pub enum Judged {
     Refuse { why: Box<[u8]> },
 }
 
-/// A connector's default metadata (jig/docs/design/domain/engine/settings.md, 5;
+/// A connector's default metadata (jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DefaultState {
@@ -348,7 +418,7 @@ pub struct DefaultState {
 }
 
 /// What the core asks a numbered connector to do.
-/// Application settings: jig/docs/design/domain/engine/settings.md, 5;
+/// Application settings: jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Hash, Debug)]
 pub enum Ask {
@@ -515,6 +585,5 @@ pub enum Ask {
     Restore {
         owner: Token,
     },
-    ReadAfresh,
-    SettleOutbox,
+    CatchUp,
 }

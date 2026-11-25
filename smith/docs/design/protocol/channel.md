@@ -71,28 +71,31 @@ of domain/host.md, section 2.
   of kinds, and the records of that version's schema. Each half speaks
   one version, its build's, and offers only that one: this channel is
   per-build (README.md, section 8).
-  The current version is 13 (`channel-v13.schema`), which adds the
+  The current version is 14 (`channel-v14.schema`), which adds a
+  turn's parts, `part` up and `part kept` down (section 4), the
+  start's `tell_parts` and parts, a directory's `results` and the
+  drain's grace (section 3), for a host that keeps a run's place
+  across its restart (domain/turn-parts.md); version 13 added the
   agent's `signalled` (section 4); version 12 added a program's usage
   window (section 4); version 11 added a program that
   started without smith's tools to a run's failures, and version 8 a
   model failure's status to its report.
-  From 2026-11-12 the version
-  moves with every change to its layout (the owner, 2026-11-12), as a new
-  kind always moved it. Its `schema/` holds the current text alone, and
-  each version from 7 on is kept as its text in `schema/kept/` (skein's
-  `data/codec/command.md`, section 1). Earlier values are built from
-  those kept texts, not stored golden files; no kept text is a
-  negotiated version.
+  Its version is frozen at 14, as every wire's is (temper's
+  `draft/layouts-both-ways.md`, 3, which the user approved on
+  2026-11-18, in place of the owner's rule of 2026-11-12 that moved it
+  with every change to its layout): a change is made in its current text
+  alone, its `schema/` holds that text and no other, and no older text
+  is kept. Host and agent are one build (below), so nothing converts it.
 - **The host and agent stay on one build.** A consumer that spawns agents
   pins their program and configuration for its lifetime, and never
   adopts a previous host process's agents. In temper, the worker pins
   both at startup and every run spawns that copy over local standard
-  input and output (`temper/docs/design/domain/worker/README.md`, section
-  5). The engine talks to the worker on jig's channel, not this one:
+  input and output (`temper/docs/design/domain/worker/agent-processes.md`, section
+  1). The engine talks to the worker on jig's channel, not this one:
   restarting the engine leaves the worker and its agents together;
   replacing the configured agent program cannot change a running
-  worker's later spawns. This is the per-build exemption in temper's
-  bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
+  worker's later spawns. So nothing converts this channel between
+  builds (`temper/docs/design/draft/archive/redeploys.md`, 4.2 and
   4.4). A connected agent spanning builds needs a compatibility contract
   before that shape is supported (README.md, sections 4 and 11).
 - **The credential** is empty over a spawned agent's pipes. A connected
@@ -102,9 +105,10 @@ of domain/host.md, section 2.
 - **Required and optional kinds.** Each version names the kinds it
   requires each side to take, and any it leaves optional: a peer that
   does not take an optional kind leaves it out of its terms, and the
-  writer, refused at its entrance, carries on without it. A kind is
-  never added within a version: a new kind, required or optional, is a
-  new version.
+  writer, refused at its entrance, carries on without it. A new kind,
+  required or optional, changes the channel's layout and not its
+  version, which is frozen (README.md, section 8): a worker and its
+  agents are one build (above), so they take the same kinds.
 - **Terms.** Each side checks the other's terms for every required kind it
   may send, and refuses with *limits*, naming the kind, when one is missing
   or too small. The agent's sending bounds come from its configuration, and
@@ -127,15 +131,16 @@ of domain/host.md, section 2.
 | acknowledge | a turn's number: that turn and every one before it are kept durably | as the host keeps them |
 | grant | an account; a generation; how long it is valid; its value (section 6) | when the host refreshes one |
 | renewals | whether the host's renewals of grants are held | when its link to what grants them is lost, `held`, and when it is back, not held (section 6) |
+| part kept | a part's number: that part and every one before it are kept durably | as the host keeps them, from version 14 |
 | cancel | nothing | at most once |
-| drain | nothing | at most once, and never after a cancel: the run stops at the end of its current turn (domain/run.md, section 9) |
+| drain | the grace, an optional `duration` (from version 14) | at most once, and never after a cancel: without a grace the run stops at the end of its current turn (domain/run.md, section 9); with one, at its answer, the calls in flight cut after the grace (domain/turn-parts.md, section 4). Only a host whose start asked for parts gives a grace |
 
-**The start** (domain/run.md, 3.2):
+**The start** (../domain/run-start.md, 1.2):
 
 - **the activation number,** new for every start of the run;
 - **the run's identity,** if the host keeps one: 16 opaque bytes, the
   same in every start of the run, resumes included. Without one, the run
-  mints its own (domain/run.md, 3.2). It reaches providers as the
+  mints its own (../domain/run-start.md, 1.2). It reaches providers as the
   conversations' affinity (llm.md);
 - **the charter,** as bytes (charter.md);
 - **the workspace,** if any: for each directory,
@@ -149,6 +154,10 @@ of domain/host.md, section 2.
     whole; a run takes as many as its run limits' `conflicts` and
     `conflict_path_bytes` give (`limits.md`), which the host's own bounds
     on a checkout's conflicts must fit;
+  - its checks' results directory, `results`, if the host names one:
+    where it sits on the agent's file system, at most 4,096 bytes, kept
+    by the host as long as the directory's tree (`domain/run-delivery.md`, 1.1);
+    from version 14;
 - **the transcript,** if the run resumes: its turns' bytes, in order, as
   they were told, from the last turn whose record had `opens_window`
   (section 4; transcript.md, section 3). Earlier windows are never sent.
@@ -157,9 +166,25 @@ of domain/host.md, section 2.
   piece is bounded at the resume limit's bytes, and the agent counts its
   turns against the resume limit's turns as it splits it, so a window of
   many small turns travels as one of a few large ones does
-  (protocol/limits.md, 3.6). A piece whose lengths do not end exactly at
+  (limits-derivation.md, 1.6). A piece whose lengths do not end exactly at
   its end, or with a turn past the turn's bound, is a malformed or
   oversized transcript (domain/session.md, section 3);
+- **`tell_parts`:** whether the run tells its turns' parts (section 4;
+  domain/turn-parts.md, section 3), for a host that keeps them; from
+  version 14;
+- **the parts,** if the run resumes a turn a drain cut: those the host
+  kept since the transcript's last turn, in the order told, across the
+  activations that told them, one piece as the transcript is: each a
+  `KeptPart` record after its length, a `u32`. A `KeptPart` is the
+  activation it was told in, its `turn`, `thread`, `call` and `kind`, and
+  its body's bytes, as the part record had them (section 4). The
+  transcript's turns and the parts count together against the resume
+  limit, in turns and bytes (protocol/limits.md, 3.6). A host sends main's
+  parts, then each sub-agent's, all of one `call` or none, in call
+  order, while they fit; where main's do not, it sends the window alone.
+  The agent drops parts past the limit, or that do not decode, and
+  resumes from the window alone, never refusing the start for them.
+  From version 14;
 - **the calls the transcript does not hold as answered,** that the host
   answered: a call whose turn was never told, or one the run withdrew and
   the host decided later. Each is a name, the tool, and the answer the
@@ -167,8 +192,8 @@ of domain/host.md, section 2.
   answer; or too large, when that answer is larger than the run takes.
   Busy, unavailable and withdrawn are not decisions, and never appear
   here. The run tells the LLM of them as text in its waking prompt, since
-  they have no open place in the history to go back to (domain/run.md,
-  section 6);
+  they have no open place in the history to go back to (../domain/run-messages.md,
+  section 1);
 - **the messages** that triggered the run, if any: each a message record
   (a name, the sender's label, the text, `finish_requested`), in order, at
   most as many as the run's inbox holds, each within its message bound as it
@@ -195,7 +220,7 @@ of domain/host.md, section 2.
 - **for a host tool,** its text as a result or as an error (domain/run.md,
   5.2);
 - **for a delivery or a save,** delivered, nothing, refused, failed or
-  stale, with what each carries (domain/run.md, 8.2 and 8.5), in the one
+  stale, with what each carries (../domain/run-delivery.md, 1.2 and 1.5), in the one
   delivery record, so a host that keeps a delivery's answer keeps a
   save's alike:
   - delivered names each directory and what was made of it;
@@ -223,13 +248,14 @@ of domain/host.md, section 2.
 | call | a name; the tool; its effect; its deadline, as a duration; what it asks (below) | while the run lives, each name once while in flight |
 | withdraw | a call's name | once per call, at most |
 | turn | its number in this activation; the spend so far; the last message read, if any; `opens_window`; its body, as bytes (transcript.md) | numbered from one in each activation, each once |
+| part | its number in this activation; its `turn`; its `thread`; its `call`; its `kind`, `answer`, `result` or `window`; its body, as a turn's bytes (transcript.md) (below) | only to a start that asked (`tell_parts`), numbered from one in each activation apart from turns, each once; from version 14 |
 | waiting | the last message read, if any | when the run waits for a message, or awaits its first |
-| long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, or a completion waits for a grant (domain/session.md, section 4) |
+| long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, a completion waits out its provider's rate limit (as `completion`, until its retry), or a completion waits for a grant (domain/session.md, section 4) |
 | long done | nothing | when one ends |
-| unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs.md, 5.6) |
+| unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs-claude-code.md, 1.6) |
 | limited | an account, and its reset (below) | when its account reached a usage limit |
 | refused | an account, and the provider's code and reason (below) | when its provider refused the account what the run asked, such as a model its plan does not serve |
-| usage | an account, and one usage window (below) | at each `rate_limit_event` a program reports (programs.md, 5.6) |
+| usage | an account, and one usage window (below) | at each `rate_limit_event` a program reports (programs-claude-code.md, 1.6) |
 | fact | one fact (section 8) | while the run is admitted and has not answered, with room to spare; any other is not projected, and counted (section 7) |
 | live | a piece of live content (below) | while the run is admitted and has not answered, only for a kind the start asked for, with room to spare; any other is dropped, and counted (section 7) |
 | signalled | the signal, `interrupt` or `terminate`; the sender's process id, if the system names one | at most once per run: when the agent hears a termination signal while the run is live, its channel open and the host's cancel not yet heard, or at its admission for one heard before it; a request to the host, never a cancel (agent.md, section 6; domain/host.md, section 4); added in version 12 |
@@ -247,8 +273,8 @@ completion streamed, in bytes, before its turn commits:
 - **`kind`:** `text`, `reasoning` or `input`;
 - **`offset`:** the first byte's offset within that retry's stream of
   that kind, and for `input` within that call's input;
-- **`bytes`:** the content, within the piece bound (protocol/limits.md,
-  3.6);
+- **`bytes`:** the content, within the piece bound (limits-derivation.md,
+  1.6);
 - **the call,** for kind `input` only: the call's provider id and its
   tool's name, as the completion names them. Absent for the other
   kinds.
@@ -265,6 +291,26 @@ at or after the end of the one before. A start after the end is a gap,
 the bytes between dropped (section 7); a reader marks a gap and carries
 on. The pieces carry no count of what was dropped: the agent counts it
 (section 7).
+
+**A part** (domain/turn-parts.md, section 2), from version 14:
+
+```
+enum PartKind { answer, result, window }
+record Part { number: u32 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
+record PartKept { number: u32 }
+record KeptPart { activation: u64 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
+record Drain { grace: option duration }
+```
+
+- **`turn`:** the number main's turn in flight will have in this
+  activation, the last turn told plus one, as a live piece's;
+- **`thread`:** the conversation's, main's zero; **`call`:** for a
+  sub-agent's part, the position of the `sub_agent` call it answers
+  among main's answer's blocks, and zero for main's;
+- **its body** is bounded as a turn's, and counts with the turns
+  against the start's window of unacknowledged turns and bytes
+  (section 7); a `part kept` acknowledges it as `acknowledge` does a
+  turn.
 
 **Long operations** are what the run waits on below it with deadlines of
 its own, so the host's watchdog stretches over them (domain/host.md,
@@ -292,7 +338,7 @@ last one with `opens_window` (domain/host.md, section 6).
   reads to do what delivering means to it;
 - **a save:** nothing more: the host makes the tree durable as it would
   a delivery, with no fields, and marks it unchecked in its own terms
-  (domain/run.md, 8.5). The call's effect is a write.
+  (../domain/run-delivery.md, 1.5). The call's effect is a write.
 
 **The account notices' fields:**
 
@@ -300,11 +346,11 @@ last one with `opens_window` (domain/host.md, section 6).
   (charter.md, section 2);
 - **the reset,** in limited: how long until the account may be used
   again, an optional `duration`. It is absent when its provider did not
-  say, and zero when it said zero (skein's `llm/README.md`, 2.5);
+  say, and zero when it said zero (skein's `llm/vocabulary.md`, 1.5);
 - **the code,** in refused: the provider's error code, else its error
   type, as text within its bound. It is empty when the provider gave
   none, or one past the bound, which is left out, never clipped (skein's
-  `llm/README.md`, 2.5 and 7);
+  `llm/vocabulary.md`, 1.5, and `llm/README.md`, 7);
 - **the reason,** in refused: the failure's detail, the provider's text,
   within its bound, cut at a character's boundary.
 
@@ -316,8 +362,8 @@ label, 1 to 32 printable ASCII bytes; its length, an optional
 `duration`; its share used, optional basis points from 0 to 10,000; its
 reset, the provider's optional wall time in Unix seconds, as given, never
 a duration, so that two reports of one reset are equal; and its state,
-`UsageState`: open, warned or limited. The channel is per-build, so the
-version moves with no bridge (temper's `draft/redeploys.md`, 4.4).
+`UsageState`: open, warned or limited. The channel is per-build, so
+nothing converts it across builds (temper's `draft/archive/redeploys.md`, 4.4).
 
 **How a run ended** (domain/run.md, section 9):
 
@@ -326,15 +372,15 @@ version moves with no bridge (temper's `draft/redeploys.md`, 4.4).
 - **failed,** typed, so the host can act without reading prose:
   - the model, with its provider's failure class, its evidence, the
     charter's index of its model, its attempts and its report, the
-    status a program reported among it (programs.md, 5.6); a limited account,
+    status a program reported among it (programs-claude-code.md, 1.6); a limited account,
     with the account and its reset as the limited notice has them
     (above), the reset measured when the run answers; a refused account,
     with the account and the provider's code as the refused notice has
     it; an unauthorized account, whose program source's login was lost;
     a program that started without smith's tools, `ModelFault::Untooled`,
     carrying a `ProgramFault` whose exit is none, naming it, with its
-    detail (programs.md, 5.6), added in version 11; or a program that
-    could not run, naming it, with its detail (programs.md, 5.6);
+    detail (programs-claude-code.md, 1.6), added in version 11; or a program that
+    could not run, naming it, with its detail (programs-claude-code.md, 1.6);
   - the budget, naming what ran out, with what was used and its bound;
   - policy;
   - cancelled;
@@ -358,10 +404,14 @@ edge is independent of the channel's own flow control (section 7).
   - answers to calls come once per call, even after a cancel, since a
     delivery is never abandoned (domain/host.md, section 2);
   - the cancel comes at most once;
-  - the drain comes at most once, and never after the cancel; a cancel may follow it.
+  - the drain comes at most once, and never after the cancel; a cancel may follow it; a drain with a grace only to a start that asked for parts;
+  - a part kept names a part told, and never goes back.
 - **Up:**
   - admitted, or a refused answer, comes first;
   - turns are consecutive from one, and their spend never falls;
+  - parts come only to a start that asked, consecutive from one apart
+    from turns; a part's `turn` is the last turn told plus one, and an
+    answer of main's comes before any result of its turn;
   - a call's name is used once while it is in flight;
   - a message is refused at most once, and only before a fence covers it;
   - the last message read names a message the host sent, and never goes
@@ -392,7 +442,7 @@ edge is independent of the channel's own flow control (section 7).
     against the run's message bound, and checks its inbox's room and the
     name against those in use. One it cannot take is refused, typed, with
     a message refused record, and is never handed further, so nothing below
-    ingress asserts on what a host sent (domain/run.md, section 6). The
+    ingress asserts on what a host sent (../domain/run-messages.md, section 1). The
     host's half and kit check with the same arithmetic first, and refuse
     at their own entrance with the same reasons (domain/host.md, section
     4), so a host that sends what its kit admits sees few refusals from
@@ -480,9 +530,9 @@ edge is independent of the channel's own flow control (section 7).
   256 bytes, tool over 64, or either not UTF-8) are also dropped.
   Every dropped byte is counted, as live bytes not
   projected, beside the facts' count. The numbers are in
-  protocol/limits.md, 3.6. When a turn's record is ready, the bytes still
+  limits-derivation.md, 1.6. When a turn's record is ready, the bytes still
   held for it are sent or dropped first, so no piece follows its turn
-  (section 5).
+  (`channel.md`, section 5).
 - **Each half's queue** is sized from its domain's limits:
   - **the agent's:** the window, the calls in flight, a refusal for each
     message in flight, the notices, the long operations open, the answer,
@@ -544,9 +594,9 @@ a trace is kept is the agent's configuration (agent.md).
 ## 10. The world
 
 - **The codecs:**
-  - records-only drift and no unpinned constructs, under skein's
-    `data/codec/README.md`, section 6; fixed-rule values built from
-    embedded current or kept text, with no generated test targets;
+  - records-only drift, under skein's
+    `data/codec/golden.md`, section 1; fixed-rule values built from
+    embedded current text, with no generated test targets;
   - each decoder fuzzed in the fuzzy suite.
 - **A protocol world:** the agent's half with `smith-domain`, under a
   scripted LLM and machine, against the host's half with

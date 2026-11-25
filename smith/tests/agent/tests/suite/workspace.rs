@@ -1,5 +1,5 @@
 //! Optional workspace and mixed mounts on the typed fake LLM world.
-//! Contract: smith/docs/design/domain/run.md, sections 3 and 8; smith/docs/design/domain/tools.md, sections 2–4.
+//! Contract: smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run-delivery.md, section 1; smith/docs/design/domain/tools.md, sections 2–4.
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Part, Query, Script, Turn};
@@ -42,6 +42,7 @@ fn mixed_disk() -> (Checkout, run::Workspace) {
         }
         let root = Token::new(disk.root(name));
         directories.push(run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: name.into(),
             root,
@@ -127,6 +128,7 @@ fn a_delivery_to_three_directories_failing_in_the_second_names_that_directory() 
         disk.write(&[name, b"/.temper/pre-pr"].concat(), b"#!checks");
         disk.write(&[name, b"/src/lib.rs"].concat(), b"pub fn answer() -> u32 { 43 }\n");
         directories.push(run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: name.into(),
             root: Token::new(disk.root(name)),

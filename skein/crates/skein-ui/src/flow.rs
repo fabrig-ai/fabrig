@@ -1,4 +1,4 @@
-//! Flow owners, data and scene bounds (skein/docs/design/ui/README.md, 3.3, and skein/docs/design/ui/markdown.md, 1, and skein/docs/design/ui/scenes.md, 5).
+//! Flow owners, data and scene bounds (skein/docs/design/ui/tree.md, 1.3, and skein/docs/design/ui/markdown.md, 1, and skein/docs/design/ui/scenes.md, 5).
 
 use crate::look::Names;
 use crate::{DrawingKind, Owner, Style};

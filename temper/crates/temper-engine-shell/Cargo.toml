@@ -47,6 +47,11 @@ temper-protocol-store.workspace = true
 temper-protocol-worker-wire.workspace = true
 
 [dev-dependencies]
+skein-codec.workspace = true
+temper-worker-shell.workspace = true
+jig-protocol-config-fixtures.workspace = true
+skein-tls-kit.workspace = true
+temper-service-core.workspace = true
 temper-service.workspace = true
 temper-deployment-fixtures.workspace = true
 temper-fixtures.workspace = true
@@ -55,6 +60,8 @@ temper-limits-fixtures.workspace = true
 jig-domain-tasks.workspace = true
 temper-test-env.workspace = true
 skein-scratch.workspace = true
+skein-fake-machine.workspace = true
+skein-sim.workspace = true
 temper-client-protocol-wire.workspace = true
 serde_json.workspace = true
 jig-channel-kit.workspace = true

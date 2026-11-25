@@ -53,8 +53,8 @@ pub fn connector_answer(value: &d::ApplicationOutcome) -> w::FamilyConnectorAnsw
     w::FamilyConnectorAnswer { value: parts::encode_application_outcome(value) }
 }
 #[must_use]
-pub fn connector_answer_value(value: w::FamilyConnectorAnswer, bound: &d::Limits) -> d::ApplicationOutcome {
-    parts::decode_application_outcome(value.value, bound)
+pub fn connector_answer_value(value: w::FamilyConnectorAnswer) -> d::ApplicationOutcome {
+    parts::decode_application_outcome(value.value)
 }
 
 /// The complete application request, with optional parameters kept optional.

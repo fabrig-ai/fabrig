@@ -8,12 +8,9 @@ const OTHER: u64 = 62;
 const FRESH: u64 = 101;
 const KEY: policy::Key = [7; 32];
 
-fn full(kind: &str) -> Domain {
+fn configured(kind: &str) -> (Domain, LandingRow) {
     let mut d = landing_fixture();
     fixtures::connect(&mut d);
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
     d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
         temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     let mut row = merge_landing_row(false);
@@ -87,6 +84,8 @@ fn full(kind: &str) -> Domain {
         });
         flight.writes =
             Box::new([Write::Rerun { attempt: api::JobAttempt { head: fixtures::HEAD, run: 7, job: 9, attempt: 1 } }]);
+        flight.inputs = landing::inputs(fixtures::HEAD, KEY, None, false);
+        row.follows = Some(Box::new([saved_dispatch(&row, &flight, 0, 2)]));
         d.landing
             .flights
             .insert(
@@ -95,11 +94,20 @@ fn full(kind: &str) -> Domain {
             )
             .unwrap();
     }
+    (d, row)
+}
+
+fn start_empty(d: &mut Domain) {
+    outputs(d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(d, Event::CatchUp);
+}
+
+fn full(kind: &str) -> Domain {
+    let (mut d, row) = configured(kind);
+    start_empty(&mut d);
     outputs(&mut d, Event::Landing { row });
-    outputs(&mut d, Event::Client(skein_forge_client::Event::PauseOutbox));
     for number in 1..=u64::from(env().limits.entries) {
         outputs(&mut d, Event::Enqueue { entry: refusals::entry(number) });
-        outputs(&mut d, Event::Committed { entry: number });
     }
     d
 }
@@ -126,39 +134,13 @@ fn start(d: &mut Domain, task: u64, entry: u64) {
 }
 
 fn finish(d: &mut Domain, base: api::Commit) -> Box<[Request]> {
+    finish_with_run(d, base, None)
+}
+
+fn finish_with_run(d: &mut Domain, base: api::Commit, run: Option<&api::Run>) -> Box<[Request]> {
     for _ in 0_u32..32 {
         let (call, op) = fixtures::next_call(d);
-        let answer = match op {
-            Op::Read(Read::Branch { branch }) => {
-                Ok(Answer::Commit(if branch.as_ref() == b"main" { base } else { fixtures::HEAD }))
-            }
-            Op::Read(Read::Pull { number, .. }) => {
-                let mut pull = fixtures::open_pull();
-                pull.number = number;
-                Ok(Answer::Pull(pull))
-            }
-            Op::Read(Read::Reviews { .. }) => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
-            Op::Read(Read::PullFor { head, .. }) => {
-                if head.as_ref() == b"temper/51" {
-                    Ok(Answer::Pull(fixtures::open_pull()))
-                } else {
-                    Err(Error::Missing)
-                }
-            }
-            Op::Read(Read::Commits { before, after, .. }) => Ok(Answer::Commits {
-                commits: if (before == fixtures::BASE || before == [9; 32]) && after == fixtures::HEAD {
-                    Box::new([api::CommitMessage {
-                        id: fixtures::HEAD,
-                        parents: Box::new([fixtures::BASE, fixtures::HEAD]),
-                        message: Box::new([]),
-                    }])
-                } else {
-                    Box::new([])
-                },
-                more: false,
-            }),
-            Op::Read(_) | Op::Write(_) => panic!("unexpected landing read {op:?}"),
-        };
+        let answer = answer_for(op, base, run);
         let out = fixtures::answer(d, call, answer);
         for request in &out {
             if matches!(request, Request::LandingDecision { .. } | Request::ResourceRefused { .. }) {
@@ -167,6 +149,48 @@ fn finish(d: &mut Domain, base: api::Commit) -> Box<[Request]> {
         }
     }
     panic!("landing decides after its coherent gather")
+}
+
+fn answer_for(op: Op, base: api::Commit, run: Option<&api::Run>) -> Result<Answer, Error> {
+    match op {
+        Op::Read(Read::Branch { branch }) => {
+            Ok(Answer::Commit(if branch.as_ref() == b"main" { base } else { fixtures::HEAD }))
+        }
+        Op::Read(Read::Pull { number, .. }) => {
+            let mut pull = fixtures::open_pull();
+            pull.number = number;
+            Ok(Answer::Pull(pull))
+        }
+        Op::Read(Read::Reviews { .. }) => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+        Op::Read(Read::PullFor { head, .. }) => {
+            if head.as_ref() == b"temper/51" {
+                Ok(Answer::Pull(fixtures::open_pull()))
+            } else {
+                Err(Error::Missing)
+            }
+        }
+        Op::Read(Read::Commits { before, after, .. }) => Ok(Answer::Commits {
+            commits: if (before == fixtures::BASE || before == [9; 32]) && after == fixtures::HEAD {
+                Box::new([api::CommitMessage {
+                    id: fixtures::HEAD,
+                    parents: Box::new([fixtures::BASE, fixtures::HEAD]),
+                    message: Box::new([]),
+                }])
+            } else {
+                Box::new([])
+            },
+            more: false,
+        }),
+        Op::Read(Read::Runs { .. }) => {
+            Ok(Answer::Runs { runs: Box::new([run.expect("listed gate run").clone()]), more: false })
+        }
+        Op::Read(Read::Run { run: id }) => {
+            let run = run.expect("read gate run");
+            assert_eq!(id, run.id);
+            Ok(Answer::Run(run.clone()))
+        }
+        Op::Read(_) | Op::Write(_) => panic!("unexpected landing read {op:?}"),
+    }
 }
 
 fn drive(d: &mut Domain, task: u64, entry: u64) -> Box<[Request]> {
@@ -321,8 +345,30 @@ fn landing_room_places_restart_in_order_without_a_saved_decision() {
         outputs(&mut d, Event::Restore { record: Stored::Entry { entry: row.entry.clone(), held: true } });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
+    for _ in 0..32_u32 {
+        if d.fresh_reads_in() {
+            break;
+        }
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/1/l61" => Err(Error::Missing),
+            Op::Read(Read::Branch { branch }) => {
+                Ok(Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD }))
+            }
+            Op::Read(Read::Pull { .. }) => Ok(Answer::Pull(fixtures::open_pull())),
+            Op::Read(Read::PullFor { .. }) => Err(Error::Missing),
+            Op::Read(Read::Commits { .. }) => Ok(Answer::Commits { commits: Box::new([]), more: false }),
+            Op::Read(Read::Reviews { .. }) => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+            Op::Read(Read::Items { .. }) => {
+                Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now })
+            }
+            other @ (Op::Read(_) | Op::Write(_)) => panic!("restart fresh read: {other:?}"),
+        };
+        fixtures::answer(&mut d, call, answer);
+    }
+    assert!(d.fresh_reads_in(), "the room is judged after the fresh pass");
     assert_eq!(room::reserved(&d), 0);
     assert_eq!(d.landing(TASK).unwrap().room, Some(1));
     assert_eq!(d.change(OTHER).unwrap().room, Some(2));
@@ -460,4 +506,245 @@ fn a_closing_round_keeps_the_close_wait_on_its_row() {
         panic!("landing")
     };
     assert_eq!(view.waits.unwrap().on, LandingWaitFor::Close);
+}
+
+fn gate_key() -> ReceiptKey {
+    ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: KEY }
+}
+
+fn dispatched(out: &[Request], owner: u64) -> bool {
+    for request in out {
+        if let Request::LandingDecision { task, decision: policy::Decision::Dispatch { key: KEY, .. }, .. } = request
+            && *task == owner
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn write_outcome(out: &[Request]) -> Option<skein_forge_client::Outcome> {
+    for request in out {
+        if let Request::Outcome { task: TASK, entry: FRESH, outcome, .. } = request {
+            return Some(*outcome);
+        }
+    }
+    None
+}
+
+fn dispatch() -> (Domain, skein_forge_client::Entry) {
+    let (mut d, row) = configured("dispatch");
+    start_empty(&mut d);
+    outputs(&mut d, Event::Landing { row });
+    let out = drive(&mut d, TASK, FRESH);
+    assert_eq!(entries(&out).as_ref(), &[FRESH]);
+    assert!(dispatched(&out, TASK), "{out:?}");
+    outputs(&mut d, Event::Committed { entry: FRESH });
+    let (call, op) = fixtures::next_call(&mut d);
+    assert!(matches!(op, Op::Read(Read::Items { .. })), "write's clock: {op:?}");
+    fixtures::answer(&mut d, call, Ok(Answer::Items { items: Box::new([]), more: false, cut: false, now: env().now }));
+    let (_, op) = fixtures::next_call(&mut d);
+    assert!(matches!(op, Op::Write(Write::Dispatch { .. })));
+    assert!(d.flights.contains_key(&(TASK, FRESH)));
+    let kept = d.entries.get(&FRESH).unwrap().entry.clone();
+    (d, kept)
+}
+
+fn outcome(d: &mut Domain, outcome: skein_forge_client::Outcome) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    domain::scripted_outcome(d, &env(), FRESH, TASK, outcome, &mut out);
+    out
+}
+
+fn made(d: &mut Domain) -> Queue<Request> {
+    outcome(d, skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false })
+}
+
+#[test]
+fn dispatch_failures_free_room_at_settlement_not_at_the_hold() {
+    use skein_forge_client::{Made, Outcome};
+    for final_outcome in
+        [Outcome::Failed(Error::Forbidden), Outcome::Raced { made: Made::Set, why: Error::Stale }, Outcome::Held]
+    {
+        let (mut d, _) = dispatch();
+        let free = room::free(&d, &LIMITS);
+        outcome(&mut d, Outcome::Uncertain);
+        assert_eq!(room::free(&d, &LIMITS), free);
+        outcome(&mut d, final_outcome);
+        if final_outcome == Outcome::Held {
+            assert_eq!(room::free(&d, &LIMITS), free, "held is not settled");
+            assert!(d.entries.get(&FRESH).unwrap().held);
+            let settled =
+                outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
+            assert!(settled.contains(&Request::NotMade { task: TASK, entry: FRESH }));
+            let out = outputs(&mut d, Event::ContinueRelease { task: TASK, entry: FRESH + 1 });
+            assert!(out.contains(&Request::EffectsSettled { task: TASK }));
+        }
+        assert!(!d.entries.contains_key(&FRESH));
+        assert_eq!(d.landing(TASK).unwrap().entries.as_ref(), []);
+        assert_eq!(room::free(&d, &LIMITS), free + 1);
+    }
+}
+
+fn restore_dispatch(row: LandingRow, old_entry: Option<skein_forge_client::Entry>) -> Domain {
+    let (mut d, _) = configured("dispatch");
+    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    if let Some(entry) = old_entry {
+        // The old writer kept it after Made, without a Flight row.
+        outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held: false } });
+    }
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    d
+}
+
+fn gate_run(start: Time) -> api::Run {
+    api::Run {
+        id: 7,
+        number: 8,
+        workflow: b"gate.yml".as_slice().into(),
+        commit: fixtures::HEAD,
+        event: api::Event::Dispatch,
+        actor: 7,
+        state: api::RunState::Completed,
+        conclusion: Some(api::Conclusion::Success),
+        url: Box::new([]),
+        created: start.saturating_add(Duration::from_millis(1)),
+        jobs: Box::new([]),
+    }
+}
+
+#[test]
+fn a_made_dispatch_restarts_from_its_landing_and_receipts_the_run() {
+    let (mut d, entry) = dispatch();
+    let free = room::free(&d, &LIMITS);
+    let mut out = made(&mut d);
+    let mut erased = false;
+    while let Some(request) = out.pop() {
+        erased |= request == (Request::Erase { key: Key::Entry(FRESH) });
+    }
+    assert!(erased && !d.entries.contains_key(&FRESH));
+    assert_eq!(room::free(&d, &LIMITS), free + 1);
+    let key = gate_key();
+    let before = d.landing.flights.get(&key).unwrap().clone();
+    let start = entry.start.unwrap().at;
+    let mut row = d.landing(TASK).unwrap().clone();
+    // Pending status has already been posted when the next proof poll starts.
+    row.landing.members[0].gates[0].posted = policy::Posted::Pending;
+    let mut d = restore_dispatch(row, None);
+    assert!(d.entries.is_empty());
+    let after = d.landing.flights.get(&key).expect("the row rebuilds the run without an outbox entry");
+    assert_eq!((&after.workflow, &after.branch, &after.inputs), (&before.workflow, &before.branch, &before.inputs));
+    assert_eq!((after.start, after.since, after.wall), (Some(start), before.since, before.wall));
+    let run = gate_run(start);
+    for entry in [FRESH + 1, FRESH + 2] {
+        start_step_for_run(&mut d, entry, &run);
+        if d.receipt(&key).is_some() {
+            break;
+        }
+    }
+    let receipt = d.receipt(&key).expect("the rebuilt follower made its receipt");
+    assert_eq!((receipt.run.id, receipt.passed), (run.id, true));
+    assert!(!d.landing.flights.contains_key(&key));
+}
+
+fn start_step_for_run(d: &mut Domain, entry: u64, run: &api::Run) {
+    start(d, TASK, entry);
+    finish_with_run(d, fixtures::BASE, Some(run));
+}
+
+#[test]
+fn cancelling_a_dispatch_lets_the_next_landing_dispatch_its_key() {
+    let (mut d, _) = dispatch();
+    made(&mut d);
+    let key = gate_key();
+    assert!(d.landing.flights.contains_key(&key));
+    let fault = d.landing.flights.get(&key).unwrap().clone();
+    d.landing.faults.insert((TASK, 0, 0), fault).unwrap();
+    outputs(&mut d, Event::Restore { record: Stored::Landing(landing_row(63, policy::Phase::Waiting)) });
+    let cancelled = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
+    assert!(!d.landing.flights.contains_key(&key));
+    assert!(d.landing.faults.is_empty());
+    assert!(asks(&cancelled).contains(&63));
+    assert!(d.receipt(&key).is_none());
+    let (_, mut row) = configured("dispatch");
+    row.landing.task = OTHER;
+    outputs(&mut d, Event::Landing { row });
+    let out = drive(&mut d, OTHER, FRESH + 1);
+    assert!(dispatched(&out, OTHER), "{out:?}");
+    assert_eq!(d.landing.flights.get(&key).unwrap().task, OTHER);
+}
+
+fn settle_legacy_dispatch(d: &mut Domain, start: Time) -> Box<[Request]> {
+    for _ in 0..40_u32 {
+        let (call, op) = fixtures::next_call(d);
+        let out = fixtures::answer(d, call, answer_for(op, fixtures::BASE, Some(&gate_run(start))));
+        if write_outcome(&out).is_some() {
+            return out;
+        }
+    }
+    panic!("client must settle the restored dispatch");
+}
+
+#[test]
+fn old_retained_dispatches_settle_for_live_and_cancelled_landings() {
+    let (d, entry) = dispatch();
+    let start = entry.start.unwrap().at;
+    for cancelled in [false, true] {
+        let mut row = d.landing(TASK).unwrap().clone();
+        row.follows = None;
+        if cancelled {
+            row.landing.phase = policy::Phase::Cancelled;
+        }
+        let mut d = restore_dispatch(row, Some(entry.clone()));
+        let free = room::free(&d, &LIMITS);
+        let key = gate_key();
+        assert_eq!(d.landing.flights.contains_key(&key), !cancelled);
+        // Fill the rest of the landing table to test admission at the bound.
+        for task in 200..200 + u64::from(LIMITS.landings - 1) {
+            outputs(&mut d, Event::Restore { record: Stored::Landing(landing_row(task, policy::Phase::Waiting)) });
+        }
+        if cancelled {
+            assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
+        }
+        let settled = settle_legacy_dispatch(&mut d, start);
+        assert!(matches!(write_outcome(&settled), Some(skein_forge_client::Outcome::Made { .. })));
+        assert!(!d.entries.contains_key(&FRESH));
+        assert_eq!(room::free(&d, &LIMITS), free + 1);
+        let row = d.landing(TASK).unwrap();
+        assert!(row.entries.is_empty());
+        if cancelled {
+            assert!(!d.landing.flights.contains_key(&key));
+            assert_eq!(row.follows(), []);
+            assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
+            let (_, mut next) = configured("dispatch");
+            next.landing.task = OTHER;
+            let out = outputs(&mut d, Event::Landing { row: next });
+            assert!(out.contains(&Request::Erase { key: Key::Landing(TASK) }));
+        } else {
+            assert_eq!(row.follows()[0].start, Some(start));
+            assert!(d.landing.flights.contains_key(&key));
+            let after = restore_dispatch(row.clone(), None);
+            assert_eq!(after.landing.flights.get(&key).unwrap().start, Some(start));
+        }
+    }
+}
+
+#[test]
+fn ending_a_landing_withdraws_its_unsent_write() {
+    for ending in [ReleaseEnding::Done, ReleaseEnding::Cancelled] {
+        let (mut d, row) = configured("open");
+        start_empty(&mut d);
+        outputs(&mut d, Event::Landing { row });
+        drive(&mut d, TASK, FRESH);
+        assert!(d.entries.get(&FRESH).unwrap().entry.attempt.is_none());
+        if ending == ReleaseEnding::Done {
+            d.landing.rows.get_mut(&TASK).unwrap().landing.phase = policy::Phase::Landed;
+        }
+        let out = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending });
+        assert_eq!(write_outcome(&out), Some(skein_forge_client::Outcome::Withdrawn));
+        assert!(out.contains(&Request::EffectsSettled { task: TASK }));
+        assert!(!d.entries.contains_key(&FRESH));
+        assert!(d.landing(TASK).unwrap().entries.is_empty());
+    }
 }

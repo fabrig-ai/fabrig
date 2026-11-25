@@ -8,20 +8,20 @@ application's worlds run; and the reference UI, tested as any
 presentation on skein's UI kit is, with skein's fake person on its tree.
 It applies `testing-strategy.md` as `../../domain/testing.md` does for
 the engine; the tiers below the client are the client's protocol's
-(`../../protocol/client/README.md`, section 11; `../../protocol/browser/testing.md`
+(`../../protocol/client/testing.md`, section 1; `../../protocol/browser/testing.md`
 ). What is still open is listed in `testing.md`, section 10.
 
 ## 1. In one page
 
 - **The client is tested through its surface.** Its worlds give
   `jig-client` the events an application gives it and read the requests
-  it makes, as an application does (client/README.md, section 4). A story of
+  it makes, as an application does (client/vocabulary.md, section 1). A story of
   the client is written in those terms, and needs no tree and no person.
 - **Trees and the fake person are skein's and the applications'.** A
   presentation on skein's UI kit is tested as skein says, by skein's
-  fake person acting on its tree (skein's `ui/README.md`, section 14). The
+  fake person acting on its tree (skein's `ui/testing.md`, section 1). The
   reference UI is one: its stories run in jig's worlds, with jig's test
-  application in front of the client (section 4). An application's
+  application in front of the client (`testing.md`, section 4). An application's
   presentation runs in its own worlds, on jig's.
 - **The client's world comes first.** The real client, a scripted engine
   that keeps the contract (contract/README.md), the transport played by the
@@ -57,7 +57,7 @@ the engine; the tiers below the client are the client's protocol's
 | step tests | `jig-client`'s step and fire, by its events and its requests; its helpers, `shapes`, `facts`, `thread` and `words`; the reference UI's step and each of its view functions; its default arrangement's banner and `after_page`'s parts last, on each of jig's pages (pages.md, 12.3); jig's check; the reference UI's pages printed by skein's text shell, by golden text (view.md, 15.6); its test family's drawing code, by golden scenes (view.md, 17.5) | their events, by hand |
 | the client's world | `jig-client`, driven through its surface by a scripted application; or jig's test application, the reference UI and its view root in front of it, with the person | the engine, scripted; the transport, played by the world; the person |
 | the joint world | the same, in front of the engine's domain, root and all | the store, hosts and systems, as the engine's worlds fake them; the transport; the person |
-| the protocol world, the real loop | with the client's protocol layer and shells (`jig-client-protocol-http`, `jig-client-shell-native`), and the engine's clients' component with the default HTTP mapping's engine end; skein's text shell's terminal in front of the native one, on skein's simulated machine (`../../protocol/client/README.md`, section 11) | |
+| the protocol world, the real loop | with the client's protocol layer and shells (`jig-client-protocol-http`, `jig-client-shell-native`), and the engine's clients' component with the default HTTP mapping's engine end; skein's text shell's terminal in front of the native one, on skein's simulated machine (`../../protocol/client/testing.md`, section 1) | |
 | the browser tier | the application's binary and its bundle in Chromium, the person through skein's browser face and harness (section 3) | what the binary's configuration fakes |
 
 Every world runs on skein's world harness: one loop, one seed, the
@@ -69,20 +69,20 @@ harness's one loop (section 3).
 What every application on skein-ui shares is tested in skein, by its
 crates' step tests: the tree, the diff, the Markdown reader, words'
 machinery, the outline's rules, scenes by golden scenes, and the text
-shell's renderer and command reader by golden text (skein's `ui/README.md`,
-section 14; skein's `ui/text.md`, section 8). jig's tests test what is
+shell's renderer and command reader by golden text (skein's `ui/testing.md`,
+section 1; skein's `ui/text.md`, section 8). jig's tests test what is
 jig's on them.
 
 ## 3. The person
 
-The person is skein's, `skein-fake-person` (skein's `ui/README.md`, 14.1):
+The person is skein's, `skein-fake-person` (skein's `ui/testing.md`, 1.1):
 ordinary Rust, shaped as a step machine so that the browser tier's loop
 runs it too. It acts on a tree, and the client has none: it plays the
 reference UI's stories in jig's worlds, and an application's stories in
 its own, wherever a presentation builds on skein's UI kit.
 
 - **Its queries, acts, reports, tree face, random person and browser
-  face are skein's** (skein's `ui/README.md`, 14.1; skein's `ui/web/testing.md`, 2),
+  face are skein's** (skein's `ui/testing.md`, 1.1; skein's `ui/web/testing.md`, 2),
   and so is the browser tier's harness, in `skein-fake-person-browser`.
 - **jig's stories find a target as a person would:** by role, name and
   text, within regions named outermost first ("the button named Accept,
@@ -99,7 +99,7 @@ its own, wherever a presentation builds on skein's UI kit.
   and jig's, so both kits' stories check its wiring: the order its loop
   keeps, and, where it drives fetch and the small store without skein's
   transport, the rule it then takes on itself (skein's `ui/web/README.md`, 4.3;
-  `../../protocol/browser/README.md`, 5.3).
+  `../../protocol/browser/loop.md`, 1.3).
 
 ## 4. The client's world
 
@@ -138,8 +138,8 @@ its own, wherever a presentation builds on skein's UI kit.
   (`jig-client-test-view`). The family's parts fill every kind of slot,
   and its page fills both of an application's: a card's, and a
   section's (a task's plan), as the test connector stands in for an
-  application in the engine's worlds (`../../domain/testing.md`,
-  section 7). Its page also presents one of jig's objects itself, a
+  application in the engine's worlds (`../../domain/testing-fakes.md`,
+  section 1). Its page also presents one of jig's objects itself, a
   proposal, from its document as the client delivers it, saying what
   `facts` gives, with a confirmation of its own, so jig's check holds an
   application's own presentation in jig's world (6.2). It takes jig's
@@ -162,16 +162,16 @@ its own, wherever a presentation builds on skein's UI kit.
   visibly once, no read is replayed, and refusal, loss or not-ready
   without installation leaves old reads eligible. Late `Reply` and
   `Lost`, same-handle replacement, and full independent read room check
-  token fencing and bounded event fan-out (client/README.md, sections 6, 9 and
-  11).
+  token fencing and bounded event fan-out (client/README.md, section 6, and client/sign-in.md, section 1, and client/README.md, section 11
+  ).
   The protocol world is used only for an ordering the lower fixture
-  cannot express (`../../protocol/client/README.md`, section 11).
+  cannot express (`../../protocol/client/testing.md`, section 1).
 - **Internal orders under load** are checked by composed client and
   link step tests: link outputs precede the next domain request across
   a credential boundary with occupied exchanges, and held exchanges
   leave in FIFO order after durability. Each step settles its domain
   and link outputs; deferred reads alone may wait on exchange credit
-  (client/README.md, sections 3 and 8; programming-model.md, 7.2).
+  (client/README.md, section 3, and client/small-store.md, section 1; programming-model.md, 7.2).
 - **Shapes** preserve a template's omitted LLM intent even when its
   `resolved_default` preview names a model; the shapes step tests check
   that the preview never enters `Create`.
@@ -214,7 +214,7 @@ one:
   way at a restart cancelled. The record's checks, the one refresh and
   the dead copy are the accounts' worlds' (`../../protocol/llm.md`,
   section 8), and two deployments against one issuer the end-to-end
-  tier's (`../../protocol/service.md`, section 8).
+  tier's (`../../protocol/service-testing.md`, section 1).
 
 ## 6. The referee
 
@@ -225,7 +225,7 @@ them), and what the engine made durable (the scripted engine's commits,
 or the engine's store), never a client's state. Its checks, jig's check's
 among them, return their findings, and the world fails with the first at
 its top; a test of a check reads it through the world's returning entry
-points (`../../domain/testing.md`, 7).
+points (`../../domain/testing-fakes.md`, 1).
 
 ### 6.1 On the client's surface
 
@@ -261,7 +261,7 @@ In every world, whatever stands in front of the client:
 - **Kept requests stored before sent, for their party:** no kept request
   is sent before its record is stored, and no request is sent for a
   party `me` has not confirmed. `Seen` has no save of its own but still
-  waits behind writes already given (client/requests.md and client/README.md, section 8).
+  waits behind writes already given (client/requests.md and client/small-store.md, section 1).
 - **Documents of what was committed:** every document the client
   delivered for a handle reflects only commits the engine made durable,
   and none after a newer one of the same subject reflects an older
@@ -284,7 +284,7 @@ engine key, application-key joins, and named `Send` held
 while its name is held. An application key reused for another request
 or name is the application's bug and an assertion, which no test
 triggers (`skein/docs/foundation/programming-model.md`, 10.4), as is a
-client stepped with the other mode's pair (client/README.md, 4.4). The composed-client store tests contrast
+client stepped with the other mode's pair (client/vocabulary.md, 1.4). The composed-client store tests contrast
 `Seen` alone, which needs no own `Stored` before its exchange, with
 ordinary and mixed requests: kept requests wait for `Stored`, failed
 writes answer only the ordinary records they carried as not kept, and
@@ -293,7 +293,7 @@ unknown outcome erase; acknowledging an absent-key `Seen` erase then a
 later ordinary save must allow that request to send, with no tracked
 write left waiting. A kept `Seen` record restores as kept, is never
 saved again and erases at its terminal. These proofs use the client's tiers, harnesses and
-budgets (sections 2 and 9).
+budgets (`testing.md`, sections 2 and 9).
 
 ### 6.2 jig's check
 

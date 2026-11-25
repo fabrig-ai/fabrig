@@ -1,4 +1,4 @@
-//! A long wait's report bound and doubling clock (protocol/README.md, 6.3;
+//! A long wait's report bound and doubling clock (protocol/service-process.md, 1.3;
 //! protocol/configuration/derived.md, 5.6). Reports do not end the wait.
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Duration, Time, bytes};
@@ -19,6 +19,12 @@ impl Report {
     #[must_use]
     pub fn since(&self) -> Time {
         self.since
+    }
+
+    /// Whether this wait has emitted its first report.
+    #[must_use]
+    pub fn reported(&self) -> bool {
+        self.next != WAIT_REPORT
     }
 
     #[must_use]
@@ -57,7 +63,7 @@ pub fn age_words(age: Duration) -> Box<[u8]> {
     }
 }
 
-/// One kind's count and oldest names (protocol/README.md, 6.3).
+/// One kind's count and oldest names (protocol/service-process.md, 1.3).
 /// Callers supply at most three names in oldest-first order.
 #[must_use]
 pub fn wait_kind(count: u64, singular: &[u8], plural: &[u8], names: &[Box<[u8]>]) -> Box<[u8]> {

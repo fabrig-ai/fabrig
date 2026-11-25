@@ -71,6 +71,7 @@ fn ready() -> Domain {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: MeParty {
             number: 7,
             kind: PartyKind::Person,
@@ -375,6 +376,10 @@ fn task() -> Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: Chip {
             task: 9,
             title: DocumentText::complete(text(&[b't'; 32])),

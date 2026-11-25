@@ -1,4 +1,4 @@
-//! Routing (protocol/channel/README.md, sections 2, 3 and 7); Debug (jig/docs/design/protocol/service.md, 11.3).
+//! Routing (protocol/channel/README.md, sections 2, 3 and 7); Debug (jig/docs/design/protocol/service-parts.md, 1.3).
 use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::settings::WorkerSetting as Worker;
 use jig_domain_host as host;
@@ -44,6 +44,12 @@ pub enum Event {
         parts: Box<[Part]>,
         values: Box<[Option<GrantValue>]>,
     },
+    PartBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
     TurnBusy {
         channel: Token,
         run: Token,
@@ -61,7 +67,7 @@ pub enum Event {
     Close,
     Abort,
 }
-/// Why a worker's connection ended (protocol/channel/README.md, 8 and 9.2).
+/// Why a worker's connection ended (protocol/channel/liveness.md, 1, and protocol/channel/worker-link.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Loss {
     /// Nothing heard for the silence deadline.
@@ -89,28 +95,78 @@ pub enum Loss {
     /// The engine closed it, stopping.
     Stopping,
 }
-/// A record the engine's side did not send (protocol/channel/README.md, 8).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+/// A record the engine's side did not send (protocol/channel/liveness.md, 1).
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Unsent {
     pub kind: jig_protocol_worker_wire::Kind,
     /// Its frame's bytes, the header included.
     pub bytes: u32,
     pub bound: Bound,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Bound {
     /// Past the stream's room, in bytes.
     Room(u32),
     /// Translation halted before a frame was sent.
-    Translation { version: u16, halt: skein_codec::patch::Halt },
+    Translation(jig_protocol_worker_wire::layouts::Unconverted),
     /// Refused at the channel's entrance; never `skein_channel::Unsent::Full`.
     Channel(skein_channel::Unsent),
+}
+impl Unsent {
+    /// A refused message to a running attempt excludes further placement on this channel.
+    #[must_use]
+    pub fn mismatches(&self) -> bool {
+        use jig_protocol_worker_wire::Kind;
+        match &self.bound {
+            Bound::Room(_) | Bound::Channel(_) => false,
+            Bound::Translation(_) => match self.kind {
+                Kind::Message
+                | Kind::Relayed
+                | Kind::TurnKept
+                | Kind::TurnBusy
+                | Kind::PartKept
+                | Kind::PartBusy
+                | Kind::Acknowledge
+                | Kind::Cancel
+                | Kind::Grant
+                | Kind::Sources
+                | Kind::Check
+                | Kind::SignOut
+                | Kind::ReadList
+                | Kind::Asked => true,
+                Kind::Assignment
+                | Kind::Job
+                | Kind::Figures
+                | Kind::Pause
+                | Kind::Restarting
+                | Kind::ReadUsage
+                | Kind::Hello
+                | Kind::Turn
+                | Kind::Part
+                | Kind::Call
+                | Kind::Answer
+                | Kind::Fact
+                | Kind::Unauthorized
+                | Kind::Limited
+                | Kind::AccountRefused
+                | Kind::ListRead
+                | Kind::Draining
+                | Kind::Logins
+                | Kind::SignedOut
+                | Kind::JobAnswer
+                | Kind::Ask
+                | Kind::Usage
+                | Kind::UsageRead
+                | Kind::Paused => false,
+            },
+        }
+    }
 }
 pub enum Request {
     FiguresTaken {
         worker: u32,
     },
-    /// A pause ask the channel's version cannot carry (protocol/channel/pause.md, 3).
+    /// A pause ask the worker's layout cannot carry (protocol/channel/pause.md, 3).
     Unpaused {
         worker: Box<[u8]>,
         version: u16,
@@ -121,10 +177,10 @@ pub enum Request {
         version: u16,
         wait: Option<Duration>,
     },
-    /// Opening accepted, with the worker's statement and agreed versions in its order.
+    /// Opening accepted, with the worker's statement and names of wires that convert.
     Opened {
         worker: u32,
-        wires: List<jig_protocol_worker_wire::Agreed>,
+        converted: List<Box<str>>,
         statement: crate::Statement,
     },
     /// A refusal sent at the opening, before a hello reaches the domain.
@@ -138,6 +194,12 @@ pub enum Request {
         worker: u32,
         channel: Token,
         unsent: Unsent,
+    },
+    /// A worker body whose layout could not be read as ours.
+    Unread {
+        worker: u32,
+        kind: jig_protocol_worker_wire::Kind,
+        problem: jig_protocol_worker_wire::layouts::Unconverted,
     },
     Take {
         connection: Token,
@@ -181,6 +243,9 @@ pub enum Request {
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
+            Self::PartBusy { channel, run, attempt, part } => {
+                f.debug_tuple("PartBusy").field(channel).field(run).field(attempt).field(part).finish()
+            }
             Self::Figures { .. } => f.write_str("Figures"),
             Self::Workers(workers) => f.debug_tuple("Workers").field(&workers.len()).finish(),
             Self::Accepted { connection, .. } => f.debug_tuple("Accepted").field(connection).finish(),
@@ -233,8 +298,11 @@ impl core::fmt::Debug for Request {
                 .field("channel", channel)
                 .field("unsent", unsent)
                 .finish(),
-            Self::Opened { worker, wires, statement } => {
-                f.debug_tuple("Opened").field(worker).field(wires).field(statement).finish()
+            Self::Unread { worker, kind, problem } => {
+                f.debug_tuple("Unread").field(worker).field(kind).field(problem).finish()
+            }
+            Self::Opened { worker, converted, statement } => {
+                f.debug_tuple("Opened").field(worker).field(converted).field(statement).finish()
             }
             Self::Refused { worker, reason, text } => {
                 f.debug_tuple("Refused").field(worker).field(reason).field(text).finish()

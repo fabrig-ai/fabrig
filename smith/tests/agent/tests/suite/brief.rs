@@ -1,7 +1,7 @@
 //! Ordered host sections through main/child sessions and native restore.
 //! Expected system bodies are handwritten outside literals; concrete history,
 //! child results, usage and lower settlement come from the composed routes.
-//! Contract: smith/docs/design/domain/run.md, sections 3.1, 3.3, 5.3, 6 and 12;
+//! Contract: smith/docs/design/domain/run-start.md, sections 1.1 and 1.3, and smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 12;
 //! skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_fake_checkout::Checkout;
@@ -133,6 +133,7 @@ fn workspace() -> (Checkout, run::Workspace) {
     let mounted = run::Workspace {
         directories: Box::new([
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: Token::new(disk.root(b"work")),
@@ -141,6 +142,7 @@ fn workspace() -> (Checkout, run::Workspace) {
                 conflicts: Box::new([]),
             },
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"archive".as_slice().into(),
                 root: Token::new(disk.root(b"archive")),

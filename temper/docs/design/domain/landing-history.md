@@ -7,7 +7,7 @@ under `queue` and under `turn`; kept by change in families the store
 holds and the forge reads on demand, never restored; swept by age and
 by count; and read through `temper ctl landing history`, and by
 `change show` for a change whose row went. It is the draft's milestone
-H1 (`../draft/landing-history.md`, sections 1 to 6, 8, 9 and 10; its
+H1 (`../draft/archive/landing-history.md`, sections 1 to 6 and 8 to 10; its
 execution's H1). Where the time went, `landing times`, is H2's
 (`landing-times.md`), reading only what this document writes. A
 change's steps are `forge/change/README.md`, 2 and
@@ -61,7 +61,7 @@ An event's record, `HistoryEvent`, keyed by its project and number
 | `operation`, `attempt` | its identity (2.3) |
 | `what` | its kind and the kind's fields (2.2) |
 
-Bounded records (`../draft/landing-history.md`, 5): each field is a
+Bounded records (`../draft/archive/landing-history.md`, 5): each field is a
 number, a hash, an enumeration or a reason of at most 256 bytes; a
 `formed` event's members are at most `forge.landing_members`. No event
 carries a log, a body or words.
@@ -78,7 +78,7 @@ what the row's `head` and `base` hold.
 | `joined` | it joins its queue (2.4), a landing (its first `formed` round), or a forge's own merge queue admits it | `line`: `queue`, `landing` or `forge_queue`; `place`, from 1, where its line has one; `priority`, its goal's, where its line orders by one | its head | `queue`: own; `landing`: the landing's task, the round |
 | `departed` | it leaves that line without landing | `line`; `cause`: from a landing, its leave cause (`landing.md`, 4.3, the stored `LandingLeave`); from a queue, `unready`, `conflict`, `repair` or `ejected` | its head | its `joined`'s |
 | `selected` | under `queue`, it is taken as the first to land (`first`) | none | its head; the base's tip | own |
-| `update` | an update of its branch from the base is asked (an outbox entry) | `style`: `merge` or `rebase`; `forge_base`, the base commit its pull request had as the step that asked it read it, none where unread | its head; the base it asks for, its pin (`forge/README.md`, 6) | the entry's number, 0 |
+| `update` | an update of its branch from the base is asked (an outbox entry) | `style`: `merge` or `rebase`; `forge_base`, the base commit its pull request had as the step that asked it read it, none where unread | its head; the base it asks for, its pin (`forge/updates.md`, 1) | the entry's number, 0 |
 | `updated` | that update settles | `outcome`: `updated`, `conflict` or `failed`; `forge_base`, the base commit the forge reported: the pin, when updated, the client's `BaseMoved`'s, when refused so, none otherwise | the new head, when updated; its pin | the entry's number, 0 |
 | `job` | a prepare job (`turn`) or a merge job (`queue`, `merge_job`) is delegated, its task heard | `job`: `prepare` or `merge`; `task` | its head; the base | the job's task, its attempt |
 | `job-ended` | that attempt's end is heard, each attempt's as it ends (*A job's attempt*, below) | `job`; `outcome`: `done`, `conflict`, `failed`, `timeout`, `cancelled` or `lost`; `class`, where `failed`: `unprepared`, `run`, `result`, `unstarted`, `undelivered` or `unknown` | the prefix or head it pushed, where it pushed one | the job's task, its attempt |
@@ -93,7 +93,7 @@ what the row's `head` and `base` hold.
 | `round-ended` | that round ends | `cause`: `turned`, `left` (a member left), `stale`, `cancelled`, `cut` (its search cut the stack) | none; the round's base | the landing's task, the round |
 | `gate` | a gate's run at the round's top or a probed prefix is first known by its id, not yet ended: its dispatch's run found, or its rerun made; its `source_at` the run's creation | `gate`, its number in the repository's gates; `key` | the prefix; none | the run's id, its attempt |
 | `gate-ended` | that run's outcome is heard | `gate`; `key`; `verdict`: `passed`, `failed`, `fault` (the runner's, retried), `timeout` or `superseded` (its round or head gone) | the prefix; none | the run's id, its attempt |
-| `proved` | the round's top, or its search's green prefix, is proved | `proofs`, each a gate and its run, or none where a receipt already held proved it (`landing.md`, 7.2) | the prefix; the round's base | the landing's task, the round |
+| `proved` | the round's top, or its search's green prefix, is proved | `proofs`, each a gate and its run, or none where a receipt already held proved it (`landing-proof.md`, 2.2) | the prefix; the round's base | the landing's task, the round |
 | `search` | the round's search by prefixes starts (`landing-search.md`, 2) | none | the round's top; its base | the landing's task, the round |
 | `searched` | the search holds its boundary (`landing-search.md`, 4) | `green`, the green prefix, none for the base; `red`, the red prefix; `blamed`, the blamed unit | none; the round's base | the landing's task, the round |
 | `probe` | a probe starts at a prefix (`landing-search.md`, 3) | none | the prefix | the round, 0 |
@@ -165,7 +165,7 @@ what the row's `head` and `base` hold.
   longer available (an approval lapsed, a dependency not kept).
 - **Its line, apart from readiness:** under `queue`, `joined` once it is
   counted in its landing branch's queue, the changes queued or first
-  (`forge/change/README.md`, 5, *Its place in its queue*), with its
+  (`forge/change/panel.md`, 1, *Its place in its queue*), with its
   place and its goal's priority, and `departed` once it is no longer;
   under `turn`, `joined` with its landing's first `formed` round and
   `departed` with the member's leaving (`landing.md`, 4.3).
@@ -315,7 +315,7 @@ Under temper's tag (`../protocol/store.md`, 3), by jig's key rule:
 
 - **Bytes 128 and above are demand-loaded families:** the restart's
   interval, `Range::Forge`, is the tag's keys whose family byte is below
-  128 (`../protocol/store.md`, 5), so nothing of them is restored, and
+  128 (`../protocol/store-restart.md`, 1), so nothing of them is restored, and
   `Range::contains` admits them only for the history's own range (4.3).
 - **Byte 127** sits below the demand-loaded bytes and apart from the
   next free byte, so a family another goal adds there meets no history
@@ -347,7 +347,7 @@ Under temper's tag (`../protocol/store.md`, 3), by jig's key rule:
 ### 4.3 Loaded on demand
 
 The forge asks the root for its rows, as jig's notes child asks for its
-own (`root.md`; `../protocol/store.md`, 5), and the root asks the store
+own (`root.md`; `../protocol/store-restart.md`, 1), and the root asks the store
 with its application intervals (jig's `protocol/store/README.md`, 7):
 
 - **The forge's request,** `Request::LoadHistory { load, range, after,
@@ -399,7 +399,7 @@ with its application intervals (jig's `protocol/store/README.md`, 7):
 - **A change written during its sweep:** its new event's `HistoryLast`
   row is the writer's, which the sweep, erasing only the row it loaded,
   leaves; what remains is a history from that event on.
-- **A project's deletion** (`forge/adoption.md`, 1, *A project
+- **A project's deletion** (`forge/adoption-connection.md`, 1, *A project
   deleted*) sets its row's `removing`; the sweep then takes every change
   of `Last { project }` whatever its age, and erases the row once its
   last change is gone, so a deletion a restart cut goes on.
@@ -410,14 +410,14 @@ with its application intervals (jig's `protocol/store/README.md`, 7):
 
 `temper ctl landing history --project PROJECT [--change TASK | --landing
 TASK] [--since TIME] [--until TIME] [--after CURSOR] [--json]`, a read
-of the forge's family (`../client/ctl/tools.md`, 2):
+of the forge's family (`../client/ctl/tools-reads.md`, 1):
 
 - **Its order:** the project's events by number; with `--change` or
   `--landing`, that change's or landing's, through its index (4.1), each
   page's events then loaded by `Numbers`. So a filtered read does
   bounded work.
 - **A page:** at most 32 events, the rows' bound in ctl
-  (`../client/ctl/README.md`, 9). A page examines at most 256 index or
+  (`../client/ctl/bounds.md`, 1). A page examines at most 256 index or
   event rows; one that reached that bound with fewer events comes back
   cut, with its cursor, as jig's pages do.
 - **Its upper bound:** the first page takes the project's last number,
@@ -449,14 +449,14 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 - **On the wire:** a forge read of the client's family, as
   `RevisionSetting` is (`../client/forge/served.md`), its query the
   project, the change or the landing, the range and the cursor, its
-  answer the page or the refusal; the client's wire moves its version
-  (`../protocol/wires.md`, 8). The root hands the read to the forge,
+  answer the page or the refusal; the client's wire changes its layout
+  (`../protocol/wires.md`, 9). The root hands the read to the forge,
   which loads (4.3) and answers it.
 
 ### 5.2 A change whose row went
 
 - **`change show TASK`,** where today it answers `no change panel for
-  task N` (`forge/change/README.md`, 7, *A dropped change reads as an
+  task N` (`forge/change/records.md`, 1, *A dropped change reads as an
   unknown task*), reads the change's history, `--change TASK` in its
   task's project, every page to its end, at most 16; prints `change N:
   its record has gone; its last events:`, the last 8 events as 5.1
@@ -473,8 +473,8 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 
 - **The project's readers,** as for its changes, whether or not the
   change's task remains: the forge read is admitted by jig's check of the
-  party's role in the project (jig's `client/domain/contract/README.md`,
-  section 4).
+  party's role in the project (jig's `client/domain/contract/reads.md`,
+  section 1).
 - **The public projection shows none of it** (`../client/forge/README.md`,
   9.3).
 
@@ -487,7 +487,7 @@ of the forge's family (`../client/ctl/tools.md`, 2):
   few thousand events a day, so the count holds about the fourteen days.
 - **A record** is bounded by its fields' bounds and a `formed` event's
   members by `forge.landing_members`; the families' largest key and
-  value join the store's sizes (`../protocol/store.md`, 4).
+  value join the store's sizes (`../protocol/store-versions.md`, 1).
 - **The demand-loaded families** take no forge memory: only the
   projects' rows and the changes' `history` members are held, each
   bounded by its row's bounds.
@@ -496,13 +496,13 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 
 - **Registered value types** for the five history families, and
   `ChangeHot.history` defaulting to none in a kept row
-  (`../protocol/store.md`, 4; `../protocol/floor.md`, 6). No patch or
+  (`../protocol/store-versions.md`, 1; `../protocol/floor.md`, 6). No patch or
   version move is needed. The restart's interval excludes the
   demand-loaded families without changing a stored row.
 - **No history before it:** a change live at the upgrade has a partial
   history, from its first step after; nothing is rebuilt or backdated.
-- **ctl's wire** moves its version for the new read
-  (`../protocol/wires.md`, 8); the client's wire carries no bridge.
+- **ctl's wire** changes its layout for the new read, its version
+  frozen (`../protocol/wires.md`, 9); nothing converts for a client.
 
 ## 8. Testing
 
@@ -511,7 +511,7 @@ Focused and fuzzy suites alone, each test failing first:
 - **The store's step tests:** each family's key against the derived
   order and its decoder; `Range::Forge`'s interval holding no key of
   bytes 128 to 131 and every other forge key; the current records'
-  drift, pinned constructs, built-value round trips and registry layouts.
+  drift, built-value round trips and registry layouts.
 - **The forge's world** (`../testing/README.md`; `landing.md`, 16): each
   kind written by its step, under `queue` and under `turn`, in the
   decision that decides or observes it, with both ends of each interval;
@@ -539,4 +539,4 @@ Focused and fuzzy suites alone, each test failing first:
   request's merge time, read by the forge client and kept as
   `source_at`.
 - **A gate's own steps**, the client's view of a timeline, and a
-  project's figures over time (`../draft/landing-history.md`, 11).
+  project's figures over time (`../draft/archive/landing-history.md`, 11).

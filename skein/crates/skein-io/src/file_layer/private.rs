@@ -1,4 +1,4 @@
-//! Opening private roots and making directories (skein/docs/design/runtime/io/files.md, 3).
+//! Opening private roots and making directories (skein/docs/design/runtime/io/files.md, 11).
 //! Each state owns its descriptors until cleanup (skein/docs/foundation/programming-model.md, 5.4).
 //! `start`, `up`, and `stopped` run only through `FileIo`'s entry points.
 
@@ -130,25 +130,6 @@ pub(super) fn unsafe_root(stat: Stat, expected: u32) -> Option<Unsafe> {
     }
     if stat.mode & 0o077 != 0 {
         return Some(Unsafe::Mode(stat.mode & 0o077));
-    }
-    None
-}
-
-pub(super) fn unsafe_file(stat: Stat, expected: u32) -> Option<Unsafe> {
-    if stat.owner != expected {
-        return Some(Unsafe::Owner { found: stat.owner, expected });
-    }
-    if stat.kind == Kind::Symlink {
-        return Some(Unsafe::Link);
-    }
-    if stat.kind != Kind::File {
-        return Some(Unsafe::Kind(stat.kind));
-    }
-    if stat.mode & 0o077 != 0 {
-        return Some(Unsafe::Mode(stat.mode & 0o077));
-    }
-    if stat.links != 1 {
-        return Some(Unsafe::Links(stat.links));
     }
     None
 }
@@ -350,7 +331,7 @@ fn denied_stated(
             let stat = super::store::done_stat(done);
             let found = match check {
                 Check::Root { user } => unsafe_root(stat, user),
-                Check::File { user } => unsafe_file(stat, user),
+                Check::File { user } => Unsafe::private_file(stat, user),
             };
             match found {
                 Some(found) => Event::Refused { owner, found },

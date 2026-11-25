@@ -151,22 +151,23 @@ pub(super) struct HeaderField {
     pub(super) value: String,
 }
 
+/// Trust inputs retained from an endpoint's configuration, before any roots are loaded.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 #[cfg_attr(
     not(unix),
-    expect(
-        dead_code,
-        reason = "only the cfg(unix) trust loading reads these; decoding keeps one document on every target"
-    )
+    expect(dead_code, reason = "Trust fields are decoded on every target but read only by Unix root loading.")
 )]
 pub(super) struct TrustDocument {
+    /// Whether to include the machine's default roots.
     #[serde(default = "system_trust")]
-    pub(super) system: bool,
+    pub system: bool,
+    /// Paths to individual DER certificates.
     #[serde(default)]
-    pub(super) der: Vec<String>,
+    pub der: Vec<String>,
+    /// Paths to PEM bundles.
     #[serde(default)]
-    pub(super) pem: Vec<String>,
+    pub pem: Vec<String>,
 }
 
 const fn system_trust() -> bool {

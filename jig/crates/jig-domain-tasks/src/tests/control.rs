@@ -1,5 +1,5 @@
 //! Deployment control cancels its project's tasks and releases connector-owned holds
-//! (jig/docs/design/domain/tasks/lifecycle.md, section 6 and jig/docs/design/domain/tasks/changes.md).
+//! (jig/docs/design/domain/tasks/lifecycle-holds.md, section 1 and jig/docs/design/domain/tasks/changes.md).
 use super::revisions::{Harness, task, to};
 use crate::{
     Active, Cancel, Change, Ending, Event, Executor, Hold, HoldSource, Key, Operation, Party, Phase, Refusal, Release,
@@ -23,6 +23,7 @@ fn control_task(executor: Executor) -> Harness {
             let mut parent = task(PARENT, &[]);
             parent.executor = PROCEDURE;
             test.send(Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: to(),
@@ -40,7 +41,14 @@ fn control_task(executor: Executor) -> Harness {
         }
         Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Person(_) => Party::Person(PERSON),
     };
-    test.send(Event::Make { maker: None, places: Box::new([]), reply_to: to(), creator, batch: Box::new([member]) });
+    test.send(Event::Make {
+        reads_project: false,
+        maker: None,
+        places: Box::new([]),
+        reply_to: to(),
+        creator,
+        batch: Box::new([member]),
+    });
     test
 }
 
@@ -53,7 +61,7 @@ fn place_control_hold(test: &mut Harness) {
             owner: crate::Owner::Party { person: PERSON },
             mode: crate::Mode::Stop,
             scope: crate::Scope::Subtree { task: CONTROLLED },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),
@@ -225,6 +233,7 @@ fn a_deployment_cancels_a_task_of_its_project_and_no_other() {
     ] {
         let mut test = Harness::new();
         test.send(Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),
@@ -276,6 +285,7 @@ fn party_sender_labels() {
 fn cancel_permission_is_checked_before_its_shape() {
     let mut test = Harness::new();
     test.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -289,4 +299,31 @@ fn cancel_permission_is_checked_before_its_shape() {
     });
     let [Request::Refused { problem, .. }] = out.as_slice() else { panic!("one refusal") };
     assert_eq!(problem.why, Refusal::Reference);
+}
+
+#[test]
+fn an_empty_placed_reason_does_not_stop_or_change_the_task() {
+    let mut test = control_task(PROCEDURE);
+    let before = test.domain.task(CONTROLLED).unwrap().clone();
+    for owner in [crate::Owner::Party { person: PERSON }, crate::Owner::Task { task: CONTROLLED }] {
+        let out = test.send(Event::Place {
+            reply_to: to(),
+            hold: crate::PlacedHold {
+                number: PLACED,
+                project: PROJECT,
+                owner,
+                mode: crate::Mode::Stop,
+                scope: crate::Scope::Subtree { task: CONTROLLED },
+                reason: Box::new([]),
+                placed_at: 0,
+                revision: 1,
+                exempt: Box::new([]),
+                lifted: false,
+            },
+        });
+        let [Request::Refused { problem, .. }] = out.as_slice() else { panic!("only a refusal: {out:?}") };
+        assert_eq!(problem.why, Refusal::Empty);
+        assert_eq!(test.domain.task(CONTROLLED), Some(&before));
+        assert!(test.domain.placed_hold(PLACED).is_none());
+    }
 }

@@ -1,4 +1,4 @@
-//! Naming and reporting the map's census (protocol/store/README.md, 6.3).
+//! Naming and reporting the map's census (protocol/store/growth.md, 1.3).
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents::{CensusHead, CensusKeyspace, StoreCensus};
 use skein_lib::{Duration, List, Queue, Time};

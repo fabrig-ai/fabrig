@@ -21,7 +21,7 @@ use smith_agent_service as service;
 
 use crate::config;
 
-/// Program resources supplied by the binary or a hosted process world (smith/docs/design/protocol/programs.md, 5.1).
+/// Program resources supplied by the binary or a hosted process world (smith/docs/design/protocol/programs-claude-code.md, 1.1).
 pub struct ProgramResources {
     pub relay: std::path::PathBuf,
     pub entropy: Secret,
@@ -166,6 +166,7 @@ impl Agent {
             let why = match service::failure(&self.service).expect("an unanswered agent keeps its first failure") {
                 service::Failure::ChannelEnded => "the channel ended before the answer",
                 service::Failure::WriteFailed => "the channel's output failed",
+                service::Failure::HostSilent => "the host was silent past its deadline",
                 service::Failure::Credential => "a host credential could not be installed",
                 service::Failure::Send => "a required host record could not be sent",
             };
@@ -295,6 +296,11 @@ fn extra_operations(configuration: &config::Configuration, resources: &Resources
 fn prepare(mut configuration: config::Configuration, resources: &Resources) -> Result<PreparedAgent, String> {
     #[cfg(not(unix))]
     validate_hosted(&configuration, resources)?;
+    configuration
+        .service
+        .limits
+        .resolve_link(&configuration.profile, &configuration.service.domain.limits)
+        .map_err(config::profile_refusal)?;
     prepare_program(&mut configuration.service, resources.programs.as_ref())?;
     let root_count = resources.roots.as_ref().map_or(0, |roots| roots.len());
     if root_count > usize::try_from(configuration.service.limits.domain.run.directories).expect("directory bound") {
@@ -486,9 +492,15 @@ impl Host for Agent {
 }
 
 #[cfg(unix)]
+fn read_decoded(path: &Path, errors: &mut dyn Write) -> Result<config::Decoded, String> {
+    config::read_decoded(path).inspect_err(|why| diagnostic(errors, why))
+}
+
+#[cfg(unix)]
 fn read_configuration(path: &Path, errors: &mut dyn Write) -> Result<config::Configuration, String> {
-    config::read_decoded(path)
-        .and_then(|decoded| decoded.resolve(errors).map_err(config::ConfigurationRefusal::detail))
+    read_decoded(path, errors)?
+        .resolve(errors)
+        .map_err(config::ConfigurationRefusal::detail)
         .inspect_err(|why| diagnostic(errors, why))
 }
 
@@ -551,10 +563,19 @@ pub(super) fn diagnostic(errors: &mut dyn Write, line: &str) {
     drop(writeln!(errors, "smith: {line}"));
 }
 
+/// Map an agent command's settled status or startup refusal to its process exit code.
+#[must_use]
+pub fn command_exit(result: &Result<Exit, String>) -> u8 {
+    match result {
+        Ok(Exit::Code(code)) => *code,
+        Ok(Exit::Signal(_)) | Err(_) => 1,
+    }
+}
+
 /// Run the shipped agent command with its kernel, clock and startup resources.
 #[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
-    let decoded = config::read_decoded(path).inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let decoded = read_decoded(path, errors.as_mut())?;
     run_decoded(decoded, errors)
 }
 
@@ -630,16 +651,35 @@ fn run_configured(
 
 #[cfg(unix)]
 fn open_program(program: &config::Program, errors: &mut dyn Write) -> Result<ProgramResources, String> {
+    open_program_with(
+        program,
+        errors,
+        || {
+            let relay = std::env::current_exe().map_err(|error| format!("program relay: {error}"))?;
+            let entropy = skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?;
+            Ok((relay, entropy))
+        },
+        crate::program::private_directory,
+        skein_shell::open_root,
+    )
+}
+
+#[cfg(unix)]
+pub(super) fn open_program_with(
+    program: &config::Program,
+    errors: &mut dyn Write,
+    relay: impl FnOnce() -> Result<(std::path::PathBuf, Secret), String>,
+    check_directory: impl FnOnce(&Path) -> Result<bool, crate::program::Refusal>,
+    open_directory: impl FnOnce(&Path) -> Result<Fd, i32>,
+) -> Result<ProgramResources, String> {
     let opened = (|| {
-        Ok(ProgramResources {
-            relay: std::env::current_exe().map_err(|error| format!("program relay: {error}"))?,
-            entropy: skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?,
-            directory: if crate::program::private_directory(&program.directory).map_err(|error| error.to_string())? {
-                Some(skein_shell::open_root(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
-            } else {
-                None
-            },
-        })
+        let (relay, entropy) = relay()?;
+        let directory = if check_directory(&program.directory).map_err(|error| error.to_string())? {
+            Some(open_directory(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
+        } else {
+            None
+        };
+        Ok(ProgramResources { relay, entropy, directory })
     })();
     opened.inspect_err(|why: &String| diagnostic(errors, why))
 }

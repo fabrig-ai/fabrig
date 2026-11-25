@@ -23,7 +23,7 @@ fn checkpoint_only_open_refusals_say_what_to_do_without_changing_the_deployment(
 
 pub(super) const FORMAT: &str = "putting the family's lower-case name in place of <family>:\n\n  > ";
 pub(super) const DEPLOYMENT: &str = "deployment than its header (`records.md`, 3):\n\n  > ";
-pub(super) const NUMBERS: &str = "the one the header records (section 5):\n\n  > ";
+pub(super) const NUMBERS: &str = "the one the header records (`commits.md`, section 1):\n\n  > ";
 pub(super) const FAILED: &str = "cannot recover (`opening.md`):\n\n  > ";
 
 fn unwrapped(start: &str, end: &str) -> String {
@@ -82,6 +82,26 @@ fn an_unplanned_layout_says_to_start_a_build_that_converts_it() {
             why: crate::Unplanned::Text,
         },
         "- `Layout`: \"",
+        "\"",
+    );
+}
+
+#[test]
+fn an_unkept_layout_says_to_restart_the_later_build_or_restore_a_checkpoint() {
+    says(
+        OpenRefusal::Layout {
+            family: "fixture".into(),
+            value_type: 0,
+            id: 3,
+            values: Some(2),
+            why: crate::Unplanned::Unkept(crate::Unkept {
+                refused: 1,
+                why: skein_codec::layout::Refused::Field,
+                declaration: "Growing".into(),
+                part: "extra".into(),
+            }),
+        },
+        "- `Layout { why: Unkept }` (`layouts.md`, 5.6): \"",
         "\"",
     );
 }

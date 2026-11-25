@@ -1,5 +1,5 @@
 //! Values owned by the connector top and passed to the change policy
-//! (domain/forge/change/README.md and domain/forge/queues.md and domain/forge/README.md, section 6).
+//! (domain/forge/change/README.md and domain/forge/queues.md and domain/forge/updates.md, section 1).
 //!
 //! The top keeps `Change`, including its pending phase, counters and clean
 //! predecessor heads. This module keeps nothing and knows no API tokens.
@@ -9,6 +9,13 @@ use skein_lib::{Duration, Wall};
 
 /// A forge commit identifier, translated at the connector top.
 pub type Commit = [u8; 32];
+
+/// What a close job measures (temper/docs/design/domain/forge/change/repairs-releases.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CloseAt {
+    pub branch: Commit,
+    pub landing: Commit,
+}
 
 /// The status of a fact or requirement at the named head.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -92,7 +99,7 @@ pub enum Repair {
     Gate(u64),
     /// CI failed after a clean update from the base.
     Semantic,
-    /// A landing's gate failed at its candidate (domain/landing.md, 7.3).
+    /// A landing's gate failed at its candidate (domain/landing-proof.md, 2.3).
     Landing { gate: u16 },
     /// A person's request for changes on the forge, at the head they reviewed (domain/forge/change/gates.md, 1).
     Review { head: Commit },
@@ -197,7 +204,7 @@ pub enum State {
     Gating { head: Commit, asked: Box<[u64]> },
     /// Ready at `head`: its landing prepares, proves and lands it (domain/landing.md, 3).
     Ready { head: Commit, ready_since: Wall },
-    /// The prepare's rebase onto `main` is outstanding (domain/landing.md, 5.2).
+    /// The prepare's rebase onto `main` is outstanding (domain/landing-prepare.md, 1.2).
     Preparing { from: Commit, main: Commit, ready_since: Wall },
     /// CI failed; cancelled gate delegates must end before repair is funded.
     CancellingGates { head: Commit },
@@ -438,6 +445,10 @@ pub struct Facts {
     pub follows: bool,
     /// A close job produces this change (temper/docs/design/domain/forge/change/README.md, 1).
     pub close: bool,
+    /// The goal and landing tips, both read by this step.
+    pub close_tips: Option<CloseAt>,
+    /// The tips read for the last close job that was admitted.
+    pub close_at: Option<CloseAt>,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_catch_up: Status,
     /// Whether its landing branch's rules ask up to date (domain/forge/change/gates.md, 2).
@@ -454,7 +465,7 @@ pub struct Facts {
     pub first: bool,
     pub may_merge: bool,
     pub queue_repair_active: bool,
-    /// The task has a pending dependency (jig's `domain/tasks/lifecycle.md`, 8), so it is not ready.
+    /// The task has a pending dependency (jig's `domain/tasks/lifecycle-endings.md`, 1), so it is not ready.
     pub kept: bool,
     /// An open question of the change's current agent stands (domain/forge/change/repairs.md and domain/forge/change/questions.md, 1).
     pub asking: bool,
@@ -487,7 +498,7 @@ pub enum EffectResult {
     /// A mechanical update conflicted with the base.
     Conflict,
     /// Refused by the client's check before any send: the forge was never asked
-    /// (domain/forge/README.md, 6).
+    /// (domain/forge/updates.md, 1).
     Stale,
     /// An effect failed permanently.
     Failed,
@@ -524,6 +535,8 @@ pub struct Heard {
     /// Any pushing child (producer, repair, resolution or merge job) is still live,
     /// independent of the current delegate slot (domain/forge/change/repairs.md).
     pub delegate_live: bool,
+    /// The requesting closer is waiting on the goal's new work.
+    pub closer_waiting: bool,
     pub effect: EffectResult,
     pub released: bool,
     pub cancelled: bool,
@@ -563,7 +576,7 @@ pub enum Effect {
     Retarget,
     /// Merge the landing branch into the change's branch.
     Update { head: Commit, base: Commit },
-    /// Rebase the pull request onto `main` (domain/landing.md, 5.2).
+    /// Rebase the pull request onto `main` (domain/landing-prepare.md, 1.2).
     Prepare { head: Commit, main: Commit },
     /// Merge the pull request at its checked head.
     Merge { head: Commit, base: Commit },
@@ -616,7 +629,7 @@ pub struct Stepped {
 }
 
 /// Bounds on delegates, updates, stalls and supplied gate facts
-/// (temper/docs/design/domain/agent/tools.md, 1).
+/// (temper/docs/design/domain/agent/tools-change.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Re-runs of a job the runner failed at one head, counted by the forge's attempts.

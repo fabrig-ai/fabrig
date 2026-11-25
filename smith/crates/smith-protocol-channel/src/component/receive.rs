@@ -2,8 +2,8 @@
 use super::cancellation::Cancellation;
 use super::state::{Active, State};
 use super::turns::Turns;
-use super::{CallKey, CallRoute, Component, invalid_answer};
-use crate::{Error, Heard, calls};
+use super::{CallRoute, Component, invalid_answer};
+use crate::{Error, Heard, calls, generated::channel};
 use alloc::boxed::Box;
 use core::mem;
 use skein_channel::{Closed, Event, Lower, Request, Role};
@@ -82,11 +82,8 @@ impl Component {
                 Event::Ended => self.ending.end(Closed::Stream, to_service),
                 Event::Unsent { token, why: _ } => self.unsent(token, to_service),
                 Event::OutputFailed => to_service.push(Heard::WriteFailed),
-                Event::Ping
-                | Event::Unsupported { .. }
-                | Event::Refused { .. }
-                | Event::Sent { .. }
-                | Event::Drained => {}
+                Event::Drained => self.drained = true,
+                Event::Ping | Event::Unsupported { .. } | Event::Refused { .. } | Event::Sent { .. } => {}
             }
         }
     }
@@ -112,7 +109,7 @@ impl Component {
                     kind::MESSAGE => self.message(body, to_service)?,
                     kind::RENEWALS => self.renewals(body, to_service)?,
                     kind::CANCEL => cancel(&mut active.cancellation, body, &self.bodies, to_service)?,
-                    kind::DRAIN => drain(&mut active.cancellation, body, &self.bodies, to_service)?,
+                    kind::DRAIN => drain(&mut active.cancellation, active.tell_parts, body, &self.bodies, to_service)?,
                     _ => return Err(Broken),
                 }
                 Ok(State::Started(active))
@@ -122,19 +119,21 @@ impl Component {
                     kind::MESSAGE => self.message(body, to_service)?,
                     kind::RENEWALS => self.renewals(body, to_service)?,
                     kind::HOST_ANSWER => self.host_answer(body, to_service)?,
+                    kind::PART_KEPT => part_kept(&mut active.turns, body, &self.bodies, to_service)?,
                     kind::ACKNOWLEDGE => acknowledge(&mut active.turns, body, &self.bodies, to_service)?,
                     kind::GRANT_REFRESH => self.refresh(body, to_service)?,
                     kind::CANCEL => cancel(&mut active.cancellation, body, &self.bodies, to_service)?,
-                    kind::DRAIN => drain(&mut active.cancellation, body, &self.bodies, to_service)?,
+                    kind::DRAIN => drain(&mut active.cancellation, active.tell_parts, body, &self.bodies, to_service)?,
                     _ => return Err(Broken),
                 }
                 Ok(State::Admitted(active))
             }
             State::Answered(mut turns) => {
-                if kind != kind::ACKNOWLEDGE {
-                    return Err(Broken);
+                match kind {
+                    kind::ACKNOWLEDGE => acknowledge(&mut turns, body, &self.bodies, to_service)?,
+                    kind::PART_KEPT => part_kept(&mut turns, body, &self.bodies, to_service)?,
+                    _ => return Err(Broken),
                 }
-                acknowledge(&mut turns, body, &self.bodies, to_service)?;
                 Ok(State::Answered(turns))
             }
         }
@@ -165,17 +164,59 @@ impl Component {
                 return Ok(State::Refused);
             }
         };
+        let count = match &transcript {
+            Some(transcript) => u32::try_from(transcript.turns.len()).unwrap_or(u32::MAX),
+            None => 0,
+        };
+        let parts = self.resumed_parts(&start.parts, count, start.transcript.len()).unwrap_or_default();
         self.stash_initial_grants(&start).or(Err(Broken))?;
         let mut start = start_context(start, charter, transcript).or(Err(Broken))?;
+        start.parts = parts;
         start.window.turns = start.window.turns.min(self.turn_capacity);
         let active = Active {
             turns: Turns::new(start.window, self.turn_capacity),
             live: start.live.clone(),
+            tell_parts: start.tell_parts,
+            answered_turn: false,
             cancellation: Cancellation::Waiting,
             long_open: 0,
         };
         to_service.push(Heard::Start { start: Box::new(start) });
         Ok(State::Started(active))
+    }
+
+    fn resumed_parts(&self, piece: &[u8], turns: u32, transcript_bytes: usize) -> Option<Box<[record::Resumed]>> {
+        let room = self.resume_turns.checked_sub(turns)?;
+        let bytes = usize::try_from(self.bodies.start_transcript).ok()?.checked_sub(transcript_bytes)?;
+        if piece.len() > bytes {
+            return None;
+        }
+        let mut reader = Reader::new(piece);
+        let mut parts = skein_lib::List::with_capacity(room);
+        for _ in 0..room {
+            if reader.is_empty() {
+                break;
+            }
+            let length = reader.u32()?;
+            let mut body = Reader::new(reader.bytes(length)?);
+            let part = smith_channel::KeptPart::decode(&self.bodies, &mut body).ok()?;
+            if !body.is_empty() {
+                return None;
+            }
+            let body = smith_protocol_translate::decode_part(&part.body, &self.transcript, &self.endpoints).ok()?;
+            let kind = channel::part_kind_to_domain(part.kind);
+            parts
+                .push(record::Resumed {
+                    activation: part.activation,
+                    turn: part.turn,
+                    part: record::Part { thread: part.thread, call: part.call, kind, body },
+                })
+                .ok()?;
+        }
+        if !reader.is_empty() {
+            return None;
+        }
+        Some(parts.into_boxed())
     }
 
     fn renewals(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
@@ -185,21 +226,22 @@ impl Component {
     }
 
     fn message(&self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
-        let message = smith_channel::Message::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
+        let record = smith_channel::Message::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
+        let message = channel::message_to_domain(record);
         to_service.push(Heard::Message {
             finish_requested: message.finish_requested,
-            name: Token::new(message.name),
-            label: Box::from(message.label.as_ref()),
-            text: Box::from(message.text.as_ref()),
+            name: message.name,
+            label: message.label,
+            text: message.text,
         });
         Ok(())
     }
 
     fn host_answer(&mut self, body: &[u8], to_service: &mut Queue<Heard>) -> Result<(), Broken> {
         let answer = smith_channel::HostAnswer::decode(&self.bodies, &mut Reader::new(body)).or(Err(Broken))?;
-        let key = CallKey::from_wire(&answer.name);
-        match self.calls.remove(&key).ok_or(Broken)? {
-            CallRoute::Host { relay, send: _ } => {
+        let key = channel::call_name_to_domain(answer.name);
+        match self.remove_call(&key).ok_or(Broken)? {
+            CallRoute::Host { relay, .. } => {
                 let reply = calls::host_reply(&answer.reply).ok_or(Broken)?;
                 to_service.push(Heard::Event { event: Box::new(smith_domain::Event::HostReturned { relay, reply }) });
             }
@@ -256,8 +298,8 @@ impl Component {
             }
         }
         if let Some(key) = found {
-            match self.calls.remove(&key) {
-                Some(CallRoute::Host { relay, send: _ }) => to_service.push(Heard::Event {
+            match self.remove_call(&key) {
+                Some(CallRoute::Host { relay, .. }) => to_service.push(Heard::Event {
                     event: Box::new(smith_domain::Event::HostReturned {
                         relay,
                         reply: run::HostReply::Unanswered(run::Unanswered::Lost),
@@ -301,13 +343,17 @@ impl Component {
 
 fn drain(
     cancellation: &mut Cancellation,
+    tell_parts: bool,
     body: &[u8],
     limits: &smith_channel::Limits,
     to_service: &mut Queue<Heard>,
 ) -> Result<(), Broken> {
-    smith_channel::Drain::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
+    let record = smith_channel::Drain::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
+    if record.grace.is_some() && !tell_parts {
+        return Err(Broken);
+    }
     cancellation.drain().or(Err(Broken))?;
-    to_service.push(Heard::Drain);
+    to_service.push(Heard::Drain { grace: record.grace });
     Ok(())
 }
 
@@ -320,6 +366,18 @@ fn cancel(
     smith_channel::Cancel::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
     cancellation.request().or(Err(Broken))?;
     to_service.push(Heard::Cancel);
+    Ok(())
+}
+
+fn part_kept(
+    turns: &mut Turns,
+    body: &[u8],
+    limits: &smith_channel::Limits,
+    to_service: &mut Queue<Heard>,
+) -> Result<(), Broken> {
+    let record = smith_channel::PartKept::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
+    turns.acknowledge_part(record.number).or(Err(Broken))?;
+    to_service.push(Heard::PartKept { number: record.number });
     Ok(())
 }
 
@@ -338,6 +396,8 @@ fn acknowledge(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::component::CallKey;
+
     #[test]
     fn a_lost_channel_settles_already_sent_calls_one_at_a_time() {
         let mut limits = crate::fixture::small();
@@ -353,7 +413,7 @@ mod tests {
             .calls
             .insert(
                 CallKey { activation: 1, completion: 1, position: 0 },
-                CallRoute::Host { relay, send: Token::new(10) },
+                CallRoute::Host { relay, send: Token::new(10), withdrawn: false },
             )
             .expect("call room");
         channel

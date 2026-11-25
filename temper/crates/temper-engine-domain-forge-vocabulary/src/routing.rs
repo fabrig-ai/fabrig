@@ -473,6 +473,8 @@ pub fn change_delegate_status(
         | tasks::MessageKind::FinishRequested { .. }
         | tasks::MessageKind::Amendment { .. }
         | tasks::MessageKind::Question
+        | tasks::MessageKind::PassedQuestion { .. }
+        | tasks::MessageKind::PassedAnswer { .. }
         | tasks::MessageKind::Answer { .. }
         | tasks::MessageKind::Met { .. }
         | tasks::MessageKind::Notice { .. }
@@ -529,14 +531,15 @@ pub fn own_hold(task: &tasks::TaskRecord) -> bool {
             | tasks::Hold::ResourceUnavailable
             | tasks::Hold::ResourceAccess
             | tasks::Hold::PoolLost { .. }
-            | tasks::Hold::Circle => false,
+            | tasks::Hold::Circle
+            | tasks::Hold::Waited => false,
         },
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
     }
 }
 
 /// The code-2 procedure's repository and landing parameters, shared by chat
-/// changes and deployment queue repairs (domain/agent/tools.md, 1).
+/// changes and deployment queue repairs (domain/agent/tools-change.md, 1).
 pub fn change_parameters(
     connector: u16,
     provider: skein_forge::api::Repository,
@@ -618,7 +621,7 @@ pub fn change_hold_event(task: u64, end: &StepEnd) -> tasks::Event {
     }
 }
 
-/// Installation is missing access, not a transient busy adoption (domain/forge/adoption.md, 3).
+/// Installation is missing access, not a transient busy adoption (domain/forge/adoption.md, 7).
 pub fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
     match error {
         skein_forge::api::Error::NotConnected

@@ -56,7 +56,7 @@ denied, so that the ring adapter can expect it in place; a crate here with no `u
 ## 3. Which crate takes which
 
 - **`step`:** every crate held to the subset, and any crate under `testing/` or `tests/` held to the
-  step crates' lints (a fake that runs as a step machine, `skein/docs/design/testing/README.md`, 6). A crate
+  step crates' lints (a fake that runs as a step machine, `skein/docs/design/testing/layout.md`, 1). A crate
   already on `step` stays there.
 - **`harness`:** the worlds under `tests/`, the kits under `testing/`, the fakes under `crates/`, and
   the development tools: their crates under `crates/` and their binaries' packages under `bin/`
@@ -182,7 +182,7 @@ A comment line is one whose first text after blanks is `//`, so a doc comment th
 `#[should_panic(...)]` doesn't count, and `clippy::should_panic_without_expect` in an `#[expect]`
 names no pattern. On main at
 `62b2474b27` the three come to 210 `catch_unwind` lines, 11 `resume_unwind` lines and 463
-`#[should_panic]` attributes, the figures of `temper/docs/design/draft/panics.md`, 2, tree by
+`#[should_panic]` attributes, the figures of `temper/docs/design/draft/archive/panics.md`, 2, tree by
 tree.
 
 ### 7.2 The list
@@ -244,7 +244,7 @@ lowers its line in the same change; another branch that only removes catches nev
   (`.config/gate/always.txt`).
 - **Beside clippy's ban:** `disallowed-methods` lists `catch_unwind` and `resume_unwind` in every
   `clippy.toml` the gate's clippy reads (section 4), and the count alone refuses `#[should_panic]`,
-  which no lint can ban (`temper/docs/design/draft/panics.md`, 7).
+  which no lint can ban (`temper/docs/design/draft/archive/panics.md`, 7).
 
 ## 8. Later
 

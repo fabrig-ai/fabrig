@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use skein_lib::stream::Read;
 use skein_lib::{Decimal, Intake, Reader, length::len_u64};
-use smith_transcript::v7 as smith;
+use smith_transcript::v8 as smith;
 
 use crate::Undecodable;
 
@@ -57,6 +57,7 @@ fn validate_returned(limits: &smith::Limits, returned: &smith::Returned) -> Resu
             | smith::Outcome::Written(_)
             | smith::Outcome::Edited(_)
             | smith::Outcome::Exited(_)
+            | smith::Outcome::Interrupted(_)
             | smith::Outcome::Running(_)
             | smith::Outcome::Job(_)
             | smith::Outcome::NotGranted
@@ -165,11 +166,12 @@ struct Builder {
 }
 impl Builder {
     fn put(&mut self, bytes: &[u8]) {
-        self.bytes.append(bytes).expect("fixed summary words and numeric fields fit 256 bytes");
+        self.bytes.append(bytes).expect("schema-bounded result text fits the summary buffer");
     }
     fn number(&mut self, value: u64) {
         self.put(Decimal::of(value).as_bytes());
     }
+    #[expect(clippy::too_many_lines, reason = "each transcript outcome has its explicit summary")]
     fn outcome(&mut self, outcome: &smith::Outcome) {
         match outcome {
             smith::Outcome::Read(read) => {
@@ -229,6 +231,7 @@ impl Builder {
                 self.number(u64::from(running.job));
                 self.output(running.head.as_ref(), running.last.as_ref(), running.dropped);
             }
+            smith::Outcome::Interrupted(interrupted) => self.interrupted(interrupted),
             smith::Outcome::Job(job) => self.job(job),
             smith::Outcome::NotGranted => self.put(b"Tool refused: not granted"),
             smith::Outcome::Outside(_) => self.put(b"Tool refused: outside workspace"),
@@ -273,6 +276,69 @@ impl Builder {
             smith::Outcome::NulByte => self.put(b"Tool refused: NUL byte"),
         }
     }
+    fn interrupted(&mut self, interrupted: &smith::Interrupted) {
+        self.put(b"interrupted by a worker restart after ");
+        match interrupted.ran_ms {
+            Some(ms) => {
+                self.number(ms.checked_div(1000).expect("milliseconds per second"));
+                self.put(b" s");
+            }
+            None => self.put(b"an unknown time"),
+        }
+        if !interrupted.head.is_empty() {
+            self.put(b"\n");
+            self.output_text(&interrupted.head);
+        }
+        if interrupted.dropped > 0 {
+            self.put(b"\n... ");
+            self.number(interrupted.dropped);
+            self.put(b" bytes dropped ...");
+        }
+        if !interrupted.last.is_empty() {
+            self.put(b"\n");
+            self.output_text(&interrupted.last);
+        }
+        self.put(b"\nThis call may be run again.");
+    }
+
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the protocol renderer validates command output before displaying it"
+    )]
+    fn output_text(&mut self, bytes: &[u8]) {
+        let mut remaining = bytes;
+        for _ in 0..=bytes.len() {
+            let (valid, invalid) = match core::str::from_utf8(remaining) {
+                Ok(text) => (text, 0),
+                Err(error) => {
+                    let valid = remaining.get(..error.valid_up_to()).expect("valid prefix");
+                    (core::str::from_utf8(valid).expect("validated prefix"), error.error_len().unwrap_or(1))
+                }
+            };
+            for character in valid.chars() {
+                let mut buffer = [0; 4];
+                let scalar = character.encode_utf8(&mut buffer).as_bytes();
+                if character.is_control() && character != '\n' && character != '\t' {
+                    self.escaped(scalar);
+                } else {
+                    self.put(scalar);
+                }
+            }
+            remaining = remaining.get(valid.len()..).expect("after valid prefix");
+            if invalid == 0 {
+                break;
+            }
+            self.escaped(remaining.get(..invalid).expect("invalid sequence"));
+            remaining = remaining.get(invalid..).expect("after invalid sequence");
+        }
+    }
+
+    fn escaped(&mut self, bytes: &[u8]) {
+        for byte in bytes {
+            self.put(&[b'\\', b'x', skein_lib::bytes::hex_digit(byte >> 4), skein_lib::bytes::hex_digit(byte & 15)]);
+        }
+    }
+
     fn job(&mut self, job: &smith::JobRead) {
         self.put(b"Job ");
         self.number(u64::from(job.job));

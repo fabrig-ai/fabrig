@@ -1,4 +1,4 @@
-//! The four written jobs' page contract (temper/docs/design/protocol/store.md, 4).
+//! The four written jobs' page contract (temper/docs/design/protocol/store-versions.md, 1).
 #![expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "ordinary Rust job fixtures")]
 use super::fixtures::{self, layouts};
 use crate::{jobs, records};
@@ -252,10 +252,12 @@ fn in_flight_runs_postings_and_landing_selections_refuse_by_key() {
 pub(super) fn landing() -> d::Stored {
     use temper_engine_domain_forge_landing as l;
     d::Stored::Landing(d::LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
         room: None,
+        follows: None,
         flake_reruns: Box::new([]),
         job: None,
         asks: Box::new([]),

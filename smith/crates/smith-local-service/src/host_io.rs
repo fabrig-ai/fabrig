@@ -706,6 +706,9 @@ impl HostIo {
                     host::Down::Answer { call, reply } => {
                         process.send_reply(call, reply, send_token, &mut self.process_events, &mut self.io_requests)
                     }
+                    host::Down::PartKept { number } => {
+                        process.send_part_kept(number, send_token, &mut self.process_events, &mut self.io_requests)
+                    }
                     host::Down::Acknowledge { turn } => {
                         process.send_acknowledge(turn, send_token, &mut self.process_events, &mut self.io_requests)
                     }
@@ -725,8 +728,8 @@ impl HostIo {
                     host::Down::Cancel => {
                         process.send_cancel(send_token, &mut self.process_events, &mut self.io_requests)
                     }
-                    host::Down::Drain => {
-                        process.send_drain(send_token, &mut self.process_events, &mut self.io_requests)
+                    host::Down::Drain { grace } => {
+                        process.send_drain(grace, send_token, &mut self.process_events, &mut self.io_requests)
                     }
                 };
                 if sent.is_err() {
@@ -939,7 +942,7 @@ mod tests {
         );
         // The file driver releases its serial slot when it queues a terminal.
         // Accumulate both completed requests before the next markers_up pass;
-        // the chat handoff is now uncapped (protocol/limits.md, section 3.8).
+        // the chat handoff is now uncapped (protocol/limits-derivation.md, section 1.8).
         match host_io.file_requests.pop().expect("store load") {
             (file::Request::Load { owner: STORE_OWNER, path, .. }, _) => {
                 assert_eq!(path.as_ref(), b"format");

@@ -10,7 +10,7 @@ through ctl and the forge through its API. The bar is `../design/draft/v0.1.0.md
 and 9; the same story, unchanged, is its acceptance.
 
 0 to B2 are the ladder's stories (`../design/draft/v0.1.0.md`, 2.1). M3, M4 and M8 walk milestones
-of the reference case (`../design/draft/reference-case.execution.md`, section 3) on the way to C.
+of the reference case (`../design/draft/archive/reference-case.execution.md`, section 3) on the way to C.
 The table's pairs are the stories' starting backends; section 3 gives their other pairs.
 
 | Story and section | Backends | Twin | Fixture |
@@ -91,7 +91,7 @@ run must pass, `ci` green and `changes` skipped. After the story, put back the r
 and remove the gate's `CONTRIBUTING.md` and `changes/`.
 
 **GitHub managed,** temper's App made from its manifest, needs a person's clicks in a browser on
-the engine's machine (`../design/draft/github.md`, 6.1 and 6.5).
+the engine's machine (`../design/draft/github-app.md`, 2.1 and 2.5).
 
 ## 4. Rung 0, the ground
 

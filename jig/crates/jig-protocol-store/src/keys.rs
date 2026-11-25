@@ -1,4 +1,4 @@
-//! Ordered keys and owner tags (protocol/store/README.md, sections 4.1 and 4.2).
+//! Ordered keys and owner tags (protocol/store/keys.md, sections 1.1 and 1.2).
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as domain;
 use skein_kv::{KeyReader, KeyWriter};
@@ -8,13 +8,13 @@ mod notes;
 mod own;
 mod people;
 mod settings;
-pub(crate) use settings::{changed_model, model_changes};
+pub(crate) use settings::{changed_model, model_changes, worker_changes};
 mod tasks;
 pub use own::Own;
 pub const COMPONENT: u8 = 0;
 pub const JIG: u8 = 1;
 pub const APPLICATION: u8 = 2;
-/// Owner tags and their census prefix lengths (protocol/store/README.md, 4.2 and 6.3).
+/// Owner tags and their census prefix lengths (protocol/store/keys.md, 1.2, and protocol/store/growth.md, 1.3).
 pub(crate) const TAGS: &[(u8, u8)] = &[(COMPONENT, 2), (JIG, 3), (APPLICATION, 2)];
 
 /// Names beside the key writers, one per family prefix (6.3).
@@ -32,6 +32,7 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[0, 11], "component.turn-logs"),
     (&[0, 12], "component.log-attempts"),
     (&[0, 13], "component.floor"),
+    (&[0, 14], "component.registry-orders"),
     (&[1, 0, 0], "core.deployment"),
     (&[1, 0, 1], "core.projections"),
     (&[1, 0, 2], "core.run-proofs"),
@@ -42,6 +43,7 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[1, 0, 7], "core.escalation-decisions"),
     (&[1, 0, 8], "core.settings"),
     (&[1, 0, 9], "core.settings-history"),
+    (&[1, 0, 10], "core.parts"),
     (&[1, 1, 0], "tasks.live"),
     (&[1, 1, 1], "tasks.stubs"),
     (&[1, 1, 2], "tasks.ledgers"),
@@ -121,6 +123,26 @@ pub fn decode_own(bytes: &[u8]) -> Option<Own> {
     }
     Some(key)
 }
+/// Registry order key (protocol/store/layouts.md, 3), at its own tag.
+#[must_use]
+pub fn order(family: &str, number: u16, limit: u32) -> Option<Box<[u8]>> {
+    let mut writer = KeyWriter::new(limit);
+    writer.tag(COMPONENT);
+    writer.tag(14);
+    own::write_type(&mut writer, family, number);
+    writer.finish()
+}
+
+#[must_use]
+pub fn decode_order(bytes: &[u8]) -> Option<(Box<str>, u16)> {
+    let mut reader = KeyReader::new(bytes.strip_prefix(&[COMPONENT, 14])?);
+    let ty = own::read_type(&mut reader)?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(ty)
+}
+
 #[must_use]
 pub fn encode(key: &domain::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);

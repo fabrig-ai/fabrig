@@ -25,9 +25,7 @@ pub(super) fn encode(row: &d::Verification) -> w::Verification {
     }
     let mut tiers = List::with_capacity(u32::try_from(row.tiers.len()).expect(FITS));
     for tier in &row.tiers {
-        tiers
-            .push(crate::generated::store::tier_verification_to_record(tier, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        tiers.push(crate::generated::store::tier_verification_to_record(tier)).expect(FITS);
     }
     w::Verification { repository: names::encode_repository(row.repository), commit: row.commit, changes, tiers }
 }
@@ -55,8 +53,7 @@ pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodabl
     let w::Verification { repository, commit, changes, tiers } = row;
     let mut decoded = List::with_capacity(tiers.len());
     for tier in tiers.into_boxed() {
-        let tier = crate::generated::store::tier_verification_to_domain(tier, &super::Context::UNBOUNDED)
-            .or(Err(Undecodable::Malformed))?;
+        let tier = crate::generated::store::tier_verification_to_domain(tier).or(Err(Undecodable::Malformed))?;
 
         if tier.tier.is_empty() {
             return Err(Undecodable::Malformed);

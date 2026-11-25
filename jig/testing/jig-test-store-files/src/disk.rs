@@ -1,4 +1,4 @@
-//! Directory stores on the simulated crashing disk (protocol/store/README.md, 9).
+//! Directory stores on the simulated crashing disk (protocol/store/testing.md, 1).
 use jig_protocol_store::host::{Drivers, Lane, Submission};
 use jig_protocol_store::{Event, Limits, Request, Root, Seeded, Store};
 use skein_fake_machine::{How, Machine};
@@ -29,26 +29,16 @@ impl Disk {
     pub fn new(limits: &Limits) -> Self {
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(&[]);
-        let (sim, pid, root, host) = drivers(limits, handle, 0);
-        Self {
-            machine,
-            sim,
-            pid,
-            root,
-            host,
-            operations: 0,
-            mutations: Vec::new(),
-            cut: None,
-            reached: false,
-            sweep: Vec::new(),
-            sweeping: None,
-            fork_child: None,
-            forked: Vec::new(),
-        }
+        Self::over(limits, machine, handle)
     }
-    pub fn fork(&self, limits: &Limits) -> Self {
-        let mut machine = self.machine.fork();
+    pub fn image(&self) -> Machine {
+        self.machine.fork()
+    }
+    pub fn from_image(limits: &Limits, mut machine: Machine) -> Self {
         let handle = machine.reopen_root(0);
+        Self::over(limits, machine, handle)
+    }
+    fn over(limits: &Limits, machine: Machine, handle: skein_fake_machine::Opened) -> Self {
         let (sim, pid, root, host) = drivers(limits, handle, 0);
         Self {
             machine,
@@ -138,8 +128,7 @@ impl Disk {
             | Request::Get { .. }
             | Request::Transcript { .. }
             | Request::Secrets { .. }
-            | Request::Job { .. }
-            | Request::Site { .. }) => self.host.down(store, env, request, above),
+            | Request::Job { .. }) => self.host.down(store, env, request, above),
         }
         self.drive(store, env, above);
     }
@@ -255,21 +244,15 @@ fn collect(
     machine.close(file);
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Disk;
+pub(super) mod testing {
+    use super::{Disk, Limits};
     use crate::KillFrom;
 
-    #[test]
-    fn a_failed_operation_child_names_its_cut() {
-        let limits = crate::component_limits(&jig_test_profile::limits());
-        let mut disk = Disk::new(&limits);
-        disk.sweep = vec![(KillFrom::Commit(1), 0)];
-        disk.sweeping = Some(KillFrom::Commit(1));
+    pub fn fork_first_operation(limits: &Limits, from: KillFrom) -> (Result<(), String>, bool) {
+        let mut disk = Disk::new(limits);
+        disk.sweep = vec![(from, 0)];
+        disk.sweeping = Some(from);
         let result = disk.fork_boundary();
-        if disk.fork_child.is_some() {
-            std::process::exit(23);
-        }
-        assert_eq!(result, Err("forked disk cut (Commit(1), 0) failed: Code(23)".to_owned()));
+        (result, disk.fork_child.is_some())
     }
 }

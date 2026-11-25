@@ -21,7 +21,7 @@ use std::{
 const WITHIN: Duration = Duration::from_secs(1200);
 const POLL: Duration = Duration::from_secs(2);
 /// Install links asked while setup is busy, one a poll: the reconcile after a connect is the
-/// engine's own, which `forge list --until settled` does not cover (client/ctl/tools.md, 4).
+/// engine's own, which `forge list --until settled` does not cover (client/ctl/tools-waiting.md, 1).
 const BUSY: u32 = 30;
 const REPOSITORY: &str = "temper-probe";
 
@@ -160,6 +160,17 @@ fn render_owner(value: &mut Value, owner: &str) {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
 }
+/// The GitHub engine template with explicit relay and listener facts.
+#[must_use]
+pub fn engine_document(root: &Path, bindings: &[(&str, &str)]) -> Value {
+    let path = skein_scratch::paths::tree()
+        .join("bin/temper-box/tests/fixtures/github/engine")
+        .join(temper_config_shell::FILE);
+    let mut bindings = bindings.to_vec();
+    bindings.push(("proc.llm.dir", root.to_str().expect("fixture path")));
+    super::configuration::engine_template(&path, true, &bindings)
+}
+
 /// Shape the live engine without reading inputs or constructing a relay.
 pub fn configure_engine(
     value: &mut temper_playground::documents::Configuration,
@@ -392,7 +403,7 @@ impl Judge<'_> {
         Ok(())
     }
     fn install(&mut self, host: &mut cluster::Root) -> Result<(), String> {
-        // A key's first answer is replayed (client/ctl/README.md, 5): each ask again draws a fresh key.
+        // A key's first answer is replayed (client/ctl/requests.md, 1): each ask again draws a fresh key.
         let key = format!("live-install-{}", self.busy);
         self.one(host, &["forge", "install", "1", "--key", &key], Stage::Link)?;
 

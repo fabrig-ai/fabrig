@@ -123,7 +123,7 @@ pub fn parse(table: &[&Tool], words: &[&[u8]], limits: &Limits) -> Result<Parsed
         for (form, arguments) in row.forms.iter().enumerate() {
             let form = u8::try_from(form).or(Err(Usage::Tool))?;
             check_words(row, tool, arguments, words)?;
-            let parsed = form_values(table, arguments, words, limits, row.keyed, json);
+            let parsed = form_values(table, row, arguments, words, limits, json);
             match parsed {
                 Ok(parsed) => {
                     let call = Call { tool, form, values: parsed.values, key: parsed.key };
@@ -184,12 +184,48 @@ fn tool_index(table: &[&Tool], word: &[u8]) -> Option<u8> {
     }
     None
 }
+// Reserve the trailing required positionals after a repeated positional (FINDING... TEXT).
+fn positional_count(arguments: &[Argument], words: &[&[u8]]) -> usize {
+    let mut count = 0_usize;
+    let mut skip = false;
+    let mut positional = false;
+    for word in words {
+        if skip {
+            skip = false;
+            continue;
+        }
+        if !positional && *word == b"--" {
+            positional = true;
+        } else if !positional && word.starts_with(b"--") {
+            skip = *word == b"--key";
+            for argument in arguments {
+                if word.get(2..) == Some(argument.name) {
+                    skip = argument.place == Place::Flag;
+                    break;
+                }
+            }
+        } else {
+            count = count.checked_add(1).expect("bounded argv");
+        }
+    }
+    count
+}
+fn trailing_positionals(arguments: &[Argument], slot: usize) -> usize {
+    let mut count = 0_usize;
+    for argument in arguments.iter().skip(slot.checked_add(1).expect("bounded arguments")) {
+        if argument.place == Place::Positional && super::table::required(argument) {
+            count = count.checked_add(1).expect("bounded arguments");
+        }
+    }
+    count
+}
+#[expect(clippy::too_many_lines, reason = "one argv walk keeps flag values and joined positional words distinct")]
 fn form_values(
     table: &[&Tool],
+    tool: &Tool,
     arguments: &[Argument],
     words: &[&[u8]],
     limits: &Limits,
-    keyed: Keyed,
     json: bool,
 ) -> Result<Form, Usage> {
     let count = u8::try_from(arguments.len()).or(Err(Usage::Tool))?;
@@ -200,6 +236,8 @@ fn form_values(
     let mut result = Form { values: Box::from([]), key: None, json };
     let mut skip = None;
     let mut positional = false;
+    let mut positionals = positional_count(arguments, words);
+    let mut stop_words = List::uncapped();
     for (index, word) in words.iter().enumerate() {
         if skip == Some(index) {
             continue;
@@ -217,7 +255,7 @@ fn form_values(
             result.json = true;
             continue;
         }
-        if flag && *word == b"--key" && keyed != Keyed::Never {
+        if flag && *word == b"--key" && tool.keyed != Keyed::Never {
             if result.key.is_some() {
                 return Err(Usage::Key);
             }
@@ -236,7 +274,8 @@ fn form_values(
                     break;
                 }
             } else if argument.place == Place::Positional
-                && (values.get(u32::from(id)) == Some(&None) || repeated(argument.occurs))
+                && (values.get(u32::from(id)) == Some(&None)
+                    || (repeated(argument.occurs) && positionals > trailing_positionals(arguments, slot)))
             {
                 found = Some(id);
                 break;
@@ -245,6 +284,12 @@ fn form_values(
         let argument = found.ok_or(if flag { Usage::Unknown { at } } else { Usage::Extra { at } })?;
         let spec = arguments.get(usize::from(argument)).ok_or(Usage::Tool)?;
         let slot = values.get_mut(u32::from(argument)).ok_or(Usage::Tool)?;
+        // Stop's last positional is one reason, even when argv supplies several words.
+        if tool.name == super::rows::STOP.name && argument == 1 && (positionals > 1 || !stop_words.is_empty()) {
+            stop_words.push(*word).or(Err(Usage::Tool))?;
+            positionals = positionals.checked_sub(1).expect("counted stop reason word");
+            continue;
+        }
         if slot.is_some() && !repeated(spec.occurs) {
             return Err(Usage::Twice { tool: 0, form: 0, argument });
         }
@@ -266,6 +311,15 @@ fn form_values(
         };
         valid(table, spec, &value, argument, limits)?;
         store(slot, spec.occurs, value, argument)?;
+        if !flag {
+            positionals = positionals.checked_sub(1).expect("counted positional");
+        }
+    }
+    if !stop_words.is_empty() {
+        let spec = arguments.get(1).ok_or(Usage::Tool)?;
+        let reason = Value::Text(join_stop_reason(&stop_words, limits.ask_bytes)?);
+        valid(table, spec, &reason, 1, limits)?;
+        *values.get_mut(1).ok_or(Usage::Tool)? = Some(Values::One(reason));
     }
     for (index, argument) in arguments.iter().enumerate() {
         let index = u32::try_from(index).or(Err(Usage::Tool))?;
@@ -282,6 +336,24 @@ fn form_values(
     result.values = values.into_boxed();
     defaults(arguments, &mut result.values, limits);
     Ok(result)
+}
+fn join_stop_reason(words: &List<&[u8]>, maximum: u64) -> Result<Box<[u8]>, Usage> {
+    let long = Usage::Long { tool: 0, form: 0, argument: 1 };
+    let mut size = usize::try_from(words.len().checked_sub(1).expect("reason has words")).or(Err(long))?;
+    for word in words {
+        size = size.checked_add(word.len()).ok_or(long)?;
+    }
+    if skein_lib::len_u64(size) > maximum {
+        return Err(long);
+    }
+    let mut out = Writer::new(size);
+    for (index, word) in words.iter().enumerate() {
+        if index != 0 {
+            out.put(b" ").expect("space measured");
+        }
+        out.put(word).expect("word measured");
+    }
+    Ok(out.finish())
 }
 fn repeated(occurs: Occurs) -> bool {
     match occurs {

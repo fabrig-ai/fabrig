@@ -1,4 +1,4 @@
-//! Written id narrowing jobs (temper/docs/design/protocol/store.md, 4).
+//! Written id narrowing jobs (temper/docs/design/protocol/store-versions.md, 1).
 use super::refusal;
 use crate::v25;
 use alloc::{boxed::Box, string::String};
@@ -134,7 +134,7 @@ fn planned(plan: &Plan, work: &mut Workspace, bytes: &[u8]) -> Result<Box<[u8]>,
                 | Misconverted::Bool
                 | Misconverted::Bound
                 | Misconverted::Trailing
-                | Misconverted::Dropped(_),
+                | Misconverted::Refused(_),
             ) => return Err("unreadable test id value"),
         }
     }

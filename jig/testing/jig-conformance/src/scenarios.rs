@@ -261,6 +261,7 @@ pub fn run<A: ScenarioApplication>(scenario: Scenario, cut: Cut, seed: u64) -> R
         }
     }
     A::check(&world, scenario).map_err(|violation| world.diagnostic(violation))?;
+    world.finish()?;
     Ok(Some(world.outcome()))
 }
 

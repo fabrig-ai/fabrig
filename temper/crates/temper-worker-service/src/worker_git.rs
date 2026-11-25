@@ -81,6 +81,7 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::CheckOut { identity, .. }
         | git::Op::Merge { identity, .. }
         | git::Op::Fetch { identity, .. }
+        | git::Op::Counts { identity, .. }
         | git::Op::Create { identity, .. }
         | git::Op::Commit { identity, .. }
         | git::Op::Push { identity, .. } => Some(*identity),
@@ -89,6 +90,7 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -113,6 +115,7 @@ pub(crate) fn pick(
         git::Op::CheckOut { at, account, .. }
         | git::Op::Merge { at, account, .. }
         | git::Op::Fetch { at, account, .. }
+        | git::Op::Counts { at, account, .. }
         | git::Op::Create { at, account, .. }
         | git::Op::Push { at, account, .. } => (at.repository.as_ref(), account),
         git::Op::Commit { at, snapshot: Some(snapshot), .. } => (at.repository.as_ref(), &snapshot.account),
@@ -129,6 +132,7 @@ pub(crate) fn pick(
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
+        | git::Op::Keep { .. }
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -160,8 +164,14 @@ impl crate::Worker {
     pub(crate) fn git_drain(&mut self) {
         for _ in 0..self.git.out.events.len() {
             match self.git.out.events.pop().expect("git events") {
-                component::Event::Started => self.git.ready = true,
+                component::Event::Started => {
+                    self.root.restore_workspaces(self.git.component.take_kept());
+                    self.git.ready = true;
+                }
                 component::Event::Unusable { .. } => self.git.refused = Some(problem(b"git", What::Form)),
+                component::Event::Unswept { path, error } => {
+                    self.notes().push(crate::worker_alone::Note::Unswept { path, error });
+                }
                 component::Event::Done { owner, done } => {
                     if self.aborted.is_none() {
                         self.events.push(temper_worker_domain::Event::Done { owner, done });

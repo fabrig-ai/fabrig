@@ -2,7 +2,7 @@
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 pub use crate::route::approvals::{ApprovalPerson, ApprovalRow, ApprovalSet, ApprovalSize, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
-use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
+use crate::{CallKey, Delivery, Key, Range, Record, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
@@ -18,10 +18,10 @@ use skein_lib::{List, ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
 
 /// A complete claim's assignment, root to worker after durability; its
-/// brief sections are bounded by brief limits (domain/root.md, 6.1 and 6.2).
+/// brief sections are bounded by brief limits (domain/root-translation.md, 2.1 and 2.2).
 /// The protocol layer encodes it as the hub's assignment, with the forge
 /// workspace beside it as temper's application part (jig's
-/// `protocol/channel/README.md`, 5.2).
+/// `protocol/channel/owners.md`, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Assignment {
     /// The change project's delivery checks' bound (domain/agent/charter.md, 4).
@@ -50,6 +50,7 @@ pub struct Assignment {
     pub workspace: ForgeWorkspace,
     /// Ordered opaque committed turn bodies of this task, empty for a fresh run.
     pub transcript: Box<[Box<[u8]>]>,
+    pub parts: Box<[jig_domain_link::KeptPart]>,
     /// Named answers committed after the task's last accepted turn. The
     /// worker gives these to the new attempt before it can decide new calls.
     pub answered: Box<[crate::CallRecord]>,
@@ -91,390 +92,12 @@ pub enum BriefBody {
 
 pub use temper_engine_domain_forge::workspace::{ForgeRepository, ForgeStart, ForgeWorkspace};
 
-/// A decoded value of temper's settings kinds, retained for its request's decision
-/// (temper/docs/design/domain/routing.md, 6).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct KindValue {
-    pub kind: u32,
-    pub scope: u32,
-    pub number: u32,
-    pub value: forge::settings::SizedValue,
-}
-
-pub use temper_engine_domain_room::asking;
-
-/// A run of this policy is given no repository: an asking charter's, or one that
-/// names none of inspect, modify and shell (temper/docs/design/domain/agent/charter.md, 2).
-#[must_use]
-pub fn no_workspace(policy: &RunPolicy) -> bool {
-    asking(policy.tools) || !(policy.inspect || policy.modify || policy.shell)
-}
-
 pub use temper_engine_domain_store::{DocumentAction, FindingToolAnswer, FollowToolAnswer, RedToolAnswer};
-
-/// What a `remember` call does to its person's list (domain/agent/ask-temper.md, 4).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum RememberAction {
-    Add { text: Box<[u8]> },
-    Change { line: u32, text: Box<[u8]> },
-    Drop { line: u32 },
-}
-
-/// One typed engine tool request from the current worker claim
-/// (domain/root.md, section 3, and domain/routing.md, section 2). Later routes extend this vocabulary.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Tool {
-    /// Ask whether a goal may decide while its person is away (domain/forge/attention.md, 5).
-    Decided(forge::DecidedCall),
-    /// File, triage or read findings in the caller's project (domain/agent/tools.md).
-    Finding(FindingCall),
-    Red(RedCall),
-    Follow(FollowCall),
-    /// Read related task specifications or proven descendant reports.
-    ReadTask {
-        task: u64,
-        field: jig_domain_core::reads::TaskTextField,
-        from: u64,
-    },
-    /// Read settings without retaining a named-call record.
-    Settings {
-        read: jig_domain_core::SettingsRead,
-        from: u32,
-    },
-    /// Read by one address line, from a byte offset of its answer (domain/agent/ask-temper.md, 1).
-    See {
-        line: Box<[u8]>,
-        from: u32,
-    },
-    /// Write the chat's one document whole, or one section of it (domain/agent/ask-temper.md, 3).
-    Document {
-        action: DocumentAction,
-        body: Box<[u8]>,
-    },
-    /// Keep, change or drop a line about the chat's person (domain/agent/ask-temper.md, 4).
-    Remember {
-        action: RememberAction,
-    },
-    /// Propose whole settings to the deployment's owners.
-    ProposeSettings {
-        against: u32,
-        items: Box<[jig_domain_core::settings::Item]>,
-        reason: Box<[u8]>,
-        kinds: Box<[KindValue]>,
-        /// Hold this call's part (domain/agent/ask-temper.md, 2).
-        more: bool,
-    },
-    /// Propose a whole settings file held in an accessible note at this revision.
-    ProposeSettingsNote {
-        against: u32,
-        note: u64,
-        revision: u32,
-        reason: Box<[u8]>,
-    },
-    /// Write or correct one scoped note by the revision this run recalled.
-    Note {
-        entry: jig_domain_notes::New,
-        recalled: Option<u32>,
-        records: Box<[u64]>,
-    },
-    /// Replace a range of a note's body lines by the revision this run recalled.
-    NoteLines {
-        entry: jig_domain_notes::New,
-        recalled: u32,
-        range: jig_domain_notes::LineRange,
-        records: Box<[u64]>,
-    },
-    /// Read one bounded page of notes by name or description.
-    Recall {
-        by: jig_domain_notes::Recall,
-        page: u32,
-    },
-    /// Queue one checked forge write with a root-derived idempotency key.
-    EffectForge {
-        repository: skein_forge::api::Repository,
-        resource: forge::What,
-        write: Box<skein_forge::api::Write>,
-    },
-    /// A host read resolved in its project before resource authority admission.
-    /// A zero file/job `max_bytes` asks for the configured read limit.
-    /// An empty `Branch` or `Protection` branch asks for the default branch.
-    ReadNamed {
-        repository: Option<Box<[u8]>>,
-        read: skein_forge::api::Read,
-    },
-    /// A file at a branch's head: the branch, then the file at the head it answered.
-    /// An empty `branch` asks for the default branch; a zero `max_bytes` the configured read limit.
-    ReadBranchFile {
-        repository: Option<Box<[u8]>>,
-        branch: Box<[u8]>,
-        path: Box<[u8]>,
-        max_bytes: u32,
-    },
-    /// Read one adopted forge resource through the connector's bounded fresh lane.
-    ReadForge {
-        repository: skein_forge::api::Repository,
-        read: skein_forge::api::Read,
-    },
-    /// Ask a covering ancestor or person to carry one action the caller cannot take alone.
-    Propose {
-        action: ProposedAction,
-        reason: Box<[u8]>,
-        as_holder: bool,
-    },
-    /// Decide one pending proposal currently addressed to this task.
-    Decide {
-        proposer: u64,
-        proposal: u64,
-        decision: ProposalChoice,
-    },
-    /// Withdraw this task's still-pending proposal.
-    Withdraw {
-        proposal: u64,
-    },
-    /// Resolve one held delegate currently waiting at this task.
-    DecideEscalation {
-        task: u64,
-        revision: u64,
-        decision: EscalationChoice,
-    },
-    /// Expand a goal in the run's words into one ordinary named delegation.
-    Goal {
-        words: Box<[u8]>,
-        advisor: bool,
-        agree: bool,
-    },
-    /// Expand a project repository change into one ordinary named delegation.
-    Change {
-        changes: Box<[ChangeCall]>,
-    },
-    /// Create one authorized batch of direct task delegates.
-    Delegate {
-        batch: Box<[Delegate]>,
-    },
-    /// Amend one live delegate after authority fitting and finite source checks.
-    Amend {
-        target: u64,
-        revision: u64,
-        amendment: tasks::Amendment,
-        /// The host omitted parameters; jig keeps the current task's before admission.
-        keep_parameters: bool,
-    },
-    /// Cancel one live delegate's whole subtree with a bounded reason.
-    Cancel {
-        target: u64,
-        reason: Box<[u8]>,
-    },
-    /// Release one held delegate.
-    Release {
-        target: u64,
-        revision: u64,
-        again: Option<bool>,
-    },
-    /// Send whole bounded words to a task the caller references.
-    Message {
-        target: u64,
-        form: MessageForm,
-        words: Box<[u8]>,
-    },
-    /// Record directing words of this run's own task.
-    MarkRead {
-        messages: Box<[u64]>,
-    },
-    /// Give two tasks referenced by the caller reciprocal references.
-    Introduce {
-        left: u64,
-        right: u64,
-    },
-    /// Add one bounded task-state or timer interest.
-    Subscribe {
-        kind: tasks::SubscriptionKind,
-    },
-    /// Subscribe this task to typed connector news, with overlap paths for landings.
-    SubscribeForge {
-        topic: forge::Topic,
-        own_change: Option<u64>,
-        paths: Box<[Box<[u8]>]>,
-    },
-    /// Resolve an owner/name or the project's sole readable adoption before subscribing.
-    SubscribeNamedForge {
-        repository: Option<Box<[u8]>>,
-        topic: forge::Topic,
-        own_change: Option<u64>,
-        paths: Box<[Box<[u8]>]>,
-    },
-    /// Remove one current interest by its root-issued number.
-    Unsubscribe {
-        subscription: u64,
-    },
-    /// Root-normalized whole-batch shape refusal after bounded ingress.
-    Rejected(tasks::Refusal),
-    /// Root-normalized message shape refusal before retaining its words.
-    RejectedMessage(tasks::Refusal),
-    /// Root-normalized control shape refusal before retaining its payload.
-    RejectedControl(tasks::Refusal),
-    /// Root-normalized proposal shape refusal before retaining its action.
-    RejectedProposal(tasks::Refusal),
-    /// A note or recall failed bounded ingress.
-    RejectedNote(jig_domain_notes::Refusal),
-    /// The engine records an unavailable answer for a route not yet installed.
-    Unavailable,
-}
-
-/// A task acts only on its own follows (domain/forge/follows.md, 5 and 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FollowCall {
-    Act { follow: u32, act: forge::follows::FollowAct },
-    List,
-    Show { follow: u32 },
-}
-
-/// A goal's red acts; the caller's task is always the goal (forge/reds.md, 3).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum RedCall {
-    Record { key: Box<[u8]>, at: Box<[u8]>, why: Box<[u8]> },
-    End { key: Box<[u8]>, why: Box<[u8]> },
-    List,
-}
-
-/// Finding acts never take a project or actor from the agent (domain/areas.md, 7).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FindingCall {
-    File {
-        kind: forge::FindingKind,
-        severity: forge::Severity,
-        area: Option<Box<[u8]>>,
-        title: Box<[u8]>,
-        body: Box<[u8]>,
-    },
-    Hand {
-        number: u32,
-        area: Box<[u8]>,
-        why: Box<[u8]>,
-    },
-    Triage {
-        number: u32,
-        act: forge::Triage,
-    },
-    List {
-        state: Option<forge::FindingState>,
-        mine: bool,
-    },
-    Show {
-        number: u32,
-    },
-}
-
-/// One change of a `change` call (domain/agent/tools.md, 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChangeCall {
-    pub words: Box<[u8]>,
-    pub repository: Option<Box<[u8]>>,
-    pub name: Option<Box<[u8]>>,
-    pub landing: Option<ChangeLanding>,
-    pub branch: Option<ChangeBranch>,
-    pub merge: Option<[u8; 32]>,
-    pub after: Box<[ChangeAfter]>,
-    pub questions: Option<ChangeQuestions>,
-    pub repairs: Option<skein_forge::api::Commit>,
-    pub producer: Option<u32>,
-    pub llm: ChangeLlm,
-}
-
-pub use temper_engine_domain_translate::ChangeLlm;
-
-impl ChangeCall {
-    #[must_use]
-    pub fn words(words: Box<[u8]>, repository: Option<Box<[u8]>>) -> Self {
-        Self {
-            words,
-            repository,
-            name: None,
-            landing: None,
-            branch: None,
-            merge: None,
-            after: Box::new([]),
-            producer: None,
-            llm: ChangeLlm::default(),
-            questions: None,
-            repairs: None,
-        }
-    }
-}
-
-/// A change's landing choice (domain/agent/tools.md, 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ChangeLanding {
-    Goal,
-    Branch(Box<[u8]>),
-}
-
-/// How a change takes its agents' questions (domain/agent/tools.md, 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ChangeQuestions {
-    None,
-    Up,
-}
-
-/// A change's branch choice (domain/agent/tools.md, 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ChangeBranch {
-    /// Its requester's held branch: the goal branch it holds in the change's repository.
-    Mine,
-}
-
-/// A change's dependency within a call (domain/agent/tools.md, 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ChangeAfter {
-    Task(u64),
-    Name(Box<[u8]>),
-}
-
-/// Action a worker can submit for an authority holder's decision.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "the worker boundary carries jig's bounded amendment whole")
-)]
-pub enum ProposedAction {
-    Effect { repository: skein_forge::api::Repository, resource: forge::What, write: Box<skein_forge::api::Write> },
-    Batch(Box<[Delegate]>),
-    Amend { task: u64, revision: u64, amendment: tasks::Amendment },
-    Widen { task: u64, authority: tasks::Authority },
-    Release { task: u64, hold: u64, revision: u64 },
-}
-
-/// A task holder's answer to one proposal.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ProposalChoice {
-    Accept,
-    Reject { reason: Box<[u8]> },
-    Pass,
-}
-
-/// A task ancestor's decision on one held descendant.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum EscalationChoice {
-    Release,
-    Reject { reason: Box<[u8]> },
-    Pass,
-}
-
-/// The sendable portion of the task inbox vocabulary.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum MessageForm {
-    Words,
-    Question,
-    Answer { question: u64 },
-}
-
-/// A run-named tool call. The root fills the task and attempt from the
-/// worker envelope before looking up its durable decision.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Call {
-    pub completion: u32,
-    pub position: u32,
-    pub tool: Tool,
-}
+pub use temper_engine_domain_translate::{
+    Call, ChangeAfter, ChangeBranch, ChangeCall, ChangeLanding, ChangeLlm, ChangeQuestions, EscalationChoice,
+    FindingCall, FollowCall, KindValue, MessageForm, ProposalChoice, ProposedAction, RedCall, RememberAction, Tool,
+    asking, no_workspace,
+};
 
 /// A setup result contains no credential (protocol/credentials.md, 1).
 #[derive(Hash, Debug)]
@@ -506,7 +129,7 @@ pub enum Event {
     Party(PartyInput),
     Account(accounts::Event),
     /// A generation named by temper's own credential source for one numbered
-    /// application credential, a repository's git identity (domain/root.md, 6.1).
+    /// application credential, a repository's git identity (domain/root-translation.md, 2.1).
     Credential {
         number: u32,
         generation: u64,
@@ -519,7 +142,7 @@ pub enum Event {
     },
     /// Iterate offers progress requested by ready owners.
     Resume,
-    /// The service begins its drain (jig's `domain/engine/restart.md`, 1).
+    /// The service begins its drain (jig's `domain/engine/restart.md`, 5).
     Stop,
 }
 /// A window turn's text or its omitted body's length (temper/docs/design/domain/root.md, 7).
@@ -542,7 +165,7 @@ pub enum StoreInput {
         token: Token,
         why: CheckpointWhy,
     },
-    /// The named map census (jig's protocol/store/README.md, 6.3).
+    /// The named map census (jig's protocol/store/growth.md, 1.3).
     Census(Box<core::documents::StoreCensus>),
     /// A startup page's missing owner, handed in before that page's Loaded.
     MissingLink {
@@ -555,7 +178,7 @@ pub enum StoreInput {
         /// Store-echoed positive commit number, at most the latest issued commit; older cumulative
         /// answers are inert.
         number: u64,
-        /// The store's map bytes after this commit (jig's `protocol/store/README.md`, 6.2).
+        /// The store's map bytes after this commit (jig's `protocol/store/growth.md`, 1.2).
         fill: u64,
     },
     Uncommitted {
@@ -584,7 +207,7 @@ pub enum StoreInput {
         waiter: Token,
         result: core::reads::Loaded,
     },
-    /// The one terminal of a core read load (jig's `client/domain/contract/README.md`, 4).
+    /// The one terminal of a core read load (jig's `client/domain/contract/reads.md`, 1).
     ReadLoaded {
         load: Token,
         result: core::reads::Loaded,
@@ -609,7 +232,7 @@ pub enum Link {
 }
 
 /// Temper's application parts beside a hub answer, named by its work tokens
-/// (jig's `protocol/channel/README.md`, 5.2).
+/// (jig's `protocol/channel/owners.md`, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Parts {
     /// Full set of repository tags with saved work after this terminal, when the worker made
@@ -648,20 +271,20 @@ pub enum Missing {
     Commit,
 }
 
-/// An observation of the root, which decides nothing (domain/root.md, 3 and 6.4).
+/// An observation of the root, which decides nothing (domain/root.md, 3, and domain/root-translation.md, 2.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
-    /// A forge table full past its bound or free again (protocol/README.md, 6.3).
+    /// A forge table full past its bound or free again (protocol/service-process.md, 1.3).
     ForgeTable {
         words: Box<[u8]>,
     },
-    /// A start step past the report bound (protocol/README.md, 6.3).
+    /// A start step past the report bound (protocol/service-process.md, 1.3).
     StartWaiting {
         step: jig_domain_core::start::Phase,
         age: skein_lib::Duration,
         waits: Box<[u8]>,
     },
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption-person.md, 1).
     ForgeLink {
         forge: u16,
         note: forge::LinkNote,
@@ -674,6 +297,7 @@ pub enum Fact {
         why: Option<tasks::Refusal>,
         changes: Box<[u64]>,
     },
+    LandingRead(temper_engine_domain_forge::LandingReadNote),
     /// Start's Link repairs (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,
@@ -730,7 +354,7 @@ pub enum Fact {
         attempt: u64,
         preparation: Preparation,
     },
-    /// The core refused a procedure's step; the root decides nothing (domain/root.md, 3 and 6.4).
+    /// The core refused a procedure's step; the root decides nothing (domain/root.md, 3, and domain/root-translation.md, 2.4).
     StepRefused {
         task: u64,
         step: u64,
@@ -880,7 +504,8 @@ pub enum ForgeReadAnswer {
     },
     Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
-    Finding(Option<forge::FindingAnswer>),
+    /// Keep finding detail out of every journal delivery slot's inline size.
+    Finding(Option<Box<forge::FindingAnswer>>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
     Setting {
@@ -1058,7 +683,7 @@ pub enum Request {
         kind: forge::BoxKind,
         login: Box<[u8]>,
     },
-    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 5).
+    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 9).
     MakingCopied {
         key: forge::MakingKey,
     },
@@ -1084,7 +709,7 @@ pub enum Request {
     BoxRemove {
         forge: u16,
     },
-    /// A sent forge entry left without its outcome at the stop bound (domain/root.md, 8.2).
+    /// A sent forge entry left without its outcome at the stop bound (domain/root-restart.md, 1.2).
     Unsettled(Unsettled),
     Bound {
         request: Token,
@@ -1158,13 +783,13 @@ pub enum Request {
     ),
     ToChild(Released),
     /// A forge input the drain does not decide, returned to its owner (jig's
-    /// `domain/engine/restart.md`, 1).
+    /// `domain/engine/restart.md`, 5).
     Busy(Box<forge::Event>),
-    /// Tell workers after the word is durable and before closing their links (domain/root.md, 8.2).
+    /// Tell workers after the word is durable and before closing their links (domain/root-restart.md, 1.2).
     Restarting {
         wait: skein_lib::Duration,
     },
-    /// Every commit before the drain is durable (jig's `domain/engine/restart.md`, 1).
+    /// Every commit before the drain is durable (jig's `domain/engine/restart.md`, 5).
     Drained,
     Stop,
 }
@@ -1173,7 +798,7 @@ pub enum StoreRequest {
     Checkpoint {
         token: Token,
     },
-    /// Replace the names before the catalogue decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
+    /// Replace the names before the catalogue decision commits (jig jig/docs/design/domain/engine/settings-catalogue.md, 1).
     Catalogue {
         names: Box<[core::settings::ModelName]>,
     },
@@ -1230,7 +855,7 @@ pub enum WorkerRequest {
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum PartyRequest {
-    /// Replace the clients' catalogue before its decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
+    /// Replace the clients' catalogue before its decision commits (jig jig/docs/design/domain/engine/settings-catalogue.md, 1).
     Catalogue {
         models: Box<[core::settings::CatalogueModel]>,
     },
@@ -1270,6 +895,7 @@ pub(crate) enum Work {
     ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
     Tasks(tasks::Event),
+    RepairFindings { goal: u64, writes: Box<[forge::FindingWrite]> },
     People(people::Event),
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
@@ -1289,6 +915,7 @@ pub(crate) enum Work {
     ProposalLoaded { waiter: Token, rows: Box<[Record]> },
     ProposalFailed { waiter: Token },
     TaskProposalLoaded { waiter: Token, rows: Option<Box<[Record]>> },
+    CloserReportReady { task: u64 },
     EndedLoad { waiter: Token, task: u64 },
     EndedLoaded { waiter: Token, rows: Box<[Record]> },
     ChangeFromLoaded { task: u64, row: Option<Box<jig_domain_tasks::TaskRecord>> },
@@ -1346,7 +973,7 @@ pub(crate) struct PreparedWorkspace {
 pub(crate) use jig_domain_hub_link::Payload;
 
 /// Temper's connector parts beside the link's prepared assignment
-/// (temper/docs/design/domain/root.md, 6.1).
+/// (temper/docs/design/domain/root-translation.md, 2.1).
 #[derive(Hash, Debug)]
 pub(crate) struct AssignmentParts {
     pub saved: Box<[u64]>,
@@ -1381,6 +1008,7 @@ pub(crate) enum Read {
     SettingsNote { to: Token, call: Box<Call> },
     Parts(Box<crate::route::parts::Flight>),
     Document(Box<crate::route::document::DocumentRead>),
+    CloserReport(Box<forge_route::goal_report::Flight>),
     Remember(Box<crate::route::remember::RememberRead>),
 }
 
@@ -1431,6 +1059,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Procedure { .. }
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
+        | Delivery::PartBusy { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
         delivery @ (Delivery::Push(_)
         | Delivery::Providers(..)
@@ -1464,14 +1093,14 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     }
 }
 
-/// A forge write a settling stop left without its outcome (domain/root.md, 8.2).
+/// A forge write a settling stop left without its outcome (domain/root-restart.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Unsettled {
     pub entry: u64,
     pub task: u64,
 }
 
-/// A failed run's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
+/// A failed run's volatile operator evidence (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunDiagnostic {
@@ -1487,7 +1116,7 @@ pub struct RunDiagnostic {
     pub detail: Box<[u8]>,
 }
 
-/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
+/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunRefusalDiagnostic {

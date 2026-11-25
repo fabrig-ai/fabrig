@@ -73,6 +73,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Stopping
         | core::Event::Parts { .. }
         | core::Event::PartsMarked { .. }
+        | core::Event::Waits { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
@@ -100,6 +101,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
+        | core::Event::PartPayload { .. }
         | core::Event::TurnPayload { .. }
         | core::Event::AnswerPayload { .. }
         | core::Event::AcceptedTurn { .. }
@@ -232,6 +234,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::LimitSettingsCommitted { .. }
         | root::Delivery::Drained
         | root::Delivery::Refuse { .. }
+        | root::Delivery::PartBusy { .. }
         | root::Delivery::TurnBusy { .. }
         | root::Delivery::NotesLoad { .. }
         | root::Delivery::Start(_)

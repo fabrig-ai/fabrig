@@ -125,7 +125,7 @@ fn first_assignment(charter: u32, template: u32) -> engine::Assignment {
     assignment
 }
 
-// Keep the Claude Code shape on its program source (jig/docs/design/domain/accounts.md, 3.4).
+// Keep the Claude Code shape on its program source (jig/docs/design/domain/accounts-sources.md, 1).
 // Other worlds keep the shared fixture's key sources.
 fn shape_accounts(settings: &core::Settings) -> Box<[engine::Record]> {
     use jig_domain_accounts::{Holder, Kind, Stored};
@@ -274,6 +274,7 @@ fn opening(charter: run::Charter, limits: &run::Limits) -> run::Opening {
             workspace: None,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );

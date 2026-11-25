@@ -1,4 +1,4 @@
-//! Keyed request admission and version envelopes (protocol/client/README.md, 3 and 6).
+//! Keyed request admission and version envelopes (protocol/client/README.md, 3, and protocol/client/versions.md, 1).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::CarriedRequest;
 use jig_client_protocol_wire::Record as _;
@@ -33,8 +33,7 @@ impl Component {
             w::Owner::Family(value) => Some(value.number),
         };
         if !self.serves(family, keyed.version) {
-            let answer =
-                w::KeyedAnswer::NotServed(crate::served::not_served(&self.settings, keyed.owner, &env.limits.wire));
+            let answer = w::KeyedAnswer::NotServed(crate::served::not_served(&self.settings, keyed.owner));
             self.respond(exchange, routes::encoded(&answer));
             return;
         }
@@ -100,6 +99,7 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         let mut kind = None;
+        let mut reissue = None;
         let ask = match w::Ask::decode(&env.limits.wire, &mut skein_lib::Reader::new(&keyed.request)) {
             Ok(value) => {
                 let value = match value {
@@ -183,6 +183,10 @@ impl Component {
                             change: Box::new(change),
                         })));
                         return;
+                    }
+                    w::Ask::ReissueService(value) => {
+                        reissue = Some(value.party);
+                        w::Ask::ReissueService(value)
                     }
                     other @ (w::Ask::ReadLists(_)
                     | w::Ask::AccountChange(_)
@@ -272,6 +276,10 @@ impl Component {
             self.carry(exchange, sign_in, request, value, kind, out);
             return;
         }
+        let waiting = match reissue {
+            Some(party) => Waiting::Reissue { sign_in: Some(sign_in), party, phase: sign_in::Reissue::Asked },
+            None => Waiting::Ask { sign_in, family: None, version: keyed.version },
+        };
         let request = Request::Core(Box::new(core::Event::People(people::Event::Ask {
             reply_to: ReplyTo::new(exchange),
             sign_in,
@@ -279,14 +287,11 @@ impl Component {
             ask: ask.ask,
             models: ask.models,
         })));
-        self.pending
-            .exchanges
-            .insert(exchange, Waiting::Ask { sign_in, family: None, version: keyed.version })
-            .expect("get released slot");
+        self.pending.exchanges.insert(exchange, waiting).expect("get released slot");
         out.push(request);
     }
     /// Answer unsupported model choices before translating names to core indices
-    /// (client/domain/contract/README.md, 3). Malformed records remain the caller's to reject.
+    /// (client/domain/contract/answers.md, 1). Malformed records remain the caller's to reject.
     fn refuse_llm(&mut self, env: &Env<Limits>, exchange: Token, ask: &w::Ask) -> bool {
         if let Ok(Some(answer)) = crate::translate::llm::refused(ask, &self.settings.models, &env.limits.wire) {
             self.respond(exchange, routes::encoded(&answer));
@@ -358,6 +363,7 @@ fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKi
         | w::Ask::ChangePolicy(_)
         | w::Ask::SetRoles(_)
         | w::Ask::MakeService(_)
+        | w::Ask::ReissueService(_)
         | w::Ask::RemoveProject(_)
         | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)
@@ -422,6 +428,7 @@ fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes:
         | w::Ask::ChangePolicy(_)
         | w::Ask::SetRoles(_)
         | w::Ask::MakeService(_)
+        | w::Ask::ReissueService(_)
         | w::Ask::RemoveProject(_)
         | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)

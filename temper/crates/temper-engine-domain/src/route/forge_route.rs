@@ -1,6 +1,6 @@
 //! Root translation for the forge connector. Its store rows and released API
 //! calls cross one root decision; the connector never owns the store.
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{
     CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeWorkspace, Id, Key, Limits, List, ProcedureStep,
     Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority, connector_answer, core_call, decide_call,
@@ -17,8 +17,6 @@ use forge::change_words::{REPAIR_PRESERVATION, context_fixed, repair_words};
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
-pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
-pub(crate) const CHANGE_CODE: u32 = 2;
 pub const FOLLOW_CODE: u32 = 7;
 pub(super) const ASKING_TEMPLATE: u32 = 5;
 // The project's roles (temper/docs/design/domain/forge/change/branch-path.md).
@@ -26,7 +24,6 @@ pub(super) const DRAFTING_TEMPLATE: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 pub(crate) const STATUS_CODE: u32 = 5;
-pub(crate) const GOAL_CLOSER_CODE: u32 = 6;
 pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
@@ -40,11 +37,13 @@ pub(crate) use forge::routing::{
     write_holding,
 };
 
-use temper_engine_domain_translate::change_llm;
+pub(crate) use temper_engine_domain_translate::{CHANGE_CODE, GOAL_BRANCH_SYMBOL, GOAL_CLOSER_CODE};
+use temper_engine_domain_translate::{Holdings, change_llm, in_subtree, resource_report};
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
-    Pending as CloserStep, made as closer_made, refused as closer_refused, start_closer_step,
+    Pending as CloserStep, goal_report, made as closer_made, refused as closer_refused, resume_closer_step,
+    start_closer_step,
 };
 pub(crate) mod status_route;
 pub(crate) use status_route::{refused as status_refused, start_status_step};
@@ -75,7 +74,6 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
 pub(crate) mod delegate_record;
-pub(crate) use close::{made as close_made, saved as close_saved};
 mod merge;
 pub(crate) mod prepare;
 
@@ -444,10 +442,11 @@ fn subscription_problem(
     if !adopted {
         return Some((b"repository is not readable in this project; select an adopted owner/name", None));
     }
+    let room = tasks::subscription_capacity(&limits.tasks).expect("validated subscriptions");
     if let Some(task) = domain.core.tasks.task(subscriber.task)
-        && task.subscriptions.len() >= skein_lib::usize_of(limits.tasks.subscriptions)
+        && task.subscriptions.len() >= skein_lib::usize_of(room)
     {
-        return Some((b"task subscription room exhausted: tasks.subscriptions", Some(limits.tasks.subscriptions)));
+        return Some((b"task subscription room exhausted: tasks.subscriptions", Some(room)));
     }
     if topic_name(&subscriber.topic, &limits.forge).is_none() {
         return Some((b"malformed branch: use nonempty slash-separated branch segments", None));
@@ -546,163 +545,23 @@ pub(crate) fn task_holdings(
     tracked: bool,
     symbols: &[u16],
 ) -> Result<Box<[tasks::Holding]>, Option<jig_domain_core::HoldingsRefusal>> {
-    let mut holdings = List::with_capacity(env.limits.tasks.holdings);
-    let mut reports = List::with_capacity(env.limits.tasks.holdings);
-    for &symbol in symbols {
-        if symbol != GOAL_BRANCH_SYMBOL || !tracked {
-            return Err(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol }));
-        }
-        let home = domain.forge.home(project).ok_or(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol }))?;
-        let branch = tree_branch(home, root, b'g', number, None, env.limits.forge.name_bytes).ok_or(None)?;
-        let name = forge::Name {
-            forge: home.provider.forge,
-            repository: home.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-        holdings.push(holding).ok().ok_or(None)?;
-        reports.push(name).ok().ok_or(None)?;
-    }
-    let implicit = implicit_task_holdings(domain, env, project, root, number, executor, spec, parent)?;
-    for holding in implicit {
-        holdings.push(holding).ok().ok_or(None)?;
-    }
-    for name in &reports {
+    let mut names = List::with_capacity(env.limits.tasks.holdings);
+    let scope = holdings_scope(domain, env);
+    let holdings = scope.prepare(project, root, number, executor, spec, parent, tracked, symbols, &mut names);
+    for name in &names {
         report_resource(domain, env, project, name);
     }
-    Ok(holdings.into_boxed())
+    holdings
 }
 
-#[expect(clippy::too_many_arguments, reason = "task identity and specification arrive from separate admitted carriers")]
-fn implicit_task_holdings(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    project: u32,
-    root: u64,
-    number: u64,
-    executor: tasks::Executor,
-    spec: &tasks::Spec,
-    parent: Option<u64>,
-) -> Result<Box<[tasks::Holding]>, Option<jig_domain_core::HoldingsRefusal>> {
-    let child_of_change = match parent {
-        Some(task) => domain.forge.change(task).is_some(),
-        None => false,
-    };
-    let eligible = match executor {
-        tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
-        tasks::Executor::Procedure { connector, code } => {
-            connector == domain.config.forge_connector && (code == 1 || code == CHANGE_CODE)
-        }
-        tasks::Executor::Agent { .. } => !child_of_change,
-    };
-    if !eligible {
-        return Ok(Box::new([]));
+pub(crate) fn holdings_scope<'a>(domain: &'a Domain, env: &'a Env<Limits>) -> Holdings<'a> {
+    Holdings {
+        forge: &domain.forge,
+        tasks: &domain.core.tasks,
+        connector: domain.config.forge_connector,
+        forge_limits: &env.limits.forge,
+        task_limits: &env.limits.tasks,
     }
-    let mut selected = List::with_capacity(env.limits.forge.resources_per_task);
-    if let tasks::Executor::Procedure { connector, code: 1 | CHANGE_CODE } = executor
-        && connector == domain.config.forge_connector
-    {
-        let mut repository = None;
-        let mut chosen = None;
-        let mut base = None;
-        let mut requester_branch = false;
-        for parameter in &spec.parameters {
-            match parameter {
-                tasks::Parameter::Resource { name: 1, connector, resource }
-                    if *connector == domain.config.forge_connector =>
-                {
-                    repository = domain.forge.repository_tag(project, *resource);
-                }
-                tasks::Parameter::Bytes { name: 2, value } => base = Some(value),
-                tasks::Parameter::Bytes { name: 3, value } => chosen = Some(value.clone()),
-                tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
-                tasks::Parameter::Number { .. }
-                | tasks::Parameter::Bytes { .. }
-                | tasks::Parameter::Resource { .. } => {}
-            }
-        }
-        let repository = repository.ok_or(None)?;
-        if let Some(base) = base {
-            check_landing_holder(domain, env, &repository, base, parent)?;
-        }
-        if requester_branch {
-            return Ok(Box::new([]));
-        }
-        let branch = match chosen {
-            Some(branch) => branch,
-            None => tree_branch(&repository, root, b'c', number, None, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let name = forge::Name {
-            forge: repository.provider.forge,
-            repository: repository.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-        report_resource(domain, env, project, &name);
-        return Ok(Box::new([holding]));
-    }
-    if let Some(home) = domain.forge.home(project) {
-        include_repository(&mut selected, home).ok_or(None)?;
-    }
-    for parameter in &spec.parameters {
-        if let tasks::Parameter::Resource { connector, resource, .. } = parameter
-            && *connector == domain.config.forge_connector
-        {
-            let repository = domain.forge.repository_tag(project, *resource).ok_or(None)?;
-            include_repository(&mut selected, &repository).ok_or(None)?;
-        }
-    }
-    let mut holdings = List::with_capacity(env.limits.tasks.holdings);
-    let mut reports = List::with_capacity(env.limits.tasks.holdings);
-    for repository in &selected {
-        if repository.role == forge::Role::Context || !repository.kinds.push {
-            continue;
-        }
-        let branch = tree_branch(repository, root, b'r', number, None, env.limits.forge.name_bytes).ok_or(None)?;
-        let name = forge::Name {
-            forge: repository.provider.forge,
-            repository: repository.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-        holdings.push(holding).ok().ok_or(None)?;
-        reports.push(name).ok().ok_or(None)?;
-    }
-    for name in &reports {
-        report_resource(domain, env, project, name);
-    }
-    Ok(holdings.into_boxed())
-}
-
-/// A landing into a held branch belongs to its holder's requester subtree
-/// (temper/docs/design/domain/forge/branches.md, 1).
-fn check_landing_holder(
-    domain: &Domain,
-    env: &Env<Limits>,
-    repository: &forge::Repository,
-    base: &[u8],
-    parent: Option<u64>,
-) -> Result<(), Option<jig_domain_core::HoldingsRefusal>> {
-    let name = forge::Name {
-        forge: repository.provider.forge,
-        repository: repository.provider.repository,
-        what: branch_what(base, env.limits.forge.name_bytes).ok_or(None)?,
-    };
-    let resource = hub_name(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-    if let Some(holder) = domain.core.tasks.holder(&resource) {
-        let inside = match parent {
-            Some(requester) if requester == holder => true,
-            Some(requester) => match domain.core.tasks.task(requester) {
-                Some(task) => in_subtree(domain, task, holder),
-                None => false,
-            },
-            None => false,
-        };
-        if !inside {
-            return Err(Some(jig_domain_core::HoldingsRefusal::Held { holder }));
-        }
-    }
-    Ok(())
 }
 
 #[derive(Hash, Debug)]
@@ -964,6 +823,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::Decoded { .. }
             | Work::Core(_)
             | Work::Tasks(_)
+            | Work::RepairFindings { .. }
             | Work::People(_)
             | Work::Fleet(_)
             | Work::Brief(_)
@@ -975,6 +835,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::EscalationFailed { .. }
             | Work::ProposalLoaded { .. }
             | Work::ProposalFailed { .. }
+            | Work::CloserReportReady { .. }
             | Work::EndedLoad { .. }
             | Work::EndedLoaded { .. }
             | Work::ChangeFromLoaded { .. }
@@ -1028,21 +889,6 @@ struct GoalMembers {
     paths: Box<[Box<[u8]>]>,
 }
 
-/// Whether `task` is in `goal`'s subtree below it: its requesters, task by
-/// task, reach `goal` (temper/docs/design/domain/forge/README.md, 5.2).
-fn in_subtree(domain: &Domain, task: &tasks::TaskRecord, goal: u64) -> bool {
-    let mut current = task;
-    for _ in 0..task.depth {
-        let tasks::Party::Task(number) = current.requester else { return false };
-        if number == goal {
-            return true;
-        }
-        let Some(parent) = domain.core.tasks.task(number) else { return false };
-        current = parent;
-    }
-    false
-}
-
 fn goal_members(
     domain: &Domain,
     env: &Env<Limits>,
@@ -1064,7 +910,7 @@ fn goal_members(
     }
     for view in domain.core.tasks.view_tasks() {
         let Some(task) = domain.core.tasks.task(view.number) else { continue };
-        if !in_subtree(domain, task, goal) {
+        if !in_subtree(&domain.core.tasks, task, goal) {
             continue;
         }
         match task.executor {
@@ -1808,18 +1654,9 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(owner) = domain.core.tasks.task(task) else { return false };
     for child in &owner.delegates {
-        let Some(child) = domain.core.tasks.task(*child) else { continue };
-        let pushing = match child.contract {
-            tasks::Contract::Change { connector, kind, .. } => connector == domain.config.forge_connector && kind == 2,
-            tasks::Contract::Job { .. } => {
-                child.executor == (tasks::Executor::Job { kind: forge::MERGE_KIND })
-                    || child.executor == (tasks::Executor::Job { kind: forge::CLOSE_KIND })
-            }
-            tasks::Contract::Report { .. } | tasks::Contract::Approval { .. } | tasks::Contract::Verdict { .. } => {
-                false
-            }
-        };
-        if pushing {
+        if change_pushing_child(domain, *child)
+            && let Some(child) = domain.core.tasks.task(*child)
+        {
             match child.phase {
                 tasks::Phase::Ended(_) => {}
                 tasks::Phase::Active(_)
@@ -1830,6 +1667,18 @@ fn change_delegate_live(domain: &Domain, task: u64) -> bool {
         }
     }
     false
+}
+
+pub(crate) fn change_pushing_child(domain: &Domain, child: u64) -> bool {
+    let Some(child) = domain.core.tasks.task(child) else { return false };
+    match child.contract {
+        tasks::Contract::Change { connector, kind, .. } => connector == domain.config.forge_connector && kind == 2,
+        tasks::Contract::Job { .. } => {
+            child.executor == (tasks::Executor::Job { kind: forge::MERGE_KIND })
+                || child.executor == (tasks::Executor::Job { kind: forge::CLOSE_KIND })
+        }
+        tasks::Contract::Report { .. } | tasks::Contract::Approval { .. } | tasks::Contract::Verdict { .. } => false,
+    }
 }
 
 // A task between attempts is not a run in progress (temper/docs/design/domain/forge/change/repairs.md).
@@ -1849,7 +1698,7 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     }
 }
 
-// Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
+// Only the root knows which tracked goals still live (domain/forge/change/records.md, 1).
 fn change_unpinned(domain: &Domain, task: u64) -> bool {
     if !domain.forge.droppable(task) && !domain.forge.droppable_last(task) {
         return false;
@@ -2144,6 +1993,7 @@ pub(super) fn start_recovered_change(
                 questions: forge_change::Questions { route, ..forge_change::Questions::default() },
                 effect_account: None,
                 producer_failure: None,
+                close_at: None,
                 report: Box::new([]),
                 repairs,
                 follows,
@@ -2279,6 +2129,20 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
     }
 }
 
+fn closer_waiting(domain: &Domain, task: u64) -> bool {
+    let Some(change) = domain.forge.change(task) else { return false };
+    if change.close.is_none() {
+        return false;
+    }
+    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let tasks::Party::Task(closer) = row.requester else { return false };
+    domain.forge.closer(closer).is_some()
+        && match domain.core.tasks.task(closer) {
+            Some(row) => !row.waiting_on.is_empty(),
+            None => false,
+        }
+}
+
 // Both a due procedure and a CI hold read the same coherent snapshot (domain/forge/change/repairs.md).
 fn change_step(
     domain: &Domain,
@@ -2311,6 +2175,7 @@ fn change_step(
             flake: false,
             no_test: false,
             delegate_live: change_delegate_live(domain, task),
+            closer_waiting: closer_waiting(domain, task),
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
             // The forge consumes a person's release before starting asynchronous reads.
@@ -2435,7 +2300,7 @@ pub(crate) enum ChangeRefused {
 }
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
-/// Plan members require the control family (domain/agent/tools.md, 1).
+/// Plan members require the control family (domain/agent/tools-change.md, 1).
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3455,7 +3320,7 @@ fn change_landing_words(
     for part in parts {
         bytes = bytes.checked_add(part.len()).expect("bounded landing line");
     }
-    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root.md, 5).
+    // The line names the landing so that the run that asked hears that the change landed (temper/docs/design/domain/root-translation.md, 1).
     if skein_lib::bytes::find(out.as_slice(), b"\npull request #").is_some() && bytes <= skein_lib::usize_of(out.room())
     {
         append(&mut out, b"\n");
@@ -3574,7 +3439,11 @@ fn authority_hold_message(
     Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
 }
 
-fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Box<[u8]>)> {
+fn producer_failure_words(
+    domain: &Domain,
+    task: u64,
+    replay: Option<forge_change::CloseAt>,
+) -> Option<(tasks::Hold, Box<[u8]>)> {
     let row = domain.forge.change(task)?;
     let forge_change::State::Held { was, .. } = &row.change.state else { return None };
     let (category, producing) = match was.as_ref() {
@@ -3603,13 +3472,18 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
         | forge_change::State::Cleared { .. }
         | forge_change::State::Uncleared { .. } => return None,
     };
-    match &row.producer_failure {
-        Some(words) if !words.is_empty() => Some((category, words.clone())),
+    let words = match &row.producer_failure {
+        Some(words) if !words.is_empty() => words,
         Some(_) | None if producing && row.delegate_status == forge_change::Status::Failed => {
-            Some((category, Box::from(b"producer failed for good without an account".as_slice())))
+            b"producer failed for good without an account".as_slice()
         }
-        Some(_) | None => None,
-    }
+        Some(_) | None => return None,
+    };
+    let words = match replay {
+        Some(at) => close::replay_words(at, words),
+        None => Box::from(words),
+    };
+    Some((category, words))
 }
 
 fn hold_change_decision(
@@ -3618,10 +3492,11 @@ fn hold_change_decision(
     task: u64,
     why: forge_change::Hold,
     evidence: Option<&forge::ChangeEvidence>,
+    replay: Option<forge_change::CloseAt>,
 ) -> ProcedureStep {
-    // The hold keeps the delegate's account whole; its inbox notice has its own bound.
+    // The hold keeps the delegate's account; its inbox notice has its own bound.
     if why == forge_change::Hold::Failed
-        && let Some((category, words)) = producer_failure_words(domain, task)
+        && let Some((category, words)) = producer_failure_words(domain, task, replay)
     {
         return holds::decision_as(domain, env, task, category, words);
     }
@@ -3839,6 +3714,13 @@ fn wait_change_decision(
     until: Option<skein_lib::Wall>,
 ) -> ProcedureStep {
     let row = domain.forge.change(task).expect("waiting change");
+    if until.is_none()
+        && row.change.state == (forge_change::State::Producing { requested: false })
+        && closer_waiting(domain, task)
+    {
+        // The closer wakes it when its work ends without landing.
+        return ProcedureStep::new(StepEnd::Wait);
+    }
     if row.change.way == forge_change::Way::Turn
         && let forge_change::State::Ready { .. } = row.change.state
     {
@@ -3873,7 +3755,7 @@ fn cancel_completed_change(domain: &Domain, env: &Env<Limits>, task: u64, reason
 }
 
 // The deployment cancels the procedure through its task control path
-// (temper/docs/design/domain/forge/adoption.md, 1).
+// (temper/docs/design/domain/forge/adoption-connection.md, 1).
 fn cancel_change(domain: &mut Domain, task: u64) {
     let Some(row) = domain.core.tasks.task(task) else { return };
     domain.work.push(Work::Tasks(tasks::Event::Cancel {
@@ -3935,8 +3817,9 @@ fn delegate_change_step(
     step: u64,
     connector: u16,
     code: u32,
-    kind: forge_change::Delegate,
+    offer: (forge_change::Delegate, Option<forge_change::CloseAt>),
 ) {
+    let (kind, _) = offer;
     if relay::continuing_asker(domain, task, kind) {
         let decision = append_change_replies(domain, env, task, ProcedureStep::new(StepEnd::Wait));
         domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
@@ -3966,13 +3849,13 @@ fn delegate_change_step(
         return;
     };
     if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
-        pending.delegate = Some(kind);
+        pending.delegate = Some(offer);
     } else {
         domain
             .forge_delegating
             .insert(
                 (task, step),
-                ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false, passing: None },
+                ChangeStep { delegate: Some(offer), relayed: None, refusal: None, released: false, passing: None },
             )
             .expect("one forge procedure delegate");
     }
@@ -4057,7 +3940,7 @@ fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
-    change_decision_from_read(domain, env, task, choice, None);
+    change_decision_from_read(domain, env, task, choice, None, None);
 }
 
 fn change_decision_from_read(
@@ -4066,19 +3949,28 @@ fn change_decision_from_read(
     task: u64,
     mut choice: forge_change::Decision,
     evidence: Option<&forge::ChangeEvidence>,
+    close_at: Option<forge_change::CloseAt>,
 ) {
     if choice == forge_change::Decision::None
         && let Some(why) = change_rehold(domain, task)
     {
         choice = forge_change::Decision::Hold(why);
     }
+    let cancel_close = if choice == forge_change::Decision::Hold(forge_change::Hold::Failed) {
+        close::retire_on_hold(domain, task)
+    } else {
+        None
+    };
     let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
             if let forge_change::Decision::Hold(why) = choice {
                 // The row's hold reaches its task even after another step has parked it.
-                let end = hold_change_decision(domain, env, task, why, evidence).end;
+                let end = hold_change_decision(domain, env, task, why, evidence, close_at).end;
                 domain.work.push(Work::Tasks(change_hold_event(task, &end)));
+                if let Some(cancel) = cancel_close {
+                    close::cancel(domain, task, cancel);
+                }
             } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
             }
@@ -4109,7 +4001,7 @@ fn change_decision_from_read(
             };
             ProcedureStep::new(StepEnd::Result(tasks::TaskResult::NoChange { words: words.clone() }))
         }
-        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence),
+        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence, close_at),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
         forge_change::Decision::CancelMovedDelegate { head } => cancel_moved_change_delegate(domain, task, head),
@@ -4132,13 +4024,16 @@ fn change_decision_from_read(
         forge_change::Decision::CancelProducer => cancel_change_producer(domain, task),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
-            delegate_change_step(domain, env, task, step, connector, code, kind);
+            delegate_change_step(domain, env, task, step, connector, code, (kind, close_at));
             return;
         }
     };
     let hold =
         if let forge_change::Decision::Hold(_) = choice { Some(change_hold_event(task, &decision.end)) } else { None };
-    let decision = append_change_replies(domain, env, task, decision);
+    let mut decision = append_change_replies(domain, env, task, decision);
+    if let Some(cancel) = cancel_close {
+        decision.cancels = Box::new([cancel]);
+    }
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
     // The Words copy goes first if admitted. A refused or stale step cannot lose
     // the hold; jig ignores an identical hold already admitted by that step.
@@ -4149,7 +4044,7 @@ fn change_decision_from_read(
     // still due. Retry its landed progress after the cached read can expire.
     if again {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
-    } else if landing_route::landed_step_due(domain, task) {
+    } else if domain.forge.landing_step_due(task) {
         domain.forge.wait_change(&super::environment_forge(env), task, None);
     }
 }
@@ -4183,6 +4078,7 @@ pub(crate) fn outputs(
             forge::Request::HistoryPage { read, answer } => {
                 super::kinds::history_answer(domain, env, decision, read, answer);
             }
+            forge::Request::LandingRead(note) => super::diagnostics::emit(domain, crate::Fact::LandingRead(note)),
             forge::Request::LandingUnmade { task, repository, branch, changes } => {
                 super::diagnostics::emit(domain, crate::Fact::LandingUnmade { task, repository, branch, changes });
             }
@@ -4270,11 +4166,7 @@ pub(crate) fn outputs(
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::StepDependents { task } => step_dependents(domain, env, task),
-            forge::Request::CloserChecked { task } => {
-                if let Some(context) = domain.core.tasks.run_context(task) {
-                    start_closer_step(domain, env, &context);
-                }
-            }
+            forge::Request::CloserChecked { task } => resume_closer_step(domain, env, decision, task),
             forge::Request::WakeProcedure { task } => {
                 if domain.forge.room_asked(task) {
                     let can_step = match domain.core.tasks.task(task) {
@@ -4385,6 +4277,13 @@ pub(crate) fn outputs(
             }
             forge::Request::MarkedForges => domain.mark_forges(),
             forge::Request::MilestoneMarked { task } => super::parts::marked(domain, task),
+            forge::Request::Waits { task, waits } => {
+                domain.work.push(Work::Core(jig_domain_core::Event::Waits {
+                    connector: domain.config.forge_connector,
+                    task,
+                    waits,
+                }));
+            }
             forge::Request::Marked { tasks } => {
                 const {
                     assert!(
@@ -4504,6 +4403,13 @@ pub(crate) fn outputs(
                 }
                 // A full findings table never holds the tier's judgement.
                 let _answer = super::findings::file_finding(domain, env, decision, forge::Filer::Task(task), finding);
+            }
+            forge::Request::ReturnFinding(row) => {
+                let _answer =
+                    super::findings::commit(domain, env, decision, forge::FindingWrite { row, erase: None }, true);
+            }
+            forge::Request::FailRepair { project, task, until } => {
+                super::findings::fail_repair(domain, project, task, until);
             }
             forge::Request::FileVerdict { task, filing } => {
                 // A full findings table never holds the tier's judgement.
@@ -4628,7 +4534,7 @@ pub(crate) fn outputs(
                         skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Withdrawn => true,
                     };
                     if failed
-                        && landing_route::failed_effect_needs_hold(domain, task, entry)
+                        && domain.forge.landing_effect_needs_hold(task, entry)
                         && domain.core.tasks.task(task).is_some()
                     {
                         let mut account = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
@@ -4814,7 +4720,7 @@ pub(crate) fn outputs(
             }
             forge::Request::Drift { task, resource } => {
                 if domain.forge.change(task).is_some() {
-                    // domain/forge/change/README.md, 3: let the procedure retain its precise
+                    // domain/forge/change/drift.md, 1: let the procedure retain its precise
                     // hold and current step before holding the task. A generic
                     // hold here prevents its pending wake from running.
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
@@ -4896,6 +4802,14 @@ pub(crate) fn outputs(
                 if let Some(head) = refused_review_request(domain, env, task, &evidence) {
                     domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
                 }
+            }
+            forge::Request::CloseDecision { task, at, replay } => {
+                let choice = if replay {
+                    forge_change::Decision::Hold(forge_change::Hold::Failed)
+                } else {
+                    forge_change::Decision::Delegate(forge_change::Delegate::Close)
+                };
+                change_decision_from_read(domain, env, task, choice, None, Some(at));
             }
             forge::Request::ChangeDecision { task, decision: choice, entry, evidence } => match choice {
                 forge_change::Decision::Effect(effect) => {
@@ -4991,7 +4905,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::NoChange
                 | forge_change::Decision::Finish { .. }
                 | forge_change::Decision::Hold(_) => {
-                    change_decision_from_read(domain, env, task, choice, evidence.as_ref());
+                    change_decision_from_read(domain, env, task, choice, evidence.as_ref(), None);
                 }
                 forge_change::Decision::Cancel => cancel_change(domain, task),
                 forge_change::Decision::EndHold => end_change_hold(domain, task),
@@ -5156,7 +5070,7 @@ pub(crate) fn effect_ask(
 ) {
     match ask {
         // A person settles a held uncertain effect (brief D14; jig's
-        // `domain/connectors.md`, 4.3): again remakes it, a creation looked
+        // `domain/connectors-effects.md`, 1.3): again remakes it, a creation looked
         // for first; otherwise it is recorded not made.
         jig_domain_core::effects::connector::Ask::ResolveUncertain { entry, again } => {
             if number == domain.config.forge_connector {
@@ -5385,7 +5299,7 @@ pub(crate) fn effect_ask(
                     }));
                 }
                 Some(EffectFlight::Landing { entry, task, evidence, description }) => {
-                    drop_landing(domain, env, entry, task, evidence, answer);
+                    drop_landing(domain, env, entry, task, evidence, answer, description.effect.kind == 4);
                     if answer != authority::Answer::Wait {
                         let words = holds::effect_refusal(domain, task, &description, why, &findings);
                         domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
@@ -5422,7 +5336,7 @@ pub(crate) fn effect_ask(
         }
         jig_domain_core::effects::connector::Ask::Unname { task } => {
             if number == domain.config.forge_connector {
-                // Drop with the task's record, even with free room (domain/forge/change/README.md, 7).
+                // Drop with the task's record, even with free room (domain/forge/change/records.md, 1).
                 if change_unpinned(domain, task) {
                     let mut out = Queue::uncapped();
                     forge::step(
@@ -5435,6 +5349,10 @@ pub(crate) fn effect_ask(
                 }
                 domain.work.push(Work::Forge(forge::Event::Unnamed { task }));
             }
+        }
+        jig_domain_core::effects::connector::Ask::CatchUp => {
+            assert_eq!(number, domain.config.forge_connector, "configured forge connector");
+            domain.work.push(Work::Forge(forge::Event::CatchUp));
         }
         jig_domain_core::effects::connector::Ask::Names { .. }
         | jig_domain_core::effects::connector::Ask::Hold { .. }
@@ -5456,9 +5374,7 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::Prepare { .. }
         | jig_domain_core::effects::connector::Ask::Left { .. }
         | jig_domain_core::effects::connector::Ask::Adopt { .. }
-        | jig_domain_core::effects::connector::Ask::Restore { .. }
-        | jig_domain_core::effects::connector::Ask::ReadAfresh
-        | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
+        | jig_domain_core::effects::connector::Ask::Restore { .. } => unreachable!("core effect handoff"),
         ask @ (jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
         | jig_domain_core::effects::connector::Ask::RestoreSettings { .. }
         | jig_domain_core::effects::connector::Ask::ForgetReplaced { .. }
@@ -5478,8 +5394,14 @@ fn drop_landing(
     task: u64,
     evidence: Option<Box<[forge::LandingEvidence]>>,
     answer: authority::Answer,
+    merge: bool,
 ) {
-    domain.work.push(Work::Forge(forge::Event::VetoLanding { task, entry }));
+    let event = if answer == authority::Answer::Wait && merge {
+        forge::Event::DeferLandingMerge { task, entry }
+    } else {
+        forge::Event::VetoLanding { task, entry }
+    };
+    domain.work.push(Work::Forge(event));
     if answer == authority::Answer::Wait {
         if let Some(evidence) = evidence {
             for evidence in evidence {
@@ -5633,22 +5555,9 @@ fn route_resource(
     role: forge::Access,
     hold: forge::resources::HoldKind,
 ) {
-    let Some(name) = hub_name(domain.config.forge_connector, name, &env.limits.tasks) else { return };
-    let role = match role {
-        forge::Access::Owned => jig_domain_core::effects::connector::ResourceRole::Owned,
-        forge::Access::Participant => jig_domain_core::effects::connector::ResourceRole::Participant,
-        forge::Access::Context => jig_domain_core::effects::connector::ResourceRole::Context,
-        forge::Access::Unavailable => jig_domain_core::effects::connector::ResourceRole::Unavailable,
-    };
-    let hold = match hold {
-        forge::resources::HoldKind::Shared => jig_domain_core::effects::connector::HoldKind::Shared,
-        forge::resources::HoldKind::Exclusive { wait } => {
-            jig_domain_core::effects::connector::HoldKind::Exclusive { wait }
-        }
-    };
-    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-        jig_domain_core::effects::connector::Event::Resource { project, name, role, hold },
-    )));
+    if let Some(event) = resource_report(domain.config.forge_connector, &env.limits.tasks, project, name, role, hold) {
+        domain.work.push(Work::Core(event));
+    }
 }
 
 /// temper/docs/design/domain/forge/change/README.md, 1: parameter 16 carries canonical commit text.

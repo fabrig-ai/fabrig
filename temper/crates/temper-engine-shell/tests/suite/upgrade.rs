@@ -2,7 +2,12 @@ use super::{
     deployment::{copy, deployment},
     shell,
 };
-use shell::upgrade::{Request, run};
+use shell::{
+    testing::scratch,
+    upgrade::{Request, run},
+};
+
+mod tests;
 use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::Path,
@@ -24,27 +29,6 @@ fn tree(root: &Path) -> Vec<(std::path::PathBuf, u32, Vec<u8>)> {
 }
 
 #[test]
-fn stopped_preparation_names_bad_held_lines_without_opening_or_changing_the_store() {
-    let (_scratch, directories) = deployment();
-    let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
-    let source = std::fs::File::open(data.join("state")).expect("deployment directory");
-    source.try_lock().expect("serving engine holds the store");
-    for (body, prefix) in [
-        ("not.a.limit 1\n", "limits-held line 1: not.a.limit is no limit of this release"),
-        ("people.identity_bytes 4294967296\n", "limits-held line 1: people.identity_bytes (setting limits):"),
-    ] {
-        std::fs::write(data.join("limits-held"), body).expect("held input");
-        let before = tree(data);
-        let Err(why) = shell::stopped::prepare("temper-engine", &directories) else {
-            panic!("stopped preparation ignored limits-held");
-        };
-        assert!(why.starts_with(prefix), "{why}");
-        assert!(!why.contains("put limits-held"), "the held-file refusal names its own line: {why}");
-        assert_eq!(tree(data), before, "held-file refusal opens and changes no store");
-    }
-}
-
-#[test]
 fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
     let (_scratch, directories) = deployment();
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
@@ -63,14 +47,16 @@ fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
         Request::Check(checkpoint.as_os_str().as_bytes().into()),
         Request::Workers(checkpoint.as_os_str().as_bytes().into()),
     ] {
-        // Preparation reads an existing --data; make_private checks its metadata alone.
-        let (mut service, prepared_deployment) =
-            shell::stopped::prepare("temper-engine", &directories).expect("read-only preparation");
-        assert_eq!(tree(data), before, "preparation writes nothing under --data");
-        service.engine_component().build_name("test-build");
         assert_eq!(
-            shell::upgrade::run_prepared("temper-engine", &directories, &request, service, &prepared_deployment)
-                .expect("checkpoint tool"),
+            prepared_rehearsal(
+                &directories,
+                &request,
+                data,
+                &before,
+                "read-only preparation",
+                "preparation writes nothing under --data",
+                "checkpoint tool",
+            ),
             0,
             "deployment lock is not taken"
         );
@@ -83,5 +69,35 @@ fn checkpoint_checks_take_only_the_checkpoint_lock_and_leave_data_unchanged() {
             "the checkpoint lock is taken"
         );
         assert_eq!(tree(data), before, "a refused rehearsal writes nothing under --data");
+        assert_eq!(
+            prepared_rehearsal(
+                &directories,
+                &request,
+                data,
+                &before,
+                "read-only preparation with source held",
+                "preparation with source held writes nothing under --data",
+                "prepared busy source report",
+            ),
+            1,
+            "the prepared run takes the checkpoint lock"
+        );
+        assert_eq!(tree(data), before, "a refused prepared rehearsal writes nothing under --data");
     }
+}
+
+fn prepared_rehearsal(
+    directories: &shell::directories::Directories,
+    request: &Request,
+    data: &Path,
+    before: &[(std::path::PathBuf, u32, Vec<u8>)],
+    prepare_message: &str,
+    unchanged_message: &str,
+    run_message: &str,
+) -> u8 {
+    // Preparation reads an existing --data; make_private checks its metadata alone.
+    let (mut service, deployment) = shell::stopped::prepare("temper-engine", directories).expect(prepare_message);
+    assert_eq!(tree(data), before, "{unchanged_message}");
+    service.engine_component().build_name("test-build");
+    shell::upgrade::run_prepared("temper-engine", directories, request, service, &deployment).expect(run_message)
 }

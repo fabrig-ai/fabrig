@@ -2,15 +2,15 @@
 //! The pipe observer retains bounded bytes and parsed agent records, never
 //! agent state. Binary owns process-tree discovery, signals and settlement.
 //! Ended terminal masters stay held until Binary settles the tree.
-//! Contract: ../../docs/design/benchmarks/README.md, sections 6, 8 and 10.
+//! Contract: ../../docs/design/benchmarks/agents.md, section 1, and ../../docs/design/benchmarks/results.md, section 1, and ../../docs/design/benchmarks/isolation.md, section 1.
 
 use crate::{Fault, bound, format, io};
 use std::os::fd::IntoRawFd;
 
 use skein_io::kernel::{Complete, Done, Fd, Op, Signal, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
-use skein_shell::Clock;
-use skein_world::end_to_end::{Binary, Command, Containment, Expectation, Mode, Streams};
+use skein_shell::{Clock, Now};
+use skein_world::end_to_end::{Binary, Cleanup, Command, Containment, Counts, Expectation, Mode, Streams, TreeStatus};
 use skein_world::{Delegate, Host, Referee, real};
 
 /// Application output interpretation selected by the prepared invocation.
@@ -34,7 +34,7 @@ pub struct Bounds {
     pub force_walk: bool,
 }
 
-/// Choose the platform's tree containment (smith/docs/design/benchmarks/README.md, section 10).
+/// Choose the platform's tree containment (smith/docs/design/benchmarks/isolation.md, section 1).
 fn containment(force_walk: bool, linux: bool) -> Containment {
     if force_walk && linux { Containment::Walk } else { Containment::Best }
 }
@@ -456,6 +456,15 @@ struct Policy {
 }
 
 impl Policy {
+    fn observe(&mut self, now: Time, output: &mut Output, settled: bool, stderr_overflowed: bool) -> Option<Signal> {
+        output.stderr_overflow(stderr_overflowed);
+        if settled {
+            output.tree = Tree::Settled;
+            output.trace_poll = None;
+        }
+        self.advance(now, output.answered, settled, output.error.is_some())
+    }
+
     // Settlement and answer observations arrive from the shared supervisor and output host.
     fn advance(&mut self, now: Time, answered: Option<Time>, settled: bool, fault: bool) -> Option<Signal> {
         if settled {
@@ -509,13 +518,7 @@ impl Referee<Process> for Policy {
             self.finding = Some("second host is output".into());
             return;
         };
-        output.stderr_overflow(binary.stderr_overflowed());
-        let settled = binary.counts().is_some();
-        if settled {
-            output.tree = Tree::Settled;
-            output.trace_poll = None;
-        }
-        if let Some(signal) = self.advance(now, output.answered, settled, output.error.is_some()) {
+        if let Some(signal) = self.observe(now, output, binary.counts().is_some(), binary.stderr_overflowed()) {
             binary.signal_tree(signal);
         }
     }
@@ -557,7 +560,11 @@ pub fn execute(
     capture: Capture,
     bounds: Bounds,
 ) -> Result<ProcessResult, Fault> {
-    let close = match &capture {
+    execute_script(clock, command, prompt_script(prompt, &capture)?, capture, bounds)
+}
+
+fn prompt_script(prompt: Box<[u8]>, capture: &Capture) -> Result<crate::agent::Script, Fault> {
+    let close = match capture {
         Capture::Agent(observing) => observing.close(),
         Capture::Raw => crate::agent::Close::AfterPrompt,
     };
@@ -569,7 +576,7 @@ pub fn execute(
             text: String::from_utf8(prompt.into_vec()).map_err(|_| format("prompt must be UTF-8"))?,
         }]
     };
-    execute_script(clock, command, crate::agent::Script { cues, close }, capture, bounds)
+    Ok(crate::agent::Script { cues, close })
 }
 
 /// Run a bounded scripted person through the same process-tree supervisor.
@@ -633,38 +640,17 @@ pub fn execute_script(
     let mut processes = outcome.procs.into_iter();
     let Process::Binary(binary) = processes.next().expect("retained Binary") else { unreachable!("first host") };
     let Process::Output(output) = processes.next().expect("retained output") else { unreachable!("second host") };
-    let mut output = output;
-    output.stderr_overflow(binary.stderr_overflowed());
-    let error = output.error;
-    let forced = match binary.tree_status().cleanup() {
-        skein_world::end_to_end::Cleanup::None => crate::Forced::No,
-        skein_world::end_to_end::Cleanup::Terminate => crate::Forced::Terminated,
-        skein_world::end_to_end::Cleanup::Kill => crate::Forced::Killed,
-    };
-    let exit = match binary.exit_status().expect("settled leader has an exit") {
-        skein_io::kernel::Exit::Code(code) => crate::Exit::Code(i32::from(code)),
-        skein_io::kernel::Exit::Signal(signal) => crate::Exit::Signal(i32::try_from(signal).expect("kernel signal")),
-    };
-    let observing = match output.capture {
-        Capture::Agent(observing) => Some(observing),
-        Capture::Raw => None,
-    };
-    Ok(ProcessResult {
-        exit,
-        forced,
-        start,
-        start_wall: started.wall,
-        end: outcome.end,
-        answered: output.answered,
-        stdout: output.bytes,
-        stderr: binary.stderr().to_vec(),
-        trace: output.trace_bytes,
-        observing,
-        error,
-        counts: binary.counts().expect("tree settlement"),
-        tree: {
-            let tree = binary.tree_status();
-            skein_world::end_to_end::TreeStatus {
+    let tree = binary.tree_status();
+    Ok(receipt(
+        *output,
+        started,
+        outcome.end,
+        Settlement {
+            exit: binary.exit_status().expect("settled leader has an exit"),
+            stderr: binary.stderr().to_vec(),
+            stderr_overflowed: binary.stderr_overflowed(),
+            counts: binary.counts().expect("tree settlement"),
+            tree: TreeStatus {
                 live_pids: tree.live_pids.clone(),
                 live_at_leader_exit: tree.live_at_leader_exit.clone(),
                 interrupted_pids: tree.interrupted_pids.clone(),
@@ -673,10 +659,51 @@ pub fn execute_script(
                 terminated_pids: tree.terminated_pids.clone(),
                 killed_pids: tree.killed_pids.clone(),
                 forced_cleanup: tree.forced_cleanup,
-            }
+            },
         },
-    })
+    ))
+}
+
+// The keeper supplies the settled tree and its bounded stderr. The output
+// host supplies all stream observations, including the answer's timestamp.
+struct Settlement {
+    exit: skein_io::kernel::Exit,
+    stderr: Vec<u8>,
+    stderr_overflowed: bool,
+    counts: Counts,
+    tree: TreeStatus,
+}
+
+fn receipt(mut output: Output, started: Now, end: Time, settled: Settlement) -> ProcessResult {
+    output.stderr_overflow(settled.stderr_overflowed);
+    let forced = match settled.tree.cleanup() {
+        Cleanup::None => crate::Forced::No,
+        Cleanup::Terminate => crate::Forced::Terminated,
+        Cleanup::Kill => crate::Forced::Killed,
+    };
+    let exit = match settled.exit {
+        skein_io::kernel::Exit::Code(code) => crate::Exit::Code(i32::from(code)),
+        skein_io::kernel::Exit::Signal(signal) => crate::Exit::Signal(i32::try_from(signal).expect("kernel signal")),
+    };
+    ProcessResult {
+        exit,
+        forced,
+        start: started.now,
+        start_wall: started.wall,
+        end,
+        answered: output.answered,
+        stdout: output.bytes,
+        stderr: settled.stderr,
+        trace: output.trace_bytes,
+        observing: match output.capture {
+            Capture::Agent(observing) => Some(observing),
+            Capture::Raw => None,
+        },
+        error: output.error,
+        counts: settled.counts,
+        tree: settled.tree,
+    }
 }
 
 #[cfg(test)]
-mod lower_tests;
+pub(crate) mod lower_tests;

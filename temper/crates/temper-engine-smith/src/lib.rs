@@ -1,6 +1,6 @@
 //! Pure, typed translation from the engine's owned run and call vocabulary
 //! into Smith's generic agent boundary (jig's domain/hosts/README.md, section 5 and domain/hosts/charters.md;
-//! jig's domain/engine/executors.md; smith's domain/run.md, sections 3, 5 and 9).
+//! jig's domain/engine/executors.md; smith's domain/run-start.md, section 1, and domain/run.md, sections 5 and 9).
 //!
 //! Jig's core keeps task policy and numbered calls; the root wraps records and
 //! orders their commits. This crate keeps no state and performs no IO. Its `start` takes
@@ -12,6 +12,15 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(test, expect(clippy::manual_map, reason = "step code matches optional fields without closures"))]
 extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod client_wire;
+}
 use alloc::boxed::Box;
 
 /// The requester's preferences section title (domain/agent/ask-temper.md, 4).
@@ -116,7 +125,7 @@ pub enum Problem {
     },
     Type(&'static [u8]),
     Range(&'static [u8]),
-    /// A member beside `changes` belongs in each change (domain/agent/tools.md, 1).
+    /// A member beside `changes` belongs in each change (domain/agent/tools-change.md, 1).
     Beside(&'static [u8]),
     /// A tool act refuses a member by its supplied name (forge/reds.md, 3).
     ActMember {

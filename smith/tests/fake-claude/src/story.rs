@@ -1,5 +1,5 @@
-//! The test's scripts and recorded invocation names (smith/docs/design/protocol/programs.md,
-//! sections 5 and 8; smith/docs/design/testing.md, section 4); no environment values are retained.
+//! The test's scripts and recorded invocation names (smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8
+//! ; smith/docs/design/testing.md, section 4); no environment values are retained.
 
 use serde::{Deserialize, Serialize};
 
@@ -35,7 +35,7 @@ pub struct Story {
     pub summary: String,
 }
 
-/// The local usage command's scripted answer (protocol/programs.md, 5.11 and 8).
+/// The local usage command's scripted answer (protocol/programs-claude-code.md, 1.11, and protocol/programs.md, 8).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UsageReply {
     /// Prints this JSON value as one line, then exits zero.
@@ -268,6 +268,7 @@ pub enum Step {
 }
 
 /// A turn's terminal message, or its process exit without a result.
+/// Synthetic refusals follow temper/docs/design/testing/fakes.md, section 1.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum End {
     /// Completes successfully, optionally supplying the requested outcome.
@@ -277,6 +278,9 @@ pub enum End {
         api_error_status: Option<u16>,
         terminal_reason: Option<String>,
         errors: Vec<String>,
+        /// Claude Code's error text, printed beside its error list when supplied.
+        #[serde(default)]
+        result: Option<String>,
         /// Optional Unix-seconds account reset, as in the rate event.
         #[serde(default)]
         resets_at: Option<u64>,
@@ -285,6 +289,47 @@ pub enum End {
     Exit(u8),
     /// Sends an undecodable line and exits one.
     Undecodable,
+}
+
+impl End {
+    /// A synthetic refused subscription (temper/docs/design/testing/fakes.md, 1).
+    #[must_use]
+    pub fn billing_refusal() -> Self {
+        Self::Error {
+            api_error_status: Some(402),
+            terminal_reason: None,
+            errors: Vec::new(),
+            result: Some(r#"API Error: 402 {"type":"error","error":{"type":"billing_error","message":"This account's plan does not cover this request."},"request_id":"req_fake"}"#.into()),
+            resets_at: None,
+        }
+    }
+
+    /// A synthetic edge refusal with no provider error.
+    #[must_use]
+    pub fn edge_refusal() -> Self {
+        Self::Error {
+            api_error_status: Some(403),
+            terminal_reason: None,
+            errors: Vec::new(),
+            result: Some("API Error: 403 <html><head><title>403 Forbidden</title></head><body><h1>403 Forbidden</h1></body></html>".into()),
+            resets_at: None,
+        }
+    }
+
+    /// A synthetic refusal naming the run's unserved model.
+    #[must_use]
+    pub fn unserved_model(model: &str) -> Self {
+        let message = serde_json::to_string(&format!("model: {model}")).expect("model JSON string");
+        Self::Error {
+            api_error_status: Some(404),
+            terminal_reason: None,
+            errors: Vec::new(),
+            result: Some(format!(
+                r#"API Error: 404 {{"type":"error","error":{{"type":"not_found_error","message":{message}}}}}"#
+            )),
+            resets_at: None,
+        }
+    }
 }
 
 impl Default for End {
@@ -326,9 +371,20 @@ pub enum Resume {
     Missing,
 }
 
+/// The scripted fault played, not the receiving program's classification.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Fault {
+    /// A rate limit, rejected window, login loss or hang reached in a turn.
+    Step(Step),
+    /// An error result reached at the end of a turn.
+    End(End),
+}
+
 /// Turn selections, signals and settings recorded by the fake for its test.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Seen {
+    /// A fault played at the hosted fake's monotonic clock time, in nanoseconds.
+    Fault { fault: Fault, at_nanos: u64 },
     /// The script answering this user message and its zero-based turn index.
     Selected { script: Selection, turn: usize },
     /// The parent interrupted the program.
@@ -345,6 +401,8 @@ pub enum Seen {
     Acted { tool: String, path: String, error: bool },
     /// A server tool call and whether its result failed, without its input.
     Called { tool: String, error: bool },
+    /// A checked server reply lacked its expected text, even if the reply was already an error.
+    ReplyMismatch { tool: String },
     /// A built-in tool's permission decision, without its input.
     Prompted { tool: String, decision: Decision },
 }

@@ -1,5 +1,5 @@
 //! Party batches checked whole, then made together (jig/docs/design/domain/tasks/README.md, 4;
-//! jig/docs/design/domain/authority.md, 8.4).
+//! jig/docs/design/domain/authority-checks.md, 1.4).
 use crate::{
     Core, Limits,
     routing::{
@@ -364,7 +364,7 @@ fn check_circle(
 
 // The party batch still has local references here. Reserve the prospective
 // numbers only on refusal, and translate the exact circle in wait order
-// (client/domain/contract/README.md, 3; domain/tasks/holds.md, 7).
+// (client/domain/contract/answers.md, 1; domain/tasks/holds.md, 7).
 fn cycle(batch: &[people::Member], first: u64, bound: u32) -> Result<Option<tasks::Circle>, people::Refusal> {
     let count = u32::try_from(batch.len()).expect("bounded batch");
     for start in 0..count {

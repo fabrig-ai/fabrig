@@ -20,7 +20,7 @@ use std::{
 /// (testing/checks.md 1). Keep a duration under test separate from this horizon.
 pub const BOX_DEADLINE: Duration = Duration::from_secs(240);
 
-/// The box's own log of this run, empty before its first line (protocol/setup/box.md, 2).
+/// The box's own log of this run, empty before its first line (protocol/setup/box-supervision.md, 1).
 #[must_use]
 pub fn box_log(data: &Path) -> String {
     match std::fs::read_to_string(data.join("box/logs/box.log")) {
@@ -30,16 +30,31 @@ pub fn box_log(data: &Path) -> String {
     }
 }
 
-/// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup/box.md, 2).
+/// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup/box-supervision.md, 1).
 #[must_use]
 pub fn serve_listening(data: &Path) -> bool {
     check_serve_listening(data).unwrap_or_else(|why| panic!("{why}"))
 }
 fn check_serve_listening(data: &Path) -> Result<bool, String> {
-    match std::fs::read_to_string(data.join("box/logs/serve.log")) {
-        Ok(log) => Ok(log.contains("listening clients ")),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(format!("serve log: {error}")),
+    let log = match std::fs::read_to_string(data.join("box/logs/serve.log")) {
+        Ok(log) => Some(log),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(format!("serve log: {error}")),
+    };
+    Ok(listening_in(log.as_deref()))
+}
+
+fn listening_in(log: Option<&str>) -> bool {
+    log.is_some_and(|log| log.contains("listening clients "))
+}
+
+pub mod serve_log_tests {
+    use super::listening_in;
+
+    pub fn serve_listening_requires_the_clients_listener_in_this_runs_log() {
+        assert!(!listening_in(None), "an absent log is not listening");
+        assert!(!listening_in(Some("listening workers 127.0.0.1:9000\n")), "another listener is not clients");
+        assert!(listening_in(Some("2026-11-06T00:00:00Z listening clients 127.0.0.1:8367\n")), "clients have listened");
     }
 }
 
@@ -220,7 +235,7 @@ pub fn echo_steps(mut flags: Vec<String>) -> Vec<String> {
 #[must_use]
 pub fn run_echo_steps(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
     let mut command = Command {
-        program: skein_scratch::paths::binary("temper-box"),
+        program: skein_scratch::paths::built("temper-box", "temper-box"),
         arguments: super::configuration::flags(directory),
         directory: directory.into(),
         environment: Vec::new(),
@@ -233,7 +248,7 @@ pub fn run_echo_steps(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan,
 pub fn run(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
     run_command(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: super::configuration::flags(directory),
             directory: directory.into(),
             environment: Vec::new(),
@@ -286,7 +301,8 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
         forgejo_at_link: forgejo_at_link.clone(),
         forgejo_pids: forgejo_pids.clone(),
         engine_served: engine_served.clone(),
-        temper_program: std::fs::canonicalize(skein_scratch::paths::binary("temper-box")).expect("temper path"),
+        temper_program: std::fs::canonicalize(skein_scratch::paths::built("temper-box", "temper-box"))
+            .expect("temper path"),
         forgejo_program,
         phase: Phase::AwaitingServe,
         next_probe: Time::ZERO,
@@ -518,7 +534,7 @@ pub fn run_story_with_box<T>(
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
             // Init's optional git/claude discovery is exercised without PATH.
@@ -595,7 +611,6 @@ struct CtlJudge<'a, F, T> {
     tab: Option<usize>,
     tab_visit: Visit,
     visits: &'a Cell<Vec<Vec<super::sign_in_browser::Hop>>>,
-    reply: Option<super::forge_land::Reply>,
     on_link: Option<Box<dyn FnOnce()>>,
     check: Option<F>,
     checked: &'a Cell<Option<T>>,
@@ -655,7 +670,7 @@ fn release_llm(
             .iter()
             .rev()
             .find_map(|event| {
-                if let Observation::Query { connection: queried, query } = event
+                if let Observation::Query { connection: queried, query, .. } = event
                     && queried == connection
                 {
                     Some(skein_lib::bytes::find(&query.system, cue).is_some() || super::llm::request_has(query, cue))
@@ -749,13 +764,8 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         let result = (|| -> Result<(), String> {
             let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("box")) };
             self.resume_playground(binary)?;
-            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl")) };
-            let failed = calls.ends().iter().enumerate().any(|(index, call)| {
-                let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
-                calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
-            });
             if let Some(face) = &self.face {
-                let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl")) };
+                let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl")) };
                 if matches!(self.visit, Visit::AwaitingAddress)
                     && let Some(address) = calls.ends().iter().find_map(super::sign_in::authorization_address)
                 {
@@ -765,10 +775,6 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                     };
                     visitor.hand(&address);
                     self.visit = Visit::Handed;
-                }
-                let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl")) };
-                if !failed && let Some(reply) = &mut self.reply {
-                    reply.advance(calls, &mut self.expected_exits);
                 }
             }
             if let Some(index) = self.tab {
@@ -813,7 +819,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                 on_link();
             }
             calls.observe_box_stderr(binary.stderr(), now);
-            // The box's stderr may end a call: judge the calls again after it.
+            // The box's stderr may end a call, so judge the calls after observing it.
             let failed = calls.ends().iter().enumerate().any(|(index, call)| {
                 let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
                 calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
@@ -833,8 +839,8 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                     }
                     self.checked.set(Some(self.check.take().ok_or(String::from("one live check"))?(binary)));
                 }
-                // A held batch keeps its root open for the reply referee. Release
-                // it on failure too, so cancellation drains that descriptor.
+                // A held batch keeps its root open. Release
+                // it even on failure, so cancellation drains that descriptor.
                 calls.release();
                 calls.cancel();
                 for proc in peers {
@@ -998,7 +1004,7 @@ enum CtlModel {
     ResumingPlayground([PathBuf; 2]),
     None,
     Llm(Box<CtlLlm>),
-    Face(Box<super::forge_land::CtlFace>),
+    PlanChat(Box<super::forge_land::Face>),
     Account(Box<AccountProbe>),
 }
 /// Process-tier account restart controls and a one-shot listener fault.
@@ -1006,7 +1012,7 @@ pub struct AccountProbe {
     pub face: super::forge_land::Face,
     pub cut_after_listening: Option<PathBuf>,
 }
-/// Drive a caller's steps with a signed-in fake account, without a reply sketch.
+/// Drive a caller's steps with a signed-in fake account.
 #[must_use]
 pub fn run_ctl_with_account<T>(
     directory: &Path,
@@ -1070,27 +1076,26 @@ pub fn run_ctl_with_llm<T>(
     )
     .0
 }
-/// Drive the owned forge with a plan issuer, redirect visitor and bearer peer.
+/// Drive a fresh box's plan sign-in and chat, with the issuer and bearer peer on this loop.
 #[must_use]
-pub fn run_ctl_with_face<T>(
+pub fn run_ctl_with_plan_chat(
     directory: &Path,
     flags: Vec<String>,
     client_root: &Path,
     steps: Vec<super::ctl::Step>,
     deadline: Duration,
-    check: impl FnOnce() -> T,
-    face: super::forge_land::CtlFace,
-) -> (CtlOutcome<T>, super::forge_land::Seen) {
+    face: super::forge_land::Face,
+) -> (CtlOutcome<()>, super::forge_land::Seen) {
     let (outcome, seen) = run_ctl_peers(
         directory,
         flags,
         client_root,
         steps,
         deadline,
-        |_| check(),
-        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::Face(Box::new(face)) },
+        |_| (),
+        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::PlanChat(Box::new(face)) },
     );
-    (outcome, seen.expect("face observations"))
+    (outcome, seen.expect("plan chat observations"))
 }
 fn account_environment(probe: bool, cut: Option<&Path>) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
     let mut environment = vec![("PATH".into(), "/usr/bin:/bin".into())];
@@ -1103,18 +1108,22 @@ fn account_environment(probe: bool, cut: Option<&Path>) -> Vec<(std::ffi::OsStri
     environment
 }
 
-fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String], directory: &Path) {
+fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String], directory: &Path, account_probe: bool) {
     if let Some(super::forge_land::Face::Fake { peer, .. }) = face {
         let config = flags.windows(2).find(|pair| pair[0] == "--config").expect("explicit config directory");
         peer.configure(Path::new(&config[1]));
-        super::provider_setup::commit(directory, flags);
+        // A fresh plan chat reads the fixture providers at bootstrap. The
+        // account probe also supports reopenings over already committed settings.
+        if account_probe {
+            super::provider_setup::commit(directory, flags);
+        }
     }
 }
 
 fn resuming_playground(model: &CtlModel) -> Option<[PathBuf; 2]> {
     match model {
         CtlModel::ResumingPlayground(paths) => Some(paths.clone()),
-        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::Account(_) => None,
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::PlanChat(_) | CtlModel::Account(_) => None,
     }
 }
 
@@ -1136,22 +1145,20 @@ fn run_ctl_peers<T>(
     let account_probe = matches!(&peers.model, CtlModel::Account(_));
     let cut = match &peers.model {
         CtlModel::Account(probe) => probe.cut_after_listening.clone(),
-        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::ResumingPlayground(_) => None,
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::PlanChat(_) | CtlModel::ResumingPlayground(_) => None,
     };
     let fail_on_panic = account_probe.then_some(());
-    let (peer, on_link, face, reply) = match peers.model {
-        CtlModel::Llm(llm) => (Some(llm.peer), Some(llm.on_link), None, None),
-        CtlModel::Face(story) => {
-            (None, None, Some(story.face), Some(super::forge_land::Reply::new(story.first, story.reply)))
-        }
-        CtlModel::None | CtlModel::ResumingPlayground(_) => (None, None, None, None),
-        CtlModel::Account(probe) => (None, None, Some(probe.face), None),
+    let (peer, on_link, face) = match peers.model {
+        CtlModel::Llm(llm) => (Some(llm.peer), Some(llm.on_link), None),
+        CtlModel::PlanChat(face) => (None, None, Some(*face)),
+        CtlModel::None | CtlModel::ResumingPlayground(_) => (None, None, None),
+        CtlModel::Account(probe) => (None, None, Some(probe.face)),
     };
-    configure_face(face.as_ref(), &flags, directory);
+    configure_face(face.as_ref(), &flags, directory, account_probe);
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
-    let program = peers.program.unwrap_or_else(|| skein_scratch::paths::binary("temper-box"));
+    let program = peers.program.unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"));
     let mut binary = Binary::start_with_tree(
         dying_with_program(
             Command {
@@ -1186,7 +1193,6 @@ fn run_ctl_peers<T>(
     fds.push(root);
     let checked = Cell::new(None);
     let visits = Cell::new(Vec::new());
-    let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
         program,
         failed: None,
@@ -1202,7 +1208,6 @@ fn run_ctl_peers<T>(
         tab: tab.then_some(2),
         tab_visit: Visit::AwaitingAddress,
         visits: &visits,
-        reply,
         on_link,
         check: Some(check),
         checked: &checked,
@@ -1215,11 +1220,7 @@ fn run_ctl_peers<T>(
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || {
-        let mut calls =
-            super::ctl::Calls::new(root, steps, Some(&streams), None).with_serve_data(&data).with_box_stderr();
-        if follow_reply {
-            calls.hold();
-        }
+        let calls = super::ctl::Calls::new(root, steps, Some(&streams), None).with_serve_data(&data).with_box_stderr();
         Process::Calls(Box::new(calls))
     });
     if tab {
@@ -1255,7 +1256,7 @@ fn run_ctl_peers<T>(
 #[must_use]
 pub fn dying_with_test(command: Command) -> Command {
     if cfg!(target_os = "linux") {
-        dying_with_program(command, &skein_scratch::paths::binary("temper-box"))
+        dying_with_program(command, &skein_scratch::paths::built("temper-box", "temper-box"))
     } else {
         command
     }
@@ -1367,7 +1368,19 @@ pub fn run_ctl_with_cut(
     let clock = Clock::new();
     let pair = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let data = PathBuf::from(&pair[1]);
-    let mut binary = cut_binary(directory, flags);
+    let mut binary = Binary::start_with_tree(
+        dying_with_test(Command {
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
+            arguments: flags.into_iter().map(Into::into).collect(),
+            directory: directory.into(),
+            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+        }),
+        Mode::Pipes,
+        262_144,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("temper box starts");
     let streams = binary.take_streams().expect("box pipes");
     let mut fds = streams.descriptors();
     let root = skein_shell::open_root(directory).expect("client root");
@@ -1378,7 +1391,7 @@ pub fn run_ctl_with_cut(
     let mut world = real::World::new(CutJudge {
         failed: None,
         inner: CtlJudge {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             failed: None,
             data: data.clone(),
             fail_on_panic: Some(()),
@@ -1392,7 +1405,6 @@ pub fn run_ctl_with_cut(
             tab: None,
             tab_visit: Visit::AwaitingAddress,
             visits: &visits,
-            reply: None,
             on_link: None,
             check: Some(check as fn(&Binary)),
             checked: &checked,
@@ -1435,24 +1447,4 @@ pub fn run_ctl_with_cut(
 fn chosen_fake_ports() -> (std::ffi::OsString, std::ffi::OsString) {
     let ports = super::free_addresses::<9>(&[]).map(|address| address.port().to_string()).join(",");
     ("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into())
-}
-
-fn cut_binary(directory: &Path, flags: Vec<String>) -> Binary {
-    let mut environment = vec![("PATH".into(), "/usr/bin:/bin".into())];
-    if flags.iter().any(|flag| flag == "--fake-backends") {
-        environment.push(chosen_fake_ports());
-    }
-    Binary::start_with_tree(
-        dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper-box"),
-            arguments: flags.into_iter().map(Into::into).collect(),
-            directory: directory.into(),
-            environment,
-        }),
-        Mode::Pipes,
-        262_144,
-        Expectation::Supervise,
-        false,
-    )
-    .expect("temper box starts")
 }

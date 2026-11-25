@@ -38,7 +38,7 @@ impl Core {
                     self.restore_policy(&env.limits, project, name, value)
                 }
                 Record::People(people::Stored::Public { project }) => {
-                    // Public keys follow policy keys in the people restore walk (protocol/store/README.md, 4.4).
+                    // Public keys follow policy keys in the people restore walk (protocol/store/keys.md, 1.4).
                     if project == 0
                         || self.authority.policy(project).is_none()
                         || self.visibility.public.insert(project, ()).is_err()
@@ -62,16 +62,9 @@ impl Core {
                     out.is_empty()
                 }
             },
-            Some(
-                Phase::Link
-                | Phase::Switch
-                | Phase::Wires
-                | Phase::AdoptRuns
-                | Phase::ReadAfresh { .. }
-                | Phase::SettleOutbox { .. }
-                | Phase::Open,
-            )
-            | None => unreachable!("restore rows belong to the start's load phases"),
+            Some(Phase::Link | Phase::Switch | Phase::Wires | Phase::AdoptRuns | Phase::Open) | None => {
+                unreachable!("restore rows belong to the start's load phases")
+            }
         };
         self.start_collect_failure();
         if kept && self.start_failure().is_none() { Restore::Kept } else { Restore::Refused }

@@ -1,4 +1,4 @@
-//! A box's person on its forges (temper/docs/design/domain/forge/adoption.md, 6).
+//! A box's person on its forges (temper/docs/design/domain/forge/adoption-person.md, 1).
 //! Only a connector built under a box keeps links. A closed pipe stops new links but clears none.
 use crate::{Domain, ForgeState, Kind, Link, LinkNote, Mode, PersonAnswer, Request, forges};
 use skein_lib::{List, Queue};

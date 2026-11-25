@@ -58,6 +58,8 @@ pub struct Place {
 /// names, in [`Done::Succeeded`] if it names none, or in [`Done::Failed`].
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Op {
+    /// Write or consume the mark for a cut run (domain/worker/checkouts.md).
+    Keep { workspace: Token, mark: Option<Kept> },
     /// Move HEAD and the index to a local commit, keeping all working files. Ends Committed.
     Reset { at: Place, commit: Commit },
     /// Best-effort check files (domain/forge/reds.md, 5.2).
@@ -65,7 +67,7 @@ pub enum Op {
     /// Make the workspace's directory empty: rename the old tree aside
     /// into trash, make it afresh, and sweep the old tree later.
     Make { workspace: Token, stores: Box<[Token]> },
-    /// Make a bare object store whole before moving it into place (protocol/git.md, 4.11).
+    /// Make a bare object store whole before moving it into place (protocol/git-operations.md, 1.11).
     Store {
         store: Token,
         aside: Option<Token>,
@@ -83,9 +85,13 @@ pub enum Op {
     /// in `Fetched`, or fails `Missing` if the forge has no such branch or
     /// commit, or no default branch.
     Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
+    /// Fetch the forge's `refs/temper/counts` with its blob into the store and point the repository's
+    /// `refs/temper/counts` at it (protocol/git-operations.md, 1.3). Ends in `Fetched`, or in
+    /// `Succeeded` where the forge has none, the repository's reference removed.
+    Counts { at: Place, store: Token, remote: Box<[u8]>, identity: u32, account: Option<u64> },
     /// Point a repository reference at a commit already present. Ends in `Succeeded`.
     Point { at: Place, into: Into, commit: Commit },
-    /// Count and repack the store, then the repository (protocol/git.md, 4.13).
+    /// Count and repack the store, then the repository (protocol/git-operations.md, 1.14).
     Pack { at: Place, store: Option<Token> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
@@ -98,7 +104,7 @@ pub enum Op {
     CheckOut { at: Place, commit: Commit, clean: bool, identity: u32, account: Option<u64> },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
-    /// Whether head and upstream share a commit absent from base (protocol/git.md, 4.9).
+    /// Whether head and upstream share a commit absent from base (protocol/git-operations.md, 1.9).
     Brings { at: Place, head: Commit, base: Commit, upstream: Commit },
     /// Stream paths differing between two commits, including deletions, without
     /// rename detection. Ends Paths with the first name in git's order, or none;
@@ -113,7 +119,7 @@ pub enum Op {
     /// refuses markers remaining in originally conflicted paths, ending `Conflicted` with those
     /// paths. A delivery snapshot reads the checkout's parents, keeps an unchanged local
     /// commit, validates its second parent on the remote and advances HEAD after committing
-    /// (temper/docs/design/protocol/git.md, 4.7).
+    /// (temper/docs/design/protocol/git-operations.md, 1.7).
     Commit {
         at: Place,
         parent: Commit,
@@ -140,6 +146,32 @@ pub enum Op {
     },
 }
 
+/// Whether a workspace was saved by a drain or was held when its worker stopped.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum KeptState {
+    Kept,
+    Held,
+}
+
+/// The mark beside a workspace, private to this worker, versioned by its file.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Kept {
+    pub workspace: Token,
+    pub key: Box<[u8]>,
+    pub state: KeptState,
+    pub repositories: Box<[KeptRepository]>,
+    pub when: u64,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct KeptRepository {
+    pub name: Box<[u8]>,
+    pub remote: Box<[u8]>,
+    pub commit: Commit,
+    pub merging: Option<Commit>,
+    pub unchecked: bool,
+}
+
 /// Check files resolved by git rev-parse --git-path (domain/forge/reds.md, 5.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Reds {
@@ -155,7 +187,7 @@ pub struct Red {
     pub head: Box<[u8]>,
 }
 
-/// The local reference a fetch writes (temper/docs/design/protocol/git.md, 4.3).
+/// The local reference a fetch writes (temper/docs/design/protocol/git-operations.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Into {
     /// The scratch reference, moved freely by fetches.
@@ -166,7 +198,7 @@ pub enum Into {
 
 /// Delivery reads HEAD and `MERGE_HEAD` before committing, preserving a local
 /// commit whose tree is unchanged. Any second parent must be reachable from
-/// this remote's branches or tags (temper/docs/design/protocol/git.md, 4.7).
+/// this remote's branches or tags (temper/docs/design/protocol/git-operations.md, 1.7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Snapshot {
     pub remote: Box<[u8]>,
@@ -209,7 +241,7 @@ pub enum Done {
     Conflicted { files: Box<[Box<[u8]>]>, cut: bool },
     /// `Make`, `Store`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
     Succeeded,
-    /// `Fetch`: what was asked for is at `commit`, now in the repository.
+    /// `Fetch`, `Counts`: what was asked for is at `commit`, now in the repository.
     Fetched { commit: Commit },
     /// `Commit`: the tree is committed as `commit`.
     Committed { commit: Commit },
@@ -229,13 +261,13 @@ pub enum Done {
 /// Why an operation failed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fault {
-    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge has no such repository;
+    /// `Store`, `Fetch`, `Counts`, `Create`, `Push`, `CheckOut`, `Merge`: the forge has no such repository;
     /// Fetch may also name a branch or commit the forge lacks.
     Missing { missing: Missing },
-    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge refused: the identity's
+    /// `Store`, `Fetch`, `Counts`, `Create`, `Push`, `CheckOut`, `Merge`: the forge refused: the identity's
     /// credentials or permissions, a protected branch, a hook.
     Refused,
-    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge could not be reached or failed.
+    /// `Store`, `Fetch`, `Counts`, `Create`, `Push`, `CheckOut`, `Merge`: the forge could not be reached or failed.
     Unreachable,
     /// Something failed on the worker's side: the disk, or git itself.
     Broken,
@@ -273,6 +305,7 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Keep,
     Reset,
     Reds,
     Store,
@@ -280,6 +313,7 @@ pub enum Kind {
     Make,
     Clone,
     Fetch,
+    Counts,
     Point,
     Pack,
     Create,
@@ -296,6 +330,7 @@ impl Op {
     #[must_use]
     pub const fn kind(&self) -> Kind {
         match self {
+            Op::Keep { .. } => Kind::Keep,
             Op::Reset { .. } => Kind::Reset,
             Op::Reds { .. } => Kind::Reds,
             Op::Store { .. } => Kind::Store,
@@ -303,6 +338,7 @@ impl Op {
             Op::Look { .. } => Kind::Look,
             Op::Clone { .. } => Kind::Clone,
             Op::Fetch { .. } => Kind::Fetch,
+            Op::Counts { .. } => Kind::Counts,
             Op::Point { .. } => Kind::Point,
             Op::Pack { .. } => Kind::Pack,
             Op::Create { .. } => Kind::Create,
@@ -322,6 +358,7 @@ impl Op {
         match self {
             Op::Store { .. }
             | Op::Fetch { .. }
+            | Op::Counts { .. }
             | Op::Create { .. }
             | Op::Push { .. }
             | Op::CheckOut { .. }
@@ -336,6 +373,7 @@ impl Op {
             | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
+            | Op::Keep { .. }
             | Op::Make { .. } => false,
         }
     }

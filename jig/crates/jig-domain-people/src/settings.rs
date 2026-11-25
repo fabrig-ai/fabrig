@@ -1,4 +1,4 @@
-//! Setting names and check faults carried by keyed answers (jig/docs/design/domain/engine/settings.md, 1, 5).
+//! Setting names and check faults carried by keyed answers (jig/docs/design/domain/engine/settings.md, 1, jig/docs/design/domain/engine/settings-application.md, 1).
 
 /// The last number of a charter, template, policy or model (jig/docs/design/domain/engine/settings.md, 1).
 pub const NUMBERS: u32 = 64;
@@ -7,7 +7,7 @@ pub const NUMBERS: u32 = 64;
 /// (jig/docs/design/domain/engine/settings.md, 1).
 pub const STOCK_NUMBERS: u32 = 32;
 
-/// A core or application setting (jig/docs/design/domain/engine/settings.md, 1, 5).
+/// A core or application setting (jig/docs/design/domain/engine/settings.md, 1, jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
     Charter(u32),
@@ -29,7 +29,7 @@ pub enum Setting {
     Provider(u32),
     Limits,
 }
-/// A check fault, including a connector's judgment (jig/docs/design/domain/engine/settings.md, 1, 5).
+/// A check fault, including a connector's judgment (jig/docs/design/domain/engine/settings.md, 1, jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingFault {
     Shape,

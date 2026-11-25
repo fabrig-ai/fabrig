@@ -212,6 +212,16 @@ pub(super) const CORE: core::Limits = core::Limits {
         records: Duration::from_secs(30 * 86_400),
         summaries: Duration::from_secs(365 * 86_400),
     },
+    waits: core::Figures {
+        question: Duration::from_secs(2 * 3600),
+        party: Duration::from_secs(8 * 3600),
+        news: Duration::from_secs(24 * 3600),
+        host: Duration::from_secs(2 * 3600),
+        account: Duration::from_secs(2 * 3600),
+        step: Duration::from_secs(30 * 60),
+        room: Duration::from_secs(30 * 60),
+        sign_off: Duration::from_secs(24 * 3600),
+    },
     public: core::PublicIndexLimits::OFF,
     // The sum of child route bounds when this configured hand-off bound was set.
     routes: 20_783,
@@ -249,6 +259,7 @@ pub(super) const CORE: core::Limits = core::Limits {
     views: VIEWS,
 };
 pub(super) const HUB: host::Limits = host::Limits {
+    drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
     application_ask_bytes: 64,
     application_answer_bytes: 64,
     slots: 2,

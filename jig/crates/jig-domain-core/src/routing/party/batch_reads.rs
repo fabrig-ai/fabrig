@@ -216,6 +216,7 @@ pub(crate) fn loaded(
         }
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: read.maker,
         reply_to: ReplyTo::new(read.request),
         creator: read.creator,

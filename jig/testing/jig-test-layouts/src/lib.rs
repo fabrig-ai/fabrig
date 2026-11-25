@@ -1,14 +1,25 @@
-//! Registry and record fixtures (jig/docs/design/protocol/store/opening.md, 3).
+//! Registry, record and frame fixtures (jig/docs/design/protocol/store/opening-owners.md, 1).
 #![no_std]
 #![forbid(unsafe_code)]
+extern crate alloc;
 
 pub const NAME: &str = "fixture";
+pub const FIXTURE_JIG_OWNER: &str = "fixture-jig";
+pub const FIXTURE_SMITH_OWNER: &str = "fixture-smith";
+
+pub mod frames;
 pub mod layouts;
 pub mod records;
 
-/// Application key bytes; the store adds tag 2 (protocol/store/README.md, 4.2).
+/// Fixture key ranges (protocol/store/keys.md, 1.2).
 pub mod keys {
-    // Relative to the application's secrets prefix (protocol/store/secrets.md, protocol/store/opening.md, 3).
+    // Whole map keys in jig's slot.
+    pub const NOTES_FROM: &[u8] = &[0x02, b'n'];
+    pub const NOTES_TO: &[u8] = &[0x02, b'o'];
+    pub const NOTES_ROOT: &str = "Note";
+
+    // Application keys are relative to tag 2.
+    // Relative to the application's secrets prefix (protocol/store/secrets.md, protocol/store/opening-owners.md, 1).
     pub const TOKENS_FROM: &[u8] = &[];
     pub const TOKENS_TO: &[u8] = &[0x80];
     pub const TOKENS_ROOT: &str = "Token";

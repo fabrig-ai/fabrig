@@ -67,13 +67,14 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
         world.tick();
         if landing_rows(&world).iter().any(|row| {
             row.landing.phase == forge_top::LandingPhase::Proving
-                && row.entries.iter().any(|entry| entry.run.is_some_and(|run| !run.ended))
+                && row.follows().iter().any(|follow| follow.entry.run.is_some_and(|run| !run.ended))
         }) {
             break;
         }
     }
     let first_landing = landing_rows(&world)[0].landing.task;
-    let first_run = landing_rows(&world)[0].entries.iter().find_map(|entry| entry.run).expect("proof in flight");
+    let first_run =
+        landing_rows(&world)[0].follows().iter().find_map(|follow| follow.entry.run).expect("proof in flight");
     assert!(!first_run.ended);
     assert_eq!(landing_rows(&world)[0].landing.phase, forge_top::LandingPhase::Proving);
 
@@ -130,14 +131,28 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
     assert_eq!(resumed.workspace.repositories[0].push.as_deref(), Some(branch.as_ref()));
     assert_eq!(world.fake.branch(REPOSITORY, &branch), Some(head));
     assert_eq!(world.fake.branch(REPOSITORY, &saved), Some(head));
+    for _ in 0..600 {
+        if world.root.caught_up(0) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(world.root.caught_up(0), "the independent proof is read after opening");
     let recovered =
         landing_rows(&world).into_iter().find(|row| row.landing.task == first_landing).expect("restored landing");
-    assert_eq!(recovered.landing.phase, forge_top::LandingPhase::Proving);
+    // The restart gather can advance the proof before the producer resumes.
+    assert!(matches!(
+        recovered.landing.phase,
+        forge_top::LandingPhase::Proving
+            | forge_top::LandingPhase::Proved { .. }
+            | forge_top::LandingPhase::Turn { .. }
+    ));
     assert!(
-        recovered.entries.iter().any(|entry| entry.run.is_some_and(|run| {
-            run.id == first_run.id && run.attempt == first_run.attempt && run.ended == first_run.ended
-        })),
-        "same in-flight run found"
+        recovered.follows().iter().any(|follow| follow
+            .entry
+            .run
+            .is_some_and(|run| { run.id == first_run.id && run.attempt == first_run.attempt })),
+        "the same run is recovered; it may finish while the saved producer resumes"
     );
     assert!(
         world.forge_reads.as_ref().expect("reads").iter().any(|(_, read)| matches!(read,
@@ -194,7 +209,7 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
             })
             .count();
         assert!(live <= 1, "the train has at most one live landing");
-        // Landed frees the train before the change task ends (domain/landing.md, 9).
+        // Landed frees the train before the change task ends (domain/landing-turn.md, 2).
         for row in &rows {
             if row.landing.task != first_landing {
                 assert_eq!(

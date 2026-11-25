@@ -71,7 +71,7 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   has its labels made in its home by temper's own setup, not an effect:
   once its findings are on and its home adopted, temper writes each
   label it lacks through the forge client directly, as an adoption's
-  access on a managed Forgejo is the setup's (`forge/adoption.md`, 2), with no
+  access on a managed Forgejo is the setup's (`forge/adoption.md`, 6), with no
   grant; a label that exists counts as made, each retried until made,
   the progress kept on the project's findings record.
 - **Its body:** the key's marker; the reproduction, from a fresh start;
@@ -164,9 +164,9 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 
 ## 5. A flake at a gate
 
-- **When a gate fails** at a candidate (`landing.md`, 7.3) and every
-  failing test of the run (its artifact, as a tier's: after-landing.md,
-  section 4) matches an open flake finding, its failed jobs are rerun
+- **When a gate fails** at a candidate (`landing-proof.md`, 2.3) and every
+  failing test of the run (its artifact, as a tier's: after-landing-runs.md,
+  section 3) matches an open flake finding, its failed jobs are rerun
   once (skein's `Write::Rerun`). Passing, the receipt is made as a pass
   and the flake counted; failing again, it is a real failure, and a
   repair. A test matches a flake finding of the gate's repository whose
@@ -183,7 +183,7 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 - **Its owner** triages it: its area's owner, else the project's
   triager (kind 13), else the project's owners, by `areas.md`, section
   4's rule. A finding that becomes a task's is news to it on the
-  project's findings topic (`forge/README.md`, 5.1); one that becomes a
+  project's findings topic (`forge/topics.md`, 1.1); one that becomes a
   person's is in their Needs you (`areas.md`, section 5).
 - **Its acts,** by its holder or a project owner (`areas.md`, section
   7), a task's through its `finding` tool and a party's through `temper
@@ -302,7 +302,7 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   goal's so refused is not filed, and a red finding so refused waits on
   its tier's record (`red-findings.md`, section 7).
 - **Settings:** the project's areas and its triager are kinds 12 and 13
-  (`../protocol/configuration/settings.md`, 2). The issue's projection
+  (`../protocol/configuration/settings-kinds.md`, 1). The issue's projection
   on or off, the chooser and the tester charter come with the issue and
   QA: until then, in the document's `landing` member, as `by` is
   (`landing-settings.md`, 1.1), `findings`, true or false (false by default).

@@ -1,84 +1,26 @@
 //! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
 use super::{chips, owner, refusals};
 use super::{pieces, problem, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::acts;
 use jig_domain_core_vocabulary::documents as d;
-use jig_domain_tasks as t;
 use skein_lib::List;
 pub fn link(value: &d::TaskLink, limits: &w::Limits) -> Result<w::TaskLink, w::Problem> {
-    Ok(match value {
-        d::TaskLink::Live(value) => w::TaskLink::Live(w::TaskLinkLive { value: chips::chip(value, limits)? }),
-        d::TaskLink::Retained { chip, at } => w::TaskLink::Retained(w::TaskLinkRetained {
-            chip: chips::chip(chip, limits)?,
-            at: match *at {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-        }),
-        d::TaskLink::Stored { number, status } => w::TaskLink::Stored(w::TaskLinkStored {
-            number: *number,
-            status: match status {
-                Some(t::Status::Done) => Some(w::TaskStatus::Done),
-                Some(t::Status::Failed) => Some(w::TaskStatus::Failed),
-                Some(t::Status::Cancelled) => Some(w::TaskStatus::Cancelled),
-                None => None,
-            },
-        }),
-    })
+    mapped::task_link_to_record(value, &(&[], limits))
 }
-pub fn proposal(value: &d::ProposalRef, _limits: &w::Limits) -> Result<w::ProposalKey, w::Problem> {
-    Ok(w::ProposalKey {
-        proposer: match value.proposer {
-            jig_domain_people::Proposer::Task(number) => w::Proposer::Task(w::ProposerTask { value: number }),
-            jig_domain_people::Proposer::Party(number) => w::Proposer::Party(w::ProposerParty { value: number }),
-        },
-        number: value.number,
-    })
+#[must_use]
+pub fn proposal(value: &d::ProposalRef) -> w::ProposalKey {
+    mapped::proposal_key_to_record(value)
 }
-pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
-    Ok(match value {
-        acts::Act::Reorder => w::ActKind::Reorder,
-        acts::Act::Talk => w::ActKind::Talk,
-        acts::Act::Leave => w::ActKind::Leave,
-        acts::Act::Message => w::ActKind::Message,
-        acts::Act::Answer => w::ActKind::Answer,
-        acts::Act::Take => w::ActKind::Take,
-        acts::Act::HandBack => w::ActKind::HandBack,
-        acts::Act::Accept => w::ActKind::Accept,
-        acts::Act::Withdraw => w::ActKind::Withdraw,
-        acts::Act::Reject => w::ActKind::Reject,
-        acts::Act::PassUp => w::ActKind::PassUp,
-        acts::Act::Release => w::ActKind::Release,
-        acts::Act::LeaveHeld => w::ActKind::LeaveHeld,
-        acts::Act::Amend => w::ActKind::Amend,
-        acts::Act::Stop => w::ActKind::Stop,
-        acts::Act::Cancel => w::ActKind::Cancel,
-        acts::Act::Move => w::ActKind::MoveTask,
-        acts::Act::Seen => w::ActKind::Seen,
-        acts::Act::EditNote => w::ActKind::EditNote,
-        acts::Act::DeleteNote => w::ActKind::DeleteNote,
-        acts::Act::Adopt => w::ActKind::Adopt,
-        acts::Act::RemoveProject => w::ActKind::RemoveProject,
-        acts::Act::Rename => w::ActKind::Rename,
-        acts::Act::ChangePolicy => w::ActKind::ChangePolicy,
-        acts::Act::SetRoles => w::ActKind::SetRoles,
-        acts::Act::MakeService => w::ActKind::MakeService,
-        acts::Act::SetPool => w::ActKind::SetPool,
-    })
+#[must_use]
+pub fn act(value: acts::Act) -> w::ActKind {
+    mapped::act_kind_to_record(&value)
 }
-pub fn recipient(value: &acts::Recipient, _limits: &w::Limits) -> Result<w::Recipient, w::Problem> {
-    Ok(match value {
-        acts::Recipient::Task(number) => w::Recipient::Task(w::RecipientTask { value: *number }),
-        acts::Recipient::Party(number) => w::Recipient::Party(w::RecipientParty { value: *number }),
-        acts::Recipient::Role { project, role } => {
-            w::Recipient::Role(w::RecipientRole { project: *project, role: *role })
-        }
-        acts::Recipient::Roles { project, roles } => {
-            w::Recipient::Roles(w::RecipientRoles { project: *project, roles: roles.clone() })
-        }
-    })
+#[must_use]
+pub fn recipient(value: &acts::Recipient) -> w::Recipient {
+    mapped::recipient_to_record(value)
 }
 pub(super) fn bounds(
     models: &[crate::Model],
@@ -98,8 +40,7 @@ pub(super) fn bounds(
         } => {
             let mut rows = List::with_capacity(procedures.capacity());
             for item in procedures {
-                rows.push(w::CreateProcedure { connector: item.connector, code: item.code })
-                    .expect("supplied goal procedures");
+                rows.push(mapped::create_procedure_to_record(item)).expect("supplied goal procedures");
             }
             w::Bounds::Create(w::BoundsCreate {
                 authority: owner::authority(models, authority, limits)?,
@@ -121,7 +62,7 @@ pub(super) fn bounds(
         acts::Bounds::Amend { budget_left, grants, implications, authority, ceiling } => {
             let mut rows = List::with_capacity(grants.capacity());
             for item in grants {
-                rows.push(owner::grant(item, limits)?).expect("supplied grants");
+                rows.push(owner::grant(item)).expect("supplied grants");
             }
             let grants = owner::grants_pieces(
                 &rows,
@@ -131,9 +72,7 @@ pub(super) fn bounds(
             )?;
             let mut pairs = List::with_capacity(implications.capacity());
             for item in implications {
-                pairs
-                    .push(w::KindImplication { connector: item.connector, kind: item.kind, implies: item.implies })
-                    .expect("supplied implications");
+                pairs.push(mapped::kind_implication_to_record(item)).expect("supplied implications");
             }
             w::Bounds::Amend(w::BoundsAmend {
                 budget_left: *budget_left,
@@ -148,13 +87,13 @@ pub(super) fn bounds(
 fn admission(models: &[crate::Model], value: &acts::Admission, limits: &w::Limits) -> Result<w::Admission, w::Problem> {
     Ok(match value {
         acts::Admission::Allowed => w::Admission::Allowed,
-        acts::Admission::Proposed { to } => w::Admission::Proposed(w::AdmissionProposed { to: recipient(to, limits)? }),
+        acts::Admission::Proposed { to } => w::Admission::Proposed(w::AdmissionProposed { to: recipient(to) }),
         acts::Admission::Refused(value) => {
             w::Admission::Refused(w::AdmissionRefused { value: refusals::refusal(value.clone(), limits)? })
         }
         acts::Admission::Bounded { within, beyond } => {
             let beyond = match beyond {
-                acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: recipient(to, limits)? }),
+                acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: recipient(to) }),
                 acts::Beyond::Refused(value) => {
                     w::Beyond::Refused(w::BeyondRefused { value: refusals::refusal(value.clone(), limits)? })
                 }
@@ -177,10 +116,10 @@ pub fn offered(
     for item in value {
         rows.push(w::Offered {
             effect: match &item.effect {
-                Some(value) => Some(effect(value, limits)?),
+                Some(value) => Some(effect(value)),
                 None => None,
             },
-            act: act(item.act)?,
+            act: act(item.act),
             admission: admission(models, &item.admission, limits)?,
         })
         .expect("supplied offered acts");
@@ -313,44 +252,50 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     let resources = resources(&value.resources, limits)?;
     let mut proposals = List::with_capacity(value.proposals.capacity());
     for item in &value.proposals {
-        proposals.push(proposal(item, limits)?).expect("supplied proposals");
+        proposals.push(proposal(item)).expect("supplied proposals");
     }
+    // A task can retain more subscriptions after restart than this client can show.
+    let subscriptions =
+        owner::subscriptions(&value.subscriptions, limits.subscriptions_entries.min(w::CEILINGS.subscriptions_entries));
+    let cut = value.cut || subscriptions.entries.len() < value.subscriptions.len();
     Ok(w::Task {
         concluded: match value.concluded {
-            Some(value) => Some(w::Concluded { by: value.by, at: value.at.as_nanos() }),
+            Some(value) => Some(mapped::concluded_to_record(&value)),
             None => None,
         },
         talk: match value.talk {
-            Some(talk) => {
-                Some(w::Talk { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() })
-            }
+            Some(talk) => Some(mapped::talk_to_record(&talk)),
             None => None,
         },
         session: match value.session {
             Some(session) => Some(w::Session { first: session.first, last: session.last.as_nanos() }),
             None => None,
         },
-        settings: settings(value.settings, limits)?,
-        dependency_facts: chips::dependencies(&value.dependency_facts, limits)?,
-        unread: unread(&value.unread, limits)?,
-        llm: super::llm::choice(value.llm.as_ref(), models, limits)?,
+        settings: settings(value.settings),
+        dependency_facts: chips::dependencies(&value.dependency_facts),
+        unread: unread(&value.unread),
+        llm: super::llm::choice(value.llm.as_ref(), models)?,
         kept_account: value.kept_account,
-        run_wait: super::task_wait::waiting(value.run_wait, limits)?,
+        run_wait: super::task_wait::waiting(value.run_wait),
         label: value.label,
-        flags: super::me::flags(value.flags, limits)?,
+        flags: super::me::flags(value.flags),
         last_activity: value.last_activity.as_nanos(),
         made: value.made.as_nanos(),
         tasks_left: value.tasks_left,
-        waits_on: super::queries::waits(value.waits_on.clone(), limits)?,
+        waits_on: super::queries::waits(&value.waits_on)?,
+        wait: super::waits::first(value.wait.as_ref())?,
+        nearest: super::waits::nearest(value.nearest),
+        waits: super::waits::list(&value.waits)?,
+        wait_count: value.wait_count,
         chip: chips::chip(&value.chip, limits)?,
         goal: value.goal,
         priority: value.priority,
         lineage_chips,
         inputs,
         project: value.project,
-        requester: owner::requester(value.requester, limits)?,
+        requester: owner::requester(value.requester),
         lineage,
-        spec: owner::specification(&value.spec, limits)?,
+        spec: owner::specification(&value.spec)?,
         spec_revision: w::Revision { value: value.spec_revision },
         person_revision: match value.person_revision {
             Some(item) => Some(w::Revision { value: item }),
@@ -358,20 +303,20 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
         },
         taken_by: value.taken_by,
         instructions: match &value.instructions {
-            Some(item) => Some(owner::text(item, limits)?),
+            Some(item) => Some(owner::text(item)),
             None => None,
         },
-        wake: owner::wake(value.wake, limits)?,
-        subscriptions: owner::subscriptions(&value.subscriptions, limits)?,
+        wake: owner::wake(value.wake),
+        subscriptions,
         result_contract: owner::contract(&value.contract, limits)?,
         dependencies,
         references,
-        cut: value.cut,
+        cut,
         resources,
-        budget: owner::budget(&value.budget, limits)?,
+        budget: owner::budget(&value.budget),
         authority: owner::authority(models, &value.authority, limits)?,
         hold: match &value.hold {
-            Some(item) => Some(chips::held(item, limits)?),
+            Some(item) => Some(chips::held(item)),
             None => None,
         },
         proposals,
@@ -387,13 +332,13 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     })
 }
 
-fn unread(value: &List<d::UnreadWords>, limits: &w::Limits) -> Result<List<w::UnreadWords>, w::Problem> {
+fn unread(value: &List<d::UnreadWords>) -> List<w::UnreadWords> {
     let mut result = List::with_capacity(value.capacity());
     for word in value {
         result
             .push(w::UnreadWords {
                 message: word.message,
-                by: owner::requester(word.by, limits)?,
+                by: owner::requester(word.by),
                 at: word.at.as_nanos(),
                 seen: word.seen,
                 head: word.head.bytes.clone(),
@@ -401,7 +346,7 @@ fn unread(value: &List<d::UnreadWords>, limits: &w::Limits) -> Result<List<w::Un
             })
             .expect("supplied unread words");
     }
-    Ok(result)
+    result
 }
 
 fn link_list(
@@ -420,7 +365,7 @@ fn link_list(
 fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut resource_rows = List::with_capacity(value.capacity());
     for item in value {
-        resource_rows.push(chips::resource(item, limits)?).expect("supplied resources");
+        resource_rows.push(chips::resource(item)).expect("supplied resources");
     }
     task_resources_pieces(
         &resource_rows,
@@ -433,9 +378,7 @@ fn resources(value: &List<d::ResourceLine>, limits: &w::Limits) -> Result<Box<[u
 fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
     let mut delegate_rows = List::with_capacity(value.capacity());
     for item in value {
-        delegate_rows
-            .push(w::LiveDelegate { chip: chips::chip(&item.chip, limits)?, takeover_budget: item.takeover_budget })
-            .expect("supplied delegates");
+        delegate_rows.push(mapped::live_delegate_to_record(item, &(&[], limits))?).expect("supplied delegates");
     }
     delegates_pieces(
         &delegate_rows,
@@ -445,45 +388,14 @@ fn delegates(value: &List<d::LiveDelegate>, limits: &w::Limits) -> Result<Box<[u
     )
 }
 
-pub fn effect(value: &acts::Effect, _limits: &w::Limits) -> Result<w::Effect, w::Problem> {
-    Ok(match value {
-        acts::Effect::Release(value) => w::Effect::Release(w::EffectRelease {
-            what: match value {
-                acts::ReleaseEffect::Judged => w::ReleaseEffect::Judged,
-                acts::ReleaseEffect::RunAgain => w::ReleaseEffect::RunAgain,
-                acts::ReleaseEffect::Uncertain => w::ReleaseEffect::Uncertain,
-            },
-        }),
-        acts::Effect::Move { reservation } => w::Effect::MoveTask(w::EffectMove { reservation: *reservation }),
-        acts::Effect::Cancel(value) => w::Effect::Cancel(w::Impact {
-            tasks: w::ImpactCounts {
-                ended: 0,
-                waiting: value.tasks.waiting,
-                running: value
-                    .tasks
-                    .idle
-                    .checked_add(value.tasks.starting)
-                    .expect("task bound")
-                    .checked_add(value.tasks.running)
-                    .expect("task bound")
-                    .checked_add(value.tasks.backing_off)
-                    .expect("task bound"),
-                closing: value.tasks.closing,
-                held: value.tasks.held,
-                done: value.tasks.done,
-                failed: value.tasks.failed,
-                cancelled: value.tasks.cancelled,
-            },
-            live_runs: value.live_runs,
-            proposals: value.proposals,
-        }),
-    })
+#[must_use]
+pub fn effect(value: &acts::Effect) -> w::Effect {
+    mapped::effect_to_record(value)
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn settings(value: Option<d::TaskSettings>, _limits: &w::Limits) -> Result<Option<w::TaskSettings>, w::Problem> {
+fn settings(value: Option<d::TaskSettings>) -> Option<w::TaskSettings> {
     match value {
-        Some(value) => Ok(Some(w::TaskSettings { task: value.task, run: value.run, newest: value.newest })),
-        None => Ok(None),
+        Some(value) => Some(mapped::task_settings_to_record(&value)),
+        None => None,
     }
 }

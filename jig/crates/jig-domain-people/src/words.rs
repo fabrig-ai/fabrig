@@ -11,7 +11,8 @@ pub(crate) fn valid(ask: &Ask) -> bool {
         Ask::Restore { reason, .. }
         | Ask::Propose { action: crate::Action::Settings { .. }, reason, .. }
         | Ask::Move { reason, .. }
-        | Ask::Cancel { reason, .. } => is_utf8(reason),
+        | Ask::Cancel { reason, .. }
+        | Ask::Stop { reason, .. } => is_utf8(reason),
         Ask::DecideEscalation { decision, .. } => match decision {
             EscalationDecision::Reject { reason } => is_utf8(reason),
             EscalationDecision::Release | EscalationDecision::Pass => true,
@@ -36,14 +37,14 @@ pub(crate) fn valid(ask: &Ask) -> bool {
             is_utf8(reason) && amendment_words(amendment)
         }
         Ask::Amend { amendment, .. } => amendment_words(amendment),
-        Ask::Compound { .. }
+        Ask::ReissueService { .. }
+        | Ask::Compound { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::Adopt { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
         | Ask::Conclude { .. }
-        | Ask::Stop { .. }
         | Ask::Lift { .. }
         | Ask::Leave { .. }
         | Ask::Release { .. }

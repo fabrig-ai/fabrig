@@ -1,5 +1,5 @@
 //! Pure borrowed durable-row heap measurement for root journal/load admission
-//! (domain/tasks/README.md, section 2; domain/engine/README.md, sections 5.3 and 5.6).
+//! (domain/tasks/README.md, section 2; domain/engine/decisions.md, sections 1.3 and 1.6).
 //! Measures existing ownership without allocating or cloning; shape admission
 //! remains with tasks and authority decisions remain with root policy checks.
 use crate::{
@@ -324,6 +324,25 @@ fn ending_bytes(ending: &Ending) -> Option<u64> {
     }
 }
 
+/// Largest deep phase footprint admitted by stored task fits and accounting
+/// (jig/docs/design/domain/engine/restart.md). Includes a cancellation's partial
+/// result and a held closing phase's source, but excludes the inline phase slot.
+#[must_use]
+pub fn phase_bound(limits: &crate::Limits) -> Option<u64> {
+    let words = u64::from(limits.result_bytes);
+    let change = words.checked_mul(2)?.checked_add(bytes(size_of::<crate::ChangeTitle>())?)?;
+    let verdict = words.checked_add(
+        u64::from(limits.result_bytes.min(crate::VERDICT_FIELDS))
+            .checked_mul(bytes(size_of::<crate::ResultField>())?)?,
+    )?;
+    let ending = words.checked_add(change.max(verdict))?;
+    let resource = u64::from(limits.hold_bytes)
+        .checked_add(u64::from(limits.hold_segments).checked_mul(bytes(size_of::<Box<[u8]>>())?)?)?;
+    let circle = u64::from(limits.circle).checked_mul(bytes(size_of::<u64>())?)?;
+    let source = u64::from(crate::REASON_BYTES).max(u64::from(crate::HOLD_ACCOUNT_BYTES)).max(resource).max(circle);
+    ending.checked_add(bytes(size_of::<crate::HoldSource>())?)?.checked_add(source)
+}
+
 /// Deep owned bytes of a task phase, excluding its inline slot.
 #[must_use]
 pub fn phase_bytes(phase: &Phase) -> Option<u64> {
@@ -350,7 +369,9 @@ fn held_bytes(was: &Was, source: Option<&crate::HoldSource>) -> Option<u64> {
                 }
             }
             crate::HoldSource::Effect { .. } => {}
-            crate::HoldSource::Preparation { words } | crate::HoldSource::Account { words, .. } => {
+            crate::HoldSource::Preparation { words }
+            | crate::HoldSource::Account { words, .. }
+            | crate::HoldSource::Wait { words } => {
                 total = total.checked_add(bytes(words.len())?)?;
             }
             crate::HoldSource::Circle(circle) => {

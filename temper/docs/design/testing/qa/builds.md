@@ -1,8 +1,8 @@
 # Kept builds
 
 Provisional, 2026-11-12, revised 2026-11-20, from
-`../../draft/landed-qa.md`, section 3, milestones Q1, Q3 and Q6 of
-`../../draft/landed-qa.execution.md`. The builds
+`../../draft/archive/landed-qa.md`, section 3, milestones Q1, Q3 and Q6 of
+`../../draft/archive/landed-qa.execution.md`. The builds
 a pass judges: made by the deployment at landed tips, published to
 landed QA with a manifest, held by the passes that judge them, and
 deleted once no pass can need them.
@@ -28,7 +28,7 @@ deleted once no pass can need them.
 ## 2. The deployment's build
 
 - **When:** at a tip of main its after-landing work reaches, a tier of
-  its own or a part of one (`../../domain/after-landing.md`, 2). Not
+  its own or a part of one (`../../domain/after-landing-runs.md`, 1). Not
   every tip is kept, since one run covers several landings and a tip a
   receipt judges has no run; a case waits for the next kept build that
   holds its landing (`ledger.md`, 4.7).
@@ -36,7 +36,7 @@ deleted once no pass can need them.
   the builds directory's filesystem, from a clean checkout of the tip:
   - `bin/temper-box`: the box, its client and its embedded bundle;
   - `bin/fake-claude`: the fake coding agent the box finds beside itself
-    (`../../protocol/setup/box.md`, 5);
+    (`../../protocol/setup/box-backends.md`, 1);
   - `bin/temper`: the TUI, with its recorder built in, whose saves the
     drive session's TUI lines read (`../../client/drive.md`, 2.1;
     `../../client/tui/journeys.md`, 2);
@@ -51,14 +51,14 @@ deleted once no pass can need them.
     temper-engine -p temper-worker -p temper-agent`, with the bundle
     embedded as every build of the box and the engine embeds it
     (`TEMPER_INTERNAL_BUNDLE` unset, or `embed`;
-    `../../client/web/README.md`, 2.6). The drive session sets
+    `../../client/web/bundle.md`, 1). The drive session sets
     `TEMPER_INTERNAL_RECORD=1` for the TUI (`../../client/tui/journeys.md`,
     2); any other executable a later milestone names goes directly in
     `bin/` too;
   - `bundle/`: the web bundle, `temper/scripts/bundle.sh STAGE/bundle`,
     one bundle for every use, which the drive session gives a box
     (`../../client/drive.md`, 2.1): recording and loopback navigation
-    are selected by the page's query (`../../client/web/README.md`, 2.1),
+    are selected by the page's query (`../../client/web/shell.md`, 1),
     so a build keeps no recording bundle of its own.
 
   A debug build's set is about 400 MB.

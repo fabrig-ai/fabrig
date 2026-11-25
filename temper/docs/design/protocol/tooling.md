@@ -2,7 +2,7 @@
 
 Provisional, 2026-11-10. The contract between temper
 and a project's own tooling: the `prepare` and `key` commands a project
-that lands by turn may name (`../domain/landing.md`, 5.3 and 6.1),
+that lands by turn may name (`../domain/landing-prepare.md`, 1.3, and `../domain/landing-proof.md`, 1.1),
 the `merge` command any project may name for the merge job
 (`../domain/forge/change/repairs.md`), and the `close` command any project may name
 for a goal's closer (`../domain/forge/branches.md`, 2); what temper gives them,
@@ -77,13 +77,13 @@ what they write, and how they end. temper runs them as jobs on a worker
   COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
   names as the project's settings give them, `main` the round's base.
   - **`from`** is the commit the round stacks from: `main`, or the last
-    prefix the round keeps (`../domain/landing.md`, 5.1).
+    prefix the round keeps (`../domain/landing-prepare.md`, 1.1).
   - **`members`** are those the job stacks, in the landing's order,
     each onto the one below and the first onto `from`: `number` its
     number in the landing, from 1; `branch` its own branch; `prefix`
     its branch in the landing, where its prefix is pushed
-    (`../domain/landing.md`, 5.1).
-  - **`combine`** is the train's (`../domain/landing.md`, 5.2, and `../domain/landing-settings.md`, 1.1
+    (`../domain/landing-prepare.md`, 1.1).
+  - **`combine`** is the train's (`../domain/landing-prepare.md`, 1.2, and `../domain/landing-settings.md`, 1.1
     ), and **`train_upstream`** its upstream's tip as the round read
     it, present only where the train has an upstream: a member whose
     head holds a commit `main` lacks and `train_upstream` holds is
@@ -115,7 +115,7 @@ what they write, and how they end. temper runs them as jobs on a worker
     line, so the trailers are always the message's last paragraph.
   - **The engine knows a squash** on the landing's branch by its
     `Head: HEAD` line in the message's last paragraph
-    (`../domain/landing.md`, 5.2).
+    (`../domain/landing-prepare.md`, 1.2).
 - **temper's own,** where the project names no prepare command: the
   same request, read by the worker itself, with no command run, and the
   results below with `{"combined": [{"member": N, "by": "merge" |
@@ -128,7 +128,7 @@ what they write, and how they end. temper runs them as jobs on a worker
   `cut` true when the list was cut to its bound. The member is skipped
   and the next stacked on the same prefix. temper resolves a conflict
   with the branch under that member in a workspace of its own, main's
-  tip merged into the member's head (`../domain/landing.md`, 5.2), and
+  tip merged into the member's head (`../domain/landing-prepare.md`, 1.2), and
   lets one with a member wait; nothing of the command's directory is
   kept.
 - **`result.json`, exit 0,** where at least one member combined:
@@ -179,7 +179,7 @@ baseline recounted, a generated file made again), with no model.
   runs the family's drift test, whose world builds the very codec
   crates left in conflict. A module whose schema text, maps file or
   generator conflicts too is left with them
-  (`../draft/codec-shape.md`, 6.2). It settles a conflict at a
+  (`../draft/archive/codec-shape.md`, 6.2). It settles a conflict at a
   journey's recording, page or file printed beside them with the base's
   copy, the landing branch's, or with none where the base holds none,
   deletions and renames among them, since only the journeys' writer
@@ -210,7 +210,7 @@ baseline recounted, a generated file made again), with no model.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree and the same result.
 
-**A left file's record** (`../draft/merge-deletions.md`, 1) is a JSON
+**A left file's record** (`../draft/archive/merge-deletions.md`, 1) is a JSON
 object of these members, in this order, each present only where its
 kind has it. The head is the branch merged into, the index's stage 2,
 and the base the commit merged in, stage 3; stage 1 is their merge
@@ -256,7 +256,9 @@ So a file the base deleted, which the head appended to, is
 the commit the base's history removed it in. The command reads all of
 this with git commands that write neither the index nor the tree
 (`ls-files`, `log`, `diff-tree`), so each file it leaves stays as the
-merge left it. It settles no file one side deleted or renamed: whether
+merge left it. The contents its rename detection reads are in the
+checkout, brought by the merge that left the conflict
+(`git-operations.md`, 1.6), so it reaches no forge. It settles no file one side deleted or renamed: whether
 the change still needs it is the resolution's judgement
 (`../domain/forge/change/repairs.md`).
 
@@ -306,8 +308,9 @@ keeps of a goal's work in its own files.
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the goal's branch's tip, on
   the close change's own branch made there, clean, nothing staged. That
-  repository is writable on every attempt, a released job's too
-  (`../domain/forge/change/repairs.md`); a checkout with none or several
+  repository is writable on every attempt, a fresh job's on its
+  change's release too (`../domain/forge/change/repairs-releases.md`,
+  1); a checkout with none or several
   writable fails the job, naming each repository it saw and whether it
   could write it (`../domain/worker/jobs.md`).
 - **`request.json`:** `{"version": 1, "goal": G, "changes": [{"task": N,
@@ -368,7 +371,7 @@ limit of the worker's jobs (`../domain/worker/jobs.md`).
 
 - **The worker's `PATH` and its jobs' limits as configuration:** section
   2's `PATH` and section 6's limits have no member of the worker's
-  (`configuration/README.md`, section 3) and no override (`configuration/limits.md`). The first kind built, `merge`, keeps them the
+  (`configuration/worker.md`, section 1) and no override (`configuration/limits.md`). The first kind built, `merge`, keeps them the
   profile's constants, so they stay open until a deployment needs
   another.
 - **A command's own network:** whether a worker gives it none, so that

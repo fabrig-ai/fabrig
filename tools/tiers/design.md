@@ -102,6 +102,10 @@ the configured pairs.
 package's focused and fuzzy tests run, in the same records without `env`,
 validated alike; the delivery check builds them before its tests
 (`tools/pre-pr/design.md`, 4). `smith`'s lists `smith-fake-claude`'s `fake-claude`.
+The tests that run it are smith's end to end, which the real pair
+`real-smith` runs after landing (`tools/tiers/layers.md`, 9.2), so that
+pair's `[binaries]` list holds it too; the other real pairs' lists are
+empty.
 
 ### 2.2 The bundle list
 
@@ -184,7 +188,7 @@ default names a tool:
      waits for a place it takes (below): at the first, the entry point
      prints `<entry point>: hold: <the line>` and writes the line
      `smith-check: waiting` to its stderr, so that smith stops the checks'
-     bound's clock (`smith/docs/design/domain/run.md`, 8.1, *A wait for
+     bound's clock (`smith/docs/design/domain/run-delivery.md`, 1.1, *A wait for
      what a check needs*); later ones it reads and keeps waiting. After
      any `waiting` line, the held line, or the warning below, first writes
      `smith-check: admitted` to its stderr, and the held line prints
@@ -230,7 +234,7 @@ default names a tool:
   and then at least every 60 seconds, so that a hold that waits is told
   from one that hangs; then the held line once it holds them. The entry
   point's waiting has no bound of its own: smith's call deadline and the
-  run's end bound it (smith's `smith/docs/design/domain/run.md`, 8.1).
+  run's end bound it (smith's `smith/docs/design/domain/run-delivery.md`, 1.1).
 
 The runner sets umask 077, closes child stdin, and leaves child output visible,
 what a wrapper prints around a command included. Commands remain sequential,
@@ -818,7 +822,8 @@ change to the build command a caller wraps changes none of them.
 - `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`: refuses,
   exit 1, a change from BASE to HEAD that raises a figure of
   `tools/tiers/budgets.toml` or adds a reason's line, naming each, unless it
-  changes that file alone; 0 where it passes, 2 for a usage or git failure
+  changes that file alone, each member of a batched HEAD judged by its own
+  change; 0 where it passes, 2 for a usage or git failure
   (`tools/tiers/budgets.md`, 10.1).
 
 ### 10.2 `cpu.py`
@@ -858,12 +863,14 @@ Relative paths are the caller's working directory's, the checkout root.
   command's own exit status, nextest's 4 for an empty selection among
   them. An invalid summary (7.3's exit 2) raises `ValueError`; an
   interruption stops the command (7.3) and is raised again.
-- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None)`:
+- `execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None, selected_layers=None)`:
   runs the selection of `command`, the caller's nextest command as it would
   give `execute` without `prepare`'s arguments, a binary's tests in one
   process (section 11), into `directory`, fresh as `prepare` makes one, which
   it makes itself. `walls`, a walls file's path or none, gives the run's
-  `global-timeout` (11.7). `gate` is given to `summary`: true asks for the
+  `global-timeout` (11.7). `selected_layers`, given to `run`, is the
+  layers it runs: none for the profile's default, else a list of names
+  as `--layers` takes them (`tools/tiers/layers.md`, 9.1). `gate` is given to `summary`: true asks for the
   gate's verdict on the run's layers (`tools/tiers/budgets.md`, 4). `ledger`,
   main's ledger as `ledger` read it or none, is given to `run`, which runs
   the new and flagged tests alone after the suite
@@ -881,9 +888,14 @@ Relative paths are the caller's working directory's, the checkout root.
   (`tools/tiers/budgets.md`, 7).
 - `summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None)`: the verdict
   on a finished run directory, as the dictionary below. With `gate`, a
-  one-process run's layer over its budget, or test over its reference, is
-  red; without, a warning (`tools/tiers/budgets.md`, 4;
-  `tools/tiers/references.md`, 6). With `ledger`, a one-process run's layers
+  one-process run's layer budget or growth finding can be red. The CPU
+  fallback for missing counts and per-test reference findings are warnings
+  (`tools/tiers/budgets.md`, 4 and 8; `tools/tiers/references.md`, 6).
+  A one-process run is judged in the
+  layers its `results.json`'s `selected_layers` names alone
+  (`tools/tiers/budgets.md`, 4.1); a real pair's nextest run is summed by
+  layer, its layers over their figures warnings alone
+  (`tools/tiers/budgets.md`, 4.2). With `ledger`, a one-process run's layers
   are judged whole, what it didn't run counted from the ledger, and held to
   the budgets main's figures give (`tools/tiers/budgets.md`, 8 and 9); for
   any other run it is refused. `base`, the directory of a run at the base
@@ -910,13 +922,17 @@ Relative paths are the caller's working directory's, the checkout root.
 | `pair` | the pair, or `tools` |
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
-| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer over its budget (`tools/tiers/budgets.md`, 4) and each test past its reference; every entry ends with the repair line (`tools/tiers/budgets.md`, 10.1) |
-| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary and, without `gate`, each layer over its budget; with a ledger, each test that swings alone at main, last (`tools/tiers/references.md`, 6) |
+| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer with a red finding (`tools/tiers/budgets.md`, 4 and 8); with a ledger, each binary or group that lost checks without a reason (`tools/tiers/budgets.md`, 13). Every entry has the repair line (`tools/tiers/budgets.md`, 10.1) |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary, each advisory layer comparison, missing-count and drift warnings, and tests over their references; with a ledger, each test that swings alone at main (`tools/tiers/references.md`, 6) and the notes on missing tests and stale check reasons |
+| `checks` | a one-process run's totals by binary and check kind across suite processes (`tools/tiers/budgets.md`, 13) |
+| `check_reasons` | a one-process run's applied check reasons, each with the loss it covers (`tools/tiers/budgets.md`, 13) |
+| `check_moves` | a one-process run's paired tests, each with `from` and `to` objects holding `binary_id` and `test_name` (`tools/tiers/budgets.md`, 13) |
+| `used_budget_check_reasons` | the budget check reasons the one-process ledger fold marks spent (`tools/tiers/budgets.md`, 13) |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
 | `processes` | for each process of a one-process run: `binary_id`, `tests` (its tests' names, in the order they ran), `cpu_s`, `user_s`, `system_s`, `wall_s`, `exit_code` or `signal`, `kind`, `leaked`, `tree`, `layer`, `instructions` (11.4, null where uncounted); empty for a nextest run and for tools |
-| `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew`, `instructions`, `main_instructions` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
+| `layers` | for each tree and layer with a process in a one-process run, or with a ledger a figure at the head or at main: `tree`, `layer`, `cpu_s`, `measured_s`, `main_s`, `ceiling_s`, `budget_s`, `main_budget_s`, `lowest_s`, `ideal_s`, `reference_s`, `over`, `main_over`, `grew`, `instructions`, `main_instructions`, `instructions_ceiling`, `instructions_budget`, `instructions_lowest`, `main_instructions_budget`, `main_instructions_lowest`, `ideal_instructions`, `instructions_growth` (`tools/tiers/budgets.md`, 4 and 8). Real pairs have CPU layer rows. Other nextest runs and tools have none |
 | `trees` | for each tree with a row in `layers`: `tree`, `cpu_s`, `main_s`, `ceiling_s`, `budget_s`, `ideal_s`, `instructions`, `main_instructions` (`tools/tiers/budgets.md`, 4 and 8); empty for a nextest run and for tools |
 | `counting` | a one-process run's decision to count, `{counted, why}` as its `results.json` holds it (11.4, 11.8); null for a run that didn't count by plan or has none, for a nextest run and for tools |
 | `references` | for each test a one-process run ran alone for its reference: `binary_id`, `test_name`, `tree`, `layer`, `why`, `wall_s`, `main_wall_s`, `cpu_s`, `main_cpu_s`, `main_from`, `reference_s`, `line_s`, `limit_s`, `over`, `alone`, `main_alone`, `swinging` (`tools/tiers/references.md`, 6); empty for a nextest run, for tools and for a run that ran none alone |
@@ -939,10 +955,9 @@ only processes have it (section 11). In a one-process run:
 - a process's `kind` is `"tests"`, `"fresh"` (after a process that ended
   before its names did, 11.6), `"alone"` (a diagnostic), `"reference"` (one
   test alone, for its reference) or `"empty"` (its binary selecting no test)
-  (`tools/tiers/references.md`, 4), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
-  process's CPU is in the suite's: every process with a record of the
-  first three kinds is counted. A `reference` or `empty` process counts in
-  no sum: it measures one test after the suite.
+  (`tools/tiers/references.md`, 4), and its `cpu_s` is `user_s` plus `system_s`.
+  The suite, layers, binaries and ledger sum `tests` and `fresh` in both
+  measures. The other kinds keep their own process records.
   A forced kill can leave a started process without a record; its CPU is
   unknown and excluded, so the sum is a lower bound (11.7).
 
@@ -999,8 +1014,8 @@ unchanged, every slow tier stays on it, and `cpu-wrapper.c` stays.
 
 CPU is measured per process only, by the user's word: each process's user
 and system time, its own and its waited-for descendants', from `wait4`'s
-rusage, and a suite's CPU is their sum. No test's CPU is measured: the
-kernel's per-process times tick at 10 ms, and libtest reports a result after
+rusage. A suite's CPU sums its `tests` and `fresh` processes. The kernel's
+per-process times tick at 10 ms, and libtest reports a result after
 it has moved on, so an outer runner can't divide a process among its tests.
 A test's record carries its outcome and wall time, and its CPU is null, "not
 measured", never a share or a guess. No `/proc` sampling. A test is
@@ -1009,31 +1024,35 @@ flagged test runs alone after the suite, its CPU that process's less its
 binary's run selecting no test, outside every sum of the suite
 (`tools/tiers/references.md`, 3 and 4).
 
-Beside its CPU, each process of a suite's run has its **count**: the
+Beside its CPU, each counted `tests` or `fresh` process has its **count**: the
 user-space instructions the CPU retired for it, its threads' and its
 descendants' that ended before it settled included, from a hardware
 counter opened on the process before it runs its binary (11.4,
 *Instructions*; `temper/docs/design/draft/test-budgets.md`, 3). A test that
 does the same work at every run retires the same instructions, busy
-machine or quiet, where its CPU swings. Nothing judges a count yet, and a
-test run alone for its reference isn't counted: both are later passes
-(draft, 3 and 6). A run that can't count says why in one line and runs as
-it would without counting.
+machine or quiet, where its CPU swings. A layer whose table sets an instruction
+ceiling is judged by its total instructions and its growth against main
+(`tools/tiers/budgets.md`, 8 and 9). If the run or layer lacks counts, its
+CPU comparison warns and the summary says why. A test run alone for its
+reference is measured in CPU seconds (draft, 6).
 
 ### 11.1 Entry points and refusals
 
 `cpu.py`'s `execute_one_process` (10.2) and `tools/tiers/one-process` (11.9)
 run the mode. Its body is `tools/tiers/one_process.py`, loaded with
 `runpy.run_path` as `cpu.py` is and no importable module:
-`run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None)`
+`run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, layers=Path('tools/tiers/layers.toml'), ledger=None, selected_layers=None, *, fail_fast=False)`
 runs one suite into a fresh, private `directory` (mode 0700, refused when it
 holds anything) and writes 11.8's files; `execute_one_process` adds the
 summary and the exit status. `walls`, a walls file's path or none, gives the
-profile's `global-timeout` in place of `config`'s (11.7). A further argument,
-`layers=Path('tools/tiers/layers.toml')`, is the layers file by which it
-places each binary in its tree and layer (`tools/tiers/budgets.md`, 3),
-and `ledger=None`, main's ledger as `ledger` reads it, picks the tests it
-runs alone after the suite (`tools/tiers/references.md`, 3 and 4).
+profile's `global-timeout` in place of `config`'s (11.7). `layers` is the
+layers file by which it places each binary in its tree and layer
+(`tools/tiers/budgets.md`, 3); `ledger`, main's ledger as `ledger` reads
+it, picks the tests it runs alone after the suite
+(`tools/tiers/references.md`, 3 and 4); and `selected_layers`, none or a
+list of names, the layers it runs (11.2; `tools/tiers/layers.md`, 9.1).
+`execute_one_process` passes `fail_fast=True` to `run` when requested
+(11.7).
 
 `command` is the caller's nextest command, as it would pass it to `execute`
 without `prepare`'s arguments: its first element whose basename is `cargo`
@@ -1081,7 +1100,17 @@ profile's filter, ignored handling and partition as nextest applied them.
 Each entry gives the binary's `binary-path`, `cwd`, `binary-id`,
 `package-id`, `kind` and `binary-name`.
 
-An empty selection ends the run as nextest would: `--no-tests=fail`, the
+**By layer.** The run then leaves out the binaries of the layers it doesn't
+run, as each binary is placed (`tools/tiers/budgets.md`, 3): for `default`
+and `fuzzy`, by default, those placed `real-loop` or `end-to-end`; with
+`selected_layers`, those outside it (`tools/tiers/layers.md`, 9.1). An
+unplaced binary stays. It passes nextest no filter for it: a caller's
+filter selects within the layers the run runs. Where the run narrows its
+listing to the targets its profiles can select (11.9), it leaves out
+those layers' targets there too.
+
+An empty selection, nextest's or the one left once the run leaves out
+layers, ends the run as nextest would: `--no-tests=fail`, the
 default, exit 4; `warn`, nextest's warning, `warning: no tests to run`, in the
 output, and 0; `pass`, 0.
 
@@ -1194,8 +1223,8 @@ until end of file or 100 ms (nextest's default leak timeout) and then
 
 **Instructions.** Where the plan's `count` is true, which `run` sets for
 its suite (11.1) and the reference phase, `--again` and `--alone` don't
-(11.9), the lanes count each process of the suite's kinds (`tests`, `fresh`,
-`alone`, 11.6) with Linux's `perf_event_open`. Python's `os` has no such
+(11.9), the lanes count each `tests` and `fresh` process (11.6) with
+Linux's `perf_event_open`. Python's `os` has no such
 call, so the lanes make it through `ctypes`' `syscall`, by its number on the
 machine: 298 on `x86_64`, 241 on `aarch64`. `tools/tiers/cpu-wrapper.c`
 takes no part: it wraps nextest's attempts (section 7), and the lanes start
@@ -1227,11 +1256,10 @@ and reap a one-process run's processes themselves.
   scaled. A read that fails or comes short is null too. A descendant still
   running when the process settles is in no count, as `wait4`'s rusage holds
   no descendant its process didn't wait for.
-- **Uncounted:** a `reference` or `empty` process, which measures one test
-  alone (`tools/tiers/references.md`, 4), opens no counter: a test run alone
-  is counted in the draft's second pass (`temper/docs/design/draft/test-budgets.md`,
-  6). Its `instructions` is null, as is every process's in a run that
-  doesn't count.
+- **Uncounted:** `alone` diagnostics and `reference` and `empty` processes
+  open no counter. Their `instructions` is null, as is every process's in a
+  run that doesn't count. The draft's second pass counts tests for their
+  references (`temper/docs/design/draft/test-budgets.md`, 6).
 - **Before the suite,** the lanes decide once whether the run counts, and
   report it as their first event after `lanes`:
   `{"event": "counting", "counted": BOOL, "why": WHY}`, `why` null where the
@@ -1289,8 +1317,9 @@ What nextest gives a test today, resolved per binary from the listing and
 - `TIERS_ONE_PROCESS=1`, the mode's own: under it a starved pass passes as
   under `NEXTEST`, ending its process with exit 0 after its line, so that
   nothing follows it and nothing unwinds
-  (`skein/docs/design/testing/README.md`, 5), and the lanes start a fresh
-  process for the names it had left (11.6).
+  (`skein/docs/design/testing/service-tiers.md`, 1), and the lanes start a fresh
+  process for the names it had left (11.6);
+- `TIERS_CHECKS_FILE`, the process's own file for check counts (11.8).
 
 ### 11.6 A test's outcome
 
@@ -1307,7 +1336,7 @@ Its outcome is one of:
 - **starved:** the process ended with exit status 0 and no result for the
   test it had announced, and the last line of that test's output begins with
   `skein-world: starved:`: a starved pass ended its process after its line
-  (`skein/docs/design/testing/README.md`, 5). A warning, never failed and
+  (`skein/docs/design/testing/service-tiers.md`, 1). A warning, never failed and
   never passed. A test with a result keeps libtest's word, whatever its output
   ends with, so that a failure stays red: a panic after the line is the
   failure libtest reports;
@@ -1343,6 +1372,14 @@ with no label. Either way it stays failed. A rerun the run's cancellation
 stopped labels nothing. A starved test is not rerun.
 
 ### 11.7 Cancellation
+
+**Fail-fast.** With `fail_fast`, the lanes stop admitting processes as soon
+as they observe a test failure or a crash. The processes already running
+finish and keep their outcomes, subject to the run's timeouts. The lanes
+drop queued work, including fresh processes and alone diagnostics, and the
+runner skips the reference phase. Tests the run never reached are
+`unobserved`, as after a cancellation. The summary reports that the run
+stopped after a failure and judged no budget. The runner exits 100.
 
 The profile's `global-timeout` holds as under nextest, from the first
 process's start: at expiry the lanes start nothing more and drop the processes
@@ -1397,8 +1434,8 @@ starved. Its tests that libtest had reported passed, failed or starved keep
 those outcomes, with no process, as 7.3 keeps an attempt that has its record,
 so that a failure stays red; its running test, the tests after it and a test
 whose outcome rests on its end (crashed, cancelled) are unobserved. Its CPU is
-unknown and in no total: the suite's CPU is the sum over the processes with a
-record, as 10.2 gives it, and so a lower bound, as a nextest run's is without
+unknown and in no total: the suite's CPU sums the `tests` and `fresh`
+processes with a record (10.2), so it is a lower bound, as a nextest run's is without
 its unobserved attempts (7.3). A CPU budget that bound passes is passed; one it
 stays under is unproven, and the run is starved. A process left without its
 final event otherwise, or lanes that exit with a status other than 0 without
@@ -1435,26 +1472,40 @@ In the directory `run` made, once it has returned:
 - `results.json`, written once after the lanes end: each process with a record
   (binary ID, kind, its tests in the order they ran, user and system seconds,
   wall, exit status or signal, leaked, its binary's `tree` and `layer`,
-  `tools/tiers/budgets.md`, 3, and `instructions`, its count, a nonnegative
-  integer or null, 11.4), `counting`, the lanes' report as
+  `tools/tiers/budgets.md`, 3, `instructions`, its count, a nonnegative
+  integer or null, 11.4, and `checks`, its check counts by kind,
+  below), `counting`, the lanes' report as
   `{"counted": BOOL, "why": WHY}`, null where the plan didn't count,
   `commit`, the commit the run's checkout is at (`git rev-parse --verify
   HEAD` in `cargo metadata`'s `workspace_root`, 40 or 64 lowercase hex
   digits), null where git names none, by which the ledger keeps each count
   (`tools/tiers/budgets.md`, 7), the layers file's `layers` list, the
   workspace's test binaries, each placed and marked listed or not
-  (`workspace`, `tools/tiers/budgets.md`, 3), and each test (outcome, wall, its
+  (`workspace`, `tools/tiers/budgets.md`, 3), the original package scope
+  as package names (`selected_packages`), and `test_filtered`, whether the
+  caller supplied a test filter, and each test (outcome, wall, its
   process, none where a forced kill left that process without a record (11.7),
   the tests before it and its alone result where it failed, its output where it
   did not pass), the unobserved tests, the selection's count and the
-  cancellation, and `references`, each test run alone for its reference
+  cancellation, `fail_fast: true` where a failure stopped admission (11.7),
+  and `references`, each test run alone for its reference
   after the suite, with its `reference` and `empty` processes among the
   processes (`tools/tiers/references.md`, 4); `summary` reads it;
 - `ledger.json`, written by `execute_one_process` once the summary is made:
   main's ledger for the suite as it will stand should the run's candidate
   land, the ledger it was given, or none, with the run's figures folded in
-  (`tools/tiers/budgets.md`, 7); `--again` writes none;
+  (`tools/tiers/budgets.md`, 7). A fail-fast stop and `--again` skip this file;
 - `plan.json`, the lanes' input, no result; `starved.json` as in 10.3.
+
+**Checks done.** Each test process receives `TIERS_CHECKS_FILE` (11.5), an
+absolute path of its own in the run directory, `checks-INDEX.txt` with its
+process index. A kit appends `KIND COUNT\n` for checks it did. `KIND`
+matches `[a-z][a-z0-9-]{0,31}` and `COUNT` is a decimal integer of at least
+1. The runner reads the file once after the process ends and sums its
+lines by kind into the process's `checks`; a missing file gives an empty
+object. A malformed line refuses the run and names the process, file and
+line. The summary uses the suite processes' counts
+(`tools/tiers/budgets.md`, 13).
 
 **Kept times.** After the lanes end, the mode writes each test's wall time into
 `TARGET/tiers-one-process/times.json` (Cargo's target directory, from the
@@ -1465,6 +1516,42 @@ and nothing reads it as a result.
 
 ### 11.9 By hand
 
+`tools/tiers/test NEXTEST_ARGS...` runs `cargo nextest run NEXTEST_ARGS...`
+from the checkout. Nextest selects, runs and reports the tests, and its
+exit status is the command's. The command uses the plain nextest
+invocation when the host lacks Linux instruction counting, the
+paranoid setting is past 2, `cc` is unavailable, a host target runner
+is already configured or the counter runner cannot be prepared.
+
+It is a shell script, so that a run by name pays for nothing it doesn't use:
+no Python starts unless main's counts are there to report against. A
+`--config` argument, or a `runner` or `include` in a Cargo configuration file
+it would read, also keeps the plain invocation, since that configuration may
+set its own runner. Where it can count, the command builds
+`tools/tiers/count-runner.c` as `tiers-count-runner` in the repository's
+`target` directory, whatever Cargo's target directory is, if absent or older
+than its source. It sets Cargo's runner variable for the host triple
+and passes a fresh file's path in `TIERS_COUNTS_OUT`. The runner
+execs the test directly during listing and other phases. In the run
+phase it forks and holds the child until it has opened the counter
+on it with the flags in 11.4, then releases it to exec the test.
+After the child exits, a complete count is appended in one write as a
+JSON line with `binary_id`, `test` and `instructions`. The runner
+passes on the child's exit status or signal. The test still runs when
+the counter is refused.
+
+After nextest's summary, where the run counted something and the repository
+holds `refs/temper/counts`, `tools/tiers/budget-lines.awk` reads its
+`allowances.tsv` (`tools/tiers/budgets.md`, 7.1) with the run's counts, and
+prints one line on stderr for each tree and layer of the run's binaries: their
+count, and how far a change may grow that layer at main's newest published
+commit (2% of its count there, at least a billion instructions, or up to the
+user's accepted level, `tools/tiers/budgets.md`, 8). It also prints
+one line for each binary main's counts lack. awk, not Python, so the lines cost
+a few milliseconds. They are advisory: goal close and the gate judge, against
+the goal's own base and with the credit of new moves. The command removes the
+temporary counts file after the run.
+
 From the workspace root, `tools/tiers/build-profile-targets` takes `--workspace`
 or repeated `-p PACKAGE` and builds the test binaries for the union of the
 focused and fuzzy profiles. It omits an integration binary only when neither
@@ -1473,11 +1560,15 @@ same dependencies and features. Otherwise it keeps the original selection.
 With `TIERS_PROFILE_TARGETS=1`, the two profiles use the same rule when listing
 their tests. Explicit case filters keep their own selection.
 
-`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] PROFILE [NEXTEST_ARGS...]`,
+`tools/tiers/one-process [--out DIR] [--budgets PATH] [--walls PATH] [--ledger PATH] [--gate] [--layers LAYERS] [--fail-fast] PROFILE [NEXTEST_ARGS...]`,
 from the checkout root, runs `PROFILE` so: `cargo nextest run --profile PROFILE
 --no-fail-fast` and `NEXTEST_ARGS`, with `--workspace` unless they name a
 package (`-p`, `--package`), behind `TIERS_WRAPPER` as section 3 gives it, and
-prints the summary as `cpu-summary` does. `DIR` defaults to a fresh
+prints the summary as `cpu-summary` does. For `default` and `fuzzy` it runs
+by default the layers that replay and the repository's checks, and leaves
+out the real loop and end to end; `--layers` names the layers to run, a
+comma-separated list or `all`, passed as `selected_layers`
+(`tools/tiers/layers.md`, 9.1). `DIR` defaults to a fresh
 `tiers-one-process/runs/<UTC time>-<pid>` beneath Cargo metadata's target
 directory, printed first; `--budgets`' limits (`budgets`) apply,
 `tools/tiers/budgets.toml` by default where it exists and none otherwise;
@@ -1486,6 +1577,9 @@ directory, printed first; `--budgets`' limits (`budgets`) apply,
 read with `ledger` before anything runs and passed as `ledger`, none by
 default; `--gate` asks for the gate's verdict on the
 run's layers, passed as `gate` (`tools/tiers/budgets.md`, 5).
+`--fail-fast` before `PROFILE` passes `fail_fast=True` to
+`execute_one_process` (11.7). The nextest run command keeps
+`--no-fail-fast` and the listing drops run-only options (11.2).
 It exits as `execute_one_process` returns, 2 for an invalid invocation or
 run, and takes SIGTERM and SIGHUP as interruptions, as `run --cpu` does.
 
@@ -1513,8 +1607,8 @@ times. It counts nothing: its plan's `count` is false, so its processes'
 name passed, 100 when one did not, and 2 for an invalid invocation or run:
 no `plan.json` in `RUN_DIR`, no such binary, a name not among its selected
 tests or given twice, no names, or a `DIR` not fresh; `--budgets`,
-`--walls`, `--ledger` or `--gate` with `--again` is an invalid invocation too, since
-the plan holds its run's bound. The hold is as
+`--walls`, `--ledger`, `--gate`, `--layers` or `--fail-fast` with `--again` is an invalid invocation too, since
+the plan holds its run's bound and its selection. The hold is as
 above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`. It runs
 nothing alone for a reference.
 
@@ -1527,6 +1621,7 @@ listing, files and exit statuses). It lists and builds as a run does, the
 flagged binaries' own targets alone, a listing for each of their packages,
 and takes the hold as above. It counts nothing, as `--again` doesn't, and
 neither does a run's reference phase after its suite (11.4).
+`--fail-fast` with `--alone` is an invalid invocation.
 
 ### 11.10 Offline proof
 
@@ -1564,7 +1659,7 @@ fixture run on the machine that runs the suite pins both outcomes by what
 that machine's decision is: counted, each process of the suite's kinds has
 a positive `instructions`, a test spinning ten million iterations under
 `std::hint::black_box` on a thread it spawns counts at least ten million
-in its process, and its `reference` and `empty` processes have null;
+in its process, and `alone`, `reference` and `empty` processes have null;
 uncounted, the output's line names the decision's `why` and every count is
 null. `--again` and `--alone` write null counts, `counting` and `commit`.
 `test_cpu.py` covers `summary`'s reading of a one-process directory, a forced

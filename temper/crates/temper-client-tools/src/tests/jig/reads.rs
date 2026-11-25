@@ -431,6 +431,44 @@ fn an_ended_task_json_has_one_result_member() {
 }
 
 #[test]
+fn an_ended_landed_change_json_names_its_task_and_pull() {
+    use jig_client::contract as c;
+    let landed = c::ResultValue::Change {
+        kind: 1,
+        part: c::Part { connector: 1, kind: c::PartKind::Resource, key: c::PartKey::Number(19) },
+        words: fixtures::document_text(b"2222222222222222222222222222222222222222\npull request #19 of acme/app"),
+    };
+    let ending = c::ChipEnding::Done(landed.clone());
+    let mut task = fixtures::ended_task(c::Phase::Ended);
+    task.result = Some(c::TaskResult::Ending(Box::new(ending.clone())));
+    let mut ended = fixtures::ended_task_result(task, c::Ending::Task(Box::new(ending)));
+    let ReadResult::Value(c::ReadValue::Ended(receipt)) = &mut ended else { panic!("ended receipt") };
+    let c::EndedValue::Task { result, .. } = &mut receipt.value else { panic!("ended task") };
+    result.value = Some(landed);
+
+    let answer = fixtures::read_answer(fixtures::TASK_JSON_CALL, ended);
+    assert_eq!(answer.status, 0);
+    fixtures::unique_keys(&answer.stdout).expect("a whole ended task object");
+    let json = crate::jig::json::document_depth(&answer.stdout, 32).expect("task JSON");
+    let chip = json.member(0, b"chip").expect("task chip");
+    let result = json.member(0, b"result").expect("retained result");
+    let value = json.member(result, b"value").expect("result value");
+    let change = json.member(value, b"change").expect("change result");
+    let part = json.member(change, b"part").expect("pull part");
+    let key = json.member(part, b"key").expect("pull key");
+    for (object, name, kind, bytes) in [
+        (chip, b"task".as_slice(), skein_json::Kind::Number, b"41".as_slice()),
+        (chip, b"phase", skein_json::Kind::String, b"ended"),
+        (change, b"kind", skein_json::Kind::Number, b"1"),
+        (key, b"number", skein_json::Kind::Number, b"19"),
+    ] {
+        let token = json.token(json.member(object, name).expect("expected field")).expect("field token");
+        assert_eq!(token.kind, kind);
+        assert_eq!(json.text(token), Some(bytes));
+    }
+}
+
+#[test]
 fn a_source_wait_keeps_its_unknown_deadline() {
     use jig_client::contract as c;
     for (state, expected) in [
@@ -1511,5 +1549,22 @@ fn a_worker_wait_keeps_its_worker_and_window_in_text_and_json() {
             Some(c::TaskRunWait::Worker { worker: 2, until: skein_lib::Wall::from_nanos(63_600_000_000_001) });
         let answer = fixtures::read_answer(argv, fixtures::task_result(task));
         assert!(skein_lib::bytes::find(&answer.stdout, expected).is_some(), "{:?}", answer.stdout);
+    }
+}
+
+#[test]
+fn ctl_names_a_wait_hold_and_prints_its_words_when_supplied() {
+    use jig_client::contract as c;
+    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z: subscription 3. Held since 2026-11-25T06:07Z. Release it to wait again, or amend or cancel it.";
+    for (words, expected) in [(None, b"A wait passed its bound".as_slice()), (Some(WORDS), WORDS)] {
+        let (_, _, task) = fixtures::task_read();
+        let mut task = fixtures::held_task(task, c::HoldCategory::Waited);
+        task.hold.as_mut().unwrap().words = match words {
+            Some(words) => Some(c::DocumentText::complete(c::Text::new(words.into(), 1024).expect("hold words fit"))),
+            None => None,
+        };
+        let printed = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(task));
+        assert_eq!(printed.status, 0);
+        assert!(skein_lib::bytes::find(&printed.stdout, expected).is_some(), "{:?}", printed.stdout);
     }
 }

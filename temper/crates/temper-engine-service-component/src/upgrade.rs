@@ -1,13 +1,17 @@
 //! Stopped store tools: rehearsal, going back and restore (protocol/binaries.md; protocol/checkpoints.md, 2.5).
 use crate::{End, engine::Engine};
+use alloc::boxed::Box;
 use jig_protocol_store::{Event, Request};
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, List, Queue, Time, Token};
 
 /// What the configured engine would require at an opening (protocol/wires.md, 10.2).
 #[derive(Debug)]
 pub struct Workers {
+    pub defaults: List<jig_protocol_store::KeptWorker>,
     pub room: u32,
-    pub schema: skein_channel::Schema,
+    pub limits: jig_protocol_worker_wire::v22::Limits,
+    pub spoken: List<jig_protocol_worker_wire::Spoken>,
+    pub roots: List<jig_protocol_worker_wire::Root>,
 }
 
 /// The store's ordered progress and terminal, retained through stopped-tool teardown.
@@ -20,6 +24,8 @@ pub struct Report {
     pub elapsed: Duration,
     pub end: Option<End>,
     pub restored: bool,
+    /// Each kept forge's catching-up state at the opening, in number order.
+    pub catching_up: Box<[(u16, Option<temper_engine_domain_forge::CatchingUp>)]>,
     pub done: bool,
     pub open_failure: Option<jig_protocol_store::restore::OpenFailure>,
 }
@@ -47,6 +53,7 @@ impl State {
                 elapsed: Duration::ZERO,
                 end: None,
                 restored: false,
+                catching_up: Box::new([]),
                 done: false,
                 open_failure: None,
             },
@@ -62,6 +69,7 @@ impl State {
 
 pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
     prepare_stopped(engine);
+    engine.forge.rehearsal = rehearsal;
     engine.upgrade = Some(State::new(rehearsal, engine.workers.judgement()));
 }
 
@@ -101,6 +109,15 @@ pub(crate) fn advance(engine: &mut Engine) -> bool {
     }
     if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.terminal || state.undecodable) {
         state.report.restored = engine.domain.rehearsed();
+        if state.report.restored {
+            let forges = engine.domain.forges();
+            let mut catching_up =
+                List::with_capacity(u32::try_from(forges.rows.len()).expect("configured forges fit u32"));
+            for row in forges.rows {
+                catching_up.push((row.number, row.catching_up)).expect("one state per kept forge");
+            }
+            state.report.catching_up = catching_up.into_boxed();
+        }
         state.report.end = engine.end.take();
         state.report.elapsed = engine.env.now.saturating_since(began);
         state.closing = true;

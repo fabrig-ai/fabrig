@@ -44,8 +44,10 @@ mod tests;
 
 pub use boundary::{
     Candidate, CandidateMember, CandidateSpec, Combination, Conflicts, Event, Failure, Landing, Message, Outcome,
-    Prepared, Refusal, Repository, Request, Spec, Start,
+    Prepared, Refusal, Repository, Request, SAVED, Spec, Start,
 };
+pub use cache::{Store, Workspace};
 pub use domain::{Domain, step};
 pub use facts::{Cached, Ending, Fact, Preparation, Tally, Target};
+pub use hold::Hold;
 pub use limits::{Limits, PROGRAM_BYTES, valid};

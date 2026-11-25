@@ -1,4 +1,4 @@
-//! Requester question keeps and task-batched exits (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
+//! Requester question keeps and task-batched exits (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
 use jig_domain_tasks::{self as tasks, Cancel, *};
 use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, task};
 use skein_lib::{Queue, ReplyTo, Token, Wall};
@@ -656,6 +656,7 @@ fn asks_cannot_be_amended() {
             reason: Box::new([]),
         };
         let reply = response(&mut world, |reply_to| Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task: ASKER,
@@ -699,6 +700,7 @@ fn asks_requires_room_for_the_fixed_answer_notice() {
         let mut new = task(REQUESTER, &[]);
         new.spec.asks = true;
         let reply = response(&mut world, |reply_to| Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to,
@@ -805,6 +807,7 @@ fn questions_while_awaiting(kind: SubscriptionKind) -> World {
     assert_eq!(world.record(REQUESTER).question_woken, 0);
     assert_eq!(
         response(&mut world, |reply_to| Event::Subscribe {
+            reads_project: false,
             reply_to,
             task: REQUESTER,
             subscription: Subscription { number: 1, kind },
@@ -905,6 +908,7 @@ fn keep_requester(world: &mut World) {
     };
     assert_eq!(
         response(world, |reply_to| Event::Amend {
+            reads_project: false,
             reply_to,
             by: PERSON_PARTY,
             operation: tasks::Amend {
@@ -1084,7 +1088,7 @@ fn only_timers_and_task_watches_count_as_pending_arrivals() {
         let reply = response(&mut world, |reply_to| match kind {
             SubscriptionKind::Topic { .. } => Event::SubscribeTopic { reply_to, task: ASKER, subscription },
             SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } => {
-                Event::Subscribe { reply_to, task: ASKER, subscription }
+                Event::Subscribe { reads_project: false, reply_to, task: ASKER, subscription }
             }
         });
         assert_eq!(reply, Reply::Done);
@@ -1135,7 +1139,7 @@ fn timer_interest(number: u64) -> Subscription {
 }
 
 fn subscribe_goal(world: &mut World, subscription: Subscription) -> Reply {
-    response(world, |reply_to| Event::Subscribe { reply_to, task: GOAL, subscription })
+    response(world, |reply_to| Event::Subscribe { reads_project: false, reply_to, task: GOAL, subscription })
 }
 
 fn subscription_full(world: &mut World, subscription: Subscription, cause: CapacityCause) {
@@ -1169,17 +1173,21 @@ fn replace_interest(world: &mut World, obsolete: u64, subscription: Subscription
 #[test]
 fn an_active_goals_subscription_limit_names_task_and_timer_refusals() {
     let mut world = subscribing_goal(&Limits { subscriptions: 4, inbox_messages: 12, ..LIMITS });
-    for subscription in
-        [task_interest(1, GOAL_CHILD), task_interest(2, GOAL_PEER), timer_interest(3), timer_interest(4)]
-    {
+    for subscription in [
+        task_interest(1, GOAL_CHILD),
+        task_interest(2, GOAL_PEER),
+        timer_interest(3),
+        timer_interest(4),
+        timer_interest(5),
+    ] {
         assert_eq!(subscribe_goal(&mut world, subscription), Reply::Done);
     }
-    let cause = CapacityCause::Subscriptions { limit: 4 };
-    subscription_full(&mut world, task_interest(5, GOAL_PERSON), cause);
-    subscription_full(&mut world, timer_interest(6), cause);
-    replace_interest(&mut world, 1, task_interest(5, GOAL_PERSON));
-    replace_interest(&mut world, 3, timer_interest(6));
-    assert_eq!(world.record(GOAL).subscriptions.len(), 4);
+    let cause = CapacityCause::Subscriptions { limit: 5 };
+    subscription_full(&mut world, task_interest(6, GOAL_PERSON), cause);
+    subscription_full(&mut world, timer_interest(7), cause);
+    replace_interest(&mut world, 1, task_interest(6, GOAL_PERSON));
+    replace_interest(&mut world, 3, timer_interest(7));
+    assert_eq!(world.record(GOAL).subscriptions.len(), 5);
 }
 
 #[test]
@@ -1216,5 +1224,56 @@ fn an_active_goals_subscription_inbox_reservations_outlive_a_read() {
         replace_interest(&mut world, 1, task_interest(4, GOAL_PERSON));
         replace_interest(&mut world, 2, timer_interest(5));
         assert_eq!(world.record(GOAL).subscriptions.len(), 2);
+    }
+}
+
+const COVERING_TASK: u64 = 3;
+const PASSED_ENTRY: u64 = 4;
+const FIRST_ANSWER: u64 = 5;
+const LATE_ANSWER: u64 = 6;
+const PASS_WORDS: &[u8] = b"proceed?";
+
+fn passed() -> World {
+    let mut world = asked();
+    world.make(PERSON_PARTY, vec![task(COVERING_TASK, &[])]);
+    world.claim(COVERING_TASK, ATTEMPT);
+    world.send(Event::PassQuestion {
+        asker: ASKER,
+        question: QUESTION,
+        offer: QuestionOffer {
+            holder: EscalationHolder::Task(COVERING_TASK),
+            since: Wall::EPOCH,
+            relay: Some(QuestionRelay { entry: PASSED_ENTRY, words: PASS_WORDS.into() }),
+        },
+    });
+    world
+}
+
+#[test]
+fn an_offered_question_relays_without_taking_inbox_room() {
+    let world = passed();
+    assert!(world.relays.contains(&(COVERING_TASK, ATTEMPT, PASSED_ENTRY)));
+    let offered = world.run_context(COVERING_TASK).inbox.iter().find(|word| word.number == PASSED_ENTRY).cloned();
+    assert_eq!(
+        offered.map(|word| (word.from, word.kind, word.words)),
+        Some((Party::Task(ASKER), MessageKind::PassedQuestion { question: QUESTION }, PASS_WORDS.into(),))
+    );
+    let holder = world.record(COVERING_TASK);
+    assert!(holder.inbox.is_empty(), "the entry uses no room in the holder's word inbox");
+}
+
+#[test]
+fn a_late_answer_names_the_first_writer_from_either_holder() {
+    for (winner, late) in [(COVERING_TASK, REQUESTER), (REQUESTER, COVERING_TASK)] {
+        let mut world = passed();
+        let answer = MessageKind::Answer { question: QUESTION };
+        message(&mut world, Party::Task(winner), ASKER, FIRST_ANSWER, answer.clone());
+        assert_eq!(
+            message(&mut world, Party::Task(late), ASKER, LATE_ANSWER, answer),
+            Reply::Refused(Problem::new(
+                Some(ASKER),
+                Refusal::QuestionAnswered { question: QUESTION, by: QuestionAnswerer::Task(winner) }
+            ))
+        );
     }
 }

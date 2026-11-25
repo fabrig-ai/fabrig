@@ -5,8 +5,10 @@ mod asked_link;
 mod authorize;
 mod closing;
 mod gone;
+mod inspection;
 mod placed_hold_client;
 mod placed_holds;
+mod provider;
 mod reads;
 mod requests;
 mod settings;
@@ -18,6 +20,7 @@ mod public_http;
 
 mod fuzzy {
     mod cursor;
+    mod sign_ins;
     mod source;
 }
 

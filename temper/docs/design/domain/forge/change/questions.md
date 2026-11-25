@@ -12,14 +12,14 @@ each on to its goal and relays the answer back down
 (`../branches.md`, 2). It decides
 nothing itself (jig's `domain/tasks/proposals.md`
 ): the requester decides, and the change relays
-(`../../../draft/notes.md`, N1). A change made with questions `none`
+(`../../../draft/reference-code-production.notes.md`, N1). A change made with questions `none`
 relays none. The routes are `none` and `up` alone: `foreman`, which had
 a delegate of the forge's charter 3 settle each question first, is
 retired (`../../../draft/stock-charters.md`, 3), since the implementer
 now checks its spec itself before it asks. A `change` naming it, alone
-or in a batch, is refused by name (`../../agent/tools.md`, 1), and a
+or in a batch, is refused by name (`../../agent/tools-change.md`, 1), and a
 stored setting naming it is refused, not read, naming the setting
-(`../../../protocol/configuration/settings.md`, 2).
+(`../../../protocol/configuration/settings-kinds.md`, 1).
 
 - **Its agents may ask.** It delegates its producing, its repairs and
   its resolutions with the Message family kept, so that each may ask
@@ -28,7 +28,7 @@ stored setting naming it is refused, not read, naming the setting
   question in the line form (`../../agent/agents.md`, 2) reaches a person's client
   as its choices where it is relayed whole, and any other as words. An
   agent that asked is kept by its own question (jig's
-  `domain/tasks/lifecycle.md`, 8): its run parks, no try spent, until the
+  `domain/tasks/lifecycle-endings.md`, 1): its run parks, no try spent, until the
   change answers, a `finish` before then parking it too, whatever its
   form, and the change's wait for it is no stall (`stalls.md`, 1). Its
   reviews are delegated without the Message family, as under `none`.
@@ -45,7 +45,7 @@ stored setting naming it is refused, not read, naming the setting
   and the question form is its one use of `message` to its change. Its
   words settle nothing, and in a run that may wait, what reaches it
   before its `finish` refuses that `finish` until read (smith's
-  `domain/run.md`, section 6), so feedback meant for a requester would
+  `domain/run-messages.md`, section 1), so feedback meant for a requester would
   cost it a turn. The `message` call itself refuses them, nothing sent:
   a call in the words form to the change from its producing task, or
   the repair or the resolution it has live, answers with an error
@@ -82,8 +82,8 @@ stored setting naming it is refused, not read, naming the setting
   the question form, its words the asker's question whole, as its
   record kept them when it was taken, cut from its end to the message
   bound and marked. The change is
-  kept by its own question while it waits (jig's `domain/tasks/lifecycle.md`,
-  8): it steps as ever, and merges nothing, its merge waiting as for
+  kept by its own question while it waits (jig's `domain/tasks/lifecycle-endings.md`,
+  1): it steps as ever, and merges nothing, its merge waiting as for
   a pending dependency (`README.md`, 2, step 7). A repair's or a resolution's
   question passed up takes it out of its queue until answered, as a
   kept change's place is (`../queues.md`). Its requester, a goal among
@@ -106,7 +106,7 @@ stored setting naming it is refused, not read, naming the setting
   The change answers its asker's question with the answer's words
   whole, and the asker's next run goes on from where it parked with the
   answer to read. The requester may first amend the change (its words
-  widened, a Left item accepted: `../README.md`, section 5 of jig's `domain/tasks/README.md`),
+  widened, a Left item accepted: `../topics.md`, section 1 of jig's `domain/tasks/README.md`),
   which reaches a live producer (*Its requester's words and
   amendments*, below), or add a change as the change's dependency, one
   it makes now or one it already has, a sibling change of the same
@@ -129,7 +129,7 @@ stored setting naming it is refused, not read, naming the setting
   into another repository orders the landings alone (`../../landing.md`,
   4.1) and holds no answer. Whatever holds or relays an answer, the
   dependencies order the merge: nothing merges before they land
-  (`README.md`, 2, step 7; jig's `domain/connectors.md`, 4.1).
+  (`README.md`, 2, step 7; jig's `domain/connectors-effects.md`, 1.1).
 - **Held for message room.** Apart from that rule, an answer is held
   on its record while the step that takes it has no message room left
   for it (below), and relayed at the next step that has room and no
@@ -157,8 +157,8 @@ stored setting naming it is refused, not read, naming the setting
   first line, and where it stands (taken; asked of the
   requester; its answer held), and the questions
   taken against its bound, are kept on its record, so that a restart
-  resumes each where it stood (`../README.md`, section 9), and shown on its panel
-  (`README.md`, 5; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
+  resumes each where it stood (`../effects.md`, section 2), and shown on its panel
+  (`panel.md`, 1; `../../../client/forge/served.md`, 2) and by `ctl`'s `change show`
   (`../../../client/ctl/areas.md`, area 6). The printed numbers are labelled
   producer questions; the requester is directed to the change's task read
   for its answer number.
@@ -192,7 +192,7 @@ stored setting naming it is refused, not read, naming the setting
   step merge there into one, the newest reason (jig's
   `domain/tasks/messages.md`, 2), so the record keeps that reason
   alone; the spec revision kept with it holds every amendment's words
-  (2026-11-17, `../../../draft/delegate-rulings.md`, 1).
+  (2026-11-17, `../../../draft/archive/delegate-rulings.md`, 1).
 - **Its history** keeps every question and answer: the asked tasks'
   question positions and the change's own (jig's `domain/tasks/messages.md`,
   2). A ruling that concerns many changes is design: a designer's
@@ -215,7 +215,7 @@ next step due at once (2026-11-04).
 
 A change's requester reaches the change's live producer through the
 change: by words, and by amending the change. Neither answers a
-question (2026-11-15, `../../../draft/producer-reach.md`, 2 and 3). The
+question (2026-11-15, `../../../draft/archive/producer-reach.md`, 2 and 3). The
 change's producer is its producing task (`README.md`, 2, step 1), live
 from its making until it closes: waiting, active (running, parked, or
 kept by its own question) or held (jig's `domain/tasks/lifecycle.md`).
@@ -256,7 +256,7 @@ What follows holds under either question route.
 - **Words never answer.** Passing words settles and clears no
   question: a question asked of the requester stays asked, an answer
   held stays held, and a producer kept by its own open question stays
-  kept (jig's `domain/tasks/lifecycle.md`, 8), the words waiting in its
+  kept (jig's `domain/tasks/lifecycle-endings.md`, 1), the words waiting in its
   inbox until that question's answer lets it go on. An answer from the
   requester that the relay does not take, to no question asked of it
   or a second answer to one answered, receives the fallback feedback as
@@ -291,7 +291,7 @@ What follows holds under either question route.
   are not those the change would give a new producer now (`README.md`,
   2, step 1: its words, then its scope, with *Early starts*' lines
   after their first line), amends that producer in the
-  same step (jig's `domain/connectors.md`, 6.3): its spec as it stands
+  same step (jig's `domain/connectors-procedures.md`, 1.3): its spec as it stands
   with those words and the context as it stands after the amendment,
   naming its spec's revision as the core last told
   the change, and with the reason `Task C, your change, was amended to
@@ -332,7 +332,7 @@ What follows holds under either question route.
   its live repairs and resolutions too. A review, an approval or a
   check live then is not amended: a review's verdict counts only at the
   spec revision it was asked at (`gates.md`, 1, *Valid at a spec
-  revision*) (2026-11-17, `../../../draft/delegate-rulings.md`, 2).
+  revision*) (2026-11-17, `../../../draft/archive/delegate-rulings.md`, 2).
 - **An amendment never answers.** It settles and clears no question:
   the change's question stays asked of its requester, and the
   producer's stays open.
@@ -401,11 +401,11 @@ What follows holds under either question route.
   which give the pull request's title as supporting evidence
   (`gates.md`, 1). The context is fact the code carries, so it holds
   under a project's own charters too (2026-11-17,
-  `../../../draft/delegate-rulings.md`, 1).
+  `../../../draft/archive/delegate-rulings.md`, 1).
 
 ### Early starts
 
-The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
+The change procedure starts kept (jig's `domain/connectors-procedures.md`, 1.1): a
 change made with a pending dependency is active and kept rather than
 waiting, so its producer may work beside its dependencies while its
 merge waits for them (`README.md`, 2, step 7; `../queues.md`). Its producer starts
@@ -428,7 +428,7 @@ early, by these rules:
   checks passed, as that delegate's answer reports it (the worker's
   `Landed.checked`, heard by the forge as `Pushed.checked`). A
   producer's result is such a push, since a change contract's finish
-  checks and delivers (smith's `domain/run.md`, 8.5). An unchecked save
+  checks and delivers (smith's `domain/run-delivery.md`, 1.5). An unchecked save
   (`../../agent/README.md`, section 5) never sets it, and a push made
   after the last checked one leaves it where it was, so a branch whose
   tip is a save keeps the checked head below it. A head found only by
@@ -447,7 +447,7 @@ early, by these rules:
   from a sibling's save made before its question, and for an hour met
   that unfinished work's failures, asked about them and worked on a base
   that kept moving until the sibling landed
-  (`../../../draft/early-start-checked.md`). A checked push is work its
+  (`../../../draft/archive/early-start-checked.md`). A checked push is work its
   producer offered; a save is work in progress.
 - **Who pushed it.** Beside `last_checked` the change keeps the delegate
   task whose report set it, `last_checked_by`: every checked push a
@@ -456,7 +456,7 @@ early, by these rules:
   recorded, and nothing else sets or clears either. It is stored with
   the change, so it too holds across a park and a restart. A delegate's
   next assignment names `last_checked` as its own delivery
-  (`../../worker/README.md`, 4.1; `../../../protocol/channel.md`, 4)
+  (`../../worker/hosted-runs.md`, 1.1; `../../../protocol/channel.md`, 4)
   exactly when `last_checked_by` is that delegate's task and its item
   is writable, so a producer, a repair or a resolution that delivered,
   asked and parked delivers that head again when its next run finishes
@@ -464,13 +464,13 @@ early, by these rules:
   outlives its hold*). Any other task's assignment names none: a repair's
   first run starts on its producer's checked head, which is no delivery
   of its own, and a clean finish there is still nothing
-  (`../../../draft/delivered-across-runs.md`, 2).
+  (`../../../draft/archive/delivered-across-runs.md`, 2).
 - **From what.** Its producer's workspace starts from the landing
   branch's tip with those last checked heads merged into it, one by one
   in the order of the change's dependencies (`../../worker/checkouts.md`).
   The change keeps each head it started from, with its dependency
   (`StartedFrom`), and marks those dependencies started from (jig's
-  `domain/connectors.md`, 6.1). The checkout's selection names those
+  `domain/connectors-procedures.md`, 1.1). The checkout's selection names those
   recorded commits, never a branch's tip read afresh.
 - **It is told.** The early producer's words carry one line per
   dependency it started from, in the order of its record:
@@ -510,7 +510,7 @@ early, by these rules:
   rules ask no update (a goal's own branch, `../branches.md` and `gates.md`, section 2), whose
   workspace would start from the change's pushed branch or from saved
   work, starts instead from a merge in progress: that start, with the landing branch's tip as the
-  base merged into it (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A clean merge is
+  base merged into it (`../../worker/hosted-runs.md`, 1.1 and `../../worker/checkouts.md`). A clean merge is
   committed before its run starts, so the run finds a clean tree with the
   tip in its head. A conflict is left in its checkout for it to settle.
   Either way its first push delivers the merge. A tip that start already contains is no merge, so a resume with
@@ -520,14 +520,14 @@ early, by these rules:
   going on after an answer that added a dependency, or after an
   amendment naming a revision of the design that landed into the
   branch, works on the branch as it now stands, as one into main is
-  brought up to date by the forge's update (`../README.md`, section 6).
+  brought up to date by the forge's update (`../updates.md`, section 1).
 - **A running producer catches up.** A dependency started from may land
   while the early producer that started from it still runs. Its landing
-  squashes its work into one new commit (`../../landing.md`, 5.2) and
+  squashes its work into one new commit (`../../landing-prepare.md`, 1.2) and
   its branch is deleted as its task closes (`../branches.md`), so the
   head the producer's workspace merged is on no branch of the forge any
   more, and a delivery or a save whose second parent it is would be
-  refused for good (`../../../protocol/git.md`, 4.7). Instead the
+  refused for good (`../../../protocol/git-operations.md`, 1.7). Instead the
   producer's checkout asks whether that head's dependency has landed
   and, if it has, merges the landing branch's tip into its work and
   delivers from there (`../../worker/checkouts.md`, *A landed
@@ -543,7 +543,7 @@ early, by these rules:
   as before. The answer decides nothing and keeps nothing. Why: on
   2026-11-15 an early producer's dependency landed squashed while it
   ran, and from then on it could neither deliver nor save, its work held
-  only in its checkout (`../../../draft/early-start-squash.md`). Only
+  only in its checkout (`../../../draft/archive/early-start-squash.md`). Only
   the checkout holds that work, so the catch-up is the run's hold's own;
   only the engine knows whether the dependency landed, since a squashed
   landing and a cancelled change's deleted branch look alike on the
@@ -558,7 +558,7 @@ early, by these rules:
   refused, naming it (jig's `domain/tasks/changes.md`): its requester
   cancels the change and makes it again instead. One that fails or is
   cancelled holds the change, as any failed dependency does (jig's
-  `domain/tasks/lifecycle.md`, 6).
+  `domain/tasks/lifecycle-holds.md`, 1).
 
 ## 2. Waiting on a person's approval
 
@@ -580,7 +580,7 @@ rest of the branch lands while a sign-off waits a night
   roles and eligibility live with the people and the forge holds none: the
   core's ask names the watcher's party, and the root answers that party's
   rows. The party's own scope skips jig's project check (jig's
-  `client/domain/contract/README.md`, 5.5), so the root filters every row by the
+  `client/domain/contract/watches.md`, 1.5), so the root filters every row by the
   watcher's role itself. One subject serves the deployment, as `dismissed`
   does (`../attention.md`, 1). It stores nothing.
 - **The forge's part:** each live change, in a project that lands by queue or
@@ -588,7 +588,7 @@ rest of the branch lands while a sign-off waits a night
   facts (`gates.md`, 2) are at its last head, with an approval of an enforcing rule
   covering it, by its branch and the path sets it touches at that head
   (`gates.md`, 2, the kept `Touched`), still short and none refused, each judged as its
-  panel judges them (`README.md`, 5). Of each: its task, project and forge; its
+  panel judges them (`panel.md`, 1). Of each: its task, project and forge; its
   repository's owner and name; its pull request's number; its title; when its
   facts at that head were first kept; whether its reviews were read whole;
   and its short approvals, each its scope, rule, role, required count, the
@@ -609,7 +609,7 @@ rest of the branch lands while a sign-off waits a night
   - *too few:* fewer of the project's members count as people on the change's
     forge with the approval's role than it asks for (`eligible_people`, `gates.md`, 3),
     as when later membership changes, or a repository adopted from a forge
-    with no link (`../adoption.md`, 6), leave a rule that can't be met;
+    with no link (`../adoption-person.md`, 1), leave a rule that can't be met;
   - *no account:* the watcher doesn't count as a person on that forge
     (`forge_human`, `../adoption.md`);
   - *another role:* the approval's role isn't the watcher's, as for an owner
@@ -660,7 +660,7 @@ rest of the branch lands while a sign-off waits a night
 - **The client** merges the rows with jig's inbox and draws each as a card
   (`../../../client/pages/README.md` and `../../../client/forge/records.md`; `../../../client/forge/README.md`, 4.1).
 - **What a proposal says of such a rule:** the forge's read of a pending
-  proposal's items (`../../../protocol/configuration/settings.md`, 2, *Read from the
+  proposal's items (`../../../protocol/configuration/settings-kinds.md`, 1, *Read from the
   forge*) answers too whether one of its landing rules has an enforcing
   approval covering a writable repository on an owned Forgejo, a box's
   (`../../../protocol/setup/box.md`, 1), the root judging the coverage as it does for

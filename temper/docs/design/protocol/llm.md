@@ -8,8 +8,8 @@ calls are smith's, made by agent processes on the worker, over skein's
 LLM client or through a program. The LLM providers, their endpoints and
 models are jig's configuration on the engine and smith's on the worker
 (jig's `protocol/llm.md`, sections 4 to 6); LLM accounts are jig's, made
-from the client (credentials.md, section 3). What is open is listed in
-section 7.
+from the client (credentials-llm-accounts.md, section 1). What is open is listed in
+`llm.md`, section 7.
 
 ## 1. In one page
 
@@ -20,8 +20,8 @@ section 7.
 - **LLM providers, endpoints and models are configuration,** jig's `llm`
   member on the engine and smith's agent configuration on the worker, by
   the same names, checked at start (section 3). **Accounts are not:**
-  jig's, made from the client and kept by jig (credentials.md, section
-  3).
+  jig's, made from the client and kept by jig (credentials-llm-accounts.md, section
+  1).
 - **Two backends, one agent process.** smith's agent runs a task's loop
   itself over skein's LLM client, the direct backend, for a signed-in
   source, a key or none; or adapts a program that runs it, the program
@@ -57,7 +57,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   `temper-box internal agent AGENT.json` or a deployment's `temper-agent
   AGENT.json` (binaries.md, 3), spawned by the worker's protocol layer for
   each run
-  (configuration/README.md, section 4; jig's `protocol/service.md`, section 6).
+  (configuration/worker.md, section 2; jig's `protocol/service.md`, section 6).
   It reads smith's agent configuration, dials the endpoints it declares,
   and takes its run's grants from smith's host half (smith's
   `protocol/host.md`, section 2).
@@ -66,14 +66,14 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   sections 1 and 3).
 - **The program backend** runs the program as the agent process's
   child, with the source's configuration directory (smith's
-  `protocol/programs.md`, section 5): the host tools reach it through
+  `protocol/programs-claude-code.md`, section 1): the host tools reach it through
   the agent, as the only tools server it is given, so the engine decides
   each host tool's call as it does a direct run's; and each call of the
   program's built-in tools is asked of smith's policy before it runs, on
   the run's workspace.
 - **Limited, refused and unauthorized** come back from the agent as
   notices that reach jig's accounts child, fenced by attempt
-  (credentials.md, section 3; jig's `domain/accounts.md`, 3.5).
+  (credentials-llm-accounts.md, section 1; jig's `domain/accounts-sources.md`, 2).
 - **Agents in a host's own process** (`smith-inline-agent`), in the
   engine or on a worker, are not used (section 7).
 
@@ -89,21 +89,21 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   names, which its charters name; its grants name an account's source.
   It dials no LLM endpoint; its only exchanges for LLM accounts are its
   accounts driver's with an LLM provider's sign-in, token and
-  revocation endpoints (credentials.md, section 3).
+  revocation endpoints (credentials-llm-accounts.md, section 1).
 - **On the worker, smith's agent configuration** (smith's
-  `protocol/agent.md`, section 4; configuration/README.md, section 4): the
+  `protocol/agent.md`, section 4; configuration/worker.md, section 2): the
   endpoints the agents dial, the models they serve, and the programs
   they may run, each with its programs directory. The worker's routing
   decodes each charter against these endpoints (jig's
-  `protocol/channel/README.md`, 5.1).
+  `protocol/channel/owners.md`, 1.1).
 - **The same names on both.** `temper-box serve` refuses a start whose
   engine names an endpoint, a model or a program the agent's
-  configuration does not declare the same way (configuration/README.md, section
-  4), so no run's charter fails for a name.
+  configuration does not declare the same way (configuration/worker.md, section
+  2), so no run's charter fails for a name.
 - **Which LLM providers:** OpenAI, with keys and ChatGPT's sign-in, in
-  the owned example (setup/init.md, 1), Anthropic, with Claude Code's
+  the owned example (setup/init.md, 4), Anthropic, with Claude Code's
   program and keys in one provider, a run's source choosing its endpoint
-  (setup/init.md, 3; jig's `domain/accounts.md`, 3.4), and any other smith's dialects speak over skein's LLM
+  (setup/init.md, 6; jig's `domain/accounts-sources.md`, 1), and any other smith's dialects speak over skein's LLM
   client, such as a local model's server, whose source is *none*. Claude
   Code is the one program, through smith's program backend. temper
   keeps no provider's dialect, no program's adapter and no fake provider
@@ -139,11 +139,11 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 - **A task read refused as unknown says what to read instead.** jig
   refuses `read_task` as `unknown` for a task it has no row of, an offset
   outside the text, and a `result` no ended task kept, a running one's
-  among them (jig's `domain/engine/executors.md`, 3). The words say each, that a
+  among them (jig's `domain/engine/executors-tools.md`, 1). The words say each, that a
   task's result reaches its requester as a `result` message when it
   ends, and that its specification, `field` left out, shows a running
   task's state, holds and questions. The other refusals keep their words.
-- **Decoded in the routing** (jig's `protocol/channel/README.md`, 5.3), in the
+- **Decoded in the routing** (jig's `protocol/channel/owners.md`, 1.3), in the
   step that routes the call, keeping no state:
   1. the fleet fences the call, and the root hands it out as
      `HostRequest::Decode { to, task, attempt, call }`;
@@ -184,16 +184,16 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   codec encodes it (`smith_protocol_channel::encode_charter`) against the
   engine's endpoints. The charter carries the models jig's claim chose
   for the run, the task's LLM choice among those its charter allows,
-  with an account usable for each (jig's `domain/accounts.md`, 4.3); the
+  with an account usable for each (jig's `domain/accounts-uses.md`, 1.3); the
   run's grants carry one credential, or one program source's name, per
   LLM provider it uses (jig's `protocol/llm.md`, section 6). It crosses
   as smith's charter bytes in jig's assignment, and the worker's
   routing decodes it against the agent's configuration as the agent
-  starts (jig's `protocol/channel/README.md`, 5.1). A resumed run's charter
+  starts (jig's `protocol/channel/owners.md`, 1.1). A resumed run's charter
   resumes when its policy allows and the task has kept turns.
 - **Turns** cross and are kept as smith's bytes, encoded on the worker;
   the core reads only what jig's records carry beside them (jig's
-  `protocol/channel/README.md`, 5.1).
+  `protocol/channel/owners.md`, 1.1).
 - **A run's result.** The worker's routing encodes smith's result before
   the hub keeps the answer. Once the fleet has fenced an ended answer,
   the root hands its result out as `WorkerRequest::ReadResult { payload,
@@ -204,7 +204,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   resource comes from what the worker and the forge settled, never from
   the LLM's fields, and a change with none is invalid. A result that
   does not decode or translate fails its attempt as invalid (jig's
-  `protocol/channel/README.md`, 5.1).
+  `protocol/channel/owners.md`, 1.1).
 - **Charter policy is jig's.** `temper-engine-smith` supplies the rendered
   brief and host-tool declarations to `jig-protocol-charter::assignment`,
   sets the conventions and workspace delivery fact, then calls its
@@ -217,7 +217,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 
 ## 6. Testing
 
-Within the suites' budgets (`../testing/README.md`, section 2):
+Within the suites' budgets (`../testing/tiers.md`, section 1):
 
 - **Step tests of `temper-engine-smith`:** each tool's least input
   decoded and a wrong shape refused; each `Problem`; each answer rendered
@@ -232,7 +232,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   once, with no commit and no record.
 - **Through bytes:** smith's agent processes over skein's fake LLM,
   calling host tools through bytes, in the one-process world
-  (`../testing/README.md`, 2.5); the process and live tiers
+  (`../testing/tiers.md`, 1.5); the process and live tiers
   (`../testing/process-tier.md` and `../testing/live-tier.md`).
 - **The program backend,** in the real loop: a run on a program's source
   through smith's fake `claude`, calling host tools that the engine
@@ -241,7 +241,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   process each, parking between them and resuming by its session, since
   the real loop's charters park at once; two replies on one process are
   smith's agent-process world's to show (smith's
-  `protocol/programs.md`, 5.9 and 8); and a limit the fake program
+  `protocol/programs-claude-code.md`, 1.9, and `protocol/programs.md`, 8); and a limit the fake program
   reports making the source limited (`../testing/real-loop.md`).
 - **Notices:** a limited, refused and unauthorized notice from a run,
   each scripted on skein's fake LLM peer, reaching the accounts child
@@ -258,7 +258,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
 - **A run's live text** on a conversation's page: smith's channel
   carries it at the host's ask, but jig's assignment carries no ask and
   its workers' facts no content, so agent processes give no text until
-  jig's transport is built (jig's `protocol/channel/README.md`, 5.4) and
+  jig's transport is built (jig's `protocol/channel/owners.md`, 1.4) and
   temper's assignment then asks for it and its worker passes the pieces
   on. Default: a run is shown by its activity, and its words as each
   turn commits.

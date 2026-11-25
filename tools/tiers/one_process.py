@@ -35,6 +35,8 @@ save = CPU['save']
 session_processes = CPU['session_processes']
 signal_group = CPU['signal_group']
 stop = CPU['stop']
+SUITE_PROCESS_KINDS = CPU['SUITE_PROCESS_KINDS']
+CHECK_LINE = re.compile(rb'(' + CPU['CHECK_KIND'].pattern.encode() + rb') ([0-9]+)\n')
 LANES = None
 TERM_GRACE_S = 10.0
 WALL_GRACE_S = 15.0
@@ -320,22 +322,52 @@ def arguments(command, profile):
     selection_flags = {'-p', '--package', '--exclude', '--bin', '--test', '--example', '--bench',
                        '--features', '-F', '--target', '--target-dir', '--manifest-path', '--jobs',
                        '--run-ignored', '--cargo-profile'}
-    caller_filter = False
-    skip = False
-    for argument in selected:
-        if skip:
-            skip = False
-            continue
-        key = argument.partition('=')[0]
+    caller_filter = whole_workspace = False
+    packages, excluded = [], []
+    words = iter(selected)
+    for argument in words:
+        key, equal, value = argument.partition('=')
+        if argument.startswith('-p') and not argument.startswith('--') and len(argument) > 2:
+            key, equal, value = '-p', '=', argument[2:].removeprefix('=')
+        if key == '--':
+            caller_filter = caller_filter or any(words)
+            break
+        if key in ('--workspace', '--all'):
+            whole_workspace = True
         if key in selection_flags:
-            skip = '=' not in argument
+            value = value if equal else next(words, '')
+            if key in ('-p', '--package'):
+                packages.append(value)
+            elif key == '--exclude':
+                excluded.append(value)
+            elif key == '--run-ignored':
+                caller_filter = True
         elif key in ('-E', '--filterset', '--filter-expr'):
             caller_filter = True
-            skip = '=' not in argument
+            if not equal:
+                next(words, None)
         elif (argument.startswith('-E') and len(argument) > 2) or key in (
                 '--ignore-default-filter', '--partition', '--skip', '--exact') or not argument.startswith('-'):
             caller_filter = True
-    return prefix, cargo, selected, no_tests, caller_filter
+    return prefix, cargo, selected, no_tests, caller_filter, (whole_workspace, packages, excluded)
+
+
+def selected_packages(metadata, scope):
+    """Package scope before test filtering or target pruning (tools/tiers/design.md, 11.8)."""
+    whole_workspace, packages, excluded = scope
+    members = metadata.get('workspace_members', [package['id'] for package in metadata['packages']])
+    ids = set(members if whole_workspace or packages else metadata.get('workspace_default_members', members))
+
+    def matches(package, spec):
+        name = package['name']
+        version = package.get('version', '')
+        return (spec in (package['id'], f'{name}@{version}', f'{name}:{version}')
+                or fnmatch.fnmatchcase(name, spec))
+
+    return sorted(package['name'] for package in metadata['packages']
+                  if package['id'] in ids
+                  and (whole_workspace or not packages or any(matches(package, spec) for spec in packages))
+                  and not any(matches(package, spec) for spec in excluded))
 
 
 def json_listing(output):
@@ -478,7 +510,7 @@ def cargo_test_roots(cargo, selection, env):
     return roots
 
 
-def profile_target_groups(selection, metadata, filters, cargo, env):
+def profile_target_groups(selection, metadata, filters, cargo, env, table=None, selected_layers=None, layer_omissions=None):
     """Skip integration targets that neither delivery profile can select."""
     members = {package['name']: package for package in metadata['packages']}
     if selection == ['--workspace']:
@@ -489,6 +521,7 @@ def profile_target_groups(selection, metadata, filters, cargo, env):
     else:
         return [selection]
     broad, narrowed, omitted = [], [], {}
+    excluded = set()
     for name in names:
         package = members[name]
         keep, skip = [], {}
@@ -497,8 +530,12 @@ def profile_target_groups(selection, metadata, filters, cargo, env):
             if binary is None:
                 continue
             fields = dict(package=name, binary=target['name'], binary_id=binary, kind='test')
-            if target['kind'] == ['test'] and not any(matches(fields) for matches in filters):
-                skip[package['id'], 'test', ('test',), target['name']] = binary
+            _, layer = place(binary, package['manifest_path'], metadata['workspace_root'], table)
+            excluded_layer = selected_layers is not None and layer is not None and layer not in selected_layers
+            if excluded_layer:
+                excluded.add(binary)
+            if excluded_layer or (target['kind'] == ['test'] and not any(matches(fields) for matches in filters)):
+                skip[package['id'], 'test', tuple(target['kind']), target['name']] = binary
             else:
                 keep.extend(target_flags(binary))
         # Explicit Cargo selectors can require a feature that a broad build would skip.
@@ -525,17 +562,20 @@ def profile_target_groups(selection, metadata, filters, cargo, env):
     except (OSError, subprocess.CalledProcessError, KeyError, ValueError):
         print('profile targets: keeping full listing (Cargo build roots unavailable)', flush=True)
         return [selection]
+    if layer_omissions is not None:
+        layer_omissions.update(excluded.intersection(omitted.values()))
     print('profile targets: skip linking ' + ', '.join(sorted(omitted.values())), flush=True)
     return groups
 
 
-def profile_targets(selection, metadata, config, cargo, env):
+def profile_targets(selection, metadata, config, cargo, env, table=None, selected_layers=None, layer_omissions=None):
     """Plan a build or listing from the union of the focused and fuzzy filters."""
     try:
         profiles = tomllib.loads(Path(config).read_text()).get('profile', {})
         focused = profiles.get('default', {}).get('default-filter', 'all()')
         fuzzy = profiles.get('fuzzy', {}).get('default-filter', focused)
-        return profile_target_groups(selection, metadata, (filterset(focused), filterset(fuzzy)), cargo, env)
+        return profile_target_groups(selection, metadata, (filterset(focused), filterset(fuzzy)),
+                                     cargo, env, table, selected_layers, layer_omissions)
     except (OSError, KeyError, TypeError, ValueError) as error:
         print(f'profile targets: keeping full listing ({error})', flush=True)
         return [selection]
@@ -627,6 +667,10 @@ def split_jobs(plan, lanes):
     for binary in plan['binaries']:
         estimate = sum(test['estimate'] for test in binary['tests'])
         count = min(len(binary['tests']), lanes, math.ceil(estimate / share)) if share and estimate > share else 1
+        if len(binary['tests']) > 1 and all(test['kept_s'] is None for test in binary['tests']):
+            # No kept times for any of its tests, as in a workspace's first run: its cost is unknown,
+            # so it spreads over every lane rather than risk one long process (design.md, 11.4).
+            count = min(len(binary['tests']), lanes)
         # Contiguous partitions near equal cumulative estimates, leaving a test per part.
         remaining = list(binary['tests'])
         chunks = []
@@ -674,9 +718,33 @@ def emit(kind, **fields):
     print(EVENT + json.dumps(dict(event=kind, **fields), allow_nan=False), flush=True)
 
 
+def checks_path(directory, index):
+    return directory / f'checks-{index}.txt'
+
+
+def read_checks(path, index, binary):
+    """Read the process's checks once after it ends (tools/tiers/design.md, 11.8)."""
+    try:
+        data = path.read_bytes()
+    except FileNotFoundError:
+        return {}
+    counts = {}
+    for number, line in enumerate(data.splitlines(keepends=True), 1):
+        match = CHECK_LINE.fullmatch(line)
+        try:
+            count = int(match[2]) if match else 0
+        except ValueError:
+            count = 0
+        if count < 1:
+            raise ValueError(f'process {index} ({binary}): {path}, malformed check line {number}: {line!r}')
+        kind = match[1].decode('ascii')
+        counts[kind] = counts.get(kind, 0) + count
+    return counts
+
+
 class BinaryProcess:
     """One owned child, reaped only by wait4 (design.md, 11.4 and 11.6)."""
-    def __init__(self, job, index, selector, *, count=False):
+    def __init__(self, job, index, selector, directory, *, count=False):
         self.job, self.index = job, index
         self.output = bytearray()
         self.log = bytearray()
@@ -716,7 +784,8 @@ class BinaryProcess:
                  '--color', 'never',
                  *(['--logfile', str(logfile)] if job['kind'] != 'empty' else []),
                  *[t['name'] for t in job['tests']]],
-                cwd=binary['cwd'], env=binary['env'], stdin=subprocess.DEVNULL,
+                cwd=binary['cwd'], env=dict(binary['env'], TIERS_CHECKS_FILE=str(checks_path(directory, index))),
+                stdin=subprocess.DEVNULL,
                 stdout=output_write, stderr=subprocess.STDOUT, process_group=0,
                 preexec_fn=open_counter if count else None)
             if sockets is not None:
@@ -751,12 +820,13 @@ class BinaryProcess:
         self.open_fds.remove(fd)
         os.close(fd)
 
-    def read(self, fd, kind, selector):
+    def read(self, fd, kind, selector, *, fail_fast=False):
         data = os.read(fd, 65536)
         if not data:
             self.close(fd, selector)
             return
         now = time.monotonic()
+        failed = False
         if kind == 'output':
             self.output.extend(data)
             found = list(self.announcement.finditer(self.output))
@@ -774,7 +844,10 @@ class BinaryProcess:
                 result, _, name = line.partition(b' ')
                 if self.cancelled_at is None and result in (b'ok', b'failed', b'ignored'):
                     self.logs[name.decode('utf-8', 'backslashreplace')] = (result, now)
+                    if fail_fast and result == b'failed':
+                        failed = True
         self.completed()
+        return failed
 
     def close_log_writer(self):
         if self.log_writer is not None:
@@ -888,12 +961,20 @@ class BinaryProcess:
         return fresh
 
 
-def lanes(plan):
+def lanes(plan, directory):
     count = plan['lanes'] or default_lanes()
     jobs = split_jobs(plan, count)
     active, processes = [], plan.get('process_offset', 0)
     cancelled, first, kill_at = None, plan.get('first_start'), None
+    fail_fast = plan.get('fail_fast', False) and 'reference_picks' not in plan
+    stopped = False
     terminated = False
+
+    def stop_after_failure():
+        nonlocal fail_fast, stopped
+        fail_fast, stopped = False, True
+        jobs.clear()
+        emit('fail-fast')
 
     def terminate(sig, frame):
         nonlocal terminated
@@ -934,25 +1015,31 @@ def lanes(plan):
                     if candidate is None:
                         break
                     job = jobs.pop(candidate)
-                    child = BinaryProcess(job, processes, selector,
+                    child = BinaryProcess(job, processes, selector, directory,
                                           count=bool(decision and decision['counted']
-                                                     and job['kind'] in ('tests', 'fresh', 'alone')))
+                                                     and job['kind'] in SUITE_PROCESS_KINDS))
                     processes += 1
                     first = child.start if first is None else first
                     active.append(child)
                 for key, _ in selector.select(0.01):
                     child, kind = key.data
-                    child.read(key.fd, kind, selector)
+                    if child.read(key.fd, kind, selector, fail_fast=fail_fast and not cancelled):
+                        stop_after_failure()
                 for child in list(active):
                     child.reap()
                     if child.reaped_at is None:
                         continue
+                    if fail_fast and not cancelled and child.status != 0:
+                        stop_after_failure()
                     expired = time.monotonic() - child.reaped_at >= plan['leak_s']
                     if child.open_fds and not expired:
                         continue
                     fresh = child.settle(selector, bool(child.open_fds))
                     active.remove(child)
-                    if cancelled or child.job['kind'] in ('reference', 'empty'):
+                    if fail_fast and not cancelled and any(
+                            t['outcome'] in ('failed', 'crashed') for t in child.done.values()):
+                        stop_after_failure()
+                    if cancelled or stopped or child.job['kind'] in ('reference', 'empty'):
                         continue
                     if child.job['kind'] == 'alone':
                         failed = any(t['outcome'] != 'passed' for t in child.done.values())
@@ -1033,22 +1120,41 @@ def merge_listings(listings):
     return listing
 
 
-def listed_plan(command, env, profile, limits, config, walls, layers, picks=None, *,
-                metadata=None, selections=None):
-    """Build and plan a listing; base picks use any filter match (references.md, 5)."""
-    prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
-    settings, overrides, default_filter, groups = configuration(
-        config, profile, env, limits, caller_filter or picks is not None)
-    if walls is not None:
-        settings['global-timeout'] = profile_wall(walls, profile)
+def layer_selection(path, profile, selected_layers):
+    """Resolve the run's layers before any command (tools/tiers/layers.md, 9.1)."""
     try:
-        with Path(layers).open('rb') as source:
+        with Path(path).open('rb') as source:
             table = tomllib.load(source)
     except FileNotFoundError:
         table = None
     if table is not None and (not isinstance(table.get('layers'), list)
                               or any(not isinstance(layer, str) for layer in table['layers'])):
         raise ValueError('layers: expected a list of strings')
+    names = [*table['layers'], 'checks'] if table is not None else []
+    if selected_layers is not None:
+        if not selected_layers or any(name not in [*names, 'all'] for name in selected_layers):
+            raise ValueError('layers: expected all or names from the layers list and checks')
+        if table is None and tuple(selected_layers) != ('all',):
+            raise ValueError('layers: without the layers file only all is supported')
+    if table is None:
+        return None, None
+    if selected_layers is None:
+        selected_layers = names if profile not in ('default', 'fuzzy') else [
+            name for name in names if name not in ('real-loop', 'end-to-end')]
+    elif 'all' in selected_layers:
+        selected_layers = names
+    return table, [name for name in names if name in selected_layers]
+
+
+def listed_plan(command, env, profile, limits, config, walls, layers, picks=None, *,
+                metadata=None, selections=None, selected_layers=('all',)):
+    """Build and plan a listing; base picks use any filter match (references.md, 5)."""
+    prefix, cargo, selection, no_tests, caller_filter, scope = arguments(command, profile)
+    settings, overrides, default_filter, groups = configuration(
+        config, profile, env, limits, caller_filter or picks is not None)
+    if walls is not None:
+        settings['global-timeout'] = profile_wall(walls, profile)
+    table, selected_layers = layer_selection(layers, profile, selected_layers)
     output = bytearray()
 
     def forward(text):
@@ -1056,14 +1162,20 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         output.extend(text.encode('utf-8', 'backslashreplace'))
 
     env = env.copy()
+    layer_omissions = set()
     pre_pr_targets = env.pop('TIERS_PRE_PR_TARGETS', '') == '1'
     profile_build = env.pop('TIERS_PROFILE_TARGETS', '') == '1'
     if ((pre_pr_targets or profile_build) and profile in ('default', 'fuzzy')
             and picks is None and not caller_filter and selections is None):
         metadata = read_metadata(cargo, env)
-        selections = profile_targets(selection, metadata, config, [*prefix, cargo], env)
+        selections = profile_targets(selection, metadata, config, [*prefix, cargo], env,
+                                     table, selected_layers, layer_omissions)
 
-    # Listing and build belong to the caller's prefix; metadata builds nothing.
+    # Listing and build belong to the caller's prefix; metadata builds nothing, so it runs beside the listing.
+    metadata_process = None
+    if metadata is None:
+        metadata_process = subprocess.Popen([cargo, 'metadata', '--format-version', '1', '--no-deps'], env=env,
+                                            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True)
     listings = []
     for selected in [selection] if selections is None else selections:
         listed = subprocess.Popen([*prefix, cargo, 'nextest', 'list', '--message-format', 'json',
@@ -1080,10 +1192,16 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
         except BaseException:
             signal_group(listed, signal.SIGTERM)
             stop(listed, time.monotonic() + WALL_GRACE_S)
+            if metadata_process is not None:
+                metadata_process.kill()
+                metadata_process.wait()
             raise
         listings.append(json_listing(listing_output.decode('utf-8', 'backslashreplace')))
-    if metadata is None:
-        metadata = read_metadata(cargo, env)
+    if metadata_process is not None:
+        text, _ = metadata_process.communicate()
+        if metadata_process.returncode:
+            raise subprocess.CalledProcessError(metadata_process.returncode, metadata_process.args)
+        metadata = json.loads(text)
     listing = merge_listings(listings) if listings else {
         'rust-build-meta': {'target-directory': metadata['target_directory']}, 'rust-suites': {}}
     if picks is not None:
@@ -1095,6 +1213,17 @@ def listed_plan(command, env, profile, limits, config, walls, layers, picks=None
             for binary, suite in listing['rust-suites'].items() if suite.get('status') == 'listed'}
     plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter,
                      caller_filter or picks is not None, groups, settings, table)
+    kept = []
+    for binary in plan['binaries']:
+        if selected_layers is not None and binary['layer'] is not None and binary['layer'] not in selected_layers:
+            layer_omissions.add(binary['binary_id'])
+        else:
+            kept.append(binary)
+    if layer_omissions:
+        left_out = [name for name in [*table['layers'], 'checks'] if name not in selected_layers]
+        forward(f"layers: leaving out {', '.join(left_out)}: {len(layer_omissions)} binaries\n")
+    plan.update(binaries=kept, selected_layers=selected_layers, selected_packages=selected_packages(metadata, scope),
+                test_filtered=caller_filter or picks is not None)
     return plan, prefix, no_tests, output, metadata['workspace_root']
 
 
@@ -1109,7 +1238,7 @@ def checkout_commit(root, env):
 
 
 def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None,
-        layers=Path('tools/tiers/layers.toml'), ledger=None):
+        layers=Path('tools/tiers/layers.toml'), ledger=None, selected_layers=None, *, fail_fast=False):
     """Run one suite into a fresh directory; return no verdict (design.md, 11)."""
     directory = Path(directory).resolve()
     if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
@@ -1118,7 +1247,8 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     directory.chmod(0o700)
     env = env.copy()
     repair = env.pop('TIERS_PRE_PR_REPAIR_CASE', None)
-    plan, prefix, no_tests, output, root = listed_plan(command, env, profile, limits, config, walls, layers)
+    plan, prefix, no_tests, output, root = listed_plan(
+        command, env, profile, limits, config, walls, layers, selected_layers=selected_layers)
     if repair is not None:
         binary, name = json.loads(repair)
         if not any(b['binary_id'] == binary and any(t['name'] == name for t in b['tests'])
@@ -1127,6 +1257,8 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
             raise ValueError('repair case absent from focused listing')
         plan['repair_case'] = [binary, name]
     plan['count'] = True
+    if fail_fast:
+        plan['fail_fast'] = True
     execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output, ledger=ledger,
                  commit=checkout_commit(root, env))
 
@@ -1149,7 +1281,7 @@ def alone_at_base(head_directory, command, env, directory, config=Path('.config/
                 wall_grace_s=WALL_GRACE_S, leak_s=LEAK_S)
     present = set()
     if picks:
-        prefix, cargo, selection, _, _ = arguments(command, profile)
+        prefix, cargo, selection, _, _, _ = arguments(command, profile)
         metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
                                                     env=env, stdin=subprocess.DEVNULL, text=True))
         wanted = {binary for binary, _, _ in picks}
@@ -1232,6 +1364,7 @@ def reference_plan(plan, picks, first_start=None):
 def again_plan(run_directory, binary_id, names):
     """Select one finished run's process without listing or building (design.md, 11.9)."""
     plan = json.loads((Path(run_directory) / 'plan.json').read_text())
+    plan.pop('fail_fast', None)
     binary = next((b for b in plan['binaries'] if b['binary_id'] == binary_id), None)
     if binary is None:
         raise ValueError(f'no binary in plan: {binary_id}')
@@ -1244,7 +1377,8 @@ def again_plan(run_directory, binary_id, names):
         if name not in selected:
             raise ValueError(f'test not selected in plan: {binary_id} {name}')
     return dict(plan, binaries=[dict(binary, tests=[selected[name] for name in sorted(names)])],
-                lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[], count=False)
+                lanes=1, single_process=True, alone_diagnostics=False, layers=[], workspace=[],
+                selected_layers=None, test_filtered=True, count=False)
 
 
 def again(plan, prefix, env, directory):
@@ -1281,7 +1415,10 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
     save(directory / 'plan.json', plan)
     selected = 0 if 'reference_picks' in plan else sum(len(binary['tests']) for binary in plan['binaries'])
     results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None, counting=None, commit=commit,
-                   processes=[], tests=[], unobserved=[], references=[], layers=plan['layers'], workspace=plan['workspace'])
+                   processes=[], tests=[], unobserved=[], references=[], layers=plan['layers'], workspace=plan['workspace'],
+                   selected_layers=plan.get('selected_layers'), test_filtered=plan.get('test_filtered', False))
+    if 'selected_packages' in plan:
+        results['selected_packages'] = plan['selected_packages']
     tests, reference_tests = {}, {}
     picks = plan.get('reference_picks', [])
     reasons = {(binary, name): why for binary, name, why in picks}
@@ -1350,8 +1487,9 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
             while len(results['processes']) <= index:
                 results['processes'].append(None)
             record = item['item']
-            results['processes'][index] = record
             binary = record['binary_id']
+            record['checks'] = read_checks(checks_path(directory, index), index, binary)
+            results['processes'][index] = record
             if record['kind'] == 'reference':
                 name = record['reference_name']
                 reference_indices[round_index, binary, name] = index
@@ -1384,6 +1522,8 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
             cancelled_at = item['at_s']
             results['cancelled'] = item['reason']
             forward(f"tiers: starved: {profile}: {item['reason']}\n")
+        elif kind == 'fail-fast':
+            results['fail_fast'] = True
 
     if selected == 0 and no_tests == 'warn':
         forward('warning: no tests to run\n')
@@ -1443,7 +1583,7 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
 
     if selected or plan.get('reference_picks'):
         run_lanes(directory / 'plan.json')
-    if ledger is not None and results['cancelled'] is None and 'reference_picks' not in plan:
+    if ledger is not None and results['cancelled'] is None and not results.get('fail_fast') and 'reference_picks' not in plan:
         picks = pick_references(tests.values(), ledger)
         reasons = {(binary, name): why for binary, name, why in picks}
         if picks:
@@ -1525,4 +1665,5 @@ if __name__ == '__main__':
     os.umask(0o077)
     if len(sys.argv) != 3 or sys.argv[1] != 'lanes':
         sys.exit('usage: one_process.py lanes PLAN')
-    lanes(json.loads(Path(sys.argv[2]).read_text()))
+    path = Path(sys.argv[2]).resolve()
+    lanes(json.loads(path.read_text()), path.parent)

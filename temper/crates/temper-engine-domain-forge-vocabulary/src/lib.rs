@@ -5,6 +5,15 @@
 #![expect(clippy::must_use_candidate, reason = "the vocabulary exposes the forge top's existing value operations")]
 #![expect(clippy::disallowed_macros, reason = "kind 11 requires Default: both flags false with none")]
 extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod client_wire;
+}
 use alloc::boxed::Box;
 
 /// A landing repair found only flakes (domain/forge/change/repairs.md).
@@ -88,11 +97,11 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 pub use findings::{
-    AreaRow, BlameStrength, BlamedGoal, BlamedLanding, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding,
-    FindingAnswer, FindingBlame, FindingCleared, FindingClearing, FindingDone, FindingKind, FindingRefusal,
-    FindingReply, FindingRow, FindingSignature, FindingState, FindingWrite, Findings, FindingsFilter, HandFinding,
-    HandFindingAnswer, Holder, Severity, Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject,
-    owner,
+    AreaRow, BlameAct, BlameMove, BlameStrength, BlamedGoal, BlamedLanding, CheckFlake, FileFinding, FileFindingAnswer,
+    Filer, Finding, FindingAnswer, FindingBlame, FindingCleared, FindingClearing, FindingDone, FindingKind,
+    FindingRefusal, FindingRepair, FindingReply, FindingRow, FindingSignature, FindingState, FindingWrite, Findings,
+    FindingsFilter, HandFinding, HandFindingAnswer, Holder, RepairAct, RepairJudging, Severity, Triage, TriageFinding,
+    TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
@@ -187,7 +196,7 @@ pub enum Recovery {
 
 /// Effect form and recovery class declared by the forge connector.
 ///
-/// The kinds follow domain/forge/README.md, section 4, one kind per row:
+/// The kinds follow domain/forge/effects.md, section 1, one kind per row:
 /// 3 opens pulls, 10 edits their title/body, 11 updates from the base,
 /// 4 merges, 12 closes/reopens, 5 posts reviews, 7 posts comments,
 /// 6 sets statuses, 8 creates issues, 13 edits/closes/reopens issues,
@@ -671,6 +680,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             if let Some(blame) = &row.blame {
                 bytes = bytes.checked_add(findings::blame_bytes(blame)?)?;
             }
+            if let Some(repair) = &row.repair {
+                bytes = bytes.checked_add(findings::repair_bytes(repair)?)?;
+            }
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
                 bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;
             }
@@ -858,6 +870,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             };
             let mut total = closed
                 .checked_add(skein_lib::len_u64(row.close_changes.len()))?
+                .checked_add(skein_lib::len_u64(row.superseded.len()))?
                 .checked_add(skein_lib::len_u64(row.landing_changes.len()))?
                 .checked_mul(8)?
                 .checked_add(skein_lib::len_u64(row.closer.selections.len()).checked_mul(
@@ -876,7 +889,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 };
                 total = total.checked_add(held)?;
             }
-            total.checked_add(row.relay.held_bytes()?)
+            let goal_left = match &row.closer.goal_left {
+                Some(line) => bytes(line),
+                None => 0,
+            };
+            total.checked_add(row.relay.held_bytes()?)?.checked_add(goal_left)
         }
         Stored::Change(row) => skein_lib::len_u64(row.signed.len())
             .checked_add(match &row.source {

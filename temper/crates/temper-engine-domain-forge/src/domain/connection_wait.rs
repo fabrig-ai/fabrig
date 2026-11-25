@@ -1,5 +1,5 @@
 //! A change waits for access without holding, polling or spending its stall
-//! (temper/docs/design/domain/forge/adoption.md, 1). Wait starts are volatile;
+//! (temper/docs/design/domain/forge/adoption-connection.md, 1). Wait starts are volatile;
 //! the connector's change limit bounds one per change.
 use super::{Domain, Env, Limits, Request, branch_due, change, emit, save_change};
 use crate::Connection;
@@ -44,7 +44,7 @@ pub(super) fn waiting(d: &Domain, task: u64, forge: u16) -> bool {
     disconnected(&d.connection(forge))
 }
 
-pub(super) fn disconnected(connection: &Connection) -> bool {
+pub(crate) fn disconnected(connection: &Connection) -> bool {
     match connection {
         Connection::Connected { .. } | Connection::Connecting => false,
         Connection::NotConnected

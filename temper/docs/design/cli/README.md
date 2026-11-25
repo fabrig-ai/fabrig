@@ -2,7 +2,7 @@
 
 How temper's binaries meet their command lines, on the repository's
 convention (`skein/docs/foundation/cli.md`) and skein's table
-(`skein/docs/design/runtime/shell.md`, 14): each binary's package and
+(`skein/docs/design/runtime/shell-table.md`, 1): each binary's package and
 crate, its table, how its arguments reach a command, its help, its
 exits, the environment it reads and passes down, and the reference
 documents generated from its table. The sets are the draft's
@@ -22,7 +22,7 @@ the client's.
   the process's arguments and environment once (3). Every other reader
   takes what the capture holds.
 - **`Table::reach`** answers what the arguments reach
-  (`skein/docs/design/runtime/shell.md`, 14.4): the page, the version,
+  (`skein/docs/design/runtime/shell-table.md`, 1.4): the page, the version,
   a command's page, a command, or no command (3).
 - **Exits:** 0 done, 1 failed, 2 refused its arguments (4).
 - **Help:** `-h`, `--help` and `help` print the table's page;
@@ -114,7 +114,7 @@ Each binary's crate has `pub fn main(version: &'static str, commit:
    under one `#[expect(clippy::disallowed_methods, reason = "the binary's
    capture: ...")]` (`skein/docs/foundation/cli.md`, 9, check 4).
 2. **The reach,** `TABLE.reach(run_as, &arguments)`
-   (`skein/docs/design/runtime/shell.md`, 14.4):
+   (`skein/docs/design/runtime/shell-table.md`, 1.4):
    - `Help`: `TABLE.help()` on stdout, exit 0;
    - `Version`: the version line of the table with `main`'s identity,
      `Table { version, commit, ..TABLE }.version_line()`, on stdout,
@@ -175,7 +175,7 @@ after it, for `--version`.
 ## 5. Help
 
 - **`-h`, `--help` and `help`,** alone, print `TABLE.help()`
-  (`skein/docs/design/runtime/shell.md`, 14.2).
+  (`skein/docs/design/runtime/shell-table.md`, 1.2).
 - **`COMMAND -h` or `COMMAND --help`** print `TABLE.command_help`; an
   internal command's page says it's internal.
 - **`help` with words** (`../protocol/documentation.md`, 4):
@@ -236,12 +236,12 @@ command; temper-box help pages lists the pages.`
 
 - **The bare form is the box without a TUI,** what `temper box --no-tui`
   was: in a terminal or not, it prints its sign-in block and its lines
-  as `../protocol/setup/box.md`, 2 says. Its internal switches
+  as `../protocol/setup/box-supervision.md`, 1 says. Its internal switches
   `--fake-backends` and `--front` and its internal setting `--bundle
   BUNDLE` give its other forms. `--front` is `temper box`'s alone: the
   box run as the child of `temper`'s TUI, its link and its lines on the
   descriptors `temper` hands it, and nothing on its terminal
-  (`../protocol/setup/box.md`, 6). `--echo` is a flag of every form,
+  (`../protocol/setup/box-front.md`, 1). `--echo` is a flag of every form,
   the fake backends' among them. `--no-tui` and `internal tui` are gone:
   the TUI is `temper`'s alone (`../draft/cli.md`, section 5).
 - **No `box` words and no TUI:** `temper box` is the client's (7.4),
@@ -415,7 +415,7 @@ command; temper help pages lists the pages.`
 
 | Reached by | Set | Forms and what |
 |---|---|---|
-| the bare form | public | `[ADDRESS]`: the TUI on the engine at ADDRESS, else at the address its link file or its kept address names (`../client/tui/README.md`, 2) |
+| the bare form | public | `[ADDRESS]`: the TUI on the engine at ADDRESS, else at the address its link file or its kept address names (`../client/tui/directory.md`, 1) |
 | `box` | public | `[ARGUMENT...]`: in a terminal, the TUI in front of a `temper-box --front` child given ARGUMENT...; else `temper-box ARGUMENT...` in its place (`../client/tui/box.md`; `../client/box-binary.md`, 5) |
 | `help` | public | `temper_shell::table::HELP` (5) |
 | `ctl` | internal | `temper_shell::table::CTL`, the row the box's table holds too: the line client's tools |
@@ -477,7 +477,7 @@ pub const SITE: skein_shell::Variable;
   variable's `Variable` constant lives in the crate that reads it; one
   that several of temper's crates read, the host's among them, lives in
   `temper-shell`'s `environment` module; `HOME` and the XDG base
-  directories are skein's (`skein/docs/design/runtime/shell.md`, 14.1).
+  directories are skein's (`skein/docs/design/runtime/shell-table.md`, 1.1).
 - **smith's names stay smith's:** `SMITH_MCP_SECRET`, which smith's relay
   reads, is declared in no temper table until smith's round.
 - **Renamed** (`../draft/cli.md`, 4.6), each with every reader and
@@ -521,8 +521,8 @@ pub const SITE: skein_shell::Variable;
 
 ## 9. The generated documents
 
-Beside this page, rendered by skein (`skein/docs/design/runtime/shell.md`,
-14.3):
+Beside this page, rendered by skein (`skein/docs/design/runtime/shell-table.md`,
+1.3):
 
 - each binary's arguments document, `<binary>-args.md` for each of the
   five binaries, each checked byte for byte against its table in its
@@ -547,26 +547,47 @@ The help page `commands` (`../protocol/documentation.md`, 8) is
 
 ## 10. Tests
 
-- **Each binary's step tests,** one test binary in its package
-  (`tests/suite/`), run the built binary over a table of cases, with a
-  cleared environment and the three directories given: `-h`, `--help`
-  and `help` print one page, listing exactly the table's public entries;
-  an internal command's `--help`, where it has one, says it's internal;
-  `--version` prints its name, the workspace's version and a commit of
-  twelve hexadecimal digits, `-dirty` or `unknown`; an unknown command
-  is refused, exit 2; another binary's document is refused, exit 1, as
-  today, by each binary that reads one. A row that checks the version
-  line whole reads `temper-version`'s `VERSION` and `COMMIT`, a
-  dependency of its package, where the identity enters; no crate's unit
-  test names `temper-version`, and a crate's own tests of a `configure`
-  that answers `--version` give it an identity of their own, such as
-  `("0.0.0", "0123456789ab")`.
+- **Each binary's table, in its crate's unit tests,** without a
+  process: its `reach` and what `main` prints for each answer (3), on
+  the arguments alone: `-h`, `--help` and `help` print one page, listing
+  exactly the table's public entries; each command's `--help`, an
+  internal one's saying it's internal; `help`'s words; the version line
+  from an identity of the test's own, such as `("0.0.0",
+  "0123456789ab")`; an unknown command refused, with `Unknown`'s line;
+  each command's arguments refused, with `refused`'s lines (4); and the
+  refusals `main` makes before a command runs (no command, the client's
+  address, another binary's document, a document's shape) in their
+  words, on the values the capture and the document's read give.
 - **Dispatch and parsing** stay unit tests of the crate, on its
   `configure` without a process.
-- **The agent's suite** keeps a row per mode as well
-  (`../protocol/binaries.md`, 3): the relay's and the program child's
-  usage and refusals, a run and a list on a missing document and on a
-  loopback plaintext one, and the launcher by a link named `claude`.
+- **One launch per path, one test binary in its package**
+  (`tests/suite/`): the built binary with a cleared environment and the
+  three directories given, checking its exit, stdout and stderr, for
+  `--help`; for `--version`, its line read whole against
+  `temper-version`'s `VERSION` and `COMMIT`, a dependency of its
+  package, where the identity enters (no crate's unit test names
+  `temper-version`); for one refused invocation, exit 2; and for each
+  command's dispatch where `main` hands it on:
+  - `temper`: an address with no terminal refused, exit 1, the TUI's
+    start; its sibling's `box` run is `temper::process`'s;
+  - `temper-engine`: `versions`; `serve` and `forge fetch` on a
+    worker's document refused, exit 1; `checkpoint`'s refused
+    arguments; and `upgrade --check` on a prepared copy that passes,
+    leaving the active generation as it was. The check's refusals (a
+    deployment holding no generation, a record a start refuses,
+    settings out of their numbers, the limits held) are the engine
+    shell's unit tests and the one-process world's upgrade tests;
+  - `temper-worker`: `serve` on its own document, past the shapes'
+    check, and `program-login` on an engine's document refused;
+  - `temper-agent` (`../protocol/binaries.md`, 3): the relay's usage;
+    the program child's status of a script that isn't signed in, its
+    raw arguments and exit; a run and a list on a loopback plaintext
+    document; and the launcher by a link named `claude`, its arguments'
+    bytes unchanged. The modes' other refusals, a missing document's
+    words and the status a script's exit and output give are unit tests,
+    the crate's and smith's.
+
+  Every other row is the unit tests'.
 - **A story in a slower tier** that a rename touches is changed and
   compiled, not run (`AGENTS.md`, 5).
 
@@ -587,7 +608,7 @@ through it (6 and 8).
   it. A test crate takes it as a dev-dependency; a test-support crate
   that reads the set, as `temper-fixtures` does, as a dependency.
 - **The table:** `temper_test_env::TESTS`, a `skein_shell::TestTable`
-  (`skein/docs/design/runtime/shell.md`, 14.1) whose tree is `temper`,
+  (`skein/docs/design/runtime/shell-table.md`, 1.1) whose tree is `temper`,
   holding every variable of 11.3 in the order of their names. Each is a
   `pub const` `Variable` of its own, named for it without
   `TEMPER_TEST_`: `TEMPER_TEST_LIVE_STORE` is
@@ -599,9 +620,9 @@ through it (6 and 8).
   temper's tools, or by a script. One that nothing reads leaves the
   table, as `TEMPER_TEST_CLAUDE` does (11.3).
 - **Its document:** `test-env`, beside this page, is
-  `TESTS.document()` (`skein/docs/design/runtime/shell.md`, 14.3),
+  `TESTS.document()` (`skein/docs/design/runtime/shell-table.md`, 1.3),
   checked byte for byte in `temper-test-env`'s tests and rewritten when
-  11.2's `rewrite()` is on, as section 9's documents are. Check 5
+  11.2's `rewrite()` is on, as `README.md`, section 9's documents are. Check 5
   (`skein/docs/foundation/cli.md`, 9) reads it with the others.
 
 ### 11.2 Reading it

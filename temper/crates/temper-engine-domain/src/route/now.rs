@@ -17,6 +17,13 @@ use skein_lib::Queue;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the core's immediate vocabulary")]
 pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, now: core::Now) {
     match now {
+        core::Now::PartBusy { key } => {
+            domain.work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::PartBusy {
+                run: skein_lib::Token::new(key.task),
+                attempt: skein_lib::Token::new(key.attempt),
+                part: key.number,
+            })));
+        }
         core::Now::Ask { channel, run, attempt, number, bytes } => {
             let request = Request::Worker(crate::WorkerRequest::Host(Box::new(HostRequest::Ask {
                 channel,
@@ -95,7 +102,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             escalation::historical_begin(domain, env, decision, request, person, project, task, revision);
         }
         core::Now::BriefCorePlanned { task, parent, sections, documents } => {
-            if waiting_for_design(domain, task) {
+            if waiting_for_goal_workspace(domain, task, true) {
                 domain
                     .run_workspaces
                     .insert(task, WorkspacePreparation::Brief { parent, sections, documents })
@@ -140,6 +147,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             messages,
             saved,
             transcript,
+            parts,
             answered,
             grants,
         } => {
@@ -153,6 +161,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 messages,
                 saved,
                 transcript,
+                parts,
                 answered,
                 grants,
             };
@@ -213,6 +222,13 @@ fn link_now(domain: &mut Domain, value: core::LinkNow) {
                 domain.release_bytes(crate::budget::payload_bytes(&payload), "dropped turn payload was held");
             }
         }
+        core::LinkNow::PartPayload { run, attempt, part, body } => {
+            if let Some(payload) = domain.hub_link.payload(body) {
+                let bytes = crate::budget::payload_bytes(payload);
+                domain.release_bytes(bytes, "part payload moved into the core");
+            }
+            crate::link::route(domain, jig_domain_hub_link::Event::PartPayload { run, attempt, part, body });
+        }
         core::LinkNow::TurnPayload { run, attempt, turn, body } => {
             crate::link::route(domain, jig_domain_hub_link::Event::TurnPayload { run, attempt, turn, body });
         }
@@ -255,7 +271,7 @@ fn start_preparation(domain: &mut Domain, env: &Env<Limits>, decision: &mut Deci
     emit(decision, &env.limits, Delivery::Load { waiter, range, after: None });
 }
 
-/// Ended tasks wait for room; the core's other ended reads keep busy (root.md, 7).
+/// Ended tasks wait for room; the core's other ended reads keep busy (domain/root.md, 7).
 pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: EndedRead) {
     if let EndedRead::EndedTask { task, .. } = &read {
         let task = *task;
@@ -295,6 +311,7 @@ pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
                 | Read::GoalWords(_)
                 | Read::InputCheck(_)
                 | Read::Parts(_)
+                | Read::CloserReport(_)
                 | Read::Document(_)
                 | Read::Remember(_)
                 | Read::SettingsNote { .. }
@@ -308,7 +325,7 @@ pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
 }
 
 fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, context: Box<tasks::RunContext>) {
-    if waiting_for_design(domain, task) {
+    if waiting_for_goal_workspace(domain, task, false) {
         domain
             .run_workspaces
             .insert(task, WorkspacePreparation::Workspace { attempt, context })
@@ -317,12 +334,19 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     }
     let mut credentials = List::with_capacity(env.limits.forge.resources_per_task);
     let workspace = forge_route::run_workspace(domain, env, &context, attempt);
+    if workspace.is_none() && workspace_facts_waiting(domain, &context) {
+        domain
+            .run_workspaces
+            .insert(task, WorkspacePreparation::Workspace { attempt, context })
+            .expect("one workspace request per live task");
+        return;
+    }
     let writes = match workspace {
         Some(workspace) => {
             match forge_route::claim_names(domain, &env.limits, task, &workspace.names, &workspace.designs) {
                 Some(claim_names) => {
                     // Each repository's git identity is an application credential
-                    // the run is granted (domain/root.md, 6.1; jig's domain/engine/README.md, 6.1).
+                    // the run is granted (domain/root-translation.md, 2.1; jig's domain/engine/README.md, 6.1).
                     for repository in &workspace.workspace.repositories {
                         if !credentials.as_slice().contains(&repository.identity) {
                             credentials.push(repository.identity).expect("one identity per repository");
@@ -379,25 +403,38 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     }));
 }
 
-fn waiting_for_design(domain: &Domain, task: u64) -> bool {
+fn workspace_facts_waiting(domain: &Domain, context: &tasks::RunContext) -> bool {
+    if domain.forge.workspace_reads_waiting() {
+        return true;
+    }
+    match context.requester {
+        tasks::Party::Task(parent) => domain.forge.producer_workspace_waiting(context.task, parent),
+        tasks::Party::Person(_) | tasks::Party::Deployment { .. } => false,
+    }
+}
+
+fn waiting_for_goal_workspace(domain: &Domain, task: u64, design_only: bool) -> bool {
     let Some(context) = domain.core.tasks.run_context(task) else { return false };
     let charter = match context.executor {
         tasks::Executor::Agent { charter } => charter,
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return false,
     };
     let Some(charter) = domain.core.charter(charter) else { return false };
-    charter.policy.modify && !crate::no_workspace(&charter.policy) && domain.forge.design_workspace_waiting(task)
+    (charter.policy.modify || !design_only)
+        && !crate::no_workspace(&charter.policy)
+        && domain.forge.goal_workspace_waiting(task, charter.policy.modify)
 }
 
 /// Retry only after the forge changes: a taking, its confirmation or a drift release.
 pub(super) fn resume_workspaces(domain: &mut Domain, env: &Env<Limits>) {
     let mut ready = List::with_capacity(env.limits.tasks.tasks);
     for (task, preparation) in &domain.run_workspaces {
-        let waiting = match preparation {
-            WorkspacePreparation::Ready(_) => false,
-            WorkspacePreparation::Brief { .. } | WorkspacePreparation::Workspace { .. } => true,
+        let design_only = match preparation {
+            WorkspacePreparation::Ready(_) => continue,
+            WorkspacePreparation::Brief { .. } => true,
+            WorkspacePreparation::Workspace { .. } => false,
         };
-        if waiting && !waiting_for_design(domain, *task) {
+        if !waiting_for_goal_workspace(domain, *task, design_only) {
             ready.push(*task).expect("waiting workspaces bounded by live tasks");
         }
     }
@@ -426,15 +463,32 @@ struct Prepared {
     messages: Box<[tasks::Word]>,
     saved: Box<[tasks::SavedResource]>,
     transcript: Box<[Box<[u8]>]>,
+    parts: Box<[jig_domain_link::KeptPart]>,
     answered: Box<[core::CallKey]>,
     grants: Box<[Grant]>,
 }
 
 fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
-    let Prepared { task, attempt, conversation, live, charter, run, messages, saved, transcript, answered, grants } =
-        prepared;
+    let Prepared {
+        task,
+        attempt,
+        conversation,
+        live,
+        charter,
+        run,
+        messages,
+        saved,
+        transcript,
+        parts,
+        answered,
+        grants,
+    } = prepared;
     for body in &transcript {
         domain.hold_bytes(skein_lib::len_u64(body.len()));
+    }
+
+    for part in &parts {
+        domain.hold_bytes(skein_lib::len_u64(part.body.len()));
     }
     let brief = domain.hub_link.take_brief(task).expect("prepared brief sections");
     let PreparedWorkspace { workspace, claim_names } =
@@ -446,15 +500,16 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
             .push(crate::CallRecord { key, answer, settled: domain.core.call_settled.get(&key).cloned() })
             .expect("retained call bound");
     }
-    let parts = crate::boundary::AssignmentParts {
+    let application_parts = crate::boundary::AssignmentParts {
         saved: forge_route::saved_tags(&saved, domain.config.forge_connector)
             .expect("task saved names were admitted by the root"),
         workspace: workspace.workspace.clone(),
         workstream: workspace.workstream,
         answered: records.into_boxed(),
     };
-    domain.assignment_parts.insert(task, parts).expect("one temper assignment per task");
+    domain.assignment_parts.insert(task, application_parts).expect("one temper assignment per task");
     let assignment = jig_domain_hub_link::Assignment {
+        parts,
         task,
         attempt,
         conversation,

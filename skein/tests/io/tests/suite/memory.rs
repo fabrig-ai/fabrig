@@ -370,7 +370,7 @@ fn fill_and_drain(limits: Limits, ceiling: u64) -> u64 {
         driver.complete_all(is_recv, succeed);
     }
     // Each output full: a send in flight, and its queue of sends, within the
-    // room asked for them all at once (runtime/lib.md, 7). The bytes are made by the
+    // room asked for them all at once (runtime/lib-streams.md, 1). The bytes are made by the
     // test, the owner, and io's once sent.
     let boxes = limits.sends + 1;
     let each = usize::try_from(limits.output / boxes).expect("a few bytes");

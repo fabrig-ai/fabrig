@@ -2,7 +2,6 @@
 mod cue;
 mod driven;
 pub(crate) use driven::Driven;
-mod hooks;
 mod watch;
 use crate::fixtures;
 pub use cue::Cue;
@@ -41,8 +40,6 @@ enum LifeState {
 pub struct ServiceHost {
     pub(crate) pending_streak: crate::patience::PendingStreak,
     restartable: bool,
-    start_failures: u32,
-    failed_starts: Vec<String>,
     wait_check: bool,
     now: Time,
     lives: Vec<Life>,
@@ -64,21 +61,18 @@ pub struct ServiceHost {
     pub(crate) service: Option<Driven>,
     fetch: Option<temper_worker_service::fetch::Fetch>,
     figures: Option<jig_protocol_worker_wire::Figures>,
-    figures_lines: Vec<String>,
     pub(crate) address: Option<SocketAddr>,
     pub(crate) link: Vec<u8>,
     watch: watch::Watch,
-    hook_wire: hooks::Hooks,
     pub(crate) hooks: Option<SocketAddr>,
     pub(crate) forge_address: Option<SocketAddr>,
     pub(crate) blob_address: Option<SocketAddr>,
     pub(crate) fixture: Option<crate::forge::Fixture>,
     pub(crate) seen: crate::forge::Seen,
-    github: Option<crate::github::Fixture>,
+    github: bool,
     records_seeded: bool,
     clients: Option<SocketAddr>,
     clients_listener: Option<TcpListener>,
-    pub(crate) github_seen: crate::github::Seen,
     cues: Vec<Cue>,
     links: u32,
     path: PathBuf,
@@ -100,63 +94,44 @@ impl ServiceHost {
         fixture: Option<crate::forge::Fixture>,
         direct_key: bool,
     ) -> Self {
-        Self::with_shape(path, signals, fixture, direct_key, None, None, None, None)
+        Self::with_shape(path, signals, fixture, direct_key, None, false, None)
     }
     pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
-        Self::with_shape(path, signals, None, false, None, None, Some(issuer), None)
+        Self::with_shape(path, signals, None, false, None, false, Some(issuer))
     }
-    pub(crate) fn configured_only(
-        path: PathBuf,
-        signals: Fd,
-        configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
-    ) -> Self {
-        Self::with_shape(path, signals, None, false, None, None, None, Some(configure))
-    }
-    #[expect(clippy::too_many_arguments, reason = "independent optional peer and configuration fixtures")]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the hosted service composes the selected cluster shape and figures startup"
-    )]
     fn with_shape(
         path: PathBuf,
         signals: Fd,
         fixture: Option<crate::forge::Fixture>,
         direct_key: bool,
         cluster: Option<crate::cluster::Shape>,
-        github: Option<crate::github::Fixture>,
+        github: bool,
         issuer: Option<SocketAddr>,
-        configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
     ) -> Self {
-        let clients_listener = github.map(|_| {
+        let clients_listener = github.then(|| {
             let [listener] = temper_fixtures::ports::reserve::<1>(&[]);
             listener
         });
         let clients =
             clients_listener.as_ref().map(|listener| listener.local_addr().expect("reserved clients address"));
-        let forge = (fixture.is_none() && github.is_none())
+        let forge = (fixture.is_none() && !github)
             .then(|| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("held forge listener"));
-        let address =
-            forge.as_ref().map_or(([127, 0, 0, 1], if github.is_some() { 9 } else { 0 }).into(), |listener| {
-                listener.local_addr().expect("held forge address")
-            });
-        let mut configuration =
-            fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
+        let address = forge.as_ref().map_or(([127, 0, 0, 1], if github { 9 } else { 0 }).into(), |listener| {
+            listener.local_addr().expect("held forge address")
+        });
+        let mut configuration = fixtures::write(&path, address, address).expect("stand-in standalone documents");
         if direct_key {
             fixtures::key_documents(&path, &mut configuration).expect("standard key route");
         }
         if let Some(fixture) = fixture {
             crate::forge::write(&path, address, &fixture, &mut configuration).expect("forge documents");
         }
-        if let Some(fixture) = github {
-            crate::github::write(&path, address, clients.expect("fixed clients"), fixture, &mut configuration)
+        if github {
+            crate::github::write(&path, address, clients.expect("fixed clients"), &mut configuration)
                 .expect("GitHub documents");
         }
         if let Some(shape) = &cluster {
-            shape.write(
-                path.parent().expect("cluster scratch"),
-                fixture.is_none() && github.is_none(),
-                &mut configuration,
-            );
+            shape.write(path.parent().expect("cluster scratch"), fixture.is_none() && !github, &mut configuration);
         }
         if let Some(address) = issuer {
             fixtures::sign_in_documents(&path, address, &mut configuration).expect("local issuer registration");
@@ -193,16 +168,31 @@ impl ServiceHost {
             }
         }
         .expect("shape's operation count");
-        let restartable = cluster.is_some();
+        let mut host = Self::waiting(path, signals, configuration, operations, cluster.is_some());
+        host.wait_check = temper_test_env::value(&temper_service_shell::WAIT_CHECK).is_some();
+        host.records_seeded =
+            matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) || fixture.is_none() && !github;
+        host.cluster = cluster;
+        host.fixture = fixture;
+        host.github = github;
+        host.clients = clients;
+        host.clients_listener = clients_listener;
+        host.forge = forge;
+        host
+    }
+
+    fn waiting(
+        path: PathBuf,
+        signals: Fd,
+        configuration: temper_playground::documents::Configuration,
+        operations: u32,
+        restartable: bool,
+    ) -> Self {
         let queued = if restartable { operations } else { 1 };
-        let records_seeded =
-            matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) || fixture.is_none() && github.is_none();
         Self {
             pending_streak: crate::patience::PendingStreak::default(),
             restartable,
-            start_failures: 0,
-            failed_starts: Vec::new(),
-            wait_check: temper_test_env::value(&temper_service_shell::WAIT_CHECK).is_some(),
+            wait_check: false,
             now: Time::ZERO,
             lives: Vec::with_capacity(if restartable { LIVES } else { 0 }),
             state: LifeState::First,
@@ -211,7 +201,7 @@ impl ServiceHost {
             life_tasks: 0,
             life_links: 0,
             linked: 0,
-            cluster,
+            cluster: None,
             workers_address: None,
             notes: Vec::new(),
             runs: crate::cluster::Runs::default(),
@@ -222,20 +212,17 @@ impl ServiceHost {
             service: None,
             fetch: None,
             figures: None,
-            figures_lines: Vec::new(),
             address: None,
             link: Vec::new(),
             watch: watch::Watch::default(),
-            hook_wire: hooks::Hooks::default(),
             hooks: None,
             forge_address: None,
             blob_address: None,
-            fixture,
-            github,
-            records_seeded,
-            clients,
-            clients_listener,
-            github_seen: crate::github::Seen::default(),
+            fixture: None,
+            github: false,
+            records_seeded: false,
+            clients: None,
+            clients_listener: None,
             seen: crate::forge::Seen::default(),
             cues: Vec::with_capacity(cue::CUES),
             links: 0,
@@ -243,7 +230,7 @@ impl ServiceHost {
             configuration,
             signals,
             signals_adopted: false,
-            forge,
+            forge: None,
             operations,
             completions: Queue::with_capacity(queued),
             submissions: Queue::with_capacity(queued),
@@ -251,18 +238,28 @@ impl ServiceHost {
     }
 }
 impl ServiceHost {
+    /// A prepared fixture with no native admission or outstanding kernel requests.
+    #[cfg(test)]
+    pub(crate) fn held_startup(
+        configuration: temper_playground::documents::Configuration,
+        service: temper_service::Service,
+    ) -> Self {
+        let mut host = Self::waiting(PathBuf::new(), Fd::new(0), configuration, service.operations(), false);
+        host.service = Some(Driven::new(service));
+        host
+    }
+
     pub(crate) fn cluster(
         path: &std::path::Path,
         signals: Fd,
         shape: crate::cluster::Shape,
         fixture: Option<crate::forge::Fixture>,
     ) -> Self {
-        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), None, None, None)
+        Self::with_shape(path.join("data"), signals, fixture, false, Some(shape), false, None)
     }
-    pub(crate) fn github(path: PathBuf, signals: Fd, fixture: crate::github::Fixture) -> Self {
-        Self::with_shape(path, signals, None, false, None, Some(fixture), None, None)
+    pub(crate) fn github(path: PathBuf, signals: Fd) -> Self {
+        Self::with_shape(path, signals, None, false, None, true, None)
     }
-    #[cfg(test)]
     pub(crate) fn clients_occupied_by(&mut self, listener: &TcpListener) {
         let address = listener.local_addr().expect("occupied clients address");
         let mut file = fixtures::file::read(&self.path, temper_config_shell::Shape::Standalone).file;
@@ -272,32 +269,6 @@ impl ServiceHost {
         // This endpoint must fail to bind; no reserved listener belongs to its service.
         self.clients_listener = None;
         self.clients = Some(address);
-    }
-    pub(crate) fn make_github_app(&mut self, peer: &mut skein_fake_peers::forge::Peer) {
-        if let Some(fixture) = self.github
-            && !fixture.connected
-            && !fixture.manifest
-        {
-            self.github_seen.app =
-                Some(crate::github::make_app(peer, self.clients.expect("clients"), &self.path, fixture));
-        }
-    }
-    pub(crate) fn checkpoint_github(
-        &mut self,
-        peer: &mut skein_fake_peers::forge::Peer,
-        calls: &[crate::calls::Called],
-    ) -> Result<(), String> {
-        if let Some(fixture) = self.github
-            && fixture.unaccepted_after_install
-        {
-            self.github_seen.seed_unaccepted(peer)?;
-        }
-        self.github_seen.checkpoint(peer, calls)
-    }
-    /// Worker and engine notes in iteration order, on the world's clock.
-    #[must_use]
-    pub fn notes(&self) -> &[(Time, temper_service::Note)] {
-        &self.notes
     }
     /// Settled lives in order; `ran()` and `linked()` retain their aggregate history.
     #[must_use]
@@ -327,42 +298,6 @@ impl ServiceHost {
         // The referee requests only; dropping and preparing stay in this host's iteration.
         self.state = LifeState::Restarting;
         Ok(())
-    }
-    pub(crate) fn restart_after_failures(&mut self, failures: u32) -> Result<(), String> {
-        self.restart()?;
-        self.start_failures = failures;
-        Ok(())
-    }
-    /// Starts refused by the shipped configuration checks, before a service is made.
-    #[must_use]
-    pub fn failed_starts(&self) -> &[String] {
-        &self.failed_starts
-    }
-    fn refuse_starts(&mut self) {
-        if self.start_failures == 0 {
-            return;
-        }
-        assert!(matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })));
-        let directories = Self::directories(&self.path, true);
-        let directory = self.path.parent().expect("cluster scratch").join("config");
-        let document = directory.join(temper_config_shell::FILE);
-        let original = std::fs::read(&document).expect("engine file");
-        let mut invalid = fixtures::file::read(&directory, temper_config_shell::Shape::EngineAlone).file;
-        let given = fixtures::given(&self.path, &self.configuration);
-        invalid.workers = None;
-        fixtures::file::write(&directory, &invalid, temper_config_shell::Shape::EngineAlone)
-            .expect("misconfigured start");
-        for _ in 0..self.start_failures {
-            let Err(failure) =
-                temper_engine_shell::serve::prepare_in_with("temper-engine", &[], b"/", &directories, &given)
-            else {
-                panic!("missing workers listener must refuse the start")
-            };
-            assert!(failure.contains("workers"), "{failure}");
-            self.failed_starts.push(failure);
-        }
-        fixtures::private(&document, &original).expect("corrected engine document");
-        self.start_failures = 0;
     }
     fn begin_next_life(&mut self) {
         self.life_tasks = self.runs.tasks.len();
@@ -451,7 +386,7 @@ impl ServiceHost {
             )
         {
             self.service = None;
-            if self.fixture.is_some() || self.github.is_some() {
+            if self.fixture.is_some() || self.github {
                 fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github, Vec::new());
             }
             self.records_seeded = true;
@@ -459,8 +394,8 @@ impl ServiceHost {
     }
     fn ready(&self) -> bool {
         self.cluster.as_ref().is_none_or(crate::cluster::Shape::ready)
-            && ((self.fixture.is_none() && self.github.is_none()) || self.forge_address.is_some())
-            && (self.github.is_none() || self.blob_address.is_some())
+            && ((self.fixture.is_none() && !self.github) || self.forge_address.is_some())
+            && (!self.github || self.blob_address.is_some())
     }
     fn prepare_service(&self) -> Driven {
         use std::{
@@ -588,11 +523,6 @@ impl ServiceHost {
     #[must_use]
     pub fn assignments(&self) -> &[jig_protocol_worker_wire::Assignment] {
         &self.runs.assignments
-    }
-    /// Worker openings retained from the shipped service's diagnostics.
-    #[must_use]
-    pub fn figures_lines(&self) -> &[String] {
-        &self.figures_lines
     }
     #[must_use]
     pub fn linked(&self) -> usize {
@@ -736,7 +666,6 @@ impl Host for ServiceHost {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
         if self.state == LifeState::Restarting {
-            self.refuse_starts();
             self.begin_next_life();
         }
         if self.service.is_none()
@@ -753,7 +682,7 @@ impl Host for ServiceHost {
                 if let Some(shape) = &self.cluster {
                     shape.write(
                         self.path.parent().expect("cluster scratch"),
-                        self.fixture.is_none() && self.github.is_none(),
+                        self.fixture.is_none() && !self.github,
                         &mut self.configuration,
                     );
                 }
@@ -806,13 +735,6 @@ impl Host for ServiceHost {
             }
             if fetch.is_empty() {
                 let figures = fetch.take().expect("fetch took figures");
-                let Some(crate::cluster::Shape::Worker { engine: Some(engine), .. }) = self.cluster else {
-                    panic!("worker engine")
-                };
-                self.figures_lines.push(temper_worker_shell::worker::figures_line(
-                    &jig_protocol_config::Address::Addr(skein_io::Addr::Ip(engine)),
-                    &figures,
-                ));
                 self.figures = Some(figures);
                 self.fetch = None;
             }
@@ -826,9 +748,6 @@ impl Host for ServiceHost {
                 }
             }
             for complete in service.completions().iter() {
-                if self.fixture.is_some() {
-                    self.hook_wire.complete(complete, self.hooks, &mut self.seen.responses);
-                }
                 if let Some(crate::cluster::Shape::Worker { engine: Some(engine), .. }) = self.cluster {
                     self.runs.complete(complete, engine, now);
                 }

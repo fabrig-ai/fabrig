@@ -1,13 +1,19 @@
 //! Configuration and drive shared by stopped deployment tools (protocol/checkpoints.md, 2).
-use crate::setup;
+use crate::{serve, setup};
+use jig_protocol_config as config;
 use skein_shell::{Clock, Config, Kernel};
-use temper_engine_service as service;
+use std::path::Path;
+use temper_engine_service::{
+    self as service,
+    startup::{LimitInputs, Resolved},
+};
+use temper_service_shell::configuration::{self, Read};
 use temper_service_shell::jig_directories;
 use temper_shell::directories::Directories;
 
 /// No worker root, listener or external system is started.
 pub fn prepare(_binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_with(directories, None::<(&'static str, fn(&mut service::store::Store) -> Result<(), String>)>)
+    prepare_stopped(directories, None::<(&'static str, fn(&mut service::store::Store) -> Result<(), String>)>)
 }
 /// The check's engine takes the limits a start would take from its copy
 /// (configuration/limit-settings.md, 3): once the configuration is checked, `adopt`
@@ -19,97 +25,164 @@ pub fn prepare_rehearsal(
     build_name: &'static str,
     adopt: impl FnOnce(&mut service::store::Store) -> Result<(), String>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_with(directories, Some((build_name, adopt)))
+    prepare_stopped(directories, Some((build_name, adopt)))
 }
-fn prepare_with(
+fn prepare_stopped(
     directories: &Directories,
     rehearsal: Option<(&'static str, impl FnOnce(&mut service::store::Store) -> Result<(), String>)>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)?;
-    read.prepare(|bytes| {
-        let held = crate::serve::limits_hold(crate::path(&directories.data))?;
-        let providers = temper_service_shell::providers::read(
-            &crate::path(&directories.data).join("providers.setting"),
-            service::stock::providers(),
-            &mut std::io::stderr(),
-        );
-        let given = service::stock::Given::Stock.with_providers(providers, Box::new([]));
-        let mut named = setup::check_with(bytes, &jig_directories(directories), &given)?.named;
-        let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
-            &mut named.files,
-            &mut named.asked_files,
-            named.sign_in.as_ref(),
-            named.bundle.as_deref(),
-            named.bundle_limits,
-            skein_shell::effective_user(),
-            false,
-        )?;
-        let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(named.test_github.as_ref())?;
-        let engine = crate::serve::settings(bytes, directories, &given);
-        let accounts = crate::serve::accounts(&engine)?;
-        let seeds = crate::serve::seeds(None, None)?;
-        let inputs = service::startup::LimitInputs::new(
-            bytes,
-            &jig_directories(directories),
-            &files,
-            None,
-            &seeds,
-            &given,
-            false,
-            None,
-        );
-        let (jig, temper) = held.as_ref().map_or((&[][..], &[][..]), |held| (held.jig.as_ref(), held.temper.as_ref()));
-        let stock = service::startup::resolve_limits(&inputs, jig, temper).map_err(|why| {
-            let line = String::from_utf8_lossy(&service::startup::lines(&why)).into_owned();
-            held.as_ref().map_or_else(|| line.clone(), |held| crate::serve::held_failure(&line, held))
-        })?;
-        let mut opening = match rehearsal {
-            Some((build_name, adopt)) => {
-                let models = jig_protocol_config::core(&engine, seeds.deployment, seeds.seed).settings.models;
-                Some(crate::serve::rehearse_limits(inputs, &models, held.as_ref(), build_name, adopt)?)
+    prepare_with(
+        directories,
+        configuration::read(directories, temper_config_shell::Shape::EngineAlone),
+        |path| std::fs::read_to_string(path),
+        |bytes| inputs(bytes, directories),
+        |bytes, inputs, held, stock, prepared| build(bytes, directories, inputs, held, stock, prepared, rehearsal),
+    )
+}
+
+fn prepare_with<T, R>(
+    directories: &Directories,
+    read: Result<Read, String>,
+    held_text: impl FnOnce(&Path) -> std::io::Result<String>,
+    inputs: impl FnOnce(&[u8]) -> Result<(LimitInputs, T), String>,
+    build: impl FnOnce(&[u8], LimitInputs, Option<&serve::Held>, &Resolved, T) -> Result<R, String>,
+) -> Result<R, String> {
+    let read = read?;
+    let checked = read.prepare(|bytes| check(bytes, directories, held_text, inputs))?;
+    // Finish preflight before the engine's construction frames are entered.
+    let Checked { inputs, ref held, ref stock, prepared } = *checked;
+    build(&read.document, inputs, held.as_ref(), stock, prepared).map_err(|why| read.problems(&why))
+}
+
+struct Checked<T> {
+    inputs: LimitInputs,
+    held: Option<serve::Held>,
+    stock: Resolved,
+    prepared: T,
+}
+
+fn check<T>(
+    bytes: &[u8],
+    directories: &Directories,
+    held_text: impl FnOnce(&Path) -> std::io::Result<String>,
+    inputs: impl FnOnce(&[u8]) -> Result<(LimitInputs, T), String>,
+) -> Result<Box<Checked<T>>, String> {
+    let held = serve::limits_hold_with(crate::path(&directories.data), held_text)?;
+    let (inputs, prepared) = inputs(bytes)?;
+    let (jig, temper) = held.as_ref().map_or((&[][..], &[][..]), |held| (held.jig.as_ref(), held.temper.as_ref()));
+    let stock = service::startup::resolve_limits(&inputs, jig, temper).map_err(|why| {
+        let line = String::from_utf8_lossy(&service::startup::lines(&why)).into_owned();
+        held.as_ref().map_or_else(|| line.clone(), |held| crate::serve::held_failure(&line, held))
+    })?;
+    Ok(Box::new(Checked { inputs, held, stock, prepared }))
+}
+
+struct Prepared {
+    deployment: Box<[u8]>,
+    engine: config::Engine,
+    seeds: service::settings::Seeds,
+    files: service::settings::Files,
+    given: service::stock::Given,
+    accounts: service::AccountsRuntime,
+    runtime: serve::Runtimes,
+    google: service::clients::fetch::Runtime,
+    bundle: Option<service::clients::bundle::Bundle>,
+}
+
+fn inputs(bytes: &[u8], directories: &Directories) -> Result<(LimitInputs, Prepared), String> {
+    let providers = temper_service_shell::providers::read(
+        &crate::path(&directories.data).join("providers.setting"),
+        service::stock::providers(),
+        &mut std::io::stderr(),
+    );
+    let given = service::stock::Given::Stock.with_providers(providers, Box::new([]));
+    let mut named = setup::check_with(bytes, &jig_directories(directories), &given)?.named;
+    let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
+        &mut named.files,
+        &mut named.asked_files,
+        named.sign_in.as_ref(),
+        named.bundle.as_deref(),
+        named.bundle_limits,
+        skein_shell::effective_user(),
+        false,
+    )?;
+    let runtime = crate::serve::runtimes(named.test_github.as_ref())?;
+    let engine = crate::serve::settings(bytes, directories, &given);
+    let accounts = crate::serve::accounts(&engine)?;
+    let seeds = crate::serve::seeds(None, None)?;
+    let inputs = LimitInputs::new(bytes, &jig_directories(directories), &files, None, &seeds, &given, false, None);
+    Ok((
+        inputs,
+        Prepared { deployment: named.deployment, engine, seeds, files, given, accounts, runtime, google, bundle },
+    ))
+}
+
+fn build(
+    bytes: &[u8],
+    directories: &Directories,
+    inputs: LimitInputs,
+    held: Option<&serve::Held>,
+    stock: &Resolved,
+    prepared: Prepared,
+    rehearsal: Option<(&'static str, impl FnOnce(&mut service::store::Store) -> Result<(), String>)>,
+) -> Result<(service::Service, Box<[u8]>), String> {
+    let Prepared {
+        deployment,
+        engine,
+        seeds,
+        files,
+        given,
+        accounts,
+        runtime: serve::Runtimes { roots, github },
+        google,
+        bundle,
+    } = prepared;
+    let mut opening = match rehearsal {
+        Some((build_name, adopt)) => {
+            let models = jig_protocol_config::core(&engine, seeds.deployment, seeds.seed).settings.models;
+            Some(crate::serve::rehearse_limits(inputs, &models, held, build_name, adopt)?)
+        }
+        None => None,
+    };
+    if let Some(held) = held {
+        eprintln!("{}", held.line);
+    }
+    let resolved = match &opening {
+        Some(crate::serve::Opening { settings: Some(settings), .. }) => &settings.in_force,
+        Some(crate::serve::Opening { settings: None, .. }) | None => stock,
+    };
+    let built = service::startup::checked_start_with_resolved(
+        bytes,
+        &jig_directories(directories),
+        &files,
+        None,
+        &seeds,
+        skein_lib::List::with_capacity(0),
+        None,
+        &given,
+        resolved,
+    )
+    .and_then(|service::startup::CheckedStart { engine, io, forges, .. }| {
+        service::startup::restoring_prepared(engine, &seeds, Some(accounts), forges, io)
+    });
+    let mut service = match built {
+        Ok(service) => service,
+        Err(why) => {
+            if let Some(opening) = &mut opening {
+                crate::serve::close_limits_store(&mut opening.store)?;
             }
-            None => None,
-        };
-        if let Some(held) = &held {
-            eprintln!("{}", held.line);
+            return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
         }
-        let resolved = match &opening {
-            Some(crate::serve::Opening { settings: Some(settings), .. }) => &settings.in_force,
-            Some(crate::serve::Opening { settings: None, .. }) | None => &stock,
-        };
-        let built = service::startup::checked_start_with_resolved(
-            bytes,
-            &jig_directories(directories),
-            &files,
-            None,
-            &seeds,
-            skein_lib::List::with_capacity(0),
-            None,
-            &given,
-            resolved,
-        )
-        .and_then(|service::startup::CheckedStart { engine, io, forges, .. }| {
-            service::startup::restoring_prepared(engine, &seeds, Some(accounts), forges, io)
-        });
-        let mut service = match built {
-            Ok(service) => service,
-            Err(why) => {
-                if let Some(opening) = &mut opening {
-                    crate::serve::close_limits_store(&mut opening.store)?;
-                }
-                return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
-            }
-        };
-        if let Some(crate::serve::Opening { store, settings, began }) = opening {
-            service.engine_component().rehearse_opened(store, settings, began);
-        }
-        service.configure_forge_runtime(github, roots);
-        service.configure_google_endpoints(google);
-        if let Some(bundle) = bundle {
-            service.adopt_bundle(bundle);
-        }
-        Ok((service, named.deployment))
-    })
+    };
+    if let Some(crate::serve::Opening { store, settings, began }) = opening {
+        service.engine_component().rehearse_opened(store, settings, began);
+    }
+    service.configure_forge_runtime(github, roots);
+    service.configure_google_endpoints(google);
+    if let Some(bundle) = bundle {
+        service.adopt_bundle(bundle);
+    }
+    Ok((service, deployment))
 }
 
 /// Run only the prepared engine and render its terminal after teardown.
@@ -142,3 +215,6 @@ pub fn drive(
         skein_io::kernel::Exit::Signal(_) => 1,
     })
 }
+
+#[cfg(test)]
+pub(crate) mod tests;

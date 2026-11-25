@@ -1,12 +1,16 @@
 //! Startup failure is terminal after the unreleased caller closes its descriptors.
-use super::*;
+use super::{ForgePeer, Judge, Kind, Llm, Proc, cluster_judge, host};
+use crate::{agent, llm, service::ServiceHost};
+use skein_lib::Time;
+use skein_shell::Host;
+use skein_world::{Referee, real::World};
 use std::{cell::Cell, net::TcpListener, rc::Rc};
 
 #[derive(Default)]
-struct Receipt {
-    settled: Cell<bool>,
-    calls: Cell<usize>,
-    passed: Cell<bool>,
+pub struct Receipt {
+    pub settled: Cell<bool>,
+    pub calls: Cell<usize>,
+    pub passed: Cell<bool>,
 }
 struct Recording {
     judge: Judge,
@@ -37,14 +41,13 @@ impl Referee<Proc> for Recording {
     }
 }
 
-fn startup(
+pub fn startup(
     scratch: &skein_scratch::Scratch,
     occupied: Option<&TcpListener>,
     receipt: Rc<Receipt>,
 ) -> Result<skein_world::real::Outcome<Proc>, String> {
     let patience = crate::PATIENCE;
-    let fixture = crate::github::fixture();
-    let (state, peer) = crate::github::State::new(fixture);
+    let (state, peer) = crate::github::State::new();
     let mut world = World::new_controlled(|controls| {
         let mut judge = cluster_judge(controls, &[], None, patience);
         judge.github = Some(state);
@@ -53,11 +56,8 @@ fn startup(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred LLM"),
             scripts: Some(|_| Box::new([])),
-            groups: None,
-            recipe: None,
             rules: None,
             cue: false,
             placement_hold: true,
@@ -67,7 +67,7 @@ fn startup(
         })))
     });
     world.spawn_signals(|signals| {
-        let mut service = ServiceHost::github(scratch.path().into(), signals, fixture);
+        let mut service = ServiceHost::github(scratch.path().into(), signals);
         if let Some(listener) = occupied {
             service.clients_occupied_by(listener);
         }
@@ -76,33 +76,4 @@ fn startup(
     host(&mut world, scratch.path(), || vec![crate::calls::sign_in(crate::calls::D1)], true, 1, agent::agent);
     world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
     world.try_run(&skein_shell::Clock::new(), patience)
-}
-
-#[test]
-fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
-    let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("occupied listener");
-    let scratch = skein_scratch::Scratch::new("failed-start");
-    let receipt = Rc::new(Receipt::default());
-    // The chooser's block claim outlives the story and belongs in its descriptor baseline.
-    drop(temper_fixtures::ports::reserve::<1>(&[]));
-    let descriptors = std::fs::read_dir("/dev/fd").expect("own descriptors").count();
-    let Err(message) = startup(&scratch, Some(&listener), receipt.clone()) else {
-        panic!("a service exit before its link must fail the story")
-    };
-    assert!(message.contains("service 1 exited before caller release: Code(1)"), "{message}");
-    assert!(
-        message.contains(&format!(
-            "stderr tail:\ntemper serve: client listener {} failed: other\n",
-            listener.local_addr().expect("held address")
-        )),
-        "{message}"
-    );
-    assert!(!receipt.passed.get(), "failed startup never passes the referee");
-    assert!(receipt.settled.get(), "the failure is reported after every host empties");
-    assert_eq!(receipt.calls.get(), 0, "no CLI command ran before release");
-    assert_eq!(
-        std::fs::read_dir("/dev/fd").expect("own descriptors").count(),
-        descriptors,
-        "failed startup releases every descriptor"
-    );
 }

@@ -29,7 +29,7 @@ pub(super) fn encode_refusal(value: &d::application_core::Refusal) -> w::Refusal
         d::application_core::Refusal::KeyConflict => w::Refusal::KeyConflict,
     }
 }
-pub(super) fn decode_refusal(value: w::Refusal, limits: &d::Limits) -> d::application_core::Refusal {
+pub(super) fn decode_refusal(value: w::Refusal) -> d::application_core::Refusal {
     match value {
         w::Refusal::Role(value) => {
             let w::RefusalRole { held } = value;
@@ -43,7 +43,7 @@ pub(super) fn decode_refusal(value: w::Refusal, limits: &d::Limits) -> d::applic
         w::Refusal::Authority(value) => {
             let w::RefusalAuthority { lacking, proposable } = value;
             d::application_core::Refusal::Authority {
-                lacking: decode_lack(lacking, limits),
+                lacking: decode_lack(lacking),
                 proposable: match proposable {
                     Some(value) => Some(value),
                     None => None,
@@ -52,15 +52,15 @@ pub(super) fn decode_refusal(value: w::Refusal, limits: &d::Limits) -> d::applic
         }
         w::Refusal::Limit(value) => {
             let w::RefusalLimit { which } = value;
-            d::application_core::Refusal::Limit { which: decode_limit_kind(which, limits) }
+            d::application_core::Refusal::Limit { which: decode_limit_kind(which) }
         }
         w::Refusal::Moved(value) => {
             let w::RefusalMoved { now } = value;
-            d::application_core::Refusal::Moved { now: decode_moved(now, limits) }
+            d::application_core::Refusal::Moved { now: decode_moved(now) }
         }
         w::Refusal::Ended(value) => {
             let w::RefusalEnded { how } = value;
-            d::application_core::Refusal::Ended { how: decode_ending(how, limits) }
+            d::application_core::Refusal::Ended { how: decode_ending(how) }
         }
         w::Refusal::Taken(value) => {
             let w::RefusalTaken { by } = value;
@@ -106,7 +106,7 @@ pub(super) fn encode_lack(value: &d::application_core::Lack) -> w::Lack {
         }
     }
 }
-pub(super) fn decode_lack(value: w::Lack, _limits: &d::Limits) -> d::application_core::Lack {
+pub(super) fn decode_lack(value: w::Lack) -> d::application_core::Lack {
     match value {
         w::Lack::Approver => d::application_core::Lack::Approver,
         w::Lack::Again(value) => {
@@ -198,7 +198,7 @@ pub(super) fn encode_limit_kind(value: d::application_core::LimitKind) -> w::Lim
         d::application_core::LimitKind::Exemptions => w::LimitKind::Exemptions,
     }
 }
-pub(super) fn decode_limit_kind(value: w::LimitKind, _limits: &d::Limits) -> d::application_core::LimitKind {
+pub(super) fn decode_limit_kind(value: w::LimitKind) -> d::application_core::LimitKind {
     match value {
         w::LimitKind::Words => d::application_core::LimitKind::Words,
         w::LimitKind::Identity => d::application_core::LimitKind::Identity,
@@ -250,7 +250,7 @@ pub(super) fn encode_party(value: &d::application_core::Party) -> w::Party {
         }
     }
 }
-pub(super) fn decode_party(value: w::Party, _limits: &d::Limits) -> d::application_core::Party {
+pub(super) fn decode_party(value: w::Party) -> d::application_core::Party {
     match value {
         w::Party::Person(value) => {
             let w::PartyPerson { value } = value;
@@ -279,13 +279,13 @@ pub(super) fn encode_ending(value: &d::application_core::Ending) -> w::Ending {
         d::application_core::Ending::Deleted => w::Ending::Deleted,
     }
 }
-pub(super) fn decode_ending(value: w::Ending, limits: &d::Limits) -> d::application_core::Ending {
+pub(super) fn decode_ending(value: w::Ending) -> d::application_core::Ending {
     match value {
         w::Ending::Done => d::application_core::Ending::Done,
         w::Ending::Failed => d::application_core::Ending::Failed,
         w::Ending::Cancelled(value) => {
             let w::EndingCancelled { by, at } = value;
-            d::application_core::Ending::Cancelled { by: decode_party(by, limits), at: Wall::from_nanos(at) }
+            d::application_core::Ending::Cancelled { by: decode_party(by), at: Wall::from_nanos(at) }
         }
         w::Ending::Decided(value) => {
             let w::EndingDecided { by, at } = value;
@@ -304,11 +304,11 @@ pub(super) fn encode_moved(value: &d::application_core::Moved) -> w::Moved {
         d::application_core::Moved::Note { revision } => w::Moved::Note(w::MovedNote { revision: *revision }),
     }
 }
-pub(super) fn decode_moved(value: w::Moved, limits: &d::Limits) -> d::application_core::Moved {
+pub(super) fn decode_moved(value: w::Moved) -> d::application_core::Moved {
     match value {
         w::Moved::Hold(value) => {
             let w::MovedHold { revision, reason } = value;
-            d::application_core::Moved::Hold { revision, reason: decode_hold_reason(reason, limits) }
+            d::application_core::Moved::Hold { revision, reason: decode_hold_reason(reason) }
         }
         w::Moved::Spec(value) => {
             let w::MovedSpec { revision } = value;
@@ -365,9 +365,10 @@ pub(super) fn encode_hold_reason(value: &d::application_core::HoldReason) -> w::
         }
         d::application_core::HoldReason::Procedure => w::HoldReason::Procedure,
         d::application_core::HoldReason::Circle => w::HoldReason::Circle,
+        d::application_core::HoldReason::Waited => w::HoldReason::Waited,
     }
 }
-pub(super) fn decode_hold_reason(value: w::HoldReason, limits: &d::Limits) -> d::application_core::HoldReason {
+pub(super) fn decode_hold_reason(value: w::HoldReason) -> d::application_core::HoldReason {
     match value {
         w::HoldReason::Exceeded(value) => d::application_core::HoldReason::Exceeded(d::application_core::Exceeded {
             bound: match value.bound {
@@ -385,7 +386,7 @@ pub(super) fn decode_hold_reason(value: w::HoldReason, limits: &d::Limits) -> d:
         }),
         w::HoldReason::Failures(value) => {
             let w::HoldReasonFailures { class } = value;
-            d::application_core::HoldReason::Failures { class: decode_failure_class(class, limits) }
+            d::application_core::HoldReason::Failures { class: decode_failure_class(class) }
         }
         w::HoldReason::Stalled => d::application_core::HoldReason::Stalled,
         w::HoldReason::Dependency(value) => {
@@ -415,6 +416,7 @@ pub(super) fn decode_hold_reason(value: w::HoldReason, limits: &d::Limits) -> d:
         }
         w::HoldReason::Procedure => d::application_core::HoldReason::Procedure,
         w::HoldReason::Circle => d::application_core::HoldReason::Circle,
+        w::HoldReason::Waited => d::application_core::HoldReason::Waited,
     }
 }
 pub(super) fn encode_failure_class(value: d::application_core::FailureClass) -> w::FailureClass {
@@ -428,7 +430,7 @@ pub(super) fn encode_failure_class(value: d::application_core::FailureClass) -> 
         d::application_core::FailureClass::Infrastructure => w::FailureClass::Infrastructure,
     }
 }
-pub(super) fn decode_failure_class(value: w::FailureClass, _limits: &d::Limits) -> d::application_core::FailureClass {
+pub(super) fn decode_failure_class(value: w::FailureClass) -> d::application_core::FailureClass {
     match value {
         w::FailureClass::Transient => d::application_core::FailureClass::Transient,
         w::FailureClass::Permanent => d::application_core::FailureClass::Permanent,

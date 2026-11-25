@@ -1,4 +1,4 @@
-//! Exhaustive clients' boundary translations (client/domain/client/README.md, 2 and 8).
+//! Exhaustive clients' boundary translations (client/domain/client/README.md, 2, and client/domain/client/small-store.md, 1).
 use jig_client_test_protocol_wire::codec;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -34,6 +34,9 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::Result { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }
@@ -101,6 +104,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::EndedEscalation { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => None,
     }
 }
@@ -144,6 +148,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Stopping
         | core::Event::Parts { .. }
         | core::Event::PartsMarked { .. }
+        | core::Event::Waits { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicRead { .. }
@@ -182,6 +187,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
+        | core::Event::PartPayload { .. }
         | core::Event::TurnPayload { .. }
         | core::Event::AnswerPayload { .. }
         | core::Event::AcceptedTurn { .. }
@@ -235,6 +241,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Stopping
         | core::Event::Parts { .. }
         | core::Event::PartsMarked { .. }
+        | core::Event::Waits { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
@@ -267,6 +274,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
+        | core::Event::PartPayload { .. }
         | core::Event::TurnPayload { .. }
         | core::Event::AnswerPayload { .. }
         | core::Event::AcceptedTurn { .. }

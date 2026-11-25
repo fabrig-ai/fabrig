@@ -6,7 +6,7 @@ use skein_lib::{Duration, Wall};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{changes::change_row, translate::commit};
-use temper_engine_protocol_forge_world::protocol::Protocol;
+use temper_engine_protocol_forge_world::{fixtures::GITHUB, protocol::Protocol};
 
 fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::Decision {
     // Public admission recipe: protocol.rs's change_step / opened_change_in.
@@ -21,6 +21,7 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -70,7 +71,7 @@ fn name_pull(world: &mut Protocol) {
     let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(51)) else {
         panic!("durable change")
     };
-    // QA: domain/forge/README.md, 4, domain/forge/change/README.md, 2: post-pull cases require the confirmed opening.
+    // QA: domain/forge/effects.md, 1, domain/forge/change/README.md, 2: post-pull cases require the confirmed opening.
     let number = row.pull.unwrap_or_else(|| {
         panic!("admitted opening has its pull: state {:?}, outputs {:?}", row.change.state, world.seen())
     });
@@ -85,8 +86,12 @@ fn name_pull(world: &mut Protocol) {
 }
 
 fn prepared(world: &mut Protocol) {
+    prepared_with_file(world, b"file", b"change");
+}
+
+fn prepared_with_file(world: &mut Protocol, path: &[u8], contents: &[u8]) {
     world.adopt();
-    world.produce(b"temper/51");
+    world.produce_file(b"temper/51", path, contents);
     let mut row = change_row();
     row.change.since = world.wall();
     row.change.gates = Box::new([]);
@@ -95,6 +100,10 @@ fn prepared(world: &mut Protocol) {
 
 fn opened(world: &mut Protocol) {
     prepared(world);
+    open_prepared(world);
+}
+
+fn open_prepared(world: &mut Protocol) {
     enroll(world);
     assert_eq!(step(world, 1, change::Status::Passed), change::Decision::Effect(change::Effect::Open));
     assert_eq!(world.writes(), 1);
@@ -201,6 +210,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                     no_test: false,
                     delegate_live: false,
                     review_request: None,
+                    closer_waiting: false,
                     start_conflict: None,
                     lacking: None,
                     spend: None,
@@ -232,7 +242,7 @@ fn landed_once(world: &Protocol, finishes: &[[u8; 32]], expected_writes: u32) {
         [commit(world.branch(b"main"))],
         "QA: domain/forge/change/README.md 2: Finish names main's actual landing commit"
     );
-    assert_eq!(world.writes(), expected_writes, "QA: domain/forge/README.md 4: no effect lost or repeated");
+    assert_eq!(world.writes(), expected_writes, "QA: domain/forge/effects.md 1: no effect lost or repeated");
     let merges: Vec<_> = world.observations().iter().filter(|o| matches!(o, Observation::Merged { .. })).collect();
     assert!(
         matches!(merges.as_slice(), [Observation::Merged { head, commit: merge, .. }]
@@ -292,7 +302,7 @@ fn failed_ci_requests_repair_without_merge() {
 
 #[test]
 fn pending_pull_wakes_after_ci_verdict() {
-    // QA: protocol/forge/README.md 9; draft/github.md 7: changed CI wakes its waiter.
+    // QA: protocol/forge/README.md 9; draft/github-app.md 3: changed CI wakes its waiter.
     let mut limits = temper_engine_forge_world::LIMITS;
     limits.change_policy.stall = Duration::from_secs(1800);
     let mut world = Protocol::github_with_limits(747, delayed_checks(90), &limits);
@@ -306,7 +316,7 @@ fn pending_pull_wakes_after_ci_verdict() {
 
 #[test]
 fn pending_pull_survives_token_renewal() {
-    // QA: testing/README.md 2.2; draft/github.md 11 P1, 17: watch through the hour.
+    // QA: testing/tiers.md 1.2; draft/github-app.md 7 P1, 17: watch through the hour.
     let mut limits = temper_engine_forge_world::LIMITS;
     // Deliberate long-stall story; shipped silent-CI stall remains 1800 s.
     limits.change_policy.stall = Duration::from_secs(7200);
@@ -323,7 +333,7 @@ fn pending_pull_survives_token_renewal() {
 
 #[test]
 fn pushed_change_requests_its_pull_once() {
-    // QA: domain/forge/README.md, 4, domain/forge/change/README.md, 2: opening waits for parent admission.
+    // QA: domain/forge/effects.md, 1, domain/forge/change/README.md, 2: opening waits for parent admission.
     let mut world = Protocol::github(741);
     prepared(&mut world);
     world.take_seen();
@@ -337,6 +347,7 @@ fn pushed_change_requests_its_pull_once() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -366,12 +377,54 @@ fn pushed_change_requests_its_pull_once() {
 
 #[test]
 fn direct_landing_finish_and_two_writes() {
-    // QA: domain/forge/README.md, 4, domain/forge/change/README.md, 2, domain/forge/change/gates.md, 2; protocol/forge/README.md 9; Q8.
+    // QA: domain/forge/effects.md, 1, domain/forge/change/README.md, 2, domain/forge/change/gates.md, 2; protocol/forge/README.md 9; Q8.
     let mut world = Protocol::github(742);
     opened(&mut world);
     let finishes = scheduled_landing(&mut world, 2, 30);
     landed_once(&world, &finishes, 2);
     world.finish();
+}
+
+#[test]
+fn the_app_bot_merges_its_one_pull_at_the_checked_head() {
+    const README: &[u8] = b"README.md";
+    const EDITED: &[u8] = b"# app\nChanged by temper.\n";
+    let mut world = Protocol::github(742);
+    prepared_with_file(&mut world, README, EDITED);
+    open_prepared(&mut world);
+    let finishes = scheduled_landing(&mut world, 2, 30);
+    landed_once(&world, &finishes, 2);
+    world.finish();
+
+    let opened: Vec<_> = world
+        .observations()
+        .iter()
+        .filter(|row| matches!(row, Observation::Opened { kind: raw::Kind::Pull, .. }))
+        .collect();
+    let merged: Vec<_> = world.observations().iter().filter(|row| matches!(row, Observation::Merged { .. })).collect();
+    let [Observation::Opened { repository, number: pull, branches: Some(branches), by: author, .. }] =
+        opened.as_slice()
+    else {
+        panic!("one opened pull: {opened:?}")
+    };
+    let [Observation::Merged { repository: merged_repository, number, base, head, commit, by }] = merged.as_slice()
+    else {
+        panic!("one merge: {merged:?}")
+    };
+    assert_eq!(repository.as_ref(), GITHUB.path);
+    assert_eq!(merged_repository, repository);
+    assert_eq!(number, pull);
+    assert_eq!(branches.base.as_ref(), b"main");
+    assert_eq!(base.as_ref(), b"main");
+    assert_eq!(*by, skein_forge_kit::fake_github::BOT, "the installed App's bot");
+    assert_eq!(author, by);
+
+    let pushed: Vec<_> = world.branches().iter().filter(|(name, _)| name.as_ref() != b"main").collect();
+    let [(name, tip)] = pushed.as_slice() else { panic!("one pushed branch: {pushed:?}") };
+    assert_eq!(*name, &branches.head);
+    assert_eq!(*tip, head);
+    assert_eq!(world.branch(b"main"), *commit);
+    assert_eq!(world.file(*commit, README), Some(EDITED));
 }
 
 #[test]
@@ -460,7 +513,7 @@ fn conflicting_update(world: &mut Protocol) -> u64 {
 
 #[test]
 fn conflicting_update_requests_resolution_without_merge() {
-    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/README.md, 6; skein skein/docs/design/forge/github.md 7; Q3 prefix.
+    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; skein skein/docs/design/forge/github.md 7; Q3 prefix.
     let mut world = Protocol::github(750);
     conflicting_update(&mut world);
     world.finish();
@@ -468,7 +521,7 @@ fn conflicting_update_requests_resolution_without_merge() {
 
 #[test]
 fn update_conflict_resolved_then_merged() {
-    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/README.md, 6; Q3. Resolve as the fixture writer.
+    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md, domain/forge/updates.md, 1; Q3. Resolve as the fixture writer.
     let mut world = Protocol::github(744);
     let entry = conflicting_update(&mut world);
     world.resolve(b"temper/51", b"resolved both edits");
@@ -484,7 +537,7 @@ fn mints(world: &Protocol) -> usize {
 
 #[test]
 fn pending_ci_across_token_hour_completes_on_fresh_token() {
-    // QA: testing/README.md 2.2; draft/github.md 11 P1, 17; Q4.
+    // QA: testing/tiers.md 1.2; draft/github-app.md 7 P1, 17; Q4.
     let mut limits = temper_engine_forge_world::LIMITS;
     // Explicitly extend this story's stall; do not claim silent CI may wait
     // out an hour under the shipped 1800 s policy.
@@ -515,7 +568,7 @@ fn pending_ci_across_token_hour_completes_on_fresh_token() {
 
 #[test]
 fn restart_after_merge_before_read_never_merges_twice() {
-    // QA: domain/forge/README.md 4, 9; protocol/forge/README.md 9; Q5.
+    // QA: domain/forge/effects.md 1, 2; protocol/forge/README.md 9; Q5.
     let mut world = Protocol::github(746);
     opened(&mut world);
     world.cut_after_next_merge();

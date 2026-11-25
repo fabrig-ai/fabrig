@@ -1,4 +1,4 @@
-//! Scripted records, without an engine domain (protocol/store/README.md, 9).
+//! Scripted records, without an engine domain (protocol/store/testing.md, 1).
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -122,6 +122,16 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
         records: skein_lib::Duration::from_secs(30 * 86_400),
         summaries: skein_lib::Duration::from_secs(365 * 86_400),
     },
+    waits: core::Figures {
+        question: Duration::from_secs(2 * 3600),
+        party: Duration::from_secs(8 * 3600),
+        news: Duration::from_secs(24 * 3600),
+        host: Duration::from_secs(2 * 3600),
+        account: Duration::from_secs(2 * 3600),
+        step: Duration::from_secs(30 * 60),
+        room: Duration::from_secs(30 * 60),
+        sign_off: Duration::from_secs(24 * 3600),
+    },
     public: jig_domain_core::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {
@@ -239,7 +249,7 @@ const fn core_fleet_limits() -> jig_domain_fleet::Limits {
     }
 }
 
-/// The shell's commit size check (protocol/store/README.md, 5).
+/// The shell's commit size check (protocol/store/commits.md, 1).
 pub fn check_commits(limits: &Limits) -> Result<sizes::Sizes, sizes::SizeRefusal> {
     sizes::check_commits(&limits.core, &APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
 }
@@ -308,6 +318,7 @@ pub fn header(commits: u64) -> core::Record {
         connector_rows: 0,
         projects: 0,
         restart_wait_ms: None,
+        wait_floors: None,
         applications: 0,
         commits,
     }))
@@ -354,6 +365,7 @@ pub fn live_task(number: u64) -> core::Record {
         created_at: Wall::EPOCH,
         changed: Wall::EPOCH,
         phase_since: Wall::EPOCH,
+        held_since: None,
         run_since: Some(Wall::EPOCH),
         retry_notice: None,
         ended_at: None,
@@ -432,6 +444,7 @@ pub fn live_task(number: u64) -> core::Record {
 #[must_use]
 pub fn run_proof(task: u64) -> core::Record {
     core::Record::Core(core::CoreRecord::RunProof(core::RunProof {
+        kept_part: 0,
         worker: None,
         accounts: Box::new([]),
         placement: None,
@@ -525,7 +538,7 @@ pub fn history_commit(number: u64) -> Box<[Write]> {
     writes.into_boxed_slice()
 }
 
-/// A linked person/task pair for crash rows (protocol/store/README.md, 9).
+/// A linked person/task pair for crash rows (protocol/store/testing.md, 1).
 #[must_use]
 pub fn person(number: u64) -> core::Record {
     core::Record::People(people::Stored::Person {

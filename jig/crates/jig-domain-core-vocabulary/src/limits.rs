@@ -1,5 +1,5 @@
 //! Limit validity and per-value policy and settings carriers for the core
-//! (`domain/engine/README.md`, section 5.6, and `domain/engine/briefs.md`, section 2, and `domain/engine/settings.md`, section 9; programming-model.md, 6.3).
+//! (`domain/engine/decisions.md`, section 1.6, and `domain/engine/briefs.md`, section 2, and `domain/engine/settings.md`, section 9; programming-model.md, 6.3).
 
 use alloc::boxed::Box;
 use core::mem::size_of;
@@ -270,6 +270,10 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn checked_valid(limits: &Limits) -> Option<()> {
+    let crate::waits::Figures { question, party, news, host, account, step, room, sign_off } = limits.waits;
+    if [question, party, news, host, account, step, room, sign_off].contains(&skein_lib::Duration::ZERO) {
+        return None;
+    }
     if limits.retention.turns == skein_lib::Duration::ZERO
         || limits.retention.records == skein_lib::Duration::ZERO
         || limits.retention.summaries == skein_lib::Duration::ZERO

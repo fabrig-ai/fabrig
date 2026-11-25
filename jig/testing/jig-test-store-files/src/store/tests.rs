@@ -18,11 +18,14 @@ fn result(number: u16, task: u64) -> root::Record {
 }
 
 fn snapshot_store() -> Store {
-    let limits = jig_test_profile::limits();
-    let mut store = Store::new(&limits, &[]);
+    snapshot(Store::new(&jig_test_profile::limits(), &[]))
+}
+
+fn snapshot(mut store: Store) -> Store {
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         tasks: ROWS,
         people: 0,
         sign_ins: 0,
@@ -138,12 +141,12 @@ fn readback_discovers_actual_inventory_without_changing_the_mirror() {
     assert_eq!(store.retained().expect("complete readback"), before, "readers write and erase nothing");
     assert_eq!(store.applied, 1);
     assert!(
-        before.contains_key(&jig_protocol_store::keys::installation(store.component_limits.store.key).expect("key"))
+        before.contains_key(&jig_protocol_store::keys::installation(store.checked.limits().store.key).expect("key"))
     );
     for own in [jig_protocol_store::keys::Own::Format, jig_protocol_store::keys::Own::Wires] {
         assert!(
             before.contains_key(
-                &jig_protocol_store::keys::encode_own(&own, store.component_limits.store.key).expect("key")
+                &jig_protocol_store::keys::encode_own(&own, store.checked.limits().store.key).expect("key")
             )
         );
     }
@@ -246,6 +249,7 @@ fn disk_history_store() -> Store {
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         tasks: 1,
         people: 0,
         sign_ins: 0,
@@ -353,11 +357,18 @@ fn readback_rejects_an_application_value_under_another_records_key() {
     assert_eq!(store.rows, mirror);
 }
 
+const TRANSCRIPT_TASK: u64 = 1;
+
 fn transcript_store() -> (Store, Vec<core::TurnRecord>) {
     let mut store = snapshot_store();
+    let turns = save_transcript(&mut store);
+    (store, turns)
+}
+
+fn save_transcript(store: &mut Store) -> Vec<core::TurnRecord> {
     let turns: Vec<_> = (1..=3)
         .map(|turn| core::TurnRecord {
-            task: 1,
+            task: TRANSCRIPT_TASK,
             attempt: if turn == 3 { 2 } else { 1 },
             turn: if turn == 3 { 1 } else { turn },
             opens_window: turn != 2,
@@ -376,7 +387,110 @@ fn transcript_store() -> (Store, Vec<core::TurnRecord>) {
         );
         assert_eq!(store.tick(false), Ok(Some(number)));
     }
-    (store, turns)
+    turns
+}
+
+fn history_and_turns(mut store: Store) -> Store {
+    use jig_domain_tasks as tasks;
+    let _turns = save_transcript(&mut store);
+    let ended = core::Record::Tasks(tasks::Stored::Ended(crate::tests::ended_chat()));
+    let attempt = core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
+        task: TRANSCRIPT_TASK,
+        attempt: 1,
+        claimed: Some(skein_lib::Wall::EPOCH),
+        started: None,
+        ended: Some(skein_lib::Wall::EPOCH),
+        end: None,
+        phases: None,
+    }));
+    store.seed(Box::new([root::Record::Core(ended), root::Record::Core(attempt)]));
+    store
+}
+
+fn without_read_reuse() -> Store {
+    history_and_turns(snapshot(Store::starting_with_read_reuse(
+        &jig_test_profile::limits(),
+        &[],
+        super::protocol::OwnerSets::NONE,
+        false,
+    )))
+}
+
+fn assert_reads_not_kept(mut store: Store, stage: &str) {
+    use skein_kv::{Direction, Event, LogRule, Op, Request};
+    use skein_lib::{Queue, Token};
+    const LOG: u64 = 1;
+    const BODY: &[u8] = b"s";
+    const BYTES: u32 = 1; // One byte, the whole fixture record.
+    const ROWS: u32 = 1; // The record appended to the probe log.
+
+    let mut stores = store.component.take().expect("component").into_stores();
+    assert_eq!(stores.store.kept_reads(), 0, "main store {stage}");
+
+    // The component doesn't use payload logs in secrets. Read one directly to
+    // distinguish a disabled store from an enabled one that hasn't read a log.
+    let env = store.env().with(store.checked.limits().secrets);
+    stores.secrets.logs(LogRule { prefix: Box::from(b"test-extent/".as_slice()) });
+    let frame = stores.secrets.frame(BODY).expect("secret probe record");
+    let owner = Token::new(0);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    for request in [
+        Request::Commit { owner, ops: Box::new([Op::Append { log: LOG, frame }]) },
+        Request::ReadLog { owner, log: LOG, at: 0, direction: Direction::Forward, max: BYTES, rows: ROWS },
+    ] {
+        skein_kv::down(&mut stores.secrets, &env, request, &mut above, &mut below);
+    }
+    assert!(matches!(above.pop(), Some(Event::Committed { .. })));
+    let Some(Event::LogRead { records, .. }) = above.pop() else { panic!("secret probe read") };
+    assert!(records.iter().map(|record| record.record.as_deref()).eq([Some(BODY)]));
+    assert_eq!(stores.secrets.kept_reads(), 0, "secrets store {stage}");
+}
+
+#[test]
+fn disabling_read_reuse_reaches_every_memory_store() {
+    const SEED: u64 = 3191;
+    let mut default = history_and_turns(snapshot_store());
+    default.readback().expect("history and transcript with defaults");
+    assert!(default.component.take().expect("component").into_stores().store.kept_reads() > 0);
+
+    let mut original = without_read_reuse();
+    original.readback().expect("initial history and transcript");
+    assert_reads_not_kept(original, "at first open");
+
+    // Checking the live KV stores consumes the component, so fork each continuation.
+    let mut crashed = without_read_reuse();
+    crashed.readback().expect("history and transcript before crash");
+    crashed.crash(SEED).expect("restart with logs");
+    crashed.readback().expect("restarted history and transcript");
+    let mut reconfigured = crashed.fork().expect("fork before reconfiguration");
+    assert_reads_not_kept(crashed, "after crash");
+
+    reconfigured.reconfigure(SEED, &[jig_test_profile::scripted_model()]).expect("reconfigure with logs");
+    reconfigured.readback().expect("reconfigured history and transcript");
+    let mut forked = reconfigured.fork().expect("fork memory store");
+    assert_reads_not_kept(reconfigured, "after reconfigure");
+
+    forked.readback().expect("forked history and transcript");
+    let mut corrupted = forked.fork().expect("fork before corrupting a turn");
+    assert_reads_not_kept(forked, "after fork");
+
+    corrupted.unread_memory_turn(TRANSCRIPT_TASK, 0);
+    assert!(matches!(corrupted.readback(), Err(super::ReadbackFinding::Transcript { task: TRANSCRIPT_TASK, .. })));
+    assert_reads_not_kept(corrupted, "after rebuilding a corrupted turn");
+}
+
+#[test]
+fn readback_agrees_with_and_without_read_reuse() {
+    const SEED: u64 = 3192;
+    let mut kept = history_and_turns(snapshot_store());
+    let mut forgotten = without_read_reuse();
+    let expected = kept.readback().expect("history and transcript with reuse");
+    assert_eq!(forgotten.readback().expect("without reuse"), expected);
+    for store in [&mut kept, &mut forgotten] {
+        store.crash(SEED).expect("restart with logs");
+        assert_eq!(store.readback().expect("after restart"), expected);
+    }
 }
 
 #[test]
@@ -445,7 +559,7 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
             owner: Token::new(0),
             read: jig_protocol_store::TranscriptRead::Page { task: 1, backwards: false, after: None },
             rows: 2,
-            bytes: u64::from(store.component_limits.store.page.bytes),
+            bytes: u64::from(store.checked.limits().store.page.bytes),
         })
         .expect("prefix page");
     let jig_protocol_store::Event::Turns { turns, next: Some(offset), .. } = event else { panic!("prefix page") };
@@ -468,6 +582,7 @@ fn starting_snapshot() -> Store {
     let header = core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         tasks: ROWS,
         people: 0,
         sign_ins: 0,

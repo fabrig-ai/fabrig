@@ -1,4 +1,4 @@
-//! Profile evidence and mutations: `temper/docs/design/testing/checks.md`, 5.4.
+//! Profile evidence and mutations: `temper/docs/design/testing/checks-stage-one.md`, 1.4.
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;
@@ -376,7 +376,12 @@ fn run_exits_by_outcome() {
     let missing = scratch.path().join("absent").to_str().expect("path").to_owned();
     assert!(check::run(std::slice::from_ref(&missing)).expect_err("unreadable directory").contains("box.json"));
     assert_eq!(check::main(&[missing]), ExitCode::from(2));
-    for args in [vec![], vec![dir.clone(), "--unknown".into()], vec!["--json".into(), dir]] {
+    assert_eq!(
+        check::run(&[]).expect_err("missing evidence"),
+        "temper-stage-one check: EVIDENCE is not given\nusage:\n  temper-stage-one check EVIDENCE [--json]\n"
+    );
+    assert_eq!(check::main(&[]), ExitCode::from(2));
+    for args in [vec![dir.clone(), "--unknown".into()], vec!["--json".into(), dir]] {
         assert!(check::run(&args).expect_err("usage").starts_with("temper-stage-one check: "));
     }
 }

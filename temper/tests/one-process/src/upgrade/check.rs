@@ -6,6 +6,8 @@ use skein_fake_machine::{How, Is, Machine, Opened};
 use skein_sim::{Handle, Sim};
 use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
 
+pub(crate) mod pre_settings;
+
 type Progress = Vec<temper_engine_service::Note>;
 #[derive(Clone, Copy, Debug)]
 enum Until {
@@ -47,6 +49,7 @@ fn drive(
 ) -> (String, u8, Progress) {
     let mut service = configured(document);
     service.owner_sets(sets);
+    service.prepared_schemas(crate::schemas::binary_schemas());
     let mut sim = Sim::new(fixtures::SEED, skein_sim::Config::calm());
     let pid = sim.spawn_process();
     let source = disk.reopen_root(0);
@@ -105,16 +108,24 @@ fn drive(
                     };
                     if let Until::Workers = until {
                         let events = report.events.iter().collect::<Vec<_>>();
-                        assert!(
-                            matches!(
-                                events.as_slice(),
-                                [
-                                    jig_protocol_store::Event::Rehearsing { .. },
-                                    jig_protocol_store::Event::Closed { removed: true, .. }
-                                ]
-                            ),
-                            "{events:?}"
-                        );
+                        let [
+                            jig_protocol_store::Event::Rehearsing { openings, .. },
+                            jig_protocol_store::Event::Closed { removed: true, .. },
+                        ] = events.as_slice()
+                        else {
+                            panic!("{events:?}")
+                        };
+                        let [jig_protocol_store::KeptOpening::Current(opening)] = openings.as_ref() else {
+                            panic!("one current opening: {openings:?}")
+                        };
+                        assert_eq!(opening.worker.as_ref(), "local");
+                        let spoken = report.workers.spoken.as_slice();
+                        assert_eq!(opening.wires.len(), spoken.len());
+                        for kept in &opening.wires {
+                            let wire = spoken.iter().find(|wire| wire.name == kept.name.as_ref()).expect("worker wire");
+                            assert_eq!(kept.layout, wire.layout);
+                            assert_eq!(kept.text.as_ref(), wire.text.as_bytes());
+                        }
                     }
                     render(
                         "temper-box",
@@ -189,18 +200,7 @@ pub fn corrupt_open_rehearsal() {
 fn source_rehearsal(format: &[u8], expected: &str) {
     use skein_fake_machine::Item;
     let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::Format, 64).expect("format key");
-    let mut body = vec![1];
-    body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
-    body.extend(key.as_ref());
-    body.extend(u32::try_from(format.len()).expect("format length").to_be_bytes());
-    body.extend(format);
-    let mut frame = b"SKVC".to_vec();
-    frame.extend(1_u16.to_be_bytes());
-    frame.extend(1_u64.to_be_bytes());
-    frame.extend(1_u32.to_be_bytes());
-    frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
-    frame.extend(body);
-    frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
+    let frame = first_commit(&[(&key, format)]);
     let mut disk = Machine::for_user(1000);
     let root = disk.lay(&[
         Item::file(b"active", b"1\n"),
@@ -224,6 +224,25 @@ fn source_rehearsal(format: &[u8], expected: &str) {
     let scratch = disk.reopen_root(1);
     assert!(disk.list(scratch, 32, 4096).expect("scratch list").is_empty(), "scratch emptied");
     disk.close(scratch);
+}
+
+fn first_commit(rows: &[(&[u8], &[u8])]) -> Vec<u8> {
+    let mut body = Vec::new();
+    for (key, value) in rows {
+        body.push(1);
+        body.extend(u32::try_from(key.len()).expect("key length").to_be_bytes());
+        body.extend_from_slice(key);
+        body.extend(u32::try_from(value.len()).expect("value length").to_be_bytes());
+        body.extend_from_slice(value);
+    }
+    let mut frame = b"SKVC".to_vec();
+    frame.extend(1_u16.to_be_bytes());
+    frame.extend(1_u64.to_be_bytes());
+    frame.extend(u32::try_from(rows.len()).expect("row count").to_be_bytes());
+    frame.extend(u32::try_from(body.len()).expect("body length").to_be_bytes());
+    frame.extend(body);
+    frame.extend(jig_protocol_store::transcripts::frame::crc32c(&frame).to_be_bytes());
+    frame
 }
 
 type Image = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
@@ -284,7 +303,7 @@ pub fn opened_worker_rehearsal() {
     eprintln!("{report}");
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "an equal-level rehearsal patches nothing");
-    // fixtures::document names local; the world starts at 2026-01-01 UTC.
+    // The box defaults to local; the world starts at 2026-01-01 UTC.
     assert!(report.contains("temper-box upgrade: worker local may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), before, "rehearsal leaves the stopped deployment unchanged");
@@ -320,10 +339,7 @@ pub fn rehearsal_then_start_and_back() {
         let owner = if *of == Owner::Jig { "jig" } else { "temper" };
         assert!(report.contains(&format!("ran {owner} {expected}: {rows} rows in {commits} commits")), "{report}");
     }
-    assert!(
-        report.contains("registry commit, jobs and restores pass; what follows the switch is not rehearsed"),
-        "{report}"
-    );
+    assert!(report.contains("registry commit, jobs and restores pass; opened in "), "{report}");
     assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
     assert_eq!(image(&mut disk), original, "rehearsal leaves every deployment byte unchanged");
     let (_, _, actual) = drive(&mut disk, &document, CURRENT_SETS, Until::Switched);
@@ -354,6 +370,6 @@ pub fn golden(directory: &Path) {
     let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "floor store needs no jobs");
-    assert!(report.contains("registry commit, jobs and restores pass"), "{report}");
+    assert!(report.contains("registry commit, jobs and restores pass; opened in "), "{report}");
     assert_eq!(image(&mut disk), before);
 }

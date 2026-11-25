@@ -8,7 +8,7 @@
 //! The last Linux keeper restores the observer's prior subreaper setting, so later
 //! fixture descendants are not adopted on that binary's behalf.
 //! Supervised scenarios keep identities before adoption, survey live members,
-//! and choose their own TERM and KILL deadlines (smith/docs/design/benchmarks/README.md, section 10).
+//! and choose their own TERM and KILL deadlines (smith/docs/design/benchmarks/isolation.md, section 1).
 
 #[cfg(target_os = "linux")]
 use alloc::collections::{BTreeMap, BTreeSet};
@@ -1067,6 +1067,15 @@ fn open_tree_member(pid: u32, parent: Option<(u32, Fd)>, cgroup: Option<&Path>) 
 }
 
 #[cfg(target_os = "linux")]
+pub(crate) mod testing {
+    use super::{Error, Fd, Path, open_tree_member};
+
+    pub fn open_cgroup_member(pid: u32, cgroup: Option<&Path>) -> Result<Option<Fd>, Error> {
+        open_tree_member(pid, None, cgroup)
+    }
+}
+
+#[cfg(target_os = "linux")]
 fn in_cgroup(pid: u32, binary: &Path) -> bool {
     let Ok(membership) = fs::read_to_string(format!("/proc/{pid}/cgroup")) else { return false };
     let path = binary.strip_prefix("/sys/fs/cgroup").expect("a cgroup beneath its mount");
@@ -1400,21 +1409,6 @@ mod tests {
             .expect("recorded settlement");
             assert!(!owned && killed, "the recorded group settled before the leader was released");
         }
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn a_cgroup_candidate_must_prove_its_opened_membership() {
-        let pid = std::process::id();
-        let foreign = std::path::Path::new("/sys/fs/cgroup/skein-foreign-candidate");
-        assert_eq!(super::open_tree_member(pid, None, Some(foreign)), Ok(None), "a foreign cgroup grants no ownership");
-        assert_eq!(super::open_tree_member(pid, None, None), Ok(None), "a number alone grants no ownership");
-        let membership = std::fs::read_to_string("/proc/self/cgroup").expect("own cgroup");
-        let relative = membership.lines().find_map(|line| line.strip_prefix("0::")).expect("cgroup v2");
-        let own = std::path::Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/'));
-        let descriptor =
-            super::open_tree_member(pid, None, Some(&own)).expect("validate membership").expect("own member");
-        skein_shell::keeper::close_keeper_fd(descriptor);
     }
 
     #[test]

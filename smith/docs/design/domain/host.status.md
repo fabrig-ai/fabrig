@@ -1,6 +1,7 @@
 # host: status
 
-2026-11-18. Where smith's code lags or departs from [host.md](host.md).
+2026-11-24. Where smith's code lags or departs from [host.md](host.md).
+
 
 Section 4 has no known gap in retaining a panic's closing line and
 message when they fit the detail bound. The host-protocol detail table
@@ -25,3 +26,4 @@ remains a tail.
     with no request waiting it aborts ("one terminal per account
     request"), and with another account's waiting it is counted as that
     one's answer.
+

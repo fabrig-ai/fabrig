@@ -115,6 +115,23 @@ fn text_is_found_by_words_within_one_run() {
     );
 }
 #[test]
+fn a_paragraph_box_asks_for_rendered_text_not_an_exact_accessible_name() {
+    let mut face = face();
+    let find = Find::paragraph_text(b"Read this.").nth(1);
+    assert_eq!(face.find_boxed(&find), Found::Pending);
+    assert_eq!(
+        query(&mut face),
+        Query {
+            role: b"paragraph".as_slice().into(),
+            name: b"Read this.".as_slice().into(),
+            matching: Match::ParagraphText,
+            within: None,
+            boxes: true,
+        }
+    );
+}
+
+#[test]
 fn a_press_becomes_the_kits_press_at_the_centre() {
     let mut face = face();
     let find = Find::named(Role::Button, b"Title");
@@ -562,6 +579,48 @@ fn a_refused_replacement_stops_its_sequence_and_retains_the_kit_refusal() {
         face.key(Key::Tab, false);
         assert_eq!(face.refusal(), None);
     }
+}
+
+#[test]
+fn timeouts_keep_the_answer_bound_and_a_find_never_reports_absence() {
+    let find = Find::text(b"answer");
+    let bound = skein_browser::Limits::default().answer;
+    for kind in ["find", "keep", "tabs", "snapshot", "screenshot", "act"] {
+        let mut face = face();
+        match kind {
+            "find" => assert_eq!(face.find(&find), Found::Pending),
+            "keep" => face.keep(b"input".as_slice().into(), None, b"read".as_slice().into()),
+            "tabs" => face.tabs(),
+            "snapshot" => face.snapshot(),
+            "screenshot" => face.screenshot_at(face.viewport_size().0),
+            "act" => face.key(Key::Enter, false),
+            _ => unreachable!(),
+        }
+        let op = Token::new(face.serial());
+        face.requests().for_each(drop);
+        face.event(&Event::Refused { op, why: Refusal::Timeout, detail: Box::default() });
+        assert_eq!(face.expired(), Some(bound), "{kind}");
+        if kind == "find" {
+            assert_eq!(face.find(&find), Found::Pending);
+            assert!(face.requests().next().is_none());
+        }
+        assert!(face.failure().expect(kind).contains("Timeout"), "{kind}");
+        assert_eq!(face.expired(), None);
+    }
+    let mut face = face();
+    assert_eq!(face.find(&find), Found::Pending);
+    let Request::Find { op, .. } = face.requests().next().expect("find") else { panic!("find request") };
+    face.event(&Event::Refused { op, why: Refusal::Protocol, detail: Box::default() });
+    assert_eq!(face.expired(), None);
+    assert_eq!(face.failure().as_deref(), Some("browser refused find: Protocol"));
+    face.expire(bound, "waited for an answer".into());
+    assert_eq!(face.expired(), Some(bound));
+    assert_eq!(face.failure().as_deref(), Some("waited for an answer"));
+    assert_eq!(face.expired(), None);
+    face.fail("wrong answer".into());
+    face.expire(bound, "another wait expired".into());
+    assert_eq!(face.expired(), None);
+    assert_eq!(face.failure().as_deref(), Some("wrong answer"));
 }
 
 #[test]

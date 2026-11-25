@@ -1,4 +1,4 @@
-//! A person's hold leaves a run in flight alone (temper/docs/design/domain/after-landing.md, 3).
+//! A person's hold leaves a run in flight alone (temper/docs/design/domain/after-landing-runs.md, 2).
 use super::{configured_all, empty, save, start_due};
 use crate::tiers::{TierAct, TierActRequest, TierRefusal};
 use crate::{Answered, Domain, Limits, Request, TierHold};
@@ -57,6 +57,7 @@ fn apply(
             if row.hold.take().is_none() {
                 return Err(TierRefusal::NotHeld);
             }
+            crate::findings::judging::released(d, env, &row, out);
         }
     }
     let released = row.hold.is_none();

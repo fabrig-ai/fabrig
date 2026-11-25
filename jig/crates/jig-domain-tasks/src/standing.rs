@@ -1,5 +1,5 @@
 //! Period renewal for standing root tasks (domain/tasks/standing.md, section 4;
-//! domain/tasks/README.md, section 5; domain/authority.md, section 7).
+//! domain/tasks/README.md, section 5; domain/authority-budgets.md, section 1).
 //! Old delegates keep their old-period source.
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{EndedBy, Executor, Funder, FundingRecord, Hold, Limits, Numbers, Phase, Request, TaskRecord};

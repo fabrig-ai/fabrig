@@ -68,7 +68,7 @@ with a token that its one answer echoes.
 - **One request at a time;** a builder may run more than one helper
   (one by default).
 - **On the pipes, a message is a length and a map,** not a frame of a
-  kind (`records.md`, 1): a `u32` BE length, then a map (`README.md`, 3.1) of `kind`, the
+  kind (`records.md`, 1): a `u32` BE length, then a map (`digests.md`, 1.1) of `kind`, the
   request's or answer's name, `token`, and `fields`, the map its kind
   names. A scan rule is `list [ how, path, what, with ]` (hearth/docs/design/domain/build/README.md,
   7.3). A message is bounded at 4 MiB, 256 rules and 64 findings; a
@@ -84,7 +84,7 @@ with a token that its one answer echoes.
 - **Formats are machines, each its own lib-only crate**
   (`skein/docs/foundation/programming-model.md`, section 4), so the helper's domain parses
   nothing:
-  - `hearth-protocol-tree`: the decoder of `README.md`, 3.1's encoding and the
+  - `hearth-protocol-tree`: the decoder of `digests.md`, 1.1's encoding and the
     store's record and tree files, which share the frame (`records.md`, 1); it depends on skein-lib and `hearth-lib` only;
   - `hearth-protocol-accounts`: the lines of `/etc/passwd`, `/etc/group`,
     `/etc/shadow` and `/etc/gshadow`, read from a layer, as typed
@@ -109,7 +109,7 @@ with a token that its one answer echoes.
 - **A changed entry is read whole:** skein's `StatEntry`,
   `ListAttributes` and `GetAttribute` for the covered families,
   `ReadLink`, and a file's contents, hashed as they stream (
-  skein/docs/design/runtime/kernel.md, 6.4). Files with more than one link are grouped by inode
+  skein/docs/design/runtime/kernel-files.md, 2). Files with more than one link are grouped by inode
   number.
 - **The walk checks what a stream cannot defer:** a path with a hard
   link to an entry seen before must agree with that first entry's mode,
@@ -117,7 +117,7 @@ with a token that its one answer echoes.
   is written before any entry beneath it, so a child never waits on its
   parent. A mismatch is a refusal of the layer, never a repair.
 - **The digests come from the finished tree file.** The tree's entries
-  and `README.md`, 3.5's change set each name their count first, so the helper writes
+  and `digests.md`, 1.5's change set each name their count first, so the helper writes
   the tree file as it walks, then reads it twice more: once for the tree
   digest, and once for the change set's, which hashes the child's tree
   digest before its changes. Then it writes the end item (`records.md`, 3). Each
@@ -138,7 +138,7 @@ with a token that its one answer echoes.
   retrofit has it set every mtime newer than the layer's time to that
   time as it visits changed inodes, and record the change time read
   after the clamp, so `README.md`, 4.3's rule stays sound (hearth/docs/design/domain/build/reproducible.md, 5.1). No
-  digest changes: times are left out (`README.md`, 3.4).
+  digest changes: times are left out (`digests.md`, 1.4).
 
 ## 5. Apply, empty and the subvolume operations
 
@@ -160,11 +160,11 @@ with a token that its one answer echoes.
   ); single-file downloads (hearth/docs/design/domain/build/README.md, 5.2).
 - **Refused in M2 as well:** a FIFO, which no M2 layer's change set
   makes; it comes with a need. Entries' times are not set, since no
-  digest holds them (`README.md`, 3.4): setting them comes with the slot's shift in
+  digest holds them (`digests.md`, 1.4): setting them comes with the slot's shift in
   M3 (hearth/docs/design/domain/slots/prepare.md, 2).
 - **Records:** skein's `MakeDirectory`, `Create`, `Truncate`,
   `MakeLink`, `HardLink`, `SetOwner`, `SetMode`, `SetAttribute` and
-  `RemoveAttribute`, beneath the store's root (skein/docs/design/runtime/kernel.md, 6.4).
+  `RemoveAttribute`, beneath the store's root (skein/docs/design/runtime/kernel-files.md, 2).
 - **Empty** removes everything beneath a layer's root, deepest first, so
   the builder can `rmdir` it (`README.md`, 5.3). Stopped half-way, it is done again.
 - **Snapshot, freeze, thaw and delete** are skein's `Snapshot`,
@@ -218,18 +218,18 @@ by its protocol layer (hearth/docs/design/domain/render/README.md, 2.3), whence 
 | Call | skein's record | Made by | For |
 |---|---|---|---|
 | `BTRFS_IOC_SUBVOL_CREATE` | `SubvolumeCreate` | the builder | the empty layer's subvolume (`README.md`, 4.1) |
-| `BTRFS_IOC_GET_SUBVOL_INFO` | `SubvolumeInfo` | the builder | a subvolume's uuids and flags (`README.md`, 4.2, 6.2) |
-| `BTRFS_IOC_GET_SUBVOL_ROOTREF` | `SubvolumeChildren` | the builder | the subvolumes under the store, and nested ones (`README.md`, 6.2) |
-| `BTRFS_IOC_INO_LOOKUP_USER` | `SubvolumePath` | the builder | each subvolume's path (`README.md`, 6.2) |
+| `BTRFS_IOC_GET_SUBVOL_INFO` | `SubvolumeInfo` | the builder | a subvolume's uuids and flags (`README.md`, 4.2, `state.md`, 1.2) |
+| `BTRFS_IOC_GET_SUBVOL_ROOTREF` | `SubvolumeChildren` | the builder | the subvolumes under the store, and nested ones (`state.md`, 1.2) |
+| `BTRFS_IOC_INO_LOOKUP_USER` | `SubvolumePath` | the builder | each subvolume's path (`state.md`, 1.2) |
 | `BTRFS_IOC_SNAP_CREATE_V2` | `Snapshot` | the tree helper | a writable snapshot of a parent (`README.md`, 4.2) |
 | `BTRFS_IOC_SUBVOL_SETFLAGS` | `SubvolumeReadOnly` | the tree helper | freeze and thaw (`README.md`, 4.2, 5.3) |
 | `BTRFS_IOC_SNAP_DESTROY_V2` | `SubvolumeDestroy` | the tree helper | delete whole, where `user_subvol_rm_allowed` is set (`README.md`, 5.4) |
 | `syncfs(2)` | `SyncFilesystem` | the tree helper | the layer durable, at the end of freeze (`README.md`, 4.2) |
-| `fstatfs(2)` | `FilesystemStatus` | the builder | the store on btrfs, and its space (`README.md`, 6.1, 6.2) |
+| `fstatfs(2)` | `FilesystemStatus` | the builder | the store on btrfs, and its space (`state.md`, 1.1, 1.2) |
 
 All are unprivileged: the ioctls the builder makes for any user, the
 helper's for the owner of a subvolume's root. They are synchronous
-records of skein's ring adapter, a closed list (skein/docs/design/runtime/kernel.md, 6.5;
+records of skein's ring adapter, a closed list (skein/docs/design/runtime/kernel-files.md, 3;
 hearth/docs/design/README.md, 7.1), made in two processes: the builder and its tree
 helper. The long ones (a snapshot, a flag, a destroy, a sync) are the
 helper's alone, so they never stall the builder's loop; the builder's

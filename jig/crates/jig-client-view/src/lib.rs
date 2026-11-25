@@ -14,6 +14,9 @@ mod binding;
 pub mod boundary;
 mod generated {
     //! Stored reference UI records (jig/docs/design/client/domain/view-state.md, 8).
+    #[rustfmt::skip]
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "maps to-record functions borrow domain values uniformly")]
+    pub(crate) mod records;
     pub(crate) use jig_client_view_codec::records_v1;
 }
 

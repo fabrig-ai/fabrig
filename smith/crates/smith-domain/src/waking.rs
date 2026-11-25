@@ -1,4 +1,4 @@
-//! Bounded text for answers absent from a resumed transcript (smith/docs/design/domain/run.md, section 6).
+//! Bounded text for answers absent from a resumed transcript (smith/docs/design/domain/run-messages.md, section 1).
 //! The root translates each semantic answer through its live feedback renderer,
 //! then gives the session one first prompt. No provider message is assembled here.
 
@@ -18,7 +18,7 @@ pub(crate) fn render(answered: Box<[AnsweredCall]>, limits: &Limits) -> Option<B
     }
     let mut text = List::with_capacity(limits.run.answered_bytes);
     put(&mut text, b"Earlier host answers absent from the saved transcript:\n")?;
-    for AnsweredCall { name, tool, answer } in answered {
+    for AnsweredCall { name, tool, answer: given } in answered {
         put(&mut text, b"call activation=")?;
         number(&mut text, name.activation)?;
         put(&mut text, b" completion=")?;
@@ -27,33 +27,33 @@ pub(crate) fn render(answered: Box<[AnsweredCall]>, limits: &Limits) -> Option<B
         number(&mut text, u64::from(name.position))?;
         put(&mut text, b" tool=")?;
         put(&mut text, &tool)?;
-        match answer {
-            Answered::TooLarge => {
-                put(&mut text, b" error: the host decided this call; its answer was too large to give")?;
-            }
-            Answered::Host(answer) => {
-                let feedback =
-                    crate::feedback(run::Returned::HostAnswered(answer), limits.session.delegated_result_bytes).ok()?;
-                put(&mut text, if feedback.error { b" error: " } else { b" result: " })?;
-                put(&mut text, &feedback.text)?;
-            }
-            Answered::Delivery(delivery) => {
-                let returned = match *delivery {
-                    run::Delivery::Delivered(receipts) => run::Returned::Delivered(receipts),
-                    run::Delivery::Nothing => run::Returned::Nothing,
-                    run::Delivery::Refused(refusal) => run::Returned::DeliveryRefused(refusal),
-                    run::Delivery::Failed(failure) => run::Returned::DeliveryFailed { failure },
-                    run::Delivery::Stale => run::Returned::Stale,
-                };
-                let feedback = crate::feedback(returned, limits.session.delegated_result_bytes).ok()?;
-                put(&mut text, if feedback.error { b" error: " } else { b" result: " })?;
-                put(&mut text, &feedback.text)?;
-            }
-        }
+        let feedback = answer(given, limits)?;
+        put(&mut text, if feedback.error { b" error: " } else { b" result: " })?;
+        put(&mut text, &feedback.text)?;
         put(&mut text, b"\n")?;
     }
     put(&mut text, b"\n")?;
     Some(text.into_boxed())
+}
+
+pub(crate) fn answer(answer: Answered, limits: &Limits) -> Option<crate::Feedback> {
+    let returned = match answer {
+        Answered::TooLarge => {
+            return Some(crate::Feedback {
+                text: Box::from(b"the host decided this call; its answer was too large to give".as_slice()),
+                error: true,
+            });
+        }
+        Answered::Host(answer) => run::Returned::HostAnswered(answer),
+        Answered::Delivery(delivery) => match *delivery {
+            run::Delivery::Delivered(receipts) => run::Returned::Delivered(receipts),
+            run::Delivery::Nothing => run::Returned::Nothing,
+            run::Delivery::Refused(refusal) => run::Returned::DeliveryRefused(refusal),
+            run::Delivery::Failed(failure) => run::Returned::DeliveryFailed { failure },
+            run::Delivery::Stale => run::Returned::Stale,
+        },
+    };
+    crate::feedback(returned, limits.session.delegated_result_bytes).ok()
 }
 
 fn put(text: &mut List<u8>, bytes: &[u8]) -> Option<()> {

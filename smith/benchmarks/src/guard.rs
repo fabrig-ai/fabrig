@@ -1,9 +1,10 @@
 //! One write guard keeps resolved user tool directories and no credentials.
 //! `Guard::write_path` resolves existing ancestors before permitting a write;
 //! `check_credential_record` refuses refresh tokens without returning their
-//! contents (testing.md, section 2.3; ../../docs/design/benchmarks/README.md, section 10). Callers check
+//! contents (testing-tiers.md, section 3; ../../docs/design/benchmarks/isolation.md, section 1). Callers check
 //! every destination immediately before writing; this guard never reads a login.
 
+use crate::files::{Files, Native};
 use crate::{Fault, credential, input, io};
 use std::path::{Component, Path, PathBuf};
 
@@ -16,6 +17,17 @@ pub struct Guard {
 impl Guard {
     /// Protect the user's default tool directories and explicitly named tool homes.
     pub fn new(home: &Path, config: &Path, state: &Path, tool_homes: &[PathBuf]) -> Result<Self, Fault> {
+        Self::new_with(&Native, home, config, state, tool_homes)
+    }
+
+    /// Build a guard against a supplied filesystem in a step test.
+    pub fn new_with(
+        files: &dyn Files,
+        home: &Path,
+        config: &Path,
+        state: &Path,
+        tool_homes: &[PathBuf],
+    ) -> Result<Self, Fault> {
         let mut protected = vec![
             home.join(".codex"),
             home.join(".claude"),
@@ -25,7 +37,7 @@ impl Guard {
             state.join("smith-bench/logins"),
         ];
         protected.extend_from_slice(tool_homes);
-        let resolved: Vec<_> = protected.iter().map(|path| resolve(path)).collect::<Result<_, _>>()?;
+        let resolved: Vec<_> = protected.iter().map(|path| resolve(files, path)).collect::<Result<_, _>>()?;
         protected.extend(resolved);
         protected.sort();
         protected.dedup();
@@ -46,9 +58,14 @@ impl Guard {
 
     /// Resolve a destination and refuse writes inside any user tool location.
     pub fn write_path(&self, path: &Path) -> Result<PathBuf, Fault> {
-        let resolved = resolve(path)?;
+        self.write_path_with(&Native, path)
+    }
+
+    /// Check a destination with the supplied filesystem in a step test.
+    pub fn write_path_with(&self, files: &dyn Files, path: &Path) -> Result<PathBuf, Fault> {
+        let resolved = resolve(files, path)?;
         for protected in &self.protected {
-            if resolved.starts_with(resolve(protected)?) {
+            if resolved.starts_with(resolve(files, protected)?) {
                 return Err(input("write refused inside the user's tool directories"));
             }
         }
@@ -65,14 +82,14 @@ pub fn write_path(path: &Path) -> Result<PathBuf, Fault> {
     Guard::from_environment()?.write_path(path)
 }
 
-fn resolve(path: &Path) -> Result<PathBuf, Fault> {
+fn resolve(files: &dyn Files, path: &Path) -> Result<PathBuf, Fault> {
     if !path.is_absolute() || path.components().any(|part| matches!(part, Component::ParentDir)) {
         return Err(input("write destination must be absolute and contain no '..'"));
     }
     let mut existing = path;
     let mut suffix = Vec::new();
     loop {
-        match std::fs::symlink_metadata(existing) {
+        match files.symlink_metadata(existing) {
             Ok(_) => break,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 suffix.push(
@@ -83,8 +100,9 @@ fn resolve(path: &Path) -> Result<PathBuf, Fault> {
             Err(error) => return Err(io(format!("cannot inspect write destination: {}", error.kind()))),
         }
     }
-    let mut resolved =
-        existing.canonicalize().map_err(|error| io(format!("cannot resolve write destination: {}", error.kind())))?;
+    let mut resolved = files
+        .canonicalize(existing)
+        .map_err(|error| io(format!("cannot resolve write destination: {}", error.kind())))?;
     for name in suffix.into_iter().rev() {
         resolved.push(name);
     }

@@ -134,7 +134,7 @@ Where the client does otherwise:
   client has no project's `by`, so no project's line names how it
   lands. The switcher shows
   repository names and counts, the first listed standing in for the home; "3 repositories"
-  without that stand-in is unreached (`../../view.md`, 3). Home's
+  without that stand-in is unreached (`../../view-navigation.md`, 1). Home's
   GitHub picker and reached count and the model account's email wait
   as `../../pages/README.status.md` and `../../forge/family.status.md`, 4, records. The gallery draws
   Home's states, including Claude alone, both plans and an API key.
@@ -146,7 +146,7 @@ Where the client does otherwise:
 
   | Page | Where the client does otherwise, or what is left |
   |---|---|
-  | Ask temper's page (`chat.html?id=new&configure=1`) | In the project's frame, through no Settings, at `/projects/<project>/ask` (`../README.md`, 2.3), the rail's "Ask temper" and the tab bar's "Ask" current (the look request `ask-temper-place`); an Ask temper chat keeps that layout at `/chats/<task>` (`../../pages/README.md`). The opening draws the lede "How a change is produced and lands in PROJECT.", a head with the shown way's line, the column to itself, and at the lede's right its act ("Use this" or "Keep it" where offered) and a drop-down naming the way shown, its menu ticking it and saying "current" at the way the project runs, with no "Back"; the shown way's path from the `ways` read, a pressed stop's card, the legend and "How does temper work?"; then "✦ Change anything by asking temper below." (the look requests `ask-temper-ways`, `ways-current` and `ways-shown`). It has no heading, starters or temper's own way's card, and no reference beside the page. On a phone the path runs down the page; while To begin is left, its three tabs stay under the composer. The opening, turns and composer share a column at most 720 px wide, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. The rail's "Ask temper", the tab bar's "Ask" and To begin's "Start" open the newest Ask temper chat not closed in their delivered rows, or this opening; Settings offers none. Chats tags it "Ask temper"; To begin keeps "Tell temper how you work". Render comparison follows landing, owned by temper/ui (`../../README.md`, section 5). |
+  | Ask temper's page (`chat.html?id=new&configure=1`) | In the project's frame, through no Settings, at `/projects/<project>/ask` (`../addresses.md`, 1), the rail's "Ask temper" and the tab bar's "Ask" current (the look request `ask-temper-place`); an Ask temper chat keeps that layout at `/chats/<task>` (`../../pages/README.md`). The opening draws the lede "How a change is produced and lands in PROJECT.", a head with the shown way's line, the column to itself, and at the lede's right its act ("Use this" or "Keep it" where offered) and a drop-down naming the way shown, its menu ticking it and saying "current" at the way the project runs, with no "Back"; the shown way's path from the `ways` read, a pressed stop's card, the legend and "How does temper work?"; then "✦ Change anything by asking temper below." (the look requests `ask-temper-ways`, `ways-current` and `ways-shown`). It has no heading, starters or temper's own way's card, and no reference beside the page. On a phone the path runs down the page; while To begin is left, its three tabs stay under the composer. The opening, turns and composer share a column at most 720 px wide, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. The rail's "Ask temper", the tab bar's "Ask" and To begin's "Start" open the newest Ask temper chat not closed in their delivered rows, or this opening; Settings offers none. Chats tags it "Ask temper"; To begin keeps "Tell temper how you work". Render comparison follows landing, owned by temper/ui (`../../README.md`, section 5). |
 
   The model line names the first usable account's kind and the first
   model `me` serves for the project (`../../pages/README.md`), rather than
@@ -218,7 +218,7 @@ Anything else on a page is the UI's own words, and those name no workflow: the d
 
 What temper does not have yet, drawn ahead of its design and marked with its gap's label while **Annotations** is on:
 
-- **6.3, plan usage:** a program's 5-hour and weekly windows on the accounts page, the week with its pace; the director's check reads them. The client draws them wherever a window is held (`../../pages/accounts.md`, 2, *Usage*), but nothing writes one yet (`../../../draft/usage-windows.md`). A ChatGPT plan shows none: its usage is ChatGPT's settings' to show (jig's `domain/providers.md`, 2.6), so its row shows its limit's state and "Manage usage ↗", which opens them.
+- **6.3, plan usage:** a program's 5-hour and weekly windows on the accounts page, the week with its pace; the director's check reads them. The client draws them wherever a window is held (`../../pages/accounts-words.md`, 1, *Usage*), but nothing writes one yet (`../../../draft/usage-windows.md`). A ChatGPT plan shows none: its usage is ChatGPT's settings' to show (jig's `domain/providers.md`, 2.6), so its row shows its limit's state and "Manage usage ↗", which opens them.
 - **6.4, worker health:** the ops strip on the workers page, an ops application's report of load and disk.
 - **6.5, open findings:** a finding on a goal's page, the board and the changes page, where a failure that matches an open finding attaches to it and leaves the queue running.
 - **6.7, fleet occupancy:** a worker's free slots, and the director's read of them.
@@ -231,7 +231,7 @@ Not drawn: two ideas that would change temper's engine, not only its pages. A ch
 
 ### 2.3 The first run
 
-`world-first-run.js` is the deployment `temper-box init --box` writes (`../../../protocol/setup/init.md`, 2 and 3): its project 1, "Project 1", which View → Future draws as no project, made by the playground's start or the first repository (`../../../draft/archive/first-run.md`, 2.4), the charters `chat` and `coding`, one worker in temper's process, three forges (the demo's fake, GitHub not connected, a Forgejo here not set up), and no account, repository or forge started yet. Every word an agent says is the demo's script (8.4). [first-run.html](first-run.html), the address the documents cite, opens it at its first step. Its steps:
+`world-first-run.js` is the deployment `temper-box init --box` writes (`../../../protocol/setup/init.md`, 5 and 6): its project 1, "Project 1", which View → Future draws as no project, made by the playground's start or the first repository (`../../../draft/archive/first-run.md`, 2.4), the charters `chat` and `coding`, one worker in temper's process, three forges (the demo's fake, GitHub not connected, a Forgejo here not set up), and no account, repository or forge started yet. Every word an agent says is the demo's script (8.4). [first-run.html](first-run.html), the address the documents cite, opens it at its first step. Its steps:
 
 - **0. The link opened:** the welcome offers Try the playground or Set up temper (section 1.1). Chats behind it has the setup strip, no model and a disabled send button.
 - **1. The demo chosen:** the engine asks temper box for the demo’s fakes, makes the project Playground, adds the Scripted model’s account and adopts playground/widget into it. The chats page is the demo's start (client README, 5.6): the banner under the navigation, as on every page; a chatbar with no task and no number; the context line; the three suggested requests.
@@ -257,7 +257,7 @@ While the demo is not started and a forge or model is missing, the setup strip t
 
 Where the documents disagree, or leave a word open, the mockup takes one side and says so here:
 
-- **T1's next run takes the new account** (step 5), where temper's stays on the demo model. The draft says the demo model "stays the demo project's" (`../../../draft/archive/first-run.md`, 2.2). ../../../protocol/setup/init.md 3 says a task with no model chosen takes the first of its charter's models that has a usable account, and the demo model is last in both charters. jig resolves that default once, at the task's Create, and records it, so a new chat's first run takes gpt-6.1-sol on the ChatGPT plan while T1, created before it, keeps the demo model. The mockup draws T1 on gpt-6.1-sol too: re-resolving a task's default for each run is jig's to decide.
+- **T1's next run takes the new account** (step 5), where temper's stays on the demo model. The draft says the demo model "stays the demo project's" (`../../../draft/archive/first-run.md`, 2.2). ../../../protocol/setup/init.md 6 says a task with no model chosen takes the first of its charter's models that has a usable account, and the demo model is last in both charters. jig resolves that default once, at the task's Create, and records it, so a new chat's first run takes gpt-6.1-sol on the ChatGPT plan while T1, created before it, keeps the demo model. The mockup draws T1 on gpt-6.1-sol too: re-resolving a task's default for each run is jig's to decide.
 - **The coding agent's title is the change's** (T3, "Export widget's table as CSV"): ../../../protocol/setup/playground.md makes the change's title its agent's brief, and a chip is the spec's first line. The other worlds title that agent "Produce TN's branch", a stand-in for a title temper's procedure does not word yet.
 - **The dark theme's words** are a stand-in. Their content is the demo's follow-up (`../../../draft/archive/first-run.md`, section 8). The empty search and the fallback are not drawn: they take step 4's shape.
 - **The forges page** shows only the person’s forges (connecting, setting up, set up failed, connected, stopped), each folded until opened, and the playground’s. A forge not acted on is a choice in the “Connect a forge” flow: Choose → Details → Setting up → Ready for a Forgejo, and Choose → Connecting → Ready for GitHub (below), ending on the new project. The banner shows the set-up’s status and a link to it; the Forges nav item’s dot is amber while setting up or connecting, red when a forge needs the person. The page and the flow are ../../forge/deployment.md's. Mockup-only galleries on both pages compare the flow’s other paths and the other forge rows, including managed and connected Forgejo. The flow’s “A Forgejo elsewhere” includes the setup entry that connecting as its admin needs.
@@ -328,10 +328,10 @@ Where the client's recorded picks stand against the drawing:
   the `ui-model-next-turn` repair owner.
 - **Closed** for every ended chat's bar and list row, with no clock in
   the bar. A requester-closed chat ends its conversation with "Closed
-  at CLOCK" between two hairlines (`../../README.md`, 3.6). The conversation's
+  at CLOCK" between two hairlines (`../../root.md`, 1.6). The conversation's
   Failed and Cancelled words and reasons stay. Chats is one list, newest first;
   a row's spend is its own, with live delegates counted separately.
-- **Confirmation sheets** follow `../../README.md`, 3.6: a sentence title,
+- **Confirmation sheets** follow `../../root.md`, 1.6: a sentence title,
   only what changes, then the keep and named primary act. A close at rest
   has no impact list; a live run, delegates, tasks below or proposals add
   their nonzero lines under a hairline. An uncertain release's two choices
@@ -357,7 +357,7 @@ What is not built here, though the main drawings show it:
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).
-- **Board** in the navigation: `../../pages/README.md` and `../../view.md`, 3 have the
+- **Board** in the navigation: `../../pages/README.md` and `../../view-navigation.md`, 1 have the
   project's Goals in its place, drawn from the greenfield mock.
 
 Other facts the comparison found absent:

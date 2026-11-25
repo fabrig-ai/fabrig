@@ -1,5 +1,5 @@
 //! Task continuations and root-numbered notices
-//! (jig/docs/design/domain/engine/README.md, 4.4).
+//! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use crate::{Core, Limits};
 use alloc::boxed::Box;
@@ -7,12 +7,26 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue};
 
 pub(crate) fn person_stall_due(core: &mut Core, env: &Env<Limits>, task: u64, pending: &mut Queue<tasks::Request>) {
-    let message = crate::fresh(&mut core.counters, crate::Family::Message).expect("person stall number admitted");
-    let mut follow = Queue::uncapped();
-    crate::routing::step::step_tasks(core, env, tasks::Event::PersonStallNotice { task, message }, &mut follow);
-    for _ in 0..follow.len() {
-        pending.push(follow.pop().expect("person stall output count"));
-    }
+    let Some(row) = core.tasks.task(task) else { return };
+    let Some(wait) = row.person_wait else { return };
+    let offer = crate::admission::escalation::next_person_holder(core, &env.limits, row);
+    let message = if wait.notice.is_none() {
+        Some(crate::fresh(&mut core.counters, crate::Family::Message).expect("person stall number admitted"))
+    } else {
+        None
+    };
+    crate::routing::step::step_tasks(core, env, tasks::Event::PersonStallNotice { task, message, offer }, pending);
+}
+
+pub(crate) fn person_stall_restored(
+    core: &mut Core,
+    env: &Env<Limits>,
+    task: u64,
+    pending: &mut Queue<tasks::Request>,
+) {
+    let Some(row) = core.tasks.task(task) else { return };
+    let may_pass = crate::admission::escalation::next_person_holder(core, &env.limits, row).is_some();
+    crate::routing::step::step_tasks(core, env, tasks::Event::RearmPersonStall { task, may_pass }, pending);
 }
 
 pub(crate) fn question_owed_due(core: &mut Core, env: &Env<Limits>, task: u64, pending: &mut Queue<tasks::Request>) {

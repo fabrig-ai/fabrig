@@ -1,5 +1,5 @@
 //! Shared projects' status funding, interleaved sittings and late reports
-//! (temper/docs/design/domain/forge/attention.md, 3; jig/docs/design/domain/accounts.md, 4.2).
+//! (temper/docs/design/domain/forge/attention.md, 3; jig/docs/design/domain/accounts-uses.md, 1.2).
 use super::*;
 use jig_domain_accounts as accounts;
 use jig_domain_core::{documents, reads};
@@ -7,8 +7,8 @@ use jig_domain_core::{documents, reads};
 const PROJECT_KEY: u32 = 30;
 const PROJECT_SOURCE: u32 = 31;
 
-struct Shared {
-    world: World,
+pub(crate) struct Shared {
+    pub(crate) world: World,
     requester: engine::Assignment,
     members: [(u64, u64); 3],
     start: Time,
@@ -66,7 +66,7 @@ fn source(account: u32, number: u32, kind: accounts::Kind) -> Record {
     }))
 }
 
-fn shared(project_key: bool) -> Shared {
+pub(crate) fn shared(project_key: bool) -> Shared {
     // All three sessions cover this world's interleaved, multi-hour sittings.
     let world = status_world_with_sessions(true, true, None, Duration::from_secs(8 * 3600));
     let (mut world, requester) = opened_chat_in(world);
@@ -142,6 +142,7 @@ fn shared(project_key: bool) -> Shared {
                 signature: None,
                 seen: None,
                 blame: None,
+                repair: None,
                 cleared: None,
             })),
         });
@@ -154,8 +155,8 @@ fn shared(project_key: bool) -> Shared {
 
 impl Shared {
     fn at(&mut self, minutes: u64) {
-        self.world.env.now = self.start.saturating_add(Duration::from_secs(minutes * 60));
-        self.world.env.wall = Wall::from_nanos(self.world.env.now.as_nanos());
+        self.world.advance_to(self.start.saturating_add(Duration::from_secs(minutes * 60)));
+
         // The fake credential provider renews the forge grant across clock jumps.
         self.world.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         // The fake component refreshes the plans' grants across clock jumps.
@@ -189,7 +190,9 @@ impl Shared {
         self.world.signed_in = Some(self.members[0].1);
         land_numbered(&mut self.world, &self.requester, number, landed);
     }
-    fn first_run(&mut self) {
+    pub(crate) fn first_run(&mut self) {
+        // The sittings start after setup, including any restart that drains work.
+        self.start = self.world.env.now;
         self.look(1, 0, 180);
         assert!(!self.world.store.rows.contains_key(&Key::Forge(forge_top::Key::ProjectFacts { project: PROJECT })));
         self.land(10, 93, 1);

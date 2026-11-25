@@ -1,5 +1,5 @@
 //! A task's next-run wait, separate from its creator preference and its committed account
-//! (client/domain/contract/documents.md, 1; accounts.md, 4.3).
+//! (client/domain/contract/documents.md, 1; domain/accounts-uses.md, 1.3).
 
 use jig_domain_accounts as accounts;
 use jig_domain_tasks as tasks;

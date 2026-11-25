@@ -3,7 +3,7 @@
 Temper's side of the oldest store a temper build opens: dev.fabrig.ai's
 store as F0 settled it, redeployed onto `3d1c717d37`. The mechanisms are
 jig's (`jig/docs/design/protocol/store/records.md`, 3;
-`jig/docs/design/protocol/store/opening.md`, 1.8 and 3) and skein's
+`jig/docs/design/protocol/store/opening.md`, 1.8, and `jig/docs/design/protocol/store/opening-owners.md`, 1) and skein's
 (`skein/docs/design/data/codec/layouts.md`, 2). This document fixes what
 temper hands them, its fixture and its policy.
 
@@ -20,7 +20,9 @@ temper hands them, its fixture and its policy.
   changes. No map patch, eager walk or seeding from code serves an
   older store.
 - **Formats outside the registry are fixed at their versions** (2).
-  The frames' patcher and the wires' patches keep their own rules.
+  The transcripts' frames register their layouts (jig's
+  `protocol/store/transcripts.md`, 6); the wires keep their own rules
+  (`wires.md`, 3).
 - **One golden deployment at the floor** opens and serves with the
   production owner sets; a copy without its floor is refused (5).
 - **Dev's build's image opens too** (5): the settled image as the build
@@ -39,11 +41,11 @@ component's own formats:
 | Family | Version | Owner | Where | Registry |
 |---|---|---|---|---|
 | `skein-oauth` | 3 | skein | `SavedToken` held in secrets' `Source` | outside |
-| `smith-transcript` | 7 | smith | `Turn` held in transcript frames | outside |
+| `smith-transcript` | 8 | smith | `Turn` held in transcript frames | frames registered |
 | `jig-store-component` | 3 | jig | the component's own map rows | outside |
 | `jig-store-openings` | 1 | jig | workers' openings | outside |
 | `jig-store-registry` | 1 | jig | layouts, texts and done jobs | outside |
-| `jig-store-core` | 6 | jig | core map rows; `TurnRecord` frame bodies | map value types registered; frames outside |
+| `jig-store-core` | 6 | jig | core map rows; `TurnRecord` frame bodies | map value types and frames registered |
 | `jig-store-tasks` | 13 | jig | tasks' map rows | registered |
 | `jig-store-people` | 17 | jig | people's map rows | registered |
 | `jig-store-notes` | 1 | jig | notes' map rows | registered |
@@ -58,12 +60,12 @@ component's own formats:
   and its crate's `schema/registered`. Values keep their layout ids;
   the read edge converts from the texts in the store's registry to
   the binary's layout (jig's `protocol/store/layouts.md`, 2 and 4).
-  The core's frame body is not a registered map value: it holds
-  smith's `Turn` and uses the frame patcher (jig's
-  `protocol/store/transcripts.md`, 6).
+  The transcripts' frames register too, as value types with no key
+  range: the core's `TurnRecord` body and the smith `Turn` it holds,
+  each by its own layout (jig's `protocol/store/transcripts.md`, 6).
 - **The levels** stay jig 6 and temper 14. `STORE_VERSION` is 25,
   `temper-store`'s version in jig's format row; a registered schema
-  change moves neither it nor an owner's level (`store.md`, 4).
+  change moves neither it nor an owner's level (`store-versions.md`, 1).
 - **The floor row** records a number and the build that wrote it.
   Jig's `FLOOR` is 1 and `FLOOR_BRIDGE` is `3d1c717d379e`. A fresh
   store's first commit writes the row, beside its format and
@@ -88,9 +90,10 @@ declared in `temper-engine-service-vocabulary`, upstream first:
 | `OWNER_SET` | `temper-protocol-store` | 14 | `temper-store`, `temper-secrets` |
 
 - **`OwnerSet`, `OwnerSets` and `KeptFamily`** are jig's data contract
-  (`protocol/store/opening.md`, 3): current families and key ranges,
+  (`jig/docs/design/protocol/store/opening-owners.md`, 1): current families and key ranges,
   registered value types, retired ranges, jobs and levels. A frames'
-  family also carries its frame root, texts and patches; no set
+  family also carries its frames' root, number and the texts frames
+  were written at before the registry; no set
   carries a map patch history. `JIG_STORE_SET` owns the store's metadata;
   accounts appends its held family without the store naming that
   consumer.
@@ -99,7 +102,7 @@ declared in `temper-engine-service-vocabulary`, upstream first:
   prefix for temper's secrets. Held families have no key range:
   skein's token is held in `Source`, smith's turn in `TurnRecord` and
   jig-accounts' `Moved` in `Carried`. The core's frames name
-  `TurnRecord`; smith's name `Turn` (jig's `protocol/store/opening.md`, 3).
+  `TurnRecord`; smith's name `Turn` (jig's `protocol/store/opening-owners.md`, 1).
 - **Every engine shape hands the same sets** through
   `Store::owner_sets` before opening, beside its wires and build name.
   `Service::owner_sets`, called before `adopt_store`, is the test seam
@@ -110,7 +113,7 @@ declared in `temper-engine-service-vocabulary`, upstream first:
   `level smith 0`, `level jig 6` and `level temper 14`
   (`binaries.md`, 2).
 - **Admission checks the sets at open** (jig's
-  `protocol/store/opening.md`, 3). The one-process test
+  `protocol/store/opening-owners.md`, 1). The one-process test
   `every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row`
   additionally reads both maps of the golden deployment (5): each
   non-reserved key lies in exactly one family's range. It checks the
@@ -148,7 +151,7 @@ again.
 This applies to any other store, a laptop's box or a test deployment
 left behind: upgrade through the named builds where they serve it, or
 start afresh. Staging is made again at dev's build for each drill
-(`../draft/store-floor.md`, 6).
+(`../draft/archive/store-floor.md`, 6).
 
 ## 5. The golden store at the floor
 
@@ -213,29 +216,29 @@ start afresh. Staging is made again at dev's build for each drill
   written job (jig's `protocol/store/layouts.md`;
   `jig/docs/design/protocol/store/jobs.md`).
   `temper-protocol-store/schema/store-v25.schema` holds temper's current
-  text, not older map versions. Records drift and refusal of unpinned
-  constructs check it; tests build their values, with the bytes pinned
-  by skein's `every` (`skein/docs/design/data/codec/README.md`, 6).
+  text, not older map versions. Records drift checks it; tests build
+  their values, with the bytes pinned
+  by skein's `every` (`skein/docs/design/data/codec/golden.md`, 1).
 - **Formats outside the registry are fixed at their versions.** A
   landing changing one designs how dev.fabrig.ai's store gets there:
   an executor, conversion at read, or registration (`AGENTS.md`, 2).
-  The frame patcher stays (jig's `protocol/store/transcripts.md`, 6).
-- **`tests/boundary/tests/patches.rs` holds the wires and the formats
-  outside the registry.** Its owner inventory covers the crates with
-  `schema/kept/`; `patch_modules_are_current` checks their generated
-  modules, and mutations pin an added field without a patch and a
-  landed kept text edited. The stored-change comparison reads landed
-  files at the merge base with `origin/main` (or `HEAD` without it;
-  during a landing merge, `MERGE_HEAD`). It is not a registered-family
-  patch gate. Each format's byte tests, the schemas' records drift and
-  pinned constructs, built-value round trips, registry tests and the
-  golden deployment's outcomes stand beside it.
+  The transcripts' frames are registered and converted as read (jig's
+  `protocol/store/transcripts.md`, 6).
+- **No patch history is kept** for any format or wire (temper's
+  `draft/layouts-both-ways.md`, 9): a format outside the registry is
+  held by its byte tests, the schemas' records drift, built-value round
+  trips, registry tests, the golden deployment's outcomes and the guard
+  below.
+- **The base,** for a gate that compares a landing with what landed (the
+  host tools' contract and the clients' families, `wires.md`, 7 and 9):
+  files as they are at the merge base with `origin/main` (or `HEAD`
+  without it; during a landing merge, `MERGE_HEAD`).
 - **The deployed layouts are guarded.** A focused test holds every
   family the production owner sets declare (2), and the client's kept
   records (jig's `client/domain/view-state.md`), against the texts of
   each build whose layouts dev.fabrig.ai's store holds:
   - **The builds:** `3d1c717d379e`, the floor's bridge, at whose layouts
-    F0 settled every value (`../draft/store-floor.md`, 2), and
+    F0 settled every value (`../draft/archive/store-floor.md`, 2), and
     `13efa77461`, the build dev.fabrig.ai runs. Each build's texts are
     kept verbatim, as `git show` gives them at that commit, under
     `temper/tests/codecs/deployed/<build>/`, one file per family named
@@ -254,17 +257,20 @@ start afresh. Staging is made again at dev's build for each drill
     `protocol/store/layouts.md`, 6).
   - **A family outside the registry,** and the client's records: at the
     same version, every declaration both texts hold keeps its layout's
-    fingerprint (skein's `data/codec/README.md`, 9.4), so names and
+    fingerprint (skein's `data/codec/fingerprints.md`, 1.4), so names and
     comments may change and a declaration no row is read by may go; a
-    family whose version moved passes where its patch from the kept
-    version is in the tree (skein's `data/codec/command.md`, 2).
+    family whose version moved passes where the guard names that move
+    with the section designing how dev.fabrig.ai's store gets there: the
+    openings' family, 1 to 2, whose rows of 1 are read by their head
+    alone and cleared at the next start (jig's
+    `protocol/store/records.md`, 3, *The workers' openings*).
   - **Inventory:** each family the sets declare is kept at each build,
     or is new since it; a family that was stored at a build and is
     neither in its directory nor new fails, so a new stored family joins
     the guard.
   - **Its failure** names the build, the family, the value type or
     declaration, and the rule: a default (`= value`), a former name
-    (`was`), a written job, or a version move with its patch.
+    (`was`), a written job, or a version move the guard names.
   - **The builds move** by a landing after dev.fabrig.ai is redeployed:
     the new build's texts are added beside the others, its image
     replaces dev's (5), and a build's texts go only once dev's registry
@@ -280,10 +286,10 @@ start afresh. Staging is made again at dev's build for each drill
   text opens with the production sets in a new generation and reads each
   row back; a second open writes nothing. The guard's own mutations pin
   the red findings' defaults.
-- **The wires' rule is unchanged** (`wires.md`, 3): a layout change
-  moves its wire version, keeps the old text and brings its patch and
-  reverse or breaking declaration. A store's floor promises no wire
-  compatibility of its own.
+- **The wires' rule is their own** (`wires.md`, 3): versions frozen, a
+  layout change made in the current text alone, converted by the
+  engine's plans. A store's floor promises no wire compatibility of its
+  own.
 
 ## 7. Stories through an upgrade
 
@@ -295,7 +301,7 @@ start afresh. Staging is made again at dev's build for each drill
   write no receipts. A restart with `CURRENT_SETS` registers the
   binary's layout, whose field defaults to `unset`, and runs the job
   once in a copy before restoring, switching and committing its wires.
-  It closes no window by a mark (`../testing/README.md`, 2.5).
+  It closes no window by a mark (`../testing/tiers.md`, 1.5).
 - **The settled image** in `tests/one-process/golden/settled/` is read by
   the one-process world. It holds the four machine roots, modes and
   configuration, the fake forge's image, issued fake tokens and users,
@@ -328,7 +334,7 @@ The floor's number moves only when a landing drops a whole older
 form. That landing also names the bridge build and designs how its
 upgrade writes the new floor row, replaces the golden floor fixture,
 and keeps the named refusals true. Another store left behind uses
-those builds or starts afresh (`../draft/store-floor.md`, 6).
+those builds or starts afresh (`../draft/archive/store-floor.md`, 6).
 
 ## 9. Open questions
 

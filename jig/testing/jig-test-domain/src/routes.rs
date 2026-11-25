@@ -90,6 +90,9 @@ pub(super) fn route_core(
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
+                | core::Held::TaskPartKept { .. }
+                | core::Held::AcknowledgePart { .. }
+                | core::Held::PartBusy { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained
@@ -150,6 +153,8 @@ fn route_ask(
             work.push(Work::Connector { number, event: connector::Event::StepMade { task, step, first, revisions } });
         }
         core::Ask::StepRefused { task, step, why } => crate::steps::refused(number, task, step, why, work),
+        core::Ask::WaitsRefused { task, why } => work
+            .push(Work::Connector { number, event: connector::Event::WaitsRefused { task, why: wait_refusal(why) } }),
 
         core::Ask::DropDocument { subject } => {
             if number == 1 || number == 2 {
@@ -451,6 +456,11 @@ fn route_now(
     work: &mut Queue<Work>,
 ) {
     match now {
+        core::Now::PartBusy { key } => work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::PartBusy {
+            run: skein_lib::Token::new(key.task),
+            attempt: skein_lib::Token::new(key.attempt),
+            part: key.number,
+        }))),
         core::Now::Ask { channel, run, attempt, number, bytes } => {
             work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Asked {
                 channel,
@@ -515,6 +525,7 @@ fn route_now(
             run,
             messages,
             transcript,
+            parts,
             grants,
             ..
         } => {
@@ -525,6 +536,7 @@ fn route_now(
                 env.now,
                 jig_domain_hub_link::Event::Prepared {
                     assignment: crate::Assignment {
+                        parts,
                         live,
                         task,
                         attempt,
@@ -661,7 +673,7 @@ pub(super) fn route_connector(
             }
             connector::Request::SettingValue { .. } => unreachable!("a setting read returns to its synchronous caller"),
             connector::Request::RestoreRefused { kind, scope, number } => {
-                crate::refuse_settings_restore(kind, scope, number);
+                crate::refuse_settings_restore(domain, kind, scope, number);
             }
             connector::Request::ProjectReleased { project } => {
                 work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
@@ -677,6 +689,23 @@ pub(super) fn route_connector(
                 crate::topics::news(domain, number, topic, subscribers, work);
             }
             connector::Request::ReadAnswered { .. } => unreachable!("client read completes in its synchronous route"),
+            connector::Request::Waits { task, wait } => {
+                let waits = match wait {
+                    Some(wait) => List::from_boxed(Box::new([core::Reported {
+                        kind: core::WaitKind::Step,
+                        object: core::WaitObject::Procedure { step: wait.step, things: List::with_capacity(0) },
+                        since: wait.since,
+                        bound: core::ReportedBound::At { at: wait.at, then: core::AtBound::Hold },
+                    }])),
+                    None => List::with_capacity(0),
+                };
+                let event = core::Event::Waits { connector: number, task, waits };
+                if let Some(reports) = &mut domain.scripted_wait_reports {
+                    reports.push(event);
+                } else {
+                    work.push(Work::Core(event));
+                }
+            }
             connector::Request::Marked { subjects } => {
                 work.push(Work::Core(core::Event::Marked { connector: number, subjects }));
             }
@@ -716,6 +745,9 @@ pub(super) fn route_connector(
                         resource: tasks::Name { connector: number, path: resource.segments.clone() },
                     })));
                 }
+            }
+            connector::Request::ReadAfreshDone => {
+                domain.core.catch_up_done(number, core::effects::connector::RestartStage::ReadAfresh);
             }
             connector::Request::RestartDone => work.push(Work::ConnectorRestartDone { number }),
             connector::Request::Save { record } => {
@@ -867,6 +899,31 @@ pub(super) fn route_connector(
 }
 
 /// Translate the core's choice without choosing a judge or admitting a write.
+fn procedure_tasks(domain: &Domain, number: u16) -> Box<[u64]> {
+    let rows = domain.core.tasks.view_tasks();
+    let mut procedures = List::with_capacity(u32::try_from(rows.len()).expect("bounded live tasks"));
+    for row in rows {
+        if let Some(tasks::Executor::Procedure { connector, .. }) = domain.core.tasks.executor(row.number)
+            && connector == number
+        {
+            procedures.push(row.number).expect("one report per live task");
+        }
+    }
+    procedures.into_boxed()
+}
+
+const fn wait_refusal(why: core::ReportRefusal) -> &'static str {
+    match why {
+        core::ReportRefusal::NotLive => "not a live task",
+        core::ReportRefusal::NotProcedure => "not a procedure",
+        core::ReportRefusal::WrongConnector => "another connector owns the task",
+        core::ReportRefusal::TooManyWaits => "more than four waits",
+        core::ReportRefusal::TooManyThings => "more than four things",
+        core::ReportRefusal::WrongKindOrObject => "not a procedure's kind and object",
+        core::ReportRefusal::NoFigure => "the kind has no figure",
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive effect handoff dispatcher")]
 fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connector::Ask, work: &mut Queue<Work>) {
     let event = match ask {
@@ -941,6 +998,9 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
                 state: u64::from_be_bytes(bytes),
             }
         }
+        core::effects::connector::Ask::CatchUp => {
+            connector::Event::CatchUp { procedures: procedure_tasks(domain, number) }
+        }
         core::effects::connector::Ask::Unname { task } => connector::Event::Unnamed { task },
         core::effects::connector::Ask::Names { .. }
         | core::effects::connector::Ask::Hold { .. }
@@ -962,9 +1022,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
         | core::effects::connector::Ask::Prepare { .. }
         | core::effects::connector::Ask::Left { .. }
         | core::effects::connector::Ask::Adopt { .. }
-        | core::effects::connector::Ask::Restore { .. }
-        | core::effects::connector::Ask::ReadAfresh
-        | core::effects::connector::Ask::SettleOutbox => unreachable!("effect handoff vocabulary"),
+        | core::effects::connector::Ask::Restore { .. } => unreachable!("effect handoff vocabulary"),
         core::effects::connector::Ask::JudgeSettings { owner, revision, proposal, items } => {
             let token = domain.hub_link.fresh();
             domain.settings_judges.insert(token, owner).expect("settings judgment route fits");
@@ -1133,6 +1191,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::SignedOut
         | people::Outcome::NoteEdited { .. }
         | people::Outcome::ServiceMade { .. }
+        | people::Outcome::ServiceReissued { .. }
         | people::Outcome::Adopted { .. }
         | people::Outcome::Created { .. }
         | people::Outcome::Proposed { .. }

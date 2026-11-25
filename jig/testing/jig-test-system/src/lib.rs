@@ -1,5 +1,5 @@
 //! A fake system that receives the test connector's calls and reports what it
-//! saw in its own terms (domain/testing.md, section 7).
+//! saw in its own terms (domain/testing-fakes.md, section 1).
 //!
 //! Its keyed operations, guarded states and late copies are independent of
 //! the connector's records. Worlds may preload unrelated history and compare

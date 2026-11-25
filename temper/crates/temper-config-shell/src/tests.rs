@@ -1,21 +1,12 @@
 use crate::*;
 mod overlay;
 use serde_json::{Value, json};
-use std::{os::unix::ffi::OsStrExt, path::Path};
 
 pub(crate) fn facts() -> Facts {
     Facts { login: "ada".into(), hostname: "host".into(), provider_key: true }
 }
 fn document(read: &Read) -> Value {
     serde_json::from_slice(&read.document).expect("start's JSON")
-}
-fn directories(path: &Path) -> temper_shell::directories::Directories {
-    temper_shell::directories::Directories {
-        config: path.as_os_str().as_bytes().into(),
-        data: path.as_os_str().as_bytes().into(),
-        cache: path.as_os_str().as_bytes().into(),
-        origins: [skein_shell::Origin::Flag; 3],
-    }
 }
 #[test]
 fn the_examples_give_the_documents_and_pass_the_shapes_checks() {
@@ -272,39 +263,46 @@ login = "sam"
 }
 
 #[test]
-fn machine_facts_take_the_host_name_from_the_shell() {
-    let scratch = skein_scratch::Scratch::new("config-machine-facts");
-    let found = machine::facts(&directories(scratch.path())).expect("machine facts");
-    let hostname = skein_shell::host_name().expect("kernel host name");
-    assert_eq!(found.hostname.as_bytes(), hostname.as_ref());
-    #[cfg(target_os = "linux")]
-    {
-        let proc = std::fs::read("/proc/sys/kernel/hostname").expect("Linux host name");
-        assert_eq!(found.hostname.as_bytes(), proc.strip_suffix(b"\n").expect("proc's final line feed"));
-    }
-}
-
-#[test]
 fn read_refuses_the_former_file_before_reading_and_uses_machine_facts() {
-    let scratch = skein_scratch::Scratch::new("config-reader");
-    let dirs = directories(scratch.path());
+    use skein_shell::Unread;
+    use std::io::ErrorKind;
+
+    let absent = || Err(ErrorKind::NotFound.into());
+    let fixed = facts();
+    let read = |former: bool, text: Option<&[u8]>, shape| {
+        machine::read_with(
+            shape,
+            || if former { Ok(()) } else { absent() },
+            |max| {
+                assert!(!former, "the former file is checked before reading");
+                let text = text.ok_or(Unread::Absent)?;
+                if text.len() > usize::try_from(max).expect("read bound fits usize") {
+                    Err(Unread::TooLarge { max })
+                } else {
+                    Ok(text.into())
+                }
+            },
+            || {
+                assert!(!former && text.is_some(), "facts follow the configuration read");
+                Ok(fixed.clone())
+            },
+        )
+    };
     for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
         let words = if shape == Shape::Standalone {
             "temper-box init writes one".into()
         } else {
             format!("write it from {} help config", binary(shape))
         };
-        assert_eq!(read(&dirs, shape).expect_err("absent file").to_string(), format!("temper.toml: absent; {words}"));
+        assert_eq!(
+            read(false, None, shape).expect_err("absent file").to_string(),
+            format!("temper.toml: absent; {words}")
+        );
     }
-    // A directory at the former name is enough; its contents must never be read.
-    std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
-    for present in [false, true] {
-        if present {
-            std::fs::write(scratch.path().join(FILE), b"listen = 7100\n").expect("invalid new file");
-        }
+    for text in [None, Some(b"listen = 7100\n".as_slice())] {
         for shape in [Shape::Standalone, Shape::EngineAlone, Shape::WorkerAlone] {
             assert_eq!(
-                read(&dirs, shape).expect_err("former first").to_string(),
+                read(true, text, shape).expect_err("former first").to_string(),
                 format!(
                     "temper.json: moved: the configuration is temper.toml; write it from {} help config, then remove temper.json",
                     binary(shape)
@@ -312,20 +310,19 @@ fn read_refuses_the_former_file_before_reading_and_uses_machine_facts() {
             );
         }
     }
-    std::fs::remove_dir(scratch.path().join(FORMER)).expect("remove former");
-    std::fs::write(scratch.path().join(FILE), vec![b' '; FILE_BYTES + 1]).expect("large file");
-    assert!(read(&dirs, Shape::Standalone).expect_err("large").to_string().contains("1048576"));
-    std::fs::write(scratch.path().join(FILE), b"listen = \"127.0.0.1:7100\"\n").expect("good file");
-    // Presence, not contents: this symlink has no readable target.
-    std::os::unix::fs::symlink("absent-target", scratch.path().join("provider.key")).expect("provider marker");
-    let actual = read(&dirs, Shape::Standalone).expect("good file read");
-    let facts = machine::facts(&dirs).expect("machine facts");
-    assert!(facts.provider_key);
-    let expected = parse(b"listen = \"127.0.0.1:7100\"\n", Shape::Standalone, &facts).expect("same parse");
+    let large = vec![b' '; FILE_BYTES + 1];
+    assert_eq!(
+        read(false, Some(&large), Shape::Standalone).expect_err("large").to_string(),
+        "temper.toml: past 1048576 bytes"
+    );
+    let text = b"listen = \"127.0.0.1:7100\"\n";
+    let actual = read(false, Some(text), Shape::Standalone).expect("good file read");
+    assert!(fixed.provider_key);
+    let expected = parse(text, Shape::Standalone, &fixed).expect("same parse");
     assert_eq!(actual.file, expected.file);
     assert_eq!(actual.document, expected.document);
-    assert_ne!(facts.login, "");
-    assert!(!facts.hostname.ends_with('\n'));
+    assert_ne!(fixed.login, "");
+    assert!(!fixed.hostname.ends_with('\n'));
 }
 
 #[test]

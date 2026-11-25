@@ -1,4 +1,24 @@
-use temper_worker_checkout_world::merges::{self, Case, PinCase};
+use temper_worker_checkout_world::merges::{self, Case, PinCase, counts};
+
+#[test]
+fn a_goal_prepare_imports_the_published_counts_and_blob() {
+    counts::present();
+}
+
+#[test]
+fn a_goal_prepare_without_forge_counts_is_ready_without_a_ref() {
+    counts::absent();
+}
+
+#[test]
+fn a_cached_checkout_replaces_then_removes_stale_counts() {
+    counts::refreshed_and_removed();
+}
+
+#[test]
+fn a_goal_delivery_leaves_the_holds_counts_frozen() {
+    counts::frozen_through_delivery();
+}
 
 #[test]
 fn a_repair_replaces_the_cached_producers_pin_and_freezes_it_for_deliveries() {
@@ -47,6 +67,11 @@ fn merges_conflicts_saving_head_movement_and_ambiguous_pushes_settle() {
     {
         let _ = merges::run(73, case, 64);
     }
+}
+
+#[test]
+fn a_marker_beyond_the_prepare_prefix_refuses_delivery_without_writes() {
+    merges::refuse_past_the_bound();
 }
 
 #[test]

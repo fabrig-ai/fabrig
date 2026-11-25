@@ -1,5 +1,6 @@
 //! A person's Away facts (temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
@@ -193,16 +194,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[AwayRow]>> {
     let document = wire::decode_aways(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     for row in document.rows.into_boxed() {
-        let until = match row.until {
-            Some(wall) => Some(Wall::from_nanos(wall)),
-            None => None,
-        };
-        let off = match row.off {
-            Some(wall) => Some(Wall::from_nanos(wall)),
-            None => None,
-        };
-        rows.push(AwayRow { project: row.project, since: Wall::from_nanos(row.since), until, landed: row.landed, off })
-            .expect("wire bounds Away rows");
+        rows.push(maps::away_row_to_domain(row)).expect("wire bounds Away rows");
     }
     Some(rows.into_boxed())
 }
@@ -273,7 +265,7 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::Tried
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)

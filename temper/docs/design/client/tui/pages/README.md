@@ -4,13 +4,13 @@ Four screens, each a tree of the TUI's view, built from the root and
 the TUI's own state: signing in, while the link is signed out; once
 signed in, or while the TUI signs in from the engine's link (below), the
 launchpad, the root at `Home { project }`; a chat, the root at
-`Chat { task }` (`../README.md`, 3, *Its pages*), with its draft beside it where it
+`Chat { task }` (`../host.md`, 1, *Its pages*), with its draft beside it where it
 has one (`design-session.md`, section 1); and a talk with a standing role,
 the root at `Talk { project, task }`, drawn as a chat under a head of its
 own (`talk.md`, section 1). Over the launchpad, a chat or a talk, a
 place of the TUI's own not yet started, for `/ask`, `/change`, `/draft`
 or `/tell` pressed alone, is drawn as a chat before its first message
-(section 2, *Not yet started*). Out of front, a build the engine
+(`README.md`, section 2, *Not yet started*). Out of front, a build the engine
 refuses draws its own screen in place of any of them (`refused.md`).
 Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
@@ -32,7 +32,7 @@ the foot and the commands (`../box.md`).
 
 - **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
   does not: the origin (`../README.md`, 1), the native shell's last TLS
-  failure (`../README.md`, 3, *The handshake*), the link field's value, the no-project command
+  failure (`../host.md`, 1, *The handshake*), the link field's value, the no-project command
   composer's value, the sign-in's progress
   (asked, answered, lost, or the TUI's own refusal of what was pasted),
   whether it signs in from the engine's link and whether that ended,
@@ -42,10 +42,10 @@ the foot and the commands (`../box.md`).
   else" (`chat.md`, section 2); the notice standing (`README.md`, section 1, *The notice*);
   the theme chosen, the terminal's scheme Auto reads, and whether the
   theme's list stands (`README.md`, section 2, *`/theme`*); the place
-  not yet started, if one stands (section 2, *Not yet started*); the left-off chat selected on the
+  not yet started, if one stands (`README.md`, section 2, *Not yet started*); the left-off chat selected on the
   launchpad, by its task (`launchpad.md`, 4, *Where you left off*); the reply whose choices
   were set aside, and the chat a goal's start was asked from (`design-session.md`, section 1); and whether it is on a
-  box (`../README.md`, 2, *On a box*). The root stays the one source of the
+  box (`../directory.md`, 1, *On a box*). The root stays the one source of the
   link's state, of `me`, of the pages and their reads, of the box's
   words with a project and of the terminal's look, lists and notes.
 - **Its words:** where the TUI says what `temper-client-view` says, it
@@ -71,7 +71,7 @@ the foot and the commands (`../box.md`).
   "Out of date", each in its token's paint (`../theme.md`); out of
   front, a build refused reads "Refused" in place of "Out of date"
   (`refused.md`). At a name, while the native shell's last handshake
-  failed (`../README.md`, 3, *The handshake*), the state reads
+  failed (`../host.md`, 1, *The handshake*), the state reads
   "Offline: " and why, in place of "Offline", "Signed out" or
   "Connecting", PLACE the place (`chat.md`, 1, *The place*): "Offline:
   PLACE's certificate isn't trusted" (`Untrusted`), "… has expired"
@@ -81,7 +81,7 @@ the foot and the commands (`../box.md`).
   succeeds; a narrow row cuts it at its end. On the
   sign-in screen it is the row's left half, what closes the TUI its
   right; on every other screen it begins the quiet line, Live included
-  (section 1, *The quiet line*). The user's request `tui-21` of
+  (`README.md`, section 1, *The quiet line*). The user's request `tui-21` of
   2026-11-15, after the state stood wherever the words before it ended:
   at the row's start on the welcome, after the project and the model on
   the launchpad, and only while not Live in a design session and on a
@@ -163,10 +163,10 @@ chat, the running line above them.
     The link's field takes keys only while the sign-in screen is drawn,
     `temper_client_tui::sign_in_drawn(root, tui)`, the one test the
     view's choice of screen and the host's routing of a key both read
-    (`../README.md`, 3, `Typed`).
+    (`../host.md`, 1, `Typed`).
   - *The sign-in never clears the box:* the link's changes leave its
     words (*The box*), and the host's going to the launchpad from the
-    start's address once `me` names a project (`../README.md`, 3, *Its pages*) carries
+    start's address once `me` names a project (`../host.md`, 1, *Its pages*) carries
     the no-project box's words into Home's composer, `Act::ChatWords`,
     so words typed before `me` was read stay in the box.
   - *Before it lands,* while the link is signed out or the root has not
@@ -246,7 +246,7 @@ chat, the running line above them.
     the launchpad, the welcome, the starting screen and a chat alike,
     and on the sign-in screen not at all.
   - *How long:* 6 seconds, a newer one replacing it, timed by the host's
-    dues (`../README.md`, 3, *The notice's time*); a send, a key or another screen
+    dues (`../host.md`, 1, *The notice's time*); a send, a key or another screen
     leave it standing.
   - *A narrow window:* where the quiet line's left half, two spaces, the
     notice and its padding are wider than the window's columns, the
@@ -401,7 +401,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
       `Home { project }`. With words in its box Esc does nothing; with a
       list standing, it closes the list, as anywhere.
     - *It ends* too as the root goes to any other page: a chat or a
-      talk opened, `/new`, a `Show` followed (`../README.md`, 3, *Its
+      talk opened, `/new`, a `Show` followed (`../host.md`, 1, *Its
       pages*), the link signed out; never by the `NewChat` or `Home` its
       own start passes through.
   - *`/brief`* writes `/brief`'s note (`launchpad.md`, 7).
@@ -409,7 +409,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   - *`/open`* opens the object in focus on the web, the opener given
     the origin printed (`Origin::print`, `../README.md`, 1),
     `http://HOST:PORT` or `https://NAME`, and the page's path (`address::print`) as one
-    argument, as the approval's tab is opened (`../../README.md`, 4.1): on the launchpad
+    argument, as the approval's tab is opened (`../../sign-in.md`, 1.1): on the launchpad
     the selected row's page, a chat's (`/chats/T`) or the goal's
     (`/tasks/T`), else the project's Home (`/projects/P`); on a chat
     its page, or, where a goal was started from its draft, that goal's
@@ -466,8 +466,8 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   itself.
 - **The list:** the box's words beginning with "/" and holding no white
   space open the commands under the box in the quiet line's place, the
-  region `tui-list`: an options menu after the box (skein's `ui/README.md`,
-  3.2, *options*), named "Commands", with no head, each command offered
+  region `tui-list`: an options menu after the box (skein's `ui/tree.md`,
+  1.2, *options*), named "Commands", with no head, each command offered
   whose name begins with the words, in the order *Offered* and *The
   TUI's own commands* give, its name and, as its description, its words (`tui-command`), the
   first active. While it stands the box keeps the focus: Up and Down
@@ -477,7 +477,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   words, no list stands.
 - **Pressed,** or sent whole, which with its list standing is the same
   press: `/quit` closes the TUI (`../README.md`, 4) and never reaches the root;
-  `/new` opens the launchpad (`../README.md`, 3), whose next question starts a new
+  `/new` opens the launchpad (`../host.md`, 1), whose next question starts a new
   Ask temper chat; `/goal` opens the root's sheet by `Act::OpenStart`
   and its prompt (`design-session.md`, section 1, *`/goal`*), never `Run`; any
   other is the root's `terminal::Act::Run {
@@ -506,7 +506,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   - `/chats`: "Chats"; the person's live chats in the project, newest
     activity first, the open one left out, each "TN" and its title
     (`shared::chats`), read when the list opens as the browser's is;
-    taking one is `Act::Go` to its `Chat { task }`, followed as `../README.md`, 3
+    taking one is `Act::Go` to its `Chat { task }`, followed as `../host.md`, 1
     says.
   - `/talk`, the TUI's own: "Talk with a role on PROJECT"; the project's
     live standing roles in Team's order, as its rows hold them
@@ -540,11 +540,11 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   Down move the active choice, Enter takes it, Esc closes the list, and
   words typed close it.
   - *Taking one,* `Event::Theme { choice }`: the TUI draws in it at
-    once (`../README.md`, 3, *The look*), keeps it for the next run (`../theme.md`, *The theme
+    once (`../host.md`, 1, *The look*), keeps it for the next run (`../theme.md`, *The theme
     chosen*), lowers the list, and gives the notice "Theme: auto, light
     as your terminal says.", "Theme: auto, dark as your terminal
     says.", "Theme: auto, dark: your terminal doesn't say.", "Theme:
-    light." or "Theme: dark." (section 1, *The notice*).
+    light." or "Theme: dark." (`README.md`, section 1, *The notice*).
   - *Its state:* the TUI's, `Tui::theme_list`, as the quit question's
     is (`../box.md`), and never the root's: the root's lists and notes don't
     hold it.
@@ -606,7 +606,7 @@ out of front, the first row blank in both:
 - **A terminal that can't draw it:** Apple's Terminal, where pi falls
   back too, its block elements drawn with gaps between rows: the binary
   reads `TERM_PROGRAM`, and `Apple_Terminal` there is `Start.plain`
-  (`../README.md`, 3). With it the mark and the two cells after it are
+  (`../host.md`, 1). With it the mark and the two cells after it are
   left out, and the two lines start at the region's padding, one column
   in, as the body's sections do: the word "temper" alone stands where
   the mark was. The blank row on top stands as with the mark.

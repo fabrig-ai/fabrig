@@ -321,16 +321,42 @@ impl Store {
         self.last = u64::MAX;
     }
 
+    #[cfg(test)]
+    pub(crate) fn memory_log_bytes(&mut self, log: u64) -> Option<&mut [u8]> {
+        self.logs.memory_bytes(log)
+    }
+
     /// An in-memory store for protocol tests; commits are applied at once.
     #[must_use]
     pub fn memory(limits: &Limits) -> Store {
         let mut store = Store::new(limits);
         store.state = State::Memory;
+        store.keep_reads(true);
         store
     }
 
+    /// Enable or disable keeping checked payload records in memory (data/kv.md, 6.5).
+    /// Disabling forgets all records; this has no effect on a directory store.
+    pub fn keep_reads(&mut self, keep: bool) {
+        match self.state {
+            State::Memory => self.logs.keep_reads(keep),
+            State::Closed | State::Open { .. } => {}
+        }
+    }
+
+    /// Forget checked payload records without changing whether reads are kept.
+    pub fn forget_reads(&mut self) {
+        self.logs.forget_reads();
+    }
+
+    /// The number of checked payload records kept by this store.
+    #[must_use]
+    pub fn kept_reads(&self) -> u64 {
+        self.logs.kept_reads()
+    }
+
     /// Copy an in-memory store's durable map, census and payload logs, with no
-    /// pending operations or read cache. Later writes belong to the copy alone.
+    /// pending operations or kept records. Later writes belong to the copy alone.
     /// Directory-backed stores cannot be copied through this test fixture face.
     #[must_use]
     pub fn fork_memory(&self, limits: &Limits) -> Option<Store> {
@@ -346,7 +372,7 @@ impl Store {
         copy.last = self.last;
         copy.map = self.map.clone();
         copy.rule.clone_from(&self.rule);
-        copy.logs = self.logs.clone();
+        copy.logs = self.logs.fork_memory();
         Some(copy)
     }
 
@@ -381,6 +407,53 @@ impl Store {
     #[must_use]
     pub const fn last(&self) -> u64 {
         self.last
+    }
+
+    /// Whether this is still the durable value and no admitted commit touches it.
+    #[must_use]
+    pub fn unchanged(&self, key: &[u8], value: &[u8]) -> bool {
+        !self.admitted.writing(key) && self.map.get(key) == Some(value)
+    }
+
+    /// Room after a required commit for optional operations on disjoint keys.
+    /// `frame` bounds the translated map frame (not the payloads); the result
+    /// is spare frame bytes and spare map growth, without reserving either.
+    #[must_use]
+    pub fn spare_for(&self, limits: &Limits, ops: &[Op], frame: u64) -> Option<(u64, u64)> {
+        use skein_lib::{Map, len_u64};
+        let mut rows = Map::uncapped();
+        let mut logs = Map::uncapped();
+        let mut bytes = frame;
+        for op in ops {
+            match op {
+                Op::Put { key, value } => {
+                    rows.insert(key.as_ref(), Some(len_u64(value.len()))).ok()?;
+                }
+                Op::Erase { key } => {
+                    rows.insert(key.as_ref(), None).ok()?;
+                }
+                Op::Append { log, frame } => {
+                    logs.insert(*log, Some(8)).ok()?;
+                    bytes = bytes.checked_add(frame.len())?;
+                }
+                Op::Drop { log } => {
+                    logs.insert(*log, None).ok()?;
+                }
+            }
+        }
+        let mut spare = u64::from(limits.commit).checked_sub(frame)?;
+        if let State::Open { .. } = &self.state {
+            spare = spare.min(limits.queued_bytes.checked_sub(self.queued_bytes.checked_add(bytes)?)?);
+        }
+        let mut used = i128::from(self.admitted.projected_used(&self.map));
+        for (key, value) in &rows {
+            used = used.checked_add(self.admitted.delta(&self.map, key, *value))?;
+        }
+        for (log, value) in &logs {
+            let key = self.logs.key(*log)?;
+            used = used.checked_add(self.admitted.delta(&self.map, &key, *value))?;
+        }
+        Some((spare, limits.budget.checked_sub(u64::try_from(used).ok()?)?))
     }
 
     #[must_use]
@@ -757,6 +830,7 @@ pub fn down(
             }
             State::Memory => {
                 store.hold = Hold::None;
+                store.logs.keep_reads(false);
                 step.above.push(Event::Closed { owner });
                 State::Closed
             }

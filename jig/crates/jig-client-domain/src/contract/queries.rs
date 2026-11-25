@@ -1,4 +1,4 @@
-//! The fixed task query and the single task line (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 4.1).
+//! The fixed task query and the single task line (client/domain/contract/documents.md, 1, and client/domain/contract/reads.md, 1.1).
 use super::{Budget, Chip, Count, Cursor, PhaseCounts, Requester, TaskFlags};
 use skein_lib::Wall;
 /// A query's order; ties go by task number.
@@ -98,6 +98,9 @@ pub struct TaskLine {
     pub ended_at: Option<Wall>,
     pub budget: Budget,
     pub waits_on: WaitsOn,
+    /// The engine's first wait, which may belong to a descendant.
+    pub wait: Option<super::Wait>,
+    pub nearest: Option<super::Nearest>,
     pub phases: PhaseCounts,
     /// Direct delegates ended done (jig/docs/design/client/domain/contract/documents.md, 1).
     pub delegates_done: u32,

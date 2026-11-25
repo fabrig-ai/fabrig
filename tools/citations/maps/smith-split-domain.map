@@ -1,0 +1,12 @@
+# Smith's domain split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at 5a82a5b89d77b95232b4ac509409a449f994141d.
+# smith/docs/design/domain/run.md: 63,336 bytes. Starting a run, messages and waiting, and delivering a change get their own pages; the overview, placement, run loop, served tools, results, answer, facts, world and open questions stay.
+title smith/docs/design/domain/run-start.md: The run: starting a run
+title smith/docs/design/domain/run-messages.md: The run: messages, waiting, parking, resuming
+title smith/docs/design/domain/run-delivery.md: The run: delivering a change
+smith/docs/design/domain/run.md 3 -> smith/docs/design/domain/run-start.md 1
+smith/docs/design/domain/run.md 6 -> smith/docs/design/domain/run-messages.md 1
+smith/docs/design/domain/run.md 8 -> smith/docs/design/domain/run-delivery.md 1
+
+# smith/docs/design/domain/session.md: 51,230 bytes. Context management gets its own page; the overview, session state, turns, transcripts, providers, retries, tools, budgets, sub-agents, world and open questions stay.
+title smith/docs/design/domain/session-context.md: Sessions: context management
+smith/docs/design/domain/session.md 8 -> smith/docs/design/domain/session-context.md 1

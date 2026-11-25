@@ -36,6 +36,7 @@ pub fn frame() -> c::Me {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: c::MeParty {
             number: 7,
             kind: c::PartyKind::Person,
@@ -77,6 +78,10 @@ pub fn task() -> c::Task {
         last_activity: Wall::EPOCH,
         made: Wall::from_nanos(7),
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: chip(),
         goal: None,
         priority: None,

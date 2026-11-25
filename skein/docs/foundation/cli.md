@@ -6,8 +6,8 @@ arguments, and how they're built. It is the repository's convention
 beside the programming model, for every tree. Where a tree doesn't
 follow it yet, a check's exception says so, and its exceptions only
 shrink (section 9). The reasons are the user's, of 2026-11-08
-(`temper/docs/design/draft/notes.md`, 13). skein's mechanism for it is
-`skein-shell`'s table (`../design/runtime/shell.md`, 14).
+(`temper/docs/design/draft/cli.notes.md`). skein's mechanism for it is
+`skein-shell`'s table (`../design/runtime/shell-table.md`, 1).
 
 ## 1. In one page
 
@@ -114,7 +114,7 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
 External crates still have features. A build that selects fewer
 packages would compile one with fewer features, and with it every crate
 above, under compiler-cache keys that no other build asks for
-(`temper/docs/design/draft/crate-graph.md`, 2 and 3). So:
+(`temper/docs/design/draft/archive/crate-graph.md`, 2 and 3). So:
 
 - **Every build of one context compiles each external crate with one
   feature set,** whatever packages it selects: `cargo build`,
@@ -158,7 +158,7 @@ above, under compiler-cache keys that no other build asks for
   dev-dependencies, so that mode's keys are the ones their builds share.
 - **The browser bundle's nested build keeps its own selection,** with
   `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`
-  (`temper/docs/design/client/web/README.md`, 2.6). It always selects
+  (`temper/docs/design/client/web/bundle.md`, 1). It always selects
   the same packages, so it is a context of its own, and stable. A union
   over every member would give its module features that no package it
   builds asks for.
@@ -218,7 +218,7 @@ above, under compiler-cache keys that no other build asks for
   Each entry has its name, its set, its form, one line, what holds when
   it's absent, and notes.
 - **The table's types and their rendering are skein's,** in
-  `skein-shell` beside its settings (`../design/runtime/shell.md`, 6.5 and 14),
+  `skein-shell` beside its settings (`../design/runtime/shell-startup.md`, 1.5, and `../design/runtime/shell-table.md`, 1),
   so every tree's binaries share one format. A tree's rows are its own.
 - **Code reads the process's arguments and environment once,** in the
   binary's crate, through the table.
@@ -342,14 +342,9 @@ otherwise.
    is declared in a table or in the test set's document, in the set its
    name says. Every declared variable is read or set somewhere.
    Made-up names in tests' data take no tree's prefix, so the check
-   needs no exclusion for them. Each crate's `patches/mod.rs` is not
-   read: the patch command generates it from kept texts, whose part
-   names (a stored field `skein_oauth` as `SKEIN_OAUTH`) never change
-   once landed and name no variable
-   (`skein/docs/design/data/codec/command.md`, 3); a patch author's
-   `pNNNN.rs` and `context.rs` are read. The tokens `SKEIN_SET`,
+   needs no exclusion for them. The tokens `SKEIN_SET`,
    `SMITH_SET`, `JIG_STORE_SET` and `JIG_SET` name owner sets, Rust
-   constants (`jig/docs/design/protocol/store/opening.md`, 3), not
+   constants (`jig/docs/design/protocol/store/opening-owners.md`, 1), not
    variables, and are not findings. This exemption is those four names,
    not a suffix rule.
    The check reads each file once and splits it into its words (maximal

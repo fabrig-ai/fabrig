@@ -43,11 +43,11 @@ proposal of settings an owner accepts (`agents.md`, 1).
   figures. Claude Code's own part, which temper never sees (smith's
   `protocol/programs.md`, section 9), is a recorded figure: about 1.1 KB with no
   MCP server, on 2.1.312 on 2026-11-07, its prompt replaced (smith's
-  `protocol/programs.md`, 5.1).
+  `protocol/programs-claude-code.md`, 1.1).
 - **Started** from the client's Ask temper, in the rail and the tab bar of every
   page of a project, which To begin's first step opens too
-  (`../../client/pages/README.md` and `../../client/view.md`, 3), and from `chat start --project PROJECT
-  --template 5 TEXT` (`../../client/ctl/tools.md`, 3).
+  (`../../client/pages/README.md` and `../../client/view-navigation.md`, 1), and from `chat start --project PROJECT
+  --template 5 TEXT` (`../../client/ctl/tools-acts.md`, 1).
 - **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
   it. The first request's bound, on both shapes; its runs' declarations,
   `see`, `document`, `remember` and `propose_settings`, and no workspace;
@@ -66,8 +66,8 @@ pages and a repository's file, it reads through the run's own reads. Where work
 stands and how it ran, the project, its goals and tasks, a task's tree,
 activity and turns, its changes and what waits on the person, it reads as the
 chat's person, of the chat's project alone, through jig's run read as its person
-(jig's `domain/engine/executors.md`, 3), over the reads a client makes
-(`../../client/ctl/tools.md`, 2 and `../../client/ctl/areas.md`).
+(jig's `domain/engine/executors-tools.md`, 1), over the reads a client makes
+(`../../client/ctl/tools-reads.md`, 1 and `../../client/ctl/areas.md`).
 
 - **Its declaration:** one member, `address`, a line of text, at most 512 bytes
   once trimmed; its description, "Read temper by address, as your person, in
@@ -78,11 +78,11 @@ chat's person, of the chat's project alone, through jig's run read as its person
   its family (`tools.md`; jig's `domain/authority.md`, section 3); a run whose authority
   lacks it is answered beyond authority, naming the family. Then each read takes
   the check of the run read it goes through: a settings read the `settings`
-  family's (jig's `domain/engine/executors.md`, 3), which charter 11's authority holds
+  family's (jig's `domain/engine/executors-tools.md`, 1), which charter 11's authority holds
   (`ask-temper.md`); a forge read the resource grant a forge read is admitted by (`tools.md`), with
   no `read` family, which the asking family stands for. A `see` decides nothing
   and keeps no call record: asked again under its name, it is read again (jig's
-  `domain/engine/executors.md`, 3).
+  `domain/engine/executors-tools.md`, 1).
 - **Decoded, routed, rendered:** `temper-engine-smith` decodes the call into the
   root's `Tool::See`, its line and the byte offset it reads from, 0, or the one
   `more`'s token names; the root parses the line into an address and routes it
@@ -97,7 +97,7 @@ chat's person, of the chat's project alone, through jig's run read as its person
   allowance, where an answer made at decode is held to 2,048 bytes.
 - **Read as the person:** an address the table's *Over* names a read "as the
   person" for is read by one or more of jig's run reads as its person, the
-  chat's requester (jig's `domain/engine/executors.md`, 3), in the order the row names
+  chat's requester (jig's `domain/engine/executors-tools.md`, 1), in the order the row names
   them, each answered to the call's flight in the root, which asks the next and,
   once the last is answered, delivers what they read, with the names its
   numbers need (people, charters, the project's), as `see`'s host delivery. A
@@ -119,7 +119,7 @@ chat's person, of the chat's project alone, through jig's run read as its person
 | `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../../protocol/configuration/settings.md`, 8): a block a way, its name, then `now` where the project runs it, its headline, its line, and its path as one line of stops, each its words and, in brackets, its actor, then `, when needed` for a stop made only when needed and `; ` and its small words where it has them (`repair (an agent, when needed; tests, review)`), joined by ` → `; then, where the project runs none, `Yours`, its own path; then, where the project holds a rule by path, `Rules by path` and a line a row, its paths, then `: review `, its review, `; sign-off `, its sign-off, each `none` where empty, and `; lands `, when it lands, then its note on a line (`../forge/change/branch-path.md`, *Rules by path*); then whether the person may change the settings, in a line | the root's `ways` document (`../forge/change/branch-path.md`), made as the client's is | `settings rules · settings landing · settings project-ways · settings project-words · settings charter-words N · help settings` |
 | `revisions` | the history's newest page, as `settings`' history read gives it: each revision with who decided it, when, the proposal it came from, and its items without values | the family's history read | `revision N · settings · help revision` |
 | `revision N` | one revision: who decided it, when, from which proposal, whether it moved running work, its items with their values or sizes | the family's revision read | `revisions · proposal tN/K · proposal pN/K · settings` |
-| `proposal tN/K`, `proposal pN/K` | a proposal of settings, a task's in the chat's project or a party's: its reason, its items, its review against the newest settings while waiting, its state and outcome | the family's proposal read (jig's `domain/engine/executors.md`, 3), rendered compactly by `temper-settings-form` beside a revision | `revision N · revisions · help proposal` |
+| `proposal tN/K`, `proposal pN/K` | a proposal of settings, a task's in the chat's project or a party's: its reason, its items, its review against the newest settings while waiting, its state and outcome | the family's proposal read (jig's `domain/engine/executors-tools.md`, 1), rendered compactly by `temper-settings-form` beside a revision | `revision N · revisions · help proposal` |
 | `help` | the index of temper's pages | the pages `read_docs` reads (`../../protocol/documentation.md`, section 5) | `help NAME · help search WORDS` |
 | `help NAME` | the page whole, `NAME: TITLE` first; a name no page has answers so, then the sections holding its words, as `read_docs` does | the same | `help · help search WORDS` |
 | `help search WORDS` | each section holding every word, a line each, `PAGE: HEADING: LINE`; nothing, saying so; more than eight, ending `more sections match; narrow the words` | the same | `help NAME` |
@@ -247,7 +247,7 @@ chat's person, of the chat's project alone, through jig's run read as its person
 
 ## 2. `propose_settings`, its asking form
 
-Ask temper's one act: `propose_settings` (`tools.md`; jig's `domain/engine/settings.md`, 6),
+Ask temper's one act: `propose_settings` (`tools.md`; jig's `domain/engine/settings-proposals.md`, 1),
 with what instructions would otherwise teach a model done by the tool instead
 (`../../draft/ask-temper.md`, 5.2). Its declaration is the asking form (`tools.md`), with
 no `note` and with `more`; one decoder takes either form's members, so that the
@@ -288,7 +288,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
     proposing call refused, once, so that a set half lost is never proposed.
   - **Only an asking charter's run** gives parts, the runs the form is declared
     to; another's `more` is refused.
-- **Words with the settings** (`../../protocol/configuration/settings.md`, 2, kinds
+- **Words with the settings** (`../../protocol/configuration/settings-kinds.md`, 1, kinds
   9 and 10): a proposal carries, beside the settings it proposes, the words
   the pages say them by, as items of their own: for each charter it sets,
   its `charter-words`, a line of what the charter does; for a change of
@@ -302,14 +302,14 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
 - **A new item's number:** a template, charter or policy it proposes at a
   number the settings don't hold takes the lowest number from 33 that the
   inventory shows free, a deployment's own range, and a model it adds the
-  highest free, from 64 down (jig's `domain/engine/settings.md`, 1 and
-  11). Ask temper's instructions say so (`ask.txt`'s *Configuring*); the
+  highest free, from 64 down (jig's `domain/engine/settings.md`, 1, and `domain/engine/settings-catalogue.md`, 1
+  ). Ask temper's instructions say so (`ask.txt`'s *Configuring*); the
   tool picks nothing, and jig refuses a proposal below 33 at a number the
   stock has no item at, as *range*, in the words any refused proposal
   is given back in.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
-  it (`../../protocol/configuration/settings.md`, 2; `../forge/change/gates.md`, 3), for the chat's
+  it (`../../protocol/configuration/settings-kinds.md`, 1; `../forge/change/gates.md`, 3), for the chat's
   project alone: on a forge of the project's repositories the rule covers, a role
   with fewer eligible people than it requires refuses the call in acceptance's
   words, as does a rule covering the playground's fake forge. Another project's
@@ -319,7 +319,7 @@ configuring form's calls (`tools.md`) decode as they do, and one answer serves b
   judged at acceptance alone (`tools.md`).
 - **Its answer,** for either form, says what to tell the person, where the card
   waits and whose decision it is, after the key ctl names it by
-  (`../../client/ctl/tools.md`, 3): `proposed as t7/13 for the deployment's owners to
+  (`../../client/ctl/tools-acts.md`, 1): `proposed as t7/13 for the deployment's owners to
   decide: it waits as a card in this chat and in Needs you, and nothing changes
   until an owner accepts it. Tell the person so, without t7/13.` With no task
   known, the key is `proposal 13`.
@@ -476,7 +476,7 @@ entry's description, its body empty.
   run's live call show the list and `remember`'s calls to the chat's
   person alone, and to every other party withheld. `see task N turn A.T`
   and `see task N activity` render a turn as jig answers it, withheld for
-  a run's read as its person (jig's `domain/engine/executors.md`, 3), since what
+  a run's read as its person (jig's `domain/engine/executors-tools.md`, 1), since what
   `see` answers joins a transcript the project's other roles read.
 - **Its tests** (`../../testing/checks.md`, 1): its writes and refusals as rows of the
   engine's domain world's note tests, each with the stored entries and the

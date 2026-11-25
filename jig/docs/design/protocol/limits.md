@@ -3,6 +3,9 @@
 - **Policy above, numbers below.** The design documents name limits and
   what they bound; the numbers are in `jig-protocol-config`'s stock,
   as module documentation and constants, never in the design.
+
+## 1. The stock
+
 - **The stock** is one set of every limit jig's children and components
   take, consistent with one another, for a project of fabrig's scale
   (temper's `draft/config.md`, 5.1). `jig-protocol-config`'s
@@ -23,6 +26,9 @@
     `draft/cli.md`, 3.2), for tests alone.
   - **Reading this document.** Below, "standard" means the stock and
     "small" means the fixtures' figures.
+
+## 2. Changing limits
+
 - **Limits as settings** (`../domain/engine/settings.md`, 1): the core's
   kind `limits` holds overrides of jig's limits, each a dotted name of
   `names::NAMES`, a value and a reason. The core keeps it and checks its
@@ -46,6 +52,9 @@
   application's names; none of jig's has it yet. An application takes a
   live change by `channel/figures.md`, 3 and 4 (temper's
   `protocol/configuration/limit-settings.md`, 5).
+
+## 3. Sizing and derivations
+
 - **Sized from fabrig's development:** the stock sizes its counts,
   times and other figures as temper's stock does (temper's
   `protocol/configuration/limits.md`, sized from what): a
@@ -113,6 +122,9 @@
   The application's startup test checks the web watch count and the
   resulting stream ceiling against its supplied memory budget. As below,
   that domain budget is no process-wide sum of all edge ceilings.
+
+## 4. Overrides and startup checks
+
 - **Client pressure overrides.** `clients.queued_bytes` is a u32 byte
   ceiling for one stream, including its in-flight record, at least 128;
   `clients.exchanges_per_client` is a positive u32 count of exchanges in
@@ -154,6 +166,9 @@
   list's allocated capacity, and the deployment's roster is the only
   one implied. `Core::new` asserts the same people-roster relation as
   a programmer precondition (`../domain/engine/README.md`, section 8).
+
+## 5. Public reading
+
 - **Public reading's limits,** the clients' component's
   (`../domain/people/public-reading.md`, 5; `client/public-reads.md`):
   `clients.public.reads` in flight; `clients.public.rate` reads per
@@ -182,12 +197,15 @@
 - **The role `public` has no number:** a policy, configured or in the
   rules, names roles by number, so none can name the public party's
   (`../domain/authority.md`, section 6).
+
+## 6. Charters and models
+
 - **Charters' budgets:** each charter's turns and time are above its
   reserve's, and its default budget holds its reserve and one of its
-  default model's most costly completions (`../domain/authority.md`,
-  section 7), or the engine's start is refused, naming the charter. A
+  default model's most costly completions (`../domain/authority-budgets.md`,
+  section 1), or the engine's start is refused, naming the charter. A
   task's chosen model is checked with its run's check
-  (`../domain/authority.md`, 8.3).
+  (`../domain/authority-checks.md`, 1.3).
 - **A charter's documents:** at most `tasks.charter_documents` per
   charter (`../domain/engine/settings.md`, 9; 2 in Small), with the brief's
   sections 8 in both profiles, the core's own six kinds and two
@@ -206,7 +224,7 @@
   holder, sources per account, sign-ins at once (moves out and in
   count among them: `../domain/accounts.md`, 3.6), program sources per
   worker, and a credential's bytes, which bound a key (skein's
-  `llm/README.md`, 2.6). Within them the accounts' table, skein's driver (its
+  `llm/vocabulary.md`, 1.6). Within them the accounts' table, skein's driver (its
   listeners twice the sign-ins at once, so that a sign-in started
   again has room while the one it cancels settles: `llm.md`, section
   7), the hub's grants, a worker's `sources` and `logins` and the secrets'
@@ -243,6 +261,9 @@
   when given, or the start is refused at its `prices.<member>` path.
 - **Configured models** are at most the bound on models an authority
   names (`../domain/authority.md`, section 3), or the start is refused.
+
+## 7. Requests and retained answers
+
 - **Operations per request,** the people child's limit on a compound
   request (`../domain/people/acts.md`, 1), is at least the larger of
   *delegates per task* plus one and *goals per project*, both the tasks
@@ -270,6 +291,9 @@
   decision), with fivefold headroom shared by all deciding acts,
   permanent refusals and pending reservations. The calculation lives
   beside each profile's answer limit; the advertised retention stays a day.
+
+## 8. Retention and checkpoint limits
+
 - **Retention's horizons** are three limits of the core, the same in
   every profile: an ended task's turns, its full record and its summary
   (`store/retention.md`, 2). The start refuses a horizon of 0 and three
@@ -277,10 +301,13 @@
 - **Checkpoints kept,** `store.checkpoints.keep`, the store's
   `Limits`'s `checkpoints.keep`: how many of the newest checkpoints the
   store keeps (`store/checkpoints.md`, 4.7), the same in every profile,
-  2 as temper's `draft/checkpoints.md`, 3.4 has it. An override is a
+  2 as temper's `draft/archive/checkpoints.md`, 3.4 has it. An override is a
   number from 1 to 64; any other refuses the start, naming it.
+
+## 9. Deployment and application limits
+
 - **A template's grace** is within the tasks child's limit on a grace's
-  span, or the start is refused, naming the template (`configuration.md`, 3.1).
+  span, or the start is refused, naming the template (`configuration-templates.md`, 1).
 - **The deployment's message bound** holds every kind of message a
   task's inbox admits, as a run renders it with its sender's label: a
   party's words and questions by the people child's bound, which is at
@@ -306,7 +333,7 @@
   needs pass it refuse the start as `NeedsPastLimit`
   (`../domain/engine/restart.md`).
 - **An application's kinds of settings** declare a value's largest
-  bytes and the values per scope (`../domain/engine/settings.md`, 5), which
+  bytes and the values per scope (`../domain/engine/settings-application.md`, 1), which
   enter the core's worst case for what it keeps of each setting, and
   the connector's for the values it keeps; a default past either
   refuses the start, naming the kind.

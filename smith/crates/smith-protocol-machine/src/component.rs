@@ -178,7 +178,7 @@ impl Component {
                     to_domain.push(ToDomain::Probed { owner, executable: false });
                 }
             }
-            FromDomain::Check { owner, program, bound, cap, tail } => {
+            FromDomain::Check { owner, program, results, bound, cap, tail } => {
                 self.vacant(owner);
                 let deadline = env.now.saturating_add(bound).min(cap);
                 if env.now >= deadline {
@@ -194,6 +194,7 @@ impl Component {
                         env.now,
                         owner,
                         program,
+                        results,
                         &self.environment,
                         tail,
                         bound,
@@ -546,6 +547,33 @@ impl Component {
             if process.closing_ready() {
                 drop(self.processes.remove(owner));
             }
+        }
+    }
+
+    /// Stop every file operation and child tree after the owner drops its run.
+    /// Their terminals still drain before `closed` reports settlement.
+    pub fn abort(&mut self, below: &mut Queue<Below>) {
+        self.closing = true;
+        let mut files = List::with_capacity(self.pending.len());
+        for (owner, _) in &self.pending {
+            files.push(*owner).expect("one owner per file operation");
+        }
+        for owner in &files {
+            if self.pending.get_mut(owner).expect("retained file operation").cancel() {
+                below.push(Below::CancelFile { owner: *owner });
+            }
+        }
+        for (owner, guide) in &self.guides {
+            if guide.cancellable() {
+                below.push(Below::CancelFile { owner: *owner });
+            }
+        }
+        let mut owners = List::with_capacity(self.processes.len());
+        for (owner, _) in &self.processes {
+            owners.push(*owner).expect("one owner per process");
+        }
+        for owner in &owners {
+            self.processes.get_mut(owner).expect("retained process").abort(below);
         }
     }
 

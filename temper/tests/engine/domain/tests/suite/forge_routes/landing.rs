@@ -2,7 +2,7 @@
 use super::*;
 use skein_forge::api;
 
-fn task_row(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
+pub(crate) fn task_row(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
     let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)));
     let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
     world.store.rows.get(&live).into_iter().chain(world.store.rows.get(&ended)).find_map(|record| match record {
@@ -149,18 +149,18 @@ pub(super) fn hello_prepare(slots: u32) -> engine::Event {
     hello.jobs = Box::new([bound]);
     event
 }
-fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
+pub(crate) fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
     produced_turn_change_with(&StoryLimits { turn: true, landing_members, ..StoryLimits::default() })
 }
 
-fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
+pub(crate) fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
     produced_with_hold(limits, false)
 }
-fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
+pub(crate) fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
     let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits.clone())
         .with_landing_held(held);
     world.adopt();
-    world.send(hello_prepare(2));
+    world.send(hello_prepare(limits.slots.unwrap_or(2)));
     let ask = adoption_chat(&world);
     let chat = assigned_chat(&mut world, 92, ask);
     let engine::CallAnswer::Delegated(made) =
@@ -200,7 +200,7 @@ fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
 }
 
 // One chat, its ready change and four person tasks exercise live-room refusal.
-const LIVE_ROOM: u32 = 6;
+pub(crate) const LIVE_ROOM: u32 = 6;
 
 fn cancel_filler(world: &mut World, task: u64, key: u8, reason: &[u8]) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -212,7 +212,7 @@ fn cancel_filler(world: &mut World, task: u64, key: u8, reason: &[u8]) {
     }));
 }
 
-fn fill_live_room(world: &mut World) -> Vec<u64> {
+pub(crate) fn fill_live_room(world: &mut World) -> Vec<u64> {
     let tasks = world.env.limits.tasks.tasks;
     let mut fillers = Vec::new();
     for at in 0..tasks {
@@ -319,7 +319,7 @@ fn a_refused_landing_forms_nothing_and_retries_after_room_returns() {
         "cancel replies={:?}",
         world.web_replies
     );
-    world.env.now = Time::from_nanos(refusal_at.as_nanos() + world.env.limits.forge.queue_window.as_nanos());
+    world.advance_to(Time::from_nanos(refusal_at.as_nanos() + world.env.limits.forge.queue_window.as_nanos()));
     // Let the timer form the landing, but leave activation for its owner Resume.
     for _ in 0..10 {
         world.tick_without_resume();
@@ -508,9 +508,54 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
     )));
 }
 
+pub(crate) fn full_landing_room() -> (World, u64, u64) {
+    ready_behind_landing(1)
+}
+
+pub(crate) fn ready_behind_landing(landings: u32) -> (World, u64, u64) {
+    let (mut world, first) = produced_turn_change_with(&StoryLimits {
+        turn: true,
+        landing_members: Some(1),
+        landings: Some(landings),
+        slots: Some(3),
+        forge_branches: Some(8),
+        forge_calls: Some(4),
+        forge_pending: Some(8),
+        ..StoryLimits::default()
+    });
+    world.manual_prepare_jobs();
+    for _ in 0..600 {
+        world.tick();
+        if !world.jobs.is_empty() && world.events.is_empty() && world.store.idle() && world.root.quiescent() {
+            break;
+        }
+    }
+    let landing = world.root.forge().change(first).expect("first change").change.landing.expect("first landing");
+    assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
+    let chat = world.assigned[0].clone();
+    let (change, producer) = make_change(&mut world, &chat, 101, b"org/repo");
+    push_change(&mut world, &producer, b"org/repo");
+    finish_producer(&mut world, &producer, forge_world::REPO);
+    for _ in 0..600 {
+        world.tick();
+        if world
+            .root
+            .forge()
+            .change(change)
+            .is_some_and(|row| matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }))
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            return (world, change, landing);
+        }
+    }
+    panic!("second change ready behind the unanswered prepare");
+}
+
 #[test]
 fn a_ready_change_waits_when_landing_room_is_full() {
-    let (mut world, change) = produced_turn_change(Some(0));
+    let (mut world, change, landing) = full_landing_room();
     for _ in 0..300 {
         world.prepare_tick();
     }
@@ -529,11 +574,13 @@ fn a_ready_change_waits_when_landing_room_is_full() {
         .expect("change remains");
     assert_eq!(row.change.landing, None);
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
-    assert!(world.store.rows.values().all(
-        |record| !matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Landing(_)))
-    ));
+    assert!(landing_rows(&world).iter().all(|row| row.landing.members.iter().all(|member| member.change != change)));
+    assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
     assert_eq!(world.merges, 0);
 }
+
+#[path = "ends_untouched.rs"]
+mod ends;
 
 const LIB: api::Repository = api::Repository { forge: 1, repository: 4 };
 // Four single-member horizons cover two preparations, the turn and its partial retry.
@@ -714,9 +761,9 @@ fn dependent_pair(same_repository: bool) -> (World, u64, u64) {
 }
 
 // A full batch is these stories' setup: finish its restart reads before giving
-// the train room, so no waiting member is excluded (domain/landing.md, 9).
+// the train room, so no waiting member is excluded (domain/landing-turn.md, 2).
 fn restart_waiting_batch(world: &mut World, batch: u16, changes: &[u64]) {
-    world.restart_with_batch(batch);
+    world.restart_with_unheld_batch(batch);
     world.root.hold_landings(true);
     for _ in 0..PAIR_TICKS {
         world.tick();
@@ -725,7 +772,7 @@ fn restart_waiting_batch(world: &mut World, batch: u16, changes: &[u64]) {
         }
     }
     assert!(batch_waiting(world, changes), "the restored batch settles while forming is held");
-    world.root.hold_landings(false);
+    world.release_landings();
 }
 
 fn batch_waiting(world: &World, changes: &[u64]) -> bool {
@@ -739,7 +786,7 @@ fn batch_waiting(world: &World, changes: &[u64]) -> bool {
         })
 }
 
-fn landing_rows(world: &World) -> Vec<&forge_top::LandingRow> {
+pub(crate) fn landing_rows(world: &World) -> Vec<&forge_top::LandingRow> {
     world
         .store
         .rows
@@ -1138,15 +1185,16 @@ mod news;
 
 #[path = "landing_trains.rs"]
 mod trains;
+pub(crate) use trains::dependency_across_trains;
 
 #[path = "landing_merge_drill.rs"]
 mod merge_drill;
 
 #[path = "landing_wait_drill.rs"]
-mod wait_drill;
+pub(crate) mod wait_drill;
 
 #[path = "landing_restarts.rs"]
-mod restarts;
+pub(crate) mod restarts;
 
 #[path = "landing_two_goals.rs"]
 mod two_goals;

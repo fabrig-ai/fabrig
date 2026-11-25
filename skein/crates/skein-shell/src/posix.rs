@@ -19,9 +19,7 @@
 
 pub(crate) mod files;
 pub(crate) mod group;
-#[cfg(any(target_os = "macos", test))]
 pub(crate) mod links;
-#[cfg(any(target_os = "macos", test))]
 pub(crate) mod parent_death;
 pub(crate) mod process;
 pub(crate) mod terminal;
@@ -53,7 +51,7 @@ pub(crate) fn status_flags(fd: i32) -> Result<i32, i32> {
 }
 
 /// Whether a startup descriptor is open for writing. Reads its flags without
-/// taking ownership or changing them (runtime/shell.md, 6).
+/// taking ownership or changing them (runtime/shell-startup.md, 1).
 pub fn descriptor_writes(fd: Fd) -> Result<bool, i32> {
     retry(|| status_flags(fd.raw())).map(|flags| flags & libc::O_ACCMODE != libc::O_RDONLY)
 }
@@ -72,14 +70,14 @@ pub(crate) fn close(fd: Fd) -> Result<(), i32> {
     status(unsafe { libc::close(fd.raw()) })
 }
 
-/// The process effective user, read once by startup for io's private files (runtime/shell.md, section 6).
+/// The process effective user, read once by startup for io's private files (runtime/shell-startup.md, section 1).
 #[must_use]
 pub fn effective_user() -> u32 {
     // SAFETY: geteuid takes no pointers and has no preconditions.
     unsafe { libc::geteuid() }
 }
 
-/// The host's name, as the kernel gives it (runtime/shell.md, 6.1).
+/// The host's name, as the kernel gives it (runtime/shell-startup.md, 1.1).
 pub fn host_name() -> Result<Box<[u8]>, i32> {
     // SAFETY: utsname is a plain C structure of byte arrays, valid when zeroed.
     let mut name: libc::utsname = unsafe { std::mem::zeroed() };
@@ -90,7 +88,7 @@ pub fn host_name() -> Result<Box<[u8]>, i32> {
     Ok(Box::from(hostname.to_bytes()))
 }
 
-/// A user's login at startup (runtime/shell.md, 6). macOS's directory
+/// A user's login at startup (runtime/shell-startup.md, 1). macOS's directory
 /// service need not list the effective user in `/etc/passwd`.
 pub fn login(user: u32) -> Result<Box<[u8]>, String> {
     if cfg!(target_os = "macos") { crate::login_id() } else { login_passwd(user) }
@@ -157,16 +155,6 @@ fn login_read_error(why: crate::Unread) -> String {
     }
 }
 
-#[cfg(test)]
-mod login_tests {
-    #[test]
-    fn passwd_login_matches_numeric_uid_and_refuses_missing_user() {
-        let passwd = b"root:x:0:0:root:/root:/bin/sh\nmalformed\nbad:x:not-a-uid:42\nalice:x:1042:42::/home/alice:/bin/sh\nbob:x:2042:42::/home/bob:/bin/sh\n";
-        assert_eq!(super::passwd_login(passwd, 1042), Ok(Box::from(b"alice".as_slice())));
-        assert_eq!(super::passwd_login(passwd, 42), Err("user 42: no login in /etc/passwd".into()));
-    }
-}
-
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn shutdown(fd: Fd) -> Result<(), i32> {
     // SAFETY: shutdown takes only integers.
@@ -212,18 +200,11 @@ pub fn wait_readable(fd: Fd, bound: skein_lib::Duration) -> Result<bool, i32> {
 }
 
 #[cfg(test)]
-mod descriptor_tests {
-    use super::descriptor_writes;
-    use skein_io::kernel::Fd;
-    use std::os::fd::AsRawFd;
-
+mod login_tests {
     #[test]
-    fn descriptor_write_access_keeps_the_open_mode() {
-        for (read, write, expected) in [(true, false, false), (false, true, true), (true, true, true)] {
-            let file = std::fs::OpenOptions::new().read(read).write(write).open("/dev/null").expect("null");
-            assert_eq!(descriptor_writes(Fd::new(file.as_raw_fd())), Ok(expected));
-            assert_eq!(descriptor_writes(Fd::new(file.as_raw_fd())), Ok(expected), "flags unchanged");
-        }
-        assert!(descriptor_writes(Fd::new(-1)).is_err());
+    fn passwd_login_matches_numeric_uid_and_refuses_missing_user() {
+        let passwd = b"root:x:0:0:root:/root:/bin/sh\nmalformed\nbad:x:not-a-uid:42\nalice:x:1042:42::/home/alice:/bin/sh\nbob:x:2042:42::/home/bob:/bin/sh\n";
+        assert_eq!(super::passwd_login(passwd, 1042), Ok(Box::from(b"alice".as_slice())));
+        assert_eq!(super::passwd_login(passwd, 42), Err("user 42: no login in /etc/passwd".into()));
     }
 }

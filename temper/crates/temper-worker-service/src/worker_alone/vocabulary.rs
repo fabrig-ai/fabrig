@@ -14,7 +14,7 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
-    /// Each fetch and check out the checkout asks (domain/worker/README.md, 4.3).
+    /// Each fetch, counts fetch and check out the checkout asks (domain/worker/hosted-runs.md, 1.3).
     Git {
         run: u64,
         attempt: u64,
@@ -52,19 +52,24 @@ pub enum Note {
         signal: &'static str,
         from: Option<u32>,
     },
-    /// An agent fault, when reported, once per attempt (domain/worker/README.md, 4.3).
+    /// An agent fault, when reported, once per attempt (domain/worker/hosted-runs.md, 1.3).
     AgentStopped {
         run: u64,
         attempt: u64,
         failure: jig_domain_host::AgentFailure,
         no_progress_ms: Option<u64>,
     },
-    /// A failed preparation, once when its answer first goes up (domain/worker/checkouts.md, 1.3).
+    /// A failed preparation, once when its answer first goes up (domain/worker/checkouts-prepare.md, 12.3).
     Unprepared {
         run: u64,
         attempt: u64,
         failure: jig_domain_host::Failure,
         detail: Box<[u8]>,
+    },
+    /// An entry the git sweep could not remove (protocol/git-sweep.md, 3).
+    Unswept {
+        path: Box<[u8]>,
+        error: skein_io::kernel::Error,
     },
     ResultsIgnored {
         owner: u64,
@@ -74,10 +79,6 @@ pub enum Note {
     CannotSendWhole {
         wire: &'static str,
         version: u16,
-    },
-    Untranslated {
-        kind: u16,
-        halt: skein_codec::patch::Halt,
     },
     StopBoundPassed {
         abandoned: u64,

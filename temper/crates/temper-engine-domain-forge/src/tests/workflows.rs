@@ -1,4 +1,4 @@
-//! Workflow read and invalidation rows (temper/docs/design/domain/forge/adoption.md, 7).
+//! Workflow read and invalidation rows (temper/docs/design/domain/forge/adoption.md, 11).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -57,8 +57,8 @@ fn restored(kind: Kind) -> Domain {
     row.workflows = Box::new([b"old.yml".as_slice().into()]);
     outputs(&mut d, Event::Restore { record: Stored::Repository(row) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 

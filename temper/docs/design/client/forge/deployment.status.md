@@ -25,4 +25,3 @@
   remains the way back; the panel alone does not repair admission.
 
 
-- **Departs:** the whole document, Connecting a forge: the panel "A Forgejo elsewhere" gives its numbered steps, each with its Copy, as `temper ctl DIR forge connect forgejo-admin` and `forge connect forgejo` commands (`../ctl/areas.md`; `temper/docs/help/forgejo.md`), as its admin and with its bot's tokens, with no restart: `temper.toml` holds no forges (`../../protocol/configuration/file.md`, 3). The mockup's panel (`../web/mockups/pages.js`) still shows the document's members.

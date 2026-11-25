@@ -1,6 +1,6 @@
 # The deployment's binaries
 
-Draft, 2026-11-08, from the user's words that day (`notes.md`, section 11).
+Draft, 2026-11-08, from the user's words that day (`deployment-binaries.notes.md`).
 
 temper has one download today, the whole product in one binary, which a person runs as `temper box` to try it. This draft adds a second set, the binaries of a real deployment, one per process. It covers:
 
@@ -63,7 +63,7 @@ No earlier story split the binaries. What exists already:
 
 The four cover the processes. These commands of today's binary needed a home, and some things stay the deployer's:
 
-- **Clients beyond the TUI: `temper ctl`.** It's how a person's scripts, automations and QA drive a deployment (`../client/ctl/README.md`, sections 1 and 6). Like the TUI, it's a client of the engine's listener, with no engine code, so it goes in `temper` beside the TUI. That's a departure from "just the TUI". `temper open`, the older line client the tests use, stays in the box binary alone.
+- **Clients beyond the TUI: `temper ctl`.** It's how a person's scripts, automations and QA drive a deployment (`../client/ctl/README.md`, section 1, and `../client/ctl/command-line.md`, section 1). Like the TUI, it's a client of the engine's listener, with no engine code, so it goes in `temper` beside the TUI. That's a departure from "just the TUI". `temper open`, the older line client the tests use, stays in the box binary alone.
 - **The engine host's commands:** `forge fetch`, `prepare`, `run`, `sign-in`, `source` and `remove`, the owned Forgejo's setup and run (`../protocol/setup/owned.md` and `../protocol/setup/box.md`, section 4). Also `versions` and `upgrade` (`../protocol/binaries.md`).
 - **The worker host's command:** `program-login`, signing a program's source in where the worker's agents run it (`../protocol/setup/owned.md`, 6).
 - **Help in each binary,** of its own commands. The `commands` reference page names each command's binary.
@@ -92,7 +92,7 @@ The four cover the processes. These commands of today's binary needed a home, an
 
 - **A binary refuses a document that isn't its own.** `temper-engine serve` refuses one with a worker member, and `temper-worker serve` refuses one with an engine member. Each refusal names the binary that would run it. The standalone shape, engine and worker in one process, stays the box's (`../protocol/cluster.md`, 1).
 - **The worker starts `temper-agent`:**
-  - The worker's document names `temper-agent` as the agent's program, in place of today's own executable with `internal agent` (`../protocol/setup/init.md`, 2).
+  - The worker's document names `temper-agent` as the agent's program, in place of today's own executable with `internal agent` (`../protocol/setup/init.md`, 5).
   - The model-list launch runs the same program in its list mode.
   - The fetched Claude Code launcher's `claude` link points at the agent's program, not at the binary that places it. Today the worker's start and `program-login` place it.
 - **The web client is the engine's.** Only `temper-engine` links the browser bundle, embedded.

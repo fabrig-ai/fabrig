@@ -1,9 +1,161 @@
-//! The shared engine/TUI path and private link (client/tui/README.md, 2).
-use crate::link_file::{self, MOST};
-use std::{
-    fs,
-    os::unix::fs::{MetadataExt, PermissionsExt},
+//! The shared engine/TUI path and private link (client/tui/directory.md, 1).
+use super::{MOST, Publication, forget_with, keep_with, read_with};
+use crate::{
+    directories::{PrivateDirectories, make_private_with},
+    link_file,
+    test_disk::{Disk, USER, io_error, name},
 };
+use skein_fake_machine::{How, Item, Opened, Refusal};
+use skein_io::file::Unsafe;
+use skein_lib::Secret;
+use skein_shell::Unread;
+use std::{io, path::Path};
+
+const FIRST: &[u8] = b"http://127.0.0.1:7000/jig/v1/sign-in/link?secret=fixture";
+
+#[derive(Debug, PartialEq, Eq)]
+enum Effect {
+    Prepare,
+    Seed,
+    Create(u32),
+    Write,
+    Sync,
+    Close,
+    Rename,
+    Remove(Result<(), Refusal>),
+}
+
+struct Recorded {
+    disk: Disk,
+    effects: Vec<Effect>,
+}
+
+impl Recorded {
+    fn new(items: &[Item]) -> Self {
+        Self { disk: Disk::new(items), effects: Vec::new() }
+    }
+
+    fn contents(&mut self, path: &Path) -> Vec<u8> {
+        let file = self.disk.open(path, How::ReadNoFollow).expect("kept link");
+        let bytes = self.disk.machine.read(file, 0, MOST).expect("read kept link");
+        self.disk.machine.close(file);
+        bytes
+    }
+}
+
+impl Publication for Recorded {
+    type File = Opened;
+
+    fn prepare(&mut self, path: &Path, user: u32) -> Result<(), String> {
+        self.effects.push(Effect::Prepare);
+        make_private_with(path, user, &mut self.disk)
+    }
+    fn seed(&mut self) -> Result<Secret, i32> {
+        self.effects.push(Effect::Seed);
+        Ok(Secret::new(Box::new([3; 32])))
+    }
+    fn create_new(&mut self, path: &Path, mode: u32) -> io::Result<Self::File> {
+        self.effects.push(Effect::Create(mode));
+        self.disk.open(path, How::Create { mode }).map_err(io_error)
+    }
+    fn write_all(&mut self, file: &mut Self::File, bytes: &[u8]) -> io::Result<()> {
+        self.effects.push(Effect::Write);
+        self.disk.machine.append(*file, bytes).map_err(io_error)
+    }
+    fn sync(&mut self, file: &Self::File) -> io::Result<()> {
+        self.effects.push(Effect::Sync);
+        self.disk.machine.sync(*file);
+        Ok(())
+    }
+    fn close(&mut self, file: Self::File) {
+        self.effects.push(Effect::Close);
+        self.disk.machine.close(file);
+    }
+    fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()> {
+        self.effects.push(Effect::Rename);
+        assert_eq!(from.parent(), to.parent(), "publication stays in its directory");
+        self.disk.at_parent(to, |disk, parent, to| disk.rename(parent, name(from), parent, to, false)).map_err(io_error)
+    }
+    fn remove(&mut self, path: &Path) -> io::Result<()> {
+        let result = self.disk.at_parent(path, |disk, parent, name| disk.remove(parent, name, false));
+        self.effects.push(Effect::Remove(result));
+        result.map_err(io_error)
+    }
+}
+
+#[test]
+fn keeping_replaces_the_whole_private_file_and_forgetting_is_quiet() {
+    let mut link = Recorded::new(&[]);
+    let path = Path::new("/missing/parent/printed-link");
+    let parent = path.parent().expect("parent");
+    let publish = [
+        Effect::Prepare,
+        Effect::Seed,
+        Effect::Create(0o600),
+        Effect::Write,
+        Effect::Write,
+        Effect::Sync,
+        Effect::Close,
+        Effect::Rename,
+    ];
+    keep_with(path, FIRST, USER, &mut link).expect("keep");
+    assert!(link.contents(path) == [FIRST, b"\n"].concat(), "whole URL and LF");
+    assert_eq!(link.disk.symlink_stat(path).expect("file").mode, 0o600);
+    for directory in [parent, Path::new("/missing")] {
+        assert_eq!(link.disk.symlink_stat(directory).expect("parent").mode, 0o700);
+    }
+    assert_eq!(link.effects, publish);
+    link.effects.clear();
+
+    keep_with(path, b"short", USER, &mut link).expect("replace");
+    assert!(link.contents(path) == b"short\n", "no suffix from the previous link");
+    let directory = link.disk.open(parent, How::Directory).expect("link directory");
+    let entries = link.disk.machine.list(directory, 10, 4096).expect("directory entries");
+    link.disk.machine.close(directory);
+    assert_eq!(entries.len(), 1, "no temporary left");
+    assert_eq!(link.effects, publish);
+    link.effects.clear();
+
+    forget_with(path, &mut link);
+    assert_eq!(link.disk.open(path, How::PathNoFollow), Err(Refusal::NotFound));
+    forget_with(path, &mut link);
+    assert_eq!(link.effects, [Effect::Remove(Ok(())), Effect::Remove(Err(Refusal::NotFound))]);
+}
+
+#[test]
+fn keeping_refuses_an_insecure_or_foreign_parent_without_disclosing_the_url() {
+    let path = Path::new("/parent/printed-link");
+    for (mode, user) in [(0o770, USER), (0o700, USER + 1)] {
+        let mut link = Recorded::new(&[Item::directory(b"parent").mode(mode)]);
+        let why = keep_with(path, FIRST, user, &mut link).expect_err("unsafe parent");
+        assert!(why.starts_with(&format!("{}: ", path.display())), "error names the target path");
+        assert!(!why.as_bytes().windows(FIRST.len()).any(|part| part == FIRST), "error holds no URL");
+        assert_eq!(link.disk.open(path, How::PathNoFollow), Err(Refusal::NotFound), "refusal writes nothing");
+        assert_eq!(link.effects, [Effect::Prepare]);
+    }
+}
+
+#[test]
+fn reading_refuses_nonprivate_foreign_and_oversize_files_and_strips_one_lf() {
+    let path = Path::new("/printed-link");
+    let bound = usize::try_from(MOST).expect("link bound");
+    for (row, result, expected) in [
+        ("absent", Err(Unread::Absent), None),
+        ("final LF", Ok([FIRST, b"\n"].concat()), Some(FIRST.to_vec())),
+        ("one LF only", Ok(b"two\n\n".to_vec()), Some(b"two\n".to_vec())),
+        ("no LF", Ok(b"bare".to_vec()), Some(b"bare".to_vec())),
+        ("group-readable", Err(Unread::Unsafe(Unsafe::Mode(0o040))), None),
+        ("foreign owner", Err(Unread::Unsafe(Unsafe::Owner { found: USER + 1, expected: USER })), None),
+        ("past MOST", Err(Unread::TooLarge { max: MOST }), None),
+        ("at MOST", Ok(vec![b'x'; bound]), Some(vec![b'x'; bound])),
+    ] {
+        let found = read_with(path, USER, |name, max, user| {
+            assert_eq!((name, max, user), (path, 4096, USER), "{row}");
+            result.map(|bytes| Secret::new(bytes.into_boxed_slice()))
+        });
+        assert!(found.as_ref().map(Secret::expose) == expected.as_deref(), "{row}");
+    }
+}
 
 #[test]
 fn paths_key_the_deployment_and_refuse_a_missing_absolute_runtime() {
@@ -45,82 +197,4 @@ fn deployments_resolve_as_the_box_without_flags() {
         }
     }
     assert!(failures.is_empty(), "deployment rows: {failures:?}");
-}
-
-const FIRST: &[u8] =
-    b"http://127.0.0.1:7000/jig/v1/sign-in/link?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM".as_slice();
-
-#[test]
-fn keeping_replaces_the_whole_private_file_and_forgetting_is_quiet() {
-    let scratch = skein_scratch::Scratch::new("link-file-keep");
-    let path = scratch.path().join("missing/parent/printed-link");
-    let user = skein_shell::effective_user();
-    link_file::keep(&path, FIRST, user).expect("keep");
-    assert!(fs::read(&path).expect("link") == [FIRST, b"\n"].concat(), "whole URL and LF");
-    assert_eq!(fs::metadata(&path).expect("file").mode() & 0o777, 0o600);
-    for directory in [path.parent().unwrap(), scratch.path().join("missing").as_path()] {
-        assert_eq!(fs::metadata(directory).expect("parent").mode() & 0o777, 0o700);
-    }
-    link_file::keep(&path, b"short", user).expect("replace");
-    assert!(fs::read(&path).expect("replaced") == b"short\n", "no suffix from the previous link");
-    assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1, "no temporary left");
-    link_file::forget(&path);
-    assert!(!path.exists());
-    link_file::forget(&path);
-}
-
-#[test]
-fn keeping_refuses_an_insecure_or_foreign_parent_without_disclosing_the_url() {
-    let mut failures = Vec::new();
-    for (mode, user) in [(0o770, skein_shell::effective_user()), (0o700, skein_shell::effective_user().wrapping_add(1))]
-    {
-        let scratch = skein_scratch::Scratch::new("link-file-refusal");
-        let parent = scratch.path().join("parent");
-        fs::create_dir(&parent).unwrap();
-        fs::set_permissions(&parent, fs::Permissions::from_mode(mode)).unwrap();
-        let path = parent.join("printed-link");
-        let why = match link_file::keep(&path, FIRST, user) {
-            Ok(()) => {
-                failures.push((mode, user));
-                continue;
-            }
-            Err(why) => why,
-        };
-        assert!(why.starts_with(&format!("{}: ", path.display())), "error names the target path");
-        assert!(!why.as_bytes().windows(FIRST.len()).any(|part| part == FIRST), "error holds no URL");
-        assert!(!path.exists(), "refusal writes nothing");
-    }
-    assert!(failures.is_empty(), "private parent refusals, (mode, user): {failures:?}");
-}
-
-#[test]
-fn reading_refuses_nonprivate_foreign_and_oversize_files_and_strips_one_lf() {
-    let scratch = skein_scratch::Scratch::new("link-file-read");
-    let path = scratch.path().join("printed-link");
-    let user = skein_shell::effective_user();
-    assert!(link_file::read(&path, user).is_none(), "absent");
-    let mut failures = Vec::new();
-    for (row, bytes, mode, owner, expected) in [
-        ("final LF", [FIRST, b"\n"].concat(), 0o600, user, Some(FIRST.to_vec())),
-        ("one LF only", b"two\n\n".to_vec(), 0o600, user, Some(b"two\n".to_vec())),
-        ("no LF", b"bare".to_vec(), 0o600, user, Some(b"bare".to_vec())),
-        ("group-readable", FIRST.to_vec(), 0o640, user, None),
-        ("foreign owner", FIRST.to_vec(), 0o600, user.wrapping_add(1), None),
-        ("past MOST", vec![b'x'; usize::try_from(MOST).unwrap() + 1], 0o600, user, None),
-        (
-            "at MOST",
-            vec![b'x'; usize::try_from(MOST).unwrap()],
-            0o600,
-            user,
-            Some(vec![b'x'; usize::try_from(MOST).unwrap()]),
-        ),
-    ] {
-        fs::write(&path, bytes).unwrap();
-        fs::set_permissions(&path, fs::Permissions::from_mode(mode)).unwrap();
-        let found = link_file::read(&path, owner);
-        if found.as_ref().map(skein_lib::Secret::expose) != expected.as_deref() {
-            failures.push(row);
-        }
-    }
-    assert!(failures.is_empty(), "private bounded read rows: {failures:?}");
 }

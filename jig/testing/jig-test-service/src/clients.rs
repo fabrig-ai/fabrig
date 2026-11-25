@@ -44,7 +44,7 @@ pub(super) struct Clients {
     public_names: Option<()>,
 }
 
-// Hide printed sign-in links because they carry secrets (skein/docs/design/runtime/lib.md, 6).
+// Hide printed sign-in links because they carry secrets (skein/docs/design/runtime/lib-bytes.md, 1).
 impl ::core::fmt::Debug for Clients {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         f.debug_struct("Clients")
@@ -134,7 +134,12 @@ impl Clients {
         };
         let application = config::clients::Application {
             link,
-            served: kit::host::served(kit::Served { family: Some(1), first: VERSION, last: VERSION }),
+            served: kit::host::served(kit::Served {
+                family: Some(1),
+                first: VERSION,
+                last: VERSION,
+                layout: jig_client_test_protocol_wire::LAYOUT,
+            }),
             public: List::with_capacity(0),
             moved_bytes: jig_protocol_accounts::moved::bound(&config.limits.driver.client.document),
         };

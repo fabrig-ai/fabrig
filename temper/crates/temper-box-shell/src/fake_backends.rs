@@ -1,20 +1,22 @@
 //! Retained isolated startup for `temper-box --fake-backends` (protocol/configuration/directories.md, 1).
-//! The fake box's steps follow temper/docs/design/protocol/setup/box.md, 5.
+//! The fake box's steps follow temper/docs/design/protocol/setup/box-backends.md, 1.
 use crate::directories::jig_directories;
+mod host;
 mod import;
-use crate::directories::{Directories, make_private, private_root};
+use crate::directories::{Directories, make_private};
+use host::{Files, Host, Initialized, Native};
 use import::Source;
-use skein_io::kernel::{Exit, Fd};
+use skein_io::kernel::{Exit, Fd, Kind};
 use std::{
     ffi::OsStr,
     fs::{self, OpenOptions},
-    io::Write,
+    io,
     net::{SocketAddr, TcpListener},
     num::NonZeroU16,
     os::fd::IntoRawFd,
     os::unix::{
         ffi::OsStrExt,
-        fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
+        fs::{MetadataExt, OpenOptionsExt},
     },
     path::{Component, Path, PathBuf},
 };
@@ -23,10 +25,10 @@ use temper_forge_setup_shell::process as locks;
 
 use temper_config_shell::{FILE, Shape};
 
-const ADAPTER: &str = "fake-claude.path";
+pub const ADAPTER: &str = "fake-claude.path";
 const REQUIRED: &[&str] = &[FILE, "github.json", "oauth.json", "llm.json", "forgejo.json", ADAPTER];
 
-/// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
+/// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box-backends.md, 1).
 pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
     name: "TEMPER_INTERNAL_FAKE_BOX_PORTS",
     set: skein_shell::Set::Internal,
@@ -36,15 +38,15 @@ pub(crate) const FAKE_BOX_PORTS: skein_shell::Variable = skein_shell::Variable {
     notes: "Nine comma-separated nonzero ports; used only for a new sandbox.",
     way: skein_shell::Way::Reads,
 };
-const CHOSEN_PORTS: &str = FAKE_BOX_PORTS.name;
+pub const CHOSEN_PORTS: &str = FAKE_BOX_PORTS.name;
 fn ports_from(environment: &[crate::EnvironmentEntry]) -> Result<Option<Chosen>, String> {
     FAKE_BOX_PORTS.value(environment).map(OsStr::from_bytes).map(chosen_ports).transpose()
 }
-struct Chosen {
+pub struct Chosen {
     listeners: [u16; 5],
     peers: [u16; 4],
 }
-fn chosen_ports(value: &OsStr) -> Result<Chosen, String> {
+pub fn chosen_ports(value: &OsStr) -> Result<Chosen, String> {
     let refuse = || format!("{CHOSEN_PORTS}: expected nine comma-separated nonzero ports");
     let text = value.to_str().ok_or_else(refuse)?;
     let ports = text
@@ -56,23 +58,23 @@ fn chosen_ports(value: &OsStr) -> Result<Chosen, String> {
     Ok(Chosen { listeners: [clients, owned, forge, llm, webhooks], peers: [github, oauth, model, forgejo] })
 }
 
-struct Listeners(Vec<(Fd, NonZeroU16)>);
+pub struct Listeners(pub Vec<(Fd, NonZeroU16)>);
 impl Drop for Listeners {
     fn drop(&mut self) {
         crate::close(std::mem::take(&mut self.0).into_iter().map(|(fd, _)| fd).collect());
     }
 }
-struct Prepared {
-    directories: Directories,
-    bytes: Box<[u8]>,
-    listeners: Listeners,
-    peers: Peers,
-    steps: Box<[temper_forge_setup::Step]>,
+pub struct Prepared {
+    pub directories: Directories,
+    pub bytes: Box<[u8]>,
+    pub listeners: Listeners,
+    pub peers: Peers,
+    pub steps: Box<[temper_forge_setup::Step]>,
     // Held through drive; closing the descriptor releases the OS lock even after a crash.
     _lock: locks::Lock,
 }
 #[derive(Default)]
-pub(crate) struct Options {
+pub struct Options {
     pub bundle: Option<PathBuf>,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
@@ -147,32 +149,56 @@ pub(crate) fn run(
     drop(lock);
     result
 }
-/// Per-start scripts and arguments; retained peer documents are never rewritten (protocol/setup/box.md, 5).
+/// Per-start scripts and arguments; retained peer documents are never rewritten (protocol/setup/box-backends.md, 1).
 fn scripts_for_start(
+    disk: &impl Files,
     dirs: &Directories,
     peers: &Peers,
     options: &Options,
 ) -> Result<Box<[temper_forge_setup::Step]>, String> {
+    scripts_for_start_with(
+        dirs,
+        peers,
+        options,
+        |path| disk.remove(path),
+        || peer_document_with(disk, dirs, "llm.json", temper_fake::DOCUMENT_BYTES),
+        |path, bound| disk.read(path, bound, false),
+        |path, joined| write_with(disk, path, joined, disk.exists(path)),
+    )
+}
+
+fn scripts_for_start_with(
+    dirs: &Directories,
+    peers: &Peers,
+    options: &Options,
+    remove: impl FnOnce(&Path) -> std::io::Result<()>,
+    model: impl FnOnce() -> Result<Box<[u8]>, String>,
+    read: impl FnMut(&Path, u32) -> Result<Box<[u8]>, skein_shell::Unread>,
+    publish: impl FnOnce(&Path, &[u8]) -> Result<(), String>,
+) -> Result<Box<[temper_forge_setup::Step]>, String> {
     let path = crate::path(&dirs.config).join("llm-scripts.json");
     if options.scripts.is_empty() {
-        match fs::remove_file(&path) {
+        match remove(&path) {
             Ok(()) => {}
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
             Err(why) => return Err(format!("{}: {why}", path.display())),
         }
         return Ok(backends::steps(&dirs.config, &dirs.data, peers, None, options.strict));
     }
-    let document = peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?;
-    let joined = join_scripts(&options.scripts, &document)?;
-    write(&path, &joined, path.exists())?;
+    let document = model()?;
+    let joined = join_scripts(&options.scripts, &document, read)?;
+    publish(&path, &joined)?;
     Ok(backends::steps(&dirs.config, &dirs.data, peers, Some(&bytes(&path)), options.strict))
 }
-fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String> {
+fn join_scripts(
+    files: &[PathBuf],
+    document: &[u8],
+    mut read: impl FnMut(&Path, u32) -> Result<Box<[u8]>, skein_shell::Unread>,
+) -> Result<Box<[u8]>, String> {
     let mut joined = temper_fake::llm::ScriptJoin::empty();
     for file in files {
         let refuse = |why| format!("{}: {why}", file.display());
-        let source =
-            skein_shell::read_file(file, temper_fake::DOCUMENT_BYTES).map_err(|why| refuse(crate::unread(why)))?;
+        let source = read(file, temper_fake::DOCUMENT_BYTES).map_err(|why| refuse(crate::unread(why)))?;
         joined.push(document, &source).map_err(|why| {
             let line = why.line();
             let line = String::from_utf8_lossy(&line);
@@ -183,40 +209,69 @@ fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String>
     Ok(joined.into_bytes())
 }
 
-fn bytes(path: &Path) -> Box<[u8]> {
+#[must_use]
+pub fn bytes(path: &Path) -> Box<[u8]> {
     path.as_os_str().as_bytes().into()
 }
 fn public_path(path: &Path) -> Result<(), String> {
     // Public imports must not turn a link into an accidental source-secret copy.
     let path = skein_shell::resolve_system_links(path);
+    public_path_with(&path, |path| {
+        fs::symlink_metadata(path).map(|metadata| PublicMetadata {
+            linked: metadata.file_type().is_symlink(),
+            file: metadata.is_file(),
+            links: metadata.nlink(),
+        })
+    })
+}
+
+struct PublicMetadata {
+    linked: bool,
+    file: bool,
+    links: u64,
+}
+
+fn public_path_with(
+    path: &Path,
+    mut metadata: impl FnMut(&Path) -> std::io::Result<PublicMetadata>,
+) -> Result<(), String> {
     let mut prefix = PathBuf::new();
     for component in path.components() {
         prefix.push(component.as_os_str());
-        let metadata = fs::symlink_metadata(&prefix).map_err(|why| format!("{}: {why}", prefix.display()))?;
-        if metadata.file_type().is_symlink() {
+        let facts = metadata(&prefix).map_err(|why| format!("{}: {why}", prefix.display()))?;
+        if facts.linked {
             return Err(format!("{}: public documents must not be reached through links", prefix.display()));
         }
     }
-    let metadata = fs::symlink_metadata(&path).map_err(|why| format!("{}: {why}", path.display()))?;
-    if !metadata.is_file() || metadata.nlink() != 1 {
+    let facts = metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
+    if !facts.file || facts.links != 1 {
         return Err(format!("{}: expected a regular public document with one link", path.display()));
     }
     Ok(())
 }
 /// Check an in-memory candidate before it replaces the retained file.
-fn configuration(dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
-    let facts = temper_config_shell::facts(dirs).map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())?;
+pub(super) fn configuration(dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
+    configuration_with(&Native(&[]), dirs, text)
+}
+fn configuration_with(disk: &impl Host, dirs: &Directories, text: &[u8]) -> Result<temper_config_shell::Read, String> {
+    let facts = disk.config_facts(dirs).map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())?;
     temper_config_shell::parse(text, Shape::Standalone, &facts)
         .map_err(|why| String::from_utf8_lossy(&why.lines()).into_owned())
 }
 fn public(path: &Path) -> Result<Box<[u8]>, String> {
-    public_path(path)?;
-    skein_shell::read_file(path, crate::CONFIG_BYTES)
-        .map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
+    public_with(&Native(&[]), path)
 }
-fn private_document(path: &Path) -> Result<(), String> {
-    let metadata = fs::symlink_metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
-    if metadata.uid() != skein_shell::effective_user() || metadata.mode() & 0o077 != 0 {
+fn public_with(disk: &impl Files, path: &Path) -> Result<Box<[u8]>, String> {
+    disk.public_path(path)?;
+    disk.read(path, crate::CONFIG_BYTES, false).map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
+}
+fn private_document(disk: &impl Files, path: &Path) -> Result<(), String> {
+    let metadata = disk.metadata(path).map_err(|why| format!("{}: {why}", path.display()))?.stat;
+    private_document_from(path, metadata.owner, disk.user(), metadata.mode)
+}
+
+fn private_document_from(path: &Path, owner: u32, user: u32, mode: u32) -> Result<(), String> {
+    if owner != user || mode & 0o077 != 0 {
         return Err(format!("{}: retained documents must be private files of this user's", path.display()));
     }
     Ok(())
@@ -240,30 +295,23 @@ fn resolved(root: &Path, name: &[u8]) -> Result<PathBuf, String> {
     }
     Ok(clean)
 }
-fn write(path: &Path, content: &[u8], replace: bool) -> Result<(), String> {
+pub fn write(path: &Path, content: &[u8], replace: bool) -> Result<(), String> {
+    write_with(&Native(&[]), path, content, replace)
+}
+fn write_with(disk: &impl Files, path: &Path, content: &[u8], replace: bool) -> Result<(), String> {
     if replace {
-        let metadata = fs::symlink_metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
-        if !metadata.is_file()
-            || metadata.file_type().is_symlink()
-            || metadata.uid() != skein_shell::effective_user()
-            || metadata.nlink() != 1
-        {
+        let metadata = disk.metadata(path).map_err(|why| format!("{}: {why}", path.display()))?.stat;
+        if metadata.kind != Kind::File || metadata.owner != disk.user() || metadata.links != 1 {
             return Err(format!("{}: expected this user's regular file", path.display()));
         }
     }
-    let mut options = OpenOptions::new();
-    options.write(true).mode(0o600);
-    if replace {
-        options.truncate(true);
-    } else {
-        options.create_new(true);
-    }
-    let mut file = options.open(path).map_err(|why| format!("{}: {why}", path.display()))?;
-    file.set_permissions(fs::Permissions::from_mode(0o600)).map_err(|why| why.to_string())?;
-    file.write_all(content).map_err(|why| format!("{}: {why}", path.display()))?;
-    file.sync_all().map_err(|why| format!("{}: {why}", path.display()))
+    let mut file = disk.open_write(path, 0o600, replace).map_err(|why| format!("{}: {why}", path.display()))?;
+    disk.mode(&file, 0o600).map_err(|why| why.to_string())?;
+    disk.write(&mut file, content).map_err(|why| format!("{}: {why}", path.display()))?;
+    disk.sync(&file).map_err(|why| format!("{}: {why}", path.display()))
 }
-fn replace_bundle(
+fn replace_bundle_with(
+    disk: &impl Host,
     dirs: &Directories,
     content: Box<[u8]>,
     bundle: Option<&Path>,
@@ -272,7 +320,7 @@ fn replace_bundle(
 ) -> Result<Box<[u8]>, String> {
     let mut updated = content.clone();
     if let Some(bundle) = bundle {
-        let mut file = configuration(dirs, &content)?.file;
+        let mut file = configuration_with(disk, dirs, &content)?.file;
         if file.internal.bundle.as_deref() != Some(bundle) {
             file.internal.bundle = Some(bundle.to_path_buf());
             updated = temper_config_shell::render(&file, Shape::Standalone);
@@ -280,28 +328,33 @@ fn replace_bundle(
     }
     // Check the entire candidate, including its bundle, before touching retained bytes.
     if updated == content {
-        validate_checked(dirs, deployment, adapter)?;
+        validate_checked(disk, dirs, deployment, adapter)?;
         return Ok(content);
     }
-    validate(dirs, &updated, adapter)?;
+    validate_with(disk, dirs, &updated, adapter)?;
     let path = crate::path(&dirs.config).join(FILE);
-    let staging = crate::path(&dirs.config).join(format!("{FILE}.bundle-staging"));
-    let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(&staging).map_err(|why| {
+    let (staging, mut file) = open_staging(&path, |path| disk.open_write(path, 0o600, false))?;
+    let result: io::Result<()> = (|| {
+        disk.write(&mut file, &updated)?;
+        disk.sync(&file)?;
+        disk.rename(&staging, &path)
+    })();
+    if let Err(why) = result {
+        let _removed = disk.remove(&staging);
+        return Err(format!("{}: bundle replacement: {why}", path.display()));
+    }
+    Ok(updated)
+}
+
+fn open_staging<T>(document: &Path, open: impl FnOnce(&Path) -> std::io::Result<T>) -> Result<(PathBuf, T), String> {
+    let staging = document.with_file_name(format!("{FILE}.bundle-staging"));
+    let file = open(&staging).map_err(|why| {
         format!(
             "{}: {why}; an existing staging file must be removed explicitly before another bundle replacement",
             staging.display()
         )
     })?;
-    let result = (|| {
-        file.write_all(&updated)?;
-        file.sync_all()?;
-        fs::rename(&staging, &path)
-    })();
-    if let Err(why) = result {
-        let _removed = fs::remove_file(&staging);
-        return Err(format!("{}: bundle replacement: {why}", path.display()));
-    }
-    Ok(updated)
+    Ok((staging, file))
 }
 fn lock(root: &Path) -> Result<locks::Lock, String> {
     let path = root.join("lock");
@@ -352,34 +405,31 @@ fn directories(source: &Directories) -> Result<(PathBuf, Directories), String> {
 }
 pub(super) const PORT_ATTEMPTS: usize = 32;
 
-fn reserve(excluded: &[u16]) -> Result<TcpListener, String> {
-    reserve_from(excluded, || TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)))
+pub fn reserve_from(excluded: &[u16], bind: impl FnMut() -> io::Result<TcpListener>) -> Result<TcpListener, String> {
+    reserve_from_with(excluded, bind, TcpListener::local_addr)
 }
-fn reserve_from(
+fn reserve_from_with<L>(
     excluded: &[u16],
-    mut bind: impl FnMut() -> std::io::Result<TcpListener>,
-) -> Result<TcpListener, String> {
+    mut bind: impl FnMut() -> io::Result<L>,
+    address: impl Fn(&L) -> io::Result<SocketAddr>,
+) -> Result<L, String> {
     for _ in 0..PORT_ATTEMPTS {
         let listener = match bind() {
             Ok(listener) => listener,
-            Err(why) if why.kind() == std::io::ErrorKind::AddrInUse => continue,
+            Err(why) if why.kind() == io::ErrorKind::AddrInUse => continue,
             Err(why) => return Err(format!("fake peer reservation: {why}")),
         };
-        if !excluded.contains(&listener.local_addr().map_err(|why| why.to_string())?.port()) {
+        if !excluded.contains(&address(&listener).map_err(|why| why.to_string())?.port()) {
             return Ok(listener);
         }
     }
     Err("fake peer reservation: could not choose a port distinct from the deployment and callback".into())
 }
-fn reserve_chosen(excluded: &[u16], port: Option<u16>) -> Result<TcpListener, String> {
+fn reserve_chosen_with<H: Host>(disk: &H, excluded: &[u16], port: Option<u16>) -> Result<H::Peer, String> {
     match port {
-        Some(port) => TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
-            .map_err(|why| format!("{CHOSEN_PORTS}: port {port}: {why}")),
-        None => reserve(excluded),
+        Some(port) => disk.bind(port).map_err(|why| format!("{CHOSEN_PORTS}: port {port}: {why}")),
+        None => reserve_from_with(excluded, || disk.bind(0), |listener| disk.address(listener)),
     }
-}
-fn addr(listener: &TcpListener) -> Result<SocketAddr, String> {
-    listener.local_addr().map_err(|why| why.to_string())
 }
 fn contained(root: &[u8], path: &[u8]) -> bool {
     crate::path(path)
@@ -387,15 +437,16 @@ fn contained(root: &[u8], path: &[u8]) -> bool {
         .is_ok_and(|rest| !rest.as_os_str().is_empty() && rest.components().all(|p| matches!(p, Component::Normal(_))))
 }
 fn peer_document(dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>, String> {
+    peer_document_with(&Native(&[]), dirs, name, bound)
+}
+fn peer_document_with(disk: &impl Files, dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>, String> {
     let path = crate::path(&dirs.config).join(name);
-    public_path(&path)?;
-    private_document(&path)?;
-    skein_shell::read_private_file(&path, bound, skein_shell::effective_user())
-        .map(|bytes| bytes.expose().into())
-        .map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
+    disk.public_path(&path)?;
+    private_document(disk, &path)?;
+    disk.read(&path, bound, true).map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
 }
 /// The ports no peer may take: the callback's and the ordinary box's listeners and readiness
-/// (temper/docs/design/protocol/setup/box.md, 5).
+/// (temper/docs/design/protocol/setup/box-backends.md, 1).
 fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> {
     let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
     ordinary_ports_checked(dirs, &deployment)
@@ -415,20 +466,30 @@ fn ordinary_ports_checked(dirs: &Directories, deployment: &crate::setup::Deploym
     }
     Ok(ports)
 }
-fn checked_peers(dirs: &Directories, deployment: &crate::setup::Deployment) -> Result<Peers, String> {
+fn checked_peers(
+    disk: &impl Files,
+    dirs: &Directories,
+    deployment: &crate::setup::Deployment,
+) -> Result<Peers, String> {
+    checked_peers_with(dirs, deployment, |name, bound| peer_document_with(disk, dirs, name, bound))
+}
+
+fn checked_peers_with(
+    dirs: &Directories,
+    deployment: &crate::setup::Deployment,
+    mut read: impl FnMut(&str, u32) -> Result<Box<[u8]>, String>,
+) -> Result<Peers, String> {
     let mut ports = ordinary_ports_checked(dirs, deployment)?;
     let refuse = |name: &str, why: temper_fake::Refusal| {
         format!("{}: {}", crate::path(&dirs.config).join(name).display(), String::from_utf8_lossy(&why.line()))
     };
-    let github =
-        temper_fake::forge::Document::decode(&peer_document(dirs, "github.json", temper_fake::DOCUMENT_BYTES)?)
-            .map_err(|why| refuse("github.json", why))?;
-    let oauth =
-        temper_fake::oauth::Document::decode(&peer_document(dirs, "oauth.json", temper_fake::oauth::DOCUMENT_BYTES)?)
-            .map_err(|why| refuse("oauth.json", why))?;
-    let llm = temper_fake::llm::Document::decode(&peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?)
+    let github = temper_fake::forge::Document::decode(&read("github.json", temper_fake::DOCUMENT_BYTES)?)
+        .map_err(|why| refuse("github.json", why))?;
+    let oauth = temper_fake::oauth::Document::decode(&read("oauth.json", temper_fake::oauth::DOCUMENT_BYTES)?)
+        .map_err(|why| refuse("oauth.json", why))?;
+    let llm = temper_fake::llm::Document::decode(&read("llm.json", temper_fake::DOCUMENT_BYTES)?)
         .map_err(|why| refuse("llm.json", why))?;
-    let forgejo = source_forgejo(&peer_document(dirs, "forgejo.json", temper_fake::DOCUMENT_BYTES)?)
+    let forgejo = source_forgejo(&read("forgejo.json", temper_fake::DOCUMENT_BYTES)?)
         .map_err(|why| refuse("forgejo.json", why))?;
     let peers = Peers { github: github.listen(), oauth: oauth.listen(), llm: llm.listen(), forgejo: forgejo.listen() };
     for (name, listen) in [
@@ -471,13 +532,26 @@ fn source_forgejo(bytes: &[u8]) -> Result<temper_fake::forge::Document, temper_f
     }
     Ok(document)
 }
-fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<crate::setup::Deployment, String> {
-    let document = configuration(dirs, bytes)?.document;
+pub fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<crate::setup::Deployment, String> {
+    validate_with(&Native(&[]), dirs, bytes, expected)
+}
+fn validate_with(
+    disk: &impl Host,
+    dirs: &Directories,
+    bytes: &[u8],
+    expected: &Path,
+) -> Result<crate::setup::Deployment, String> {
+    let document = configuration_with(disk, dirs, bytes)?.document;
     let deployment = crate::setup::check(&document, &jig_directories(dirs))?;
-    validate_checked(dirs, &deployment, expected)?;
+    validate_checked(disk, dirs, &deployment, expected)?;
     Ok(deployment)
 }
-fn validate_checked(dirs: &Directories, deployment: &crate::setup::Deployment, expected: &Path) -> Result<(), String> {
+fn validate_checked(
+    disk: &impl Host,
+    dirs: &Directories,
+    deployment: &crate::setup::Deployment,
+    expected: &Path,
+) -> Result<(), String> {
     let named = &deployment.named;
     for file in named.files.iter().chain(&named.asked_files) {
         if !(contained(&dirs.config, &file.path) && !file.private || contained(&dirs.data, &file.path)) {
@@ -492,12 +566,14 @@ fn validate_checked(dirs: &Directories, deployment: &crate::setup::Deployment, e
     {
         return Err("effective deployment, worker root and agent configuration must stay in the sandbox".into());
     }
-    let adapter = peer_document(dirs, ADAPTER, 4096)?;
-    adapter_identity(&adapter, expected)?;
-    provisioned_program(expected)?;
+    check_adapter(
+        expected,
+        || peer_document_with(disk, dirs, ADAPTER, 4096),
+        || provisioned_program_from(expected, disk.program_metadata(expected)),
+    )?;
     for file in &named.files {
         if !file.private {
-            let asset = public(crate::path(&file.path))?;
+            let asset = public_with(disk, crate::path(&file.path))?;
             if asset.len() > usize::try_from(file.max).expect("file bound fits") {
                 return Err(format!("{}: public asset past its byte bound", crate::file_path(file.at.clone())));
             }
@@ -505,21 +581,33 @@ fn validate_checked(dirs: &Directories, deployment: &crate::setup::Deployment, e
     }
     match &named.bundle {
         Some(bundle) => {
-            let _checked = provisioned_bundle(Some(crate::path(bundle)), named.bundle_limits)?;
+            let _checked = provisioned_bundle(disk, Some(crate::path(bundle)), named.bundle_limits)?;
         }
         None => return Err("application.clients.bundle: effective document must name its bundle".into()),
     }
     Ok(())
 }
-fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clients) -> Result<PathBuf, String> {
+fn provisioned_bundle(
+    disk: &impl Host,
+    path: Option<&Path>,
+    limits: temper_service::limits::Clients,
+) -> Result<PathBuf, String> {
+    provisioned_bundle_with(path, limits, |page| disk.public_path(page), |path, limits| disk.read_bundle(path, limits))
+}
+
+fn provisioned_bundle_with(
+    path: Option<&Path>,
+    limits: temper_service::limits::Clients,
+    check_page: impl FnOnce(&Path) -> Result<(), String>,
+    read: impl FnOnce(&Path, temper_service::limits::Clients) -> Result<(), String>,
+) -> Result<PathBuf, String> {
     let instructions =
         "run scripts/bundle.sh DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)";
     let path = path.ok_or_else(|| format!("application.clients.bundle: no provisioned bundle; {instructions}"))?;
     let page = path.join("index.html");
-    public_path(&page)
+    check_page(&page)
         .map_err(|why| format!("application.clients.bundle: {}: {why}; {instructions}", page.display()))?;
-    let _checked =
-        crate::bundle::read(path.as_os_str().as_bytes(), limits).map_err(|why| format!("{why}; {instructions}"))?;
+    read(path, limits).map_err(|why| format!("{why}; {instructions}"))?;
     Ok(path.to_path_buf())
 }
 fn opening_lines(dirs: &Directories, peers: &Peers, binary: &Path) -> Box<[u8]> {
@@ -583,12 +671,15 @@ fn adapter_identity(given: &[u8], expected: &Path) -> Result<(), String> {
     Ok(())
 }
 /// The sandbox pins its fake adapter outside the deployment's fixed worker members.
-pub(crate) fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, String> {
+pub fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, String> {
+    configured_claude_with(dirs, &Native(&[]))
+}
+fn configured_claude_with(dirs: &Directories, disk: &impl Host) -> Result<Option<PathBuf>, String> {
     let record = crate::path(&dirs.config).join(ADAPTER);
-    match fs::symlink_metadata(&record) {
+    match disk.metadata(&record) {
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => {
             let marker = record.parent().and_then(Path::parent).map(|root| root.join("prepared"));
-            if marker.is_some_and(|marker| marker.exists()) {
+            if marker.is_some_and(|marker| disk.exists(&marker)) {
                 return Err(format!(
                     "{ADAPTER}: missing pinned adapter; remove this sandbox directory explicitly to reset it"
                 ));
@@ -598,14 +689,16 @@ pub(crate) fn configured_claude(dirs: &Directories) -> Result<Option<PathBuf>, S
         Err(why) => return Err(format!("{}: {why}", record.display())),
         Ok(_) => {}
     }
-    let expected = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
-    let adapter = peer_document(dirs, ADAPTER, 4096)?;
-    adapter_identity(&adapter, &expected)?;
-    provisioned_program(&expected)?;
+    let expected = sibling(&disk.binary()?)?;
+    check_adapter(
+        &expected,
+        || peer_document_with(disk, dirs, ADAPTER, 4096),
+        || provisioned_program_from(&expected, disk.program_metadata(&expected)),
+    )?;
     Ok(Some(expected))
 }
-fn provisioned_program(path: &Path) -> Result<(), String> {
-    let executable = fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.mode() & 0o111 != 0);
+fn provisioned_program_from(path: &Path, metadata: Option<(bool, u32)>) -> Result<(), String> {
+    let executable = metadata.is_some_and(|(file, mode)| file && mode & 0o111 != 0);
     if !executable {
         return Err(format!(
             "{}: missing or nonexecutable adapter; provision it with cargo build -p smith-fake-claude --bin fake-claude",
@@ -614,124 +707,67 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-// The adapter is this temper's fake-claude sibling; it is a parameter so that tests can provision one.
-#[expect(
-    clippy::too_many_lines,
-    reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
-)]
-fn prepare(
-    source_dirs: &Directories,
-    options: &Options,
-    adapter: &Path,
-    chosen: Option<&Chosen>,
-    environment: &[crate::EnvironmentEntry],
-) -> Result<Prepared, String> {
-    let bundle = options.bundle.as_deref();
-    let (root, effective) = directories(source_dirs)?;
-    let source_config = resolved(Path::new("/"), &source_dirs.config)?;
-    if source_config.starts_with(&root) {
-        return Err(
-            "source configuration overlaps the fake-backend sandbox; choose configuration outside D/box/fake-backends"
-                .into(),
-        );
-    }
-    let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-    let marker = root.join("prepared");
-    let exists = match fs::symlink_metadata(&root) {
-        Ok(_) => true,
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => false,
-        Err(why) => return Err(format!("{}: {why}", root.display())),
-    };
-    let source = Source::read(source_dirs, environment).map_err(|why| if exists { reset(&root, &why) } else { why })?;
+
+fn check_adapter(
+    expected: &Path,
+    read: impl FnOnce() -> Result<Box<[u8]>, String>,
+    provisioned: impl FnOnce() -> Result<(), String>,
+) -> Result<(), String> {
+    adapter_identity(&read()?, expected)?;
+    provisioned()
+}
+
+fn check_source(
+    root: &Path,
+    retained: bool,
+    bundle: Option<&Path>,
+    read: impl FnOnce() -> Result<Source, String>,
+    check_bundle: impl FnOnce(Option<&Path>, temper_service::limits::Clients) -> Result<PathBuf, String>,
+    check_program: impl FnOnce() -> Result<(), String>,
+) -> Result<(Source, Option<PathBuf>), String> {
+    let source = read().map_err(|why| if retained { reset(root, &why) } else { why })?;
     // Reuse checks the retained effective bundle, which may differ from the source's directory.
-    let provisioned = if exists {
+    let provisioned = if retained {
         None
     } else {
-        Some(provisioned_bundle(bundle.or(source.bundle.as_deref()), source.bundle_limits)?)
+        let path = check_bundle(bundle.or(source.bundle.as_deref()), source.bundle_limits)?;
+        check_program()?;
+        Some(path)
     };
-    if !exists {
-        provisioned_program(adapter)?;
+    Ok((source, provisioned))
+}
+
+fn check_marker(root: &Path, source: &Source, read: impl FnOnce() -> Result<Box<[u8]>, String>) -> Result<(), String> {
+    let prepared = read().map_err(|_| reset(root, "partial preparation: prepared marker is absent or unreadable"))?;
+    if prepared != source.marker {
+        return Err(reset(root, "incompatible source directories or changed public source documents"));
     }
-    let user = skein_shell::effective_user();
-    make_private(crate::path(&source_dirs.data), user)?;
-    make_private(root.parent().expect("box parent"), user)?;
-    make_private(&root, user).map_err(|why| reset(&root, &why))?;
-    let lock = lock(&root)?;
-    if exists {
-        let prepared = public(&marker)
-            .map_err(|_| reset(&root, "partial preparation: prepared marker is absent or unreadable"))?;
-        if prepared != source.marker {
-            return Err(reset(&root, "incompatible source directories or changed public source documents"));
+    Ok(())
+}
+
+fn check_required(
+    root: &Path,
+    dirs: &Directories,
+    exists: impl Fn(&Path) -> bool,
+    check: impl Fn(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    for name in REQUIRED {
+        let path = crate::path(&dirs.config).join(name);
+        if !exists(&path) {
+            return Err(reset(root, &format!("missing required {name}")));
         }
-        private_root(crate::path(&effective.config), user)
-            .map_err(|why| reset(&root, &format!("unsafe effective config: {why}")))?;
-        private_root(crate::path(&effective.data), user)
-            .map_err(|why| reset(&root, &format!("unsafe effective data: {why}")))?;
-        private_document(&marker)?;
-        for name in REQUIRED {
-            let path = crate::path(&effective.config).join(name);
-            if !path.exists() {
-                return Err(reset(&root, &format!("missing required {name}")));
-            }
-            public_path(&path).and_then(|()| private_document(&path)).map_err(|why| reset(&root, &why))?;
-        }
-        let document =
-            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
-        let content = public(&crate::path(&effective.config).join(FILE))?;
-        let deployment = crate::setup::check(&document, &jig_directories(&effective))?;
-        let peers = checked_peers(&effective, &deployment)?;
-        let steps = scripts_for_start(&effective, &peers, options)?;
-        let _bytes = replace_bundle(&effective, content, bundle, adapter, &deployment)?;
-        let providers = backends::providers(&peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
-        write(&crate::path(&effective.data).join("providers.setting"), &providers, true)?;
-        let document =
-            temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
-        return Ok(Prepared {
-            directories: effective,
-            bytes: document,
-            listeners: Listeners(Vec::new()),
-            peers,
-            steps,
-            _lock: lock,
-        });
+        check(&path).map_err(|why| reset(root, &why))?;
     }
-    let written = crate::init::write_with_program(
-        &effective,
-        environment,
-        &binary,
-        chosen.map_or([0; 2], |ports| [ports.listeners[0], ports.listeners[4]]),
-        Some(adapter),
-    )?;
-    let mut held = Listeners(written.listeners);
-    if let Some(chosen) = chosen {
-        for ((_, port), wanted) in held.0.iter().zip([chosen.listeners[0], chosen.listeners[4]]) {
-            if port.get() != wanted {
-                return Err(format!("{CHOSEN_PORTS}: port {wanted}: init chose port {port} instead"));
-            }
-        }
-    }
-    // Init deliberately writes public documents 0644; every retained sandbox document is private.
-    for path in written.paths {
-        if fs::symlink_metadata(&path).map_err(|why| why.to_string())?.is_file() {
-            fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|why| why.to_string())?;
-        }
-    }
-    if let Some(temper) = source.rebase(&effective) {
-        write(&crate::path(&effective.config).join(FILE), &temper, true)?;
-        // Imported listeners retain their source values; init's new reservations do not represent them.
-        crate::close(std::mem::take(&mut held.0).into_iter().map(|(fd, _)| fd).collect());
-    }
-    let initial = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?;
-    let mut excluded = ordinary_ports(&effective, &initial.document)?;
-    let github = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[0]))?;
-    excluded.push(addr(&github)?.port());
-    let oauth = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[1]))?;
-    excluded.push(addr(&oauth)?.port());
-    let llm = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[2]))?;
-    excluded.push(addr(&llm)?.port());
-    let forgejo = reserve_chosen(&excluded, chosen.map(|ports| ports.peers[3]))?;
-    let peers = Peers { github: addr(&github)?, oauth: addr(&oauth)?, llm: addr(&llm)?, forgejo: addr(&forgejo)? };
-    let bundle = provisioned.expect("new preparation checked the bundle");
+    Ok(())
+}
+
+fn new_documents(
+    effective: &Directories,
+    initial: temper_config_shell::Read,
+    bundle: PathBuf,
+    adapter: &Path,
+    peers: &Peers,
+) -> Result<(Box<[u8]>, backends::Documents), String> {
     let paths = Paths {
         config: effective.config.clone(),
         data: effective.data.clone(),
@@ -739,7 +775,7 @@ fn prepare(
         bundle: bytes(&bundle),
         claude: bytes(adapter),
     };
-    let documents = backends::rewrite(&initial.document, &paths, &peers)
+    let documents = backends::rewrite(&initial.document, &paths, peers)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     let mut file = initial.file;
     file.internal.bundle = Some(bundle);
@@ -750,7 +786,147 @@ fn prepare(
         web: format!("http://{}", peers.github),
         git: Some(crate::path(&effective.data).join("demo/bin/git")),
     });
-    let text = temper_config_shell::render(&file, Shape::Standalone);
+    Ok((temper_config_shell::render(&file, Shape::Standalone), documents))
+}
+
+fn init_ports(chosen: Option<&Chosen>) -> [u16; 2] {
+    chosen.map_or([0; 2], |ports| [ports.listeners[0], ports.listeners[4]])
+}
+// The adapter is this temper's fake-claude sibling; it is a parameter so that tests can provision one.
+pub(super) fn prepare(
+    source_dirs: &Directories,
+    options: &Options,
+    adapter: &Path,
+    chosen: Option<&Chosen>,
+    environment: &[crate::EnvironmentEntry],
+) -> Result<Prepared, String> {
+    let Startup { directories, bytes, peers, steps, listeners, reservations, lock } =
+        prepare_with(source_dirs, options, adapter, chosen, &Native(environment))?;
+    let mut listeners = listeners.unwrap_or_else(|| Listeners(Vec::new()));
+    for (listener, address) in reservations {
+        listeners
+            .0
+            .push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
+    }
+    Ok(Prepared { directories, bytes, listeners, peers, steps, _lock: lock })
+}
+
+struct Startup<H: Host> {
+    directories: Directories,
+    bytes: Box<[u8]>,
+    peers: Peers,
+    steps: Box<[temper_forge_setup::Step]>,
+    listeners: Option<H::Listeners>,
+    reservations: Vec<(H::Peer, SocketAddr)>,
+    lock: H::Lock,
+}
+
+#[expect(clippy::too_many_lines, reason = "preparation holds its lock and listeners and publishes the marker last")]
+fn prepare_with<H: Host>(
+    source_dirs: &Directories,
+    options: &Options,
+    adapter: &Path,
+    chosen: Option<&Chosen>,
+    disk: &H,
+) -> Result<Startup<H>, String> {
+    let bundle = options.bundle.as_deref();
+    let (root, effective) = directories(source_dirs)?;
+    let source_config = resolved(Path::new("/"), &source_dirs.config)?;
+    if source_config.starts_with(&root) {
+        return Err(
+            "source configuration overlaps the fake-backend sandbox; choose configuration outside D/box/fake-backends"
+                .into(),
+        );
+    }
+    let binary = disk.binary()?;
+    let marker = root.join("prepared");
+    let exists = match disk.metadata(&root) {
+        Ok(_) => true,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => false,
+        Err(why) => return Err(format!("{}: {why}", root.display())),
+    };
+    let (source, provisioned) = check_source(
+        &root,
+        exists,
+        bundle,
+        || disk.source(source_dirs),
+        |path, limits| provisioned_bundle(disk, path, limits),
+        || provisioned_program_from(adapter, disk.program_metadata(adapter)),
+    )?;
+    let user = disk.user();
+    disk.make_private(crate::path(&source_dirs.data), user)?;
+    disk.make_private(root.parent().expect("box parent"), user)?;
+    disk.make_private(&root, user).map_err(|why| reset(&root, &why))?;
+    let lock = disk.lock(&root)?;
+    if exists {
+        check_marker(&root, &source, || public_with(disk, &marker))?;
+        private_root_with(disk, crate::path(&effective.config), user)
+            .map_err(|why| reset(&root, &format!("unsafe effective config: {why}")))?;
+        private_root_with(disk, crate::path(&effective.data), user)
+            .map_err(|why| reset(&root, &format!("unsafe effective data: {why}")))?;
+        private_document(disk, &marker)?;
+        check_required(
+            &root,
+            &effective,
+            |path| disk.exists(path),
+            |path| disk.public_path(path).and_then(|()| private_document(disk, path)),
+        )?;
+        let document = disk.read_config(&effective)?.document;
+        let content = public_with(disk, &crate::path(&effective.config).join(FILE))?;
+        let deployment = crate::setup::check(&document, &jig_directories(&effective))?;
+        let peers = checked_peers(disk, &effective, &deployment)?;
+        let steps = scripts_for_start(disk, &effective, &peers, options)?;
+        let _bytes = replace_bundle_with(disk, &effective, content, bundle, adapter, &deployment)?;
+        let providers = backends::providers(&peers).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+        write_with(disk, &crate::path(&effective.data).join("providers.setting"), &providers, true)?;
+        let document = disk.read_config(&effective)?.document;
+        return Ok(Startup {
+            directories: effective,
+            bytes: document,
+            listeners: None,
+            reservations: Vec::new(),
+            peers,
+            steps,
+            lock,
+        });
+    }
+    let Initialized { paths, ports, listeners } = disk.init(&effective, &binary, init_ports(chosen), adapter)?;
+    let mut held = Some(listeners);
+    if let Some(chosen) = chosen {
+        for (port, wanted) in ports.into_iter().zip(init_ports(Some(chosen))) {
+            if port.get() != wanted {
+                return Err(format!("{CHOSEN_PORTS}: port {wanted}: init chose port {port} instead"));
+            }
+        }
+    }
+    // Init deliberately writes public documents 0644; every retained sandbox document is private.
+    for path in paths {
+        if disk.metadata(&path).map_err(|why| why.to_string())?.stat.kind == Kind::File {
+            disk.set_mode(&path, 0o600).map_err(|why| why.to_string())?;
+        }
+    }
+    if let Some(temper) = source.rebase(&effective) {
+        write_with(disk, &crate::path(&effective.config).join(FILE), &temper, true)?;
+        // Imported listeners retain their source values; init's new reservations do not represent them.
+        drop(held.take());
+    }
+    let initial = disk.read_config(&effective)?;
+    let mut excluded = ordinary_ports(&effective, &initial.document)?;
+    let mut reservations = Vec::new();
+    for slot in 0..4 {
+        let listener = reserve_chosen_with(disk, &excluded, chosen.map(|ports| ports.peers[slot]))?;
+        let address = disk.address(&listener).map_err(|why| why.to_string())?;
+        excluded.push(address.port());
+        reservations.push((listener, address));
+    }
+    let peers = Peers {
+        github: reservations[0].1,
+        oauth: reservations[1].1,
+        llm: reservations[2].1,
+        forgejo: reservations[3].1,
+    };
+    let bundle = provisioned.expect("new preparation checked the bundle");
+    let (text, documents) = new_documents(&effective, initial, bundle, adapter, &peers)?;
     // Existing peer decoders check their generated documents before any marker is published.
     let forge = temper_fake::forge::Document::decode(&documents.github)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
@@ -765,27 +941,27 @@ fn prepare(
         ("llm.json", &documents.llm),
         ("forgejo.json", &documents.forgejo),
     ] {
-        write(&crate::path(&effective.config).join(name), document, name == FILE)?;
+        write_with(disk, &crate::path(&effective.config).join(name), document, name == FILE)?;
     }
-    write(&crate::path(&effective.data).join("providers.setting"), &documents.providers, false)?;
-    write(
+    write_with(disk, &crate::path(&effective.data).join("providers.setting"), &documents.providers, false)?;
+    write_with(
+        disk,
         &crate::path(&effective.data).join("github-app.pem"),
         &forge.github_app_key().expect("generated GitHub App"),
         false,
     )?;
-    write(&crate::path(&effective.config).join(ADAPTER), adapter.as_os_str().as_bytes(), false)?;
-    let deployment = validate(&effective, &text, adapter)?;
-    let document = temper_config_shell::read(&effective, Shape::Standalone).map_err(|why| why.to_string())?.document;
-    let peers = checked_peers(&effective, &deployment)?;
-    let steps = scripts_for_start(&effective, &peers, options)?;
+    write_with(disk, &crate::path(&effective.config).join(ADAPTER), adapter.as_os_str().as_bytes(), false)?;
+    let deployment = validate_with(disk, &effective, &text, adapter)?;
+    let document = disk.read_config(&effective)?.document;
+    let peers = checked_peers(disk, &effective, &deployment)?;
+    let steps = scripts_for_start(disk, &effective, &peers, options)?;
     // Last: a crash or refusal earlier is visibly partial and is never repaired by importing records.
-    write(&marker, &source.marker, false)?;
-    for (listener, address) in
-        [(github, peers.github), (oauth, peers.oauth), (llm, peers.llm), (forgejo, peers.forgejo)]
-    {
-        held.0.push((Fd::new(listener.into_raw_fd()), NonZeroU16::new(address.port()).expect("checked peer port")));
-    }
-    Ok(Prepared { directories: effective, bytes: document, listeners: held, peers, steps, _lock: lock })
+    write_with(disk, &marker, &source.marker, false)?;
+    Ok(Startup { directories: effective, bytes: document, listeners: held, reservations, peers, steps, lock })
+}
+
+fn private_root_with(disk: &impl Files, path: &Path, user: u32) -> Result<(), String> {
+    temper_shell::directories::private_root_with(user, disk.metadata(path).map(|metadata| metadata.stat))
 }
 #[cfg(test)]
 mod tests;

@@ -369,6 +369,14 @@ fn core_held(
                 }),
             );
         }
+        core::Held::TaskPartKept { key } => child(
+            decision,
+            Released::Fleet(fleet::Event::PartKept {
+                run: Token::new(key.task),
+                attempt: Token::new(key.attempt),
+                part: key.number,
+            }),
+        ),
         core::Held::TaskTurnKept { task: run, attempt, turn } => {
             child(
                 decision,
@@ -406,6 +414,8 @@ fn core_held(
         | core::Held::Restarting { .. }
         | core::Held::Grant { .. }
         | core::Held::AcknowledgeTurn { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::Cancel { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::ReadUsage { .. }
@@ -739,6 +749,7 @@ fn core_ask(
             | core::Ask::Workers(_)
             | core::Ask::Catalogue { .. }
             | core::Ask::StepMade { first: None, .. }
+            | core::Ask::WaitsRefused { .. }
             | core::Ask::ForgetProjection { .. }
             | core::Ask::Adopt { .. }
             | core::Ask::Hold { .. }
@@ -877,20 +888,14 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connecto
         (Some(Connector::Observability), connector::Ask::Make { entry }) => {
             work.push(Work::Observability(observability::Event::MakeEntry { entry }));
         }
-        (Some(Connector::Infrastructure), connector::Ask::ReadAfresh) => {
+        (Some(Connector::Infrastructure), connector::Ask::CatchUp) => {
             work.push(Work::Infrastructure(infrastructure::Event::ReadAfresh));
         }
-        (Some(Connector::Observability), connector::Ask::ReadAfresh) => {
+        (Some(Connector::Observability), connector::Ask::CatchUp) => {
             work.push(Work::Observability(observability::Event::ReadAfresh));
         }
-        (Some(Connector::Infrastructure), connector::Ask::SettleOutbox) => {
-            work.push(Work::Infrastructure(infrastructure::Event::Restart));
-        }
-        (Some(Connector::Observability), connector::Ask::SettleOutbox) => {
-            work.push(Work::Observability(observability::Event::Restart));
-        }
         (Some(Connector::Observability) | None, connector::Ask::ResolveUncertain { .. })
-        | (None, connector::Ask::Make { .. } | connector::Ask::ReadAfresh | connector::Ask::SettleOutbox)
+        | (None, connector::Ask::Make { .. } | connector::Ask::CatchUp)
         | (
             Some(Connector::Infrastructure | Connector::Observability) | None,
             connector::Ask::Names { .. }
@@ -1123,11 +1128,14 @@ pub(crate) fn connector_out(
             }));
         }
         ConnectorRequest::Infrastructure(infrastructure::Request::Restarted { stage }) => {
-            let step = match stage {
-                infrastructure::RestartStage::ReadAfresh => core::start::Phase::ReadAfresh { connector: number },
-                infrastructure::RestartStage::Outbox => core::start::Phase::SettleOutbox { connector: number },
+            let stage = match stage {
+                infrastructure::RestartStage::ReadAfresh => {
+                    work.push(Work::Infrastructure(infrastructure::Event::Restart));
+                    connector::RestartStage::ReadAfresh
+                }
+                infrastructure::RestartStage::Outbox => connector::RestartStage::Settled,
             };
-            work.push(Work::StartDone(step));
+            domain.core.catch_up_done(number, stage);
         }
         ConnectorRequest::Observability(observability::Request::Document { watcher, subject, document }) => {
             let document = match document {
@@ -1284,11 +1292,14 @@ pub(crate) fn connector_out(
             }));
         }
         ConnectorRequest::Observability(observability::Request::Restarted { stage }) => {
-            let step = match stage {
-                observability::RestartStage::ReadAfresh => core::start::Phase::ReadAfresh { connector: number },
-                observability::RestartStage::Outbox => core::start::Phase::SettleOutbox { connector: number },
+            let stage = match stage {
+                observability::RestartStage::ReadAfresh => {
+                    work.push(Work::Observability(observability::Event::Restart));
+                    connector::RestartStage::ReadAfresh
+                }
+                observability::RestartStage::Outbox => connector::RestartStage::Settled,
             };
-            work.push(Work::StartDone(step));
+            domain.core.catch_up_done(number, stage);
         }
     }
 }
@@ -1301,6 +1312,13 @@ fn core_now(
     work: &mut Queue<Work>,
 ) {
     match value {
+        core::Now::PartBusy { key } => {
+            work.push(Work::Core(core::Event::Fleet(fleet::Event::PartBusy {
+                run: Token::new(key.task),
+                attempt: Token::new(key.attempt),
+                part: key.number,
+            })));
+        }
         core::Now::Ask { channel, run, attempt, number, bytes: _ } => {
             work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Asked {
                 channel,
@@ -1352,6 +1370,7 @@ fn core_now(
             let budget = run.budget;
             let brief = domain.hub_link.take_brief(task).expect("completed brief parts");
             let assignment = jig_domain_hub_link::Assignment {
+                parts: Box::new([]),
                 charter,
                 live,
                 task,

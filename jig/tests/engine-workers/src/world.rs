@@ -20,11 +20,11 @@ impl World {
     #[must_use]
     pub fn new(limits: &Limits, workers: &[Worker], seed: u64) -> Self {
         Self {
-            component: Component::new(
+            component: Component::with_prepared_wires(
                 limits,
                 workers.to_vec().into_boxed_slice(),
-                crate::fixtures::kept_wires(),
-                jig_protocol_worker_wire::Application::opaque(crate::fixtures::application()),
+                crate::fixtures::engine_wires(),
+                crate::fixtures::schema_for_sizes(&limits.sizes),
             )
             .expect("valid engine"),
             nets: BTreeMap::new(),
@@ -95,6 +95,7 @@ impl World {
                 Request::Unpaused { .. }
                 | Request::Told { .. }
                 | Request::Unsent { .. }
+                | Request::Unread { .. }
                 | Request::Hello { .. }
                 | Request::Up { .. }
                 | Request::Lost { .. }
@@ -159,9 +160,16 @@ impl World {
     pub fn gone(&self, connection: Token) -> bool {
         self.nets.get(&connection).expect("known stream").gone
     }
+    /// The frames the peer received after the opening, in order.
     #[must_use]
     pub fn observed(&self, connection: Token) -> &[skein_fake_channel::Observed] {
         self.nets.get(&connection).expect("known stream").peer.observed()
+    }
+    /// The engine's Accept, if sent, followed by the frames observed after the opening.
+    #[must_use]
+    pub fn observed_with_accept(&self, connection: Token) -> Vec<&skein_fake_channel::Observed> {
+        let net = self.nets.get(&connection).expect("known stream");
+        net.accept.iter().chain(net.peer.observed()).collect()
     }
     #[must_use]
     pub fn dropped_down(&self) -> u64 {

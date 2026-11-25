@@ -7,7 +7,14 @@ use temper_engine_domain_forge_change as change;
 
 fn config(seed: u64) -> engine::Config {
     let mut config = agreement::config(seed);
-    let rule = engine::LandingRule {
+    config.kinds_stock = engine::landing_stock(&[rule()], &skein_lib::Map::with_capacity(0), 2, 4);
+    config
+}
+
+/// The stock exact-head review, up-to-date and CI rule used in review walks.
+#[must_use]
+pub fn rule() -> engine::LandingRule {
+    engine::LandingRule {
         sets: Box::new([]),
         connector: 0,
         kind: 4,
@@ -20,9 +27,7 @@ fn config(seed: u64) -> engine::Config {
         },
         gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }]),
         approvals: Box::default(),
-    };
-    config.kinds_stock = engine::landing_stock(&[rule], &skein_lib::Map::with_capacity(0), 2, 4);
-    config
+    }
 }
 
 impl World {
@@ -52,7 +57,7 @@ impl World {
     /// the production assignment and receiving-worker fitting entrances.
     #[must_use]
     pub fn large_review_change(seed: u64, bytes: usize, review: Script) -> Self {
-        let small = Self::review_change(seed, review.clone(), review);
+        let mut small = Self::review_change(seed, review.clone(), review);
         let chat = small.scripts.front().expect("chat script").clone();
         let mut world = Self::configured_limits(seed, chat, true, config, |limits| {
             limits.brief.read_bytes = 131_072;
@@ -61,7 +66,7 @@ impl World {
             limits.forge.brief_bytes = 131_072;
             limits.journal.result_bytes = 131_072;
         });
-        world.scripts = small.scripts;
+        world.scripts = std::mem::take(&mut small.scripts);
         let producer = world.scripts.get_mut(1).expect("producer script");
         let mut turns = vec![call(b"read", br#"{"path":"export.csv","offset":1,"window":128}"#)];
         turns.extend(producer.turns.clone());
@@ -74,7 +79,7 @@ impl World {
     #[must_use]
     pub fn review_charter(&self, task: u64) -> smith_domain_run::Charter {
         let process = if self.assignment().task == task {
-            &self.process
+            &self.lanes[0].process
         } else {
             self.parked.get(&task).expect("review process")
         };
@@ -112,7 +117,7 @@ impl World {
 
     /// The real Smith run kept for a review, including its reads and terminal failure.
     #[must_use]
-    pub fn review_agent(&self, task: u64) -> &smith_agent_world::World {
+    pub fn review_agent(&self, task: u64) -> &super::Agent {
         if self.assignment().task == task {
             self.agent()
         } else {
@@ -126,7 +131,11 @@ impl World {
         let head = self.reviewed_change().change.last_head.expect("review head");
         let answer = self
             .forge
-            .api(b"org/repo", 1, super::fake::Op::Read(super::fake::Read::Pull { number }))
+            .api(
+                &self.repository_name,
+                self.forge_binding.user,
+                super::fake::Op::Read(super::fake::Read::Pull { number }),
+            )
             .expect("pull read");
         let super::fake::Answer::Pull(pull) = answer else { panic!("pull answer") };
         assert_eq!(skein_fake_forge_domain::object_bytes(pull.commit).as_slice(), &head[..20]);
@@ -160,7 +169,7 @@ impl World {
     pub fn until_review_or_terminal(&mut self, after: u64) {
         for _ in 0..10000 {
             self.tick();
-            if self.assignment.as_ref().is_some_and(|assignment| {
+            if self.lanes[0].assignment.as_ref().is_some_and(|assignment| {
                 assignment.task > after && matches!(assignment.run.contract, tasks::Contract::Verdict { .. })
             }) {
                 return;

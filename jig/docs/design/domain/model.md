@@ -88,9 +88,9 @@ systems   what the application's connectors drive
   engine only through tools their host relays (hosts/README.md).
 - **The store is assumed.** It keeps durably what the engine gives it,
   commits several changes as one, applies commits in order, and answers
-  bounded reads (engine/README.md, section 5).
+  bounded reads (engine/decisions.md, section 1).
 - **People reach the engine through a client** of the application's,
-  built on jig's, `jig-client` (people/README.md; `../README.md`, section 10).
+  built on jig's, `jig-client` (people/README.md; `../client-stack.md`, section 1).
 
 ## 3. The five primitives
 
@@ -130,7 +130,7 @@ Who carries a task out. A task has one:
 - **A procedure:** engine code, pure: given the task's state, what it has
   heard and the facts it reads afresh, it says which effects to make,
   which tasks to create, amend or cancel, and whether it is done.
-  Procedures belong to connectors (connectors.md, section 6), or to the
+  Procedures belong to connectors (connectors-procedures.md, section 1), or to the
   core, such as a recurring task (tasks/README.md, section 5). They cost no LLM
   turns.
 - **A person:** a party who answers through a client: a choice, a
@@ -238,14 +238,18 @@ tasks, inboxes and authority know none of them.
   system offers for its kind: a key the system keeps, a condition it
   checks, a write that may be repeated. An effect with none of these is
   never repeated on the engine's own: its task is held for a person
-  (connectors.md, 4.3).
+  (connectors-effects.md, 1.3).
 - **Facts are read afresh.** What a connector's system owns is read again
   before a decision that depends on it, as level-triggered state. Events
   are hints that something changed, never the state itself.
-- **A restart reads the store,** then has each connector read afresh what
-  its system owns of the live work, and look for what uncertain effects
-  may have made, before deciding anything new. The core runs it as a
-  script (engine/restart.md).
+- **A restart reads the store,** adopts its runs and opens; then each
+  connector catches up while the engine serves: it reads afresh what its
+  system owns of the live work, and looks for what uncertain effects
+  may have made. A decision that depends on one of those facts waits
+  for its fresh read, a resource at a time, and a write for the
+  uncertain effects before it on its resource; nothing is decided from
+  what the store held alone. The core runs it as a script
+  (engine/restart.md).
 - **A commit that fails stops the engine.** The store is assumed to do
   what the engine needs; when it cannot, the engine stops rather than act
   on state it could not keep, and a restart starts from the last commit.
@@ -312,7 +316,7 @@ Every task belongs to one project, which its delegates inherit.
 A project begins in one of two ways:
 
 - **Seeded** at the deployment's first start, from configuration
-  (`../protocol/configuration.md`, sections 3 and 7).
+  (`../protocol/configuration-engine.md`, section 1, and `../protocol/configuration.md`, section 7).
 - **Made** after it, by a party whose role in the deployment is owner
   (people/acts.md, 1): with the name its maker chose, a copy of a
   policy among the settings (`model.md`, section 13), and its
@@ -322,7 +326,7 @@ A project begins in one of two ways:
 
 Once it is, a project is the same either way: nothing records how it
 began, and a restart restores both from the store alone
-(`../protocol/store/README.md`, 4.4).
+(`../protocol/store/keys.md`, 1.4).
 
 A project's name:
 
@@ -335,15 +339,15 @@ A project's name:
   and no white space at either end, and never decimal digits alone, so
   that a name is never mistaken for a number.
 - **Given, where none is chosen:** a project seeded with no name is
-  named "Project N", N its number (`../protocol/configuration.md`,
-  section 3). A seed's names, configured and given, are checked
+  named "Project N", N its number (`../protocol/configuration-engine.md`,
+  section 1). A seed's names, configured and given, are checked
   together, and a collision refuses the start. The store keeps the
-  name with the project's policy (`../protocol/store/README.md`, 4.4). A
+  name with the project's policy (`../protocol/store/keys.md`, 1.4). A
   project made after the first start is never given one: its maker
   chooses it (people/acts.md, 1).
 - **Renamed by an owner** (people/acts.md, 1): the engine refuses a name
   another project holds, as *name taken*, or one out of shape, as it
-  refuses a made project's (`../client/domain/contract/README.md`, section 3). A rename changes nothing
+  refuses a made project's (`../client/domain/contract/answers.md`, section 1). A rename changes nothing
   else: the number, the addresses and the tasks stay.
 - **Not a resource's:** a name is the project's own, never read from a
   resource or a home, which may be renamed, replaced or adopted
@@ -383,8 +387,8 @@ its tree, itself included; its priority is the one that orders the
 task's waits.
 
 **A goal's defaults are a template.** What a goal is made with when a
-party sets one is jig's goal template (`../protocol/configuration.md`,
-3.1), which an application keeps, changes or drops. The engine's
+party sets one is jig's goal template (`../protocol/configuration-templates.md`,
+1), which an application keeps, changes or drops. The engine's
 behaviour above turns on the mark, never on the template.
 
 Any task may be tracked; most are not. A chat, a triage or a repair is
@@ -461,7 +465,7 @@ is sugar over the primitives (section 9), in three forms:
   words" into a complete batch (tasks/README.md, section 4). What each
   carries, and jig's two defaults, chat (template 1) and goal
   (template 2), which an application keeps, changes or drops, are
-  `../protocol/configuration.md`, 3.1; a project's policy overrides
+  `../protocol/configuration-templates.md`, 1; a project's policy overrides
   some of its fields (authority.md, section 6);
 - **a helper:** a function composing plumbing requests, such as one that
   fills a template into a `Create`, or one that closes a conversation as
@@ -495,7 +499,7 @@ An agent delegates in two ways, and chooses between them:
 
 An agent reaches the engine through tools its host relays, each a
 party's operation or a task's own, checked against its task's authority
-(engine/executors.md, 3).
+(engine/executors-tools.md, 1).
 
 ## 8. Applications and external systems
 
@@ -541,7 +545,7 @@ Each object the application deals with is one of two kinds:
   keeps its key or checks its condition; otherwise its task is held for a
   person when its outcome is uncertain. A requirement holds when an
   effect is applied only if the effect's own system checks it then
-  (connectors.md, 4.3 and section 7).
+  (connectors-effects.md, 1.3, and connectors.md, 7).
 - **What the application may do there is read at adoption,** and the
   project's policy keeps within it (connectors.md, section 12).
 
@@ -579,9 +583,9 @@ credential (people/README.md, section 3).
 - **The client knows the primitives,** not the shapes of work built from
   them. What a client asks of the engine, and reads from it, is jig's
   API, and the API is *plumbing*: the primitives as operations, subjects
-  and reads, all in general form (`../client/domain/contract/requests.md` and `../client/domain/contract/README.md`, sections 4 and 5
+  and reads, all in general form (`../client/domain/contract/requests.md` and `../client/domain/contract/reads.md`, section 1, and `../client/domain/contract/watches.md`, section 1
   ). `jig-client` carries the plumbing, and knows no
-  page and no shape (`../README.md`, section 10).
+  page and no shape (`../client-stack.md`, section 1).
 - **Shapes are sugar** (7.3): templates, helpers, and facts and models.
 - **The one rule: sugar is built only from plumbing.** Whatever must be
   atomic (several operations in one decision, people/acts.md, 1),
@@ -596,13 +600,13 @@ credential (people/README.md, section 3).
   once, atomicity) is never sugar. Any application may refuse or redo
   jig's sugar; the plumbing changes rarely.
 - **A party does what an agent does.** Their operations pass the same
-  checks, only the source of their authority differing (authority.md,
-  8.1 and 8.4), and both ask explicitly to propose (tasks/proposals.md
+  checks, only the source of their authority differing (authority-checks.md,
+  1.1 and 1.4), and both ask explicitly to propose (tasks/proposals.md
   ). What stays asymmetric, by design, is what only parties do
   (people/acts.md, 1); procedures decide nothing.
 - **Presentation is the application's:** its screens, words, look,
   confirmations and navigation, its server and its URL space
-  (`../README.md`, section 10). An application adds its own connectors' objects as
+  (`../client-stack.md`, section 1). An application adds its own connectors' objects as
   subjects and requests of its own, through the same client.
 
 ## 10. A goal, as tasks
@@ -714,7 +718,7 @@ Where these stop, above the API, the application holds:
 - **keeping a credential from use across sites,** as keeping it out of
   its logs is: its server's, with jig's default HTTP mapping's example
   guards and attack stories to use where they suit
-  (`../protocol/browser/README.md`, 12.2 and `../protocol/browser/testing.md`).
+  (`../protocol/browser/serving.md`, 1.2 and `../protocol/browser/testing.md`).
 
 ## 12. Open questions
 

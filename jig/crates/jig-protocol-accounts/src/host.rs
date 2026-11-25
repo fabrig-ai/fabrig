@@ -1,5 +1,5 @@
 //! The accounts' host and its pass over store answers and effects
-//! (jig/docs/design/protocol/service.md, 11.1).
+//! (jig/docs/design/protocol/service-parts.md, 1.1).
 use crate::{
     Component,
     component::{Effect, Event, unkept},
@@ -283,7 +283,7 @@ fn untagged(mut event: store::Event) -> store::Event {
         | store::Event::Stale { owner }
         | store::Event::Erased { owner }
         | store::Event::SecretsLoaded { owner, .. } => *owner = Token::new(owner.untagged()),
-        // The map census belongs to the root, not secrets (protocol/store/README.md, 6.3).
+        // The map census belongs to the root, not secrets (protocol/store/growth.md, 1.3).
         store::Event::Census { .. }
         | store::Event::Checkpointed { .. }
         | store::Event::CheckpointRefused { .. }
@@ -309,7 +309,6 @@ fn untagged(mut event: store::Event) -> store::Event {
         | store::Event::Corrupt { .. }
         | store::Event::Job { .. }
         | store::Event::Ran { .. }
-        | store::Event::Site { .. }
         | store::Event::Decoded { .. }
         | store::Event::Undecodable { .. }
         | store::Event::Rehearsing { .. }

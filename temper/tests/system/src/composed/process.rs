@@ -8,11 +8,12 @@
 
 use std::collections::VecDeque;
 
+use super::{Agent, provider::Provider};
 use jig_domain_host as host;
 use skein_fake_checkout::Checkout as Disk;
 use skein_fake_llm_domain::api::Script;
 use skein_lib::{Duration, ReplyTo, Time, Token};
-use smith_agent_world::{Job, Settings, World as Agent};
+use smith_agent_world::{Job, Settings};
 use smith_domain as smith;
 use smith_domain_run as run;
 use smith_domain_session::{llm, record};
@@ -35,6 +36,11 @@ pub(crate) struct Process {
     seed: u64,
     /// Let the composed clock reach each Smith deadline before driving it.
     pub(super) clocked: bool,
+    /// A composed workload must not advance a provider beyond its outer clock.
+    pub(super) bounded_clock: bool,
+    pub(super) wire: bool,
+    previous_provider: Option<Box<Provider>>,
+    sent_queries: usize,
     clock_start: Option<Time>,
     /// The fake LLM's script, extended by each resumed activation.
     pub(super) script: Script,
@@ -57,16 +63,22 @@ pub(crate) struct Process {
     exited: bool,
     sent_turns: usize,
     sent_waits: usize,
+    sent_unauthorized: usize,
+    pub(super) strikes: Vec<(u32, skein_fake_llm_domain::api::Strike)>,
+    pub(super) struck_at: Option<Time>,
     sent_calls: Vec<Token>,
     sent_deliveries: usize,
     owner: Option<Token>,
     producer: Option<Producer>,
     /// Pause Smith after the selected query, before consuming its response.
     pub(super) held_query: Option<usize>,
+    pub(super) starts: Option<Vec<(u64, u64)>>,
+    /// Pause the selected host call before it crosses the process channel.
+    pub(super) held_host_call: Option<usize>,
 }
 
 /// The process service's live producer, played here because smith's domain
-/// world emits only whole turns (testing/README.md, 2.1).
+/// world emits only whole turns (testing/tiers.md, 1.1).
 struct Producer {
     count: usize,
     pieces: VecDeque<host::Piece>,
@@ -105,15 +117,52 @@ impl Producer {
 
 /// What a process request needs of the world around it.
 pub(crate) struct Around<'a> {
+    pub(crate) now: Time,
     pub(crate) events: &'a mut VecDeque<worker::Event>,
     pub(crate) observed: &'a mut Observed,
     pub(crate) disk: &'a mut Checkout,
     pub(crate) store: &'a Store,
     pub(crate) assignment: Option<&'a engine::Assignment>,
     pub(crate) repository: bool,
+    pub(super) playback: Option<&'a super::provider::Playback>,
 }
 
 impl Process {
+    pub(super) fn outer_time(&self, at: Time) -> Time {
+        self.clock_start.unwrap_or(Time::ZERO).saturating_add(Duration::from_nanos(at.as_nanos()))
+    }
+
+    /// Raw fake-provider failures in the outer world's clock.
+    pub(super) fn provider_faults(&mut self) -> Vec<(Time, Token, u32, skein_fake_llm_domain::api::Error)> {
+        let Some(agent) = &mut self.agent else { return Vec::new() };
+        let Provider::Typed(provider) = agent.backend_mut() else { return Vec::new() };
+        let start = self.clock_start.unwrap_or(Time::ZERO);
+        provider
+            .take_faults()
+            .into_iter()
+            .map(|(at, call, account, error)| {
+                (start.saturating_add(skein_lib::Duration::from_nanos(at.as_nanos())), call, account, error)
+            })
+            .collect()
+    }
+
+    pub(super) fn strike(&mut self, credential: u32, strike: skein_fake_llm_domain::api::Strike) {
+        if let Some(agent) = &mut self.agent {
+            let now = agent.now();
+            agent.backend_mut().strike(credential, strike.clone(), now);
+            self.struck_at = Some(now);
+        }
+        self.strikes.push((credential, strike));
+    }
+
+    pub(super) fn clear(&mut self, credential: u32, strike: &skein_fake_llm_domain::api::Strike) {
+        if let Some(agent) = &mut self.agent {
+            let now = agent.now();
+            agent.backend_mut().clear(credential, strike, now);
+        }
+        self.strikes.retain(|(account, held)| *account != credential || held != strike);
+    }
+
     pub(crate) fn notice(&mut self, notice: agent::Up) {
         self.up.push_front(notice);
     }
@@ -122,6 +171,10 @@ impl Process {
             charter: Box::default(),
             seed,
             clocked: false,
+            bounded_clock: false,
+            wire: false,
+            previous_provider: None,
+            sent_queries: 0,
             clock_start: None,
             script,
             history: None,
@@ -141,11 +194,16 @@ impl Process {
             exited: false,
             sent_turns: 0,
             sent_waits: 0,
+            sent_unauthorized: 0,
+            strikes: Vec::new(),
+            struck_at: None,
             sent_calls: Vec::new(),
             sent_deliveries: 0,
             owner: None,
             producer: None,
             held_query: None,
+            starts: None,
+            held_host_call: None,
         }
     }
 
@@ -172,18 +230,21 @@ impl Process {
     /// The next activation, with smith's concrete history and more script.
     pub(crate) fn resume(&mut self, script: Script) {
         let agent = self.agent.as_ref().expect("parked activation");
-        let mut history = self.history.clone();
+        let mut history = self.history.take();
         if matches!(
             agent.answer(),
-            run::Answer::Parked { .. } | run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }
+            run::Answer::Parked { .. }
+                | run::Answer::Failed { failure: run::RunFailure::Cancelled | run::RunFailure::Model(_), .. }
         ) {
-            let mut current = crate::world::transcript(agent);
-            if let Some(previous) = history {
-                let mut turns = previous.turns.to_vec();
-                turns.extend(current.turns);
-                current.turns = turns.into_boxed_slice();
+            if !agent.turns().is_empty() {
+                let mut current = crate::world::transcript(agent);
+                if let Some(previous) = history {
+                    let mut turns = previous.turns.into_vec();
+                    turns.extend(current.turns);
+                    current.turns = turns.into_boxed_slice();
+                }
+                history = Some(current);
             }
-            history = Some(current);
         } else {
             assert!(
                 matches!(agent.answer(), run::Answer::Failed { failure: run::RunFailure::Transcript(_), .. }),
@@ -191,12 +252,15 @@ impl Process {
                 agent.answer()
             );
         }
-        let fresh = if script.turns.is_empty() { self.fresh.clone() } else { Some(script.clone()) };
-        let mut turns = self.script.turns.to_vec();
+        let fresh = if script.turns.is_empty() { self.fresh.take() } else { Some(script.clone()) };
+        let mut turns = std::mem::take(&mut self.script.turns).into_vec();
         turns.extend(script.turns);
-        let script = Script { cue: self.script.cue.clone(), turns: turns.into_boxed_slice() };
+        let script = Script { cue: std::mem::take(&mut self.script.cue), turns: turns.into_boxed_slice() };
         let history_messages = self.history_messages;
         let clocked = self.clocked;
+        let bounded_clock = self.bounded_clock;
+        let wire = self.wire;
+        let previous_provider = if wire { self.agent.take().map(|agent| Box::new(agent.into_backend())) } else { None };
         let tool_payload = self.tool_payload;
         let configure_settings = self.configure_settings;
         *self = Process::new(self.seed, script);
@@ -204,8 +268,21 @@ impl Process {
         self.fresh = fresh;
         self.history_messages = history_messages;
         self.clocked = clocked;
+        self.bounded_clock = bounded_clock;
+        self.wire = wire;
+        self.previous_provider = previous_provider;
         self.tool_payload = tool_payload;
         self.configure_settings = configure_settings;
+    }
+
+    pub(super) fn model_held(&self) -> bool {
+        self.held_query.is_some_and(|query| {
+            self.agent.as_ref().is_some_and(|agent| agent.prompts().len() == query && agent.turns().len() + 1 == query)
+        })
+    }
+
+    pub(super) fn release_model(&mut self) {
+        assert!(self.held_query.take().is_some(), "a held model response");
     }
 
     /// Whether the next activation is waiting to spawn its process.
@@ -213,14 +290,34 @@ impl Process {
         self.agent.is_none()
     }
 
+    /// The next local Smith clock, mapped onto the composed world's clock.
+    pub(super) fn wake_at(&self) -> Option<Time> {
+        let start = self.clock_start?;
+        let agent = self.agent.as_ref()?;
+        if self.settled {
+            return None;
+        }
+        Some(start.saturating_add(Duration::from_nanos(agent.now().as_nanos())))
+    }
+
     /// The live or last activation's smith world.
     pub(crate) fn agent(&self) -> &Agent {
         self.agent.as_ref().expect("spawned Smith process")
     }
 
+    /// Model queries and host calls reached by this activation.
+    pub(super) fn mid_turn_points(&self) -> (usize, usize) {
+        (self.agent().prompts().len(), self.sent_calls.len())
+    }
+
     /// Whether smith has received a host call.
     pub(crate) fn called(&self) -> bool {
         !self.sent_calls.is_empty()
+    }
+
+    pub(super) fn host_call_held(&self) -> bool {
+        self.held_host_call == Some(self.sent_calls.len())
+            && matches!(self.up.front(), Some(agent::Up::Call { ask: agent::Ask::Host { .. }, .. }))
     }
 
     /// One of the worker's process requests, ended by the terminal smith's
@@ -313,7 +410,7 @@ impl Process {
                 self.held_query = None;
                 self.agent.as_mut().expect("live agent").cancel_run();
             }
-            agent::Down::Drain => {
+            agent::Down::Drain { grace: _ } => {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.drain_at(agent.now());
             }
@@ -321,7 +418,7 @@ impl Process {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.renewals_at(agent.now(), held);
             }
-            agent::Down::Grant { .. } => {}
+            agent::Down::PartKept { .. } | agent::Down::Grant { .. } => {}
         }
     }
 
@@ -329,6 +426,9 @@ impl Process {
     /// prepared, at the path the spawned process would see them.
     fn start(&mut self, mut start: agent::Start, window: agent::Window, around: &Around<'_>) {
         self.check_start(&start, window, around);
+        if let Some(starts) = &mut self.starts {
+            starts.push((start.logical_run.raw(), start.activation));
+        }
         let assignment = around.assignment.expect("committed assignment");
         let receiving = receiving(self.tool_payload);
         for directory in &mut start.directories {
@@ -345,6 +445,13 @@ impl Process {
         let restored = transcript.as_ref().map_or(0, |transcript| transcript.turns.len());
         assert_eq!(restored, assignment.transcript.len(), "the committed turns cross whole");
         if transcript.is_none() && self.history.is_some() {
+            assert!(
+                around.playback.is_none(),
+                "task {} attempt {} lost its {}-turn recorded prefix",
+                assignment.task,
+                assignment.attempt,
+                self.history.as_ref().expect("saved history").turns.len()
+            );
             self.script = self.fresh.take().expect("the pending activation's script");
             self.history = None;
         }
@@ -371,8 +478,23 @@ impl Process {
         if let Some(configure) = self.configure_settings {
             configure(&mut settings);
         }
+        if self.wire {
+            let client =
+                around.playback.map_or_else(smith_protocol_llm_world::fixture::limits, |deck| deck.limits).client;
+            settings.limits.session.completion_blocks = client.output_items;
+            settings.limits.session.failure_bytes = client.detail_bytes;
+            settings.limits.session.completion_bytes =
+                smith_protocol_llm_world::codec::completion_bound(&client, settings.limits.decoded_call_bytes)
+                    .expect("native completion room");
+        }
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
+        let mut provider = Provider::new(&settings, &self.script, self.wire, around.playback, &start.grants);
+        if let Some(mut previous) = self.previous_provider.take() {
+            provider.continue_provider(&mut previous);
+        }
         let event = smith::Event::Start(smith::Start {
+            parts: Box::default(),
+            tell_parts: false,
             reply_to: ReplyTo::new(Token::new(402)),
             host_run: start.logical_run,
             activation: start.activation,
@@ -385,7 +507,15 @@ impl Process {
             answered: answered(start.answered),
             grants: grants(&start.grants),
         });
-        let mut agent = Agent::with_workspace_scripts_start(settings, mounted, Box::new([self.script.clone()]), event);
+        let mut agent =
+            Agent::with_selected_backend(&settings, None, Box::default(), None, mounted, provider, None, Some(event));
+        for (credential, strike) in &self.strikes {
+            agent.backend_mut().strike(*credential, strike.clone(), Time::ZERO);
+            self.struck_at = Some(Time::ZERO);
+        }
+        if self.wire {
+            agent.start_at(around.now);
+        }
         agent.enable_parent_host_calls();
         agent.enable_parent_deliveries();
         self.agent = Some(agent);
@@ -419,7 +549,10 @@ impl Process {
         self.drive(now, around);
         let held_turn = self.producer.as_ref().is_some_and(|producer| producer.holding)
             && matches!(self.up.front(), Some(agent::Up::Turn { .. }));
-        if !held_turn && let Some(owner) = self.reading.take() {
+        if !held_turn
+            && !self.host_call_held()
+            && let Some(owner) = self.reading.take()
+        {
             match self.up.pop_front() {
                 Some(message) => {
                     let event = agent::process::Event::Received { owner, message };
@@ -450,6 +583,9 @@ impl Process {
     }
 
     fn drive(&mut self, now: Time, around: &mut Around<'_>) {
+        if self.host_call_held() {
+            return;
+        }
         let Some(agent) = self.agent.as_mut() else { return };
         if self.settled
             || self.held_query.is_some_and(|query| agent.prompts().len() >= query)
@@ -460,11 +596,39 @@ impl Process {
         // A composed clock waits for the outer world before firing a lower deadline.
         if self.clocked {
             let start = *self.clock_start.get_or_insert(now);
-            if agent.now() > Time::ZERO.saturating_add(now.saturating_since(start)) {
+            let allowed = if self.wire { now } else { Time::ZERO.saturating_add(now.saturating_since(start)) };
+            if agent.now() > allowed {
                 return;
             }
         }
-        self.settled = agent.drive(1);
+        self.settled = if self.bounded_clock {
+            let start = *self.clock_start.get_or_insert(now);
+            let until = Time::ZERO.saturating_add(now.saturating_since(start));
+            agent.drive_until(1, until)
+        } else {
+            agent.drive(1)
+        };
+        if self.wire {
+            for query in &agent.prompts()[self.sent_queries..] {
+                around.observed.queries.push((around.assignment.expect("query's assignment").task, now, query.clone()));
+            }
+            self.sent_queries = agent.prompts().len();
+        }
+        for (_, grant) in &agent.unauthorized()[self.sent_unauthorized..] {
+            self.up.push_back(agent::Up::Unauthorized { account: grant.account, generation: grant.generation });
+        }
+        self.sent_unauthorized = agent.unauthorized().len();
+        for (_, notice) in agent.take_account_notices() {
+            self.up.push_back(match notice {
+                smith_agent_world::AccountNotice::Limited { account, reset } => {
+                    around.observed.limits.push((account, reset));
+                    agent::Up::Limited { account, reset }
+                }
+                smith_agent_world::AccountNotice::Refused { account, code, reason } => {
+                    agent::Up::Refused { account, code, reason }
+                }
+            });
+        }
         if !self.admitted
             && agent
                 .messages_seen()
@@ -513,7 +677,7 @@ impl Process {
         if self.settled {
             unmount(agent.disk(), around.disk, &self.mounts);
             let read = agent.turn_metadata().iter().filter_map(|(_, read, _)| *read).next_back();
-            let (turns, spent, result) = result(agent.answer());
+            let (turns, spent, result) = result(agent.answer(), agent.now());
             self.up.push_back(agent::Up::Answer { answer: agent::Answer { read, turns, spent, result } });
             self.answered = Some((turns, spent));
         }
@@ -522,7 +686,7 @@ impl Process {
 
 /// smith's last word on its channel. Only the endings these stories script
 /// cross; any other is a finding.
-fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
+fn result(answer: &run::Answer, now: Time) -> (u32, u64, agent::RunResult) {
     match crate::world::copy_answer(answer) {
         run::Answer::Accepted { outcome, spent, turns } => {
             let outcome = agent::Declared::new(outcome, u64::MAX).expect("a bounded result");
@@ -537,7 +701,22 @@ fn result(answer: &run::Answer) -> (u32, u64, agent::RunResult) {
                 run::RunFailure::Policy(run::Policy::Unfinished { nudges, rejected }) => {
                     agent::RunFailure::Policy(agent::Policy::Unfinished { nudges, rejected })
                 }
-                run::RunFailure::Model(_) => agent::RunFailure::Model(agent::ModelFault::Provider),
+                run::RunFailure::Model(fault) => {
+                    // The channel world uses a zero-based clock for this translation.
+                    let mut fault = fault;
+                    if let run::Fault::Limited { reset_at: Some(at), .. } = &mut fault {
+                        *at = Time::ZERO.saturating_add(at.saturating_since(now));
+                    }
+                    let mut channel = smith_channel_world::World::admitted();
+                    channel.agent_answers(run::Answer::Failed { failure: run::RunFailure::Model(fault), spent, turns });
+                    channel.settle();
+                    let agent::RunResult::Failed { failure } =
+                        channel.take_host_answer().expect("channel answer").result
+                    else {
+                        unreachable!("a model failure stays a failure");
+                    };
+                    failure
+                }
                 run::RunFailure::Transcript(reason) => agent::RunFailure::Transcript(match reason {
                     run::TranscriptRefusal::Version => agent::TranscriptRefusal::Version,
                     run::TranscriptRefusal::Malformed => agent::TranscriptRefusal::Malformed,
@@ -583,6 +762,7 @@ fn mount(directories: &[agent::Directory], disk: &Checkout, mounted: &mut Disk) 
             }
         }
         mounts.push(run::Directory {
+            results: None,
             name: directory.name.clone(),
             host: [b"/".as_slice(), directory.name.as_ref()].concat().into_boxed_slice(),
             root: Token::new(mounted.root(&directory.name)),
@@ -706,6 +886,16 @@ fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut Ve
 }
 
 fn receiving(tool_payload: Option<u32>) -> run::Limits {
+    // The shipped profile is immutable; retain only its derived, allocation-free
+    // limits, not another parsed stock document for every activation.
+    static STOCK: std::sync::OnceLock<run::Limits> = std::sync::OnceLock::new();
+    match tool_payload {
+        None => *STOCK.get_or_init(|| derive_receiving(None)),
+        Some(_) => derive_receiving(tool_payload),
+    }
+}
+
+fn derive_receiving(tool_payload: Option<u32>) -> run::Limits {
     use smith_agent_service::profile::{self, Configuration, Endpoint, Limits as DeclaredLimits};
     let agents = temper_engine_service_stock::stock::agents();
     let endpoint = agents.fallback;
@@ -763,8 +953,7 @@ fn activation_settings(seed: u64, charter: &run::Charter, resumed: bool, receivi
     settings.resume = resumed;
     settings.budget = charter.budget;
     settings.limits.run.budget = charter.budget;
-    settings.limits.run.host_tools =
-        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
+    settings.limits.run.host_tools = crate::world::host_tool_count();
     settings.limits.run.brief_sections = 16;
     settings.limits.run.host_reply_bytes = 8192;
     settings.limits.session.spend = charter.budget.spend;

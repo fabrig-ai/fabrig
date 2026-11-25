@@ -25,6 +25,15 @@ credential and no network, and needs only Python's standard library and git.
   `change N`, N a decimal integer and a task of the request; any other
   tag, another goal's or one of another form (`[in flight: some-name]`),
   names no change of it. An entry with no tag is left as it is.
+- **A tag may wrap:** each of its spaces, the one before its `[`, the
+  one after `[in`, the one after `flight:` and each within TEXT, may
+  instead be a line break between two of its entry's lines: a line's
+  end, with any spaces or tabs before it, and the next line's
+  indentation. Its `]` and what follows it are on the entry's last
+  line. TEXT reads each break as one space, so `... [in flight:` with
+  `  change 15531].` on the line after names change 15531, as do
+  `... [in` with `  flight: change 15531].` and `... [in flight: change`
+  with `  15531].`; a wrapped tag is settled as a one-line one is.
 - **A bare `- **Not yet:**` label** groups nested `  - ` items. Each
   item, with its continuation lines, is settled separately; an untagged
   sibling stays. The label goes only when all its items have been deleted.
@@ -34,7 +43,11 @@ credential and no network, and needs only Python's standard library and git.
   - its change ended without landing (`"landed": false`): the tag is
     dropped, with the one space before it, and the punctuation and spaces
     after it stay (`gap [in flight: change 12].` becomes `gap.`), so the gap
-    stays recorded;
+    stays recorded. A wrapped tag goes with its breaks: the line holding
+    the space before it keeps what precedes that space, then what follows
+    the `]` with the last line's ending, its other lines gone (`gap [in
+    flight:` with `  change 12].` after it becomes `gap.`, and so does
+    `gap` with `  [in flight: change 12].` after it);
   - its tag names no change of the request: the entry is left as it is,
     byte for byte, and the result lists the tag as kept. Whoever owns a
     tag settles it: the command never removes or rewrites another goal's.
@@ -44,7 +57,8 @@ credential and no network, and needs only Python's standard library and git.
 - **`$TEMPER_JOB/result.json`, exit 0:** `{"settled": [PATH]}`, the files it
   staged, sorted, and, when it kept a tag, `"kept": [TAG]` after them:
   each tag it kept as `PATH:LINE: [in flight: TEXT]`, LINE the 1-based
-  number of the line holding the tag, sorted by path, then line:
+  number of the line holding the tag's `[`, TEXT with each break read
+  as one space, sorted by path, then line:
   `{"settled":[],"kept":["jig/docs/design/domain/engine/briefs.status.md:42: [in flight: change 232]"]}`.
   It is compact JSON (`,` and `:` with no spaces, ASCII escapes) ending
   in a newline, at most 512 bytes. A result past 512 bytes is cut as the
@@ -63,3 +77,13 @@ credential and no network, and needs only Python's standard library and git.
 Run its tests with `python3 -I -B tools/close/test_close.py`: the focused
 cases and the fuzzy one, which settles random status files against random
 change ends, each seed printed so that it replays (`--seed N`).
+
+## Goal validation
+
+A project selecting `.temper/checked-close` as its close job first runs the
+settlement above. It then runs `tools/pre-pr/pre_pr.py --close` from the
+repository root, even when settlement stages nothing. The check covers the
+goal's changes since its merge base with the checkout's main
+(`tools/pre-pr/design.md`, 1) and returns its exit status to the worker. A missing verifier, unavailable comparison,
+failed check or expired job prevents successful close. The worker still
+owns committing and pushing the settled tree.

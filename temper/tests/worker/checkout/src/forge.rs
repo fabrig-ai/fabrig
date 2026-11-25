@@ -109,7 +109,10 @@ pub struct Move {
 pub struct Forge {
     observations: Vec<Observation>,
     domain: Domain,
+    limits: Limits,
+    counts: temper_fake_git::counts::Published,
     repositories: u32,
+    worker: u64,
     /// The world's clock, as of its last say.
     now: Time,
     /// The calls made, the last naming the latest.
@@ -120,13 +123,26 @@ impl Forge {
     /// An empty forge, drawing from `seed`.
     #[must_use]
     pub fn new(seed: u64) -> Forge {
+        Self::with_limits(seed, LIMITS)
+    }
+
+    /// The same calm forge with room for a composed workload's workflows and history.
+    #[must_use]
+    pub fn with_limits(seed: u64, limits: Limits) -> Forge {
         Forge {
+            limits,
             observations: Vec::new(),
-            domain: Domain::new(&config(), seed),
+            domain: Domain::new(&Config { limits, ..config() }, seed),
+            counts: temper_fake_git::counts::Published::default(),
             repositories: 1,
+            worker: WORKER,
             now: Time::ZERO,
             calls: 0,
         }
+    }
+
+    fn configuration(&self) -> Config {
+        Config { limits: self.limits, ..config() }
     }
 
     /// Tells the forge the world's time, for the calls that follow.
@@ -141,8 +157,13 @@ impl Forge {
     /// # Errors
     /// Returns the fake forge's native authentication or operation error.
     pub fn api(&mut self, remote: &[u8], user: u64, op: Op) -> Result<Answer, Error> {
+        self.api_configured(remote, user, op, self.configuration())
+    }
+
+    /// One synchronous call with a world's finite fault settings. Latency must stay zero.
+    pub fn api_configured(&mut self, remote: &[u8], user: u64, op: Op, config: Config) -> Result<Answer, Error> {
         self.calls += 1;
-        let env = Env { now: self.now, wall: Wall::EPOCH, limits: config() };
+        let env = Env { now: self.now, wall: Wall::EPOCH, limits: config };
         let mut out = Queue::uncapped();
         let reply_to = ReplyTo::new(Token::new(self.calls));
         skein_fake_forge_domain::step(
@@ -171,6 +192,22 @@ impl Forge {
         }
         assert_eq!(self.domain.calls(), 0);
         answer.expect("the forge answers a call at once")
+    }
+
+    /// The synchronous face's settings, including its admitted room.
+    #[must_use]
+    pub fn config(&self) -> Config {
+        self.configuration()
+    }
+
+    /// Scenario entrances on the same domain that serves API and git.
+    pub fn domain_mut(&mut self) -> &mut Domain {
+        &mut self.domain
+    }
+
+    /// Read scenario evidence without making another API call.
+    pub fn inspect(&self, remote: &[u8], read: &Read) -> Result<Answer, Error> {
+        self.domain.inspect(&self.configuration(), remote, read)
     }
 
     /// Configure the authenticated identity used by an engine's adoption.
@@ -203,9 +240,21 @@ impl Forge {
 
     /// Add a repository whose CI follows the supplied deterministic checks.
     pub fn repository_with_checks(&mut self, remote: &[u8], default: &[u8], tree: Tree, checks: Checks) -> u64 {
+        self.repository_with_workflows(remote, default, tree, checks, Box::new([]))
+    }
+
+    /// Add a repository with deterministic CI and dispatchable workflows on the same forge.
+    pub fn repository_with_workflows(
+        &mut self,
+        remote: &[u8],
+        default: &[u8],
+        tree: Tree,
+        checks: Checks,
+        workflows: Box<[skein_fake_forge_domain::api::Workflow]>,
+    ) -> u64 {
         self.repositories = self.repositories.checked_add(1).expect("scenario repository bound");
         let setup = Setup {
-            workflows: Box::new([]),
+            workflows,
             id: self.repositories,
             name: remote.into(),
             default: default.into(),
@@ -215,10 +264,40 @@ impl Forge {
             protection: None,
             hooked: false,
         };
-        let first = skein_fake_forge_domain::repository(&mut self.domain, &config(), setup);
-        skein_fake_forge_domain::grant(&mut self.domain, remote, WORKER, Permission::Write);
-        skein_fake_forge_domain::grant(&mut self.domain, remote, OTHER, Permission::Write);
+        self.seed_repository(setup)
+    }
+
+    /// Use the selected forge user for subsequent worker git calls and grants.
+    pub fn worker_user(&mut self, user: u64) {
+        self.worker = user;
+    }
+
+    /// Add a repository with an explicit identity, seed tree, CI and protection.
+    pub fn seed_repository(&mut self, setup: Setup) -> u64 {
+        self.repositories = self.repositories.max(setup.id);
+        let remote = setup.name.clone();
+        let config = self.configuration();
+        let first = skein_fake_forge_domain::repository(&mut self.domain, &config, setup);
+        self.grant(&remote, self.worker, Permission::Write);
+        self.grant(&remote, OTHER, Permission::Write);
         first
+    }
+
+    /// Read the whole current tree at a branch, without producing a git operation.
+    #[must_use]
+    pub fn branch_tree(&self, remote: &[u8], branch: &[u8]) -> Option<Tree> {
+        Some(self.tree(self.branch(remote, branch)?))
+    }
+
+    /// Publish a new root commit holding `counts.json`, without moving a branch.
+    pub fn publish_counts(&mut self, remote: &[u8], bytes: &[u8]) -> u64 {
+        let config = self.configuration();
+        self.counts.publish(&mut self.domain, &config, remote, bytes)
+    }
+
+    /// Remove the counts reference if it exists.
+    pub fn remove_counts(&mut self, remote: &[u8]) {
+        self.counts.remove(remote);
     }
 
     /// Makes the repository at `remote` reachable, or not.
@@ -236,7 +315,7 @@ impl Forge {
     /// writing `path` with `content`, and moves the branch to it, as a push of
     /// its own would. Returns the commit.
     pub fn advance(&mut self, remote: &[u8], branch: &[u8], path: &[u8], content: &[u8]) -> u64 {
-        let env = Env { now: self.now, wall: Wall::EPOCH, limits: config() };
+        let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.configuration() };
         let advanced = skein_fake_forge_domain::advance(&mut self.domain, &env, remote, branch, path, content, OTHER);
         advanced.expect("the forge has room for another party's commit")
     }
@@ -262,7 +341,7 @@ impl Forge {
     #[must_use]
     pub fn branch(&self, remote: &[u8], branch: &[u8]) -> Option<u64> {
         let read = Read::Branch { branch: branch.into() };
-        match self.domain.inspect(&config(), remote, &read) {
+        match self.domain.inspect(&self.configuration(), remote, &read) {
             Ok(Answer::Commit(commit)) => Some(commit),
             Ok(answer) => panic!("a branch is read as where it is: {answer:?}"),
             Err(_) => None,
@@ -333,9 +412,16 @@ impl Forge {
     }
 }
 
+impl temper_fake_git::counts::Remote for Forge {
+    fn fetch_counts(&mut self, remote: &[u8]) -> Result<Option<u64>, Fault> {
+        self.clone_default(remote)?;
+        Ok(self.counts.tip(remote))
+    }
+}
+
 impl Remote for Forge {
     fn clone_default(&mut self, remote: &[u8]) -> Result<git::CloneInfo, Fault> {
-        let Answer::Cloned { default, branches } = self.call(remote, WORKER, Git::Clone)? else {
+        let Answer::Cloned { default, branches } = self.call(remote, self.worker, Git::Clone)? else {
             panic!("clone metadata")
         };
         let tip = branches.iter().find(|head| head.branch == default).map(|head| head.commit);
@@ -343,7 +429,7 @@ impl Remote for Forge {
     }
 
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault> {
-        let Answer::Cloned { default: _, branches } = self.call(remote, WORKER, Git::Clone)? else {
+        let Answer::Cloned { default: _, branches } = self.call(remote, self.worker, Git::Clone)? else {
             panic!("a clone is answered with the branches");
         };
         Ok(branches.iter().map(|head| head.commit).collect())
@@ -355,7 +441,7 @@ impl Remote for Forge {
             Want::Commit(commit) => skein_fake_forge_domain::api::Want::Commit(commit),
             Want::Default => skein_fake_forge_domain::api::Want::Default,
         };
-        let Answer::Commit(commit) = self.call(remote, WORKER, Git::Fetch { want })? else {
+        let Answer::Commit(commit) = self.call(remote, self.worker, Git::Fetch { want })? else {
             panic!("a fetch is answered with the commit fetched");
         };
         Ok(commit)
@@ -363,14 +449,15 @@ impl Remote for Forge {
 
     fn create(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Created, Fault> {
         let op = Git::Create { branch: branch.into(), commit };
-        let Answer::Branch(created) = self.call(remote, WORKER, op)? else {
+        let Answer::Branch(created) = self.call(remote, self.worker, op)? else {
             panic!("a branch's creation is answered with how it went");
         };
         Ok(created_of(created))
     }
 
     fn push_new(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Option<u64>, Fault> {
-        let Answer::PushNew { existing } = self.call(remote, WORKER, Git::PushNew { branch: branch.into(), commit })?
+        let Answer::PushNew { existing } =
+            self.call(remote, self.worker, Git::PushNew { branch: branch.into(), commit })?
         else {
             panic!("push-new answer");
         };
@@ -379,7 +466,7 @@ impl Remote for Forge {
 
     fn push(&mut self, remote: &[u8], branch: &[u8], commit: u64, expected: Option<u64>) -> Result<Pushed, Fault> {
         let op = Git::Push { branch: branch.into(), commit, expected };
-        let Answer::Pushed(pushed) = self.call(remote, WORKER, op)? else {
+        let Answer::Pushed(pushed) = self.call(remote, self.worker, op)? else {
             panic!("a push is answered with how it went");
         };
         Ok(match pushed {
@@ -406,32 +493,19 @@ impl Remote for Forge {
     }
 
     fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
+        let config = self.configuration();
         if always {
             return Some(
-                skein_fake_forge_domain::commit_tree(
-                    &mut self.domain,
-                    &config(),
-                    parent,
-                    merging,
-                    files(tree),
-                    message,
-                )
-                .expect("the forge has room"),
+                skein_fake_forge_domain::commit_tree(&mut self.domain, &config, parent, merging, files(tree), message)
+                    .expect("the forge has room"),
             );
         }
         match merging {
             Some(second) => Some(
-                skein_fake_forge_domain::merge_commit(
-                    &mut self.domain,
-                    &config(),
-                    parent,
-                    second,
-                    files(tree),
-                    message,
-                )
-                .expect("the forge's store has room for every merge"),
+                skein_fake_forge_domain::merge_commit(&mut self.domain, &config, parent, second, files(tree), message)
+                    .expect("the forge's store has room for every merge"),
             ),
-            None => skein_fake_forge_domain::commit(&mut self.domain, &config(), parent, files(tree), message)
+            None => skein_fake_forge_domain::commit(&mut self.domain, &config, parent, files(tree), message)
                 .expect("the forge's store has room for every commit"),
         }
     }

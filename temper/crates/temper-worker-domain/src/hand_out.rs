@@ -16,7 +16,7 @@ pub(crate) struct StartRefusal {
     pub(crate) why: Box<[u8]>,
 }
 
-/// A start's refusal policy (`temper/docs/design/domain/worker/README.md`, 4.3).
+/// A start's refusal policy (`temper/docs/design/domain/worker/hosted-runs.md`, 1.3).
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum StartClass {
     Busy,
@@ -35,6 +35,8 @@ impl StartClass {
 /// What a payload handed out is for.
 #[derive(Debug)]
 pub(crate) enum Pending {
+    /// A part of the run `owner`, for the hub.
+    Part { owner: Token },
     /// A turn of the run `owner`, for the hub.
     Turn { owner: Token },
     /// The name of the call `call` of the run `owner`.
@@ -47,12 +49,15 @@ impl Pending {
     /// The hosted run the hand-out is for.
     pub(crate) const fn owner(&self) -> Token {
         match self {
-            Pending::Turn { owner } | Pending::Call { owner, .. } | Pending::Result { owner, .. } => *owner,
+            Pending::Part { owner }
+            | Pending::Turn { owner }
+            | Pending::Call { owner, .. }
+            | Pending::Result { owner, .. } => *owner,
         }
     }
 }
 
-/// A charter LLM's bounded names, retained until its run ends (domain/worker/README.md, 4.3).
+/// A charter LLM's bounded names, retained until its run ends (domain/worker/hosted-runs.md, 1.3).
 #[derive(Debug)]
 pub(crate) struct ModelName {
     endpoint: Box<[u8]>,

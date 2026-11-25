@@ -1,4 +1,4 @@
-//! The stream's room and starts refused locally (jig/docs/design/protocol/channel/README.md, 8, 10 and 11).
+//! The stream's room and starts refused locally (jig/docs/design/protocol/channel/liveness.md, 1, and jig/docs/design/protocol/channel/README.md, 10, and jig/docs/design/protocol/channel/testing.md, 1).
 use super::fixtures;
 use crate::{Bound, Component, Event, Limits, Request, Unsent, host};
 use jig_domain_host as hub;
@@ -32,6 +32,11 @@ fn config() -> jig_protocol_config::Engine {
     .expect("configuration")
 }
 
+fn frame_bytes(sizes: &sizes::Sizes, kind: wire::Kind) -> u32 {
+    const HEADER: u32 = 8;
+    sizes::largest_body(sizes, kind).expect("bounded body").checked_add(HEADER).expect("bounded frame")
+}
+
 #[test]
 #[expect(
     clippy::disallowed_types,
@@ -40,22 +45,40 @@ fn config() -> jig_protocol_config::Engine {
     reason = "the boundary table collects every diagnostic in ordinary Rust test code"
 )]
 fn the_room_holds_control_and_every_non_start_frame() {
+    // A full Refuse: 8-byte header, 2-byte reason, 4-byte length, 256 bytes of text.
+    const CONTROL_ROOM: u32 = 270;
     let config = config();
     let _files = jig_protocol_config::Files { entries: List::with_capacity(0) };
+    let fixture = fixtures::SIZES;
+    let resumed = sizes::smallest_resumed(fixture.answered, fixture.call_name, fixture.tool_name, fixture.answer)
+        .expect("bounded resumed start");
+    let (mut binding, mut floor) =
+        if resumed > CONTROL_ROOM { ("resumed".to_owned(), resumed) } else { ("control".to_owned(), CONTROL_ROOM) };
+    for rule in wire::KINDS {
+        if rule.direction != skein_channel::Direction::FromResponder
+            || rule.body == wire::Kind::Assignment
+            || rule.body == wire::Kind::Job
+            || rule.body == wire::Kind::Figures
+        {
+            continue;
+        }
+        let bytes = frame_bytes(&fixture, rule.body);
+        if bytes > floor {
+            floor = bytes;
+            binding = format!("{:?}", rule.body);
+        }
+    }
+
+    let message = sizes::Sizes { message: 1024, ..fixture };
+    let relayed = sizes::Sizes { answer: 1024, ..fixture };
+    let grant = sizes::Sizes { grant: 1024, ..fixture };
     let mut failures = Vec::new();
     for (name, sizes, bytes) in [
-        ("wires", fixtures::SIZES, 620),
-        ("message", sizes::Sizes { message: 1024, ..fixtures::SIZES }, 0),
-        ("relayed", sizes::Sizes { answer: 1024, ..fixtures::SIZES }, 0),
-        ("grant", sizes::Sizes { grant: 1024, ..fixtures::SIZES }, 0),
+        (binding.as_str(), fixture, floor),
+        ("message", message, frame_bytes(&message, wire::Kind::Message)),
+        ("relayed", relayed, frame_bytes(&relayed, wire::Kind::Relayed)),
+        ("grant", grant, frame_bytes(&grant, wire::Kind::Grant)),
     ] {
-        let kind = match name {
-            "message" => wire::Kind::Message,
-            "relayed" => wire::Kind::Relayed,
-            "grant" => wire::Kind::Grant,
-            _ => wire::Kind::Acknowledge,
-        };
-        let bytes = if bytes == 0 { sizes::largest_body(&sizes, kind).expect("bounded body") + 8 } else { bytes };
         for (room, accepted) in [(bytes, true), (bytes - 1, false)] {
             let limits = Limits { sizes, room, ..fixtures::LIMITS };
             let valid = crate::valid(&limits);
@@ -172,7 +195,7 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
     );
     let Some(Request::Unsent { unsent, .. }) = out.pop() else { panic!("fitted frame refused by unopened channel") };
     // One answer stays whole; three become 67-byte cut words.
-    assert_eq!(unsent.bytes, 613);
+    assert_eq!(unsent.bytes, 617);
     assert_eq!(unsent.bound, Bound::Channel(skein_channel::Unsent::Closed));
     assert!(unsent.bytes <= ENGINE && ENGINE < WHOLE && WHOLE < WORKER);
 }
@@ -287,6 +310,7 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
             | hub::LinkUp::Usage { .. }
             | hub::LinkUp::Limited { .. }
             | hub::LinkUp::AccountRefused { .. }
+            | hub::LinkUp::Part { .. }
             | hub::LinkUp::Turn { .. }
             | hub::LinkUp::Ask { .. }
             | hub::LinkUp::Call { .. }) => panic!("start answer: {other:?}"),

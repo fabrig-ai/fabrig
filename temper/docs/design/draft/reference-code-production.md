@@ -7,7 +7,7 @@ configuration that sets it up. It is the way a
 project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
 who make the code meet it. How the goal lands is `archive/reference-landing.md`;
-`reference-case.md` walks both on one small goal; `notes.md` holds the
+`archive/reference-case.md` walks both on one small goal; `reference-code-production.notes.md` holds the
 reasons for each choice, N1 to N24, cited here by number.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
@@ -214,7 +214,7 @@ G's runs read: a checkout of g, inspect only, no delivery (`../domain/agent/tool
 
 **A spec** is a change's words (`../domain/forge/change/README.md`, 1): what to make, citing
 the design in g by path and section (`temper/docs/design/domain/forge/adoption.md,
-2`) and the status entries it closes; what it owns and must leave
+6`) and the status entries it closes; what it owns and must leave
 alone; its checks; its report. It is short: the design holds the
 detail, and the producer's checkout holds the design. Its parameters
 carry the rest: g as its landing branch, its dependencies, an LLM choice
@@ -249,7 +249,7 @@ rule for goal branches (N4):
    choice, whose workspace starts from g's tip (with its dependencies'
    pushed heads, if it starts kept: N2). It reads the design its words
    cite in its checkout, runs the project's checks at delivery
-   (`.temper/pre-pr`: smith's `domain/run.md`, 8.1), pushes as it goes
+   (`.temper/pre-pr`: smith's `domain/run-delivery.md`, 1.1), pushes as it goes
    (N14), and finishes with the head it pushed and its report: what it
    did, the checks it ran, and a Left list of what it found and did not
    own (N15).
@@ -274,8 +274,8 @@ rule for goal branches (N4):
 ## 7. Early starts
 
 A change that depends on another change into g starts kept (jig's
-`domain/connectors.md`, 6.1): it steps while its dependency is produced,
-and its merge waits for it (jig's `domain/tasks/lifecycle.md`, 8). Its producer
+`domain/connectors-procedures.md`, 1.1): it steps while its dependency is produced,
+and its merge waits for it (jig's `domain/tasks/lifecycle-endings.md`, 1). Its producer
 starts early under N2's rules:
 
 - once each pending dependency has a pushed head and none of them is
@@ -305,7 +305,7 @@ A change relays its agents' questions (N1).
 
 1. **The producer asks** its requester, the change, in the question
    form, with its options and its recommendation, after pushing what it
-   has. It is kept by its own question (jig's `domain/tasks/lifecycle.md`, 8):
+   has. It is kept by its own question (jig's `domain/tasks/lifecycle-endings.md`, 1):
    its run parks, no try spent.
 2. **The change asks a foreman:** a delegate under the foreman's
    charter, read-only, its brief the change's words, the question and
@@ -352,7 +352,7 @@ A change relays its agents' questions (N1).
 
 ## 9. Failures, holds and escalations
 
-jig's rules, unchanged (jig's `domain/tasks/lifecycle.md`, 6 and `domain/tasks/proposals.md`):
+jig's rules, unchanged (jig's `domain/tasks/lifecycle-holds.md`, 1 and `domain/tasks/proposals.md`):
 
 - **A producer's failures** are tried again within their class's tries:
   a peer gone, an agent crashed, a host lost. Its own failure (the task
@@ -375,7 +375,7 @@ jig's rules, unchanged (jig's `domain/tasks/lifecycle.md`, 6 and `domain/tasks/p
 ## 10. Checked along the way
 
 g is followed by a tier of its own (N5): the project's gate without its
-slowest suites, defined as a tier is (`after-landing.md`, section 2).
+slowest suites, defined as a tier is (`../domain/after-landing-runs.md`, section 1).
 Main's tiers follow main only.
 
 - **One run at a time,** at g's newest tip, at most once per span; a run
@@ -398,7 +398,7 @@ Main's tiers follow main only.
 ## 11. Catching up with main
 
 While the goal works, main moves with other landings. G hears those that
-touch the goal's open work as news (`../domain/forge/README.md`, 5.3), its wake policy
+touch the goal's open work as news (`../domain/forge/topics.md`, 1.3), its wake policy
 pacing them (at most once in 30 minutes: N23), and takes them by a
 catch-up change into g (N6), its words naming main's commit: its
 producer the merge job, merging that commit into a branch made at g's
@@ -450,7 +450,7 @@ arrives while G runs is relayed to that run instead.
 | a change's result | its producer's report and Left list | a new change for what is left, an amendment of a live change, or nothing; L once the plan is done (section 12) |
 | a person task's result | P's choice | the answer it was waiting to give |
 | a red of g's tier, as news | the tier, the failing tests, the log, the tree | a repair change into g, or an amendment (section 10) |
-| a landing into main that touches the goal's open work (`../domain/forge/README.md`, 5.3) | the landing | a catch-up change into g (section 11) |
+| a landing into main that touches the goal's open work (`../domain/forge/topics.md`, 1.3) | the landing | a catch-up change into g (`reference-code-production.md`, section 11) |
 | X's result | the close-out's report | the goal's report, and it finishes (section 12) |
 | an escalation from L | L's hold and why | release, amend, a change into g first, cancel, pass up (`archive/reference-landing.md`) |
 | a red after landing, as news | the tier, the failing tests, the log | triage and a repair into main (`archive/reference-landing.md`) |

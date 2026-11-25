@@ -99,7 +99,7 @@ fn an_uncertain_effect_across_restarts_is_made_before_its_retry_deadline_and_onc
 }
 
 #[test]
-fn nothing_is_decided_before_every_connector_has_settled_its_outbox() {
+fn decisions_open_but_a_due_run_waits_for_its_own_unsettled_effect() {
     let mut world = World::new(Setup { seed: 115, ..Setup::default() });
     applied_without_answer(&mut world);
     world.park_for_message(0);
@@ -115,14 +115,14 @@ fn nothing_is_decided_before_every_connector_has_settled_its_outbox() {
     world.assigned = None;
     world.hold_lookups = true;
     world.restart(115, false);
-    assert!(!world.domain.ready());
+    assert!(world.domain.ready());
     assert_eq!(world.pending_lookups.len(), 1);
     hello(&mut world, Box::new([]));
     account(&mut world);
-    assert!(world.assigned.is_none(), "a due run cannot be assigned while recovery waits");
+    assert!(world.assigned.is_none(), "a due run waits for its recorded effect's recovery");
     world.finish_lookups();
     assert!(world.domain.ready());
-    assert!(world.assigned.is_some(), "the due run starts after every connector settled");
+    assert!(world.assigned.is_some(), "the run remains assigned after settlement");
 }
 
 #[test]
@@ -382,6 +382,8 @@ fn a_restart_with_workers_in_process_settles_their_claims_at_once() {
             stop_with_late_words(&mut world, row.interrupted, row.name);
         }
         let before = world.wall_time().as_nanos();
+        let (now, wall) = world.clocks();
+        world.set_clock(now, wall);
         world.assigned = None;
         world.restart_with(worker_configuration(row.seed, row.in_process));
         assert!(world.domain.ready(), "{}", row.name);
@@ -747,6 +749,8 @@ fn a_restart_settles_an_engine_claim_of_a_both_kinds_charter_at_once() {
         refused: Box::new([]),
         transcript: b"engine window".as_slice().into(),
     });
+    let (now, wall) = world.clocks();
+    world.set_clock(now, wall);
     world.restart_with(both_kinds_engine_fixture(125).0);
     assert!(world.domain.ready(), "engine claim settles before any worker hello");
     assert!(world.store.rows.values().any(|record| matches!(record,
@@ -825,7 +829,8 @@ fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     let mut world = World::new(Setup { seed: 2210, ..Setup::default() });
     let (task, attempt) = world.assignments[0];
     let sign_in = world.sign_in.expect("signed in requester");
-    ask_as(&mut world, sign_in, 71, people::Ask::Stop { project: 1, task });
+    let stop = people::Ask::Stop { project: 1, task, reason: b"Parking the task".as_slice().into() };
+    ask_as(&mut world, sign_in, 71, stop.clone());
     world.park_for_message(0);
     let hold = live_row(&world, task).placed.expect("placed stop");
     let revision = live_row(&world, task).revisions.hold;
@@ -838,6 +843,17 @@ fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     assert_eq!(world.assignments.len(), assignments);
     assert_eq!(world.store.rows.get(&key), Some(&durable));
     assert_eq!(live_row(&world, task).revisions.hold, revision);
+    let committed = world.store.applied;
+    ask_as(&mut world, sign_in, 71, stop);
+    assert_eq!(world.people_answers.last(), Some(&people::Reply::Outcome(people::Outcome::Stopped { task })));
+    assert_eq!(world.store.applied, committed, "the kept reason makes the replay match without remaking the hold");
+    ask_as(
+        &mut world,
+        sign_in,
+        71,
+        people::Ask::Stop { project: 1, task, reason: b"Different reason".as_slice().into() },
+    );
+    assert_eq!(world.people_answers.last(), Some(&people::Reply::Refused(people::Refusal::KeyConflict)));
     hello(&mut world, Box::new([]));
     account(&mut world);
     ask_as(&mut world, sign_in, 72, people::Ask::Release { project: 1, task, revision, again: None });

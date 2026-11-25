@@ -24,7 +24,7 @@
 - **A host's containers never count [M5]:** the failed units counted
   leave out the nspawn unit, `systemd-nspawn@<container>.service`, of
   every container the host's activator keeps records for
-  (hearth/docs/design/domain/activator/README.md, 6.1), with no list to write. Each container's slot has
+  (hearth/docs/design/domain/activator/state.md, 1.1), with no list to write. Each container's slot has
   its own trial and its own facts (`containers.md`, 3); one bad container must not
   roll its host back.
 - **Task checks join in M5** (hearth/docs/design/domain/operating.md, section 3).
@@ -54,7 +54,7 @@
 
 1. **Check:** the marker names this slot and attempt; the slot runs; the
    criterion holds (the activator checks it itself).
-2. **Journal** the bless (hearth/docs/design/domain/activator/README.md, 6.3).
+2. **Journal** the bless (hearth/docs/design/domain/activator/state.md, 1.3).
 3. **Write the slot record** as `blessed`.
 4. **Remove the marker,** and `/run/hearth-trial/x1-prod.b` if a soft
    reboot left one; after a live trial, delete the delta it names
@@ -134,7 +134,7 @@ bless's render (hearth/docs/design/domain/steward.md, section 6):
    to L6 touched is active with the `InvocationID` and `NRestarts` L6
    read; the settle has passed; the criterion holds (1.1); from M5, the
    blessing checks pass (hearth/docs/design/domain/operating.md, section 3).
-2. **Journal** the live bless (hearth/docs/design/domain/activator/README.md, 6.3).
+2. **Journal** the live bless (hearth/docs/design/domain/activator/state.md, 1.3).
 3. **Write the slot record** as `live-blessed`.
 4. **Set the one-shot to the slot's trial entry:** `efibootmgr
    --bootnext 4811`, read back (EFI); or `next_entry=x1-prod.b` in

@@ -108,6 +108,13 @@ impl Remote for Git<'_> {
     }
 }
 
+/// The engine world's forge publishes no counts (temper/docs/design/protocol/git-operations.md, 1.3).
+impl temper_fake_git::counts::Remote for Git<'_> {
+    fn fetch_counts(&mut self, _: &[u8]) -> Result<Option<u64>, Fault> {
+        Ok(None)
+    }
+}
+
 pub(super) struct Workspace {
     domain: checkout::Domain,
     env: Env<checkout::Limits>,
@@ -127,10 +134,10 @@ impl Workspace {
         }
     }
     fn finish(&mut self, world: &mut World, mut event: checkout::Event) -> checkout::Request {
+        let mut pending = Queue::uncapped();
+        let mut terminal = None;
         for _ in 0..ITERATIONS {
             checkout::step(&mut self.domain, &self.env, event, &mut self.out);
-            let mut next = None;
-            let mut terminal = None;
             while let Some(request) = self.out.pop() {
                 match request {
                     checkout::Request::Held { hold, .. } => {
@@ -138,7 +145,7 @@ impl Workspace {
                     }
                     checkout::Request::Io { owner, op, .. } => {
                         let done = checkout_io::perform(&mut Git(world), &mut self.disk, op);
-                        assert!(next.replace(checkout::Event::Done { owner, done }).is_none());
+                        pending.push(checkout::Event::Done { owner, done });
                     }
                     checkout::Request::Cancel { .. } => panic!("no cancellation"),
                     answer => {
@@ -148,11 +155,12 @@ impl Workspace {
             }
             while self.domain.pop_fact().is_some() {}
             self.domain.reclaim();
-            if let Some(answer) = terminal {
-                assert!(next.is_none());
-                return answer;
+            // A terminal answer may leave held-mark writes in flight; settle them before the next call.
+            if let Some(next) = pending.pop() {
+                event = next;
+            } else {
+                return terminal.expect("operation in flight");
             }
-            event = next.expect("operation in flight");
         }
         panic!("checkout settles");
     }
@@ -245,6 +253,7 @@ pub(super) fn inspect(world: &mut World, run: &engine::Assignment) -> (Checkout,
     checkout.finish(world, checkout::Event::Release { hold });
     let workspace = smith_domain_run::Workspace {
         directories: Box::new([smith_domain_run::Directory {
+            results: None,
             host: [b"/".as_slice(), &path].concat().into(),
             name: repository.name.clone(),
             root,

@@ -1,4 +1,4 @@
-//! A window's memory and pace (jig/docs/design/domain/accounts.md, 3.7).
+//! A window's memory and pace (jig/docs/design/domain/accounts-lists.md, 1).
 use jig_accounts_world::{HOLDER, LIMITS, PROVIDER, World, held, issued, program, provider, providers};
 use jig_domain_accounts::{Event, FactWindow, Request, Stored, WindowReading};
 use jig_domain_link::UsageWindow;

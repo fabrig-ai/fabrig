@@ -1,4 +1,4 @@
-//! Charter settings in the file's forms (temper/docs/design/client/ctl/tools.md, 3).
+//! Charter settings in the file's forms (temper/docs/design/client/ctl/tools-acts.md, 1).
 use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
@@ -84,7 +84,7 @@ fn a_missing_or_unknown_wake_member_is_refused_naming_its_path() {
 fn zero_wake_counts_and_durations_are_sent_for_deployment_validation() {
     let file = charter_file(br#", "wake":{"words":{"batch":{"count":0,"age":0}},"notices":"never","news":{"paced":0},"results":"never","questions":false,"answers":false,"timers":false}"#);
     let value = charter(&file);
-    let wire = crate::wire::settings_wire_charter(&value, &Limits::standard().settings).unwrap();
+    let wire = crate::wire::settings_wire_charter(&value);
     assert_eq!(
         (&wire.wake.words),
         &jig_client_protocol_wire::WakeRule::Batch(jig_client_protocol_wire::WakeRuleBatch {
@@ -490,8 +490,8 @@ fn a_project_policy_item_decodes_to_its_setting_and_a_policy_value() {
     let mut out = Encoder::write(measure.measured().expect("policy file fits"), &bounds);
     encode_policy_file(item.setting, &set.value, &mut out);
     assert_eq!(file::decode(&out.finish(), &limits).expect("encoded policy file"), items);
-    let wire = crate::wire::settings_wire_setting(item.setting, &limits.settings).expect("wire project policy");
-    assert_eq!(crate::wire::settings_restore_setting(&wire, &limits), item.setting);
+    let wire = crate::wire::settings_wire_setting(item.setting);
+    assert_eq!(crate::wire::settings_restore_setting(&wire), item.setting);
 }
 #[test]
 fn a_project_policy_edit_a_second_one_or_a_bad_project_is_refused_naming_the_item() {
@@ -634,10 +634,9 @@ fn a_settings_file_template_refuses_malformed_resources_naming_the_path() {
 fn a_charters_tools_round_trip() {
     let source = charter(&charter_file(br#", "tools":1536"#));
     assert_eq!(source.tools, 1536);
-    let limits = Limits::standard();
-    let wire = crate::wire::settings_wire_charter(&source, &limits.settings).unwrap();
+    let wire = crate::wire::settings_wire_charter(&source);
     assert_eq!(wire.tools, 1536);
-    let restored = crate::wire::settings_restore_charter(&wire, &limits).unwrap();
+    let restored = crate::wire::settings_restore_charter(&wire).unwrap();
     assert_eq!(restored, source);
     let bounds = JsonLimits { depth: 32, length: 8192 };
     let mut measure = Encoder::measure(&bounds);

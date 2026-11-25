@@ -101,7 +101,7 @@ shell crates only choose a profile and the values a setting overrides.
   does not declare is refused (../protocol/charter.md, section 2). It never
   holds a credential. It is `smith-agent-document`'s, which this crate
   re-exports (2.6).
-- **Startup,** in the order of skein's `runtime/shell.md`, section 6: the
+- **Startup,** in the order of skein's `runtime/shell-startup.md`, section 1: the
   configuration and the derived edge limits checked, termination
   signals blocked, the endpoints' names resolved, trust roots loaded,
   the seed and the kernel.
@@ -119,7 +119,7 @@ shell crates only choose a profile and the values a setting overrides.
   aborts runs no end. On Linux its programs die with it: it starts each
   through its own binary's `--program-child` mode. On macOS it starts
   them directly, and an abort needs the host's whole tree ended
-  (../protocol/programs.md, 5.1).
+  (../protocol/programs-claude-code.md, 1.1).
 
 ### 2.3 The local shell
 
@@ -148,6 +148,23 @@ shell crates only choose a profile and the values a setting overrides.
 - **Front ends:** the interactive renderer and its plain mode (`commands.md`, 1); the
   headless one, which maps an answer to output and an exit code (`commands.md`, 2, 3
   ). Both read `smith-events` records.
+- **Opened natively, adopted as descriptors.** What `compose` finds of
+  the system before its loop it opens natively, as it does today: the
+  chat store's root, the private chat directory it makes for
+  `--ephemeral` beneath its parent, the directory of `-o`'s file and a
+  `program` account's directory. `Local` adopts each as a descriptor,
+  and everything after goes through its kernel: the result's durable
+  replace, the private chat's removals by name, every close, and the
+  cleanup of a start refused after the private directory was made. A
+  world that hosts `Local` (../testing.md, 4) hands it the fake
+  machine's descriptors through the same adoption, so the order of what
+  the finalizer writes and warns is the shipped one; there is no copy of
+  the finalizer and no filesystem trait.
+- **Facts in, decisions out.** A command's decision over what it found
+  (`smith check`'s report over each program's status, the source
+  `smith logout` acts on, a login's or logout's words over its typed
+  outcome) takes those facts as values, and its adapter finds them, so
+  that its step tests hand it facts.
 
 It owns no store and no loop: chats are kept by `smith-local-protocol`
 over skein io, sign-in records by skein's OAuth driver as private files
@@ -164,7 +181,7 @@ Each lands in skein, with its design, before its smith consumer
   and no shipped binary links a testing crate.
 - **An append sink:** a bounded append stream on the ring, to a file or
   an inherited descriptor, with a write deadline, that counts what it
-  drops and settles exactly at exit (skein's `runtime/io/files.md`, 1). No thread.
+  drops and settles exactly at exit (skein's `runtime/io/files.md`, 9). No thread.
 - **Resource usage:** the CPU time and peak resident size of the process
   and of its reaped children, read by the shell at the end for
   `session.ended` (../protocol/events.md, 3.2).
@@ -185,8 +202,8 @@ Each lands in skein, with its design, before its smith consumer
 - **The LLM client's routes:** OpenAI's public Responses route and
   Anthropic's Messages with a key, a credential as a value and its
   scheme, and the failure classes for an account's limit, its refusal
-  and a field a provider does not take (skein's `llm/README.md`, 2.5, 2.6, 4.7
-  and 4.8).
+  and a field a provider does not take (skein's `llm/vocabulary.md`, 1.5 and 1.6, and `llm/wire.md`, 1.7 and 1.8
+  ).
 - **Trust roots:** the machine's roots, or one DER file, loaded at
   startup (skein's `net/tls.md`).
 - **Terminal modes:** the window's size, as a shell effect, for the
@@ -252,15 +269,21 @@ closure:
     `program_valid` and `program_operations`, with the programs'
     settings, reservations and bounds they compute; the service's run
     reads those from here, never from a copy;
-  - `host_limits`, the host's share of the profile (../protocol/limits.md,
-    3.6 and 3.8).
+  - `host_limits`, the host's share of the profile (../protocol/limits-derivation.md,
+    1.6 and 1.8).
 
   It depends on what the service depended on for these, and on
   `smith-host-domain` for `host_limits`; never on `smith-agent-service`
   or anything that links it.
 - **`smith-agent-document`,** ordinary Rust as the shell is, on the
   profile's crate: `config`, the document decoded from its bytes,
-  resolved and checked, and read from its file; `trace`, the trace's
+  resolved and checked, and read from its file. Resolving reads the
+  trust each endpoint names, its DER files, PEM bundles and the
+  machine's bundle, natively; or, for a caller's tests that replay,
+  takes those roots from the caller for each source the document names,
+  and is otherwise the same: jig's reference binary checks its
+  configurations so in its step tests
+  (`jig/docs/design/protocol/service-testing.md`, 1); `trace`, the trace's
   settings it names; `program`, a program's directory, source and
   sign-in (../protocol/programs.md), on Unix; `host_limits`, the profile
   crate's, re-exported. Its fixture, the standard product document, is
@@ -299,7 +322,7 @@ closure:
   It has no features (skein/docs/foundation/cli.md, 3). The fake program
   the end-to-end tests run is `smith-fake-claude`'s binary, found beside
   `smith`, and the package takes that crate as a dev-dependency alone
-  (../testing.md, 2.3).
+  (../testing-tiers.md, 3).
 - **Nothing is discovered.** `autobins`, `autotests`, `autobenches` and
   `autoexamples` are off, and every target is declared: the binaries
   above, and the tests `end_to_end` (`tests/end-to-end/end_to_end.rs`),
@@ -315,7 +338,7 @@ closure:
   2. reads the settings and runs `smith check`'s checks, refusing with
      their exit code (`settings.md`, 1.3);
   3. blocks termination signals, draws the seed, and opens the kernel
-     and the roots (skein's `runtime/shell.md`, section 6);
+     and the roots (skein's `runtime/shell-startup.md`, section 1);
   4. composes the service, runs it with `skein_shell::drive`, and exits
      with the code its outcome maps to (`commands.md`, 3), once the service holds
      nothing (skein's `runtime/shell.md`, section 12).
@@ -354,8 +377,7 @@ closure:
   - `tests/clippy.toml` is unchanged, and `benchmarks/` keeps its own
     (../benchmarks/README.md), since a harness starts processes.
 - **Every `clippy.toml` here bans catching a panic,** whatever its layer,
-  `crates/smith-agent-document/`'s and `tests/transcript-patches/`'
-  among them: its `disallowed-methods` ends with the two entries for
+  `crates/smith-agent-document/`'s among them: its `disallowed-methods` ends with the two entries for
   `std::panic::catch_unwind` and `std::panic::resume_unwind` that
   `tools/lints/design.md`, 4, gives, byte for byte.
 
@@ -373,7 +395,7 @@ closure:
   directories outside the workspace that builds write: for `rust`,
   `$CARGO_HOME/registry` and `$CARGO_HOME/git`. `smith check` confirms
   each is a directory smith's effective user may write and search, as
-  the kernel answers it (skein's `runtime/shell.md`, 6.1, `directory_access`),
+  the kernel answers it (skein's `runtime/shell-startup.md`, 1.1, `directory_access`),
   creating and changing nothing. A cache it cannot confirm (absent, not a
   directory, or denied, with the kernel's error) is a warning naming the
   cache and why: a build that never writes there is not stopped by it.
@@ -455,7 +477,7 @@ section 8):
     exit 2, naming both.
 - **Step tests in `smith-agent-service` and `smith-local-service`:** the
   `standard` profile derives and passes its edge compatibility checks.
-- **The local host's simulated world** (../testing.md, section 2.1):
+- **The local host's simulated world** (../testing-tiers.md, section 1):
   - one headless story per exit code but 2;
   - events against what the fake provider saw: one `response.completed`
     per response, tool records paired by call id, usage summing to the
@@ -473,7 +495,7 @@ section 8):
     with its exit code and last line;
   - a chat of an earlier version refused, and a chat carried over to
     another account.
-- **End to end** (../testing.md, section 2.3), against fakes:
+- **End to end** (../testing-tiers.md, section 3), against fakes:
   - `smith exec --json` to an accepted answer, and to needs input;
   - `smith check --json`, passing and failing;
   - a startup refusal of each layer;

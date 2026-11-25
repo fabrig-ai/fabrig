@@ -22,6 +22,7 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             | core::CoreKey::Turn { task, .. }
             | core::CoreKey::Terminal { task, .. }
             | core::CoreKey::EscalationDecision { task, .. } => name.task = Some(*task),
+            core::CoreKey::Part(key) => name.task = Some(key.task),
             core::CoreKey::Call(key) => name.task = Some(key.task),
             core::CoreKey::ProposalDecision { proposer, .. } => name.task = proposer_task(*proposer),
             core::CoreKey::Settings(key) => match key {
@@ -123,6 +124,7 @@ fn note_scope(scope: &notes::Scope, name: &mut r::Naming) {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive stored-family naming projection")]
 fn record_names(record: &core::Record, name: &mut r::Naming) {
     match record {
         core::Record::Core(record) => match record {
@@ -130,6 +132,7 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
             core::CoreRecord::Settings(_)
             | core::CoreRecord::Deployment(_)
             | core::CoreRecord::Projection(_)
+            | core::CoreRecord::Part(_)
             | core::CoreRecord::Call(_)
             | core::CoreRecord::RunProof(_)
             | core::CoreRecord::Turn(_)
@@ -260,6 +263,7 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::Withdraw { project, .. } => Some(*project),
         people::Ask::Restore { .. }
         | people::Ask::MakeProject { .. }
+        | people::Ask::ReissueService { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::PauseWorker { .. }
         | people::Ask::MoveToNewest { .. } => Some(0),

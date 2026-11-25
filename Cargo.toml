@@ -84,6 +84,7 @@ members = [
     "skein/testing/skein-fake-person",
     "skein/testing/skein-fake-person-browser",
     "skein/testing/skein-heap",
+    "skein/testing/skein-checks",
     "skein/testing/skein-scratch",
     "skein/testing/skein-throwaway-forgejo",
     "skein/testing/skein-world",
@@ -91,7 +92,6 @@ members = [
     "skein/tests/conformance/sim",
     "skein/tests/browser",
     "skein/tests/codec",
-    "skein/tests/codec-patches",
     "skein/tests/channel",
     "skein/tests/echo",
     "skein/tests/fake-forge",
@@ -127,6 +127,7 @@ members = [
     "smith/testing/smith-agent-document-fixtures",
     "smith/testing/smith-bench-fixtures",
     "smith/testing/smith-end-to-end-kit",
+    "smith/testing/smith-faults",
     "smith/testing/smith-domain-tools-fixtures",
     "smith/testing/smith-domain-run-fixtures",
     "smith/testing/smith-domain-session-fixtures",
@@ -182,10 +183,7 @@ members = [
     "smith/tests/local-process",
     "smith/tests/real",
     "smith/tests/fake-claude",
-    "smith/tests/transcript-patches",
     "jig/testing/jig-test-layouts",
-    "jig/testing/jig-test-patches-jig",
-    "jig/testing/jig-test-patches-smith",
     "jig/testing/jig-client-fake-person-browser",
     "jig/testing/jig-client-test-shell-web",
     "jig/tests/client-browser",
@@ -230,6 +228,7 @@ members = [
     "jig/testing/jig-client-test-kit",
     "jig/testing/jig-test-connector-kit",
     "jig/testing/jig-core-kit",
+    "jig/testing/jig-inspect",
     "jig/testing/jig-client-kit",
     "jig/testing/jig-engine-clients-kit",
     "jig/testing/jig-client-protocol-kit",
@@ -327,9 +326,13 @@ members = [
     "temper/testing/temper-process-guard",
     "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
+    "temper/testing/temper-faults",
+    "temper/testing/temper-workload",
     "temper/testing/temper-limits-fixtures",
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
+    "temper/testing/temper-engine-inspect",
+    "temper/testing/temper-blame",
     "temper/testing/temper-test-env",
     "temper/testing/temper-deployment-fixtures",
     "temper/crates/temper-box-shell",
@@ -394,8 +397,6 @@ members = [
     "temper/bin/temper-twin",
     "temper/crates/temper-qa-tool",
     "temper/bin/temper-qa",
-    "temper/crates/temper-redeploy-tool",
-    "temper/bin/temper-redeploy",
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
@@ -406,6 +407,7 @@ members = [
     "temper/crates/temper-engine-domain-store",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-room",
+    "temper/crates/temper-engine-domain-limits",
     "temper/crates/temper-engine-domain-translate",
     "temper/crates/temper-engine-domain-trials",
     "temper/crates/temper-engine-smith",
@@ -420,6 +422,7 @@ members = [
     "temper/crates/temper-engine-domain-forge-vocabulary",
     "temper/crates/temper-worker-domain",
     "temper/crates/temper-worker-domain-checkout",
+    "temper/testing/temper-worker-inspect",
     "temper/crates/temper-worker-domain-tooling",
     "temper/tests/fake-checkout",
     "temper/tests/playground",
@@ -486,6 +489,7 @@ skein-forge-connection = { path = "skein/crates/skein-forge-connection" }
 skein-throwaway-forgejo = { path = "skein/testing/skein-throwaway-forgejo" }
 skein-fake-person-browser = { path = "skein/testing/skein-fake-person-browser" }
 skein-ui-example-server = { path = "skein/examples/ui/server" }
+skein-ui-example-shell-web = { path = "skein/examples/ui/shell-web" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }
@@ -536,6 +540,7 @@ skein-conformance = { path = "skein/testing/skein-conformance" }
 skein-browser = { path = "skein/testing/skein-browser" }
 skein-browser-rig = { path = "skein/testing/skein-browser-rig" }
 skein-heap = { path = "skein/testing/skein-heap" }
+skein-checks = { path = "skein/testing/skein-checks" }
 skein-scratch = { path = "skein/testing/skein-scratch" }
 skein-echo-domain = { path = "skein/examples/echo/domain" }
 skein-echo-protocol = { path = "skein/examples/echo/protocol" }
@@ -560,15 +565,12 @@ io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 rustix = { version = "1.1.6", features = ["stdio", "fs"] }
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
-rsa = { version = "0.9.9", default-features = false, features = ["pem", "u64_digit"] }
-rand_chacha = { version = "0.3.1", default-features = false }
 # rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4).
 # Named in wasm32-unknown-unknown tables alone (skein/docs/foundation/cli.md, 3).
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
 # rustls with std, named in native tables alone (skein/docs/foundation/cli.md, 3).
 rustls-std = { package = "rustls", version = "=0.23.41", default-features = false, features = ["ring", "tls12", "std"] }
 rustls-pki-types = { version = "1.15", features = ["web"] }
-smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 smith-host-domain = { path = "smith/crates/smith-host-domain" }
 smith-host-domain-fixtures = { path = "smith/testing/smith-host-domain-fixtures" }
@@ -581,6 +583,7 @@ smith-agent-world = { path = "smith/tests/agent" }
 smith-machine-world = { path = "smith/tests/machine" }
 smith-domain = { path = "smith/crates/smith-domain" }
 smith-domain-run = { path = "smith/crates/smith-domain-run" }
+smith-faults = { path = "smith/testing/smith-faults" }
 smith-domain-session = { path = "smith/crates/smith-domain-session" }
 smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
@@ -625,8 +628,6 @@ smith-agent-document = { path = "smith/crates/smith-agent-document" }
 smith-session-world = { path = "smith/tests/session" }
 smith-tools-world = { path = "smith/tests/tools" }
 jig-test-layouts = { path = "jig/testing/jig-test-layouts" }
-jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
-jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
 base64 = { version = "0.22" }
 regex = { version = "1" }
 serde_path_to_error = { version = "0.1" }
@@ -680,6 +681,7 @@ jig-client-test-domain = { path = "jig/testing/jig-client-test-domain" }
 jig-client-test-kit = { path = "jig/testing/jig-client-test-kit" }
 jig-test-connector-kit = { path = "jig/testing/jig-test-connector-kit" }
 jig-core-kit = { path = "jig/testing/jig-core-kit" }
+jig-inspect = { path = "jig/testing/jig-inspect" }
 jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
@@ -728,8 +730,11 @@ temper-process-guard = { path = "temper/testing/temper-process-guard" }
 temper-limits-fixtures = { path = "temper/testing/temper-limits-fixtures" }
 jig-protocol-config-fixtures = { path = "jig/testing/jig-protocol-config-fixtures" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
+temper-faults = { path = "temper/testing/temper-faults" }
+temper-workload = { path = "temper/testing/temper-workload" }
 temper-agent-fixtures = { path = "temper/testing/temper-agent-fixtures" }
 temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
+temper-engine-inspect = { path = "temper/testing/temper-engine-inspect" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-serve-tool = { path = "temper/crates/temper-playground-serve-tool" }
@@ -779,7 +784,6 @@ temper-client-journeys-tool = { path = "temper/crates/temper-client-journeys-too
 temper-client-walk-lines = { path = "temper/crates/temper-client-walk-lines" }
 temper-twin-tool = { path = "temper/crates/temper-twin-tool" }
 temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
-temper-redeploy-tool = { path = "temper/crates/temper-redeploy-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-client-tools-jig = { path = "temper/crates/temper-client-tools-jig" }
@@ -806,6 +810,7 @@ temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-store = { path = "temper/crates/temper-engine-domain-store" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-room = { path = "temper/crates/temper-engine-domain-room" }
+temper-engine-domain-limits = { path = "temper/crates/temper-engine-domain-limits" }
 temper-engine-domain-translate = { path = "temper/crates/temper-engine-domain-translate" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }
 temper-engine-shell = { path = "temper/crates/temper-engine-shell" }
@@ -822,6 +827,7 @@ temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge"
 temper-engine-domain-forge-vocabulary = { path = "temper/crates/temper-engine-domain-forge-vocabulary" }
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
 temper-worker-domain-checkout = { path = "temper/crates/temper-worker-domain-checkout" }
+temper-worker-inspect = { path = "temper/testing/temper-worker-inspect" }
 temper-worker-domain-tooling = { path = "temper/crates/temper-worker-domain-tooling" }
 temper-fake-checkout = { path = "temper/tests/fake-checkout" }
 temper-worker-checkout-world = { path = "temper/tests/worker/checkout" }
@@ -945,6 +951,11 @@ opt-level = 3
 [profile.dev.package.miniz_oxide]
 opt-level = 3
 
+# The store reads every frame through it: optimized, the engine's domain world and jig's core world run
+# 14% and 18% fewer instructions, with the same checks.
+[profile.dev.package.skein-deflate]
+opt-level = 3
+
 [profile.dev.package.crc32fast]
 opt-level = 3
 
@@ -955,13 +966,6 @@ opt-level = 3
 debug-assertions = false
 
 [profile.dev.package.sha2]
-opt-level = 3
-
-# Walks generate a seeded 3072-bit provider key for each world.
-[profile.dev.package.num-bigint-dig]
-opt-level = 3
-
-[profile.dev.package.rsa]
 opt-level = 3
 
 [profile.dev.package.jig-boundary]

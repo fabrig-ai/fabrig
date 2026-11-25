@@ -82,6 +82,7 @@ fn hold(why: tasks::Hold) -> PublicHold {
         tasks::Hold::Deadline => PublicHold::Deadline,
         tasks::Hold::HoldsWaited => PublicHold::HoldsWaited,
         tasks::Hold::Circle => PublicHold::Circle,
+        tasks::Hold::Waited => PublicHold::Waited,
         tasks::Hold::ResourceUnavailable => PublicHold::ResourceUnavailable,
         tasks::Hold::ResourceAccess => PublicHold::ResourceAccess,
         tasks::Hold::PoolLost { .. } => PublicHold::PoolLost,

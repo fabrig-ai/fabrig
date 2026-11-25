@@ -35,6 +35,48 @@ use crate::api::{Answer, Error, Failure, Finish, Line, Message, Part, Query, Rol
 use crate::domain::{Config, Played};
 use crate::{limits, pieces};
 
+/// Calls reaching one cut, shared across credentials.
+#[derive(Debug)]
+pub(crate) struct Cuts {
+    place: pieces::Place,
+    line: usize,
+    calls: u32,
+}
+
+pub(crate) fn cut_count(scripts: &[Script]) -> Option<u32> {
+    let mut count = 0_u32;
+    for script in scripts {
+        for turn in &script.turns {
+            for line in &turn.lines {
+                match line {
+                    Line::Cut { .. } => count = count.checked_add(1)?,
+                    Line::Take { .. }
+                    | Line::Fail { .. }
+                    | Line::Pieces { .. }
+                    | Line::Text { .. }
+                    | Line::Opaque { .. }
+                    | Line::Call { .. } => {}
+                }
+            }
+        }
+    }
+    Some(count)
+}
+
+fn cutting(cuts: &mut List<Cuts>, place: pieces::Place, line: usize, times: u32) -> bool {
+    for cut in cuts.iter_mut() {
+        if cut.place == place && cut.line == line {
+            if cut.calls == times {
+                return false;
+            }
+            cut.calls = cut.calls.checked_add(1).expect("below times");
+            return true;
+        }
+    }
+    cuts.push(Cuts { place, line, calls: 1 }).expect("reserved cut state");
+    true
+}
+
 pub(crate) type Response = Result<(Answer, Option<pieces::Place>), (Failure, Option<pieces::Place>)>;
 
 /// The first failure for one reset-bearing line and credential, or all calls.
@@ -78,6 +120,10 @@ fn before_reset(
 }
 
 #[cfg(test)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")
+)]
 pub(crate) fn respond(
     rng: &mut Rng,
     minted: &mut u64,
@@ -90,8 +136,47 @@ pub(crate) fn respond(
     by_input(rng, minted, config, played, &Rules { cued: Box::new([]), asked: Box::new([]) }, menu, query, now)
 }
 
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")
+)]
 #[expect(clippy::too_many_arguments, reason = "response inputs include independent script rules and injected time")]
 pub(crate) fn by_input(
+    rng: &mut Rng,
+    minted: &mut u64,
+    config: &Config,
+    played: &mut Played,
+    rules: &Rules,
+    menu: &crate::api::Menu,
+    query: &Query,
+    now: Time,
+) -> Response {
+    if let Some(error) = played.accounts.check(query, now) {
+        return Err((error.into(), None));
+    }
+    let result = unstruck(rng, minted, config, played, rules, menu, query, now);
+    if config.cut == 0 || !rng.chance(config.cut) {
+        return result;
+    }
+    match result {
+        Ok((answer, place)) => {
+            let end = rng.below(skein_lib::len_u64(answer.parts.len()).saturating_add(1));
+            let mut parts = List::from_boxed(answer.parts);
+            parts.truncate(u32::try_from(end).expect("bounded parts"));
+            let failure = cut_failure(parts);
+            let place = if failure.parts.is_empty() { None } else { place };
+            Err((failure, place))
+        }
+        Err(failure) => Err(failure),
+    }
+}
+
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "the response retains owned failure evidence and its stream position")
+)]
+#[expect(clippy::too_many_arguments, reason = "response inputs include independent script rules and injected time")]
+fn unstruck(
     rng: &mut Rng,
     minted: &mut u64,
     config: &Config,
@@ -142,7 +227,8 @@ pub(crate) fn by_input(
                     Some(pieces::Place { script, turn: turn_index })
                 }
                 Some(
-                    Line::Take { .. }
+                    Line::Cut { .. }
+                    | Line::Take { .. }
                     | Line::Fail { .. }
                     | Line::Pieces { .. }
                     | Line::Text { .. }
@@ -152,7 +238,7 @@ pub(crate) fn by_input(
                 | None => None,
             };
             let position = pieces::Place { script, turn: turn_index };
-            return match scripted(minted, query, turn, &mut played.resets, position, now) {
+            return match scripted(minted, query, turn, &mut played.resets, &mut played.cuts, position, now) {
                 Ok(answer) => Ok((answer, place)),
                 Err(failure) => Err((failure, place)),
             };
@@ -476,16 +562,25 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
 ///
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn cued(scripts: &[Script], system: &[u8]) -> Option<usize> {
-    // One pass, from each place in the text on, the scripts in order at each.
-    // Bounded by the text: visit every byte suffix, including the empty one.
-    for offset in 0..=system.len() {
-        let text = system.get(offset..).expect("an offset through the text is a suffix");
+    let mut first_bytes = [false; 256];
+    for (index, script) in scripts.iter().enumerate() {
+        // Includes the empty cue, which cannot lose to a later position.
+        if system.starts_with(&script.cue) {
+            return Some(index);
+        }
+        if let Some(first) = script.cue.first() {
+            *first_bytes.get_mut(usize::from(*first)).expect("a byte indexes the byte alphabet") = true;
+        }
+    }
+    // Scan the text once; compare cues only where one can begin. Looking for
+    // each absent cue separately would scan the same long system text again.
+    for (offset, byte) in system.iter().enumerate().skip(1) {
+        if !first_bytes.get(usize::from(*byte)).expect("a byte indexes the byte alphabet") {
+            continue;
+        }
+        let text = system.get(offset..).expect("an enumerated byte begins a suffix");
         for (index, script) in scripts.iter().enumerate() {
-            let leads = match script.cue.first() {
-                Some(first) => text.first() == Some(first),
-                None => true,
-            };
-            if leads && text.starts_with(&script.cue) {
+            if text.starts_with(&script.cue) {
                 return Some(index);
             }
         }
@@ -503,13 +598,14 @@ fn scripted(
     query: &Query,
     turn: &Turn,
     resets: &mut List<Reset>,
+    cuts: &mut List<Cuts>,
     place: pieces::Place,
     now: Time,
 ) -> Result<Answer, Failure> {
     let mut count = u32::try_from(turn.lines.len()).expect("a script's answer fits a u32");
     for line in &turn.lines {
         match line {
-            Line::Take { .. } => count = count.checked_sub(1).expect("one fewer part per take"),
+            Line::Take { .. } | Line::Cut { .. } => count = count.checked_sub(1).expect("one fewer part per take"),
             Line::Text { .. } | Line::Call { .. } | Line::Opaque { .. } | Line::Pieces { .. } | Line::Fail { .. } => {}
         }
     }
@@ -518,6 +614,12 @@ fn scripted(
         let earlier = turn.lines.get(..index).expect("line prefix");
         let part = match line {
             Line::Take { .. } => continue,
+            Line::Cut { times } => {
+                if cutting(cuts, place, index, *times) {
+                    return Err(cut_failure(parts));
+                }
+                continue;
+            }
             Line::Fail { error, report, credentials } => {
                 let named = match query.credential {
                     Some(index) => credentials.contains(&index),
@@ -560,6 +662,26 @@ fn scripted(
         Some(Part::Opaque { .. } | Part::Text { .. } | Part::ToolOutput { .. }) | None => cut_text(),
     };
     Ok(answer(query, parts.into_boxed(), turn.finish, turn.tokens, cut))
+}
+
+fn cut_failure(mut parts: List<Part>) -> Failure {
+    let place = match parts.len().checked_sub(1) {
+        Some(index) => match parts.get_mut(index).expect("last part") {
+            Part::ToolCall { arguments, .. } => {
+                let half = arguments.len().checked_div(2).expect("nonzero divisor");
+                *arguments = copy_of(arguments.get(..half).expect("half the arguments"));
+                crate::api::Cut::MidCall
+            }
+            Part::Text { .. } | Part::Opaque { .. } | Part::ToolOutput { .. } => crate::api::Cut::MidText,
+        },
+        None => crate::api::Cut::BeforeOutput,
+    };
+    Failure {
+        error: Error::Cut(place),
+        report: crate::api::Report::none(),
+        message: Box::new([]),
+        parts: parts.into_boxed(),
+    }
 }
 
 /// The assistant messages a conversation has had.
@@ -765,7 +887,7 @@ mod tests {
     use alloc::boxed::Box;
 
     use skein_lib::bytes::copy_of;
-    use skein_lib::{Duration, Rng};
+    use skein_lib::{Duration, List, Rng};
 
     use super::{call_id, respond, valid};
     use crate::api::{Error, Finish, Line, Message, Part, Role, ToolSpec, Turn};
@@ -987,6 +1109,30 @@ mod tests {
             let unknown = name == b"unknown";
             let broken = arguments == b"{";
             assert!(unknown != broken, "malformed one way: {name:?} {arguments:?}");
+        }
+    }
+
+    #[test]
+    fn cues_choose_the_earliest_position_then_the_first_script() {
+        type Case = (&'static [&'static [u8]], &'static [u8], Option<usize>);
+        let cases: &[Case] = &[
+            (&[b"late", b"early"], b"prefix early late", Some(1)),
+            (&[b"early", b"ear"], b"prefix early", Some(0)),
+            (&[b"ear", b"early"], b"prefix early", Some(0)),
+            (&[b"missing"], b"prefix", None),
+            (&[b"missing", b""], b"", Some(1)),
+            (&[b"x", b""], b"prefix x", Some(1)),
+            (&[b"x", b""], b"x", Some(0)),
+            (&[b"\xffy", b"\0x"], b"prefix \0x \xffy", Some(1)),
+            (&[b"xy"], b"prefix x", None),
+            (&[], b"", None),
+        ];
+        for &(cues, text, expected) in cases {
+            let mut scripts = List::with_capacity(u32::try_from(cues.len()).expect("test cue count"));
+            for cue in cues {
+                scripts.push(script(cue, Box::new([]))).expect("room for every test cue");
+            }
+            assert_eq!(super::cued(scripts.as_slice(), text), expected, "cues {cues:?} in {text:?}");
         }
     }
 

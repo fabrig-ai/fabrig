@@ -32,6 +32,10 @@ impl Acted {
         }
         super::deletion::made_project(&self.outcome)
     }
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    pub(super) const fn due(&self) -> Time {
+        self.due
+    }
     pub(super) const fn at(&self) -> Wall {
         self.at
     }
@@ -218,6 +222,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | OutcomeFamily::Refused
         | OutcomeFamily::CompoundRefused
         | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::ServiceReissued
         | OutcomeFamily::RolesSet(_)
         | OutcomeFamily::ProjectMade(_)
         | OutcomeFamily::Settled => true,
@@ -247,6 +252,7 @@ mod classifications {
                 | OutcomeFamily::Refused
                 | OutcomeFamily::CompoundRefused
                 | OutcomeFamily::ServiceMade(_)
+                | OutcomeFamily::ServiceReissued
                 | OutcomeFamily::RolesSet(_)
                 | OutcomeFamily::ProjectMade(_)
                 | OutcomeFamily::Settled => (true, Reply::Outcome(outcome.clone())),
@@ -267,6 +273,7 @@ mod classifications {
                 | OutcomeFamily::Refused
                 | OutcomeFamily::CompoundRefused
                 | OutcomeFamily::ServiceMade(_)
+                | OutcomeFamily::ServiceReissued
                 | OutcomeFamily::RolesSet(_)
                 | OutcomeFamily::Settled => None,
             };

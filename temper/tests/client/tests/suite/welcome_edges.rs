@@ -1,5 +1,5 @@
 //! Welcome scenarios from client/pages/README.md, client/forge/family.md, 7, client/view.md, 1, client/pages/welcome.md, 2,
-//! and client/web/README.md, 2.3–2.4. Only the world's public surface is used.
+//! and client/web/addresses.md, 1, and client/web/sign-in.md, 1. Only the world's public surface is used.
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_ui::Role;
@@ -57,7 +57,7 @@ fn unknown_and_unrelated_fields_drop_from_welcome() {
 
 #[test]
 fn repeated_step_keeps_first_readable_value() {
-    // client/web/README.md, 2.3: as the inbox query, repeats after the first that read are dropped.
+    // client/web/addresses.md, 1: as the inbox query, repeats after the first that read are dropped.
     for (path, step) in [
         ("/welcome?at=forge&at=model", Step::Forge { forge: None }),
         ("/welcome?at=model&at=ready", Step::Model { way: None }),

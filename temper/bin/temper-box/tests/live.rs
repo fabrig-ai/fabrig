@@ -8,7 +8,7 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
     let started = clock.now().now;
     let scratch = support::Scratch::live();
     let forgejo = support::forgejo::Throwaway::start(&scratch);
-    support::configuration(scratch.path(), &forgejo.forge());
+    support::lay_configuration(scratch.path(), &forgejo.forge());
     let instructions = support::live::configure(scratch.path(), &forgejo);
     support::live::notice("TAG live-native; sitting=first; phase=chat-and-push; budget=2580s");
     let result = (|| -> Result<(), String> {
@@ -75,7 +75,7 @@ fn the_held_record_returns_on_a_box_of_its_own() {
     .unwrap_or_else(|message| panic!("{}", support::held_login::not_back(&message, &store)));
 }
 
-/// testing/live-tier.md and protocol/credentials.md, 3: a held login used in place.
+/// testing/live-tier.md and protocol/credentials-llm-accounts.md, 1: a held login used in place.
 #[test]
 #[ignore = "live: a held Claude Code login, TEMPER_TEST_LIVE_CLAUDE; the after-landing tier, or scripts/proof-live.sh forge-land-claude"]
 fn a_person_asks_claude_code_to_land_a_change_on_the_owned_forge() {

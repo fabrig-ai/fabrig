@@ -23,7 +23,7 @@ impl World {
 
     /// Release one batch without offering queued inputs or applying commits.
     pub fn collect(&mut self) {
-        self.drive(1, false, false).unwrap_or_else(|finding| self.fail(&finding));
+        self.drive(1, false, false, false, &mut |_| Ok(())).unwrap_or_else(|finding| self.fail(&finding));
     }
 
     /// Apply and offer the oldest store completion without releasing outputs.
@@ -32,6 +32,17 @@ impl World {
         self.tick_store().unwrap_or_else(|finding| self.fail(&finding));
         let event = self.events.pop_front().expect("store terminal");
         self.send_retaining(event);
+    }
+
+    /// Apply the oldest store commit without delivering its completion.
+    ///
+    /// # Errors
+    /// Returns the number of a failed store commit.
+    pub fn withhold_store_completion(&mut self) -> Result<Option<u64>, u64> {
+        let before = self.store.applied;
+        let result = self.store.tick(true);
+        self.observe_durable(before).unwrap_or_else(|finding| self.fail(&finding));
+        result
     }
 
     /// Write sign-ins without answering commits until admission returns a probe.
@@ -66,12 +77,19 @@ impl World {
 
 impl World {
     pub(super) fn tick_store(&mut self) -> Result<(), String> {
+        let before = self.store.applied;
         match self.store.tick(false) {
             Ok(Some(number)) => self.events.push_front(root::Event::Committed { number, fill: self.fill }),
             Ok(None) => {}
             Err(number) => self.events.push_front(root::Event::Failed { number }),
         }
+        self.observe_durable(before)
+    }
+    fn observe_durable(&mut self, before: u64) -> Result<(), String> {
         self.observer.durable(self.wall, &self.store)?;
+        if self.store.applied != before {
+            self.check_durable()?;
+        }
         Ok(())
     }
     pub(super) fn capture(&mut self, mut delivery: root::Delivery) -> Result<(), String> {

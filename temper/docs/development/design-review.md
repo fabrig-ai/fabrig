@@ -82,13 +82,13 @@ Kind: overlap. Owner: `temper/docs/design/client/forge/repositories.md`.
 
 Kind: overlap. Owner: `temper/docs/design/domain/forge/change/gates.md`.
 
-`temper/docs/design/domain/forge/change/gates.md`, 2 says force-pushing does not exist and no kind moves a branch backwards, while `temper/docs/design/domain/landing.md`, 5.2 explicitly permits a prepare rebase and the preamble of `temper/docs/design/domain/worker/jobs.md` permits the prepare job's leased rewrite. Suggest having gates distinguish a run's delivery from landing prepare and cite that exception, rather than leaving two meanings of the prohibition. The landing text already distinguishes the two; no exception is being added by this report.
+`temper/docs/design/domain/forge/change/gates.md`, 2 says force-pushing does not exist and no kind moves a branch backwards, while `temper/docs/design/domain/landing-prepare.md`, 1.2 explicitly permits a prepare rebase and the preamble of `temper/docs/design/domain/worker/jobs.md` permits the prepare job's leased rewrite. Suggest having gates distinguish a run's delivery from landing prepare and cite that exception, rather than leaving two meanings of the prohibition. The landing text already distinguishes the two; no exception is being added by this report.
 
 ### 2.4 O4: Who owns the settling reread
 
 Kind: overlap. Owner: `temper/docs/design/domain/forge/keeping-up.md`.
 
-`temper/docs/design/protocol/setup/README.md`, 6 retells the mergeability/CI settling loop (hinted, doubling to poll, within settle), while `temper/docs/design/domain/forge/keeping-up.md`, 2 specifies it in full, including that the change procedure, not the keep, does those fresh reads. The setup text also speaks of the keep reading the hints. Suggest keeping the algorithm in keeping-up and retaining only box provisioning, delivery coverage and its proof in setup; the different descriptions of its actor need the owner's reconciliation. `temper/docs/design/protocol/forge/README.md`, 4 is a forwarding summary and is not a third finding.
+`temper/docs/design/protocol/setup/webhooks.md`, 1 retells the mergeability/CI settling loop (hinted, doubling to poll, within settle), while `temper/docs/design/domain/forge/keeping-up.md`, 2 specifies it in full, including that the change procedure, not the keep, does those fresh reads. The setup text also speaks of the keep reading the hints. Suggest keeping the algorithm in keeping-up and retaining only box provisioning, delivery coverage and its proof in setup; the different descriptions of its actor need the owner's reconciliation. `temper/docs/design/protocol/forge/README.md`, 4 is a forwarding summary and is not a third finding.
 
 ### 2.5 O5: Two contracts for a change task page
 
@@ -130,19 +130,19 @@ The item in `temper/docs/design/client/forge/family.md`, 8 says the client has n
 
 Kind: answered question. Owner: `temper/docs/design/protocol/setup/README.md`.
 
-"A token for the person's scripts and agents" in `temper/docs/design/protocol/setup/README.md`, 10 starts "Settled" and specifies the two read/write headers and the prohibition on using admin_token. It cites the design that settles it: `temper/docs/design/protocol/setup/owned.md`, 3, `temper/docs/design/protocol/setup/owned.md`, 5 and `temper/docs/design/protocol/setup/box.md`, 2. Suggest retiring the closed question; no token policy is changed here.
+"A token for the person's scripts and agents" in `temper/docs/design/protocol/setup/README.md`, 10 starts "Settled" and specifies the two read/write headers and the prohibition on using admin_token. It cites the design that settles it: `temper/docs/design/protocol/setup/owned.md`, 3, `temper/docs/design/protocol/setup/owned.md`, 5 and `temper/docs/design/protocol/setup/box-supervision.md`, 1. Suggest retiring the closed question; no token policy is changed here.
 
 ### 2.12 A6: The first project and the later repository
 
 Kind: answered question. Owner: `temper/docs/design/protocol/setup/README.md`.
 
-"After the first repository" in `temper/docs/design/protocol/setup/README.md`, 9 states a complete flow and the runtime project-creation rule, rather than identifying what is deferred. The first repository's creation and separate adoption are already `temper/docs/design/protocol/setup/owned.md`, 7, and the New repository act is specified in the preamble's act table in `temper/docs/design/client/forge/deployment.md`. Suggest removing the settled project/adoption account from Later; if a further generic-form design is intended, name only that remaining work. The owner must separate those parts, not move this mixed item wholesale.
+"After the first repository" in `temper/docs/design/protocol/setup/README.md`, 9 states a complete flow and the runtime project-creation rule, rather than identifying what is deferred. The first repository's creation and separate adoption are already `temper/docs/design/protocol/setup/owned-repositories.md`, 1, and the New repository act is specified in the preamble's act table in `temper/docs/design/client/forge/deployment.md`. Suggest removing the settled project/adoption account from Later; if a further generic-form design is intended, name only that remaining work. The owner must separate those parts, not move this mixed item wholesale.
 
 ### 2.13 A7: The pinned Claude download walked once
 
 Kind: answered question. Owner: `temper/docs/design/protocol/setup/README.md`.
 
-"Claude Code's download walked" in `temper/docs/design/protocol/setup/README.md`, 9 asks the next walker to try the real pinned fetch once. "What a real box's walk has not shown" in `temper/docs/design/client/pages/README.md`, 3 records that fetch up to the sign-in prompt and its reuse on a second run. Suggest closing that particular once-only request while keeping the unproved paid call, failure, concurrent-fetch and other-platform cases distinct. A retained test is not claimed by either account.
+"Claude Code's download walked" in `temper/docs/design/protocol/setup/README.md`, 9 asks the next walker to try the real pinned fetch once. "What a real box's walk has not shown" in `temper/docs/design/client/pages/README.md`, 7 records that fetch up to the sign-in prompt and its reuse on a second run. Suggest closing that particular once-only request while keeping the unproved paid call, failure, concurrent-fetch and other-platform cases distinct. A retained test is not claimed by either account.
 
 ### 2.14 A8: The encoder of delivery evidence
 
@@ -154,7 +154,7 @@ Kind: answered question. Owner: `temper/docs/design/protocol/channel.md`.
 
 Kind: answered question. Owner: `temper/docs/design/protocol/git.md`.
 
-"HEAD after saving unfinished work" in `temper/docs/design/protocol/git-later.md`, 1 is now a complete answer: a nonsnapshot commit does not move HEAD, preparation checks it out, and save/delivery snapshots advance it. Those rules are designed in `temper/docs/design/protocol/git.md`, 4.7 and in the preamble of `temper/docs/design/domain/worker/checkouts.md`. Suggest removing the answered question rather than moving its restatement.
+"HEAD after saving unfinished work" in `temper/docs/design/protocol/git-later.md`, 1 is now a complete answer: a nonsnapshot commit does not move HEAD, preparation checks it out, and save/delivery snapshots advance it. Those rules are designed in `temper/docs/design/protocol/git-operations.md`, 1.7 and in the preamble of `temper/docs/design/domain/worker/checkouts.md`. Suggest removing the answered question rather than moving its restatement.
 
 ### 2.16 A10: Clients that are not a person's
 
@@ -166,7 +166,7 @@ Kind: answered question. Owner: `temper/docs/design/client/README.md`.
 
 Kind: answered question. Owner: `temper/docs/design/domain/worker/checkouts.md`.
 
-"A push's message" in `temper/docs/design/domain/worker/checkouts.md`, 2 asks how the pull request takes the run's title/body and whether a squash keeps them. `temper/docs/design/domain/forge/change/README.md`, 1 already specifies the producer result's explicit title, its cut/default, and the pull's body source separately from the spec. Suggest removing the answered pull-metadata part and leaving only the squash-message question if still undecided. The whole mixed item cannot be settled by moving it.
+"A push's message" in `temper/docs/design/domain/worker/checkouts.md`, 30 asks how the pull request takes the run's title/body and whether a squash keeps them. `temper/docs/design/domain/forge/change/README.md`, 1 already specifies the producer result's explicit title, its cut/default, and the pull's body source separately from the spec. Suggest removing the answered pull-metadata part and leaving only the squash-message question if still undecided. The whole mixed item cannot be settled by moving it.
 
 ### 2.18 A12: The reference project's main-only rule
 
@@ -202,7 +202,7 @@ The runner/worker choice in `temper/docs/design/domain/after-landing.md`, 13 say
 
 Kind: stale question. Owner: `temper/docs/design/client/pages/home.md`.
 
-"A project's only goal ending while Home is open" in `temper/docs/design/client/pages/home.md`, 2 says Away's Shown reads has_goals too. `temper/docs/design/client/pages/README.md`, 2 now specifies Shown by the project's classes or an on Away row, and `temper/docs/design/client/view.md`, 3 uses that same predicate. Suggest removing that stale Away premise without assuming that the separate bounded-goal-read concern has gone away.
+"A project's only goal ending while Home is open" in `temper/docs/design/client/pages/home.md`, 2 says Away's Shown reads has_goals too. `temper/docs/design/client/pages/shared-behaviour.md`, 1 now specifies Shown by the project's classes or an on Away row, and `temper/docs/design/client/view-navigation.md`, 1 uses that same predicate. Suggest removing that stale Away premise without assuming that the separate bounded-goal-read concern has gone away.
 
 ### 2.24 D1: Repeated rendered-comparison requests
 
@@ -210,10 +210,10 @@ Kind: duplicated question. Owner: `temper/docs/design/client/web/README.md`.
 
 The following are independent full after-landing comparison checklists for the same named requests, not just citations to one checklist. Their different state lists and proof limits need to be reconciled before copies can become references. Suggest keeping one browser-comparison obligation per request in the browser document, with page and journey documents stating only their unique proof limits and citing it. Instances:
 
-- Home/two-step/night: `temper/docs/design/client/pages/README.md`, 3, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
+- Home/two-step/night: `temper/docs/design/client/pages/README.md`, 7, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 - Chat terminal: `temper/docs/design/client/pages/chat/terminal.md`, 2, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 - Models: `temper/docs/design/client/pages/settings.md`, 3, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
-- Connect flows: `temper/docs/design/client/forge/README.md`, 8, `temper/docs/design/client/pages/README.md`, 3, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
+- Connect flows: `temper/docs/design/client/forge/README.md`, 8, `temper/docs/design/client/pages/README.md`, 7, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 - Chat heading: `temper/docs/design/client/pages/chat/README.md`, 3 and `temper/docs/design/client/web/journeys.md`, 10.
 - Flow drawing and draft-to-goal: `temper/docs/design/client/pages/chat/document.md`, 2, `temper/docs/design/client/web/README.md`, 3, `temper/docs/design/client/web/journeys.md`, 10.
 
@@ -221,13 +221,13 @@ The following are independent full after-landing comparison checklists for the s
 
 Kind: duplicated question. Owner: `temper/docs/design/client/README.md`.
 
-`temper/docs/design/client/README.md`, 5.8, `temper/docs/design/client/web/README.md`, 3 and `temper/docs/design/protocol/configuration/README.md`, 9 each defer the public-name/Google terminal approval flow; the first two repeat the typed code, request origin/age and remotely ended sign-ins. Suggest keeping that future client-flow question with `temper/docs/design/client/README.md`, 4.1 and citing it from the browser/configuration questions, preserving the distinct init loopback restriction. That restriction and the differing detail make this a merge rather than a blind move.
+`temper/docs/design/client/sign-in.md`, 2, `temper/docs/design/client/web/README.md`, 3 and `temper/docs/design/protocol/configuration/README.md`, 9 each defer the public-name/Google terminal approval flow; the first two repeat the typed code, request origin/age and remotely ended sign-ins. Suggest keeping that future client-flow question with `temper/docs/design/client/sign-in.md`, 1.1 and citing it from the browser/configuration questions, preserving the distinct init loopback restriction. That restriction and the differing detail make this a merge rather than a blind move.
 
 ### 2.26 D3: The forge OAuth flow described as two open questions
 
 Kind: duplicated question. Owner: `temper/docs/design/protocol/credentials.md`.
 
-The forge-as-people's-provider items in `temper/docs/design/client/README.md`, 5.8 and `temper/docs/design/protocol/credentials.md`, 8 both describe temper-owned OAuth routes and the same server-side Mint flow. The client item additionally suggests a terminal device-code flow; credentials additionally owns the OAuth registration's secret storage. Suggest keeping the prospective server/Mint contract in credentials, with the client question limited to its client-specific continuation and a citation. This concerns repeated protocol design inside the client question, not the legitimate distinction between UI behavior and credential storage.
+The forge-as-people's-provider items in `temper/docs/design/client/sign-in.md`, 2 and `temper/docs/design/protocol/credentials.md`, 8 both describe temper-owned OAuth routes and the same server-side Mint flow. The client item additionally suggests a terminal device-code flow; credentials additionally owns the OAuth registration's secret storage. Suggest keeping the prospective server/Mint contract in credentials, with the client question limited to its client-specific continuation and a citation. This concerns repeated protocol design inside the client question, not the legitimate distinction between UI behavior and credential storage.
 
 ## 3. Moves done
 
@@ -238,39 +238,39 @@ failed-link item keeps the existing client-root wording instead.
 
 ### 3.1 Proposal-form diagnostics
 
-Map item 1: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 1: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.2 A charter where the process has no local agent
 
-Map item 2: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 2: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.3 A collaborator's login in `read_collaborators`
 
-Map item 3: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 3: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.4 `read_permission`'s login held to the settings family
 
-Map item 4: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 4: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.5 Which host tools a charter offers
 
-Map item 5: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 5: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.6 Who may name a plan's members of `change`
 
-Map item 6: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 6: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.7 A change's foremen's LLM choice
 
-Map item 7: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 7: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.8 A cancel's grace
 
-Map item 8: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 8: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.9 A change produced by a job of any kind
 
-Map item 9: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 9: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.10 A permission for its own requester alone
 
@@ -338,31 +338,31 @@ Map item 25: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/des
 
 ### 3.26 A workflow that runs on no pull request
 
-Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.27 What a refused copy leaves
 
-Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.28 A merge style per repository,
 
-Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.29 A change whose forge is not connected,
 
-Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.30 `Forbidden` and `Missing` taken as access lacking
 
-Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.31 Signed commits required
 
-Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.32 Connecting a forge as another user
 
-Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.33 Saved branches outside the task's saved set
 
@@ -470,23 +470,23 @@ Map item 58: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/de
 
 ### 3.59 A landing branch with another name than `main`
 
-Map item 59: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 1.
+Map item 59: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 9.
 
 ### 3.60 A chat checking the forge before declaring a repository absent
 
-Map item 60: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 1.
+Map item 60: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 9.
 
 ### 3.61 The reference's later runs
 
-Map item 61: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 1.
+Map item 61: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 5.
 
 ### 3.62 The checks' deadline
 
-Map item 62: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 1.
+Map item 62: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 5.
 
 ### 3.63 Who writes the case's workflows
 
-Map item 63: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 1.
+Map item 63: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 5.
 
 ### 3.64 Settings refusal positions
 
@@ -522,23 +522,23 @@ Map item 71: `temper/docs/design/protocol/configuration/README.md`, 9 → `tempe
 
 ### 3.72 The real-browser check of watch sizing
 
-Map item 72: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 72: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.73 A party's fair share of the watch rooms
 
-Map item 73: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 73: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.74 `views.`'s other names
 
-Map item 74: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 74: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.75 Profiles' numbers
 
-Map item 75: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 75: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.76 The rest of an assignment's transcript and of a person's read
 
-Map item 76: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 1.
+Map item 76: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/limits.md`, 8.
 
 ### 3.77 A configuration directory moved or copied
 
@@ -578,15 +578,15 @@ Map item 85: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/
 
 ### 3.86 A start holding the engine's documents to temper's clients
 
-Map item 86: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 86: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.87 The deployment's own UX
 
-Map item 87: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 87: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.88 Flags of their own
 
-Map item 88: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 88: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.89 An owned forge made managed
 
@@ -747,15 +747,15 @@ Map item 127: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/de
 
 ### 3.128 A real chat choosing `change`
 
-Map item 128: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 3.
+Map item 128: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/design/domain/agent/tools.md`, 9.
 
 ### 3.129 A closer's stops on a goal's path
 
-Map item 129: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 1.
+Map item 129: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 8.
 
 ### 3.130 A close-out's own charter
 
-Map item 130: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 1.
+Map item 130: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 8.
 
 ### 3.131 Project-scoped rules on a real forge
 
@@ -771,19 +771,19 @@ Map item 133: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/d
 
 ### 3.134 A forge's run on a head replaced
 
-Map item 134: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/README.md`, 7.
+Map item 134: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/records.md`, 1.
 
 ### 3.135 An early update against the bound
 
-Map item 135: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/README.md`, 7.
+Map item 135: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/records.md`, 1.
 
 ### 3.136 Ask temper's real-model walk
 
-Map item 136: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 1.
+Map item 136: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 9.
 
 ### 3.137 A page refused busy
 
-Map item 137: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/client/pages/README.md`, 3.
+Map item 137: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/client/pages/README.md`, 7.
 
 ### 3.138 A kept GitHub forge whose base ends in `/`
 
@@ -791,23 +791,23 @@ Map item 138: `temper/docs/design/protocol/configuration/README.md`, 9 → `temp
 
 ### 3.139 Four agents on a laptop
 
-Map item 139: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 139: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.140 Discovering models per account
 
-Map item 140: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 140: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.141 The LLM providers out of the document,
 
-Map item 141: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 141: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.142 Good defaults for a person's real work
 
-Map item 142: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 142: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.143 A task's text past what the clients receive
 
-Map item 143: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 143: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.144 A handover made by a Forgejo's own restart
 
@@ -827,7 +827,7 @@ Map item 147: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/
 
 ### 3.148 A failed link with a live cookie
 
-Map item 148: `temper/docs/design/client/web/README.md`, 3 → `temper/docs/design/client/README.md`, 5.8. Existing destination item retained; source now cites it.
+Map item 148: `temper/docs/design/client/web/README.md`, 3 → `temper/docs/design/client/sign-in.md`, 2. Existing destination item retained; source now cites it.
 
 ## 4. Owner index for what is left
 

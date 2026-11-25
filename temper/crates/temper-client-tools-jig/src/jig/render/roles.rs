@@ -1,4 +1,4 @@
-//! Standing roles and their whole Now (client/ctl/tools.md, 2).
+//! Standing roles and their whole Now (client/ctl/tools-reads.md, 1).
 use super::{Limits, Printed, Text};
 use crate::jig::runner::reads::Reading;
 use alloc::boxed::Box;

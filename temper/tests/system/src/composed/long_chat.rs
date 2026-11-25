@@ -54,7 +54,7 @@ impl World {
         world.run();
         for number in 1..EXCHANGES {
             let proposal = world.pending_configuration();
-            world.process.resume(exchange(&reply, u32::from(number) + 1));
+            world.lanes[0].process.resume(exchange(&world.restart_config, &reply, u32::from(number) + 1));
             world.act(
                 parties::Ask::Decision { proposer: parties::Proposer::Task(1), proposal, accept: true },
                 [number; 16],
@@ -71,12 +71,12 @@ impl World {
     fn long_chat(mode: u8, reply: &[u8]) -> Self {
         let mut world = Self::configured_limits(
             933,
-            exchange(reply, 1),
+            exchange(&config(933), reply, 1),
             false,
             if mode == 0 { window_config } else { config },
             limits,
         );
-        let bounds = &mut world.worker_env.limits;
+        let bounds = &mut world.lanes[0].worker_env.limits;
         bounds.host.transcript_bytes = u64::from(HISTORY_BYTES);
         bounds.agent.transcript_bytes = u64::from(HISTORY_BYTES);
         bounds.reply_bytes = 8192;
@@ -86,28 +86,28 @@ impl World {
         bounds.agent.turn_bytes = 65536;
         bounds.host.turn_queue_bytes = 131_072;
         bounds.agent.unacknowledged_bytes = 131_072;
-        world.worker = worker::Domain::new(bounds, Box::new([]));
-        world.process.history_messages = Some(257);
+        world.lanes[0].worker = worker::Domain::new(bounds, Box::new([]));
+        world.lanes[0].process.history_messages = Some(257);
         world
     }
 
     fn recover_description(&mut self, mode: u8) {
         match mode {
             0 => {}
-            1 => self.worker_env.limits.agent.transcript_bytes = 32768,
+            1 => self.lanes[0].worker_env.limits.agent.transcript_bytes = 32768,
             2 => {
                 self.restart_long_chat();
-                self.process.history_messages = Some(8);
+                self.lanes[0].process.history_messages = Some(8);
             }
             _ => panic!("unknown history boundary"),
         }
         let mut script = text_script(ANSWER);
         script.cue = INSTRUCTIONS.into();
-        self.process.resume(script);
+        self.lanes[0].process.resume(script);
         self.act(parties::Ask::Say { task: parties::Task::Last, words: DESCRIPTION.into(), release: None }, [80; 16]);
         for _ in 0..20000 {
             self.tick();
-            if self.process.answered.is_some_and(|(turns, _)| turns > 0)
+            if self.lanes[0].process.answered.is_some_and(|(turns, _)| turns > 0)
                 && self.observed.answers > usize::from(EXCHANGES)
             {
                 self.run();
@@ -125,12 +125,13 @@ impl World {
 
     fn restart_long_chat(&mut self) {
         assert!(self.store.idle(), "restart between committed activations");
-        self.root = engine::Domain::new(config(self.seed), &self.env.limits).expect("restart configuration");
+        self.replace_root(config(self.seed));
         self.root_events = super::VecDeque::from([engine::Event::Restart { pending: false }]);
         self.protocol = super::Protocol::default();
-        self.worker = worker::Domain::new(&self.worker_env.limits, Box::new([]));
-        self.worker_events = super::VecDeque::from([worker::Event::Ready]);
+        self.lanes[0].worker = worker::Domain::new(&self.lanes[0].worker_env.limits, Box::new([]));
+        self.lanes[0].worker_events = super::VecDeque::from([worker::Event::Ready]);
         self.opened = false;
+        self.ends.restarted(self.env.now);
     }
 
     fn assert_description(&self, mode: u8) {
@@ -154,10 +155,10 @@ impl World {
 
     fn prompt_contains(&self, words: &[u8]) -> bool {
         self.agent().prompts().iter().any(|prompt| {
-            prompt.system.windows(words.len()).any(|bytes| bytes == words)
+            skein_lib::bytes::find(&prompt.system, words).is_some()
                 || prompt.messages.iter().flat_map(|message| &message.parts).any(|part| {
                     matches!(part, skein_fake_llm_domain::api::Part::Text { text }
-                        if text.windows(words.len()).any(|bytes| bytes == words))
+                        if skein_lib::bytes::find(text, words).is_some())
                 })
         })
     }
@@ -184,9 +185,8 @@ fn transcript_bytes(row: &engine::Record) -> Option<usize> {
     }
 }
 
-fn exchange(reply: &[u8], against: u32) -> super::Script {
+fn exchange(config: &engine::Config, reply: &[u8], against: u32) -> super::Script {
     use jig_domain_core::{SettingsAnswer, reads::SettingDocument, settings as s};
-    let config = config(933);
     let mut charter = config.core.defaults.charters[0].clone();
     charter.policy.instructions =
         [INSTRUCTIONS, format!("\nExplain configuration revision {against}.").as_bytes()].concat().into_boxed_slice();

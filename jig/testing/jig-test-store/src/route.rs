@@ -42,6 +42,11 @@ impl Routes {
         self.restore_bytes = Some(store::sizes::restore_bytes(limits)?);
         Some(())
     }
+    /// The same decode and page bounds, with no requests or continuations.
+    #[must_use]
+    pub fn fresh(&self) -> Routes {
+        Routes { limits: self.limits, restore_bytes: self.restore_bytes, ..Self::new(0) }
+    }
     /// Whether every routed store request has terminated.
     #[must_use]
     pub fn idle(&self) -> bool {
@@ -92,12 +97,7 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
                 Phase::LoadInbox => {
                     census.as_ref()?;
                 }
-                Phase::Link
-                | Phase::Wires
-                | Phase::AdoptRuns
-                | Phase::ReadAfresh { .. }
-                | Phase::SettleOutbox { .. }
-                | Phase::Open => return None,
+                Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => return None,
             }
             let owner = routes.keep(Flight::Start { phase, census });
             if phase == Phase::Switch {
@@ -141,13 +141,7 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
         Phase::LoadInbox => Restore::Jig(Box::new([core::RestoreRange::Census(census.clone()?)])),
         Phase::RestoreConnector { connector } => Restore::Application(Box::new([live(connector)])),
         Phase::Sweep => Restore::Jig(Box::new([core::RestoreRange::People])),
-        Phase::Link
-        | Phase::Switch
-        | Phase::Wires
-        | Phase::AdoptRuns
-        | Phase::ReadAfresh { .. }
-        | Phase::SettleOutbox { .. }
-        | Phase::Open => return None,
+        Phase::Link | Phase::Switch | Phase::Wires | Phase::AdoptRuns | Phase::Open => return None,
     };
     Some(Request::Restore {
         owner,
@@ -204,6 +198,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused
         | core::Now::SeenConversation { .. }
         | core::Now::LoadEndedRead { .. }
@@ -224,16 +219,12 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
                 into.push(Up::Root(root::Event::StartPageRefused { failure }));
             }
         }
-        // The reference shells never hand patch sets. Return the unknown
-        // written site to its open's asker through their ordinary request path.
+        // This route has no job handlers; answer through the ordinary request path.
         Event::Job { owner, .. } => {
             into.push(Up::Ask(Request::Job {
                 owner,
                 answer: Err(store::JobRefusal { key: None, why: Box::from("no such job in this shell") }),
             }));
-        }
-        Event::Site { owner, patcher, site, .. } => {
-            into.push(Up::Ask(Request::Site { owner, patcher, result: Err(skein_codec::patch::Halt::NoSite(site)) }));
         }
         Event::Committed { number, fill } => into.push(Up::Root(root::Event::Committed { number, fill })),
         Event::Failed { number, .. } | Event::FrameTooLarge { number, .. } => {
@@ -282,7 +273,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::OpenRefused { .. } => stop(routes, into),
         Event::Switched { owner } => switched(routes, owner, into),
         // The shell driving open owns progress; this root route prints no lines.
-        // This reference route does not consume the census (protocol/store/README.md, 6.3).
+        // This reference route does not consume the census (protocol/store/growth.md, 1.3).
         Event::Census { .. }
         | Event::Checkpointed { .. }
         | Event::CheckpointRefused { .. }

@@ -6,22 +6,18 @@ use temper_engine_domain_forge_closer as c;
 use temper_engine_domain_forge_vocabulary::CloserRow;
 
 fn encode_step(step: c::Step) -> w::ClosingStep {
-    crate::generated::store::closing_step_to_record(&step, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::closing_step_to_record(&step)
 }
 fn decode_step(step: w::ClosingStep) -> c::Step {
-    crate::generated::store::closing_step_to_domain(step, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::closing_step_to_domain(step)
 }
 fn encode_run(run: Option<c::Running>) -> Option<w::ClosingRun> {
     let run = run?;
-    Some(crate::generated::store::closing_run_to_record(&run, &super::Context::UNBOUNDED).expect(FITS))
+    Some(crate::generated::store::closing_run_to_record(&run))
 }
 fn decode_run(run: Option<w::ClosingRun>) -> Option<c::Running> {
     let run = run?;
-    Some(
-        crate::generated::store::closing_run_to_domain(run, &super::Context::UNBOUNDED)
-            .expect("infallible store translation"),
-    )
+    Some(crate::generated::store::closing_run_to_domain(run))
 }
 pub(super) fn encode(row: &CloserRow) -> w::Closer {
     let closed = match &row.closer.closed {
@@ -41,6 +37,8 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
         None => None,
     };
     w::Closer {
+        report_check: crate::generated::store::closing_report_check_to_record(&row.closer.report_check),
+        goal_left: row.closer.goal_left.clone(),
         task: row.task,
         goal: row.goal,
         closed,
@@ -54,10 +52,13 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
         selections: encode_selections(&row.closer.selections),
         done: row.done,
         relay: encode_relay(&row.relay),
+        superseded: List::from_boxed(row.superseded.clone()),
     }
 }
 pub(super) fn decode(row: w::Closer) -> CloserRow {
     let w::Closer {
+        report_check,
+        goal_left,
         task,
         goal,
         closed,
@@ -71,6 +72,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         selections,
         done,
         relay,
+        superseded,
     } = row;
     let closed = match closed {
         Some(tasks) => Some(tasks.tasks.into_boxed()),
@@ -98,9 +100,12 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
             hold,
             retry,
             selections: decode_selections(selections),
+            report_check: crate::generated::store::closing_report_check_to_domain(report_check),
+            goal_left,
         },
         making,
         close_changes: close_changes.into_boxed(),
+        superseded: superseded.into_boxed(),
         landing_changes: landing_changes.into_boxed(),
         relay: decode_relay(relay),
         done,
@@ -108,14 +113,14 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
 }
 
 fn encode_relay(relay: &c::relay::Relay) -> Option<w::ClosingRelay> {
-    if relay.open.is_none() && relay.replies.is_empty() {
+    if relay.open.is_none() && relay.waiting.is_empty() && relay.replies.is_empty() {
         return None;
     }
-    Some(crate::generated::store::closing_relay_to_record(relay, &super::Context::UNBOUNDED).expect(FITS))
+    Some(crate::generated::store::closing_relay_to_record(relay).expect(FITS))
 }
 fn decode_relay(relay: Option<w::ClosingRelay>) -> c::relay::Relay {
     match relay {
-        Some(relay) => crate::generated::store::closing_relay_to_domain(relay, &super::Context::UNBOUNDED).expect(FITS),
+        Some(relay) => crate::generated::store::closing_relay_to_domain(relay),
         None => c::relay::Relay::new(),
     }
 }
@@ -123,10 +128,7 @@ fn decode_relay(relay: Option<w::ClosingRelay>) -> c::relay::Relay {
 fn encode_selections(selections: &[c::PullSelection]) -> List<w::ClosingSelection> {
     let mut rows = List::with_capacity(u32::try_from(selections.len()).expect(FITS));
     for selection in selections {
-        rows.push(
-            crate::generated::store::closing_selection_to_record(selection, &super::Context::UNBOUNDED).expect(FITS),
-        )
-        .expect(FITS);
+        rows.push(crate::generated::store::closing_selection_to_record(selection).expect(FITS)).expect(FITS);
     }
     rows
 }
@@ -134,10 +136,7 @@ fn encode_selections(selections: &[c::PullSelection]) -> List<w::ClosingSelectio
 fn decode_selections(selections: List<w::ClosingSelection>) -> Box<[c::PullSelection]> {
     let mut rows = List::with_capacity(selections.len());
     for selection in selections.into_boxed() {
-        rows.push(
-            crate::generated::store::closing_selection_to_domain(selection, &super::Context::UNBOUNDED).expect(FITS),
-        )
-        .expect(FITS);
+        rows.push(crate::generated::store::closing_selection_to_domain(selection)).expect(FITS);
     }
     rows.into_boxed()
 }

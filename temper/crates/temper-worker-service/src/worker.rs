@@ -3,6 +3,8 @@
 pub(crate) mod credentials;
 mod diagnostics;
 mod jobs;
+#[path = "worker/testing.rs"]
+pub(crate) mod testing;
 #[cfg(test)]
 #[path = "tests/worker_jobs.rs"]
 mod tests;
@@ -28,14 +30,12 @@ use temper_worker_domain as root;
 use worker_settings::problem;
 
 /// The worker's root directory and pinned agent, prepared by the shell
-/// (domain/worker/README.md, 5).
+/// (domain/worker/agent-processes.md, 1).
 #[derive(Debug)]
 pub struct WorkerRuntime {
     pub root: Fd,
     pub path: Box<[u8]>,
     pub agent: jig_protocol_config::Agent,
-    /// A world's wire statement and bridges; production uses the build's whole ranges.
-    pub wires: Option<worker_settings::Wires>,
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
@@ -109,7 +109,7 @@ struct Remote {
     last_refusal: Option<(core::net::SocketAddr, crate::Refusal)>,
 }
 /// The worker names itself within the hub's wire bound, keeping the head
-/// (temper/docs/design/domain/worker/checkouts.md, 1.3).
+/// (temper/docs/design/domain/worker/checkouts-prepare.md, 12.3).
 fn hosted_detail(name: &[u8], detail: &[u8], bound: u32) -> Box<[u8]> {
     let size = name.len().saturating_add(detail.len()).saturating_add(7);
     let mut text = Writer::new(size.min(usize::try_from(bound).expect("u32 detail bound")));
@@ -155,16 +155,9 @@ impl Worker {
         if bytes.len() > usize::try_from(config_limits.link.secret).expect("secret bound") {
             return Err(problem(b"secret", What::Bound));
         }
-        let mut credential = worker_settings::credential(settings, secret, &prepared.payload)
-            .or(Err(problem(b"limits", What::Bound)))?;
-        let jig = match runtime.wires {
-            Some(wires) => {
-                credential.application = wires.application;
-                wires.jig
-            }
-            None => jig_protocol_worker_wire::spoken(),
-        };
-        let link = link::Component::with_schema(&prepared.link, jig, credential, seed, prepared.schema)
+        let wires = prepared.wires;
+        let credential = worker_settings::credential(settings, secret, wires.application);
+        let link = link::Component::with_schema(&prepared.link, wires.jig, credential, seed, prepared.schema)
             .or(Err(problem(b"limits", What::Bound)))?;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
@@ -194,7 +187,7 @@ impl Worker {
             events: Queue::uncapped(),
             engine: Queue::uncapped(),
             held: Queue::with_capacity(
-                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes)
+                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes, prepared.link.room)
                     .ok_or(problem(b"limits", What::Bound))?
                     .frames
                     .checked_add(3)
@@ -312,6 +305,11 @@ impl Worker {
     pub fn notes(&mut self) -> &mut Queue<crate::worker_alone::Note> {
         &mut self.notes
     }
+    pub(super) fn set_local_places(&mut self, places: u32) {
+        self.root.set_local_places(places, &self.env, &mut self.out);
+        self.drain_root();
+    }
+
     /// Offer a domain entrance and dispatch its hand-outs in order.
     pub fn offer(&mut self, event: root::Event) {
         self.step(event);
@@ -362,7 +360,7 @@ impl Worker {
         }
     }
     /// Whether every agent process the worker spawned has closed, one still
-    /// spawning among them (protocol/README.md, section 6).
+    /// spawning among them (protocol/service-process.md, section 1).
     #[must_use]
     pub fn agents_ended(&self) -> bool {
         self.processes.is_empty()
@@ -569,12 +567,6 @@ impl Worker {
     #[expect(clippy::too_many_lines, reason = "the worker link dispatch keeps every protocol request arm together")]
     pub fn link(&mut self, _now: Time, request: link::Request) {
         match request {
-            link::Request::CannotSendWhole { wire, version } => {
-                self.notes.push(crate::worker_alone::Note::CannotSendWhole { wire, version });
-            }
-            link::Request::Untranslated { kind, halt } => {
-                self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
-            }
             link::Request::Figures { figures } => self.hear_figures(figures),
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
@@ -657,6 +649,9 @@ impl Worker {
                     self.io.push(io::Request::Abort { entity });
                 }
             }
+            link::Request::ResendPart { run, attempt, part } => {
+                self.engine.push(root::Event::ResendPart { run, attempt, part });
+            }
             link::Request::Closed => self.closed = true,
             link::Request::Refused { reason, text } => {
                 self.notes.push(crate::worker_alone::Note::OpeningRefused { reason, text });
@@ -699,7 +694,6 @@ impl Worker {
                     | link::Loss::Full
                     | link::Loss::Busy
                     | link::Loss::Fault
-                    | link::Loss::EngineStatesNoWires
                     | link::Loss::Unreachable => None,
                 };
                 if let Some(reason) = reason
@@ -838,7 +832,7 @@ impl Worker {
         );
         self.answered(settled);
     }
-    /// A list launch by the run's form (protocol/README.md, section 5).
+    /// A list launch by the run's form (protocol/service-routing.md, section 2).
     fn list_launch(&self) -> Option<host::ListLaunch> {
         let arguments: Box<[Box<[u8]>]> = match self.arguments.as_ref() {
             [internal, agent, configuration]
@@ -1102,16 +1096,17 @@ impl Worker {
         }
         self.io.push(request);
     }
-    fn process_send(&mut self, owner: Token, message: smith::Down) {
-        let values = match &message {
+    fn process_send(&mut self, owner: Token, mut message: smith::Down) {
+        let values = match &mut message {
             smith::Down::Start { start, .. } => start_values(&self.values, start, &self.path, self.env.now),
             smith::Down::Grant { grant } => grant_value(&self.values, *grant, self.env.now),
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
+            | smith::Down::PartKept { .. }
             | smith::Down::Acknowledge { .. }
             | smith::Down::Cancel
             | smith::Down::Renewals { .. }
-            | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
+            | smith::Down::Drain { .. } => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
         let Some(values) = values else {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -1140,6 +1135,9 @@ impl Worker {
             smith::Down::Answer { call, reply } => {
                 process.send_reply(call, reply, token, &mut self.process_events, &mut self.io)
             }
+            smith::Down::PartKept { number } => {
+                process.send_part_kept(number, token, &mut self.process_events, &mut self.io)
+            }
             smith::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
             }
@@ -1147,7 +1145,7 @@ impl Worker {
                 process.send_renewals(held, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
-            smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
+            smith::Down::Drain { grace } => process.send_drain(grace, token, &mut self.process_events, &mut self.io),
         };
         if sent.is_err() {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -1401,13 +1399,7 @@ fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> O
     if value.scheme != scheme {
         return None;
     }
-    Some(smith_channel::CredentialValue {
-        scheme: match scheme {
-            Scheme::Bearer => smith_channel::Scheme::Bearer,
-            Scheme::Key => smith_channel::Scheme::Key,
-        },
-        bytes: value.token.clone(),
-    })
+    Some(crate::generated::channel::credential_value_to_record(value))
 }
 pub(crate) fn grant_value(table: &Table, grant: smith::Grant, now: Time) -> Option<host::Values> {
     let value = account(table, grant, now)?;
@@ -1444,9 +1436,10 @@ fn sending(message: smith::Down, values: &host::Values, agent: &Agent) -> smith:
         | smith::Down::Grant { .. }
         | smith::Down::Message { .. }
         | smith::Down::Answer { .. }
+        | smith::Down::PartKept { .. }
         | smith::Down::Acknowledge { .. }
         | smith::Down::Cancel
-        | smith::Down::Drain) => other,
+        | smith::Down::Drain { .. }) => other,
     }
 }
 
@@ -1454,13 +1447,13 @@ pub(crate) fn fit_start(start: smith::Start, agent: &Agent) -> smith::Start {
     worker_route::fit_start(start, &agent.run_limits, agent.host_limits.charter_bytes)
 }
 
-pub(crate) fn start_values(table: &Table, start: &smith::Start, root: &[u8], now: Time) -> Option<host::Values> {
+pub(crate) fn start_values(table: &Table, start: &mut smith::Start, root: &[u8], now: Time) -> Option<host::Values> {
     let mut values = List::with_capacity(u32::try_from(start.grants.len()).ok()?);
     for grant in &start.grants {
         values.push(account(table, *grant, now)?).ok()?;
     }
     let mut paths = List::with_capacity(u32::try_from(start.directories.len()).ok()?);
-    for directory in &start.directories {
+    for directory in &mut start.directories {
         let token = Decimal::of(directory.root.raw());
         let capacity = root
             .len()
@@ -1474,7 +1467,16 @@ pub(crate) fn start_values(table: &Table, start: &smith::Start, root: &[u8], now
         path.put(token.as_bytes()).ok()?;
         path.put(b"/").ok()?;
         path.put(&directory.name).ok()?;
-        paths.push(path.finish()).ok()?;
+        let path = path.finish();
+        directory.results = if directory.writable {
+            let mut results = Writer::new(path.len().checked_add(b"/.git/smith-check".len())?);
+            results.put(&path).ok()?;
+            results.put(b"/.git/smith-check").ok()?;
+            Some(results.finish())
+        } else {
+            None
+        };
+        paths.push(path).ok()?;
     }
     Some(host::Values { paths: paths.into_boxed(), credentials: values.into_boxed() })
 }
@@ -1536,6 +1538,7 @@ mod prepared_tests {
         let connection = Token::new(1);
         worker.link.down(Time::ZERO, Event::Dialled { connection }, &mut out);
         let mut writes = List::uncapped();
+        let mut ready = false;
         for _ in 0_u8..32 {
             let Some(request) = out.pop() else { break };
             match request {
@@ -1571,11 +1574,13 @@ mod prepared_tests {
                     }
                 }
                 Request::Lower { lower: Lower::Read(_), .. } => {}
+                Request::Ready => ready = true,
                 other => panic!("unexpected opening request: {other:?}"),
             }
         }
         assert!(out.is_empty());
         assert_eq!(remaining, b"");
+        assert!(ready, "the terms complete the opening");
         let mut sent = 0_u8;
         for write in &writes {
             match write {
@@ -1589,110 +1594,56 @@ mod prepared_tests {
         writes
     }
 
-    fn cap(wire: &jig_protocol_worker_wire::Spoken, versions: &[(&str, u16)]) -> jig_protocol_worker_wire::Spoken {
-        let mut version = wire.lowest;
-        for (name, chosen) in versions {
-            if *name == wire.name {
-                version = *chosen;
-                break;
-            }
-        }
-        jig_protocol_worker_wire::Spoken::current(
-            wire.name,
-            version,
-            wire.layout(version).expect("chosen version is kept"),
-        )
-    }
-
     #[test]
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the test refuses every unexpected opening request")]
-    fn the_worker_s_opening_states_chosen_versions() {
-        use jig_protocol_worker_link as link;
-        use skein_lib::Reader;
-
+    #[expect(clippy::disallowed_macros, reason = "the test appends a newline to the owner's schema text")]
+    fn a_prepared_worker_states_each_prepared_layout_and_text() {
+        use jig_protocol_worker_wire as wire;
+        use temper_protocol_worker_wire::SCHEMA;
         let settings = fixtures::worker_settings();
-        let prepared =
-            crate::worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits())
-                .expect("worker bounds");
-        // The seam accepts chosen versions too, not just the default floors.
-        let chosen = [("smith-charter", 5)];
-        let mut application = temper_protocol_worker_wire::application(&prepared.payload).expect("worker application");
-        for wire in application.spoken.iter_mut() {
-            *wire = cap(wire, &chosen);
-        }
-        let mut jig = jig_protocol_worker_wire::spoken();
-        for wire in jig.iter_mut() {
-            *wire = cap(wire, &chosen);
-        }
-        let expected_jig = jig.clone();
-        let expected_application = application.spoken.clone();
-        let mut credential = crate::worker_settings::credential(&settings, fixtures::WORKER_SECRET, &prepared.payload)
-            .expect("worker credential");
-        credential.application = application;
+        let agent = fixtures::worker_agent();
+        let limits = fixtures::worker_limits();
+        let files = fixtures::worker_files();
+        let mut prepared = crate::worker_settings::prepare(&settings, &agent, &limits).expect("prepared bounds");
+        assert_eq!(prepared.wires.jig, wire::spoken());
+        // A distinct equivalent text proves construction uses the prepared description, not a fresh one.
+        let application = prepared.wires.application.spoken.get_mut(0).expect("application wire");
+        application.text = format!("{SCHEMA}\n").leak();
+        let application = application.clone();
+        let expected = prepared.wires.jig.clone();
+        let table = prepared.schema.clone();
+        let link = prepared.link;
         let mut worker =
-            link::Component::with_schema(&prepared.link, jig, credential, 7, prepared.schema).expect("worker link");
-        let mut out = Queue::uncapped();
-        worker.fire(Time::ZERO, &mut out);
-        let Request::Dial = out.pop().expect("first dial") else { panic!("first dial") };
-        let connection = Token::new(1);
-        worker.down(Time::ZERO, Event::Dialled { connection }, &mut out);
-        let mut opening = None;
-        for _ in 0_u8..32 {
-            let Some(request) = out.pop() else { break };
-            match request {
-                Request::Lower { lower: Lower::Write(stream::OutputDown::Room { right, .. }), .. } => worker.down(
-                    Time::ZERO,
-                    Event::Lower {
-                        connection,
-                        event: LowerEvent::Write(stream::OutputUp::Settled {
-                            right,
-                            outcome: stream::OutputOutcome::Granted,
-                        }),
-                    },
-                    &mut out,
-                ),
-                Request::Lower { lower: Lower::Write(stream::OutputDown::Send { bytes, .. }), .. } => {
-                    let (header, body) = bytes.split_at_checked(8).expect("channel frame header");
-                    let header = skein_channel::parse_header(header).expect("channel frame");
-                    let channel_limits = link::channel_limits(&prepared.link).expect("channel limits");
-                    let skein_channel::Control::Open { credential, lowest, highest, .. } =
-                        skein_channel::decode_control(header.kind, body, &channel_limits).expect("opening frame")
-                    else {
-                        panic!("open control")
-                    };
-                    assert_eq!((lowest, highest), (16, 16));
-                    opening = Some(
-                        jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v21::CEILINGS,
-                            &mut Reader::new(&credential),
-                        )
-                        .expect("worker credential"),
+            super::Worker::prepared(&settings, &agent, &limits, &files, fixtures::worker_runtime(), 7, prepared)
+                .expect("prepared worker");
+        let writes = opening(&mut worker, &link, &table);
+        let channel_limits = jig_protocol_worker_link::channel_limits(&link).expect("channel limits");
+        let mut found = None;
+        for write in &writes {
+            if let stream::OutputDown::Send { bytes, .. } = write {
+                let (header, body) = bytes.split_at_checked(8).expect("channel frame header");
+                let header = skein_channel::parse_header(header).expect("channel frame");
+                if let Ok(skein_channel::Control::Open { credential, lowest, highest, .. }) =
+                    skein_channel::decode_control(header.kind, body, &channel_limits)
+                {
+                    assert_eq!((lowest, highest), (wire::VERSION, wire::VERSION));
+                    found = Some(
+                        wire::Credential::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(&credential))
+                            .expect("credential"),
                     );
+                    break;
                 }
-                Request::Lower { lower: Lower::Read(_) | Lower::FinishWrite, .. }
-                | Request::Lower {
-                    lower: Lower::Write(stream::OutputDown::Cancel { .. } | stream::OutputDown::Release { .. }),
-                    ..
-                } => {}
-                other => panic!("unexpected opening request: {other:?}"),
             }
         }
-        let opening = opening.expect("the worker sent an opening");
-        assert_eq!(opening.wires.len(), 5);
-        let mut charter = None;
-        for wire in &opening.wires {
-            if wire.name.as_ref() == b"smith-charter" {
-                charter = Some(wire);
-                break;
-            }
-        }
-        let charter = charter.expect("charter stated");
-        assert_eq!(charter.lowest, 5, "the chosen version overrides the floor");
-        for (stated, wire) in opening.wires.iter().zip(expected_jig.iter().chain(expected_application.iter())) {
-            assert_eq!(stated.name.as_ref(), wire.name.as_bytes());
-            assert_eq!(stated.lowest, wire.lowest);
-            assert_eq!(stated.layouts.as_slice(), wire.layouts.as_slice());
-            assert_eq!(stated.layouts.len(), 1, "one version of every wire");
+        let statement = found.expect("the worker sent the opening");
+        assert_eq!(statement.wires.len(), 5);
+        for (stated, spoken) in statement.wires.iter().zip(expected.iter().chain(core::iter::once(&application))) {
+            assert_eq!(stated.name.as_ref(), spoken.name.as_bytes());
+            assert_eq!(stated.layout, spoken.layout);
+            assert!(
+                stated.text.as_ref() == spoken.text.as_bytes(),
+                "the opening carries {}’s prepared text",
+                spoken.name
+            );
         }
     }
 

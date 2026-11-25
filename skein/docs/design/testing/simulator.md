@@ -37,7 +37,7 @@ randomness and no hash map with a random seed, so a seed replays. It
 needs no kernel layouts and no `unsafe`. skein's own io worlds and
 simulated worlds use it, and so do a service's simulated worlds. Its own
 tests are a crate of their own, `tests/sim`, and the conformance suite
-runs against it in `tests/conformance/sim` (README.md, 6).
+runs against it in `tests/conformance/sim` (layout.md, 1).
 
 ## 3. The world
 
@@ -66,7 +66,7 @@ runs against it in `tests/conformance/sim` (README.md, 6).
   (world.md, 4).
 - **The trace** holds each submission, each completion reaped and each
   fault drawn, under its process's pid, and the state digests the world
-  harness writes beside them (../runtime/lib.md, 5.1; README.md, section 5): an entry
+  harness writes beside them (../runtime/lib-containers.md, 1.1; service-tiers.md, section 1): an entry
   `Event::Digest([u8; 32])`, under the process's pid, or under
   `Pid::MACHINE`, `Pid(u32::MAX)`, printed `machine`, for the machine's.
   `spawn_process` never gives that pid. A `None` digest writes no entry.
@@ -109,12 +109,12 @@ processes and the simulator.
   world asks its machine for a root and gives the handle to a process
   (`Sim::root`), which then holds it as a descriptor.
 - **Files appended to.** The shell opens a file to append at startup
-  (../runtime/shell.md, 6); in a world, the world asks its machine for the file,
+  (../runtime/shell-startup.md, 1); in a world, the world asks its machine for the file,
   made if it is absent, and gives the handle to a process as a descriptor
   open to append, as it gives a root. An `Append` goes to the machine as a
   write at the file's end at the moment the simulator delivers it, so
   appends from two descriptors interleave whole, as the kernel's do. It
-  meets the faults of a `Write` (section 4), `hung` among them.
+  meets the faults of a `Write` (`simulator.md`, section 4), `hung` among them.
 - **Locks are the machine's,** as the files are: a `Lock` goes to the
   machine with the handle it names, and the machine answers it taken, or
   `Busy` while another handle of the same file holds it. A handle's lock
@@ -124,12 +124,12 @@ processes and the simulator.
   every lock.
 - **`Stat`** answers the owner and the links the machine keeps for what is
   open: every file of the minimal machine has one owner, and a second
-  name made in a scenario's tree gives a file two links (../runtime/kernel.md, 6.1).
+  name made in a scenario's tree gives a file two links (../runtime/kernel-files.md, 1).
   `Stat` and `StatEntry` answer the rest of what the machine keeps for an
   entry: its group, its mode up to `0o7777`, its inode, its device, and
   its two times, which move on with each change the machine makes, from
   the world's clock, and never back.
-- **A tree's metadata, and the filesystem** (../runtime/kernel.md, 6.4 and 6.5), go
+- **A tree's metadata, and the filesystem** (../runtime/kernel-files.md, 2 and 3), go
   to the machine as calls naming a directory's handle and a name: an
   entry stated, a link read, a link or a second name made, a mode, an
   owner or an attribute set, an attribute removed, an entry's attributes
@@ -186,7 +186,7 @@ the kernel's: each child's pidfd, its pipes, its exit and its group.
 ### 3.3 Cuts at an operation
 
 A world may cut a process at any operation, as a power loss or a kill
-would: to show that what a service keeps durably survives (../runtime/io/files.md, 2).
+would: to show that what a service keeps durably survives (../runtime/io/files.md, 10).
 
 - **The cut** is at a chosen point in the process's submissions: the
   process is dropped with what it has in flight, which never completes,
@@ -204,13 +204,13 @@ would: to show that what a service keeps durably survives (../runtime/io/files.m
   directory's entries changed by a rename or a create only once the
   directory was synced, and a rename whole or not at all (../data/kv.md, 8), a
   rename between two directories once the directory it lands in was
-  synced, in one directory or the other until then (../runtime/kernel.md, 6.1); a
-  file's length cut (../runtime/kernel.md, 6.1) only once the file was synced, the
+  synced, in one directory or the other until then (../runtime/kernel-files.md, 1); a
+  file's length cut (../runtime/kernel-files.md, 1) only once the file was synced, the
   old length kept until then; a new link or a second name, as a create's,
   only once its directory was synced; a mode, an owner or an attribute
   only once its file, or its filesystem, was synced; and everything
-  written to a filesystem, once it was synced whole (../runtime/kernel.md, 6.4 and
-  6.5). The choices are drawn from the seed.
+  written to a filesystem, once it was synced whole (../runtime/kernel-files.md, 2 and
+  3). The choices are drawn from the seed.
 - **After the cut** the world starts the process again over what the
   machine kept, with the roots it had, and the referee checks what it
   recovers: for a durable replace, the old content or the new, whole.
@@ -221,7 +221,7 @@ would: to show that what a service keeps durably survives (../runtime/io/files.m
 ### 3.4 Cgroups and trees
 
 The simulator keeps a cgroup hierarchy as the kernel does, beneath the
-service's own cgroup, which the world gives it (../runtime/shell.md, 6.4). It does
+service's own cgroup, which the world gives it (../runtime/shell-startup.md, 1.4). It does
 not play the helper's namespaces or view: those are the program's
 environment, which the machine plays.
 
@@ -229,7 +229,7 @@ environment, which the machine plays.
   its members and the cgroups beneath it. A cgroup a world makes twice,
   removes while it holds a process or has one beneath, or enables
   controllers on while it holds a process, fails as the kernel's does
-  (../runtime/kernel.md, 6.6); so do a limit whose controller the parent has not
+  (../runtime/kernel-cgroups.md, 1); so do a limit whose controller the parent has not
   enabled, and a depth or a count past the bounds.
 - **Membership follows the fork,** whatever the group: a child spawned
   into a cgroup is in it, and so is every process it starts, one that
@@ -283,11 +283,11 @@ accept queues, descriptors, connect timeouts) and each fault's chance:
   files before the machine is asked; and a filesystem that hangs an
   `Open`, `Read`, `Write`, `Append` or `Sync` until a `Cancel` stops it,
   the machine never asked: an append stream's write deadline, and its
-  close deadline while it closes, meet it there (../runtime/io/files.md, 1). The records
+  close deadline while it closes, meet it there (../runtime/io/files.md, 9). The records
   of a tree's metadata and of the filesystem meet the disk's faults as
   the others do, those that read only its I/O error and the kernel out
-  of memory; none of them hangs, as none can be cancelled (../runtime/kernel.md,
-  6.1).
+  of memory; none of them hangs, as none can be cancelled (../runtime/kernel-files.md,
+  1).
 
 A calm configuration has no faults and roomy buffers; a chaotic one turns
 every fault on, often enough that a few hundred seeds meet each one, with
@@ -308,7 +308,9 @@ small buffers so that sends are cut and stall.
   handle that no process holds.
 - **At quiescence, on request:** nothing in flight, and every descriptor
   closed; once a world settles, every hosted child that exited of its own
-  had its output pipes read to their end.
+  had its output pipes read to their end, but for a pipe the world
+  abandoned by name (a host that is gone, ../../foundation/testing-strategy.md, 6):
+  its reader closed before its end, it alone may hold output unread.
 - **Each check returns its finding** (../../foundation/programming-model.md, 10.4):
   what broke, in the report's text, the seed and the trace's end with it.
   The simulator's entry points call it and panic on its `Err`, once, so
@@ -333,7 +335,7 @@ small buffers so that sends are cut and stall.
 
 Memory is not the simulator's to check, though a simulated world checks it
 at every iteration (../../foundation/testing-strategy.md, 6), with the counting allocator,
-`skein-heap` (README.md, 5). The harness checks each hosted process's
+`skein-heap` (service-tiers.md, 1). The harness checks each hosted process's
 measured peak against the ceiling its scenario names, with headroom
 (../runtime/shell.md, 11). One thread, one heap: a process's part is what grew within
 the calls that run its code, including construction, each `iterate`,

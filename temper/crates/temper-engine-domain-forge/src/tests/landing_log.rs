@@ -1,4 +1,4 @@
-//! Landing history survives its changes (temper/docs/design/domain/after-landing.md, 10).
+//! Landing history survives its changes (temper/docs/design/domain/after-landing-storage.md, 1).
 use super::*;
 
 fn saved(out: &Queue<Request>) -> Box<[LandingLog]> {
@@ -119,6 +119,7 @@ fn a_pull_seen_merged_is_logged() {
         branch_fresh: false,
         base_tip: Some(FIRST),
         base_read: Some(FIRST),
+        close_landing: None,
         pull: Some(pull),
         ci: change::Status::Passed,
         base_ci: change::Status::Passed,
@@ -487,7 +488,7 @@ fn a_restore_infers_verifying_from_ranges_and_drops_removed_tiers() {
         }
         d.tiers.get_mut(&(REPO, TIER.into())).unwrap().pending = Box::new([TierLanding { commit: LAST, key: None }]);
         let tier = d.tiers.get(&(REPO, TIER.into())).unwrap().clone();
-        let mut restored = configured_domain(&[(TIER, None)]);
+        let mut restored = configured_tiers(domain(), &[(TIER, None)]);
         restored.restore_begin(Wall::EPOCH);
         step(&mut restored, &env(), Event::Restore { record: Stored::Tier(tier) }, &mut Queue::uncapped());
         step(&mut restored, &env(), Event::Restore { record: Stored::LandingLog(log) }, &mut Queue::uncapped());

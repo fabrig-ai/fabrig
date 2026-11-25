@@ -23,7 +23,7 @@ pub enum PolicyChange {
     Permissions { mappings: Box<[PermissionRole]> },
     /// Replace the project's template overrides.
     Templates { overrides: Box<[crate::TemplateOverride]> },
-    /// Replace one role's spend per period alone (domain/authority.md, 7).
+    /// Replace one role's spend per period alone (domain/authority-budgets.md, 1).
     RoleSpend { role: u32, period_spend: u64 },
 }
 

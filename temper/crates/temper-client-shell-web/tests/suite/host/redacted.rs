@@ -1,4 +1,4 @@
-//! Real host and view evidence for redaction (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys.md, 3.7–3.8 and 4).
+//! Real host and view evidence for redaction (temper/docs/design/client/web/journeys-recordings.md, 1.3 and temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys-recordings.md, 1.7–1.8 and 2).
 use super::{walk, written};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
@@ -141,7 +141,7 @@ fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
     let record = skein_ui_web::store::Record {
         key: jig_client::STREAM_KEY.into(),
         value: {
-            let kept = w::Kept { store_version: 1, record: vec![8; 16].into() };
+            let kept = w::Kept { layout: w::LAYOUT, record: vec![8; 16].into() };
             let mut writer = Writer::new(
                 usize::try_from(kept.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
                     .expect("kept length"),

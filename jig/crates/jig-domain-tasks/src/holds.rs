@@ -1,12 +1,9 @@
 //! Connector-configured, whole-set hold admission and bounded waiting
 //! (domain/tasks/holds.md, 2, 5, 6 and 7). Names are opaque; the hub orders tasks and
 //! never interprets a connector's path.
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::result_large_err,
-        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
-    )
+#![expect(
+    clippy::result_large_err,
+    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
 )]
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{
@@ -26,7 +23,7 @@ pub(crate) struct KindKey {
 /// A report's order is refreshed even when its name is already cached
 /// (domain/tasks/holds.md, 2). Reports and pins are memory alone.
 #[derive(Hash, Debug)]
-pub(crate) struct Report {
+pub struct Report {
     pub hold: HoldKind,
     pub order: u64,
 }
@@ -59,6 +56,20 @@ impl Domain {
         if self.report_pins.contains_key(&owner) {
             return Ok(());
         }
+        let own = self.report_names(batch)?;
+        if !own.is_empty() {
+            self.report_pins.insert(owner, own).expect("owners bounded by admitted core continuations");
+        }
+        Ok(())
+    }
+
+    /// Check room for an application's batch without reserving any report pins.
+    pub fn check_report_pins(&self, batch: &[New]) -> Result<(), crate::CapacityCause> {
+        self.report_names(batch)?;
+        Ok(())
+    }
+
+    fn report_names(&self, batch: &[New]) -> Result<Set<Name>, crate::CapacityCause> {
         let limit = self.resources.capacity();
         let mut kept = Set::with_capacity(limit);
         for (number, _) in &self.names {
@@ -86,10 +97,7 @@ impl Domain {
                 own.insert(name.clone()).expect("batch names fit beside kept names");
             }
         }
-        if !own.is_empty() {
-            self.report_pins.insert(owner, own).expect("owners bounded by admitted core continuations");
-        }
-        Ok(())
+        Ok(own)
     }
 
     /// Release a made, refused or dropped batch's reservation; repeated release is harmless.
@@ -279,7 +287,7 @@ pub(crate) fn same(a: &Holding, b: &Holding) -> bool {
     name(a) == name(b)
 }
 
-fn holder(domain: &Domain, holding: &Holding) -> Option<u64> {
+pub(crate) fn holder(domain: &Domain, holding: &Holding) -> Option<u64> {
     let name = name(holding);
     for ((_, number), ()) in domain.waits.holders.range((name.clone(), 0)..=(name.clone(), u64::MAX)) {
         let row = record(domain, *number).expect("indexed holder");
@@ -339,6 +347,28 @@ pub(crate) fn writer_holder(domain: &Domain, resource: &Name) -> Option<u64> {
             {
                 return Some(*number);
             }
+        }
+    }
+    None
+}
+
+impl Domain {
+    /// The first unavailable resource in this task's queued set, and a task holding it if any.
+    #[must_use]
+    pub fn resource_wait(&self, row: &TaskRecord) -> Option<(Name, Option<u64>)> {
+        if !has_place(self, row) {
+            return None;
+        }
+        let needed = blocked(self, row)?;
+        Some((name(needed).clone(), holder(self, needed)))
+    }
+}
+
+#[expect(clippy::manual_find, reason = "the step scans only the task's bounded holdings, without a closure")]
+fn blocked<'a>(domain: &Domain, row: &'a TaskRecord) -> Option<&'a Holding> {
+    for needed in &row.holdings {
+        if !available(domain, needed, 0) {
+            return Some(needed);
         }
     }
     None
@@ -552,14 +582,8 @@ pub(crate) fn wait(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     if row.hold_wait_since.is_some() || row.holdings.is_empty() {
         return;
     }
-    let mut blocked = None;
-    for needed in &row.holdings {
-        if !available(domain, needed, 0) {
-            blocked = Some(name(needed).clone());
-            break;
-        }
-    }
-    let Some(resource) = blocked else { return };
+    let Some(needed) = blocked(domain, row) else { return };
+    let resource = name(needed).clone();
     task_mut(domain, number).expect("waiting task live").record.hold_wait_since = Some(env.wall);
     if let Err(problem) = crate::waits::check_queue(domain, &crate::compound::Staged::new(0), &env.limits, number) {
         crate::waits::hold_circle(domain, env, number, problem, out);
@@ -578,7 +602,7 @@ fn place(domain: &Domain, limits: &Limits, number: u64, resource: &Name) -> u32 
     for ((_, other), ()) in domain.waits.waiters.range((resource.clone(), 0)..=(resource.clone(), u64::MAX)) {
         if *other != number {
             let row = record(domain, *other).expect("indexed live task");
-            if queued(domain, row) && earlier(domain, *other, number, limits) {
+            if has_place(domain, row) && earlier(domain, *other, number, limits) {
                 for needed in &row.holdings {
                     if name(needed) == resource {
                         place = place.saturating_add(1);
@@ -604,13 +628,10 @@ pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     if !queued(domain, row) {
         return;
     }
-    let mut blocked = None;
-    for needed in &row.holdings {
-        if !available(domain, needed, 0) {
-            blocked = Some(name(needed).clone());
-            break;
-        }
-    }
+    let resource = match blocked(domain, row) {
+        Some(needed) => Some(name(needed).clone()),
+        None => None,
+    };
     if let Err(problem) = crate::waits::check_queue(domain, &crate::compound::Staged::new(0), &env.limits, number) {
         crate::waits::hold_circle(domain, env, number, problem, out);
         return;
@@ -619,15 +640,32 @@ pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     publish(domain, env, number, out);
     let due = env.now.saturating_add(env.limits.hold_wait);
     domain.hold_alarms.arm(number, due).expect("one alarm per task");
-    let Some(resource) = blocked else { return };
+    let Some(resource) = resource else { return };
     let place = place(domain, &env.limits, number, &resource);
     out.push(Request::Waiting { task: number, resource, place });
 }
 
 /// In a queue: waiting for holds once dependencies permit starting (domain/tasks/holds.md, 2;
-/// connectors.md, 6.1).
+/// domain/connectors-procedures.md, 1.1).
 pub(crate) fn queued(domain: &Domain, row: &TaskRecord) -> bool {
     row.phase == Phase::Waiting && row.hold_wait_since.is_some() && !row.holds_taken && domain.dependencies_ready(row)
+}
+
+// A sourced wait hold keeps its queue rank but is not eligible to take
+// resources or to be held a second time by the resource's clock.
+pub(crate) fn kept_place(row: &TaskRecord) -> bool {
+    if let Phase::Held { was: Was::Waiting, why: crate::Hold::Waited | crate::Hold::Deadline, source: Some(source) } =
+        &row.phase
+        && let crate::HoldSource::Wait { .. } = source.as_ref()
+    {
+        row.hold_wait_since.is_some()
+    } else {
+        false
+    }
+}
+
+pub(crate) fn has_place(domain: &Domain, row: &TaskRecord) -> bool {
+    queued(domain, row) || (kept_place(row) && !row.holds_taken && domain.dependencies_ready(row))
 }
 
 /// Take every resource in the same commit as activation.

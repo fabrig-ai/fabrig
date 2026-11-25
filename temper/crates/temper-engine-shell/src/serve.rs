@@ -105,8 +105,9 @@ pub fn github_runtime(
     let log_origins = if machine.is_none() { github_logs::defaults() } else { List::with_capacity(0) };
     Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
-mod limits;
+pub(crate) mod limits;
 pub(crate) use limits::held_failure;
+pub(crate) use limits::limits_hold_with;
 pub use limits::{Held, Opening, close_limits_store, limits_hold, open_limits, rehearse_limits};
 
 pub fn prepare(
@@ -290,7 +291,18 @@ pub fn prepare_in_with(
     directories: &Directories,
     given: &service::stock::Given,
 ) -> Result<service::Service, String> {
-    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::EngineAlone)
+    prepare_in_with_read(binary, environment, working, directories, given, temper_service_shell::configuration::read)
+}
+
+pub(crate) fn prepare_in_with_read(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    given: &service::stock::Given,
+    read: impl FnOnce(&Directories, temper_config_shell::Shape) -> Result<temper_service_shell::configuration::Read, String>,
+) -> Result<service::Service, String> {
+    let read = read(directories, temper_config_shell::Shape::EngineAlone)
         .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let bytes = &read.document;
     let mut owned = Vec::new();
@@ -431,30 +443,33 @@ pub fn before_root(
     user: u32,
     record: bool,
 ) -> Result<Inputs, String> {
-    let required = core::mem::take(required);
-    let asked = core::mem::take(asked);
-    let files = read_files_with_asked(required, asked, user)?;
+    before_root_using(
+        required,
+        asked,
+        sign_in,
+        configured_bundle,
+        bundle_limits,
+        record,
+        |required, asked| read_files_with_asked(required, asked, user),
+        bundle::read,
+    )
+}
+
+/// Prepare the same inputs with supplied file and configured bundle readers.
+#[expect(clippy::too_many_arguments, reason = "the startup facts are supplied beside their two readers")]
+pub fn before_root_using(
+    required: &mut Box<[config::File]>,
+    asked: &mut Box<[config::File]>,
+    sign_in: Option<&service::startup::SignIn>,
+    configured_bundle: Option<&[u8]>,
+    bundle_limits: service::limits::Clients,
+    record: bool,
+    read_files: impl FnOnce(Box<[config::File]>, Box<[config::File]>) -> Result<service::settings::Files, String>,
+    read_bundle: impl FnOnce(&[u8], service::limits::Clients) -> Result<service::clients::bundle::Bundle, String>,
+) -> Result<Inputs, String> {
+    let files = read_files(core::mem::take(required), core::mem::take(asked))?;
     let google = google_runtime::resolve(sign_in)?;
-    let mut bundle = match configured_bundle {
-        Some(configured) => Some(bundle::read(configured, bundle_limits)?),
-        None => bundle::own(bundle_limits)?,
-    };
-    if let Some(bundle) = &mut bundle {
-        bundle.fill_sign_in(sign_in.is_some()).ok_or_else(|| {
-            format!(
-                "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
-                configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-            )
-        })?;
-        if record {
-            bundle.fill_record().ok_or_else(|| {
-                format!(
-                    "application.clients.bundle: {}: the page has no </head> for its recording metadata",
-                    configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-                )
-            })?;
-        }
-    }
+    let bundle = bundle::prepare(configured_bundle, bundle_limits, sign_in.is_some(), record, read_bundle)?;
     Ok(Inputs { files, google, bundle })
 }
 pub fn seeds(link_secret: Option<Secret>, local_secret: Option<Secret>) -> Result<Seeds, String> {

@@ -123,7 +123,7 @@ impl Protocol {
     }
     /// Long Actions CI, with optional signed webhook transport.
     #[must_use]
-    pub fn forgejo_ci(seed: u64, limits: &top::Limits, hearing: bool) -> Self {
+    pub fn forgejo_ci(seed: u64, limits: &top::Limits, hearing: bool, jobs: u32) -> Self {
         let mut config = fixtures::protocol_config();
         config.max_response_items = 32;
         let mut settings = fixtures::writer_settings();
@@ -142,7 +142,7 @@ impl Protocol {
             config.hooks = skein_forge_kit::fixtures::hooked_protocol_config().hooks;
         }
         let mut checks = joint::checks(1000);
-        checks.contexts = (0..30).map(|job| format!("job-{job}").into_bytes().into_boxed_slice()).collect();
+        checks.contexts = (0..jobs).map(|job| format!("job-{job}").into_bytes().into_boxed_slice()).collect();
         checks.latency_min = Duration::from_secs(600);
         checks.latency_max = Duration::from_secs(600);
         // The story supplies each end and its status separately, with no second
@@ -232,7 +232,7 @@ impl Protocol {
         world.connected();
         world
     }
-    /// Routing reports the fake's access after each start (temper/docs/design/domain/forge/adoption.md, 1).
+    /// Routing reports the fake's access after each start (temper/docs/design/domain/forge/adoption-connection.md, 1).
     fn connected(&mut self) {
         self.event(top::Event::Connection {
             forge: REPO.forge,
@@ -350,7 +350,7 @@ impl Protocol {
         self.joint.fake_env.limits.latency_max = delay;
     }
     /// Stop after the next applied merge, before delivering its answer to the caller
-    /// (temper/docs/design/domain/forge/README.md, 9).
+    /// (temper/docs/design/domain/forge/effects.md, 2).
     pub fn cut_after_next_merge(&mut self) {
         self.merge_cut = Some(self.joint.observations.len());
         self.cut_taken = false;
@@ -465,6 +465,18 @@ impl Protocol {
     #[must_use]
     pub fn branch(&self, branch: &[u8]) -> u64 {
         self.joint.domain.branch(self.fixture.path, branch).expect("fixture branch")
+    }
+
+    /// The fake forge's refs for the fixture repository, independent of the connector's cache.
+    #[must_use]
+    pub fn branches(&self) -> &Map<Box<[u8]>, u64> {
+        self.joint.domain.branches(self.fixture.path)
+    }
+
+    /// File bytes at the observed commit in the independent fake forge.
+    #[must_use]
+    pub fn file(&self, commit: u64, path: &[u8]) -> Option<&[u8]> {
+        self.joint.domain.object(commit)?.tree.get(path).map(AsRef::as_ref)
     }
 
     /// Old calls reach their accounting terminal without delivering an outcome to the new top.
@@ -656,6 +668,7 @@ impl Protocol {
                 | top::Request::ApplicationDone { .. }
                 | top::Request::MarkedForges
                 | top::Request::MilestoneMarked { .. }
+                | top::Request::Waits { .. }
                 | top::Request::Marked { .. } => {}
                 top::Request::ApplicationAgain { .. } => panic!("application capacity available"),
                 top::Request::Adopted { reply_to, result } => {
@@ -696,9 +709,8 @@ impl Protocol {
                 }
                 top::Request::RestartDone { stage } => {
                     restart = match stage {
-                        top::RestartStage::Restored => Some(top::Event::ReadAfresh),
-                        top::RestartStage::ReadAfresh => Some(top::Event::SettleOutbox),
-                        top::RestartStage::Settled => None,
+                        top::RestartStage::Restored => Some(top::Event::CatchUp),
+                        top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
                     };
                     self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
                 }
@@ -709,6 +721,7 @@ impl Protocol {
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
                 | top::Request::LandingUnmade { .. }
+                | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)
@@ -761,7 +774,10 @@ impl Protocol {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::CloseDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }

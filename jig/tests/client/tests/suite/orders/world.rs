@@ -61,6 +61,7 @@ enum Machine {
 
 pub enum Command {
     Client(Event),
+    Hello,
     Go(first::Address),
     JigInbox,
     ReplyRead(u32),
@@ -244,7 +245,7 @@ impl World {
         if self.unlinked {
             self.deliver(Event::Up { up: Up::Served { served: true, versions: None } });
         } else {
-            self.deliver(Event::Streamed { message: client::Streamed::Record(hello()) });
+            self.execute(Command::Hello);
         }
         if self.unlinked {
             let limits = test::limits().client.domain;
@@ -285,6 +286,7 @@ impl World {
     fn execute(&mut self, command: Command) {
         match command {
             Command::Client(event) => self.deliver(event),
+            Command::Hello => self.deliver(Event::Streamed { message: client::Streamed::Record(hello()) }),
             Command::Go(address) => {
                 self.root_event(root::Event::Went { place: root::Place::Address(root::Address::First(address)) });
             }
@@ -875,9 +877,13 @@ fn hello() -> Box<[u8]> {
     ] {
         served.push(w::Served { owner, first: version, last: version });
     }
-    let event = jig_client_test_records::opened(
+    let event = jig_client_test_records::opened_with_layouts(
         w::Hello { stream: STREAM, served: test::list(served), heartbeat: test::limits().client.domain.heartbeat },
         frame(),
+        &[
+            jig_client_test_records::family_layout(root::FIRST, jig_client_test_protocol_wire::LAYOUT),
+            jig_client_test_records::family_layout(root::SECOND, jig_client_test_protocol_wire::LAYOUT),
+        ],
     );
     let mut writer = Writer::new(skein_lib::length::usize_of(
         event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
@@ -922,7 +928,12 @@ fn child_key(record: &root::store::Record) -> root::store::Key {
 }
 
 pub fn stop() -> client::Ask {
-    client::Ask::Jig(Box::new(c::Ask::Stop { project: super::PROJECT, task: super::TASK }))
+    client::Ask::Jig(Box::new(c::Ask::Stop {
+        project: super::PROJECT,
+        task: super::TASK,
+        reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+            .expect("fixture reason fits"),
+    }))
 }
 
 /// The list's object demands finish routing inside the report, before the shell settles.

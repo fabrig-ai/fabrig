@@ -1,5 +1,5 @@
 //! Brief, fleet and account outputs translated for the root, with sibling continuations
-//! (`domain/engine/README.md`, section 4.4).
+//! (`domain/engine/vocabulary.md`, section 1.4).
 
 use crate::{
     Ask, Core, CoreRecord, Event, Held, Key, Limits, LinkNow, Now, Record, Request, Write,
@@ -39,7 +39,7 @@ pub(crate) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Eve
 
 /// The release's withdrawals keep their records in its decision. A run's activation or
 /// relay is the start's to make from those records, after the durable Wires
-/// (jig/docs/design/domain/engine/settings.md, 7).
+/// (jig/docs/design/domain/engine/settings-store.md, 1).
 fn release_outputs(mut child: Queue<tasks::Request>) -> Queue<tasks::Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
@@ -177,6 +177,12 @@ pub(crate) fn tag_fleet(
             fleet::Request::Acknowledge { channel, run, attempt } => {
                 Request::Held(Box::new(Held::Acknowledge { channel, run, attempt }))
             }
+            fleet::Request::AcknowledgePart { channel, run, attempt, part } => {
+                Request::Held(Box::new(Held::AcknowledgePart { channel, run, attempt, part }))
+            }
+            fleet::Request::PartBusy { channel, run, attempt, part } => {
+                Request::Held(Box::new(Held::PartBusy { channel, run, attempt, part }))
+            }
             fleet::Request::AcknowledgeTurn { channel, run, attempt, turn } => {
                 Request::Held(Box::new(Held::AcknowledgeTurn { channel, run, attempt, turn }))
             }
@@ -205,6 +211,9 @@ pub(crate) fn tag_fleet(
                 continue;
             }
             fleet::Request::Observed { run, attempt: _ } => {
+                if core.tasks.task(run.raw()).is_some() {
+                    core.wait_alarms.changed(run.raw());
+                }
                 core.touch_deployment();
                 super::view::routes::touch_number(core, &env.limits, run.raw());
                 continue;
@@ -225,6 +234,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -253,6 +263,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -278,6 +289,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -319,6 +331,7 @@ pub(crate) fn tag_fleet(
                     core,
                     env,
                     tasks::Event::Activation {
+                        reads_project: false,
                         reply_to: ReplyTo::new(token),
                         task: run.raw(),
                         attempt: attempt.raw(),
@@ -343,6 +356,7 @@ pub(crate) fn tag_fleet(
                         core,
                         env,
                         tasks::Event::Activation {
+                            reads_project: false,
                             reply_to: ReplyTo::new(token),
                             task: run.raw(),
                             attempt: attempt.raw(),
@@ -470,6 +484,9 @@ pub(crate) fn tag_fleet(
             }
             fleet::Request::Grant { channel, run, attempt, grant } => {
                 Request::Held(Box::new(Held::Grant { channel, run, attempt, grant }))
+            }
+            fleet::Request::Parted { run, attempt, part, body } => {
+                Request::Now(Box::new(Now::Link(LinkNow::PartPayload { run, attempt, part, body })))
             }
             fleet::Request::Turned { run, attempt, turn, body } if core.stopping => {
                 let mut follow = Queue::uncapped();
@@ -632,7 +649,7 @@ pub(crate) fn tag_account(
                 }
                 out.push(Request::Now(Box::new(Now::Account(request))));
             }
-            // The accounts family (protocol/store/README.md, 4.4 item 9) keeps each record in the
+            // The accounts family (protocol/store/keys.md, 1.4 item 9) keeps each record in the
             // decision that changes it.
             accounts::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Accounts(record)))),
             accounts::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Accounts(key)))),
@@ -819,6 +836,7 @@ pub(crate) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::Gath
     tag_brief(core, env, out)
 }
 
+#[expect(clippy::too_many_lines, reason = "the fleet entrance keeps its fences and refusal routing together")]
 pub(crate) fn route_fleet(
     core: &mut Core,
     env: &Env<Limits>,
@@ -835,6 +853,7 @@ pub(crate) fn route_fleet(
             core,
             env,
             tasks::Event::Activation {
+                reads_project: false,
                 reply_to: ReplyTo::new(token),
                 task: run.raw(),
                 attempt: attempt.raw(),
@@ -904,6 +923,9 @@ pub(crate) fn route_fleet(
         | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
+        | fleet::Event::Part { .. }
+        | fleet::Event::PartKept { .. }
+        | fleet::Event::PartBusy { .. }
         | fleet::Event::Turn { .. }
         | fleet::Event::TurnKept { .. }
         | fleet::Event::TurnBusy { .. }
@@ -1011,6 +1033,9 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::UsageRead { .. }
         | fleet::Event::Limited { .. }
         | fleet::Event::AccountRefused { .. }
+        | fleet::Event::Part { .. }
+        | fleet::Event::PartKept { .. }
+        | fleet::Event::PartBusy { .. }
         | fleet::Event::Turn { .. }
         | fleet::Event::TurnKept { .. }
         | fleet::Event::TurnBusy { .. }

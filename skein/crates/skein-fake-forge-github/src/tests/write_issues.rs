@@ -52,7 +52,7 @@ fn github_fake_issue_writes_drive_plans_and_read_back() {
     assert_eq!(comment.id, id);
     assert!(comment.body.ends_with(b"\ncomment"));
     assert_eq!(comment.key.as_deref(), Some(b"comment-key".as_slice()));
-    // testing/fakes/forge.md, 4: GitHub still closes a merged pull with 200.
+    // testing/fakes/forgejo.md, 1: GitHub still closes a merged pull with 200.
     let (number, head) = r::pull(&mut h);
     h.env.now = skein_lib::Time::from_nanos(2_000_000_000);
     r::call(

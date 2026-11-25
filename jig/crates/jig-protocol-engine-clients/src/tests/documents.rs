@@ -6,7 +6,7 @@ use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
     assert_eq!(
-        translate::owner::frame(&fixtures::frame_two_projects(), &[], &limits),
+        translate::owner::frame(&fixtures::frame_two_projects(), fixtures::SIGN_IN_EXPIRES, &[], &limits),
         Ok(fixtures::frame_two_projects_record())
     );
 }
@@ -79,7 +79,8 @@ const PROJECT_ROOM: [u32; 2] = [2, 32];
 #[test]
 fn me_encoding_preserves_rows_despite_spare_list_capacity() {
     let limits = fixtures::wire_limits();
-    let expected = translate::owner::frame(&frame_with_creating_bounds(), &[], &limits).unwrap();
+    let expected =
+        translate::owner::frame(&frame_with_creating_bounds(), fixtures::SIGN_IN_EXPIRES, &[], &limits).unwrap();
     for project_room in PROJECT_ROOM {
         let mut frame = frame_with_creating_bounds();
         let mut projects = List::with_capacity(project_room);
@@ -96,7 +97,11 @@ fn me_encoding_preserves_rows_despite_spare_list_capacity() {
             projects.push(project).expect("fixture project room");
         }
         frame.projects = projects;
-        assert_eq!(translate::owner::frame(&frame, &[], &limits), Ok(expected.clone()), "projects room {project_room}");
+        assert_eq!(
+            translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &limits),
+            Ok(expected.clone()),
+            "projects room {project_room}"
+        );
     }
 }
 fn a_task_with_a_hold_becomes_its_record() {
@@ -127,7 +132,7 @@ fn me_overflow_reports_the_wire_bound_it_exceeds() {
     ];
     for (limits, path) in rows {
         assert_eq!(
-            translate::owner::frame(&frame, &[], &limits),
+            translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &limits),
             Err(w::Problem { path, reason: skein_codec::Reason::Bound })
         );
     }
@@ -139,20 +144,18 @@ fn a_non_utf8_document_text_fails_translation() {
     for bytes in [&[0xc3_u8][..], &[255_u8, b'/'][..]] {
         let value = jig_domain_core_vocabulary::documents::Text { bytes: bytes.into(), cut: true };
         assert_eq!(
-            translate::owner::text(&value, &limits).unwrap().encode(&limits),
+            translate::owner::text(&value).encode(&limits),
             Err(w::Problem { path: w::paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Utf8 })
         );
     }
 }
 
 fn a_run_writing_with_a_call_becomes_its_run_state() {
-    let limits = fixtures::wire_limits();
     let source = fixtures::run_writing();
-    assert_eq!(translate::live::run(&source, &limits), Ok(jig_client_test_records::run_writing_record()));
+    assert_eq!(translate::live::run(&source), Ok(jig_client_test_records::run_writing_record()));
 }
 fn a_run_text_keeps_its_turn_retry_and_offsets() {
-    let limits = fixtures::wire_limits();
-    assert_eq!(translate::live::writing(&fixtures::writing(), &limits), Ok(jig_client_test_records::writing_record()));
+    assert_eq!(translate::live::writing(&fixtures::writing()), Ok(jig_client_test_records::writing_record()));
 }
 fn an_inbox_with_both_groups_becomes_its_record() {
     let limits = fixtures::wire_limits();
@@ -183,7 +186,7 @@ fn an_inbox_entry_33_goals_deep_encodes_at_the_wire_ceiling() {
     let mut selections = Reader::new(record.selection.as_ref().unwrap());
     let bytes = skein_codec::piece::split(&mut selections).unwrap().unwrap();
     let selection = w::InboxSelection::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    assert_eq!((&selection.cursor), &translate::inbox::cursor(expected.cursor, &w::CEILINGS).unwrap());
+    assert_eq!((&selection.cursor), &translate::inbox::cursor(expected.cursor));
     assert_eq!((&selection.goals), &expected.goals);
     assert!(selections.is_empty());
 }
@@ -269,7 +272,7 @@ fn a_me_document_carries_each_project_s_template() {
         template.label = 5;
         project.templates = List::from_boxed(Box::new([template]));
     }
-    let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &w::CEILINGS).unwrap();
     let mut reader = skein_lib::Reader::new(record.projects.as_ref());
     for source in &frame.projects {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
@@ -288,7 +291,7 @@ fn a_me_document_carries_each_project_s_template() {
 #[test]
 fn a_me_document_carries_each_project_s_creating_bounds() {
     let frame = frame_with_creating_bounds();
-    let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &w::CEILINGS).unwrap();
     let mut reader = skein_lib::Reader::new(record.projects.as_ref());
     for source in &frame.projects {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
@@ -354,7 +357,7 @@ fn creating_and_compound_capacity_refusals_keep_the_operations_kind() {
     let mut refusal = *deployment.person_room_refusals.get(0).unwrap();
     for (action, expected) in CREATION_CAPACITY {
         refusal.action = action;
-        let row = translate::deployment::person_refusal(&refusal, &fixtures::wire_limits()).unwrap();
+        let row = translate::deployment::person_refusal(&refusal);
         assert_eq!((&row.action), &expected);
         assert_eq!(row.key.person, refusal.key.person);
         assert_eq!((&row.key.key), &refusal.key.key);
@@ -411,6 +414,28 @@ fn added_dependencies_and_kept_waits_cross_both_client_translations() {
     assert_eq!((pending.as_slice(), count), ([7].as_slice(), 1));
     let c::ChipPhaseFacts { details, .. } = actual.chip.details.as_ref();
     assert_eq!(details.dependencies, actual.dependency_facts);
+}
+
+#[test]
+fn a_tasks_retained_subscriptions_fit_the_clients_page() {
+    use jig_domain_tasks as t;
+    const RETAINED: u32 = 7;
+    const PAGE: u32 = 5;
+    let mut task = fixtures::task_with_hold();
+    task.subscriptions = List::with_capacity(RETAINED);
+    for number in 1..=u64::from(RETAINED) {
+        task.subscriptions
+            .push(t::Subscription { number, kind: t::SubscriptionKind::Topic { connector: 1, topic: number } })
+            .expect("fixture interest");
+    }
+    let limits = w::Limits { subscriptions_entries: PAGE, ..fixtures::wire_limits() };
+    let record = translate::task::document(&task, &[], &limits).expect("task document");
+    record.measure(&limits).expect("subscriptions fit the client wire");
+    assert!(record.cut);
+    assert_eq!(record.subscriptions.entries.len(), PAGE);
+    for (number, subscription) in (1..=u64::from(PAGE)).zip(&record.subscriptions.entries) {
+        assert_eq!(subscription.number, number);
+    }
 }
 
 #[test]
@@ -527,7 +552,7 @@ fn a_served_template_carries_its_resources() {
     let mut template = fixtures::template();
     template.resources = Box::new(resources);
     frame.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
-    let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
+    let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &w::CEILINGS).unwrap();
     let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.projects.as_ref())).unwrap().unwrap();
     let project = w::MeProject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
     let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(project.templates.as_ref())).unwrap().unwrap();
@@ -558,7 +583,7 @@ fn me_names_no_public_identifier_until_the_names_are_held() {
         project.public = public;
         projects.push(project).expect("one project");
         frame.projects = projects;
-        let record = translate::owner::frame(&frame, &[], &limits).expect("me");
+        let record = translate::owner::frame(&frame, fixtures::SIGN_IN_EXPIRES, &[], &limits).expect("me");
         let mut pieces = skein_lib::Reader::new(record.projects.as_ref());
         let bytes = skein_codec::piece::split(&mut pieces).expect("project piece").expect("one project");
         let project = w::MeProject::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("project");
@@ -613,4 +638,176 @@ fn an_own_question_wait_reaches_the_client_through_both_translations() {
     let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
     assert_eq!(decoded.waits_on, c::WaitsOn::Question { number: 7 });
+}
+
+#[test]
+fn structured_waits_reach_the_client_in_order_with_the_full_count() {
+    use skein_lib::Reader;
+    let (expected_wire, expected_client) = jig_client_test_records::structured_waits();
+    let mut source = fixtures::task_with_hold();
+    source.waits = core_waits();
+    source.wait_count = 13;
+    let limits = fixtures::wire_limits();
+    let record = translate::task::document(&source, &[], &limits).unwrap();
+    assert_eq!(record.waits, expected_wire);
+    assert_eq!(record.wait_count, 13);
+    let bytes = record.encode(&limits).unwrap();
+    let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+    let decoded = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
+    assert_eq!(decoded.waits, expected_client);
+    assert_eq!(decoded.wait_count, 13);
+}
+
+#[test]
+fn task_documents_keep_the_first_wait_and_each_nearest_outcome_through_the_wire() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core_vocabulary::{AtBound, Nearest, WaitKind};
+    use skein_lib::{Reader, Wall};
+
+    let limits = fixtures::wire_limits();
+    let client_limits = fixtures::client_limits();
+    let mut source = fixtures::task_with_hold();
+    let (wire, client) = jig_client_test_records::structured_waits();
+    let mut first = core_waits().get(0).unwrap().clone();
+    let mut wire_first = wire.get(0).unwrap().clone();
+    let mut client_first = client.get(0).unwrap().clone();
+    first.task = 71;
+    wire_first.task = 71;
+    client_first.task = 71;
+    let at = Wall::from_nanos(59);
+    let cases = [
+        None,
+        Some((AtBound::Hold, w::AtBound::Hold, c::AtBound::Hold)),
+        Some((AtBound::PassUp, w::AtBound::PassUp, c::AtBound::PassUp)),
+        Some((AtBound::Overdue, w::AtBound::Overdue, c::AtBound::Overdue)),
+        Some((AtBound::GiveUp, w::AtBound::GiveUp, c::AtBound::GiveUp)),
+    ];
+    for case in cases {
+        let (wait, wire_wait, client_wait, nearest, wire_nearest, client_nearest) = match case {
+            Some((then, wire_then, client_then)) => (
+                Some(first.clone()),
+                Some(&wire_first),
+                Some(&client_first),
+                Some(Nearest { at, then, kind: WaitKind::Host }),
+                Some(w::Nearest { at: at.as_nanos(), then: wire_then, kind: w::WaitKind::Host }),
+                Some(c::Nearest { at, then: client_then, kind: c::WaitKind::Host }),
+            ),
+            None => (None, None, None, None, None, None),
+        };
+        source.wait = wait;
+        source.nearest = nearest;
+        let record = translate::task::document(&source, &[], &limits).unwrap();
+        assert_eq!(record.wait.as_ref(), wire_wait);
+        assert_eq!(record.nearest, wire_nearest);
+        let bytes = record.encode(&limits).unwrap();
+        let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+        let decoded = jig_client_protocol_link::translate::documents::task(record, &client_limits).unwrap();
+        assert_eq!(decoded.wait.as_ref(), client_wait);
+        assert_eq!(decoded.nearest, client_nearest);
+    }
+}
+
+fn core_waits() -> List<jig_domain_core_vocabulary::Wait> {
+    use jig_domain_core_vocabulary::documents::TaskRunWait;
+    use jig_domain_core_vocabulary::{AtBound, Bound, Thing, Unbounded as U, Wait, WaitKind as K, WaitObject as O};
+    use jig_domain_people::{EntryKind as E, Proposer};
+    use jig_domain_tasks::{EscalationHolder as H, Name};
+    use skein_lib::Wall;
+
+    let task = 7;
+    let at = H::Role { project: 7, role: 5 };
+    let rows = [
+        (
+            K::Party,
+            O::Entry { kind: E::Question { message: 401 }, at },
+            Bound::At { at: Wall::from_nanos(201), then: AtBound::PassUp },
+            None,
+        ),
+        (
+            K::Party,
+            O::Entry { kind: E::Proposal { proposer: Proposer::Task(11), number: 403 }, at },
+            Bound::None(U::NoDeadline),
+            Some(H::Task(51)),
+        ),
+        (
+            K::Party,
+            O::Entry { kind: E::Escalation { revision: 409 }, at },
+            Bound::At { at: Wall::from_nanos(101), then: AtBound::Hold },
+            Some(H::Person(53)),
+        ),
+        (
+            K::Party,
+            O::Entry { kind: E::PersonTask, at },
+            Bound::None(U::Standing),
+            Some(H::Role { project: 7, role: 59 }),
+        ),
+        (
+            K::Question,
+            O::Question { number: 23, answerer: 29 },
+            Bound::At { at: Wall::from_nanos(301), then: AtBound::Overdue },
+            None,
+        ),
+        (K::Dependency, O::Task(17), Bound::None(U::Behind(17)), None),
+        (
+            K::Resource,
+            O::Resource {
+                name: Name {
+                    connector: 13,
+                    path: Box::new([Box::<[u8]>::from(&b"pool/tiny"[..]), Box::new([0xff, b':'])]),
+                },
+                holder: Some(97),
+            },
+            Bound::None(U::OperatorHold),
+            None,
+        ),
+        (
+            K::Host,
+            O::Run(TaskRunWait::Worker { worker: 43, until: Wall::from_nanos(173) }),
+            Bound::At { at: Wall::from_nanos(701), then: AtBound::GiveUp },
+            None,
+        ),
+        (
+            K::News,
+            O::News { subscriptions: List::from_boxed(Box::new([37, 31, 41, 47])), timer: Some(Wall::from_nanos(83)) },
+            Bound::None(U::Standing),
+            None,
+        ),
+        (
+            K::Step,
+            O::Procedure {
+                step: 19,
+                things: List::from_boxed(Box::new([
+                    Thing { what: 1, number: 113, owner: Some(29) },
+                    Thing { what: 2, number: 127, owner: None },
+                    Thing { what: 3, number: 131, owner: Some(31) },
+                    Thing { what: 4, number: 137, owner: None },
+                ])),
+            },
+            Bound::None(U::NoDeadline),
+            None,
+        ),
+    ];
+    let mut waits = List::with_capacity(10);
+    for (kind, object, bound, hears) in rows {
+        let since = Wall::from_nanos(11 + u64::from(waits.len()));
+        waits.push(Wait { task, kind, object, since, bound, hears }).unwrap();
+    }
+    waits
+}
+
+#[test]
+fn wait_hold_chips_keep_the_category_and_words() {
+    use jig_domain_core_vocabulary::documents::Text;
+    use jig_domain_tasks as t;
+    const WORDS: &[u8] = b"Waited 24 h for a reply";
+    let mut hold = fixtures::task_with_hold().hold.expect("held fixture");
+    for (reason, expected) in
+        [(t::Hold::Waited, w::HoldCategory::Waited), (t::Hold::Deadline, w::HoldCategory::Deadline)]
+    {
+        hold.reason = reason;
+        hold.words = Some(Text { bytes: WORDS.into(), cut: false });
+        let record = translate::chips::held(&hold);
+        assert_eq!(record.reason, expected);
+        assert_eq!(record.words, Some(w::DocumentText { bytes: WORDS.into(), cut: false }));
+    }
 }

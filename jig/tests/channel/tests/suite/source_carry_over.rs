@@ -1,4 +1,4 @@
-//! The selected source grant is smith's replay identity (accounts.md, 4.3).
+//! The selected source grant is smith's replay identity (domain/accounts-uses.md, 1.3).
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use smith_domain::{
     session::{self, llm, record},
@@ -10,7 +10,9 @@ fn opening() -> record::Opening {
     let transcript = restored_transcript(affinity);
     record::Opening {
         window_llm: None,
+        cut: None,
         spec: session::Spec {
+            tell_parts: false,
             backend: record::Backend::Direct,
             // Both grants may belong to one billing account; smith sees source identities.
             account: Some(13),
@@ -70,7 +72,8 @@ fn a_source_grant_change_carries_plain_history_and_discards_replay() {
         match request {
             session::Request::Opened { session, .. } => opened = Some(session),
             session::Request::Complete { prompt: found, .. } => prompt = Some(found),
-            other @ (session::Request::JobsCancelled { .. }
+            other @ (session::Request::Part { .. }
+            | session::Request::JobsCancelled { .. }
             | session::Request::Turn { .. }
             | session::Request::Priced { .. }
             | session::Request::Yield { .. }
@@ -82,7 +85,10 @@ fn a_source_grant_change_carries_plain_history_and_discards_replay() {
             | session::Request::CancelIo { .. }
             | session::Request::Job { .. }
             | session::Request::Delegate { .. }
-            | session::Request::Withdraw { .. }) => panic!("unexpected opening output: {other:?}"),
+            | session::Request::Withdraw { .. }
+            | session::Request::RateLimitWait { .. }
+            | session::Request::RateLimitWaitDone { .. }
+            | session::Request::RateLimitOutlastsSession { .. }) => panic!("unexpected opening output: {other:?}"),
         }
     }
     let prompt = prompt.expect("source change starts a carry-over compaction");

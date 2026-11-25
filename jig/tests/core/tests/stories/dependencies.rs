@@ -417,7 +417,7 @@ fn a_done_former_delegate_named_by_a_sibling_is_met() {
 }
 
 #[test]
-fn another_subtrees_ended_task_is_refused_unchanged() {
+fn another_subtrees_ended_task_is_met_by_reading() {
     let (mut world, parent, _, dependency) = ended_dependency_world(883);
     let run = running(&world, dependency);
     finish(&mut world, run, b"prerequisite done");
@@ -430,14 +430,12 @@ fn another_subtrees_ended_task_is_refused_unchanged() {
     target.authority.budget.spend = 5;
     target.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let target = delegate(&mut world, amender_run, 1, target);
-    let before = live_row(&world, target).clone();
     amend_delegate(&mut world, amender_run, target, dependency);
-    let core::CallPart::ControlRefused(problem) = &world.answers.last().expect("amendment answer").2 else {
-        panic!("outside dependency refused");
-    };
-    assert_eq!(problem.why, tasks::Refusal::Dependencies);
-    assert_eq!(problem.blocked_by.as_deref(), Some([dependency].as_slice()));
-    assert_eq!(live_row(&world, target), &before);
+    assert_eq!(
+        world.answers.last().expect("amendment answer").2,
+        core::CallPart::Revised { task: target, revision: 1 }
+    );
+    assert_met(&world, target, dependency, tasks::Party::Task(amender_run.0));
     world.close();
 }
 

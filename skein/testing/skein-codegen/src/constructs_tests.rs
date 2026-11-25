@@ -1,6 +1,6 @@
-//! Construct classification regressions (data/codec/README.md, section 6).
+//! Construct classification regressions (data/codec/golden.md, section 1).
 
-use super::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned, without};
+use super::{CONSTRUCTS, Construct, Kind, constructs, missing, without};
 
 // Every's owner is a private world whose library no other package may name.
 const EVERY: &str = include_str!("../../../tests/codec/schema/every-v3.schema");
@@ -106,7 +106,6 @@ fn difference_keeps_encounter_order() {
     let pinned = CONSTRUCTS.iter().copied().filter(|item| *item != Construct::Field(Kind::Text)).collect::<Vec<_>>();
     assert_eq!(without(found.clone(), &pinned), [Construct::Field(Kind::Text)]);
     assert_eq!(without(found.clone(), &[]), found);
-    assert_eq!(unpinned(text).expect("valid schema"), []);
 }
 
 // These exhaustive matches make a new construct or kind require a pin slot.
@@ -322,7 +321,6 @@ fn refusals_are_the_parsers_errors() {
     ] {
         let error = crate::parse(text).expect_err("invalid schema");
         assert_eq!(constructs(text), Err(error.clone()), "{text}");
-        assert_eq!(unpinned(text), Err(error.clone()), "{text}");
         assert_eq!(missing(text), Err(error), "{text}");
     }
 }

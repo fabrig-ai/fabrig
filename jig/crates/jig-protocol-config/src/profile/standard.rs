@@ -233,12 +233,23 @@ pub(super) const CORE: core::Limits = core::Limits {
         records: Duration::from_secs(30 * 86_400),
         summaries: Duration::from_secs(365 * 86_400),
     },
+    waits: core::Figures {
+        question: Duration::from_secs(2 * 3600),
+        party: Duration::from_secs(8 * 3600),
+        news: Duration::from_secs(24 * 3600),
+        host: Duration::from_secs(2 * 3600),
+        account: Duration::from_secs(2 * 3600),
+        step: Duration::from_secs(30 * 60),
+        room: Duration::from_secs(30 * 60),
+        sign_off: Duration::from_secs(24 * 3600),
+    },
     policy_bytes: 16_384,
     escalation_reason_bytes: 512,
     brief_parts: 8,
     brief_core_budgets: BUDGETS,
 };
 pub(super) const HUB: host::Limits = host::Limits {
+    drain_grace: crate::DEFAULT_DRAIN_GRACE,
     charter_bytes: 262_144,
     outcome_bytes: 131_072,
     event_bytes: 135_168,

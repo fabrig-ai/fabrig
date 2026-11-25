@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-16. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-21. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
 - **Not yet:** 2: the user's `ctl-waits` request asks for the
@@ -15,14 +15,14 @@
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (`README.md`, section 11).
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
-   the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
+   the absent read commands remain `tools-reads.status.md`, 1.  the absent deciding commands remain `tools-acts.status.md`, 1.
    the missing area operations remain `areas.status.md` (Not yet, the whole document).
    the hello stop-bound units remain `results.status.md`, 1.
-   the trailing-help command syntax remains `README.status.md`, 6.1. 2:
+   the trailing-help command syntax remains `command-line.status.md`, 1.1. 2:
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
   FORGE, which `temper-client-tools`' own step tests hold alone; the joint component correlates
   forge setting reads, including historical revision values. 3:
-  the real loop's connected Forgejo, its tokens connect, a replace of
+  the one-process world's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.

@@ -38,6 +38,13 @@ impl Busy {
         self.deadlines.cancel(key);
         self.keys.remove(&key);
     }
+    pub(crate) fn kept_through(&mut self, run: Token, attempt: Token, part: u32) {
+        for _ in 0..self.keys.len() {
+            let Some((key, ())) = self.keys.range((run, attempt, 0)..=(run, attempt, part)).next() else { break };
+            let (run, attempt, number) = *key;
+            self.kept(run, attempt, number);
+        }
+    }
     pub(crate) fn acknowledged(&mut self, run: Token, attempt: Token) {
         for _ in 0..self.keys.len() {
             let Some((key, ())) = self.keys.range((run, attempt, 0)..=(run, attempt, u32::MAX)).next() else { break };

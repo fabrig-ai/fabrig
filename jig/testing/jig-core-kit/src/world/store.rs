@@ -39,12 +39,9 @@ impl World {
                     self.events.push_back(root::Event::StartDone(phase));
                 }
             }
-            Phase::Link
-            | Phase::Wires
-            | Phase::AdoptRuns
-            | Phase::ReadAfresh { .. }
-            | Phase::SettleOutbox { .. }
-            | Phase::Open => panic!("root performs its synchronous phase"),
+            Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
+                panic!("root performs its synchronous phase")
+            }
         }
     }
 
@@ -96,6 +93,11 @@ impl World {
 
     /// Save fixture rows through a durable, externally observed numbered commit.
     pub fn seed(&mut self, rows: Box<[root::Record]>) {
+        self.try_seed(rows).unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Save fixture rows, returning a refused durable store to its story.
+    pub fn try_seed(&mut self, rows: Box<[root::Record]>) -> Result<(), String> {
         let mut writes = Vec::new();
         for row in rows {
             if let root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = &row {
@@ -111,21 +113,31 @@ impl World {
             }
             writes.push(root::Write::Save(row));
         }
-        self.fixture_writes(writes);
+        self.fixture_writes(writes)
     }
     /// Erase a fixture through the same durable transaction path.
     pub fn erase(&mut self, key: root::Key) -> Option<root::Record> {
         let prior = self.store.rows.get(&key).cloned();
-        self.fixture_writes(vec![root::Write::Erase(key)]);
+        self.fixture_writes(vec![root::Write::Erase(key)]).unwrap_or_else(|finding| self.fail(&finding));
         prior
     }
-    fn fixture_writes(&mut self, mut writes: Vec<root::Write>) {
-        let header_key = root::Key::Core(core::Key::Core(core::CoreKey::Deployment));
-        let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(mut header))) =
-            self.store.rows[&header_key].clone()
+    /// Model an upgrade from a build with no wait floors, leaving all wait facts intact.
+    pub fn clear_wait_floors_for_upgrade(&mut self) {
+        let header = core::Deployment { wait_floors: None, ..self.fixture_header() };
+        self.commit_fixture_writes(Vec::new(), header).unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    fn fixture_header(&self) -> core::Deployment {
+        let key = root::Key::Core(core::Key::Core(core::CoreKey::Deployment));
+        let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = &self.store.rows[&key]
         else {
             panic!("durable header");
         };
+        *header
+    }
+
+    fn fixture_writes(&mut self, writes: Vec<root::Write>) -> Result<(), String> {
+        let mut header = self.fixture_header();
         // Direct fixture policy seeds must carry the same high-water mark as a first start.
         for write in &writes {
             if let root::Write::Save(root::Record::Core(core::Record::People(jig_domain_people::Stored::Policy {
@@ -136,35 +148,49 @@ impl World {
                 header.projects = header.projects.max(u64::from(*project));
             }
         }
+        self.commit_fixture_writes(writes, header)
+    }
+
+    fn commit_fixture_writes(
+        &mut self,
+        mut writes: Vec<root::Write>,
+        mut header: core::Deployment,
+    ) -> Result<(), String> {
         header.commits = self.store.applied + 1;
         writes.push(root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))));
         self.store.submit(header.commits, writes.into_boxed_slice(), 0);
-        self.observer.submitted(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
+        self.observer.submitted(self.wall, &self.store)?;
         assert_eq!(self.store.tick(false), Ok(Some(header.commits)));
-        self.observer.durable(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
+        self.observer.durable(self.wall, &self.store)?;
+        self.check_durable()?;
+        if self.fork_cut(super::Cut::Durable(header.commits))? {
+            self.reached_cut = self.cut.take();
+        }
         self.refresh_fixture_header();
+        Ok(())
     }
     fn refresh_fixture_header(&mut self) {
-        let header = self.store.rows[&root::Key::Core(core::Key::Core(core::CoreKey::Deployment))].clone();
-        let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = header else {
-            unreachable!("fixture header is the deployment");
-        };
+        let header = self.fixture_header();
         self.domain.core_mut().counters = core::Counters::new(header);
         *self.domain.journal_mut() = skein_lib::Journal::uncapped(self.limits.journal.release, header.commits);
     }
 
     /// Install the connector's fixed hold vocabulary, retained across cold starts.
     pub fn configure_holds(&mut self, connector: u16, kinds: Box<[tasks::Kind]>) {
-        self.hold_kinds.push((connector, kinds.clone()));
+        super::Rc::make_mut(&mut self.hold_kinds).push((connector, kinds.clone()));
         self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds { connector, kinds })));
     }
 
     /// Let every previously durable completion through its ordered barrier.
     pub fn release_commits(&mut self) {
+        self.try_release_commits().unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    pub(crate) fn try_release_commits(&mut self) -> Result<(), String> {
         while let Some(number) = self.store.release_held() {
             self.events.push_back(root::Event::Committed { number, fill: self.fill });
         }
-        self.drain();
+        self.try_drain()
     }
 
     /// Read each lost writer's resource and deliver its answer through the root.
@@ -179,16 +205,14 @@ impl World {
 
     pub(super) fn answer_restart_reads(&mut self) {
         for (number, call) in std::mem::take(&mut self.pending_reads) {
-            if self.restart_reads.contains_key(&number) {
+            if self.restart_reads.contains(&number) {
                 let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
                 self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
             } else {
                 self.pending_reads.push((number, call));
             }
         }
-        for (_, phase) in std::mem::take(&mut self.restart_reads) {
-            self.events.push_back(root::Event::StartDone(phase));
-        }
+        self.restart_reads.clear();
     }
 
     pub fn finish_restart_reads(&mut self) {
@@ -235,12 +259,17 @@ impl World {
         self.restart_with(config);
     }
 
-    pub fn restart_with(&mut self, mut config: root::Config) {
+    pub fn restart_with(&mut self, config: root::Config) {
+        self.try_restart_with(config).unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Cold start, returning the sweep child's finding at its checked cut.
+    pub fn try_restart_with(&mut self, mut config: root::Config) -> Result<(), String> {
         for worker in &mut config.core.defaults.workers {
             worker.places = self.limits.core.fleet.slots;
         }
-        self.restart_config = (crate::oracle::configuration(&config), self.limits);
-        self.restart_configured(config).unwrap_or_else(|finding| self.fail(&finding));
+        self.restart_config = (super::Rc::new(crate::oracle::configuration(&config)), self.limits);
+        self.restart_configured(config)
     }
 
     /// A cold start under `config`, which `restart_config` already holds a copy of.
@@ -280,19 +309,23 @@ impl World {
         self.restoring = None;
         self.move_provider = config.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         self.domain = root::Domain::new(config, &self.limits);
+        if let Some((_, active)) = &mut self.restart_check {
+            *active = true;
+        }
         if let Some(setup) = self.startup {
             setup(&mut self.domain);
         }
-        for (connector, kinds) in self.hold_kinds.clone() {
-            self.domain.configure_holds(&self.env(), connector, kinds);
+        let env = self.env();
+        for (connector, kinds) in self.hold_kinds.iter() {
+            self.domain.configure_holds(&env, *connector, kinds.clone());
         }
         self.events.clear();
         self.internal_reads.clear();
         self.pending_reads.clear();
+        self.restart_reads.clear();
         self.pending_lost_reads.clear();
         self.pending_writes.clear();
         self.pending_lookups.clear();
-        self.restart_reads.clear();
         self.restart_steps.clear();
         self.moved.clear();
         self.restore_ranges.clear();
@@ -304,10 +337,11 @@ impl World {
             self.cut = None;
         }
         self.events.push_back(root::Event::StartBegin { pending: self.store.generation_pending });
-        self.drain();
+        self.try_drain_restarting(true)?;
+        self.check_restarted_child()?;
         if self.domain.ready() {
             self.hello_engine();
-            self.drain();
+            self.try_drain_restarting(true)?;
         }
         self.lose_answer = false;
         Ok(())

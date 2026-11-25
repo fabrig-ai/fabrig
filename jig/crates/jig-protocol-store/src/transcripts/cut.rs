@@ -51,6 +51,7 @@ fn next(store: &mut Store, below: &mut Below) -> Result<bool, ()> {
             CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::Projection(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Turn(_)
             | CoreRecord::Terminal(_)
@@ -132,7 +133,7 @@ fn finish(store: &mut Store, result: Result<bool, ()>, above: &mut Queue<Event>)
             } else {
                 store.registry.settle();
                 crate::upgrade::switch::opened(store);
-                store.directory.checked = None;
+                store.directory.reset_admission();
                 above.push(Event::Opened {
                     owner: store.directory.owner,
                     last: store.stores.store.last(),

@@ -2,12 +2,9 @@
 //! The source login is read-only; no refresh field is deserialized or copied.
 //! `codex` writes a guarded private record; smith uses its own sign-in record.
 //! `Borrowed::finish` settles the credential and checks the source digest.
-//! Contracts: ../../docs/design/benchmarks/README.md, section 10; reliability-plan Credentials (95a9807).
+//! Contracts: ../../docs/design/benchmarks/isolation.md, section 1; reliability-plan Credentials (95a9807).
 
 use crate::{Bound, Credential, Fault, FaultKind, bound, credential as login, refuse_if};
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
@@ -15,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use skein_lib::{Duration, Wall};
 
+use crate::files::{CreateNewError, Files, Kind, Native};
 use crate::guard::{Guard, check_credential_record};
 use crate::isolate::SetupStep;
 
@@ -77,14 +75,12 @@ pub struct Proof {
     pub private_refresh_unusable: bool,
 }
 
-fn read_source(path: &Path) -> Result<Vec<u8>, Fault> {
-    let metadata = std::fs::symlink_metadata(path).map_err(|_| login("Codex auth.json is unavailable"))?;
-    if !metadata.is_file() || metadata.is_symlink() || metadata.len() > MAX_AUTH_BYTES {
+fn read_source(files: &dyn Files, path: &Path) -> Result<Vec<u8>, Fault> {
+    let metadata = files.symlink_metadata(path).map_err(|_| login("Codex auth.json is unavailable"))?;
+    if metadata.kind != Kind::File || metadata.size > MAX_AUTH_BYTES {
         return Err(bound("Codex auth.json must be a bounded ordinary file"));
     }
-    let file = File::open(path).map_err(|_| login("cannot read Codex auth.json"))?;
-    let mut bytes = Vec::new();
-    file.take(MAX_AUTH_BYTES + 1).read_to_end(&mut bytes).map_err(|_| login("cannot read Codex auth.json"))?;
+    let bytes = files.read_bounded(path, MAX_AUTH_BYTES + 1).map_err(|_| login("cannot read Codex auth.json"))?;
     refuse_if(skein_lib::len_u64(bytes.len()) > MAX_AUTH_BYTES, Bound, "Codex auth.json exceeds the credential bound")?;
     Ok(bytes)
 }
@@ -106,24 +102,23 @@ fn expiry(access: &str) -> Result<Wall, Fault> {
     Ok(Wall::from_nanos(nanos))
 }
 
-fn write_record(guard: &Guard, home: &Path, name: &str, encoded: &[u8]) -> Result<PathBuf, Fault> {
-    let home = crate::isolate::create_directory(guard, home)?;
-    let credential = guard.write_path(&home.join(name))?;
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&credential)
-        .map_err(|_| login("cannot create private credential record"))?;
-    if let Err(error) = file.write_all(encoded).and_then(|()| file.sync_all()) {
-        std::fs::remove_file(guard.write_path(&credential)?)
-            .map_err(|_| login("cannot remove incomplete credential"))?;
-        return Err(login(format!("cannot write private credential record: {}", error.kind())));
-    }
-    if file.metadata().map_err(|_| login("cannot inspect private credential record"))?.permissions().mode() & 0o777
-        != 0o600
-    {
-        std::fs::remove_file(guard.write_path(&credential)?)
+fn write_record(files: &dyn Files, guard: &Guard, home: &Path, name: &str, encoded: &[u8]) -> Result<PathBuf, Fault> {
+    let home = crate::isolate::create_directory_with(files, guard, home)?;
+    let credential = guard.write_path_with(files, &home.join(name))?;
+    let facts = match files.create_new_with_metadata(&credential, 0o600, encoded) {
+        Ok(facts) => facts,
+        Err(CreateNewError::Open(_)) => return Err(login("cannot create private credential record")),
+        Err(CreateNewError::Write(error)) => {
+            files
+                .remove_file(&guard.write_path_with(files, &credential)?)
+                .map_err(|_| login("cannot remove incomplete credential"))?;
+            return Err(login(format!("cannot write private credential record: {}", error.kind())));
+        }
+        Err(CreateNewError::Metadata(_)) => return Err(login("cannot inspect private credential record")),
+    };
+    if facts.mode & 0o777 != 0o600 {
+        files
+            .remove_file(&guard.write_path_with(files, &credential)?)
             .map_err(|_| login("cannot remove incorrectly private credential"))?;
         return Err(login("credential record requires mode 0600"));
     }
@@ -133,17 +128,36 @@ fn write_record(guard: &Guard, home: &Path, name: &str, encoded: &[u8]) -> Resul
 /// Convert only allowed Codex fields into a new private attempt-owned home.
 /// `now` is the shell's wall observation; `lifetime` covers the hard deadline.
 pub fn codex(guard: &Guard, source_home: &Path, home: &Path, now: Wall, lifetime: Duration) -> Result<Borrowed, Fault> {
-    logins::codex(source_home)?;
-    let converted = convert(guard, source_home, home, now, lifetime);
+    codex_with(&Native, guard, source_home, home, now, lifetime)
+}
+
+/// Stage an access-only Codex record on the supplied filesystem.
+pub fn codex_with(
+    files: &dyn Files,
+    guard: &Guard,
+    source_home: &Path,
+    home: &Path,
+    now: Wall,
+    lifetime: Duration,
+) -> Result<Borrowed, Fault> {
+    logins::codex_with(files, source_home)?;
+    let converted = convert(files, guard, source_home, home, now, lifetime);
     converted.map_err(|reason| Fault {
         kind: FaultKind::Setup(SetupStep::Credentials),
         detail: format!("{reason}; run `CODEX_HOME={} codex` once before retrying", source_home.display()),
     })
 }
 
-fn convert(guard: &Guard, source_home: &Path, home: &Path, now: Wall, lifetime: Duration) -> Result<Borrowed, Fault> {
+fn convert(
+    files: &dyn Files,
+    guard: &Guard,
+    source_home: &Path,
+    home: &Path,
+    now: Wall,
+    lifetime: Duration,
+) -> Result<Borrowed, Fault> {
     let source = source_home.join("auth.json");
-    let bytes = read_source(&source)?;
+    let bytes = read_source(files, &source)?;
     let digest = format!("{:x}", Sha256::digest(&bytes));
     let source_auth: Source =
         serde_json::from_slice(&bytes).map_err(|_| login("Codex auth.json has an invalid shape"))?;
@@ -173,12 +187,12 @@ fn convert(guard: &Guard, source_home: &Path, home: &Path, now: Wall, lifetime: 
     .map_err(|_| login("cannot encode the access-only record"))?;
     check_credential_record(&record)?;
     let encoded = serde_json::to_vec(&record).map_err(|_| login("cannot encode the access-only record"))?;
-    let credential = write_record(guard, home, "auth.json", &encoded)?;
+    let credential = write_record(files, guard, home, "auth.json", &encoded)?;
     Ok(Borrowed { credential, expires, source, digest })
 }
 
-fn check_private(credential: &Path) -> Result<(), Fault> {
-    let bytes = read_source(credential)?;
+fn check_private(files: &dyn Files, credential: &Path) -> Result<(), Fault> {
+    let bytes = read_source(files, credential)?;
     let record: serde_json::Value =
         serde_json::from_slice(&bytes).map_err(|_| login("private Codex auth.json changed shape"))?;
     check_credential_record(&record)?;
@@ -191,11 +205,17 @@ fn check_private(credential: &Path) -> Result<(), Fault> {
 impl Borrowed {
     /// Remove the private auth file after settlement and verify the user login.
     pub fn finish(&self, guard: &Guard) -> Result<Proof, Fault> {
-        let checked = check_private(&self.credential);
-        std::fs::remove_file(guard.write_path(&self.credential)?)
+        self.finish_with(&Native, guard)
+    }
+
+    /// Settle the credential and verify its source on the supplied filesystem.
+    pub fn finish_with(&self, files: &dyn Files, guard: &Guard) -> Result<Proof, Fault> {
+        let checked = check_private(files, &self.credential);
+        files
+            .remove_file(&guard.write_path_with(files, &self.credential)?)
             .map_err(|_| login("cannot remove private Codex auth.json"))?;
         checked?;
-        let after = format!("{:x}", Sha256::digest(read_source(&self.source)?));
+        let after = format!("{:x}", Sha256::digest(read_source(files, &self.source)?));
         if after != self.digest {
             return Err(login(
                 "user Codex auth.json changed during the isolated attempt; stop before further inference",

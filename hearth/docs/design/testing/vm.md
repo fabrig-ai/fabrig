@@ -42,7 +42,7 @@
 | Scenario | What happens | What must hold |
 |---|---|---|
 | bootstrap | from a live system on a second disk, the client, as root, bootstraps the empty disk (hearth/docs/design/domain/machine/bootstrap.md); the VM boots it | slot a is blessed and the default; two entries per slot, normal and trial; only a's normal entry in `BootOrder` |
-| prepare, soft reboot, bless | a change that cannot be live, such as a drop-in in `/etc/sysctl.d/` (hearth/docs/design/protocol/format/tasks.md, 14): b prepared, a soft reboot into it, the minimal bless (hearth/docs/design/domain/slots/bless.md, section 1) | b running, its normal entry first in `BootOrder`; no trial left |
+| prepare, soft reboot, bless | a change that cannot be live, such as a drop-in in `/etc/sysctl.d/` (hearth/docs/design/protocol/format/tasks-live.md, 1): b prepared, a soft reboot into it, the minimal bless (hearth/docs/design/domain/slots/bless.md, section 1) | b running, its normal entry first in `BootOrder`; no trial left |
 | a packages change that keeps the kernel | a new version of an extras package: b's packages layer rebuilt, its initramfs rebuilt with the same inputs | hearth/docs/design/domain/slots/trial.md 1's rule holds, so a soft reboot, then the bless |
 | a kernel change | a mirror bump that changes the kernel: b prepared, `BootNext` to b's trial entry, a reboot, the bless | before the bless, `BootNext` gone and `BootCurrent` b's trial entry; then b the default |
 | fallback after a panic | the revision adds the `test-panic` task (`worlds.md`, 2) | the trial panics; `panic=N` reboots into a, which records that b fell back |

@@ -1,9 +1,10 @@
 //! A versioned turn with lengths and CRC-32C (protocol/store/transcripts.md, 1).
-mod patch;
-use crate::codec;
+use crate::{
+    Store, codec,
+    registry::{self, Frame},
+};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as core;
-pub(crate) use patch::{Decode, Patch, Progress};
 use skein_lib::{Reader, Writer};
 // Leading length, CRC-32C and trailing length, each four bytes (protocol/store/transcripts.md 1).
 pub(crate) const WRAPPER_BYTES: u32 = 12;
@@ -16,14 +17,112 @@ pub enum Unread {
 }
 #[must_use]
 pub fn encode(turn: &core::TurnRecord, limits: &codec::View) -> Option<Box<[u8]>> {
-    let body = codec::core::turn(turn, limits).ok()?;
-    let length = u32::try_from(body.len()).ok()?.checked_add(WRAPPER_BYTES)?;
+    pack(&codec::core::turn(turn, limits).ok()?)
+}
+pub(crate) fn pack(body: &[u8]) -> Option<Box<[u8]>> {
+    let length = wrapped_size(body.len())?;
     let mut writer = Writer::new(usize::try_from(length).ok()?);
     writer.put(&length.to_be_bytes()).ok()?;
-    writer.put(&body).ok()?;
-    writer.put(&crc32c(&body).to_be_bytes()).ok()?;
+    writer.put(body).ok()?;
+    writer.put(&crc32c(body).to_be_bytes()).ok()?;
     writer.put(&length.to_be_bytes()).ok()?;
     Some(writer.finish())
+}
+pub(crate) fn wrapped_size(body: usize) -> Option<u32> {
+    u32::try_from(body).ok()?.checked_add(WRAPPER_BYTES)
+}
+
+/// Map both heads before framing or compressing the body.
+pub(crate) fn stored_body(store: &Store, turn: &core::TurnRecord) -> Option<Box<[u8]>> {
+    let mut body = codec::core::turn(turn, &store.codec_limits).ok()?;
+    store.registry.write_frame(Frame::Body, &mut body)?;
+    if store.registry.has_frame(Frame::Turn) {
+        // The generated codec writes the transcript as the body's last field.
+        let at = body.len().checked_sub(turn.transcript.len())?;
+        store.registry.write_frame(Frame::Turn, body.get_mut(at..)?)?;
+    }
+    Some(body)
+}
+
+pub(crate) fn read(store: &mut Store, bytes: &mut [u8]) -> Result<(core::TurnRecord, u32), Unread> {
+    let end = 4_usize.checked_add(body(bytes)?.len()).ok_or(Unread::Lengths)?;
+    read_body(store, bytes.get_mut(4..end).ok_or(Unread::Short)?)
+}
+
+#[expect(clippy::disallowed_methods, reason = "the input slice is taken at exactly the opaque turn length")]
+pub(crate) fn read_body(store: &mut Store, body: &mut [u8]) -> Result<(core::TurnRecord, u32), Unread> {
+    let id = registry::head(body).ok_or(Unread::Record)?;
+    let (mut turn, rest, transcript) = match store.registry.frame_version(Frame::Body, id).or(Err(Unread::Record))? {
+        Some(version) => {
+            let (turn, at) = whole_metadata(body, version, &store.codec_limits)?;
+            (turn, at, body.get_mut(at..).ok_or(Unread::Short)?)
+        }
+        None => {
+            let converted =
+                store.registry.convert_frame(Frame::Body, id, body, &mut store.frame_work).ok_or(Unread::Record)?;
+            let version = registry::head(converted).ok_or(Unread::Record)?;
+            let (turn, at) = whole_metadata(converted, version, &store.codec_limits)?;
+            let opaque = converted.get(at..).ok_or(Unread::Short)?;
+            // The body's plan copies the turn. Reuse the spent input as its
+            // source so the same conversion buffer can now serve the turn.
+            let transcript = body.get_mut(..opaque.len()).ok_or(Unread::Record)?;
+            transcript.copy_from_slice(opaque);
+            (turn, at, transcript)
+        }
+    };
+    let transcript = store.registry.read_frame(Frame::Turn, transcript, &mut store.frame_work).ok_or(Unread::Record)?;
+    let size = u32::try_from(rest.checked_add(transcript.len()).ok_or(Unread::Lengths)?)
+        .or(Err(Unread::Lengths))?
+        .checked_add(WRAPPER_BYTES)
+        .ok_or(Unread::Lengths)?;
+    if size > store.limits.store.page.bytes
+        || transcript.len() > skein_lib::usize_of(store.codec_limits.core.turn_record_transcript)
+    {
+        return Err(Unread::Lengths);
+    }
+    turn.transcript = Box::from(transcript);
+    Ok((turn, size))
+}
+
+/// The generated codec reads the fixed metadata with an empty last field.
+/// Decode the opaque transcript separately, after both heads are mapped.
+#[expect(clippy::disallowed_methods, reason = "both metadata slices end at the same checked offset")]
+pub(crate) fn metadata(
+    body: &[u8],
+    version: u16,
+    limits: &codec::View,
+) -> Result<(core::TurnRecord, usize, u32), Unread> {
+    let at = header_bytes(body).ok_or(Unread::Record)?;
+    let length_at = at.checked_sub(4).expect("the header includes the payload length");
+    let mut head = [0; 52];
+    let head = head.get_mut(..at).ok_or(Unread::Short)?;
+    head.get_mut(..length_at).ok_or(Unread::Short)?.copy_from_slice(body.get(..length_at).ok_or(Unread::Short)?);
+    registry::rehead(head, version);
+    let turn = codec::core::read_turn(head, limits).or(Err(Unread::Record))?;
+    let size = Reader::new(body.get(length_at..).ok_or(Unread::Short)?).u32().ok_or(Unread::Short)?;
+    Ok((turn, at, size))
+}
+
+fn whole_metadata(body: &[u8], version: u16, limits: &codec::View) -> Result<(core::TurnRecord, usize), Unread> {
+    let (turn, at, size) = metadata(body, version, limits)?;
+    if body.len().checked_sub(at) != Some(skein_lib::usize_of(size)) {
+        return Err(Unread::Lengths);
+    }
+    Ok((turn, at))
+}
+
+/// The current body has 31 bytes before `read`, then its option tag,
+/// optional u64, the time, and the transcript's length.
+pub(crate) fn header_bytes(body: &[u8]) -> Option<usize> {
+    match *body.get(31)? {
+        0 => Some(44),
+        1 => Some(52),
+        _ => None,
+    }
+}
+
+pub(crate) fn charged(store: &Store) -> bool {
+    store.registry.has_frame(Frame::Body) || store.registry.has_frame(Frame::Turn)
 }
 /// Decode exactly one whole frame, refusing trailing bytes as well.
 pub fn decode(bytes: &[u8], limits: &codec::View) -> Result<core::TurnRecord, Unread> {
@@ -87,12 +186,44 @@ const TABLE: [u32; 256] = [
     0xf36e_6f75, 0x0105_ec76, 0x1255_1f82, 0xe03e_9c81, 0x34f4_f86a, 0xc69f_7b69, 0xd5cf_889d, 0x27a4_0b9e,
     0x79b7_37ba, 0x8bdc_b4b9, 0x988c_474d, 0x6ae7_c44e, 0xbe2d_a0a5, 0x4c46_23a6, 0x5f16_d052, 0xad7d_5351,
 ];
+
+// Extend each byte's remainder by one zero byte, at compile time only.
+#[expect(clippy::indexing_slicing, reason = "the loop and the low byte both index inside the 256-entry tables")]
+#[expect(clippy::as_conversions, reason = "the const lookup widens a byte to usize")]
+const fn advance(table: &[u32; 256]) -> [u32; 256] {
+    let mut next = [0; 256];
+    let mut index = 0_usize;
+    while index < next.len() {
+        let crc = table[index];
+        let [low, ..] = crc.to_le_bytes();
+        next[index] = (crc >> 8_u32) ^ TABLE[low as usize];
+        index = index.saturating_add(1);
+    }
+    next
+}
+
+const TWO: [u32; 256] = advance(&TABLE);
+const THREE: [u32; 256] = advance(&TWO);
+const FOUR: [u32; 256] = advance(&THREE);
+
 #[must_use]
 pub fn crc32c(bytes: &[u8]) -> u32 {
+    let (words, tail) = bytes.as_chunks::<4>();
     let mut crc = !0_u32;
-    for byte in bytes {
-        let index = skein_lib::length::usize_of((crc ^ u32::from(*byte)) & 0xff);
-        crc = (crc >> 8_u32) ^ *TABLE.get(index).expect("one table entry per byte");
+    for &word in words {
+        // Each byte contributes the remainder after that byte and every byte
+        // to its right. XOR combines the four independent remainders.
+        let [a, b, c, d] = (crc ^ u32::from_le_bytes(word)).to_le_bytes();
+        crc = entry(&FOUR, a) ^ entry(&THREE, b) ^ entry(&TWO, c) ^ entry(&TABLE, d);
+    }
+    for &byte in tail {
+        let [low, ..] = crc.to_le_bytes();
+        crc = (crc >> 8_u32) ^ entry(&TABLE, low ^ byte);
     }
     !crc
+}
+
+#[expect(clippy::indexing_slicing, reason = "every u8 indexes the fixed 256-entry table")]
+fn entry(table: &[u32; 256], byte: u8) -> u32 {
+    table[usize::from(byte)]
 }

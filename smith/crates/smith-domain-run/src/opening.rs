@@ -1,5 +1,5 @@
-//! Main's immutable conversation opening (smith/docs/design/domain/run.md, sections 3.3 and
-//! 3.4; skein/docs/foundation/programming-model.md, section 6.2). This module keeps no state and
+//! Main's immutable conversation opening (smith/docs/design/domain/run-start.md, sections 1.3 and
+//! 1.4; skein/docs/foundation/programming-model.md, section 6.2). This module keeps no state and
 //! knows no provider dialect, host policy or live clock. `main` copies the
 //! admitted charter and preparation findings into the opening value; the
 //! run retains its phase, message offer and transcript ownership.
@@ -50,6 +50,7 @@ pub(crate) fn main(
             .expect("admitted schema text aggregate");
     }
     Opening {
+        tell_parts: false,
         final_turn: None,
         generated_schema_bytes,
         identity,

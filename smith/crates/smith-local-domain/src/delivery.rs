@@ -1,5 +1,5 @@
 //! One in-place delivery, in workspace order (domain/host.md, section 8;
-//! domain/run.md, sections 8.2–8.4). It keeps the child call's name, bounded
+//! domain/run-delivery.md, sections 1.2–1.4). It keeps the child call's name, bounded
 //! message, survey and receipts while IO decides git state. It never reads a
 //! tree or knows git syntax. The parent saves the intent before the first git
 //! write, then saves the answer before returning it to the child.

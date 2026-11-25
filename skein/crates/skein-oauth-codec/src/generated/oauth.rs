@@ -8,8 +8,13 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 3;
+pub const LAYOUT: [u8; 32] = [
+    0x29, 0x3e, 0x92, 0xed, 0x07, 0xaa, 0xe8, 0x16, 0x92, 0x31, 0x13, 0x4a, 0xde, 0x44, 0xe4, 0xae, 0xd5, 0x20, 0xb7,
+    0xcd, 0x58, 0x8e, 0x3e, 0xb1, 0x06, 0x73, 0xc5, 0x8d, 0x75, 0x7a, 0xfe, 0x3e,
+];
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub saved_token_access_token: u32,
@@ -44,15 +49,29 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.saved_token_access_token).expect("room for every named limit");
-        values.push(self.saved_token_refresh_token_some).expect("room for every named limit");
-        values.push(self.saved_token_metadata_some).expect("room for every named limit");
-        values.push(self.saved_token_issued_client_id_some).expect("room for every named limit");
-        values.push(self.saved_token_granted_scopes_some).expect("room for every named limit");
-        values.push(self.saved_token_subject_some).expect("room for every named limit");
-        values.push(self.saved_token_id_token_some).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.saved_token_access_token,
+            self.saved_token_refresh_token_some,
+            self.saved_token_metadata_some,
+            self.saved_token_issued_client_id_some,
+            self.saved_token_granted_scopes_some,
+            self.saved_token_subject_some,
+            self.saved_token_id_token_some,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            saved_token_access_token: self.saved_token_access_token.min(most),
+            saved_token_refresh_token_some: self.saved_token_refresh_token_some.min(most),
+            saved_token_metadata_some: self.saved_token_metadata_some.min(most),
+            saved_token_issued_client_id_some: self.saved_token_issued_client_id_some.min(most),
+            saved_token_granted_scopes_some: self.saved_token_granted_scopes_some.min(most),
+            saved_token_subject_some: self.saved_token_subject_some.min(most),
+            saved_token_id_token_some: self.saved_token_id_token_some.min(most),
+        }
     }
 }
 
@@ -75,93 +94,22 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const SAVED_TOKEN_KEY: Path = Path::new(0, 0);
-    pub const SAVED_TOKEN_GENERATION: Path = Path::new(0, 1);
-    pub const SAVED_TOKEN_EXPIRES_AT: Path = Path::new(0, 2);
-    pub const SAVED_TOKEN_ACCESS_TOKEN: Path = Path::new(0, 3);
-    pub const SAVED_TOKEN_REFRESH_TOKEN: Path = Path::new(0, 4);
-    pub const SAVED_TOKEN_METADATA: Path = Path::new(0, 5);
-    pub const SAVED_TOKEN_ISSUED_CLIENT_ID: Path = Path::new(0, 6);
-    pub const SAVED_TOKEN_GRANTED_SCOPES: Path = Path::new(0, 7);
-    pub const SAVED_TOKEN_SUBJECT: Path = Path::new(0, 8);
-    pub const SAVED_TOKEN_ID_TOKEN: Path = Path::new(0, 9);
-    pub const SAVED_TOKEN_EARLIEST_REFRESH_AT: Path = Path::new(0, 10);
-    pub const SAVED_TOKEN_VERSION: Path = Path::new(0, 11);
-    pub const SAVED_TOKEN_TAIL: Path = Path::new(0, 12);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "SavedToken.key",
-        "SavedToken.generation",
-        "SavedToken.expires_at",
-        "SavedToken.access_token",
-        "SavedToken.refresh_token",
-        "SavedToken.metadata",
-        "SavedToken.issued_client_id",
-        "SavedToken.granted_scopes",
-        "SavedToken.subject",
-        "SavedToken.id_token",
-        "SavedToken.earliest_refresh_at",
-        "SavedToken (version)",
-        "SavedToken (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Option { item: 4 },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Option { item: 6 },
-    skein_codec::bounds::Node::Bytes { limit: 3 },
-    skein_codec::bounds::Node::Option { item: 8 },
-    skein_codec::bounds::Node::Bytes { limit: 4 },
-    skein_codec::bounds::Node::Option { item: 10 },
-    skein_codec::bounds::Node::Bytes { limit: 5 },
-    skein_codec::bounds::Node::Option { item: 12 },
-    skein_codec::bounds::Node::Bytes { limit: 6 },
-    skein_codec::bounds::Node::Option { item: 14 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 16 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    18,
-];
-
-const CEILING_VALUES: &[u32] = &[
-    65_536,
-    65_536,
-    65_536,
-    4_096,
-    4_096,
-    4_096,
-    65_536,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const SAVED_TOKEN_KEY: Path = Path::new("SavedToken.key");
+    pub const SAVED_TOKEN_GENERATION: Path = Path::new("SavedToken.generation");
+    pub const SAVED_TOKEN_EXPIRES_AT: Path = Path::new("SavedToken.expires_at");
+    pub const SAVED_TOKEN_ACCESS_TOKEN: Path = Path::new("SavedToken.access_token");
+    pub const SAVED_TOKEN_REFRESH_TOKEN: Path = Path::new("SavedToken.refresh_token");
+    pub const SAVED_TOKEN_METADATA: Path = Path::new("SavedToken.metadata");
+    pub const SAVED_TOKEN_ISSUED_CLIENT_ID: Path = Path::new("SavedToken.issued_client_id");
+    pub const SAVED_TOKEN_GRANTED_SCOPES: Path = Path::new("SavedToken.granted_scopes");
+    pub const SAVED_TOKEN_SUBJECT: Path = Path::new("SavedToken.subject");
+    pub const SAVED_TOKEN_ID_TOKEN: Path = Path::new("SavedToken.id_token");
+    pub const SAVED_TOKEN_EARLIEST_REFRESH_AT: Path = Path::new("SavedToken.earliest_refresh_at");
+    pub const SAVED_TOKEN_VERSION: Path = Path::new("SavedToken (version)");
+    pub const SAVED_TOKEN_TAIL: Path = Path::new("SavedToken (tail)");
 }
 
 // Type: SavedToken.
@@ -181,16 +129,43 @@ pub struct SavedToken {
 }
 
 // Record: SavedToken.
+impl SavedToken {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, saved_token_access_token) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, saved_token_refresh_token_some) },
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, saved_token_metadata_some) },
+        skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, saved_token_issued_client_id_some) },
+        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, saved_token_granted_scopes_some) },
+        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, saved_token_subject_some) },
+        skein_codec::bounds::Node::Option { item: 12 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, saved_token_id_token_some) },
+        skein_codec::bounds::Node::Option { item: 14 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 16 },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 65;
+}
+
 impl Record for SavedToken {
     type Limits = Limits;
     const TAIL: Path = paths::SAVED_TOKEN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SavedToken")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "SavedToken")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -236,3 +211,27 @@ impl Record for SavedToken {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "SavedToken", nodes: SavedToken::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.saved_token_access_token,
+    CEILINGS.saved_token_refresh_token_some,
+    CEILINGS.saved_token_metadata_some,
+    CEILINGS.saved_token_issued_client_id_some,
+    CEILINGS.saved_token_granted_scopes_some,
+    CEILINGS.saved_token_subject_some,
+    CEILINGS.saved_token_id_token_some,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

@@ -21,24 +21,26 @@ them, read `../configuration/providers.md`: `temper-box init` writes
 neither member, no `demo/llm.key` and chooses no scripted model's port,
 and `--box` still makes `demo/` and `demo/bin/git`.
 
+## 1. The deployment document and its machine settings
+
 - **One document,** `temper-box serve`'s, `temper.json` in the
   configuration directory (../configuration/README.md, section 2 and ../configuration/directories.md). Every
   `temper-box forge` command and `temper box` read it whole, check it
-  as ../configuration/README.md, section 6 says, `application.machine` among it,
+  as ../configuration/startup.md, section 1 says, `application.machine` among it,
   and act on their part: they read no file but their own part's.
 - **It names no forge.** A forge is a record of the forge connector,
   made by the act that sets it up or connects it, and numbered next when
   it is made (../forge/engine.md, 1 and 2): its kind, mode, place, git
   program, bot and first repository's intent are its record's, carried
-  by the act that makes it, `SetUp` for an owned Forgejo (`owned.md`, 5, 7),
+  by the act that makes it, `SetUp` for an owned Forgejo (`owned.md`, 5, `owned-repositories.md`, 1),
   `Connect` for a Forgejo elsewhere (`reconcile.md`, 5) or GitHub (`github.md`), and
   `StartPlayground` for the playground's fake one (`playground.md`). A first run's
-  document names none (3).
+  document names none (6).
 - **The document keeps the machine's:** the clients' and the webhooks'
   listeners; in `application.machine` (../configuration/engine.md),
   what the forges a box can run take from this machine, the box's owned
   Forgejo's port and the fakes' ports among it, which `temper-box init --box`
-  chooses and the box holds from its start (`box.md`, 1, `init.md`, 2); and the limits,
+  chooses and the box holds from its start (`box.md`, 1, `init.md`, 5); and the limits,
   whose forge members count the deployment's forges and repositories,
   never a sum over its forges (../forge/README.md, section 6).
 - **`application.machine`,** each of its parts absent, or null, for
@@ -75,18 +77,21 @@ and `--box` still makes `demo/` and `demo/bin/git`.
   | `fake` | the playground's fake forge | its members below; the fake kind's group (`box.md`, 1) and the playground's start (`playground.md`) need it, and `application.demo` beside it |
   | `fake.listen` | an address, jig's format | as `owned.listen` |
   | `fake.remote` | an HTTP base | `http://<listen>` |
-  | `fake.git` | a data path | the playground's git, a link to `temper-box fake git` (`init.md`, 2, `playground.md`): the program the engine names in each of the fake forge's repositories' records, for the worker to spawn in place of `workers[].git` (../channel.md, section 4) |
-  | `github` | GitHub's place, `{"api", "transport", "remote", "web", "git"}`, or null | null for github.com's (`github.md`, 1); a place only to point at a fake (`box.md`, 5) |
+  | `fake.git` | a data path | the playground's git, a link to `temper-box fake git` (`init.md`, 5, `playground.md`): the program the engine names in each of the fake forge's repositories' records, for the worker to spawn in place of `workers[].git` (../channel.md, section 4) |
+  | `github` | GitHub's place, `{"api", "transport", "remote", "web", "git"}`, or null | null for github.com's (`github.md`, 1); a place only to point at a fake (`box-backends.md`, 1) |
 
 - **Runner slots:** change CI and tiers whose workflows use `temper-host`
   share the owned runner's capacity, including other repositories' jobs.
   `application.machine.owned.runner.capacity` has minimum and default 1
-  (3). To run CI beside one single-job tier takes 2 slots; beside two
+  (6). To run CI beside one single-job tier takes 2 slots; beside two
   such tiers takes 3. Multi-job workflows need a slot for each concurrent
   job. With only one slot a slow tier can keep CI waiting and prevent
   landings during its run. A capacity edit reaches an existing runner
   through re-preparation (`owned.md`, 3); stop the box, edit `CONFIG/temper.json`,
   then restart on the same configuration, data and cache directories.
+
+## 2. Forge setup entries and records
+
 - **A forge's setup entry,** what the setup host and the box's commands
   set an owned, fake or managed forge up with, is made from its record
   and, for an owned or fake forge, the machine's part of its kind: its
@@ -98,11 +103,11 @@ and `--box` still makes `demo/` and `demo/bin/git`.
   alone: its records are made when the person connects as its admin
   (`reconcile.md`, 5), and its admin token's name is `admin`, not the owned forge's
   `temper-admin`. No entry names an org: an owned forge's org is its
-  first repository's, made by `Create` (`owned.md`, 7).
+  first repository's, made by `Create` (`owned-repositories.md`, 1).
 - **A Forgejo connected** with its bot's tokens has no setup entry
   (`README.md`, section 4); GitHub takes none (`github.md`).
 - **The page's actions are the engine domain's offers**
-  (`../../domain/forge/adoption.md`, 1): "Set up a Forgejo here" while the
+  (`../../domain/forge/adoption-connection.md`, 1): "Set up a Forgejo here" while the
   machine names the box's owned Forgejo and none is kept (`owned.md`, 5), and
   "Connect as its admin", which makes a Forgejo elsewhere from the
   address the person gives (`reconcile.md`, 5). The client cannot infer these offers
@@ -127,6 +132,9 @@ and `--box` still makes `demo/` and `demo/bin/git`.
   records are kept under it; and records made for another kind or
   address leave a forge not connected, named, with nothing erased
   (`README.md`, section 3).
+
+## 3. Listeners and startup checks
+
 - **`webhooks`,** `application.webhooks`, `{"listener": address}`, on
   loopback; each Forgejo forge's secret is its `WebhookSecret` record
   (../configuration/engine.md; skein's `forge/README.md`, section 6).
@@ -142,11 +150,11 @@ and `--box` still makes `demo/` and `demo/bin/git`.
 - **`application.welcome`,** `true` to show the welcome; absent, none
   (../configuration/engine.md).
 - **An owned example** ships for a person, a test or QA's host to start
-  from (1).
-- **`temper-box init`** writes a deployment that starts (2), with the
-  default document (3).
+  from (4).
+- **`temper-box init`** writes a deployment that starts (5), with the
+  default document (6).
 
-## 1. The owned example
+## 4. The owned example
 
 The box document written by `temper-box init --box` and the owned example take
 jig's `standard`'s `documents.lines`, sixteen entries for each creating
@@ -160,7 +168,7 @@ effective limits must still fit its codecs.
 `workers` and `application`, for the box's owned Forgejo with a runner,
 webhooks, one worker and two LLM providers, with no
 LLM account: a person adds one from the client once the deployment has
-started (../credentials.md, section 3). Beside it are the files it names
+started (../credentials-llm-accounts.md, section 1). Beside it are the files it names
 that hold no secret: the charters, `charters/`, short texts a person
 edits. The worker's secret is a data path and never shipped: the walk
 `box` (`temper help box`) says how it is made in the data directory. A person, a test or
@@ -184,7 +192,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
 - **Its owner may do the forge's work in the org,** and no more: the
   rules' ceiling, the project's ceiling, its role's authority and its
   projections each hold one grant on the org, `acme`, for each kind a
-  change and its goal's issue use (`../../domain/forge/README.md`, section 4):
+  change and its goal's issue use (`../../domain/forge/effects.md`, section 1):
   read, push, open a pull request, merge, comment, create an issue, edit
   a pull request, update it from its base, close or reopen it, and edit,
   close or reopen an issue; 10, as the process tier's owner holds them.
@@ -219,11 +227,11 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   for a project of fabrig's scale (../configuration/stock.md): smith's
   `standard`, with `declared` `memory` 2,147,483,648, `tool_payload`
   the largest smith admits at its model's output of 8,192 tokens (about
-  10,662 bytes; ../configuration/settings.md, 7), `read_window` 256,
+  10,662 bytes; ../configuration/settings-output.md, 1), `read_window` 256,
   `conversations` 26 (room for a run and 25 sub-agents, smith's
   `protocol/limits.md`, 2.2: a run's main conversation and its
   sub-agents', each a program session of its own on Claude Code, smith's
-  `protocol/programs.md`, 5.10) and `calls_per_response` 48 (smith's
+  `protocol/programs-claude-code.md`, 1.10) and `calls_per_response` 48 (smith's
   `domain/session.md`, 5, and smith's `protocol/limits.md`, 2.3), and `policy`
   `max_turns` 800, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 82
   (a run's inbox, jig's `standard` `tasks.run_inbox`, which the fleet
@@ -238,8 +246,8 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   `standard` against the agent). smith's standard sizes with nothing
   declared refuse the example's model declaration at start.
   `temper-box init`'s agent takes the same figures but its endpoints and
-  programs (2); its scripted model's window is `gpt-6-luna`'s, so its
-  room is the same (3).
+  programs (5); its scripted model's window is `gpt-6-luna`'s, so its
+  room is the same (6).
 - **Its `engine.limits`** are jig's `standard` profile (../configuration/stock.md
   ) with the overrides ../configuration/limits.md asks so that the
   engine's documents fit temper's client, those its agent sets, and the
@@ -250,7 +258,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
     `text`, 512, and a hold's account, 512 (jig's
     `client/domain/contract/documents.md`, 3), and refuses a longer one. It is
     also the piece a client reads a task's text in (jig's
-    `client/domain/contract/README.md`, 4), so it is as large as they take. A
+    `client/domain/contract/reads.md`, 1), so it is as large as they take. A
     run's `read_task` has its own room, the agent's `tool_payload`, 10,662
     (`../../domain/routing.md`, 2);
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
@@ -277,20 +285,20 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   (../configuration/stock.md).
 - **Its `application.limits`** are temper's `standard` with
   `checkout.workspaces` and `git_component.operations` 4, the least the
-  worker's slots take (`../../domain/worker/README.md`, section 5);
+  worker's slots take (`../../domain/worker/agent-processes.md`, section 1);
   `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call; `forge.client.op_bytes` the engine's result
   bound, which the root holds it to, and `forge_component.body_bytes`
   21,341, which holds that write and its marker; `forge.judge_projects`
   8, jig's `authority.projects` in `standard`; the forge's repositories
-  and output (3); and the turn's bounds below.
+  and output (6); and the turn's bounds below.
 - **Its turn's bounds derive from smith's largest turn,** T, the
   agent's `turn_body`, which its configuration derives (../configuration/limits.md
   , the turn's check). The model's reasoning allowance,
   `reasoning_item`, is 65,536 bytes: a plan's model's reasoning items
   stay within it in ordinary use, so a chat on a plan is not held for
   its reasoning, and a person may lower it, with these bounds
-  (../configuration/README.md, section 4). Each bound is the least the turn's
+  (../configuration/worker.md, section 2). Each bound is the least the turn's
   check takes, past jig's `standard` profile's:
   - both hubs, `engine.limits` and the worker's `limits`:
     `hub.turn_bytes` T; `hub.transcript_bytes`
@@ -300,7 +308,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
     (the worker's check, above);
   - the worker's `limits`: `io.output` a turn of T's frame on its link,
     header included, past the profile's 1,048,576, so that the worker's
-    link is made (jig's `protocol/channel/README.md`, 8 and 10);
+    link is made (jig's `protocol/channel/liveness.md`, 1, and `protocol/channel/README.md`, 10);
   - `engine.limits`: `core.resume_bytes` T + 4, one largest turn with
     its length, so that a chat's window resumes whole up to that size;
   - `application.limits`: `root.journal.transcript_bytes` T + 4, the
@@ -318,7 +326,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
 
   jig's `standard` store page admits the frame of any turn smith admits,
   up to 33,554,432 bytes, and the store's frame and the worker wire
-  carry it (../configuration/settings.md, 7; jig's `protocol/store/transcripts.md`, 1).
+  carry it (../configuration/settings-output.md, 1; jig's `protocol/store/transcripts.md`, 1).
   The other KV bounds stay as they are: a turn's body is a transcript
   file's, never a KV value. Startup refuses a figure past its wire
   field's ceiling.
@@ -354,14 +362,14 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   listener's (`127.0.0.1:7101`), are what a host changes to run several
   boxes on one machine, with each box's directories.
 
-## 2. `temper-box init`
+## 5. `temper-box init`
 
 `temper-box init [DIRECTORIES] [--box]` writes a deployment that starts,
 from its three directories (../configuration/directories.md) and what it
 finds on the machine. Alone, it writes a bare deployment: no welcome, no
 playground and no Forgejo on this machine.
 
-- **It writes `temper.toml`,** one line (3), rendered from the file's
+- **It writes `temper.toml`,** one line (6), rendered from the file's
   table (`../configuration/file.md`, section 7). What it finds below,
   git, `claude` and the person among it, it checks and says as below,
   and writes into no file: the start finds each again. Where a bullet
@@ -395,9 +403,9 @@ playground and no Forgejo on this machine.
   | File | Directory | Mode | What it is |
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
-  | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
+  | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned-sign-in.md`, 1's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
   | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
-  | `temper.toml` | configuration | 0o644 | the default file (3) |
+  | `temper.toml` | configuration | 0o644 | the default file (6) |
 
   It writes no `agent.json`, and no worker part's `limits` or `agent`:
   temper writes the agent's configuration at each start, from the
@@ -418,31 +426,31 @@ playground and no Forgejo on this machine.
     pinned build, fetched when a command of its source first needs it
     (`owned.md`, 6), written without a word, since Claude is offered either way
     (`../../client/pages/README.md`);
-  - *the person,* with `--box`, the machine's owned Forgejo's (3): its `login` the
+  - *the person,* with `--box`, the machine's owned Forgejo's (6): its `login` the
     name of the effective uid's entry in `/etc/passwd` (`geteuid`, then
     that file; on macOS, whose users are not in it, what `/usr/bin/id
     -un` prints), the login the person signs in to their Forgejo with; its
     `email` `LOGIN@localhost`. With no entry, or a name that is not a
     Forgejo login, is one of Forgejo's reserved names (such as `admin`),
     or is the bot's, `temper-admin` or `work`, the first repository's
-    default org (`owned.md`, 7), the login is `person`, and init says so: no owned
+    default org (`owned-repositories.md`, 1), the login is `person`, and init says so: no owned
     forge is set up until the person asks, so the person's login is
     never a reason the first run does not start;
   - *the bundle:* none to find. `clients.bundle` is always `null`, the
-    binary's own (`../../client/web/README.md`, 2.6): a temper built with its
+    binary's own (`../../client/web/bundle.md`, 1): a temper built with its
     browser starts its first run with it. From a binary built without
     one (`TEMPER_INTERNAL_BUNDLE=none`), init says the browser is not served;
     the link still signs in a terminal (`temper-box open`), and a browser
     that opens it is answered the clients' listener's page for no
-    bundle (`../../client/web/README.md`, 2.2), never a bare `404`;
+    bundle (`../../client/web/serving.md`, 1), never a bare `404`;
   - *the clients' listener's port:* 8367, when a socket binds
     `127.0.0.1:8367`, else the port the kernel assigns to a bind of port
     0; the port written fixed, as GitHub requires (`github.md`, 1). A later start on a port taken is
     refused, naming it and the document, as any start is;
   - *the machine's ports,* with `--box`: 8368, the owned Forgejo's
-    (3); 8369, the playground's fake forge's, and 8370, the scripted
+    (6); 8369, the playground's fake forge's, and 8370, the scripted
     model's fake LLM's (`playground.md`), each by the same rule;
-  - *the webhooks' listener's port:* 8371, by the same rule (3). The
+  - *the webhooks' listener's port:* 8371, by the same rule (6). The
     sockets, the clients', these three with `--box` and the webhooks',
     are held until all the ports are chosen, so that no two are the
     same; then `temper-box init` closes them, and `temper box`, whose first
@@ -475,10 +483,10 @@ playground and no Forgejo on this machine.
   the flags init was given. Its stdout is empty; exit 0.
 - **Nothing else:** no forge, no account, no credential, no repository
   and no store. The engine's first start makes its store; accounts,
-  forges and repositories are the client's (../credentials.md, section 3;
+  forges and repositories are the client's (../credentials-llm-accounts.md, section 1;
   `../../client/forge/README.md`), and the playground's forge, account, project
   and repository its start's (`playground.md`).
-- **Its code:** `temper-init`, step code (`README.md`, section 7): given the facts
+- **Its code:** `temper-init`, step code (`crate-layout.md`, section 1): given the facts
   above, git's and `claude`'s paths or none among them, the box's parts' or none, those
   being the person's login, the machine's ports and the scripted key's
   32 bytes, the three directories and the secret's 32 bytes, it answers
@@ -487,12 +495,12 @@ playground and no Forgejo on this machine.
   to `person` or not; it reads, writes and binds nothing. The binary's `init` finds
   the facts, checks the refusals and writes the files, on skein-io.
 - **Checked:** temper-init's step tests check that the box's `engine.llm` is the
-  owned example's with the scripted provider (3), that the bare
+  owned example's with the scripted provider (6), that the bare
   document is the box's less its parts, that its worker is named
   `local` and its document names no `engine.hosts.workers` (`../cluster.md`, 1), the files' names, directories and order, and the
   machine's part with the person's login found and fallen back. The binary's
   crate tests, on scratch directories, check that each document init writes
-  passes ../configuration/README.md, section 6, as `temper-box serve` checks it, with
+  passes ../configuration/startup.md, section 1, as `temper-box serve` checks it, with
   the agent's configuration generated at start, at the fixed ports and at kernel's
   ports, always distinct, with and without `claude` and git, the
   Anthropic provider, its sources, its program, both its endpoints and
@@ -510,7 +518,7 @@ playground and no Forgejo on this machine.
   starts the shipped box the same way and reads its welcome's Model step,
   ChatGPT's and Claude's cards, with no `claude` on `PATH` (`testing.md`, 1).
 
-## 3. The default file
+## 6. The default file
 
 What `temper-box init` writes as `temper.toml`, with `--box` or
 without: one line, `listen`, under the file's two header lines
@@ -521,7 +529,7 @@ holds is a default, a constant or a derivation of the file's reader
 
 - **What the file gives a box:** the clients' listener at `listen`; the
   webhooks' listener at its next port; the first owner the process's
-  user, `LOGIN@localhost` at the printed link's provider (2); one
+  user, `LOGIN@localhost` at the printed link's provider (5); one
   worker in the process, `local`, its secret `worker.secret`, its places
   its setting's (`../configuration/figures.md`, section 4); with
   `provider.key` in the data directory, the OpenID provider of
@@ -530,36 +538,36 @@ holds is a default, a constant or a derivation of the file's reader
 - **What the start finds,** at each start rather than in the file:
   `git` and `claude` on `PATH`, `claude` fetched where there is none
   (`../configuration/figures.md`, section 6), unless the file's
-  `[programs]` names one; the owned Forgejo's person (2); the fake
+  `[programs]` names one; the owned Forgejo's person (5); the fake
   forge's git, `demo/bin/git`.
 - **Sized for real work** by the stock (`../configuration/stock.md`),
   with no override: limits, LLM providers and the agents' figures are
   settings with the stock's defaults (`../configuration/limit-settings.md`;
   `../configuration/providers.md`; `../configuration/figures.md`,
-  section 5), the welcome is the box's (`../configuration/settings.md`,
-  2), and a forge's place is chosen at its set-up (`place.md`).
+  section 5), the welcome is the box's (`../configuration/settings-kinds.md`,
+  1), and a forge's place is chosen at its set-up (`place.md`).
 - **No forge, no project:** a first run's store holds none; the person
   makes each from the client, none needing a restart (`owned.md`, 5;
   `github.md`; `reconcile.md`, section 5; `playground.md`).
 - **Its box's steps** (`box.md`, 1): `temper-box serve`; the fake kind's
   group and the owned kind's, each dormant until its forge is set up.
 
-## 4. Open questions
+## 7. Open questions
 
-- **A start holding the engine's documents to temper's clients** (`init.md`, 1):
+- **A start holding the engine's documents to temper's clients** (`init.md`, 4):
   no start compares `documents.text_bytes` with what the web and terminal
   clients receive, so a deployment past 512 starts, and those clients
   refuse a document whose text is longer. A test holds `temper-box init`'s
   documents to them; a deployment's own override is held by nothing.
 
 - **The deployment's own UX:** what `temper-box init` alone writes and says
-  beyond `init.md`, 2, and how a server is set up. For now it is the cheapest
+  beyond `init.md`, 5, and how a server is set up. For now it is the cheapest
   bare deployment.
 
 - **Flags of their own** (`--welcome`, `--playground`), when a
-  deployment wants some of the box's parts and not others (`init.md`, 2).
+  deployment wants some of the box's parts and not others (`init.md`, 5).
 
-- **Four agents on a laptop** (`init.md`, 1, 3): measure their combined resident
+- **Four agents on a laptop** (`init.md`, 4, 6): measure their combined resident
   memory, including any program an agent launches, after landing. The
   box-and-serve figures in `README.status.md` exclude agent processes and
   do not size four of them. Each agent declares 2 GiB, carried unenforced;
@@ -569,7 +577,7 @@ holds is a default, a constant or a derivation of the file's reader
   in the four workspaces. The process, browser and live checks follow
   landing (`../../testing/README.md`, section 7).
 
-- **Discovering models per account** (`init.md`, 3): provider-list reads and their
+- **Discovering models per account** (`init.md`, 6): provider-list reads and their
   retained names are the catalogue's lists step
   (`../../draft/model-catalogue.md`, sections 5 and 7). Default: the binary's
   stock and model settings added by name through Settings, Models or
@@ -580,14 +588,14 @@ holds is a default, a constant or a derivation of the file's reader
   stock first, its endpoint the fake LLM's port, the machine's.
 
 - **Good defaults for a person's real work:** landing rules and the
-  memory bound. Default: `init.md`, 3's, refined once a first run works; the
+  memory bound. Default: `init.md`, 6's, refined once a first run works; the
   charters and limits are sized for a project of fabrig's scale
   (../configuration/stock.md).
 
-- **A task's text past what the clients receive** (`init.md`, 1). A client reads a
+- **A task's text past what the clients receive** (`init.md`, 4). A client reads a
   spec in pieces of `documents.text_bytes`, 512, where the request
   `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the web and
-  terminal clients' `text` raised (jig's `client/domain/contract/README.md`, 4).
+  terminal clients' `text` raised (jig's `client/domain/contract/reads.md`, 1).
   Default: 512. The user's to choose, with no answer yet. A run's `read_task`
   is outside it where its worker or its process's local agent names a reply
   bound, reading in that room (`../../domain/routing.md`, 2).

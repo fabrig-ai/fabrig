@@ -1,6 +1,6 @@
 //! Pure endpoint preparation from declarations, before native resolution or trust loading.
 //! It retains validated names, request settings and transport sources, never kernel handles.
-//! Contract: smith/docs/design/protocol/agent.md, section 4; smith/docs/design/protocol/limits.md, sections 2–4.
+//! Contract: smith/docs/design/protocol/agent.md, section 4; smith/docs/design/protocol/limits.md, section 2, and smith/docs/design/protocol/limits-derivation.md, section 1, and smith/docs/design/protocol/limits.md, section 4.
 
 use skein_http::Header;
 use skein_lib::{Duration, List};
@@ -37,18 +37,7 @@ pub(super) struct PreparedEndpoint {
 
 pub(super) enum EndpointTransport {
     Plaintext,
-    #[cfg_attr(
-        not(unix),
-        expect(
-            dead_code,
-            reason = "only the cfg(unix) trust loading reads these; the checks that build them are portable"
-        )
-    )]
-    Tls {
-        server_name: tls::Name,
-        trust_der: Option<String>,
-        trust: Option<document::TrustDocument>,
-    },
+    Tls { server_name: tls::Name, trust_der: Option<String>, trust: Option<document::TrustDocument> },
 }
 
 pub(super) fn build_endpoints(

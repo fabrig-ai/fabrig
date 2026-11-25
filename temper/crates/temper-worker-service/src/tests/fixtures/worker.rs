@@ -33,6 +33,8 @@ pub fn assignment() -> jig_domain_host::Assignment {
     use jig_domain_host as host;
     use skein_lib::Token;
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         assignment: host::RunAssignment {
             live: host::LiveAsk::NONE,
             identity: [7; 16],
@@ -49,23 +51,6 @@ pub fn assignment() -> jig_domain_host::Assignment {
     }
 }
 
-pub const TEMPER: &[u8] = b"/opt/temper/bin/temper";
-pub const AGENT_JSON: &[u8] = b"/opt/temper/agent.json";
-pub const PINNED_TEMPER: &[u8] = b"/worker/agent/temper";
-pub const PINNED_AGENT_JSON: &[u8] = b"/worker/agent/agent.json";
-#[expect(clippy::disallowed_methods, reason = "ordinary fixture code copies the agent's argument list")]
-pub fn pinned_agent(agent: &jig_protocol_config::Agent) -> jig_protocol_config::Agent {
-    jig_protocol_config::Agent {
-        program: PINNED_TEMPER.into(),
-        configuration: PINNED_AGENT_JSON.into(),
-        arguments: agent
-            .arguments
-            .iter()
-            .map(|argument| if *argument == agent.configuration { PINNED_AGENT_JSON.into() } else { argument.clone() })
-            .collect(),
-    }
-}
-pub const WORKER_SECRET: &[u8] = b"worker-secret-value";
 pub const NOW: skein_lib::Time = skein_lib::Time::ZERO;
 
 pub fn worker() -> crate::Worker {
@@ -75,7 +60,6 @@ pub fn worker() -> crate::Worker {
         &worker_limits(),
         &worker_files(),
         crate::WorkerRuntime {
-            wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: pinned_agent(worker_settings().jig.agent.as_ref().expect("checked worker agent")),
@@ -120,80 +104,16 @@ pub fn application_value(number: u32, generation: u64, token: &[u8]) -> jig_prot
     }
 }
 
+pub(crate) use crate::testing::fixtures::WORKER_SECRET;
+pub use crate::testing::fixtures::{
+    AGENT_JSON, PINNED_AGENT_JSON, PINNED_TEMPER, pinned_agent, worker_files, worker_limits,
+};
+
 pub fn worker_settings() -> crate::settings::Worker {
-    use jig_protocol_config as config;
-    let mut limits = jig_protocol_config_fixtures::small();
-    limits.core.call_answer_bytes = 2048;
-    limits.hub = jig_domain_host::Limits {
-        application_ask_bytes: 0,
-        application_answer_bytes: 0,
-        program_sources: 12,
-        source_interval: skein_lib::Duration::from_secs(60),
-        source_timeout: skein_lib::Duration::from_secs(10),
-        slots: 1,
-        accounts: 2,
-        charter_bytes: 65_536,
-        transcript_bytes: 262_144,
-        delivery_evidence_bytes: 65_536,
-        turn_bytes: 65_536,
-        outcome_bytes: 4096,
-        detail_bytes: 64,
-        held: 2,
-        inbox: 2,
-        piece_bytes: 4096,
-        event_bytes: 512,
-        run_calls: 1,
-        facts: 4,
-        told: 4,
-        turns: 1,
-        turn_queue_bytes: 65_536,
-    };
-    crate::settings::Worker {
-        jig: config::Worker {
-            check_interval: limits.hub.source_interval,
-            engine: config::Address::Addr(skein_io::Addr::InProcess(skein_io::Name::new(b"workers").unwrap())),
-            name: b"worker-a".as_slice().into(),
-            secret: b"worker-secret".as_slice().into(),
-            slots: 1,
-            graces: config::Graces {
-                grace: skein_lib::Duration::from_secs(10),
-                drain: skein_lib::Duration::from_secs(10),
-                agent_stop: skein_lib::Duration::from_secs(10),
-                delivery: skein_lib::Duration::from_secs(10),
-                save: skein_lib::Duration::from_secs(10),
-            },
-            stop_bound: skein_lib::Duration::from_secs(60),
-            agent: Some(config::Agent {
-                program: TEMPER.into(),
-                arguments: Box::new([b"internal".as_slice().into(), b"agent".as_slice().into(), AGENT_JSON.into()]),
-                configuration: AGENT_JSON.into(),
-            }),
-            limits: Some(limits),
-            memory: None,
-        },
-        root: b"worker-root".as_slice().into(),
-        git: Some(b"/usr/bin/git".as_slice().into()),
-    }
-}
-pub fn worker_limits() -> crate::worker_settings::Limits {
-    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::stock());
-    own.checkout.workspaces = 1;
-    own.checkout.repositories = 1;
-    own.checkout.name_bytes = 64;
-    own.checkout.message_bytes = 65_536;
-    own.checkout.conflicts = 0;
-    own.checkout.path_bytes = 64;
-    own
-}
-pub fn worker_files() -> crate::settings::Files {
-    let mut entries = skein_lib::List::with_capacity(1);
-    entries.push((b"worker-secret".as_slice().into(), skein_lib::Secret::new(WORKER_SECRET.into()))).unwrap();
-    crate::settings::Files { entries }
+    crate::testing::fixtures::worker_settings(jig_protocol_config_fixtures::small())
 }
 pub fn worker_agent() -> crate::settings::Agent {
-    let mut agent = super::agent();
-    agent.bounds.message_bytes = 512;
-    agent
+    crate::testing::fixtures::worker_agent(smith_agent_world::LIMITS.run)
 }
 
 fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
@@ -236,6 +156,8 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
     jig_protocol_worker_link::Request::Down {
         down: host::LinkDown::Assign {
             assignment: host::Assignment {
+                parts: Box::new([]),
+                tell_parts: false,
                 assignment: host::RunAssignment {
                     live: host::LiveAsk::NONE,
                     identity: [7; 16],

@@ -3,7 +3,7 @@ use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, core, r
 use crate::translate;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents::{Document, Frame};
-use skein_lib::Writer;
+use skein_lib::{Wall, Writer};
 pub(super) fn frame(document: &Document) -> Option<&Frame> {
     match document {
         Document::Frame(value) => Some(value),
@@ -44,8 +44,8 @@ impl Component {
         let Some(waiting) = self.pending.exchanges.remove(&exchange) else {
             return;
         };
-        match waiting {
-            Waiting::Read { .. } => (),
+        let expires = match waiting {
+            Waiting::Read { expires, .. } => expires,
             waiting @ (Waiting::Authorize { .. }
             | Waiting::LinkAskWhose { .. }
             | Waiting::AskedWhose { .. }
@@ -58,6 +58,7 @@ impl Component {
             | Waiting::Keep { .. }
             | Waiting::Get { .. }
             | Waiting::Made { .. }
+            | Waiting::Reissue { .. }
             | Waiting::Moving { .. }
             | Waiting::ApplicationRead { .. }
             | Waiting::Ask { .. }
@@ -66,8 +67,8 @@ impl Component {
                 self.pending.exchanges.insert(exchange, waiting).expect("same unrelated slot");
                 return;
             }
-        }
-        let answer = read(frame, &self.settings.models, self.public.names(), &env.limits.wire);
+        };
+        let answer = read(frame, expires, &self.settings.models, self.public.names(), &env.limits.wire);
         match answer {
             Ok(answer) => self.respond(exchange, routes::encoded_read(&answer)),
             Err(_) if self.members.contains_key(&exchange) => self.response(exchange, crate::Reply::NotARecord),
@@ -104,31 +105,40 @@ impl Component {
             return;
         }
         watch.delivery_pending = true;
-        let value =
-            delivery(frame, watch.name, watch.version, &self.settings.models, self.public.names(), &env.limits.wire);
+        let value = delivery(
+            frame,
+            stream.sign_in_expires,
+            watch.name,
+            watch.version,
+            &self.settings.models,
+            self.public.names(),
+            &env.limits.wire,
+        );
         self.queue_packet(env, watcher, value, crate::stream::Taken::Delivery(watcher), out);
     }
 }
 fn read(
     frame: &Frame,
+    expires: Wall,
     models: &[crate::Model],
     names: Option<&crate::public::Names>,
     limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
-    let value = w::ReadValue::Me(translate::owner::frame_named(frame, models, names, limits)?);
+    let value = w::ReadValue::Me(translate::owner::frame_named(frame, expires, models, names, limits)?);
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
     value.write(limits, &mut out).expect("measured me");
-    translate::reads::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
+    Ok(translate::reads::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish()))
 }
 fn delivery(
     frame: &Frame,
+    expires: Wall,
     watch: u64,
     version: u32,
     models: &[crate::Model],
     names: Option<&crate::public::Names>,
     limits: &w::Limits,
 ) -> Result<w::StreamEvent, w::Problem> {
-    let value = w::DeliveryValue::Me(translate::owner::frame_named(frame, models, names, limits)?);
+    let value = w::DeliveryValue::Me(translate::owner::frame_named(frame, expires, models, names, limits)?);
     let document = translate::watches::owned(value, version, limits)?;
     Ok(w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }

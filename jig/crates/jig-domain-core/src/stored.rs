@@ -1,4 +1,4 @@
-//! The core's durable run and call identities (domain/engine/README.md, 5.4 and domain/engine/executors.md).
+//! The core's durable run and call identities (domain/engine/decisions.md, 1.4 and domain/engine/executors.md).
 
 pub use jig_domain_core_vocabulary::stored::*;
 
@@ -125,6 +125,13 @@ impl Core {
                 self.counters = Counters::new(deployment);
                 self.ended_groups.restart(deployment.commits);
                 Restored::Deployment { commits: deployment.commits }
+            }
+            CoreRecord::Part(record) => {
+                if self.restore_part(record) {
+                    Restored::Live
+                } else {
+                    Restored::Rejected
+                }
             }
             CoreRecord::Call(record) => {
                 {

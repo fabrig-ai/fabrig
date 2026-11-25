@@ -1,4 +1,4 @@
-//! Verdict projections and their ordered writes (temper/docs/design/domain/after-landing.md, 3, 9 and 10).
+//! Verdict projections and their ordered writes (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 9, and temper/docs/design/domain/after-landing-storage.md, 1).
 use super::{Box, Commit, Domain, Env, Limits, List, Request, TierRow, Write, api, joined, p};
 use skein_lib::Queue;
 
@@ -307,16 +307,7 @@ pub(super) fn pending(d: &Domain, row: &TierRow, follow: &crate::runs::Follow) -
         None => 0,
     };
     let exhausted = previous == u16::MAX;
-    let description = description(&joined(&[
-        b"held after ",
-        &decimal(run.faults),
-        b" runner faults, last: ",
-        &super::fault_words(
-            run,
-            &super::configured(d, row).expect("configured tier").workflow,
-            row.held.expect("fault"),
-        ),
-    ]));
+    let description = description(&super::hold_reason(d, row));
     Posting {
         number: run.number,
         tip: run.tip,
@@ -395,7 +386,7 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
         } else {
             row.posting = Some(posting);
             super::save(row, out);
-            super::held(d, row, out);
+            super::held(d, env, row, out);
         }
         return;
     }

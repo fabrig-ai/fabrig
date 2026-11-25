@@ -105,7 +105,7 @@ Help lists these.
 | `listen` | S E | a socket address on loopback | `"127.0.0.1:7100"` | the clients' listener |
 | `public` | S E | an origin, as `application.clients.public` takes it (`engine.md`) | none: the listener's origin | the address people reach, through a proxy that holds its TLS |
 | `webhooks` | S E | a socket address on loopback | `listen`'s address, its port plus 1; port 0 where `listen`'s is 0; none where `listen`'s is 65535, refused as `temper.toml: webhooks (its default): listen uses port 65535; give webhooks explicitly` | the forge's webhooks' listener |
-| `owner` | S E | an address, 3 to 254 visible ASCII bytes with one `@` | the process's user's login at `localhost`, as `init` derives it (`../setup/init.md`, 2) | the first owner, read at the first start alone; later owners are the store's |
+| `owner` | S E | an address, 3 to 254 visible ASCII bytes with one `@` | the process's user's login at `localhost`, as `init` derives it (`../setup/init.md`, 5) | the first owner, read at the first start alone; later owners are the store's |
 | `workers` | E | a socket address on loopback | none: required | the workers' listener |
 | `engine` | W | a socket address on loopback | none: required | its engine's workers' listener |
 | `name` | W | 1 to `link.name` bytes (32 in the stock) | the host's name, as the kernel gives it | the name its setting has (jig's `domain/engine/workers.md`, 2) |
@@ -113,11 +113,11 @@ Help lists these.
 | `[[sign_in.members]]` `address`, `login` | S E | as `application.sign_in.members` (`engine.md`), 1 to 64 entries; with `[sign_in.google]` alone | none; required with `[sign_in.google]` | each person who may sign in with Google |
 | `[[sign_in.forges]]` `forge`, `client` | S E | as `application.sign_in.forges` (`../openid-provider.md`, 7); with `[sign_in.google]` alone | none | each Forgejo whose sign-in goes through temper, by its forge's number and its client |
 | `[openid]` `key`, `addresses` | S E | `key` a data path; `addresses` a list of 1, the printed link's, and 3, Google's | `key` `"provider.key"`; `addresses` `[3]` with `[sign_in.google]`, else `[1]` | temper as an OpenID provider for Forgejo's sign-in (`../openid-provider.md`, 7): its signing key, and the identity providers whose subjects are given as `email` |
-| `[[openid.clients]]` `id`, `secret`, `redirect` | S E | as `engine.clients.provider.clients` (jig's `protocol/configuration.md`, section 3): `id` 1 to 255 visible ASCII bytes, `secret` a data path or absent for a public client, `redirect` its redirect URI | none | each client of that provider |
+| `[[openid.clients]]` `id`, `secret`, `redirect` | S E | as `engine.clients.provider.clients` (jig's `protocol/configuration-engine.md`, section 1): `id` 1 to 255 visible ASCII bytes, `secret` a data path or absent for a public client, `redirect` its redirect URI | none | each client of that provider |
 | `[push]` `key`, `subject` | S E | as `application.push` (`engine.md`) | none: no push | the deployment's push key's file and its subject |
 | `[programs]` `git`, `claude` | S W | an absolute path to an executable | found on `PATH` at each start, or `claude` fetched, as today (`figures.md`, section 6) | a program that isn't found, by its path |
 | `[programs]` `forgejo`, `runner` | S | an absolute path to an executable | fetched at the owned Forgejo's set-up, as today (`../setup/place.md`, 2) | the owned Forgejo's binaries, by their paths |
-| `[environment]` | S W | a table of strings, `NAME = "value"`: names unique, not empty, with no `=` or NUL; values with no NUL | the worker's own `PATH` and `HOME`, appended where absent (`README.md`, section 3) | variables its agents' programs get, in the file's order |
+| `[environment]` | S W | a table of strings, `NAME = "value"`: names unique, not empty, with no `=` or NUL; values with no NUL | the worker's own `PATH` and `HOME`, appended where absent (`worker.md`, section 1) | variables its agents' programs get, in the file's order |
 
 - **`[openid]` on a box.** Without the table, a box's start gives its
   provider as `temper-box init --box` made it (`../setup/place.md`, 6):
@@ -192,7 +192,7 @@ constant of `moved.md`, section 2 is passed as there.
   it passes.
 - **The secret's file** is the data directory's: a box's
   `worker.secret`, as `temper-box init` writes it (`../setup/init.md`,
-  2), and a worker alone's `secrets/worker.secret`, whose digest its
+  5), and a worker alone's `secrets/worker.secret`, whose digest its
   setting holds (`../../draft/config.md`, 6.7).
 - **`[programs]` gives no member:** the start's lookups take it
   (`figures.md`, section 6; `../setup/place.md`, 2) from the values the
@@ -260,7 +260,7 @@ pub fn reference() -> Box<[u8]>;                       // the `configuration` pa
   runs, on Linux and macOS alike: the login is `skein_shell::login` of
   the effective user; the host's name is `skein_shell::host_name()`,
   the kernel's node name through `uname`
-  (`skein/docs/design/runtime/shell.md`, 6.1), which on Linux is the
+  (`skein/docs/design/runtime/shell-startup.md`, 1.1), which on Linux is the
   bytes `/proc/sys/kernel/hostname` gives before its line feed, and on
   macOS, which has no `/proc`, `kern.hostname`, the name `hostname`
   prints; `provider.key`'s presence is the data directory's entry, a
@@ -305,7 +305,7 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
   `temper-engine`'s and `temper-worker`'s
   (`../../draft/deployment-binaries.md`, section 4).
 - **`init`'s refusal** names `temper.toml` or `temper.json`, whichever
-  the configuration directory holds (`../setup/init.md`, 2).
+  the configuration directory holds (`../setup/init.md`, 5).
 
 ## 7. Rendered from the table
 
@@ -323,7 +323,7 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
   members, or `moved.md`, section 3's words; then `The merge command`,
   as today. It replaces the pages `configuration` and
   `configuration-engine`, and `configuration-engine` goes.
-- **`init`** (`../setup/init.md`, 2 and 3) writes `render` of a `File`
+- **`init`** (`../setup/init.md`, 5 and 6) writes `render` of a `File`
   holding `listen`, the port it chose, and `webhooks` only where the
   next port isn't free. `listen` is the one default `init` writes, since
   its port is the machine's choice. The box's file:

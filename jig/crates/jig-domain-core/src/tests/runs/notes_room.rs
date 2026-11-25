@@ -73,6 +73,35 @@ fn planned(out: &[Request]) -> List<u64> {
     tasks
 }
 
+#[test]
+fn a_resumed_run_waits_for_its_decided_effects_outcome() {
+    let (mut core, limits) = ready();
+    let key = CallKey { task: FIRST, attempt: 1, completion: 2, position: 1 };
+    core.record_call(key, CallPart::Effect { connector: 1, entry: 9, deadline: Wall::EPOCH, outcome: None });
+    let before = core.tasks.task(FIRST).unwrap().clone();
+    let out = prepare(&mut core, &limits, FIRST);
+    assert!(load(&out).is_none(), "no resumed preparation while recovery is pending");
+    assert!(!core.contexts.contains_key(&FIRST));
+    assert!(!core.due_ready(), "waiting on recovery is not runnable work");
+    assert!(core.take_due().is_none());
+    assert_eq!(core.tasks.task(FIRST).unwrap().phase, before.phase);
+    same_accounting(&before, core.tasks.task(FIRST).unwrap());
+    core.call_parts
+        .insert(
+            key,
+            CallPart::Effect {
+                connector: 1,
+                entry: 9,
+                deadline: Wall::EPOCH,
+                outcome: Some(connector::OutboxOutcome::Made),
+            },
+        )
+        .unwrap();
+    assert!(core.due_ready(), "settlement releases the deferred activation");
+    let out = prepare(&mut core, &limits, FIRST);
+    assert!(load(&out).is_some(), "settled effect permits resumed preparation");
+}
+
 fn preparing() -> (Core, Limits, Token) {
     let (mut core, limits) = ready();
     let out = prepare(&mut core, &limits, FIRST);

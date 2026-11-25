@@ -1,6 +1,6 @@
 //! Measured schemas and words from service-supplied effective numbers.
 //! It stores no conversation state and never chooses an admission limit.
-//! Contract: protocol/llm.md, section 3; protocol/limits.md, section 3.
+//! Contract: protocol/llm.md, section 3; protocol/limits-derivation.md, section 1.
 
 use crate::Stated;
 use alloc::boxed::Box;

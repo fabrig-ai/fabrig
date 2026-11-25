@@ -1,5 +1,5 @@
 //! Root restarts retain worker preparation, proof and the turn, and reload batch size
-//! (temper/docs/design/domain/landing.md, 4.1, 5, 8, 9, 15–16;
+//! (temper/docs/design/domain/landing.md, 4.1, and temper/docs/design/domain/landing-prepare.md, 1, and temper/docs/design/domain/landing-turn.md, 1–2, and temper/docs/design/domain/landing.md, 15–16;
 //! temper/docs/design/domain/landing-preparing.md, 4–7).
 use super::super::{goal_branch, goal_landing};
 use super::*;
@@ -61,7 +61,7 @@ pub(super) fn tick(world: &mut World) {
             world.fake.next_deadline()
         };
         if let Some(next) = next {
-            world.env.now = world.env.now.max(next);
+            world.advance_to(world.env.now.max(next));
         }
     }
     world.prepare_tick();
@@ -197,7 +197,7 @@ fn assert_landed(world: &World, landing: u64, changes: &[u64]) {
 }
 
 // Expiring the worker's git identity fences its claim, not the atomic admission.
-fn marked_prepare() -> (World, u64, u64) {
+pub(crate) fn marked_prepare() -> (World, u64, u64) {
     let mut world = turn_world();
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
     batch[0].budget = people::Budget::AsAllowed { cap: Some(250) };
@@ -340,7 +340,7 @@ fn claimed_attempts(world: &World, child: u64) -> Vec<u64> {
     attempts
 }
 
-fn start_prepare(world: &mut World, landing: u64) -> (u64, u64) {
+pub(crate) fn start_prepare(world: &mut World, landing: u64) -> (u64, u64) {
     world.send(engine::Event::Credential { number: 1, generation: 3, valid: Duration::from_secs(3600) });
     assert_eq!(await_prepare(world), landing);
     let job = (world.jobs[0].run.raw(), world.jobs[0].attempt.raw());
@@ -382,7 +382,7 @@ fn lost_prepare(reboot: bool) {
     world.forge_reads = Some(Vec::new());
     let mut held = Vec::new();
     world.send(protocol::lost(Token::new(7)));
-    world.env.now = world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1)));
     for _ in 0..PAIR_TICKS {
         held.extend(take_member_answers(&mut world, &branch));
         world.tick();
@@ -452,8 +452,9 @@ fn lost_prepare(reboot: bool) {
     }
     world.send(hello);
     // Past the lost retry's backoff, a read still owns the first attempt's slot.
-    world.env.now =
-        world.env.now.saturating_add(world.env.limits.tasks.retries.lost.max).saturating_add(Duration::from_secs(1));
+    world.advance_to(
+        world.env.now.saturating_add(world.env.limits.tasks.retries.lost.max).saturating_add(Duration::from_secs(1)),
+    );
     for _ in 0..PAIR_TICKS {
         held.extend(take_member_answers(&mut world, &branch));
         world.tick();
@@ -568,7 +569,11 @@ fn person(world: &mut World, key: u8, ask: people::Ask) {
 fn releasing_a_stopped_landing_replaces_its_cancelled_prepare_once() {
     let (mut world, change, landing) = marked_prepare();
     let first = start_prepare(&mut world, landing);
-    person(&mut world, 96, people::Ask::Stop { project: 1, task: landing });
+    person(
+        &mut world,
+        96,
+        people::Ask::Stop { project: 1, task: landing, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     for _ in 0..PAIR_TICKS {
         world.tick();
         if matches!(task_row(&world, landing).expect("stopped landing").phase, tasks::Phase::Held { .. }) {
@@ -746,7 +751,7 @@ fn an_unmade_landings_members_form_again_and_land_after_restart() {
         assert_eq!(row.change.landing, None);
         assert_eq!(row.change.ready_since, first_ready);
     }
-    world.root.hold_landings(false);
+    world.release_landings();
     let landing = await_prepare(&mut world);
     assert_ne!(landing, crate::reconcile::UNMADE);
     answer_prepare(&mut world);

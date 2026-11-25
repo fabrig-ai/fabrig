@@ -3,7 +3,7 @@
 Provisional, 2026-11-16. The figures temper computes from their sources
 when it starts, instead of reading them from a document: the turn's and
 the payload's carriers, a worker's places, and the clients' carriers
-(`../../draft/config.md`, section 7). `settings.md`, section 7 gives the
+(`../../draft/config.md`, section 7). `settings-output.md`, section 1 gives the
 relations, and this document makes them computed. The derivations start
 from the stock (`limits.md`, one stock).
 
@@ -28,7 +28,7 @@ from the stock (`limits.md`, one stock).
 
 | Source | What it is | Where a process takes it |
 |---|---|---|
-| T | the agent's largest turn, which smith derives from the agent's profile and endpoints (smith's `protocol/limits.md`, 3.6) | a box and a worker take it from their agent's configuration, as today's checks do; an engine without an agent takes the stock agent's at the engine's P (section 3) |
+| T | the agent's largest turn, which smith derives from the agent's profile and endpoints (smith's `protocol/limits-derivation.md`, 1.6) | a box and a worker take it from their agent's configuration, as today's checks do; an engine without an agent takes the stock agent's at the engine's P (`derived.md`, section 3) |
 | P | the larger of the limit `tool_payload` (`limit-settings.md`, 2.3) and the agent's own `declared.tool_payload` from the `agents` setting (`figures.md`, 5), each taking its stock value when absent | fixed at the engine's start; an `agents` edit above P is refused by name, naming the `tool_payload` limit to raise and restart with first |
 | `live_goals` | the most goals live at once, the limit `live_goals` (`limit-settings.md`, 2.3), 40 in the stock, at most 100, the live goals the store is sized for (`limit-settings.md`, 3) | the engine and the box |
 | a worker's slots | the worker document's `slots` | the worker |
@@ -40,8 +40,8 @@ from the stock (`limits.md`, one stock).
   figures over it** (`../../draft/config.md`, 5.1). Its figures are
   dev.fabrig.ai's agent's of 2026-11-16, which is the reference's: the
   declared figures and endpoints that `temper-box init` writes in
-  `agent.json` (`../setup/init.md`, 3), with `tool_payload` 63,740 and
-  every endpoint's `output` 48,000 (`settings.md`, 7, the reference's
+  `agent.json` (`../setup/init.md`, 6), with `tool_payload` 63,740 and
+  every endpoint's `output` 48,000 (`settings-output.md`, 1, the reference's
   room).
 - **Its payload is 63,740, not 64 KiB.** skein's rule between a call's
   payload and an answer, (payload + 260) × 6 ≤ output × 8, makes 63,740
@@ -77,7 +77,7 @@ from the stock (`limits.md`, one stock).
 
 ### 5.1 From T and P
 
-The relations of `settings.md`, section 7, computed. "Both" means the
+The relations of `settings-output.md`, section 1, computed. "Both" means the
 engine's and each worker's.
 
 | Figure | Computed as |
@@ -204,10 +204,10 @@ writes only `slots`.
 From `../../draft/reconciling-start.md`, 4 and 5: the bounds derive from
 one another, and a unit takes its timeouts from the engine's.
 
-- **The stop bound** is the settled stop's (`../../domain/root.md`,
-  8.2): twice the sum of the forge client's write lifetime and clock
+- **The stop bound** is the settled stop's (`../../domain/root-restart.md`,
+  1.2): twice the sum of the forge client's write lifetime and clock
   margin, `forge.client.lifetime_ms` and `forge.client.clock_margin_ms`
-  (skein's `forge/client.md`, 7.8), from the limits in force at the
+  (skein's `forge/client-effects.md`, 1.8), from the limits in force at the
   start (`limit-settings.md`). At the stock's 300 s and 1 s it is 602 s.
   One function computes it, `skein_forge_client::stop_bound(&Limits)`,
   which the client's settle reads too. The drain after the settle, its
@@ -221,7 +221,7 @@ one another, and a unit takes its timeouts from the engine's.
   as long as its store's open and its steps take, and a step past the
   report bound says what holds it.
 - **The report bound** is 30 s, `WAIT_REPORT`, one fixed figure for
-  every step of a start and every full table (`../README.md`, 6.3),
+  every step of a start and every full table (`../service-process.md`, 1.3),
   with `Report`, the clock of its doublings, beside it in
   `temper-engine-domain-forge`, the lowest crate every one of its
   readers names (the forge, the root and the engine's shell).

@@ -12,7 +12,7 @@ use temper_protocol_worker_wire::{self as wire, v1::Record};
 
 /// A worker's charter allowance where the engine doesn't know it: smith's
 /// `run_bytes` at its floor, which the stock agent's `tool_payload` doesn't
-/// raise (smith/docs/design/protocol/limits.md, 3.10;
+/// raise (smith/docs/design/protocol/limits-derivation.md, 1.10;
 /// temper/docs/design/domain/agent/tools.md).
 pub const WORKER_CHARTER_BYTES: u64 = 65_536;
 
@@ -30,6 +30,9 @@ pub struct Encoding {
     pub endpoints: smith_protocol_translate::Endpoints,
     pub deployment: [u8; 16],
     pub charter_bytes: u64,
+    /// Canonical host feedback bound for answers recovered before a resumed start.
+    pub reply_bytes: u32,
+    pub forge_reads: temper_engine_smith::ForgeReadBounds,
 }
 
 /// A transcript tail as text alone. jig's tail copies the retained turns'
@@ -97,10 +100,7 @@ pub fn down(
     let items = match crate::translate::items(&assignment, forges, &values.tokens, &encoding.limits) {
         Ok(items) => items,
         Err(problem) => {
-            return Err(kit::Unencoded {
-                reason: Some(problem.reason),
-                ..unencoded(wire::v1::name(problem.path).expect("worker wire path"))
-            });
+            return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
         }
     };
     let mut parts = List::with_capacity(1);
@@ -109,10 +109,7 @@ pub fn down(
             let bytes = match items.encode(&encoding.limits) {
                 Ok(bytes) => bytes,
                 Err(problem) => {
-                    return Err(kit::Unencoded {
-                        reason: Some(problem.reason),
-                        ..unencoded(wire::v1::name(problem.path).expect("worker wire path"))
-                    });
+                    return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
                 }
             };
             let token = Token::new(0);
@@ -133,10 +130,13 @@ pub fn down(
     let identity = jig_protocol_charter::run_identity(&encoding.deployment, assignment.task, assignment.conversation);
     let grants = grants(&assignment.grants);
     let filled = values.grants(&grants, now);
+    let answered = recovered_answers(&assignment, encoding);
     Ok(kit::Event::Down {
         channel,
         down: host::LinkDown::Assign {
             assignment: host::Assignment {
+                parts: assignment.parts,
+                tell_parts: false,
                 messages: messages(assignment.task, &assignment.messages),
                 assignment: host::RunAssignment {
                     identity,
@@ -149,7 +149,7 @@ pub fn down(
                     grants,
                 },
                 turns: assignment.transcript,
-                answered: answered(&assignment.settled),
+                answered,
             },
         },
         parts: parts.into_boxed(),
@@ -234,7 +234,7 @@ fn charter_size(field: &'static str, figure: u64, encoding: &Encoding) -> kit::U
     kit::Unencoded {
         figure: Some(figure),
         bound: Some(encoding.charter_bytes),
-        ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_charter)),
+        ceiling: Some(u64::from(jig_protocol_worker_wire::v22::CEILINGS.assignment_charter)),
         ..unencoded(field)
     }
 }
@@ -247,10 +247,7 @@ fn encode_charter(charter: &smith_domain_run::Charter, encoding: &Encoding) -> R
     };
     let field = match error {
         Error::CharterBody(problem) => {
-            return Err(kit::Unencoded {
-                reason: Some(problem.reason),
-                ..unencoded(smith_charter::v5::name(problem.path).expect("charter problem path"))
-            });
+            return Err(kit::Unencoded { reason: Some(problem.reason), ..unencoded(problem.path.name()) });
         }
         Error::Endpoints => "charter.endpoints",
         Error::Capacity => "charter.capacity",
@@ -295,6 +292,58 @@ fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
 fn grants(grants: &[Grant]) -> Box<[Grant]> {
     Box::from(grants)
 }
+fn recovered_answers(assignment: &root::Assignment, encoding: &Encoding) -> Box<[host::AnsweredCall]> {
+    let capacity = assignment.answered.len().saturating_add(assignment.settled.len());
+    let mut calls = List::with_capacity(u32::try_from(capacity).expect("bounded retained calls"));
+    for settled in &assignment.settled {
+        calls.push(settled.clone()).expect("retained calls");
+    }
+    for record in &assignment.answered {
+        let mut known = false;
+        for settled in &assignment.settled {
+            known |= settled.key == record.key;
+        }
+        if known {
+            continue;
+        }
+        let call = match &record.settled {
+            Some(call) => call.clone(),
+            None => {
+                let Some(tool) = recovered_tool(assignment, record.key, encoding) else { continue };
+                let bound = encoding.reply_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool"));
+                let (body, error) =
+                    temper_engine_smith::answer_for_tool(&record.answer, &tool, bound, encoding.forge_reads)
+                        .into_parts();
+                core::SettledCall { serial: 0, tool, answer: core::SettledAnswer::Host { body, error } }
+            }
+        };
+        calls.push(core::Settled { key: record.key, call }).expect("retained calls");
+    }
+    answered(calls.as_slice())
+}
+
+fn recovered_tool(assignment: &root::Assignment, key: core::CallKey, encoding: &Encoding) -> Option<Box<[u8]>> {
+    for part in &assignment.parts {
+        if part.attempt != key.attempt
+            || part.turn != key.completion
+            || part.thread != 0
+            || part.kind != jig_domain_link::PartKind::Answer
+        {
+            continue;
+        }
+        let Ok(turn) =
+            smith_protocol_translate::decode_part(&part.body, &smith_transcript::CEILINGS, &encoding.endpoints)
+        else {
+            continue;
+        };
+        let message = turn.messages.last()?;
+        let block = message.content.get(usize::try_from(key.position).ok()?)?;
+        let call = block.tool_call()?;
+        return Some(call.name.clone());
+    }
+    None
+}
+
 fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {
     let mut answered = List::with_capacity(u32::try_from(calls.len()).expect("bounded answered calls"));
     for core::Settled { key, call } in calls {
@@ -331,6 +380,87 @@ fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_resumed_start_carries_a_decided_effect_the_lost_worker_never_relayed() {
+        use crate::tests::fixtures;
+        use smith_domain_session::{llm, record};
+        let encoding = fixtures::encoding(&fixtures::engine());
+        let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+        assignment.attempt = 10;
+        let key = core::CallKey { task: assignment.task, attempt: 6, completion: 2, position: 1 };
+        let turn = record::Turn {
+            version: record::VERSION,
+            kind: record::Kind::Ordinary,
+            endpoint: Some(llm::Endpoint(assignment.run.policy.model.endpoint)),
+            model: assignment.run.policy.model.name.clone(),
+            effort: None,
+            dialect: assignment.run.policy.model.dialect,
+            sequence: 2,
+            usage: llm::Usage::ZERO,
+            spent: 0,
+            jobs: 0,
+            messages: Box::new([llm::Message {
+                role: llm::Role::Assistant,
+                content: Box::new([
+                    llm::Block::Text { text: b"make issue".as_slice().into(), replay: None },
+                    llm::Block::ToolCall(llm::ToolCall {
+                        id: b"call".as_slice().into(),
+                        name: b"effect_forge".as_slice().into(),
+                        input: b"{}".as_slice().into(),
+                        call: llm::Decoded::Historical,
+                        replay: None,
+                    }),
+                ]),
+            }]),
+        };
+        assignment.parts = Box::new([jig_domain_link::KeptPart {
+            attempt: 6,
+            turn: 2,
+            thread: 0,
+            call: 0,
+            kind: jig_domain_link::PartKind::Answer,
+            body: smith_protocol_translate::encode_part(&turn, &smith_transcript::CEILINGS, &encoding.endpoints)
+                .unwrap(),
+        }]);
+        assignment.answered = Box::new([root::CallRecord {
+            key,
+            answer: root::CallAnswer::ForgeEffect {
+                entry: 9,
+                deadline: skein_lib::Wall::EPOCH,
+                outcome: Some(skein_forge_client::Outcome::Made {
+                    made: skein_forge_client::Made::Created(2),
+                    found: true,
+                }),
+            },
+            settled: None,
+        }]);
+        assert!(assignment.settled.is_empty());
+        let event = down(
+            assignment,
+            &fixtures::forge_table(&fixtures::forges()),
+            &encoding,
+            &crate::values::Values::new(0, 0),
+            Token::new(8),
+            Time::ZERO,
+        )
+        .unwrap();
+        let kit::Event::Down { down: host::LinkDown::Assign { assignment }, .. } = event else { panic!("start") };
+        assert_eq!(assignment.answered.len(), 1);
+        assert_eq!(
+            assignment.answered[0].name,
+            jig_protocol_charter::call_name(&jig_protocol_charter::CallKey {
+                activation: 6,
+                completion: 2,
+                position: 1,
+            })
+        );
+        assert_eq!(assignment.answered[0].tool.as_ref(), b"effect_forge");
+        assert_eq!(
+            assignment.answered[0].answer,
+            host::SettledAnswer::Host { error: false, body: b"Forge effect 9: found 2".as_slice().into() }
+        );
+    }
 
     #[test]
     fn encoded_framing_fits_beside_the_fixed_charter() {
@@ -377,7 +507,7 @@ mod tests {
                 reason: None,
                 figure: Some(owned),
                 bound: Some(encoding.charter_bytes),
-                ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v22::CEILINGS.assignment_charter)),
             })
         );
     }
@@ -388,7 +518,7 @@ mod tests {
 
     #[test]
     fn a_first_goals_fixed_ownership_exceeds_its_room() {
-        // temper/docs/design/draft/tools-by-role.md, 9: first wake joins the first three parts.
+        // temper/docs/design/draft/archive/tools-by-role.md, 9: first wake joins the first three parts.
         let mut settings = crate::tests::fixtures::engine();
         let mut subagent = crate::tests::fixtures::small_model();
         subagent.number = 2;
@@ -511,7 +641,7 @@ mod tests {
                 reason: None,
                 figure: Some(bytes),
                 bound: Some(encoding.charter_bytes),
-                ceiling: Some(u64::from(jig_protocol_worker_wire::v21::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(jig_protocol_worker_wire::v22::CEILINGS.assignment_charter)),
             })
         );
         encoding.charter_bytes = bytes;

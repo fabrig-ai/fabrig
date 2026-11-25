@@ -14,7 +14,7 @@ need a real one. It never meets an existing Forgejo.
 - **The binary.** `Forgejo::from_path` takes the path from its caller and
   reads no environment. It runs `--version` and refuses, naming it
   (`Refusal`), a binary that is unreadable or whose version line does not
-  name the pin's `VERSION` (../../forge/README.md, section 4.3). It computes the SHA-256.
+  name the pin's `VERSION` (../../forge/dialects.md, section 1.3). It computes the SHA-256.
   The pin's `RUNNER_VERSION` and `names_runner` are re-exported. The kit's
   tests that need the binaries are ignored by default; their test files
   read the paths from `SKEIN_FORGEJO` and `SKEIN_FORGEJO_RUNNER`, and fail
@@ -50,6 +50,14 @@ need a real one. It never meets an existing Forgejo.
   is `exchange` with the caller's own time for the answer, for a
   migration's one long request. The conformance starts the runner
   (section 2), not the throwaway.
+- **Its tests.** What the kit decides, its own tests decide over facts
+  they hand it: a version line other than the pin's refused, naming the
+  binary and the line; a scratch that is not empty refused at `start` and
+  at `work_path` alike, before anything is provisioned; a server log's
+  secret masked; an attached instance's `cli` refused. Its real tests
+  keep what only real children show: the host's identity, a script's
+  arguments, directory, environment, output and exit, attaching a real
+  child and stopping it, and the pinned binary's own start and stop.
 - **Its server dies with its test,** however the test ends: `web` starts
   dying with the thread that starts it (`spawn_dying_with_parent`,
   ../../runtime/shell.md, 3, with Kill), so an abort or a runner's kill

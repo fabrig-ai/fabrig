@@ -386,7 +386,7 @@ fn an_accounts_document_is_watched_but_never_read() {
     }));
     let limits = fixtures::wire();
     assert_eq!(
-        watches::delivery(&document, 0, 1, &[], &List::with_capacity(0), &limits),
+        watches::delivery(&document, 1, &[], &List::with_capacity(0), &limits),
         Ok(w::DeliveryValue::Accounts(w::Accounts {
             lendable: false,
             usable: false,
@@ -466,7 +466,7 @@ fn a_stream_queue_includes_the_in_flight_record_at_its_exact_bound() {
     for short in [false, true] {
         let (mut world, stream) = stream_world();
         let watcher = application_watch(&mut world, stream, 1);
-        let packet = watches::application_packet(9, 2, Box::new([77; 128]), 1, &world.env.limits.wire).expect("packet");
+        let packet = watches::application_packet(9, 2, Box::new([77; 128]), 1);
         let exact =
             world.stream().bytes + packet.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture");
         world.env.limits.queued_bytes = exact - u32::from(short);
@@ -535,6 +535,119 @@ fn opening_stream_me() -> (fixtures::Exchange, Token, Token) {
     let watcher = world.take_watch();
     (world, owner, watcher)
 }
+#[test]
+fn opened_names_jig_then_the_application_layouts_in_settings_order() {
+    const FIRST: u16 = 9;
+    const SECOND: u16 = 2;
+    const FIRST_LAYOUT: [u8; 32] = [1; 32];
+    const SECOND_LAYOUT: [u8; 32] = [2; 32];
+    let mut settings = fixtures::settings();
+    settings.served = skein_lib::List::from_boxed(Box::new([
+        crate::Served { family: Some(FIRST), first: 2, last: 2, layout: FIRST_LAYOUT },
+        crate::Served { family: None, first: w::VERSION, last: w::VERSION, layout: w::LAYOUT },
+        crate::Served { family: Some(SECOND), first: 1, last: 1, layout: SECOND_LAYOUT },
+    ]));
+    let mut env = fixtures::env();
+    env.limits.families = settings.served.len();
+    let mut world = fixtures::Exchange::configured(env, settings);
+    let stream = world.stream_open_version(Some(w::VERSION));
+    world.authenticate();
+    let watcher = world.take_watch();
+    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+    world.component.down(
+        &world.env,
+        Event::Delivery {
+            watcher,
+            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+        },
+        &mut world.out,
+    );
+    while world.component.up(&world.env, &mut world.out) {}
+    let Some(Request::Transport(crate::ToTransport::Streamed {
+        stream: owner,
+        message: crate::Streamed::Record(record),
+    })) = world.out.pop()
+    else {
+        panic!("Opened on the stream")
+    };
+    assert_eq!(owner, stream);
+    let w::StreamEvent::Opened(opened) = w::StreamEvent::decode(&fixtures::wire(), &mut Reader::new(&record)).unwrap()
+    else {
+        panic!("Opened on the stream")
+    };
+    assert_eq!(
+        opened.layouts.as_slice(),
+        &[
+            w::Layout { owner: w::Owner::Jig, layout: w::LAYOUT },
+            w::Layout { owner: w::Owner::Family(w::Family { number: FIRST }), layout: FIRST_LAYOUT },
+            w::Layout { owner: w::Owner::Family(w::Family { number: SECOND }), layout: SECOND_LAYOUT },
+        ]
+    );
+}
+
+#[test]
+fn two_streams_for_one_party_deliver_their_own_sign_ins_saved_expiries() {
+    use skein_lib::Wall;
+    let mut world = fixtures::Exchange::new();
+    let open = |world: &mut fixtures::Exchange, sign_in: u64, expires: Wall| {
+        world.token = fixtures::sign_in_token(sign_in);
+        let owner = world.stream_open_version(Some(w::VERSION));
+        world.authenticate_sign_in_until(sign_in, expires);
+        let Some(Request::Core(event)) = world.out.pop() else { panic!("me watch") };
+        let core::Event::Watch { watcher, sign_in: checked, subject: core::documents::Watched::Frame, .. } = *event
+        else {
+            panic!("me watch")
+        };
+        assert_eq!(checked, sign_in);
+        world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+        (owner, watcher, expires)
+    };
+    let a = open(&mut world, fixtures::NUMBER, Wall::from_nanos(1_800_000_000_000_000_000));
+    let b = open(&mut world, 7, Wall::from_nanos(1_900_000_000_000_000_000));
+    for first in [true, false] {
+        for (owner, watcher, expires) in [a, b] {
+            let frame = fixtures::frame_two_projects();
+            let party = frame.party;
+            world.component.down(
+                &world.env,
+                Event::Delivery { watcher, document: Box::new(core::documents::Document::Frame(frame)) },
+                &mut world.out,
+            );
+            while world.component.up(&world.env, &mut world.out) {}
+            let Some(Request::Transport(crate::ToTransport::Streamed {
+                stream,
+                message: crate::Streamed::Record(record),
+            })) = world.out.pop()
+            else {
+                panic!("me streamed")
+            };
+            assert_eq!(stream, owner);
+            let event = w::StreamEvent::decode(&fixtures::wire(), &mut Reader::new(&record)).expect("stream event");
+            let value = if first {
+                let w::StreamEvent::Opened(opened) = event else { panic!("opened with me") };
+                opened.me
+            } else {
+                let w::StreamEvent::Delivery(delivered) = event else { panic!("me delivered") };
+                assert_eq!(delivered.watch, 0);
+                delivered.document
+            };
+            let w::DeliveryValue::Me(me) =
+                w::DeliveryValue::decode(&fixtures::wire(), &mut Reader::new(&value.record)).expect("delivery value")
+            else {
+                panic!("me")
+            };
+            assert_eq!(me.party.number, party);
+            assert_eq!(me.sign_in_expires, expires.as_nanos());
+            world.component.down(
+                &world.env,
+                Event::Transport(crate::FromTransport::StreamTaken { stream: owner }),
+                &mut world.out,
+            );
+            world.out.clear();
+        }
+    }
+}
+
 #[test]
 fn a_streams_zero_name_cannot_be_opened_or_closed_by_its_client() {
     let (mut world, owner, watcher) = opening_stream_me();

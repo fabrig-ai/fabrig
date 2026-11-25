@@ -171,6 +171,7 @@ fn client_env() -> Env<client::Limits> {
                     owners: &[jig_client::Spoken {
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
+                        layout: temper_client_protocol_wire::CLIENT_LAYOUT,
                     }],
                     requests,
                     ask_bytes: 65536,
@@ -288,6 +289,7 @@ fn frame(me: u64) -> c::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: c::MeParty { number: me, kind: c::PartyKind::Person, login: text(b"viewer"), name: text(b"Viewer") },
         projects: List::from_boxed(Box::new([c::MeProject {
             project: 1,

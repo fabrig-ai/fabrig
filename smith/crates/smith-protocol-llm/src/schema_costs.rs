@@ -1,7 +1,7 @@
 //! Startup measurements of contract schema pieces and text widths.
 //! No receiving policy is retained. `schema_costs` measures the production
 //! renderer and supplies plain numbers to run entrance admission.
-//! Contract: protocol/limits.md, section 3.9.
+//! Contract: protocol/limits-derivation.md, section 1.9.
 
 use crate::{Cause, Error, deliver_schema, finish_schema, outcome_schema};
 use alloc::boxed::Box;

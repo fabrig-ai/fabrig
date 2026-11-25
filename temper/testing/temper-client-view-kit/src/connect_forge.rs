@@ -11,6 +11,7 @@ pub const GITHUB: u16 = 2;
 #[must_use]
 pub fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, offer: w::Offer) -> w::ForgeRow {
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -178,6 +179,7 @@ pub fn first_rows(connection: w::Connection, state: w::FirstState) -> List<w::Fo
     };
     let mut rows = List::with_capacity(1);
     rows.push(w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),

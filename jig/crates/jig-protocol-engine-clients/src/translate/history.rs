@@ -1,41 +1,7 @@
 //! Original history revisions, snapshots and lifecycle facts (protocol/client/wire.md, 1).
-use super::{objects, owner, w};
+use super::w;
+use crate::generated::client as mapped;
 use jig_domain_core_vocabulary::documents as d;
-use jig_domain_tasks as t;
 pub fn line(models: &[crate::Model], value: &d::HistoryLine, limits: &w::Limits) -> Result<w::HistoryLine, w::Problem> {
-    let change = match value.change {
-        t::Change::Made => w::HistoryChange::Made,
-        t::Change::Concluded => w::HistoryChange::Concluded,
-        t::Change::Cancelled => w::HistoryChange::Cancelled,
-        t::Change::Released => w::HistoryChange::Released,
-        t::Change::Amended => w::HistoryChange::Amended,
-        t::Change::Moved => w::HistoryChange::Moved,
-        t::Change::Proposed => w::HistoryChange::Proposed,
-        t::Change::ProposalPassed => w::HistoryChange::ProposalPassed,
-        t::Change::ProposalAccepted => w::HistoryChange::ProposalAccepted,
-        t::Change::ProposalRejected => w::HistoryChange::ProposalRejected,
-        t::Change::ProposalWithdrawn => w::HistoryChange::ProposalWithdrawn,
-    };
-    Ok(w::HistoryLine {
-        task: value.task,
-        revision: value.revision,
-        by: owner::requester(value.by, limits)?,
-        change,
-        reason: owner::text(&value.reason, limits)?,
-        proposal: match &value.proposal {
-            Some(item) => Some(objects::ended::proposal_history(models, item, limits)?),
-            None => None,
-        },
-        amendment: match &value.amendment {
-            Some((before, after)) => Some(w::HistoryAmendment {
-                before: objects::proposals::amendment(models, before, limits)?,
-                after: objects::proposals::amendment(models, after, limits)?,
-            }),
-            None => None,
-        },
-        at: match value.at {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    })
+    mapped::history_line_to_record(value, &(models, limits))
 }

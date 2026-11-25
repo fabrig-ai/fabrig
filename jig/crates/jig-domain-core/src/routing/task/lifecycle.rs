@@ -1,5 +1,5 @@
 //! Recurring batches, ended tasks, and connector cleanup
-//! (jig/docs/design/domain/engine/README.md, 4.4).
+//! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use crate::{Ask, Core, CoreKey, Held, Key, Limits, Now, Request, Write};
 use alloc::boxed::Box;
@@ -61,7 +61,7 @@ pub(crate) fn recurring_due(
         return;
     }
     // No per-occurrence refusal outcome exists. Invalid account hints become
-    // typed next-run waits on the created task (accounts.md, 4.3).
+    // typed next-run waits on the created task (domain/accounts-uses.md, 1.3).
     if let Err(why) = core.recurring_accounts(context.project, &template.batch) {
         if let tasks::Refusal::Account { .. } = why {
             // Keep this occurrence; run_choice rechecks the same facts for its wait.
@@ -101,6 +101,7 @@ pub(crate) fn ended(
     pending: &mut Queue<tasks::Request>,
     out: &mut Queue<Request>,
 ) {
+    drop(core.reported_waits.remove(&task));
     let _pending = core.pending_note_briefs.remove(&task);
     let position = core.ending_positions.remove(&task).expect("ended row assigned its result position");
     let mut ended = crate::routing::view::routes::route_view(
@@ -115,6 +116,7 @@ pub(crate) fn ended(
     for key in core.retire_calls(task, u64::MAX, u32::MAX, env.limits.call_records) {
         out.push(Request::Write(Write::Erase(Key::Core(CoreKey::Call(key)))));
     }
+    core.retire_parts(task, None, out);
     drop(core.proofs.remove(&task));
     out.push(Request::Write(Write::Erase(Key::Core(CoreKey::RunProof(task)))));
     match requester {
@@ -195,6 +197,10 @@ pub(crate) fn release(
 }
 
 pub(crate) fn activate(core: &mut Core, context: Box<tasks::RunContext>, out: &mut Queue<Request>) {
+    // A suspension window can activate without publishing (domain/engine/executors.md, 6).
+    if core.tasks.task(context.task).is_some() {
+        core.wait_alarms.changed(context.task);
+    }
     if core.settling || core.pending_note_briefs.get(&context.task) == Some(&crate::routing::NoteBrief::Activation) {
         let _pending = core.pending_note_briefs.remove(&context.task);
         crate::routing::children::remember_due(core, context);

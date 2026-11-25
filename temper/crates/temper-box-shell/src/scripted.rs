@@ -11,11 +11,11 @@ pub(crate) const LISTENER: skein_shell::Variable = skein_shell::Variable {
     absent: "Choose loopback port 8370 when free, otherwise a kernel-assigned port.",
     notes: "The box passes the chosen address before composing its worker and hands the listener to the fake LLM.",
 };
-pub(crate) const ADDRESS: &[u8] = LISTENER.name.as_bytes();
+pub const ADDRESS: &[u8] = LISTENER.name.as_bytes();
 pub(crate) const PREFERRED: SocketAddr =
     SocketAddr::V4(std::net::SocketAddrV4::new(std::net::Ipv4Addr::LOCALHOST, 8370));
 
-pub(crate) fn choose() -> Result<TcpListener, String> {
+pub fn choose() -> Result<TcpListener, String> {
     TcpListener::bind(PREFERRED)
         .or_else(|_| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)))
         .map_err(|why| format!("the scripted model's listener: {why}"))
@@ -35,10 +35,19 @@ pub(crate) fn address(environment: &[crate::EnvironmentEntry]) -> Result<SocketA
     choose()?.local_addr().map_err(|why| why.to_string())
 }
 pub(crate) fn given(directories: &crate::Directories, given: &Given, address: SocketAddr) -> Given {
-    let providers = temper_service_shell::providers::read(
-        &crate::path(&directories.data).join("providers.setting"),
-        given.running(),
-        &mut std::io::stderr(),
-    );
+    given_with(directories, given, address, |path, defaults| {
+        temper_service_shell::providers::read(path, defaults, &mut std::io::stderr())
+    })
+}
+pub(crate) fn given_with(
+    directories: &crate::Directories,
+    given: &Given,
+    address: SocketAddr,
+    read: impl FnOnce(
+        &std::path::Path,
+        Box<[jig_protocol_config::ProviderSetting]>,
+    ) -> Box<[jig_protocol_config::ProviderSetting]>,
+) -> Given {
+    let providers = read(&crate::path(&directories.data).join("providers.setting"), given.running());
     given.with_providers(providers, Box::new([temper_service::stock::scripted(address)]))
 }

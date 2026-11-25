@@ -40,6 +40,7 @@ pub fn hold_reason_values() -> Box<[domain::HoldReason]> {
         domain::HoldReason::Uncertain { entry: 2 },
         domain::HoldReason::Budget,
         domain::HoldReason::Deadline,
+        domain::HoldReason::Waited,
         domain::HoldReason::HoldsWaited,
         domain::HoldReason::ResourceUnavailable,
         domain::HoldReason::ResourceAccess,

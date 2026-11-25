@@ -3,7 +3,19 @@ use temper_worker_service::{Refusal, WorkerJobEnding, WorkerLoss, worker_alone a
 
 const BINARY: &str = "temper-worker";
 
-/// domain/worker/README.md, 4.3: sources, destinations and names stay on one line.
+#[test]
+fn unswept_lines_escape_the_path_and_name_the_error() {
+    let note = worker::Note::Unswept {
+        path: b"trash/4/target\n\xff".as_slice().into(),
+        error: skein_io::kernel::Error::Permission,
+    };
+    assert_eq!(
+        worker_note_words("temper", note),
+        "temper worker: trash entry not removed: trash/4/target\\n\\xff: Permission\n"
+    );
+}
+
+/// domain/worker/hosted-runs.md, 1.3: sources, destinations and names stay on one line.
 #[test]
 fn git_fetch_words_name_each_source_and_destination() {
     use temper_worker_domain::{
@@ -98,8 +110,8 @@ fn opening_refusals_name_the_reason_and_the_engines_text() {
     for (reason, text, expected) in [
         (
             257,
-            "wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000",
-            "temper-worker worker: the engine refused the opening: wires: wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000\n",
+            "wire smith-charter: the worker's text is not its layout cd34000000000000",
+            "temper-worker worker: the engine refused the opening: wires: wire smith-charter: the worker's text is not its layout cd34000000000000\n",
         ),
         (
             1,
@@ -134,7 +146,7 @@ fn worker_job_words_keep_the_binary_prefix_and_reason() {
         "temper-worker worker: run 7 attempt 2 job 3 merge failed Deadline: deadline\n"
     );
 }
-/// temper/docs/design/domain/worker/checkouts.md, 1.3: one escaped operator line.
+/// temper/docs/design/domain/worker/checkouts-prepare.md, 12.3: one escaped operator line.
 #[test]
 fn unprepared_words_name_the_run_failure_and_escape_the_hosted_detail() {
     for (detail, expected) in [
@@ -165,7 +177,7 @@ fn unprepared_words_name_the_run_failure_and_escape_the_hosted_detail() {
     );
 }
 
-/// temper/docs/design/domain/worker/README.md, 4.3: agent faults use serve's failure form.
+/// temper/docs/design/domain/worker/hosted-runs.md, 1.3: agent faults use serve's failure form.
 #[test]
 fn agent_stopped_words_include_only_the_no_progress_bound() {
     use jig_domain_host::AgentFailure;
@@ -345,7 +357,6 @@ fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
         (Loss::Busy, "lost worker-a [::1]:7100 busy\n"),
         (Loss::Fault, "lost worker-a [::1]:7100 fault\n"),
         (Loss::Unreachable, "lost worker-a [::1]:7100 unreachable\n"),
-        (Loss::EngineStatesNoWires, "lost worker-a [::1]:7100 the engine states no wires: restart the engine first\n"),
         (Loss::Closed(Closed::RefusedHere(2)), "lost worker-a [::1]:7100 refused terms\n"),
         (Loss::Closed(Closed::RefusedHere(3)), "lost worker-a [::1]:7100 refused malformed\n"),
         (Loss::Closed(Closed::RefusedHere(256)), "lost worker-a [::1]:7100 refused unauthorized\n"),
@@ -468,4 +479,60 @@ fn an_agents_signal_line_leaves_its_stop_to_the_worker() {
             )
         );
     }
+}
+
+#[test]
+fn git_counts_words_name_the_repository() {
+    let note = worker::Note::Git {
+        run: 81,
+        attempt: 2,
+        job: None,
+        repository: b"app\n".as_slice().into(),
+        what: temper_worker_domain::Git::Counts,
+    };
+    assert_eq!(worker_note_words("temper", note), "temper worker: run 81 attempt 2 counts app\\n\n");
+}
+
+#[test]
+fn startup_figures_line_names_engine_places_limits_and_endpoints() {
+    use jig_protocol_worker_wire::{AgentEndpoint, Agents, EndpointLimits, Figures, Limit, Oversized, Transport};
+    use skein_lib::{Duration, List};
+
+    const PORT: u16 = 7100;
+    const PLACES: u32 = 2;
+    const LIMITS: [(&[u8], u64); 3] = [(b"hub.slots", 2), (b"hub.inbox", 8), (b"hub.turns", 4)];
+    let engine = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], PORT).into()));
+    let mut limits = List::with_capacity(3);
+    for (name, value) in LIMITS {
+        limits.push(Limit { name: name.into(), value }).expect("one named limit");
+    }
+    let mut endpoints = List::with_capacity(1);
+    endpoints
+        .push(AgentEndpoint {
+            name: b"model".as_slice().into(),
+            number: 1,
+            dialect: 3,
+            provider: b"fixture".as_slice().into(),
+            program: None,
+            host: b"127.0.0.1".as_slice().into(),
+            port: PORT,
+            transport: Transport::Plaintext,
+            headers: List::with_capacity(0),
+            connect: Duration::from_secs(1),
+            handshake: Duration::from_secs(1),
+            limits: EndpointLimits {
+                window: 1024,
+                output: 512,
+                reasoning_item: 2048,
+                head: Duration::from_secs(1),
+                idle: Duration::from_secs(1),
+                oversized: Oversized::Fail,
+            },
+        })
+        .expect("one endpoint");
+    let figures = Figures { places: PLACES, limits, agents: Agents { profile: List::with_capacity(0), endpoints } };
+    assert_eq!(
+        crate::worker::figures_line(&engine, &figures),
+        "figures taken from 127.0.0.1:7100: 2 places, 3 limits, 1 endpoints\n"
+    );
 }

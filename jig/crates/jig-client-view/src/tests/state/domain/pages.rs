@@ -351,6 +351,8 @@ fn goal_line(number: u64, priority: u32, phase: Phase, changed: u64) -> TaskLine
         label: 2,
         flags: TaskFlags { ended_by: EndedBy::Result, conversation: false, listed: true, retention: Retention::Kept },
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         conversation: None,
     }
 }

@@ -1,6 +1,6 @@
-//! An event stream's lines and fields (WHATWG HTML, 9.2.6): read a byte at
-//! a time from what the line scans deliver, each line's field interpreted
-//! as its bytes come, an event dispatched at each blank line.
+//! An event stream's lines and fields (WHATWG HTML, 9.2.6): read from what
+//! the line scans deliver, each field interpreted as its bytes come, an
+//! event dispatched at each blank line.
 //!
 //! - **A line ends at LF, at CRLF, or at CR alone.** A CR ends its line at
 //!   once; an LF right after it is the CR's pair, and ends nothing. A line
@@ -142,6 +142,26 @@ impl Lines {
         self.data = false;
         self.name.clear();
         self.id_value.clear();
+    }
+
+    /// How much contiguous data value may be read before either wire bound.
+    /// The caller excludes the line ending. A space still to be skipped is
+    /// handled by `byte`, not counted as data.
+    pub(super) fn data_room(&self, limits: &Limits, first: u8) -> u32 {
+        match self.line {
+            Line::Colon(Field::Data) if first != b' ' => {}
+            Line::Value(Field::Data) => {}
+            Line::Start | Line::Name { .. } | Line::Ignored | Line::Colon(_) | Line::Value(_) => return 0,
+        }
+        limits.event.saturating_sub(self.size).min(limits.line.saturating_sub(self.length))
+    }
+
+    /// Accounts for an admitted run of non-ending data bytes. Its field
+    /// started after any BOM and after any CR's possible LF.
+    pub(super) fn advance_data(&mut self, count: u32) {
+        self.size = self.size.checked_add(count).expect("within the event limit");
+        self.length = self.length.checked_add(count).expect("within the line limit");
+        self.line = Line::Value(Field::Data);
     }
 
     /// A byte from the stream: the byte order mark first, if it begins

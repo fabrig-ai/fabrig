@@ -6,9 +6,9 @@ on two connectors, with its agents inside its engine. It exists to be
 tested and to be copied.
 
 - Its root is the reference root every application starts from
-  (`README.md`, 6.7).
-- Its domain is the subject of jig's conformance world (`README.md`,
-  6.6).
+  (`rails.md`, 1.7).
+- Its domain is the subject of jig's conformance world (`rails.md`,
+  1.6).
 - As a second application, it is what keeps jig's vocabulary from
   being one application's in disguise.
 
@@ -102,8 +102,8 @@ production's own binary, `jig-ops-production`.
   - services: their replicas, version, and state;
   - environments, named by pool and name;
   - quotas: a pool's capacity, a team's budget in money.
-- **Effects,** each with its recovery class (`domain/connectors.md`,
-  4.3):
+- **Effects,** each with its recovery class (`domain/connectors-effects.md`,
+  1.3):
   - restarting a service: keyed in the fake production, which takes an
     operation's id with each restart; on a backend that offers none,
     such as systemd's units, unrecoverable, so an uncertain restart
@@ -168,7 +168,7 @@ jig-ops-domain                    the engine's root
 └── agent                         smith-inline-agent: smith's domains, one per run in flight (domain/hosts/README.md, 5.2)
 ```
 
-- **It has the one shape** of `README.md`, 6.3. Every write and every
+- **It has the one shape** of `rails.md`, 1.3. Every write and every
   output goes into the journal.
 - **It routes, and nothing else:**
   - between the core and each connector, in their vocabularies;
@@ -191,6 +191,11 @@ jig-ops-domain                    the engine's root
   its deadline and says each period to the core with the next one's
   start; the protocol layer only fires the deadline
   (`protocol/configuration.md`, section 5).
+- **It rehearses its start:** told to rehearse before its start begins,
+  it serves every phase through the sweep and stops before the switch,
+  marking nothing and making no effect, and it says the phase its start
+  is in and the start's refusal, the store check's reading of a commit
+  (`domain/testing-fakes.md`, 1).
 - **It is the reference root.** Its routes, its translations and its
   sum of worst cases are written to be copied, and are commented as
   such.
@@ -214,7 +219,7 @@ jig-ops-domain                    the engine's root
     watch; on a triage's verdict of incident, it opens the incident and
     makes its lead from the lead's batch kept beside it (each its
     charter, budget and words). Neither is one of the configuration's
-    templates (`protocol/configuration.md`, 3.1);
+    templates (`protocol/configuration-templates.md`, 1);
   - infrastructure's **remediate, provision and tear down** (3.2);
   - the core's **recurring** tasks, each making its recurring batch at
     each period (`domain/tasks/README.md`, section 5).
@@ -262,7 +267,7 @@ P, the person on call
   the lead's batch, in that step, keeping in its state which incident
   the step's task will lead. The core tells observability, in the same
   decision, the number I was given, and observability records I as the
-  incident's lead then, durably (`domain/connectors.md`, 6.3).
+  incident's lead then, durably (`domain/connectors-procedures.md`, 1.3).
 - **One lead per incident,** set once. An incident may gather several
   alerts; a second lead for an incident that has one is refused by
   observability, and reported. Until the core says which task the step
@@ -271,7 +276,7 @@ P, the person on call
 - **I reads** logs and metrics, and decides on a restart.
 - **The restart is in production,** beyond I's authority, and so beyond
   R's, the remediation I delegates: R's step proposes it
-  (`domain/connectors.md`, 6.3). The proposal passes over I and W, a
+  (`domain/connectors-procedures.md`, 1.3). The proposal passes over I and W, a
   procedure, to P, who accepts it.
 - **R holds the service,** restarts it, and waits on observability's
   health (3.3). The service recovers. R's result reaches I, which
@@ -350,7 +355,7 @@ Q, a developer
 ## 8. Its client
 
 `ops` holds one `jig-client` and presents it with jig's reference UI
-(`README.md`, section 10). With jig's test application, it is how jig
+(`client-stack.md`, section 1). With jig's test application, it is how jig
 shows that the API is enough for a whole application: everything `ops`
 shows, it reads through the public client.
 
@@ -420,7 +425,7 @@ shows, it reads through the public client.
   the client's adapter over fetch, and the credential in the cookie its
   server sets. Its paths are its own: the reference UI's places at the
   root, by the reference UI's codec, and incidents' and environments' by
-  its own (`protocol/browser/README.md`, sections 3 and 9). It is `ops`
+  its own (`protocol/browser/application.md`, section 1, and `protocol/browser/README.md`, section 9). It is `ops`
   standalone's too (9.1), whose server serves its page and bundle.
 
 ## 9. Its systems
@@ -492,13 +497,13 @@ shows, it reads through the public client.
   under `/jig`, with jig's default HTTP mapping and its example guards
   as they are, and serves its browser's page and bundle at its other
   paths, under the reference page policy, which jig's test application's
-  server sends too (`protocol/browser/README.md`, 12.1). Its startup prints the
+  server sends too (`protocol/browser/serving.md`, 1.1). Its startup prints the
   printed link's URL, `/jig/v1/sign-in/link?secret=…` on that address,
-  by which a person signs in, in a browser or at its terminal (section
-  8). A browser's `GET` of it spends nothing: `ops`'s server answers it
+  by which a person signs in, in a browser or at its terminal (`examples.md`, section 8
+  ). A browser's `GET` of it spends nothing: `ops`'s server answers it
   with its page, with `Referrer-Policy: no-referrer`, and its browser
   shell `POST`s the secret, as its terminal does (`protocol/client/default-http.md`,
-  1; `protocol/browser/README.md`, section 11).
+  1; `protocol/browser/sign-in.md`, section 1).
 
 ## 10. Its worlds
 

@@ -1,5 +1,5 @@
 //! Empty writes preserve the seeded stream schedule
-//! (skein/docs/design/testing/README.md, 6).
+//! (skein/docs/design/testing/layout.md, 1).
 
 #[cfg(test)]
 mod tests {

@@ -8,7 +8,6 @@ rust-version.workspace = true
 publish.workspace = true
 
 [lib]
-test = false
 doctest = false
 
 [dependencies]
@@ -32,10 +31,13 @@ skein-sim.workspace = true
 skein-tls-kit.workspace = true
 skein-world.workspace = true
 smith-agent-service.workspace = true
+smith-agent-profile.workspace = true
+smith-host-domain.workspace = true
 smith-protocol-events.workspace = true
 smith-agent-shell.workspace = true
 smith-agent-world.workspace = true
 smith-channel.workspace = true
+smith-faults.workspace = true
 smith-charter.workspace = true
 smith-domain.workspace = true
 smith-events.workspace = true

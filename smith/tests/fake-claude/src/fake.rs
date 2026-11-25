@@ -1,4 +1,4 @@
-//! One invocation's I/O and settlement (smith/docs/design/protocol/programs.md, sections 5 and 8;
+//! One invocation's I/O and settlement (smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8;
 //! smith/docs/design/testing.md, section 4). Startup loads a story and appends names before
 //! entering a command; terminal exits wait for every descriptor to close.
 
@@ -65,7 +65,6 @@ pub struct Fake {
     stderr: Output,
     observation: Output,
     startup_observation: Option<Observation>,
-    startup_process: Option<u32>,
     startup_story: Option<file::Request>,
     arguments: Vec<String>,
     directory: std::path::PathBuf,
@@ -107,6 +106,12 @@ pub(crate) fn operations() -> u32 {
 }
 
 impl Fake {
+    /// Whether this invocation answers an account status check.
+    #[must_use]
+    pub fn is_status(&self) -> bool {
+        self.arguments == ["auth", "status"]
+    }
+
     /// The one-based turn currently held inside a call or scripted hang.
     #[must_use]
     pub fn active_turn(&self) -> Option<u32> {
@@ -228,7 +233,6 @@ impl Fake {
             stderr,
             observation,
             startup_observation,
-            startup_process: None,
             startup_story,
             arguments,
             directory: directory.to_path_buf(),
@@ -254,12 +258,6 @@ impl Fake {
         fake
     }
 
-    /// Add the binary's injected process number to its invocation observation.
-    pub fn record_process(&mut self, process: u32) {
-        self.startup_process = Some(process);
-        self.observation.record_process(process);
-    }
-
     fn effects(&mut self, effects: Vec<Effect>) {
         for effect in effects {
             match effect {
@@ -275,6 +273,9 @@ impl Fake {
                     if self.observation.token().is_some() {
                         self.observation.push(&bytes);
                     }
+                }
+                Effect::Fault(fault) => {
+                    self.effects(vec![Effect::Seen(crate::Seen::Fault { fault, at_nanos: self.now.as_nanos() })]);
                 }
                 Effect::Seen(seen) => {
                     let value = match seen {
@@ -332,9 +333,6 @@ impl Fake {
                     let mut bytes = serde_json::to_vec(&observed).expect("observation is JSON data");
                     bytes.push(b'\n');
                     self.observation.push(&bytes);
-                    if let Some(process) = self.startup_process {
-                        self.observation.record_process(process);
-                    }
                     self.file_request = self.startup_story.take();
                 }
                 _ => self.effects(commands::error("cannot inspect working directory", 1)),

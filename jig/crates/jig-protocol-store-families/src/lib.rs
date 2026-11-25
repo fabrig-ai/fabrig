@@ -1,4 +1,4 @@
-//! The store's families record codecs (jig/docs/design/protocol/README.md, section 5).
+//! The store's families record codecs (jig/docs/design/protocol/components.md, section 1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -21,7 +21,7 @@ pub mod secrets_v1;
 
 #[rustfmt::skip]
 #[path = "generated/openings.rs"]
-pub mod openings_v1;
+pub mod openings_v2;
 
 #[rustfmt::skip]
 #[path = "generated/registry.rs"]

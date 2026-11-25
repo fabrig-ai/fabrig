@@ -50,7 +50,12 @@ fn story(seed: u64) -> Story {
 }
 
 fn stop(s: &mut Story, sign_in: u64) -> u64 {
-    ask_as(&mut s.world, sign_in, 51, people::Ask::Stop { project: 1, task: s.goal });
+    ask_as(
+        &mut s.world,
+        sign_in,
+        51,
+        people::Ask::Stop { project: 1, task: s.goal, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let hold = live_row(&s.world, s.goal).placed.expect("placed stop");
     for task in [s.goal, s.child] {
         assert_eq!(live_row(&s.world, task).placed, Some(hold));

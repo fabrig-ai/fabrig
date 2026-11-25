@@ -1,4 +1,4 @@
-//! Keyed repository requests and adoption waits (temper/docs/design/client/ctl/tools.md, 3 and 4).
+//! Keyed repository requests and adoption waits (temper/docs/design/client/ctl/tools-acts.md, 1, and temper/docs/design/client/ctl/tools-waiting.md, 1).
 use crate::{
     jig::{
         self,
@@ -451,7 +451,7 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             | w::Outcome::Tried
             | w::Outcome::Filed(_)
             | w::Outcome::Handed
-            | w::Outcome::Triaged
+            | w::Outcome::Triaged(_)
             | w::Outcome::FindingRefused(_)
             | w::Outcome::Drafted(_)
             | w::Outcome::DraftRefused(_)

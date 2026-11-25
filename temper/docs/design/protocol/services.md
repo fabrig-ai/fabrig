@@ -2,13 +2,13 @@
 
 Provisional, 2026-11-13, from `../draft/cli.md`, section 6 and
 `../draft/deployment-binaries.md`, section 9's second item; the
-engine's half's pieces from `../draft/crate-graph.md`, 5. The service
-of `README.md`, sections 4 to 6, is four crates: what both halves share,
+engine's half's pieces from `../draft/archive/crate-graph.md`, 5. The service
+of `service-routing.md`, sections 1 to 2, and `service-process.md`, section 1, is four crates: what both halves share,
 the engine's, the worker's, and the one process that composes them. The
 engine's binary links the engine's alone, the worker's the worker's
 alone, and the box and the tests the composition (`binaries.md`, 1 and
 4). No Cargo feature chooses either half (`../draft/cli.md`, 3.2).
-Section 2 is the crates, 3 to 6 each one, with the engine's pieces in
+`services.md`, section 2 is the crates, 3 to 6 each one, with the engine's pieces in
 4.1 to 4.4, 7 the shells that drive them, 8 the tests, 9 the checks.
 
 ## 1. In one page
@@ -28,10 +28,10 @@ Section 2 is the crates, 3 to 6 each one, with the engine's pieces in
   keeps the name `temper-engine-service`, over the component and the
   startup, which compile side by side over a vocabulary both name, with
   the stock beneath the startup.
-- **The composition is today's one process** (`README.md`, section 6):
+- **The composition is today's one process** (`service-process.md`, section 1):
   both components on one process, joined by the in-process name
   `workers`, with the standalone start's paired checks and the
-  supervision that starts, drains and stops them together (section 6).
+  supervision that starts, drains and stops them together (`services.md`, section 6).
   It keeps the name `temper-service`, so the box, the playground and the
   worlds that run one process keep theirs.
 - **Nothing a person or a program sees changes:** the documents read,
@@ -151,7 +151,7 @@ modules, under the engine's name, its history kept by the move.
 
 ### 4.1 Its crates
 
-From `../draft/crate-graph.md`, 5, milestone G4 of its execution file.
+From `../draft/archive/crate-graph.md`, 5, milestone G4 of its execution file.
 The engine's half is five step crates in `temper/crates/`, cut by that
 draft's rules (5.2) so that the parts which change apart compile side
 by side:
@@ -195,7 +195,7 @@ temper-engine-service                 the engine's start: a document read and ch
     forge's, the route's and the workers' functions take `&mut Engine`,
     and four files add its methods), and those modules form one cycle
     through it: a state machine and what lies around it
-    (`../draft/crate-graph.md`, 5.2);
+    (`../draft/archive/crate-graph.md`, 5.2);
   - **the start keeps the name:** `restoring_with`, `restoring_prepared`
     and `with_setup_given` read a document through the startup and build
     the engine alone through the component, so they sit above both, in
@@ -306,7 +306,7 @@ Every piece holds to these:
 
 ### 4.4 Landing the split
 
-As `../draft/crate-graph.md`, 5.3 has it:
+As `../draft/archive/crate-graph.md`, 5.3 has it:
 
 - **Preparation first,** each change behaviour unchanged and landing
   before the move, so that every file goes whole to one piece: the
@@ -382,7 +382,7 @@ and their tests.
 
 `temper-service`, the composition: one process and both components,
 joined by the in-process name `workers`, the engine listening and the
-worker dialling it through the same process, as `README.md`, section 6
+worker dialling it through the same process, as `service-process.md`, section 1
 says. Nothing crosses between them but bytes.
 
 - **One turn, today's order:** the process's completions and events,

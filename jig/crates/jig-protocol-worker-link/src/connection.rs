@@ -1,7 +1,7 @@
-//! Each phase owns its channel (protocol/channel/README.md, 9.3).
+//! Each phase owns its channel (protocol/channel/worker-link.md, 1.3).
 use crate::Limits;
-use skein_channel::{Machine, WriteWait};
-use skein_lib::{Duration, Time, Token};
+use skein_channel::{Machine, Term, WriteWait};
+use skein_lib::{Duration, List, Time, Token};
 #[derive(Debug)]
 pub(crate) struct Connection {
     pub(crate) token: Token,
@@ -9,9 +9,7 @@ pub(crate) struct Connection {
     pub(crate) ping: Option<Time>,
     pub(crate) silence: Option<Time>,
     pub(crate) stall: Option<Time>,
-    pub(crate) wires: Option<skein_lib::List<jig_protocol_worker_wire::Agreed>>,
-    pub(crate) stated: bool,
-    pub(crate) version: u16,
+    pub(crate) terms: List<Term>,
     pub(crate) restart_wait: Option<Duration>,
 }
 #[derive(Debug)]
@@ -42,6 +40,15 @@ impl Phase {
 }
 
 impl Connection {
+    pub(crate) fn accepts(&self, kind: u16) -> bool {
+        for term in &self.terms {
+            if term.kind == kind {
+                return true;
+            }
+        }
+        false
+    }
+
     /// The word lengthens this channel's grace at its loss (protocol/channel/restart.md, 4).
     pub(crate) fn loss_wait(&self, grace: Duration) -> Duration {
         self.restart_wait.unwrap_or(grace).max(grace)

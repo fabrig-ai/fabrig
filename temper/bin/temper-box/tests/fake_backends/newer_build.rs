@@ -1,5 +1,5 @@
-//! A newer build at the same paths: temper/docs/design/protocol/setup/box.md, 1 and 5.
-//! The worker's pin follows temper/docs/design/domain/worker/README.md, 5;
+//! A newer build at the same paths: temper/docs/design/protocol/setup/box.md, 1, and temper/docs/design/protocol/setup/box-backends.md, 1.
+//! The worker's pin follows temper/docs/design/domain/worker/agent-processes.md, 1;
 //! live executable observations follow temper/docs/design/testing/process-tier.md's newer-build story.
 use crate::support::{
     self, Ended, boxed,
@@ -501,7 +501,7 @@ fn first_chat(programs: PathBuf, client: PathBuf) -> Vec<Step> {
             "--json",
         ])),
         Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
-        Step::Run(Call::new(&["task", "stop", "1", "--key", "keep-first-task", "--json"])),
+        Step::Run(Call::new(&["task", "stop", "1", "Parked", "--key", "keep-first-task", "--json"])),
         Step::Run(Call::new(&["task", "show", "1", "--until", "held", "--json"])),
     ]
 }
@@ -535,7 +535,7 @@ fn after_restart(probe: Probe, config: PathBuf, client: PathBuf, before: Kept) -
         Step::Run(Call::new(&["task", "show", "2", "--until", "phase:running", "--json"])),
         Step::Then(Box::new(move |_| {
             live_probe.during_run();
-            Call::new(&["task", "stop", "2", "--key", "end-live-run", "--json"])
+            Call::new(&["task", "stop", "2", "Parked", "--key", "end-live-run", "--json"])
         })),
         Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--json"])),
     ]

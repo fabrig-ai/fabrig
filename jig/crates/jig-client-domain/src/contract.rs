@@ -1,5 +1,5 @@
 //! Independent client vocabulary for the complete domain contract.
-//! See client/domain/contract/README.md, 2 and client/domain/contract/requests.md and client/domain/contract/README.md, 3 and client/domain/contract/documents.md and client/domain/contract/README.md, 4–6. List capacities and text lengths
+//! See client/domain/contract/README.md, 2 and client/domain/contract/requests.md and client/domain/contract/answers.md, 1 and client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1, and client/domain/contract/README.md, 6. List capacities and text lengths
 //! are the decoding owner's limits; no engine or application type is shared.
 pub mod admission;
 pub mod admission_limits;
@@ -122,6 +122,8 @@ mod parts;
 pub use parts::*;
 mod queries;
 pub use queries::*;
+pub mod waits;
+pub use waits::{AtBound, Nearest, ResourceName, Thing, Unbounded, Wait, WaitKind, WaitObject};
 
 pub mod settings;
 pub use settings::*;

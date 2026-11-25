@@ -37,7 +37,81 @@ live-temper = [
 ]
 
 process-temper = [
+    "temper",
     "temper-box",
+]
+
+real-skein = [
+    "skein-codegen",
+    "skein-conformance-real",
+    "skein-echo-shell",
+    "skein-echo-world",
+    "skein-fail-stop-tests",
+    "skein-fake-peers-tests",
+    "skein-fake-person-browser",
+    "skein-fork",
+    "skein-io-world",
+    "skein-kv-tests",
+    "skein-oauth-accounts-world",
+    "skein-readiness-tests",
+    "skein-ring-tests",
+    "skein-shell",
+    "skein-throwaway-forgejo",
+    "skein-ui-web-tests",
+    "skein-world-tests",
+]
+
+real-smith = [
+    "smith",
+    "smith-bench",
+    "smith-fake-claude",
+    "smith-local-protocol",
+    "smith-local-shell",
+    "smith-machine-world",
+    "smith-real-world",
+]
+
+real-jig = [
+    "jig-core-kit",
+    "jig-test",
+    "jig-test-store-files",
+]
+
+real-temper = [
+    "temper",
+    "temper-agent",
+    "temper-box",
+    "temper-box-machine",
+    "temper-box-shell",
+    "temper-client-gallery",
+    "temper-client-journeys",
+    "temper-client-journeys-tool",
+    "temper-client-walk",
+    "temper-config-shell",
+    "temper-engine",
+    "temper-engine-service-component",
+    "temper-engine-shell",
+    "temper-fetch-shell",
+    "temper-fixtures",
+    "temper-forge-setup-shell",
+    "temper-git-transcripts",
+    "temper-playground-serve",
+    "temper-process-guard",
+    "temper-qa",
+    "temper-qa-tool",
+    "temper-real-loop-world",
+    "temper-stage-one",
+    "temper-twin",
+    "temper-worker",
+    "temper-worker-checkout-world",
+    "temper-worker-protocol-git",
+    "temper-worker-service",
+    "temper-worker-shell",
+]
+
+real-hearth = [
+    "hearth",
+    "hearth-builder-world",
 ]
 
 [test-binaries]
@@ -47,9 +121,9 @@ smith = [{ package = "smith-fake-claude", bin = "fake-claude" }]
 browser-jig = [{ package = "jig-test", bin = "jig-test" }]
 browser-skein = [{ package = "skein-ui-example-server", bin = "skein-ui-example" }]
 browser-temper = [
-    { package = "temper-box", bin = "temper-box" },
-    { package = "temper", bin = "temper" },
     { package = "smith-fake-claude", bin = "fake-claude" },
+    { package = "temper", bin = "temper" },
+    { package = "temper-box", bin = "temper-box" },
     { package = "temper-playground-serve", bin = "temper-playground-serve" },
 ]
 conformance-hearth = []
@@ -65,3 +139,9 @@ process-temper = [
     { package = "temper-engine", bin = "temper-engine" },
     { package = "temper-worker", bin = "temper-worker" },
 ]
+
+real-hearth = []
+real-jig = []
+real-skein = []
+real-smith = [{ package = "smith-fake-claude", bin = "fake-claude" }]
+real-temper = []

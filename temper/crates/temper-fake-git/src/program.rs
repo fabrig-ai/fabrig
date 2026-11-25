@@ -1,5 +1,5 @@
 //! A git process reads and changes the fake machine through kernel operations.
-use crate::answer::path;
+use crate::answer::{explicit_path, path};
 use crate::{Answer, Checked, Refusal, Transport, answer, check};
 use skein_fake_checkout::{Checkout, Kind};
 use skein_io::kernel::{self as k, Complete, Done, Exit, Fd, Op, OpenHow, Submit};
@@ -102,20 +102,27 @@ impl<T: Transport> Git<T> {
             }
             match &checked.command {
                 Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
-                Command::Version | Command::CountObjects { .. } | Command::Repack { .. } => {}
-                Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
+                Command::Version
+                | Command::CountObjects { .. }
+                | Command::Repack { .. }
+                | Command::MergeHistory { .. } => {}
+                Command::Origin { directory } => jobs.push_back(Job::Scan(explicit_path(&checked.root, directory))),
+                Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.root, directory)));
                 }
                 Command::Reds(_)
                 | Command::Format
                 | Command::Remote { .. }
                 | Command::UpdateRef { .. }
+                | Command::UpdateCounts { .. }
+                | Command::DeleteCounts
                 | Command::SnapshotHead
                 | Command::SnapshotMerge { .. }
                 | Command::SnapshotReachable { .. }
                 | Command::SnapshotReset { .. }
                 | Command::SnapshotFetch { .. }
                 | Command::Fetch { .. }
+                | Command::FetchCounts { .. }
                 | Command::Create { .. }
                 | Command::Unmerged
                 | Command::DiffPaths { .. }
@@ -196,9 +203,14 @@ impl<T: Transport> Git<T> {
             | Command::Format
             | Command::Remote { .. }
             | Command::SnapshotHead
+            | Command::MergeHistory { .. }
             | Command::SnapshotMerge { .. }
             | Command::IsAncestor { .. } => false,
-            Command::UpdateRef { .. } | Command::Fetch { .. } => name == b"objects" || name == b"refs",
+            Command::UpdateRef { .. }
+            | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
+            | Command::UpdateCounts { .. } => name == b"objects" || name == b"refs",
+            Command::DeleteCounts => name == b"refs",
             Command::SnapshotReachable { .. } => name == b"temper-delivery-heads",
             Command::SnapshotFetch { .. } => name == b"objects" || name == b"temper-delivery-heads",
             Command::Unmerged => name == b"temper-conflicts",
@@ -281,6 +293,14 @@ impl<T: Transport> Git<T> {
             self.file_complete(pending, complete.kind, complete.result);
         }
     }
+    fn scanned_directory(&mut self, mut path: &[u8]) {
+        self.checkout.mkdir(path);
+        // A successful no-follow open also proves the ancestors exist. They
+        // must not appear to the disk diff as newly created directories.
+        while !path.is_empty() && self.before.insert(path.to_vec(), k::Kind::Directory).is_none() {
+            path = path.rsplitn(2, |byte| *byte == b'/').nth(1).unwrap_or(b"");
+        }
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "the file completion table includes discovering alternate object directories"
@@ -289,10 +309,8 @@ impl<T: Transport> Git<T> {
         match (pending, kind, result) {
             (Pending::Metadata(at), _, Ok(Done::Fd(fd))) => {
                 let git = path(&at, b".git");
-                self.before.insert(at, k::Kind::Directory);
                 self.owned.insert(fd);
-                self.before.insert(git.clone(), k::Kind::Directory);
-                self.checkout.mkdir(&git);
+                self.scanned_directory(&git);
                 self.jobs.push_front(Job::List(git, fd));
             }
             (Pending::Metadata(at), _, Err(k::Error::NotFound)) => {
@@ -302,8 +320,7 @@ impl<T: Transport> Git<T> {
             }
             (Pending::Scan(path), _, Ok(Done::Fd(fd))) => {
                 self.owned.insert(fd);
-                self.before.insert(path.clone(), k::Kind::Directory);
-                self.checkout.mkdir(&path);
+                self.scanned_directory(&path);
                 self.jobs.push_front(Job::List(path, fd));
             }
             (Pending::Scan(_), _, Err(k::Error::NotFound)) => {}

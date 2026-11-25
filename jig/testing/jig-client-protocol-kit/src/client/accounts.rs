@@ -135,6 +135,7 @@ impl Story {
         authority.budget.spend = 20;
         self.engine.driver.world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Tasks(
             tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),

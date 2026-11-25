@@ -605,7 +605,7 @@ pub fn people_asks() -> Box<[people::Ask]> {
         Ask::AccountSignIn { holder: people::AccountHolder::Own, provider: 2 },
         Ask::AccountSignOut { holder: people::AccountHolder::Deployment, source: 3 },
         holds::adopt(),
-        Ask::Stop { project: 1, task: 2 },
+        Ask::Stop { project: 1, task: 2, reason: b"Parking the task".as_slice().into() },
         Ask::Cancel { project: 1, task: 2, reason: Box::new([3]), grace: Some(skein_lib::Duration::from_secs(5)) },
         Ask::Release { project: 1, task: 2, revision: 3, again: Some(true) },
         Ask::TakePerson { project: 1, task: 2 },
@@ -656,6 +656,16 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
         turns: skein_lib::Duration::from_secs(14 * 86_400),
         records: skein_lib::Duration::from_secs(30 * 86_400),
         summaries: skein_lib::Duration::from_secs(365 * 86_400),
+    },
+    waits: core::Figures {
+        question: skein_lib::Duration::from_secs(2 * 3600),
+        party: skein_lib::Duration::from_secs(8 * 3600),
+        news: skein_lib::Duration::from_secs(24 * 3600),
+        host: skein_lib::Duration::from_secs(2 * 3600),
+        account: skein_lib::Duration::from_secs(2 * 3600),
+        step: skein_lib::Duration::from_secs(30 * 60),
+        room: skein_lib::Duration::from_secs(30 * 60),
+        sign_off: skein_lib::Duration::from_secs(24 * 3600),
     },
     public: jig_domain_core_vocabulary::PublicIndexLimits::OFF,
     routes: 20_783,
@@ -838,7 +848,7 @@ fn people_compounds() -> [people::Ask; 3] {
         ]),
         people_compound([
             people::Operation::Message { task: 2, words: Box::new([3]) },
-            people::Operation::Stop { task: 2 },
+            people::Operation::Stop { task: 2, reason: b"Parking the task".as_slice().into() },
         ]),
     ]
 }

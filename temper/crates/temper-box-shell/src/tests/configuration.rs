@@ -1,9 +1,6 @@
 //! Configuration reference pages (temper/docs/design/protocol/documentation.md, 6 and 8).
-#[path = "../../../../testing/temper-box-kit/src/configuration.rs"]
-#[expect(dead_code, reason = "these shell tests use the shared startup documents, not the cluster's figures")]
-pub(crate) mod support;
 use serde_json::Value;
-pub(crate) use support::{check_document, demo_document, directories, documents, file, flags, setup, typed_documents};
+pub(crate) use temper_box_kit::configuration::{check_document, demo_document, directories, documents, file, setup};
 use temper_service::startup::members;
 
 pub(super) fn init_document() -> Box<[u8]> {

@@ -1,0 +1,17 @@
+# store-floor: status
+
+2026-11-16. Where the code and the design lag or depart from [store-floor.md](store-floor.md).
+
+- **Design lags:** none.
+- **Design departs:**
+  - 2: the written jobs are one settling job per owner's set, run by the store (jig's `protocol/store/jobs.md`, 5), with skein's plans whose drops are refused per value (skein's `data/codec/layouts.md`, 2), not a written job per layout that lost a variant: dev's layouts are known only by its registry, one walk of a set's value types proves every other layout of theirs retired, and a plan with its drops refused is the same conversion a hand-written one would be. The goal's designer, 11-15.
+  - 2: the put-back puts every value whose layout moves, not a few thousand: dropping a variant moves the tags of every variant after it, so the tasks' value types after `milestone` and temper's after `change` are put again, most of the map. The redeploy's check measures the cost first (7). The goal's designer, 11-15.
+  - 2: the charter versions' old layout is retired by jig's settling job's proof; `charter-versions` keeps its conversion until F1 removes the job, so a store older than that job still converts first. The goal's designer, 11-15.
+  - 3: after the floor's check, F2 refuses what it can no longer upgrade: a store behind the binary's levels (`Older::Behind`) and one holding values with no registry (`Older::Unregistered`), each naming `FLOOR_BRIDGE`, F0's build, which walks and seeds them (jig's `protocol/store/opening.md`, 1.8), since F2 removes the walk and the seed that brought such a store up; the baseline store is refused as any unleveled one. F1's floor check comes before them. The goal's designer, 11-16.
+  - 4.3: F0 removes `milestones`, `live-task-parts`, `projection-parts` and `change-parts` with their dispatch, declarations and tests, ahead of F1: each reads only a form F0 drops, through generated code that goes with it, and every store at or past dev.fabrig.ai's has run them. The goal's designer, 11-15.
+  - 4.4: F0 turns the one-process baseline's success story into the refusal F0's open gives that store, which holds whole live tasks F0 drops, and F2 into the refusal of an unleveled store; F1 makes it the floor's named refusal and adds the fixture at the floor. The goal's designers, 11-15 and 11-16.
+  - 4.4, 5: the frame fixtures in `jig-test-layouts` exercise registry plans, not the frame patcher: a frame keeps its written layout and is converted by the registry on each read (jig's `protocol/store/transcripts.md`, 6).
+  - 3: the refusals of a store from before the baseline or before generations (`Directory`, `Format`, `Layout`, `Unleveled`) name the bridge as a build that does not translate them either, not as the way through: the bridge refuses those stores too, so only the floor's, the behind-level and the registry's refusals (`Older::Floor`, `Older::Behind`, `Older::Unregistered`) say to start it (jig's `protocol/store/opening.md`, 1.8). The goal's designer, 11-16.
+  - 3: the bridge is jig's constant `FLOOR_BRIDGE` beside `FLOOR`, `3d1c717d379e`, named as temper's version line names a build, since the refusals' words are jig's (jig's `protocol/store/records.md`, 3). The goal's designer, 11-16.
+  - 3: the floor row is written by a store's first commit alone: the upgrade's last commit no longer writes it, since the open refuses every store without one; a landing that moves the floor (6) designs how its upgrade writes the new number. The goal's designer, 11-16.
+- **Open:** none.

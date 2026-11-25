@@ -1,4 +1,4 @@
-//! Object stores and borrowing repositories (protocol/git.md, 4.1–4.3, 4.11).
+//! Object stores and borrowing repositories (protocol/git-operations.md, 1.1–1.3 and 1.11).
 use super::fixtures::{self, Started};
 use crate::{
     Request,
@@ -279,6 +279,24 @@ fn fetch_uses_its_store_then_points_the_repository_without_a_second_header() {
     super::view::empty(&mut s);
     assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
 }
+
+#[test]
+fn counts_uses_its_store_then_updates_the_repository_without_a_header() {
+    let mut s = Started::new();
+    request(&mut s, fixtures::counts_op(), true);
+    invocation(
+        &mut s,
+        &Command::FetchCounts { remote: fixtures::REMOTE.into(), workspace: fixtures::WORKSPACE },
+        b"stores/9",
+        true,
+        true,
+        b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/counts\n",
+    );
+    invocation(&mut s, &Command::UpdateCounts { commit: fixtures::COMMIT }, b"workspaces/7/app", false, true, b"");
+    assert_eq!(s.done(), None, "the operation still owes the run's view");
+    super::view::empty(&mut s);
+    assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
+}
 #[test]
 fn a_store_clone_installs_from_making_without_replacing_an_existing_store() {
     for raced in [false, true] {
@@ -482,7 +500,9 @@ fn a_store_check_closes_its_directory_during_shutdown() {
     s.complete(Ok(Done::Fd(Fd::new(8))));
     assert_eq!(s.file_operation(), Op::Close { fd: Fd::new(8) });
     s.complete_ok();
-    for fd in [fixtures::MAKING, fixtures::STORES, fixtures::GITDIRS, fixtures::WORKSPACES, fixtures::TRASH] {
+    for fd in
+        [fixtures::KEPT, fixtures::MAKING, fixtures::STORES, fixtures::GITDIRS, fixtures::WORKSPACES, fixtures::TRASH]
+    {
         assert_eq!(s.file_operation(), Op::Close { fd });
         s.complete_ok();
     }

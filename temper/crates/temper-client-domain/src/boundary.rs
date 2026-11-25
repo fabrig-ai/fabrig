@@ -22,11 +22,11 @@ pub enum Action {
 #[derive(Debug)]
 pub enum Event {
     Push(crate::pages::told::Report),
-    /// The native client's ask for an approval (client/README.md, 4.1).
+    /// The native client's ask for an approval (client/sign-in.md, 1.1).
     AskApproval {
         port: Option<u16>,
     },
-    /// The grant returned by the native client's loopback listener (client/README.md, 4.1).
+    /// The grant returned by the native client's loopback listener (client/sign-in.md, 1.1).
     Granted {
         grant: skein_lib::Secret,
     },
@@ -55,7 +55,7 @@ pub enum Event {
     Went {
         place: Place,
     },
-    /// A document resumed from the browser’s back-forward cache (client/web/README.md, 2.3).
+    /// A document resumed from the browser’s back-forward cache (client/web/addresses.md, 1).
     Returned {
         place: Place,
     },
@@ -73,7 +73,7 @@ pub enum Event {
     },
     SignedOut,
     TabRefused,
-    /// The browser's kept sign-in address (client/README.md, 4).
+    /// The browser's kept sign-in address (client/sign-in.md, 1).
     SignInKept {
         source: u32,
         address: Box<[u8]>,
@@ -111,7 +111,7 @@ pub enum Request {
     KeepLook {
         look: crate::pages::terminal::Look,
     },
-    /// Keep an answered sign-in beside the client's records (client/README.md, 4).
+    /// Keep an answered sign-in beside the client's records (client/sign-in.md, 1).
     KeepSignIn {
         source: u32,
         address: Box<[u8]>,
@@ -127,7 +127,7 @@ pub enum Request {
     Client {
         request: jig_client::Request,
     },
-    /// What the unlinked client asks, which its host carries (jig's client/domain/client/README.md, 4.4).
+    /// What the unlinked client asks, which its host carries (jig's client/domain/client/vocabulary.md, 1.4).
     Unlinked {
         request: jig_client::UnlinkedRequest,
     },

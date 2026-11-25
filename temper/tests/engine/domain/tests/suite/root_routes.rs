@@ -1,10 +1,29 @@
+#[path = "root_routes/deadlines.rs"]
+mod deadlines;
+#[path = "root_routes/planning.rs"]
+mod planning;
+
 #[path = "root_routes/milestones.rs"]
 mod milestones;
+#[path = "root_routes/pace.rs"]
+mod pace;
 #[path = "root_routes/parts.rs"]
 mod parts;
+#[path = "root_routes/qa.rs"]
+mod qa;
+
+#[path = "root_routes/opener.rs"]
+mod opener;
 
 #[path = "root_routes/standing.rs"]
 mod standing;
+
+#[path = "root_routes/budget.rs"]
+mod budget;
+#[path = "root_routes/cluster.rs"]
+mod cluster;
+#[path = "root_routes/stopped_worker.rs"]
+mod stopped_worker;
 
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
@@ -128,6 +147,7 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Asked { .. }
+            | host::LinkDown::PartKept { .. }
             | host::LinkDown::Grant { .. } => None,
         })
         .collect()
@@ -139,6 +159,16 @@ fn live(driver: &Driver, task: u64) -> &tasks::TaskRecord {
         driver.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task))))
     else {
         panic!("task {task} is live")
+    };
+    row
+}
+
+/// A task's retained terminal row.
+fn ended_task(driver: &Driver, task: u64) -> &tasks::TaskRecord {
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
+        driver.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task))))
+    else {
+        panic!("task {task} ended")
     };
     row
 }
@@ -420,7 +450,14 @@ fn a_member_starts_a_chat_and_an_observer_is_refused() {
 
 /// A real message commit leaves the parent with an unanswered question.
 fn unanswered_question() -> (Driver, engine::Assignment, u64, engine::Assignment) {
-    let (mut driver, parent) = batch_fixture_with(2, 1);
+    let (driver, parent) = batch_fixture_with(2, 1);
+    ask_question(driver, parent)
+}
+
+fn ask_question(
+    mut driver: Driver,
+    parent: engine::Assignment,
+) -> (Driver, engine::Assignment, u64, engine::Assignment) {
     let child = call_batch(&mut driver, &parent, 2034, Box::new([report_delegate(b"ask", Box::new([]))]))[0];
     let asker = assigned_task(&driver, child);
     let words = b"ship?".as_slice().into();
@@ -439,8 +476,17 @@ fn unanswered_question() -> (Driver, engine::Assignment, u64, engine::Assignment
 #[test]
 fn a_person_answers_a_question_its_task_has_already_read() {
     use jig_domain_core::{documents, reads};
+    // The fixture asks one question; reading it must not duplicate its inbox row.
+    const ONE_QUESTION: u32 = 1;
+
+    const REQUESTS: u32 = 2; // The original command and its identical retry.
+    const ANSWERS: usize = 1; // One answer and one resulting report.
 
     let (mut driver, parent, question, asker) = unanswered_question();
+    assert!(
+        messages_to(&driver, &parent).iter().any(|(number, words)| *number == question && words.as_ref() == b"ship?")
+    );
+    assert!(matches!(driver.answered(2035), Some(engine::CallAnswer::Sent { message }) if *message == question));
     driver.send(protocol::turn(Token::new(7), parent.task, parent.attempt, 1, 1, Some(question), b"read question"));
     driver.settle();
     assert!(!live(&driver, parent.task).inbox.iter().any(|word| word.number == question));
@@ -466,18 +512,27 @@ fn a_person_answers_a_question_its_task_has_already_read() {
             if let Delivery::Read { answer: reads::Answer::Page(page), .. } = delivery { Some(page) } else { None }
         })
         .expect("person's questions inbox");
+    assert_eq!(waiting.rows.len(), ONE_QUESTION);
     assert!(waiting.rows.iter().any(|row| matches!(row,
         reads::PageRow::Inbox(entry) if matches!(&entry.task, documents::TaskLink::Live(chip) if chip.number == parent.task)
-            && entry.object == documents::InboxObject::Question { message: question }
+            && entry.project == Some(1) && entry.object == documents::InboxObject::Question { message: question }
     )));
-    driver.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(2036)),
-        sign_in: driver.session(),
-        key: [210; 16],
-        ask: people::Ask::AnswerQuestion { project: 1, task: parent.task, question, words: b"yes".as_slice().into() },
-    }));
-    driver.settle();
+    // Retrying the person's command must not send a second answer to A.
+    for _ in 0..REQUESTS {
+        driver.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(2036)),
+            sign_in: driver.session(),
+            key: [210; 16],
+            ask: people::Ask::AnswerQuestion {
+                project: 1,
+                task: parent.task,
+                question,
+                words: b"yes".as_slice().into(),
+            },
+        }));
+        driver.settle();
+    }
     assert!(driver.delivered.iter().any(|item| matches!(item,
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::QuestionAnswered {
             task, question: answered, ..
@@ -487,11 +542,41 @@ fn a_person_answers_a_question_its_task_has_already_read() {
         live(&driver, parent.task)
             .inbox
             .iter()
-            .any(|word| word.kind == (tasks::MessageKind::QuestionAnswered { question }))
+            .any(|word| word.kind == (tasks::MessageKind::QuestionAnswered { question })
+                && word.from == tasks::Party::Task(asker.task)
+                && word.words.as_ref() == b"yes")
     );
     assert!(live(&driver, asker.task).inbox.iter().any(|word| word.kind == tasks::MessageKind::Answer { question }
         && word.from == tasks::Party::Task(parent.task)
         && word.words.as_ref() == b"yes"));
+    assert_eq!(
+        live(&driver, asker.task)
+            .inbox
+            .iter()
+            .filter(|word| word.kind == tasks::MessageKind::Answer { question })
+            .count(),
+        ANSWERS,
+        "one direct answer, despite the repeated command"
+    );
+    assert_eq!(messages_to(&driver, &asker).iter().filter(|(_, words)| words.as_ref() == b"yes").count(), ANSWERS);
+    stopped_worker::finish(&mut driver, Token::new(7), &asker, b"phase reported");
+    assert_eq!(
+        live(&driver, parent.task)
+            .inbox
+            .iter()
+            .filter(|word| word.from == tasks::Party::Task(asker.task)
+                && word.kind == tasks::MessageKind::Result(tasks::ResultKind::Report)
+                && word.words.as_ref() == b"phase reported")
+            .count(),
+        ANSWERS
+    );
+    stopped_worker::finish(&mut driver, Token::new(7), &parent, b"director reported");
+    for (task, report) in [(asker.task, b"phase reported".as_slice()), (parent.task, b"director reported".as_slice())] {
+        assert!(driver.store.rows.values().any(|row| matches!(row,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))
+                if row.number == task && row.phase == tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: report.into() }))
+        )));
+    }
 }
 
 #[test]
@@ -920,6 +1005,94 @@ fn a_person_task_addressed_to_a_role_taken_by_one_handed_back_answered_by_anothe
 }
 
 #[test]
+fn zero_spend_placement_rechecks_do_not_fail_the_two_working_attempts() {
+    for rechecks in [0, 1, 3] {
+        let (mut driver, first) = running_fixture();
+        tool_call(
+            &mut driver,
+            &first,
+            90,
+            engine::Tool::Subscribe {
+                kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(2_000_000_000), period: None },
+            },
+        );
+        assert!(
+            matches!(driver.answered(90), Some(engine::CallAnswer::Subscribed { .. })),
+            "{:?}",
+            driver.answered(90)
+        );
+        driver.answer(Token::new(7), first.task, first.attempt, 3, tasks::End::Parked, engine::Parts::none());
+        driver.settle();
+        driver.fire_at(Duration::from_secs(2));
+        driver.settle();
+        for _ in 0..rechecks {
+            let run = driver.last_assignment();
+            driver.answer(Token::new(7), run.task, run.attempt, 0, tasks::End::Recheck, engine::Parts::none());
+            driver.settle();
+
+            assert!(driver.last_assignment().attempt > run.attempt, "a recheck retries on the domain clock");
+            assert_eq!(live(&driver, run.task).tries, tasks::Tries::NONE);
+        }
+        let last = driver.last_assignment();
+        driver.answer(
+            Token::new(7),
+            last.task,
+            last.attempt,
+            1,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Report { words: b"B finished".as_slice().into() },
+                cancel_delegates: false,
+            },
+            engine::Parts::none(),
+        );
+        driver.settle();
+        let lines: Vec<_> = driver
+            .transactions
+            .iter()
+            .flatten()
+            .filter_map(|write| {
+                if let Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(row)))) = write
+                    && row.task == first.task
+                {
+                    Some(&row.line)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let starts: Vec<_> = lines
+            .iter()
+            .filter_map(|line| if let tasks::Line::RunBegan { attempt, .. } = line { Some(*attempt) } else { None })
+            .collect();
+        let ends: Vec<_> = lines
+            .iter()
+            .filter_map(|line| {
+                if let tasks::Line::RunEnded { attempt, end, spent } = line {
+                    Some((*attempt, *end, *spent))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(starts.len(), ends.len(), "every attempt has its terminal");
+        assert!(starts.iter().all(|start| ends.iter().filter(|(end, _, _)| end == start).count() == 1));
+        assert_eq!(
+            ends.iter().filter(|(_, end, _)| matches!(end, tasks::EndKind::Parked | tasks::EndKind::Finished)).count(),
+            2
+        );
+        assert_eq!(
+            ends.iter().filter(|(_, end, _)| *end == tasks::EndKind::Refused).count(),
+            usize::try_from(rechecks).expect("small recheck count")
+        );
+        assert!(
+            ends.iter().all(|(_, end, spent)| matches!(end, tasks::EndKind::Parked | tasks::EndKind::Finished)
+                || (*end == tasks::EndKind::Refused && *spent == 0)),
+            "no failure or spent refusal: {ends:?}"
+        );
+    }
+}
+
+#[test]
 fn a_person_stops_a_run_and_releases_it() {
     let (mut driver, assignment) = running_fixture();
     let session = driver.session();
@@ -928,7 +1101,7 @@ fn a_person_stops_a_run_and_releases_it() {
         reply_to: ReplyTo::new(Token::new(980)),
         sign_in: session,
         key: [80; 16],
-        ask: people::Ask::Stop { project: 1, task: assignment.task },
+        ask: people::Ask::Stop { project: 1, task: assignment.task, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     for _ in 0..40 {
         driver.advance(true);
@@ -936,10 +1109,14 @@ fn a_person_stops_a_run_and_releases_it() {
     assert!(replied(&driver, &people::Outcome::Stopped { task: assignment.task }));
     assert_eq!(cancelled(&driver), [(assignment.task, assignment.attempt)]);
     let row = live(&driver, assignment.task);
-    assert!(matches!(row.phase, tasks::Phase::Held { why: tasks::Hold::Placed { .. }, .. }));
+    let hold = row.placed.expect("person's placed hold");
+    assert!(matches!(row.phase, tasks::Phase::Held { why: tasks::Hold::Placed { hold: found }, .. } if found == hold));
+    assert_eq!(row.revisions.hold, 1, "the person's first hold revision");
+    let stopped_revision = row.revisions.hold;
     driver.answer(Token::new(7), assignment.task, assignment.attempt, 0, tasks::End::Parked, engine::Parts::none());
     driver.settle();
     let revision = live(&driver, assignment.task).revisions.hold;
+    assert_eq!(revision, stopped_revision, "draining the run preserves the Stop's revision");
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(981)),
@@ -1366,7 +1543,15 @@ fn batch_fixture_custom(
     person: bool,
 ) -> (Driver, engine::Assignment) {
     let (configuration, bounds) = batch_settings(slots, depth, pool_budget, second_owner, procedure, person);
-    let mut driver = Driver::configured(Store::new(), configuration, &bounds);
+    batch_driver(configuration, &bounds, slots)
+}
+
+fn batch_driver(
+    configuration: [engine::Config; 2],
+    bounds: &engine::Limits,
+    slots: u32,
+) -> (Driver, engine::Assignment) {
+    let mut driver = Driver::configured(Store::new(), configuration, bounds);
     driver.send(hello_with(Token::new(7), slots, Duration::from_secs(1), Box::new([])));
     driver.settle();
     driver.sign_in();
@@ -1485,7 +1670,11 @@ fn note_config() -> engine::Config {
 }
 
 fn note_fixture() -> (Driver, engine::Assignment) {
-    let mut driver = Driver::configured(Store::new(), [note_config(), note_config()], &limits());
+    note_fixture_with(&limits())
+}
+
+fn note_fixture_with(bounds: &engine::Limits) -> (Driver, engine::Assignment) {
+    let mut driver = Driver::configured(Store::new(), [note_config(), note_config()], bounds);
     hello(&mut driver);
     driver.settle();
     driver.sign_in();
@@ -1880,12 +2069,20 @@ fn written_note_name(driver: &Driver, expected_call: u64) -> u64 {
 
 #[test]
 fn a_note_written_corrected_by_a_person_and_recalled_is_durable() {
-    let (mut driver, assignment) = note_fixture();
+    let mut bounds = limits();
+    // The write and the recalls before and after correction are three retained calls.
+    bounds.call_records = 3;
+    let (mut driver, assignment) = note_fixture_with(&bounds);
     let author = notes::Author::Task { task: assignment.task, attempt: assignment.attempt };
     tool_call(&mut driver, &assignment, 3101, new_note(b"original", b"first body", author));
     let name = written_note_name(&driver, 3101);
     assert!(matches!(driver.store.rows.get(&Key::Core(jig_domain_core::Key::Notes(notes::Key::Entry { name }))),
         Some(Record::Core(jig_domain_core::Record::Notes(notes::Record::Entry(entry)))) if entry.body.as_ref() == b"first body"
+    ));
+    tool_call(&mut driver, &assignment, 3104, engine::Tool::Recall { by: notes::Recall::Name { name }, page: 0 });
+    assert!(matches!(driver.answered(3104),
+        Some(engine::CallAnswer::NoteRecalled { entries, more: false })
+            if entries.len() == 1 && entries[0].revision == 1 && entries[0].body.as_ref() == b"first body"
     ));
     let change = people::NoteChange::Correct {
         description: b"corrected".as_slice().into(),
@@ -1912,7 +2109,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_is_durable() {
         Some(engine::CallAnswer::NoteRecalled { entries, more: false })
             if entries.len() == 1 && entries[0].revision == 2 && entries[0].body.as_ref() == b"second body"
     ));
-    let mut restarted = Driver::configured(driver.take_store(), [note_config(), note_config()], &limits());
+    let mut restarted = Driver::configured(driver.take_store(), [note_config(), note_config()], &bounds);
     let hosting = protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active);
     restarted.send(hello_with(Token::new(7), 1, Duration::from_secs(1), Box::new([hosting])));
     restarted.settle();
@@ -2001,7 +2198,7 @@ fn a_pending_note_reserves_its_named_answer_until_the_store_returns() {
     driver.call(Token::new(7), assignment.task, assignment.attempt, 3121, unavailable);
     driver.settle();
     // A call waiting for a call record is answered busy, to ask again
-    // (jig's `domain/engine/README.md`, 5.1).
+    // (jig's `domain/engine/decisions.md`, 1.1).
     assert!(downs(&driver).into_iter().any(|down| matches!(down,
         host::LinkDown::Relayed { call, answer: host::Relayed::Busy, .. } if call.as_ref() == 3121_u64.to_be_bytes()
     )));
@@ -2412,8 +2609,7 @@ fn a_stalled_proposal_passes_up() {
     let leaf_run = assigned_task(&driver, leaf);
     tool_call(&mut driver, &leaf_run, 70, propose(b"needed", 10, b"need helper", false));
     assert!(proposal_waits_at(&driver, leaf, tasks::ProposalHolder::Task(middle)), "{:?}", driver.delivered.last());
-    driver.env.wall = Wall::from_nanos(Duration::from_millis(11).as_nanos());
-    driver.env.now = Time::from_nanos(Duration::from_millis(11).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_millis(11).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -2743,7 +2939,8 @@ fn a_narrowing_stops_the_old_run_and_offers_the_amendment_to_the_next() {
     narrower.budget.spend = 5;
     let child = call_batch(&mut driver, &parent, 90, Box::new([member]))[0];
     let first = assigned_task(&driver, child);
-    let amendment = task_amendment(None, Some(narrower), b"smaller scope");
+    let mut amendment = task_amendment(None, Some(narrower), b"smaller scope");
+    amendment.instructions = Some(b"Take the new direction".as_slice().into());
     let revision = live(&driver, child).revisions.spec;
     tool_call(
         &mut driver,
@@ -2757,10 +2954,20 @@ fn a_narrowing_stops_the_old_run_and_offers_the_amendment_to_the_next() {
     let second = driver.last_assignment();
     assert_eq!(second.task, child);
     assert!(second.attempt > first.attempt);
-    assert!(second.messages.iter().any(
-        |word| matches!(word.kind, tasks::MessageKind::Amendment { .. }) && word.words.as_ref() == b"smaller scope"
-    ));
+    assert_eq!(
+        second
+            .messages
+            .iter()
+            .filter(
+                |word| matches!(word.kind, tasks::MessageKind::Amendment { revision: found } if found == revision + 1)
+                    && word.words.as_ref() == b"Take the new direction"
+            )
+            .count(),
+        1
+    );
     let task = live(&driver, child);
+    assert_eq!(task.revisions.spec, revision + 1);
+    assert_eq!(task.instructions.as_deref(), Some(b"Take the new direction".as_slice()));
     assert_eq!(task.numbers.budget, 5);
     assert!(!task.narrowing);
 }
@@ -2800,7 +3007,9 @@ fn a_cancel_closes_three_levels_with_runs_live_deepest_first() {
     assert_eq!(endings.len(), 2);
     assert_eq!(endings[0].0, grandchild);
     assert_eq!(endings[1].0, child);
-    assert!(endings.iter().all(|(_, phase)| matches!(phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. }))));
+    assert!(endings.iter().all(|(_, phase)| matches!(phase,
+        tasks::Phase::Ended(tasks::Ending::Cancelled { by: tasks::Party::Task(by), reason, .. })
+            if *by == parent.task && reason.as_ref() == b"goal withdrawn")));
 }
 
 #[test]
@@ -2810,8 +3019,7 @@ fn release_tool_resets_a_delegates_exhausted_tries() {
     let first = assigned_task(&driver, child);
     driver.answer(Token::new(7), child, first.attempt, 0, tasks::End::Failed(tasks::Class::Run), engine::Parts::none());
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -2930,15 +3138,34 @@ fn plain_delegate(words: &[u8]) -> engine::Delegate {
 
 #[test]
 fn a_delegate_batch_and_its_named_answer_commit_together() {
-    let (mut driver, parent) = delegate_fixture();
-    let tool = engine::Tool::Delegate { batch: Box::new([plain_delegate(b"investigate")]) };
+    const MODEL: &[u8] = b"owner";
+    const EFFORT: &[u8] = b"xhigh";
+    const SPEC: &[u8] = b"docs/drafts/export.md@0000000000000000000000000000000000000001";
+    let (mut configuration, bounds) = batch_settings(1, 1, 500, false, false, false);
+    for config in &mut configuration {
+        let mut owner = config.core.settings.models[0].clone();
+        owner.name = MODEL.into();
+        owner.efforts = Box::new([EFFORT.into()]);
+        config.core.defaults.charters[0].policy.alternatives = Box::new([owner.clone()]);
+        config.core.settings.models = Box::new([config.core.settings.models[0].clone(), owner]);
+    }
+    let (mut driver, parent) = Driver::configured_chat(configuration, &bounds);
+    let mut delegate = plain_delegate(SPEC);
+    delegate.tracked = Some(1);
+    delegate.llm = Some(tasks::LlmChoice {
+        main: tasks::ModelEffort { model: 1, effort: Some(0) },
+        later: None,
+        account: None,
+        subagents: Box::new([]),
+    });
+    let tool = engine::Tool::Delegate { batch: Box::new([delegate]) };
     driver.call(Token::new(7), parent.task, parent.attempt, 99, engine::Call { completion: 1, position: 0, tool });
     assert_eq!(driver.answered(99), None);
     for _ in 0..30 {
         driver.advance(true);
     }
     let Some(engine::CallAnswer::Delegated(numbers)) = driver.answered(99) else {
-        panic!("delegation answer after commit")
+        panic!("delegation answer after commit: {:?}", driver.answered(99))
     };
     let child = numbers[0].task;
     assert!(driver.transactions.iter().any(|writes| {
@@ -2950,6 +3177,14 @@ fn a_delegate_batch_and_its_named_answer_commit_together() {
                 if task.number == child && task.requester == tasks::Party::Task(parent.task))
         })
     }));
+    let child_row = live(&driver, child);
+    assert_eq!(child_row.tracked, Some(1));
+    assert_eq!(child_row.spec.words.as_ref(), SPEC);
+    assert_eq!(child_row.llm.as_ref().expect("named LLM").main, tasks::ModelEffort { model: 1, effort: Some(0) });
+    park_task(&mut driver, &parent);
+    let run = assigned_task(&driver, child);
+    assert_eq!(run.run.policy.model.name.as_ref(), MODEL);
+    assert_eq!(run.run.policy.model.effort.as_deref(), Some(EFFORT));
 }
 
 #[test]
@@ -2966,9 +3201,16 @@ fn a_delegate_result_enters_its_requesters_inbox_with_the_end() {
     let child_assignment = assigned_task(&driver, child);
     let result = tasks::TaskResult::Report { words: b"spike complete".as_slice().into() };
     finish_task(&mut driver, &child_assignment, result);
-    assert!(live(&driver, parent.task).inbox.iter().any(|message| message.from == tasks::Party::Task(child)
-        && message.kind == tasks::MessageKind::Result(tasks::ResultKind::Report)
-        && message.words.as_ref() == b"spike complete"));
+    assert_eq!(
+        live(&driver, parent.task)
+            .inbox
+            .iter()
+            .filter(|message| message.from == tasks::Party::Task(child)
+                && message.kind == tasks::MessageKind::Result(tasks::ResultKind::Report)
+                && message.words.as_ref() == b"spike complete")
+            .count(),
+        1
+    );
     assert!(driver.transactions.iter().any(|writes| {
         writes.iter().any(|write| matches!(write, Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(task)))) if task.number == child))
             && writes.iter().any(|write| matches!(write, Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))))
@@ -3167,14 +3409,12 @@ fn a_lost_attempt_is_told_of_the_calls_committed_after_its_last_turn() {
     unavailable_call(&mut driver, &first, 81);
     driver.settle();
     driver.send(protocol::lost(Token::new(7)));
-    driver.env.now = Time::from_nanos(Duration::from_secs(6).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(6).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(6).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(7).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(7).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(7).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -3788,8 +4028,7 @@ fn restored_unreported_claim_spends_no_try_without_committed_work() {
         }
         assert!(restored.root.ready() && restored.events.is_empty() && restored.store.pending.is_empty());
         // A restored claim waits for fleet grace; it cannot be quiescent yet.
-        restored.env.now = Time::from_nanos(6_000_000_000);
-        restored.env.wall = Wall::from_nanos(6_000_000_000);
+        restored.advance_to(Time::from_nanos(6_000_000_000));
         engine::fire(&mut restored.root, &restored.env);
         engine::release(&mut restored.root, &restored.env, &mut restored.out);
         restored.collect();
@@ -4367,8 +4606,7 @@ fn a_run_failing_transiently_is_retried_then_held_past_its_tries() {
     let task = live(&driver, first.task);
     assert_eq!(task.tries.transient, 1);
     assert!(matches!(task.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4404,8 +4642,7 @@ fn a_delegate_held_past_its_tries_is_escalated_two_levels_to_a_person_released_a
         engine::Parts::none(),
     );
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4670,8 +4907,7 @@ fn moving_a_held_delegate_rechecks_its_escalation_recipient() {
         engine::Parts::none(),
     );
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4789,15 +5025,13 @@ fn a_worker_lost_mid_run_resumes_at_the_last_committed_turn() {
         turn: 1
     }))));
     driver.send(protocol::lost(Token::new(7)));
-    driver.env.now = Time::from_nanos(Duration::from_secs(6).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(6).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(6).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
     driver.settle();
     assert_eq!(live(&driver, first.task).tries.lost, 1);
-    driver.env.now = Time::from_nanos(Duration::from_secs(7).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(7).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(7).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4826,17 +5060,11 @@ fn placements(driver: &Driver) -> Vec<(Token, u64, u64)> {
 
 // protocol/cluster.md, 4 and 6: the cluster's placement and fencing.
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the cluster story carries numbered worker settings beside both channel histories"
-)]
 fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     const LOST_CHANNEL: Token = Token::new(7);
     const SURVIVING_CHANNEL: Token = Token::new(8);
     const LOST_POSITION: u32 = 0;
     const SURVIVING_POSITION: u32 = 1;
-    const WORKERS: u32 = 2; // The cluster has two configured workers.
-    const PROGRAM_HOSTS: u32 = WORKERS + 1; // Workers and the engine.
     const SLOTS: u32 = 1; // One run on each worker (README 15.6).
     const COMMITTED_TURN: u32 = 1;
     const STALE_TURN: u32 = 2;
@@ -4849,33 +5077,7 @@ fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     const PAST_GRACE: Duration = Duration::from_secs(6);
     const PAST_RETRY: Duration = Duration::from_secs(7); // Also past the configured lost-retry backoff.
 
-    let mut bounds = limits();
-    bounds.fleet.configured_workers = WORKERS;
-    bounds.fleet.workers = WORKERS;
-    bounds.people.program_hosts = PROGRAM_HOSTS;
-    bounds.accounts.program_hosts = PROGRAM_HOSTS;
-    bounds.journal.deliveries = TWO_WORKER_DELIVERIES;
-    bounds.journal.held = 3 * bounds.journal.deliveries + 16;
-    let configs = [91, 91].map(|seed| {
-        let mut configuration = sharing_config(seed);
-        configuration.core.defaults.workers = Box::new([
-            jig_domain_core::settings::WorkerSetting {
-                number: 1,
-                name: b"first-worker".as_slice().into(),
-                places: 1,
-                digest: Some([7; 32]),
-                withdrawn: false,
-            },
-            jig_domain_core::settings::WorkerSetting {
-                number: 2,
-                name: b"second-worker".as_slice().into(),
-                places: 1,
-                digest: Some([7; 32]),
-                withdrawn: false,
-            },
-        ]);
-        configuration
-    });
+    let (configs, bounds) = stopped_worker::two_workers([91, 91].map(sharing_config), limits());
     let mut driver = Driver::configured(Store::new(), configs, &bounds);
     driver.settle();
     driver.send(protocol::hello_at(LOST_CHANNEL, LOST_POSITION, SLOTS, Box::new([])));
@@ -4955,8 +5157,7 @@ fn a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed(
         "a worker whose stop bound reaches engine grace cannot place runs"
     );
     driver.send(protocol::lost(Token::new(7)));
-    driver.env.now = Time::from_nanos(Duration::from_secs(4).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(4).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(4).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4965,8 +5166,7 @@ fn a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed(
     }
     assert_eq!(live(&driver, first.task).tries.lost, 0);
     assert_eq!(driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::Assigned { .. })).count(), 1);
-    driver.env.now = Time::from_nanos(Duration::from_secs(6).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(6).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(6).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -5280,6 +5480,7 @@ mod ended_read;
 #[path = "root_routes/proposal_archive.rs"]
 mod proposal_archive;
 
+mod held_director;
 #[path = "root_routes/second_edition.rs"]
 mod second_edition;
 
@@ -5467,6 +5668,7 @@ fn a_hello_keeps_its_configured_worker_position() {
 
 #[path = "root_routes/added_dependencies.rs"]
 mod added_dependencies;
+mod stopped_owner;
 
 #[path = "root_routes/open_chat.rs"]
 pub(crate) mod open_chat;

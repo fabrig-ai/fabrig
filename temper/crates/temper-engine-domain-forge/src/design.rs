@@ -13,6 +13,9 @@ pub(super) fn design_claim_permitted(
     holders: &[u64],
     out: &mut Queue<Request>,
 ) -> bool {
+    if !super::repository_reads::names_fresh(d, names) {
+        return false;
+    }
     if names.len() > skein_lib::usize_of(env.limits.resources_per_task) {
         crate::refusal::resource_limit(
             out,
@@ -38,7 +41,12 @@ pub(super) fn design_claim_permitted(
             Some(head) => head.owned,
             None => false,
         };
-        if !goal_branch::is_goal(d, name) || goal_branch::waiting(d, name) || hold.drift.is_some() || !owned {
+        if !goal_branch::is_goal(d, name)
+            || goal_branch::waiting(d, name)
+            || hold.drift.is_some()
+            || !owned
+            || super::retired_reading(d, name)
+        {
             emit(out, Request::Refused { task });
             return false;
         }
@@ -69,6 +77,9 @@ pub(super) fn design_claim_permitted(
 
 /// The keep remains written until the last slot, design writer or merge ends.
 pub(super) fn branch_written(d: &Domain, name: &Name, ending: Option<u64>) -> bool {
+    if super::retired_reading(d, name) {
+        return true;
+    }
     if let Some(hold) = d.holds.get(name)
         && (!hold.design_writers.is_empty() || waiting(hold))
     {
@@ -136,6 +147,7 @@ pub(super) fn unpublished_branch(d: &Domain, name: &Name) -> bool {
 
 pub(super) fn pending_writer(hold: &Hold, pending: &PendingLost) -> bool {
     match pending.kind {
+        LostWriterKind::Retired => hold.writer.is_none(),
         LostWriterKind::Written => match (hold.beside, pending.comparison) {
             (Some(beside), Some((write, head))) => beside.head == head && beside.waiting == Some(write),
             (Some(_), None) | (None, Some(_) | None) => false,

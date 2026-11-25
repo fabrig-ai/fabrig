@@ -862,7 +862,7 @@ mod tests {
         limits.client.domain.long_text = 4096;
         limits.client.domain.document_bytes = 1_048_576;
         let codec = jig_protocol_transcript::Limits {
-            smith: smith_transcript::v7::CEILINGS,
+            smith: smith_transcript::v8::CEILINGS,
             bytes: 1_048_576,
             turn: client::TurnLimits { messages: 64, blocks: 16, text: 65_536, outcome: 65_536 },
         };
@@ -1395,7 +1395,15 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: jig_client::contract::Text::new(
+                            Box::from(b"Stopped from the task card".as_slice()),
+                            u32::MAX,
+                        )
+                        .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },
@@ -1453,7 +1461,15 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: jig_client::contract::Text::new(
+                            Box::from(b"Stopped from the task card".as_slice()),
+                            u32::MAX,
+                        )
+                        .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },
@@ -1523,7 +1539,15 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: jig_client::contract::Text::new(
+                            Box::from(b"Stopped from the task card".as_slice()),
+                            u32::MAX,
+                        )
+                        .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },

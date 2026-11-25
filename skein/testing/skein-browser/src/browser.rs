@@ -17,12 +17,13 @@ use skein_lib::{Env, List, Queue, Time, Token};
 use crate::boundary::{Below, Down, Event, Expect, Go, Key, Match, Point, Query, Rect, Refusal, Seen, States, Trouble};
 use crate::limits::Limits;
 use crate::params::Params;
-use crate::wire::decode::{Document, Value};
+use crate::wire::decode::{Array, Document, Text, Value};
 use crate::wire::encode;
-use crate::wire::frame::Framer;
 
 /// CDP's modifier bit for Shift.
 const SHIFT: u64 = 8;
+
+const BLOCKED_LEAVE_PROMPT: &[u8] = b"Blocked attempt to show a 'beforeunload' confirmation panel";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Phase {
@@ -60,6 +61,7 @@ struct Page {
     initial_url: Box<[u8]>,
     requests: bool,
     frame: Option<Box<[u8]>>,
+    document: document::Root,
     navigating: bool,
     opening: bool,
     load: Option<Load>,
@@ -148,6 +150,7 @@ enum Step {
     FrontFind,
     FrontSnapshot,
     FrontScreenshot,
+    FindRoot,
     Query,
     Box,
     Scroll,
@@ -189,13 +192,13 @@ pub struct Browser {
     downloads: Vec<Download>,
     requests: Vec<request::Waiting>,
     next_id: u64,
-    framing: Framer,
     outgoing: VecDeque<Queued>,
     events: VecDeque<Event>,
     room: bool,
     command_demanded: bool,
     replies_demanded: bool,
     errors_demanded: bool,
+    releasing_documents: bool,
     stderr: Vec<u8>,
 }
 
@@ -214,7 +217,6 @@ impl Browser {
             downloads: Vec::with_capacity(usize::try_from(limits.downloads).expect("u32 fits usize")),
             requests: Vec::new(),
             next_id: 1,
-            framing: Framer::new(limits.message),
             outgoing: VecDeque::with_capacity(usize::try_from(limits.commands).expect("u32 fits usize")),
             events: VecDeque::with_capacity(
                 usize::try_from(
@@ -231,6 +233,7 @@ impl Browser {
             command_demanded: false,
             replies_demanded: false,
             errors_demanded: false,
+            releasing_documents: false,
             stderr: Vec::with_capacity(usize::try_from(limits.stderr).expect("u32 fits usize")),
         }
     }
@@ -496,14 +499,20 @@ impl Browser {
         None
     }
 
-    fn flush(&mut self, below: &mut Queue<Down>, limit: u32) {
+    fn flush(&mut self, env: &Env<Limits>, below: &mut Queue<Down>) {
+        if self.releasing_documents {
+            self.release_retired_documents(env);
+        }
         if self.room
             && let Some(index) = self.sendable()
             && let Some(command) = self.outgoing.remove(index)
         {
             below.push(Down::Commands(stream::Down::Send(command.bytes)));
             self.room = false;
-            below.push(Down::Commands(stream::Down::Demand { read: Read::Nothing, room: limit.saturating_add(1) }));
+            below.push(Down::Commands(stream::Down::Demand {
+                read: Read::Nothing,
+                room: env.limits.command.saturating_add(1),
+            }));
             self.command_demanded = true;
         }
     }
@@ -599,6 +608,7 @@ impl Browser {
                         initial_url: url,
                         requests,
                         frame: None,
+                        document: document::Root::Empty,
                         navigating: false,
                         opening: true,
                         load: None,
@@ -815,8 +825,19 @@ impl Browser {
             return;
         };
         match query.within {
-            Some(root) => self.issue_step(env, op, b"DOM.resolveNode", &Params::Backend(root), Step::Query),
-            None => self.issue_step(env, op, b"Runtime.evaluate", &Params::Document, Step::Query),
+            Some(root) => self.issue_step(env, op, b"DOM.resolveNode", &Params::Backend(root), Step::FindRoot),
+            None => {
+                let cached = match self.page(op_state.page) {
+                    Some(page) => page.document.current(),
+                    None => None,
+                };
+                if let Some(object) = cached {
+                    let object = Box::from(object);
+                    self.query_document(env, op, &object);
+                } else {
+                    self.issue_step(env, op, b"Runtime.evaluate", &Params::Document, Step::FindRoot);
+                }
+            }
         }
     }
 
@@ -943,6 +964,7 @@ impl Browser {
         }
         if let Some(page) = self.page_mut(token) {
             page.closed = true;
+            page.document = document::Root::Empty;
             page.load = None;
             page.load_due = None;
             self.events.push_back(Event::Closed { owner: token });
@@ -1030,7 +1052,7 @@ fn field_i64(value: Value<'_>, key: &[u8]) -> Option<i64> {
     value.get(key)?.i64()
 }
 
-fn field_array<'a>(value: Value<'a>, key: &[u8]) -> Option<crate::wire::decode::Array<'a>> {
+fn field_array<'a>(value: Value<'a>, key: &[u8]) -> Option<Array<'a>> {
     value.get(key)?.array()
 }
 
@@ -1046,17 +1068,50 @@ fn opt_bool(value: Option<Value<'_>>) -> Option<bool> {
     value?.bool()
 }
 
-fn opt_array(value: Option<Value<'_>>) -> Option<crate::wire::decode::Array<'_>> {
+fn opt_array(value: Option<Value<'_>>) -> Option<Array<'_>> {
     value?.array()
 }
 
-fn parse_seen(node: Value<'_>, text_limit: u32) -> Option<Seen> {
-    let backend = field_u64(node, b"backendDOMNodeId")?;
-    let role = ax_text(node, b"role", text_limit);
-    let name = ax_text(node, b"name", text_limit);
-    let value = ax_text(node, b"value", text_limit);
-    let states = ax_states(node);
-    Some(Seen { node: backend, role, name, value, states, rect: None })
+fn collect_seen(nodes: Array<'_>, query: &Query, text_limit: u32, seen: &mut List<Seen>) -> u32 {
+    let mut more = 0_u32;
+    let paragraphs =
+        if query.matching == Match::ParagraphText { Some(crate::find::Paragraphs::new(nodes.clone())) } else { None };
+    for node in nodes {
+        let Some(backend) = field_u64(node, b"backendDOMNodeId") else { continue };
+        let name = match query.matching {
+            Match::Words if !query.name.is_empty() => {
+                let Some(name) = crate::find::matching_name(node, &query.name) else { continue };
+                Some(name)
+            }
+            Match::ParagraphText => {
+                if let Some(paragraphs) = &paragraphs
+                    && !paragraphs.matches(node, &query.name)
+                {
+                    continue;
+                }
+                None
+            }
+            Match::Exact | Match::Words => None,
+        };
+        if seen.room() == 0 {
+            more = more.saturating_add(1);
+            continue;
+        }
+        let name = match name {
+            Some(name) => name.into_prefix(usize::try_from(text_limit).expect("u32 fits usize")),
+            None => ax_text(node, b"name", text_limit),
+        };
+        seen.push(Seen {
+            node: backend,
+            role: ax_text(node, b"role", text_limit),
+            name,
+            value: ax_text(node, b"value", text_limit),
+            states: ax_states(node),
+            rect: None,
+        })
+        .expect("room for a retained match");
+    }
+    more
 }
 
 fn ax_states(node: Value<'_>) -> States {
@@ -1081,12 +1136,12 @@ fn ax_states(node: Value<'_>) -> States {
 }
 
 fn ax_text(node: Value<'_>, key: &[u8], limit: u32) -> Box<[u8]> {
-    let mut text = opt_text(opt_field(node.get(key), b"value")).unwrap_or_default();
-    let max = usize::try_from(limit).expect("u32 fits usize");
-    if text.len() > max {
-        text = Box::from(text.get(..max).expect("text is at least the limit"));
-    }
-    text
+    let value = opt_field(node.get(key), b"value");
+    let text = match value {
+        Some(value) => value.decoded_text().unwrap_or(Text::Plain(b"")),
+        None => Text::Plain(b""),
+    };
+    text.into_prefix(usize::try_from(limit).expect("u32 fits usize"))
 }
 
 fn ax_disabled(node: Value<'_>) -> bool {
@@ -1199,7 +1254,7 @@ pub fn down(
         return;
     }
     browser.request(env, request);
-    browser.flush(below, env.limits.command);
+    browser.flush(env, below);
     browser.emit(above);
 }
 
@@ -1217,14 +1272,7 @@ pub fn up(browser: &mut Browser, env: &Env<Limits>, event: Below, above: &mut Qu
         | Below::Replies(stream::Up::End | stream::Up::Failed(_) | stream::Up::Room) => browser.crash(),
         Below::Replies(stream::Up::Bytes(bytes)) => {
             browser.replies_demanded = false;
-            match browser.framing.push(&bytes) {
-                Ok(messages) => {
-                    for message in messages {
-                        browser.message(env, &message);
-                    }
-                }
-                Err(_) => browser.crash(),
-            }
+            browser.framed_message(env, bytes);
             if browser.phase != Phase::Closed {
                 let nul = Delimiter::new(b"\0").expect("NUL is a delimiter");
                 below.push(Down::Replies(stream::Down::Demand {
@@ -1236,16 +1284,10 @@ pub fn up(browser: &mut Browser, env: &Env<Limits>, event: Below, above: &mut Qu
         }
         Below::Errors(stream::Up::Bytes(bytes)) => {
             browser.errors_demanded = false;
-            for byte in bytes {
-                if browser.stderr.len() == usize::try_from(env.limits.stderr).expect("u32 fits usize")
-                    && !browser.stderr.is_empty()
-                {
-                    browser.stderr.remove(0);
-                }
-                if env.limits.stderr > 0 {
-                    browser.stderr.push(byte);
-                }
-            }
+            let limit = usize::try_from(env.limits.stderr).expect("u32 fits usize");
+            let room_for_old = limit.saturating_sub(bytes.len());
+            browser.stderr.drain(..browser.stderr.len().saturating_sub(room_for_old));
+            browser.stderr.extend_from_slice(bytes.get(bytes.len().saturating_sub(limit)..).unwrap_or_default());
             if browser.phase != Phase::Closed {
                 below.push(Down::Errors(stream::Down::Demand {
                     read: Read::Line { max: env.limits.stderr.max(1) },
@@ -1257,7 +1299,7 @@ pub fn up(browser: &mut Browser, env: &Env<Limits>, event: Below, above: &mut Qu
         Below::Errors(stream::Up::End | stream::Up::Failed(_)) => browser.errors_demanded = false,
         Below::Errors(stream::Up::Room) => {}
     }
-    browser.flush(below, env.limits.command);
+    browser.flush(env, below);
     browser.emit(above);
 }
 
@@ -1358,7 +1400,7 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
             }
         }
     }
-    browser.flush(below, env.limits.command);
+    browser.flush(env, below);
     browser.emit(above);
 }
 
@@ -1380,11 +1422,24 @@ fn key_info(key: Key) -> (&'static [u8], &'static [u8], u64, &'static [u8]) {
 }
 
 impl Browser {
+    fn framed_message(&mut self, env: &Env<Limits>, bytes: Box<[u8]>) {
+        let Ok(document) = Document::from_frame(bytes, env.limits.message) else {
+            self.crash();
+            return;
+        };
+        self.message_document(env, &document);
+    }
+
+    #[cfg(test)]
     fn message(&mut self, env: &Env<Limits>, bytes: &[u8]) {
         let Ok(document) = Document::parse(bytes, env.limits.message) else {
             self.crash();
             return;
         };
+        self.message_document(env, &document);
+    }
+
+    fn message_document(&mut self, env: &Env<Limits>, document: &Document) {
         let root = document.root();
         if let Some(id) = field_u64(root, b"id") {
             let mut at = None;
@@ -1403,13 +1458,7 @@ impl Browser {
                     && let Some(object) = result_object(result)
                 {
                     let session = field_text(root, b"sessionId");
-                    self.queue_command(
-                        env,
-                        b"Runtime.releaseObject",
-                        session.as_deref(),
-                        &Params::Object(&object),
-                        PendingKind::Release,
-                    );
+                    self.release_late_object(env, session.as_deref(), &object);
                 }
                 return;
             };
@@ -1477,15 +1526,20 @@ impl Browser {
     }
 
     fn retry_read(&mut self, env: &Env<Limits>, kind: PendingKind, message: &[u8]) -> bool {
-        if let PendingKind::Step(op, Step::Query) = kind
+        if let PendingKind::Step(op, Step::FindRoot | Step::Query) = kind
             && message == b"Node with given id does not belong to the document"
         {
             self.finish_refused(op, Refusal::Gone);
             return true;
         }
-        if let PendingKind::Step(op, Step::Query) = kind
+        if let PendingKind::Step(op, Step::FindRoot | Step::Query) = kind
             && (contains(message, b"context") || contains(message, b"object"))
         {
+            if let Some(Operation { page, kind: OpKind::Find { query, .. }, .. }) = self.op(op)
+                && query.within.is_none()
+            {
+                self.retire_document(*page);
+            }
             if let Some(op) = self.op_mut(op) {
                 op.due = Some(env.now.saturating_add(env.limits.poll));
             }
@@ -1603,23 +1657,19 @@ impl Browser {
     }
 
     fn enable(&mut self, env: &Env<Limits>, page: Token, index: u8) {
-        const DOMAINS: [&[u8]; 6] = [
-            b"Page.enable",
-            b"Runtime.enable",
-            b"Log.enable",
-            b"Accessibility.enable",
-            b"DOM.enable",
-            b"Inspector.enable",
-        ];
-        if let Some(method) = DOMAINS.get(usize::from(index)) {
+        // AX queries only use AX ids within one reply. DOM.getDocument
+        // enables DOM events implicitly; other DOM reads need no subscription.
+        const DOMAINS: [&[u8]; 4] = [b"Page.enable", b"Runtime.enable", b"Log.enable", b"Inspector.enable"];
+        let position = usize::from(index);
+        if let Some(method) = DOMAINS.get(position) {
             if !self.queue_page(env, page, method, &Params::Empty, PendingKind::Enable(page, index)) {
                 self.close_page_local(page);
             }
-        } else if index == 6 && self.page_requests(page) {
+        } else if position == DOMAINS.len() && self.page_requests(page) {
             if !self.queue_page(env, page, b"Network.enable", &Params::Network, PendingKind::Enable(page, index)) {
                 self.close_page_local(page);
             }
-        } else if index == 7 && self.page_requests(page) {
+        } else if position == DOMAINS.len().saturating_add(1) && self.page_requests(page) {
             if !self.queue_page(env, page, b"Page.getFrameTree", &Params::Empty, PendingKind::RequestFrame(page)) {
                 self.close_page_local(page);
             }
@@ -1634,46 +1684,30 @@ impl Browser {
         }
     }
 
-    fn dialog(&mut self, env: &Env<Limits>, page: Token, params: Value<'_>) {
-        let kind = field_text(params, b"type").unwrap_or_default();
-        let mut go = None;
-        if kind.as_ref() == b"beforeunload" {
-            for operation in self.ops.iter_mut().flatten() {
-                if operation.page != page {
-                    continue;
+    /// Takes the warning for the page's go, even if it was already reported.
+    fn warn_go(&mut self, page: Token) -> bool {
+        for operation in self.ops.iter_mut().flatten() {
+            if operation.page == page
+                && let OpKind::Go(_) = operation.kind
+            {
+                if !operation.warned {
+                    operation.warned = true;
+                    self.events.push_back(Event::Warned { op: operation.token });
                 }
-                match operation.kind {
-                    OpKind::Go(_) => {
-                        go = Some(operation.token);
-                        if !operation.warned {
-                            operation.warned = true;
-                            self.events.push_back(Event::Warned { op: operation.token });
-                        }
-                        break;
-                    }
-                    OpKind::Find { .. }
-                    | OpKind::Press { .. }
-                    | OpKind::Type { .. }
-                    | OpKind::Key { .. }
-                    | OpKind::Attribute { .. }
-                    | OpKind::Tabs
-                    | OpKind::Viewport
-                    | OpKind::Address
-                    | OpKind::Snapshot
-                    | OpKind::Screenshot => {}
-                }
+                return true;
             }
         }
-        if !self.queue_page(
-            env,
-            page,
-            b"Page.handleJavaScriptDialog",
-            &Params::Dialog { accept: go.is_some() },
-            PendingKind::Dialog,
-        ) {
+        false
+    }
+
+    fn dialog(&mut self, env: &Env<Limits>, page: Token, params: Value<'_>) {
+        let kind = field_text(params, b"type").unwrap_or_default();
+        let accept = kind.as_ref() == b"beforeunload" && self.warn_go(page);
+        if !self.queue_page(env, page, b"Page.handleJavaScriptDialog", &Params::Dialog { accept }, PendingKind::Dialog)
+        {
             self.close_page_local(page);
         }
-        if go.is_none() {
+        if !accept {
             let message = field_text(params, b"message").unwrap_or_default();
             let limit = usize::try_from(env.limits.text).expect("text limit fits usize");
             let length = kind.len().saturating_add(2).saturating_add(message.len()).min(limit);
@@ -1743,14 +1777,31 @@ impl Browser {
                         began = true;
                     }
                     if began {
-                        self.restart_finds(env, page);
+                        self.retire_document(page);
+                        self.restart_reads(page, env.now, true);
                     }
                 }
             }
             b"Page.frameNavigated" => self.frame_navigated(env, page, params),
-            b"Page.loadEventFired" | b"Page.navigatedWithinDocument" => {
+            b"Page.navigatedWithinDocument" => {
+                if let Some(page) = page {
+                    self.retire_document(page);
+                    self.loaded(page);
+                }
+            }
+            b"Page.loadEventFired" => {
                 if let Some(page) = page {
                     self.loaded(page);
+                }
+            }
+            b"Runtime.executionContextsCleared" | b"Runtime.executionContextDestroyed" => {
+                if let Some(page) = page {
+                    self.retire_document(page);
+                    if let Some(state) = self.page(page)
+                        && !state.navigating
+                    {
+                        self.restart_reads(page, env.now.saturating_add(env.limits.poll), false);
+                    }
                 }
             }
             b"Runtime.exceptionThrown" => {
@@ -1783,6 +1834,12 @@ impl Browser {
                     let entry = params.get(b"entry");
                     if opt_text(opt_field(entry, b"level")).as_deref() == Some(b"error") {
                         let text = opt_text(opt_field(entry, b"text")).unwrap_or_default();
+                        if text.starts_with(BLOCKED_LEAVE_PROMPT)
+                            && opt_text(opt_field(entry, b"source")).as_deref() == Some(b"intervention")
+                            && self.warn_go(page)
+                        {
+                            return;
+                        }
                         let url = opt_text(opt_field(entry, b"url")).unwrap_or_default();
                         self.trouble(page, Trouble::Log, text, url, env.limits.text);
                     }
@@ -1817,9 +1874,13 @@ impl Browser {
     fn frame_navigated(&mut self, env: &Env<Limits>, page: Option<Token>, params: Option<Value<'_>>) {
         if let (Some(page), Some(frame)) = (page, opt_field(params, b"frame"))
             && frame.get(b"parentId").is_none()
-            && let Some(page) = self.page_mut(page)
+            && let Some(state) = self.page_mut(page)
         {
-            page.frame = frame_id(frame, b"id", env.limits.text);
+            state.frame = frame_id(frame, b"id", env.limits.text);
+            if !state.navigating {
+                self.retire_document(page);
+                self.restart_reads(page, env.now, true);
+            }
         }
         if let Some(page) = page
             && opt_text(opt_field(params, b"type")).as_deref() == Some(b"BackForwardCacheRestore")
@@ -1833,10 +1894,10 @@ impl Browser {
         self.events.push_back(Event::Trouble { page, trouble, text: cut_text(text, limit), url: cut_text(url, limit) });
     }
 
-    fn restart_finds(&mut self, env: &Env<Limits>, page: Token) {
+    fn restart_reads(&mut self, page: Token, at: Time, attributes: bool) {
         for op in self.ops.iter_mut().flatten() {
-            if op.page == page && waits_for_document(&op.kind) {
-                op.due = Some(env.now);
+            if op.page == page && restarts_on_document(&op.kind, attributes) && (attributes || op.due.is_none()) {
+                op.due = Some(at);
             }
         }
         let ops = &self.ops;
@@ -1844,7 +1905,7 @@ impl Browser {
         self.pending.retain(|pending| {
             if let PendingKind::Step(token, _) = pending.kind {
                 for op in ops.iter().flatten() {
-                    if op.token == token && op.page == page && waits_for_document(&op.kind) {
+                    if op.token == token && op.page == page && restarts_on_document(&op.kind, attributes) {
                         outgoing.retain(|command| command.id != pending.id);
                         return false;
                     }
@@ -1950,23 +2011,14 @@ impl Browser {
     }
 
     fn query_document(&mut self, env: &Env<Limits>, token: Token, object: &[u8]) {
-        let Some(Operation { page, kind: OpKind::Find { query, .. }, .. }) = self.op(token) else { return };
-        let page = *page;
+        let Some(Operation { kind: OpKind::Find { query, .. }, .. }) = self.op(token) else { return };
         let query = query.clone();
         let name = match query.matching {
             Match::Exact => Some(query.name.as_ref()),
-            Match::Words => None,
+            Match::Words | Match::ParagraphText => None,
         };
-        self.issue_step(
-            env,
-            token,
-            b"Accessibility.queryAXTree",
-            &Params::Query { object, role: &query.role, name },
-            Step::Query,
-        );
-        if !self.queue_page(env, page, b"Runtime.releaseObject", &Params::Object(object), PendingKind::Release) {
-            self.close_page_local(page);
-        }
+        let role = (query.matching != Match::ParagraphText).then_some(query.role.as_ref());
+        self.issue_step(env, token, b"Accessibility.queryAXTree", &Params::Query { object, role, name }, Step::Query);
     }
 
     #[expect(clippy::too_many_lines, reason = "one match lists the reply transition for each operation step")]
@@ -2037,11 +2089,14 @@ impl Browser {
                     page_state.load = Some(Load::Go(token));
                 }
             }
-            Step::Query => {
+            Step::FindRoot => {
                 if let Some(object) = result_object(result) {
-                    self.query_document(env, token, &object);
-                    return;
+                    self.found_root(env, token, object);
+                } else {
+                    self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                 }
+            }
+            Step::Query => {
                 let Some(nodes) = field_array(result, b"nodes") else {
                     self.finish_protocol(token, protocol_detail(method, b"malformed reply", env.limits.text));
                     return;
@@ -2050,19 +2105,8 @@ impl Browser {
                     && let OpKind::Find { query, seen, more, next, .. } = &mut op.kind
                 {
                     seen.clear();
-                    *more = 0;
+                    *more = collect_seen(nodes, query, env.limits.text, seen);
                     *next = 0;
-                    for node in nodes {
-                        if !crate::find::accepts(node, query) {
-                            continue;
-                        }
-                        let Some(seen_node) = parse_seen(node, env.limits.text) else {
-                            continue;
-                        };
-                        if seen.push(seen_node).is_err() {
-                            *more = more.saturating_add(1);
-                        }
-                    }
                 }
                 let needs_box = if let Some(Operation { kind: OpKind::Find { query, seen, .. }, .. }) = self.op(token) {
                     query.boxes && !seen.is_empty()
@@ -2370,6 +2414,7 @@ impl Browser {
             | Step::FrontFind
             | Step::FrontSnapshot
             | Step::FrontScreenshot
+            | Step::FindRoot
             | Step::Query
             | Step::Box
             | Step::Scroll
@@ -2407,6 +2452,7 @@ mod type_tests;
 #[cfg(test)]
 mod download_tests;
 
+mod document;
 mod download;
 mod request;
 
@@ -2419,9 +2465,10 @@ mod credit_tests;
 #[cfg(test)]
 mod press_tests;
 
-fn waits_for_document(kind: &OpKind) -> bool {
+fn restarts_on_document(kind: &OpKind, attributes: bool) -> bool {
     match kind {
-        OpKind::Find { .. } | OpKind::Attribute { .. } => true,
+        OpKind::Find { query, .. } => attributes || query.within.is_none(),
+        OpKind::Attribute { .. } => attributes,
         OpKind::Go(_)
         | OpKind::Press { .. }
         | OpKind::Type { .. }

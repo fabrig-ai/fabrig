@@ -10,9 +10,9 @@ field: nothing of `configuring.txt` carries over unless this draft says so
 this chat's runs (`ask-temper.md`, section 7); it extends skein's `draft/diagrams.md`, section
 2, with who acts at each node (6.3); and for this chat's charter it departs
 from `../domain/agent/tools.md`'s every host tool in every charter, and from
-smith's `protocol/programs.md`, 5.1's Claude Code prompt kept for every run
+smith's `protocol/programs-claude-code.md`, 1.1's Claude Code prompt kept for every run
 (`ask-temper.md`, section 4). It wins where they differ until its plans fold it in. temper/ui
-carries it out (`ask-temper.md`, section 11). Reasons: `notes.md`, section 10.
+carries it out (`ask-temper.md`, section 11). Reasons: `ask-temper.notes.md`.
 
 ## 1. In one page
 
@@ -122,12 +122,12 @@ carries it out (`ask-temper.md`, section 11). Reasons: `notes.md`, section 10.
   (`../domain/forge/attention.md`, 3), and has no inspect, modify, shell or agents
   family, so that its runs have no checkout, no file tools, no shell and no
   sub-agents. Charter 3 names no repository either, yet the root gives every run
-  but a change's delegate the project's home repository (`../domain/root.md`,
-  6.1), and in the capture of 2026-11-07 its runs had inspect tools, a
+  but a change's delegate the project's home repository (`../domain/root-translation.md`,
+  2.1), and in the capture of 2026-11-07 its runs had inspect tools, a
   `## Checkout` and a git working directory.
 - **smith's mechanics** for an open run then say nothing of a checkout: no
   `## Tools` section on reading files and no `## Checkout` (smith's
-  `domain/run.md`, 3.3, "the workspace, if any").
+  `domain/run-start.md`, 1.3, "the workspace, if any").
 - **A repository's file** comes through the forge, by `see file` (5.1); a text
   the person has only on their machine, they paste.
 
@@ -150,10 +150,10 @@ carries it out (`ask-temper.md`, section 11). Reasons: `notes.md`, section 10.
   `--system-prompt-file` in place of `--append-system-prompt-file`,
   `--tools ""`, `--disable-slash-commands`, and a working directory of the
   run's own that is empty and no repository, where today it is the
-  workspace's first directory (smith's `protocol/programs.md`, 5.1 and 5.3).
+  workspace's first directory (smith's `protocol/programs-claude-code.md`, 1.1 and 1.3).
   A run with a workspace also replaces Claude Code's prompt by default;
   `programs.claude_code.keep_program_prompt` opts into appending (smith's
-  `protocol/programs.md`, 5.1).
+  `protocol/programs-claude-code.md`, 1.1).
 - **What Claude Code still sends,** seen on 2.1.312 on 2026-11-07, run against
   a recorder with no MCP server: a billing line; "You are a Claude agent, built
   on Anthropic's Claude Agent SDK."; and a message of about 0.9 KB naming the
@@ -184,7 +184,7 @@ tools.
 - **One argument,** an address, a line of text. Its declaration is the tool's
   line and that argument; the addresses are in the instructions (section 8)
   and on a reference page of their own, `see`, generated from 5.1's table as
-  every reference page is (`agent-docs.md`, 8.1).
+  every reference page is (`archive/agent-docs.md`, 8.1).
 - **As its person, in its project:** a read answers what the chat's person may
   read, through the checks a client's read takes, and of the chat's project
   alone, so that nothing of their other projects reaches this project's
@@ -193,7 +193,7 @@ tools.
   `domain/engine/views.md`). The settings inventory adds what charter
   3's `settings` read gives today: the offer, the project's repositories, its
   people and their forge identities (`../domain/agent/agents.md`, 1).
-- **Over the reads a client makes** (`../client/ctl/tools.md`, 2 and `../client/ctl/areas.md`), not
+- **Over the reads a client makes** (`../client/ctl/tools-reads.md`, 1 and `../client/ctl/areas.md`), not
   ctl's text, which is for an agent driving temper and is left as it is.
 
 | Address | Answers | Over |
@@ -212,8 +212,8 @@ tools.
 | `settings` | the inventory: each setting by kind, number and name, with the revision that last changed it; the models the person may offer; the project's repositories; its people, each with their forge identity and whether they can approve, and why not | `settings show`, the `settings` read |
 | `settings KIND N` | a charter, template, policy, model or forge charter, whole | `settings show`; `model list` for a model |
 | `settings rules`, `settings landing-rule N [project]`, `settings project-ways`, `settings project-questions` | the rules; a landing rule, the deployment's, or the project's with `project`; the project's ways and questions | `settings show` |
-| `settings landing`, `settings gates OWNER/NAME` | the project's landing, by queue or by turn; a repository's test gates | the forge's kinds 4 and 5 (`../protocol/configuration/settings.md`, 2), which no client reads |
-| `ways` | the stock ways, each with its words and its path over the project, and which one the project runs (`stock-ways.md`, section 5) | the forge's `ways` |
+| `settings landing`, `settings gates OWNER/NAME` | the project's landing, by queue or by turn; a repository's test gates | the forge's kinds 4 and 5 (`../protocol/configuration/settings-kinds.md`, 1), which no client reads |
+| `ways` | the stock ways, each with its words and its path over the project, and which one the project runs (`archive/stock-ways.md`, section 5) | the forge's `ways` |
 | `revisions`, `revision N` | the history; one revision: who decided it, when, from which proposal, its items | `revision list`, `revision show` |
 | `proposal tN/K`, `proposal pN/K` | a proposal, a task's or a party's, with its review and its outcome | `proposal show` |
 | `help`, `help NAME`, `help search WORDS` | temper's pages | `read_docs` |
@@ -234,7 +234,7 @@ tools.
 
 ### 5.2 `propose_settings`
 
-As today (jig's `domain/engine/settings.md`, 6), with what charter 3's instructions
+As today (jig's `domain/engine/settings-proposals.md`, 1), with what charter 3's instructions
 teach a model done by the tool instead:
 
 - **A repository** is named as the inventory names it, `OWNER/NAME`; the tool
@@ -242,7 +242,7 @@ teach a model done by the tool instead:
 - **Approvals:** a landing rule whose role has too few eligible approvers on a
   forge is refused at the call, naming the project, the forge, the role, how
   many it requires and how many are eligible, as acceptance would refuse it
-  (`../protocol/configuration/settings.md`, 2); the inventory says who is eligible,
+  (`../protocol/configuration/settings-kinds.md`, 1); the inventory says who is eligible,
   and for anyone who is not, why.
 - **A large set** is given in parts by the tool's own calls, with no note to
   write.
@@ -295,7 +295,7 @@ bound.
 | `queue OWNER/NAME [BRANCH]` | what is on its way to landing there now: in order, each gate's state, what is held | the change |
 | `task N tree` | the task's tree, each task with its executor, role, model, state and spend | the task |
 | `task N timeline` | a task's runs over time: turns, calls, gates, repairs, questions to people | the turn |
-| `way NAME` | a stock way's path over the chat's project (`stock-ways.md`, section 4) | its charter, its gate, its rule |
+| `way NAME` | a stock way's path over the chat's project (`archive/stock-ways.md`, section 4) | its charter, its gate, its rule |
 | `charter N` | a role: who acts, its models and efforts, its tools by family, what wakes it, its instructions' first lines | its instructions, whole |
 | `proposal tN/K` | its path before and after, what temper enforces apart from what agents follow | the setting |
 

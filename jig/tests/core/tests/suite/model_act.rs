@@ -1,4 +1,4 @@
-//! Owner model acts decide against the current catalogue (domain/engine/settings.md, 11).
+//! Owner model acts decide against the current catalogue (domain/engine/settings-catalogue.md, 1).
 use crate::settings_support::*;
 use jig_core_world::{
     client_peer::ClientPeer,
@@ -123,12 +123,9 @@ fn turning_a_model_off_keeps_the_rest_of_its_value() {
     super::models::host(&mut world);
     let me = frame(&mut world, signed);
     let catalogue = jig_protocol_engine_clients::translate::llm::catalogue(&[newest]);
-    let offer = jig_protocol_engine_clients::translate::llm::models(
-        me.projects.get(0).unwrap().offer.as_slice(),
-        &catalogue,
-        &jig_client_test_records::limits(),
-    )
-    .unwrap();
+    let offer =
+        jig_protocol_engine_clients::translate::llm::models(me.projects.get(0).unwrap().offer.as_slice(), &catalogue)
+            .unwrap();
     assert!(!offer.get(0).unwrap().picker);
     assert_eq!(
         act(&mut world, signed, 23, ModelAct::Picker { number: 1, on: false }),
@@ -178,7 +175,6 @@ fn a_committed_picker_change_refreshes_a_live_me_watch() {
                 let offer = jig_protocol_engine_clients::translate::llm::models(
                     me.projects.get(0).unwrap().offer.as_slice(),
                     &catalogue,
-                    &jig_client_test_records::limits(),
                 )
                 .unwrap();
                 assert!(!offer.get(0).unwrap().picker, "the live me translates the changed catalogue");

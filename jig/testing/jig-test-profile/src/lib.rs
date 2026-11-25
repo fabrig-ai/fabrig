@@ -149,6 +149,16 @@ fn profile() -> root::Limits {
                 records: Duration::from_secs(30 * 86_400),
                 summaries: Duration::from_secs(365 * 86_400),
             },
+            waits: core::Figures {
+                question: Duration::from_secs(2 * 3600),
+                party: Duration::from_secs(8 * 3600),
+                news: Duration::from_secs(24 * 3600),
+                host: Duration::from_secs(2 * 3600),
+                account: Duration::from_secs(2 * 3600),
+                step: Duration::from_secs(30 * 60),
+                room: Duration::from_secs(30 * 60),
+                sign_off: Duration::from_secs(24 * 3600),
+            },
             public: jig_domain_core::PublicIndexLimits::OFF,
             routes: 20_783,
             settings: core::settings::Limits {
@@ -171,7 +181,10 @@ fn profile() -> root::Limits {
                 text_bytes: 256,
                 chips: 32,
                 lines: 32,
-                versions: core::documents::Versions { minimum: 42, maximum: 42 },
+                versions: core::documents::Versions {
+                    minimum: jig_client_protocol_wire::VERSION,
+                    maximum: jig_client_protocol_wire::VERSION,
+                },
             },
             connectors: 2,
             resume_bytes: 256,
@@ -272,7 +285,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 }
 
 /// The one configured model, which the charter names and which declares two efforts
-/// (`../protocol/configuration.md`, section 3; domain/tasks/README.md, section 3).
+/// (`../../../docs/design/protocol/configuration-engine.md`, section 1; domain/tasks/README.md, section 3).
 #[must_use]
 pub fn scripted_model() -> core::Model {
     core::Model {

@@ -1,4 +1,4 @@
-//! Fixed version refusals and family admission envelopes (protocol/client/README.md, 6 and 8).
+//! Fixed version refusals and family admission envelopes (protocol/client/versions.md, 1, and protocol/client/README.md, 8).
 use crate::{Settings, boundary::Served, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
@@ -14,9 +14,9 @@ pub(crate) fn serves(settings: &Settings, family: Option<u16>, version: u32) -> 
     }
     false
 }
-pub(crate) fn not_served(settings: &Settings, owner: w::Owner, _limits: &w::Limits) -> w::NotServed {
+pub(crate) fn not_served(settings: &Settings, owner: w::Owner) -> w::NotServed {
     let mut served = List::with_capacity(settings.served.len());
-    for Served { family, first, last } in &settings.served {
+    for Served { family, first, last, .. } in &settings.served {
         let owner = match family {
             None => w::Owner::Jig,
             Some(number) => w::Owner::Family(w::Family { number: *number }),
@@ -42,7 +42,6 @@ pub(crate) fn window(window: &w::Window) -> Option<documents::Window> {
 
 pub(crate) struct Opening {
     pub request: crate::Request,
-    pub project: u32,
     pub rows: u32,
     pub parts: List<translate::parts::Slot>,
 }
@@ -62,15 +61,14 @@ pub(crate) fn watch(
             if let jig_domain_core_vocabulary::Event::Watch { subject: documents::Watched::Query { query }, .. } =
                 &mut event
             {
-                parts = translate::parts::plan(&query.parts, settings, limits);
+                parts = translate::parts::plan(&query.parts, settings);
                 query.parts = translate::parts::served(&parts);
             }
-            let project = 0;
             let mut rows = rows;
             if let jig_domain_core_vocabulary::Event::Watch { window, .. } = &event {
                 rows = window.rows;
             }
-            Some(Opening { request: crate::Request::Core(Box::new(event)), project, rows, parts })
+            Some(Opening { request: crate::Request::Core(Box::new(event)), rows, parts })
         }
         w::Owner::Family(value) => {
             let record = w::FamilyRecord::decode(limits, &mut skein_lib::Reader::new(&subject.record)).ok()?;
@@ -84,7 +82,7 @@ pub(crate) fn watch(
                 window,
                 record: record.record,
             });
-            Some(Opening { request, project: 0, rows: window.rows, parts: List::with_capacity(0) })
+            Some(Opening { request, rows: window.rows, parts: List::with_capacity(0) })
         }
     }
 }

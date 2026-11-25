@@ -7,6 +7,7 @@
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use skein_lib::List;
 
 /// A malformed or overlong CDP document.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -20,22 +21,21 @@ pub enum DecodeError {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Document {
     bytes: Box<[u8]>,
-    entries: Box<[Entry]>,
+    entries: List<Entry>,
 }
 
 impl Document {
     /// Validate and hold a CDP message under `limit` bytes.
     pub fn parse(bytes: &[u8], limit: u32) -> Result<Document, DecodeError> {
-        let Ok(limit) = usize::try_from(limit) else {
-            return Err(DecodeError::TooLong);
-        };
-        if bytes.len() > limit {
-            return Err(DecodeError::TooLong);
-        }
-        let count = Parser { bytes, at: 0, count: 0, entries: None }.document()?;
-        let mut entries = Entry::allocate(usize::try_from(count).expect("entry count fits the bounded message"));
-        Parser { bytes, at: 0, count: 0, entries: Some(&mut entries) }.document()?;
+        let entries = index(bytes, limit)?;
         Ok(Document { bytes: Box::from(bytes), entries })
+    }
+
+    /// Take the pipe's scan delivery without copying it. The index excludes NUL.
+    pub(crate) fn from_frame(bytes: Box<[u8]>, limit: u32) -> Result<Document, DecodeError> {
+        let Some(json) = bytes.strip_suffix(b"\0") else { return Err(DecodeError::Syntax) };
+        let entries = index(json, limit)?;
+        Ok(Document { bytes, entries })
     }
 
     /// The root JSON value.
@@ -54,11 +54,43 @@ struct Entry {
     after: u32,
 }
 
-impl Entry {
-    #[expect(clippy::disallowed_methods, reason = "validation counted the exact index length before allocation")]
-    fn allocate(count: usize) -> Box<[Entry]> {
-        core::iter::repeat_n(Entry { start: 0, end: 0, after: 0 }, count).collect()
+fn index(bytes: &[u8], limit: u32) -> Result<List<Entry>, DecodeError> {
+    let Ok(len) = u32::try_from(bytes.len()) else { return Err(DecodeError::TooLong) };
+    if len > limit {
+        return Err(DecodeError::TooLong);
     }
+    // Each entry starts at a different byte, including object keys.
+    let mut parser = Parser { bytes, at: 0, entries: List::with_capacity(len) };
+    parser.document()?;
+    Ok(parser.entries)
+}
+
+/// Plain strings borrow the message; escaped strings own their decoded bytes.
+#[derive(Debug)]
+pub(crate) enum Text<'a> {
+    Plain(&'a [u8]),
+    Escaped(Box<[u8]>),
+}
+
+impl Text<'_> {
+    pub(crate) fn bytes(&self) -> &[u8] {
+        match self {
+            Text::Plain(bytes) => bytes,
+            Text::Escaped(bytes) => bytes,
+        }
+    }
+
+    pub(crate) fn into_prefix(self, limit: usize) -> Box<[u8]> {
+        match self {
+            Text::Escaped(bytes) if bytes.len() <= limit => bytes,
+            Text::Plain(bytes) => text_prefix(bytes, limit),
+            Text::Escaped(bytes) => text_prefix(&bytes, limit),
+        }
+    }
+}
+
+fn text_prefix(bytes: &[u8], limit: usize) -> Box<[u8]> {
+    Box::from(bytes.get(..bytes.len().min(limit)).expect("prefix within text"))
 }
 
 /// A valid JSON value of a validated document: an entry of its index.
@@ -70,10 +102,7 @@ pub struct Value<'a> {
 
 impl<'a> Value<'a> {
     fn entry(self) -> &'a Entry {
-        self.document
-            .entries
-            .get(usize::try_from(self.at).expect("index fits the document"))
-            .expect("validated value has an index entry")
+        self.document.entries.get(self.at).expect("validated value has an index entry")
     }
 
     /// The JSON representation of this value.
@@ -119,11 +148,18 @@ impl<'a> Value<'a> {
     /// The unescaped UTF-8 bytes of a JSON string.
     #[must_use]
     pub fn text(self) -> Option<Box<[u8]>> {
+        Some(self.decoded_text()?.into_prefix(usize::MAX))
+    }
+
+    pub(crate) fn decoded_text(self) -> Option<Text<'a>> {
         let bytes = self.raw();
         if bytes.first() != Some(&b'"') || bytes.last() != Some(&b'"') {
             return None;
         }
         let inner = bytes.get(1..bytes.len().checked_sub(1)?)?;
+        if !inner.contains(&b'\\') {
+            return Some(Text::Plain(inner));
+        }
         let mut out = Vec::with_capacity(inner.len());
         let mut at = 0_usize;
         while at < inner.len() {
@@ -168,7 +204,7 @@ impl<'a> Value<'a> {
             }
             at = at.checked_add(1)?;
         }
-        Some(out.into_boxed_slice())
+        Some(Text::Escaped(out.into_boxed_slice()))
     }
 
     /// An unsigned JSON integer.
@@ -244,38 +280,35 @@ impl<'a> Iterator for Array<'a> {
 struct Parser<'a> {
     bytes: &'a [u8],
     at: usize,
-    count: u32,
-    entries: Option<&'a mut [Entry]>,
+    entries: List<Entry>,
 }
 
 impl Parser<'_> {
-    fn document(&mut self) -> Result<u32, DecodeError> {
+    fn document(&mut self) -> Result<(), DecodeError> {
         self.space();
         self.value(0)?;
         self.space();
         if self.at != self.bytes.len() {
             return Err(DecodeError::Syntax);
         }
-        Ok(self.count)
+        Ok(())
     }
 
     fn reserve(&mut self) -> Result<u32, DecodeError> {
-        let at = self.count;
-        self.count = self.count.checked_add(1).ok_or(DecodeError::TooLong)?;
+        if self.peek().is_none() {
+            return Err(DecodeError::Syntax);
+        }
+        let at = self.entries.len();
+        let start = u32::try_from(self.at).expect("start fits the bounded message");
+        self.entries.push(Entry { start, end: start, after: 0 }).expect("one entry per starting byte");
         Ok(at)
     }
 
-    fn finish(&mut self, at: u32, start: usize) {
-        if let Some(entries) = &mut self.entries {
-            let entry = entries
-                .get_mut(usize::try_from(at).expect("entry offset fits the bounded message"))
-                .expect("counted index has room for every entry");
-            *entry = Entry {
-                start: u32::try_from(start).expect("start fits the bounded message"),
-                end: u32::try_from(self.at).expect("end fits the bounded message"),
-                after: self.count,
-            };
-        }
+    fn finish(&mut self, at: u32) {
+        let after = self.entries.len();
+        let entry = self.entries.get_mut(at).expect("entry reserved before reading its value");
+        entry.end = u32::try_from(self.at).expect("end fits the bounded message");
+        entry.after = after;
     }
 
     fn peek(&self) -> Option<u8> {
@@ -297,7 +330,6 @@ impl Parser<'_> {
     }
 
     fn value(&mut self, depth: u32) -> Result<(), DecodeError> {
-        let start = self.at;
         let at = self.reserve()?;
         match self.peek() {
             Some(b'{') => self.object(depth),
@@ -309,7 +341,7 @@ impl Parser<'_> {
             Some(b'-' | b'0'..=b'9') => self.number(),
             _ => Err(DecodeError::Syntax),
         }?;
-        self.finish(at, start);
+        self.finish(at);
         Ok(())
     }
 
@@ -323,10 +355,9 @@ impl Parser<'_> {
             return self.take(b'}');
         }
         loop {
-            let start = self.at;
             let at = self.reserve()?;
             self.string()?;
-            self.finish(at, start);
+            self.finish(at);
             self.space();
             self.take(b':')?;
             self.space();
@@ -529,6 +560,24 @@ fn valid_text(bytes: &[u8]) -> Result<(), DecodeError> {
 #[cfg(test)]
 mod tests {
     use super::{DecodeError, Document, Vec};
+    use alloc::boxed::Box;
+
+    const FRAME: &[u8] = b"{\"id\":7}\0";
+    const FRAME_JSON_LEN: u32 = 8; // The eight JSON bytes before NUL.
+
+    #[test]
+    fn one_pipe_scan_becomes_the_indexed_document_without_copying() {
+        let wire: Box<[u8]> = Box::from(FRAME);
+        let address = wire.as_ptr();
+        let doc = Document::from_frame(wire, FRAME_JSON_LEN).expect("one framed reply at the bound");
+        assert_eq!(doc.root().raw().as_ptr(), address);
+        assert_eq!(doc.root().get(b"id").expect("reply id").u64(), Some(7));
+    }
+
+    #[test]
+    fn a_reply_past_the_framed_message_limit_is_refused() {
+        assert_eq!(Document::from_frame(Box::from(FRAME), FRAME_JSON_LEN - 1), Err(DecodeError::TooLong));
+    }
 
     #[test]
     fn nested_reply_and_escaped_text() {

@@ -1,4 +1,4 @@
-//! Pipe admission before the service's first iteration (journey-walks.md, 4.4).
+//! Pipe admission before the service's first iteration (client/journey-walks-world.md, 1.4).
 use crate::box_peer::{BoxPeer, LINE_BYTES, PROGRAM};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
 use skein_lib::{Queue, Time, Token, Wall};
@@ -16,9 +16,9 @@ impl Harness for Clients {
     fn prepare(
         disk: &mut skein_fake_machine::Machine,
         document: &temper_playground::documents::Configuration,
-        seed: u64,
+        _seed: u64,
     ) {
-        crate::facts::prepare(disk, document, seed);
+        crate::facts::prepare(disk, document);
     }
     fn files() -> temper_service::settings::Files {
         crate::facts::files()

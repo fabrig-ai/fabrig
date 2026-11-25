@@ -56,7 +56,7 @@ deployment: every name here is an example, temper at
   with `sub` the identity, `<provider>:<address>`, which outlives the
   store (`openid-provider.md`, 4).
 - **The source is added on Forgejo's host by a printed command** (`openid-provider.md`, 5;
-  `setup/owned.md`, 8), for a managed Forgejo and `temper-box serve`'s owned one
+  `setup/owned-sign-in.md`, 1), for a managed Forgejo and `temper-box serve`'s owned one
   alike. A box's owned Forgejo sets all of this up by itself (`openid-provider.md`, 9).
 - **No single sign-out** (`openid-provider.md`, 6): the signed-out page says that Forgejo
   keeps its own sign-in.
@@ -73,7 +73,7 @@ saw it, overwriting what the client sent (Caddy's default, with no
 `trusted_proxies`), which jig reads as a terminal's approval's source
 (jig's `protocol/client/default-http.md`, 3). The proxy denies the printed link's route,
 `/jig/v1/sign-in/link`, and its page, `/sign-in` itself
-(`../client/README.md`, section 4), from outside (2.3); the Google
+(`../client/sign-in.md`, section 1), from outside (2.3); the Google
 routes below `/sign-in/` pass (4.1). jig's stream, `GET
 /jig/v1/stream`, is passed unbuffered, with a read timeout longer than
 its heartbeat (jig's `protocol/client/default-http.md`, 2).
@@ -83,7 +83,7 @@ its heartbeat (jig's `protocol/client/default-http.md`, 2).
 `application.clients.public`: `null`, or the HTTPS origin the people's
 browsers use (`configuration/engine.md`). With one:
 
-- **The Host allow-list** (jig's `protocol/browser/README.md`, 12.2) holds its
+- **The Host allow-list** (jig's `protocol/browser/serving.md`, 1.2) holds its
   host, with its port where it is not 443, beside the listener's own
   address: jig's `Settings { prefix: "/jig", public: Some(host) }`. With
   none, `public: None`, the listener's address alone.
@@ -96,7 +96,7 @@ browsers use (`configuration/engine.md`). With one:
   GitHub forge is connected (`../client/forge/served.md`, 1). With none, they are the
   listener's, `http://<listener>/`, as before.
 - **The bundle is the same,** served at every other `GET`
-  (`../client/web/README.md`, 2.2).
+  (`../client/web/serving.md`, 1).
 
 ### 2.3 The printed link
 
@@ -106,14 +106,14 @@ browsers use (`configuration/engine.md`). With one:
   the deployment's own page, by one press where its loopback return
   hands the sign-in back to the browser's own machine, or by its code
   typed (jig's `protocol/client/sign-in.md`, *A sign-in approved by a
-  browser*; `../client/pages/README.md`, 2, *The approval page*).
+  browser*; `../client/pages/shared-behaviour.md`, 1, *The approval page*).
 - **On the host alone:** jig enables it only on a loopback listener; the
   proxy denies its route and its page from outside (2.1); the owner reaches it through an
   SSH tunnel to the listener.
 - **A fresh one, asked:** once the printed links are spent, a client
   signed in as a person asks the engine for a fresh one-time link for
   its own party, `temper ctl DIRECTORY link --out FILE`
-  (`../client/ctl/README.md`, 6.1), so that the person's browser on the
+  (`../client/ctl/command-line.md`, 1.1), so that the person's browser on the
   host signs in with no restart of the engine (jig's
   `protocol/client/sign-in.md`, the asked link). It signs in the asker's
   party alone, never the first owner unless the asker is, and no longer
@@ -142,7 +142,7 @@ A deployment that opens its public projects to anyone
   public index's in its `limits` (jig's `protocol/limits.md`
   ), which the start checks against one another, and its
   owners make a project public (`project amend --visibility public`,
-  `../client/ctl/tools.md`, 3). Each figure is the deployment's;
+  `../client/ctl/tools-acts.md`, 1). Each figure is the deployment's;
   dev.fabrig.ai's are the user's (`../draft/first-release.status.md`).
 - **The proxy caches the public reads alone:** `GET /jig/v1/public/…`,
   a `200` and a `404` as their `Cache-Control` says, never a `503`, and
@@ -192,9 +192,9 @@ A deployment that opens its public projects to anyone
 What a visitor can try against a deployment that has opened, each
 answer checked against what 2.4, jig's `protocol/client/default-http.md`, 5 and `protocol/client/public-reads.md`
 , and jig's `domain/people/public-reading.md` allow. Each case is
-tested in the lowest world that owns it (`../testing/README.md`, 2.5;
+tested in the lowest world that owns it (`../testing/tiers.md`, 1.5;
 `skein/docs/foundation/testing-strategy.md`, 9). The one-process world
-(`../testing/README.md`, 2.5) plays the walk's path through temper's
+(`../testing/tiers.md`, 1.5) plays the walk's path through temper's
 real service, started from configuration's bytes, and a caching proxy
 of the world that follows 2.4, with the cases only that whole service
 shows; jig's worlds play what its mapping, its clients' component and
@@ -266,7 +266,7 @@ headers.
 - **An identity is Google's provider and the member's address.**
   `application.sign_in.google.provider` names jig's provider of kind
   application that numbers Google's sign-in (jig's
-  `protocol/configuration.md`, section 3, `providers`). The subject
+  `protocol/configuration-engine.md`, section 1, `providers`). The subject
   temper gives jig is the member's address exactly as configured, not
   Google's `sub`, so that a member can be named before their first
   sign-in: jig's `owners` and a project seed's roles name them.
@@ -347,7 +347,7 @@ with the non-sensitive scopes `openid email profile` alone.
 ### 4.1 The routes
 
 On the clients' listener, after what jig's mapping claims and beside the
-GitHub routes (`../client/web/README.md`, 2.2): `GET /sign-in/google` and
+GitHub routes (`../client/web/serving.md`, 1): `GET /sign-in/google` and
 `GET /sign-in/google/return`, any other method `405`, any other path
 under `/sign-in/` the page as today. With `sign_in` `null`, both answer
 not found. Every answer of theirs carries the page's policy,
@@ -406,7 +406,7 @@ not found. Every answer of theirs carries the page's policy,
 7. **Google's tokens are dropped:** the client's record is never kept,
    and the sign-in under way ends with its answer. The page at `then`
    loads, and its own exchanges carry jig's cookie: the client signs in
-   by `Transport` (jig's `client/domain/client/README.md`, section 9).
+   by `Transport` (jig's `client/domain/client/sign-in.md`, section 1).
 
 - **The return's call is held** while the exchange, the binding and
   `Mint` run, within `sign_in.deadline`; past it, the expired page.
@@ -471,7 +471,7 @@ words do: "didn’t", never "didn't".
   count; since rows outlive their members, a new member can find the
   table full. A row past it is refused at restart, as each family's is.
 - **Never erased:** a binding outlives its member's removal; a store made
-  again binds afresh (`store.md`, 4).
+  again binds afresh (`store-versions.md`, 1).
 
 ## 6. The sign-in's exchanges
 
@@ -521,7 +521,7 @@ its sockets tagged as the server's are.
 ## 7. The browser's sign-in page
 
 - **The page tells the ways.** When temper-service makes the bundle's
-  page at start (`../client/web/README.md`, 2.2), it inserts `<meta
+  page at start (`../client/web/serving.md`, 1), it inserts `<meta
   name="temper-sign-in" content="WAYS">` before the page's `</head>`,
   `WAYS` the configured ways, space-separated (`google`, or nothing),
   and the `ETag` is the page's so made; a page without `</head>` is
@@ -536,7 +536,7 @@ its sockets tagged as the server's are.
   (`binaries.md`), `<meta name="temper-record" content="on">`, made
   at start after `temper-sign-in`, before the forges' metas, the `ETag`
   the page's so made, so that the page records
-  (`../client/web/README.md`, 2.1 and 2.2).
+  (`../client/web/shell.md`, 1, and `../client/web/serving.md`, 1).
 - **The signed-out main** (`../client/view.md`, 1), in the browser
   with a way: temper's mark, the level-1 heading "Sign in", and a link
   for each way, "Continue with Google" to
@@ -551,7 +551,7 @@ its sockets tagged as the server's are.
 
 - **The sign-in world,** `temper-service`'s own tests
   (`crates/temper-service/src/tests/sign_in.rs`), as its GitHub routes'
-  are (`../testing/README.md`, 2.1): the clients' composition with its
+  are (`../testing/tiers.md`, 1.1): the clients' composition with its
   Google sign-ins, jig's clients' component and the engine's root on its
   store, people's requests as calls through `fixtures::http::Peer`, and
   `skein-fake-oauth`'s `Issuer` as Google, answering the sign-ins' HTTP
@@ -570,7 +570,7 @@ its sockets tagged as the server's are.
   alone (one diagnostic), and a kind past its schema's ceiling among
   them (the negative walk, 2.5).
 - **Step tests:** the configuration's members and their checks; the
-  `Binding` family's records drift, pinned constructs, built-value round trips
+  `Binding` family's records drift, built-value round trips
   and fuzz seed; the forge connector's
   bind in its world (`tests/engine/forge`); the claims' reader; the
   fetcher against scripted io; the endings' pages' bytes.
@@ -638,7 +638,7 @@ its sockets tagged as the server's are.
   Forgejo.
 - **Several members' forge identities.** A box's sole-owner link names
   its person on an owned Forgejo or a manifest-made personal GitHub App
-  (`../domain/forge/adoption.md`, 6). Extending that to members needs the sign-in
+  (`../domain/forge/adoption-person.md`, 1). Extending that to members needs the sign-in
   reasoning checked for several people and a manifest's connecting owner,
   with a family of links (`../draft/forge-identity.md`, section 12).
   Default: adoption's seeds outside a box's one-person scope. Posting an

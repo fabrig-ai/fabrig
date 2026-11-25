@@ -2,7 +2,7 @@
 use jig_protocol_config as config;
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
-use skein_shell::{Clock, Config, Kernel};
+use skein_shell::{Clock, Config, Kernel, Unread};
 use std::{fmt::Write, os::unix::ffi::OsStrExt, path::Path};
 use temper_service_core::{self as service, settings::Files};
 use temper_shell::directories::EnvironmentEntry;
@@ -10,6 +10,8 @@ use temper_shell::{
     directories::{Directories, unread},
     link_file,
 };
+mod disk;
+pub use disk::DISK_BUDGET;
 pub mod configuration;
 pub mod host;
 pub mod providers;
@@ -76,6 +78,22 @@ pub fn read_files_with_asked(
     asked: Box<[config::File]>,
     user: u32,
 ) -> Result<Files, String> {
+    read_files_with_asked_using(names, asked, user, |path, max, private| {
+        if private {
+            skein_shell::read_private_file(path, max, user)
+        } else {
+            skein_shell::read_file(path, max).map(Secret::new)
+        }
+    })
+}
+
+/// Read the required and asked files in order. The caller supplies a reader for the given effective user.
+pub fn read_files_with_asked_using(
+    names: Box<[config::File]>,
+    asked: Box<[config::File]>,
+    _user: u32,
+    mut read: impl FnMut(&Path, u32, bool) -> Result<Secret, Unread>,
+) -> Result<Files, String> {
     let count = names.len().checked_add(asked.len()).expect("bounded files");
     let mut entries = List::with_capacity(u32::try_from(count).expect("bounded files"));
     let mut refused = String::new();
@@ -83,16 +101,11 @@ pub fn read_files_with_asked(
         names.into_iter().map(|file| (file, false)).chain(asked.into_iter().map(|file| (file, true)))
     {
         let resolved = path(&file.path);
-        let value = if file.private {
-            skein_shell::read_private_file(resolved, file.max, user)
-        } else {
-            skein_shell::read_file(resolved, file.max).map(Secret::new)
-        };
-        match value {
+        match read(resolved, file.max, file.private) {
             Ok(value) => entries.push((file.path, value)).expect("named capacity"),
-            Err(skein_shell::Unread::Absent) if optional => {}
+            Err(Unread::Absent) if optional => {}
             Err(why) => {
-                writeln!(refused, "{}: {}: {}", file_path(file.at), path(&file.path).display(), unread(why))
+                writeln!(refused, "{}: {}: {}", file_path(file.at), resolved.display(), unread(why))
                     .expect("writing into a string");
             }
         }
@@ -118,6 +131,7 @@ pub type Ending<S> = fn(&S, &str, bool, &Directories, &[u8]) -> (String, u8);
 /// A binary's adapter to its service (protocol/services.md, 7).
 /// The shell owns scheduling and output; these plain functions supply the service's operations and words.
 pub struct Served<S> {
+    pub set_local_places: Option<fn(&mut S, u32)>,
     pub stages: &'static [service::Stage],
     pub iterate_stage: fn(&mut S, service::Stage, skein_lib::Time, skein_lib::Wall),
     pub resolve: fn(&mut S),
@@ -161,7 +175,7 @@ pub fn run<S, B, A>(
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
     run_inner(binary, directories, shape, environment, served, clock, before, prepare, adopt)
-        .map_err(|why| prefixed(&format!("{binary} serve"), &why))
+        .map_err(|why| serve_error(binary, &why))
 }
 #[expect(clippy::too_many_arguments, reason = "serve supplies its loop clock beside its startup hooks")]
 fn run_inner<S, B, A>(
@@ -175,14 +189,14 @@ fn run_inner<S, B, A>(
     prepare: impl FnOnce(&[u8], &temper_config_shell::Programs, &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
+    let disk = if served.set_local_places.is_some() { disk::Budget::read(environment)? } else { None };
     let link_file = local_link(directories, environment);
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
-    let input = before(listeners.len())?;
-    let read = configuration::read(directories, shape)?;
+    let (input, read) = read_start(listeners.len(), before, || configuration::read(directories, shape))?;
     let programs = read.programs()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let Prepared { mut service, store, adoption } =
-        match read.prepare(|bytes| prepare(bytes, &programs, &mut owned, input)) {
+        match prepare_serve(&read, &programs, |bytes, programs| prepare(bytes, programs, &mut owned, input)) {
             Ok(prepared) => prepared,
             Err(why) => {
                 close(owned);
@@ -218,11 +232,36 @@ fn run_inner<S, B, A>(
     let mut host = Host::with_binary(binary, service, served, directories.clone(), environment);
     host.store = store;
     host.link_file = link_file;
+    host.disk = disk;
     let exit = skein_shell::drive(&mut kernel, clock, &mut host);
     if let Some(path) = &host.link_file {
         link_file::forget(path);
     }
     Ok(exit)
+}
+
+/// Check the binary's early inputs before reading its configuration.
+pub fn read_start<B>(
+    listeners: usize,
+    before: impl FnOnce(usize) -> Result<B, String>,
+    configuration: impl FnOnce() -> Result<configuration::Read, String>,
+) -> Result<(B, configuration::Read), String> {
+    let input = before(listeners)?;
+    Ok((input, configuration()?))
+}
+
+/// Speak each startup problem on its own line, with the serving binary's name.
+#[must_use]
+pub fn serve_error(binary: &str, why: &str) -> String {
+    prefixed(&format!("{binary} serve"), why)
+}
+
+fn prepare_serve<T>(
+    read: &configuration::Read,
+    programs: &temper_config_shell::Programs,
+    prepare: impl FnOnce(&[u8], &temper_config_shell::Programs) -> Result<T, String>,
+) -> Result<T, String> {
+    read.prepare(|bytes| prepare(bytes, programs))
 }
 
 fn local_link(directories: &Directories, environment: &[EnvironmentEntry]) -> Option<std::path::PathBuf> {
@@ -256,3 +295,6 @@ pub const CUT_AT_LISTEN: skein_shell::Variable = skein_shell::Variable {
     notes: "Requires TEMPER_INTERNAL_WAIT_CHECK. An existing marker keeps the next start running.",
     way: skein_shell::Way::Reads,
 };
+
+#[doc(hidden)]
+pub mod testing;

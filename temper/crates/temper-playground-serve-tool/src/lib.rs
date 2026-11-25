@@ -36,6 +36,27 @@ pub const TABLE: Table = Table {
     more: "Read temper/docs/design/playground.md, section 7.",
 };
 
+const HEAD_BYTES: usize = 8192;
+const HEAD_END: &[u8] = b"\r\n\r\n";
+
+fn read_head<'a>(reader: &mut impl Read, head: &'a mut [u8; HEAD_BYTES]) -> io::Result<Option<&'a [u8]>> {
+    let mut filled: usize = 0;
+    while filled < head.len() {
+        let read = reader.read(&mut head[filled..])?;
+        if read == 0 {
+            return Ok(None);
+        }
+        // Only these starts could use the new bytes, including a terminator split across reads.
+        let from = filled.saturating_sub(HEAD_END.len() - 1);
+        filled += read;
+        if let Some(at) = head[from..filled].windows(HEAD_END.len()).position(|bytes| bytes == HEAD_END) {
+            return Ok(Some(&head[..from + at + HEAD_END.len()]));
+        }
+    }
+    // At the bound the host interprets only the head prefix, without another read.
+    Ok(Some(head))
+}
+
 struct Host {
     root: PathBuf,
     headers: Vec<(String, String, String)>,
@@ -84,18 +105,9 @@ impl Host {
 
     fn serve(&self, stream: &mut TcpStream) -> io::Result<()> {
         stream.set_read_timeout(Some(std::time::Duration::from_secs(1)))?;
-        let mut head = Vec::new();
-        for _ in 0..8192 {
-            let mut byte = [0];
-            if stream.read(&mut byte)? == 0 {
-                return Ok(());
-            }
-            head.push(byte[0]);
-            if head.ends_with(b"\r\n\r\n") {
-                break;
-            }
-        }
-        let text = String::from_utf8_lossy(&head);
+        let mut buffer = [0; HEAD_BYTES];
+        let Some(head) = read_head(stream, &mut buffer)? else { return Ok(()) };
+        let text = String::from_utf8_lossy(head);
         let mut words = text.split_whitespace();
         let method = words.next().unwrap_or("");
         let path = words.next().unwrap_or("/").split('?').next().expect("path");
@@ -201,8 +213,8 @@ fn serve(root: &Path) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Host, TABLE};
-    use std::{fs, os::unix::fs::symlink};
+    use super::{HEAD_BYTES, Host, TABLE, read_head};
+    use std::{fs, io::Read, os::unix::fs::symlink};
 
     #[test]
     fn the_reference_documents_match_the_table() {
@@ -224,6 +236,25 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn the_head_ends_at_a_terminator_split_across_reads() {
+        let mut reads = b"GET / HTTP/1.1\r\n\r".as_slice().chain(b"\nbody".as_slice());
+        let mut buffer = [0; HEAD_BYTES];
+        assert_eq!(read_head(&mut reads, &mut buffer).expect("head read"), Some(b"GET / HTTP/1.1\r\n\r\n".as_slice()));
+    }
+
+    #[test]
+    fn a_byte_past_the_head_bound_is_not_read() {
+        let mut bytes = [b'a'; HEAD_BYTES + 1];
+        for (byte, end) in bytes[HEAD_BYTES - 3..].iter_mut().zip(*b"\r\n\r\n") {
+            *byte = end;
+        }
+        let mut reads = bytes.as_slice();
+        let mut buffer = [0; HEAD_BYTES];
+        assert_eq!(read_head(&mut reads, &mut buffer).expect("bounded head read"), Some(&bytes[..HEAD_BYTES]));
+        assert_eq!(reads, b"\n");
     }
 
     const FILES_CACHE: &[u8] = b"public, max-age=31536000, immutable";

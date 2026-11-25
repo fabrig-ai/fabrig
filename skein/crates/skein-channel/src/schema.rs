@@ -64,6 +64,16 @@ pub enum SchemaError {
     Kind,
 }
 
+/// A failed per-version check, also used for the responder's refusal text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum KindTableError {
+    TooManyKinds,
+    ReservedKind,
+    BodyCapacity,
+    OutputCapacity,
+    DuplicateKind,
+}
+
 impl Schema {
     /// Checks the whole table and this role's sent frames (net/channel.md, section 4).
     pub fn check(&self, role: Role, limits: &Limits) -> Result<(), SchemaError> {
@@ -82,42 +92,34 @@ impl Schema {
         if self.versions.is_empty() {
             return Err(SchemaError::Versions);
         }
-        let sent = match role {
-            Role::Initiator => Direction::FromInitiator,
-            Role::Responder => Direction::FromResponder,
-        };
         let mut previous: Option<u16> = None;
         for version in &self.versions {
             if previous.is_some() && previous != version.version.checked_sub(1) {
                 return Err(SchemaError::Versions);
             }
             previous = Some(version.version);
-            if version.kinds.len() > limits.kinds {
+            if version.check_kinds(role, limits).is_err() {
                 return Err(SchemaError::Kind);
-            }
-            for (index, kind) in version.kinds.iter().enumerate() {
-                if kind.kind < 0x0100
-                    || usize::try_from(kind.largest).is_err()
-                    || isize::try_from(kind.largest).is_err()
-                {
-                    return Err(SchemaError::Kind);
-                }
-                // Received bodies are admitted by their own terms/input bound,
-                // never by this role's output queue (net/channel.md, section 4).
-                if kind.direction == sent {
-                    let length = kind.largest.checked_add(8).ok_or(SchemaError::Kind)?;
-                    if length > limits.output_bytes {
-                        return Err(SchemaError::Kind);
-                    }
-                }
-                for earlier in version.kinds.iter().take(index) {
-                    if earlier.kind == kind.kind {
-                        return Err(SchemaError::Kind);
-                    }
-                }
             }
         }
         Ok(())
+    }
+
+    /// Installs checked kinds for a version already selected from this schema.
+    pub(super) fn install_version(
+        &mut self,
+        table: Version,
+        role: Role,
+        limits: &Limits,
+    ) -> Result<(), KindTableError> {
+        table.check_kinds(role, limits)?;
+        for version in self.versions.iter_mut() {
+            if version.version == table.version {
+                *version = table;
+                return Ok(());
+            }
+        }
+        unreachable!("the selected version is within the checked schema's range")
     }
 
     /// Inclusive bounds of the contiguous version offer.
@@ -140,6 +142,37 @@ impl Schema {
 }
 
 impl Version {
+    fn check_kinds(&self, role: Role, limits: &Limits) -> Result<(), KindTableError> {
+        if self.kinds.len() > limits.kinds {
+            return Err(KindTableError::TooManyKinds);
+        }
+        let sent = match role {
+            Role::Initiator => Direction::FromInitiator,
+            Role::Responder => Direction::FromResponder,
+        };
+        for (index, kind) in self.kinds.iter().enumerate() {
+            if kind.kind < 0x0100 {
+                return Err(KindTableError::ReservedKind);
+            }
+            if usize::try_from(kind.largest).is_err() || isize::try_from(kind.largest).is_err() {
+                return Err(KindTableError::BodyCapacity);
+            }
+            // Received bodies are bounded by their own terms, not the output queue.
+            if kind.direction == sent {
+                let length = kind.largest.checked_add(8).ok_or(KindTableError::OutputCapacity)?;
+                if length > limits.output_bytes {
+                    return Err(KindTableError::OutputCapacity);
+                }
+            }
+            for earlier in self.kinds.iter().take(index) {
+                if earlier.kind == kind.kind {
+                    return Err(KindTableError::DuplicateKind);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Finds an application kind in this version.
     #[must_use]
     pub fn kind(&self, number: u16) -> Option<Kind> {

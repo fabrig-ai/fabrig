@@ -1,5 +1,5 @@
 //! Issued names precede live account rows in jig's restart walk
-//! (jig's protocol/store/README.md, 4.4, and protocol/store/loads.md, 2; domain/root.md, 8.1).
+//! (jig's protocol/store/keys.md, 1.4, and protocol/store/loads.md, 2; domain/root-restart.md, 1.1).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -329,6 +329,151 @@ fn restored_imported_account_answers_export_and_finishes_the_move() {
             .any(|request| matches!(request, accounts::Request::Signing(accounts::Signing::Forget { source: 2 })))
     );
     assert!(!driver.store.rows.contains_key(&account_key(accounts::Key::Account { number: 3 })));
+}
+
+#[test]
+fn a_connected_plan_stays_usable_after_a_restart_without_reconnecting() {
+    let mut config = walking::config(SEED);
+    config.core.settings.llm_providers = accounts::Providers { providers: Box::new([plan_provider()]) };
+    config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
+    let mut driver = Driver::cold(Store::new(), config, &walking::limits());
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    let sign_in = driver.session();
+    driver.send(connect_plan(sign_in));
+    driver.settle();
+    let source = plan_source(&driver.protocol);
+    driver.protocol.sign_in_sources.insert(source);
+    for event in plan_sign_in(source) {
+        driver.send(event);
+        driver.settle();
+    }
+    let before = read_plan(&mut driver, source);
+    let mut reopened = driver.cold_fork();
+    // The account component still holds the sign-in; only the engine is reopened.
+    reopened.protocol.sign_in_sources.insert(source);
+    reopened.settle();
+    assert!(reopened.root.ready());
+    reopened.sign_in();
+    reopened.settle();
+    assert_ne!(reopened.session(), sign_in, "a fresh client session");
+    assert_eq!(read_plan(&mut reopened, source), before, "the same held account");
+    assert!(
+        !reopened
+            .protocol
+            .accounts
+            .iter()
+            .any(|request| matches!(request, accounts::Request::Signing(accounts::Signing::SignIn { .. }))),
+        "no new provider sign-in"
+    );
+}
+
+pub(super) fn plan_provider() -> accounts::Provider {
+    accounts::Provider {
+        list: None,
+        number: 1,
+        name: b"Fake ChatGPT".as_slice().into(),
+        signed_in_plan: true,
+        manage_usage: None,
+        offers: accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
+    }
+}
+
+pub(super) fn connect_plan(sign_in: u64) -> engine::Event {
+    engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(103)),
+        sign_in,
+        key: [103; 16],
+        ask: people::Ask::AccountSignIn { holder: people::AccountHolder::Own, provider: 1 },
+    })
+}
+
+pub(super) fn plan_source(protocol: &temper_engine_domain_world::protocol::Protocol) -> u32 {
+    protocol
+        .accounts
+        .iter()
+        .find_map(|request| {
+            if let accounts::Request::Signing(accounts::Signing::SignIn { source, provider: 1 }) = request {
+                Some(*source)
+            } else {
+                None
+            }
+        })
+        .expect("sign-in routed to the account component")
+}
+
+pub(super) fn plan_sign_in(source: u32) -> [engine::Event; 3] {
+    [
+        accounts::Event::Visited { source, address: b"https://issuer/visit".as_slice().into() },
+        accounts::Event::SignedIn {
+            source,
+            subject: b"plan-holder".as_slice().into(),
+            display: b"Plan holder".as_slice().into(),
+            declined: false,
+            said: accounts::Said::default(),
+        },
+        accounts::Event::Component(accounts::FromComponent::Granted {
+            account: source,
+            generation: 1,
+            valid: skein_lib::Duration::from_secs(3600),
+            form: jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer),
+        }),
+    ]
+    .map(engine::Event::Account)
+}
+
+fn read_plan(driver: &mut Driver, source: u32) -> (u64, u32) {
+    use core::documents::{AccountState, Document, Watched, Window};
+    let person = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let engine::Delivery::WebReply { reply: people::Reply::SignedIn { person, .. }, .. } = delivery {
+                Some(*person)
+            } else {
+                None
+            }
+        })
+        .expect("signed-in party");
+    let watcher = Token::new(104);
+    driver.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher,
+        sign_in: driver.session(),
+        subject: Watched::Accounts,
+        window: Window { rows: 4, after: None },
+    }));
+    driver.settle();
+    let document = driver
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|delivery| {
+            if let engine::Delivery::Document { watcher: named, document } = delivery
+                && *named == watcher
+                && let Document::Accounts(document) = document.as_ref()
+            {
+                Some(document)
+            } else {
+                None
+            }
+        })
+        .expect("accounts document");
+    assert!(document.settled && document.usable && !document.cut);
+    assert!(document.signing.is_empty());
+    assert_eq!(document.accounts.len(), 1);
+    let account = document.accounts.get(0).expect("the party's plan");
+    assert_eq!(account.provider, Some(1));
+    assert!(account.plan && !account.cut);
+    assert_eq!(account.holder, accounts::Holder::Party(person));
+    assert_eq!(account.sources.len(), 1);
+    let sign_in_source = account.sources.get(0).expect("the plan's only source");
+    assert_eq!(sign_in_source.number, source);
+    assert_eq!(sign_in_source.kind, accounts::Kind::SignIn);
+    assert_eq!(sign_in_source.state, AccountState::Granted);
+    assert!(sign_in_source.usable);
+    (person, account.number)
 }
 
 fn change_account(driver: &mut Driver, sign_in: u64, request: u8, change: people::AccountChange) {

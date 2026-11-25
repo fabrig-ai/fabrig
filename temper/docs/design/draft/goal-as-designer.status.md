@@ -9,13 +9,13 @@ remains `per-wake.md`, section 11's open decision; the combined domain
 story's restart gap is in `../protocol/configuration/reference.status.md`.
 
 Section 4's delivery path and section 3's delivery and `after` ordering are carried by
-`../domain/agent/tools.md`, `../domain/forge/change/README.md`, 1 and 3 and `../domain/forge/branches.md`
+`../domain/agent/tools.md`, `../domain/forge/change/README.md`, 1, and `../domain/forge/change/drift.md`, 1 and `../domain/forge/branches.md`
 , `../domain/worker/checkouts.md`, and jig's `domain/hosts/charters.md`
 . The saved-start exception and remaining reference-workflow
 gaps are below.
 
-Section 6's room is carried by `../protocol/configuration/settings.md`, 7 and `../protocol/configuration/reference.md`
-, `../domain/agent/charter.md`, 3, smith's `protocol/limits.md`, 3.10,
+Section 6's room is carried by `../protocol/configuration/settings-output.md`, 1 and `../protocol/configuration/reference.md`
+, `../domain/agent/charter.md`, 3, smith's `protocol/limits-derivation.md`, 1.10,
 and jig's `domain/hosts/charters.md` and `../protocol/configuration/README.md`,
 section 5. The reference takes the permitted 63,740-byte fallback after
 `turn-in-transcript` refuses the larger pair. Its charter allowance is
@@ -24,7 +24,7 @@ and a 131,072-byte section is cut at the worker. The fake-program table
 reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/design/protocol/limits.status.md`, 11. The stock's figures stay as they are.
 
 - **Design lags:**
-  - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `notes.md`, N12, N13, N16 and N23, and `reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, and each delegate's result wakes the goal; `reference-case.md` still has the close-out land before the landing (its status). `reference-code-production.md` is read by tests and by stage one's judge (`temper/crates/temper-stage-one-tool/`), so folding this in changes their inputs.
+  - 1, 2, 3, 5, 7: `reference-code-production.md`, sections 1 to 5 and 12 to 14, with `reference-code-production.notes.md`, N12, N13, N16 and N23, and `archive/reference-case.md`: a goal's runs inspect, a designer's change writes every design, a spec is short and cites it, and each delegate's result wakes the goal; `archive/reference-case.md` still has the close-out land before the landing (its status). `reference-code-production.md` is read by tests and by stage one's judge (`temper/crates/temper-stage-one-tool/`), so folding this in changes their inputs.
   - 2, 7: `../protocol/configuration/reference.md`: the reference's charters: the goal's and the designer's words and wake policy, the goal without a shell.
   - 9: `../protocol/configuration/stock.md`: stock instructions are held in `temper-service`'s source.
 - **Design departs:**
@@ -33,8 +33,8 @@ reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/
     nowhere. `stock-charters.md`, 3 retires it, the user's draft of
     2026-11-12; this draft's foreman lines are rewritten by hand once that
     draft's first milestone lands (`stock-charters.execution.md`, 3), and
-    `notes.md`, N1 keeps the reasons.
-  - 2, 7, 10: `goal-runs-itself.md`, sections 1 to 7, replaces the
+    `reference-code-production.notes.md`, N1 keeps the reasons.
+  - 2, 7, 10: `archive/goal-runs-itself.md`, sections 1 to 7, replaces the
     agent's landing, close-out and finish with a closer: jig makes it
     when nothing is left to await, and temper settles the status tags,
     lands the goal and reports (`../domain/forge/branches.md`, 2). The design

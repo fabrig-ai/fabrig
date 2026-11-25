@@ -27,6 +27,8 @@ pub struct Me {
     pub redirect_bytes: u32,
     /// The most bytes a party's words may have: a task's spec, a message, an answer.
     pub words_bytes: u32,
+    /// When the sign-in reading this document expires.
+    pub sign_in_expires: Wall,
 }
 
 /// The authenticated identity, with independently supplied local text loss.
@@ -81,7 +83,7 @@ pub struct Creating {
     pub within: CreateBounds,
     pub beyond: Beyond,
 }
-/// A configured template merged with its project's overrides (protocol/configuration.md, 3.1).
+/// A configured template merged with its project's overrides (protocol/configuration-templates.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
     pub resources: List<super::Symbol>,

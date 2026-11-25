@@ -44,7 +44,7 @@ without changing it. Reading and showing them come after (section 6).
   each limit a call meets. Apart, a usage report rewrites a small
   record, and the account's format never moves for a provider's news.
 - **Keyed by the account,** in the accounts' family, the next key tag
-  after the issued sign-ins (`../protocol/store/README.md`, 4.4): at most one
+  after the issued sign-ins (`../protocol/store/keys.md`, 1.4): at most one
   record per account.
 - **Gone with the account;** an account moved to another deployment
   (`../domain/accounts.md`, 6) moves without its facts, which its next
@@ -68,8 +68,8 @@ without changing it. Reading and showing them come after (section 6).
 - **Where each comes from** is each provider's design, in its adapter:
   OpenAI's ID token claims, of which skein reads none beyond `sub`
   today (skein's `oauth/README.md`, 2.2); Claude Code's status and its
-  rate-limit events (smith's `protocol/programs.md`, 5.6); a limit
-  error's reset (skein's `llm/README.md`, 4.8).
+  rate-limit events (smith's `protocol/programs-claude-code.md`, 1.6); a limit
+  error's reset (skein's `llm/wire.md`, 1.8).
 - **A fact no source reports is absent,** never guessed, as a reset is
   never guessed (`../domain/providers.md`, 2.6).
 - **Origins** are registered alike: 1 a sign-in, 2 a refresh, 3 a
@@ -157,8 +157,8 @@ The draft takes the third.
 
 - **A provider's usage read,** polled, where one is documented.
 - **Money:** credits or a balance, a new shape.
-- **Choosing an account by its headroom** (`../domain/accounts.md`,
-  4.3), once usage windows are kept.
+- **Choosing an account by its headroom** (`../domain/accounts-uses.md`,
+  1.3), once usage windows are kept.
 
 ## 8. Open questions
 

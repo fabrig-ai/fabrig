@@ -1,4 +1,4 @@
-//! History through a registry and job upgrade (temper/docs/design/testing/README.md, 2.5).
+//! History through a registry and job upgrade (temper/docs/design/testing/tiers.md, 1.5).
 mod cuts;
 mod history;
 mod image;
@@ -31,6 +31,9 @@ impl Harness for Upgrade {
     type Process = HarnessProcess;
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         Some(STATE.with(|s| if s.borrow().upgrade { CURRENT_SETS } else { first_sets() }))
+    }
+    fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
+        Some(crate::schemas::binary_schemas())
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()
@@ -86,9 +89,9 @@ struct State {
     users: Vec<(u64, Box<[u8]>)>,
     kept_answer: Vec<u8>,
     stopped_wall: Option<Wall>,
+    upgrade_started: Option<Wall>,
     points: cuts::Points,
     epoch: u32,
-    epoch_floor: Option<u64>,
     transport: Option<temper_fake_git_hosted::Typed>,
     end_after_kill: bool,
     killed: bool,
@@ -127,7 +130,6 @@ impl Observe for Observer {
                     store.recovering();
                     store.agent_records.clear();
                 });
-                s.epoch_floor = None;
                 s.checked = false;
             }
         });
@@ -183,20 +185,10 @@ impl Observe for Observer {
                 state.stopped_wall = Some(wall);
             }
             if state.upgrade && !state.checked {
-                let wires = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().wires);
-                if state.epoch_floor.is_none() {
-                    state.epoch_floor = STORE.with(|s| {
-                        s.borrow().as_ref().expect("store").borrow().restored.as_ref().and_then(|rows| {
-                            rows.values().find_map(|r| match r {
-                                temper_engine_domain::Record::Core(Record::Core(CoreRecord::Deployment(header))) => {
-                                    Some(header.commits)
-                                }
-                                _ => None,
-                            })
-                        })
-                    });
-                }
-                if wires.is_some_and(|n| n > state.epoch_floor.unwrap_or(u64::MAX)) {
+                // Keep the first start's wall across a power-loss restart.
+                let started = *state.upgrade_started.get_or_insert(wall);
+                let synced_wires = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().synced_wires);
+                if synced_wires {
                     let after = Maps::read(&mut state.disk.as_ref().expect("disk").borrow_mut());
                     let before = state.before.as_ref().expect("stop snapshot");
                     let source = Maps::generation(&mut state.disk.as_ref().expect("disk").borrow_mut(), before.active);
@@ -206,7 +198,11 @@ impl Observe for Observer {
                         &mut state.disk.as_ref().expect("disk").borrow_mut(),
                         before.active,
                     );
-                    history(before, &after);
+                    assert!(
+                        started >= state.stopped_wall.expect("wall at stop"),
+                        "the upgrade does not turn back time"
+                    );
+                    history(before, &after, started);
                     state.points.wires.get_or_insert(self.inner.submitted);
                     state.checked = true;
                 }

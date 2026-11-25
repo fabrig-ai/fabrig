@@ -40,20 +40,6 @@ fn end_to_end_diff() {
 }
 
 #[test]
-fn end_to_end_render_resolve() {
-    let repository = fixtures::recorded_test_min("end-to-end-render-resolve");
-    let store = repository.scratch().path().join("store");
-    let ended = fixtures::binary(
-        env!("CARGO_BIN_EXE_hearth").as_ref(),
-        &["render".as_ref(), "--resolve".as_ref(), "test-min".as_ref(), "--store".as_ref(), store.as_os_str()],
-        &[],
-        repository.work_tree(),
-    );
-    assert!(fixtures::lines_starting(&ended.stdout, &["packages "]).ends_with("resolution 21e9a02feb65 known\n"));
-    assert_eq!(ended.exit, Some(Exit::Code(0)), "stderr: {}", String::from_utf8_lossy(&ended.stderr));
-}
-
-#[test]
 fn end_to_end_build() {
     let repository = fixtures::recorded_test_min("end-to-end-build");
     let store = repository.scratch().path().join("store");
@@ -83,9 +69,11 @@ fn end_to_end_build() {
         &[],
         repository.work_tree(),
     );
+    assert!(fixtures::lines_starting(&rendered.stdout, &["packages "]).ends_with("resolution 21e9a02feb65 known\n"));
+    assert_eq!(rendered.exit, Some(Exit::Code(0)), "stderr: {}", String::from_utf8_lossy(&rendered.stderr));
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["keys "]),
         "keys         packages d018a0eea488   software f60610453970   config 8c9bf06f6262\n",
-        "hearth/docs/design/domain/store/README.md, 3.3: render's keys are the build's"
+        "hearth/docs/design/domain/store/digests.md, 1.3: render's keys are the build's"
     );
 }

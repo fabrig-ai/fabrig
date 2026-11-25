@@ -54,22 +54,16 @@ pub(crate) fn route(
                         held(decision, Output::Load { phase, range: Range::People });
                     }
                 }
-                Phase::Switch => held(decision, Output::Switch),
+                Phase::Switch => {
+                    if domain.rehearsing {
+                        domain.rehearsed = true;
+                    } else {
+                        held(decision, Output::Switch);
+                    }
+                }
                 Phase::AdoptRuns => {
                     work.push(Work::StartDone(phase));
                 }
-                Phase::ReadAfresh { connector } => match jig_ops_domain_connectors::connector(connector) {
-                    Some(Connector::Infrastructure) => {
-                        work.push(Work::Infrastructure(infrastructure::Event::ReadAfresh));
-                    }
-                    Some(Connector::Observability) => work.push(Work::Observability(observability::Event::ReadAfresh)),
-                    None => domain.start.state = crate::domain::StartState::Stopped,
-                },
-                Phase::SettleOutbox { connector } => match jig_ops_domain_connectors::connector(connector) {
-                    Some(Connector::Infrastructure) => work.push(Work::Infrastructure(infrastructure::Event::Restart)),
-                    Some(Connector::Observability) => work.push(Work::Observability(observability::Event::Restart)),
-                    None => domain.start.state = crate::domain::StartState::Stopped,
-                },
                 Phase::Open => {
                     work.push(Work::Infrastructure(infrastructure::Event::SendCloses));
                     work.push(Work::StartDone(phase));

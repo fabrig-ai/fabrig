@@ -14,6 +14,8 @@ use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
 
 struct World {
+    checks: temper_engine_domain_world::check::Run,
+    restart_config: engine::Config,
     creating: jig_test_profile::fixtures::Creating,
     root: engine::Domain,
     env: Env<engine::Limits>,
@@ -32,6 +34,14 @@ struct World {
     immediate: VecDeque<engine::Event>,
     /// Whether the funding period and the git identity were sent to the root once it was ready.
     started: bool,
+}
+
+impl Drop for World {
+    fn drop(&mut self) {
+        let result = if std::thread::panicking() { Ok(()) } else { self.finish_store_checks() };
+        eprintln!("{}", self.checks.counts().report());
+        result.unwrap_or_else(|finding| panic!("{finding}"));
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -284,6 +294,10 @@ impl World {
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
+            checks: temper_engine_domain_world::check::Run::new(jig_conformance::store_check::StoreChecks::one(
+                config.core.seed,
+            )),
+            restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -476,6 +490,10 @@ impl World {
     }
 
     fn tick(&mut self) {
+        self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn try_tick(&mut self) -> Result<(), String> {
         self.env.now = self.env.now.saturating_add(Duration::from_millis(100));
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.fake_env.now = self.env.now;
@@ -484,7 +502,9 @@ impl World {
             self.send(event);
         }
         if !self.store.pending.is_empty() {
+            let previous = self.store.applied;
             let number = self.store.apply();
+            self.check_commit(previous)?;
             self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
         }
         if !self.started && self.root.ready() {
@@ -492,7 +512,7 @@ impl World {
             let period = engine::PartyInput::Period { project: 1, period: 1, budget: 1000, next: None };
             self.send(engine::Event::Party(period));
             // The repository's git identity, an application credential from
-            // temper's own source (domain/root.md, 6.1).
+            // temper's own source (domain/root-translation.md, 2.1).
             self.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         }
         if self.fake.is_due(self.fake_env.now) {
@@ -525,6 +545,15 @@ impl World {
         self.flush();
         self.root.reclaim();
         self.fake.reclaim();
+        Ok(())
+    }
+
+    fn check_commit(&mut self, previous: u64) -> Result<(), String> {
+        self.checks.committed(&self.store, &self.restart_config, &self.env, previous)
+    }
+
+    fn finish_store_checks(&mut self) -> Result<(), String> {
+        self.checks.finish(&self.restart_config)
     }
 
     fn until(&mut self, target: Until) {

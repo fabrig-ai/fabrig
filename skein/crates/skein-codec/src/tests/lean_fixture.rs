@@ -8,8 +8,13 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 7;
+pub const LAYOUT: [u8; 32] = [
+    0x43, 0x57, 0xf3, 0xad, 0x06, 0x25, 0x19, 0xb3, 0x17, 0xea, 0x66, 0x48, 0x03, 0x9f, 0xfc, 0x5f, 0x4b, 0x4a, 0xad,
+    0x00, 0x87, 0x95, 0x56, 0x93, 0x96, 0xe2, 0x9d, 0x2f, 0xbe, 0x9f, 0x8e, 0x3f,
+];
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub words_words: u32,
@@ -38,13 +43,25 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.words_words).expect("room for every named limit");
-        values.push(self.nested_words).expect("room for every named limit");
-        values.push(self.nested_words_item_some).expect("room for every named limit");
-        values.push(self.nested_maybe_some).expect("room for every named limit");
-        values.push(self.nested_records).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.words_words,
+            self.nested_words,
+            self.nested_words_item_some,
+            self.nested_maybe_some,
+            self.nested_records,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            words_words: self.words_words.min(most),
+            nested_words: self.nested_words.min(most),
+            nested_words_item_some: self.nested_words_item_some.min(most),
+            nested_maybe_some: self.nested_maybe_some.min(most),
+            nested_records: self.nested_records.min(most),
+        }
     }
 }
 
@@ -65,95 +82,20 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const EMPTY_TAIL: Path = Path::new(0, 0);
-    pub const WORDS_WORDS: Path = Path::new(1, 0);
-    pub const WORDS_TAIL: Path = Path::new(1, 1);
-    pub const CHOICE_TAG: Path = Path::new(2, 0);
-    pub const ROW_CHOICE: Path = Path::new(3, 0);
-    pub const ROW_VERSION: Path = Path::new(3, 1);
-    pub const ROW_TAIL: Path = Path::new(3, 2);
-    pub const NESTED_WORDS: Path = Path::new(4, 0);
-    pub const NESTED_MAYBE: Path = Path::new(4, 1);
-    pub const NESTED_RECORDS: Path = Path::new(4, 2);
-    pub const NESTED_TAIL: Path = Path::new(4, 3);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Empty (tail)",
-    ],
-    &[
-        "Words.words",
-        "Words (tail)",
-    ],
-    &[
-        "Choice (tag)",
-    ],
-    &[
-        "Row.choice",
-        "Row (version)",
-        "Row (tail)",
-    ],
-    &[
-        "Nested.words",
-        "Nested.maybe",
-        "Nested.records",
-        "Nested (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Boxed { item: 2, size: size_of::<Words>() },
-    skein_codec::bounds::Node::Enum { variants: &[3, 2, 4] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[5] },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Option { item: 7 },
-    skein_codec::bounds::Node::List { limit: 1, item: 8, size: size_of::<Option<Box<[u8]>>>() },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::List { limit: 3, item: 10, size: size_of::<u16>() },
-    skein_codec::bounds::Node::Option { item: 11 },
-    skein_codec::bounds::Node::List { limit: 4, item: 2, size: size_of::<Words>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[9, 12, 13] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    0,
-    2,
-    5,
-    6,
-    14,
-];
-
-const CEILING_VALUES: &[u32] = &[
-    3,
-    2,
-    3,
-    2,
-    2,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const EMPTY_TAIL: Path = Path::new("Empty (tail)");
+    pub const WORDS_WORDS: Path = Path::new("Words.words");
+    pub const WORDS_TAIL: Path = Path::new("Words (tail)");
+    pub const CHOICE_TAG: Path = Path::new("Choice (tag)");
+    pub const ROW_CHOICE: Path = Path::new("Row.choice");
+    pub const ROW_VERSION: Path = Path::new("Row (version)");
+    pub const ROW_TAIL: Path = Path::new("Row (tail)");
+    pub const NESTED_WORDS: Path = Path::new("Nested.words");
+    pub const NESTED_MAYBE: Path = Path::new("Nested.maybe");
+    pub const NESTED_RECORDS: Path = Path::new("Nested.records");
+    pub const NESTED_TAIL: Path = Path::new("Nested (tail)");
 }
 
 // Type: Empty.
@@ -162,16 +104,25 @@ pub struct Empty {
 }
 
 // Record: Empty.
+impl Empty {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 0;
+}
+
 impl Record for Empty {
     type Limits = Limits;
     const TAIL: Path = paths::EMPTY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Empty")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Empty")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -200,16 +151,35 @@ pub struct Words {
 }
 
 // Record: Words.
+impl Words {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, words_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Words {
     type Limits = Limits;
     const TAIL: Path = paths::WORDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Words")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Words")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -233,16 +203,38 @@ pub enum Choice {
 }
 
 // Record: Choice.
+impl Choice {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("Words"),
+        skein_codec::bounds::Node::Named("Words"),
+        skein_codec::bounds::Node::Boxed { item: 2, size: size_of::<Words>() },
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 5;
+}
+
 impl Record for Choice {
     type Limits = Limits;
     const TAIL: Path = paths::CHOICE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Choice")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Choice")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -271,16 +263,26 @@ pub struct Row {
 }
 
 // Record: Row.
+impl Row {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Choice"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 7;
+}
+
 impl Record for Row {
     type Limits = Limits;
     const TAIL: Path = paths::ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Row")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Row")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -315,16 +317,33 @@ pub struct Nested {
 }
 
 // Record: Nested.
+impl Nested {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, nested_words_item_some) },
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nested_words), item: 1, size: size_of::<Option<Box<[u8]>>>() },
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nested_maybe_some), item: 3, size: size_of::<u16>() },
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Named("Words"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nested_records), item: 6, size: size_of::<Words>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[2, 5, 7] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 13;
+}
+
 impl Record for Nested {
     type Limits = Limits;
     const TAIL: Path = paths::NESTED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Nested")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Nested")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -352,3 +371,29 @@ impl Record for Nested {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Choice", nodes: Choice::SHAPE },
+    skein_codec::bounds::Declaration { name: "Empty", nodes: Empty::SHAPE },
+    skein_codec::bounds::Declaration { name: "Nested", nodes: Nested::SHAPE },
+    skein_codec::bounds::Declaration { name: "Row", nodes: Row::SHAPE },
+    skein_codec::bounds::Declaration { name: "Words", nodes: Words::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.words_words,
+    CEILINGS.nested_words,
+    CEILINGS.nested_words_item_some,
+    CEILINGS.nested_maybe_some,
+    CEILINGS.nested_records,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

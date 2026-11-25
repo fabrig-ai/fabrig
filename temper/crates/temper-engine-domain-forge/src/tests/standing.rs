@@ -60,6 +60,8 @@ fn fixture() -> (Domain, ChangeEvidence) {
         reviews_complete: true,
     };
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
     (d, evidence)
 }
 
@@ -97,9 +99,11 @@ fn landing(d: &mut Domain) {
         .insert(
             61,
             LandingRow {
+                read_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,
+                follows: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,
@@ -927,9 +931,7 @@ fn path_rules_select_merge_waits_gates_panels_and_approval_rows() {
 
 fn queued_fixture() -> Domain {
     let (mut d, _) = fixture();
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+
     fixtures::connect(&mut d);
     let row = d.changes.get_mut(&CHANGE).expect("change");
     row.pending = None;
@@ -1065,8 +1067,8 @@ fn approval_waits_keep_only_the_size_read_at_the_reviewed_head() {
         let mut d = fixtures::connected_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let mut required = rule();
         required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]);
         keep(&mut d, 0, 1, required);

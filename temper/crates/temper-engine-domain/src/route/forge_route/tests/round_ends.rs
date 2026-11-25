@@ -317,8 +317,7 @@ impl Round {
             state: forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
         });
         self.send(forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        self.send(forge::Event::ReadAfresh);
-        self.send(forge::Event::SettleOutbox);
+        self.send(forge::Event::CatchUp);
     }
     fn send(&mut self, event: forge::Event) -> Queue<forge::Request> {
         let mut out = Queue::uncapped();
@@ -464,6 +463,7 @@ impl Round {
             &mut self.domain.core.tasks,
             &self.env.with(self.env.limits.tasks),
             tasks::Event::Procedure {
+                reads_project: false,
                 reply_to: ReplyTo::new(Token::new(999)),
                 task: self.task,
                 step,

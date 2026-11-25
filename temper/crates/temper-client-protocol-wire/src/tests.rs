@@ -13,7 +13,7 @@ use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 
-/// A version is its schema's family line (jig/docs/design/protocol/client/README.md, section 6).
+/// A version is its schema's family line (jig/docs/design/protocol/client/versions.md, section 1).
 #[test]
 fn version_constants_match_their_schemas() {
     let client = &skein_codegen::values(crate::CLIENT_SCHEMA).schema;
@@ -82,7 +82,7 @@ fn each_outcome_round_trips_unchanged() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one expected literal pins every wire bound to its source")]
 fn limits_take_each_bound_from_its_source_field() {
-    // A table full at every bound (temper/docs/design/protocol/configuration/settings.md, 2).
+    // A table full at every bound (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     const ITEMS: u32 = 20;
     const SETS: u8 = 6;
     const WORDS_BYTES: usize = 120;
@@ -306,8 +306,7 @@ fn a_change_panel_of_another_version_is_refused() {
 fn a_change_panel_refuses_trailing_bytes_and_a_zero_queue_place() {
     let limits = fixtures::limits();
     for (row, place, trailing) in [("first", 1, false), ("zero", 0, false), ("trailing", 1, true)] {
-        let parts =
-            v1::ChangePanel { step: v1::Step::Queued(fixtures::queued(place, 0, &limits)), ..fixtures::panel_parts() };
+        let parts = v1::ChangePanel { step: v1::Step::Queued(fixtures::queued(place, 0)), ..fixtures::panel_parts() };
         let panel = parts;
         let bytes = crate::change_panel(&panel);
         let bytes = if trailing { fixtures::trailing(&bytes) } else { bytes };
@@ -394,6 +393,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
     for number in numbers {
         forges
             .push(v1::ForgeRow {
+                catching_up: None,
                 starts_with: v1::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -419,11 +419,40 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
 }
 
 #[test]
+fn catching_up_round_trips_on_both_documents_at_version_46() {
+    assert_eq!(crate::CLIENT_VERSION, 47);
+    let progress =
+        v1::CatchingUp { fresh: 3, gathers: 4, ci: 5, goal_files: 6, lost_writers: 7, goal_branches: 8, uncertain: 2 };
+    for catching_up in [None, Some(progress)] {
+        let mut forges = forges_rows(&[1], &v1::Connection::NotConnected);
+        forges.forges.get_mut(0).unwrap().catching_up = catching_up.clone();
+        let bytes = crate::forges(&forges);
+        assert_eq!(crate::decode_forges(&bytes, &v1::CEILINGS), Some(forges));
+        let panel = v1::ChangesPanel {
+            project: 1,
+            landing: b"main".as_slice().into(),
+            queues: List::with_capacity(0),
+            more: 0,
+            landed: List::with_capacity(0),
+            landed_more: 0,
+            landed_default: List::with_capacity(0),
+            landed_default_more: 0,
+            catching_up,
+        };
+        let mut bytes = crate::changes_panel(&panel);
+        assert_eq!(crate::decode_changes_panel(&bytes, &v1::CEILINGS), Some(panel));
+        *bytes.get_mut(1).unwrap() = 41;
+        assert_eq!(crate::decode_changes_panel(&bytes, &v1::CEILINGS), None);
+    }
+}
+
+#[test]
 fn each_forge_offer_round_trips() {
     let limits = fixtures::limits();
     let mut forges = List::with_capacity(3);
     for (number, offer) in [(1, v1::Offer::NotOffered), (2, v1::Offer::NotUnderTheBox), (3, v1::Offer::Offered)] {
         let row = v1::ForgeRow {
+            catching_up: None,
             starts_with: v1::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -524,6 +553,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         v1::Connection::Stopped(v1::Stopped { reason: fixtures::field_bytes(17) }),
     ] {
         let row = v1::ForgeRow {
+            catching_up: None,
             starts_with: v1::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -562,6 +592,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
         rows.push(row).expect("room");
     }
     rows.push(v1::ForgeRow {
+        catching_up: None,
         starts_with: v1::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -642,6 +673,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     [v1::Connection::Connected(connected.clone()), v1::Connection::Stopped(stopped.clone())]
                 {
                     let row = v1::ForgeRow {
+                        catching_up: None,
                         starts_with: v1::StartsWith::Repository,
                         makings: List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
@@ -767,6 +799,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRow {
             .unwrap();
     }
     v1::ForgeRow {
+        catching_up: None,
         starts_with: v1::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -791,8 +824,8 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRow {
 fn installation_row_bytes(parts: v1::ForgeRow, why: &[u8]) -> Box<[u8]> {
     // Number (2), host length (4) and bytes, four enum tags, first tag, starts-with tag, list length (4), end tag, why length (4),
     // app tag, web tag, repositories length (4), owned tag, admin bool, typed stop tag, read-only bool,
-    // makings length (4).
-    const ROW_FRAMING_BYTES: usize = 35;
+    // makings length (4), catching-up tag.
+    const ROW_FRAMING_BYTES: usize = 36;
     let mut size = why.len().checked_add(ROW_FRAMING_BYTES).unwrap().checked_add(parts.host.len()).unwrap();
     for installation in &parts.installations {
         size = size
@@ -822,6 +855,7 @@ fn installation_row_bytes(parts: v1::ForgeRow, why: &[u8]) -> Box<[u8]> {
     writer.put(&[0]).unwrap(); // no owned details
     writer.put(&[0, 0, 0]).unwrap(); // admin false, no typed stop, read-only false
     writer.put(&0_u32.to_be_bytes()).unwrap(); // no repository makings
+    writer.put(&[0]).unwrap(); // not catching up
     writer.finish()
 }
 #[test]
@@ -958,11 +992,12 @@ fn first_label_accepts_64_bytes_and_refuses_one_more() {
 }
 
 #[test]
-fn landing_panels_round_trip_smallest_and_full_goldens() {
-    for (bytes, full) in
-        [(golden("record_landing_panel_smallest.bin"), false), (golden("record_landing_panel_full.bin"), true)]
-    {
-        let panel = crate::decode_landing_panel(bytes, &v1::CEILINGS).expect("landing golden");
+fn landing_panels_round_trip_smallest_and_full_fixed_values() {
+    for (bytes, full) in [
+        (fixed_value("record_landing_panel_smallest.bin"), false),
+        (fixed_value("record_landing_panel_full.bin"), true),
+    ] {
+        let panel = crate::decode_landing_panel(bytes, &v1::CEILINGS).expect("landing fixed-rule value");
         assert_eq!(crate::landing_panel(&panel).as_ref(), bytes);
         assert_eq!(panel.waits.is_some(), full);
         if let Some(wait) = &panel.waits {
@@ -972,11 +1007,12 @@ fn landing_panels_round_trip_smallest_and_full_goldens() {
     }
 }
 #[test]
-fn landings_panels_round_trip_smallest_and_full_goldens() {
-    for (bytes, full) in
-        [(golden("record_landings_panel_smallest.bin"), false), (golden("record_landings_panel_full.bin"), true)]
-    {
-        let panel = crate::decode_landings_panel(bytes, &v1::CEILINGS).expect("landings golden");
+fn landings_panels_round_trip_smallest_and_full_fixed_values() {
+    for (bytes, full) in [
+        (fixed_value("record_landings_panel_smallest.bin"), false),
+        (fixed_value("record_landings_panel_full.bin"), true),
+    ] {
+        let panel = crate::decode_landings_panel(bytes, &v1::CEILINGS).expect("landings fixed-rule value");
         assert_eq!(crate::landings_panel(&panel).as_ref(), bytes);
         assert_eq!(panel.now != 0, full);
         assert_eq!(panel.turn_since.is_some(), full);
@@ -1004,8 +1040,8 @@ fn landing_watches_round_trip_without_trailing_bytes() {
 
 #[test]
 fn changes_panel_round_trips() {
-    for bytes in [golden("record_changes_panel_smallest.bin"), golden("record_changes_panel_full.bin")] {
-        let panel = crate::decode_changes_panel(bytes, &v1::CEILINGS).expect("changes golden");
+    for bytes in [fixed_value("record_changes_panel_smallest.bin"), fixed_value("record_changes_panel_full.bin")] {
+        let panel = crate::decode_changes_panel(bytes, &v1::CEILINGS).expect("changes fixed-rule value");
         assert_eq!(crate::changes_panel(&panel).as_ref(), bytes);
         assert_eq!(crate::decode_changes_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
@@ -1034,14 +1070,14 @@ fn ways_panel_round_trips() {
         let mut reader = Reader::new(&bytes);
         assert_eq!(v1::ProjectWords::decode(&limits, &mut reader), Ok(words.clone()));
         assert!(reader.is_empty());
-        let panel =
-            crate::decode_ways_panel(golden("record_ways_panel_smallest.bin"), &limits).expect("smallest ways panel");
+        let panel = crate::decode_ways_panel(fixed_value("record_ways_panel_smallest.bin"), &limits)
+            .expect("smallest ways panel");
         let panel = v1::WaysPanel { words: Some(words), ..panel };
         let bytes = crate::ways_panel(&panel);
         assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(&bytes), &limits), None);
     }
-    let panel = crate::decode_ways_panel(golden("record_ways_panel_full.bin"), &limits).unwrap();
+    let panel = crate::decode_ways_panel(fixed_value("record_ways_panel_full.bin"), &limits).unwrap();
     let mut parts = panel;
     let mut way = parts.ways.get(0).unwrap().clone();
     let item = way.items.get(0).unwrap().clone();
@@ -1066,8 +1102,8 @@ fn ways_panel_round_trips() {
     receiving = limits;
     receiving.way_role_words = 479;
     assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
-    for bytes in [golden("record_ways_panel_smallest.bin"), golden("record_ways_panel_full.bin")] {
-        let record = crate::decode_ways_panel(bytes, &v1::CEILINGS).expect("ways_panel golden");
+    for bytes in [fixed_value("record_ways_panel_smallest.bin"), fixed_value("record_ways_panel_full.bin")] {
+        let record = crate::decode_ways_panel(bytes, &v1::CEILINGS).expect("ways_panel fixed-rule value");
         assert_eq!(crate::ways_panel(&record).as_ref(), bytes);
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
@@ -1076,7 +1112,8 @@ fn ways_panel_round_trips() {
 #[test]
 fn ways_path_rules_accept_every_bound_and_refuse_one_past() {
     let limits = fixtures::limits();
-    let base = crate::decode_ways_panel(golden("record_ways_panel_smallest.bin"), &limits).expect("smallest panel");
+    let base =
+        crate::decode_ways_panel(fixed_value("record_ways_panel_smallest.bin"), &limits).expect("smallest panel");
     // At every bound together, then one past each bound independently.
     for (rows, paths, review, sign_off, lands, note, refused) in [
         (9, 256, 64, 64, 64, 160, None),
@@ -1129,8 +1166,8 @@ fn view_answer_round_trips() {
     let bytes = crate::reading(&read);
     assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
     assert_eq!(crate::decode_reading(&fixtures::trailing(&bytes), &limits), None);
-    for bytes in [golden("record_view_answer_smallest.bin"), golden("record_view_answer_full.bin")] {
-        let record = crate::decode_view_answer(bytes, &v1::CEILINGS).expect("view_answer golden");
+    for bytes in [fixed_value("record_view_answer_smallest.bin"), fixed_value("record_view_answer_full.bin")] {
+        let record = crate::decode_view_answer(bytes, &v1::CEILINGS).expect("view_answer fixed-rule value");
         assert_eq!(crate::view_answer(&record).as_ref(), bytes);
         assert_eq!(crate::decode_view_answer(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
@@ -1138,8 +1175,8 @@ fn view_answer_round_trips() {
 
 #[test]
 fn project_status_round_trips_and_refuses_trailing_bytes() {
-    for bytes in [golden("record_project_status_smallest.bin"), golden("record_project_status_full.bin")] {
-        let status = crate::decode_project_status(bytes, &v1::CEILINGS).expect("project status golden");
+    for bytes in [fixed_value("record_project_status_smallest.bin"), fixed_value("record_project_status_full.bin")] {
+        let status = crate::decode_project_status(bytes, &v1::CEILINGS).expect("project status fixed-rule value");
         assert_eq!(crate::project_status(&status).as_ref(), bytes);
         assert_eq!(crate::decode_project_status(&fixtures::trailing(bytes), &v1::CEILINGS), None);
         for unpaid in [false, true] {
@@ -1676,8 +1713,8 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
 
 #[test]
 fn aways_round_trip_and_refuse_trailing_bytes() {
-    for bytes in [golden("record_aways_smallest.bin"), golden("record_aways_full.bin")] {
-        let record = crate::decode_aways(bytes, &v1::CEILINGS).expect("aways golden");
+    for bytes in [fixed_value("record_aways_smallest.bin"), fixed_value("record_aways_full.bin")] {
+        let record = crate::decode_aways(bytes, &v1::CEILINGS).expect("aways fixed-rule value");
         assert_eq!(crate::aways(&record).as_ref(), bytes);
         assert_eq!(crate::decode_aways(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
@@ -1685,8 +1722,8 @@ fn aways_round_trip_and_refuse_trailing_bytes() {
 
 #[test]
 fn decisions_round_trip_and_refuse_trailing_bytes() {
-    for bytes in [golden("record_decisions_smallest.bin"), golden("record_decisions_full.bin")] {
-        let record = crate::decode_decisions(bytes, &v1::CEILINGS).expect("decisions golden");
+    for bytes in [fixed_value("record_decisions_smallest.bin"), fixed_value("record_decisions_full.bin")] {
+        let record = crate::decode_decisions(bytes, &v1::CEILINGS).expect("decisions fixed-rule value");
         assert_eq!(crate::decisions(&record).as_ref(), bytes);
         assert_eq!(crate::decode_decisions(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
@@ -2046,8 +2083,8 @@ fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
     }
 }
 
-fn golden(name: &str) -> &'static [u8] {
-    let values = &skein_codegen::values(crate::CLIENT_SCHEMA).goldens;
+fn fixed_value(name: &str) -> &'static [u8] {
+    let values = &skein_codegen::values(crate::CLIENT_SCHEMA).fixed;
     for value in values {
         if value.name == name {
             return &value.bytes;

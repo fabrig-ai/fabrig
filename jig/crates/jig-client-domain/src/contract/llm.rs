@@ -87,7 +87,7 @@ pub enum LlmWhy {
     Repeated,
 }
 
-/// Why an explicit account cannot fund the prospective task (domain/accounts.md, 4.3).
+/// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AccountWhy {
     Unknown,

@@ -1,6 +1,6 @@
 //! Typed settings handoffs within the root's decision
 //! (temper/docs/design/domain/routing.md, 6;
-//! temper/docs/design/protocol/configuration/settings.md, 2).
+//! temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 use alloc::boxed::Box;
 use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::{Decimal, Env, List, Queue};
@@ -537,7 +537,10 @@ pub(super) fn read(
                     crate::ForgeReadAnswer::Milestone(super::milestones::read(domain, project, task))
                 }
                 crate::ForgeRead::Finding { project, number } => {
-                    crate::ForgeReadAnswer::Finding(super::findings::read(domain, project, number))
+                    crate::ForgeReadAnswer::Finding(match super::findings::read(domain, project, number) {
+                        Some(answer) => Some(Box::new(answer)),
+                        None => None,
+                    })
                 }
                 crate::ForgeRead::Limits { after } => {
                     crate::ForgeReadAnswer::Limits { after, held: domain.held_bytes() }

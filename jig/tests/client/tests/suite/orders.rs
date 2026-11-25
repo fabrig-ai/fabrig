@@ -1,5 +1,5 @@
 //! Orders at the client's application, transport and store boundaries
-//! (jig/docs/design/client/domain/client/README.md, 3 and jig/docs/design/client/domain/client/requests.md and jig/docs/design/client/domain/client/README.md, 6 and 8;
+//! (jig/docs/design/client/domain/client/README.md, 3 and jig/docs/design/client/domain/client/requests.md and jig/docs/design/client/domain/client/README.md, 6, and jig/docs/design/client/domain/client/small-store.md, 1;
 //! jig/docs/design/client/domain/root.md, 3 and 5).
 mod world;
 
@@ -62,6 +62,8 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
             ("read_a", read(A, PROJECT)),
             ("read_b", read(B, PROJECT)),
             ("credentials", Command::credentials()),
+            ("reopened_hello", Command::Hello),
+            ("reopened_store", Command::AckAll),
             ("stale", Command::ReleaseReads),
             ("next", read(C, PROJECT)),
             ("http_terminals", Command::ReleaseWatchExchanges),

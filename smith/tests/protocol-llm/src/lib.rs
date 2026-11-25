@@ -2,12 +2,13 @@
 pub mod client_peer;
 pub mod codec;
 mod component_backend;
+mod faults;
 pub mod fixture;
 pub mod pool_peer;
 pub mod referee;
 mod world;
 
-pub use component_backend::{Call, Terminal};
+pub use component_backend::{Call, Peer, Protocol, Terminal};
 pub use smith_agent_world::{
     Boundary, CompletionObservation, CompletionTerminal, DeliverySubmission, HostReply, HostSchedule, JOBS, Job,
     Settings, delivered, host_referee, messages_referee, script,

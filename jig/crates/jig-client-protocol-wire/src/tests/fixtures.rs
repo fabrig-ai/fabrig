@@ -11,6 +11,10 @@ use skein_lib::{List, Writer};
 pub use stream::*;
 pub use task_values::task;
 
+// The all-zero Task includes two absent option tags, a four-byte empty waits list prefix,
+// and a four-byte zero wait count.
+const TASK_ZERO_BYTES: u32 = 291;
+
 pub fn limits() -> Limits {
     limits_with_activity_bytes(CEILINGS.activity_page_rows)
 }
@@ -150,13 +154,13 @@ pub fn activity_rows(count: u32, width: u32) -> List<DecodedActivityLine> {
     rows
 }
 
-pub fn activity_page(_limits: &Limits, rows: Box<[u8]>) -> ActivityPage {
+pub fn activity_page(rows: Box<[u8]>) -> ActivityPage {
     ActivityPage { cut: true, rows, before: None, after: None }
 }
 
-pub fn encoded_activity_page(limits: &Limits, rows: &List<DecodedActivityLine>) -> Box<[u8]> {
+pub fn encoded_activity_page(rows: &List<DecodedActivityLine>) -> Box<[u8]> {
     let rows = piece_items(rows);
-    encoded(&activity_page(limits, rows))
+    encoded(&activity_page(rows))
 }
 
 fn next_activity_row(
@@ -218,28 +222,23 @@ pub fn document_text(limits: &Limits) -> DocumentText {
     DocumentText { bytes: ceiling_text(limits.document_text_bytes), cut: true }
 }
 
-pub fn numbers(_limits: &Limits) -> Numbers {
+pub fn numbers() -> Numbers {
     Numbers { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 }
 }
 
-pub fn funder_period(_limits: &Limits) -> FunderPeriod {
+pub fn funder_period() -> FunderPeriod {
     FunderPeriod { project: u32::MAX, period: u64::MAX }
 }
 
-pub fn budget(limits: &Limits) -> Budget {
-    Budget {
-        numbers: numbers(limits),
-        left: u64::MAX,
-        funder: Funder::Period(funder_period(limits)),
-        deadline: Some(u64::MAX),
-    }
+pub fn budget() -> Budget {
+    Budget { numbers: numbers(), left: u64::MAX, funder: Funder::Period(funder_period()), deadline: Some(u64::MAX) }
 }
 
-pub fn pool_ledger(limits: &Limits) -> PoolLedger {
+pub fn pool_ledger() -> PoolLedger {
     PoolLedger {
-        source: Funder::Period(funder_period(limits)),
-        parent: Some(Funder::Task(funder_task(limits))),
-        numbers: numbers(limits),
+        source: Funder::Period(funder_period()),
+        parent: Some(Funder::Task(funder_task())),
+        numbers: numbers(),
         left: u64::MAX,
         closed: true,
         began: Some(u64::MAX),
@@ -247,11 +246,11 @@ pub fn pool_ledger(limits: &Limits) -> PoolLedger {
     }
 }
 
-pub fn funder_task(_limits: &Limits) -> FunderTask {
+pub fn funder_task() -> FunderTask {
     FunderTask { value: u64::MAX }
 }
 
-pub fn held_role_policy(_limits: &Limits) -> HeldRolePolicy {
+pub fn held_role_policy() -> HeldRolePolicy {
     HeldRolePolicy { role: u32::MAX }
 }
 
@@ -265,8 +264,8 @@ pub fn project_role(limits: &Limits) -> MeProject {
         creating: None,
         project: u32::MAX,
         name: document_text(limits),
-        role: HeldRole::Policy(held_role_policy(limits)),
-        pool: Some(pool_ledger(limits)),
+        role: HeldRole::Policy(held_role_policy()),
+        pool: Some(pool_ledger()),
     }
 }
 
@@ -274,29 +273,29 @@ pub fn frame_party(limits: &Limits) -> MeParty {
     MeParty { number: u64::MAX, kind: PartyKind::Service, login: document_text(limits), name: document_text(limits) }
 }
 
-pub fn needs(_limits: &Limits) -> Needs {
+pub fn needs() -> Needs {
     Needs { questions: u32::MAX, proposals: u32::MAX, escalations: u32::MAX, person_tasks: u32::MAX }
 }
 
-pub fn count(_limits: &Limits) -> Count {
+pub fn count() -> Count {
     Count { value: u32::MAX, limited: true }
 }
 
-pub fn run_state(_limits: &Limits) -> RunState {
+pub fn run_state() -> RunState {
     RunState { task: u64::MAX, attempt: Some(u64::MAX), committed_turn: u32::MAX, writing: None, call: None }
 }
 
-pub fn revision(_limits: &Limits) -> Revision {
+pub fn revision() -> Revision {
     Revision { value: u64::MAX }
 }
 
-pub fn wake_rule_batch(_limits: &Limits) -> WakeRuleBatch {
+pub fn wake_rule_batch() -> WakeRuleBatch {
     WakeRuleBatch { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) }
 }
 
-pub fn wake_policy(limits: &Limits) -> WakePolicy {
+pub fn wake_policy() -> WakePolicy {
     WakePolicy {
-        words: WakeRule::Batch(wake_rule_batch(limits)),
+        words: WakeRule::Batch(wake_rule_batch()),
         notices: WakeRule::Immediate,
         news: WakeRule::Paced(WakeRulePaced { span: skein_lib::Duration::from_nanos(u64::MAX) }),
         results: ResultsWake::LastOrFailure,
@@ -306,31 +305,31 @@ pub fn wake_policy(limits: &Limits) -> WakePolicy {
     }
 }
 
-pub fn chip_executor_agent(_limits: &Limits) -> ChipExecutorAgent {
+pub fn chip_executor_agent() -> ChipExecutorAgent {
     ChipExecutorAgent { charter: u32::MAX }
 }
 
-pub fn chip_phase_owner_fields(_limits: &Limits) -> ChipPhaseOwnerFields {
+pub fn chip_phase_owner_fields() -> ChipPhaseOwnerFields {
     ChipPhaseOwnerFields { phase: ChipPhase::Ended, details: 2 }
 }
 
-pub fn executor_agent(_limits: &Limits) -> ExecutorAgent {
+pub fn executor_agent() -> ExecutorAgent {
     ExecutorAgent { charter: u32::MAX }
 }
 
-pub fn chip_details_fields(limits: &Limits) -> ChipDetailsFields {
+pub fn chip_details_fields() -> ChipDetailsFields {
     ChipDetailsFields {
         dependencies: List::with_capacity(0),
         project: u32::MAX,
-        executor: Executor::Agent(executor_agent(limits)),
+        executor: Executor::Agent(executor_agent()),
         phase_since: u64::MAX,
         run_since: None,
         attempt: Some(u64::MAX),
         retry: None,
-        wake: wake_policy(limits),
+        wake: wake_policy(),
         person_wait: None,
         hold: None,
-        budget: budget(limits),
+        budget: budget(),
         activity: u64::MAX,
         resources: Box::from([]),
         resources_cut: true,
@@ -351,11 +350,12 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: u64::MAX,
         party: frame_party(limits),
         projects: piece_items(&repeated(project_role(limits), 2)),
-        needs: needs(limits),
+        needs: needs(),
         needs_total: u32::MAX,
-        updates: count(limits),
+        updates: count(),
         results_seen: u64::MAX,
         cut: true,
         retention: skein_lib::Duration::from_nanos(u64::MAX),
@@ -363,7 +363,7 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
     }
 }
 
-pub fn chip(_limits: &Limits, rows: &List<Fact>) -> Chip {
+pub fn chip(rows: &List<Fact>) -> Chip {
     let rows = piece_items(rows);
     Chip { rows }
 }
@@ -392,8 +392,8 @@ pub use compound::{COMPOUND_PROJECT, compound_operations};
 
 // The previous 111-byte minimum plus an empty name: four length bytes and its cut flag.
 
-pub fn chip_phases(limits: &Limits) -> [ChipPhaseOwnerFields; 1] {
-    [chip_phase_owner_fields(limits)]
+pub fn chip_phases() -> [ChipPhaseOwnerFields; 1] {
+    [chip_phase_owner_fields()]
 }
 pub fn chip_facts(limits: &Limits, phase: ChipPhaseOwnerFields) -> List<Fact> {
     let mut rows = List::with_capacity(3);
@@ -402,14 +402,14 @@ pub fn chip_facts(limits: &Limits, phase: ChipPhaseOwnerFields) -> List<Fact> {
         value: ChipFields {
             task: u64::MAX,
             title: document_text(limits),
-            executor: ChipExecutor::Agent(chip_executor_agent(limits)),
+            executor: ChipExecutor::Agent(chip_executor_agent()),
             phase: Phase::Ended,
             details: 1,
         },
     }))
     .expect("root row");
     rows.push(Fact::ChipPhase(ChipPhaseRow { parent: Some(0), value: phase })).expect("phase");
-    rows.push(Fact::ChipDetails(Box::new(ChipDetailsRow { parent: Some(1), value: chip_details_fields(limits) })))
+    rows.push(Fact::ChipDetails(Box::new(ChipDetailsRow { parent: Some(1), value: chip_details_fields() })))
         .expect("details");
     rows
 }

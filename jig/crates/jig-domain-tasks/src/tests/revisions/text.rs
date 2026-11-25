@@ -17,6 +17,7 @@ fn refuse_batch(spec: Spec) {
     let mut test = Harness::new();
     let member = crate::New { spec, ..task(TASK, &[]) };
     let out = test.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -30,6 +31,7 @@ fn refuse_amendment(spec: Spec) {
     let mut test = Harness::new();
     test.make(vec![task(TASK, &[])]);
     let out = test.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: None,
             task: TASK,

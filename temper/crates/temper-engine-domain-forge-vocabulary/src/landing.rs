@@ -1,11 +1,15 @@
-//! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–15).
-use crate::{Check, LandingEntry, LandingRow, Limits, Receipt, ReceiptKey};
+//! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10–15).
+use crate::{Check, LandingEntry, LandingFollow, LandingRow, Limits, Receipt, ReceiptKey};
 use core::mem::size_of;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as policy;
 
 pub fn slots(l: &Limits) -> Option<u32> {
     l.landings.checked_mul(l.landing_members)?.checked_mul(l.gates)
+}
+/// A row may own flights from prior rounds, plus one ended mark per current gate position.
+pub fn follow_slots(l: &Limits) -> Option<u32> {
+    slots(l)?.checked_add(l.landing_members.checked_mul(l.gates)?)
 }
 pub fn result_slots(l: &Limits) -> Option<u32> {
     slots(l)?.checked_mul(4)?.checked_add(l.landings.checked_mul(l.landing_members)?.checked_mul(5)?)
@@ -28,7 +32,7 @@ pub fn valid(l: &Limits) -> bool {
     {
         return false;
     }
-    slots(l).is_some() && result_slots(l).is_some() && receipt_slots(l).is_some()
+    follow_slots(l).is_some() && result_slots(l).is_some() && receipt_slots(l).is_some()
 }
 pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
     let mut bytes = crate::history::job_bytes(row.job.as_ref())?
@@ -42,6 +46,29 @@ pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
         .checked_add(
             skein_lib::len_u64(row.entries.len()).checked_mul(u64::try_from(size_of::<LandingEntry>()).ok()?)?,
         )?;
+    bytes = bytes.checked_add(
+        skein_lib::len_u64(row.follows().len()).checked_mul(u64::try_from(size_of::<LandingFollow>()).ok()?)?,
+    )?;
+    for follow in row.follows() {
+        if let Some(dispatch) = &follow.dispatch {
+            bytes = bytes
+                .checked_add(skein_lib::len_u64(dispatch.workflow.len()))?
+                .checked_add(skein_lib::len_u64(dispatch.branch.len()))?
+                .checked_add(
+                    skein_lib::len_u64(dispatch.inputs.len())
+                        .checked_mul(u64::try_from(size_of::<skein_forge::api::Input>()).ok()?)?,
+                )?;
+            for input in &dispatch.inputs {
+                bytes = bytes
+                    .checked_add(skein_lib::len_u64(input.name.len()))?
+                    .checked_add(skein_lib::len_u64(input.value.len()))?;
+            }
+        }
+        bytes = bytes.checked_add(
+            skein_lib::len_u64(follow.reruns.len())
+                .checked_mul(u64::try_from(size_of::<skein_forge::api::JobAttempt>()).ok()?)?,
+        )?;
+    }
     for ask in &row.asks {
         if let Some(change::Ask::Judge(target)) = ask {
             bytes = bytes

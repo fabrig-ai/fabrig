@@ -4,14 +4,14 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-/// The printed link's page (temper/docs/design/client/README.md, section 4).
+/// The printed link's page (temper/docs/design/client/sign-in.md, section 1).
 pub const LINK_PAGE: &[u8] = b"/sign-in";
 
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const CLIENT_SCHEMA: &str = include_str!("../schema/client-wire-v1.schema");
 
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v1.schema");
 
@@ -21,7 +21,7 @@ pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v1.schema");
 pub mod v1;
 
 /// Kinds with typed settings values at temper's entrances
-/// (temper/docs/design/protocol/configuration/settings.md, 2).
+/// (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[must_use]
 pub const fn settings_kind(kind: u32) -> bool {
     kind == 1
@@ -59,6 +59,8 @@ pub use public::{public_bounds, public_limits};
 
 /// The visitor records' version (temper/docs/design/client/forge/README.md, 9.4).
 pub const PUBLIC_VERSION: u16 = public_v1::VERSION;
+/// The public wire's family fingerprint.
+pub use public_v1::LAYOUT as PUBLIC_LAYOUT;
 /// A public change (temper/docs/design/client/forge/README.md, 9.1).
 pub const PUBLIC_CHANGE: u16 = 1;
 /// A project's public landings (temper/docs/design/client/forge/README.md, 9.1).
@@ -118,6 +120,8 @@ pub const CLIENT_VERSION: u32 = {
     let [high, low] = v1::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
+/// The client wire's family fingerprint.
+pub use v1::LAYOUT as CLIENT_LAYOUT;
 
 /// One page of limit rows (configuration/limit-settings.md, 7).
 #[must_use]
@@ -150,7 +154,7 @@ pub const DISMISSED: u32 = 8192;
 pub const INSTALLATIONS: u32 = 64;
 /// The maximum repository makings per forge (temper/docs/design/client/forge/records.md).
 pub const MAKINGS: u32 = 64;
-/// The set up's maximum number of deferred copies (protocol/setup/owned.md, 7).
+/// The set up's maximum number of deferred copies (protocol/setup/owned-repositories.md, 1).
 pub const FIRST_COPIES: u32 = 16;
 /// The last connect's maximum stop reason length (client/forge/records.md).
 pub const CONNECT_WHY_BYTES: u32 = 256;
@@ -419,7 +423,19 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         v1::Request::HandFinding(value) if value.why.is_empty() => return None,
         v1::Request::TriageFinding(value) => match &value.act {
             v1::Triage::Drop(reason) if reason.reason.is_empty() => return None,
-            v1::Triage::Drop(_) | v1::Triage::Route(_) | v1::Triage::Backlog => {}
+            v1::Triage::Repair(value) if value.words.is_empty() => return None,
+            v1::Triage::Blame(value) => {
+                if value.why.is_empty() {
+                    return None;
+                }
+                if let Some(landing) = &value.landing
+                    && landing.len() != 20
+                    && landing.len() != 32
+                {
+                    return None;
+                }
+            }
+            v1::Triage::Drop(_) | v1::Triage::Route(_) | v1::Triage::Backlog | v1::Triage::Repair(_) => {}
         },
         v1::Request::FileFinding(_)
         | v1::Request::HandFinding(_)
@@ -702,7 +718,7 @@ pub fn decode_proposal_items_answer(bytes: &[u8], limits: &v1::Limits) -> Option
     if reader.is_empty() { Some(record) } else { None }
 }
 
-/// A goal reads its work as a goal (temper/docs/design/domain/agent/tools.md, 2).
+/// A goal reads its work as a goal (temper/docs/design/domain/agent/tools-goal.md, 1).
 pub const GOAL_SCOPE: &[u8] =
     b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.";
 /// A goal asks for agreement before changes (temper/docs/design/domain/agent/agents.md, 2).

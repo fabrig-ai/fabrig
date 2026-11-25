@@ -1,4 +1,4 @@
-//! Display translation of sparse owner refusals (client/domain/contract/README.md, 3; view.md, 7).
+//! Display translation of sparse owner refusals (client/domain/contract/answers.md, 1; view.md, 7).
 //! Absent facts remain absent. The exact terminal remains in `ConnectorAnswer`.
 use jig_client_domain::contract as client;
 use jig_client_test_domain::connector_values::application_core as owner;
@@ -145,6 +145,7 @@ fn hold(value: owner::HoldReason) -> client::HoldCategory {
         owner::HoldReason::ResourceAccess => client::HoldCategory::ResourceAccess,
         owner::HoldReason::Procedure => client::HoldCategory::Procedure,
         owner::HoldReason::Circle => client::HoldCategory::Circle,
+        owner::HoldReason::Waited => client::HoldCategory::Waited,
     }
 }
 fn ending(value: owner::Ending) -> client::Ending {

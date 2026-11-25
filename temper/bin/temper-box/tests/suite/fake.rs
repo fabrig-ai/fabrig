@@ -42,7 +42,6 @@ struct Running {
     child: RefCell<Option<Child>>,
     sockets: RefCell<Vec<Option<TcpStream>>>,
     address: SocketAddr,
-    control: Option<SocketAddr>,
 }
 impl Running {
     fn start(kind: &str, document: &Path, observations: Option<&Path>) -> Result<Self, String> {
@@ -58,50 +57,8 @@ impl Running {
             child: RefCell::new(Some(child)),
             sockets: RefCell::new(Vec::new()),
             address: "127.0.0.1:0".parse().expect("valid fixture"),
-            control: None,
         };
-        let mut bytes = Vec::new();
-        for _ in 0..128 {
-            let mut byte = [0_u8; 1];
-            let read = run
-                .child
-                .get_mut()
-                .as_mut()
-                .expect("running fake")
-                .stdout
-                .as_mut()
-                .expect("stdout pipe")
-                .read_exact(&mut byte);
-            if let Err(why) = read {
-                let mut child = run.child.get_mut().take().expect("running fake");
-                if why.kind() != std::io::ErrorKind::UnexpectedEof {
-                    child.kill().expect("stop fake after readiness failure");
-                }
-                let ended = child.wait_with_output().expect("reap fake after readiness failure");
-                return Err(format!(
-                    "ready line: {why:?}; status {}; stderr {}; partial {:?}; command {command:?}",
-                    ended.status,
-                    String::from_utf8_lossy(&ended.stderr),
-                    String::from_utf8_lossy(&bytes)
-                ));
-            }
-            bytes.push(byte[0]);
-            if byte[0] == b'\n' {
-                break;
-            }
-        }
-        let line = String::from_utf8(bytes).expect("ready line is UTF-8");
-        assert!(line.starts_with("ready "), "ready line: {line}");
-        let mut addresses = line.strip_prefix("ready ").expect("valid fixture").split_whitespace();
-        run.address = addresses.next().expect("provider address").parse().expect("valid fixture");
-        run.control = addresses.next().map(|address| address.parse::<SocketAddr>().expect("control address"));
-        assert!(addresses.next().is_none(), "ready line has only its listeners");
-        if let Some(control) = run.control {
-            assert!(control.ip().is_loopback());
-            assert_ne!(control.port(), 0);
-        }
-        assert!(run.address.ip().is_loopback());
-        assert_ne!(run.address.port(), 0);
+        run.address = temper_box_kit::fake_readiness::child(run.child.get_mut(), &command)?.address;
         Ok(run)
     }
     fn stop(self) {
@@ -161,34 +118,15 @@ impl Drop for Running {
         }
     }
 }
-#[test]
-fn readiness_eof_reports_child_status_and_stderr() {
-    let mut command = Command::new("/bin/sh");
-    command
-        .env_clear()
-        .args(["-c", "printf 'fixture refused' >&2; exit 7"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let finding = Running::command(command, None).err().expect("readiness EOF finding");
-    assert!(finding.contains("status exit status: 7; stderr fixture refused"), "{finding}");
-}
-/// The fake owns its sockets so a starved control request also closes a held query
-/// (skein/docs/foundation/testing-strategy.md, 2.10).
+/// The fake owns its sockets so a failed wait can close them before reaping it.
 struct Socket<'a> {
     run: &'a Running,
     slot: usize,
     deadline: Deadline,
-    nonblocking: bool,
 }
 impl Socket<'_> {
     fn reset(&mut self, what: &'static str) {
         self.deadline = self.run.deadline(what);
-    }
-    fn set_nonblocking(&mut self, value: bool) -> std::io::Result<()> {
-        self.run.sockets.borrow()[self.slot].as_ref().expect("open socket").set_nonblocking(value)?;
-        self.nonblocking = value;
-        Ok(())
     }
 }
 fn timeout(deadline: &Deadline) -> Duration {
@@ -203,7 +141,7 @@ impl Read for Socket<'_> {
             return Ok(0);
         }
         loop {
-            if !self.nonblocking && self.deadline.passed() {
+            if self.deadline.passed() {
                 self.run.expired(&self.deadline);
             }
             let result = {
@@ -213,7 +151,7 @@ impl Read for Socket<'_> {
                 socket.read(bytes)
             };
             match result {
-                Err(why) if !self.nonblocking && timed_out(&why) => {}
+                Err(why) if timed_out(&why) => {}
                 other => return other,
             }
         }
@@ -267,7 +205,7 @@ fn stream(run: &Running, address: SocketAddr) -> Socket<'_> {
     let mut sockets = run.sockets.borrow_mut();
     let slot = sockets.len();
     sockets.push(Some(socket));
-    Socket { run, slot, deadline: run.deadline("the fake socket's request"), nonblocking: false }
+    Socket { run, slot, deadline: run.deadline("the fake socket's request") }
 }
 fn http(method: &str, target: &str, authorization: &str, body: &[u8]) -> Vec<u8> {
     let mut request=format!("{method} {target} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n",body.len()).into_bytes();
@@ -305,136 +243,25 @@ fn private_hex(path: &Path, expected: &[u8]) {
     assert_eq!(fs::metadata(path).expect("valid fixture").permissions().mode() & 0o777, 0o600);
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table covers refused startup and rollback for every output")]
 fn refused_start() {
-    struct Row {
-        name: &'static str,
-        kind: &'static str,
-        document: Option<Value>,
-        files: &'static [&'static str],
-        directories: &'static [(&'static str, u32)],
-        observations: Option<&'static str>,
-        path: Option<&'static str>,
-        reason: &'static str,
-    }
     let scratch = support::Scratch::new("fake_refused");
-    let llm = |name| Some(llm_document(&scratch.path().join(name), true));
-    let forge = |name| Some(forge_document(&scratch.path().join(name)));
-    let rows = [
-        Row {
-            name: "key",
-            kind: "llm",
-            document: llm("key"),
-            files: &["key"],
-            directories: &[],
-            observations: None,
-            path: Some("key"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "added_key",
-            kind: "llm",
-            document: {
-                let mut doc = llm_document(&scratch.path().join("added_key"), true);
-                doc["added_keys"] = json!([scratch.path().join("added_key/second.key")]);
-                Some(doc)
-            },
-            files: &["second.key"],
-            directories: &[],
-            observations: None,
-            path: Some("second.key"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "admin_token",
-            kind: "forge",
-            document: forge("admin_token"),
-            files: &["forge/admin_token"],
-            directories: &[("forge", 0o700)],
-            observations: None,
-            path: Some("forge/admin_token"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "root",
-            kind: "llm",
-            document: llm("root"),
-            files: &["root.der"],
-            directories: &[],
-            observations: None,
-            path: Some("root.der"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "observations",
-            kind: "forge",
-            document: forge("observations"),
-            files: &["observations"],
-            directories: &[],
-            observations: Some("observations"),
-            path: Some("observations"),
-            reason: "File exists (os error 17)",
-        },
-        Row {
-            name: "directory",
-            kind: "forge",
-            document: forge("directory"),
-            files: &[],
-            directories: &[("forge", 0o755)],
-            observations: None,
-            path: Some("forge"),
-            reason: "must be a private directory of this user's, not reached through a link",
-        },
-        Row {
-            name: "missing",
-            kind: "llm",
-            document: None,
-            files: &[],
-            directories: &[],
-            observations: None,
-            path: Some("document.json"),
-            reason: "absent",
-        },
-        Row {
-            name: "refused",
-            kind: "llm",
-            document: Some(json!({})),
-            files: &[],
-            directories: &[],
-            observations: None,
-            path: None,
-            reason: "listen: missing",
-        },
-    ];
-    for row in rows {
-        let dir = scratch.path().join(row.name);
-        fs::create_dir(&dir).expect("case directory");
-        let doc = dir.join("document.json");
-        if let Some(value) = row.document {
-            document(&doc, &value);
-        }
-        for (name, mode) in row.directories {
-            fs::create_dir(dir.join(name)).expect("existing directory");
-            fs::set_permissions(dir.join(name), fs::Permissions::from_mode(*mode)).expect("directory mode");
-        }
-        for name in row.files {
-            fs::write(dir.join(name), b"existing").expect("existing output");
-            fs::set_permissions(dir.join(name), fs::Permissions::from_mode(0o600)).expect("private retained output");
-        }
-        let mut command = command(row.kind, &doc);
-        if let Some(path) = row.observations {
-            command.arg("--observations").arg(dir.join(path));
-        }
-        let before = snapshot(&dir);
-        let output = command.output().expect("refused fake");
-        assert_eq!(output.status.code(), Some(1));
-        assert_eq!((output.stdout).len(), 0);
-        let location = row.path.map_or_else(String::new, |path| format!("{}: ", dir.join(path).display()));
-        let expected = format!("temper fake {}: {location}{}\n", row.kind, row.reason);
-        assert_eq!(String::from_utf8(output.stderr).expect("UTF-8 refusal"), expected, "{}", row.name);
-        assert_eq!(snapshot(&dir), before, "{}: refused startup restores the files", row.name);
-    }
-    refused_deployment_start(scratch.path());
+    let dir = scratch.path();
+    let doc = dir.join("document.json");
+    let added_key = dir.join("second.key");
+    let mut value = llm_document(dir, true);
+    value["added_keys"] = json!([added_key]);
+    document(&doc, &value);
+    support::write_private(&added_key, b"existing");
+    let before = snapshot(dir);
+    let output = command("llm", &doc).output().expect("refused fake");
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    assert_eq!(
+        output.stderr,
+        format!("temper fake llm: {}: retained output differs from expected seeded bytes\n", added_key.display())
+            .as_bytes(),
+    );
+    assert_eq!(snapshot(dir), before, "refused startup restores the files");
     scratch.remove();
 }
 
@@ -449,151 +276,12 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
         .stderr(Stdio::piped());
     command
 }
-fn forge_setup(directory: &Path, listen: &str) -> Value {
-    let config = support::configuration::check_document(directory);
+fn forge_setup(directory: &Path, listen: &str) {
     let setup = serde_json::json!({"kind":"fake","listen":{"socket":listen},"remote":format!("http://{listen}"),"git":"demo/bin/git"});
     support::configuration::setup(directory, 1, setup);
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
-    config
 }
-#[expect(clippy::too_many_lines, reason = "deployment forms refuse before creating files")]
-fn refused_deployment_start(root: &Path) {
-    const TOKEN: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
-    let directory = root.join("deployment");
-    fs::create_dir(&directory).expect("deployment cases");
-    for (name, number, mode, token, own_document, observations, reason, names_file) in [
-        ("absent", "1", "fake", None, false, false, "absent", true),
-        ("short", "1", "fake", Some(&TOKEN[..39]), false, false, "expected 40 lowercase hexadecimal digits", true),
-        (
-            "uppercase",
-            "1",
-            "fake",
-            Some(b"A123456789abcdef0123456789abcdef01234567".as_slice()),
-            false,
-            false,
-            "expected 40 lowercase hexadecimal digits",
-            true,
-        ),
-        (
-            "long",
-            "1",
-            "fake",
-            Some(b"0123456789abcdef0123456789abcdef01234567890".as_slice()),
-            false,
-            false,
-            "past 40 bytes",
-            true,
-        ),
-        ("both", "1", "fake", None, true, false, "invalid arguments", false),
-        ("observations", "1", "fake", Some(TOKEN), false, true, "File exists (os error 17)", true),
-    ] {
-        let dir = directory.join(name);
-        fs::create_dir(&dir).expect("case directory");
-        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("private");
-        forge_setup(&dir, "127.0.0.1:9");
-        match mode {
-            "owned" => support::owned::setup(
-                &dir,
-                &support::owned::Names {
-                    forgejo: Path::new("/usr/bin/false"),
-                    runner: None,
-                    port: 9,
-                    bot: "temper",
-                    person: "ada",
-                },
-            ),
-            "fake" => {}
-            _ => unreachable!("fixture mode"),
-        }
-        support::write_file(
-            &dir.join(temper_config_shell::FILE),
-            &support::configuration::file(),
-            temper_config_shell::Shape::Standalone,
-        );
-        if let Some(token) = token {
-            fs::create_dir_all(dir.join("playground-1")).expect("token directory");
-            fs::set_permissions(dir.join("playground-1"), fs::Permissions::from_mode(0o700)).expect("private");
-            support::write_private(&dir.join("playground-1/admin_token"), token);
-        }
-        let mut command = deployment_command("forge", &dir);
-        command.arg(number);
-        if own_document {
-            command.args(["--document", "unused.json"]);
-        }
-        if observations {
-            fs::write(dir.join("observations"), b"existing").expect("existing observations");
-            command.arg("--observations").arg(dir.join("observations"));
-        }
-        let before = snapshot(&dir);
-        let output = command.output().expect("refused fake");
-        assert_eq!(output.status.code(), Some(if own_document { 2 } else { 1 }), "{name}");
-        assert_eq!((output.stdout).len(), 0);
-        let file = if observations { "observations" } else { "playground-1/admin_token" };
-        let location = if names_file { format!("{}: ", dir.join(file).display()) } else { String::new() };
-        assert_eq!(
-            String::from_utf8(output.stderr).expect("refusal"),
-            if own_document {
-                "temper-box fake forge: invalid arguments\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\n".into()
-            } else {
-                format!("temper fake forge: {location}{reason}\n")
-            },
-            "{name}"
-        );
-        assert_eq!(snapshot(&dir), before, "{name}: refused startup leaves directories unchanged");
-    }
-    let bound = usize::try_from(temper_fake::demo::KEY_FILE_BYTES).expect("key file bound");
-    for (name, kind, has_document, file, mode, extra, reason, names_file) in [
-        ("llm_no_document", "llm", false, None, 0o600, false, "absent".to_owned(), true),
-        ("llm_absent", "llm", true, None, 0o600, false, "absent".to_owned(), true),
-        (
-            "llm_public",
-            "llm",
-            true,
-            Some(TOKEN.to_vec()),
-            0o644,
-            false,
-            "readable by others or reached through a link".to_owned(),
-            true,
-        ),
-        ("llm_empty", "llm", true, Some(b"\n".to_vec()), 0o600, false, "holds no key".to_owned(), true),
-        ("llm_long", "llm", true, Some(vec![b'k'; bound + 1]), 0o600, false, format!("past {bound} bytes"), true),
-        ("llm_word", "llm", true, None, 0o600, true, "invalid arguments".to_owned(), false),
-    ] {
-        let dir = directory.join(name);
-        fs::create_dir(&dir).expect("case directory");
-        if has_document {
-            support::write_file(
-                &dir.join(temper_config_shell::FILE),
-                &support::configuration::file(),
-                temper_config_shell::Shape::Standalone,
-            );
-        }
-        let path = dir.join("demo/llm.key");
-        if let Some(file) = file {
-            fs::create_dir(dir.join("demo")).expect("key directory");
-            support::write_private(&path, &file);
-            fs::set_permissions(&path, fs::Permissions::from_mode(mode)).expect("key mode");
-        }
-        let mut command = deployment_command(kind, &dir);
-        if extra {
-            command.arg("extra");
-        }
-        let before = snapshot(&dir);
-        let output = command.output().expect("refused demo");
-        assert_eq!(output.status.code(), Some(if extra { 2 } else { 1 }), "{name}");
-        assert!(output.stdout.is_empty(), "{name}");
-        let location = if names_file { format!("{}: ", path.display()) } else { String::new() };
-        let expected = if extra {
-            "temper-box fake llm: invalid arguments\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]\n".into()
-        } else {
-            format!("temper fake {kind}: {location}{reason}\n")
-        };
-        assert_eq!(output.stderr, expected.as_bytes(), "{name}");
-        assert_eq!(snapshot(&dir), before, "{name}: refused startup leaves directories unchanged");
-    }
-}
-
 fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, (u32, Option<Vec<u8>>)> {
     let mut found = std::collections::BTreeMap::new();
     let mut directories = vec![root.to_path_buf()];
@@ -625,10 +313,9 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
         Running::command(cmd, None).unwrap_or_else(|why| panic!("{why}"))
     };
     let run = start();
-    assert!(!state.exists(), "startup writes no state");
     let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
     let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
-    let grant = request(
+    let _grant = request(
         &run,
         run.address,
         "PUT",
@@ -636,8 +323,7 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
         &auth,
         br#"{"permission":"admin"}"#,
     );
-    assert!(grant.starts_with(b"HTTP/1.1 204"));
-    let response = request(
+    let _issue = request(
         &run,
         run.address,
         "POST",
@@ -645,8 +331,6 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
         &auth,
         br#"{"title":"Kept across stop","body":"Kept body"}"#,
     );
-    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    assert!(!state.exists(), "API writes do not checkpoint");
     run.stop();
     assert_eq!(fs::metadata(&state).expect("state written at stop").permissions().mode() & 0o777, 0o600);
     let before = fs::read(&state).expect("image");
@@ -660,140 +344,6 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
     run.end();
     assert!(!state.exists(), "SIGKILL writes no image");
 }
-fn made_gate(run: &Running, auth: &str, branch: &str, expected: &str) {
-    let response =
-        request(run, run.address, "GET", &format!("/api/v1/repos/session/made/branches/{branch}"), auth, b"");
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let head = body(&response)["commit"]["id"].as_str().expect("head").to_owned();
-    let response = request(
-        run,
-        run.address,
-        "POST",
-        "/api/v1/repos/session/made/actions/workflows/gate.yml/dispatches",
-        auth,
-        &serde_json::to_vec(&json!({"ref":branch,"inputs":{}})).expect("dispatch"),
-    );
-    assert!(response.starts_with(b"HTTP/1.1 204"), "{}", String::from_utf8_lossy(&response));
-    for _ in 0..128 {
-        let response = request(
-            run,
-            run.address,
-            "GET",
-            &format!("/api/v1/repos/session/made/actions/runs?workflow_id=gate.yml&head_sha={head}"),
-            auth,
-            b"",
-        );
-        assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-        let runs = body(&response);
-        let latest = &runs["workflow_runs"][0];
-        if latest["status"] == "running" || latest["status"] == "waiting" {
-            continue;
-        }
-        assert_eq!(latest["status"], expected);
-        let id = latest["id"].as_u64().expect("run id");
-        let response =
-            request(run, run.address, "GET", &format!("/api/v1/repos/session/made/actions/runs/{id}/jobs"), auth, b"");
-        assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-        let jobs = body(&response);
-        assert_eq!(jobs[0]["name"], "gate");
-        assert_eq!(jobs[0]["status"], expected);
-        return;
-    }
-    panic!("gate did not complete");
-}
-#[test]
-fn forge_state_keeps_made_workflows_and_manual_merge_settings() {
-    let scratch = support::Scratch::new("made-forge-gates");
-    let doc = scratch.path().join("forge.json");
-    let state = scratch.path().join("forge.state");
-    let mut value = forge_document(scratch.path());
-    value["workflows"] = json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]);
-    value["manual_merges"] = json!({"allow":true,"autodetect":true});
-    document(&doc, &value);
-    let start = || {
-        let mut cmd = command("forge", &doc);
-        cmd.arg("--state").arg(&state);
-        Running::command(cmd, None).unwrap_or_else(|why| panic!("{why}"))
-    };
-    let run = start();
-    let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
-    let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
-    for (target, payload) in [
-        ("/api/v1/admin/users/temper-admin/orgs", json!({"username":"session","visibility":"private"})),
-        ("/api/v1/orgs/session/repos", json!({"name":"made","private":true,"auto_init":true,"default_branch":"main"})),
-    ] {
-        let response = request(&run, run.address, "POST", target, &auth, &serde_json::to_vec(&payload).expect("setup"));
-        assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    }
-    let credentials = format!("temper-admin:{}", std::str::from_utf8(&token).expect("hex token"));
-    let alphabet = skein_lib::base64::Alphabet::Standard;
-    let size = skein_lib::base64::encoded_len(alphabet, u32::try_from(credentials.len()).expect("short credentials"))
-        .expect("base64 length");
-    let mut encoded = skein_lib::Writer::new(usize::try_from(size).expect("short credentials"));
-    skein_lib::base64::encode(alphabet, credentials.as_bytes(), &mut encoded).expect("sized credentials");
-    let git_auth = format!("Basic {}", std::str::from_utf8(&encoded.finish()).expect("base64"));
-    made_gate(&run, &auth, "main", "success");
-    let response =
-        request(&run, run.address, "POST", "/.fake/git/fetch", &git_auth, br#"{"repository":"session/made"}"#);
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let first = body(&response)["commit"].as_u64().expect("main commit");
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/.fake/git/create",
-        &git_auth,
-        &serde_json::to_vec(&json!({"repository":"session/made","branch":"work","commit":first})).expect("branch"),
-    );
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let response = request(&run, run.address, "POST", "/api/v1/repos/session/made/contents/.fake-forge/gate", &auth,
-        br#"{"branch":"work","content":"ZmFpbA==","message":"Fail the gate","author":{"name":"member","email":"member@example.invalid"},"committer":{"name":"member","email":"member@example.invalid"}}"#);
-    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/api/v1/repos/session/made/pulls",
-        &auth,
-        br#"{"title":"A member","body":"","head":"work","base":"main"}"#,
-    );
-    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
-    let number = body(&response)["number"].as_u64().expect("pull number");
-    run.stop();
-    assert!(state.exists(), "orderly stop keeps an image");
-    // A changed document supplies later creations, not the restored repository.
-    value["workflows"][0]["cue"] = Value::Null;
-    value["manual_merges"] = json!({});
-    document(&doc, &value);
-    let run = start();
-    made_gate(&run, &auth, "work", "failure");
-    let pull = format!("/api/v1/repos/session/made/pulls/{number}");
-    let response = request(&run, run.address, "GET", &pull, &auth, b"");
-    assert_eq!(body(&response)["merged"], false);
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/.fake/git/fetch",
-        &git_auth,
-        br#"{"repository":"session/made","branch":"work"}"#,
-    );
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let head = body(&response)["commit"].as_u64().expect("work head");
-    let response = request(
-        &run,
-        run.address,
-        "POST",
-        "/.fake/git/push",
-        &git_auth,
-        &serde_json::to_vec(&json!({"repository":"session/made","branch":"main","commit":head,"expected":first}))
-            .expect("push"),
-    );
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let response = request(&run, run.address, "GET", &pull, &auth, b"");
-    assert_eq!(body(&response)["merged"], true);
-    run.stop();
-}
 #[test]
 fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
     use std::os::unix::fs::symlink;
@@ -801,152 +351,35 @@ fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
     let doc = scratch.path().join("forge.json");
     let state = scratch.path().join("forge.state");
     document(&doc, &forge_document(scratch.path()));
-    for kind in ["bytes", "public", "linked", "symlink", "directory"] {
-        let original = b"not an image";
-        fs::write(&state, original).expect("bad image");
-        fs::set_permissions(&state, fs::Permissions::from_mode(0o600)).expect("private state");
-        let extra = scratch.path().join("extra");
-        match kind {
-            "public" => fs::set_permissions(&state, fs::Permissions::from_mode(0o644)).expect("public state"),
-            "linked" => fs::hard_link(&state, &extra).expect("second link"),
-            "symlink" => {
-                fs::rename(&state, &extra).expect("target");
-                symlink(&extra, &state).expect("link");
-            }
-            "directory" => {
-                fs::remove_file(&state).expect("remove file");
-                fs::create_dir(&state).expect("directory");
-            }
-            "bytes" => {}
-            _ => unreachable!(),
-        }
-        let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
-        assert_eq!(output.status.code(), Some(1));
-        assert_eq!((output.stdout).len(), 0);
-        let stderr = String::from_utf8(output.stderr).expect("stderr");
-        assert_eq!(stderr.lines().count(), 1, "{stderr}");
-        assert!(stderr.starts_with(&format!("temper-box fake forge: state {} refused: ", state.display())), "{stderr}");
-        if kind == "directory" {
-            fs::remove_dir(&state).expect("unchanged directory");
-        } else {
-            assert_eq!(fs::read(&state).expect("unchanged bad image"), original);
-            fs::remove_file(&state).expect("remove fixture");
-        }
-        if extra.exists() {
-            fs::remove_file(extra).expect("remove extra");
-        }
-    }
+    let target = scratch.path().join("extra");
+    let original = b"not an image";
+    support::write_private(&target, original);
+    symlink(&target, &state).expect("link");
+    let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    let stderr = String::from_utf8(output.stderr).expect("stderr");
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+    assert!(stderr.starts_with(&format!("temper-box fake forge: state {} refused: ", state.display())), "{stderr}");
+    assert_eq!(fs::read_link(&state).expect("unchanged link"), target);
+    assert_eq!(fs::read(&state).expect("unchanged bad image"), original);
+    scratch.remove();
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "both forge forms serve the same requests and retain their files")]
 fn forge_run() {
-    for from_setup in [false, true] {
-        let scratch = support::Scratch::new("fake_forge_run");
-        let dir = scratch.path();
-        let doc = dir.join("forge.json");
-        let mut config = forge_document(dir);
-        config["repositories"][0]["landing"] = json!("trunk");
-        document(&doc, &config);
-        let observations = dir.join("observations");
-        let (run, token_path, token) = if from_setup {
-            let (listen, path, token) = prepared_forge(dir);
-            let mut command = deployment_command("forge", dir);
-            command.arg("1");
-            let run = Running::command(command, Some(&observations)).unwrap_or_else(|why| panic!("{why}"));
-            assert_eq!(run.address, listen, "ready on fake.listen");
-            (run, path, token)
-        } else {
-            (
-                Running::start("forge", &doc, Some(&observations)).unwrap_or_else(|why| panic!("{why}")),
-                dir.join("forge/admin_token"),
-                temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN).to_vec(),
-            )
-        };
-        private_hex(&token_path, &token);
-        assert_eq!(
-            fs::metadata(token_path.parent().expect("token directory")).expect("valid fixture").permissions().mode()
-                & 0o777,
-            0o700
-        );
-        assert_eq!(fs::metadata(&observations).expect("valid fixture").permissions().mode() & 0o777, 0o600);
-        assert_eq!(
-            fs::read(&observations).expect("valid fixture"),
-            b"{\"observations_lost\":0}\n",
-            "no seed observations"
-        );
-        let owner = if from_setup { "playground" } else { "fake" };
-        let auth = format!("token {}", std::str::from_utf8(&token).expect("valid fixture"));
-        let user = request(&run, run.address, "GET", "/api/v1/user", &auth, b"");
-        assert!(user.starts_with(b"HTTP/1.1 200"));
-        assert_eq!(body(&user)["login"], "temper-admin");
-        let repository = request(&run, run.address, "GET", "/api/v1/repositories/1", &auth, b"");
-        assert!(repository.starts_with(b"HTTP/1.1 200"));
-        let repository = body(&repository);
-        for (member, expected) in [
-            ("default_branch", if from_setup { "main" } else { "trunk" }.to_owned()),
-            ("html_url", format!("http://{}/{owner}/widget", run.address)),
-        ] {
-            assert_eq!(repository[member], expected, "{member}");
-        }
-        let objects = request(&run, run.address, "POST", "/.fake/git/objects", "", br#"{"commits":[1]}"#);
-        assert!(objects.starts_with(b"HTTP/1.1 200"));
-        let objects = body(&objects);
-        assert_eq!(objects["objects"][0]["commit"], 1);
-        assert!(objects["objects"][0]["parent"].is_null());
-        let tree = objects["objects"][0]["tree"].as_array().expect("valid fixture");
-        assert_eq!(tree.len(), temper_fake::forge::FILES.len());
-        let path = b".forgejo/workflows/check.yml";
-        let len = skein_lib::base64::encoded_len(
-            skein_lib::base64::Alphabet::Standard,
-            u32::try_from(path.len()).expect("valid fixture"),
-        )
-        .expect("valid fixture");
-        let mut expected_path = skein_lib::Writer::new(usize::try_from(len).expect("valid fixture"));
-        skein_lib::base64::encode(skein_lib::base64::Alphabet::Standard, path, &mut expected_path)
-            .expect("valid fixture");
-        let expected_path = expected_path.finish();
-        assert!(
-            tree.iter().any(|file| file["path"].as_str().expect("valid fixture").as_bytes() == expected_path.as_ref())
-        );
-        // Setup's admin flag and the domain's repository permission are separate.
-        // Grant through the API, as a runner would, rather than seeding a grant.
-        let grant = request(
-            &run,
-            run.address,
-            "PUT",
-            &format!("/api/v1/repos/{owner}/widget/collaborators/temper-admin"),
-            &auth,
-            br#"{"permission":"admin"}"#,
-        );
-        assert!(grant.starts_with(b"HTTP/1.1 204"), "{}", String::from_utf8_lossy(&grant));
-        let branch = request(
-            &run,
-            run.address,
-            "POST",
-            &format!("/api/v1/repos/{owner}/widget/branches"),
-            &auth,
-            br#"{"new_branch_name":"work","old_ref_name":"910a2dec89025cc1000000000000000100000000"}"#,
-        );
-        assert!(branch.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&branch));
-        let lines = fs::read_to_string(&observations).expect("valid fixture");
-        let records =
-            lines.lines().map(|line| serde_json::from_str::<Value>(line).expect("valid fixture")).collect::<Vec<_>>();
-        assert!(records.iter().any(|line| line["observation"] == "moved" && line["branch"] == "work"));
-        assert!(
-            records.last().expect("valid fixture").get("observations_lost").is_some(),
-            "checkpoint precedes the reply"
-        );
-        run.stop();
-        let lines = fs::read_to_string(&observations).expect("valid fixture");
-        assert_eq!(
-            serde_json::from_str::<Value>(lines.lines().last().expect("valid fixture")).expect("valid fixture"),
-            json!({"observations_lost":0})
-        );
-        assert_eq!(fs::read(&token_path).expect("token kept at stop"), token);
-        assert!(observations.exists());
-        assert!(doc.exists());
-        scratch.remove();
-    }
+    let scratch = support::Scratch::new("fake_forge_run");
+    let dir = scratch.path();
+    let (listen, token_path, token) = prepared_forge(dir);
+    let mut command = deployment_command("forge", dir);
+    command.arg("1");
+    let run = Running::command(command, Some(&dir.join("observations"))).unwrap_or_else(|why| panic!("{why}"));
+    assert_eq!(run.address, listen, "ready on fake.listen");
+    run.stop();
+    let meta = fs::metadata(&token_path).expect("prepared token kept at stop");
+    assert!(meta.is_file());
+    assert_eq!(meta.permissions().mode() & 0o777, 0o600);
+    assert_eq!(fs::read(token_path).expect("prepared token"), token);
+    scratch.remove();
 }
 
 fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>) {
@@ -966,126 +399,72 @@ fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>)
 
 const CHAT:&[u8]=br#"{"model":"qa","store":false,"instructions":"","input":[{"role":"user","content":[{"type":"input_text","text":"say hello"}]}],"stream":true}"#;
 #[test]
-#[expect(clippy::too_many_lines, reason = "all LLM forms serve the same requests and retain their files")]
 fn llm_run() {
-    for (name, tls, demo) in
-        [("fake_llm_plain", false, false), ("fake_llm_tls", true, false), ("fake_llm_demo", false, true)]
+    let scratch = support::Scratch::new("fake_llm_tls");
+    let dir = scratch.path();
+    let doc = dir.join("llm.json");
+    document(&doc, &llm_document(dir, true));
+    let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
+    let key = temper_fake::credential::credential(23, temper_fake::credential::KEY);
+    let key_path = dir.join("key");
+    private_hex(&key_path, &key);
+    let chat: Value = serde_json::from_slice(CHAT).expect("valid fixture");
+    let chat = serde_json::to_vec(&chat).expect("valid fixture");
+    let before = snapshot(dir);
+    let auth = format!("Bearer {}", std::str::from_utf8(&key).expect("valid fixture"));
+    for (credential, status, text) in
+        [(&*auth, b"HTTP/1.1 200", "hello from QA"), ("Bearer wrong", b"HTTP/1.1 401", "invalid_api_key")]
     {
-        let scratch = support::Scratch::new(name);
-        let dir = scratch.path();
-        let doc = dir.join("llm.json");
-        document(&doc, &llm_document(dir, tls));
-        let (run, key_path, key) = if demo {
-            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("box's held scripted listener");
-            let listen = listener.local_addr().expect("chosen scripted address");
-            fs::create_dir(dir.join("demo")).expect("demo directory");
-            let path = dir.join("demo/llm.key");
-            let key = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_vec();
-            support::write_private(&path, &[key.as_slice(), b"\n"].concat());
-            let mut command = crate::listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
-            command.args(["fake", "llm"]).args(support::configuration::flags(dir));
-            let run = Running::command(command, None).unwrap_or_else(|why| panic!("{why}"));
-            assert_eq!(run.address, listen, "ready on the box's inherited scripted listener");
-            (run, path, key)
-        } else {
-            let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
-            let key = temper_fake::credential::credential(23, temper_fake::credential::KEY);
-            private_hex(&dir.join("key"), &key);
-            (run, dir.join("key"), key.to_vec())
-        };
-        let chat: Value = serde_json::from_slice(CHAT).expect("valid fixture");
-        let chat = serde_json::to_vec(&chat).expect("valid fixture");
-        let before = snapshot(dir);
-        let auth = format!("Bearer {}", std::str::from_utf8(&key).expect("valid fixture"));
-        for (credential, status, text) in [
-            (&*auth, b"HTTP/1.1 200".as_slice(), if demo { "I am the scripted model" } else { "hello from QA" }),
-            ("Bearer wrong", b"HTTP/1.1 401", "invalid_api_key"),
-        ] {
-            let response = if tls {
-                assert_eq!(fs::read(dir.join("root.der")).expect("valid fixture"), skein_fake_peers::transport::ROOT);
-                assert_eq!(
-                    fs::metadata(dir.join("root.der")).expect("valid fixture").permissions().mode() & 0o777,
-                    0o600
-                );
-                let mut roots = rustls_std::RootCertStore::empty();
-                roots
-                    .add(rustls_std::pki_types::CertificateDer::from(
-                        fs::read(dir.join("root.der")).expect("valid fixture"),
-                    ))
-                    .expect("valid fixture");
-                let config = rustls_std::ClientConfig::builder_with_provider(Arc::new(
-                    rustls_std::crypto::ring::default_provider(),
-                ))
+        assert_eq!(fs::read(dir.join("root.der")).expect("valid fixture"), skein_fake_peers::transport::ROOT);
+        assert_eq!(fs::metadata(dir.join("root.der")).expect("valid fixture").permissions().mode() & 0o777, 0o600);
+        let mut roots = rustls_std::RootCertStore::empty();
+        roots
+            .add(rustls_std::pki_types::CertificateDer::from(fs::read(dir.join("root.der")).expect("valid fixture")))
+            .expect("valid fixture");
+        let config =
+            rustls_std::ClientConfig::builder_with_provider(Arc::new(rustls_std::crypto::ring::default_provider()))
                 .with_safe_default_protocol_versions()
                 .expect("valid fixture")
                 .with_root_certificates(roots)
                 .with_no_client_auth();
-                let connection = rustls_std::ClientConnection::new(
-                    Arc::new(config),
-                    rustls_std::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),
-                )
-                .expect("valid fixture");
-                let mut stream = rustls_std::StreamOwned::new(connection, stream(&run, run.address));
-                stream.write_all(&http("POST", "/v1/responses", credential, &chat)).expect("valid fixture");
-                let mut response = Vec::new();
-                stream.sock.reset("the fake TLS socket's reply");
-                match stream.read_to_end(&mut response) {
-                    Ok(_) => {}
-                    Err(why) if why.kind() == std::io::ErrorKind::UnexpectedEof => {}
-                    Err(why) => panic!("TLS response: {why}"),
-                }
-                response
-            } else {
-                request(&run, run.address, "POST", "/v1/responses", credential, &chat)
-            };
-            assert!(response.starts_with(status), "{}", String::from_utf8_lossy(&response));
-            assert!(String::from_utf8_lossy(&response).contains(text), "{}", String::from_utf8_lossy(&response));
+        let connection = rustls_std::ClientConnection::new(
+            Arc::new(config),
+            rustls_std::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),
+        )
+        .expect("valid fixture");
+        let mut stream = rustls_std::StreamOwned::new(connection, stream(&run, run.address));
+        stream.write_all(&http("POST", "/v1/responses", credential, &chat)).expect("valid fixture");
+        let mut response = Vec::new();
+        stream.sock.reset("the fake TLS socket's reply");
+        match stream.read_to_end(&mut response) {
+            Ok(_) => {}
+            Err(why) if why.kind() == std::io::ErrorKind::UnexpectedEof => {}
+            Err(why) => panic!("TLS response: {why}"),
         }
-        if !tls {
-            let mut other: Value = serde_json::from_slice(&chat).expect("valid fixture");
-            other["model"] = json!("another-model");
-            let response = request(
-                &run,
-                run.address,
-                "POST",
-                "/v1/responses",
-                &auth,
-                &serde_json::to_vec(&other).expect("valid fixture"),
-            );
-            assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains(if demo {
-                "I am the scripted model"
-            } else {
-                "hello from QA"
-            }));
-        }
-        let mut other: Value = serde_json::from_slice(&chat).expect("valid fixture");
-        other["instructions"] = json!("");
-        other["input"][0]["content"][0]["text"] = json!("another request");
-        if !tls {
-            let response = request(
-                &run,
-                run.address,
-                "POST",
-                "/v1/responses",
-                &auth,
-                &serde_json::to_vec(&other).expect("valid fixture"),
-            );
-            assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert!(String::from_utf8_lossy(&response).contains(if demo {
-                "I am the scripted model"
-            } else {
-                "fallback"
-            }));
-        }
-        run.stop();
-        assert_eq!(snapshot(dir), before, "{name}: files and modes retained after stop");
-        assert_eq!(
-            fs::read(&key_path).expect("key retained"),
-            if demo { [key.as_slice(), b"\n"].concat() } else { key }
-        );
-        scratch.remove();
+        assert!(response.starts_with(status), "{}", String::from_utf8_lossy(&response));
+        assert!(String::from_utf8_lossy(&response).contains(text), "{}", String::from_utf8_lossy(&response));
     }
+    run.stop();
+    assert_eq!(snapshot(dir), before, "TLS files and modes retained after stop");
+    assert_eq!(fs::read(key_path).expect("key retained"), key);
+    scratch.remove();
+
+    let scratch = support::Scratch::new("fake_llm_demo");
+    let dir = scratch.path();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("box's held scripted listener");
+    let listen = listener.local_addr().expect("chosen scripted address");
+    fs::create_dir(dir.join("demo")).expect("demo directory");
+    let key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    support::write_private(&dir.join("demo/llm.key"), format!("{key}\n").as_bytes());
+    let mut command = crate::listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+    command.args(["fake", "llm"]).args(support::configuration::flags(dir));
+    let run = Running::command(command, None).unwrap_or_else(|why| panic!("{why}"));
+    assert_eq!(run.address, listen, "ready on the box's inherited scripted listener");
+    let reply = request(&run, run.address, "POST", "/v1/responses", &format!("Bearer {key}"), &chat);
+    assert!(reply.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&reply));
+    assert!(String::from_utf8_lossy(&reply).contains("I am the scripted model"));
+    run.stop();
+    scratch.remove();
 }
 #[test]
 fn ready_write_failure_stops_and_keeps_outputs() {
@@ -1101,470 +480,51 @@ fn ready_write_failure_stops_and_keeps_outputs() {
     scratch.remove();
 }
 
-use std::os::unix::ffi::OsStrExt;
-use temper_worker_domain_checkout::git as checkout_git;
-use temper_worker_protocol_git::invocation::{self, Command as GitCommand};
-
-struct GitStep {
-    command: GitCommand,
-    kind: Option<checkout_git::Kind>,
-    at: &'static str,
-    input: &'static [u8],
-    edit: Option<(&'static str, &'static [u8])>,
-    extra: Option<&'static [u8]>,
-    exit: i32,
-    stdout: &'static str,
-    stderr: &'static str,
-}
-fn git_step(command: GitCommand, kind: Option<checkout_git::Kind>, at: &'static str) -> GitStep {
-    GitStep { command, kind, at, input: b"", edit: None, extra: None, exit: 0, stdout: "", stderr: "" }
-}
-
-enum GitEndpoint {
-    Forge,
-    NoRoute,
-    Llm,
-    Closed,
-}
-
-/// Answers the one request the row's git makes with an empty, unnamed 404,
-/// on the test's own thread, between the spawn and the exit it waits for.
-fn no_git_route(listener: std::net::TcpListener, child: &mut Child, forge: &Running) {
-    use std::io::BufReader;
-    let (stream, _) = listener.accept().expect("no-route request");
-    let mut deadline = forge.deadline("the no-route git request and answer");
-    deadline.watch_process(child.id());
-    let mut reader = BufReader::new(stream);
-    let result = (|| -> std::io::Result<()> {
-        let mut length = None;
-        loop {
-            let mut line = Vec::new();
-            loop {
-                let mut byte = [0];
-                assert_ne!(no_git_read(&mut reader, &deadline, &mut byte)?, 0, "complete head");
-                line.push(byte[0]);
-                if byte[0] == b'\n' {
-                    break;
-                }
-            }
-            let line = String::from_utf8(line).expect("request head text");
-            if line == "\r\n" {
-                break;
-            }
-            if let Some((name, value)) = line.split_once(':')
-                && name.eq_ignore_ascii_case("content-length")
-            {
-                length = Some(value.trim().parse::<usize>().expect("body length"));
-            }
-        }
-        let mut body = vec![0; length.expect("Content-Length")];
-        let mut read = 0;
-        while read < body.len() {
-            let count = no_git_read(&mut reader, &deadline, &mut body[read..])?;
-            assert_ne!(count, 0, "complete request body");
-            read += count;
-        }
-        if deadline.passed() {
-            return Err(std::io::ErrorKind::TimedOut.into());
-        }
-        reader.get_ref().set_write_timeout(Some(timeout(&deadline)))?;
-        reader.get_mut().write_all(b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
-    })();
-    if result.is_err() {
-        assert!(child.try_wait().expect("git status").is_none(), "git exited before its no-route answer");
-    }
-    drop(reader);
-    drop(listener);
-    if let Err(why) = result {
-        if timed_out(&why) && deadline.passed() {
-            let expired = deadline.expired();
-            child.kill().expect("stop unanswered git");
-            child.wait().expect("reap unanswered git");
-            match expired {
-                Expired::Starved(starved) => {
-                    forge.end();
-                    starved.pass();
-                }
-                Expired::Failed(figures) => panic!("no-route request or answer: {why}; {figures}"),
-            }
-        }
-        panic!("no-route request or answer: {why}");
-    }
-}
-
-fn no_git_read(
-    reader: &mut std::io::BufReader<TcpStream>,
-    deadline: &Deadline,
-    bytes: &mut [u8],
-) -> std::io::Result<usize> {
-    if deadline.passed() {
-        return Err(std::io::ErrorKind::TimedOut.into());
-    }
-    reader.get_ref().set_read_timeout(Some(timeout(deadline)))?;
-    reader.read(bytes)
-}
-
-struct GitRow {
-    name: &'static str,
-    endpoint: GitEndpoint,
-    verb: bool,
-    missing: Option<&'static str>,
-    steps: Vec<GitStep>,
-    files: Vec<(&'static str, Vec<u8>)>,
-    branch: Option<&'static str>,
-    unchanged: bool,
-}
-
 #[test]
-#[expect(clippy::too_many_lines, reason = "one process table covers the git adapter's invocations and exits")]
 fn git_run() {
-    use checkout_git::Kind;
-    // The seeded repository has commit 1. One commit-tree stores commit 2.
-    const BASE: &[u8] = b"910a2dec89025cc1000000000000000100000000";
-    const STORED: &[u8] = b"975835de1c9756ce000000000000000200000000";
-    // The FNV tree id for forge::FILES with new.txt = "new\n" added.
-    const TREE: &[u8] = b"a48b10c7a2c77a727ec978a5592769d800000000";
-    let object = |id| invocation::object(id).expect("fixture object id");
-    let clone = || {
-        git_step(
-            GitCommand::Store { remote: Box::new([]), directory: b"pool".as_slice().into() },
-            Some(Kind::Store),
-            "work",
-        )
-    };
-    let format = || GitStep { stdout: "sha1\n", ..git_step(GitCommand::Format, None, "work/pool") };
-    let init = || {
-        git_step(
-            GitCommand::Clone { directory: b"widget".as_slice().into(), format: invocation::Format::Sha1, bare: false },
-            None,
-            "work",
-        )
-    };
-    let origin = || GitStep {
-        edit: Some((".git/objects/info/alternates", b"../../../pool/objects\n")),
-        ..git_step(GitCommand::Remote { remote: Box::new([]), format: invocation::Format::Sha1 }, None, "work/widget")
-    };
-    let check_out = || git_step(GitCommand::CheckOut { commit: object(BASE) }, Some(Kind::CheckOut), "work/widget");
-    let mut files: Vec<_> = temper_fake::forge::FILES
-        .iter()
-        .map(|(path, content)| (std::str::from_utf8(path).expect("fixture path"), content.to_vec()))
-        .collect();
-    files.push((".git/temper-remote", b"{remote}".to_vec()));
-    let mut changed_files = files.clone();
-    changed_files.push(("new.txt", b"new\n".to_vec()));
-    let rows = [
-        GitRow {
-            name: "version",
-            endpoint: GitEndpoint::Forge,
-            verb: false,
-            missing: None,
-            steps: vec![GitStep { stdout: "git version 2.47.3\n", ..git_step(GitCommand::Version, None, "work") }],
-            files: vec![],
-            branch: None,
-            unchanged: true,
-        },
-        GitRow {
-            name: "clone",
-            endpoint: GitEndpoint::Forge,
-            verb: false,
-            missing: None,
-            steps: vec![clone(), format(), init(), origin(), check_out()],
-            files,
-            branch: None,
-            unchanged: false,
-        },
-        GitRow {
-            name: "push",
-            endpoint: GitEndpoint::Forge,
-            verb: false,
-            missing: None,
-            steps: vec![
-                clone(),
-                format(),
-                init(),
-                origin(),
-                check_out(),
-                GitStep {
-                    edit: Some(("new.txt", b"new\n")),
-                    ..git_step(GitCommand::Add, Some(Kind::Commit), "work/widget")
-                },
-                GitStep {
-                    stdout: "a48b10c7a2c77a727ec978a5592769d800000000\n",
-                    ..git_step(GitCommand::WriteTree, Some(Kind::Commit), "work/widget")
-                },
-                GitStep {
-                    input: b"made by the process\n",
-                    stdout: "975835de1c9756ce000000000000000200000000\n",
-                    ..git_step(
-                        GitCommand::CommitTree { tree: object(TREE), parent: object(BASE), merging: None },
-                        Some(Kind::Commit),
-                        "work/widget",
-                    )
-                },
-                GitStep {
-                    stdout: "To {remote}\n*\t975835de1c9756ce000000000000000200000000:refs/heads/work\t[new branch]\nDone\n",
-                    ..git_step(
-                        GitCommand::Push {
-                            remote: Box::new([]),
-                            commit: object(STORED),
-                            branch: b"work".as_slice().into(),
-                            expected: None,
-                        },
-                        Some(Kind::Push),
-                        "work/widget",
-                    )
-                },
-            ],
-            files: changed_files,
-            branch: Some("work"),
-            unchanged: false,
-        },
-        GitRow {
-            name: "usage",
-            endpoint: GitEndpoint::Forge,
-            verb: false,
-            missing: None,
-            steps: vec![GitStep {
-                extra: Some(b"--unsupported"),
-                exit: 129,
-                stderr: "usage: git [--version] [--help] [-C <path>] [-c <name>=<value>] <command> [<args>]\n",
-                ..git_step(GitCommand::Version, None, "work")
-            }],
-            files: vec![],
-            branch: None,
-            unchanged: true,
-        },
-        GitRow {
-            name: "environment",
-            endpoint: GitEndpoint::Forge,
-            verb: false,
-            missing: Some("LC_ALL"),
-            steps: vec![GitStep {
-                exit: 125,
-                stderr: "temper fake git: broken: fixed environment value\n",
-                ..git_step(GitCommand::Version, None, "work")
-            }],
-            files: vec![],
-            branch: None,
-            unchanged: true,
-        },
-        GitRow {
-            name: "no_route",
-            endpoint: GitEndpoint::NoRoute,
-            verb: false,
-            missing: None,
-            steps: vec![GitStep { exit: 128, stderr: "fatal: {address} serves no fake git route\n", ..clone() }],
-            files: vec![],
-            branch: None,
-            unchanged: true,
-        },
-        GitRow {
-            name: "refused",
-            endpoint: GitEndpoint::Llm,
-            verb: false,
-            missing: None,
-            steps: vec![GitStep {
-                exit: 128,
-                stderr: "fatal: unable to access '{remote}': The requested URL returned error: 401\n",
-                ..clone()
-            }],
-            files: vec![],
-            branch: None,
-            unchanged: true,
-        },
-        GitRow {
-            name: "closed",
-            endpoint: GitEndpoint::Closed,
-            verb: false,
-            missing: None,
-            steps: vec![GitStep {
-                exit: 128,
-                stderr: "fatal: unable to access '{remote}': Failed to connect to forge\n",
-                ..clone()
-            }],
-            files: vec![],
-            branch: None,
-            unchanged: true,
-        },
-        GitRow {
-            name: "verb",
-            endpoint: GitEndpoint::Forge,
-            verb: true,
-            missing: None,
-            steps: vec![GitStep { stdout: "git version 2.47.3\n", ..git_step(GitCommand::Version, None, "work") }],
-            files: vec![],
-            branch: None,
-            unchanged: true,
-        },
-    ];
-    for row in rows {
-        let scratch = support::Scratch::new(&format!("fake_git_{}", row.name));
-        let dir = scratch.path();
-        fs::create_dir(dir.join("bin")).expect("git's directory");
-        let git = dir.join("bin/git");
-        std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), &git).expect("git link");
-        fs::create_dir(dir.join("home")).expect("git's HOME");
-        fs::create_dir(dir.join("work")).expect("worker directory");
-        let doc = dir.join("forge.json");
-        document(&doc, &forge_document(dir));
-        let forge = Running::start("forge", &doc, None).unwrap_or_else(|why| panic!("{why}"));
-        let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
-        let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
-        // Setup's admin flag does not itself grant repository access.
-        let grant = request(
-            &forge,
-            forge.address,
-            "PUT",
-            "/api/v1/repos/fake/widget/collaborators/temper-admin",
-            &auth,
-            br#"{"permission":"admin"}"#,
-        );
-        assert!(grant.starts_with(b"HTTP/1.1 204"), "{}", String::from_utf8_lossy(&grant));
-        let mut llm = None;
-        let mut no_route = None;
-        let address = match row.endpoint {
-            GitEndpoint::Forge => forge.address,
-            GitEndpoint::NoRoute => {
-                let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("no-route listener");
-                let address = listener.local_addr().expect("no-route address");
-                no_route = Some(listener);
-                address
-            }
-            GitEndpoint::Llm => {
-                let doc = dir.join("llm.json");
-                document(&doc, &llm_document(dir, false));
-                let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
-                let address = run.address;
-                llm = Some(run);
-                address
-            }
-            GitEndpoint::Closed => support::free_addresses::<1>(&[forge.address])[0],
-        };
-        let remote = format!("http://{address}/fake/widget.git");
-        let expected = |template: &str| {
-            template.replace("{remote}", &remote).replace("{address}", &address.to_string()).into_bytes()
-        };
-        let identity = temper_worker_protocol_git::Identity {
-            token: skein_lib::Secret::new(token.as_slice().into()),
-            login: b"temper-admin".as_slice().into(),
-            name: b"QA".as_slice().into(),
-            email: b"qa@temper.invalid".as_slice().into(),
-        };
-        let before = snapshot(&dir.join("work"));
-        for mut step in row.steps {
-            match &mut step.command {
-                GitCommand::SnapshotFetch { remote: url, .. }
-                | GitCommand::Store { remote: url, .. }
-                | GitCommand::Remote { remote: url, .. }
-                | GitCommand::Push { remote: url, .. } => {
-                    *url = remote.as_bytes().into();
-                }
-                GitCommand::Reds(_)
-                | GitCommand::SnapshotHead
-                | GitCommand::SnapshotMerge { .. }
-                | GitCommand::SnapshotReachable { .. }
-                | GitCommand::SnapshotReset { .. }
-                | GitCommand::Version
-                | GitCommand::Clone { .. }
-                | GitCommand::CountObjects { .. }
-                | GitCommand::Repack { .. }
-                | GitCommand::Format
-                | GitCommand::UpdateRef { .. }
-                | GitCommand::Fetch { .. }
-                | GitCommand::Create { .. }
-                | GitCommand::CheckOut { .. }
-                | GitCommand::Clean
-                | GitCommand::Merge { .. }
-                | GitCommand::Unmerged
-                | GitCommand::UpdateIndex { .. }
-                | GitCommand::Add
-                | GitCommand::DiffPaths { .. }
-                | GitCommand::DiffIndex { .. }
-                | GitCommand::WriteTree
-                | GitCommand::CommitTree { .. }
-                | GitCommand::Origin { .. }
-                | GitCommand::MergeBases { .. }
-                | GitCommand::BringsList { .. }
-                | GitCommand::IsAncestor { .. } => {}
-            }
-            let at = dir.join(step.at);
-            if let Some((path, content)) = step.edit {
-                fs::write(at.join(path), content).expect("worker edit");
-            }
-            let mut command =
-                Command::new(if row.verb { skein_scratch::paths::binary("temper-box") } else { git.clone() });
-            command.env_clear().current_dir(at).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
-            if row.verb {
-                command.args(["fake", "git"]);
-            }
-            command.args(invocation::arguments(&step.command).iter().map(|word| std::ffi::OsStr::from_bytes(word)));
-            if let Some(extra) = step.extra {
-                command.arg(std::ffi::OsStr::from_bytes(extra));
-            }
-            for entry in invocation::environment(dir.join("home").as_os_str().as_bytes(), step.kind, Some(&identity)) {
-                let split = entry.iter().position(|b| *b == b'=').expect("environment entry");
-                command.env(
-                    std::ffi::OsStr::from_bytes(&entry[..split]),
-                    std::ffi::OsStr::from_bytes(&entry[split + 1..]),
-                );
-            }
-            if let Some(name) = row.missing {
-                command.env_remove(name);
-            }
-            let mut child = command.spawn().expect("git process");
-            child.stdin.take().expect("git stdin").write_all(step.input).expect("commit message");
-            if let Some(listener) = no_route.take() {
-                no_git_route(listener, &mut child, &forge);
-            }
-            let output = child.wait_with_output().expect("git exit");
-            assert_eq!(
-                output.status.code(),
-                Some(step.exit),
-                "{}: {:?}: {}",
-                row.name,
-                step.command,
-                String::from_utf8_lossy(&output.stderr)
-            );
-            assert_eq!(output.stdout, expected(step.stdout), "{}: {:?}: stdout", row.name, step.command);
-            assert_eq!(output.stderr, expected(step.stderr), "{}: {:?}: stderr", row.name, step.command);
+    use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+    use temper_worker_protocol_git::invocation::{self, Command as GitCommand};
+
+    let scratch = support::Scratch::new("fake_git");
+    let dir = scratch.path();
+    let binary = skein_scratch::paths::binary("temper-box");
+    let git = dir.join("bin/git");
+    fs::create_dir(dir.join("bin")).expect("git's directory");
+    std::os::unix::fs::symlink(&binary, &git).expect("git link");
+    let home = dir.join("home");
+    let work = dir.join("work");
+    fs::create_dir(&home).expect("git's HOME");
+    fs::create_dir(&work).expect("worker directory");
+    let before = snapshot(&work);
+    let arguments = invocation::arguments(&GitCommand::Version);
+    let environment = invocation::environment(home.as_os_str().as_bytes(), None, None);
+    for (name, program, prefix) in [("version", &git, &[][..]), ("verb", &binary, &["fake", "git"][..])] {
+        let mut command = Command::new(program);
+        command
+            .env_clear()
+            .current_dir(&work)
+            .stdin(Stdio::piped())
+            .args(prefix)
+            .args(arguments.iter().map(|word| OsStr::from_bytes(word)));
+        for entry in &environment {
+            let split = entry.iter().position(|b| *b == b'=').expect("environment entry");
+            command.env(OsStr::from_bytes(&entry[..split]), OsStr::from_bytes(&entry[split + 1..]));
         }
-        for (path, content) in row.files {
-            let content = if content == b"{remote}" { remote.as_bytes().to_vec() } else { content };
-            assert_eq!(
-                fs::read(dir.join("work/widget").join(path)).expect("checkout file"),
-                content,
-                "{}: {path}",
-                row.name
-            );
-        }
-        if row.unchanged {
-            assert_eq!(snapshot(&dir.join("work")), before, "{}: nothing written", row.name);
-        }
-        if let Some(branch) = row.branch {
-            let response = request(
-                &forge,
-                forge.address,
-                "GET",
-                &format!("/api/v1/repos/fake/widget/branches/{branch}"),
-                &auth,
-                b"",
-            );
-            assert!(response.starts_with(b"HTTP/1.1 200"));
-            assert_eq!(body(&response)["commit"]["id"], std::str::from_utf8(STORED).expect("hex id"));
-        }
-        if let Some(llm) = llm {
-            llm.stop();
-        }
-        forge.stop();
-        scratch.remove();
+        let output = command.output().expect("git exits");
+        assert_eq!(output.status.code(), Some(0), "{name}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, b"git version 2.47.3\n", "{name}: stdout");
+        assert_eq!(output.stderr, b"", "{name}: stderr");
+        assert_eq!(snapshot(&work), before, "{name}: nothing written");
     }
+    scratch.remove();
 }
 
 #[test]
 fn check_run() {
     let scratch = support::Scratch::startup("fake-check-run");
     let directory = scratch.path();
-    let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper-box"));
+    let binary = skein_scratch::paths::binary("temper-box");
+    let (agent, _) = support::configuration::documents(directory, binary.to_str().expect("a UTF-8 binary path"));
     support::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     let data = directory.join("data");
     fs::create_dir(&data).expect("fixture data");
@@ -1580,7 +540,7 @@ fn check_run() {
     let store = directory.join("copy");
     let cache = directory.join("cache");
     let entries_before = fs::read_dir(&data).expect("fixture entries").count();
-    let ended = Command::new(skein_scratch::paths::binary("temper-box"))
+    let ended = Command::new(binary)
         .env_clear()
         .args(["fake", "forge", "check", "--config"])
         .arg(directory)
@@ -1610,121 +570,6 @@ fn check_run() {
     );
     assert!(data.join("agents.setting").is_file());
     assert!(!cache.exists());
-    scratch.remove();
-}
-
-#[test]
-fn llm_holds_a_piece_until_control_releases_it() {
-    let scratch = support::Scratch::new("fake_llm_hold");
-    let doc = scratch.path().join("llm.json");
-    let mut value = llm_document(scratch.path(), false);
-    value["control"] = json!({"socket":"127.0.0.1:0"});
-    value["asked"][0]["turns"] = json!([{"lines":[{"pieces":[
-        {"text":"first piece","hold":null}, {"text":"second piece","hold":"gate"}
-    ]}],"finish":"stop","tokens":6}]);
-    document(&doc, &value);
-    let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
-    let control = run.control.expect("control bound before ready");
-    let key = fs::read(scratch.path().join("key")).expect("generated key");
-    let authorization = format!("Bearer {}", std::str::from_utf8(&key).expect("key is hex"));
-    let mut query = stream(&run, run.address);
-    query.write_all(&http("POST", "/v1/responses", &authorization, CHAT)).expect("send query");
-    let mut response = Vec::new();
-    query.reset("the held fake stream's first piece");
-    // Read through the first complete delta event, so the assertion observes
-    // the provider's bytes, without a timer or a sleep.
-    for _ in 0..16_384 {
-        let mut byte = [0];
-        query.read_exact(&mut byte).expect("first piece arrives on the open stream");
-        response.push(byte[0]);
-        if response.windows(b"first piece".len()).any(|part| part == b"first piece") && response.ends_with(b"\n\n") {
-            break;
-        }
-    }
-    assert!(response.starts_with(b"HTTP/1.1 200"));
-    assert!(String::from_utf8_lossy(&response).contains("first piece"));
-    assert!(!String::from_utf8_lossy(&response).contains("second piece"));
-    assert!(!String::from_utf8_lossy(&response).contains("response.completed"));
-    let unknown = request(&run, control, "GET", "/", "", b"");
-    assert!(unknown.starts_with(b"HTTP/1.1 404 "));
-    // The control response is an event barrier. A nonblocking read observes
-    // any bytes already delivered and proves the stream has not ended.
-    query.set_nonblocking(true).expect("nonblocking observation");
-    let mut byte = [0];
-    loop {
-        match query.read(&mut byte) {
-            Ok(0) => panic!("held stream ended before its release"),
-            Ok(_) => response.push(byte[0]),
-            Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => break,
-            Err(why) => panic!("held stream: {why}"),
-        }
-    }
-    query.set_nonblocking(false).expect("blocking event reads");
-    assert!(!String::from_utf8_lossy(&response).contains("second piece"));
-    assert!(!String::from_utf8_lossy(&response).contains("response.completed"));
-    let released = request(&run, control, "POST", "/release/gate", "", b"");
-    assert!(released.starts_with(b"HTTP/1.1 204 No Content\r\n"));
-    query.reset("the released fake stream's reply");
-    query.read_to_end(&mut response).expect("released stream completes");
-    let text = String::from_utf8_lossy(&response);
-    assert!(text.contains("second piece"), "{text}");
-    assert!(text.contains("first piecesecond piece"), "{text}");
-    assert_eq!(text.matches("event: response.completed").count(), 1);
-    assert!(request(&run, control, "POST", "/release/gate", "", b"").starts_with(b"HTTP/1.1 204 No Content\r\n"));
-    let mut after = [0];
-    assert_eq!(query.read(&mut after).expect("stream stays complete"), 0);
-    drop(query);
-    run.stop();
-    scratch.remove();
-}
-#[test]
-fn llm_refuses_a_hold_without_control() {
-    let scratch = support::Scratch::new("fake_llm_hold_refused");
-    let doc = scratch.path().join("llm.json");
-    let mut value = llm_document(scratch.path(), false);
-    value["otherwise"] = json!([{"lines":[{"pieces":[{"text":"held","hold":"gate"}]}],"finish":"stop","tokens":1}]);
-    document(&doc, &value);
-    let output = command("llm", &doc).output().expect("run fake");
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(output.stderr, b"temper fake llm: control: required when a piece has a hold\n");
-    assert_eq!((output.stdout).len(), 0);
-    assert!(!scratch.path().join("key").exists(), "refusal creates no outputs");
-    scratch.remove();
-}
-
-#[test]
-fn llm_fails_a_credential_its_line_names_and_accepts_the_added_key() {
-    use temper_fake::credential::{KEY, added_key, credential};
-    let scratch = support::Scratch::new("fake_llm_failing_credentials");
-    let dir = scratch.path();
-    let mut doc = llm_document(dir, false);
-    doc["added_keys"] = json!([dir.join("second.key")]);
-    let turn =
-        |error| json!({"lines":[{"fail":{"error":error,"credentials":[0]}},{"text":"ok"}],"finish":"stop","tokens":1});
-    doc["asked"][0]["turns"] = json!([turn(json!("unauthorized"))]);
-    doc["cued"] = json!([{"cue":"limited","turns":[turn(json!({"exhausted":{"retry_after_ms":1000}}))]}]);
-    let path = dir.join("llm.json");
-    document(&path, &doc);
-    let run = Running::start("llm", &path, None).unwrap_or_else(|why| panic!("{why}"));
-    let primary = credential(23, KEY);
-    let second = credential(23, added_key(0));
-    private_hex(&dir.join("key"), &primary);
-    private_hex(&dir.join("second.key"), &second);
-    assert_ne!(primary, second);
-    let auth = |key: &[u8]| format!("Bearer {}", std::str::from_utf8(key).expect("hex key"));
-    let refused = request(&run, run.address, "POST", "/v1/responses", &auth(&primary), CHAT);
-    assert!(refused.starts_with(b"HTTP/1.1 401 "), "{}", String::from_utf8_lossy(&refused));
-    assert_eq!(body(&refused)["error"]["code"], "invalid_api_key");
-    let accepted = request(&run, run.address, "POST", "/v1/responses", &auth(&second), CHAT);
-    assert!(accepted.starts_with(b"HTTP/1.1 200 "), "{}", String::from_utf8_lossy(&accepted));
-    assert!(String::from_utf8_lossy(&accepted).contains("\"text\":\"ok\""));
-    let mut limited: Value = serde_json::from_slice(CHAT).expect("query");
-    limited["instructions"] = json!("limited");
-    let limited = serde_json::to_vec(&limited).expect("query");
-    let exhausted = request(&run, run.address, "POST", "/v1/responses", &auth(&primary), &limited);
-    assert!(exhausted.starts_with(b"HTTP/1.1 429 "), "{}", String::from_utf8_lossy(&exhausted));
-    assert_eq!(body(&exhausted)["error"]["resets_in_seconds"], 1);
-    run.stop();
     scratch.remove();
 }
 

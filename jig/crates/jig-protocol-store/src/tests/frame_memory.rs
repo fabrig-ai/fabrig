@@ -1,324 +1,63 @@
 //! Frame capacities measured independently of the maps (protocol/store/transcripts.md, 6, protocol/store/README.md, 8).
-#![expect(
-    clippy::disallowed_macros,
-    clippy::print_stderr,
-    reason = "the measurement reads a pinned fixture and reports its numbers"
-)]
-
-use crate::transcripts::patches;
-use skein_codec::{patch::Patcher, schema};
-use smith_transcript::Record;
-
-// Smith's schema at jig's smith pin, checked against smith-transcript's
-// generated code by `the_real_copy_is_smiths_schema`.
-const REAL: &str = include_str!("fixtures/smith-transcript-v7.schema");
-// Smith's real turn alone, as its set keeps it from the baseline on.
-const REAL_SETS: crate::OwnerSets = crate::OwnerSets {
-    sets: &[crate::OwnerSet {
-        level: Some(0),
-        families: &[crate::KeptFamily {
-            current: REAL,
-            name: smith_transcript::FAMILY,
-            frames: Some(crate::Frames { root: smith_transcript::ROOT, texts: &[REAL], patches: &[] }),
-            ..super::frame_patches::SETS.sets[1].families[0]
-        }],
-        ..super::frame_patches::SETS.sets[1]
-    }],
-};
-const CANDIDATES: [u32; 4] = [4096, 16_384, 65_536, 262_144];
-
-// 21 envelope/message + 2*4 text + 16*6 calls + 16*14 read results.
-const TYPICAL_NODES: u32 = 349;
+use skein_codec::{Record, schema};
+const REAL: &str = smith_transcript::SCHEMA;
 
 #[test]
-fn frame_capacities_cover_real_and_kept_turns() {
-    let limits = super::fixtures::store_limits();
-    let sets = super::frame_patches::SETS;
-    for nodes in CANDIDATES {
-        let mut capacity = patches::capacity(&sets.sets[1], 0, &limits).expect("turn capacity");
-        capacity.nodes = nodes;
-        eprintln!(
-            "smith nodes {nodes}: {} bytes (versions {}, patches {}, text {}, bytes {})",
-            Patcher::workspace_bound(capacity).expect("heap"),
-            capacity.versions,
-            capacity.patches,
-            capacity.text,
-            capacity.bytes
-        );
-    }
+fn the_current_transcript_schema_matches_its_generated_bounds() {
     let schema = schema::parse(REAL.as_bytes()).expect("smith's pinned schema");
-    let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn");
-    kept_turns_fit(&sets, &limits);
-    let real = patches::capacity(&REAL_SETS.sets[0], 0, &limits).expect("real turn capacity");
-    let maximum = maximum_decl(&schema, root);
-    assert_eq!(real.nodes, maximum.0, "smith's machine reads every turn its kept schema allows");
-    assert!(u64::from(maximum.1) <= u64::from(real.bytes), "the maximum-node turn fits the transcript's bytes");
-    eprintln!("real smith Turn maximum nodes {}, achieved in {} bytes", real.nodes, maximum.1);
-    let typical = typical_turn();
-    let mut value = skein_codec::value::Value::with_room(TYPICAL_NODES);
-    value.decode(&schema, root, typical.clone()).expect("typical tool-heavy turn fits its node count");
-    let mut smaller = skein_codec::value::Value::with_room(TYPICAL_NODES.checked_sub(1).expect("nonempty"));
-    assert_eq!(smaller.decode(&schema, root, typical.clone()), Err(skein_codec::value::Refusal::Room));
-    eprintln!("typical smith 34-block tool-heavy turn {} bytes, {TYPICAL_NODES} nodes", typical.len());
-    eprintln!("real smith machine heap {}", Patcher::workspace_bound(real).expect("real heap"));
-}
-
-fn kept_turns_fit(sets: &crate::OwnerSets, limits: &crate::Limits) {
-    for set in sets.sets {
-        if set.owner != crate::Owner::Smith {
-            continue;
-        }
-        for (ix, family) in set.families.iter().enumerate() {
-            let Some(frames) = &family.frames else { continue };
-            let root = frames.root;
-            let capacity = patches::capacity(set, ix, limits).expect("kept capacity");
-            let meta = patches::kept_patcher(frames, capacity).expect("kept metadata");
-            let last = schema::parse(frames.texts.last().expect("kept last").as_bytes()).expect("last text").version();
-            let mut most = 0;
-            for text in frames.texts {
-                let schema = schema::parse(text.as_bytes()).expect("kept text");
-                let root = patches::held_root(&meta, schema.version(), last, root.as_bytes()).expect("kept root");
-                most = most.max(maximum_decl(&schema, root).0);
-            }
-            assert_eq!(capacity.nodes, most, "the machine's nodes are its kept texts' most");
-        }
-    }
-}
-
-#[test]
-fn the_real_copy_is_smiths_schema() {
-    let schema = schema::parse(REAL.as_bytes()).expect("smith's pinned schema");
-    let generated = generated_bounds();
-    assert_eq!(copied_bounds(&schema), (generated.len(), generated), "the copy's bounds are smith's");
+    check_generated_bounds(&schema);
     let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn");
     assert_eq!(
         Some(u64::from(schema.most_bytes(root))),
         smith_transcript::Turn::encoded_bound(&smith_transcript::CEILINGS),
-        "the copy's bound is smith's"
+        "the parser and generated codec agree on the maximum turn"
     );
     assert_eq!(u64::from(schema.version()), smith_transcript::Turn::FORMAT_VERSION);
     assert_eq!(schema.spelled(schema.family()), smith_transcript::FAMILY.as_bytes());
 }
 
-// The bounds smith-transcript's generated `Limits` names.
-const SMITH_BOUNDS: usize = 35;
-
-/// Every bound smith's codegen names, in its declarations' order; a field
-/// added or removed at a repin fails to compile here.
-fn generated_bounds() -> [u32; SMITH_BOUNDS] {
-    let limits = smith_transcript::CEILINGS;
-    let smith_transcript::v7::Limits {
-        replay_bytes: _,
-        text_text: _,
-        opaque_bytes: _,
-        call_id: _,
-        call_name: _,
-        call_input: _,
-        entry_name: _,
-        hit_path: _,
-        hit_text: _,
-        read_content: _,
-        listed_entries: _,
-        found_hits: _,
-        command_end_head: _,
-        command_end_last: _,
-        command_running_head: _,
-        command_running_last: _,
-        job_read_head: _,
-        job_read_last: _,
-        ambiguous_lines: _,
-        working_path_path: _,
-        other_path_directory: _,
-        other_path_path: _,
-        outside_path_path: _,
-        field_problem_field: _,
-        said_text: _,
-        call_name_name: _,
-        allowed_calls_names: _,
-        tool_result_id: _,
-        message_blocks: _,
-        program_name: _,
-        turn_endpoint: _,
-        turn_model: _,
-        turn_effort_some: _,
-        turn_messages: _,
-        turn_system_some: _,
-    } = limits;
-    bound_values(limits)
-}
-
-/// The copy's bounds in the same order: each record field's first bound
-/// past its options.
-fn copied_bounds(schema: &schema::Schema) -> (usize, [u32; SMITH_BOUNDS]) {
-    let mut copied = [0_u32; SMITH_BOUNDS];
-    let mut count = 0_usize;
+// Compare every bound in schema order, including bounds inside options and lists.
+fn check_generated_bounds(schema: &schema::Schema) {
+    use schema::{LimitLevel, Type};
+    let ceilings = smith_transcript::CEILINGS.values();
+    let names = smith_transcript::v8::LIMIT_NAMES;
+    assert_eq!(names.len(), ceilings.as_slice().len(), "smith's generated limit names and values");
+    let mut generated = names.iter().zip(ceilings.as_slice());
     for decl in 0..schema.declarations() {
-        let schema::Shape::Record { first, count: fields, .. } = schema.declaration(schema::DeclIx::new(decl)).shape
-        else {
+        let declaration = schema.declaration(schema::DeclIx::new(decl));
+        let schema::Shape::Record { first, count, .. } = declaration.shape else {
             continue;
         };
-        for offset in 0..fields {
-            let mut ty = schema.field(schema::FieldIx::new(first.index().checked_add(offset).expect("field"))).ty;
+        for offset in 0..count {
+            let field = schema.field(schema::FieldIx::new(first.index().checked_add(offset).expect("field")));
+            let mut ty = field.ty;
+            let mut name = schema::limit_name(schema.spelled(declaration.name), schema.spelled(field.name));
             for _ in 0..schema.text().len() {
-                match schema.ty(ty) {
-                    schema::Type::Option(item) => ty = item,
-                    schema::Type::List { bound, .. }
-                    | schema::Type::Bytes { bound, .. }
-                    | schema::Type::Text(bound)
-                    | schema::Type::Secret { bound, .. } => {
-                        *copied.get_mut(count).expect("no more bounds than smith's") = bound;
-                        count = count.checked_add(1).expect("bounds");
-                        break;
+                let (bound, next) = match schema.ty(ty) {
+                    Type::Option(item) => {
+                        ty = item;
+                        name = schema::limit_child(&name, LimitLevel::Some);
+                        continue;
                     }
-                    schema::Type::U8
-                    | schema::Type::U16
-                    | schema::Type::U32
-                    | schema::Type::U64
-                    | schema::Type::Bool
-                    | schema::Type::Duration
-                    | schema::Type::Fixed(_)
-                    | schema::Type::Named(_) => break,
-                }
+                    Type::List { bound, item } => (bound, Some(item)),
+                    Type::Bytes { bound, .. } | Type::Text(bound) | Type::Secret { bound, .. } => (bound, None),
+                    Type::U8
+                    | Type::U16
+                    | Type::U32
+                    | Type::U64
+                    | Type::Bool
+                    | Type::Duration
+                    | Type::Fixed(_)
+                    | Type::Named(_) => break,
+                };
+                let (&expected_name, &expected_bound) = generated.next().expect("no more bounds than smith's");
+                assert_eq!(name.as_ref(), expected_name.as_bytes(), "copied limit: {expected_name}");
+                assert_eq!(bound, expected_bound, "copied limit: {expected_name}");
+                let Some(item) = next else { break };
+                ty = item;
+                name = schema::limit_child(&name, LimitLevel::Item);
             }
         }
     }
-    (count, copied)
-}
-
-fn maximum_decl(schema: &schema::Schema, decl: schema::DeclIx) -> (u32, u32) {
-    use schema::{FieldIx, Shape, VariantIx};
-    match schema.declaration(decl).shape {
-        Shape::Record { versioned, first, count } => {
-            let mut total = (1_u32, if versioned { 2_u32 } else { 0 });
-            for offset in 0..count {
-                let field = schema.field(FieldIx::new(first.index().checked_add(offset).expect("field")));
-                let child = maximum_type(schema, field.ty);
-                total.0 = total.0.checked_add(child.0).expect("nodes");
-                total.1 = total.1.checked_add(child.1).expect("bytes");
-            }
-            total
-        }
-        Shape::Enum { first, count } => {
-            let mut best = (0, 0);
-            for offset in 0..count {
-                if let Some(decl) =
-                    schema.variant(VariantIx::new(first.index().checked_add(offset).expect("variant"))).record
-                {
-                    let child = maximum_decl(schema, decl);
-                    if child.0 > best.0 || (child.0 == best.0 && child.1 < best.1) {
-                        best = child;
-                    }
-                }
-            }
-            (best.0.checked_add(1).expect("enum"), best.1.checked_add(1).expect("tag"))
-        }
-    }
-}
-fn maximum_type(schema: &schema::Schema, ty: schema::TypeIx) -> (u32, u32) {
-    use schema::Type;
-    match schema.ty(ty) {
-        Type::Named(decl) => maximum_decl(schema, decl),
-        Type::List { bound, item } => {
-            let child = maximum_type(schema, item);
-            (
-                child.0.checked_mul(bound).expect("nodes").checked_add(1).expect("list"),
-                child.1.checked_mul(bound).expect("bytes").checked_add(4).expect("count"),
-            )
-        }
-        Type::Option(item) => {
-            let child = maximum_type(schema, item);
-            (child.0.checked_add(1).expect("option"), child.1.checked_add(1).expect("presence"))
-        }
-        Type::Fixed(size) => (1, size),
-        Type::U8 | Type::Bool => (1, 1),
-        Type::U16 => (1, 2),
-        Type::U32 | Type::Bytes { .. } | Type::Secret { .. } | Type::Text(_) => (1, 4),
-        Type::U64 | Type::Duration => (1, 8),
-    }
-}
-fn typical_turn() -> Box<[u8]> {
-    // 48 envelope/message bytes + 2 * 11 text blocks + 16 * (27 call + 65 read-result).
-    const TYPICAL_BYTES: usize = 1542;
-    let mut bytes = skein_lib::Writer::new(TYPICAL_BYTES);
-    bytes.put(&7_u16.to_be_bytes()).expect("version");
-    bytes.put(&[0, 0]).expect("kind, opening");
-    bytes.put(&0_u32.to_be_bytes()).expect("endpoint");
-    bytes.put(&0_u32.to_be_bytes()).expect("model");
-    bytes.put(&[0]).expect("effort");
-    bytes.put(&0_u32.to_be_bytes()).expect("dialect");
-    bytes.put(&1_u32.to_be_bytes()).expect("place");
-    bytes.put(&[0; 5]).expect("usage");
-    bytes.put(&0_u64.to_be_bytes()).expect("spent");
-    bytes.put(&0_u32.to_be_bytes()).expect("jobs");
-    bytes.put(&1_u32.to_be_bytes()).expect("messages");
-    bytes.put(&[1]).expect("assistant");
-    bytes.put(&34_u32.to_be_bytes()).expect("blocks");
-    text_block(&mut bytes);
-    for _ in 0_u8..16 {
-        bytes.put(&[2]).expect("call block");
-        content(&mut bytes, b"tool-id");
-        content(&mut bytes, b"read");
-        content(&mut bytes, b"{}");
-        bytes.put(&[0]).expect("replay");
-        bytes.put(&[3]).expect("result block");
-        content(&mut bytes, b"tool-id");
-        bytes.put(&[0, 0]).expect("returned outcome, read");
-        content(&mut bytes, &[b'a'; 32]);
-        for _ in 0_u8..3 {
-            bytes.put(&1_u32.to_be_bytes()).expect("line fields");
-        }
-        bytes.put(&[1, 0, 0]).expect("end, whole, within");
-    }
-    text_block(&mut bytes);
-    bytes.put(&[0]).expect("unavailable system context");
-    bytes.finish()
-}
-fn text_block(bytes: &mut skein_lib::Writer) {
-    bytes.put(&[0]).expect("text block");
-    content(bytes, b"hello");
-    bytes.put(&[0]).expect("no replay");
-}
-fn content(bytes: &mut skein_lib::Writer, text: &[u8]) {
-    bytes.put(&u32::try_from(text.len()).expect("text").to_be_bytes()).expect("length");
-    bytes.put(text).expect("content");
-}
-
-fn bound_values(limits: smith_transcript::v7::Limits) -> [u32; SMITH_BOUNDS] {
-    [
-        limits.replay_bytes,
-        limits.text_text,
-        limits.opaque_bytes,
-        limits.call_id,
-        limits.call_name,
-        limits.call_input,
-        limits.entry_name,
-        limits.hit_path,
-        limits.hit_text,
-        limits.read_content,
-        limits.listed_entries,
-        limits.found_hits,
-        limits.command_end_head,
-        limits.command_end_last,
-        limits.command_running_head,
-        limits.command_running_last,
-        limits.job_read_head,
-        limits.job_read_last,
-        limits.ambiguous_lines,
-        limits.working_path_path,
-        limits.other_path_directory,
-        limits.other_path_path,
-        limits.outside_path_path,
-        limits.field_problem_field,
-        limits.said_text,
-        limits.call_name_name,
-        limits.allowed_calls_names,
-        limits.tool_result_id,
-        limits.message_blocks,
-        limits.program_name,
-        limits.turn_endpoint,
-        limits.turn_model,
-        limits.turn_effort_some,
-        limits.turn_messages,
-        limits.turn_system_some,
-    ]
+    assert_eq!(generated.next(), None, "the schema holds every generated limit");
 }

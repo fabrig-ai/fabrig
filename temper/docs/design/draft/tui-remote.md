@@ -64,11 +64,11 @@ It covers:
 - **The TUI reaches an engine on its own machine alone**
   (`../client/tui/README.md`, 1): `http://HOST:PORT`, HOST an IP address
   on loopback. It signs in from the engine's link file, a pasted printed
-  link, or the browser's approval (`../client/README.md`, 4.1).
+  link, or the browser's approval (`../client/sign-in.md`, 1.1).
 - **jig's approval is designed for loopback:** it is enabled only where
   the clients' listener is on loopback, and approval between hosts, over
   TLS, is later (jig's `protocol/client/sign-in.md`, *A sign-in approved
-  by a browser*; jig's `protocol/configuration.md`, 3 and 8). `tui.md`, 7
+  by a browser*; jig's `protocol/configuration-engine.md`, 1, and `protocol/configuration.md`, 8). `tui.md`, 7
   sketched it: Google's sign-in on the web, then the same approval over
   HTTPS, the code typed on the page, which says where the ask came from
   and how long ago. On loopback, a code in the page's address approves
@@ -84,10 +84,10 @@ It covers:
   public name as it admits the listener's own address. Enabled, it would
   be asked from the internet with none of section 5's guards.
 - **jig's native shell speaks plain HTTP** to a socket address (jig's
-  `protocol/client/README.md`, 9). skein's TLS client, `skein-tls`, and
+  `protocol/client/shells.md`, 1). skein's TLS client, `skein-tls`, and
   the machine's roots, found by skein-shell's startup, are in the tree
   already, used by the engine's own calls out.
-- **A client of another build is refused** (`redeploys.md`, 8;
+- **A client of another build is refused** (`archive/redeploys.md`, 8;
   `layouts-both-ways.md`, 3), and the browser reloads to the engine's
   bundle. The TUI has no words for it.
 
@@ -101,7 +101,7 @@ It covers:
 - **A name for HTTPS, an IP address for HTTP.** HTTPS takes a name,
   never an IP address, since a deployment's certificate is for its name.
   HTTP takes an IP address on loopback, as today, so a bearer never
-  crosses a network in plaintext (`../client/README.md`, 4, *Loopback
+  crosses a network in plaintext (`../client/sign-in.md`, 1, *Loopback
   only*). `localhost` is a name, and stays refused for HTTP.
 - **Its refusals,** beside the table's (`../client/tui/README.md`, 1),
   exit 2 but the last:
@@ -117,7 +117,7 @@ It covers:
   `http://` address off loopback.
 - **Kept, and come back to:** the TUI's `address` file holds the origin
   last signed in to, `https://NAME` or `http://HOST:PORT`, at most 300
-  bytes (`../client/tui/README.md`, 2). Bare `temper` keeps its order:
+  bytes (`../client/tui/directory.md`, 1). Bare `temper` keeps its order:
   the engine's link file's address, else the address kept, else the
   default. So on a machine with no box running, bare `temper` goes back
   to the deployment last used.
@@ -129,11 +129,11 @@ It covers:
   box keeps `HOST:PORT`.
 - **Every address the TUI opens is the origin's:** the approval's tab
   (5.1), `/open`, and each "Open it on the web"
-  (`../client/tui/README.md`, 3, *The TUI's events*). A page opens on
+  (`../client/tui/host.md`, 1, *The TUI's events*). A page opens on
   the deployment the TUI reads.
 - **No link file at a name:** the engine's link file names an engine of
   this machine, so at a name the TUI reads none and is never on a box.
-  Its start's `local` and `boxed` are false (`../client/tui/README.md`, 2).
+  Its start's `local` and `boxed` are false (`../client/tui/directory.md`, 1).
 
 ## 4. The connection
 
@@ -179,7 +179,7 @@ code typed from the person's own terminal (5.2).
 ### 5.1 One click: the loopback return
 
 - **The terminal listens:** when the TUI can open a browser on its own
-  machine (`../client/README.md`, 4.1, *The opener*), it opens, for the
+  machine (`../client/sign-in.md`, 1.1, *The opener*), it opens, for the
   sign-in alone, a listener on `127.0.0.1` at a port the kernel picks,
   and asks an approval that names that port, its loopback return.
 - **The tab** opens at `https://NAME/terminal?code=CODE`. Signed in, the
@@ -206,7 +206,7 @@ code typed from the person's own terminal (5.2).
   the person's loopback, where the stranger's terminal isn't, and the
   stranger's take, which has the secret but no grant, is refused. A
   process on the person's machine could catch the grant, but it can
-  read the TUI's token already (`../client/tui/README.md`, 2, *The risk,
+  read the TUI's token already (`../client/tui/directory.md`, 1, *The risk,
   accepted*). `Referrer-Policy: no-referrer` and the grant's single use
   keep it out of other sites and replays.
 - **Its lines,** illustrative:
@@ -230,7 +230,7 @@ code typed from the person's own terminal (5.2).
   then the expiry's line. The tunnel's line is a box's alone: a
   deployment at a name is reached from any browser.
 - **Taken as today:** the TUI sends the take each second while it waits
-  (`../client/README.md`, 4.1, *The take's outcomes are the link's*).
+  (`../client/sign-in.md`, 1.1, *The take's outcomes are the link's*).
 
 ### 5.3 The page
 
@@ -240,8 +240,8 @@ code typed from the person's own terminal (5.2).
   listener's own address through a tunnel among them; a code in the
   address is dropped for it and the field shown. An ask made by the
   listener's own address keeps today's page, its code read from the
-  address (`../client/pages/README.md`, 2, *The approval page*;
-  `../client/web/README.md`, 2.3). The read answers which of the three
+  address (`../client/pages/shared-behaviour.md`, 1, *The approval page*;
+  `../client/web/addresses.md`, 1). The read answers which of the three
   the ask is (5.4).
 - **"Sign in first", Google's way given,** keeps the code in its `then`
   for a loopback return, and drops it for an ask approved by typing.
@@ -262,7 +262,7 @@ code typed from the person's own terminal (5.2).
 ### 5.4 The engine
 
 - **Approval by the public name is what `approval` enables,** in jig's
-  clients' configuration (jig's `protocol/configuration.md`, 3), where
+  clients' configuration (jig's `protocol/configuration-engine.md`, 1), where
   the application gives a public name. There is no second switch, and
   the startup's check stays the listener on loopback, as a deployment
   behind its proxy has it. That section's and jig's
@@ -315,13 +315,13 @@ code typed from the person's own terminal (5.2).
 - **At a name, the screen holds the approval alone,** with no paste: a
   deployment elsewhere prints no link the person holds
   (`../protocol/sign-in.md`, 2.3). It asks as on a box, each time it
-  opens signed out (`../client/README.md`, 4.1, *The TUI's flow*).
+  opens signed out (`../client/sign-in.md`, 1.1, *The TUI's flow*).
 - **Enter is the screen's one key,** with no field: while a one-click
   ask waits, it asks one for a typed code (5.2); once an approval has
   ended, or wasn't asked, it asks again, one-click where there is an
   opener; while a typed code's ask waits, or an ask is in flight,
   nothing.
-- **The outcomes** are a box's (`../client/README.md`, 4.1, *Each
+- **The outcomes** are a box's (`../client/sign-in.md`, 1.1, *Each
   outcome's line*), but for "not asked: refused", which at a name says
   "dev.fabrig.ai doesn't sign terminals in from the browser.", since
   there is no link to paste instead.
@@ -333,24 +333,24 @@ code typed from the person's own terminal (5.2).
 ## 6. One directory per deployment
 
 - **Each origin has its own directory** under the TUI's
-  (`../client/tui/README.md`, 2): `at/HOST/PORT`, HOST the origin's name
+  (`../client/tui/directory.md`, 1): `at/HOST/PORT`, HOST the origin's name
   or IP address as printed, PORT its port, 443 included. Each component
   stays within a file name's 255 bytes, and names and IP addresses never
-  meet, so neither do the two schemes (section 3). Each holds that
+  meet, so neither do the two schemes (`tui-remote.md`, section 3). Each holds that
   deployment's `token`, `store` and `sign-in`, as the TUI's directory
   holds them today, and is private as it is. `address` and the
   recordings stay in the TUI's directory.
 - **No credential is offered to another engine:** the TUI gives the
   native shell its origin's directory alone, so a credential and the
   requests kept meet only the engine that made them. Today's "started at
-  another address, the TUI offers it there" (`../client/tui/README.md`,
-  2, *One sign-in at a time*) goes: across deployments, it would hand
+  another address, the TUI offers it there" (`../client/tui/directory.md`,
+  1, *One sign-in at a time*) goes: across deployments, it would hand
   one deployment's bearer to whatever listens at another's address.
 - **Switching signs nobody out:** a box and dev.fabrig.ai each keep
   their own sign-in, so going from one to the other and back asks
   nothing again while each sign-in lives.
 - **The theme stays the person's:** it is a record of the small store
-  (`../client/tui/README.md`, 3, `Start.kept`), so a deployment's store
+  (`../client/tui/host.md`, 1, `Start.kept`), so a deployment's store
   starts, at its first start, with the theme of the one used last.
 - **Nothing new in a versioned format:** `address` and `sign-in` are
   lines of text, `token` is the credential's bytes, and `store` stays
@@ -371,7 +371,7 @@ code typed from the person's own terminal (5.2).
 
 - **The person keeps the laptop's build at the deployment's,** for this
   pass (the user, 2026-11-18).
-- **When the engine refuses the TUI's version** (`redeploys.md`, 8; the
+- **When the engine refuses the TUI's version** (`archive/redeploys.md`, 8; the
   owners `jig-client`'s link view names as not served), the TUI draws
   this in place of the sign-in screen or the launchpad, illustrative:
 

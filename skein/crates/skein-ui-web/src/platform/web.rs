@@ -17,7 +17,7 @@ impl<R: 'static> Browser<R> {
             navigation: super::Navigation::default(),
         }
     }
-    /// Allows plaintext loopback targets for a test page; off by default (ui/web/README.md, 8).
+    /// Allows plaintext loopback targets for a test page; off by default (ui/web/effects.md, 1).
     #[must_use]
     pub fn with_loopback_navigation(mut self, on: bool) -> Self {
         self.navigation.loopback = on;

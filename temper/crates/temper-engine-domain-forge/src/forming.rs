@@ -1,4 +1,4 @@
-//! Sealed, indivisible units selected in queue order (domain/landing.md, 4.1, 9).
+//! Sealed, indivisible units selected in queue order (domain/landing.md, 4.1, domain/landing-turn.md, 2).
 use crate::{ChangeDependencies, Domain};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
@@ -111,5 +111,162 @@ impl Domain {
             return Selection { take: Box::new([]), hold: Box::new([]) };
         }
         selection
+    }
+
+    /// Task dependencies used to seal a train's units (domain/landing.md, 4.1).
+    #[must_use]
+    pub fn forming_dependencies(
+        &self,
+        tasks: &jig_domain_tasks::Domain,
+        project: u32,
+        limit: u32,
+    ) -> Box<[ChangeDependencies]> {
+        let mut graph = List::with_capacity(limit);
+        for repository in self.writable_repositories(project) {
+            for change in self.changes_for(repository.provider, limit) {
+                if let Some(row) = tasks.task(change) {
+                    graph
+                        .push(ChangeDependencies { change, pending: row.waiting_on.clone() })
+                        .expect("bounded changes");
+                }
+            }
+        }
+        graph.into_boxed()
+    }
+
+    /// A ready member already recorded by its train needs its ending step.
+    #[must_use]
+    pub fn landing_step_due(&self, task: u64) -> bool {
+        let Some(change) = self.change(task) else { return false };
+        if let change::State::Ready { .. } = change.change.state
+            && let Some(task) = change.change.landing
+            && let Some(row) = self.landing(task)
+        {
+            for member in &row.landing.members {
+                if member.change == change.task {
+                    return member.landed.is_some();
+                }
+            }
+        }
+        false
+    }
+
+    /// Form a member from the connector's adoption and gate facts (domain/landing.md, 4.2).
+    #[must_use]
+    pub fn forming_member(&self, task: u64, gate_limit: u32) -> Option<temper_engine_domain_forge_landing::Member> {
+        use temper_engine_domain_forge_landing as landing;
+        let row = self.change(task)?;
+        let project = self.repository(row.repository)?.project;
+        let mut gates = List::with_capacity(gate_limit);
+        if let Some(repository) = self.repository_gates(project, row.repository)
+            && self.repository(row.repository)?.landing == row.base
+        {
+            for _ in &repository.gates {
+                gates
+                    .push(landing::GateProof {
+                        proof: landing::Proof::Unkeyed,
+                        posted: landing::Posted::Nothing,
+                        faults: 0,
+                    })
+                    .expect("configured gates");
+            }
+        }
+        Some(landing::Member {
+            round: None,
+            unit: 0,
+            branch: Box::new([]),
+            combined: None,
+            recorded: false,
+            told: false,
+            judging: false,
+            leave_told: false,
+            left: None,
+            change: task,
+            repository: landing::Repository { forge: row.repository.forge, repository: row.repository.repository },
+            // A producing member has no pull yet; the top fills it before reading.
+            pull: row.pull.unwrap_or(0),
+            head: None,
+            base: None,
+            candidate: None,
+            gates: gates.into_boxed(),
+            asked: None,
+            landed: None,
+        })
+    }
+
+    /// The policy owns gate retries and merge outcomes; other terminal writes need an account.
+    #[must_use]
+    pub fn landing_effect_needs_hold(&self, task: u64, entry: u64) -> bool {
+        let Some(row) = self.landing(task) else { return false };
+        for pending in &row.entries {
+            if pending.entry != entry {
+                continue;
+            }
+            match pending.operation {
+                crate::Operation::Dispatch | crate::Operation::Rerun | crate::Operation::Merge => return false,
+                crate::Operation::Pending
+                | crate::Operation::Verdict
+                | crate::Operation::Open
+                | crate::Operation::Close
+                | crate::Operation::Delete
+                | crate::Operation::Record => {}
+            }
+        }
+        true
+    }
+
+    /// A landing ends for its train alone (domain/landing.md, 4.2, and domain/landing-turn.md, 2).
+    #[must_use]
+    pub fn waiting_after_landing(&self, task: u64, limit: u32) -> Box<[u64]> {
+        let mut waiting = List::with_capacity(limit);
+        let Some(landing) = self.landing(task) else { return waiting.into_boxed() };
+        let Some(member) = landing.landing.members.first() else { return waiting.into_boxed() };
+        let repository =
+            skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
+        for change in self.changes_for(repository, limit) {
+            if let Some(row) = self.change(change)
+                && row.change.landing.is_none()
+                && let change::State::Ready { .. } = row.change.state
+                && row.base == landing.landing.branch
+            {
+                waiting.push(change).expect("bounded train followers");
+            }
+        }
+        waiting.into_boxed()
+    }
+
+    /// Aggregate report: owner/name, a space, then the landed commit in hex, one line each.
+    #[must_use]
+    pub fn landing_result_words(&self, task: u64, limit: u32) -> Box<[u8]> {
+        use crate::landing::append_words as append;
+        let mut words = List::with_capacity(limit);
+        for (index, member) in self.landing(task).expect("finished landing").landing.members.iter().enumerate() {
+            let provider = skein_forge::api::Repository {
+                forge: member.repository.forge,
+                repository: member.repository.repository,
+            };
+            if let Some(repository) = self.repository(provider) {
+                append(&mut words, &repository.owner);
+                append(&mut words, b"/");
+                append(&mut words, &repository.name);
+            }
+            append(&mut words, b" ");
+            let Some(commit) = member.landed else {
+                append(&mut words, b"change ");
+                append(&mut words, skein_lib::Decimal::of(member.change).as_bytes());
+                append(&mut words, b" left: ");
+                if let Some(why) = self.landing_leave_words(task, u16::try_from(index).expect("member position")) {
+                    append(&mut words, &why);
+                }
+                append(&mut words, b"\n");
+                continue;
+            };
+            let width = if commit.get(20..).expect("commit suffix") == [0; 12] { 20 } else { 32 };
+            for byte in commit.get(..width).expect("commit width") {
+                append(&mut words, &crate::hex(*byte));
+            }
+            append(&mut words, b"\n");
+        }
+        words.into_boxed()
     }
 }

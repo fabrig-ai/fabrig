@@ -1,0 +1,3 @@
+# Split smith's testing tiers from the shared testing design.
+title smith/docs/design/testing-tiers.md: Testing smith: its tiers
+smith/docs/design/testing.md 2 -> smith/docs/design/testing-tiers.md

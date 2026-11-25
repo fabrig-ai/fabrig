@@ -1,5 +1,5 @@
 //! A full forge outbox defers projections and ends the root's step
-//! (`temper/docs/design/domain/forge/README.md`, 4 and `temper/docs/design/domain/forge/issues.md`).
+//! (`temper/docs/design/domain/forge/effects.md`, 1 and `temper/docs/design/domain/forge/issues.md`).
 use skein_lib::{Env, Queue, Wall};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_issues as issues;
@@ -101,11 +101,8 @@ fn full_outbox() -> (crate::Domain, Env<crate::Limits>, u64, u64) {
             &mut out,
         );
     }
-    for event in [
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        forge::Event::ReadAfresh,
-        forge::Event::SettleOutbox,
-    ] {
+    for event in [forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, forge::Event::CatchUp]
+    {
         forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
     }
     assert!(!domain.forge.effect_room(&env.limits.forge));

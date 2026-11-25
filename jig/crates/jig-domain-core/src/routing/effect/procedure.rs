@@ -24,10 +24,7 @@ pub(crate) fn refused(core: &Core, task: u64, step: u64, why: StepRefusal) -> Qu
     out
 }
 
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")
-)]
+#[expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")]
 pub(crate) fn parts(
     core: &mut Core,
     env: &Env<Limits>,
@@ -110,7 +107,14 @@ pub(crate) fn apply(
     crate::routing::step::step_tasks(
         core,
         env,
-        tasks::Event::Procedure { reply_to: skein_lib::ReplyTo::new(token), task, step, read, decision },
+        tasks::Event::Procedure {
+            reads_project: false,
+            reply_to: skein_lib::ReplyTo::new(token),
+            task,
+            step,
+            read,
+            decision,
+        },
         &mut child,
     );
     let mut kept = Queue::uncapped();
@@ -176,10 +180,7 @@ pub(crate) fn append_problem(core: &Core, task: u64, step: u64, problem: tasks::
     }
 }
 
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")
-)]
+#[expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")]
 fn proposals(
     core: &mut Core,
     env: &Env<Limits>,
@@ -238,10 +239,7 @@ fn proposals(
     Ok(proposals.into_boxed())
 }
 
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")
-)]
+#[expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")]
 fn cancels(
     core: &mut Core,
     env: &Env<Limits>,
@@ -267,10 +265,7 @@ fn cancels(
     Ok(cancels.into_boxed())
 }
 
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")
-)]
+#[expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")]
 fn amendments(
     core: &mut Core,
     env: &Env<Limits>,

@@ -460,6 +460,7 @@ fn restored_records_rebuild_adoptions_names_topics_and_pool_slots() {
                 | Request::Erase { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }
+                | Request::Waits { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
                 | Request::Section { .. }
@@ -469,6 +470,7 @@ fn restored_records_rebuild_adoptions_names_topics_and_pool_slots() {
                 | Request::ReadAnswered { .. }
                 | Request::Marked { .. }
                 | Request::Changed { .. }
+                | Request::ReadAfreshDone
                 | Request::RestartDone
                 | Request::ApplicationDone { .. }
                 | Request::ApplicationAgain { .. }

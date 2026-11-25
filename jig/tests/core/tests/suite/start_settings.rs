@@ -1,5 +1,5 @@
 //! Direct Core over settings rows from the reference root's real seed
-//! (jig/docs/design/domain/engine/restart.md, jig/docs/design/domain/engine/settings.md, 7).
+//! (jig/docs/design/domain/engine/restart.md, jig/docs/design/domain/engine/settings-store.md, 1).
 use crate::settings_support as support;
 use jig_core_world::fixtures::{link, phase};
 use jig_domain_core::{
@@ -36,6 +36,7 @@ impl Harness {
                         assert_ne!(h.core.restore(&h.env, core::Record::Core(row.clone())), core::Restore::Refused);
                     }
                     core::CoreRecord::Projection(_)
+                    | core::CoreRecord::Part(_)
                     | core::CoreRecord::Call(_)
                     | core::CoreRecord::RunProof(_)
                     | core::CoreRecord::Turn(_)

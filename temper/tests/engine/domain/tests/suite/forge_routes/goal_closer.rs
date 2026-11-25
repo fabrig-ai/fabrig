@@ -475,6 +475,7 @@ fn a_closer_closes_lands_and_reports() {
             title: b"Cancelled".as_slice().into(),
             why: closer::Why::Cancelled,
         }]),
+        goal_left: None,
         landing: closer::Landing::Landed {
             pull: row(&world, landing).pull.expect("landing pull"),
             base: b"main".as_slice().into(),
@@ -1088,8 +1089,11 @@ fn a_failed_landing_reports_without_holding_if_main_holds_the_goal() {
 
 #[test]
 fn a_closer_survives_restart() {
+    use temper_engine_domain_world::ends::{Bound, Expect};
     let (mut world, goal, branch) = goal_world(true, true);
     let closer = make_closer(&mut world, &goal, 93);
+    world.ends.faults_stop(world.env.now);
+    world.ends.expect(closer, Expect::Ends, Bound { minutes: 10, steps: 4000 }).expect("nonzero bound");
     let job = close_job(&mut world);
     let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
     finish_close(&mut world, close, &branch, &job);
@@ -1116,6 +1120,28 @@ fn a_closer_survives_restart() {
     world.close();
 }
 
+fn new_work(world: &mut World, goal: &engine::Assignment, call: u64) -> (u64, engine::Assignment) {
+    let change = engine::ChangeCall::words(b"New work".as_slice().into(), None);
+    let answer = world.scripted_call(goal, call, engine::Tool::Change { changes: Box::new([change]) });
+    let engine::CallAnswer::Delegated(made) = answer else {
+        panic!("new work: {answer:?}; errors {:?}", world.call_errors)
+    };
+    let work = made[0].task;
+    (work, producer_for(world, work))
+}
+
+fn closer_waits_for(world: &mut World, goal: &engine::Assignment, closer: u64, work: u64, call: u64) {
+    let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for new work");
+    amendment.dependencies = Some(Box::new([work]));
+    let revision = live_task(world, closer).revisions.spec;
+    let answer = world.scripted_call(
+        goal,
+        call,
+        engine::Tool::Amend { target: closer, revision, amendment, keep_parameters: false },
+    );
+    assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "{answer:?}");
+}
+
 #[test]
 fn a_closer_waits_for_work_and_closes_again() {
     let (mut world, goal, branch) = goal_world_in(true, true, None, true);
@@ -1124,22 +1150,8 @@ fn a_closer_waits_for_work_and_closes_again() {
     let tasks::Party::Task(first) = live_task(&world, job.run.raw()).requester else { panic!("first close") };
     finish_close(&mut world, first, &branch, &job);
     let landing = wait_landing(&mut world, closer);
-    let before = world.assigned.len();
-    let answer = mine(&mut world, &goal, 94, br#"{"words":"New work"}"#);
-    let Some(engine::CallAnswer::Delegated(made)) = answer else {
-        panic!("new work: {answer:?}; errors {:?}", world.call_errors)
-    };
-    let work = made[0].task;
-    let producer = reviews::next_assignment(&mut world, before);
-    let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for new work");
-    amendment.dependencies = Some(Box::new([work]));
-    let revision = live_task(&world, closer).revisions.spec;
-    let answer = world.scripted_call(
-        &goal,
-        95,
-        engine::Tool::Amend { target: closer, revision, amendment, keep_parameters: false },
-    );
-    assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "{answer:?}");
+    let (work, producer) = new_work(&mut world, &goal, 94);
+    closer_waits_for(&mut world, &goal, closer, work, 95);
     assert_eq!(live_task(&world, closer).waiting_on.as_ref(), &[work]);
     assert_eq!(closer_row(&world, closer).expect("kept closer").close_changes.as_ref(), &[first]);
     produce(&mut world, work, &branch, &producer, b"New work", b"done");

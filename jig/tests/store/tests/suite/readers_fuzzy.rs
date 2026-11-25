@@ -1,4 +1,4 @@
-//! Seeded pages against independently committed inputs (protocol/store/loads.md, 1, and protocol/store/README.md, 9).
+//! Seeded pages against independently committed inputs (protocol/store/loads.md, 1, and protocol/store/testing.md, 1).
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Restore, Row, Write, keys, restore::Item};
@@ -15,14 +15,15 @@ const RECORDS: u64 = 20;
 
 #[test]
 fn seeded_pages_match_committed_application_rows() {
+    let limits = root::limits();
     for seed in 0..SEEDS {
-        pages_match(seed);
+        pages_match(seed, &limits);
     }
 }
 
-fn pages_match(seed: u64) {
+fn pages_match(seed: u64, limits: &jig_protocol_store::Limits) {
     let mut rng = Rng::new(seed);
-    let mut world = World::unopened(seed);
+    let mut world = World::unopened_observed(seed, *limits, None);
     world.open().expect("open");
     world.commit(root::first()).expect("first commit");
     let expected: BTreeMap<Box<[u8]>, Box<[u8]>> = (0..RECORDS)
@@ -65,14 +66,14 @@ fn pages_match(seed: u64) {
     assert_eq!(found, expected, "typed source readback seed {seed}");
     let expected: BTreeMap<_, _> = expected
         .into_iter()
-        .map(|(key, value)| (keys::application(&key, root::limits().store.key).expect("raw key"), value))
+        .map(|(key, value)| (keys::application(&key, limits.store.key).expect("raw key"), value))
         .collect();
     let mut found = BTreeMap::new();
     let mut after = None;
     loop {
         let rows = u32::try_from(1 + rng.below(4)).expect("row budget");
         let page = world.retained_page(after.as_deref(), rows, INVENTORY_BYTES).expect("inventory page");
-        assert!(page.rows.len() <= skein_lib::length::usize_of(rows.min(root::limits().store.page.rows)));
+        assert!(page.rows.len() <= skein_lib::length::usize_of(rows.min(limits.store.page.rows)));
         for row in page.rows {
             assert!(after.as_deref().is_none_or(|after| row.key.as_ref() > after));
             if row.key.first() == Some(&keys::APPLICATION) {

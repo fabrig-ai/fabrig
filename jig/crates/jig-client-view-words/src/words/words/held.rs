@@ -1,4 +1,4 @@
-//! Complete moved-hold facts without requiring an object slot; client/domain/contract/README.md, 3.
+//! Complete moved-hold facts without requiring an object slot; client/domain/contract/answers.md, 1.
 use super::{Words, name};
 use crate::words::phrases::jig::JigPhrase;
 use jig_client::contract::{ApplicationPart, HoldCategory, HoldFailure, HoldReason};
@@ -45,7 +45,6 @@ impl Words {
                 self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Dependency)), &[Hole::Number(task)]);
             }
             HoldCategory::Stopped => self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Stopped)), &[]),
-            HoldCategory::Placed { .. } => self.text(b, JigPhrase::Word(Word::hold(&reason)), &[]),
             HoldCategory::Drift => self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Drift)), &[]),
             HoldCategory::Effects => self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Effects)), &[]),
             HoldCategory::EffectFailed => self.text(b, JigPhrase::Word(Word::Hold(HoldWord::EffectFailed)), &[]),
@@ -53,9 +52,12 @@ impl Words {
                 self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Uncertain)), &[Hole::Number(entry)]);
             }
             HoldCategory::Budget => self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Budget)), &[]),
-            HoldCategory::Deadline => self.text(b, JigPhrase::Word(Word::Hold(HoldWord::Deadline)), &[]),
             HoldCategory::HoldsWaited => self.text(b, JigPhrase::Word(Word::Hold(HoldWord::HoldsWaited)), &[]),
-            HoldCategory::ResourceUnavailable | HoldCategory::ResourceAccess => {
+            HoldCategory::ResourceUnavailable
+            | HoldCategory::ResourceAccess
+            | HoldCategory::Placed { .. }
+            | HoldCategory::Deadline
+            | HoldCategory::Waited => {
                 self.text(b, JigPhrase::Word(Word::hold(&reason)), &[]);
             }
             HoldCategory::PoolLost { pool } => {

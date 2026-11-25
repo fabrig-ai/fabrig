@@ -1,11 +1,7 @@
 //! The binary's three directories (protocol/configuration/directories.md).
-use skein_io::kernel::Error;
+use skein_io::kernel::{Error, Kind, Stat};
 use skein_shell::{self as settings, Base, Fallback, Origin, Setting, Settings};
-use std::{
-    fmt,
-    os::unix::fs::{DirBuilderExt, MetadataExt},
-    path::Path,
-};
+use std::{fmt, io, os::unix::fs::DirBuilderExt, path::Path};
 
 pub const SETTINGS: Settings = Settings {
     tool: "temper",
@@ -65,7 +61,7 @@ pub type Argument = Box<[u8]>;
 pub type EnvironmentEntry = (Argument, Argument);
 #[expect(
     clippy::result_large_err,
-    reason = "skein/docs/design/runtime/shell.md, 6.5 preserves the refused setting and its documentation"
+    reason = "skein/docs/design/runtime/shell-startup.md, 1.5 preserves the refused setting and its documentation"
 )]
 pub fn resolve(
     arguments: &[Argument],
@@ -122,24 +118,50 @@ impl Directories {
     }
 }
 pub fn private_root(path: &Path, user: u32) -> Result<(), String> {
-    let metadata = std::fs::symlink_metadata(path).map_err(|why| why.to_string())?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() || metadata.uid() != user || metadata.mode() & 0o077 != 0
-    {
+    private_root_with(user, skein_shell::symlink_stat(path))
+}
+
+/// Check a root using metadata from its name, not from a link target.
+pub fn private_root_with(user: u32, metadata: std::io::Result<Stat>) -> Result<(), String> {
+    let metadata = metadata.map_err(|why| why.to_string())?;
+    if metadata.kind != Kind::Directory || metadata.owner != user || metadata.mode & 0o077 != 0 {
         return Err("must be a private directory of this user's, not reached through a link".into());
     }
     Ok(())
 }
 pub fn make_private(path: &Path, user: u32) -> Result<(), String> {
-    match std::fs::symlink_metadata(path) {
-        Ok(_) => {}
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => std::fs::DirBuilder::new()
-            .recursive(true)
-            .mode(0o700)
-            .create(path)
-            .map_err(|why| format!("{}: {why}", path.display()))?,
-        Err(why) => return Err(format!("{}: {why}", path.display())),
+    make_private_with(path, user, &mut Native)
+}
+
+/// Facts and effects for preparing a private root (temper/docs/design/testing/shells.md, 3.11).
+pub(crate) trait PrivateDirectories {
+    fn symlink_stat(&mut self, path: &Path) -> io::Result<Stat>;
+    fn create_directories(&mut self, path: &Path, mode: u32) -> io::Result<()>;
+}
+
+struct Native;
+
+impl PrivateDirectories for Native {
+    fn symlink_stat(&mut self, path: &Path) -> io::Result<Stat> {
+        skein_shell::symlink_stat(path)
     }
-    private_root(path, user).map_err(|why| format!("{}: {why}", path.display()))
+
+    fn create_directories(&mut self, path: &Path, mode: u32) -> io::Result<()> {
+        std::fs::DirBuilder::new().recursive(true).mode(mode).create(path)
+    }
+}
+
+/// Check the root at its final name before and after preparing it.
+pub(crate) fn make_private_with(path: &Path, user: u32, disk: &mut impl PrivateDirectories) -> Result<(), String> {
+    let named = |why| format!("{}: {why}", path.display());
+    match disk.symlink_stat(path) {
+        Ok(_) => {}
+        Err(why) if why.kind() == io::ErrorKind::NotFound => {
+            disk.create_directories(path, 0o700).map_err(|why| named(why.to_string()))?;
+        }
+        Err(why) => return Err(named(why.to_string())),
+    }
+    private_root_with(user, disk.symlink_stat(path)).map_err(named)
 }
 
 #[must_use]

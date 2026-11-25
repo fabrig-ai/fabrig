@@ -1,4 +1,4 @@
-//! The offer and previews share run selection (domain/engine/views.md, 1; accounts.md, 4.3).
+//! The offer and previews share run selection (domain/engine/views.md, 1; domain/accounts-uses.md, 1.3).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

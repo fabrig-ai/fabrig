@@ -10,6 +10,7 @@ use skein_lib::{List, Token};
 #[derive(Hash, Debug)]
 pub enum Payload {
     Busy,
+    Part(core::PartRecord),
     Turn {
         task: u64,
         attempt: u64,
@@ -43,28 +44,12 @@ pub enum Ending {
 #[must_use]
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
+        host::LinkUp::Part { run, attempt, part } => part_event(domain, channel, run, attempt, part),
         host::LinkUp::Ask { run, attempt, number, bytes } => fleet::Event::Ask { channel, run, attempt, number, bytes },
         // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too builds this route.
         host::LinkUp::Paused { state } => fleet::Event::Paused { channel, state },
         host::LinkUp::Draining => fleet::Event::Draining { channel },
-        host::LinkUp::JobAnswer { run, attempt, answer } => {
-            let kind = match &answer {
-                host::JobEnding::Finished { .. } => fleet::Answer::Ended,
-                host::JobEnding::Failed { .. } => fleet::Answer::Failed { turned: None },
-                host::JobEnding::Refused(host::JobRefusal::Busy) => fleet::Answer::Busy,
-                host::JobEnding::Refused(host::JobRefusal::Untranslated(_)) => fleet::Answer::Untranslated,
-                host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => fleet::Answer::Invalid,
-            };
-            let payload = domain.retain(Payload::Answer {
-                task: run.raw(),
-                attempt: attempt.raw(),
-                cumulative: 0,
-                read: None,
-                refused: Box::new([]),
-                end: Ending::Job(answer),
-            });
-            fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
-        }
+        host::LinkUp::JobAnswer { run, attempt, answer } => job_answer_event(domain, channel, run, attempt, answer),
         host::LinkUp::Piece { run, attempt, piece } => return live_piece(domain, run, attempt, piece),
         host::LinkUp::ListRead { read, outcome } => fleet::Event::ListRead { channel, read, outcome },
         host::LinkUp::Logins { logins } => fleet::Event::Logins { channel, logins },
@@ -83,26 +68,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
             });
             fleet::Event::Turn { channel, run, attempt, turn: number, body }
         }
-        host::LinkUp::Answer { run, attempt, answer } => {
-            let kind = match answer.ending {
-                host::Ending::Ended { .. } => fleet::Answer::Ended,
-                host::Ending::Parked { .. } => fleet::Answer::Parked,
-                host::Ending::Failed { failure, .. } => fleet::Answer::Failed { turned: turned(failure) },
-                host::Ending::Refused(host::Refusal::Busy) => fleet::Answer::Busy,
-                host::Ending::Refused(host::Refusal::Invalid(_)) => fleet::Answer::Invalid,
-                host::Ending::Refused(host::Refusal::Version(_)) => fleet::Answer::Version,
-                host::Ending::Refused(host::Refusal::Untranslated(_)) => fleet::Answer::Untranslated,
-            };
-            let payload = domain.retain(Payload::Answer {
-                task: run.raw(),
-                attempt: attempt.raw(),
-                cumulative: answer.spent,
-                read: read_name(answer.read),
-                refused: refusals(answer.refused),
-                end: Ending::Link(answer.ending),
-            });
-            fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
-        }
+        host::LinkUp::Answer { run, attempt, answer } => answer_event(domain, channel, run, attempt, answer),
         host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
             domain
                 .host_calls
@@ -170,8 +136,11 @@ fn refusals(values: Box<[host::Refused]>) -> Box<[u64]> {
 pub(crate) fn ending(ending: &host::Ending, worker: Option<u32>, window: skein_lib::Duration) -> tasks::End {
     match ending {
         host::Ending::Refused(host::Refusal::Busy) => tasks::End::Refused,
-        host::Ending::Refused(host::Refusal::Version(mismatch) | host::Refusal::Untranslated(mismatch)) => {
+        host::Ending::Refused(host::Refusal::Version(mismatch)) => {
             tasks::End::RefusedWithReason { reason: mismatch.reason() }
+        }
+        host::Ending::Refused(host::Refusal::Untranslated(reason)) => {
+            tasks::End::RefusedWithReason { reason: reason.clone() }
         }
         host::Ending::Refused(host::Refusal::Invalid(
             host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
@@ -318,6 +287,77 @@ fn report(activity: host::AgentActivity) -> fleet::Report {
     }
 }
 
+fn part_event(
+    domain: &mut Link,
+    channel: Token,
+    run: Token,
+    attempt: Token,
+    part: jig_domain_link::Part,
+) -> fleet::Event {
+    let number = part.number;
+    let body = domain.retain(Payload::Part(core::PartRecord {
+        key: core::PartKey { task: run.raw(), attempt: attempt.raw(), number },
+        turn: part.turn,
+        thread: part.thread,
+        call: part.call,
+        kind: part.kind,
+        body: part.body,
+    }));
+    fleet::Event::Part { channel, run, attempt, part: number, body }
+}
+
+fn job_answer_event(
+    domain: &mut Link,
+    channel: Token,
+    run: Token,
+    attempt: Token,
+    answer: host::JobEnding,
+) -> fleet::Event {
+    let kind = match &answer {
+        host::JobEnding::Finished { .. } => fleet::Answer::Ended,
+        host::JobEnding::Failed { .. } => fleet::Answer::Failed { turned: None },
+        host::JobEnding::Refused(host::JobRefusal::Busy) => fleet::Answer::Busy,
+        host::JobEnding::Refused(host::JobRefusal::Untranslated(_)) => fleet::Answer::Untranslated,
+        host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => fleet::Answer::Invalid,
+    };
+    let payload = domain.retain(Payload::Answer {
+        task: run.raw(),
+        attempt: attempt.raw(),
+        cumulative: 0,
+        read: None,
+        refused: Box::new([]),
+        end: Ending::Job(answer),
+    });
+    fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
+}
+
+fn answer_event(
+    domain: &mut Link,
+    channel: Token,
+    run: Token,
+    attempt: Token,
+    answer: host::RunAnswer,
+) -> fleet::Event {
+    let kind = match answer.ending {
+        host::Ending::Ended { .. } => fleet::Answer::Ended,
+        host::Ending::Parked { .. } => fleet::Answer::Parked,
+        host::Ending::Failed { failure, .. } => fleet::Answer::Failed { turned: turned(failure) },
+        host::Ending::Refused(host::Refusal::Busy) => fleet::Answer::Busy,
+        host::Ending::Refused(host::Refusal::Invalid(_)) => fleet::Answer::Invalid,
+        host::Ending::Refused(host::Refusal::Version(_)) => fleet::Answer::Version,
+        host::Ending::Refused(host::Refusal::Untranslated(_)) => fleet::Answer::Untranslated,
+    };
+    let payload = domain.retain(Payload::Answer {
+        task: run.raw(),
+        attempt: attempt.raw(),
+        cumulative: answer.spent,
+        read: read_name(answer.read),
+        refused: refusals(answer.refused),
+        end: Ending::Link(answer.ending),
+    });
+    fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
+}
+
 fn live_piece(domain: &mut Link, run: Token, attempt: Token, piece: host::Piece) -> Option<core::Event> {
     if let Ok(offset) = u32::try_from(piece.offset) {
         match piece.kind {
@@ -370,8 +410,8 @@ pub(crate) fn job_end(ending: &host::JobEnding, worker: Option<u32>, window: ske
             tasks::End::Finished { result: tasks::TaskResult::Job { bytes: result.clone() }, cancel_delegates: false }
         }
         host::JobEnding::Refused(host::JobRefusal::Busy) => tasks::End::Refused,
-        host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch)) => {
-            tasks::End::RefusedWithReason { reason: mismatch.reason() }
+        host::JobEnding::Refused(host::JobRefusal::Untranslated(reason)) => {
+            tasks::End::RefusedWithReason { reason: reason.clone() }
         }
         host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::JobEnding::Failed { failure, .. } => match failure {

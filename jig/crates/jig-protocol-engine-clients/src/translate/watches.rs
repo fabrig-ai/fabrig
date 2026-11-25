@@ -1,5 +1,6 @@
 //! Watches retain their whole subject and stream record (protocol/client/README.md, 5).
-use super::{chips, cursor, deployment, inbox, live, objects, owner, task, w};
+use super::{chips, cursor, deployment, inbox, live, objects, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{self as core, documents as d};
@@ -9,7 +10,7 @@ use skein_lib::{List, Reader, Token, Writer};
 pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) -> Option<core::Event> {
     if let w::Subject::Run(value) = value {
         let turn = match value.turn {
-            Some(value) => Some(views::TurnName { attempt: value.attempt, turn: value.number, retry: value.retry }),
+            Some(value) => Some(mapped::provisional_turn_name_to_domain(value)),
             None => None,
         };
         return Some(core::Event::WatchRun { watcher, sign_in, task: value.task, turn, offset: value.offset });
@@ -47,15 +48,9 @@ pub(crate) fn ended(why: views::End) -> w::WatchEnd {
     }
 }
 pub(crate) fn refused(why: core::WatchRefusal) -> w::WatchRefusal {
-    match why {
-        core::WatchRefusal::Unknown => w::WatchRefusal::Unknown,
-        core::WatchRefusal::NotAllowed => w::WatchRefusal::NotAllowed,
-        core::WatchRefusal::Busy => w::WatchRefusal::Busy,
-        core::WatchRefusal::SignedOut => w::WatchRefusal::SignedOut,
-    }
+    mapped::watch_refusal_to_record(&why)
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings, _limits: &w::Limits) -> Result<w::Hello, w::Problem> {
+pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings) -> w::Hello {
     let mut served = List::with_capacity(settings.served.len());
     for range in &settings.served {
         let owner = match range.family {
@@ -64,21 +59,33 @@ pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings, _limits: &w::Lim
         };
         served.push(w::Served { owner, first: range.first, last: range.last }).expect("served ranges fit");
     }
-    Ok(w::Hello { stream: name, served, heartbeat: settings.heartbeat })
+    w::Hello { stream: name, served, heartbeat: settings.heartbeat }
+}
+pub(crate) fn layouts(settings: &crate::Settings) -> List<w::Layout> {
+    let mut layouts = List::with_capacity(settings.served.len());
+    for served in &settings.served {
+        if served.family.is_none() {
+            layouts.push(w::Layout { owner: w::Owner::Jig, layout: served.layout }).expect("served layouts fit");
+        }
+    }
+    for served in &settings.served {
+        if let Some(number) = served.family {
+            layouts
+                .push(w::Layout { owner: w::Owner::Family(w::Family { number }), layout: served.layout })
+                .expect("served layouts fit");
+        }
+    }
+    layouts
 }
 pub(crate) fn delivery(
     value: &d::Document,
-    _project: u32,
     rows: u32,
     models: &[crate::Model],
     slots: &List<super::parts::Slot>,
     limits: &w::Limits,
 ) -> Result<w::DeliveryValue, w::Problem> {
     Ok(match value {
-        d::Document::Terminal { login } => {
-            w::DeliveryValue::Terminal(super::accounts::terminal(login.as_ref(), limits)?)
-        }
-        d::Document::Frame(value) => w::DeliveryValue::Me(owner::frame(value, models, limits)?),
+        d::Document::Terminal { login } => w::DeliveryValue::Terminal(super::accounts::terminal(login.as_ref())),
         d::Document::Task(value) => w::DeliveryValue::Task(Box::new(task::document(value, models, limits)?)),
         d::Document::Tree(value) => {
             let next = match &value.next {
@@ -106,12 +113,14 @@ pub(crate) fn delivery(
         }
         d::Document::Inbox(value) => w::DeliveryValue::Inbox(inbox::document(value, limits)?),
         d::Document::Lines(value) => w::DeliveryValue::Tasks(super::queries::lines(value, slots, limits)?),
-        d::Document::Run(value) => w::DeliveryValue::RunState(live::run(value, limits)?),
+        d::Document::Run(value) => w::DeliveryValue::RunState(live::run(value)?),
         d::Document::Accounts(value) => w::DeliveryValue::Accounts(super::accounts::document(value, limits)?),
-        d::Document::Settings(value) => w::DeliveryValue::Settings(super::settings::document(value, limits)?),
+        d::Document::Settings(value) => w::DeliveryValue::Settings(super::settings::document(value)?),
         d::Document::Deployment(value) => w::DeliveryValue::Deployment(deployment::document(value, limits)?),
         d::Document::Proposal(value) => w::DeliveryValue::Proposal(objects::proposal(models, value, limits)?),
-        d::Document::Escalation(_)
+        // The component translates me with the watching sign-in's expiry.
+        d::Document::Frame(_)
+        | d::Document::Escalation(_)
         | d::Document::Question(_)
         | d::Document::PersonTask(_)
         | d::Document::Result(_)
@@ -131,10 +140,8 @@ pub(crate) fn packet(value: &w::StreamEvent) -> Box<[u8]> {
     record.finish()
 }
 
-#[expect(clippy::too_many_arguments, reason = "the packet combines the watch identity, translation and row parts")]
 pub(crate) fn document_packet(
     document: &d::Document,
-    project: u32,
     rows: u32,
     watch: u64,
     version: u32,
@@ -142,31 +149,19 @@ pub(crate) fn document_packet(
     slots: &List<super::parts::Slot>,
     limits: &w::Limits,
 ) -> Result<w::StreamEvent, w::Problem> {
-    let value = delivery(document, project, rows, models, slots, limits)?;
+    let value = delivery(document, rows, models, slots, limits)?;
     let document = owned(value, version, limits)?;
     Ok(w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn application_packet(
-    family: u16,
-    version: u32,
-    record: Box<[u8]>,
-    watch: u64,
-    _limits: &w::Limits,
-) -> Result<w::StreamEvent, w::Problem> {
+pub(crate) fn application_packet(family: u16, version: u32, record: Box<[u8]>, watch: u64) -> w::StreamEvent {
     let family = w::Family { number: family };
     let document = w::Owned { owner: w::Owner::Family(family), version, record };
-    Ok(w::StreamEvent::Delivery(w::Delivery { watch, document }))
+    w::StreamEvent::Delivery(w::Delivery { watch, document })
 }
-pub(crate) fn text_packet(
-    writing: &views::Writing,
-    watch: u64,
-    limits: &w::Limits,
-) -> Result<w::StreamEvent, w::Problem> {
-    let value = live::writing(writing, limits)?;
+pub(crate) fn text_packet(writing: &views::Writing, watch: u64) -> Result<w::StreamEvent, w::Problem> {
+    let value = live::writing(writing)?;
     Ok(w::StreamEvent::Text(w::StreamText { watch, value }))
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn end_packet(why: views::End, watch: u64, _limits: &w::Limits) -> Result<w::StreamEvent, w::Problem> {
-    Ok(w::StreamEvent::Ended(w::WatchEnded { watch, why: ended(why) }))
+pub(crate) fn end_packet(why: views::End, watch: u64) -> w::StreamEvent {
+    w::StreamEvent::Ended(w::WatchEnded { watch, why: ended(why) })
 }

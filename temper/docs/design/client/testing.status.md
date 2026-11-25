@@ -30,7 +30,7 @@
   `pages/README.md`, *Goals*: the empty Goals-page gap remains `pages/work.status.md`, 1.
    the Forget request remains `forge/records.status.md` (Not yet).
   `pages/README.md`, *Ready*: the unhandled Ready endings remain `pages/welcome.status.md`, 1.
-   the plan's first-use card remains `pages/accounts.status.md`, 2.
+   the plan's first-use card remains `pages/accounts-words.status.md`, 1.
   `pages/README.md`, The welcome:
   the welcome role-scope gap remains `pages/welcome.status.md`, 1.
   the unfinished-forge name remains `forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `forge/records.status.md` (Not yet).
@@ -38,7 +38,7 @@
 - **Design departs:** `pages/README.md` and `pages/settings.md`, section 2 and `testing.md`, from the request `ui-walk-large` of 2026-11-06:
   -  a proposal of settings shows in the Needs you of a project's owner who also
     owns the deployment, those who can decide it, by that plan's cut: a project's owner
-    alone has no row of it (jig's `domain/engine/settings.md`, 6, and its status).
+    alone has no row of it (jig's `domain/engine/settings-proposals.md`, 1, and its status).
   - the whole document: that request's browser walk was made by hand, at 1440 and 420 on fresh fake
     boxes, its driver thrown away as that plan's cut has it, so no test keeps it. The
     client's world holds the card, count and Accept (its story of Ask temper's

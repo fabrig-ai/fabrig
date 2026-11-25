@@ -1,13 +1,48 @@
-//! A check's held clock across the run and machine boundary (run.md, 8.1).
+//! A check's held clock across the run and machine boundary (domain/run-delivery.md, 1.1).
 
 use super::*;
 use skein_io::{Event as IoEvent, Request as IoRequest, kernel};
-use skein_lib::stream::Up;
+use skein_lib::{Rng, stream::Up};
+use skein_world::streams::{Stream, Streams};
 use smith_protocol_machine::{Below, BelowEvent, Component, FromDomain, ToDomain};
 
 const CHILD: Token = Token::new(40);
 const STDOUT: Token = Token::new(41);
 const STDERR: Token = Token::new(42);
+
+/// Draw a marker and its read splits; faults choose which pipe it reaches.
+pub(crate) fn draw_marker(workload: &mut Rng, faults: &mut Rng) -> (Vec<Vec<u8>>, bool) {
+    let bytes = match workload.below(8) {
+        0 | 1 => b"smith-check: waiting\n".to_vec(),
+        2 | 3 => b"smith-check: admitted\n".to_vec(),
+        4 => b"smith-check: waiting now\n".to_vec(),
+        5 => b"smith-check: waiting".to_vec(),
+        6 => b"\n".to_vec(),
+        7 => vec![b'x'; 1024],
+        _ => unreachable!("eight draws"),
+    };
+    let stderr = !faults.chance(200);
+    let mut chunks = Vec::new();
+    let mut from = 0;
+    while from < bytes.len() {
+        let to = (from + usize::try_from(workload.between(1, 24)).expect("small chunk")).min(bytes.len());
+        chunks.push(bytes[from..to].to_vec());
+        from = to;
+    }
+    (chunks, stderr)
+}
+
+#[test]
+fn check_workload_is_independent_of_prior_fault_draws() {
+    let streams = Streams::new(0);
+    let mut workload = streams.rng(Stream::Workload, "runs");
+    let mut faults = streams.rng(Stream::Faults, "checks");
+    let expected = (0..100).map(|_| draw_marker(&mut workload, &mut faults).0).collect::<Vec<_>>();
+    faults.next_u64();
+    let mut workload = streams.rng(Stream::Workload, "runs");
+    let after_faults = (0..100).map(|_| draw_marker(&mut workload, &mut faults).0).collect::<Vec<_>>();
+    assert!(after_faults == expected, "fault draws cannot change the markers or their read splits");
+}
 
 pub(crate) struct Check {
     run: PendingCheck,
@@ -25,7 +60,7 @@ impl Check {
     }
 
     fn start(run: PendingCheck, request: Request) -> Self {
-        let Request::Check { owner, program, bound, cap, tail } = request else { panic!("check") };
+        let Request::Check { owner, program, results, bound, cap, tail } = request else { panic!("check") };
         let limits = smith_protocol_machine::Limits { output_bytes: tail, ..smith_protocol_machine_fixtures::SMALL };
         let mut machine = Component::new(
             &limits,
@@ -34,6 +69,7 @@ impl Check {
         );
         machine.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: b"/host".as_slice().into(),
                 name: b"code".as_slice().into(),
                 root: program.root,
@@ -51,7 +87,7 @@ impl Check {
         };
         check.machine.from_domain(
             &check.env,
-            FromDomain::Check { owner, program, bound, cap, tail },
+            FromDomain::Check { owner, program, results, bound, cap, tail },
             &mut check.above,
             &mut check.below,
         );

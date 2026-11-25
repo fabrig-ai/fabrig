@@ -1254,6 +1254,65 @@ fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
 }
 
 #[test]
+fn a_projects_changed_rule_and_charter_are_read_after_a_restart() {
+    use serde_json::{Value as Json, json};
+    use temper_engine_domain_forge::{
+        GateLast, GatePattern,
+        settings::{LandingRule, Value},
+    };
+    use temper_engine_domain_world::kinds::item;
+
+    let mut world = World::stock();
+    world.ask(world.owner, 19, people::Ask::MakeProject { name: "Other project".into(), policy: 1 });
+    let people::Reply::Outcome(people::Outcome::ProjectMade { project: other }) = *world.reply(19) else {
+        panic!("second project made: {:?}", world.reply(19));
+    };
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let read = |world: &mut World, completion, setting: Json, revision: u32| {
+        let (text, _) = settings_whole(&mut world.driver, &run, completion, json!({"setting":setting}));
+        let (heading, value) = text.split_once('\n').expect("setting heading");
+        assert!(heading.ends_with(&format!(", revision {revision}")), "{text}");
+        let mut lines = value.lines();
+        let value: Json = serde_json::from_str(lines.next().expect("setting value")).expect("setting JSON");
+        (value, lines.collect::<Vec<_>>().join("\n"))
+    };
+    let rule = |project| json!({"kind":"landing-rule","project":project,"number":1});
+    let charter = json!({"kind":"forge-charter","number":1});
+    let (stock, stock_state) = read(&mut world, 1, rule(other), 1);
+    assert_eq!(stock["gates"], json!([{"number":1,"blocking":true,"freshness":"clean"}]));
+    let no_review = Value::Rule(LandingRule {
+        sets: Box::new([]),
+        pattern: GatePattern {
+            segments: Box::new([b"branch".as_slice().into()]),
+            last: GateLast::Open(Box::default()),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: true,
+        gates: Box::new([]),
+        approvals: Box::new([]),
+    });
+    // The producer also defaults to 2. First replace the stock, then read the
+    // final edit as changed rather than accepting a fallback to the stock.
+    world.change(1, 21, Box::new([item(3, 0, 1, &Value::Charter(1))]));
+    world.change(2, 22, Box::new([item(2, PROJECT, 1, &no_review), item(3, 0, 1, &Value::Charter(2))]));
+    let mut expected = stock.clone();
+    expected["gates"] = json!([]);
+    for (restarted, completion) in [(false, 20), (true, 50)] {
+        if restarted {
+            restart_stock_world(&mut world, &run);
+        }
+        assert_eq!(world.head().number, 3);
+        for (step, setting, expected) in [(0, rule(PROJECT), &expected), (10, charter.clone(), &json!(2))] {
+            let (value, state) = read(&mut world, completion + step, setting, 3);
+            assert_eq!(&value, expected);
+            assert!(state.contains("changed at revision 3"), "{state}");
+        }
+        assert_eq!(read(&mut world, completion + 20, rule(other), 3), (stock.clone(), stock_state.clone()));
+    }
+}
+
+#[test]
 fn the_asking_chat_reads_each_kind() {
     let mut world = World::new(without_template_goal(config()));
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
@@ -1490,7 +1549,7 @@ fn an_asking_chat_reads_each_address() {
 #[test]
 fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
     use serde_json::json;
-    // A charter's line holds at most 120 bytes (protocol/configuration/settings.md, 2).
+    // A charter's line holds at most 120 bytes (protocol/configuration/settings-kinds.md, 1).
     const PAST_LINE_BYTES: usize = 121;
     let mut world = World::stock();
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
@@ -1966,7 +2025,7 @@ fn bounded_call(
     input: &serde_json::Value,
 ) -> (Box<[u8]>, bool) {
     let input = input.to_string();
-    // protocol/configuration/settings.md, 7: init's output 8,192 leaves about 10,662 payload bytes.
+    // protocol/configuration/settings-output.md, 1: init's output 8,192 leaves about 10,662 payload bytes.
     assert!(input.len() <= 10_662, "call exceeds configured payload ceiling: {}", input.len());
     host_tool(&mut world.driver, run, completion, tool, input.as_bytes())
 }

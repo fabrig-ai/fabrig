@@ -242,7 +242,7 @@ fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
     let mut smaller = transcript;
     smaller.opaque_bytes -= 1;
     let problem = block.encode(&smaller).expect_err("one byte beyond the bound");
-    assert_eq!(problem.path, smith_transcript::v7::paths::OPAQUE_BYTES);
+    assert_eq!(problem.path, smith_transcript::v8::paths::OPAQUE_BYTES);
 }
 
 #[test]
@@ -284,6 +284,45 @@ fn the_standard_exit_grace_exceeds_its_teardown_bound() {
     assert_eq!(selected.policy.exit_grace, Duration::from_secs(45));
     assert_eq!(super::teardown_bound(&limits), Some(Duration::from_secs(40)));
     assert!(selected.policy.exit_grace > super::teardown_bound(&limits).expect("bounded teardown"));
+}
+
+#[test]
+fn orphan_exit_covers_the_cancel_grace_and_teardown_with_room_to_spare() {
+    let mut deployed = declarations();
+    deployed.endpoints[0].limits.window = 1_048_576;
+    deployed.endpoints[0].limits.output = 32_768;
+    let mut tiny = profile();
+    tiny.policy.close = Duration::from_millis(50);
+    tiny.policy.cancel_grace = Duration::from_millis(100);
+    tiny.policy.write_deadline = Duration::from_millis(100);
+    for (selected, configuration) in [(standard(), deployed), (tiny, declarations())] {
+        let mut limits = super::derive(&selected, &configuration).expect("profile derives");
+        limits.events = Some(
+            crate::event_limits(
+                &limits,
+                smith_protocol_events::sinks::Capture::None,
+                1,
+                0,
+                &[],
+                selected.policy.write_deadline,
+            )
+            .expect("event stream"),
+        );
+        let host = crate::host_limits(&selected, &limits, &[]).expect("link derives");
+        let bound = crate::orphan_exit(&host).expect("orphan exit fits");
+        assert_eq!(Some(bound), host.cancel_grace.checked_add(host.exit_grace));
+        let teardown = super::teardown_bound(&limits).expect("teardown fits");
+        assert!(bound > host.cancel_grace.checked_add(teardown).expect("cancel and teardown fit"));
+    }
+}
+
+#[test]
+fn an_overflowing_orphan_exit_is_not_a_duration() {
+    let selected = profile();
+    let limits = super::derive(&selected, &declarations()).expect("profile derives");
+    let mut host = crate::host_limits(&selected, &limits, &[]).expect("link derives");
+    host.cancel_grace = Duration::from_nanos(u64::MAX);
+    assert_eq!(crate::orphan_exit(&host), None);
 }
 
 #[test]

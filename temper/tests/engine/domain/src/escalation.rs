@@ -100,7 +100,7 @@ enum ReadPurpose {
 
 /// A held chat the scripted person waits to see; the root's reads are the
 /// core's, so the world sees it in its durable row (jig's
-/// `client/domain/contract/README.md`, 4).
+/// `client/domain/contract/reads.md`, 1).
 #[derive(Clone, Hash, Debug)]
 struct PendingRead {
     to: Token,
@@ -114,6 +114,7 @@ struct PendingRead {
 /// from a private-state query.
 #[derive(Hash, Debug)]
 pub struct World {
+    ends: crate::ends::Ends,
     settings: Settings,
     domain: engine::Domain,
     environment: Env<engine::Limits>,
@@ -132,6 +133,8 @@ pub struct World {
     sign_in_script: SignInScript,
     first_choice: Option<(usize, u64, people::EscalationDecision, u8)>,
     iteration: u32,
+    checks: crate::checks::Checks,
+    bound_steps: u32,
     commit_wait: u32,
     clock_offset: u64,
     recovery: Recovery,
@@ -202,7 +205,10 @@ impl World {
         let limits = limits();
         let config = config(settings.seed);
         let store = crate::fixtures::restored_store(self::config(settings.seed), &limits);
+        let mut ends = crate::ends::Ends::new(settings.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         let mut world = World {
+            ends,
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -220,6 +226,8 @@ impl World {
             sign_in_script: SignInScript::Waiting,
             first_choice: None,
             iteration: 0,
+            checks: crate::checks::Checks::new(settings.seed),
+            bound_steps: 0,
             commit_wait: 0,
             clock_offset: 0,
             recovery: Recovery::None,
@@ -476,6 +484,7 @@ impl World {
     }
 
     fn restart(&mut self) {
+        self.ends.restarted(self.environment.now);
         assert!(self.store.pending.is_empty(), "cut follows a whole transaction with no later submitted commit");
         self.domain = engine::Domain::new(config(self.settings.seed), &self.environment.limits)
             .expect("valid engine configuration");
@@ -492,14 +501,41 @@ impl World {
     /// Drive one actual root iteration and later fake-store terminals; no direct
     /// child calls or private-state decisions occur.
     pub fn iterate(&mut self) {
+        self.iterate_inner();
+        if self.ends.awaiting_open() && self.domain.ready() {
+            self.ends.opened(self.environment.now);
+        }
+        self.ends.step(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn iterate_inner(&mut self) {
+        self.check_quiet();
         self.iteration += 1;
-        let now = u64::from(self.iteration) * 1_000_000 + self.clock_offset;
-        self.environment.now = Time::from_nanos(now);
-        self.environment.wall = Wall::from_nanos(now);
+        let mut at = Time::from_nanos(u64::from(self.iteration) * 1_000_000 + self.clock_offset);
+        if let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if self.environment.now >= bound && self.quiet() {
+                self.checks.step(at, u64::from(self.iteration)).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+            at = bound.max(self.environment.now);
+            self.bound_steps += 1;
+            assert!(
+                self.bound_steps <= 600,
+                "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in 600 steps",
+                self.settings.seed,
+                at.as_nanos(),
+                self.iteration
+            );
+        } else {
+            self.bound_steps = 0;
+        }
+        self.environment.now = at;
+        self.environment.wall = Wall::from_nanos(at.as_nanos());
+        self.checks.step(self.environment.now, u64::from(self.iteration)).unwrap_or_else(|finding| panic!("{finding}"));
         if self.frozen_cut.is_some() {
             self.apply_store();
             return;
         }
+        self.store.record_wall = self.store.record_wall.max(self.environment.wall);
         crate::poll(&mut self.domain, &self.environment, &mut self.out);
         self.observe();
         if self.frozen_cut.is_some() {
@@ -576,6 +612,19 @@ impl World {
             // No worker may invent hosting that claim; let actual fleet grace
             // retire it and any retained old answer.
             self.clock_offset = 6_000_000_000;
+        }
+        self.check_quiet();
+    }
+
+    fn quiet(&self) -> bool {
+        self.events.is_empty() && self.out.is_empty() && self.store.idle() && self.domain.quiescent()
+    }
+
+    fn check_quiet(&mut self) {
+        if self.quiet() {
+            self.checks
+                .quiet(&self.domain, self.environment.now, u64::from(self.iteration))
+                .unwrap_or_else(|finding| panic!("{finding}"));
         }
     }
 
@@ -848,6 +897,7 @@ impl World {
             | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),
             Delivery::Start(_)
             | Delivery::Fleet(_)
@@ -872,6 +922,7 @@ impl World {
     /// Close this story through the shared cold restart oracle.
     pub fn close(&mut self) {
         self.run();
+        self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::close_world(
             &mut self.domain,
             &self.environment,
@@ -888,6 +939,7 @@ impl World {
         for _ in 0..600 {
             if self.settled() {
                 self.referee.final_state(&self.store.rows).expect("independent final finite funding");
+                self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
                 return;
             }
             self.iterate();

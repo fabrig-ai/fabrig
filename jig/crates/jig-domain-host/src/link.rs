@@ -53,6 +53,11 @@ pub enum LinkDown {
         call: Box<[u8]>,
         answer: Relayed,
     },
+    PartKept {
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
     TurnKept {
         run: Token,
         attempt: Token,
@@ -143,6 +148,11 @@ pub enum LinkUp {
         code: Box<[u8]>,
         reason: Box<[u8]>,
     },
+    Part {
+        run: Token,
+        attempt: Token,
+        part: jig_domain_link::Part,
+    },
     Turn {
         run: Token,
         attempt: Token,
@@ -184,6 +194,7 @@ impl LinkUp {
             | Self::Unauthorized { .. }
             | Self::Limited { .. }
             | Self::AccountRefused { .. }
+            | Self::Part { .. }
             | Self::Turn { .. }
             | Self::Answer { .. } => false,
         }

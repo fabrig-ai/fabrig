@@ -19,7 +19,7 @@ pub enum World {
     FirstRun { step: u8 },
     Bare,
 }
-/// Confirmation states named by client/README.md, 3.6.
+/// Confirmation states named by client/root.md, 1.6.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Confirmation {
     CloseWork,
@@ -3498,6 +3498,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         })
     };
     rows.push(w::ForgeRow {
+        catching_up: None,
         starts_with: if name.starts_with("home-add-repository") {
             w::StartsWith::Nothing
         } else {

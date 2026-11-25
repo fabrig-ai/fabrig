@@ -82,8 +82,7 @@ fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
 }
 
 #[test]
-fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
-    use jig_protocol_worker_wire::Agreed;
+fn accepted_worker_lines_name_the_layouts_or_the_converted_wires() {
     assert_eq!(
         note_line(
             "custom",
@@ -111,17 +110,21 @@ fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
         "custom serve: worker worker-a took its figures\n"
     );
 
-    let wires = skein_lib::List::from_boxed(Box::new([
-        Agreed { name: "jig-worker-wire", version: 10 },
-        Agreed { name: "smith-pieces", version: 1 },
-        Agreed { name: "smith-charter", version: 4 },
-        Agreed { name: "smith-transcript", version: 7 },
-        Agreed { name: "temper-worker-wire", version: 2 },
-    ]));
-    assert_eq!(
-        note_line("custom", temper_engine_service::Note::WorkerOpened { worker: b"worker-a".as_slice().into(), wires }),
-        "custom serve: worker worker-a opened: jig-worker-wire 10, smith-pieces 1, smith-charter 4, smith-transcript 7, temper-worker-wire 2\n"
-    );
+    for (converted, expected) in [
+        (skein_lib::List::with_capacity(0), "at the engine's layouts"),
+        (
+            skein_lib::List::from_boxed(Box::new([Box::from("smith-charter"), Box::from("temper-worker-wire")])),
+            "converting smith-charter, temper-worker-wire",
+        ),
+    ] {
+        assert_eq!(
+            note_line(
+                "custom",
+                temper_engine_service::Note::WorkerOpened { worker: b"worker-a".as_slice().into(), converted }
+            ),
+            format!("custom serve: worker worker-a opened: {expected}\n"),
+        );
+    }
 }
 
 #[test]
@@ -282,7 +285,10 @@ fn a_full_map_names_its_usage_budget_and_projected_bytes() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table pins every protocol/store.md section 4 cause and CHECK word")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table pins every protocol/store-versions.md section 1 cause and CHECK word"
+)]
 fn every_commit_cause_has_bounded_content_free_words_and_a_whole_stop_line() {
     use CommitStop::{Route, Store};
     use jig_protocol_store::{CommitCheck, CommitFailure};
@@ -814,16 +820,20 @@ fn the_shell_removes_only_the_named_handover_and_reports_unlink_failure() {
 }
 #[test]
 fn the_shell_trims_only_the_handovers_final_newline() {
-    use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
-    let directory =
-        std::env::temp_dir().join(format!("temper-handover-read-{}", skein_shell::seed().expect("scratch name")));
-    std::fs::create_dir(&directory).expect("handover fixture");
-    let path = directory.join("admin_token");
     let read = temper_engine_service::HandoverRead {
         forge: 1,
         run: skein_lib::Token::new(7),
-        path: path.as_os_str().as_bytes().into(),
+        path: b"/fixture/admin_token".as_slice().into(),
         max: 11,
+    };
+    let read_bytes = |bytes: &[u8]| {
+        read_handover_with(&read, |_, max| {
+            if bytes.len() > usize::try_from(max).expect("read bound fits usize") {
+                Err(skein_shell::Unread::TooLarge { max })
+            } else {
+                Ok(skein_lib::Secret::new(bytes.into()))
+            }
+        })
     };
     for (bytes, expected) in [
         (b"test-admin\n".as_slice(), b"test-admin".as_slice()),
@@ -833,14 +843,10 @@ fn the_shell_trims_only_the_handovers_final_newline() {
         (b"".as_slice(), b"".as_slice()),
         (b"12345678901".as_slice(), b"12345678901".as_slice()),
     ] {
-        std::fs::write(&path, bytes).expect("handover fixture");
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private fixture");
-        let answer = read_handover(&read).expect("within read bound").expect("present fixture");
+        let answer = read_bytes(bytes).expect("within read bound").expect("present fixture");
         assert!(answer.expose() == expected, "only one final LF is removed");
     }
-    std::fs::write(&path, b"123456789012").expect("one byte beyond the bound");
-    assert!(matches!(read_handover(&read), Err(temper_engine_service::HandoverUnread::TooLarge)));
-    std::fs::remove_dir_all(directory).expect("handover fixture");
+    assert!(matches!(read_bytes(b"123456789012"), Err(temper_engine_service::HandoverUnread::TooLarge)));
 }
 
 #[test]
@@ -899,8 +905,6 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
         (Some(Phase::Switch), "store switch"),
         (Some(Phase::Wires), "wires"),
         (Some(Phase::AdoptRuns), "run adoption"),
-        (Some(Phase::ReadAfresh { connector: 7 }), "connector 7 refresh"),
-        (Some(Phase::SettleOutbox { connector: 7 }), "connector 7 outbox settlement"),
         (Some(Phase::Open), "opening decisions"),
         (None, "unknown phase"),
     ] {
@@ -909,6 +913,34 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
             ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
             (format!("temper serve: restart refused during {words}: project 3: policy refused\n"), 1)
         );
+    }
+}
+
+#[test]
+fn a_landings_read_run_names_its_start_end_and_hold() {
+    use temper_engine_domain_forge::{LandingReadNote, LandingReadNoteKind as Kind};
+    use temper_engine_service::Note;
+    const READING: &str = "commits after 0404040404040404040404040404040404040404 up to 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b, page 2, for change 51";
+    const WHY: &str = "past forge.client.rows (8): at least 9 rows";
+    let elapsed = skein_lib::Duration::from_secs(37 * 60 + 12);
+    for (kind, expected) in [
+        (
+            Kind::Started { why: WHY.as_bytes().into() },
+            format!("temper-box serve: landing 7 round 2 waits for a fresh read: {READING}: {WHY}\n"),
+        ),
+        (
+            Kind::Read { elapsed },
+            format!("temper-box serve: landing 7 round 2 has its fresh read after 37m 12s: {READING}\n"),
+        ),
+        (
+            Kind::Held { elapsed, why: WHY.as_bytes().into() },
+            format!(
+                "temper-box serve: warning: landing 7 round 2 held after 37m 12s waiting for a fresh read: {READING}: {WHY}\n"
+            ),
+        ),
+    ] {
+        let note = LandingReadNote { task: 7, round: 2, reading: READING.as_bytes().into(), kind };
+        assert_eq!(note_line("temper-box", Note::LandingRead(note)), expected);
     }
 }
 
@@ -1394,7 +1426,7 @@ fn failed_prepare_stderr_preserves_fields_and_escapes_every_byte() {
 
 #[test]
 fn failed_run_stderr_keeps_a_bounded_head() {
-    // temper/docs/design/domain/worker/checkouts.md, 1.4: the bound counts input bytes.
+    // temper/docs/design/domain/worker/checkouts-prepare.md, 12.4: the bound counts input bytes.
     const DETAIL_BYTES: usize = 4096;
     const OVERSIZED_BYTES: usize = 5000;
     let prefix = "temper serve: task 3 run 7 attempt 2 failed Run(Model): ";
@@ -1617,21 +1649,21 @@ fn a_version_refusal_names_the_wire_and_both_versions() {
 }
 
 #[test]
-fn unsent_pause_lines_name_the_mode_worker_and_wire_version() {
+fn unsent_pause_lines_name_the_mode_worker_and_missing_kind() {
     use jig_domain_link::PauseMode;
     use temper_engine_service::Note;
     for (mode, text) in [(PauseMode::Resume, "resume"), (PauseMode::Pause, "pause"), (PauseMode::Drain, "drain")] {
         assert_eq!(
             note_line("temper", Note::WorkerUnpaused { worker: b"w2".as_slice().into(), version: 18, mode }),
             format!(
-                "temper serve: worker w2 not told to {text}: jig-worker-wire 18; the engine's placement follows the ask\n"
+                "temper serve: worker w2 not told to {text}: its layout lacks the kind; the engine's placement follows the ask\n"
             )
         );
     }
 }
 
 #[test]
-fn restart_lines_name_the_wait_or_the_workers_older_wire() {
+fn restart_lines_name_the_wait_or_the_workers_missing_kind() {
     use temper_engine_service::Note;
     for (wait, version, expected) in [
         (
@@ -1642,7 +1674,7 @@ fn restart_lines_name_the_wait_or_the_workers_older_wire() {
         (
             None,
             14,
-            "custom serve: worker worker-a not told the engine restarts: jig-worker-wire 14; it keeps its grace\n",
+            "custom serve: worker worker-a not told the engine restarts: its layout lacks the word; it keeps its grace\n",
         ),
     ] {
         assert_eq!(
@@ -1650,39 +1682,6 @@ fn restart_lines_name_the_wait_or_the_workers_older_wire() {
             expected
         );
     }
-}
-
-#[test]
-fn the_playground_start_makes_a_private_random_key_before_reading_it() {
-    use std::os::unix::{ffi::OsStrExt as _, fs::MetadataExt as _};
-    let scratch = skein_scratch::Scratch::new("playground-key");
-    let path = scratch.path().join("demo/llm.key");
-    let read = temper_engine_service::HandoverRead {
-        forge: 0,
-        run: skein_lib::Token::new(1),
-        path: path.as_os_str().as_bytes().into(),
-        max: 4097,
-    };
-    let first = read_handover(&read).expect("make then read key").expect("key present");
-    assert_eq!(first.expose().len(), 64);
-    assert!(first.expose().iter().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b)));
-    let file = std::fs::read(&path).expect("generated fixture");
-    assert_eq!(file.len(), 65);
-    assert_eq!(file.last(), Some(&b'\n'));
-    let same_key = file.strip_suffix(b"\n") == Some(first.expose());
-    assert!(same_key, "the account gets the generated key without its final newline");
-    assert_eq!(std::fs::metadata(path.parent().expect("demo")).expect("directory").mode() & 0o777, 0o700);
-    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
-    // Replacing a linked file must neither reuse its mode nor change its target.
-    std::fs::remove_file(&path).expect("remove fixture");
-    let target = scratch.path().join("kept");
-    std::fs::write(&target, b"kept").expect("fixture");
-    std::os::unix::fs::symlink(&target, &path).expect("linked fixture");
-    let next = read_handover(&read).expect("replace then read key").expect("key present");
-    assert!(next.expose() != first.expose(), "a fresh kernel seed, not a reused key");
-    assert_eq!(std::fs::read(target).expect("target unchanged"), b"kept");
-    assert!(!std::fs::symlink_metadata(&path).expect("key").is_symlink());
-    assert_eq!(std::fs::metadata(&path).expect("key").mode() & 0o777, 0o600);
 }
 
 #[test]
@@ -1723,4 +1722,49 @@ fn full_table_notes_are_single_bounded_serve_lines() {
     );
     assert!(line.len() <= 1024);
     assert_eq!(line.lines().count(), 1);
+}
+
+#[test]
+fn layout_refusal_lines_name_the_kind_worker_and_plan_problem() {
+    use jig_protocol_engine_workers::{Bound, Unsent};
+    use jig_protocol_worker_wire::{
+        Kind,
+        layouts::{Cause, Unconverted},
+    };
+    use temper_engine_service::Note;
+
+    let worker: Box<[u8]> = b"worker-a".as_slice().into();
+    let grant = Unconverted {
+        wire: "temper-worker-wire".into(),
+        declaration: "Identity".into(),
+        part: "email".into(),
+        cause: Cause::Field,
+    };
+    let run = jig_domain_host::Refusal::Untranslated(grant.kept());
+    assert_eq!(
+        note_line("temper", refused_run_note(run)),
+        "temper serve: task 3 run 7 attempt 2 refused: the worker's layout cannot keep temper-worker-wire Identity.email: field\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper",
+            Note::WorkerUnsent {
+                worker: worker.clone(),
+                channel: skein_lib::Token::new(1),
+                unsent: Unsent { kind: Kind::Grant, bytes: 69, bound: Bound::Translation(grant) },
+            }
+        ),
+        "temper serve: cannot send grant to worker worker-a: the worker's layout cannot keep temper-worker-wire Identity.email: field\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper",
+            Note::WorkerUnread {
+                worker,
+                kind: Kind::Turn,
+                text: b"smith-transcript TurnKind.worker_only: variant".as_slice().into(),
+            }
+        ),
+        "temper serve: cannot read turn from worker worker-a: smith-transcript TurnKind.worker_only: variant\n"
+    );
 }

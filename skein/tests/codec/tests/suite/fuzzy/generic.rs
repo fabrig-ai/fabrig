@@ -1,4 +1,4 @@
-//! Seeded agreement of generic and generated decoders (data/codec/README.md, 8.3).
+//! Seeded agreement of generic and generated decoders (data/codec/run-time.md, 2.3).
 
 extern crate alloc;
 
@@ -12,7 +12,7 @@ mod tests {
     use skein_lib::Rng;
 
     // Per root: 1536 draws and their three mutations; every arbitrary length
-    // 0..=48 sixteen times; every golden and its three mutations.
+    // 0..=48 sixteen times; every fixed-rule value and its three mutations.
     const DRAWS: u64 = 1536;
     const ARBITRARY_ROUNDS: u32 = 16;
     const MAX_ARBITRARY: u32 = 48;
@@ -49,7 +49,7 @@ mod tests {
         for family in generated::families() {
             let schema = skein_codec::schema::parse(family.text.as_bytes()).expect("schema");
             let drawn_schema = skein_codegen::values(family.text).schema.clone();
-            let goldens = skein_codegen::values(family.text).goldens.clone();
+            let fixed_values = skein_codegen::values(family.text).fixed.clone();
             for root in family.roots {
                 let decl = schema.find(root.name.as_bytes()).expect("root");
                 let mut oracle = generic::Oracle { schema: &schema, decl, family: &family, root, value: &mut value };
@@ -64,7 +64,7 @@ mod tests {
                         cases = cases.checked_add(1).expect("case count");
                     }
                 }
-                // Eight replay seeds at every cut and each boundary byte (data/codec/README.md, 8.3).
+                // Eight replay seeds at every cut and each boundary byte (data/codec/run-time.md, 2.3).
                 for seed in 0..8 {
                     let bytes = generated::draw(&drawn_schema, root.name, &mut Rng::new(seed));
                     for cut in 0..bytes.len() {
@@ -88,13 +88,13 @@ mod tests {
                         cases = cases.checked_add(1).expect("case count");
                     }
                 }
-                for golden in &goldens {
-                    if generic::golden_root(&schema, &golden.name) == decl {
+                for fixed_value in &fixed_values {
+                    if generic::named_root(&schema, &fixed_value.name) == decl {
                         let seed = seed(family.name, root.name, u64::MAX);
                         let mut rng = Rng::new(seed);
-                        oracle.compare(seed, &golden.bytes, true).expect("decoder agreement");
+                        oracle.compare(seed, &fixed_value.bytes, true).expect("decoder agreement");
                         cases = cases.checked_add(1).expect("case count");
-                        for mutation in mutations(&golden.bytes, &mut rng) {
+                        for mutation in mutations(&fixed_value.bytes, &mut rng) {
                             oracle.compare(seed, &mutation, false).expect("decoder agreement");
                             cases = cases.checked_add(1).expect("case count");
                         }
@@ -102,7 +102,7 @@ mod tests {
                 }
             }
         }
-        // 61 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 per golden.
-        assert_eq!(cases, 424_152);
+        // 69 roots * (6144 drawn/mutated + 784 arbitrary), plus 4 cases for each of 406 fixed-rule values.
+        assert_eq!(cases, 479_656);
     }
 }

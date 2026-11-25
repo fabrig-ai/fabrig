@@ -175,6 +175,11 @@ fn frame_deployment_role_changes_only_when_its_own_retained_membership_changes()
         panic!("deployment roles released");
     };
     assert_eq!(project, people::DEPLOYMENT);
+    let Some(people::Request::ReadingLost { project, parties }) = out.pop() else {
+        panic!("deployment reading lost");
+    };
+    assert_eq!(project, people::DEPLOYMENT);
+    assert_eq!(parties.as_ref(), &[1]);
     assert_eq!(out.pop(), None);
     assert_eq!(frame(&core, &limits).deployment_role, None);
     assert_eq!(make(&core, &limits, 1, &Subject::Deployment, &window(), Wall::EPOCH), Err(Missing::NotAllowed));

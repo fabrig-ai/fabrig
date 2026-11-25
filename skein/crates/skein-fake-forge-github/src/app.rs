@@ -8,7 +8,7 @@ use skein_json::{
 };
 use skein_lib::{List, Secret, Wall, base64, bytes};
 
-// The fake checks the dialect's RS256/JWT header independently (forge/github.md, 8.1).
+// The fake checks the dialect's RS256/JWT header independently (forge/github-app.md, 1.1).
 pub(crate) const HEADER: &[u8] = b"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9";
 
 /// The App the layer holds. Its routes belong to the service.
@@ -22,7 +22,7 @@ pub struct App {
     pub webhook: Secret,
 }
 
-/// The grants setup asks for (forge/github.md, 11): a real App holds them, and
+/// The grants setup asks for (forge/github-app.md, 2): a real App holds them, and
 /// its bot's repository permission is its installation's (4.1, 8.2).
 #[must_use]
 pub fn wanted() -> Box<[Permission]> {

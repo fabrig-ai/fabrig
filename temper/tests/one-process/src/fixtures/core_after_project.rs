@@ -1,5 +1,5 @@
 //! No core wait: the gate is open and the root ready; a two-membership client
-//! rejects the mandatory `me` after project three (temper/docs/design/client/ctl/README.md, 9;
+//! rejects the mandatory `me` after project three (temper/docs/design/client/ctl/bounds.md, 1;
 //! jig/docs/design/client/domain/contract/documents.md, 1), and meets those memberships again at restart.
 use crate::{
     ctl::{Caller, Command},
@@ -72,7 +72,7 @@ impl Harness for Incident {
         value["world_settings"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
         value["world_settings"]["adopt_only"] = true.into();
         let grant = |kind| json!({"connector":1,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}});
-        let tools = 3 | if crate::across_versions::active() { core::ToolFamilies::JIG.read.0 } else { 0 };
+        let tools = 3 | if crate::worker_openings::active() { core::ToolFamilies::JIG.read.0 } else { 0 };
         let authority = json!({"tools":tools,"grants":[grant(3),grant(4),grant(7),grant(8),grant(9),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"charter","number":1},{"kind":"charter","number":4},{"kind":"procedure","number":2}],"tasks":8,"depth":5},"budget":{"spend":500,"deadline_unix_seconds":null},"notes":0,"note_resources":[]});
         let policy = &mut value["world_settings"]["policies"][0]["policy"];
         policy["ceiling"] = authority.clone();
@@ -134,7 +134,7 @@ impl Inputs {
     }
     fn provider(&self) -> skein_fake_peers::llm::Peer {
         let configuration = temper_fake::llm::configuration(&self.llm, fixtures::LLM_TOKEN, 17);
-        if crate::across_versions::active() {
+        if crate::worker_openings::active() {
             temper_fake::llm::recording_peer(configuration).expect("recorded provider")
         } else {
             temper_fake::llm::peer(configuration).expect("provider")
@@ -174,7 +174,6 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         &seeds,
         None,
         Some(temper_service::WorkerRuntime {
-            wires: crate::across_versions::worker_wires(),
             root: worker,
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),
@@ -214,7 +213,7 @@ fn provider_document() -> temper_fake::llm::Document {
         {"cue":"Review this change at the named head","turns":[
             call("finish", &json!({"form":"verdict","label":"1","text":"approved","fields":{},"items":[]}))]}
     ]);
-    if crate::across_versions::active() {
+    if crate::worker_openings::active() {
         value["cued"][1]["turns"]
             .as_array_mut()
             .expect("change turns")
@@ -281,11 +280,6 @@ impl Judge {
             Self::command(caller, words);
         }
         self.stage = next;
-    }
-    fn sign_in(caller: &mut Caller, link: &[u8]) {
-        let mut command = Command::new(&[b"sign-in", b"-"]);
-        command.input = link.into();
-        caller.commands.push_back(command);
     }
     fn calls(&mut self, caller: &mut Caller) {
         let project = "3";
@@ -413,7 +407,7 @@ impl Judge {
         let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else {
             return Err(String::from("caller second"));
         };
-        let (mut person, mut fresh, peers) = if crate::across_versions::active() {
+        let (mut person, mut fresh, peers) = if crate::worker_openings::active() {
             (None, None, rest)
         } else {
             let (people, rest) = rest.split_at_mut(1);
@@ -433,7 +427,7 @@ impl Judge {
             if self.warm {
                 self.calls(caller);
             } else {
-                Self::sign_in(caller, &link);
+                caller.sign_in(&link);
                 if self.whole {
                     let commands = [
                         vec!["account", "add-key", "1", "/setup/llm.key", "--deployment", "--key", "incident-key"],
@@ -482,7 +476,7 @@ impl Judge {
                         ],
                     ];
                     for words in &commands {
-                        if crate::across_versions::active() && words.starts_with(&["account", "declare"]) {
+                        if crate::worker_openings::active() && words.starts_with(&["account", "declare"]) {
                             continue;
                         }
                         Self::command(caller, words);
@@ -508,7 +502,7 @@ impl Judge {
                 service.service.pending(now)
             ) + &caller.pending_answer();
         }
-        if crate::across_versions::active() && self.messaged.is_none() && self.stage == Stage::Goal {
+        if crate::worker_openings::active() && self.messaged.is_none() && self.stage == Stage::Goal {
             let running = self.store.borrow().rows.values().find_map(|row| match row {
                 root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task)))
                     if task.spec.words.windows(b"@incident-edit".len()).any(|part| part == b"@incident-edit")
@@ -525,7 +519,7 @@ impl Judge {
                         "task",
                         "message",
                         &task.to_string(),
-                        crate::across_versions::MESSAGE,
+                        crate::worker_openings::MESSAGE,
                         "--key",
                         "bridged-message",
                     ],
@@ -538,7 +532,7 @@ impl Judge {
         if self.handed && caller.answers.len() >= self.target {
             match self.stage {
                 Stage::Goal if !self.whole || self.ended_goal() => {
-                    if crate::across_versions::active() {
+                    if crate::worker_openings::active() {
                         let (number, attempt) = self
                             .messaged
                             .ok_or_else(|| String::from("a message was sent to the goal's running change"))?;
@@ -547,7 +541,7 @@ impl Judge {
                             if task.number == number && task.attempt == attempt && matches!(task.phase, tasks::Phase::Ended(tasks::Ending::Done(_)))
                         ))) { return Err(String::from("the engine read that running attempt's successful result")); }
                         bridged_readback(peers)?;
-                        crate::across_versions::tasks(&self.store.borrow())?;
+                        crate::worker_openings::tasks(&self.store.borrow())?;
                         if !(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))) { return Err(String::from("the bridged goal's change landed")); }
                         self.stage = Stage::Done;
                     } else if self.whole {
@@ -649,7 +643,7 @@ impl Judge {
                     );
                     self.seen.borrow_mut().calls = 4;
                     if !self.fresh_handed {
-                        Self::sign_in(fresh, &self.first_link);
+                        fresh.sign_in(&self.first_link);
                         self.fresh_handed = true;
                     }
                     eprintln!("core calls answered: {}; gate {}", self.seen.borrow().calls, self.seen.borrow().gate);
@@ -664,7 +658,7 @@ impl Judge {
                             self.deadline = now.saturating_add(ANSWER_BOUND);
                             Self::command(fresh, &["me"]);
                         } else if let Some(link) = service.service.links().pop() {
-                            Self::sign_in(fresh, &link);
+                            fresh.sign_in(&link);
                             self.fresh_at = 1;
                             self.deadline = now.saturating_add(ANSWER_BOUND);
                         }
@@ -802,7 +796,7 @@ fn phase(
     }
     let caller = disk.reopen_root(2);
     // The bridged goal reads only the scripted caller, not the incident's two later clients.
-    let clients = (!crate::across_versions::active()).then(|| (disk.reopen_root(2), disk.reopen_root(2)));
+    let clients = (!crate::worker_openings::active()).then(|| (disk.reopen_root(2), disk.reopen_root(2)));
     let machine = Machine::new(disk);
     let seen = Rc::new(RefCell::new(Outcome::default()));
     let parameters = programs::Parameters {
@@ -935,7 +929,7 @@ fn run_sequence(whole: bool, legacy: bool) -> [Outcome; 2] {
 }
 
 /// Only the model's goal-through-landing phase, without its cold restart.
-pub(crate) fn bridged_goal() {
+pub(crate) fn goal_over_worker_link() {
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Restart);
     let transport = forge();
@@ -966,8 +960,8 @@ fn bridged_readback(procs: &[Proc]) -> Result<(), String> {
                 Part::ToolCall { .. } => return false,
             };
             bytes
-                .windows(crate::across_versions::MESSAGE.len())
-                .any(|part| part == crate::across_versions::MESSAGE.as_bytes())
+                .windows(crate::worker_openings::MESSAGE.len())
+                .any(|part| part == crate::worker_openings::MESSAGE.as_bytes())
         })
     })) {
         return Err(String::from("the run read its message across the bridge"));

@@ -56,7 +56,7 @@ filed it. What waits is section 11.
   the request.
   - It is asked of the culprit goal's person, `Person N` in the
     finding's body, with a person task as `need ask` makes one
-    (`../client/ctl/tools.md`, section 3): the question in one sentence,
+    (`../client/ctl/tools-acts.md`, section 1): the question in one sentence,
     then each choice on its own line, the recommended one first.
   - It is asked of the triager's own person where its delegate to that
     person is refused, or where the finding names no person.
@@ -80,8 +80,8 @@ filed it. What waits is section 11.
   blame`, by the finding's holder or a project owner (`areas.md`,
   section 7), on a red finding with a blame (one filed under `wait:
   landed`), uncleared, in any state.
-- **To a landing:** a commit that the landing log (`after-landing.md`,
-  section 10) holds as a landing of the finding's repository on the
+- **To a landing:** a commit that the landing log (`after-landing-storage.md`,
+  section 1) holds as a landing of the finding's repository on the
   branch its tier follows. The finding's blame then names that landing
   alone, with its members' goals, milestones and persons as filing
   takes them (`red-findings.md`, section 3).
@@ -94,8 +94,12 @@ filed it. What waits is section 11.
   replaces it whole.
 - **Refused,** in words: `finding P/N has no blame: it is no red filed
   under landed`; `finding P/N is cleared`; `landing COMMIT is not one
-  the landing log holds on BRANCH`; and as any act is, `finding P/N is
-  not yours: its owner is HOLDER`.
+  the landing log holds on BRANCH`; `finding P/N's tier TIER has no
+  followed branch`, for a move to a landing when the repository's
+  settings today name no branch that tier follows (the branch is read
+  from the settings alone, never from past tier runs or the forge; a
+  move to none still holds); and as any act is, `finding P/N is not
+  yours: its owner is HOLDER`.
 - **A many finding** given ids later keeps a moved blame as moved
   (`red-findings.md`, section 5 turns only filed blame suspected).
 
@@ -193,10 +197,14 @@ ID
 BODY
 ```
 
+- **TIER,** in the title line and the repository's line, the findings'
+  distinct tiers, oldest finding's first, joined by `, `: one
+  repository's findings may be of several tiers (4.2 refuses only two
+  repositories).
 - **The title line,** at most 60 characters: K the distinct ids of the
   findings (`1 test`; `many tests` where a finding's signature says
-  `many`); where the line would pass 60, the tier's name is cut and
-  ends with `…`.
+  `many`); where the line would pass 60, TIER is cut and ends with
+  `…`; the repository's line and each finding are never cut for it.
 - **WORDS,** the act's, whole: the triager's sort and, where a person
   decided, the answer.
 - **Each finding,** oldest first: its number and title, its attempt
@@ -235,6 +243,10 @@ BODY
 - **Its landing not held,** the log having let it go, or on another
   branch than the tier's: by the tier's first enumerated judged run
   that starts after the goal's end.
+- **Told apart by a kept change:** the log alone can't tell a landing
+  it let go from none. A goal with no landing in the log is judged as
+  one whose landing the log let go when the forge still keeps a change
+  of it landed, and as ended without landing when it keeps none.
 - **A many run judges nothing:** a finding waiting on a landing that a
   many run covers, or judged at once while the tier's last run was
   many, waits for the tier's next enumerated judged run.
@@ -331,7 +343,7 @@ BODY
   gains `moved`, a `BlameMove`, and `BlameStrength` the variant
   `Moved`. Each is an added field of the registered `temper-store`
   family with its default (none), so no version moves and no patch
-  comes (`../protocol/store.md`, sections 2 and 4); a finding filed
+  comes (`../protocol/store.md`, section 2, and `../protocol/store-versions.md`, section 1); a finding filed
   before reads as unrepaired and unmoved. `ProjectLanding`'s `repairs`
   is an added field, none.
 - **In the code,** the forge's vocabulary
@@ -370,6 +382,12 @@ BODY
     a repair made, beside `Triaged`. New refusals are
     `FindingRefusal::Words` in 4.2's and section 3's words. The stored
     finding reply (`FindingResult`) appends `repaired` and `blamed`.
+    `FindingReply` appends `more: Box<[u32]>` (at most 15) and
+    `landing: Option<Commit>`, in the store defaulted empty and none:
+    the call's `RepairAct.more` and `BlameAct.landing`, set for
+    `repair` and `blame` whatever the result and empty and none for
+    every other act, so that the tool's answer is worded from its reply
+    alone, on a restart too.
 - **The tier's record** (`temper-engine-domain-forge-tiers`' `Record`)
   keeps its last judged run's number where it keeps none today, an
   added field, none in a record from before, for judging's why (5.3).

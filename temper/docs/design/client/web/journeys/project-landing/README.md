@@ -3,7 +3,7 @@
 A version-2 `walk` in one process, on the playground's composition,
 signed in at `/welcome` by its printed link. The forge is at
 `127.0.0.1:10002`, and the world's box's peer plays its set-up: no
-`temper box` (`../../../journey-walks.md`, 4.1, 4.4 and 6). The walk
+`temper box` (`../../../journey-walks-world.md`, 1.1 and 1.4, and `../../../journey-walks.md`, 6). The walk
 presses "Set up temper", then Forgejo's "Run on this machine" and its
 sheet's own "Run on this machine", leaving the sample `work/hello`
 chosen.
@@ -11,7 +11,7 @@ chosen.
 On Model, "Continue with ChatGPT" opens the world's sign-in tab,
 carried to the fake issuer and back to the engine's callback. The welcome
 stays open and advances to Ready by its accounts watch
-(`../../../journey-walks.md`, 4.5). "Create your project" creates Hello
+(`../../../journey-walks-world.md`, 1.5). "Create your project" creates Hello
 and adopts `work/hello`. Once Home says "work/hello is in Hello", the
 walk reloads `/projects/1`, waits for "Hello is ready." and marks it.
 

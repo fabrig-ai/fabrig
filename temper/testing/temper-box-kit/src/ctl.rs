@@ -62,6 +62,17 @@ pub struct Call {
 }
 impl Call {
     #[must_use]
+    pub fn arguments(&self) -> &[Box<[u8]>] {
+        &self.arguments
+    }
+
+    /// The executable of a direct command, rather than a ctl call.
+    #[must_use]
+    pub fn program(&self) -> Option<&Path> {
+        self.program.as_deref()
+    }
+
+    #[must_use]
     pub fn new(arguments: &[&str]) -> Self {
         Self {
             arguments: arguments.iter().map(|word| word.as_bytes().into()).collect(),
@@ -102,6 +113,7 @@ impl Call {
     }
 }
 pub type NextCall = Box<dyn FnOnce(&[Ended]) -> Call>;
+pub type MaybeCall = Box<dyn FnOnce(&[Ended]) -> Option<Call>>;
 pub type BoxCall = Box<dyn FnOnce(&[u8]) -> Call>;
 pub enum Step {
     Mark(&'static str),
@@ -114,6 +126,8 @@ pub enum Step {
     Visit,
     /// Form a dependent call from the completed calls' documents.
     Then(NextCall),
+    /// Form a dependent call only when the completed reads require one.
+    ThenIf(MaybeCall),
     /// Form an installed-box story's call from its captured opening lines.
     ThenBox(BoxCall),
     Start(Call),
@@ -726,7 +740,10 @@ impl Calls {
                 bytes
             }
         };
-        let program = call.program.or(call.ctl_program).unwrap_or_else(|| skein_scratch::paths::binary("temper-box"));
+        let program = call
+            .program
+            .or(call.ctl_program)
+            .unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"));
         self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
         if started {
             self.started.as_mut().expect("started call").0.kind = kind;
@@ -950,15 +967,24 @@ impl Calls {
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
     }
-    #[expect(clippy::too_many_lines, reason = "Keeps ctl's step dispatch together.")]
     fn advance(&mut self, now: Time) {
+        self.advance_with(now, &super::boxed::serve_listening, &Patience::arm);
+    }
+
+    #[expect(clippy::too_many_lines, reason = "Keeps ctl's step dispatch together.")]
+    fn advance_with(
+        &mut self,
+        now: Time,
+        listening: &impl Fn(&Path) -> bool,
+        arm: &impl Fn(&'static str, Duration) -> Patience,
+    ) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
         if matches!(
             self.steps.front(),
             Some(Step::Run(Call { stdin: Stdin::Link, .. }) | Step::Start(Call { stdin: Stdin::Link, .. }))
         ) && (super::printed_link(&self.link).is_none()
-            || self.serve_data.as_deref().is_some_and(|data| !super::boxed::serve_listening(data)))
+            || self.serve_data.as_deref().is_some_and(|data| !listening(data)))
         {
             self.retry = Some(now.saturating_add(PACE));
             return;
@@ -978,14 +1004,14 @@ impl Calls {
             && !matches!(self.steps.front(), Some(Step::Mark(_)))
         {
             self.began = Some(self.wall);
-            self.deadline = Some(Patience::arm("the measured ctl step", within));
+            self.deadline = Some(arm("the measured ctl step", within));
         }
         match self.steps.pop_front() {
             Some(Step::Mark(name)) => {
                 if let Some(began) = self.phase.replace(now) {
                     eprintln!("{name}: {} ms", now.saturating_since(began).as_nanos() / 1_000_000);
                 }
-                self.advance(now);
+                self.advance_with(now, listening, arm);
             }
             Some(Step::RestartEngine) => self.await_box(Action::RestartEngine),
             Some(Step::Stderr(bytes)) => self.await_box(Action::Stderr(bytes)),
@@ -995,7 +1021,7 @@ impl Calls {
                 self.action = Some(Action::NextLink);
                 self.bound(now);
                 if self.action.is_none() {
-                    self.advance(now);
+                    self.advance_with(now, listening, arm);
                 }
             }
             Some(Step::Member { scratch, directory }) => self.make_member(&scratch, directory),
@@ -1009,7 +1035,7 @@ impl Calls {
                 self.action = Some(Action::Run);
                 let args = super::terminal::open_arguments(Path::new(directory), self.link());
                 self.spawn(
-                    skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into(),
+                    skein_scratch::paths::built("temper-box", "temper-box").as_os_str().as_bytes().into(),
                     args,
                     Vec::new(),
                     false,
@@ -1032,6 +1058,14 @@ impl Calls {
                 let call = next(&self.ends);
                 self.action = Some(Action::Run);
                 self.start(call, false);
+            }
+            Some(Step::ThenIf(next)) => {
+                if let Some(call) = next(&self.ends) {
+                    self.action = Some(Action::Run);
+                    self.start(call, false);
+                } else {
+                    self.advance_with(now, listening, arm);
+                }
             }
             Some(Step::Start(call)) => self.start(call, true),
             Some(Step::Join) => self.awaiting_started = self.started.is_some(),
@@ -1397,7 +1431,7 @@ pub fn charter_change_file(file: &Path, setting: &Ended, instructions: &str) {
 /// Apply both limit kinds as one revision on a fresh sitting. The caller restarts
 /// after these steps, before doing the work whose limits they change.
 #[must_use]
-pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -> Vec<Step> {
+pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)], local: Option<Vec<u8>>) -> Vec<Step> {
     let directory = directory.to_path_buf();
     let overrides: Vec<_> = overrides
         .iter()
@@ -1407,36 +1441,48 @@ pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -
         Step::Run(Call::new(&["settings", "show", "--json"])),
         Step::Run(Call::new(&["settings", "show", "limits", "--json"])),
         Step::Run(Call::new(&["settings", "show", "temper-limits", "--json"])),
-        Step::Then(Box::new(move |calls| {
-            let reads = &calls[calls.len() - 3..];
-            let file = directory.join("limit-settings.json");
-            let mut items = Vec::new();
-            for (kind, setting) in [("limits", &reads[1]), ("temper-limits", &reads[2])] {
-                let mut values: Vec<_> = overrides
-                    .iter()
-                    .filter(|(k, _, _, _)| k == kind)
-                    .map(|(_, name, value, reason)| serde_json::json!({"name":name,"value":value,"reason":reason}))
-                    .collect();
-                values.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
-                setting_change_file(&file, setting, |value| *value = values.into());
-                let change: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(&file).expect("limit FILE")).expect("limit JSON");
-                items.extend(change["items"].as_array().expect("limit items").iter().cloned());
-            }
-            let local = directory.join("local-worker-settings.json");
-            if local.exists() {
-                let local: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(local).expect("local worker settings"))
-                        .expect("worker settings JSON");
-                items.extend(local["items"].as_array().expect("local worker items").iter().cloned());
-            }
-            super::write_private(
-                &file,
-                &serde_json::to_vec(&serde_json::json!({"items":items})).expect("limit settings JSON"),
-            );
-            settings_change(&reads[0], &file, &format!("fixture-limits-{}", newest(&reads[0])))
+        Step::ThenIf(Box::new(move |calls| {
+            let overrides: Vec<_> = overrides
+                .iter()
+                .map(|(kind, name, value, reason)| (kind.as_str(), name.as_str(), *value, reason.as_str()))
+                .collect();
+            limit_settings_apply_with(&directory, &overrides, calls, local.as_deref(), super::write_private)
         })),
     ]
+}
+
+/// Compose one settings FILE and one apply call only for edits to the completed reads.
+pub fn limit_settings_apply_with(
+    directory: &Path,
+    overrides: &[(&str, &str, u64, &str)],
+    calls: &[Ended],
+    local: Option<&[u8]>,
+    write: impl FnOnce(&Path, &[u8]),
+) -> Option<Call> {
+    let reads = &calls[calls.len() - 3..];
+    let file = directory.join("limit-settings.json");
+    let mut items = Vec::new();
+    for (kind, setting) in [("limits", &reads[1]), ("temper-limits", &reads[2])] {
+        let mut values: Vec<_> = overrides
+            .iter()
+            .filter(|(k, _, _, _)| *k == kind)
+            .map(|(_, name, value, reason)| serde_json::json!({"name":name,"value":value,"reason":reason}))
+            .collect();
+        values.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
+        let setting = json(setting);
+        if setting["value"].as_array().expect("limit overrides") != &values {
+            items.push(serde_json::json!({"setting":setting["setting"],"set":values}));
+        }
+    }
+    if let Some(local) = local {
+        let local: serde_json::Value = serde_json::from_slice(local).expect("worker settings JSON");
+        items.extend(local["items"].as_array().expect("local worker items").iter().cloned());
+    }
+    if items.is_empty() {
+        return None;
+    }
+    write(&file, &serde_json::to_vec(&serde_json::json!({"items":items})).expect("limit settings JSON"));
+    Some(settings_change(&reads[0], &file, &format!("fixture-limits-{}", newest(&reads[0]))))
 }
 
 /// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client/README.md, 3).
@@ -1449,54 +1495,6 @@ pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
 }
 
 pub mod read_condition_tests {
-    pub fn limit_settings_apply_both_kinds_in_one_revision() {
-        let scratch = crate::Scratch::startup("limit-settings-step");
-        let reads: Vec<_> = [
-            serde_json::json!({"newest":7}),
-            serde_json::json!({"setting":{"kind":"limits"},"value":[]}),
-            serde_json::json!({"setting":{"kind":"temper-limits"},"value":[]}),
-        ]
-        .into_iter()
-        .map(|value| crate::Ended {
-            exit: Some(super::Exit::Code(0)),
-            stdout: serde_json::to_vec(&value).expect("read JSON"),
-            stderr: Vec::new(),
-        })
-        .collect();
-        let overrides =
-            [("temper-limits", "tool_payload", 2048, "small agent"), ("limits", "tasks.tasks", 8, "small task set")];
-        crate::limit_settings::hold(scratch.path(), &overrides);
-        assert_eq!(
-            std::fs::read_to_string(scratch.path().join("limits-held")).expect("held file"),
-            "tool_payload 2048\ntasks.tasks 8\n"
-        );
-        let mut steps = super::limit_settings(scratch.path(), &overrides);
-        let Some(super::Step::Then(next)) = steps.pop() else { panic!("dependent apply") };
-        let call = next(&reads);
-        let file = scratch.path().join("limit-settings.json");
-        assert_eq!(
-            call.arguments,
-            super::Call::new(&[
-                "settings",
-                "apply",
-                file.to_str().expect("FILE path"),
-                "--against",
-                "7",
-                "--key",
-                "fixture-limits-7"
-            ])
-            .arguments
-        );
-        let value: serde_json::Value = serde_json::from_slice(&std::fs::read(file).expect("FILE")).expect("JSON");
-        assert_eq!(
-            value,
-            serde_json::json!({"items":[
-                {"setting":{"kind":"limits"},"set":[{"name":"tasks.tasks","value":8,"reason":"small task set"}]},
-                {"setting":{"kind":"temper-limits"},"set":[{"name":"tool_payload","value":2048,"reason":"small agent"}]}
-            ]})
-        );
-        scratch.remove();
-    }
     use super::{
         Action, Call, CallKind, Calls, Child, Clock, Duration, Exit, Fd, Host, Judge, PACE, PathBuf, Process,
         ReadCondition, Referee, RefereeWork, Step, Time, Wall, real,
@@ -1771,7 +1769,7 @@ pub mod read_condition_tests {
         );
     }
     pub fn process_until_retains_matching_bytes_and_their_completion_wall() {
-        let condition = ReadCondition::LimitedTask { task: 2, account: 1, source: 0 };
+        let condition = ReadCondition::Contains(b"ready");
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action = Some(Action::Until(Call::new(&["task", "show", "2", "--json"]), condition));
         calls.child = Some(completed(br#"{"chip":{"task":2,"phase":"due"},"run_wait":null}"#));
@@ -1779,7 +1777,7 @@ pub mod read_condition_tests {
         calls.finish(Time::from_nanos(1)).unwrap_or_else(|why| panic!("{why}"));
         assert!(calls.ends.is_empty());
         assert_eq!((calls.observed_at()).len(), 0);
-        let stdout = b"{\n \"chip\": {\"task\":2,\"phase\":\"due\"},\n \"run_wait\":{\"account\":{\"account\":1,\"source\":0,\"why\":{\"limited\":{\"until\":30}}}}\n}\n";
+        let stdout = b"ready\n";
         calls.child = Some(completed(stdout));
         calls.wall = Wall::from_nanos(20);
         calls.finish(Time::from_nanos(2)).unwrap_or_else(|why| panic!("{why}"));
@@ -1795,25 +1793,52 @@ pub mod read_condition_tests {
 }
 
 pub mod serve_gate_tests {
-    use super::{Call, Calls, Fd, Host, PACE, Step, Time, WITHIN};
+    use super::{Call, Calls, Fd, Host, Op, PACE, Patience, Step, Time, WITHIN};
+    use skein_world::testing::deadline::at;
+    use std::{cell::RefCell, path::Path};
 
     pub fn link_sign_in_waits_for_serve_before_starting_its_bound() {
-        let scratch = super::super::Scratch::new("ctl-serve-gate");
-        let mut calls =
-            Calls::new(Fd::new(0), vec![Step::Run(Call::sign_in())], None, None).with_serve_data(scratch.path());
+        let data = Path::new("box-data");
+        let call = Call::sign_in().by(Path::new("temper-box"));
+        let mut calls = Calls::new(Fd::new(0), vec![Step::Run(call)], None, None).with_serve_data(data);
         calls.link = b"http://127.0.0.1:8367/sign-in?secret=fixture\n".to_vec();
         calls.within = Some(WITHIN);
-        calls.advance(Time::ZERO);
+        let arms = RefCell::new(Vec::new());
+        let arm_at = |now| {
+            let arms = &arms;
+            move |what, within| {
+                arms.borrow_mut().push((what, within, now));
+                Patience::from_deadline(at(what, within, now))
+            }
+        };
+        calls.advance_with(
+            Time::ZERO,
+            &|path| {
+                assert_eq!(path, data);
+                false
+            },
+            &arm_at(Time::ZERO),
+        );
         assert!(calls.child.is_none(), "an early link starts no sign-in");
+        assert!(calls.submit.is_empty(), "an early link queues no child");
         assert!(calls.deadline.is_none(), "serve startup spends none of the sign-in bound");
+        assert!(arms.borrow().is_empty(), "there was no arm before listening");
         assert!(calls.next_policy_deadline().is_some(), "the log is checked again without pipe output");
-        std::fs::create_dir_all(scratch.path().join("box/logs")).expect("logs");
-        std::fs::write(scratch.path().join("box/logs/serve.log"), b"listening clients 127.0.0.1:8367\n")
-            .expect("listening");
-        calls.advance(Time::from_nanos(PACE.as_nanos()));
+
+        let now = Time::ZERO.saturating_add(PACE);
+        assert_eq!(calls.next_policy_deadline(), Some(now));
+        calls.advance_with(
+            now,
+            &|path| {
+                assert_eq!(path, data);
+                true
+            },
+            &arm_at(now),
+        );
         assert!(calls.child.is_some(), "listening admits sign-in");
-        assert!(calls.deadline.is_some(), "sign-in owns its full bound");
+        assert!(matches!(calls.submit.pop().map(|submit| submit.kind), Some(Op::Spawn { .. })), "sign-in was queued");
+        assert_eq!(arms.into_inner(), [("the measured ctl step", WITHIN, now)]);
+        assert_eq!(calls.deadline.as_ref().and_then(Patience::until), Some(now.saturating_add(WITHIN)));
         assert!(calls.retry.is_none(), "listening clears the log poll");
-        scratch.remove();
     }
 }

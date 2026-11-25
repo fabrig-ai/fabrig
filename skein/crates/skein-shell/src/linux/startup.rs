@@ -1,30 +1,26 @@
-//! Startup's synchronous bounded regular-file reads (runtime/shell.md, 6.1).
+//! Startup's synchronous bounded regular-file reads (runtime/shell-startup.md, 1.1).
 //! Every descriptor stays here and is closed before returning bytes or a
 //! refusal. No service or ring state is kept.
 //!
 //! # The `unsafe`, and why it is sound
 //!
 //! Open calls read live NUL-terminated paths and initialized `open_how`
-//! fields with their exact size. Fstat writes initialized local stat storage;
-//! read writes only within the exclusive buffer's supplied length. No call
-//! retains a pointer. Every descriptor opened here is closed before return.
+//! fields with their exact size. No call retains a pointer. Every descriptor
+//! opened here is closed before return.
 
-use crate::posix::files::{kernel_error, private_error, read_opened};
+use crate::posix::files::{check_private, kernel_error, private_error, read_opened};
 use std::ffi::CString;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use std::ptr;
 
-use skein_io::file::Unsafe;
 use skein_io::kernel::Error;
 use skein_lib::Secret;
 
 use crate::startup::Unread;
 
-use super::sync::kind_of;
 use super::{close_unchecked as close, last_errno};
 
-/// Leaves Linux's path as given for a caller's own link checks (runtime/shell.md, 6.1).
+/// Leaves Linux's path as given for a caller's own link checks (runtime/shell-startup.md, 1.1).
 #[must_use]
 pub fn resolve_system_links(path: &Path) -> PathBuf {
     path.to_path_buf()
@@ -63,33 +59,6 @@ fn denied_private(path: &CString, user: u32) -> Unread {
         Ok(()) | Err(Unread::Absent | Unread::NotAFile | Unread::TooLarge { .. } | Unread::Kernel(_)) => {
             Unread::Kernel(Error::Permission)
         }
-    }
-}
-
-fn check_private(fd: i32, user: u32) -> Result<(), Unread> {
-    // SAFETY: zero is valid stat storage; fstat initializes this exclusive
-    // local during the call and retains no pointer.
-    let mut stat: libc::stat = unsafe { std::mem::zeroed() };
-    // SAFETY: stat remains exclusive and live across fstat.
-    if unsafe { libc::fstat(fd, ptr::from_mut(&mut stat)) } < 0 {
-        return Err(Unread::Kernel(kernel_error(last_errno())));
-    }
-    let found = if stat.st_uid != user {
-        Some(Unsafe::Owner { found: stat.st_uid, expected: user })
-    } else if kind_of(stat.st_mode) == skein_io::kernel::Kind::Symlink {
-        Some(Unsafe::Link)
-    } else if kind_of(stat.st_mode) != skein_io::kernel::Kind::File {
-        Some(Unsafe::Kind(kind_of(stat.st_mode)))
-    } else if stat.st_mode & 0o077 != 0 {
-        Some(Unsafe::Mode(stat.st_mode & 0o077))
-    } else if stat.st_nlink != 1 {
-        Some(Unsafe::Links(u32::try_from(stat.st_nlink).unwrap_or(u32::MAX)))
-    } else {
-        None
-    };
-    match found {
-        Some(found) => Err(Unread::Unsafe(found)),
-        None => Ok(()),
     }
 }
 

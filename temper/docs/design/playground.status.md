@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-20. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-23. Where temper's code lags or departs from [playground.md](playground.md).
 
 
 Section 9's walk of story A in the one-process world, by the terminal
@@ -31,7 +31,7 @@ doubling startup refuses, and `documents.text_bytes`,
 
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
-    box (`domain/forge/adoption.md`, 1, and its status).
+    box (`domain/forge/adoption-connection.md`, 1, and its status).
   - 6: the playground forge's links shown as text.
   - 7: released with temper: no release's build calls
     `scripts/bundle.sh --playground`, `scripts/release.sh` itself being
@@ -64,8 +64,8 @@ doubling startup refuses, and `documents.text_bytes`,
   - 9: story A's high water in the one-process world:
     `temper/tests/one-process/tests/memory.rs` remains ignored: the
     story walks, but a service world's observer has no way to keep its
-    storage outside the process's span (`skein/docs/design/testing/README.md`,
-    5), so process 0's exact release check fails
+    storage outside the process's span (`skein/docs/design/testing/service-tiers.md`,
+    1), so process 0's exact release check fails
     (`temper/docs/development/playground-memory.md`).
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset

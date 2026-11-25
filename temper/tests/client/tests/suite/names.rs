@@ -1,4 +1,4 @@
-//! temper's client crates carry `temper-client-` (jig's README.md, 15).
+//! temper's client crates carry `temper-client-` (jig's crate-names.md, 1).
 
 #[test]
 fn client_crates_carry_the_client_prefix() {
@@ -17,7 +17,7 @@ fn client_crates_carry_the_client_prefix() {
             "temper-shell",
             // The engine's host composes the service and bundle (temper/docs/design/protocol/components.md).
             "temper-engine-shell",
-            // The setup host is shared by the engine's commands (temper/docs/design/protocol/setup/README.md, 7).
+            // The setup host is shared by the engine's commands (temper/docs/design/protocol/setup/crate-layout.md, 1).
             "temper-forge-setup-shell",
             // The engine world and shared fixtures keep their test-kit names
             // (temper/docs/design/testing/README.md, 5).
@@ -33,7 +33,7 @@ fn client_crates_carry_the_client_prefix() {
             "temper-playground-page",
             "temper-playground-world",
             // The native journey world composes the service and box peer
-            // (temper/docs/design/client/journey-walks.md, 3.2 and 4.4).
+            // (temper/docs/design/client/journey-walks.md, 3.2, and temper/docs/design/client/journey-walks-world.md, 1.4).
             "temper-client-walk-world",
         ],
     );

@@ -1,4 +1,5 @@
 //! Owner-run GitHub relay: bounded HTTP, skein TLS, one guard and ledger (testing/live-tier.md).
+//! The connection, upstream and ledger faces are in temper/docs/design/testing/box/README.md, 3.14.
 use super::socket::Socket;
 use skein_lib::Duration;
 use std::{
@@ -176,7 +177,12 @@ impl Counter {
         self.count
     }
 }
-struct Ledger {
+trait LedgerOutput {
+    fn journal(&mut self) -> &mut dyn Write;
+    fn replace_count(&mut self, bytes: &[u8]) -> Result<()>;
+}
+
+struct Ledger<O> {
     counter: Counter,
     journal: Vec<Row>,
     refused: Vec<Row>,
@@ -184,25 +190,95 @@ struct Ledger {
     merge_heads: Vec<String>,
     /// The probe repository's id, from the first read of it.
     repository: Option<u64>,
-    file: File,
+    output: O,
 }
-struct Shared {
+impl<O> Ledger<O> {
+    fn new(output: O) -> Self {
+        Self {
+            counter: Counter::default(),
+            journal: vec![],
+            refused: vec![],
+            tokens: vec![],
+            merge_heads: vec![],
+            repository: None,
+            output,
+        }
+    }
+}
+struct Shared<O, U> {
     guard: Guard,
-    ledger: Mutex<Ledger>,
-    directory: PathBuf,
-    upstream: Upstream,
+    ledger: Mutex<Ledger<O>>,
+    upstream: U,
     stop: AtomicBool,
 }
-#[derive(Clone)]
+impl<O, U> Shared<O, U> {
+    fn new(guard: Guard, output: O, upstream: U) -> Self {
+        Self { guard, ledger: Mutex::new(Ledger::new(output)), upstream, stop: AtomicBool::new(false) }
+    }
+}
+
+struct Files {
+    journal: File,
+    directory: PathBuf,
+}
+impl LedgerOutput for Files {
+    fn journal(&mut self) -> &mut dyn Write {
+        &mut self.journal
+    }
+    fn replace_count(&mut self, bytes: &[u8]) -> Result<()> {
+        let next = self.directory.join("count.next");
+        OpenOptions::new().create(true).truncate(true).write(true).mode(0o600).open(&next)?.write_all(bytes)?;
+        fs::rename(next, self.directory.join("count.txt"))
+    }
+}
+
+enum ForwardError {
+    // The offline connector propagates a failed connect or request write to its caller.
+    OpenPlain(io::Error),
+    Upstream(io::Error),
+}
+
+trait Connect {
+    type Reply: Read;
+
+    fn reply(&self, host: &str, wire: &[u8]) -> std::result::Result<Self::Reply, ForwardError>;
+}
+
+fn forward(
+    upstream: &impl Connect,
+    host: &str,
+    wire: &[u8],
+    method: &str,
+) -> std::result::Result<Message, ForwardError> {
+    read_message(&mut io::BufReader::new(upstream.reply(host, wire)?), Some(method))
+        .and_then(|message| message.ok_or_else(invalid))
+        .map_err(ForwardError::Upstream)
+}
+
 enum Upstream {
     Tls(skein_tls::Config),
-    Plain(SocketAddr),
+    Plain { address: SocketAddr, purpose: &'static str, directions: [&'static str; 2] },
+}
+impl Connect for Upstream {
+    type Reply = Box<dyn Read>;
+
+    fn reply(&self, host: &str, wire: &[u8]) -> std::result::Result<Self::Reply, ForwardError> {
+        match self {
+            Self::Tls(config) => Ok(Box::new(tls_reply(config, host, wire).map_err(ForwardError::Upstream)?)),
+            Self::Plain { address, purpose, directions } => {
+                let mut socket = Socket::connect(*address, purpose, Duration::from_secs(30), *directions, true, None)
+                    .map_err(ForwardError::OpenPlain)?;
+                socket.write_all(wire).map_err(ForwardError::OpenPlain)?;
+                Ok(Box::new(socket))
+            }
+        }
+    }
 }
 
 pub struct Relay {
     pub api: SocketAddr,
     pub git: SocketAddr,
-    shared: Arc<Shared>,
+    shared: Arc<Shared<Files, Upstream>>,
     listeners: Vec<JoinHandle<()>>,
     connections: Arc<Mutex<Vec<TcpStream>>>,
     threads: Arc<Mutex<Vec<JoinHandle<()>>>>,
@@ -226,7 +302,15 @@ impl Relay {
     #[must_use]
     pub fn plaintext(guard: Guard, directory: &Path, address: SocketAddr) -> Self {
         assert!(address.ip().is_loopback());
-        Self::open(guard, directory, Upstream::Plain(address))
+        Self::open(
+            guard,
+            directory,
+            Upstream::Plain {
+                address,
+                purpose: "the relay upstream's connection",
+                directions: ["the relay upstream's reply", "the relay upstream's request"],
+            },
+        )
     }
     #[expect(clippy::disallowed_methods, reason = "the relay is a real socket peer on owned test threads")]
     fn open(guard: Guard, directory: &Path, upstream: Upstream) -> Self {
@@ -247,21 +331,7 @@ impl Relay {
             .expect("private relay count")
             .write_all(b"0\n")
             .expect("relay count bytes");
-        let shared = Arc::new(Shared {
-            guard,
-            directory: directory.into(),
-            upstream,
-            stop: AtomicBool::new(false),
-            ledger: Mutex::new(Ledger {
-                counter: Counter::default(),
-                journal: vec![],
-                refused: vec![],
-                tokens: vec![],
-                merge_heads: vec![],
-                repository: None,
-                file,
-            }),
-        });
+        let shared = Arc::new(Shared::new(guard, Files { journal: file, directory: directory.into() }, upstream));
         let connections = Arc::new(Mutex::new(Vec::new()));
         let threads = Arc::new(Mutex::new(Vec::new()));
         let mut listeners = Vec::new();
@@ -305,11 +375,13 @@ impl Relay {
         self.shared.ledger.lock().expect("ledger").merge_heads.clone()
     }
     pub fn ask(&self, method: &str, path: &str, authorization: &[u8], body: &[u8]) -> Result<(u16, Vec<u8>)> {
-        self.request(false, method, path, authorization, body)
+        self.shared.request(false, method, path, authorization, body)
     }
     pub fn teardown(&self, method: &str, path: &str, authorization: &[u8], body: &[u8]) -> Result<(u16, Vec<u8>)> {
-        self.request(true, method, path, authorization, body)
+        self.shared.request(true, method, path, authorization, body)
     }
+}
+impl<O: LedgerOutput, U: Connect> Shared<O, U> {
     fn request(
         &self,
         teardown: bool,
@@ -330,7 +402,7 @@ impl Relay {
         }
         let head = wire.windows(4).position(|s| s == b"\r\n\r\n").ok_or_else(invalid)? + 4;
         let message = Message { wire, head };
-        let answer = self.shared.exchange("api", &message, teardown)?;
+        let answer = self.exchange("api", &message, teardown)?;
         let status = answer.status()?;
         let body = if method == "HEAD" || matches!(status, 204 | 304) { Vec::new() } else { answer.body()? };
         Ok((status, body))
@@ -361,13 +433,14 @@ impl Drop for Relay {
         self.quiesce();
     }
 }
-impl Shared {
+impl<O: LedgerOutput, U: Connect> Shared<O, U> {
     fn record(&self, listener: &str, method: &str, path: &str, status: u16, refusal: bool) -> Result<()> {
         let mut ledger = self.ledger.lock().map_err(|_| invalid())?;
         let row = (listener.into(), method.into(), path.into(), status);
-        serde_json::to_writer(&mut ledger.file, &row)?;
-        ledger.file.write_all(b"\n")?;
-        ledger.file.flush()?;
+        let journal = ledger.output.journal();
+        serde_json::to_writer(&mut *journal, &row)?;
+        journal.write_all(b"\n")?;
+        journal.flush()?;
         if refusal {
             ledger.refused.push(row.clone());
         }
@@ -382,14 +455,8 @@ impl Shared {
         let refusal = if self.guard.allows(listener, method, target, body.as_deref(), id) {
             let mut ledger = self.ledger.lock().map_err(|_| invalid())?;
             let refusal = ledger.counter.take(teardown).err();
-            OpenOptions::new()
-                .create(true)
-                .truncate(true)
-                .write(true)
-                .mode(0o600)
-                .open(self.directory.join("count.next"))?
-                .write_all(format!("{}\n", ledger.counter.count()).as_bytes())?;
-            fs::rename(self.directory.join("count.next"), self.directory.join("count.txt"))?;
+            let bytes = format!("{}\n", ledger.counter.count());
+            ledger.output.replace_count(bytes.as_bytes())?;
             refusal
         } else {
             Some(403)
@@ -408,24 +475,10 @@ impl Shared {
         }
         let host = if listener == "api" { "api.github.com" } else { "github.com" };
         let wire = request.with_host(host)?;
-        let answer = match &self.upstream {
-            Upstream::Tls(tls) => tls_exchange(tls, host, &wire, method),
-            Upstream::Plain(address) => {
-                let mut socket = Socket::connect(
-                    *address,
-                    "the relay upstream's connection",
-                    Duration::from_secs(30),
-                    ["the relay upstream's reply", "the relay upstream's request"],
-                    true,
-                    None,
-                )?;
-                socket.write_all(&wire)?;
-                read_message(&mut io::BufReader::new(socket), Some(method))?.ok_or_else(invalid)
-            }
-        };
-        let answer = match answer {
+        let answer = match forward(&self.upstream, host, &wire, method) {
             Ok(answer) => answer,
-            Err(error) => {
+            Err(ForwardError::OpenPlain(error)) => return Err(error),
+            Err(ForwardError::Upstream(error)) => {
                 // An io error names no credential; the path has no query.
                 eprintln!("live relay: upstream failed for {method} {path}: {error}");
                 self.record(listener, method, path, 502, true)?;
@@ -458,40 +511,46 @@ impl Shared {
         self.record(listener, method, path, status, false)?;
         Ok(answer)
     }
+
+    fn connection(&self, listener: &str, client: &mut io::BufReader<impl Read + Write>) -> Result<()> {
+        while !self.stop.load(Ordering::Acquire) {
+            let Some(mut request) = read_head(client)? else { break };
+            if request.header("expect")?.is_some_and(|s| s.eq_ignore_ascii_case("100-continue")) {
+                client.get_mut().write_all(b"HTTP/1.1 100 Continue\r\n\r\n")?;
+            }
+            read_body(client, &mut request, false)?;
+            let (method, _) = request.request()?;
+            let close = request
+                .header("connection")?
+                .is_some_and(|value| value.split(',').any(|token| token.trim().eq_ignore_ascii_case("close")));
+            let answer = self.exchange(listener, &request, false)?;
+            client.get_mut().write_all(&answer.framed(method)?)?;
+            if close {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn ended(&self, listener: &str, result: &Result<()>) {
+        if result.is_err() && !self.stop.load(Ordering::Acquire) {
+            let _ = self.record(listener, "INVALID", "/", 400, true);
+        }
+    }
 }
-fn serve(shared: &Shared, listener: &str, socket: TcpStream) {
+fn serve(shared: &Shared<Files, Upstream>, listener: &str, socket: TcpStream) {
     // The relay serves world-owned children; only their owner can pass after cleanup.
     let mut socket = io::BufReader::new(Socket::deferred(
         socket,
         Duration::from_secs(60),
         ["the relay client's request", "the relay client's reply"],
     ));
-    let result = (|| -> Result<()> {
-        while !shared.stop.load(Ordering::Acquire) {
-            let Some(mut request) = read_head(&mut socket)? else { break };
-            if request.header("expect")?.is_some_and(|s| s.eq_ignore_ascii_case("100-continue")) {
-                socket.get_mut().write_all(b"HTTP/1.1 100 Continue\r\n\r\n")?;
-            }
-            read_body(&mut socket, &mut request, false)?;
-            let (method, _) = request.request()?;
-            let close = request
-                .header("connection")?
-                .is_some_and(|value| value.split(',').any(|token| token.trim().eq_ignore_ascii_case("close")));
-            let answer = shared.exchange(listener, &request, false)?;
-            socket.get_mut().write_all(&answer.framed(method)?)?;
-            if close {
-                break;
-            }
-        }
-        Ok(())
-    })();
+    let result = shared.connection(listener, &mut socket);
     // The quiesce list holds a clone: only a shutdown sends the FIN a graceful close waits for.
     // Darwin rejects Both after the peer's FIN with ENOTCONN, without sending our FIN.
     let _ = socket.get_ref().shutdown(Shutdown::Write);
     let _ = socket.get_ref().shutdown(Shutdown::Read);
-    if result.is_err() && !shared.stop.load(Ordering::Acquire) {
-        let _ = shared.record(listener, "INVALID", "/", 400, true);
-    }
+    shared.ended(listener, &result);
 }
 
 /// Original request framing is retained; answers are dechunked for a persistent client connection.
@@ -788,7 +847,7 @@ impl Read for TlsReader {
         Err(io::Error::other("relay TLS progress bound"))
     }
 }
-fn tls_exchange(config: &skein_tls::Config, host: &str, wire: &[u8], method: &str) -> Result<Message> {
+fn tls_reply(config: &skein_tls::Config, host: &str, wire: &[u8]) -> Result<TlsReader> {
     use skein_tls::client::{self, Request};
     let address = (host, 443).to_socket_addrs()?.next().ok_or_else(invalid)?;
     let socket = Socket::connect(
@@ -815,13 +874,14 @@ fn tls_exchange(config: &skein_tls::Config, host: &str, wire: &[u8], method: &st
         offset: 0,
     };
     client::down(&mut stream.tls, &stream.env, Request::Handshake, &mut stream.above, &mut stream.below);
-    read_message(&mut io::BufReader::new(stream), Some(method))?.ok_or_else(invalid)
+    Ok(stream)
 }
+
+pub mod tests;
 
 /// Transport adapters for the managed sitting. The existing relay and its guard are unchanged.
 pub mod managed_transport {
-    use super::{Message, Result, Socket, Upstream, invalid, read_message, tls_exchange};
-    use skein_lib::Duration;
+    use super::{ForwardError, Message, Result, Socket, Upstream, forward, invalid, read_message};
     use std::{
         io::{self, Write},
         net::SocketAddr,
@@ -878,7 +938,11 @@ pub mod managed_transport {
                 if !address.ip().is_loopback() {
                     return Err(invalid());
                 }
-                return Ok(Self(Upstream::Plain(address)));
+                return Ok(Self(Upstream::Plain {
+                    address,
+                    purpose: "the managed relay upstream's connection",
+                    directions: ["the managed relay upstream's reply", "the managed relay upstream's request"],
+                }));
             }
             let roots = skein_shell::read_trust_roots(
                 &skein_shell::Trust::Machine { ssl_cert_file: None },
@@ -892,22 +956,9 @@ pub mod managed_transport {
             let host = if git { "github.com" } else { "api.github.com" };
             let wire = request.0.with_host(host)?;
             let (method, _) = request.route()?;
-            let answer = match &self.0 {
-                Upstream::Tls(tls) => tls_exchange(tls, host, &wire, method)?,
-                Upstream::Plain(address) => {
-                    let mut socket = Socket::connect(
-                        *address,
-                        "the managed relay upstream's connection",
-                        Duration::from_secs(30),
-                        ["the managed relay upstream's reply", "the managed relay upstream's request"],
-                        true,
-                        None,
-                    )?;
-                    socket.write_all(&wire)?;
-                    read_message(&mut io::BufReader::new(socket), Some(method))?.ok_or_else(invalid)?
-                }
-            };
-            Ok(Answer(answer))
+            forward(&self.0, host, &wire, method).map(Answer).map_err(|error| match error {
+                ForwardError::OpenPlain(error) | ForwardError::Upstream(error) => error,
+            })
         }
     }
 }

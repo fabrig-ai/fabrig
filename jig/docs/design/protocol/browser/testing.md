@@ -14,8 +14,14 @@ tested in skein, and in a browser on skein's UI example (skein's
     failed;
   - the sign-in part's pure half: the secret read from the address, the
     address rewritten first, the credential's dialog's words;
+  - the restart part jig's look gives the shell to install
+    (`loop.md`, 1): three reloads in a minute, under the reference's
+    own session key, then jig's words for a failed application. The
+    reload itself, in a browser, is skein's panic story on skein's
+    example (skein's `ui/web/testing.md`, 2), which jig's tier does not
+    repeat;
   - the mapping's engine end, in `jig-protocol-engine-clients-http`'s
-    step tests: each guard of `README.md`, 12.2 refusing with nothing reaching the
+    step tests: each guard of `serving.md`, 1.2 refusing with nothing reaching the
     component (a `Host` off the list, the header missing beside the
     cookie, a POST of another content type, an `OPTIONS`); the public
     name admitted beside the listener's address; the cookie's
@@ -48,22 +54,28 @@ tested in skein, and in a browser on skein's UI example (skein's
   `JIG_TEST_BUNDLE`.
 - **The harness and the face** are skein's, in
   `skein-fake-person-browser` (skein's `ui/web/testing.md`, 2; skein's
-  `ui/README.md`, 14.1). jig's tier gives the harness the prefix of the line
+  `ui/testing.md`, 1.1). jig's tier gives the harness the prefix of the line
   `jig-test` prints its link on, so the address it opens first is the
-  printed link, which signs the person in (`README.md`, section 11); the face opens
+  printed link, which signs the person in (`sign-in.md`, section 1); the face opens
   the paths the application's codec prints.
 - **skein's stories for a browser shell** (skein's `ui/web/testing.md`, 2):
-  jig's tier calls them with jig's binary, bundle and codec.
+  an application's tier may call them with its binary, bundle and codec.
+  jig's calls none: the one it would, a panic at start, checks skein's
+  restart part, which skein's example shows, and jig's choices for that
+  part are its step tests' (above).
 - **jig's stories for a browser shell,** in `jig-client-fake-person-browser`,
   on skein's face and harness: functions an application's tier calls
   with its binary, bundle and codec, to check its wiring of
   `jig-client`, the client's adapter and the printed link, since its
   loop is its own. Each signs its person in by the printed link:
-  - a reload and engine restart keep a pending request, which the engine
-    makes once;
+  - a reload with a request pending, the engine stopped, meets the
+    close warning;
   - a reload with nothing pending meets no close warning.
   Spent-link admission and the link's offline/live state are checked in
-  the lower worlds.
+  the lower worlds, and so are a pending request kept across a reload
+  and made once after it: from the small store's bytes in the client's
+  protocol world (`../client/testing.md`, 1) and before its resend in
+  the client's world (`../../client/domain/testing.md`, 7).
 - **jig's attack stories,** in the same kit: functions an application's
   tier may call with its binary, its page's address and its mapping's
   prefix, against its own server, whether it uses jig's mapping or its
@@ -81,14 +93,20 @@ tested in skein, and in a browser on skein's UI example (skein's
     the allow-list is answered `421`, and nothing is done;
   - *a framed page:* such a page frames the application's page; the
     browser shows nothing of it, under the page's policy.
-- **jig's tier** calls skein's panic-at-start story, jig's two reload
-  stories and three attack stories: the cross-site request from another
-  port and from another host, and the framed page; Host admission is
-  covered by the HTTP mapping's tests. It adds: a person opens the
-  printed link and sees their inbox, under the reference policy, with
-  no trouble.
+- **jig's tier** calls jig's two reload stories and three attack
+  stories: the cross-site request from another port and from another
+  host, and the framed page; Host admission is covered by the HTTP
+  mapping's tests. It adds: a person opens the printed link and sees
+  their inbox, under the reference policy, with no trouble. What each
+  story would repeat of a lower tier is the lower tier's alone: the
+  server's refusal of a cookie without the browser header is the
+  mapping's step tests', the inbox's words are the client's world's
+  golden text, and the page's policy fields are the reference server's
+  step tests'. The browser keeps what only it shows: its reloads and
+  their warnings, its origin and framing rules, and the shipped bundle
+  booting from the printed link.
 - **jig's test application takes skein's bundler's page** (`README.md`, 4.3), and
-  two of `README.md`, 3.5's steps once each: a root file (step 5); a prefix on the
+  two of `application.md`, 1.5's steps once each: a root file (step 5); a prefix on the
   reference codec, in one story (step 3). An element override, a
   component and a JavaScript snippet are skein's example's (skein's
   `ui/web/testing.md`, 3); jig's test application carries no snippet by

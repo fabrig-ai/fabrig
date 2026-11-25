@@ -14,7 +14,27 @@
 
 extern crate alloc;
 
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated to-record functions uniformly borrow input (skein/docs/design/data/codec/maps.md, 4.1)"
+    )]
+    pub mod channel {
+        include!("generated/channel.rs");
+    }
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "generated translations borrow all domain values (data/codec/maps.md, 4.1)")]
+    pub mod charter {
+        include!("generated/charter.rs");
+    }
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "generated translations borrow all domain values (data/codec/maps.md, 4.1)")]
+    pub mod transcript {
+        include!("generated/transcript.rs");
+    }
+}
+
 mod answer;
+mod channel_hand;
 mod charter;
 mod credentials;
 mod decode_charter;
@@ -39,5 +59,5 @@ pub use host_path::host_path;
 pub use result::decode_declared;
 pub use result::encode_result;
 pub use start::{DecodedStart, Grant, Mount, start_context};
-pub use transcript::{decode_transcript, decode_turn, transcript_piece};
-pub use turn::encode_turn;
+pub use transcript::{decode_part, decode_transcript, decode_turn, transcript_piece};
+pub use turn::{encode_part, encode_turn};

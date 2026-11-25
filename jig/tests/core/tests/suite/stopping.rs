@@ -301,6 +301,10 @@ fn settling_does_not_activate_a_backoff_that_passes() {
     assert_eq!(world.domain.core().tasks.next_deadline(), Some(deadline));
     let env = world.env();
     assert_ne!(world.domain.core().due(env.now, env.wall), Some(core::Timer::Tasks), "the held timer is not rearmed");
+    // The next start may now spend the held retry; finish it before the closing oracle.
+    world.restart(173, false);
+    world.retry_due();
+    jig_core_world::fixtures::finish_chat(&mut world, 0, b"retry finished after settling");
 }
 
 #[test]

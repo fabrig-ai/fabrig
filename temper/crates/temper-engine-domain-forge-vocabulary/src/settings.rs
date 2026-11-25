@@ -1,6 +1,7 @@
 //! Values and edits of the forge's kinds of settings
-//! (temper/docs/design/protocol/configuration/settings.md, 2 and 3;
+//! (temper/docs/design/protocol/configuration/settings-kinds.md, 1, and temper/docs/design/protocol/configuration/settings.md, 3;
 //! temper/docs/design/domain/forge/change/gates.md, 3).
+use crate::generated::client_wire::{project_ways_to_record, questions_route_to_record};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::settings::{Override, OverrideFault, check_overrides};
 use temper_client_protocol_wire::v1::Record;
@@ -19,11 +20,11 @@ pub enum Kind {
     ProjectQuestions,
     ProjectWays,
     ProjectClasses,
-    /// A charter's words (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// A charter's words (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     CharterWords,
-    /// A project's words (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// A project's words (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     ProjectWords,
-    /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// A goal template's work (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     TemplateGoal,
     /// A project's follow (temper/docs/design/domain/forge/follows.md, 2).
     Follow,
@@ -121,20 +122,20 @@ pub struct ProjectWays {
     pub way: u32,
 }
 
-/// The deployment's welcome (temper/docs/design/protocol/configuration/settings.md, 2).
+/// The deployment's welcome (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Welcome {
     pub shown: bool,
 }
 
-/// A charter's line's byte bound (temper/docs/design/protocol/configuration/settings.md, 2).
+/// A charter's line's byte bound (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 pub const LINE_BYTES: u32 = 120;
-/// A project's headline's byte bound (temper/docs/design/protocol/configuration/settings.md, 2).
+/// A project's headline's byte bound (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 pub const HEADLINE_BYTES: u32 = 120;
-/// A project's lede's byte bound (temper/docs/design/protocol/configuration/settings.md, 2).
+/// A project's lede's byte bound (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 pub const LEDE_BYTES: u32 = 480;
 
-/// A project's words, kind 10 (temper/docs/design/protocol/configuration/settings.md, 2).
+/// A project's words, kind 10 (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectWords {
     pub headline: Box<[u8]>,
@@ -168,7 +169,7 @@ pub struct ProjectTriager {
 }
 
 /// Words saved with a setting fit `most`: 1 to `most` bytes of UTF-8 holding no
-/// control character (temper/docs/design/protocol/configuration/settings.md, 2).
+/// control character (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[must_use]
 #[expect(clippy::disallowed_methods, reason = "the forge judges whether setting words are UTF-8 at its boundary")]
 pub fn words_fit(words: &[u8], most: u32) -> bool {
@@ -186,7 +187,7 @@ pub fn words_fit(words: &[u8], most: u32) -> bool {
     true
 }
 
-/// A goal template's work, kind 11 (temper/docs/design/protocol/configuration/settings.md, 2):
+/// A goal template's work, kind 11 (temper/docs/design/protocol/configuration/settings-kinds.md, 1):
 /// whether its coordinator designs first and makes a close-out; neither with none.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
 pub struct TemplateGoal {
@@ -258,11 +259,11 @@ pub enum Value {
     Questions(temper_engine_domain_forge_change::Route),
     Ways(ProjectWays),
     Classes(temper_protocol_reaches::Classes),
-    /// A charter's line (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// A charter's line (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     CharterWords(Box<[u8]>),
-    /// A project's headline and lede (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// A project's headline and lede (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     ProjectWords(ProjectWords),
-    /// A goal template's work (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// A goal template's work (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     Goal(TemplateGoal),
     Follow(Follow),
     Dependency(Dependency),
@@ -286,16 +287,16 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
     use temper_client_protocol_wire::v1;
     match kind {
         6 => {
-            let record = v1::ProjectQuestions { route: v1::QuestionsRoute::None };
+            let route = temper_engine_domain_forge_change::Route::None;
+            let record = v1::ProjectQuestions { route: questions_route_to_record(&route) };
             Some(SizedValue {
-                value: Value::Questions(temper_engine_domain_forge_change::Route::None),
+                value: Value::Questions(route),
                 size: record.measure(&v1::CEILINGS).expect("stock value within ceilings"),
             })
         }
         7 => {
             let ways = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
-            let record =
-                v1::ProjectWays { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way };
+            let record = project_ways_to_record(&ways);
             Some(SizedValue {
                 value: Value::Ways(ways),
                 size: record.measure(&v1::CEILINGS).expect("stock value within ceilings"),
@@ -438,7 +439,7 @@ pub enum Refusal {
     Retired,
     Way,
     Classes(temper_protocol_reaches::Refusal),
-    /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
+    /// Invalid setting words (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
     Words,
     Overrides(OverrideFault),
     FollowPaths,
@@ -1205,7 +1206,7 @@ fn area_name_fits(name: &[u8]) -> bool {
     true
 }
 
-/// Name a retired stored setting in ctl's terms (protocol/configuration/settings.md, 2).
+/// Name a retired stored setting in ctl's terms (protocol/configuration/settings-kinds.md, 1).
 #[must_use]
 pub fn retired_words(key: SettingKey) -> Box<[u8]> {
     let (name, number) = if key.kind == 6 {
@@ -1233,7 +1234,7 @@ pub fn retired_words(key: SettingKey) -> Box<[u8]> {
 pub use temper_client_protocol_wire::v1::{AgentEndpointLimits, AgentFigure, AgentFigures, AgentLimits, Oversized};
 #[path = "settings/agents.rs"]
 pub mod agents;
-mod landing;
+pub(crate) mod landing;
 mod repairs;
 pub use landing::{
     CARRIER, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,

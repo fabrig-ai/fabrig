@@ -1,0 +1,16 @@
+records jig_client_view_codec::records_v1
+use a = crate::state::address
+use h = crate::state::records
+refuses h::words_to_domain
+
+enum ProjectSection = a::ProjectSection
+enum TaskSection = a::TaskSection
+record AddressInbox
+record AddressConversations
+record AddressTask
+record AddressProject
+enum Address = a::Address
+record Place
+record Draft
+enum ViewRecord = h::Record { draft { words via h::words } }
+record StoredRecord by hand

@@ -190,6 +190,9 @@ impl Settings {
                 cache_entries: 8,
                 strict: false,
                 unscoped_reads: 0,
+                accounts: 0,
+                unserved: 0,
+                cut: 0,
             },
             network: Span::millis(1, 20),
             tool: Span::millis(10, 500),
@@ -222,6 +225,7 @@ pub fn spec(prompt: &[u8]) -> agent::Spec {
     let grants = Grants { inspect: true, modify: true, shell: true };
     let authority = Authority { cwd: io::names(b"/work").into_vec().pop(), repos: Box::new([repo]), grants };
     agent::Spec {
+        tell_parts: false,
         backend: smith_domain_session::record::Backend::Direct,
         account: Some(0),
         effort: None,
@@ -841,6 +845,7 @@ impl World {
     fn agent_request(&mut self, request: agent::Request) {
         self.log(&format!("agent -> {}", describe_agent_request(&request)));
         match request {
+            agent::Request::Part { .. } => panic!("parts not requested"),
             agent::Request::Turn { opener, turn } => self.recorded(opener.raw(), turn),
             agent::Request::Priced { opener, spent, own_spent } => {
                 let session = self.sessions.get_mut(&opener.raw()).expect("a price names its opener");
@@ -852,7 +857,11 @@ impl World {
                 );
                 session.priced += 1;
             }
-            agent::Request::JobsCancelled { .. } | agent::Request::Yield { .. } => {}
+            agent::Request::JobsCancelled { .. }
+            | agent::Request::Yield { .. }
+            | agent::Request::RateLimitWait { .. }
+            | agent::Request::RateLimitWaitDone { .. }
+            | agent::Request::RateLimitOutlastsSession { .. } => {}
             agent::Request::Opened { opener, session } => self.opened(opener.raw(), session),
             agent::Request::Yielded { opener, stop, text } => self.yielded(opener.raw(), stop, text),
             agent::Request::Used { opener, usage } => {
@@ -1566,6 +1575,7 @@ impl World {
                 budget: 1,
                 transcript: None,
                 answered: Box::default(),
+                cut: None,
                 withheld: Some(b"wait".as_slice().into()),
             }),
         });
@@ -1746,6 +1756,7 @@ fn ended_run(event: &agent::Event) -> Option<Token> {
         | agent::Event::CancelJobs { .. }
         | agent::Event::Yield { .. }
         | agent::Event::Close { .. }
+        | agent::Event::Cut { .. }
         | agent::Event::Completed { .. }
         | agent::Event::Overflowed { .. }
         | agent::Event::BudgetDenied { .. }
@@ -1777,6 +1788,7 @@ fn describe_agent_event(event: &agent::Event) -> String {
         agent::Event::Continue { session, content } => {
             format!("continue {} {:?}", session.raw(), String::from_utf8_lossy(content))
         }
+        agent::Event::Cut { session } => format!("cut {}", session.raw()),
         agent::Event::Close { session } => format!("close {}", session.raw()),
         agent::Event::Completed { owner, completion } => {
             format!("completed {} {:?} with {} blocks", owner.raw(), completion.stop, completion.content.len())
@@ -1795,6 +1807,7 @@ fn describe_agent_event(event: &agent::Event) -> String {
 
 fn describe_agent_request(request: &agent::Request) -> String {
     match request {
+        agent::Request::Part { .. } => "part".into(),
         agent::Request::JobsCancelled { opener } => format!("jobs cancelled {}", opener.raw()),
         agent::Request::Turn { opener, turn } => format!("turn {} {turn:?}", opener.raw()),
         agent::Request::Priced { opener, spent, own_spent } => {
@@ -1807,6 +1820,13 @@ fn describe_agent_request(request: &agent::Request) -> String {
         agent::Request::Used { opener, usage, .. } => format!("used {} {usage:?}", opener.raw()),
         agent::Request::Ended { opener, end, turns, usage, .. } => {
             format!("ended {} {end:?} after {turns} turns, {usage:?}", opener.raw())
+        }
+        agent::Request::RateLimitWait { opener, until } => {
+            format!("rate limit wait {} until {}", opener.raw(), until.as_nanos())
+        }
+        agent::Request::RateLimitWaitDone { opener } => format!("rate limit wait done {}", opener.raw()),
+        agent::Request::RateLimitOutlastsSession { opener, retry_after } => {
+            format!("rate limit outlasts session {} by reset in {retry_after:?}", opener.raw())
         }
         agent::Request::Complete { owner, prompt, deadlines, .. } => {
             let (messages, most) = (prompt.messages.len(), prompt.max_tokens);

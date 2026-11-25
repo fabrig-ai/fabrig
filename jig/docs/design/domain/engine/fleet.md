@@ -2,6 +2,8 @@
 
 The fleet child domain knows the hosts and the runs they host:
 
+## 1. Hosts and attempts
+
 - **Hosts of two kinds** (../hosts/README.md, section 3): workers, which dial in
   with their slots and the workstreams their workspaces hold; and the
   engine's own slots, a configured number, hosted by the engine's own hub
@@ -32,11 +34,11 @@ The fleet child domain knows the hosts and the runs they host:
   Hello listings and adoption recovery still run while new placement waits.
   A run is placed only on a host that declares its task's models and,
   for a program source, where that source's login is usable
-  (../accounts.md, 3.4). The engine's own slots never take a program
+  (../accounts-sources.md, 1). The engine's own slots never take a program
   source: `smith-inline-agent` has no program backend.
 - **The host rule:** a host that keeps a person's program logins takes
   only runs that person's accounts pay for, until a run's process tree is
-  contained from them (../accounts.md, 3.4; ../hosts/README.md, 5.1). One person's
+  contained from them (../accounts-sources.md, 1; ../hosts/README.md, 5.1). One person's
   deployment is unaffected. The deployment's document names each host
   the rule keeps a run from, and why. The rule governs placement: a queued
   assignment rechecks it, while assigned and adopted runs continue.
@@ -44,9 +46,12 @@ The fleet child domain knows the hosts and the runs they host:
   attempt is its task's live one, but a cancelled attempt's answer. No
   attempt of a task is placed while the fleet knows a host may still run
   another.
-- **Answers and turns are acknowledged once committed** (`README.md`, 5.2), or once
+- **Answers and turns are acknowledged once committed** (`decisions.md`, 1.2), or once
   fenced off; a copy before then is dropped unacknowledged, one for an
   attempt the core has finished with is acknowledged again.
+
+## 2. Loss of contact and placement
+
 - **Losing contact.** A lost worker's runs are kept for a grace; one that
   reconnects says what it hosts, and the core keeps or cancels each. Past
   the grace they are lost, and their tasks retry. The engine's own slots
@@ -67,10 +72,10 @@ The fleet child domain knows the hosts and the runs they host:
   taken as ever. An attempt the fleet chose for it and has not yet
   assigned there is placed again, as one refused as busy is, and no
   attempt is refused for the drain. A refusal as busy keeps a worker out
-  only until a slot frees there; a drain keeps it out for the rest of
-  its channel. A
-  worker that dials again is a new channel, placed on once its logins
-  answer.
+  until a slot frees there or the worker changes its word to taking.
+  An empty worker can thus recover local capacity. A worker shutting
+  down stays out for the rest of its channel. A worker that dials again
+  is a new channel, placed on once its logins answer.
 - **A paused worker leaves placement too.** An owner's ask to pause or
   drain a linked worker (`workers.md`, 5) is the fleet's to carry: it
   asks the worker's admitted channel, `Request::Pause { channel, mode }`
@@ -85,18 +90,20 @@ The fleet child domain knows the hosts and the runs they host:
   taking. So an ask to resume places on the channel again once the
   worker says it takes work, and a channel lost and dialled again by a
   worker that kept its pause stays out from its word after its hello.
-  A worker whose version cannot hear the ask is still placed nothing:
+  A worker whose layout cannot hear the ask is still placed nothing:
   the pause is the engine's placement, and only the drain needs the
   worker. A worker's new process starts taking: its restart ends its
   pause. A host's view says each channel's pause (`workers.md`, 6).
 - **A mismatched worker leaves placement too.** A channel that answered
   an assignment refused for a version (`../../protocol/channel/wires.md`,
-  6) is marked mismatched: until it is lost, the fleet places nothing on
+  6), or whose engine could not send a running attempt what it holds
+  (`../../protocol/channel/layouts.md`, 5.2), is marked mismatched:
+  until it is lost, the fleet places nothing on
   it, neither a run nor a job, as on a draining one, while what it hosts
   goes on. The task refused claims again elsewhere, spending no try.
-- **A task its channel's versions cannot carry leaves that channel
+- **A task its worker's layouts cannot keep leaves that channel
   alone.** An assignment or a job the engine's component refuses as
-  *untranslated* (`../../protocol/channel/bridges.md`, 6.1) keeps its
+  *untranslated* (`../../protocol/channel/layouts.md`, 5.1) keeps its
   task off that channel until the channel is lost, while the channel
   takes every other run and job; the task claims again, spending no
   try, on any other host that may take it, or waits.
@@ -106,11 +113,11 @@ The fleet child domain knows the hosts and the runs they host:
   the program source's login on that worker, never of its task.
   - **It fails once.** The core ends the attempt
     `End::RefusedWithReason { reason }`, as an untranslated assignment's,
-    spending no try (`../tasks/lifecycle.md`, 6), its reason
+    spending no try (`../tasks/lifecycle-holds.md`, 1), its reason
     `PROGRAM started without smith's tools: account SOURCE on worker
     WORKER`: the program the attempt's main model's endpoint names
     (`claude_code`), the program source that model ran on, by name
-    (`../accounts.md`, 3.4), and the worker's configured name
+    (`../accounts-sources.md`, 1), and the worker's configured name
     (`workers.md`, 2), its number where its setting is gone; cut as an
     invalid start's words are (`../hosts/hub.md`, 3):
     `claude_code started without smith's tools: account claude-alice on
@@ -123,7 +130,7 @@ The fleet child domain knows the hosts and the runs they host:
     untranslated task: one entry per run and source, in memory, so a
     restart starts with none. While it stands, placement takes that
     source's login there as unusable for that run alone, as a login
-    needing sign-in on that host (`../accounts.md`, 3.4): the holder's
+    needing sign-in on that host (`../accounts-sources.md`, 1): the holder's
     order passes to the account's next source on that host, or the run
     goes to another host whose login is usable, the claim's recheck
     before its assignment leaves (`run_choice`) judging it the same way.
@@ -132,7 +139,7 @@ The fleet child domain knows the hosts and the runs they host:
     the worker's next channel starts with none (the worker reopens); the
     fleet sends that channel a check of that source (`check`: a holder's
     check, a declaration of its name again, a terminal login's end,
-    `../accounts.md`, 3.4 and section 5); or that channel's `logins`
+    `../accounts-sources.md`, 1, and `../accounts.md`, 5); or that channel's `logins`
     report that source other than usable, so a sign-in there makes it
     usable with no fault.
   - **With no place left, the task waits,** trying nothing until a fault
@@ -156,13 +163,19 @@ The fleet child domain knows the hosts and the runs they host:
       pub fn untooled_on(&self, run: Token, channel: Token, source: &SourceName) -> bool;
   }
   ```
+
+## 3. Relaying
+
 - **Relaying:** messages and cancels down, tool calls up and their
   answers back, each call answered once; a call the fleet cannot pass up
   is answered at once, unserved, or busy while the engine stops
-  (`restart.md`, 1), never left without an answer. An application's
+  (`restart.md`, 5), never left without an answer. An application's
   asks go up and their answers back the same way, fenced as calls, an
   ask from an attempt that is not live answered refused, and nothing
   committed for either (`../hosts/hub.md`, 10).
+
+## 4. Graces and restarts
+
 - **The graces are ordered.** The engine's grace is longer than the
   longest a worker may take to stop a run it lost contact for, which the
   worker says at its hello (../hosts/hub.md, 6); a worker whose bound is equal
@@ -173,7 +186,7 @@ The fleet child domain knows the hosts and the runs they host:
   `fleet.grace` 360 seconds, above the stop bound of a worker on their
   link profile (5 and 15 seconds) with an engine-away grace of 300
   seconds, the five minutes that cover an engine's start that upgrades
-  its store (temper's `draft/redeploys.md`, 5.3), and the drain's
+  its store (temper's `draft/archive/redeploys.md`, 5.3), and the drain's
   default of 180 seconds: 326 seconds, 20 of notice and 300 of grace
   outlasting the drain, then 5 for an agent's stop and 1 for a save
   (`../../protocol/configuration.md`, section 4). The engine-away grace dominates
@@ -181,7 +194,7 @@ The fleet child domain knows the hosts and the runs they host:
   profile moves this grace with it, and says why; a deployment that
   raises a worker's bound raises the grace with it. A worker gone for
   good has its runs placed elsewhere once this grace has passed.
-- **A restart said holds its runs** (temper's `draft/redeploys.md`, 5.3;
+- **A restart said holds its runs** (temper's `draft/archive/redeploys.md`, 5.3;
   `restart.md`, *Saying it restarts* and *Held across starts*):
   - **The restart wait,** `fleet.restart_wait` (`fleet.restart_wait_ms`),
     is what the engine's settled stop tells its workers to wait for it:
@@ -201,7 +214,7 @@ The fleet child domain knows the hosts and the runs they host:
   - **Until its worker hears the engine.** The first `logins` on the
     channel that lists it answers the `sources` the engine sent after
     that hello, so that worker's clock has stopped
-    (`../../protocol/channel/README.md`, 9.1): the claim is no longer
+    (`../../protocol/channel/worker-link.md`, 1.1): the claim is no longer
     held, and a later loss gives it the grace alone.
   - **Discharged.** Once loaded, when no claim is held any more, ended,
     lost or heard, the fleet says so once, `Request::Discharged`, and
@@ -211,6 +224,9 @@ The fleet child domain knows the hosts and the runs they host:
     tail, counted from its own notice of a loss that follows the
     engine's close; the hold counts the wait and the engine's grace,
     longer than that bound, from a start that follows that close.
+
+## 5. Host compatibility and capacity
+
 - **A host's agent must run the engine's charters.** The fleet refuses
   a hello, as not admitted and naming why, whose agent's bounds
   (../hosts/README.md, section 2) do not hold every run the engine may place there:
@@ -266,7 +282,7 @@ The fleet child domain knows the hosts and the runs they host:
   refusing it at its proposal is open (`README.md`, section 10).
 - **A hello waits for the stored settings.** The fleet judges a hello's
   agent bounds against the needs of the settings the store holds
-  (`settings.md`, 7), never the configuration's alone: from its construction until
+  (`settings-store.md`, 1), never the configuration's alone: from its construction until
   the start's settings restore tells it their needs (`Event::Needs`,
   `restart.md`, step 1), it holds each hello it hears, admitting and
   refusing none, and judges them in the order heard once told, a first
@@ -314,12 +330,15 @@ The fleet child domain knows the hosts and the runs they host:
   for room or readiness, and stay `Host`. It is derived as the standing
   refusal is: nothing is stored, and no task state, placement, attempt or
   retry changes.
+
+## 6. Grants and start outcomes
+
 - **Grants follow their attempts:** each new generation of an LLM
   account's source or an application's credential goes to every live
   attempt that holds one (`README.md`, section 6), and each attempt the fleet keeps
   at a worker's hello, or adopts, is sent its current grants, so no run
   outlives its token for want of a resend. A grant never overtakes its
-  attempt's assignment (`README.md`, 5.2), so a generation renewed while the
+  attempt's assignment (`decisions.md`, 1.2), so a generation renewed while the
   assignment waits for its commit reaches the attempt after it.
 - **Every start and adoption ends once:** answered, lost, withdrawn (the
   core cancelled it), or refused (busy, a duplicate, or invalid).
@@ -330,9 +349,12 @@ The fleet child domain knows the hosts and the runs they host:
   is placed again, as no failure; one refused as invalid ends its start,
   refused. The task's class comes from the answer's payload: a refused
   transcript is transient, and any other invalid start permanent, an
-  assignment its host found invalid (../tasks/lifecycle.md, 6; ../hosts/hub.md, 3). One lost with its channel leaves its attempt unlisted at the
+  assignment its host found invalid (../tasks/lifecycle-holds.md, 1; ../hosts/hub.md, 3). One lost with its channel leaves its attempt unlisted at the
   next hello, and the start ends lost; the next attempt is refused again,
   or placed.
+
+## 7. Restart and history
+
 - **Restarting** (`restart.md`): the fleet adopts the claims the store
   names, then hears that the loading is done; a run a worker lists that
   no claim adopts is cancelled once a grace has passed.

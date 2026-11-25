@@ -1,4 +1,4 @@
-//! Agent task read values (jig/docs/design/domain/engine/executors.md, 3).
+//! Agent task read values (jig/docs/design/domain/engine/executors-tools.md, 1).
 use super::{TaskText, TaskTextField};
 use crate::Limits;
 use alloc::boxed::Box;
@@ -6,7 +6,7 @@ use core::mem::{size_of, size_of_val};
 use jig_domain_tasks as tasks;
 use skein_lib::length::len_u64;
 
-/// The application-named task text and answer room (domain/engine/executors.md, 3).
+/// The application-named task text and answer room (domain/engine/executors-tools.md, 1).
 #[derive(Clone, Copy, Hash, Debug)]
 pub struct Read {
     pub task: u64,
@@ -30,7 +30,7 @@ pub enum TaskState {
     /// Retained after ending.
     Ended(tasks::Status),
 }
-/// Current independent hold revision and the connector's bounded account.
+/// Current independent hold revision and the bounded hold explanation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TaskHold {
     pub revision: u64,
@@ -49,7 +49,7 @@ pub struct TaskRead {
     pub words: TaskText,
     /// Verdict selected by a result read; offsets still count only reason bytes.
     pub verdict_code: Option<u32>,
-    /// A result read of a live task, answered with its specification (domain/engine/executors.md, 3).
+    /// A result read of a live task, answered with its specification (domain/engine/executors-tools.md, 1).
     pub result_pending: bool,
     pub hold: Option<TaskHold>,
 }
@@ -74,7 +74,7 @@ pub fn answer_carrier_bound(limits: &Limits) -> Option<u64> {
             u64::from(limits.tasks.inbox_messages)
                 .checked_mul(u64::try_from(size_of::<tasks::QuestionCredit>()).ok()?)?,
         )?
-        .checked_add(u64::from(tasks::HOLD_ACCOUNT_BYTES))
+        .checked_add(u64::try_from(tasks::HOLD_WORDS).ok()?)
 }
 /// Maximum task-read carrier and payload under the admitted limits.
 #[must_use]

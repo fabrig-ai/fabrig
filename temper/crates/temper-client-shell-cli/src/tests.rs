@@ -1,4 +1,5 @@
 use jig_client_protocol_wire::Record as _;
+mod chat;
 mod deadline;
 pub(crate) mod fixtures;
 mod link;
@@ -130,7 +131,7 @@ fn a_zero_byte_token_is_not_signed_in() {
     assert_eq!(f.stderr(), b"temper ctl: DIRECTORY is not signed in\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
-/// client/ctl/README.md, 6.1: `address` is written by sign-in, so a DIRECTORY without it is not signed in.
+/// client/ctl/command-line.md, 1.1: `address` is written by sign-in, so a DIRECTORY without it is not signed in.
 #[test]
 fn a_directory_without_an_address_is_not_signed_in() {
     let mut f = fixtures::Frame::act(fixtures::CHAT);
@@ -140,7 +141,7 @@ fn a_directory_without_an_address_is_not_signed_in() {
     assert_eq!(f.exit(), Some(Exit::Code(1)));
     assert_eq!(f.requests(), 0);
 }
-/// client/ctl/README.md, 6.1: a step's failure names the step and the error.
+/// client/ctl/command-line.md, 1.1: a step's failure names the step and the error.
 #[test]
 fn a_directory_step_that_fails_names_the_step_and_the_error() {
     const LONG_ADDRESS: &[u8] = &[b'a'; limits::ADDRESS as usize + 1];
@@ -826,7 +827,7 @@ fn close_kept_line() {
 
 #[test]
 fn a_drawn_key_is_resent_before_a_new_unnamed_request() {
-    let words = &[b"task", b"stop".as_slice(), b"7"];
+    let words = &[b"task", b"stop".as_slice(), b"7", b"Parked"];
     let mut first = fixtures::Disk::act_words_with(words, fixtures::small_store(&[]));
     first.sign_in_then_deliver_me();
     first.advance_past(crate::limits::DEADLINE);
@@ -1559,4 +1560,14 @@ fn invalid_history_filters_and_cursors_open_no_directory_and_send_nothing() {
         assert!(frame.no_directory());
         assert_eq!(frame.requests(), 0);
     }
+}
+
+#[test]
+fn a_stop_call_without_a_reason_exits_two_before_opening_directory() {
+    let mut f = fixtures::Frame::read(&["--call", "-"]);
+    f.input = br#"{"tool":"task stop","arguments":{"task":41}}"#;
+    f.drain();
+    assert_eq!(f.exit(), Some(Exit::Code(2)));
+    assert!(f.no_directory());
+    assert_eq!(f.requests(), 0);
 }

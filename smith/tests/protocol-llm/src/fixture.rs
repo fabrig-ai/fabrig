@@ -1,6 +1,12 @@
 //! Shared protocol story setup (smith/docs/design/protocol/llm.md, section 10).
 use smith_protocol_llm::{ComponentLimits, Limits};
 
+// Fault stories carry one scalar progress result or a four-byte final report.
+// Their transport need not fragment those records into codec-test-sized pieces.
+const FAULT_PACKET_BYTES: u32 = 4096;
+const FAULT_REQUEST_BYTES: u32 = 16_384;
+const FAULT_REPORT_BYTES: u32 = 4;
+
 /// The protocol world's client and workspace description preset.
 #[must_use]
 pub fn limits() -> Limits {
@@ -22,6 +28,84 @@ pub fn settings(seed: u64) -> smith_agent_world::Settings {
         limits: crate::LIMITS,
         ..smith_agent_world::Settings::calm(seed)
     }
+}
+
+/// A finite fault run with one retry, a "done" report, and caller-selected tools.
+/// A read-only workspace exists only when the story needs inspection.
+#[must_use]
+pub fn provider_fault_world(
+    seed: u64,
+    configuration: Configuration,
+    turns: Box<[skein_fake_llm_domain::api::Turn]>,
+    inspect: bool,
+    host_tools: Box<[smith_domain::run::HostTool]>,
+) -> crate::World {
+    let mut settings = settings(seed);
+    settings.job = smith_agent_world::Job::Reporting;
+    settings.writable = false;
+    // One retry shows backoff and typed exhaustion; no story needs a third attempt.
+    settings.limits.session.retries = 1;
+    let mut charter = smith_agent_world::scripted_charter(&settings);
+    charter.grants.tools.inspect = inspect;
+    charter.grants.host_tools = host_tools;
+    charter.grants.agents = false;
+    charter.grants.wait = false;
+    charter.models = Box::new([]);
+    charter.conventions = None;
+    // These stories finish with the four-byte report "done", without custom fields.
+    let report = charter.outcome.report.as_mut().expect("reporting contract");
+    report.max = FAULT_REPORT_BYTES;
+    report.fields = Box::new([]);
+    let mut disk = skein_fake_checkout::Checkout::new();
+    let workspace = inspect.then(|| {
+        disk.mkdir(b"work");
+        disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 42 }\n");
+        smith_domain::run::Workspace {
+            directories: Box::new([smith_domain::run::Directory {
+                results: None,
+                root: skein_lib::Token::new(disk.root(b"work")),
+                host: b"/host".as_slice().into(),
+                name: b"work".as_slice().into(),
+                writable: false,
+                git: false,
+                conflicts: Box::new([]),
+            }]),
+        }
+    });
+    let mut limits = limits();
+    limits.client.request = FAULT_REQUEST_BYTES;
+    limits.client.http.request = FAULT_REQUEST_BYTES;
+    // Faults are provider responses and holds, not transport fragmentation.
+    // Send a complete request in one grant instead of the codec fixture's 31-byte pieces.
+    limits.client.http.send = limits.client.http.request;
+    limits.client.http.read = FAULT_PACKET_BYTES;
+    limits.client.sse.chunk = FAULT_PACKET_BYTES;
+    let receiving = smith_protocol_llm_fixtures::receiving(&limits.client, settings.limits.decoded_call_bytes)
+        .expect("provider receiving bounds");
+    settings.limits.session.completion_bytes = receiving.max_completion_bytes;
+    settings.limits.session.completion_blocks = receiving.max_completion_blocks;
+    settings.limits.session.failure_bytes = receiving.max_failure_bytes;
+    crate::World::with_workspace_protocol_charter(
+        settings,
+        None,
+        workspace,
+        disk,
+        (configuration, limits),
+        Box::new([skein_fake_llm_domain::api::Script { cue: b"@report".as_slice().into(), turns }]),
+        charter,
+    )
+}
+
+/// The finite report shared by the provider-fault stories.
+#[must_use]
+pub fn fault_finish() -> skein_fake_llm_domain::api::Turn {
+    calls(
+        Box::new([skein_fake_llm_domain::api::Line::Call {
+            name: b"finish".as_slice().into(),
+            arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
+        }]),
+        7,
+    )
 }
 
 /// Caller-supplied endpoint and credential data for the wire fixture.

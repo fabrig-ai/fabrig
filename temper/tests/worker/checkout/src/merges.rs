@@ -1,6 +1,8 @@
 //! Merge scenarios against the real checkout child, fake disk and fake forge.
 //! The referee predicts complete trees, parent pairs and remote refs from
 //! the scenario; it never reads the domain's private state.
+pub mod counts;
+
 use crate::{forge::Forge, translate};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use temper_fake_checkout::{Checkout, git::Remote};
@@ -50,6 +52,10 @@ struct World {
 
 impl World {
     fn new(seed: u64, case: Case, facts: u32) -> Self {
+        Self::with_extra_conflicts(seed, case, facts, 1)
+    }
+
+    fn with_extra_conflicts(seed: u64, case: Case, facts: u32, extra_conflicts: u32) -> Self {
         let limits = Limits {
             workspaces: 1,
             preparations: 1,
@@ -65,8 +71,9 @@ impl World {
             facts,
         };
         let mut forge = Forge::new(seed);
+        let paths = 0..limits.conflicts + extra_conflicts;
         let initial = if matches!(case, Case::PastTheBound) {
-            (0..=limits.conflicts).map(|n| (format!("code{n}").into_bytes(), b"original\n".to_vec())).collect()
+            paths.clone().map(|n| (format!("code{n}").into_bytes(), b"original\n".to_vec())).collect()
         } else {
             [(b"code".to_vec(), b"original\n".to_vec())].into()
         };
@@ -87,7 +94,7 @@ impl World {
                 let mut ours = first;
                 let mut base = first;
                 let mut expected = temper_fake_checkout::git::Tree::new();
-                for n in 0..=limits.conflicts {
+                for n in paths {
                     let path = format!("code{n}").into_bytes();
                     ours = forge.advance(b"forge/temper", b"topic", &path, left.as_bytes());
                     base = forge.advance(b"forge/temper", b"main", &path, right.as_bytes());
@@ -134,17 +141,18 @@ impl World {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "the world's IO loop retains its answer through trailing held marks")]
     fn finish(&mut self, mut event: Event, mut ambiguous: bool) -> Request {
         let merge_starts: Vec<_> = if let Event::Prepare { spec, .. } = &event {
             spec.repositories.iter().map(|repo| matches!(repo.start, Start::Merge { .. })).collect()
         } else {
             Vec::new()
         };
+        let mut terminal = None;
         for _ in 0..64 {
             let preparing = matches!(event, Event::Prepare { .. });
             step(&mut self.domain, &self.env, event, &mut self.out);
             let mut pending = None;
-            let mut terminal = None;
             let mut held = false;
             while let Some(request) = self.out.pop() {
                 self.trace.push(format!("{request:?}"));
@@ -176,8 +184,14 @@ impl World {
             assert_eq!(held, preparing, "only a prepare emits a new hold");
             while self.domain.pop_fact().is_some() {}
             self.domain.reclaim();
-            if let Some(terminal) = terminal {
-                assert!(pending.is_none());
+            if let Some((_, op)) = &pending
+                && terminal.is_some()
+            {
+                assert!(matches!(op, Op::Keep { .. }), "only a held mark outlives its answer");
+            }
+            if pending.is_none()
+                && let Some(terminal) = terminal.take()
+            {
                 if let Request::Prepared {
                     prepared: Prepared::Failed { failure: Failure::Conflicted { repository, .. }, .. },
                     ..
@@ -187,6 +201,9 @@ impl World {
                         !merge_starts[usize::try_from(*repository).expect("bounded repository")],
                         "a Start::Merge prepare never ends Failure::Conflicted"
                     );
+                }
+                if matches!(terminal, Request::Released { .. }) {
+                    self.hold = None;
                 }
                 return terminal;
             }
@@ -255,13 +272,8 @@ impl World {
     }
 }
 
-/// Run one complete scenario, checking every promised terminal and observable
-/// tree/ref against its independent prediction. Seed changes file content.
-#[must_use]
-#[expect(clippy::too_many_lines, reason = "the merge scenario checks its prepare pin and resulting tree together")]
-pub fn run(seed: u64, case: Case, facts: u32) -> Report {
-    let mut world = World::new(seed, case, facts);
-    let spec = Spec {
+fn merge_spec(world: &World, case: Case) -> Spec {
+    Spec {
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -282,7 +294,15 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
                 None
             },
         }]),
-    };
+    }
+}
+
+/// Run one complete scenario, checking every promised terminal and observable
+/// tree/ref against its independent prediction. Seed changes file content.
+#[must_use]
+pub fn run(seed: u64, case: Case, facts: u32) -> Report {
+    let mut world = World::new(seed, case, facts);
+    let spec = merge_spec(&world, case);
     world.forge.moves();
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
         world.finish(Event::Prepare { client: Token::new(9), spec }, false)
@@ -415,7 +435,7 @@ pub fn replaced_pin(case: PinCase) {
     });
     let pin = [at.as_slice(), b"/.git/refs/temper/landing"].concat();
     assert_eq!(world.disk.content(&pin), Some(world.base.to_le_bytes().as_slice()));
-    let hold = world.hold.take().expect("producer held");
+    let hold = world.hold.expect("producer held");
     world.finish(Event::Release { hold }, false);
     world.pins = 0;
     world.branch_fetches.clear();
@@ -484,7 +504,7 @@ pub fn replaced_pin(case: PinCase) {
             assert_eq!(world.pins, 1, "deliveries never fetch a new pin");
         }
     }
-    let hold = world.hold.take().expect("replacement held");
+    let hold = world.hold.expect("replacement held");
     world.finish(Event::Release { hold }, false);
 }
 
@@ -551,7 +571,7 @@ pub fn resolution_conflict(pushed: bool) {
     assert_eq!(world.commits.len(), 2, "the refused commit and the single settled merge commit");
     assert_eq!(world.pins, 1, "push does not move the pin");
     assert_eq!(world.disk.content(&pin), Some(ours.to_le_bytes().as_slice()));
-    let hold = world.hold.take().expect("resolution held");
+    let hold = world.hold.expect("resolution held");
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
     assert_eq!(world.domain.holds(), 0);
 }
@@ -591,6 +611,59 @@ fn settle_past_the_bound(world: &mut World, at: &[u8], conflicts: &[Conflicts], 
     world.disk.write(&[at, b"/", &last].concat(), &world.expected[&last]);
 }
 
+/// A four-path prepare prefix cannot hide the sixth path from checked delivery.
+pub fn refuse_past_the_bound() {
+    const EXTRA_CONFLICTS: u32 = 2;
+    const SEED: u64 = 73;
+    const CLIENT: Token = Token::new(9);
+    let case = Case::PastTheBound;
+    let mut world = World::with_extra_conflicts(SEED, case, 64, EXTRA_CONFLICTS);
+    let spec = merge_spec(&world, case);
+    let prepared = world.finish(Event::Prepare { client: CLIENT, spec }, false);
+    let Request::Prepared { client, prepared: Prepared::Ready { workspace, conflicts } } = prepared else {
+        panic!("merge ready: {prepared:?}")
+    };
+    assert_eq!(client, CLIENT);
+    let named = [b"code0", b"code1", b"code2", b"code3"].map(|path| path.as_slice().into());
+    assert_eq!(conflicts.as_ref(), &[Conflicts { repository: 0, files: Box::new(named) }]);
+
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None,
+        workspace,
+        repository: b"temper".as_slice().into(),
+    });
+    let prefix = [at.as_slice(), b"/"].concat();
+    let index = [prefix.as_slice(), b".git/temper-conflicts"].concat();
+    let head = [prefix.as_slice(), b".git/temper-head"].concat();
+    let merge_head = [prefix.as_slice(), b".git/MERGE_HEAD"].concat();
+    let paths = [b"code0", b"code1", b"code2", b"code3", b"code4", b"code5"].map(|name| name.to_vec());
+    let last = b"code5";
+    let topic = b"topic";
+    let remote = b"forge/temper";
+    let ours = world.ours.to_le_bytes();
+    let base = world.base.to_le_bytes();
+    let check_index = |disk: &Checkout| {
+        assert_eq!(disk.tree(&index).into_values().collect::<Vec<_>>(), paths);
+        assert_eq!(disk.content(&head), Some(ours.as_slice()));
+        assert_eq!(disk.content(&merge_head), Some(base.as_slice()));
+    };
+    check_index(&world.disk);
+    for path in paths.iter().filter(|path| path.as_slice() != last) {
+        world.disk.write(&[prefix.as_slice(), path].concat(), b"resolved\n");
+    }
+    let before = translate::disk_snapshot(&world.disk);
+    world.forge.moves();
+    assert_eq!(world.push(false, false).as_ref(), &[Landing::Conflicted { files: Box::new([last.as_slice().into()]) }]);
+    assert_eq!(translate::disk_snapshot(&world.disk), before, "refusal makes no disk writes");
+    check_index(&world.disk);
+    assert_eq!(world.push_attempts, 0);
+    assert_eq!(world.forge.moves(), []);
+    assert_eq!(world.forge.branch(remote, topic), Some(world.ours));
+    let hold = world.hold.expect("refused delivery still holds the checkout");
+    assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { client: CLIENT }));
+    assert_eq!(world.domain.holds(), 0);
+}
+
 /// Read the fake's checkout and merge metadata before the run edits anything.
 /// Saving must compare with the producer's original head, so this merge lands.
 fn resumed_merge(world: &mut World, at: &[u8]) -> u64 {
@@ -599,7 +672,8 @@ fn resumed_merge(world: &mut World, at: &[u8]) -> u64 {
     };
     assert_eq!((*ours, *base, *identity), (translate::commit(world.ours), translate::commit(world.base), 0));
     assert_eq!(title, expected_merge_message(world.base).as_bytes());
-    let trace: Vec<_> = world.trace.iter().filter(|line| !line.contains("op: Reds {")).collect();
+    let trace: Vec<_> =
+        world.trace.iter().filter(|line| !line.contains("op: Reds {") && !line.contains("op: Keep {")).collect();
     assert!(
         trace.windows(3).any(|steps| {
             steps[0].contains("op: Commit {") && steps[1].contains("op: CheckOut {") && steps[2].contains("Ready {")
@@ -651,7 +725,7 @@ fn resume_saved_work(world: &mut World, workspace: Token) {
     let expected = world.forge.tree(saved_head);
     assert_eq!(world.forge.parent(saved_head), Some(world.ours));
     assert_eq!(world.forge.merge_parent(saved_head), None);
-    let hold = world.hold.take().expect("first held");
+    let hold = world.hold.expect("first held");
     world.finish(Event::Release { hold }, false);
     let spec = Spec {
         key: b"merge".as_slice().into(),
@@ -723,7 +797,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
     world.disk.write(&[path.as_slice(), b"/README.md"].concat(), b"# app\nChanged by temper.\n");
     let first = world.push(false, false);
     let Landing::Landed { commit: head } = first[0] else { panic!("first landed") };
-    let first_hold = world.hold.take().expect("first held");
+    let first_hold = world.hold.expect("first held");
     world.finish(Event::Release { hold: first_hold }, false);
     assert!(matches!(
         world.finish(Event::Prepare { client: Token::new(2), spec: spec(true) }, false),
@@ -762,7 +836,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
         assert_eq!(world.forge.merge_parent(remote), None);
         assert_eq!(&*world.push(true, false), &[Landing::Unchanged], "save still compares actual start");
     }
-    let hold = world.hold.take().expect("second held");
+    let hold = world.hold.expect("second held");
     world.finish(Event::Release { hold }, false);
     assert_eq!(world.domain.holds(), 0);
 }
@@ -792,14 +866,14 @@ fn heads_spec(heads: &[u64]) -> Spec {
 }
 
 fn prepare_heads(world: &mut World, heads: &[u64]) -> (Token, Vec<u8>) {
-    prepare_heads_spec(world, heads_spec(heads))
+    prepare_single(world, heads_spec(heads))
 }
 
-fn prepare_heads_spec(world: &mut World, spec: Spec) -> (Token, Vec<u8>) {
+fn prepare_single(world: &mut World, spec: Spec) -> (Token, Vec<u8>) {
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
         world.finish(Event::Prepare { client: Token::new(9), spec }, false)
     else {
-        panic!("merged heads prepared")
+        panic!("single repository prepared")
     };
     assert!(conflicts.is_empty());
     let at = translate::path(&temper_worker_domain_checkout::git::Place {
@@ -811,7 +885,7 @@ fn prepare_heads_spec(world: &mut World, spec: Spec) -> (Token, Vec<u8>) {
 }
 
 fn release_heads(world: &mut World) {
-    let hold = world.hold.take().expect("held until release");
+    let hold = world.hold.expect("held until release");
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
     assert_eq!(world.domain.holds(), 0);
 }
@@ -1030,11 +1104,14 @@ pub fn goal_later_run(case: Case) {
     release_heads(&mut world);
 }
 
-fn design_start() -> (World, Vec<u8>, u64) {
+fn design_world() -> World {
     let mut world = World::new(73, Case::Clean, 64);
-    // Use the same forge and checkout driver as the merge scenarios.
     world.forge.create_branch(b"forge/temper", b"g", world.ours).expect("g created");
-    let spec = Spec {
+    world
+}
+
+fn design_spec(tip: u64) -> Spec {
+    Spec {
         key: b"design".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -1045,24 +1122,19 @@ fn design_start() -> (World, Vec<u8>, u64) {
             identity: 17,
             account: None,
             push: Some(b"g".as_slice().into()),
-            expected: Some(translate::commit(world.ours)),
+            expected: Some(translate::commit(tip)),
             delivered: None,
             pin: None,
             landing: Some(b"g".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
-    };
-    let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
-        world.finish(Event::Prepare { client: Token::new(9), spec }, false)
-    else {
-        panic!("design prepared")
-    };
-    assert!(conflicts.is_empty());
-    let at = translate::path(&temper_worker_domain_checkout::git::Place {
-        git: None,
-        workspace,
-        repository: b"temper".as_slice().into(),
-    });
+    }
+}
+
+fn design_start() -> (World, Vec<u8>, u64) {
+    let mut world = design_world();
+    let spec = design_spec(world.ours);
+    let (_, at) = prepare_single(&mut world, spec);
     assert_eq!(world.branch_fetches, [b"g".to_vec()], "g is fetched once during prepare");
     assert_eq!(
         world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
@@ -1221,7 +1293,7 @@ fn catch_up_start() -> (World, Vec<u8>) {
     let mut world = World::new(83, Case::Clean, 64);
     let mut spec = heads_spec(&[world.ours]);
     spec.repositories[0].landing = Some(b"main".as_slice().into());
-    let (_, at) = prepare_heads_spec(&mut world, spec);
+    let (_, at) = prepare_single(&mut world, spec);
     world.forge.moves();
     (world, at)
 }
@@ -1307,8 +1379,10 @@ pub fn dependency_caught_up(unchecked: bool) {
             world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
         }
         let tip = land_dependency(&mut world, false, false);
+        world.forge.publish_counts(b"forge/temper", b"{\"checks\":1}\n");
         ask_dependency(&mut world, unchecked);
         let landings = answer_dependency(&mut world, true);
+        counts::assert_ref(&world, &at, None);
         let merge = checkout_head(&world, &at);
         assert_pin(&world, &at, tip);
         assert_eq!(world.pins, 2, "only prepare and catch-up move the pin");
@@ -1476,9 +1550,18 @@ pub fn dependency_wait_interrupted() {
             })
         );
         if stop == 1 {
+            let Some(Request::Io { owner, op: op @ Op::Keep { mark: None, .. }, deadline }) = world.out.pop() else {
+                panic!("release removes the held mark before reporting Released")
+            };
+            assert_eq!(Some(owner), world.hold);
+            assert_eq!(deadline, world.env.now.saturating_add(world.env.limits.local_timeout));
+            assert!(world.out.is_empty(), "only one held-mark removal, no git operation or cancellation");
+            let done = translate::perform_within(&mut world.forge, &mut world.disk, op, world.env.limits.conflicts);
+            step(&mut world.domain, &world.env, Event::Done { owner, done }, &mut world.out);
             assert_eq!(world.out.pop(), Some(Request::Released { client: Token::new(9) }));
+            world.hold = None;
         }
-        assert!(world.out.is_empty(), "no operation or cancellation while waiting");
+        assert!(world.out.is_empty(), "no git operation or cancellation while waiting");
         step(&mut world.domain, &world.env, Event::DependencyLanded { hold, landed: true }, &mut world.out);
         assert!(world.out.is_empty(), "the interrupted answer is dropped too");
         assert_eq!(checkout_head(&world, &at), head);

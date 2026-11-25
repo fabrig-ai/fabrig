@@ -1,4 +1,4 @@
-//! One listener's connections and routed calls (jig/docs/design/protocol/service.md, 11.4).
+//! One listener's connections and routed calls (jig/docs/design/protocol/service-parts.md, 1.4).
 use core::net::{IpAddr, SocketAddr};
 use skein_http::server as http;
 use skein_io as io;
@@ -322,6 +322,11 @@ impl Server {
         if self.phase != Phase::Aborting {
             self.phase = Phase::Closing;
         }
+    }
+    /// Whether both response producers have finished, even if sockets still owe their close terminals.
+    #[must_use]
+    pub const fn finished(&self) -> bool {
+        self.finished
     }
     /// The clients component and its mount have no more responses to supply.
     pub fn finish(&mut self) {

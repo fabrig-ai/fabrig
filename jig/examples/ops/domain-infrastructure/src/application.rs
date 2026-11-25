@@ -1,5 +1,5 @@
 //! Infrastructure-owned keyed requests (examples.md, section 8;
-//! domain/connectors.md, section 5.5).
+//! domain/connectors-facts.md, section 1.5).
 
 use crate::{Domain, Environment, EnvironmentFact, Key, Limits, Record, RecordKey, Request, Resource, SystemRequest};
 use skein_lib::{Duration, Env, Map, Queue, Token, Wall};

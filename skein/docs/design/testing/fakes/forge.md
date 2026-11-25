@@ -18,7 +18,7 @@ The dialect is ../../forge/README.md's; the parts under test are the kit's other
   Git's own protocol is never served (section 3).
 - **The protocol layer** (`crates/skein-fake-forge-forgejo`) serves
   Forgejo's API over the domain on skein's HTTP server, with its quirks, the
-  setup's routes, signed deliveries and byte faults (section 4).
+  setup's routes, signed deliveries and byte faults (`forgejo.md`, section 1).
 - **The forge peer** (in `crates/skein-fake-peers`, beside the LLM and OAuth
   peers) hosts the protocol layer on loopback, in plaintext, over a forge its
   owner hands it and may share with another fake in the process (section 5).
@@ -47,7 +47,7 @@ The dialect is ../../forge/README.md's; the parts under test are the kit's other
 ## 2. The domain
 
 It knows no HTTP, no JSON and no dialect. Its `Read`, `Write` and `Git` are
-its own types, close to ../../forge/README.md, section 3; the layers above translate.
+its own types, close to ../../forge/vocabulary.md, section 1; the layers above translate.
 
 ### 2.1 The boundary
 
@@ -92,7 +92,7 @@ its own types, close to ../../forge/README.md, section 3; the layers above trans
   the statuses and approvals asked; pushes, creation and deletion are
   refused. Deleting a branch closes the pull requests it headed or based.
 - **A pull request's size** is the fake's own count, as a forge's is
-  (`../../forge/README.md`, 3.6): at its head, `files` the paths whose
+  (`../../forge/vocabulary.md`, 1.6): at its head, `files` the paths whose
   contents differ from the merge base's, those its `PullFiles` lists;
   for each, its head side's lines that its base side's don't match,
   counted as additions, and its base side's that its head side's don't
@@ -100,6 +100,11 @@ its own types, close to ../../forge/README.md, section 3; the layers above trans
   having none. Both protocol layers write them on a pull request's
   document as `changed_files`, `additions` and `deletions`, as the
   forges do.
+- **A close refused by policy** (temper's `draft/failure-worlds.md`,
+  4.1): `scenario::refuse_close(domain, repository, number, refused)`
+  makes every `Write::Close` of that pull request answer `Protected`,
+  closing nothing, until a world sets it back. Deleting its branch
+  still closes it. An image keeps none.
 
 ### 2.3 Timing, faults and CI
 
@@ -139,13 +144,13 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   A commit's pull request is the lowest-numbered open one whose head it
   is. A failure names `step` as its job's failed step and ends the job's
   log with `log`, `{pull}` replaced too, read through the ordinary jobs,
-  steps and logs (4); every other context, and a `File` or `Message`
+  steps and logs (`forgejo.md`, section 1); every other context, and a `File` or `Message`
   cue, keeps the generic step and text. Templates are bounded by their
   expansion at a full 64-bit number (20 digits per `{pull}`).
 - **`Cue::Declared { path }`** judges a head by what its own tree
   declares at `path`, as a repository's workflow file says what its
   checks do, so that whoever commits decides a head's verdict by what it
-  holds (temper's `draft/landed-qa.md`, 6): with no file at `path`, the
+  holds (temper's `draft/archive/landed-qa.md`, 6): with no file at `path`, the
   context passes; else the file's first line, its trailing newline
   aside, is the rule: `pass` passes; `fail` fails; `pull-file TEMPLATE`
   judges as `Cue::PullFile { path: TEMPLATE, no_pull: Skipped, step:
@@ -168,6 +173,13 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
 - **Actions' identities** follow the statuses kept: one `Run` per commit and
   repository, numbered from 1, and one `Job` per context, at attempt 1 or,
   after a rerun, 2. A commit whose statuses are forgotten loses its run.
+  `Write::Cancel` cancels such a run in flight as it does a dispatched
+  one (below): each job not completed ends cancelled, with no step
+  failed, its context's status failed, as Forgejo reports a cancelled
+  job, its pending verdict and rerun dropped; the run completes
+  `Cancelled`, naming who cancelled it. So a world reaches a change's CI
+  cancelled by someone other than its committer (temper's
+  `draft/failure-worlds.md`, 4.1). A completed run is not cancelled.
 - **Dispatch-only workflows:** a repository may declare workflows
   (`Workflow { file, jobs, latency_min, latency_max, silent, passes,
   cue }`) that run only when dispatched (`Write::Dispatch`), never on a
@@ -193,7 +205,7 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   runner serves waits, with no steps, its status pending; one whose
   needs have not ended is blocked; one running is at a step, so a
   `JobState` read names each.
-- **A declared wait for a runner** (temper's `draft/ci-runner-wait.md`,
+- **A declared wait for a runner** (temper's `draft/archive/ci-runner-wait.md`,
   1 and 2): a declaration's first line (`Cue::Declared`, above) may
   open with phases before its rule, one space apart: `wait SPAN`, then
   `run SPAN`, each optional, in that order, as in `wait 40m run 5m
@@ -224,6 +236,24 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   runner; else `Needs` while a job is blocked. It is derived from the
   jobs whenever they change, an image's decoding included, and never
   kept.
+- **One runner for every job:** `scenario::runners(domain, Some(n))`,
+  none by default, lets at most `n` dispatched jobs of the whole forge
+  run at once, on runners numbered from 1. A job ready to run while
+  every runner is taken waits, its `wait` `Runner`, in the order it
+  became ready, and runs its span from taking one; it holds its runner
+  until it completes, is lost or is cancelled. Commit statuses' CI is
+  outside it. An image keeps none: a restored waiting job is runnable.
+- **Lagging views** (temper's `draft/failure-worlds.md`, 4.1):
+  `scenario::lag(domain, Lag { chance, min, max })`, `chance` per
+  mille, none by default. When a write moves a branch, each open pull
+  request it heads or bases shows, with the chance, its former head or
+  base, and its former mergeability, to every read and listing for a
+  span drawn from `min..=max`, while the branch reads its new tip. A
+  merge (`Write::Merge`) is, with the chance, recorded that long after
+  it is made: its caller is answered, its base moves and its hook
+  goes, but reads show the pull request open as it was until then, so
+  a later write shows first. A view ends at its time, with no timer;
+  an image keeps none.
 - **Merges and updates by style:** a fast-forward-only merge moves the
   base to the head and refuses one that does not contain the base's tip
   (`Conflict`); an update by rebase replays the branch's commits onto the
@@ -308,7 +338,7 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
     an object of its fields.
   - **A name,** a repository's, a branch's, a label's, a context's or a
     page's, is a string. Content, a title, a body or a page's content, is
-    base64, so its bytes cross whole, as on the git route (section 4). A
+    base64, so its bytes cross whole, as on the git route (`forgejo.md`, section 1). A
     name that is not UTF-8 has no line: `encode` answers none, and the
     writer counts it with the lost.
   - **An enum** is its variant's name in snake case: a `kind`, a
@@ -326,6 +356,31 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   `room` left, so a forge that filled up is told from one that works. Needing
   room, it forgets the statuses of the oldest commit no head shows, never a
   commit.
+- **What fell** (`../sweeps.md`, 3): each fault the domain injects is
+  kept as it falls, a `Fell { at, until, fault, repository, user, call,
+  reply_to, pull, commit, run, runner }`, a field `None` where the
+  fault strikes none, in a queue a world drains (`pop_fell`), bounded
+  as observations are (`limits.observations`), a full one counting
+  what it drops (`fell_lost`). `until` is when a fault that lasts
+  stops: a late answer's or a landing's moment, a view's end, a wait's,
+  a wait being kept once it ends; `call` is `Called::{Read, Write, Merge, Git}`; `reply_to` is the
+  call's `Token`, never its `ReplyTo`, so a record copies and the right
+  to answer stays the domain's alone; `run` is a run's id.
+  An image keeps none. `Fault::family` and `Fault::name` are the words
+  a ledger keeps:
+
+  | `Fault` | family | name | falls when |
+  |---|---|---|---|
+  | `Busy` | `busy` | `no_room` | a call finds no room (`limits.calls`) |
+  | `Unavailable`, `TimedOut` | `busy` | `unavailable`, `timed_out` | those chances |
+  | `Landing`, `Late` | `busy` | `landing`, `late` | made, or answered, at `until` |
+  | `Limited`, `Crowded` | `busy` | `limited`, `crowded` | the rate |
+  | `HookLate`, `HookLost`, `HookDropped` | `hooks` | `late`, `lost`, `dropped` | a hook |
+  | `Silent`, `Rerun` | `ci` | `silent`, `rerun` | a context or job never reports; `reruns` |
+  | `SetUp`, `Lost` | `ci` | `set_up`, `lost` | `setup_faults`, `lost` |
+  | `RunnerWait` | `ci` | `runner_wait` | a job waits for a runner (2.3) |
+  | `HeadBehind`, `BaseBehind`, `MergeLate` | `lagging` | `head_behind`, `base_behind`, `merge_late` | a lagging view (2.3) |
+  | `CloseRefused` | `refusing` | `close_refused` | a refused close (2.2) |
 
 ### 2.5 The promises' judge
 
@@ -376,7 +431,7 @@ printing or network work.
 ### 2.6 A copy, and deleting
 
 What Forgejo's migration fetches from a public host, the fake finds in
-a catalogue its protocol layer holds (section 4): the domain copies one
+a catalogue its protocol layer holds (`forgejo.md`, section 1): the domain copies one
 of its repositories into another, and reaches no network.
 
 - **`Write::Copy { owner, name, fill }`,** called on the source: the
@@ -406,7 +461,7 @@ of its repositories into another, and reaches no network.
 
 An owner that runs the fake as a product across restarts keeps the
 forge's state in a file of its own (temper's box, whose copies hold it:
-temper's `draft/landed-qa.md`, 6, and `protocol/setup/box.md`, 5). The
+temper's `draft/archive/landed-qa.md`, 6, and `temper/docs/design/protocol/setup/box-backends.md`, 1). The
 domain gives an image of its state and is built again from one.
 
 - **`Domain::image(&self) -> Result<Box<[u8]>, image::Refusal>`,**
@@ -477,13 +532,13 @@ against.
 - **Faults, time and identity.** A git call meets section 2.3's latency, rate
   and faults; a fake that needs an instant answer sets the latencies to
   zero. The caller is a user number, mapped from its credential by the
-  protocol layer's tables (section 4), so a token for the API and one for git
+  protocol layer's tables (`forgejo.md`, section 1), so a token for the API and one for git
   stand for the same user.
 - **Within a process,** a working tree reaches the store through
   `git::Remote`, answered on the shared forge (section 5) without the
   network.
 - **From another process,** the same calls travel the private git route
-  (section 4) on the forge peer's listener, with the
+  (`forgejo.md`, section 1) on the forge peer's listener, with the
   store's reads and commits beside them. So a fake of the service's git
   can run as a program of its own, as temper's `temper fake git` does
   beside a demo's forge. The domain stays the only store: such a program
@@ -496,297 +551,7 @@ against.
 
 ## 4. The protocol layer
 
-It depends on skein-lib, skein-http, skein-json, `skein-forge`, the domain
-and what the two layers share (`github.md`, section 3), and holds no clock of its own.
-
-- **A forge it is handed.** It serves a fake forge its owner hands it and
-  builds none (section 5). The forge peer hosts it.
-- **Types.** `Server` is one HTTP connection (`MAX_UP` = 3, `MAX_DOWN` =
-  18). `Service::new(config, &limits, seed)` owns routing, the tally and the
-  setup store; `Service::target` hands a domain reply to its connection, or
-  returns it whole when that connection has gone. Its `Limits` sit beside
-  the domain's, and `new` checks `valid` before constructing the service.
-- **The scenario's tables** (`Config`): the hooks' `Endpoint { forge, host,
-  secret }`, if any, `host` being the loopback `ip:port` the forge peer
-  connects to and sends as `Host` (section 5), and with none the setup's
-  hooks route them (below); `base`, an `http://` origin; `tokens`,
-  secrets to user numbers; `users`, numbers to logins; each repository's
-  `id`, full name and protected branch; `max_response_items`,
-  `default_paging_num` and `faults`.
-- **Routes.** Outside the setup's, each route is one domain call: decoded by
-  the server side of `skein-forge` (../../forge/forgejo.md, section 1.2), translated to a
-  `Read` or `Write`, and its answer encoded as Forgejo encodes it. A write
-  Forgejo answers with what it made or changed (an issue, a pull request,
-  a comment, a review, an edited issue, a status, a branch) makes one call
-  more, the domain's read of that, on the same request. A commit is a
-  40-digit SHA-1 id: SplitMix64's finalizer of the domain's count, then the
-  count, each eight bytes big-endian, then four zero bytes; any other id
-  names none.
-  Contents reads and combined status reads also accept a named branch:
-  the layer reads that branch with the caller's permission, then reads its
-  commit, answering `404` when the branch is absent, including before a
-  repository's first commit. A contents batch (`POST
-  /repos/OWNER/NAME/contents`) validates every create or update, including
-  each update's blob SHA, before storing one commit. In a repository with
-  no branch it creates the first branch and a commit without a parent;
-  otherwise it commits on the named branch. With `new_branch`, `branch`
-  names an existing base: the batch makes the new branch at that base's
-  head with the commit, whose parent and unchanged files come from the
-  base. An existing new branch is refused (`422`), a missing base is
-  `404`; neither changes a branch or stores a commit. Every validation
-  and room check precedes storing the commit and making the branch.
-  Moving that head starts the repository's ordinary CI (2.3). A present
-  file's contents read answers
-  JSON with its blob SHA and base64 content, so the next batch can update
-  it.
-- **Credentials.** The header is `Authorization: token <value>`; an unknown
-  token is `401`. Tokens stay in this layer: no domain call, observation or
-  tally holds one. The tally counts requests at the entrance: total, by route
-  (up to 74), by user, unrouted and unauthorized.
-- **Forgejo's quirks are kept,** so a client that leans on Forgejo being
-  better than it is fails here first: the default order is newest created
-  first, and `sort=leastupdate` gives least recently updated first; a page is
-  capped at `max_response_items`; a size without a page is ignored; an
-  issue's comments, a review's comments and a comparison come unpaged;
-  collaborators come without their permissions; a merge answers with no body;
-  `pulls/{base}/{head}` names the oldest of several; a pull request whose
-  head adds nothing is opened (`201`); an issue's edit, close or reopen
-  answers `201`, as a reviewer's request does, and a reviewer's removal and
-  a branch's deletion answer `204` with no body; a close or reopen of a
-  merged pull request answers `412`, `cannot change state of this pull
-  request, it was already merged`, before the domain is called, and changes
-  nothing (the GitHub layer still closes it, `200`); deleting a branch that is
-  not there answers `500`; a failed job's completion step reports
-  `failure`; a push to a pull request's head or base starts a mergeability
-  check. `../../forge/forgejo.md`, section 2 names the fact that records each, or lists
-  those not yet.
-- **Conditional reads, as Forgejo 17.0.1 answers them** (`../../forge/connection.md`,
-  4.6): a raw file's read (`GET R/raw/<path>?ref=<ref>`) answers an `ETag`
-  derived from the bytes it serves, the same for the same bytes, and a
-  read of it whose `If-None-Match` names that `ETag` answers `304` with
-  no body, after the read's own authorization and resource checks, a
-  `Range` read included. Every other route sends no validator and
-  ignores `If-None-Match` and `If-Modified-Since`, as Forgejo's branch
-  JSON does. The tally counts a `304` as the request it is.
-- **Forgejo's narrowing filters are honoured:** the open pull requests'
-  listing keeps only rows whose head and base branches are its `head` and
-  `base`, when given; an issue's comments keep only those updated at or
-  after `since`, when given, still unpaged; the Actions runs' listing
-  keeps only runs of the workflow file `workflow_id` names, when given,
-  before it pages, and still ignores `workflow`. Each is a filter of the
-  domain's read, as `head_sha` is, so the tally shows what a client's
-  filter saved (`../../forge/forgejo.md`, 1.2; `forge.md`, section 7 lists them as not yet
-  recorded). A reviewer's request answers with no body, where Forgejo
-  sends the pull's reviews, which no client reads.
-- **Actions' states, in Forgejo's words** (`../../forge/job-state.md`,
-  3): a run, and each job of it, reads `waiting` while its `wait` is
-  `Runner`, `blocked` while it is `Needs`, `running` while it runs
-  with none, then its conclusion (2.3). A job's read lists the steps it
-  has: none while it waits, `Set up job` and the step it is at,
-  `running`, while it runs, and each step once it completes.
-- **Faults move down to bytes.** A call refused for its rate is `429` with
-  `Retry-After` in whole seconds, rounded up; one failed unavailable is `503`;
-  one made and then timed out is `500`. The layer adds per mille byte
-  faults: `reset` closes the connection before the next request is read;
-  `drop` closes it, and `server_error` answers `500`, after the domain
-  answered, so the call is made and its answer lost.
-- **Deliveries.** `Service::delivery(&hook, &limits)` renders a domain hook as
-  a `Post { head, body }`: a `POST` to `/hooks/<number>` with the event header
-  and an HMAC-SHA256 signature of the body in lowercase hexadecimal, by the
-  endpoint's secret (../../forge/README.md, section 6). A status the fake's CI made is
-  delivered as its job's end; a status anyone else reports sends nothing, as
-  on Forgejo. Of ../../forge/README.md's table (`../../forge/README.md`, section 6) it renders `issues`,
-  `pull_request`, `issue_comment`, `pull_request_approved` for every review
-  whatever its verdict (the hint is the same), `push` of a branch, `delete` of
-  a branch, and `workflow_job_success` and `workflow_job_failure`; never
-  `pull_request_rejected`, `pull_request_comment`, `create`, a tag's events,
-  or a job cancelled or skipped.
-- **Deliveries follow the setup's hooks** when the scenario names no
-  endpoint, as Forgejo's follow the hooks its API made, such as the one
-  an application's reconcile makes on each repository it adopts
-  (../../forge/setup/forgejo.md, section 1.5). `Service::deliveries(&hook, &limits)`
-  renders a domain hook once for each hook the setup store keeps on its
-  repository that takes it, in id order, each with the loopback address
-  to post it to: its target is the hook's URL's path, its `Host` the
-  URL's authority, its signature by the hook's own secret, and its
-  address that authority's.
-  - A hook takes a delivery when its events include any event subscribed
-    of the delivery's row in ../../forge/README.md's table (`../../forge/README.md`, section 6). The fake does
-    not tell an issue's assignment from its edit, so a hook subscribed to
-    `issue_assign` alone takes every `issues` delivery: a stated
-    over-approximation, which a client that subscribes as ../../forge/README.md does
-    never meets.
-  - A hook takes none that is inactive, whose secret is empty, or whose
-    URL is not `http://` with a loopback IP literal, a port and a path.
-    So a fake never posts beyond its machine, nor unsigned. An
-    organization's hook takes none (section 7).
-  - A configured endpoint wins: with one, `deliveries` yields the
-    endpoint's alone, and `Service::delivery` stays, the endpoint's
-    rendering, for the worlds that pin an address.
-- **The git route** is private, for a fake of a service's git that runs
-  in another process (section 3); Forgejo has none like it. A request is
-  `POST /.fake/git/<call>` with a JSON body, and its answer is JSON, one
-  call each. A first segment that begins with a dot names no Forgejo
-  account, so the route shadows none of Forgejo's. A commit is its count,
-  a JSON number; a branch or repository name is a string; paths, contents
-  and messages are base64, so bytes cross whole. The tally counts it
-  route by route, and the byte faults reach it as they reach every route.
-- **The repository's calls** are `clone`, `fetch`, `create`, `push` and `push-new`,
-  section 3's `Op::Git` one for one, and `branch`, the domain's read of a
-  branch's head, which a fake asks to word its output as git does. Each
-  names a repository by its full name and is one domain call, with
-  section 2.3's latency, rate and faults. Its credential is
-  `Authorization: Basic` of a login and a token, as git sends what its
-  remote URL or `http.extraHeader` holds: `tokens` maps the token to a
-  user number, and `users` must give that number the login. A missing or
-  unknown credential is `401`. A domain error is a status and a JSON body
-  naming it: `403` forbidden, protected or refused, so the caller knows
-  it was known; `404` missing, naming the repository, branch or commit;
-  `502` unreachable; and `429`, `503` and `500` as above. A push answers
-  pushed or rejected, a creation created or exists; `push-new` answers
-  `existing: null` on creation or the unchanged head, all `200`.
-- **The store's calls** reach git's object database, which is the
-  domain's: `objects` reads commits, `commit`, `merge` and `commit-tree`
-  store them as section 3's scenario functions do, and `ancestor` asks
-  `is_ancestor`. They are no domain call, so they meet no latency, rate
-  or domain fault, and they take no credential, as a local git command
-  has none. That is the stated limit of a fake: anyone on loopback can
-  read every object by its count and store new ones, though never move a
-  branch. A store with no room is `507`, a tree past the domain's limits
-  `413`. `new` refuses layer limits whose request or answer cannot hold
-  the largest tree the domain allows.
-- **`objects`** answers each commit it is asked whole (parents, tree and
-  message), and the graph alone (the parents) of the commits before them
-  by both parents, newest first, bounded by `max_response_items` and the
-  answer's room. An object never changes, so a caller keeps what it has
-  been given for the rest of its command.
-- **The wire** uses standard, padded base64 for paths, contents and
-  messages. Repository names are full names; commits are JSON integers.
-  Members may arrive in any order.
-  - `clone`: `{"repository"}` answers `{"default", "branches":
-    [{"branch", "commit"}]}`.
-  - `fetch`: `{"repository"}` with at most one of `"branch"` or `"commit"`
-    answers `{"commit"}`; neither asks for the default branch.
-  - `create`: `{"repository", "branch", "commit"}` answers
-    `{"result":"created"|"exists"}`.
-  - `push`: `{"repository", "branch", "commit"}` with optional `"expected"`
-    answers `{"result":"pushed"|"rejected"}`.
-  - `branch`: `{"repository", "branch"}` answers `{"commit"}`.
-  - `objects`: `{"commits":[..]}` answers `{"objects":[{"commit", "parent",
-    "merge_parent", "tree":[{"path", "content"}], "message"}],
-    "graph":[{"commit", "parent", "merge_parent"}]}`. An absent parent is
-    `null`.
-  - `commit`: `{"parent", "tree", "message"}`; `merge`: `{"parent",
-    "merge_parent", "tree", "message"}`; `commit-tree`: `{"parent", "tree",
-    "message"}` with optional `"merging"`. Each answers `{"commit":N|null}`;
-    trees carry `[{"path", "content"}]` as above.
-  - `ancestor`: `{"ancestor", "commit"}` answers `{"ancestor":true|false}`.
-  - `push-new`: `{"repository", "branch", "commit"}` answers
-    `{"existing":N|null}`, the head when the branch exists, or `null` when
-    this call created it by uploading the commit.
-  - An error answers `{"error": NAME}`, NAME the domain error in snake
-    case (`missing`, `rate_limited`, `already_queued`, ...), with the
-    members that error carries: `"what"` for `missing` (`"repository"`,
-    `"branch"`, `"commit"`, ...), `"reset"` in nanoseconds for
-    `rate_limited`, and `"number"`, `"head"` and `"position"` for
-    `already_queued`, so every domain error crosses whole. A refusal the
-    layer makes before the call is decoded (an unknown call `404`, a wrong
-    method `405`, a missing or unknown credential `401`, one that may not
-    write `403`) has no body, and the client's decoder says whether an
-    error was named, so a caller tells those, and a host with no route,
-    from a domain error.
-  - An `objects` call asking for more commits than `max_response_items`
-    is `422`, before the store is read.
-  - A body other than one object, an unknown, repeated or missing member,
-    a wrong type, invalid base64, or both `"branch"` and `"commit"` on a
-    fetch is malformed, `422`.
-- **The setup's routes** (accounts, tokens, organizations, a repository's
-  read by id, collaborators and hooks, and the admin's repository search,
-  in id order and paged by number as Forgejo pages it) are served from this
-  layer's own bounded store, not the domain's (../../forge/setup/forgejo.md, section 1).
-  A repository read by id answers the domain's settings when the host
-  lends the domain. A site admin's read of a configured repository by its
-  path is answered the same way, with no domain call, as Forgejo shows a
-  site admin every repository. A hook's patch sets its URL, events and
-  active and keeps the secret the hook was made with, ignoring the one it
-  sends, as Forgejo does (../../forge/setup/forgejo.md, section 2), so its
-  deliveries are still signed with that secret.
-- **A first repository is made in the domain** (../../forge/setup/forgejo.md, 1.9).
-  The setup's `CreateRepository` in an org the setup store keeps makes
-  a domain repository owned by that org, private, whose `main` is one
-  commit holding `../../README.md`, `# NAME`; a name the domain has already is
-  `409`. `CreateFile` on a domain repository commits the file on its
-  branch, its author and committer the request's, and answers its
-  commit; a path already there is `422`. Its git serves both commits,
-  and its branch, raw and repository reads find them, as they find a
-  seeded repository's. **Its CI** is `Config.made_checks`, the forge's
-  CI for every repository it makes, this one and a copy's destination
-  (2.6) alike, as a Forgejo whose runner takes every repository runs a
-  new one's checks; `made_checks` with no contexts, its default, makes
-  them report none, as before. A made repository keeps the checks it was
-  made with across an image (2.7). `Config.made_workflows` gives every
-  repository it makes its dispatch-only workflows, none by default;
-  `Config.made_manual_merges` gives its manual-merge settings, both off by
-  default. A made repository and a copy's destination alike take these,
-  and keep them across an image.
-  Collaborator lists contain explicit grants only: site administration
-  and organization ownership grant access without adding membership.
-  Pagination counts the listed collaborators after excluding implicit access.
-- **What the setup world turns and reads** (../../forge/setup/README.md, 5).
-  `Service::refuse` answers one decoded route `403`, and
-  `Server::take_request` gives the decoded requests in the order they
-  came, refused ones among them. The setup store's `seed_repository_hook`
-  and `delete_repository_hook` put a repository's hook in place, or take
-  it away, with no exchange.
-- **Its state, kept** (2.7): `Service::image(&self) -> Box<[u8]>` and
-  `Service::restore(&mut self, bytes: &[u8]) -> Result<(), image::Refusal>`,
-  in this layer's own format, beside the domain's. The image holds the
-  setup store whole: its accounts, issued tokens, organizations, teams,
-  subscriptions, collaborators, repository hooks and privacy, and the
-  counters that number them, so that a token issued before a restart
-  still acts as its account after it. It also keeps the runtime repository
-  table, including repositories created or copied after startup, and the
-  hooks' endpoint the owner set. A restore replaces those on a service built from the same
-  configuration, and refuses, naming what, an image that does not
-  decode or holds past the store's bounds. What lasts one connection
-  (its decoded requests, refusals the setup world turned) is not kept.
-- **A copy is the domain's too** (2.6). `Config.sources` is the
-  catalogue, each `Source { address, repository, private, fill }`: an
-  address, the domain's repository it stands for, whether it is private,
-  and a `Fill`. Its repository has no row among `repositories`, so no
-  route reads it, its git included. An address's host must end
-  `.invalid` (RFC 2606): `valid` refuses any other, so no scenario can
-  name a host that exists.
-  - `Migrate` in an org the setup store keeps finds `from` in the
-    catalogue, reserves the copy's row at the entrance, as a late
-    write's must be read, and makes the domain's `Write::Copy` on the
-    source: answered `CreatedRepository`, with the source's default
-    branch and a new id, `409` for a name taken. A source the catalogue
-    has not, or a private one, is refused with Forgejo's status and
-    message, and leaves the empty repository Forgejo leaves
-    (../../forge/setup/forgejo.md, section 2): its row reserved and the
-    domain's repository made as a copy's is at its arrival (2.6), private,
-    owned by the org, with no branch and `main` as its default branch, as
-    the conformance's `setup-migrate-missing-source-read` reads. Nothing
-    fills it; a `DeleteRepository` frees its name. The checks before the
-    source's (an admin, the org, the name, a name taken, the store's
-    room) come first, so a refusal of theirs leaves nothing.
-  - `DeleteRepository` drops the repository's row, its collaborators
-    and hooks and is the domain's `Write::DeleteRepository`, `204`, or
-    `404` for a name it has not. An id is never given twice.
-  - `Migrate` takes `write:repository` and `DeleteRepository`
-    `write:organization`, as the admin-scope table has it (../../forge/setup/forgejo.md,
-    section 2).
-- **A setup grant reaches the domain.** A collaborator grant made through
-  the setup routes is kept in the setup store, and the domain grants the
-  account's user number (section 5) the same permission on the
-  repository, as Forgejo's collaborator has it. So the bot that adoption
-  grants reads and writes through the domain's routes, as an
-  application's demo needs (temper's `protocol/setup/playground.md`). Only the
-  grant crosses: the store's other rows stay its own.
-
-The git decoder's `decoder_bound` bounds retained input scratch;
-`tree_bound` gives the largest admitted tree's entries and bytes.
+Moved to [`forgejo.md`](forgejo.md), section 1.
 
 ## 5. The forge peer
 
@@ -828,7 +593,7 @@ peers host theirs. The real loop hosts the same one.
   its first pass, serves the fixed test chain (`ROOT`, for `skein.test` and
   `127.0.0.1`) with `https://` origins. Hook deliveries stay plaintext to loopback.
 - **The owner may seed the setup's accounts.** `setup_mut()` lends the
-  protocol layer's setup store (section 4), as `Service::setup_mut`
+  protocol layer's setup store (`forgejo.md`, section 1), as `Service::setup_mut`
   does, so that an owner makes, before the peer serves, the site
   administrator and its token that an application's setup takes over as
   an owned forge's (temper's `protocol/setup/owned.md`, 5). A setup
@@ -837,7 +602,7 @@ peers host theirs. The real loop hosts the same one.
   them.
 - **It may keep its forge across a restart** (2.7). `Forge::image(&self)
   -> Result<Box<[u8]>, Refusal>`, taken once the peer has shut down: the
-  domain's image (2.7) and its protocol layer's (section 4; `github.md`,
+  domain's image (2.7) and its protocol layer's (`forgejo.md`, section 1; `github.md`,
   1.7), one byte string, each part length-prefixed, refused while the
   domain is busy. `Forge::from_image(config, service, bytes)` builds the
   forge from one in place of seeding it: the owner gives the
@@ -853,7 +618,7 @@ peers host theirs. The real loop hosts the same one.
   handle, and may hand the same forge to any fake in its process that acts
   on it, such as a fake of a service's git component (section 3). A fake
   in another process reaches it on the peer's listener by the git route
-  (section 4), each request borrowing the forge in the peer's pass, by
+  (`forgejo.md`, section 1), each request borrowing the forge in the peer's pass, by
   rule 1.
 - **Rules of sharing:** (1) each entry point borrows the forge for one pass,
   so borrows never overlap; (2) the peer writes the world's time into the
@@ -864,7 +629,7 @@ peers host theirs. The real loop hosts the same one.
   reclaims the domain and the service; `next_deadline` is the earlier of
   io's and the domain's.
 - **It writes the deliveries.** A hook the domain releases is rendered
-  (section 4) and delivered over loopback, once for each address its
+  (`forgejo.md`, section 1) and delivered over loopback, once for each address its
   rendering names: the endpoint's `host`, or each setup hook's URL's
   authority, the address it connects to and the request's `Host` alike,
   as a Forgejo posts to its hook's URL. Each is a delivery of its own,
@@ -874,7 +639,7 @@ peers host theirs. The real loop hosts the same one.
   listener listens, its address known after io's listening event as the
   peer's own is, not at its bind, before a hook it means to have written
   is due. Until then, and for a `host` that is no loopback `ip:port`,
-  there is no address; a setup hook that takes none (section 4) is no
+  there is no address; a setup hook that takes none (`forgejo.md`, section 1) is no
   delivery. The deliveries in flight are bounded by the connections, and
   each delivery is sized by the longest it can be: the
   endpoint's, or a setup hook's whose URL and secret are the longest the
@@ -897,7 +662,10 @@ peers host theirs. The real loop hosts the same one.
 
 - **Step tests** sit in each crate. The domain's cover each call's decision,
   listings, merges, protection, CI, a declared wait's phases and a run's
-  wait, and hooks. The protocol layer's cover Actions' states,
+  wait, and hooks; each fault of 2.4's table falling, once, with its
+  moment and identities, and a full queue's count; a lagging view's
+  reads and end, and a merge recorded late; a refused close; and one
+  runner's queue, freed by a lost job. The protocol layer's cover Actions' states,
   routes, errors, faults, the tally, the setup routes and deliveries, each
   decoded by `skein-forge`, with a signature that holds for its body only;
   deliveries that follow the setup's hooks: one for each hook that takes
@@ -915,7 +683,7 @@ peers host theirs. The real loop hosts the same one.
   time, and one whose deletion the writer forgot.
 - **Memory:** a forge filled to its limits, and a long merge history walked
   through both parents, stay under named scenario ceilings with headroom
-  under the counting allocator (../README.md, section 6).
+  under the counting allocator (../layout.md, section 1).
 - **Replay and the peer:** a seed replays the names, replies, observations
   and deliveries. The peer's tests run a client over loopback against the
   protocol layer, with deliveries written, late, lost and refused, a
@@ -933,13 +701,13 @@ peers host theirs. The real loop hosts the same one.
 - **A bridge for real git** needs a protocol it speaks, over a listener of
   the peer's. It is designed separately and lands in section 3. Default:
   none; a fake of a service's git reaches the store through
-  `git::Remote`, in its process or by the git route (section 4).
+  `git::Remote`, in its process or by the git route (`forgejo.md`, section 1).
 - **The GitHub layer's speculative merges.** A queue's group is built
   from the entry ahead, one at a time (`github.md`, 1.2); github.com batches groups.
   Default: one at a time, until a story needs batches.
 - **An organization's hooks** are stored and route nothing: reconcile
   makes a repository's (../../forge/setup/forgejo.md, section 1.5), which deliveries
-  follow (`forge.md`, section 4). Default: they stay so until a story needs an
+  follow (`forgejo.md`, section 1). Default: they stay so until a story needs an
   organization's.
 - **The conformance against the fake.** Forgejo's conformance does not run
   against its protocol layer; that layer's step tests hold its quirks.

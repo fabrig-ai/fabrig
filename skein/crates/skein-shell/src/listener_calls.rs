@@ -27,7 +27,7 @@ fn refused(fd: Fd, check: ListenerCheck, errno: i32) -> ListenersRefusal {
 
 /// XNU's getsockopt has no case for `SO_ACCEPTCONN` (`bsd/kern/uipc_socket.c`,
 /// sogetoptlock), so it answers `ENOPROTOOPT` for every socket; there a stream
-/// socket passes (runtime/shell.md, 6.6).
+/// socket passes (runtime/shell-startup.md, 1.6).
 const NO_ACCEPTCONN: bool = cfg!(target_os = "macos");
 
 fn listening(answer: Result<i32, i32>, no_option: bool) -> Result<bool, i32> {
@@ -104,3 +104,13 @@ fn status(result: i32) -> Result<(), i32> {
 #[cfg(test)]
 #[path = "listener_tests.rs"]
 mod tests;
+
+pub(crate) mod testing {
+    use skein_io::kernel::Fd;
+
+    pub const NO_ACCEPTCONN: bool = super::NO_ACCEPTCONN;
+
+    pub fn option(fd: Fd, name: i32) -> Result<i32, i32> {
+        super::option(fd, name)
+    }
+}

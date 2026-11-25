@@ -45,6 +45,8 @@ d 700 1000 worker/gitdirs/0/widget/temper-index/src
 f 600 1000 worker/gitdirs/0/widget/temper-index/src/main.rs
 f 600 1000 worker/gitdirs/0/widget/temper-remote
 d 700 1000 worker/home
+d 700 1000 worker/kept
+f 600 1000 worker/kept/0
 d 700 1000 worker/making
 d 700 1000 worker/stores
 d 700 1000 worker/stores/6378476534640461380
@@ -63,7 +65,7 @@ d 700 1000 worker/stores/6378476534640461380/refs/temper/0
 f 600 1000 worker/stores/6378476534640461380/refs/temper/0/fetched
 f 600 1000 worker/stores/6378476534640461380/remote
 d 755 1000 worker/trash
-d 700 1000 worker/workspaces
+d 755 1000 worker/workspaces
 d 700 1000 worker/workspaces/0
 d 700 1000 worker/workspaces/0/widget
 d 700 1000 worker/workspaces/0/widget/.forgejo

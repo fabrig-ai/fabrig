@@ -82,8 +82,13 @@ impl Session {
             .append(true)
             .open(scratch.join("session/lines"))
             .map_err(|error| Exit::own(format!("session/lines: {error}")))?;
-        let pump = Pump::new(plan.chromium.clone(), scratch.join("session/browser"), plan.environment.clone())
-            .map_err(Exit::own)?;
+        let pump = Pump::with_external(
+            plan.chromium.clone(),
+            scratch.join("session/browser"),
+            plan.environment.clone(),
+            crate::tui_driver::terminal::OPERATIONS,
+        )
+        .map_err(Exit::own)?;
         let (machine, actions) = Machine::start(plan, pump.now());
         let mut session = Self {
             machine,
@@ -143,7 +148,7 @@ impl Session {
             self.tick();
         }
         self.drain();
-        self.exit.expect("session ended")
+        self.exit.take().expect("session ended")
     }
     /// Only the binary adopts stdin. An idle person never blocks child pipes.
     pub(crate) fn stdio(mut self) -> Exit {
@@ -169,7 +174,7 @@ impl Session {
             }
         }
         self.drain();
-        self.exit.expect("stdio ended")
+        self.exit.take().expect("stdio ended")
     }
     fn flush_stdout(&mut self) {
         if let Err(error) = std::io::stdout().flush() {
@@ -211,17 +216,37 @@ impl Session {
             Up::Room => {}
         }
     }
+    fn local_wake(&self, now: skein_lib::Time) -> Option<skein_lib::Time> {
+        if !self.answers.is_empty() || (self.machine.ready() && !self.input_lines.is_empty()) {
+            return Some(now);
+        }
+        if self.face.pending() {
+            return None;
+        }
+        match &self.face_job {
+            None | Some(FaceJob::Opening) => None,
+            Some(FaceJob::Find(find)) => Some(self.face.look_again_at(find).unwrap_or(now)),
+            Some(_) => Some(now),
+        }
+    }
     fn tick(&mut self) {
+        let was_ready = self.ready;
         self.apply();
-        let deadline = self.tui.deadline(self.pump.now(), self.machine.next_deadline());
+        if self.exit.is_some() || (!was_ready && self.ready) {
+            return;
+        }
+        // Judge deadlines on a turn that reaps, not as a result of waking from
+        // a wait whose completions the next turn has yet to observe.
+        let now = self.pump.now();
+        let deadline =
+            self.machine.next_deadline().into_iter().chain(self.tui.next_wake()).chain(self.local_wake(now)).min();
         for report in self.pump.poll(&mut self.face, deadline) {
             self.report(report);
         }
-        for event in self.tui.tick() {
+        for event in self.tui.progress(&mut self.pump, now) {
             self.event(event);
         }
         self.face_progress();
-        let now = self.pump.now();
         if self.machine.next_deadline().is_some_and(|at| now >= at) {
             self.event(Event::Deadline);
         }
@@ -470,18 +495,18 @@ impl Session {
                     }
                 }
                 Action::StartTui { program, rows, columns } => {
-                    if let Err(why) = self.tui.start(&program, rows, columns) {
+                    if let Err(why) = self.tui.start(&mut self.pump, &program, rows, columns) {
                         self.event(Event::TuiFailure(why));
                     }
                 }
-                Action::WriteTui(bytes) => self.tui.write(bytes),
+                Action::WriteTui(bytes) => self.tui.write(&mut self.pump, bytes),
                 Action::SaveTui => {
-                    if let Err(why) = self.tui.save() {
+                    if let Err(why) = self.tui.save(&mut self.pump) {
                         self.event(Event::TuiFailure(why));
                     }
                 }
                 Action::StopTui => {
-                    self.tui.stop();
+                    self.tui.stop(&mut self.pump);
                     self.event(Event::TuiStopped);
                 }
                 Action::BrowserAddress => {
@@ -570,7 +595,7 @@ impl Session {
                 self.pump.request(request);
             }
         }
-        self.tui.stop();
+        self.tui.stop(&mut self.pump);
         if let Some(entity) = self.input.take() {
             self.pump.request(io::Request::Close { entity });
         }
@@ -596,6 +621,11 @@ impl Session {
                 }
             }
         }
+    }
+}
+impl Drop for Session {
+    fn drop(&mut self) {
+        self.tui.stop(&mut self.pump);
     }
 }
 

@@ -156,6 +156,7 @@ pub(crate) fn record(forgejo: &Forgejo, instance: Instance, c: &mut Capture) -> 
     }
     clones(&f, c)?;
     fetches(&f, c)?;
+    counts(&f, c)?;
     let url = f.remote("specimen");
     let identity = Some(f.identity());
     success(&push(c, &f, "create-new-branch", &url, &f.base, "created", Some(""))?)?;
@@ -304,6 +305,80 @@ fn fetches(f: &Fixture, c: &mut Capture) -> Result<()> {
     fetch(c, Some("fetch-sha256-branch"), &hashed, &f.remote("hashed"), "refs/heads/main", Some(f.identity()))?;
     Ok(())
 }
+fn counts(f: &Fixture, c: &mut Capture) -> Result<()> {
+    const REF: &str = "refs/temper/counts";
+    const DIR: &str = "gitdirs/1/specimen";
+    let root = f.instance.scratch().join("worker");
+    let url = f.remote("specimen");
+    let fetch = [
+        "--git-dir=stores/1",
+        "fetch",
+        "--porcelain",
+        "--verbose",
+        "--no-filter",
+        "--no-tags",
+        "--no-write-fetch-head",
+        "--no-recurse-submodules",
+        "--",
+        &url,
+        "+refs/temper/counts:refs/temper/1/counts",
+    ];
+    let forge = f.instance.scratch().join("repositories/fixture/specimen.git");
+    let blob = printed(c.execute(None, &forge, &["hash-object", "-w", "--stdin"], None, false, b"{}\n")?)?;
+    let tree = printed(c.execute(
+        None,
+        &forge,
+        &["mktree"],
+        None,
+        false,
+        format!("100644 blob {blob}\tcounts.json\n").as_bytes(),
+    )?)?;
+    let commit = printed(c.execute(None, &forge, &["commit-tree", &tree, "-m", "counts"], None, true, b"")?)?;
+    success(&c.execute(None, &forge, &["update-ref", REF, &commit], None, false, b"")?)?;
+    success(&c.execute(Some("counts-present"), &root, &fetch, Some(f.identity()), false, b"")?)?;
+    success(&c.execute(
+        None,
+        &root,
+        &["init", "--quiet", "--bare", "--object-format=sha1", "--", DIR],
+        None,
+        false,
+        b"",
+    )?)?;
+    fs::write(root.join(DIR).join("objects/info/alternates"), b"../../../../stores/1/objects\n")?;
+    let directory = ["--git-dir=gitdirs/1/specimen", "--work-tree=workspaces/1/specimen"];
+    success(&c.execute(
+        Some("counts-update"),
+        &root,
+        &[directory[0], directory[1], "update-ref", REF, &commit],
+        None,
+        false,
+        b"",
+    )?)?;
+    success(&c.execute(None, &forge, &["update-ref", "-d", REF], None, false, b"")?)?;
+    let absent = c.execute(Some("counts-absent"), &root, &fetch, Some(f.identity()), false, b"")?;
+    if absent.status.code() != Some(128)
+        || !absent
+            .stderr
+            .split(|&byte| byte == b'\n')
+            .any(|line| line == b"fatal: couldn't find remote ref refs/temper/counts")
+    {
+        return Err("fixture did not give git's counts-absence diagnostic".into());
+    }
+    success(&c.execute(
+        Some("counts-delete"),
+        &root,
+        &[directory[0], directory[1], "update-ref", "-d", REF],
+        None,
+        false,
+        b"",
+    )?)
+}
+
+fn printed(output: Output) -> Result<String> {
+    success(&output)?;
+    Ok(String::from_utf8(output.stdout)?.trim_end().into())
+}
+
 fn local(c: &mut Capture, f: &Fixture, case: Option<&str>, args: &[&str]) -> Result<Output> {
     let commit =
         case.is_some_and(|name| name.starts_with("commit-")) || matches!(args[0], "add" | "diff-index" | "write-tree");

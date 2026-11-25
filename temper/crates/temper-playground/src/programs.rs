@@ -9,7 +9,8 @@ use skein_io::kernel::{Complete, Exit, Spawn, Submit};
 use skein_lib::{Queue, Time, Wall};
 use skein_shell::Host;
 use skein_sim_world::{HostedProgram, Inherited, StartupRoot, StartupRoots};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::OnceLock};
+use temper_engine_service_vocabulary::store::OWNER_SETS;
 mod issuer;
 mod shell;
 pub use issuer::Issuer;
@@ -36,20 +37,34 @@ pub trait Harness: 'static {
     fn agent_profile() -> smith_agent_service::profile::Profile {
         documents::agent_profile()
     }
+    /// Specialize the hosted agent's service configuration and its declared limits together.
+    fn configure_agent(
+        _service: &mut smith_agent_service::Config,
+        _declarations: &mut smith_agent_service::profile::Configuration,
+    ) {
+    }
     #[must_use]
     fn agent_settings() -> temper_service::settings::Agent {
         documents::agent()
+    }
+    /// A harness may bind the hosted agent to a different simulated model peer.
+    #[must_use]
+    fn agent_llm_address() -> Option<std::net::SocketAddr> {
+        None
     }
     /// Override sets for a test phase's open; the playground keeps production's sets.
     #[must_use]
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         None
     }
-    /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
+    /// Override the composition's shared binary texts before open.
     #[must_use]
-    fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
+    fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
         None
     }
+    /// Let a world keep the live store's checked opening bounds for its copies.
+    fn checked_opening_limits(_limits: &jig_protocol_store::Checked) {}
+    /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
     fn spawned(_role: Role, _inherited: &Inherited, _base: &[u8]) {}
     fn complete(_role: Role, _complete: &Complete) {}
     /// A routed git world's protocol bounds.
@@ -270,6 +285,12 @@ pub fn service_roots() -> Vec<StartupRoot> {
         StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
     ]
 }
+/// Share the binary's parsed store texts across this process's opens.
+#[must_use]
+pub fn prepared_schemas() -> &'static [skein_codec::schema::Schema] {
+    static SCHEMAS: OnceLock<Box<[skein_codec::schema::Schema]>> = OnceLock::new();
+    SCHEMAS.get_or_init(|| OWNER_SETS.prepare())
+}
 /// Start the same service from deployment bytes as `temper serve`.
 #[must_use]
 pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
@@ -338,7 +359,6 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         &seeds,
         issuer::runtime(&typed_document),
         Some(temper_service::WorkerRuntime {
-            wires: H::worker_wires(),
             root: worker,
             path: b"/worker".as_slice().into(),
             agent: documents::pinned_agent(),
@@ -363,6 +383,10 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     if let Some(sets) = H::owner_sets() {
         service.owner_sets(sets);
     }
+    service.prepared_schemas(H::prepared_schemas().unwrap_or_else(prepared_schemas));
+    if let Some(limits) = service.checked_opening_limits() {
+        H::checked_opening_limits(limits);
+    }
     service.adopt_store(root, 1000).expect("deployment store");
     service.adopt_signals(inherited.signal).expect("service signal");
     Process::Service(Box::new(ServiceHost::new(service, H::Service::started(root, inherited), parameters)))
@@ -372,9 +396,13 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
 pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Agent, inherited, b"worker/agent");
     let profile = H::agent_profile();
+    let mut service = H::agent_llm_address().map_or_else(
+        || documents::agent_configuration_for(&profile),
+        |address| documents::agent_configuration_at(&profile, address),
+    );
     if list_arguments(&spawn.args) {
         return Process::List(Box::new(smith_agent_shell::list::Process::with_endpoints(
-            documents::agent_configuration_for(&profile).llm_endpoints,
+            service.llm_endpoints,
             smith_agent_shell::list::Faces {
                 stdin: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
                 stdout: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
@@ -383,8 +411,8 @@ pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
             },
         )));
     }
-    let declarations = documents::agent_declarations_for(&profile);
-    let mut service = documents::agent_configuration_for(&profile);
+    let mut declarations = documents::agent_declarations_for(&profile);
+    H::configure_agent(&mut service, &mut declarations);
     if parameters().deployment["world_settings"]["issuer"].is_string() {
         service.channel_endpoints = issuer::endpoints();
     }

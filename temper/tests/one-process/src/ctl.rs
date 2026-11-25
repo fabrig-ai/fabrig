@@ -1,5 +1,5 @@
 //! The shipped ctl runs setup on the same simulated kernel as the native person.
-use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
+use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Reason, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_shell::Host;
 use skein_world::{Inherited, StartupRoot};
@@ -36,6 +36,9 @@ pub fn roots(spawn: &Spawn) -> Vec<StartupRoot> {
     roots
 }
 pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
+    host_with_seed(spawn, inherited, crate::fixtures::SEED)
+}
+pub(crate) fn host_with_seed(spawn: &Spawn, inherited: &Inherited, seed: u64) -> Recorded {
     crate::m15::observer::process(crate::m15::observer::Role::Ctl, inherited, b"client");
     let parsed =
         arguments::parse(&spawn.args[1..].iter().map(AsRef::as_ref).collect::<Vec<_>>()).expect("setup arguments");
@@ -64,7 +67,7 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
             stderr: pipe(2),
             signals: inherited.signal,
             user: 1000,
-            seed: crate::fixtures::SEED,
+            seed,
         },
         files,
     )
@@ -77,24 +80,40 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
             crate::referee::client::Wire::default()
         },
         seen: 0,
+        observe: false,
         sign_in: spawn.args.get(1).is_some_and(|word| word.as_ref() == b"sign-in"),
+        answer_cut: None,
     }
 }
 
 pub(crate) struct Command {
     pub words: Vec<Box<[u8]>>,
     pub input: Box<[u8]>,
-    browse: Option<usize>,
+    invocation: Call,
+}
+enum Call {
+    Ctl,
+    Browse(usize),
+    Interactive { program: &'static [u8], directory: &'static [u8] },
 }
 impl Command {
     pub(crate) fn browse(answer: usize) -> Self {
-        Self { words: Vec::new(), input: Box::default(), browse: Some(answer) }
+        Self { words: Vec::new(), input: Box::default(), invocation: Call::Browse(answer) }
     }
     pub(crate) fn new(words: &[&[u8]]) -> Self {
-        Self { words: words.iter().map(|word| (*word).into()).collect(), input: Box::default(), browse: None }
+        Self { words: words.iter().map(|word| (*word).into()).collect(), input: Box::default(), invocation: Call::Ctl }
+    }
+    pub(crate) fn sign_in(link: &[u8]) -> Self {
+        let mut sign_in = Self::new(&[b"sign-in", b"-"]);
+        sign_in.input = link.into();
+        sign_in
+    }
+    pub(crate) fn interactive(program: &'static [u8], directory: &'static [u8], words: Vec<Box<[u8]>>) -> Self {
+        Self { words, input: Box::default(), invocation: Call::Interactive { program, directory } }
     }
 }
-pub(crate) struct Answer {
+#[derive(Debug)]
+pub struct Answer {
     pub output: Vec<u8>,
     pub error: Vec<u8>,
     pub exit: Exit,
@@ -105,11 +124,13 @@ pub(crate) struct Caller {
     close_root: Option<Fd>,
     expected: Option<Exit>,
     browser: Option<browse::Browser>,
-    link: Option<Box<[u8]>>,
+    input: Option<Box<[u8]>>,
+    stdin: Option<Fd>,
     pub commands: std::collections::VecDeque<Command>,
     pub answers: Vec<Answer>,
-    // The referee consumes answers before the next host turn, not during this one.
-    answer_ready: Option<()>,
+    pub browsed: Vec<browse::Browsed>,
+    // The referee consumes new answers and interactive output before the next host turn.
+    observation_ready: Option<()>,
     pub closed: bool,
     started: bool,
     pidfd: Option<Fd>,
@@ -142,6 +163,34 @@ impl Caller {
         token.raw() & TAG == TAG
     }
     pub(crate) fn new(root: Fd, link: &[u8]) -> Self {
+        let mut caller = Self::scripted(root);
+        caller.setup(link, false);
+        caller.closed = true;
+        caller.close_root = None;
+        caller.expected = Some(Exit::Code(0));
+        caller
+    }
+    pub(crate) fn setup_forge(&mut self, link: &[u8], adopt: bool) {
+        self.setup(link, !adopt);
+        if adopt {
+            self.commands.push_back(Command::new(&[
+                b"repository",
+                b"adopt",
+                b"--project",
+                b"1",
+                b"--owner",
+                b"acme",
+                b"--name",
+                b"app",
+                b"--landing",
+                b"main",
+                b"--key",
+                b"adopt-app",
+            ]));
+        }
+        self.closed = true;
+    }
+    fn setup(&mut self, link: &[u8], hooked: bool) {
         let words: &[&[u8]] = if crate::stories::held_change() && !crate::stories::first_start() {
             &[b"settings", b"show", b"--json"]
         } else if crate::stories::held_change() {
@@ -149,19 +198,18 @@ impl Caller {
         } else {
             &[b"settings", b"apply", b"/setup/settings.json", b"--against", b"1", b"--key", b"world-settings"]
         };
-        let mut caller = Self::scripted(root);
         if crate::stories::held_change() && !crate::stories::first_start() {
-            caller.commands.push_back(Command::new(&[b"sign-out"]));
+            self.commands.push_back(Command::new(&[b"sign-out"]));
         }
-        let mut sign_in = Command::new(&[b"sign-in", b"-"]);
-        sign_in.input = link.into();
-        caller.commands.push_back(sign_in);
+        self.commands.push_back(Command::sign_in(link));
         if crate::stories::first_start() {
-            caller.commands.push_back(Command::new(&[
+            let (kind, file): (&[u8], &[u8]) =
+                if hooked { (b"forgejo", b"/setup/forge.tokens") } else { (b"forgejo-admin", b"/setup/admin.token") };
+            self.commands.push_back(Command::new(&[
                 b"forge",
                 b"connect",
-                b"forgejo-admin",
-                b"/setup/admin.token",
+                kind,
+                file,
                 b"--api",
                 b"127.0.0.1:3000",
                 b"--git",
@@ -169,15 +217,11 @@ impl Caller {
                 b"--key",
                 b"world-forge",
             ]));
-            caller.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1"]));
+            self.commands.push_back(Command::new(&[b"forge", b"list", b"--until", b"connected:1"]));
         }
         if crate::stories::needs_settings() || crate::stories::held_change() {
-            caller.commands.push_back(Command::new(words));
+            self.commands.push_back(Command::new(words));
         }
-        caller.closed = true;
-        caller.close_root = None;
-        caller.expected = Some(Exit::Code(0));
-        caller
     }
     pub(crate) fn oracle(root: Fd) -> Self {
         let mut caller = Self::scripted(root);
@@ -191,10 +235,12 @@ impl Caller {
             close_root: Some(root),
             expected: None,
             browser: None,
-            link: None,
+            input: None,
+            stdin: None,
             commands: std::collections::VecDeque::new(),
             answers: Vec::new(),
-            answer_ready: None,
+            browsed: Vec::new(),
+            observation_ready: None,
             closed: false,
             started: false,
             pidfd: None,
@@ -219,7 +265,9 @@ impl Caller {
     }
     fn write(&mut self, fd: Fd, bytes: Box<[u8]>, from: u32) {
         if from as usize == bytes.len() {
-            self.submit(Op::Close { fd });
+            if self.stdin != Some(fd) {
+                self.submit(Op::Close { fd });
+            }
         } else {
             self.submit(Op::PipeWrite { fd, bytes, from });
         }
@@ -227,46 +275,62 @@ impl Caller {
 }
 impl Caller {
     fn launch(&mut self, command: Command) {
-        if let Some(answer) = command.browse {
-            let browser = browse::Browser::new(answer, &self.answers[answer].output);
-            assert_eq!(browser.seen.call, answer, "browser follows its named call");
-            let kind = browser.start();
-            self.browser = Some(browser);
-            self.started = true;
-            self.submit(kind);
-            return;
-        }
-        let mut words = vec![self.directory.clone()];
+        let (program, directory, pipes) = match command.invocation {
+            Call::Ctl => {
+                self.input = Some(command.input);
+                (PROGRAM, self.directory.clone(), &[(0, Way::In), (1, Way::Out), (2, Way::Out)][..])
+            }
+            Call::Interactive { program, directory } => (program, directory.into(), &[(0, Way::In), (1, Way::Out)][..]),
+            Call::Browse(answer) => {
+                let browser = browse::Browser::new(answer, &self.answers[answer].output);
+                assert_eq!(browser.seen.call, answer, "browser follows its named call");
+                let kind = browser.start();
+                self.browser = Some(browser);
+                self.started = true;
+                self.submit(kind);
+                return;
+            }
+        };
+        let mut words = vec![directory];
         words.extend(command.words);
-        self.link = Some(command.input);
         self.started = true;
         self.submit(Op::Spawn {
             spawn: Box::new(Spawn {
                 reach: None,
-                program: PROGRAM.into(),
+                program: program.into(),
                 args: words.into_boxed_slice(),
                 env: Box::new([]),
                 root: self.root,
                 dir: Box::new([]),
-                pipes: [(0, Way::In), (1, Way::Out), (2, Way::Out)]
-                    .map(|(child, way)| Pipe { child, way, parent: None })
-                    .into(),
+                pipes: pipes.iter().map(|&(child, way)| Pipe { child, way, parent: None }).collect(),
             }),
         });
+    }
+
+    pub(crate) fn output(&self) -> &[u8] {
+        &self.output
+    }
+
+    /// Type into the interactive child; keep its input open until it has exited.
+    pub(crate) fn type_line(&mut self, line: &[u8]) -> Result<(), String> {
+        let fd = self.stdin.ok_or_else(|| String::from("interactive stdin is not open"))?;
+        self.write(fd, line.into(), 0);
+        Ok(())
     }
 }
 
 impl Host for Caller {
     fn iterate(&mut self, _now: Time, _wall: Wall) {
-        self.answer_ready = None;
+        self.observation_ready = None;
         while let Some(complete) = self.completions.pop() {
             self.pending -= 1;
             if let Some(browser) = &mut self.browser {
                 let next = browser.complete(complete);
                 if browser.done {
-                    self.output = browser.seen.body.clone();
+                    let seen = self.browser.take().expect("finished visit").seen;
+                    self.output.clone_from(&seen.body);
+                    self.browsed.push(seen);
                     self.exit = Some(Exit::Code(0));
-                    self.browser = None;
                 }
                 if let Some(kind) = next {
                     self.submit(kind);
@@ -280,8 +344,11 @@ impl Host for Caller {
                         let fd = pipe.parent.expect("parent pipe");
                         match pipe.child {
                             0 => {
-                                let bytes = self.link.take().unwrap_or_default();
-                                self.write(fd, bytes, 0);
+                                if let Some(bytes) = self.input.take() {
+                                    self.write(fd, bytes, 0);
+                                } else {
+                                    self.stdin = Some(fd);
+                                }
                             }
                             1 => {
                                 self.stdout = Some(fd);
@@ -300,6 +367,9 @@ impl Host for Caller {
                         let bytes = if self.stdout == Some(fd) { &mut self.output } else { &mut self.error };
                         assert!(bytes.len() + count as usize <= OUTPUT, "bounded ctl setup output");
                         bytes.extend_from_slice(&buf[..count as usize]);
+                        if self.stdin.is_some() {
+                            self.observation_ready = Some(());
+                        }
                         self.read(fd);
                     }
                 }
@@ -307,8 +377,11 @@ impl Host for Caller {
                 (Op::Wait { pidfd, reap: true }, Done::Exit(exit)) => {
                     self.exit = Some(exit);
                     self.submit(Op::Close { fd: pidfd });
+                    if let Some(fd) = self.stdin.take() {
+                        self.submit(Op::Close { fd });
+                    }
                 }
-                (Op::Close { .. }, Done::Nothing) => {}
+                (Op::Close { .. } | Op::Signal { .. }, Done::Nothing) => {}
                 (op, done) => panic!("setup completion {op:?}: {done:?}"),
             }
         }
@@ -326,7 +399,7 @@ impl Host for Caller {
                 exit: self.exit.take().expect("ctl exit"),
             });
             self.started = false;
-            self.answer_ready = Some(());
+            self.observation_ready = Some(());
         }
         let Some(command) = self.commands.pop_front() else {
             if self.closed
@@ -347,8 +420,9 @@ impl Host for Caller {
         &mut self.submissions
     }
     fn work_pending(&self, _now: Time) -> bool {
-        self.answer_ready.is_some()
+        self.observation_ready.is_some()
             || !self.completions.is_empty()
+            || !self.submissions.is_empty()
             || (!self.finished && self.pending == 0 && (self.started || self.closed || !self.commands.is_empty()))
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
@@ -375,12 +449,46 @@ pub(crate) struct Recorded {
     host: OneShot,
     wire: crate::referee::client::Wire,
     seen: usize,
+    observe: bool,
     sign_in: bool,
+    answer_cut: Option<AnswerCut>,
+}
+
+/// Hold the response to this ctl's named POST at its receive boundary. The
+/// referee kills the child rather than returning the held bytes to the tools.
+#[derive(Default)]
+struct AnswerCut {
+    socket: Option<Fd>,
+    held: Option<Complete>,
+}
+impl AnswerCut {
+    fn hold(&mut self, completions: &mut Queue<Complete>) {
+        let count = completions.len();
+        for _ in 0..count {
+            let complete = completions.pop().expect("completion in batch");
+            match (&complete.kind, &complete.result) {
+                (Op::Send { fd, bytes, from: 0 }, Ok(Done::Count(_)))
+                    if bytes.starts_with(b"POST /jig/v1/request ") =>
+                {
+                    assert!(self.socket.replace(*fd).is_none(), "one named request on the cut caller");
+                }
+                (Op::Recv { fd, .. }, Ok(Done::Count(n))) if self.socket == Some(*fd) && *n > 0 => {
+                    assert!(self.held.replace(complete).is_none(), "receive remains held until the child is killed");
+                    continue;
+                }
+                _ => {}
+            }
+            completions.push(complete);
+        }
+    }
 }
 impl Host for Recorded {
     fn iterate(&mut self, now: Time, wall: Wall) {
+        if let Some(cut) = &mut self.answer_cut {
+            cut.hold(self.host.completions());
+        }
         for complete in self.host.completions().iter() {
-            if self.sign_in || crate::m15::observer::enabled() {
+            if self.sign_in || self.observe || crate::m15::observer::enabled() {
                 self.wire.complete(complete);
             }
         }
@@ -428,6 +536,15 @@ impl Caller {
 }
 
 impl Caller {
+    pub(crate) fn sign_in(&mut self, link: &[u8]) {
+        self.commands.push_back(Command::sign_in(link));
+    }
+
+    pub(crate) fn kill_child(&mut self) {
+        let pidfd = self.pidfd.expect("active ctl before the answer");
+        self.submit(Op::Signal { pidfd, signal: Signal::Kill, to: Target::Child, reason: Reason::Asked });
+    }
+
     pub(crate) fn pending_answer(&self) -> String {
         format!(
             "exit={:?}, pending={}, stdout={}, stderr={}",
@@ -440,6 +557,33 @@ impl Caller {
 }
 
 impl Recorded {
+    pub(crate) fn with_answer_cut(mut self) -> Self {
+        self.answer_cut = Some(AnswerCut::default());
+        self
+    }
+
+    pub(crate) fn answer_held(&self) -> bool {
+        self.answer_cut.as_ref().is_some_and(|cut| cut.held.is_some())
+    }
+
+    pub(crate) fn signed_party(&self) -> Option<u64> {
+        self.wire.received.iter().find_map(|event| match event {
+            crate::referee::client::Received::SignedIn(party) => Some(*party),
+            _ => None,
+        })
+    }
+
+    /// Decode this call's wire receipts for the story's referee, not the capture log.
+    pub(crate) fn observing(mut self) -> Self {
+        self.wire = crate::referee::client::Wire::default();
+        self.observe = true;
+        self
+    }
+
+    pub(crate) fn receipts(&self) -> Option<&crate::referee::client::Wire> {
+        self.observe.then_some(&self.wire)
+    }
+
     /// Keep wire bytes while the incident's referee checks terminal answers.
     pub(crate) fn capturing(mut self) -> Self {
         self.wire = crate::referee::client::Wire::capturing();

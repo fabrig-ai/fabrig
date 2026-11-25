@@ -1,4 +1,4 @@
-//! The generic client world over the real session loop (testing.md, 5–7).
+//! The generic client world over the real session loop (jig/docs/design/client/domain/testing.md, 5–7).
 //! Scenario identities and the clock mapping are supplied independently of
 //! owner numbers. Unsupported fault sources remain named until implemented.
 use super::session::{Invalid, Session};
@@ -104,7 +104,10 @@ impl Joint {
                     jig_client::Up::Served { served: *served, versions: Some(self.session.driver.transport.served()) },
                 ));
                 for owner in owners {
-                    up.push((client, jig_client::Up::FamilyServed { family: owner.family, versions: None }));
+                    up.push((
+                        client,
+                        jig_client::Up::FamilyServed { family: owner.family, versions: None, served: false },
+                    ));
                 }
             } else {
                 let callback = super::transport::contract_event(&event).expect("original contract transport callback");
@@ -352,7 +355,7 @@ fn configured_fixture(configuration: jig_test_domain::Config, owner_limits: &jig
     );
     let limits = crate::test::limits();
     let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v7::CEILINGS,
+        smith: smith_transcript::v8::CEILINGS,
         bytes: 1_048_576,
         turn: client::TurnLimits { messages: 64, blocks: 16, text: 65_536, outcome: 65_536 },
     };
@@ -529,7 +532,10 @@ mod tests {
             1_000_000,
             Box::new([
                 Act::SignIn { provider: 0, subject: b"ordinary pressure".as_slice().into() },
-                Act::Request { key: [61; 16], ask: Ask::Stop { task: Task::Number(u64::MAX) } },
+                Act::Request {
+                    key: [61; 16],
+                    ask: Ask::Stop { task: Task::Number(u64::MAX), reason: Box::from(b"Parking the task".as_slice()) },
+                },
             ]),
         )
     }
@@ -564,7 +570,12 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key: [62; 16],
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: client::Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },
@@ -671,7 +682,12 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key: [63; 16],
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: client::Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },
@@ -794,7 +810,7 @@ fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
         driver,
         limits,
         jig_protocol_transcript::Limits {
-            smith: smith_transcript::v7::CEILINGS,
+            smith: smith_transcript::v8::CEILINGS,
             bytes: 1_048_576,
             turn: c::TurnLimits { messages: 2, blocks: 2, text: 32, outcome: 32 },
         },

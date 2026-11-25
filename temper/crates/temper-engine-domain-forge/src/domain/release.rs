@@ -1,4 +1,4 @@
-//! Whole repository retirement and link-preserving pages (domain/forge/adoption.md, 1).
+//! Whole repository retirement and link-preserving pages (domain/forge/adoption-connection.md, 1).
 use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
@@ -256,6 +256,7 @@ fn erasures(writes: &mut Queue<Request>, groups: &mut Queue<Box<[Key]>>, out: &m
     outputs(writes, groups, out, false);
 }
 
+#[expect(clippy::too_many_lines, reason = "all connector outputs are classified in one place")]
 fn outputs(
     writes: &mut Queue<Request>,
     groups: &mut Queue<Box<[Key]>>,
@@ -284,6 +285,8 @@ fn outputs(
             | Request::TierRun { .. }
             | Request::FileRedFinding { .. }
             | Request::FileVerdict { .. }
+            | Request::ReturnFinding(_)
+            | Request::FailRepair { .. }
             | Request::TierDecision { .. }
             | Request::ProjectReleased { .. }
             | Request::ForgeKept(_)
@@ -308,6 +311,7 @@ fn outputs(
             | Request::CarriedUnused { .. }
             | Request::EraseCarried { .. }
             | Request::MilestoneMarked { .. }
+            | Request::Waits { .. }
             | Request::Marked { .. }
             | Request::FullTableFact { .. }
             | Request::MarkedForges
@@ -345,6 +349,7 @@ fn outputs(
             | Request::ProjectionSettled { .. }
             | Request::ProjectionFailed { .. }
             | Request::Reviewed { .. }
+            | Request::CloseDecision { .. }
             | Request::ChangeDecision { .. }
             | Request::News { .. }
             | Request::Drift { .. }
@@ -353,6 +358,7 @@ fn outputs(
             | Request::RestartDone { .. }
             | Request::Replace { .. }
             | Request::LandingUnmade { .. }
+            | Request::LandingRead(_)
             | Request::HoldDropped { .. }
             | Request::LinkNoted { .. }) => emit(out, other),
         }
@@ -645,6 +651,7 @@ pub(super) fn retire(d: &mut Domain, repository: Repository) {
     }
     for key in keys.into_boxed() {
         d.lost.remove(&key);
+        d.read_line.leave(super::read_line::Waiter::Lost(key));
     }
     let mut keys = List::with_capacity(d.pending_ci.len());
     for (key, row) in &d.pending_ci {

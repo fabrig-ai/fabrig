@@ -446,7 +446,7 @@ fn proposal_text(
         }
         engine::SeeProposal::Decided(value) => {
             let value = objects::ended(value, &models, &limits.settings).or(Err(unread))?;
-            settings_form::ended_proposal_text(&value, &limits).or(Err(unread))
+            settings_form::ended_proposal_text(&value).or(Err(unread))
         }
         engine::SeeProposal::Unknown => Err(b"not read: no such proposal of settings. This says nothing about the settings: see settings lists those waiting."),
     }

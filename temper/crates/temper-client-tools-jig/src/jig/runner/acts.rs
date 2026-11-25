@@ -29,7 +29,7 @@ pub(super) struct Sent {
     alternate: Option<c::Ask>,
 }
 /// A durable visibility answer waits within its call for me to carry its page
-/// (client/ctl/tools.md, 3).
+/// (client/ctl/tools-acts.md, 1).
 #[derive(Debug)]
 pub(super) struct Visibility {
     called: Called,
@@ -64,10 +64,13 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         || called.call.tool == rows::PROJECT_AMEND_AT
         || called.call.tool == rows::PROJECT_DELETE_AT
         || called.call.tool == rows::PARTY_MAKE_AT
+        || called.call.tool == rows::PARTY_REISSUE_AT
     {
         let Some(me) = me(runner, client) else { return };
         let request = if called.call.tool == rows::PARTY_MAKE_AT {
             party_make(&called.call, me, &env.limits)
+        } else if called.call.tool == rows::PARTY_REISSUE_AT {
+            party_reissue(&called.call, me)
         } else if called.call.tool == rows::PROJECT_AMEND_AT {
             project_amend(&called.call, me)
         } else if called.call.tool == rows::PROJECT_DELETE_AT {
@@ -127,7 +130,7 @@ fn immediate(call: &Call, limits: &Limits) -> Option<Prepared> {
     };
     Some(request)
 }
-// client/ctl/tools.md, 3: the host alone handles the output file.
+// client/ctl/tools-acts.md, 1: the host alone handles the output file.
 fn party_make(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
     let role = match u32::try_from(number(call, 1).expect("role argument")).expect("role fits") {
@@ -138,6 +141,26 @@ fn party_make(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         role => c::HeldRole::Policy { role },
     };
     Ok((Request::Ask(c::Ask::MakeService { project, name: words(call, 3, limits)?, role }), None))
+}
+fn party_reissue(call: &Call, me: &c::Me) -> Prepared {
+    const PREFIX: &[u8] = b"party ";
+    const SUFFIX: &[u8] = b" is this directory's own party; an owner's directory reissues its credential";
+    let party = number(call, 0).expect("party argument");
+    if party == me.party.number {
+        let party = Decimal::of(party);
+        let size = PREFIX
+            .len()
+            .checked_add(SUFFIX.len())
+            .expect("fixed refusal")
+            .checked_add(party.as_bytes().len())
+            .expect("party number fits");
+        let mut reason = Writer::new(size);
+        for part in [PREFIX, party.as_bytes(), SUFFIX] {
+            reason.put(part).expect("measured reissue refusal");
+        }
+        return Err(Failed::Detail(reason.finish()));
+    }
+    Ok((Request::Ask(c::Ask::ReissueService { party }), None))
 }
 fn project_make(call: &Call, limits: &Limits) -> Prepared {
     let name = words(call, 0, limits)?;
@@ -278,7 +301,7 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         shapes::Fall::Refused(_) | shapes::Fall::NotOffered(_) => Err(Failed::Fixed(b"chat exceeds offered bounds")),
     }
 }
-// client/ctl/tools.md, 3: name the chat templates offered here.
+// client/ctl/tools-acts.md, 1: name the chat templates offered here.
 fn chat_template_refusal(me: &c::Me, project: u32, template: u64) -> Failed {
     let number = Decimal::of(template);
     let prefix = b"template ";
@@ -545,7 +568,7 @@ fn build(
             revision: c::Revision { value: number(call, 1).expect("hold") },
             again: if value(call, 2).is_some() { Some(true) } else { None },
         },
-        rows::STOP_AT => c::Ask::Stop { project, task },
+        rows::STOP_AT => c::Ask::Stop { project, task, reason: words(call, 1, limits)? },
         rows::CANCEL_AT => c::Ask::Cancel {
             project,
             task,
@@ -991,13 +1014,8 @@ pub(super) fn answered(
             let text = words(&sent.called.call, 2, &env.limits).expect("sent goal has loaded TEXT");
             render::goal_title::warn(text.bytes(), sent.called.json, &mut printed.stderr);
         }
-        if sent.called.call.tool == rows::PARTY_MAKE_AT
-            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
-                c::Outcome::Made { what: c::Made::Service { party } }
-                | c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party }),
-            ))) = outcome
-        {
-            printed.file = super::FileEnd::Service { party: *party };
+        if let Some(party) = service_party(sent.called.call.tool, outcome) {
+            printed.file = super::FileEnd::Service { party };
         }
         if sent.called.call.tool == rows::IMPORT_AT
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
@@ -1018,6 +1036,24 @@ pub(super) fn answered(
         );
         out.push(Out::Kept { line });
     }
+}
+
+fn service_party(tool: u8, outcome: &jig_client::Outcome) -> Option<u64> {
+    let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(outcome))) = outcome else {
+        return None;
+    };
+    if tool == rows::PARTY_MAKE_AT
+        && let c::Outcome::Made { what: c::Made::Service { party } }
+        | c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party }) = outcome
+    {
+        return Some(*party);
+    }
+    if tool == rows::PARTY_REISSUE_AT
+        && let c::Outcome::Made { what: c::Made::Reissued { party } } = outcome
+    {
+        return Some(*party);
+    }
+    None
 }
 
 fn amendment_conflict(outcome: &jig_client::Outcome) -> bool {

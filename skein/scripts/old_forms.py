@@ -50,7 +50,7 @@ MARKERS = {
 # of their markers: over the whole source they would backtrack through every
 # unrelated word in the tree.
 WORDS = ('max_out', 'JournalRoom', 'worst_case')
-# A `u32` widens with `usize_of` and a native length with `len_u64` (runtime/lib.md, 6): step code, not tests.
+# A `u32` widens with `usize_of` and a native length with `len_u64` (runtime/lib-bytes.md, 1): step code, not tests.
 INCLUDE = {'widening': re.compile(r'^(crates|examples)/(?!.*(/tests/|/tests\.rs$|_tests\.rs$))')}
 # Path prefixes, relative to skein/, whose files a form does not count: the
 # crate that owns the shared item.

@@ -1,4 +1,4 @@
-//! Outside person names must link at the next start (jig/docs/design/domain/engine/README.md, 5.1 and jig/docs/design/domain/engine/restart.md).
+//! Outside person names must link at the next start (jig/docs/design/domain/engine/decisions.md, 1.1 and jig/docs/design/domain/engine/restart.md).
 use jig_core_world::fixtures::{ask, live_row};
 use jig_core_world::world::{Setup, World};
 use jig_domain_authority as authority;
@@ -167,7 +167,9 @@ fn roles(world: &mut World, person: u64) -> Option<Refusal> {
 fn compound_amend(world: &mut World, person: u64) -> Option<Refusal> {
     // A staged first operation must not escape a later unknown-person refusal.
     let mut operations = List::with_capacity(2);
-    operations.push(people::Operation::Stop { task: 1 }).expect("first operation");
+    operations
+        .push(people::Operation::Stop { task: 1, reason: Box::from(b"Parking the task".as_slice()) })
+        .expect("first operation");
     operations
         .push(people::Operation::Amend {
             task: PERSON_TASK,
@@ -376,6 +378,7 @@ fn raw_amend(world: &mut World, person: u64) -> Option<Refusal> {
     let message = core::fresh(&mut world.domain.core_mut().counters, core::Family::Message).expect("message number");
     let amendment = task_amendment(world, person, PERSON_TASK);
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Amend {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(9053)),
         by: tasks::Party::Person(PERSON),
         places: Box::new([]),
@@ -423,6 +426,7 @@ fn raw_batch(world: &mut World, person: u64, field: BatchName) -> Option<Refusal
         BatchName::Requester => creator = tasks::Party::Person(person),
     }
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(9053)),
@@ -475,6 +479,7 @@ fn agent_new(world: &mut World) -> tasks::New {
 fn requester_agent(world: &mut World, person: u64) -> bool {
     let row = agent_new(world);
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(9053)),
@@ -781,6 +786,8 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
     let mut passed = 0;
     for arm in [Arm::Plain, Arm::Procedure, Arm::PersonDelegate, Arm::ProcedurePerson] {
         let mut world = arm.setup();
+        let (now, wall) = world.clocks();
+        world.set_clock(now, wall);
         let mut arm_passed = 0;
         for Route { name: route, arm: _, input, task, refusal, field } in routes.iter().filter(|route| route.arm == arm)
         {

@@ -1,5 +1,5 @@
 //! `skein-echo`, the echo example's main (examples.md, 4): its
-//! configuration, startup (runtime/shell.md, 6), and the loop of
+//! configuration, startup (runtime/shell-startup.md, 1), and the loop of
 //! programming-model.md, section 2, over the shell kit's kernel and clock.
 //!
 //! ```text
@@ -76,7 +76,7 @@ fn run(configuration: &Configuration) -> Result<(), String> {
     startup(configuration)?;
     let limits = &configuration.limits;
     // 3. Block termination signals before opening the ring, then adopt their
-    // source into io (runtime/shell.md, section 6; runtime/io/README.md, section 4).
+    // source into io (runtime/shell-startup.md, section 1; runtime/io/README.md, section 4).
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("cannot open termination signals (errno {errno})"))?;
     // 7. The seed, and the kernel, which probes the ring for the floor.
@@ -97,7 +97,7 @@ fn run(configuration: &Configuration) -> Result<(), String> {
     }
 }
 
-/// Startup's checks (runtime/shell.md, 6), before anything is opened.
+/// Startup's checks (runtime/shell-startup.md, 1), before anything is opened.
 fn startup(configuration: &Configuration) -> Result<(), String> {
     let limits = &configuration.limits;
     // 1. The configuration, the limits of every layer among it, read; and

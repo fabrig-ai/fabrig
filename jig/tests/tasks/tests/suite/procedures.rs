@@ -22,7 +22,14 @@ fn stage_step(world: &mut World, task: u64, step: u64, decision: ProcedureDecisi
     let reply_to = world.to();
     let key = reply_to.into_token().raw();
     let read = world.contexts.get(&task).and_then(|context| context.inbox.last().map(|word| word.number));
-    world.stage(Event::Procedure { read, reply_to: ReplyTo::new(skein_lib::Token::new(key)), task, step, decision });
+    world.stage(Event::Procedure {
+        reads_project: false,
+        read,
+        reply_to: ReplyTo::new(skein_lib::Token::new(key)),
+        task,
+        step,
+        decision,
+    });
     key
 }
 

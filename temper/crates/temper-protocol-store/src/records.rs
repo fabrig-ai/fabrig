@@ -118,16 +118,14 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Entry { entry, held } => w::Value::Entry(entries::encode_entry_row(entry, *held)),
         d::Stored::Call { key, answer } => w::Value::Call(entries::encode_call(key, answer)),
         d::Stored::Dismissed { party, what } => {
-            let what = crate::generated::store::person_fact_to_record(what, &Context::UNBOUNDED).expect(FITS);
+            let what = crate::generated::store::person_fact_to_record(what);
             w::Value::Dismissed(w::Dismissed { party: *party, what })
         }
         d::Stored::Binding { address, subject } => {
             w::Value::Binding(w::Binding { address: address.clone(), subject: subject.clone() })
         }
         d::Stored::Flight { task, entry } => w::Value::Flight(w::Flight { task: *task, entry: *entry }),
-        d::Stored::Writer(value) => {
-            w::Value::Writer(crate::generated::store::forge_writer_to_record(value, &Context::UNBOUNDED).expect(FITS))
-        }
+        d::Stored::Writer(value) => w::Value::Writer(crate::generated::store::forge_writer_to_record(value)),
         d::Stored::Client(value) => w::Value::Client(client::encode(value)),
         d::Stored::ChangeCold(value) => w::Value::ChangeCold(Box::new(change::encode_change_cold(value))),
         d::Stored::ChangeHot(value) => w::Value::ChangeHot(Box::new(change::encode_change_hot(value))),
@@ -184,7 +182,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             d::Stored::ForgeNumber { last }
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
-        w::Value::Landing(row) => d::Stored::Landing(landing::decode(*row)?),
+        w::Value::Landing(row) => d::Stored::Landing(landing::decode(*row, bounds)?),
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)?),
@@ -192,8 +190,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::ChangeHot(value) => d::Stored::ChangeHot(Box::new(change::decode_change_hot(*value)?)),
         w::Value::Dismissed(value) => {
             let w::Dismissed { party, what } = value;
-            let what = crate::generated::store::person_fact_to_domain(what, &Context::UNBOUNDED)
-                .or(Err(Undecodable::Malformed))?;
+            let what = crate::generated::store::person_fact_to_domain(what);
             d::Stored::Dismissed { party, what }
         }
         w::Value::Binding(value) => {
@@ -204,10 +201,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
             let w::Flight { task, entry } = row;
             d::Stored::Flight { task, entry }
         }
-        w::Value::Writer(value) => d::Stored::Writer(
-            crate::generated::store::forge_writer_to_domain(value, &Context::UNBOUNDED)
-                .or(Err(Undecodable::Malformed))?,
-        ),
+        w::Value::Writer(value) => d::Stored::Writer(crate::generated::store::forge_writer_to_domain(value)),
         w::Value::Client(value) => d::Stored::Client(client::decode(value, bounds)?),
         w::Value::Call(value) => entries::decode_call(value, bounds)?,
         w::Value::ProposedEffect(value) => d::Stored::ProposedEffect(entries::decode_proposed(value, bounds)?),
@@ -368,6 +362,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_member_branch: forge.name_bytes,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,
+        landing_follow_reruns: forge.client.rows,
         landing_row_flake_reruns: forge.entries,
         receipt_name_name: 32,
         receipt_run_url: 2048,

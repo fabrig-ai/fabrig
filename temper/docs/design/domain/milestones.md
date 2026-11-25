@@ -64,8 +64,8 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   (jig's `domain/tasks/README.md`, section 6), and nowhere of temper's
   (section 10).
 - **Its policy:** a project's policy may override template 8's budget
-  and priority, as any template's (jig's `protocol/configuration.md`,
-  3.1); the flags, label and tracking are its identity.
+  and priority, as any template's (jig's `protocol/configuration-templates.md`,
+  1); the flags, label and tracking are its identity.
 
 ## 3. Its name, words and maker
 
@@ -114,13 +114,13 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   more fit what is left (jig's `domain/authority.md`, 5), so a goal
   narrowed to what is left less one leaves the next goal room, each
   later goal's allowance one less, as a change's is narrowed to its
-  goal's (`agent/tools.md`, 1). jig checks
+  goal's (`agent/tools-change.md`, 1). jig checks
   it against both the party's role and what the milestone has left,
-  refusing at admission (jig's `domain/authority.md`, 8.4); the tool
+  refusing at admission (jig's `domain/authority-checks.md`, 1.4); the tool
   prints that refusal.
 - **Its budget** is carved from the milestone's when the goal is made,
   waiting or not: an amount, or `AsAllowed`, resolved against what the
-  milestone has left (jig's `domain/authority.md`, 8.4). So the
+  milestone has left (jig's `domain/authority-checks.md`, 1.4). So the
   milestone's budget must hold every goal made at once. `AsAllowed`
   means what it means for any goal, all that fits: a goal started so
   takes all the milestone has left, within the role's spend, and a
@@ -225,7 +225,7 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   - `spent`, u64: its own spend, its ended goals' settled spend, and its
     live goals' own and settled spend below them, never a reservation:
     `spent + spent_below` of the milestone, plus `spent + spent_below`
-    of each live goal (jig's `domain/authority.md`, section 7);
+    of each live goal (jig's `domain/authority-budgets.md`, section 1);
   - `reds`, u32: the uncleared red findings of its project blamed on
     its goals, each once, whatever their state (`red-findings.md`,
     section 10), the forge's `Domain::reds_owed`.
@@ -250,7 +250,7 @@ What the forge keeps of a milestone, since jig keeps no landing:
   an option of its end: when, its outcome (section 6), its counts done,
   failed and closed, and its `spent`, as section 7 sums them at the end.
 - **Its last landing:** each landing into a repository's landing branch
-  (`forge/adoption.md`, 8) of a change whose goal is in a milestone sets the row's
+  (`forge/adoption.md`, 12) of a change whose goal is in a milestone sets the row's
   `last_landing` to that landing's time, the goal and the change, where
   it is newer than the row's. A change knows its milestone from its
   registration: the root names its goal, its nearest tracked ancestor

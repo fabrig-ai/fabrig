@@ -1,4 +1,4 @@
-//! A worker's slots compose smith's real single-agent host limits (temper/docs/design/domain/worker/README.md, 5).
+//! A worker's slots compose smith's real single-agent host limits (temper/docs/design/domain/worker/agent-processes.md, 1).
 use super::fixtures;
 use jig_domain_host as hub;
 use jig_protocol_worker_link as link;
@@ -130,7 +130,7 @@ fn assigned(
     charter.grants.contract = contract;
     charter.resume = resumed;
     if resumed {
-        assignment.turns = Box::new([fixtures::worker_peers::turn_body(agent, 1)]);
+        assignment.turns = Box::new([fixtures::worker_peers::turn_body(1)]);
     }
     assignment.assignment.charter =
         smith_protocol_channel::encode_charter(&charter, &agent.limits.charter, &agent.endpoints)

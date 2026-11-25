@@ -1,5 +1,5 @@
 //! Decode bounded account notices for the host (protocol/channel.md, section 4).
-use crate::{Error, Received};
+use crate::{Error, Received, generated::channel};
 use alloc::boxed::Box;
 use skein_lib::Reader;
 use smith_channel::Record;
@@ -15,11 +15,7 @@ pub(super) fn decode(limits: &smith_channel::Limits, kind: u16, body: &[u8]) -> 
         smith_channel::kind::USAGE => {
             let notice = smith_channel::Usage::decode(limits, &mut Reader::new(body))?;
             let window = notice.window;
-            let state = match window.state {
-                smith_channel::UsageState::Open => smith_host_domain::UsageState::Open,
-                smith_channel::UsageState::Warned => smith_host_domain::UsageState::Warned,
-                smith_channel::UsageState::Limited => smith_host_domain::UsageState::Limited,
-            };
+            let state = channel::usage_state_to_domain(window.state);
             let resets = match window.resets {
                 Some(seconds) => match seconds.checked_mul(1_000_000_000) {
                     Some(nanos) => Some(skein_lib::Wall::from_nanos(nanos)),

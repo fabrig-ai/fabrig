@@ -1,17 +1,28 @@
 # checks: status
 
-2026-11-18. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-22. Where the tree's code lags or departs from [checks.md](checks.md).
 
-- **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
-  suite: sixteen scripted stories (fourteen reference-case stories,
-  kept-delegate landing and the program backend) and the B0/B1 recorded
-  transcript twins.
+Section 6.1's engine adapter is `engine-checks.md`'s; the worker's
+adapter is `worker.status.md`'s.
+
+- **Not yet:** 6.2: no check holds the 3.3 failure table's rows for runs
+  outside the system world's account case (6.3) and the composed
+  workload's sweep (`workloads.md`, 8.2). Where the workloads and their
+  sweeps lag is `workloads.status.md`'s.
+
+- **Departs:** 1: twelve named real-loop stories remain in the fuzzy
+  suite: nine scripted stories cut to what only the real loop shows
+  (the reference case's steps 4.1 with 4.3, 4.6, 5.1, 5.2, 5.4, 6.4, 6.6
+  and 6.8, and the kept-delegate landing), the program backend, and the
+  B0/B1 recorded transcript twins (`green_light` and `repair`).
   They remain there because the request for `limits-worlds` kept surviving
-  stories in place. Being past a guide is not a reason to
+  stories in place, and the request for room in the budget
+  (`../draft/failure-worlds.md`, 8) moved their other assertions down
+  without choosing their suite. Being past a guide is not a reason to
   choose that suite (`skein/docs/foundation/testing-strategy.md`, 8.1).
   [`limits-worlds.md`](../../development/limits-worlds.md) gives every
-  survivor's unique coverage, CPU and profiled instructions, and names
-  the closest lower-story candidates. Their placement is the user's to
+  survivor's coverage and CPU as it stood, and `reference-case.md` each
+  step's holders now. Their placement is the user's to
   decide; no exception or cost-driven move resolves this departure.
 
 Section 1's budgets by layer start at the CI builder's gate figures of
@@ -24,11 +35,11 @@ them is `tools/tiers/budgets.status.md`'s.
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
 real smith and a worker with scripted model replies, fake git and the
-fake forge; no real model or real forge is proved by it. `checks.md`, section 5.1's
+fake forge; no real model or real forge is proved by it. `checks-stage-one.md`, section 1.1's
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in `README.md`, section 7.
 
-`README.md`, section 2.1 has no known gap in the merge job's story:
+`tiers.md`, section 1.1 has no known gap in the merge job's story:
 `a_changes_merge_job_runs_on_its_worker` (`tests/system/tests/suite/merge_job.rs`)
 runs a change's merge job in the composed world, both roots declaring the
 kind as production does (`temper-service`'s `limits::job_kinds` and
@@ -57,18 +68,16 @@ merge's listing as the git layer does (`../protocol/git.status.md`).
   although the connector drops the review facts at admission (3's
   *A change waiting on a review on the forge*).
 
-Sections 4 and 5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
+`checks.md`, section 4, and `checks-stage-one.md`, section 1.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
 `macos.md`, section 3 lists the killed-box lifetime test as Linux-only, matching its
 parent-death mechanism. The combined default-runner browser and terminal
-proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1 and 2, and `../protocol/setup/testing.status.md`, 4
+proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1, and `../protocol/setup/box-supervision.status.md`, 1, and `../protocol/setup/testing.status.md`, 4
 ); the existing real-box sign-in story still awaits its
 after-landing execution (`../protocol/openid-provider.status.md`, 9).
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
-  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
    the later live ladder rungs remain `live-tier.status.md` (Not yet).
    the live GitHub pull-read proof remains `live-tier.status.md` (Not yet).
@@ -88,20 +97,3 @@ after-landing execution (`../protocol/openid-provider.status.md`, 9).
   client. 4: the client's How work runs, a proposal's card and its
   review, in their step and view tests and joined with the engine,
   since the pages are not built (`../client/README.status.md`).
-- **Departs:** 5.1: stage one's golden holds a row that neither the
-  reference's table (`../draft/reference-code-production.md`, section
-  14) nor this section's rows have, "the goal template's work": two
-  `equal` obligations, `design` and `close_out` true, for the
-  reference's template 4's work (`../protocol/configuration/reference.md`),
-  its subject `template-goal` number 4, not the `goal-template` role, so
-  a proposal whose goal template takes another number is judged at
-  template 4's work there, the stock's neither, and fails both. The plan
-  `ui-p3f-design` added it to keep the golden the profile's values
-  (5); the check binds no kind by a template's role
-  (`temper/crates/temper-stage-one-tool/src/check.rs`, `subject_key`), and nothing
-  tells Ask temper to propose it (`../domain/agent/agents.status.md`, 1).
-   the live scripts' scratch-path departure remains `live-tier.status.md` (Departs, the whole document).
-   the managed script's machine alias remains `live-tier.status.md` (Departs, the whole document).
-   the neutral-owner exceptions remain `live-tier.status.md` (Departs, the whole document).
-   the offline startup helper gap remains `live-tier.status.md` (Departs, the whole document).
-   the held-record return's mechanism remains `live-tier.status.md` (Departs, the whole document).

@@ -1,5 +1,5 @@
 //! A held row's judgement, without a map census (protocol/store/layouts.md, 5.3).
-use super::{conversion, derive, history_type};
+use super::{conversion, derive, frame_type, history_type};
 use crate::registry::{Layouts, Row, Text, texts, variant};
 use crate::{JobLayout, OwnerSets, Unplanned};
 use alloc::boxed::Box;
@@ -38,7 +38,12 @@ pub fn judge_held_layout(
             }
         }
     }
-    let ty = declaration.ok_or(Unplanned::Undeclared)?;
+    let frame = frame_type(sets, family, number);
+    let ty = match frame {
+        Some((_, ty)) if kept.held.is_empty() => ty,
+        Some(_) => return Err(Unplanned::Text),
+        None => *declaration.ok_or(Unplanned::Undeclared)?,
+    };
     let mut layouts = Layouts::new();
     let digest = insert(&mut layouts, &kept.text)?;
     let mut held = List::uncapped();
@@ -64,8 +69,9 @@ pub fn judge_held_layout(
         retire: false,
     };
     let current = binary.text(family).ok_or(Unplanned::Text)?;
-    let held = binary.held(&mut layouts, current).ok_or(Unplanned::Text)?;
-    let why = match derive(&mut binary, &layouts, &row, current, ty, &held) {
+    let held =
+        if frame.is_some() { List::uncapped() } else { binary.held(&mut layouts, current).ok_or(Unplanned::Text)? };
+    let why = match derive(&mut binary, &layouts, &row, current, &ty, &held, None) {
         Ok(None) => return Ok(HeldLayout::Planned),
         Ok(Some(plan)) if plan.keeps() || Workspace::new().fit(&plan) => return Ok(HeldLayout::Planned),
         Ok(Some(_)) => {
@@ -74,7 +80,7 @@ pub fn judge_held_layout(
         Err(why) => why,
     };
     if let Unplanned::Underived(_) = why
-        && !history_type(family, number)
+        && !history_type(sets, family, number)
     {
         for set in sets.sets {
             for job in set.jobs {
@@ -95,10 +101,7 @@ pub fn judge_held_layout(
 
 fn insert(layouts: &mut Layouts, bytes: &[u8]) -> Result<super::super::Digest, Unplanned> {
     let digest = texts::digest(bytes);
-    layouts
-        .texts
-        .insert(digest, Text { bytes: Box::from(bytes), schema: None, stored: true, current: false })
-        .expect("uncapped texts");
+    layouts.texts.insert(digest, Text { verified: true, ..Text::stored(Box::from(bytes)) }).expect("uncapped texts");
     texts::parse(layouts, digest).ok_or(Unplanned::Text)?;
     Ok(digest)
 }

@@ -1,7 +1,7 @@
 //! Admission limits and checked capacities. This module retains no runtime state.
 //! `valid` checks limit compatibility and representable capacities, without knowing live ownership.
 //!
-//! Contract: smith/docs/design/protocol/limits.md, section 3.10;
+//! Contract: smith/docs/design/protocol/limits-derivation.md, section 1.10;
 //! smith/docs/design/domain/run.md, section 12; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
 
 use skein_lib::Duration;
@@ -145,7 +145,7 @@ pub fn valid(limits: &Limits) -> bool {
 
 /// Two alarms per run and two per delegated call.
 pub(crate) fn alarms(limits: &Limits) -> Option<u32> {
-    limits.runs.checked_mul(2)?.checked_add(limits.calls.checked_mul(2)?)
+    limits.runs.checked_mul(3)?.checked_add(limits.calls.checked_mul(2)?)
 }
 
 /// Numeric declarations needed by this layer's transitional derivation.
@@ -198,7 +198,7 @@ impl Field {
 }
 
 /// Derive this layer from declarations, refusing checked arithmetic overflow.
-/// Contract: smith/docs/design/protocol/limits.md, sections 2 and 3.
+/// Contract: smith/docs/design/protocol/limits.md, section 2, and smith/docs/design/protocol/limits-derivation.md, section 1.
 pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
     let message_bytes = inputs.message;
     let offer_bytes = u32::try_from(inputs.offer).or(Err(Field::OfferBytes))?;

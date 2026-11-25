@@ -69,7 +69,7 @@ impl Answer {
 pub enum Close {
     /// Close drains the work already admitted.
     Graceful,
-    /// A termination signal asks remaining closes to abort.
+    /// A termination signal or a dropped run asks remaining closes to abort.
     Aborted,
 }
 
@@ -97,6 +97,12 @@ pub(super) fn answered(service: &mut Stages) {
         }
         Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
     }
+}
+
+pub(super) fn dropped(service: &mut Stages) {
+    let reason = service.teardown.failure().expect("loss has a cause");
+    service.teardown =
+        Teardown::Answered { at: service.io_env.now, answer: Answer::Unsent(reason), close: Close::Aborted };
 }
 
 pub(super) fn failed(service: &mut Stages, failure: Failure) {
@@ -222,9 +228,13 @@ pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
                     Close::Graceful => {
                         service.llm.close(&service.llm_env, &mut service.llm_events, &mut service.llm_below);
                     }
+                    Close::Aborted if service.host.dropped() && !service.llm.closed() => {
+                        service.llm.abort(&service.llm_env, &mut service.llm_events, &mut service.llm_below);
+                    }
                     Close::Aborted => {}
                 }
                 if close == Close::Graceful
+                    && !service.host.gone()
                     && let Some(entity) = service.input
                 {
                     service.io_requests.push(io::Request::Close { entity });
@@ -236,6 +246,7 @@ pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
                     Answer::Sent => {}
                     Answer::Unsent(_) => {
                         if close == Close::Graceful
+                            && !service.host.gone()
                             && let Some(entity) = service.output
                         {
                             service.io_requests.push(io::Request::Close { entity });
@@ -287,7 +298,7 @@ fn settled(service: &Stages, frame: Option<&Frame>, streams: u32) -> bool {
     use super::program;
 
     (match face::channel(frame) {
-        Some(channel) => channel.ended(),
+        Some(channel) => channel.ended() && !channel.has_work(),
         None => true,
     }) && service.channel_events.is_empty()
         && service.channel_below.is_empty()

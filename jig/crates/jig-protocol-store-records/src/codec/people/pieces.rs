@@ -4,7 +4,8 @@ use crate::generated::people as mapped;
 use skein_lib::length::len_u64;
 use wire::Record;
 
-pub(super) const EMPTY: wire::Limits = wire::Limits {
+#[cfg(test)]
+const EMPTY: wire::Limits = wire::Limits {
     member_words: 0,
     member_parameters: 0,
     member_dependencies: 0,
@@ -127,7 +128,7 @@ pub(super) fn encode_delegation_kinds(
     let mut used = 0;
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::Executor>()).ok(), sum)?;
-        let value = mapped::executor_to_record(value, limits)?;
+        let value = mapped::executor_to_record(value);
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -147,7 +148,7 @@ pub(super) fn decode_delegation_kinds(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Executor::decode(limits, &mut Reader::new(&bytes))?;
-        let value = mapped::executor_to_domain(value, limits)?;
+        let value = mapped::executor_to_domain(value);
         spend(&mut used, u64::try_from(size_of::<domain::Executor>()).ok(), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -275,7 +276,7 @@ pub(super) fn encode_spec_parameters(
     let mut used = 0;
     for value in values {
         spend(&mut used, parameter_bytes(value), sum)?;
-        let value = mapped::parameter_to_record(value, limits)?;
+        let value = mapped::parameter_to_record(value);
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -295,7 +296,7 @@ pub(super) fn decode_spec_parameters(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Parameter::decode(limits, &mut Reader::new(&bytes))?;
-        let value = mapped::parameter_to_domain(value, limits)?;
+        let value = mapped::parameter_to_domain(value);
         spend(&mut used, parameter_bytes(&value), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -345,7 +346,7 @@ pub(super) fn encode_permissions(
     let mut used = 0;
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::PermissionRole>()).ok(), sum)?;
-        let value = mapped::permission_role_to_record(value, limits)?;
+        let value = mapped::permission_role_to_record(value);
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -365,7 +366,7 @@ pub(super) fn decode_permissions(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::PermissionRole::decode(limits, &mut Reader::new(&bytes))?;
-        let value = mapped::permission_role_to_domain(value, limits)?;
+        let value = mapped::permission_role_to_domain(value);
         spend(&mut used, u64::try_from(size_of::<domain::PermissionRole>()).ok(), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -403,17 +404,61 @@ pub(super) fn permission_sum(limits: &wire::Limits) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::{EMPTY, GRANT_FRAMING, PERMISSION_FRAMING, wire};
+    use crate::codec::{settings, tasks};
+    use crate::{settings_v3, tasks_v13};
     use wire::Record;
 
     #[test]
+    fn zero_bound_constants_match_every_replaced_store_record() {
+        macro_rules! row {
+            ($family:ident, $empty:expr, $record:ident) => {
+                (
+                    stringify!($family::$record),
+                    $family::$record::encoded_bound(&$empty),
+                    $family::$record::ENCODED_AT_ZERO,
+                )
+            };
+        }
+
+        for (name, bound, constant) in [
+            row!(tasks_v13, tasks::EMPTY, FieldRule),
+            row!(tasks_v13, tasks::EMPTY, ResultField),
+            row!(tasks_v13, tasks::EMPTY, Creation),
+            row!(tasks_v13, tasks::EMPTY, Member),
+            row!(tasks_v13, tasks::EMPTY, Segment),
+            row!(tasks_v13, tasks::EMPTY, Parameter),
+            row!(tasks_v13, tasks::EMPTY, PartSegment),
+            row!(tasks_v13, tasks::EMPTY, Grant),
+            row!(tasks_v13, tasks::EMPTY, AuthoritySegment),
+            row!(tasks_v13, tasks::EMPTY, ResourceScope),
+            row!(settings_v3, settings::EMPTY, FieldRule),
+            row!(settings_v3, settings::EMPTY, RevisionItem),
+            row!(wire, EMPTY, FieldRule),
+            row!(wire, EMPTY, Verdict),
+            row!(wire, EMPTY, Segment),
+            row!(wire, EMPTY, Executor),
+            row!(wire, EMPTY, Grant),
+            row!(wire, EMPTY, ResourceScope),
+            row!(wire, EMPTY, PermissionRole),
+            row!(wire, EMPTY, Requirement),
+            row!(wire, EMPTY, Number64),
+            row!(wire, EMPTY, ParameterBytes),
+            row!(wire, EMPTY, Parameter),
+            row!(wire, EMPTY, ParameterResource),
+        ] {
+            assert_eq!(bound, Some(constant), "{name}");
+        }
+    }
+
+    #[test]
     fn fixed_piece_framing_matches_the_generated_bounds() {
-        let grant = wire::Grant::encoded_bound(&EMPTY).expect("empty grant limits fit the family");
+        let grant = wire::Grant::ENCODED_AT_ZERO;
         assert_eq!(
             Some(GRANT_FRAMING),
             grant.checked_add(4),
             "grant framing includes its empty pattern and piece length"
         );
-        let permission = wire::PermissionRole::encoded_bound(&EMPTY).expect("empty permission limits fit the family");
+        let permission = wire::PermissionRole::ENCODED_AT_ZERO;
         assert_eq!(
             Some(u64::from(PERMISSION_FRAMING)),
             permission.checked_add(4),

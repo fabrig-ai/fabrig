@@ -40,11 +40,11 @@ jobs:
 "#;
 const CONTRIBUTING: &str = "# Contributing\n\nEach pull request adds `changes/<its number>.md`: one line saying what it\nchanges, for the next release's notes. CI checks it.\n";
 
-/// The worker pins its agent at startup (domain/worker/README.md, 5).
+/// The worker pins its agent at startup (domain/worker/agent-processes.md, 1).
 /// Generate the shipped configuration before installing the held fake's endpoint.
 pub fn initialize(paths: &[PathBuf; 3]) {
     let initialized = super::story_command::standalone(
-        std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+        std::process::Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .args(["init", "--box"])
             .args(
                 ["--config", "--data", "--cache"]
@@ -299,15 +299,12 @@ pub fn task_steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step>
     steps
 }
 
-#[must_use]
-pub fn landed(paths: &[PathBuf; 3], client: &Path, began: Time) -> Value {
-    let panel = super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"]));
-    let panel = super::ctl::json(&panel);
+pub fn landed(paths: &[PathBuf; 3], client: &Path, panel: &Value, began: Time) {
     let forge = Forge::at(paths, client);
     let pull = forge.get("pulls/1");
     assert_eq!(panel["step"], "landed");
     assert_eq!(panel["ci"], "passed");
-    forge.head(&panel, "success");
+    forge.head(panel, "success");
     assert_eq!(pull["merged"], true);
     assert_eq!(pull["head"]["sha"], panel["head"]);
     assert_eq!(pull["merge_commit_sha"], panel["merge"]);
@@ -317,7 +314,6 @@ pub fn landed(paths: &[PathBuf; 3], client: &Path, began: Time) -> Value {
     assert_eq!(forge.contents("changes/1.md", merge), NOTE);
     assert!(forge.contents("src/main.rs", merge).contains("name,count"), "main holds CSV header");
     eprintln!("owned CSV landed: {} ms; {panel}", now().saturating_since(began).as_nanos() / 1_000_000);
-    panel
 }
 
 pub fn assert_briefs(model: &super::forge_land::Seen) {

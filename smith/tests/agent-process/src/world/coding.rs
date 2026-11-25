@@ -1,23 +1,33 @@
 //! A native coding fixture with shipped standard limits and a fake check
 //! program. It observes files at the check's spawn, never domain state.
-//! Contract: smith/docs/design/domain/run.md, section 8.
+//! Contract: smith/docs/design/domain/run-delivery.md, section 1.
 
 use super::{Machine, Parent, World};
 use skein_fake_machine::{How, Item, Opened};
 use skein_lib::{List, Queue, Reader};
 use smith_channel::Record;
 
-// A coding model's output allowance, as in the standard native coding setup.
-pub(super) const OUTPUT: u32 = 32_768;
+/// A coding model's output allowance for the standard tool schema and arguments.
+pub const CODING_OUTPUT: u32 = 32_768;
 const CHECK: &[u8] = b".smith-test/check";
+
+/// Number of repeated lines in the standard coding story's first write.
+pub const CODING_LINES: usize = 160;
+
+/// The large write shared by the agent-process and local-process coding stories.
+#[must_use]
+pub fn large_coding_write() -> Box<[u8]> {
+    let content = "// coding regression\n".repeat(CODING_LINES);
+    serde_json::to_vec(&serde_json::json!({"path":"result.txt", "content":content})).expect("coding write input").into()
+}
 
 pub(super) fn configuration() -> smith_agent_service::Config {
     let profile = smith_agent_service::profile::standard();
     let mut declarations = crate::declarations(0);
-    declarations.endpoints[0].limits.output = OUTPUT;
+    declarations.endpoints[0].limits.output = CODING_OUTPUT;
     let limits = smith_agent_service::profile::derive(&profile, &declarations).expect("standard coding limits");
     let mut config = crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
-    config.domain.limits[0].output = OUTPUT;
+    config.domain.limits[0].output = CODING_OUTPUT;
     config.domain.limits[0].protocol_allowance = smith_agent_service::profile::endpoint_allowance(
         &profile,
         &declarations.endpoints[0],

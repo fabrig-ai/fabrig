@@ -53,7 +53,7 @@ impl Record {
 /// One mutation in an atomic decision.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
-    /// Drop a task transcript whole (jig/docs/design/domain/people/acts.md, 2; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
+    /// Drop a task transcript whole (jig/docs/design/domain/people/acts.md, 2; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
     DropHistory { task: u64 },
@@ -126,11 +126,11 @@ pub use jig_domain_hub_link::Assignment;
 #[derive(Debug)]
 pub enum Request {
     Workers(Box<[core::settings::WorkerSetting]>),
-    /// The store's names, replaced before the catalogue decision commits (domain/engine/settings.md, 11).
+    /// The store's names, replaced before the catalogue decision commits (domain/engine/settings-catalogue.md, 1).
     StoreCatalogue {
         names: Box<[core::settings::ModelName]>,
     },
-    /// The clients' catalogue, after the store's replacement (domain/engine/settings.md, 11).
+    /// The clients' catalogue, after the store's replacement (domain/engine/settings-catalogue.md, 1).
     ClientsCatalogue {
         models: Box<[core::settings::CatalogueModel]>,
     },
@@ -348,6 +348,7 @@ pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
     scripted_workspaces: Option<Queue<core::Event>>,
     scripted_parts: Option<Queue<(u16, core::PartsAsk)>>,
+    scripted_wait_reports: Option<Queue<core::Event>>,
     scripted_brief_failure: Option<jig_domain_brief::GatherFailure>,
     scripted_holdings: Option<Queue<core::Event>>,
     brief_failures: Queue<(u64, jig_domain_brief::GatherFailure)>,
@@ -368,6 +369,8 @@ pub struct Domain {
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
+    rehearsing: bool,
+    rehearsed: bool,
     start_page_failure: Option<(core::start::Phase, jig_protocol_store::restore::Failure)>,
 }
 
@@ -389,6 +392,25 @@ impl Domain {
 
     pub fn take_parts(&mut self) -> Option<(u16, core::PartsAsk)> {
         self.scripted_parts.as_mut()?.pop()
+    }
+
+    /// Hold the fake connector's wait reports to expose the view before delivery.
+    pub fn script_wait_reports(&mut self) {
+        self.scripted_wait_reports = Some(Queue::uncapped());
+    }
+
+    pub fn take_wait_report(&mut self) -> Option<core::Event> {
+        self.scripted_wait_reports.as_mut()?.pop()
+    }
+
+    /// The latest report refusal delivered to the selected fake connector.
+    #[must_use]
+    pub const fn wait_refusal(&self, number: u16) -> Option<(u64, &'static str)> {
+        match number {
+            1 => self.first.wait_refusal(),
+            2 => self.second.wait_refusal(),
+            _ => None,
+        }
     }
 
     /// Hold workspace completions for deterministic preparation interleavings.
@@ -471,6 +493,18 @@ impl Domain {
         &mut self.journal
     }
 
+    /// Stop this start at the switch, before its mark or any external effects
+    /// (`jig/docs/design/domain/testing-fakes.md`, 1).
+    pub fn rehearse(&mut self) {
+        self.rehearsing = true;
+    }
+
+    /// The rehearsal served every phase through the sweep and reached the switch.
+    #[must_use]
+    pub const fn rehearsed(&self) -> bool {
+        self.rehearsed
+    }
+
     /// The phase currently selected by the core's start.
     #[must_use]
     pub fn start_phase(&self) -> Option<core::start::Phase> {
@@ -540,6 +574,7 @@ impl Domain {
             scripted_project_releases: None,
             scripted_workspaces: None,
             scripted_parts: None,
+            scripted_wait_reports: None,
             scripted_brief_failure: None,
             scripted_holdings: None,
             brief_failures: Queue::uncapped(),
@@ -569,6 +604,8 @@ impl Domain {
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
+            rehearsing: false,
+            rehearsed: false,
             start_page_failure: None,
         }
     }
@@ -715,13 +752,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             continue;
         };
         match next {
-            Work::ConnectorRestartDone { number } => match domain.core.start_phase() {
-                Some(phase @ core::start::Phase::SettleOutbox { connector }) => {
-                    assert_eq!(connector, number, "the selected connector settles");
-                    work.push(Work::Start(StartInput::Done(phase)));
-                }
-                Some(_) | None => unreachable!("connector completion belongs to SettleOutbox"),
-            },
+            Work::ConnectorRestartDone { number } => {
+                domain.core.catch_up_done(number, core::effects::connector::RestartStage::Settled);
+            }
             Work::Start(input) => {
                 if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input
                     && domain.settings_connectors.contains(&number)
@@ -903,6 +936,7 @@ fn start_action(
     let mut work = Queue::uncapped();
     match action {
         Action::Step(phase) => match phase {
+            Phase::Switch if domain.rehearsing => domain.rehearsed = true,
             Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep | Phase::Switch => {
                 let census = if phase == Phase::LoadInbox { Some(domain.core.census(&env.limits.core)) } else { None };
                 domain.now.push(Request::Start { phase, census });
@@ -911,27 +945,6 @@ fn start_action(
             Phase::AdoptRuns => {
                 work.push(Work::Start(StartInput::Done(phase)));
             }
-            Phase::ReadAfresh { connector: number } => {
-                let mut reads = false;
-                for resource in 1..=env.limits.connector.resources {
-                    let Some(spec) = numbered(domain, number).specification_resource(u64::from(resource)) else {
-                        break;
-                    };
-                    let resource_path = spec.path.clone();
-                    work.push(Work::Connector {
-                        number,
-                        event: connector::Event::Restart(connector::RestartStep::FreshRead { resource: resource_path }),
-                    });
-                    reads = true;
-                }
-                if !reads {
-                    work.push(Work::Start(StartInput::Done(phase)));
-                }
-            }
-            Phase::SettleOutbox { connector: number } => work.push(Work::Connector {
-                number,
-                event: connector::Event::Restart(connector::RestartStep::SettleOutbox),
-            }),
         },
         Action::Commit(continuation) => {
             if domain.core.start_phase() == Some(Phase::Wires) {
@@ -950,10 +963,6 @@ fn start_action(
 }
 
 impl Domain {
-    fn starting(&self) -> Option<core::start::Phase> {
-        self.core.start_phase()
-    }
-
     fn start_stopped(&self) -> bool {
         self.start_page_failure.is_some() || self.core.start_failure().is_some()
     }
@@ -1005,52 +1014,8 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         let delivery = ready.pop().expect("release count");
         match delivery {
             Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
-            Delivery::Core(core::Held::PublicWait { read }) => {
-                step(domain, env, Event::Core(core::Event::PublicDurable { read }));
-            }
-            Delivery::Core(held @ core::Held::PublicRead { .. }) => {
-                domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
-                out.push(Request::Deliver(Delivery::Core(held)));
-            }
-            Delivery::Core(core::Held::MakeEffect { connector, entry }) => {
-                step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
-            }
-            Delivery::Core(core::Held::TaskTurnKept { task, attempt, turn }) => {
-                step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Fleet(jig_domain_fleet::Event::TurnKept {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                        turn,
-                    })),
-                );
-            }
-            Delivery::Core(core::Held::TaskTerminalAcknowledged { task, attempt }) => {
-                step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Acknowledge {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                    })),
-                );
-            }
+            Delivery::Core(held) => release_core(domain, env, held, out),
             Delivery::Fleet(event) => step(domain, env, Event::Core(core::Event::Fleet(event))),
-            Delivery::Core(core::Held::StopRun { task, attempt }) => {
-                step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Fleet(fleet::Event::Cancel {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                    })),
-                );
-            }
-            Delivery::Core(core::Held::Relay { task, attempt, word, .. }) => {
-                let event = relay_message(domain, task, attempt, word);
-                step(domain, env, event);
-            }
             other @ (Delivery::ApplicationDocument { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
@@ -1061,7 +1026,6 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             | Delivery::Message { .. }
             | Delivery::CallBusy { .. }
             | Delivery::CallAnswer { .. }
-            | Delivery::Core(_)
             | Delivery::Assigned { .. }
             | Delivery::System { .. }
             | Delivery::LostRead { .. }
@@ -1073,6 +1037,105 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         out.push(now);
     }
     continue_ready(domain, env);
+}
+
+fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &mut Queue<Request>) {
+    match held {
+        core::Held::PublicWait { read } => {
+            step(domain, env, Event::Core(core::Event::PublicDurable { read }));
+        }
+        held @ core::Held::PublicRead { .. } => {
+            domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
+            out.push(Request::Deliver(Delivery::Core(held)));
+        }
+        core::Held::MakeEffect { connector, entry } => {
+            step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
+        }
+        core::Held::TaskPartKept { key } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(fleet::Event::PartKept {
+                    run: Token::new(key.task),
+                    attempt: Token::new(key.attempt),
+                    part: key.number,
+                })),
+            );
+        }
+        core::Held::TaskTurnKept { task, attempt, turn } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(jig_domain_fleet::Event::TurnKept {
+                    run: Token::new(task),
+                    attempt: Token::new(attempt),
+                    turn,
+                })),
+            );
+        }
+        core::Held::TaskTerminalAcknowledged { task, attempt } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Acknowledge {
+                    run: Token::new(task),
+                    attempt: Token::new(attempt),
+                })),
+            );
+        }
+        core::Held::StopRun { task, attempt } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(fleet::Event::Cancel {
+                    run: Token::new(task),
+                    attempt: Token::new(attempt),
+                })),
+            );
+        }
+        core::Held::Relay { task, attempt, word, .. } => {
+            let event = relay_message(domain, task, attempt, word);
+            step(domain, env, event);
+        }
+        other @ (core::Held::Acted { .. }
+        | core::Held::Drained
+        | core::Held::Restarting { .. }
+        | core::Held::Load(..)
+        | core::Held::ApplicationDelivery { .. }
+        | core::Held::ApplicationWatchEnded { .. }
+        | core::Held::ReadLoad { .. }
+        | core::Held::Read { .. }
+        | core::Held::Applied { .. }
+        | core::Held::CarriedUnused { .. }
+        | core::Held::Delivery { .. }
+        | core::Held::WatchEnded { .. }
+        | core::Held::SettledCall { .. }
+        | core::Held::Assign { .. }
+        | core::Held::ReadUsage { .. }
+        | core::Held::ReadList { .. }
+        | core::Held::Sources { .. }
+        | core::Held::CheckSource { .. }
+        | core::Held::PauseWorker { .. }
+        | core::Held::SignOutSource { .. }
+        | core::Held::SourceSignedOut { .. }
+        | core::Held::Grant { .. }
+        | core::Held::Relayed { .. }
+        | core::Held::Inbound { .. }
+        | core::Held::PeopleReply { .. }
+        | core::Held::CallAnswer { .. }
+        | core::Held::Result { .. }
+        | core::Held::Acknowledge { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
+        | core::Held::AcknowledgeTurn { .. }
+        | core::Held::Cancel { .. }
+        | core::Held::Refuse { .. }
+        | core::Held::TurnBusy { .. }
+        | core::Held::NotesLoad { .. }
+        | core::Held::NotesWritten { .. }
+        | core::Held::NotesDeleted { .. }
+        | core::Held::NeedArrived { .. }) => out.push(Request::Deliver(Delivery::Core(other))),
+    }
 }
 
 fn continue_ready(domain: &mut Domain, env: &Env<Limits>) {
@@ -1134,21 +1197,12 @@ fn resume_restart_outbox(domain: &mut Domain, env: &Env<Limits>) -> bool {
     if !domain.journal.idle() {
         return false;
     }
-    let number = match domain.starting() {
-        Some(core::start::Phase::SettleOutbox { connector }) => connector,
-        Some(
-            core::start::Phase::LoadCore
-            | core::start::Phase::LoadInbox
-            | core::start::Phase::RestoreConnector { .. }
-            | core::start::Phase::Link
-            | core::start::Phase::Sweep
-            | core::start::Phase::Switch
-            | core::start::Phase::Wires
-            | core::start::Phase::AdoptRuns
-            | core::start::Phase::ReadAfresh { .. }
-            | core::start::Phase::Open,
-        )
-        | None => return false,
+    let number = if connector::restart_ready(&domain.first, &env.with(env.limits.connector)) {
+        1
+    } else if connector::restart_ready(&domain.second, &env.with(env.limits.connector)) {
+        2
+    } else {
+        return false;
     };
     decide(
         domain,
@@ -1220,13 +1274,9 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
         Phase::Sweep | Phase::LoadInbox | Phase::LoadCore | Phase::RestoreConnector { .. } => {
             restore_row(domain, env, record)
         }
-        Phase::Link
-        | Phase::Switch
-        | Phase::Wires
-        | Phase::AdoptRuns
-        | Phase::ReadAfresh { .. }
-        | Phase::SettleOutbox { .. }
-        | Phase::Open => unreachable!("phase loads no rows"),
+        Phase::Link | Phase::Switch | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
+            unreachable!("phase loads no rows")
+        }
     };
     assert!(fits || domain.start_failure().is_some(), "the start's row entrance refuses with a start failure");
 }
@@ -1282,7 +1332,8 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     for _ in 0..out.len() {
         match out.pop().expect("restored connector output count") {
             connector::Request::RestoreRefused { kind, scope, number } => {
-                refuse_settings_restore(kind, scope, number);
+                refuse_settings_restore(domain, kind, scope, number);
+                return false;
             }
             connector::Request::SettingsRestored { .. }
             | connector::Request::SettingsJudged { .. }
@@ -1315,6 +1366,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }
+            | connector::Request::Waits { .. }
             | connector::Request::Answer { .. }
             | connector::Request::Ready { .. }
             | connector::Request::Section { .. }
@@ -1335,6 +1387,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             | connector::Request::News { .. }
             | connector::Request::Save { .. }
             | connector::Request::Erase { .. }
+            | connector::Request::ReadAfreshDone
             | connector::Request::RestartDone
             | connector::Request::ApplicationDone { .. }
             | connector::Request::ApplicationAgain { .. }
@@ -1447,8 +1500,14 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.into_boxed()
 }
 
-/// The testing root has no connector-owned start failure (connectors.md, 17).
-#[expect(clippy::panic, reason = "a connector restore refusal stops the test start and names the setting")]
-fn refuse_settings_restore(kind: u32, scope: u32, number: u32) -> ! {
-    panic!("connector settings restore refused: kind {kind}, scope {scope}, number {number}");
+/// A connector's stored value cannot fit this start's configuration
+/// (`jig/docs/design/domain/testing-fakes.md`, 1).
+fn refuse_settings_restore(domain: &mut Domain, kind: u32, scope: u32, number: u32) {
+    let _action = domain.core.start_refuse(core::start::Failure::Application {
+        kind,
+        scope,
+        number,
+        why: core::start::ApplicationWhy::Shape,
+    });
+    domain.stopped_reported = false;
 }

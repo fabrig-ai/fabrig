@@ -1,112 +1,182 @@
 use super::*;
-use std::os::unix::fs::PermissionsExt;
-fn scratch(name: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!("temper-fetch-box-{name}-{}", std::process::id()));
-    match fs::remove_dir_all(&path) {
-        Ok(()) | Err(_) => {}
-    }
-    fs::DirBuilder::new().mode(0o700).create(&path).unwrap();
-    path
-}
-fn script(file: &Path, body: &[u8]) {
-    fs::write(file, body).unwrap();
-    fs::set_permissions(file, fs::Permissions::from_mode(0o755)).unwrap();
-}
-fn digest(bytes: &[u8]) -> [u8; 32] {
-    let mut hash = Sha256::new();
-    hash.update(bytes);
-    hash.finish()
-}
+use crate::testing::{digest, gzip, scratch, site};
+use std::collections::BTreeMap;
+
 fn trust() -> skein_shell::Trust {
     skein_shell::Trust::Der(PathBuf::from("no-trust-needed"))
 }
-fn site() -> Origin {
-    Origin { host: b"site.test".as_slice().into(), port: 443 }
-}
-fn next(machine: &mut machine::Find, event: Event) -> Request {
-    let mut out = Queue::uncapped();
-    machine::step(machine, event, &mut out);
-    assert_eq!(out.len(), 1);
-    out.pop().unwrap()
-}
-fn gzip(bytes: &[u8]) -> Vec<u8> {
-    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-    encoder.write_all(bytes).unwrap();
-    encoder.finish().unwrap()
-}
+
+const WANTED: &[u8] = b"#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n";
+const WRONG_BESIDE: &[u8] = b"#!/bin/sh\nprintf 'other\\n'\n";
+const WRONG_CACHE: &[u8] = b"#!/bin/sh\nprintf 'site mistake\\n'\n";
+const WRONG_STAGED: &[u8] = b"#!/bin/sh\nprintf 'wrong build\\n'\n";
+const WANTED_LINE: &[u8] = b"temper-box 0.0.0 (0123456789ab)\n";
+const WRONG_LINE: &[u8] = b"wrong build\n";
+const STAGING: [&str; 3] = [".gz.part", ".part", ".sha256.part"];
+
 #[test]
-fn candidate_is_run_and_bounded() {
-    let directory = scratch("identity");
-    let file = directory.join("temper-box");
-    for (body, line, success) in [
-        (
-            "#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n",
-            b"temper-box 0.0.0 (0123456789ab)\n".as_slice(),
-            true,
-        ),
-        ("#!/bin/sh\nprintf 'another\\n'\n", b"another\n", true),
-        ("#!/bin/sh\nprintf 'another\\n'; exit 1\n", b"another\n", false),
-        (
-            "#!/bin/sh\n[ \"$1\" = --version ] || exit 1\n[ -z \"$HOME\" ] || exit 1\nprintf 'checked\\n'\n",
-            b"checked\n",
-            true,
-        ),
+fn candidate_rows() {
+    // box-binary.md, 2: a candidate's stdout is bounded to 256 bytes.
+    const STDOUT_BOUND: usize = 256;
+    let at_bound = [b'x'; STDOUT_BOUND];
+    let past_bound = [at_bound.as_slice(), b"!"].concat();
+    let executable_file = Some((true, 0o755));
+    let file = Path::new("/fixture/temper-box");
+    for (metadata, stdout, exited_zero, line, success) in [
+        (executable_file, Some(WANTED_LINE), true, WANTED_LINE, true),
+        (executable_file, Some(b"another\n"), true, b"another\n", true),
+        (executable_file, Some(b"another\n"), false, b"another\n", false),
+        (executable_file, Some(at_bound.as_slice()), true, at_bound.as_slice(), true),
+        (executable_file, Some(past_bound.as_slice()), true, at_bound.as_slice(), false),
+        (Some((true, 0o600)), None, false, b"", false),
+        (Some((false, 0o755)), None, false, b"", false),
+        (None, None, false, b"", false),
     ] {
-        script(&file, body.as_bytes());
-        assert_eq!(identity(&file), Candidate { line: line.into(), success });
+        let got = identity_with(file, metadata, |_| {
+            Some((stdout.expect("ineligible candidate must not run").to_vec(), exited_zero))
+        });
+        assert_eq!(got, Candidate { line: line.into(), success });
     }
-    script(&file, format!("#!/bin/sh\nprintf '{}'\n", "x".repeat(257)).as_bytes());
-    let candidate = identity(&file);
-    assert!(!candidate.success);
-    assert_eq!(candidate.line.len(), 256);
-    fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
-    assert_eq!(identity(&file), absent());
-    assert_eq!(identity(&directory), absent());
-    assert_eq!(identity(&directory.join("missing")), absent());
-    fs::remove_dir_all(directory).unwrap();
 }
+
+#[derive(Default)]
+struct CacheTree {
+    files: BTreeMap<PathBuf, Vec<u8>>,
+    held: Option<PathBuf>,
+    output: Option<PathBuf>,
+}
+
+impl CacheTree {
+    fn publish(&mut self, file: &Path, bytes: &[u8]) {
+        let sum = [temper_fetch::fetch::hex(&digest(bytes)).as_ref(), b"\n"].concat();
+        self.files.insert(file.to_path_buf(), bytes.to_vec());
+        self.files.insert(suffix(file, ".sha256"), sum);
+    }
+
+    fn clean(&mut self, directory: &Path) -> Result<(), Failed> {
+        self.output = None;
+        clean_with(directory, |file| {
+            self.files.remove(file);
+            Ok(())
+        })
+    }
+
+    fn answer(&mut self, request: Request) -> Result<Event, Failed> {
+        match request {
+            Request::Identity { file } => {
+                let Some(bytes) = self.files.get(path(&file)) else { return Ok(Event::Identity(absent())) };
+                let line: &[u8] = match bytes.as_slice() {
+                    WANTED => WANTED_LINE,
+                    WRONG_BESIDE => b"other\n",
+                    WRONG_CACHE => b"site mistake\n",
+                    WRONG_STAGED => WRONG_LINE,
+                    _ => panic!("unexpected candidate"),
+                };
+                Ok(Event::Identity(identity_with(path(&file), Some((true, 0o755)), |_| Some((line.to_vec(), true)))))
+            }
+            Request::Lock { directory } => {
+                let directory = path(&directory);
+                self.files.insert(directory.join("temper-box.lock"), Vec::new());
+                assert!(self.held.replace(directory.to_path_buf()).is_none());
+                Ok(Event::Done)
+            }
+            Request::Clean { directory } => self.clean(path(&directory)).map(|()| Event::Done),
+            Request::Cached { file } => {
+                let file = path(&file);
+                assert_eq!(self.held.as_deref(), file.parent());
+                Ok(Event::Cached {
+                    file: self.files.get(file).map(|bytes| digest(bytes)),
+                    sum: self.files.get(&suffix(file, ".sha256")).cloned().and_then(stored_sum),
+                })
+            }
+            Request::RemoveCached { file } => {
+                self.files.remove(path(&file));
+                self.files.remove(&suffix(path(&file), ".sha256"));
+                Ok(Event::Done)
+            }
+            Request::Open { file } => {
+                let file = path(&file).to_path_buf();
+                assert!(self.files.insert(file.clone(), Vec::new()).is_none(), "open a fresh part");
+                self.output = Some(file);
+                Ok(Event::Done)
+            }
+            Request::Write(bytes) => {
+                self.files.get_mut(self.output.as_ref().expect("open before write")).unwrap().extend_from_slice(&bytes);
+                Ok(Event::Done)
+            }
+            Request::Unpack { archive, part, bound } => {
+                self.output = None;
+                let mut output = Vec::new();
+                let unpacked = decode_gzip(self.files[path(&archive)].as_slice(), &mut output, bound).unwrap();
+                assert!(self.files.insert(path(&part).to_path_buf(), output).is_none(), "unpack to a fresh part");
+                Ok(Event::Unpacked(unpacked))
+            }
+            Request::Get { .. } => Err(Failed { words: "scripted download refusal".into() }),
+            Request::Read | Request::Say(_) | Request::End(_) => panic!("unexpected cache effect"),
+            Request::WriteSum { .. } | Request::RenameSum { .. } | Request::Publish { .. } => {
+                panic!("unexpected publication")
+            }
+        }
+    }
+
+    fn find(&mut self, find: &Find<'_>, out: &mut dyn Write) -> Result<PathBuf, Failed> {
+        self.find_with(find, out, Self::answer)
+    }
+
+    fn find_with(
+        &mut self,
+        find: &Find<'_>,
+        out: &mut dyn Write,
+        mut answer: impl FnMut(&mut Self, Request) -> Result<Event, Failed>,
+    ) -> Result<PathBuf, Failed> {
+        let build = build(find, |file| self.files.contains_key(file));
+        let (result, downloading) = drive(build, out, |request| answer(self, request));
+        let result = finish(find, result, downloading, || {
+            if let Some(directory) = self.held.clone() {
+                self.clean(&directory)?;
+            }
+            Ok(())
+        });
+        self.held = None;
+        result
+    }
+}
+
 #[test]
 fn find_takes_beside_or_verified_cache_without_tls() {
-    let directory = scratch("find");
+    let directory = Path::new("/fixture");
     let beside = directory.join("beside");
-    fs::create_dir(&beside).unwrap();
     let cache = directory.join("cache");
     let site = site();
     let trust = trust();
     let mut input =
         Find { beside: &beside, cache: &cache, site: &site, trust: &trust, version: "0.0.0", commit: "0123456789ab" };
-    let script_bytes = b"#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n";
-    script(&beside.join("temper-box"), script_bytes);
+    let mut tree = CacheTree::default();
+    tree.files.insert(beside.join("temper-box"), WANTED.to_vec());
     let mut out = Vec::new();
-    assert_eq!(find(&skein_io::Limits::TEST, &input, &mut out).unwrap(), beside.join("temper-box"));
-    assert!(!cache.exists());
+    assert_eq!(tree.find(&input, &mut out).unwrap(), beside.join("temper-box"));
+    assert!(!tree.files.keys().any(|file| file.starts_with(&cache)));
     assert_eq!(out.len(), 0);
-    script(&beside.join("temper-box"), b"#!/bin/sh\nprintf 'other\\n'\n");
+    tree.files.insert(beside.join("temper-box"), WRONG_BESIDE.to_vec());
     let cached = cache.join("bin/0123456789ab").join(platform()).join("temper-box");
-    fs::create_dir_all(cached.parent().unwrap()).unwrap();
-    script(&cached, script_bytes);
-    write_sum(&cached, &digest(script_bytes)).unwrap();
-    rename_sum(&cached).unwrap();
-    for name in [".gz.part", ".part", ".sha256.part"] {
-        fs::write(suffix(&cached, name), b"stale").unwrap();
+    tree.publish(&cached, WANTED);
+    for name in STAGING {
+        tree.files.insert(suffix(&cached, name), b"stale".to_vec());
     }
-    assert_eq!(find(&skein_io::Limits::TEST, &input, &mut out).unwrap(), cached);
-    for name in [".gz.part", ".part", ".sha256.part"] {
-        assert!(!suffix(&cached, name).exists());
+    assert_eq!(tree.find(&input, &mut out).unwrap(), cached);
+    for name in STAGING {
+        assert!(!tree.files.contains_key(&suffix(&cached, name)));
     }
     assert_eq!(out.len(), 0);
-    // A verified but wrong identity is a site error, not a second download.
-    script(&cached, b"#!/bin/sh\nprintf 'site mistake\\n'\n");
-    let bytes = fs::read(&cached).unwrap();
-    write_sum(&cached, &digest(&bytes)).unwrap();
-    rename_sum(&cached).unwrap();
-    let why = find(&skein_io::Limits::TEST, &input, &mut out).unwrap_err().words();
+    // A verified candidate of another identity is refused as a site error.
+    tree.publish(&cached, WRONG_CACHE);
+    let why = tree.find(&input, &mut out).unwrap_err().words();
     assert!(why.contains("site mistake\n"));
     assert!(!why.contains("Fetch it by hand"));
-    assert!(!cached.exists());
-    assert!(!suffix(&cached, ".sha256").exists());
+    assert!(!tree.files.contains_key(&cached));
+    assert!(!tree.files.contains_key(&suffix(&cached, ".sha256")));
     input.commit = "unknown";
-    let why = find(&skein_io::Limits::TEST, &input, &mut out).unwrap_err().words();
+    let why = tree.find(&input, &mut out).unwrap_err().words();
     assert_eq!(
         why,
         format!(
@@ -114,124 +184,70 @@ fn find_takes_beside_or_verified_cache_without_tls() {
             beside.display()
         )
     );
-    fs::remove_dir_all(directory).unwrap();
 }
-/// The production file interpreter is driven by a fake HTTP body, not a TLS server.
-#[expect(clippy::too_many_lines, reason = "the scratch replay observes each publication effect before answering it")]
-fn staged(name: &str, body: &[u8], success: bool) {
-    let root = scratch(name);
-    let mut machine = machine::Find::new(Build {
-        beside: root.as_os_str().as_bytes().into(),
-        cache: root.as_os_str().as_bytes().into(),
-        site: site(),
-        version: "0.0.0".into(),
-        commit: "0123456789ab".into(),
-        platform: b"Linux-x86_64".as_slice().into(),
-        beside_exists: false,
-    });
-    let file = root.join("bin/0123456789ab/Linux-x86_64/temper-box");
-    let mut files = Files::default();
-    let mut event = Event::Begin;
-    let compressed = gzip(body);
-    let sums = format!(
-        "{}  Linux-x86_64/temper-box\n",
-        String::from_utf8(temper_fetch::fetch::hex(&digest(&compressed)).into()).unwrap()
-    )
-    .into_bytes();
+
+#[test]
+fn a_staged_build_of_another_identity_is_refused_under_the_lock() {
+    let root = Path::new("/fixture");
+    let input = Find {
+        beside: &root.join("beside"),
+        cache: &root.join("cache"),
+        site: &site(),
+        trust: &trust(),
+        version: "0.0.0",
+        commit: "0123456789ab",
+    };
+    let platform = platform();
+    let directory = input.cache.join("bin").join(input.commit).join(&platform);
+    let file = directory.join("temper-box");
+    let mut tree = CacheTree::default();
+    for name in STAGING {
+        tree.files.insert(suffix(&file, name), b"stale".to_vec());
+    }
+    let compressed = gzip(WRONG_STAGED);
+    let hex = temper_fetch::fetch::hex(&digest(&compressed));
+    let sums = format!("{}  {platform}/temper-box\n", str::from_utf8(&hex).unwrap());
     let mut response = Vec::new();
-    let mut publication = Vec::new();
-    let mut cache_read = false;
-    let result = loop {
-        let request = next(&mut machine, event);
-        if let Request::Lock { .. } = &request {
-            assert!(!file.parent().unwrap().exists());
-        }
-        if let Request::Clean { .. } = &request {
-            assert!(files.held.is_some());
-            if !cache_read {
-                for suffix_name in [".gz.part", ".part", ".sha256.part"] {
-                    fs::write(suffix(&file, suffix_name), b"stale").unwrap();
-                }
-            }
+    let result = tree.find_with(&input, &mut Vec::new(), |tree, request| {
+        if !matches!(request, Request::Lock { .. }) {
+            assert_eq!(tree.held.as_deref(), Some(directory.as_path()), "every effect holds the lock");
         }
         if let Request::Cached { .. } = &request {
-            cache_read = true;
-            let other = fs::OpenOptions::new().write(true).open(suffix(&file, ".lock")).unwrap();
-            assert!(other.try_lock().is_err(), "lock held before cache is read");
-            for suffix_name in [".gz.part", ".part", ".sha256.part"] {
-                assert!(!suffix(&file, suffix_name).exists());
+            for name in STAGING {
+                assert!(!tree.files.contains_key(&suffix(&file, name)), "stale {name} before cache read");
             }
-            for parent in [root.join("bin"), root.join("bin/0123456789ab"), file.parent().unwrap().to_path_buf()] {
-                assert_eq!(fs::metadata(parent).unwrap().permissions().mode() & 0o777, 0o700);
-            }
-            assert_eq!(fs::metadata(suffix(&file, ".lock")).unwrap().permissions().mode() & 0o777, 0o600);
         }
-        if let Request::WriteSum { .. } = &request {
-            assert!(!file.exists());
-            assert!(!suffix(&file, ".sha256").exists());
-            publication.push("sum");
+        if let Request::Identity { file: staged } = &request {
+            assert_eq!(path(staged), suffix(&file, ".part"));
+            assert_eq!(tree.files[path(staged)], WRONG_STAGED);
         }
-        if let Request::RenameSum { .. } = &request {
-            assert!(!file.exists());
-            assert!(suffix(&file, ".sha256.part").exists());
-            assert!(!suffix(&file, ".sha256").exists());
-            publication.push("rename sum");
+        if let Request::Get { path, .. } = &request {
+            assert_eq!(response.len(), 0, "previous response drained");
+            let bytes = if path.ends_with(b"SHA256SUMS") { sums.as_bytes() } else { &compressed };
+            response = vec![Event::Ended, Event::Chunk(bytes.into())];
+            return Ok(Event::Answered {
+                status: 200,
+                length: Some(u64::try_from(bytes.len()).unwrap()),
+                location: None,
+            });
         }
-        if let Request::Publish { .. } = &request {
-            assert!(!file.exists());
-            assert!(suffix(&file, ".sha256").exists());
-            assert!(!suffix(&file, ".sha256.part").exists());
-            publication.push("publish");
+        if let Request::Read = request {
+            return Ok(response.pop().unwrap());
         }
-        event = match request {
-            Request::Get { path, .. } => {
-                let bytes = if path.ends_with(b"SHA256SUMS") { sums.clone() } else { compressed.clone() };
-                let length = u64::try_from(bytes.len()).unwrap();
-                response = vec![Event::Ended, Event::Chunk(bytes.into_boxed_slice())];
-                Event::Answered { status: 200, length: Some(length), location: None }
-            }
-            Request::Read => response.pop().unwrap(),
-            Request::Say(_) => Event::Done,
-            Request::End(result) => break result,
-            request @ (Request::Identity { .. }
-            | Request::Lock { .. }
-            | Request::Clean { .. }
-            | Request::Cached { .. }
-            | Request::RemoveCached { .. }
-            | Request::Open { .. }
-            | Request::Write(_)
-            | Request::Unpack { .. }
-            | Request::WriteSum { .. }
-            | Request::RenameSum { .. }
-            | Request::Publish { .. }) => files.answer(request).unwrap(),
-        };
-    };
-    assert_eq!(result.is_ok(), success, "{result:?}");
-    assert!(cache_read);
-    for suffix_name in [".gz.part", ".part", ".sha256.part"] {
-        assert!(!suffix(&file, suffix_name).exists());
+        tree.answer(request)
+    });
+    let why = result.unwrap_err().words();
+    assert!(why.contains("temper-box identity differs: wrong build\n"), "{why}");
+    assert!(!tree.files.contains_key(&file));
+    assert!(!tree.files.contains_key(&suffix(&file, ".sha256")));
+    for name in STAGING {
+        assert!(!tree.files.contains_key(&suffix(&file, name)), "leftover {name}");
     }
-    if success {
-        assert_eq!(publication, ["sum", "rename sum", "publish"]);
-        assert_eq!(fs::read(&file).unwrap(), body);
-        assert_eq!(cached(&file).unwrap(), Event::Cached { file: Some(digest(body)), sum: Some(digest(body)) });
-        assert_eq!(fs::metadata(&file).unwrap().permissions().mode() & 0o777, 0o755);
-        assert_eq!(fs::metadata(suffix(&file, ".sha256")).unwrap().permissions().mode() & 0o777, 0o600);
-    } else {
-        assert_eq!(publication.len(), 0);
-        assert!(!file.exists());
-    }
-    drop(files);
-    fs::remove_dir_all(root).unwrap();
 }
-#[test]
-fn lock_cleanup_and_publication_order() {
-    staged("publish", b"#!/bin/sh\nprintf 'temper-box 0.0.0 (0123456789ab)\\n'\n", true);
-    staged("refuse", b"#!/bin/sh\nprintf 'wrong build\\n'\n", false);
-}
+
 #[test]
 fn gzip_and_cleanup_bounds() {
-    let root = scratch("gzip");
+    let root = Path::new("/fixture/cache");
     let archive = root.join("temper-box.gz.part");
     let part = root.join("temper-box.part");
     let compressed = gzip(b"abc");
@@ -243,17 +259,26 @@ fn gzip_and_cleanup_bounds() {
         ([compressed.as_slice(), compressed.as_slice()].concat(), 6, Unpacked::Invalid),
         ([compressed.as_slice(), b"\0\0"].concat(), 3, Unpacked::File { digest: digest(b"abc"), bytes: 3 }),
     ] {
-        fs::write(&archive, bytes).unwrap();
-        assert_eq!(unpack(&archive, &part, bound).unwrap(), expected);
-        let mut files = Files { held: Some(lock(&root).unwrap()), directory: Some(root.clone()), output: None };
-        fs::write(root.join("temper-box.sha256.part"), b"partial").unwrap();
-        files.cleanup().unwrap();
-        assert!(!archive.exists());
-        assert!(!part.exists());
-        assert!(!root.join("temper-box.sha256.part").exists());
+        let mut cache = std::collections::BTreeMap::from([
+            (archive.clone(), bytes),
+            (part.clone(), Vec::new()),
+            (root.join("temper-box.sha256.part"), b"partial".to_vec()),
+        ]);
+        let bytes = cache.get(&archive).unwrap().as_slice();
+        let mut output = Vec::new();
+        assert_eq!(decode_gzip(bytes, &mut output, bound).unwrap(), expected);
+        cache.insert(part.clone(), output);
+        clean_with(root, |file| {
+            cache.remove(file);
+            Ok(())
+        })
+        .unwrap();
+        assert!(!cache.contains_key(&archive));
+        assert!(!cache.contains_key(&part));
+        assert!(!cache.contains_key(&root.join("temper-box.sha256.part")));
     }
-    fs::remove_dir_all(root).unwrap();
 }
+
 #[test]
 fn download_failure_words_and_shell_quote() {
     let root = scratch("failure");
@@ -269,7 +294,7 @@ fn download_failure_words_and_shell_quote() {
     assert!(why.contains("it'\\''s here/temper-box' && chmod +x '"));
     assert!(!why.starts_with("temper: "));
     let file = root.join("bin/0123456789ab").join(platform()).join("temper-box");
-    for name in [".gz.part", ".part", ".sha256.part"] {
+    for name in STAGING {
         assert!(!suffix(&file, name).exists());
     }
     fs::remove_dir_all(root).unwrap();

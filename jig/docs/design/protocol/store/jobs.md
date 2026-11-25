@@ -16,7 +16,7 @@ designs what runs them.
   once.
 - **Its pages** (3): the store reads its ranges at the binary's layouts,
   as any read, and hands each page to its owner through the shell, as a
-  written site is handed (`opening.md`, 3); the owner answers the writes
+  written site is handed (`opening-owners.md`, 1); the owner answers the writes
   for the rows it consumed; the store commits them and goes on after
   them. Its end is a commit of the owner's last writes and the job's row.
 - **Written jobs** (4) convert a registered value type's values from
@@ -29,7 +29,7 @@ Each owner set names its jobs, in the order they run:
 
 ```rust
 pub struct OwnerSet {
-    // ... as `opening.md`, 3
+    // ... as `opening-owners.md`, 1
     pub jobs: &'static [Job],           // in the order they run
 }
 pub struct Job {
@@ -44,7 +44,7 @@ pub struct Converts {
     pub from: Layouts,                  // the layouts it converts from (4)
 }
 pub enum Layouts {
-    One([u8; 32]),                      // that layout, by fingerprint (skein's `data/codec/README.md`, 9.4)
+    One([u8; 32]),                      // that layout, by fingerprint (skein's `data/codec/fingerprints.md`, 1.4)
     Unplanned,                          // each layout of its value type the registry holds that no plan reaches (4)
 }
 ```
@@ -53,7 +53,7 @@ pub enum Layouts {
   job done, `00 08 <owner> <name>` (`layouts.md`, 3), so a binary that
   still declares a job a store has run does not run it again, and a
   name once used is never given to another job.
-- **Checked where the set is admitted,** beside `opening.md`, 3's
+- **Checked where the set is admitted,** beside `opening-owners.md`, 1's
   checks, a failure refused `Set { owner }`: names given once in a
   set and within their bound; ranges non-empty, ordered and within the
   owner's tag (the application's relative to it), a job's ranges in
@@ -63,7 +63,7 @@ pub enum Layouts {
   value type's `Unplanned`, nor one fingerprint of it twice; a job's count names at most 16, each given once
   within the job, 1 to 32 bytes of ASCII letters, digits and `-`.
 - **jig's set declares one job, `escalation-deciders`.** Every store at
-  the floor (temper's `draft/store-floor.md`, section 3) needs none of
+  the floor (temper's `draft/archive/store-floor.md`, section 3) needs none of
   its retired jobs. Their done rows stay, inert, and their names stay
   reserved: `milestones`, `live-task-parts`, `projection-parts`,
   `charter-versions`, `retention-rows`, `retention-proposals`,
@@ -79,7 +79,7 @@ pub enum Layouts {
     derived change (`layouts.md`, 6), so no version moves: a value at an
     older layout reads as a person's until the job types it.
   - *Its keys:* the live tasks' hot rows, `01 01 00` up to `01 01 01`
-    (`README.md`, 4.4), in task order; it converts nothing (`converts`
+    (`keys.md`, 1.4), in task order; it converts nothing (`converts`
     none) and counts `tasks`, the rejections it types a task's.
   - *Its rule* (temper's `draft/store-starts.md`, section 2): a
     rejection whose number names a live ancestor of its held task is
@@ -101,8 +101,8 @@ pub enum Layouts {
     escalation and no read shows it, and the ancestor that decided it
     may have ended since.
   - Its code goes once dev.fabrig.ai has run it, as every job's does
-    (temper's `draft/store-floor.md`).
-- **temper's jobs** (temper's `protocol/store.md`, 4), in this order:
+    (temper's `draft/archive/store-floor.md`).
+- **temper's jobs** (temper's `protocol/store-versions.md`, 1), in this order:
   `test-ids-landing`, `test-ids-receipt`, `test-ids-tier` and
   `test-ids-verification`, written jobs (4) each converting its value
   type's unplanned layouts to the binary's, whose failing tests' ids
@@ -128,7 +128,7 @@ pub enum Layouts {
   of that commit. A job is done once per store, whatever binaries come
   after.
 - **An empty store** has nothing to convert: its first commit
-  (`README.md`, section 5) writes a row for every job its binary
+  (`commits.md`, section 1) writes a row for every job its binary
   declares, so none ever runs over it.
 - **Within one start:** a job's progress is the open's, in memory, never
   a row. A start that fails or is refused before its switch leaves the
@@ -137,7 +137,7 @@ pub enum Layouts {
   their first page. A job's owner therefore makes no effect beyond the
   store, and reads what it needs through the store alone.
 - **A rehearsal** runs the pending jobs as a start does, over its
-  scratch (`opening.md`, 5).
+  scratch (`opening-rehearsal.md`, 1).
 
 ## 3. Pages
 
@@ -152,7 +152,7 @@ pub enum Layouts {
   name and the page; the shell routes it to that owner's jobs
   (`jig_protocol_store::jobs::page` for jig's, the application's own
   dispatch for its), and answers `Request::Job`. Frame reads have
-  their own written sites and routing (`opening.md`, 3). While a page
+  their own written sites and routing (`opening-owners.md`, 1). While a page
   is out, the owner may read other ranges of the map through
   `Store::patch_page`, its ranges named as the running job's keys
   are: relative to the application's tag for the application's job,
@@ -231,7 +231,7 @@ whose values are not all the root it names (`layouts.md`, 6; skein's
   every older layout of the value type unplanned, however many builds
   wrote them, so that the binary names none of their fingerprints.
   temper's `test-ids-*` jobs are the first (temper's
-  `protocol/store.md`, 4).
+  `protocol/store-versions.md`, 1).
 
 What follows holds for both:
 
@@ -251,10 +251,10 @@ What follows holds for both:
   to it, and a written job's page holding rows without their layout is
   the owner's refusal (`JobRefusal`).
 - **Its owner's function** reads each old value as a generic value of
-  that text (skein's `data/codec/README.md`, section 8; the head is the
+  that text (skein's `data/codec/run-time.md`, section 2; the head is the
   layout id, which the function passes over), after converting it by a
   plan of its own where it needs one (skein's `data/codec/layouts.md`;
-  temper's does so, `protocol/store.md`, 4), and writes the new one by
+  temper's does so, `temper/docs/design/protocol/store-versions.md`, 1), and writes the new one by
   its generated code, a put at the same key, whose head the write edge
   maps.
 - **The open's check** takes its layouts as converted (`layouts.md`,
@@ -269,14 +269,16 @@ What follows holds for both:
 
 ## 5. Settling jobs
 
-No set declares a settling job, and the store runs none. The check
-(`layouts.md`, 5.3) takes no layout for one. A layout row retires only
-as `layouts.md`, 5.4 says.
+No set declares a settling job: the store settles each map value at
+another layout itself, while it serves, riding the root's commits
+(`settling.md`). The check (`layouts.md`, 5.3) takes no layout for one.
+A layout row retires as `layouts.md`, 5.4 says, at a writing open or by
+settling.
 
 ## 6. Tests
 
 - **Step tests,** in `jig-protocol-store`, the tests the shell: the
-  test owners' sets (`opening.md`, 3) each declare a job over their
+  test owners' sets (`opening-owners.md`, 1) each declare a job over their
   fixture ranges, answered by the test with puts and erases: a job runs
   in pages within the commit edge and marks itself done; a later start
   runs it no more; jobs run in the sets' order; an empty store's first

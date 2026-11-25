@@ -1,4 +1,4 @@
-//! The attempts the fleet tracks (domain/engine/README.md, 4.2 and domain/engine/fleet.md): each
+//! The attempts the fleet tracks (domain/engine/vocabulary.md, 1.2 and domain/engine/fleet.md): each
 //! the parent's claim on a run, from its start or its adoption to the
 //! parent's acknowledgement of its answer; or one a worker hosts or holds the
 //! answer of that the parent has not claimed.
@@ -129,6 +129,7 @@ pub(crate) struct Attempt {
     pub(crate) listed: bool,
     /// The contiguous committed turn prefix, restored atomically on adoption.
     pub(crate) kept: u32,
+    pub(crate) kept_part: u32,
     /// Last lost channel, if this engine observed it; restored adoptions do not invent one.
     pub(crate) lost_host: Option<Token>,
     /// Worker position retained across channel loss or restored from the claim's proof.
@@ -345,7 +346,7 @@ pub(crate) fn start_job(
 ) {
     let Names { run, attempt } = names;
     let accepted = if restoring {
-        adopt(domain, env, to, run, attempt, (0, None), out)
+        adopt(domain, env, to, run, attempt, (0, 0, None), out)
     } else {
         start(
             domain,
@@ -371,7 +372,7 @@ pub(crate) fn adopt(
     to: ReplyTo,
     run: Token,
     attempt: Token,
-    (kept, worker): (u32, Option<u32>),
+    (kept, kept_part, worker): (u32, u32, Option<u32>),
     out: &mut Queue<Request>,
 ) -> bool {
     let names = Names { run, attempt };
@@ -393,6 +394,7 @@ pub(crate) fn adopt(
         let id = *domain.names.get(&(run, attempt)).expect("inserted above");
         let entry = domain.attempts.get_mut(id).expect("inserted above");
         entry.kept = kept;
+        entry.kept_part = kept_part;
         entry.worker = worker;
         hold(domain, env, run, attempt);
         return true;
@@ -421,6 +423,7 @@ pub(crate) fn adopt(
     replace(domain, run, out);
     let entry = domain.attempts.get_mut(id).expect("looked up above");
     entry.kept = kept;
+    entry.kept_part = kept_part;
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
@@ -598,7 +601,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
 }
 
 /// The engine has settled this claim itself. Releasing its placement does
-/// not tell the host: the service ends it after draining (domain/engine/restart.md, 1).
+/// not tell the host: the service ends it after draining (domain/engine/restart.md, 5).
 /// Relayed calls keep only their answer correlation until the parent answers;
 /// their retired attempt makes that answer a drop (domain/engine/fleet.md).
 pub(crate) fn interrupt(domain: &mut Domain, run: Token, attempt: Token, out: &mut Queue<Request>) {
@@ -1382,6 +1385,7 @@ fn insert(domain: &mut Domain, run: Token, attempt: Token, listed: bool, assignm
         token: attempt,
         listed,
         kept: 0,
+        kept_part: 0,
         lost_host: None,
         worker: None,
         progress: None,

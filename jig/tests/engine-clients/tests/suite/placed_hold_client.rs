@@ -92,15 +92,21 @@ impl Party {
         reads::ask(world, 90, core::reads::Read::Frame);
         let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("real Me") };
         let core::documents::Document::Frame(frame) = document.as_ref() else { panic!("real frame") };
-        let me = jig_protocol_engine_clients::translate::owner::frame(frame, &settings.models, &w::CEILINGS)
-            .expect("Me codec");
+        let me = jig_protocol_engine_clients::translate::owner::frame(
+            frame,
+            Wall::from_nanos(86_400_000_000_000),
+            &settings.models,
+            &w::CEILINGS,
+        )
+        .expect("Me codec");
         let value = w::DeliveryValue::Me(me);
         let mut bytes =
             Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
         value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("Me delivery");
         let document =
             w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
-        let opened = w::Opened { hello, me: document };
+        let layouts = jig_client_kit::test::list([w::Layout { owner: w::Owner::Jig, layout: w::LAYOUT }]);
+        let opened = w::Opened { hello, layouts, me: document };
         party.step(client::Event::Streamed {
             message: client::Streamed::Record(encoded(&w::StreamEvent::Opened(opened))),
         });
@@ -221,7 +227,18 @@ fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
     world.turn(1, 0, None, b"delegate turn");
     let mut owner_client = Party::new(&mut world, owner_sign_in, owner);
     let mut maintainer_client = Party::new(&mut world, maintainer_sign_in, maintainer);
-    assert!(matches!(owner_client.ask(&mut world, c::Ask::Stop { project: 1, task: goal }), c::Answer::Done(_)));
+    let stop =
+        |reason: &[u8]| c::Ask::Stop { project: 1, task: goal, reason: c::Text::new(reason.into(), u32::MAX).unwrap() };
+    let before = owner_client.task(&mut world, goal).hold;
+    assert_eq!(
+        owner_client.ask(&mut world, stop(b"")),
+        c::Answer::Refused {
+            refusal: c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Empty } },
+            at: None
+        },
+    );
+    assert_eq!(owner_client.task(&mut world, goal).hold, before);
+    assert!(matches!(owner_client.ask(&mut world, stop(b"Parking the task")), c::Answer::Done(_)));
     let document = owner_client.task(&mut world, goal);
     let hold = document.hold.as_ref().expect("held");
     let placed = hold.placed().expect("placed hold details");
@@ -232,7 +249,7 @@ fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
     assert_eq!(placed.revision, c::Revision { value: 1 });
     assert!(placed.may_lift);
     assert!(!placed.lifted);
-    assert!(placed.reason.is_empty());
+    assert_eq!(placed.reason.as_ref(), b"Parking the task");
     assert!(placed.placed_at > Wall::EPOCH);
     assert_eq!(hold.reason, c::HoldCategory::Placed { hold: number });
     assert!(

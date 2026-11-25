@@ -26,7 +26,7 @@ before, key by key:
   may not set is refused, naming the file.
   - **The line.** What the layer may set is what the repository's own
     files already do to a run: its guide is read into the system text,
-    its checks are its own executable (../domain/run.md, 3.3 and 8.1), and
+    its checks are its own executable (../domain/run-start.md, 1.3, and ../domain/run-delivery.md, 1.1), and
     the agent's commands build and test its code with the person's
     authority. Its environment values are constants it writes, as its
     own scripts may export: they shape the commands and checks, and widen
@@ -87,7 +87,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
 | `account` | the account main's endpoint runs on, for this invocation; `--account` | the endpoint's own |
 | `credentials` | the credentials directory (`credentials.md`) | `$XDG_STATE_HOME/smith` |
 | `profile` | the named bundle of deployment values | `standard` |
-| `instructions` | the role (../domain/run.md, section 3.1) | the task role (2.6): smith's own, one text for a chat and for a task |
+| `instructions` | the role (../domain/run-start.md, section 1.1) | the task role (2.6): smith's own, one text for a chat and for a task |
 | `chat` | the interactive chat | `default` |
 | `waiting_seconds` | how long an interactive run waits before it parks | 2.4 |
 | `sub_agents` | whether runs may delegate | off (../domain/run.md, section 5.3) |
@@ -132,7 +132,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
   declare whose endpoint has an account whose source is not a program;
   the asking LLM names one of them, or gets main's (../domain/run.md, 5.3).
   A sub-agent runs on a program only on main's account, as the models
-  of main's endpoint do (../protocol/programs.md, 5.10); another program
+  of main's endpoint do (../protocol/programs-claude-code.md, 1.10); another program
   account's models stay out.
   Every model main's endpoint declares is also the run's, so that
   `/model` may choose any of them (`commands.md`, 1): they share main's account and
@@ -169,7 +169,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
   declares a window at or below the tier's size; prices a person sets
   are used as set. The tiers are a prompt's: the benchmarks price each
   response at the rates its own prompt reaches, as the provider bills
-  it (../benchmarks/README.md, 8.1), and smith's own spend stays at the flat
+  it (../benchmarks/results.md, 1.1), and smith's own spend stays at the flat
   rates its window can reach.
 - **Raw byte limits are not settings.** Tests may override them; a person
   declares quantities (../protocol/limits.md).
@@ -287,8 +287,8 @@ profile (`README.md`, 2.1).
   with a completion's output beside it; **`output`** is the most output
   tokens, the wire's cap where the dialect sends one, and the output the
   headroom above the threshold holds for the completion whose results a
-  compaction carries (../protocol/limits.md, 2.1 and 3.9; ../domain/session.md,
-  section 8.1).
+  compaction carries (../protocol/limits.md, 2.1, and ../protocol/limits-derivation.md, 1.9; ../domain/session-context.md,
+  section 1.1).
 - **`efforts`** are the reasoning efforts a model accepts, each a name
   within 32 bytes, as its provider documents them for that model. They
   are the model's, not the dialect's: a provider's models differ, and
@@ -312,24 +312,24 @@ profile (`README.md`, 2.1).
   this table.
 - **The working tier's model.** `gpt-6.1-sol` is the working tier's
   OpenAI model, and a tier's model is one the presets declare
-  (../benchmarks/README.md, section 7), so that the tier runs smith as it ships. Its
+  (../benchmarks/agents.md, section 2), so that the tier runs smith as it ships. Its
   notional prices are its provider's list prices, tiered as 1.2's
   "Tiered list prices" says, and the code holds the numbers. It declares
   no efforts until a preset takes them from its provider's documentation
   (the `efforts` bullet above).
 - **The small tier.** `gpt-6-luna` and `claude-haiku-5-5`, each at `low`
-  effort, are the models benchmarks' probes run on (../benchmarks/README.md,
-  section 7). Each preset model takes its provider's effort names, `low`
+  effort, are the models benchmarks' probes run on (../benchmarks/agents.md,
+  section 2). Each preset model takes its provider's effort names, `low`
   among them; without `effort`, the provider's default applies.
 - **Every preset holds a window.** With the `standard` profile's 80%
   threshold, a window's room after two outputs, counting a byte as a
-  token (../protocol/limits.md, 3.9), is 96,000 tokens for the Anthropic
+  token (../protocol/limits-derivation.md, 1.9), is 96,000 tokens for the Anthropic
   models and 153,600 for the OpenAI models, and the headroom above the
   threshold, less one output, is 8,000 and 22,400. Both pass
   `fresh-window` and `compaction-headroom`. Less the summary instruction
   and a marker for each of `calls_per_response` calls, that is each
   model's spare, the room between its threshold and its line
-  (../protocol/limits.md, 3.9). Halved after smith's own
+  (../protocol/limits-derivation.md, 1.9). Halved after smith's own
   part, the room bounds one offer, and so a message, a person's line or
   a headless prompt, near 20 KiB when an Anthropic model is declared and
   near 34 KiB with the OpenAI models alone; `smith check` prints the
@@ -339,10 +339,10 @@ profile (`README.md`, 2.1).
 
 | | `openai` | `anthropic` |
 |---|---|---|
-| endpoint | `api.openai.com:443`, TLS name `api.openai.com`, `/v1/responses`, OpenAI's public Responses dialect, `openai` (skein's `llm/README.md`, 4.8) | `api.anthropic.com:443`, TLS name `api.anthropic.com`, `/v1/messages`, Anthropic's Messages dialect, `anthropic`, with a key (skein's `llm/README.md`, 4.7) |
+| endpoint | `api.openai.com:443`, TLS name `api.openai.com`, `/v1/responses`, OpenAI's public Responses dialect, `openai` (skein's `llm/wire.md`, 1.8) | `api.anthropic.com:443`, TLS name `api.anthropic.com`, `/v1/messages`, Anthropic's Messages dialect, `anthropic`, with a key (skein's `llm/wire.md`, 1.7) |
 | program | none | `claude_code`, Claude Code (../protocol/programs.md) |
 | sources | `sign_in`, with smith's registration; `key`; `env` | `program`; `key`; `env` |
-| how a credential is sent | `Authorization: Bearer`, a sign-in's token or a key alike (skein's `llm/README.md`, 2.6) | a key, in `x-api-key` |
+| how a credential is sent | `Authorization: Bearer`, a sign-in's token or a key alike (skein's `llm/vocabulary.md`, 1.6) | a key, in `x-api-key` |
 | `connect`, `handshake` | 10 s each | 10 s each |
 | `connection_keep` | 30 s, provisional | 30 s, provisional |
 
@@ -458,7 +458,7 @@ names (`../protocol/limits.md`, section 2.3):
 ### 2.6 Instructions
 
 The task role is smith's own instructions: the role a run is given when
-settings set no `instructions` (1.2; ../domain/run.md, section 3.1).
+settings set no `instructions` (1.2; ../domain/run-start.md, section 1.1).
 
 - **One text, at most 4 KiB,** the same for every model, and for chats
   and tasks alike.
@@ -492,7 +492,7 @@ settings set no `instructions` (1.2; ../domain/run.md, section 3.1).
   8. that a compaction does not end the work.
 - **It names only smith's own tools** (../domain/run.md, section 5.1), and
   says nothing that the run's own sections of the system text already
-  say (../domain/run.md, section 3.3).
+  say (../domain/run-start.md, section 1.3).
 - **Its words are code,** in `smith-local-shell`; its topics are this
   list. A topic added, dropped or moved is a change to this
   section.
@@ -505,7 +505,7 @@ settings set no `instructions` (1.2; ../domain/run.md, section 3.1).
   expected effect from none, and otherwise by the counts it targets
   (../benchmarks/README.md, section 4.2, and ../benchmarks/codex-parity.md, section 6).
 - **It is a run's instructions,** so it counts where a charter's
-  instructions count: in the window's host part (../protocol/limits.md,
-  3.9). The startup check counts it as written (../protocol/limits.md,
+  instructions count: in the window's host part (../protocol/limits-derivation.md,
+  1.9). The startup check counts it as written (../protocol/limits.md,
   section 4, `host-part-holds-the-role`): its 4 KiB is the text's own
   cap, never a reservation in the host part.

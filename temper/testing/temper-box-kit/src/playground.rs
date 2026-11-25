@@ -15,6 +15,13 @@ enum Page {
     Leaving,
     Done,
 }
+/// Story A's shipped deployment document, before the story applies any settings.
+#[must_use]
+pub fn story_a_document() -> serde_json::Value {
+    serde_json::from_slice(include_bytes!("../../../crates/temper-playground/stories/a/deployment.json"))
+        .expect("story A deployment")
+}
+
 struct Judge {
     failed: Option<String>,
     page: Page,
@@ -190,7 +197,8 @@ impl Referee<Process> for ResetJudge {
 /// The enclosing box world kills the supervised tree after this check returns.
 #[must_use]
 pub fn interrupt_reset(binary: &Binary, config: &Path, client: &Path) -> u32 {
-    let program = std::fs::canonicalize(skein_scratch::paths::binary("temper-box")).expect("temper binary");
+    let program =
+        std::fs::canonicalize(skein_scratch::paths::built("temper-box", "temper-box")).expect("temper binary");
     let parent = binary
         .tree_status()
         .live_pids

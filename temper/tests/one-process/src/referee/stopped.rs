@@ -1,4 +1,4 @@
-//! Signal and restart boundaries, independently decoded (temper/docs/design/protocol/README.md, 6).
+//! Signal and restart boundaries, independently decoded (temper/docs/design/protocol/service-process.md, 1).
 use super::{AgentRecord, Store};
 use crate::world::{Counts, Proc, Stopped, Story};
 use jig_domain_core::{CoreRecord, Record};
@@ -127,6 +127,23 @@ pub(super) fn interrupted(stopped: &Stopped, store: &Store) -> Result<u32, Strin
         Row::Core(Record::Core(CoreRecord::Terminal(end))) if end.task == stopped.task && end.attempt == stopped.attempt && end.end == tasks::End::Recheck
     )).count()).map_err(|why| format!("interrupted terminals: {why:?}"))?
     })
+}
+
+/// Read the interrupted task after the drain and before the next start can claim it.
+pub(super) fn due_after_stop(stopped: &Stopped, store: &Store) -> Result<(), String> {
+    let row = task(store, stopped.task)?;
+    if row.phase != tasks::Phase::Active(tasks::Active::Due)
+        || row.attempt != stopped.attempt
+        || row.tries != stopped.tries[0]
+        || row.retry_notice.is_some()
+        || row.placed.is_some()
+    {
+        return Err(format!(
+            "the interrupted attempt is due without spending a try, retrying or entering a hold: phase {:?}, attempt {}, tries {:?}, retry {:?}, hold {:?}",
+            row.phase, row.attempt, row.tries, row.retry_notice, row.placed
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn next<'a>(stopped: &Stopped, store: &'a Store) -> Option<(u64, &'a Option<smith_channel::Workspace>)> {

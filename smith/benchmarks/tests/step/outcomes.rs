@@ -1,8 +1,20 @@
-//! Replaying controls (smith/docs/design/testing.md, 2).
+//! Replaying controls (smith/docs/design/testing-tiers.md).
 
+use skein_fake_machine::Item;
 use smith_bench::grade::{Ended, Snapshot};
 use smith_bench::{End, Exit, Measure, OutcomeCheck};
 use std::path::Path;
+
+#[test]
+fn a_task_without_deciding_checks_is_refused() {
+    let manifest = Path::new("tests/recorded/tasks/valid/task.toml");
+    let document = include_str!("../recorded/tasks/valid/task.toml").replace("deciding = [\"tree-ended\"]\n", "");
+    let seed = Item::file(b"README.md", include_bytes!("../recorded/tasks/valid/seed/README.md"));
+    let error = crate::tests::check_probe(manifest, &document, &[seed]).expect_err("every task names deciding checks");
+
+    assert_eq!(error.key, "deciding");
+    assert_eq!(error.reason, "task requires deciding checks");
+}
 
 fn graded_attempt() -> smith_bench::AttemptResult {
     let recorded = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json");

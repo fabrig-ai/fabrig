@@ -1,4 +1,4 @@
-//! Durable, level-triggered connector procedures (domain/connectors.md, section 6).
+//! Durable, level-triggered connector procedures (domain/connectors-procedures.md, section 1).
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Wall};
 
@@ -8,10 +8,11 @@ use crate::{
     StepDecision,
 };
 
-fn program(domain: &Domain, number: u16) -> Option<ProcedureSpec> {
+#[expect(clippy::manual_find, reason = "step code finds the configured program without a closure")]
+fn program(domain: &Domain, number: u16) -> Option<&ProcedureSpec> {
     for spec in &domain.config.procedures {
         if spec.number == number {
-            return Some(spec.clone());
+            return Some(spec);
         }
     }
     None
@@ -33,7 +34,7 @@ pub(crate) fn step(
     signal: ProcedureSignal,
     out: &mut Queue<Request>,
 ) {
-    let Some(spec) = program(domain, number) else {
+    let Some(spec) = program(domain, number).cloned() else {
         out.push(Request::Step { task, decision: StepDecision::Hold { reason: 0 } });
         return;
     };
@@ -169,7 +170,7 @@ fn decide(
             state.awaiting = true;
             StepDecision::Propose { spend: *spend }
         }
-        ProcedureAction::Wait { .. } => {
+        ProcedureAction::Wait { .. } | ProcedureAction::ReportWait { .. } => {
             let deadline = match state.deadline {
                 Some(deadline) => deadline,
                 None => Wall::from_nanos(env.wall.as_nanos().saturating_add(spec.stall.as_nanos())),
@@ -196,7 +197,9 @@ fn decide(
 
 fn advance_met_waits(domain: &Domain, spec: &ProcedureSpec, state: &mut ProcedureState) -> bool {
     // Passing an already-met wait is a state transition, not a new decision.
-    while let Some(ProcedureAction::Wait { state: wanted }) = spec.actions.get(usize::from(state.index)) {
+    while let Some(ProcedureAction::Wait { state: wanted } | ProcedureAction::ReportWait { state: wanted }) =
+        spec.actions.get(usize::from(state.index))
+    {
         let observed = crate::requirements::current(domain, &state.resource);
         let met = match observed {
             Some(fact) => fact.state == Some(*wanted) && !fact.pending,
@@ -226,6 +229,17 @@ fn save_change(
     if new_state || state != *original {
         save(domain, state, out);
     }
+}
+
+pub(crate) fn reported_wait(domain: &Domain, task: u64) -> Option<crate::StepWait> {
+    let state = domain.procedures.get(&task)?;
+    let at = state.deadline?;
+    let spec = program(domain, state.number)?;
+    let ProcedureAction::ReportWait { .. } = spec.actions.get(usize::from(state.index))? else { return None };
+    // The wait arm counts the fixed stall from its entry. Read the same
+    // episode from the stored clock, not the wall time of this catch-up.
+    let since = Wall::from_nanos(at.as_nanos().saturating_sub(spec.stall.as_nanos()));
+    Some(crate::StepWait { step: u32::from(state.index), since, at })
 }
 
 pub(crate) fn next_deadline(domain: &Domain) -> Option<Wall> {
@@ -293,6 +307,7 @@ pub(crate) fn made(
                     ProcedureAction::Effect { .. }
                     | ProcedureAction::Propose { .. }
                     | ProcedureAction::Wait { .. }
+                    | ProcedureAction::ReportWait { .. }
                     | ProcedureAction::Stall
                     | ProcedureAction::Hold { .. }
                     | ProcedureAction::Finish { .. },

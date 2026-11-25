@@ -8,12 +8,16 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-checks.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-sim.workspace = true
 skein-sim-world.workspace = true
 skein-shell.workspace = true
 skein-heap.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
 
 # Ordinary Rust (programming-model.md, 10.2), held to the step crates' lints
 # as the other crates under testing/ are: its own clippy.toml lets in the std

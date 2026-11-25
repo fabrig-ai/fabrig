@@ -1,4 +1,4 @@
-//! Program constructor capacities and JSON workspace edges (protocol/programs.md 5.1–5.8).
+//! Program constructor capacities and JSON workspace edges (protocol/programs-claude-code.md, 1.1–1.8).
 //! Keeps no live state and knows no retained heap total; `backend_valid` checks settings.
 
 use super::stream;

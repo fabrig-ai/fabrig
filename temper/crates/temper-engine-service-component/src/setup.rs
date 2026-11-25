@@ -115,7 +115,7 @@ impl Layer {
             runtime.resolved(endpoint);
         }
     }
-    /// Replace a held setup entry with the shell's resolved address (temper/docs/design/protocol/setup/init.md, 3).
+    /// Replace a held setup entry with the shell's resolved address (temper/docs/design/protocol/setup/init.md, 6).
     pub(crate) fn replace_endpoint(&mut self, forge: u16, address: core::net::SocketAddr) {
         let Some(entry) = self.served.get_mut(&forge) else { return };
         entry.address = skein_io::Addr::Ip(address);

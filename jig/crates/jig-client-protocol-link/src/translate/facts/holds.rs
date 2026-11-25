@@ -1,100 +1,51 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
-use super::parties::escalation_holder;
-use super::{Child, active_run, document_text, part, party, prior_phase, take_closing, take_ending};
+use super::{Child, active_run, part, party, prior_phase, take_closing, take_ending};
 use crate::Limits;
+use crate::generated::client;
 use crate::translate::text_problem;
+use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 use skein_lib::{List, Map, Wall, bytes};
 
-pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
-    match value {
-        w::HoldFailure::Transient => c::HoldFailure::Transient,
-        w::HoldFailure::Permanent => c::HoldFailure::Permanent,
-        w::HoldFailure::Run => c::HoldFailure::Run,
-        w::HoldFailure::Agent => c::HoldFailure::Agent,
-        w::HoldFailure::Lost => c::HoldFailure::Lost,
-        w::HoldFailure::Invalid => c::HoldFailure::Invalid,
-        w::HoldFailure::Infrastructure => c::HoldFailure::Infrastructure,
-    }
-}
-
 pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
-    match value {
-        w::HoldCategory::Exceeded(value) => c::HoldCategory::Exceeded(c::Exceeded {
-            bound: match &value.bound {
-                w::Bound::Reasoning => c::Bound::Reasoning,
-                w::Bound::Metadata => c::Bound::Metadata,
-                w::Bound::Items => c::Bound::Items,
-                w::Bound::Answer => c::Bound::Answer,
-                w::Bound::Tools => c::Bound::Tools,
-                w::Bound::HistoryItems => c::Bound::HistoryItems,
-                w::Bound::History => c::Bound::History,
-                w::Bound::Window => c::Bound::Window,
-                w::Bound::Output => c::Bound::Output,
-            },
-            value: value.value,
-        }),
-        w::HoldCategory::Failures(row) => c::HoldCategory::Failures { class: hold_failure(&row.class) },
-        w::HoldCategory::Stalled => c::HoldCategory::Stalled,
-        w::HoldCategory::Dependency(row) => c::HoldCategory::Dependency { task: row.task },
-        w::HoldCategory::Stopped => c::HoldCategory::Stopped,
-        w::HoldCategory::Placed(row) => c::HoldCategory::Placed { hold: row.hold },
-        w::HoldCategory::Drift => c::HoldCategory::Drift,
-        w::HoldCategory::Effects => c::HoldCategory::Effects,
-        w::HoldCategory::EffectFailed => c::HoldCategory::EffectFailed,
-        w::HoldCategory::Uncertain(row) => c::HoldCategory::Uncertain { entry: row.entry },
-        w::HoldCategory::Budget => c::HoldCategory::Budget,
-        w::HoldCategory::Deadline => c::HoldCategory::Deadline,
-        w::HoldCategory::HoldsWaited => c::HoldCategory::HoldsWaited,
-        w::HoldCategory::ResourceUnavailable => c::HoldCategory::ResourceUnavailable,
-        w::HoldCategory::ResourceAccess => c::HoldCategory::ResourceAccess,
-        w::HoldCategory::PoolLost(row) => c::HoldCategory::PoolLost { pool: row.pool },
-        w::HoldCategory::Procedure => c::HoldCategory::Procedure,
-        w::HoldCategory::Circle => c::HoldCategory::Circle,
-    }
+    client::hold_category_to_domain(value.clone())
 }
 
 pub(crate) fn failure_class(value: &w::FailureClass) -> c::FailureClass {
-    match value {
-        w::FailureClass::HostLost => c::FailureClass::HostLost,
-        w::FailureClass::Temporary => c::FailureClass::Temporary,
-        w::FailureClass::Permanent => c::FailureClass::Permanent,
-        w::FailureClass::Stall => c::FailureClass::Stall,
-    }
+    client::failure_class_to_domain(value.clone())
 }
 
 pub(crate) fn retry_notice(value: &w::RetryNotice) -> Result<c::RetryNotice, w::Problem> {
-    let reason = match value {
-        w::RetryNotice::OwnerFailed(row) => &row.reason,
-        w::RetryNotice::Failed(row) => &row.reason,
-        w::RetryNotice::Refused(row) => &row.reason,
-    };
-    let reason = match reason {
-        Some(reason) => Some(c::DocumentText {
-            bytes: match c::Text::new(bytes::copy_of(reason), 128) {
-                Ok(bytes) => bytes,
-                Err(_) => return Err(text_problem()),
-            },
-            cut: false,
-        }),
-        None => None,
-    };
-    Ok(match value {
+    retry_notice_to_domain(value.clone())
+}
+
+pub(crate) fn retry_notice_to_domain(record: w::RetryNotice) -> Result<c::RetryNotice, w::Problem> {
+    Ok(match record {
         w::RetryNotice::OwnerFailed(row) => c::RetryNotice::OwnerFailed {
-            class: hold_failure(&row.class),
+            class: client::hold_failure_to_domain(row.class),
             count: row.count,
             allowance: row.allowance,
-            reason,
+            reason: retry_reason(row.reason)?,
         },
         w::RetryNotice::Failed(row) => c::RetryNotice::Failed {
-            class: failure_class(&row.class),
+            class: client::failure_class_to_domain(row.class),
             count: row.count,
             allowance: row.allowance,
-            reason,
+            reason: retry_reason(row.reason)?,
         },
-        w::RetryNotice::Refused(row) => c::RetryNotice::Refused { count: row.count, reason },
+        w::RetryNotice::Refused(row) => c::RetryNotice::Refused { count: row.count, reason: retry_reason(row.reason)? },
     })
+}
+
+fn retry_reason(reason: Option<Box<[u8]>>) -> Result<Option<c::DocumentText>, w::Problem> {
+    match reason {
+        Some(reason) => match c::Text::new(reason, 128) {
+            Ok(bytes) => Ok(Some(c::DocumentText { bytes, cut: false })),
+            Err(_) => Err(text_problem()),
+        },
+        None => Ok(None),
+    }
 }
 
 pub(crate) fn held_runtime_fields(
@@ -155,29 +106,11 @@ pub(crate) fn hold_reason_fields(
 }
 
 pub(crate) fn hold_escalation(value: &w::HoldEscalation, limits: &Limits) -> Result<c::HoldEscalation, w::Problem> {
-    Ok(match value {
-        w::HoldEscalation::Routing => c::HoldEscalation::Routing,
-        w::HoldEscalation::Waiting(row) => c::HoldEscalation::Waiting {
-            holder: escalation_holder(&row.holder),
-            entry: row.entry,
-            since: Wall::from_nanos(row.since),
-        },
-        w::HoldEscalation::Rejected(row) => {
-            c::HoldEscalation::Rejected { by: row.by, reason: document_text(&row.reason, limits)? }
-        }
-    })
+    client::hold_escalation_to_domain(value.clone(), limits)
 }
 
 pub(crate) fn failure_tries(value: &w::FailureTries) -> c::FailureTries {
-    c::FailureTries {
-        transient: value.transient,
-        permanent: value.permanent,
-        run: value.run,
-        agent: value.agent,
-        lost: value.lost,
-        invalid: value.invalid,
-        infrastructure: value.infrastructure,
-    }
+    client::failure_tries_to_domain(value.clone())
 }
 
 pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipHold, w::Problem> {
@@ -201,7 +134,7 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
         placed: crate::translate::answers::placed(value.placed.as_ref(), limits)?,
         words: match &value.words {
             Some(text) => Some(c::DocumentText {
-                bytes: match c::Text::new(bytes::copy_of(&text.bytes), crate::limits::HOLD_ACCOUNT_BYTES) {
+                bytes: match c::Text::new(bytes::copy_of(&text.bytes), crate::limits::HOLD_WORDS) {
                     Ok(bytes) => bytes,
                     Err(_) => return Err(text_problem()),
                 },
@@ -210,7 +143,7 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
             None => None,
         },
         circle: match &value.circle {
-            Some(circle) => Some(c::Circle { tasks: circle.tasks.clone(), cut: circle.cut }),
+            Some(circle) => Some(client::circle_to_domain(circle.clone())),
             None => None,
         },
         account: opt0,
@@ -239,7 +172,7 @@ mod tests {
         class.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let wire = writer.finish();
         let class = w::HoldFailure::decode(&w::CEILINGS, &mut Reader::new(&wire)).unwrap();
-        assert_eq!(hold_failure(&class), c::HoldFailure::Infrastructure);
+        assert_eq!(client::hold_failure_to_domain(class), c::HoldFailure::Infrastructure);
         let tries =
             w::FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 13 };
         let mut writer = Writer::new(

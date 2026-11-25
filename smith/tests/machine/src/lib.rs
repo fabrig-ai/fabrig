@@ -1,5 +1,5 @@
 //! Machine scenarios on Skein's harness (protocol/agent.md, sections 2 and 8;
-//! testing.md, sections 2.1 and 5). Each settled request owns one application
+//! testing-tiers.md, section 1, and testing.md, section 5). Each settled request owns one application
 //! process; the scenario retains only its fake disk, absolute clock and trace.
 //! The component never knows fake filesystem state. Requests enter through
 //! `World::request`; IO completion routing remains the application's pass.
@@ -197,6 +197,17 @@ impl World {
         let bytes = machine.read(opened, 0, 4096).expect("file readable");
         machine.close(opened);
         bytes
+    }
+
+    /// Check whether a path in the fake checkout names a directory.
+    #[must_use]
+    pub fn is_directory(&self, path: &[u8]) -> bool {
+        let mut machine = self.machine.borrow_mut();
+        let Ok(opened) = machine.open(self.root_handle, path, How::Directory) else {
+            return false;
+        };
+        machine.close(opened);
+        true
     }
 
     /// Run one admitted request through its terminal and descriptor settlement.
@@ -512,6 +523,7 @@ impl Application {
         );
         component.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"repo".as_slice().into(),
                 root,
@@ -896,6 +908,7 @@ impl Host for Application {
                     self.component.from_domain(
                         &self.machine_env,
                         FromDomain::Check {
+                            results: None,
                             owner,
                             program: run::Place { root: self.root, path: Box::from(b"check-hang".as_slice()) },
                             bound: Duration::from_secs(1),

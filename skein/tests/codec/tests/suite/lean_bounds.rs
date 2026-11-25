@@ -1,5 +1,4 @@
-//! Lean every-v3's lowered-limit bounds (data/codec/README.md, 4 and 6).
-//! Decoded bound literals hold the 64-bit target's type sizes.
+//! Lean every-v3 at lowered limits (data/codec/README.md, 4, and data/codec/golden.md, 1).
 
 #[cfg(test)]
 mod tests {
@@ -11,213 +10,20 @@ mod tests {
     use skein_codec_tests::every_v3::{self as lean, CEILINGS, Limits, Problem, Record, paths};
     use skein_lib::Reader;
 
-    #[expect(clippy::too_many_lines, reason = "each lean Limits field is clamped from its ceiling")]
-    fn small_limits() -> Limits {
-        macro_rules! clamp {
-            ($($field:ident),+ $(,)?) => {
-                Limits { $($field: CEILINGS.$field.min(3)),+ }
-            };
+    #[test]
+    fn at_most_clamps_each_limit_without_raising_any() {
+        use skein_codec_tests::v1::CEILINGS;
+
+        // sample-v1 has ceilings 4, 4, 8, 2 in limit order.
+        let ceilings = CEILINGS.values();
+        let cases: [(u32, &[u32]); 3] = [(0, &[0, 0, 0, 0]), (3, &[3, 3, 3, 2]), (u32::MAX, ceilings.as_slice())];
+        for (most, expected) in cases {
+            assert_eq!(CEILINGS.at_most(most).values().as_slice(), expected);
         }
-        clamp!(
-            texts_raw,
-            texts_key,
-            texts_words,
-            stamp_note_some,
-            stamp_zone,
-            nest_blanks,
-            nest_lights,
-            nest_maybe_lights,
-            nest_grid,
-            nest_grid_item,
-            nest_maybe_list_some,
-            nest_shapes,
-            nest_secrets,
-            nest_secrets_item,
-            nest_stamps,
-            nest_label_some,
-            every_held,
-            every_items,
-            lists_small,
-            lists_short,
-            lists_word,
-            lists_long,
-            lists_flag,
-            lists_pause,
-            lists_tag,
-            lists_raw,
-            lists_raw_item,
-            lists_key,
-            lists_key_item,
-            lists_words,
-            lists_words_item,
-            lists_grid,
-            lists_grid_item,
-            lists_options,
-            lists_records,
-            lists_enums,
-            options_raw_some,
-            options_key_some,
-            options_words_some,
-            options_lists_some,
-            held_record_bytes,
-            held_enum_bytes,
-            held_record_secret,
-            held_enum_secret,
-            held_byte_pieces,
-            held_secret_pieces,
-            long_record_alpha,
-            long_record_bravo,
-            long_record_charlie,
-            long_record_delta,
-            long_record_echo,
-            long_record_foxtrot,
-            long_record_golf,
-            long_record_hotel,
-            long_record_india,
-            long_record_juliet,
-            long_record_kilo,
-            long_record_lima,
-            long_record_mike,
-            long_record_november,
-            long_record_oscar,
-            long_record_papa,
-            long_record_quebec,
-            long_record_romeo,
-            long_record_sierra,
-            long_record_tango,
-            long_record_uniform,
-            long_record_victor,
-            long_record_whiskey,
-            long_record_xray,
-            long_record_yankee,
-            long_record_zulu,
-            long_record_amber,
-            long_record_birch,
-            long_record_cedar,
-            long_record_dune,
-            long_record_acorn,
-            long_record_anchor,
-            long_record_apron,
-            long_record_atlas,
-            long_record_autumn,
-            long_record_avocado,
-            long_record_walnut,
-            long_record_badge,
-            long_record_bamboo,
-            long_record_barrel,
-            long_record_beacon,
-            long_record_beetle,
-            long_record_bronze,
-            long_record_cactus,
-            long_record_camera,
-            long_record_canyon,
-            long_record_cello,
-            long_record_cobalt,
-            long_record_comet,
-            long_record_compass,
-            long_record_coral,
-            long_record_cotton,
-            long_record_coyote,
-            long_record_cricket,
-            long_record_crystal,
-            long_record_dragon,
-            long_record_engine,
-            long_record_falcon,
-            long_record_feather,
-            long_record_fern,
-            long_record_flute,
-            long_record_fossil,
-            long_record_galaxy,
-            long_record_garden,
-            long_record_glacier,
-            long_record_granite,
-            long_record_harbor,
-            long_record_hazel,
-            long_record_helmet,
-            long_record_honey,
-            long_record_igloo,
-            long_record_island,
-            long_record_ivory,
-            long_record_jasmine,
-            long_record_kettle,
-            long_record_lantern,
-            long_record_leopard,
-            long_record_lobster,
-            long_record_magnet,
-            long_record_marble,
-            long_record_meadow,
-            long_record_mermaid,
-            long_record_meteor,
-            long_record_mosaic,
-            long_record_napkin,
-            long_record_nectar,
-            long_record_ocean,
-            long_record_olive,
-            long_record_orchid,
-            long_record_panda,
-            long_record_pencil,
-            long_record_planet,
-            long_record_pollen,
-            long_record_quartz,
-            long_record_rainbow,
-            long_record_raven,
-            long_record_rocket,
-            long_record_saffron,
-            long_record_salmon,
-            long_record_satin,
-        )
     }
 
-    macro_rules! pin {
-        ($limits:expr; $($name:ident => ($encoded:expr, $decoded:expr)),+ $(,)?) => {
-            $(assert_eq!(
-                (lean::$name::encoded_bound($limits), lean::$name::decoded_bound($limits)),
-                ($encoded, $decoded), stringify!($name),
-            );)+
-        };
-    }
-
-    #[test]
-    fn every_v3_bounds_at_ceilings_are_pinned() {
-        pin!(&CEILINGS;
-            Blank => (Some(2), Some(0)),
-            Numbers => (Some(27), Some(0)),
-            Texts => (Some(32), Some(20)),
-            Light => (Some(1), Some(0)),
-            Stamp => (Some(31), Some(12)),
-            Shape => (Some(33), Some(68)),
-            Nest => (Some(256), Some(470)),
-            Every => (Some(469), Some(642)),
-            Kinds => (Some(1), Some(0)),
-            Lists => (Some(230), Some(312)),
-            Options => (Some(101), Some(14)),
-            Grouped => (Some(4), Some(0)),
-            Held => (Some(184), Some(160)),
-            LongRecord => (Some(800), Some(400)),
-        );
-        assert_eq!((lean::encoded_bound(&CEILINGS), lean::decoded_bound(&CEILINGS)), (Some(800), Some(642)));
-    }
-
-    #[test]
-    fn every_lean_bounds_at_small_limits_are_pinned() {
-        let limits = small_limits();
-        pin!(&limits;
-            Blank => (Some(2), Some(0)),
-            Numbers => (Some(27), Some(0)),
-            Light => (Some(1), Some(0)),
-            Kinds => (Some(1), Some(0)),
-            Grouped => (Some(4), Some(0)),
-            Texts => (Some(21), Some(9)),
-            Stamp => (Some(25), Some(6)),
-            Shape => (Some(28), Some(57)),
-            Nest => (Some(229), Some(431)),
-            Every => (Some(354), Some(509)),
-            Lists => (Some(224), Some(306)),
-            Options => (Some(98), Some(11)),
-            Held => (Some(42), Some(18)),
-            LongRecord => (Some(700), Some(300)),
-        );
-        assert_eq!((lean::encoded_bound(&limits), lean::decoded_bound(&limits)), (Some(700), Some(509)));
+    fn small_limits() -> Limits {
+        CEILINGS.at_most(3)
     }
 
     fn decode(root: &str, bytes: &[u8], limits: &Limits) -> Decoded {
@@ -231,7 +37,7 @@ mod tests {
                             measured: value.measure(limits).expect("decoded value measures"),
                         },
                         Err(problem) => Decoded::Problem {
-                            path: lean::name(problem.path).expect("generated path").into(), reason: problem.reason,
+                            path: problem.path.name().into(), reason: problem.reason,
                         },
                     }),+
                     _ => panic!("unknown every root: {root}"),
@@ -274,7 +80,7 @@ mod tests {
         let mut cases = 0_u32;
         for path in paths {
             let name = path.file_name().expect("name").to_str().expect("UTF-8");
-            let decl = generic::golden_root(&schema, name);
+            let decl = generic::named_root(&schema, name);
             let root = core::str::from_utf8(schema.spelled(schema.declaration(decl).name)).expect("root name");
             let bytes = std::fs::read(&path).expect("golden");
             let mut compare = |bytes: &[u8]| {

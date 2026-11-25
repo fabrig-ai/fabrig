@@ -1,5 +1,5 @@
 //! One level-triggered change step (domain/forge/change/README.md).
-//! Updates with no result or outstanding write decide again (temper/docs/design/domain/forge/README.md, 6).
+//! Updates with no result or outstanding write decide again (temper/docs/design/domain/forge/updates.md, 1).
 //!
 //! The top keeps the returned state and commits each decision before it sends
 //! a delegate or effect. The top reports Pending while a write is outstanding.
@@ -768,6 +768,9 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if facts.close {
+        return producing_close(change, requested, facts, standing, now, limits);
+    }
     if !requested && facts.follows && !facts.pending.is_empty() {
         return Stepped { change, decision: Decision::Wait { until: None } };
     }
@@ -801,7 +804,7 @@ fn producing(
         return hold(change, Hold::Failed);
     }
     match facts.branch {
-        Some(head) if facts.titled && (!facts.close || standing.delegate == Status::Passed) => {
+        Some(head) if facts.titled => {
             change.state = State::Opening { requested: false };
             change.last_head = Some(head);
             change.since = now;
@@ -810,11 +813,6 @@ fn producing(
         Some(_) if !requested => request_producer(change, facts, standing, now),
         Some(_) => waiting_on_agent(change, facts, standing, now, limits),
         None if !requested => {
-            if facts.close {
-                change.state = State::Producing { requested: true };
-                change.since = now;
-                return Stepped { change, decision: Decision::Delegate(Delegate::Close) };
-            }
             if let Some(commit) = facts.catch_up {
                 return catch_up_due(change, commit, facts, now, limits);
             }
@@ -822,10 +820,6 @@ fn producing(
         }
         None => match standing.delegate {
             Status::Passed => match facts.delegate {
-                Some(Delegate::Close) => {
-                    change.state = State::NoChange { words: copy_of(b"Nothing to settle.") };
-                    Stepped { change, decision: Decision::NoChange }
-                }
                 Some(Delegate::Merge { base, .. }) => {
                     let mut stepped = resolving_due(change, base, facts, standing, now, limits);
                     if stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
@@ -833,13 +827,58 @@ fn producing(
                     }
                     stepped
                 }
-                Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } | Delegate::Gate { .. })
+                Some(
+                    Delegate::Produce
+                    | Delegate::Close
+                    | Delegate::Repair(_)
+                    | Delegate::Resolve { .. }
+                    | Delegate::Gate { .. },
+                )
                 | None => waiting(change, facts, now, limits),
             },
             Status::Failed => hold(change, Hold::Failed),
             Status::Unknown | Status::Pending => waiting_on_agent(change, facts, standing, now, limits),
         },
     }
+}
+
+fn producing_close(
+    mut change: Change,
+    requested: bool,
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
+    if requested {
+        match standing.delegate {
+            Status::Failed => return hold(change, Hold::Failed),
+            Status::Pending | Status::Unknown => return waiting_on_agent(change, facts, standing, now, limits),
+            Status::Passed => {}
+        }
+    }
+    if let Some(head) = facts.branch {
+        change.state = State::Opening { requested: false };
+        change.last_head = Some(head);
+        change.since = now;
+        return Stepped { change, decision: Decision::None };
+    }
+    if requested {
+        if facts.delegate == Some(Delegate::Close) {
+            change.state = State::NoChange { words: copy_of(b"Nothing to settle.") };
+            return Stepped { change, decision: Decision::NoChange };
+        }
+        return waiting(change, facts, now, limits);
+    }
+    if standing.closer_waiting || facts.close_tips.is_none() {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
+    change.state = State::Producing { requested: true };
+    if facts.close_tips == facts.close_at && standing.delegate == Status::Failed {
+        return hold(change, Hold::Failed);
+    }
+    change.since = now;
+    Stepped { change, decision: Decision::Delegate(Delegate::Close) }
 }
 
 // A catch-up's producer is the merge job (temper/docs/design/domain/forge/change/README.md, 2, temper/docs/design/domain/forge/change/repairs.md).
@@ -1460,7 +1499,7 @@ fn updating(
     }
 }
 
-// A refusal before any send spends stall, not another update (domain/forge/README.md, 6).
+// A refusal before any send spends stall, not another update (domain/forge/updates.md, 1).
 fn stale_update(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     let (from, pin, ready_since, preparing) = if let State::Preparing { from, main, ready_since } = change.state {
         (from, main, ready_since, true)

@@ -316,6 +316,8 @@ pub enum Outcome {
         output: BytesClamp,
         after: TimeoutClamp,
     },
+    /// A command or job wait cut by a worker restart, with its output so far.
+    Interrupted { ran: Option<Duration>, head: Box<[u8]>, last: Box<[u8]>, dropped: u64 },
     /// A job call's unread output and observed end, returned to its session.
     Job {
         job: JobNumber,

@@ -1,5 +1,6 @@
 //! Binary, native person and independent provider on Skein's real ring.
 //! Shared story support (tools/crates/design.md, 3.2).
+pub mod diagnostics;
 pub mod live_sign_in;
 pub mod ports;
 pub mod trace;
@@ -51,6 +52,10 @@ pub fn configuration(directory: &Path) {
 }
 #[must_use]
 pub fn configuration_value(directory: &Path) -> serde_json::Value {
+    write_configuration_fixtures(directory);
+    deployment_value(directory, &skein_scratch::paths::built("jig-test", "jig-test"))
+}
+fn write_configuration_fixtures(directory: &Path) {
     for name in ["secrets", "charters", "state", "agent-root"] {
         fs::create_dir(directory.join(name)).expect("deployment directory");
     }
@@ -60,14 +65,15 @@ pub fn configuration_value(directory: &Path) -> serde_json::Value {
     private(&directory.join("worker.secret"), b"worker-secret");
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     agent_configuration(directory);
+}
+fn deployment_value(directory: &Path, program: &Path) -> serde_json::Value {
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] =
-        skein_scratch::paths::binary("jig-test").to_str().expect("a UTF-8 path").into();
+    value["workers"][0]["agent"]["program"] = program.to_str().expect("a UTF-8 path").into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["agent", directory.join("agent.json")]);
     value["application"]["workers"] = worker["application"]["workers"].clone();
@@ -88,7 +94,7 @@ pub fn configuration_value(directory: &Path) -> serde_json::Value {
 pub fn start(directory: &Path) -> Binary {
     Binary::start(
         Command {
-            program: skein_scratch::paths::binary("jig-test"),
+            program: skein_scratch::paths::built("jig-test", "jig-test"),
             arguments: vec!["serve".into(), "config.json".into()],
             directory: directory.into(),
             environment: std::env::vars_os().filter(|(name, _)| name == "PATH").collect(),

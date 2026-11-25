@@ -1,5 +1,5 @@
 //! Picker amendments cross both roots to the next Open activation.
-//! Contract: jig/docs/design/domain/tasks/changes.md; smith/docs/design/domain/session.md, 8.2.
+//! Contract: jig/docs/design/domain/tasks/changes.md; smith/docs/design/domain/session-context.md, 1.2.
 use super::{Duration, Key, ReplyTo, Script, Token, World, engine, parties, people, tasks};
 
 const PICK: Token = Token::new(950);
@@ -31,7 +31,7 @@ impl World {
     #[must_use]
     pub fn chat_on_two_models(seed: u64, script: Script) -> Self {
         let mut world = Self::configured_limits(seed, script, false, config, |_| {});
-        world.process.clocked = true;
+        world.lanes[0].process.clocked = true;
         world
     }
 
@@ -42,7 +42,7 @@ impl World {
             self.tick();
             if self.observed.turn_acks > previous
                 && self.observed.turns == self.observed.turn_acks
-                && self.process.answered.is_none()
+                && self.lanes[0].process.answered.is_none()
             {
                 return;
             }
@@ -93,17 +93,17 @@ impl World {
 
     /// The next activation's script, then the person's words.
     pub fn say_again(&mut self, words: &[u8], script: Script) {
-        let changing = self.process.answered.is_none() && self.next_turn_task().llm_changed;
+        let changing = self.lanes[0].process.answered.is_none() && self.next_turn_task().llm_changed;
         let assignments = self.observed.assignments;
         let requests = self.agent().prompts().len();
-        if self.process.answered.is_some() {
-            self.process.resume(script);
+        if self.lanes[0].process.answered.is_some() {
+            self.lanes[0].process.resume(script);
         } else {
             // The live fake keeps its script; a later process receives this extension.
-            let mut turns = self.process.script.turns.to_vec();
+            let mut turns = self.lanes[0].process.script.turns.to_vec();
             turns.extend(script.turns.iter().cloned());
-            self.process.script.turns = turns.into_boxed_slice();
-            self.process.fresh = Some(script);
+            self.lanes[0].process.script.turns = turns.into_boxed_slice();
+            self.lanes[0].process.fresh = Some(script);
         }
         self.act(parties::Ask::Say { task: parties::Task::Last, words: words.into(), release: None }, [44; 16]);
         if changing {

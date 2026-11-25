@@ -5,8 +5,8 @@ and how it tests an application's: the worlds of jig's own parts, the
 core's world, and the conformance world every application runs its
 domain on, with the referee that holds it to jig's promises. It applies
 testing-strategy.md to jig's domain layer; the tiers below the domain
-(protocol, simulated, the real loop) are `../protocol/service.md`'s,
-section 8. What is still open is listed in section 10.
+(protocol, simulated, the real loop) are `../protocol/service-testing.md`'s,
+section 1. What is still open is listed in `testing.md`, section 10.
 
 ## 1. In one page
 
@@ -83,7 +83,7 @@ referee in the loop, the heap counted at every iteration
   earlier and equal resets, the old pair kept on a tie, a no-reset
   limit overriding a timed one to `None`, and indefinite limits kept
   until resumed. Restore preserves the exact saved wall; timers are
-  checked just before and at the monotonic deadline (accounts.md, 3.5).
+  checked just before and at the monotonic deadline (accounts-sources.md, 2).
 - **the hub,** with agent capabilities of both kinds, smith's: agent
   processes, `smith-host-domain` over smith's agent processes over skein's
   fake LLM;
@@ -91,7 +91,7 @@ referee in the loop, the heap counted at every iteration
   fake LLM; with turns that open windows, and messages refused and left
   unread: hosts/README.md, section 9.
 
-Each child's world plays its parent and the store as engine/README.md, 5.6
+Each child's world plays its parent and the store as engine/decisions.md, 1.6
 says: it keeps saved records, commits at the end of each step, and
 restarts by restoring them, so restart is tested in each child before the
 core exists.
@@ -101,7 +101,7 @@ core exists.
 The core with every child beneath it, under a root of jig's own for
 testing, against fakes that share none of its types:
 
-- **jig's test connector** (section 7);
+- **jig's test connector** (`testing-fakes.md`, section 1);
 - **one to three scripted workers and the engine's own slots,** whose
   runs play scripts: turns, calls, waits, parks, answers, crashes and
   silence;
@@ -112,7 +112,7 @@ testing, against fakes that share none of its types:
 - **restarts,** cold, at drawn moments or at one a scenario chooses, from
   the store's last durable commit.
 
-Its stories are engine/README.md, section 9's; its referee is section 6's.
+Its stories are engine/world.md, section 1's; its referee is `testing.md`, section 6's.
 Beside the referee, the documents the core delivers are held to a
 reference made from outside: a task query's rows against every task the
 scenario made, filtered and ordered as the query asks, its ended part
@@ -123,7 +123,7 @@ The `joint_clock` and documents fixtures compare a source's
 deadline in task waits, accounts and deployment documents and in its
 stored reset. Different injected clock pairs between reads leave those
 wall facts exactly equal, including after restore: literal equality,
-never a real-clock sample or tolerance (accounts.md, 3.5; engine/README.md, 5.4).
+never a real-clock sample or tolerance (accounts-sources.md, 2; engine/decisions.md, 1.4).
 
 The charters and templates stories check `me`'s
 `resolved_default` with catalogue and charter orders opposed, explicit
@@ -131,18 +131,18 @@ and omitted intent, a chosen executor, no eligible model, and account,
 policy, membership and effective-executor changes that refresh the
 preview, and each project's offer: a provider with no usable account gives
 no model, and an account's change changes it. The rule is a run's check's
-(accounts.md, 4.3), and the payer the current receiving party (engine/views.md, 1).
+(accounts-uses.md, 1.3), and the payer the current receiving party (engine/views.md, 1).
 
 Settings (engine/settings.md) are tested where each part lives, most
 of it below this world: the current settings from defaults and changes,
 the check, a charter's version for a revision, the held revisions'
 accounting and the bounds' arithmetic as step tests of the core's
-settings functions, pure and fast; the records' round trip and
-goldens in the store's tests (`../protocol/store/README.md`, section 9); the
+settings functions, pure and fast; the records' round trips over
+fixed-rule values in the store's tests (`../protocol/store/testing.md`, section 1); the
 document's members read as defaults, and the settings' limits, in the
 configuration's tests; the change's and the move's records in the
 client wire's. This world holds what needs the decision and the
-children together: the stories of engine/README.md, section 9. None needs a
+children together: the stories of engine/world.md, section 1. None needs a
 process: the world's cold restart shows what a restart keeps.
 
 First-start and restart stories use people roster capacities equal to
@@ -165,7 +165,7 @@ proofs are in the step and world tiers, within their budgets.
 `Cut::EachCommitFrom` does. A sweep over a story's cuts (both sides of
 its commits, a commit's or a restart's file operations, a second kill
 during a recovery) runs the story once: at each cut it sweeps, the world
-forks (`skein_fork::split`, `skein/docs/design/testing/README.md`, 6),
+forks (`skein_fork::split`, `skein/docs/design/testing/layout.md`, 1),
 and the child takes that cut as a world built for that cut alone would,
 through the same crash, cold restart, recovery and checks, its closing
 oracle included; the parent waits for it and goes on uncut to the next
@@ -186,7 +186,7 @@ What every application runs, and what makes jig's promises its own.
   - the harness, generic over the application: it builds the
     application's engine domain from its configuration, feeds it events,
     takes what it asks for from the journal, and plays its peers;
-  - the fakes for jig's peers (section 7);
+  - the fakes for jig's peers (`testing-fakes.md`, section 1);
   - the faults: a crash after any commit, the engine restarted cold from
     the last durable one; commits held, so the engine runs ahead; a
     commit failed; hosts lost, slow, or back after their grace; parties
@@ -328,130 +328,7 @@ becomes observations:
 
 ## 7. Fakes and kits
 
-What jig ships for tests, as ordinary Rust or as step machines where
-more than one world needs them (testing-strategy.md, section 4):
-
-- **the store:** jig's store component over skein-kv's in-memory mode,
-  with an in-memory stand-in for transcripts' files, the world holding
-  commits, failing one, and serving pages slowly
-  (`../protocol/store/README.md`, section 9);
-- **scripted workers:** each a host that speaks the contract of
-  hosts/README.md, section 2, playing a run's script, keeping turns and answers
-  until acknowledged, refusing messages and leaving them unread, losing
-  its channel and coming back, or vanishing;
-- **`smith-inline-agent`'s runs:** smith's real domain over skein's fake
-  LLM, with a script per charter, for the hub's world and for an
-  application's worlds that run smith's own domain;
-- **scripted parties:** sign-ins, operations alone and in compound
-  requests, reads and watches, by script or at random within their role;
-  a template filled into a `Create` as a client fills it from `me`;
-- **the test connector:** resources named by paths, kinds of hold
-  (exclusive and pooled, refusing and waiting, pools that shrink),
-  priced effects of every form and every recovery class, with keys,
-  conditions, late copies and uncertainty, requirements guarded and
-  observed, judged on its facts, procedures that step, wait, delegate,
-  amend, cancel with a grace, message and finish, topics with classified
-  news, some offered to agents, drift, kinds of settings of its own,
-  judged on its facts, accepting or refusing as the seed draws, and a
-  fake system beneath it that reports what it saw. The core's world runs two of them, so that
-  judges, resources and kinds cross connectors, with names and kinds
-  generated from the seed;
-- **the referee and the harness** of the conformance world;
-- **what several worlds drive,** each a kit under `jig/testing`: the test
-  connector's paths and kinds (`jig-test-connector-kit`), the core's driver,
-  peers and referee (`jig-core-kit`), the client's harness, fronts and shared
-  stories (`jig-client-kit`), the engine clients' peer
-  (`jig-engine-clients-kit`), the protocol client (`jig-client-protocol-kit`),
-  the accounts' fixtures (`jig-protocol-accounts-kit`), the channel's
-  (`jig-channel-kit`), the people's referee (`jig-people-kit`) and the tasks'
-  world and referees (`jig-tasks-kit`);
-- **what one package's test binaries share,** a kit too, compiled once for
-  them all (`tools/crates/design.md`, 3.2): the reference binary's stories'
-  rig, its binary, native person and provider on skein's real ring
-  (`jig-test-kit`).
-
-They stay in jig, and an application's worlds reuse them. What jig finds
-missing in skein's world harness goes into skein first.
-
-**Their checks return their findings,** as skein's do
-(`skein/docs/design/testing/README.md`, 5;
-`skein/docs/foundation/programming-model.md`, 10.4), and nothing in jig's
-tests catches a panic:
-
-- **Every world's referee and judge** implements `watch`, and keeps what
-  its `act` or `idle` finds for its next `watch`.
-- **The conformance observer** (`jig-conformance`'s `core::Observer`, and
-  `jig-core-kit`'s over it) returns its findings rather than panicking:
-  each method that observes or checks returns `Result<_, String>`, its
-  `Err` the referee's error on an observation, with the time, a durable
-  row changed or gone, or a reply ahead of its commit's fence, in the
-  words it panics with now. Its callers pass it up, so no finding is
-  dropped: the core's world, the conformance harness and the
-  conformance world fail with it at their top, naming the seed and the
-  trace's tail, and a test of a check reads the `Err`.
-- **The views' referee** records what breaks in skein's domain judge
-  (`Judge::check`, `Judge::fail`), never asserting; its last delivery
-  following the subject's final change is a returning check too. Its
-  world fails on the verdict (`check_holding`); its tests read it.
-- **The client's model** (`jig-client-kit`) has a returning form of
-  applying a page's patches, whose finding is a patch that breaks the
-  model, a value patch that doesn't move its write count among them; the
-  world fails with it.
-- **The client's world** (`jig-client-kit`'s `World`) has a returning
-  form of each entry point that observes: `try_client`,
-  `try_client_with`, `try_event`, `try_send_raw` and `try_run`, each
-  answering `Result<_, String>` beside its form that fails, which keeps
-  its signature. The `Err` is the referee's first finding
-  (`check_holding`, a missed deadline among them) with the seed and the
-  trace's tail; the first stops the world, which observes nothing after
-  it. The forms that fail call the returning ones and panic with the
-  `Err`, and no returning form calls a form that fails. A test of a
-  check, its heap envelope's among them, reads the `Err`.
-- **The restart oracle** (`jig-core-kit`'s `World`):
-  `World::finish(&mut self) -> Result<(), String>` runs the closing cold
-  restart and readback once and returns the oracle's first finding, a
-  durable document's field that differs, a row left out, a header or a
-  transcript among them, each comparison returning rather than
-  asserting. `close` and the world's `Drop`, which runs only when
-  nothing is unwinding, panic with it at the top. A test of the oracle
-  calls `finish` and reads the `Err`.
-- **The store's files read back** (`jig-test-store-files`'s `Store`):
-  `retained`, `readback`, `readback_of` and `transcript` answer
-  `Result<_, ReadbackFinding>`, the finding a store that is not quiet
-  (`NotQuiescent`), an application key no record names
-  (`ApplicationKey { key }`), a value that does not decode
-  (`ApplicationValue { key }`), or a transcript that does not read whole
-  (`Transcript { task, backwards, .. }`), naming what it read. A
-  readback that finds one changes nothing it reads, and its callers, the
-  restart oracle and the crash's recovery check among them, pass it up.
-- **The host's and the notes' worlds:** `jig-host-world`'s refusal
-  referee (`Referee::request`) and its scripted turn engine
-  (`receive_turn`: a replay that changes its turn, a turn past a gap),
-  and `jig-notes-world`'s referee (`before_commit`, `after_commit`)
-  answer `Result<(), String>`, returning before they record what they
-  refuse; their worlds fail with it at their top.
-- **No test triggers an assertion** (`skein/docs/foundation/programming-model.md`,
-  10.4). A limit an assertion guards is tested at its bound, comparing
-  what the build used with its price; a call out of a step's order, a
-  stale continuation or a duplicate key is tested through the outcomes
-  around it; a cause outside the process is a refusal, and its test
-  reads the refusal.
-- **A harness that names a seed, a story's choices, a scenario or a
-  case** writes it to stderr before it runs it, and adds the trace's tail
-  to a returned finding. A table of cases, the step crates' and the
-  core's bundle (`tests/core/tests/support/bundle.rs`) alike, names each
-  case, and the bundle its seed, before running it, and stops at the
-  first that fails. The runner prints a failed test's output. What a
-  harness writes before a case names the case, never its input: a
-  seeded sweep writes the seed, the case (its kind, number or mutation)
-  and the input's length, and the assertion that fails names the input
-  in its message.
-
-**A world's library is its own.** No package depends on a world; its own suite
-reads its kit through its library, which re-exports it.
-`jig/tests/boundary/src/tests/kits.rs` holds this. Two packages named as worlds
-are kits by design: skein's world harness, `skein-world`
-(`skein/docs/design/testing/README.md`, 6), and smith's `smith-agent-process-world`.
+Moved to [`testing-fakes.md`](testing-fakes.md), section 1.
 
 ## 8. What an application adds
 
@@ -532,13 +409,12 @@ operation as section 4's sweeps do; where a crash has two branches
 (going back, or recovering forward), each branch is a child forked from
 the held prefix that takes the crash itself, rather than a prefix built
 again for each; a fixture drawn from the cut's own seed is built per
-cut. These are component-world scenarios, not a separate tier. `jig-test::process` also
-runs in focused: three paths through the shipped binary against fakes,
-including its bundle page under the reference policy. Startup, HTTP and
-child-exit waits use the shared real loop's `Deadline`, with the measured
-starvation verdict (testing-strategy.md, 2.10). Offline live-configuration
-and refused-plan diagnostics run in focused; real live stories remain
-opt-in.
+cut. These are component-world scenarios, not a separate tier. `jig-test::process`
+runs after landing: the process tier's paths through the shipped binary
+against fakes, and nothing a step or world test can show
+(`../protocol/service-testing.md`, 1). Startup and child-exit waits use
+the shared real loop's `Deadline`, with the measured starvation verdict
+(testing-strategy.md, 2.10); real live stories remain opt-in.
 
 Settings' tests are priced so (engine/settings.md). Their step tests
 are pure functions over a few settings, each well under a millisecond.
@@ -595,3 +471,7 @@ than cutting the cover.
 - **Smith's world kit** (7): `smith-agent-process-world` is a kit by name, as
   smith has no `testing/`. Default: as it stands, until a debt item of smith's
   names it.
+- **More waits and tables** (`testing-fakes.md`, 1.1): whether the fleet's due tasks, the
+  views' watchers, placed holds, inboxes and the people's flights join the
+  inspection, and the tasks, people and conformance worlds call it.
+  Default: not until a finding needs them.

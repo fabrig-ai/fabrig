@@ -100,7 +100,7 @@ fn a_lock_held_past_the_resolve_limit_is_waited_out_then_the_call_renders() {
         simulated::with_lock(&fixtures::thin(), fixtures::SIMULATION_SEED, Config::calm(), fixtures::LONG_LOCK_RELEASE);
     assert!(
         outcome.end >= fixtures::LONG_LOCK_RELEASE,
-        "hearth/docs/design/domain/store/README.md, 6.2 sets no lock wait limit"
+        "hearth/docs/design/domain/store/state.md, 1.2 sets no lock wait limit"
     );
     assert_eq!(
         outcome.machine.contents(fixtures::ERROR).as_deref(),

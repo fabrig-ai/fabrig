@@ -1,5 +1,5 @@
 //! Volatile party inbox projections from the task child's durable rows.
-//! The core routes these sibling facts on save and restore (domain/engine/README.md, 4.4).
+//! The core routes these sibling facts on save and restore (domain/engine/vocabulary.md, 1.4).
 
 pub use jig_domain_core_vocabulary::inbox::*;
 
@@ -26,6 +26,26 @@ fn add(
     entries
         .push(people::Entry { task: row.number, project: row.project, whom, kind, at })
         .expect("one bounded projection per task state");
+}
+
+pub(crate) fn question_entry(
+    row: &tasks::TaskRecord,
+    message: u64,
+    holder: tasks::EscalationHolder,
+    at: skein_lib::Wall,
+) -> Option<people::Entry> {
+    let whom = match holder {
+        tasks::EscalationHolder::Person(person) => people::Whom::Person(person),
+        tasks::EscalationHolder::Role { project, role } => people::Whom::Role { project, role },
+        tasks::EscalationHolder::Task(_) => return None,
+    };
+    Some(people::Entry {
+        task: row.number,
+        project: row.project,
+        whom,
+        kind: people::EntryKind::Question { message },
+        at,
+    })
 }
 
 fn matches_person(party: tasks::Party) -> bool {
@@ -83,11 +103,15 @@ pub(crate) fn reply_refs(limits: &Limits, row: &tasks::TaskRecord, party: u64) -
 
 impl Core {
     pub(crate) fn open_question_words(&self, question: tasks::OpenQuestion) -> Option<&[u8]> {
+        Some(self.open_question_fact(question)?.1)
+    }
+
+    pub(crate) fn open_question_fact(&self, question: tasks::OpenQuestion) -> Option<(skein_lib::Wall, &[u8])> {
         let line = self.question_activity.get(&(question.asker, question.line))?;
         if let tasks::Line::Words { message, kind: tasks::MessageKind::Question, words, .. } = &line.line
             && *message == question.number
         {
-            Some(words)
+            Some((line.at, words))
         } else {
             None
         }
@@ -95,10 +119,10 @@ impl Core {
 
     /// Retain only activity named by an unanswered question's durable position.
     pub(crate) fn remember_question(&mut self, line: &tasks::ActivityLine) -> bool {
-        let Some(owner) = self.tasks.task(line.task) else { return false };
         let tasks::Line::Words { message, kind: tasks::MessageKind::Question, .. } = &line.line else {
             return false;
         };
+        let Some(owner) = self.tasks.task(line.task) else { return false };
         let mut named = false;
         if matches_person(owner.requester) {
             for position in &owner.question_lines {
@@ -117,13 +141,14 @@ impl Core {
     }
 
     pub(crate) fn prune_questions(&mut self, task: u64) {
+        if self.question_activity.is_empty() {
+            return;
+        }
+        let owner = self.tasks.task(task);
         let mut stale = List::with_capacity(self.question_activity.capacity());
-        for (key, _) in &self.question_activity {
-            if key.0 != task {
-                continue;
-            }
+        for (key, _) in self.question_activity.range((task, 0)..=(task, u64::MAX)) {
             let mut keep = false;
-            if let Some(owner) = self.tasks.task(task) {
+            if let Some(owner) = owner {
                 if questions_live(&owner.phase) && matches_person(owner.requester) {
                     for position in &owner.question_lines {
                         keep |= position.line == key.1 && position.answer.is_none();
@@ -249,6 +274,13 @@ impl Core {
             }
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => {}
         }
+        for credit in &row.questions {
+            if let Some(offer) = &credit.offer
+                && let Some(entry) = question_entry(row, credit.number, offer.holder, offer.since)
+            {
+                entries.push(entry).expect("one projection per party-held credit");
+            }
+        }
         if let Some(person) = self.conversation_requester(row) {
             for reply in &row.replies {
                 add(
@@ -300,8 +332,10 @@ impl Core {
                 | tasks::ProposalState::Withdrawn => {}
             }
         }
-        match row.escalation {
-            tasks::Escalation::Waiting { holder, revision, since, .. } => match holder {
+        if let tasks::Phase::Held { .. } = row.phase
+            && let tasks::Escalation::Waiting { holder, revision, since, .. } = row.escalation
+        {
+            match holder {
                 tasks::EscalationHolder::Person(person) => {
                     add(
                         &mut entries,
@@ -321,10 +355,7 @@ impl Core {
                     );
                 }
                 tasks::EscalationHolder::Task(_) => {}
-            },
-            tasks::Escalation::Unheld { .. }
-            | tasks::Escalation::Routing { .. }
-            | tasks::Escalation::Rejected { .. } => {}
+            }
         }
         if let Some(wait) = row.person_wait
             && let Some(notice) = wait.notice
@@ -346,25 +377,31 @@ impl Core {
             | tasks::Phase::Closing(_)
             | tasks::Phase::Ended(_) => false,
         };
-        match row.executor {
-            tasks::Executor::Person(_) if !answerable => {}
-            tasks::Executor::Person(tasks::PersonAddress::Person(person)) => {
-                if row.taken_by.is_none() {
-                    let since = row.person_wait.expect("active person wait").since;
-                    add(&mut entries, row, people::Whom::Person(person), people::EntryKind::PersonTask, since);
+        if answerable && let tasks::Executor::Person(first) = row.executor {
+            let wait = row.person_wait.expect("answerable person wait");
+            let kind = people::EntryKind::PersonTask;
+            if let Some(person) = row.taken_by {
+                let role = self.people.role(person, row.project);
+                let since = match wait.offer {
+                    Some(offer) if !crate::admission::person_task::address_matches(first, person, role) => offer.since,
+                    Some(_) | None => wait.since,
+                };
+                add(&mut entries, row, people::Whom::Person(person), kind, since);
+            } else {
+                add(&mut entries, row, person_whom(row.project, first), kind, wait.since);
+                if let Some(offer) = wait.offer {
+                    add(&mut entries, row, person_whom(row.project, offer.holder), kind, offer.since);
                 }
             }
-            tasks::Executor::Person(tasks::PersonAddress::Role(role)) => {
-                let since = row.person_wait.expect("active person wait").since;
-                let whom = match row.taken_by {
-                    Some(person) => people::Whom::Person(person),
-                    None => people::Whom::Role { project: row.project, role },
-                };
-                add(&mut entries, row, whom, people::EntryKind::PersonTask, since);
-            }
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {}
         }
         entries.into_boxed()
+    }
+}
+
+pub(crate) fn person_whom(project: u32, address: tasks::PersonAddress) -> people::Whom {
+    match address {
+        tasks::PersonAddress::Person(person) => people::Whom::Person(person),
+        tasks::PersonAddress::Role(role) => people::Whom::Role { project, role },
     }
 }
 
@@ -464,7 +501,7 @@ fn matches_ended(phase: &tasks::Phase) -> bool {
 }
 
 impl Core {
-    /// Projects on a reader's settings row (jig/docs/design/domain/engine/settings.md, 6).
+    /// Projects on a reader's settings row (jig/docs/design/domain/engine/settings-proposals.md, 1).
     pub(crate) fn settings_row_projects(&self, party: u64, key: (people::Proposer, u32)) -> List<u32> {
         let Some(proposal) = self.settings_proposals.get(&key) else { return List::with_capacity(0) };
         let mut projects = proposal.projects();

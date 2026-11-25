@@ -1,4 +1,4 @@
-//! Turns and their current windows commit together (domain/engine/executors.md, 2).
+//! Turns and their current windows commit together (domain/engine/executors-transcripts.md, 1).
 use crate::{Core, CoreKey, CoreRecord, Held, Key, Limits, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -33,6 +33,8 @@ pub(crate) fn route_accepted_turn(
             for key in core.retire_calls(task, attempt, turn, env.limits.call_records) {
                 out.push(Request::Write(Write::Erase(Key::Core(CoreKey::Call(key)))));
             }
+
+            core.retire_parts(task, Some((attempt, turn)), &mut out);
             crate::routing::view::routes::touch_number(core, &env.limits, task);
         }
         tasks::Accepted::Already => {}

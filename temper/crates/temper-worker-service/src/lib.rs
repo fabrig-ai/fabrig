@@ -2,9 +2,19 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
 pub mod diagnostics;
 pub mod fetch;
 pub mod figures;
+#[rustfmt::skip]
+mod generated {
+    pub mod channel {
+        include!("generated/channel.rs");
+    }
+
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "generated to-record functions borrow even small enums")]
+    pub(super) mod worker_wire;
+}
 pub mod identities;
 pub mod program_sources;
 pub mod settings;
@@ -25,3 +35,6 @@ pub use worker::{Worker, WorkerRuntime, translate};
 pub use worker_job_ending::JobEnding as WorkerJobEnding;
 #[cfg(test)]
 mod tests;
+
+#[doc(hidden)]
+pub mod testing;

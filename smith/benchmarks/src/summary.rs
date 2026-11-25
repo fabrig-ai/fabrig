@@ -2,7 +2,7 @@
 //! `summarise` reads only versioned attempt results, samples audits with its seed
 //! and compares like task inputs; `baseline` freezes one configuration and tier.
 //! Drift asks for another comparison, never declares a regression
-//! (../../docs/design/benchmarks/README.md, sections 5.4, 8 and 9).
+//! (../../docs/design/benchmarks/README.md, section 5.4, and ../../docs/design/benchmarks/results.md, sections 1 and 2).
 
 mod compare;
 
@@ -25,10 +25,12 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::files::{Files, Native};
+
 use crate::{
     Agent, AttemptResult, Comparison, Convention, Design, End, Fault, Identity, Interval, Measure, ModelIdentity,
     Provider, RESULT_VERSION, Refusal, ResourceScope, ScopeKind, SmithFace, SpendBasis, TokenRecord, audit_sample,
-    bound, coefficient_of_variation, input, median, minimum_detectable_effect, mismatch, pass_interval, read_result,
+    bound, coefficient_of_variation, input, median, minimum_detectable_effect, mismatch, pass_interval,
 };
 
 /// Observations of one metric across every end, supplied by the summary builder.
@@ -673,39 +675,51 @@ pub fn baseline_group(
 
 /// Read raw result.json files recursively, without following links or other logs.
 pub fn read_results(path: &Path) -> Result<Vec<AttemptResult>, Fault> {
-    let metadata = std::fs::symlink_metadata(path).map_err(|error| Fault::from(error).document(path, "results"))?;
-    if metadata.is_symlink() {
+    read_results_with(&Native, path)
+}
+
+/// Walk result documents on the supplied filesystem, without following links.
+pub fn read_results_with(files: &dyn Files, path: &Path) -> Result<Vec<AttemptResult>, Fault> {
+    use crate::files::{Child, Kind};
+    let metadata = files.symlink_metadata(path).map_err(|error| Fault::from(error).document(path, "results"))?;
+    if metadata.kind == Kind::Link {
         return Err(Refusal::new(path, "results", "result paths must not be symlinks").into());
     }
-    if metadata.is_file() {
-        return Ok(vec![read_result(path)?]);
+    if metadata.kind == Kind::File {
+        return Ok(vec![crate::read_result_with(files, path)?]);
     }
-    if !metadata.is_dir() {
+    if metadata.kind != Kind::Directory {
         return Err(Refusal::new(path, "results", "expected a file or directory").into());
     }
-    let mut entries = std::fs::read_dir(path)
+    let mut entries = files
+        .read_dir(path)
         .map_err(|error| Fault::from(error).document(path, "results"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|error| Fault::from(error).document(path, "results"))?;
-    entries.sort_by_key(std::fs::DirEntry::path);
+    entries.sort_by_key(Child::path);
     let mut results = Vec::new();
     for entry in entries {
         let kind = entry.file_type().map_err(|error| Fault::from(error).document(&entry.path(), "results"))?;
-        if kind.is_dir() || entry.file_name() == "result.json" {
-            results.extend(read_results(&entry.path())?);
+        if kind == Kind::Directory || entry.path().file_name().is_some_and(|name| name == "result.json") {
+            results.extend(read_results_with(files, &entry.path())?);
         }
     }
     Ok(results)
 }
 
-fn read_json<T: serde::de::DeserializeOwned>(file: &Path) -> Result<T, Refusal> {
-    let text = std::fs::read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
+fn read_json<T: serde::de::DeserializeOwned>(files: &dyn Files, file: &Path) -> Result<T, Refusal> {
+    let text = files.read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
     serde_json::from_str(&text).map_err(|error| Refusal::new(file, "document", error.to_string()))
 }
 
 /// Read the one summary version and the current result version.
 pub fn read_summary(file: &Path) -> Result<RunSummary, Refusal> {
-    let text = std::fs::read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
+    read_summary_with(&Native, file)
+}
+
+/// Read a committed summary on the supplied filesystem in a step test.
+pub fn read_summary_with(files: &dyn Files, file: &Path) -> Result<RunSummary, Refusal> {
+    let text = files.read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
     decode_summary(file, &text)
 }
 
@@ -744,7 +758,12 @@ fn decode_summary_value(file: &Path, text: &str) -> Result<RunSummary, Refusal> 
 
 /// Read a drift reference only at the supported versions.
 pub fn read_baseline(file: &Path) -> Result<Baseline, Refusal> {
-    let reference: Baseline = read_json(file)?;
+    read_baseline_with(&Native, file)
+}
+
+/// Read a versioned drift reference on the supplied filesystem.
+pub fn read_baseline_with(files: &dyn Files, file: &Path) -> Result<Baseline, Refusal> {
+    let reference: Baseline = read_json(files, file)?;
     if reference.version != BASELINE_VERSION || reference.result_version != RESULT_VERSION {
         return Err(Refusal::new(file, "version", "unsupported baseline or result version"));
     }
@@ -753,10 +772,15 @@ pub fn read_baseline(file: &Path) -> Result<Baseline, Refusal> {
 
 /// Write a committed summary or baseline without overwriting an existing record.
 pub fn write_summary<T: Serialize>(file: &Path, document: &T) -> Result<(), Fault> {
-    use std::io::Write;
-    let text = serde_json::to_string_pretty(document)?;
-    let mut output = std::fs::OpenOptions::new().write(true).create_new(true).open(file)?;
-    output.write_all(format!("{text}\n").as_bytes()).map_err(Fault::from)
+    write_summary_with(&Native, file, document)
+}
+
+/// Publish a summary or baseline exclusively on the supplied filesystem in a step test.
+pub fn write_summary_with<T: Serialize>(files: &dyn Files, file: &Path, document: &T) -> Result<(), Fault> {
+    let mut text = serde_json::to_string_pretty(document)?;
+    text.push('\n');
+    // Summaries use the default create mode and do not sync the file.
+    files.create_new(file, 0o666, text.as_bytes(), false).map_err(Fault::from)
 }
 
 fn rounded_cost(value: f64) -> Option<u64> {

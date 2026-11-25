@@ -1097,7 +1097,11 @@ impl Joint {
     /// A whole-turn engine with two activity rows per page.
     #[must_use]
     pub fn with_reading_pages(seed: u64, limits: &client::Limits) -> Self {
-        let engine_limits = reading_engine_limits();
+        Self::with_reading_requests(seed, limits, 0)
+    }
+    pub(crate) fn with_reading_requests(seed: u64, limits: &client::Limits, requests: u32) -> Self {
+        let mut engine_limits = reading_engine_limits();
+        engine_limits.people.requests = engine_limits.people.requests.max(requests);
         Self::with_engine(
             seed,
             limits,
@@ -1790,6 +1794,7 @@ impl Joint {
                 event: jig_client::Event::Up {
                     up: jig_client::Up::FamilyServed {
                         family: fixtures::FORGE,
+                        served: true,
                         versions: Some(jig_client::contract::VersionRange {
                             first: temper_client_protocol_wire::CLIENT_VERSION,
                             last: temper_client_protocol_wire::CLIENT_VERSION,
@@ -2312,6 +2317,7 @@ impl Joint {
         };
         forges
             .push(w::ForgeRow {
+                catching_up: None,
                 starts_with: w::StartsWith::Repository,
                 makings: skein_lib::List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),

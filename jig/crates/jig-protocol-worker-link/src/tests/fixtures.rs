@@ -6,7 +6,9 @@ pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
 pub fn application() -> List<wire::Spoken> {
     let mut wires = List::with_capacity(1);
-    wires.push(wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    let text = "family test-worker-wire 3\nrecord Test { value: u32 }\n";
+    let layout = skein_codec::schema::parse(text.as_bytes()).expect("test wire").fingerprints().family().digest();
+    wires.push(wire::Spoken { name: "test-worker-wire", version: 3, layout, text }).expect("application wire");
     wires
 }
 pub const SEED_ONE: u64 = 1;
@@ -76,7 +78,7 @@ use skein_lib::{List, Token, Writer};
 pub const TOKEN_ONE: &[u8] = b"access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
-pub fn codec() -> wire::v21::Limits {
+pub fn codec() -> wire::v22::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 pub fn hello() -> Hello {
@@ -174,6 +176,7 @@ pub fn assignment_record(transcript: Box<[u8]>) -> wire::Assignment {
         })
         .expect("room");
     wire::Assignment {
+        parts: Box::new([]),
         task: 7,
         attempt: 2,
         identity: [9; 16],

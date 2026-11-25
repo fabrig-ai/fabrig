@@ -1,4 +1,4 @@
-//! The worker's agent: its document read and preflighted (protocol/binaries.md, 5; protocol/configuration/README.md, 4).
+//! The worker's agent: its document read and preflighted (protocol/binaries.md, 5; protocol/configuration/worker.md, 2).
 pub mod figures;
 use jig_domain_link::{Bounds, EndpointBound};
 use std::{
@@ -77,7 +77,7 @@ fn settings(configuration: smith_agent_document::config::Configuration) -> Resul
         },
     })
 }
-/// Read declarations and check existing programs directories at their names (skein/docs/design/runtime/io/files.md, 3).
+/// Read declarations and check existing programs directories at their names (skein/docs/design/runtime/io/files.md, 11).
 /// Missing directories stay missing; neither this nor smith's check reads any login.
 pub fn preflight_worker(worker: &service::startup::NamedWorker) -> Result<Agent, String> {
     Ok(prepare_worker(worker)?.agent)
@@ -95,12 +95,40 @@ fn prepare(path: &Path) -> Result<Prepared, String> {
     prepare_bytes(smith_agent_document::config::read_bytes(path)?)
 }
 pub fn prepare_bytes(bytes: Box<[u8]>) -> Result<Prepared, String> {
-    let configuration = decoded_bytes(&bytes)?
-        .resolve(&mut std::io::stderr())
-        .map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
+    prepare_bytes_with(bytes, &mut std::io::stderr(), |directory| {
+        check_program_directory(smith_agent_document::program::private_directory(directory))
+    })
+}
+
+/// Render an agent's program-directory verdict for serve, without requiring a login.
+pub fn check_program_directory(verdict: Result<bool, smith_agent_document::program::Refusal>) -> Result<(), String> {
+    verdict.map(|_| ()).map_err(|why| format!("programs.claude_code.directory: {why}"))
+}
+
+/// Prepare an agent over bytes and a supplied programs-directory check.
+pub fn prepare_bytes_with(
+    bytes: Box<[u8]>,
+    log: &mut impl std::io::Write,
+    private_directory: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<Prepared, String> {
+    prepare_bytes_resolving(bytes, private_directory, |decoded| decoded.resolve(log))
+}
+
+/// Prepare from bytes with both directory and endpoint lookups supplied by the caller.
+pub fn prepare_bytes_resolving(
+    bytes: Box<[u8]>,
+    private_directory: impl FnOnce(&Path) -> Result<(), String>,
+    resolve: impl FnOnce(
+        smith_agent_document::config::Decoded,
+    ) -> Result<
+        smith_agent_document::config::Configuration,
+        smith_agent_document::config::ConfigurationRefusal,
+    >,
+) -> Result<Prepared, String> {
+    let configuration =
+        resolve(decoded_bytes(&bytes)?).map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
     if let Some(program) = &configuration.program {
-        smith_agent_document::program::private_directory(&program.directory)
-            .map_err(|why| format!("programs.claude_code.directory: {why}"))?;
+        private_directory(&program.directory)?;
     }
     let environment = configuration.service.environment.command_entries();
     Ok(Prepared { agent: settings(configuration)?, bytes, environment })

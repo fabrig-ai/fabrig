@@ -1,4 +1,4 @@
-//! Connector-owned effects and recovery (domain/connectors.md, section 4).
+//! Connector-owned effects and recovery (domain/connectors-effects.md, section 1).
 //!
 //! The root commits each `Save` before releasing the accompanying `Make` or
 //! `System` request. A restored entry is already durable, so its first action
@@ -594,6 +594,12 @@ pub(crate) fn activate(domain: &mut Domain) {
 }
 
 pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if let Some(number) = ready(domain, env) {
+        progress(domain, env, number, out);
+    }
+}
+
+pub(crate) fn ready(domain: &Domain, env: &Env<Limits>) -> Option<u64> {
     let mut chosen = None;
     for (number, entry) in &domain.outbox.entries {
         let Some(runtime) = domain.outbox.runtime.get(number) else {
@@ -618,13 +624,11 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
             break;
         }
     }
-    if let Some(number) = chosen {
-        progress(domain, env, number, out);
-    }
+    chosen
 }
 
 /// Recovery has classified every live entry: a pending retry may keep its
-/// durable deadline, while a lookup or write still in flight prevents opening.
+/// durable deadline, while a lookup or write still in flight prevents its settle report.
 pub(crate) fn restart_settled(domain: &Domain) -> bool {
     for (number, entry) in &domain.outbox.entries {
         let runtime = domain.outbox.runtime.get(number).expect("live outbox runtime");

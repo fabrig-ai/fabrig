@@ -264,12 +264,14 @@ mod joined_story {
         refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 260);
     }
     #[test]
-    fn another_wire_version_worker_redials_after_wires() {
+    fn a_worker_whose_wire_text_does_not_parse_redials_after_wires() {
         refusal(
             Credential {
                 application: {
                     let mut wires = fixtures::application();
-                    wires.get_mut(0).expect("application wire").lowest = 4;
+                    let wire = wires.get_mut(0).expect("application wire");
+                    wire.layout = [0; 32];
+                    wire.text = "not a schema";
                     jig_protocol_worker_wire::Application::opaque(wires)
                 },
                 ..fixtures::credential()
@@ -299,9 +301,11 @@ fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
     use jig_protocol_worker_link::Request;
     use jig_worker_link_world::fixtures;
     use skein_lib::{Duration, Token};
-    // Both sides' equal room must hold every worker frame. A charter of that
-    // size makes the assignment larger than the room by its fixed fields.
-    let charter = largest_worker_frame(&fixtures::SIZES);
+    // The room must hold the opening and every sending kind of the worker's.
+    // A charter that large lets the assignment cross the room by its fixed fields.
+    let opening = jig_protocol_worker_link::channel_limits(&fixtures::joined_limits()).expect("channel bounds");
+    let charter = largest_worker_frame(&fixtures::SIZES).max(opening.credential + 22);
+
     let limits = jig_protocol_worker_link::Limits {
         sizes: jig_protocol_worker_wire::sizes::Sizes { charter, detail: 128, ..fixtures::SIZES },
         ..fixtures::joined_limits()
@@ -382,7 +386,7 @@ fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
         .iter()
         .filter_map(|r| {
             if let engine::Request::Unsent { worker, channel, unsent } = r {
-                Some((*worker, *channel, *unsent))
+                Some((*worker, *channel, unsent.clone()))
             } else {
                 None
             }
@@ -464,7 +468,7 @@ fn resumed_continues(world: &mut joined::Joined) {
 }
 
 // Both real sides keep a resumed producer going within io's room
-// (jig/docs/design/protocol/channel/README.md, 8, 10 and 11).
+// (jig/docs/design/protocol/channel/liveness.md, 1, and jig/docs/design/protocol/channel/README.md, 10, and jig/docs/design/protocol/channel/testing.md, 1).
 #[test]
 fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     use jig_domain_host as host;
@@ -474,9 +478,9 @@ fn a_resumed_start_fits_the_room_on_each_stock_profile() {
     use jig_protocol_worker_wire::fit::cut_words;
     use jig_worker_link_world::fixtures;
     use skein_lib::Duration;
-    // Fixed65 + charter7 + a two-turn window16; a call's fields14,
+    // Fixed69 + charter7 + a two-turn window16; a call's fields14,
     // name8 and tool4; delivery evidence8. The oldest call is a delivery.
-    const BASE: u32 = 88;
+    const BASE: u32 = 92;
     const CALL: u32 = 26;
     const DELIVERY: u32 = CALL + 8;
     const FEW: u32 = 3;

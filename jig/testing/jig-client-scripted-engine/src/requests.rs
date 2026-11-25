@@ -1,5 +1,5 @@
 //! Requests are decided once in the party's key space and released after durability.
-//! Revision and decided-first checks precede scripted outcomes; client/domain/contract/requests.md and client/domain/contract/README.md, 3.
+//! Revision and decided-first checks precede scripted outcomes; client/domain/contract/requests.md and client/domain/contract/answers.md, 1.
 mod creating;
 mod decisions;
 use decisions::{decided, repeated};
@@ -359,6 +359,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::SignIn { .. }
             | Ask::AccountChange { .. }
             | Ask::SignOut { .. }
@@ -430,6 +431,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::ChangePolicy { .. }
                 | Ask::SetRoles { .. }
                 | Ask::MakeService { .. }
+                | Ask::ReissueService { .. }
                 | Ask::Withdraw { .. }
                 | Ask::RemoveProject { .. }
                 | Ask::SetVisibility { .. }
@@ -530,6 +532,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::RemoveProject { .. }
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
@@ -688,6 +691,7 @@ fn target(ask: &Ask) -> Option<Target> {
         | Ask::SignOut { .. }
         | Ask::Conclude { .. }
         | Ask::Delegate { .. }
+        | Ask::ReissueService { .. }
         | Ask::AccountChange { .. } => return None,
         Ask::Compound { project, operations } => {
             compound_target(*project, operations).unwrap_or((Some(*project), None, ActKind::Message, None))
@@ -733,7 +737,7 @@ fn target(ask: &Ask) -> Option<Target> {
         Ask::Amend { project, task, revision, .. } => {
             (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Amend, revision.map(|value| (value, Moved::Spec)))
         }
-        Ask::Stop { project, task } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Stop, None),
+        Ask::Stop { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Stop, None),
         Ask::Cancel { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Cancel, None),
         Ask::Move { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Move, None),
         Ask::Withdraw { project, .. } => (Some(*project), None, ActKind::Withdraw, None),

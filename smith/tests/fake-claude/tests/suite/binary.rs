@@ -1,5 +1,5 @@
 //! The same fake as an executable (smith/docs/design/protocol/programs.md, section 8;
-//! smith/docs/design/testing.md, sections 2.2, 2.3 and 4). All process state stays in scratch.
+//! smith/docs/design/testing-tiers.md, sections 2 and 3, and smith/docs/design/testing.md, section 4). All process state stays in scratch.
 
 use std::{
     fs,
@@ -131,19 +131,6 @@ fn signal(child: &Child, name: &str, scratch: &Scratch) {
             .expect("signal command")
             .success()
     );
-}
-
-#[test]
-fn the_binary_runs_a_turn() {
-    let (_scratch, mut child) = print_child(Story::default());
-    let mut reader = BufReader::new(child.stdout.take().expect("output"));
-    assert_eq!(read_message(&mut reader)["subtype"], "init");
-    assert_eq!(read_message(&mut reader)["subtype"], "status");
-    send_user(&mut child);
-    assert_eq!(read_message(&mut reader)["type"], "assistant");
-    assert_eq!(read_message(&mut reader)["result"], "Done.");
-    child.stdin.take();
-    assert_eq!(child.wait().expect("exit").code(), Some(0));
 }
 
 fn hanging_child() -> (Scratch, std::process::Child, BufReader<std::process::ChildStdout>) {

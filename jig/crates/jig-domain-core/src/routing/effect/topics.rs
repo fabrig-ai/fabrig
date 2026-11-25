@@ -1,4 +1,4 @@
-//! Offered topic calls are reads before they enter the task hub (authority.md, 8.5).
+//! Offered topic calls are reads before they enter the task hub (domain/authority-checks.md, 1.5).
 use crate::{CallKey, CallPart, Core, Event, Family, Held, Limits, Request, fresh, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

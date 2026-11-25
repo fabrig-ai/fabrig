@@ -3,7 +3,7 @@
 Provisional, 2026-10-26, revised 2026-11-11. temper's documentation,
 for agents: pages in the repository, compiled into the binary, read at
 the command line by the agents that run and drive temper and by
-temper's own runs through a host tool. It builds `../draft/agent-docs.md`
+temper's own runs through a host tool. It builds `../draft/archive/agent-docs.md`
 (the readers, the map, the kinds and the voice); this document is its
 contract for the pages and their machinery, and `../client/ctl/README.md` for ctl's
 help. People read the site, which is outside temper's design.
@@ -238,7 +238,7 @@ Every binary's `help`, `BINARY` its name (`../cli/README.md`, 5):
 - It reads no directory and no configuration: it works before
   `temper-box init`. `BINARY -h`, `--help` and `help` alone print the
   binary's page from its table, its public commands, flags and
-  variables (`skein/docs/design/runtime/shell.md`, 14.2); `temper ctl
+  variables (`skein/docs/design/runtime/shell-table.md`, 1.2); `temper ctl
   help` prints the page `ctl`, then the tools
   (`../client/ctl/testing.md`, 5).
 
@@ -279,7 +279,7 @@ Every binary's `help`, `BINARY` its name (`../cli/README.md`, 5):
 | Where | What |
 |---|---|
 | `temper-docs`' step tests | the table equals `docs/help/`'s files, in name, kind and bytes; each page's head within 2.1's bounds; each page within its kind's bound, its headings its kind's (2.2), a walk's steps each with `Expect:`; `index` names every concept, walk and recipe once; every `temper help NAME` in a page names a page; placeholders (2.1) and the voice's words (2.3) in written pages; `page` over a page's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
-| `temper-box-shell`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper-box ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/ctl/tools.md` 3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; a page that says a ctl group or tool does not exist (`no ctl group `NAME``, `NAME (no tool)`) fails when the table has it, so a tool's landing finds the pages that deny it; `temper help`, `help NAME`, an unknown name and `--search` print and exit as `documentation.md`, section 4 says |
+| `temper-box-shell`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper-box ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/ctl/tools-acts.md` 1), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; a page that says a ctl group or tool does not exist (`no ctl group `NAME``, `NAME (no tool)`) fails when the table has it, so a tool's landing finds the pages that deny it; `temper help`, `help NAME`, an unknown name and `--search` print and exit as `documentation.md`, section 4 says |
 | `temper-engine-smith`'s step tests | `read_docs`' schema; a page's first and next cut; a search; an unknown page; both members, or neither, answered as an error naming what is wrong |
 | the engine's domain world | a run's `read_docs` call answered with no commit, no record, and the run going on (one story) |
 
@@ -307,7 +307,7 @@ in section 2.3's voice.
 |---|---|---|
 | `commands` | the binaries' tables, as the page is compiled (8.1; `temper_shell::table::commands_reference`), and each binary's own, as its `help commands` prints it (`temper_shell::table::commands_page`; `../cli/README.md`, 5) | a command, under each binary that runs it, its public ones first, then its internal ones: its words, forms, line, arguments and notes |
 | `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/ctl/tools.md`, 1) | a tool: its usage, line, arguments, result line, keyedness and notes |
-| `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
+| `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools-acts.md`, 1) | a member of a shape |
 | `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`; `../domain/agent/declarations.md`) | a host tool: its name, its description, whether it reads or writes, when a run is offered it, then each member of its input's whole form at every depth, a nested member indented under its parent, with its type, bound, whether it is required and its description, and, for a tool taking a `what`, each `what` with the members it requires and takes; in the one order the run's tool list has |
 | `see` | `see`'s addresses (`temper-engine-smith`; `../domain/agent/ask-temper.md`, 1) | an address: its form, each form the instructions' line brackets a row of its own (`settings charter N`, `task N tree`), a line on what it answers, and the addresses one level down, its `see:` line |
 | `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the stock's value (`configuration/limits.md`, one stock), a line |
@@ -401,7 +401,7 @@ rendering, since the box's crate links every table.
 ## 9. Errors
 
 What an agent meets when something goes wrong is documentation at the
-point of use (`../draft/agent-docs.md`, section 3), and the most read.
+point of use (`../draft/archive/agent-docs.md`, section 3), and the most read.
 
 - **An error is one line, at most 240 bytes:** what is wrong, in the
   concept's words; the value or bound that made it so; and the act that

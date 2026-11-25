@@ -1,4 +1,4 @@
-//! Level-triggered verdict decisions (temper/docs/design/domain/after-landing.md, sections 3–5).
+//! Level-triggered verdict decisions (temper/docs/design/domain/after-landing-runs.md, sections 2–3, and temper/docs/design/domain/after-landing.md, section 5).
 use crate::{
     Blame, Commit, Failures, Finding, Flake, Group, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt, Record,
     Run, Selection, Settings, Suspects, TestId, Verdict,
@@ -350,6 +350,7 @@ pub fn judged(record: &Record, verdict: &Verdict, limits: &Limits) -> Record {
     }
     Record {
         sequence: verdict.number,
+        last_run: Some(verdict.number),
         judged: Some(Judged { tip: verdict.tip, key: verdict.key }),
         failing: verdict.failing.clone(),
         flakes: flakes.into_boxed(),

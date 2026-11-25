@@ -15,6 +15,12 @@ use crate::{cache, limits, pieces, respond};
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Config {
+    /// Credential slots reserved for account strikes under `script_bytes`.
+    pub accounts: u32,
+    /// Distinct unserved models retained per credential.
+    pub unserved: u32,
+    /// Chance per mille of cutting a reply before its completion event.
+    pub cut: u32,
     /// Fail a call no script answers instead of answering "done" or at random.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, section 2.5.
@@ -108,6 +114,16 @@ pub struct Config {
     pub unscoped_reads: u32,
 }
 
+impl Config {
+    /// Bytes reserved for the account table, or `None` if its price overflows.
+    ///
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.7.
+    #[must_use]
+    pub fn account_bytes(&self) -> Option<u64> {
+        crate::accounts::Accounts::price(self)
+    }
+}
+
 /// protocol -> domain
 ///
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
@@ -194,6 +210,8 @@ pub(crate) struct Played {
     pub cued: usize,
     pub asked: usize,
     pub resets: List<respond::Reset>,
+    pub cuts: List<respond::Cuts>,
+    pub accounts: crate::accounts::Accounts,
 }
 
 impl Played {
@@ -234,6 +252,13 @@ impl Played {
             },
             None => None,
         };
+        held = match held {
+            Some(bytes) => match crate::accounts::Accounts::price(config) {
+                Some(price) => bytes.checked_add(price),
+                None => None,
+            },
+            None => None,
+        };
         if !limits::fits(held, config.script_bytes) {
             return Err(Error::ContextTooLong);
         }
@@ -254,7 +279,10 @@ impl Played {
             flat.into_boxed()
         };
         let resets = List::with_capacity(respond::reset_count(&scripts).expect("admitted reset state bytes"));
-        Ok(Played { scripts, cued: cued_count, asked: asked_count, resets })
+        let cuts = List::with_capacity(respond::cut_count(&scripts).expect("admitted cut state bytes"));
+        let remaining = u64::from(config.script_bytes).checked_sub(held.expect("admitted script bytes")).expect("fits");
+        let accounts = crate::accounts::Accounts::new(config, remaining);
+        Ok(Played { scripts, cued: cued_count, asked: asked_count, resets, cuts, accounts })
     }
 }
 
@@ -374,6 +402,17 @@ impl Domain {
         })
     }
 
+    /// Installs an account fault at injected time, refusing exhausted room.
+    /// A method, rather than a fire-and-forget event, returns admission failure.
+    pub fn strike(&mut self, credential: u32, strike: crate::api::Strike, now: Time) -> Result<(), Error> {
+        self.played.accounts.strike(credential, strike, now)
+    }
+
+    /// Clears the matching kind (and model for Unserved), if in force.
+    pub fn clear(&mut self, credential: u32, strike: &crate::api::Strike) {
+        self.played.accounts.clear(credential, strike);
+    }
+
     /// The admitted scripts, borrowed by the peer for route validation.
     #[must_use]
     pub fn scripts(&self) -> &[Script] {
@@ -391,12 +430,19 @@ impl Domain {
     /// Whether a call is sitting at this named hold, not merely approaching it.
     #[must_use]
     pub fn is_held(&self, name: &[u8]) -> bool {
+        self.held_count(name) != 0
+    }
+
+    /// How many calls have reached the hold, including calls whose peer has disconnected.
+    #[must_use]
+    pub fn held_count(&self, name: &[u8]) -> u32 {
+        let mut count: u32 = 0;
         for id in &self.held {
             if pieces::held_at(&self.calls.get(*id).expect("held call lives").state, &self.played.scripts, name) {
-                return true;
+                count = count.checked_add(1).expect("bounded held calls");
             }
         }
-        false
+        count
     }
 
     /// Earliest injected deadline still pending, or `None` when no timed work remains.

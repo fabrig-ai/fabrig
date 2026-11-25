@@ -5,7 +5,7 @@ shorthands for the workers as settings (jig's
 `domain/engine/workers.md`; `../../draft/config.md`, 6.7), each one read
 or one settings change, and three asks of a linked worker, to take no
 new work, to drain, or to take work again (jig's
-`domain/engine/workers.md`, 5; `../../draft/worker-restarts.md`,
+`domain/engine/workers.md`, 5; `../../draft/archive/worker-restarts.md`,
 section 2). They are rows of the one table (`tools.md`, 1), group `worker`, of
 area 3 as `deployment`'s are (`areas.md`), and the map lists the group
 under the deployment's noun (`../../protocol/documentation.md`, 2.4).
@@ -81,9 +81,9 @@ under the deployment's noun (`../../protocol/documentation.md`, 2.4).
   `since` is printed as `settings show` prints a time. Its JSON is the
   rows not withdrawn, each with its runs' count and its pause, as
   `taking`, `paused`, `draining` or `drained`.
-- **`worker list` is a watched read too,** beside those `tools.md`, 4
+- **`worker list` is a watched read too,** beside those `tools-waiting.md`, 1
   lists, and waits as they do, on the deployment's watch (jig's
-  `client/domain/contract/README.md`, 5.1): `--since DIGEST`, `--until
+  `client/domain/contract/watches.md`, 1.1): `--since DIGEST`, `--until
   changed`, `--until drained:WORKER` (worker WORKER says it has
   drained) and `--until paused:WORKER` (it is paused, draining or
   drained), with `--timeout`; its digest is over the rows it prints, as

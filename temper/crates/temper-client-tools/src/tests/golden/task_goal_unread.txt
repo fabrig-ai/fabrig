@@ -7,6 +7,6 @@ unread: 2, oldest first; no run has recorded them
   message 77 · from you · 2026-11-18 10:02 UTC · seen: Also add a /ready endpoint beside /health.
   message 80 · from you · 2026-11-18 11:40 UTC · not yet seen: And keep the old route for… (300 bytes; task activity 41 prints them whole)
 acts:
-  task stop 41 --key KEY
+  task stop 41 REASON --key KEY
   task cancel 41 REASON --key KEY
-digest: task d9b34622bd053bdf
+digest: task e1360f20c6647c83

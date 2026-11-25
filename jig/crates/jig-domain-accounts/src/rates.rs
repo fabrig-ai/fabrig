@@ -1,4 +1,4 @@
-//! A window's in-memory pace (jig/docs/design/domain/accounts.md, 3.7).
+//! A window's in-memory pace (jig/docs/design/domain/accounts-lists.md, 1).
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 

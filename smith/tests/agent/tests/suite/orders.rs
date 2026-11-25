@@ -1,5 +1,5 @@
 //! Root handoff orders under concurrent session and host pressure.
-//! Contract: smith/docs/design/domain/run.md, sections 3.2, 5.3 and 10;
+//! Contract: smith/docs/design/domain/run-start.md, section 1.2, and smith/docs/design/domain/run.md, sections 5.3 and 10;
 //! skein/docs/foundation/programming-model.md, section 7.2.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -81,6 +81,7 @@ fn fixture(settings: &Settings, charter: run::Charter, scripts: Vec<Script>, win
     disk.write(b"work/README.md", FILE);
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

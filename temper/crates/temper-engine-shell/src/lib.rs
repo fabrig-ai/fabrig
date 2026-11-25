@@ -1,7 +1,7 @@
 //! Shared engine commands (temper/docs/design/protocol/binaries.md, 1).
 #[cfg(test)]
 extern crate self as temper_box_shell;
-use directories::{Directories, private_root, unread};
+use directories::{Directories, unread};
 use jig_protocol_config::{self as config, read};
 use skein_shell::login;
 use std::{fmt::Write, net::ToSocketAddrs, os::unix::ffi::OsStrExt, path::Path};
@@ -23,6 +23,8 @@ pub mod restore;
 pub mod serve;
 pub mod setup;
 pub mod stopped;
+#[doc(hidden)]
+pub mod testing;
 pub mod upgrade;
 const CONFIG_BYTES: u32 = 1 << 20;
 
@@ -49,6 +51,10 @@ pub fn address(configured: &config::Address) -> Result<std::net::SocketAddr, Str
             .ok_or_else(|| "endpoint has no address".into()),
     }
 }
+
+#[cfg(test)]
+#[path = "../../../testing/temper-box-kit/src/bundle_fixture.rs"]
+pub mod test_bundle_fixture;
 
 #[cfg(test)]
 #[path = "../../../testing/temper-box-kit/src/configuration.rs"]

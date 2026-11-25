@@ -1,4 +1,4 @@
-//! An index over canonical bytes at a schema's ceilings (data/codec/README.md, section 8).
+//! An index over canonical bytes at a schema's ceilings (data/codec/run-time.md, section 2).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Secret, usize_of};
@@ -14,7 +14,6 @@ mod tests;
 pub struct Value {
     bytes: Secret,
     entries: List<Entry>,
-    growing: Option<u32>,
 }
 
 /// An entry in preorder.
@@ -90,7 +89,6 @@ enum Kind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Entry {
     kind: Kind,
-    source: Source,
     span: Span,
     content: u32,
     count: u32,
@@ -101,29 +99,16 @@ struct Entry {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Source {
-    Declaration(DeclIx),
-    Type(TypeIx),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Child {
-    source: Source,
     kind: Kind,
     path: Path,
-}
-
-struct IndexRoot {
-    decl: DeclIx,
-    parent: Option<Node>,
-    end: u32,
 }
 
 impl Value {
     /// Sets the room for this many nodes; entries allocate as they fill.
     #[must_use]
     pub fn with_room(nodes: u32) -> Value {
-        Value { bytes: Secret::new(Box::default()), entries: List::with_capacity(nodes), growing: None }
+        Value { bytes: Secret::new(Box::default()), entries: List::with_capacity(nodes) }
     }
 
     /// Bounds a node allowance's decoder entry tables.
@@ -136,95 +121,15 @@ impl Value {
     /// Decodes at the schema's ceilings, allocating only to grow tables past
     /// what an earlier decode needed.
     pub fn decode(&mut self, schema: &Schema, root: DeclIx, bytes: Box<[u8]>) -> Result<Node, Refusal> {
-        self.decode_index(schema, root, bytes, &mut List::with_capacity(0)).0
-    }
-
-    pub(crate) fn growing(nodes: u32) -> Value {
-        Value { bytes: Secret::new(Box::default()), entries: List::with_capacity(0), growing: Some(nodes) }
-    }
-
-    pub(crate) fn room(&self) -> u32 {
-        self.entries.capacity()
-    }
-
-    pub(crate) fn indexed_nodes(&self) -> u32 {
-        self.entries.len()
-    }
-
-    // A builder cannot borrow the old index mutably. Its empty replacement
-    // waits here until start can move it into the old half (data/codec/patches.md, 7).
-    pub(crate) fn reserve(&mut self, need: u32, occupied: u32) {
-        if need <= occupied || need <= self.room() {
-            return;
-        }
-        let ceiling = self.growing.expect("only a patch reserves growing entries");
-        let mut room = growing_room(self.room(), need, ceiling);
-        if need <= ceiling.checked_div(16).expect("positive divisor") {
-            let shared = need
-                .checked_mul(2)
-                .expect("small need fits twice")
-                .checked_sub(occupied)
-                .expect("need exceeds occupied");
-            room = room.min(shared);
-        }
-        assert!(self.entries.is_empty(), "the replacement holds no decoded entries");
-        // The empty replacement has nothing to copy; free it before allocating.
-        self.entries = List::with_capacity(0);
-        self.entries = List::with_capacity(room);
-    }
-
-    pub(crate) fn use_reserved(&mut self, reserve: &mut Value) {
-        if reserve.room() > self.room() {
-            let entries = core::mem::replace(&mut reserve.entries, List::with_capacity(0));
-            reserve.entries = core::mem::replace(&mut self.entries, entries);
-            reserve.entries.clear();
-        }
-    }
-
-    pub(crate) fn decode_count(
-        &mut self,
-        schema: &Schema,
-        root: DeclIx,
-        bytes: Box<[u8]>,
-        reserve: &mut Value,
-    ) -> (Result<Node, Refusal>, u32) {
-        self.decode_index(schema, root, bytes, &mut reserve.entries)
-    }
-
-    fn decode_index(
-        &mut self,
-        schema: &Schema,
-        root: DeclIx,
-        bytes: Box<[u8]>,
-        spare: &mut List<Entry>,
-    ) -> (Result<Node, Refusal>, u32) {
         self.entries.clear();
         self.bytes = Secret::new(bytes);
         let mut reader = Reader::new(self.bytes.expose());
-        let root = IndexRoot { decl: root, parent: None, end: reader.remaining() };
-        let result = index(&mut self.entries, spare, self.growing, schema, root, &mut reader);
-        let nodes = self.entries.len();
+        let result = index(&mut self.entries, schema, root, &mut reader);
         if result.is_err() {
             self.entries.clear();
             self.bytes = Secret::new(Box::default());
         }
-        (result, nodes)
-    }
-
-    // Opened pieces append subtrees without changing the opaque field's sibling
-    // links; their spans still name the original bytes (data/codec/patches.md, 4).
-    pub(crate) fn decode_piece(
-        &mut self,
-        schema: &Schema,
-        root: DeclIx,
-        parent: Node,
-        span: Span,
-        reserve: &mut Value,
-    ) -> Result<Node, Refusal> {
-        let bytes = self.bytes.expose().get(usize_of(span.start)..usize_of(span.end)).expect("piece within old bytes");
-        let mut reader = Reader::new(bytes);
-        let root = IndexRoot { decl: root, parent: Some(parent), end: span.end };
-        index(&mut self.entries, &mut reserve.entries, self.growing, schema, root, &mut reader)
+        result
     }
 
     /// The canonical encoding.
@@ -273,23 +178,6 @@ impl Value {
     pub fn count(&self, list: Node) -> Result<u32, Misread> {
         let items = self.items(list)?;
         Ok(items.left)
-    }
-
-    /// The node holding this value, or none for the root.
-    pub fn parent(&self, node: Node) -> Result<Option<Node>, Misread> {
-        Ok(self.entry(node)?.parent)
-    }
-
-    pub(crate) fn path(&self, node: Node) -> Result<Path, Misread> {
-        Ok(self.entry(node)?.path)
-    }
-
-    pub(crate) fn source(&self, node: Node) -> Result<Source, Misread> {
-        Ok(self.entry(node)?.source)
-    }
-
-    pub(crate) fn nodes(&self, node: Node) -> Result<u32, Misread> {
-        Ok(self.entry(node)?.next.checked_sub(node.0).expect("preorder subtree ends after its root"))
     }
 
     /// Starts walking a list's items.
@@ -481,7 +369,6 @@ impl Entry {
         let start = position(total, reader);
         let mut entry = Entry {
             kind: child.kind,
-            source: child.source,
             span: Span { start, end: start },
             content: start,
             count: 0,
@@ -558,11 +445,7 @@ impl Entry {
                     return None;
                 }
                 let field = FieldIx::new(add(first.index(), self.progress));
-                Child {
-                    source: Source::Type(schema.field(field).ty),
-                    kind: kind(schema, schema.field(field).ty),
-                    path: Path { decl, part: Part::Field(field) },
-                }
+                Child { kind: kind(schema, schema.field(field).ty), path: Path { decl, part: Part::Field(field) } }
             }
             Kind::Enum { first, .. } => {
                 if self.progress > 0 {
@@ -570,13 +453,13 @@ impl Entry {
                 }
                 let variant = schema.variant(VariantIx::new(add(first.index(), self.count)));
                 let decl = variant.record?;
-                Child { source: Source::Declaration(decl), kind: declaration(schema, decl), path: self.path }
+                Child { kind: declaration(schema, decl), path: self.path }
             }
             Kind::List { item, .. } | Kind::Option(item) => {
                 if self.progress >= self.count {
                     return None;
                 }
-                Child { source: Source::Type(item), kind: kind(schema, item), path: self.path }
+                Child { kind: kind(schema, item), path: self.path }
             }
             Kind::Uint(_) | Kind::Bool | Kind::Content { .. } | Kind::Secret(_) => return None,
         };
@@ -585,22 +468,14 @@ impl Entry {
     }
 }
 
-fn index(
-    entries: &mut List<Entry>,
-    spare: &mut List<Entry>,
-    growing: Option<u32>,
-    schema: &Schema,
-    root: IndexRoot,
-    reader: &mut Reader<'_>,
-) -> Result<Node, Refusal> {
-    let total = root.end;
-    let first = Node(entries.len());
-    let root_path = match schema.declaration(root.decl).shape {
-        Shape::Record { .. } => Path { decl: root.decl, part: Part::Tail },
-        Shape::Enum { .. } => Path { decl: root.decl, part: Part::Tag },
+fn index(entries: &mut List<Entry>, schema: &Schema, root: DeclIx, reader: &mut Reader<'_>) -> Result<Node, Refusal> {
+    let total = reader.remaining();
+    let root_path = match schema.declaration(root).shape {
+        Shape::Record { .. } => Path { decl: root, part: Part::Tail },
+        Shape::Enum { .. } => Path { decl: root, part: Part::Tag },
     };
     let mut current: Option<Node> = None;
-    let ceiling = growing.unwrap_or(entries.capacity());
+    let ceiling = entries.capacity();
     let turns = u64::from(ceiling)
         .checked_mul(2)
         .expect("twice u32 fits u64")
@@ -608,11 +483,7 @@ fn index(
         .expect("twice u32 plus one fits u64");
     for _ in 0..turns {
         let child = match current {
-            None => Some(Child {
-                source: Source::Declaration(root.decl),
-                kind: declaration(schema, root.decl),
-                path: root_path,
-            }),
+            None => Some(Child { kind: declaration(schema, root), path: root_path }),
             Some(node) => entries.get_mut(node.0).expect("open node belongs to the index").child(schema),
         };
         match child {
@@ -620,19 +491,10 @@ fn index(
                 if entries.len() == ceiling {
                     return Err(Refusal::Room);
                 }
-                let entry = match Entry::open(child, current.or(root.parent), schema, reader, total) {
+                let entry = match Entry::open(child, current, schema, reader, total) {
                     Ok(entry) => entry,
                     Err(problem) => return Err(Refusal::Problem(problem)),
                 };
-                if entries.room() == 0 {
-                    *spare = List::with_capacity(0);
-                    let need = add(entries.len(), 1);
-                    let mut larger = List::with_capacity(growing_room(entries.capacity(), need, ceiling));
-                    for &entry in &*entries {
-                        larger.push(entry).expect("the larger index holds every entry");
-                    }
-                    *entries = larger;
-                }
                 let node = Node(entries.len());
                 entries.push(entry).expect("room checked before reading a node");
                 current = Some(node);
@@ -644,11 +506,11 @@ fn index(
                 entry.span.end = position(total, reader);
                 entry.next = next;
                 current = entry.parent;
-                if current == root.parent {
+                if current.is_none() {
                     if !reader.is_empty() {
                         return Err(Refusal::Problem(Problem { path: root_path, reason: Reason::Trailing }));
                     }
-                    return Ok(first);
+                    return Ok(Node(0));
                 }
             }
         }
@@ -662,18 +524,4 @@ fn add(left: u32, right: u32) -> u32 {
 
 fn position(total: u32, reader: &Reader<'_>) -> u32 {
     total.checked_sub(reader.remaining()).expect("the reader only consumes its input")
-}
-
-// Below a sixteenth, at most twice the need; beyond it, the ceiling.
-// A copied allocation is at most a sixteenth of its table's ceiling.
-pub(crate) fn growing_room(room: u32, need: u32, ceiling: u32) -> u32 {
-    assert!(need <= ceiling, "admission checks the configured ceiling");
-    if need <= room {
-        return room;
-    }
-    let small = ceiling.checked_div(16).expect("positive divisor");
-    if need > small {
-        return ceiling;
-    }
-    room.max(1).checked_mul(2).expect("twice a sixteenth fits u32").max(need).min(small)
 }

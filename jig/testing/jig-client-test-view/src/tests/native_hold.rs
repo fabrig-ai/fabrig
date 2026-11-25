@@ -33,7 +33,11 @@ pub(super) fn ready() -> Domain {
         &mut root,
         Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed { family: 1, versions: Some(VersionRange { first: 2, last: 2 }) },
+                up: jig_client::Up::FamilyServed {
+                    family: 1,
+                    versions: Some(VersionRange { first: 2, last: 2 }),
+                    served: true,
+                },
             },
         },
     );
@@ -49,6 +53,7 @@ pub(super) fn ready() -> Domain {
                         key_bytes: 256,
                         redirect_bytes: 4096,
                         words_bytes: 8192,
+                        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
                         party: MeParty {
                             number: 7,
                             kind: PartyKind::Person,

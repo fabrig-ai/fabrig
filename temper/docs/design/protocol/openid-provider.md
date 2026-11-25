@@ -89,7 +89,7 @@ by the client, not by a route:
 1. `GET /oauth/authorize?QUERY` is answered with temper's page. The
    client root's routing reads the address as a place of its own,
    `Authorize { query }`, `QUERY` as the address carried it
-   (`../client/view.md`, 1; `../client/web/README.md`, 2.3).
+   (`../client/view.md`, 1; `../client/web/addresses.md`, 1).
 2. The client signs in by `Transport`: its exchanges are same-origin,
    started by temper's page, so the cookie goes with them whatever site
    the navigation came from.
@@ -143,7 +143,7 @@ by the client, not by a route:
 - **`preferred_username`:** the member's login. **`email`:** the
   member's address, verified, for Google's provider is one of jig's
   `addresses`. **`name`:** the member's name as minted. No `nickname`.
-- **Forgejo's settings,** in its `app.ini` (`setup/owned.md`, 2 and 8):
+- **Forgejo's settings,** in its `app.ini` (`setup/owned.md`, 2, and `setup/owned-sign-in.md`, 1):
   - `[oauth2_client] ENABLE_AUTO_REGISTRATION = true` and `USERNAME =
     preferred_username`, which Forgejo 17 takes (a value it does not
     take is logged and read as `nickname`): a member's first sign-in
@@ -171,7 +171,7 @@ forgejo admin auth add-oauth --name temper --provider openidConnect \
 ```
 
 `temper-box forge sign-in` prints it, for a managed Forgejo and `temper-box serve`'s
-owned one alike (`setup/owned.md`, 8); a box runs its own (9), with no secret.
+owned one alike (`setup/owned-sign-in.md`, 1); a box runs its own (9), with no secret.
 The name `temper` is the callback's path
 segment, so it is fixed. `add-oauth` fetches the discovery document at
 once and adds no source when it does not answer, so temper serves
@@ -194,8 +194,8 @@ before it runs.
 
 ## 7. The configuration
 
-jig's `engine.clients.provider` (jig's `protocol/configuration.md`,
-section 3), and temper's `application.sign_in.forges`:
+jig's `engine.clients.provider` (jig's `protocol/configuration-engine.md`,
+section 1), and temper's `application.sign_in.forges`:
 
 ```
 "engine": {"clients": {"provider": {
@@ -208,7 +208,7 @@ section 3), and temper's `application.sign_in.forges`:
 
 - **The key:** an RSA key of 3072 bits, PKCS#8 PEM, mode 0600, the
   service's own user, made on its host by `temper-box forge sign-in`
-  (`setup/owned.md`, 8) with `openssl genpkey`, never copied, printed or
+  (`setup/owned-sign-in.md`, 1) with `openssl genpkey`, never copied, printed or
   logged; jig's start refuses any other. A key replaced is a file
   replaced; its key set's `kid` names it anew.
 - **`sign_in.forges`:** a list, absent for none (`configuration/engine.md`
@@ -295,7 +295,7 @@ serve`'s owned one stay as 4 to 7 say. This is an authentication change, so
 its reasons are kept here.
 
 **What the box's configuration holds,** as `temper-box init --box` writes it
-(`setup/init.md`, 2):
+(`setup/init.md`, 5):
 
 ```
 "engine": {"owners": [{"provider": 1, "subject": "ada@localhost"}],
@@ -387,7 +387,7 @@ one, until the same reasoning has been checked for several members.
 **The provider's key:** an RSA key of 3072 bits, as 7 says, made at the first run
 by `temper-box init --box`, before the document is written, in `provider.key` in the data
 directory, 0600 and the service's user's, under `temper-box forge sign-in`'s rule
-(`setup/owned.md`, 8): `openssl genpkey`, since skein has no key generation (ring signs
+(`setup/owned-sign-in.md`, 1): `openssl genpkey`, since skein has no key generation (ring signs
 and does not generate); a key already there is left as it is. With no `openssl`, or if it fails, the document has
 `clients.provider` and `machine.owned.sign_in` `null`, the box goes on and the links
 stay plain, and `box.log` says so.
@@ -412,7 +412,7 @@ added. Forgejo loads a source's discovery when it starts, and a source whose dis
 did not answer then is listed but not served; on that sign-in Forgejo, finding no
 provider for it, loads its sources again, so the same request makes it serve. Any
 other answer ends the step failed, `Forgejo does not serve the source`. A step that
-ends failed runs again while its group stands (`setup/box.md`, 2), so the source serves
+ends failed runs again while its group stands (`setup/box-supervision.md`, 1), so the source serves
 once the engine answers, whichever started first, and Forgejo is never restarted for
 it. temper is serving by the step's first run, since it asked for the group. On a restart, serve
 starts before this group too: a later preparation's source commands and Forgejo, loading its
@@ -435,7 +435,7 @@ address it is given and serve answers it only once it is up.
 - **It never fails the set-up.** Any ending of the step leaves the set-up succeeding:
   one line in `box.log`, the forge's page fact saying so, and the links plain until a
   later run of the step makes the source serve, which turns the fact and the links back.
-  Never a welcome failure (`setup/box.md`, 2). Any ending of the preparation's two commands
+  Never a welcome failure (`setup/box-supervision.md`, 1). Any ending of the preparation's two commands
   leaves the preparation going, with one line in its own log and the source as it was:
   the entry still serves, so a press then ends at Forgejo's own error, on the old
   address, until a later start succeeds. Forgejo's own login still works.

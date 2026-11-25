@@ -1,4 +1,4 @@
-//! Push subscriptions (temper/docs/design/client/ctl/tools.md, 2, 3).
+//! Push subscriptions (temper/docs/design/client/ctl/tools-reads.md, 1, temper/docs/design/client/ctl/tools-acts.md, 1).
 use crate::{
     jig::{
         self,
@@ -399,7 +399,7 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
         | w::Outcome::Tier(_)
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::NotTheirs => return render::failure(b"unknown push outcome", json, 1),
     };

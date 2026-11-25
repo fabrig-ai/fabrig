@@ -13,6 +13,7 @@ use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn row(connection: C) -> Row {
     Row {
+        catching_up: None,
         starts_with: forge::forges::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
@@ -38,13 +39,17 @@ fn record(connection: w::Connection) -> client::Family {
     record_first(connection, None)
 }
 fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) -> client::Family {
+    record_first_on(3, connection, first)
+}
+fn record_first_on(number: u16, connection: w::Connection, first: Option<w::FirstRepository>) -> client::Family {
     let mut forges = List::with_capacity(1);
     forges
         .push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
-            number: 3,
+            number,
             kind: w::Kind::Forgejo,
             mode: w::Mode::Owned,
             connection,
@@ -778,6 +783,7 @@ fn settled_wait_with_installations(count: u32) {
     let mut forges = List::with_capacity(1);
     forges
         .push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -921,6 +927,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         }
         let mut rows = List::with_capacity(1);
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -1141,6 +1148,61 @@ fn playground_setup_sends_its_copy_and_default_or_explicit_project() {
         );
     }
 }
+#[test]
+fn playground_setup_prints_its_project_home_and_a_playground_row() {
+    let mut root = f::signed_in(f::PARTY);
+    let mut me = f::me(f::PARTY);
+    me.projects = List::with_capacity(0);
+    root.deliver(c::Delivery::Me(Box::new(me)));
+    let setup = root.submit(&["forge", "setup", "--playground"]);
+    root.adoption_answer(setup, w::Outcome::SettingUp);
+    let row = record_first_on(
+        1,
+        w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
+        Some(w::FirstRepository {
+            org: b"playground".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+            playground: true,
+            ..first_record(w::FirstState::Made(w::Made { id: 1 }))
+        }),
+    );
+    deliver(&mut root, row.clone());
+    let client::Ask::Jig(ask) = root.adoption_bytes(setup) else { panic!("make the project before adopting") };
+    let c::Ask::MakeProject { name, .. } = ask.as_ref() else { panic!("make the widget project") };
+    assert_eq!(name.bytes(), b"widget");
+    root.done(setup, c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 1 }));
+
+    let adopted = root.sent_adoption(setup);
+    assert_eq!((adopted.project, adopted.forge, adopted.role, adopted.home), (1, 1, w::Role::Owned, true));
+    assert_eq!(
+        (adopted.owner.as_ref(), adopted.name.as_ref(), adopted.landing.as_ref()),
+        (b"playground".as_slice(), b"widget".as_slice(), b"main".as_slice())
+    );
+    let w::Outcome::Adopted(mut answer) = f::adopted_with_unknown_protection() else { panic!("adopted fixture") };
+    answer.owner = adopted.owner;
+    answer.name = adopted.name;
+    answer.landing = adopted.landing;
+    answer.repository = 1;
+    root.adoption_answer(setup, w::Outcome::Adopted(answer));
+    let printed = root.answer(setup).expect("completed playground setup");
+    assert_eq!(printed.status, 0);
+    let expected = "project: 1 · widget\nAdopted playground/widget on forge 1 as owned.\nIt lands into main.\nIt is the project's home.\n";
+    assert!(printed.stdout.starts_with(expected.as_bytes()), "{:?}", printed.stdout);
+
+    let list = root.submit(&["forge", "list", "--json"]);
+    deliver(&mut root, row);
+    let printed = root.answer(list).expect("forge list answer");
+    assert_eq!(printed.status, 0);
+    let value: serde_json::Value = serde_json::from_slice(&printed.stdout).expect("forge JSON");
+    let [row] = value["forges"].as_array().expect("forge rows").as_slice() else { panic!("one playground forge") };
+    assert_eq!(row["number"], 1_u64);
+    assert_eq!(row["state"], "connected");
+    assert_eq!(row["first"]["state"], "made");
+    assert_eq!(row["first"]["org"], "playground");
+    assert_eq!(row["first"]["repository"], "widget");
+    assert_eq!(row["first"]["playground"], true);
+}
+
 #[test]
 fn playground_setup_rejects_org_or_repository_before_sending() {
     for flag in ["--org", "--repository"] {

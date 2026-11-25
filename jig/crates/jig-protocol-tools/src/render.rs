@@ -1,4 +1,4 @@
-//! Text answers from the core's parts (protocol/channel/README.md, section 5.3).
+//! Text answers from the core's parts (protocol/channel/owners.md, section 1.3).
 use crate::{Problem, Rendered, Why};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -91,8 +91,8 @@ pub fn render(part: &CallPart) -> Rendered {
         | CallPart::ProposalRefused(problem)
         | CallPart::ControlRefused(problem)
         | CallPart::MessageRefused(problem)
-        | CallPart::SubscriptionRefused(problem)
         | CallPart::DelegationRefused(problem) => task_problem(problem),
+        CallPart::SubscriptionRefused(problem) => subscription_refused(problem),
         CallPart::NoteRecalled { entries, more } => Rendered { error: false, text: notes(entries, *more) },
         CallPart::NoteRefused(why) => note_refused(why),
         CallPart::Revised { task, revision } => text(
@@ -294,111 +294,62 @@ fn person_answers(question: u64) -> Rendered {
     text(&[b"Refused: your person answers question ", Decimal::of(question).as_bytes(), b" in their inbox"], true)
 }
 
-#[expect(clippy::too_many_lines, reason = "one total task refusal rendering")]
-fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
-    let why: &[u8] = match problem.why {
-        jig_domain_tasks::Refusal::Concluded { .. } => b"concluded",
-        jig_domain_tasks::Refusal::NotStanding => b"the task does not stand",
-        jig_domain_tasks::Refusal::TalkOpen { .. } => b"another party has an open talk",
-        jig_domain_tasks::Refusal::NoTalk => b"no talk of yours to leave",
-        jig_domain_tasks::Refusal::Placed { .. } => b"held by a placed hold",
-        jig_domain_tasks::Refusal::HoldOwner { .. } => b"only the placed hold's owner may release it",
-        jig_domain_tasks::Refusal::HoldRevision { .. } => b"placed hold revision changed",
-        jig_domain_tasks::Refusal::Unproposable => b"no proposal could be accepted",
-        jig_domain_tasks::Refusal::PersonRevision { .. } => b"person revision",
-        jig_domain_tasks::Refusal::ResourceUnavailable => b"resource unavailable",
-        jig_domain_tasks::Refusal::Unreported => b"unreported",
-        jig_domain_tasks::Refusal::NotReady => b"not ready",
-        jig_domain_tasks::Refusal::Unknown => b"unknown",
-        jig_domain_tasks::Refusal::Busy => return task_busy(problem),
-        jig_domain_tasks::Refusal::Duplicate => b"duplicate",
-        jig_domain_tasks::Refusal::Empty => b"empty",
-        jig_domain_tasks::Refusal::Batch => b"batch",
-        jig_domain_tasks::Refusal::Live => b"live",
-        jig_domain_tasks::Refusal::Project => b"project",
-        jig_domain_tasks::Refusal::Tree => b"tree",
-        jig_domain_tasks::Refusal::Depth => b"depth",
-        jig_domain_tasks::Refusal::Delegates => b"delegates",
-        jig_domain_tasks::Refusal::Reference => b"reference",
-        jig_domain_tasks::Refusal::Subscription => b"subscription",
-        jig_domain_tasks::Refusal::Dependencies => b"dependencies",
-        jig_domain_tasks::Refusal::Circle { cut } => {
-            return dependency_list(
-                problem,
-                b"these tasks would wait for one another",
-                b"these tasks would wait for one another: T",
-                b", T",
-                b"",
-                if cut { b"; some task lists are incomplete" } else { b"" },
-            );
-        }
-        jig_domain_tasks::Refusal::DependencyEnded { how } => {
-            let tasks = problem.blocked_by.as_deref().unwrap_or(&[]);
-            let Some(task) = tasks.first() else {
-                return text(&[b"Refused: a dependency has ended"], true);
-            };
-            let task = Decimal::of(*task);
-            return match how {
-                jig_domain_tasks::Status::Failed => {
-                    text(&[b"Refused: dependency T", task.as_bytes(), b" failed"], true)
-                }
-                jig_domain_tasks::Status::Cancelled => {
-                    text(&[b"Refused: dependency T", task.as_bytes(), b" was cancelled"], true)
-                }
-                jig_domain_tasks::Status::Done => text(&[b"Refused: T", task.as_bytes(), b" is done"], true),
-            };
-        }
-        jig_domain_tasks::Refusal::PersonAnswers { question } => return person_answers(question),
-        jig_domain_tasks::Refusal::KeptQuestion { question } => {
-            return text(&[b"Refused: kept until question ", Decimal::of(question).as_bytes(), b" is answered"], true);
-        }
-        jig_domain_tasks::Refusal::Kept => {
-            return dependency_list(
-                problem,
-                b"kept by its dependencies",
-                b"kept until T",
-                b", kept until T",
-                b" is done",
-                b"",
-            );
-        }
-        jig_domain_tasks::Refusal::Executor => b"executor",
-        jig_domain_tasks::Refusal::Spec => b"spec",
-        jig_domain_tasks::Refusal::Contract => b"contract",
-        jig_domain_tasks::Refusal::AuthorityShape => b"authority shape",
-        jig_domain_tasks::Refusal::Inputs => b"inputs",
-        jig_domain_tasks::Refusal::State => b"state",
-        jig_domain_tasks::Refusal::Goals => b"goals",
-        jig_domain_tasks::Refusal::Grace => b"grace",
-        jig_domain_tasks::Refusal::Attempt => b"attempt",
-        jig_domain_tasks::Refusal::LiveDelegates => b"live delegates",
-        jig_domain_tasks::Refusal::Restore => b"restore",
-        jig_domain_tasks::Refusal::Read => b"read",
-        jig_domain_tasks::Refusal::Turn => b"turn",
-        jig_domain_tasks::Refusal::Funding => b"funding",
-        jig_domain_tasks::Refusal::HoldKind => b"hold kind",
-        jig_domain_tasks::Refusal::HoldTaken => b"hold taken",
-        jig_domain_tasks::Refusal::Holds => b"holds",
-        jig_domain_tasks::Refusal::Account { why, .. } => match why {
-            jig_domain_tasks::AccountWhy::Unknown => b"account not found",
-            jig_domain_tasks::AccountWhy::Provider => b"account belongs to another provider",
-            jig_domain_tasks::AccountWhy::Uses => b"account does not serve the payer",
-            jig_domain_tasks::AccountWhy::Limited => b"kept account is limited",
-        },
-        jig_domain_tasks::Refusal::Llm { why, .. } => match why {
-            jig_domain_tasks::LlmFault::Unconfigured => b"model not configured",
-            jig_domain_tasks::LlmFault::Effort => b"effort not declared",
-            jig_domain_tasks::LlmFault::Charter => b"model outside the charter",
-            jig_domain_tasks::LlmFault::Authority => b"model outside authority",
-            jig_domain_tasks::LlmFault::Procedure => b"no model runs this task",
-            jig_domain_tasks::LlmFault::Repeated => b"model repeated",
-        },
-    };
-    if let jig_domain_tasks::Refusal::Account { account, .. } = problem.why {
-        let account = Decimal::of(u64::from(account));
-        return text(&[b"Refused account ", account.as_bytes(), b": ", why], true);
+fn subscription_refused(problem: &jig_domain_tasks::Problem) -> Rendered {
+    if problem.why == jig_domain_tasks::Refusal::Reference {
+        return text(
+            &[b"Refused: the target must be a task this one references or a live task of its project its tree's requester reads"],
+            true,
+        );
     }
-    text(&[b"Refused: ", why], true)
+    task_problem(problem)
+}
+
+fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
+    use jig_domain_tasks::Refusal;
+    if let Refusal::Busy = problem.why {
+        return task_busy(problem);
+    }
+    if let Refusal::Circle { cut } = problem.why {
+        return dependency_list(
+            problem,
+            b"these tasks would wait for one another",
+            b"these tasks would wait for one another: T",
+            b", T",
+            b"",
+            if cut { b"; some task lists are incomplete" } else { b"" },
+        );
+    }
+    if let Refusal::DependencyEnded { how } = problem.why {
+        let tasks = problem.blocked_by.as_deref().unwrap_or(&[]);
+        let Some(task) = tasks.first() else {
+            return Rendered { error: true, text: problem.why.words() };
+        };
+        let task = Decimal::of(*task);
+        return match how {
+            jig_domain_tasks::Status::Failed => text(&[b"Refused: dependency T", task.as_bytes(), b" failed"], true),
+            jig_domain_tasks::Status::Cancelled => {
+                text(&[b"Refused: dependency T", task.as_bytes(), b" was cancelled"], true)
+            }
+            jig_domain_tasks::Status::Done => text(&[b"Refused: T", task.as_bytes(), b" is done"], true),
+        };
+    }
+    if let Refusal::PersonAnswers { question } = problem.why {
+        return person_answers(question);
+    }
+    if let Refusal::KeptQuestion { question } = problem.why {
+        return text(&[b"Refused: kept until question ", Decimal::of(question).as_bytes(), b" is answered"], true);
+    }
+    if let Refusal::Kept = problem.why {
+        return dependency_list(
+            problem,
+            b"kept by its dependencies",
+            b"kept until T",
+            b", kept until T",
+            b" is done",
+            b"",
+        );
+    }
+    Rendered { error: true, text: problem.why.words() }
 }
 
 fn task_busy(problem: &jig_domain_tasks::Problem) -> Rendered {
@@ -490,7 +441,7 @@ fn inbox_busy(action: jig_domain_tasks::CapacityAction, task: u64, messages: u32
     )
 }
 
-// The client's dependency phrases in one line (domain/tasks/lifecycle.md, section 8, and domain/tasks/holds.md, section 7).
+// The client's dependency phrases in one line (domain/tasks/lifecycle-endings.md, section 1, and domain/tasks/holds.md, section 7).
 fn dependency_list(
     problem: &jig_domain_tasks::Problem,
     plain: &[u8],
@@ -664,6 +615,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
         HoldReason::PoolLost { .. } => b"for a lost pool",
         HoldReason::Procedure => b"for its procedure",
         HoldReason::Circle => b"for a circle of waits",
+        HoldReason::Waited => b"because a wait passed its bound",
     }
 }
 
@@ -788,7 +740,7 @@ fn hold_owner(task: u64, hold: u64, revision: u64, owner: &jig_domain_people::Ho
     )
 }
 
-/// A proposal read's one-line host answer (domain/engine/executors.md, 3).
+/// A proposal read's one-line host answer (domain/engine/executors-tools.md, 1).
 #[must_use]
 pub fn proposal_read(answer: &core::ProposalRead) -> Rendered {
     match answer {
@@ -837,7 +789,7 @@ mod tests {
     #[test]
     fn subscription_refusals_name_the_limit_and_recovery() {
         for (task, cause, expected) in [
-            (4, CapacityCause::Subscriptions { limit: 4 }, b"Refused: busy: task 4 has reached its per-task limit of 4 standing subscriptions; unsubscribe an obsolete standing interest before adding another".as_slice()),
+            (4, CapacityCause::Subscriptions { limit: 5 }, b"Refused: busy: task 4 has reached its per-task limit of 5 standing subscriptions; unsubscribe an obsolete standing interest before adding another".as_slice()),
             (6, CapacityCause::Subscriptions { limit: 7 }, b"Refused: busy: task 6 has reached its per-task limit of 7 standing subscriptions; unsubscribe an obsolete standing interest before adding another".as_slice()),
             (4, CapacityCause::Inbox { task: 4, messages: 8, bytes: 12288 }, b"Refused: busy: task 4's inbox cannot reserve another subscription (at most 8 messages and 12288 bytes, including reserved room); each standing subscription reserves one merged hint slot and max(result_bytes, message_bytes) bytes. Reading its hint alone does not release that reservation; unsubscribe an obsolete standing interest before adding another, or wait for other reserved answers, results and proposal decisions to arrive and be read".as_slice()),
             (6, CapacityCause::Inbox { task: 6, messages: 9, bytes: 16384 }, b"Refused: busy: task 6's inbox cannot reserve another subscription (at most 9 messages and 16384 bytes, including reserved room); each standing subscription reserves one merged hint slot and max(result_bytes, message_bytes) bytes. Reading its hint alone does not release that reservation; unsubscribe an obsolete standing interest before adding another, or wait for other reserved answers, results and proposal decisions to arrive and be read".as_slice()),
@@ -851,7 +803,7 @@ mod tests {
         }
         for (why, expected) in [
             (Refusal::Subscription, b"Refused: subscription".as_slice()),
-            (Refusal::Reference, b"Refused: reference".as_slice()),
+            (Refusal::Reference, b"Refused: the target must be a task this one references or a live task of its project its tree's requester reads".as_slice()),
             (Refusal::State, b"Refused: state".as_slice()),
             (Refusal::Busy, b"Refused: busy".as_slice()),
         ] {

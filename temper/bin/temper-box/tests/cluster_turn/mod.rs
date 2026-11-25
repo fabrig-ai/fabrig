@@ -17,16 +17,16 @@ use temper_box_kit::{
 };
 
 #[test]
-fn a_change_lands_by_turn_across_an_engine_killed_mid_proof() {
+fn an_engine_killed_is_started_again_on_its_directories_and_its_worker_links_again() {
     story("cluster-turn-engine", Cut::Engine).unwrap_or_else(|why| panic!("{why}"));
 }
 
 #[test]
-fn a_worker_restarted_mid_delivery_lands_its_saved_work_by_turn() {
+fn a_worker_restarted_mid_delivery_links_again_on_its_directories() {
     story("cluster-turn-delivery", Cut::Worker).unwrap_or_else(|why| panic!("{why}"));
 }
 
-/// worker-restarts.md, 9, test 8: unit stop and a stray agent signal while an answer is held.
+/// draft/archive/worker-restarts.md, 9, test 8: unit stop and a stray agent signal while an answer is held.
 #[test]
 fn a_unit_stop_settles_a_workers_held_turn() {
     story("cluster-unit-stop", Cut::Unit).unwrap_or_else(|why| panic!("{why}"));
@@ -50,24 +50,28 @@ impl Cut {
 enum Stage {
     Start,
     Configured,
-    ConfiguredStop,
-    ConfiguredStart,
     Created,
+    ChatReplied,
+    ChatClosed,
+    BeforeKill,
     Holding,
     Releasing,
     WorkerEnded,
     EngineEnded,
     Restarted,
-    List,
-    Panel,
-    PanelAgain(Time),
-    Change,
-    Verify,
-    Jobs,
+    WorkerRead,
+    PullReady,
+    Pull,
+    Head,
+    AfterRestart,
     Closed,
     Stopping,
     Unit,
 }
+
+const CHAT: &str = "Answer before the engine restarts";
+const REPLY: &str = "The worker answered before the restart.";
+const DELIVERY: &str = "Add a file NOTICE to widget";
 
 fn story(name: &str, cut: Cut) -> Result<(), String> {
     let scratch = support::Scratch::new(name);
@@ -104,13 +108,9 @@ fn story(name: &str, cut: Cut) -> Result<(), String> {
         tick: None,
         finding: None,
         chat: String::new(),
-        landing: String::new(),
-        change: String::new(),
-        candidate: Value::Null,
-        run: None,
-        panel: Value::Null,
-        changed: Value::Null,
-        last: Value::Null,
+        linked_before: 0,
+        turn: String::new(),
+        committed: Value::Null,
         unit: unit_stop::Stop::new(),
     });
     for host in hosts {
@@ -136,13 +136,9 @@ struct Judge {
     tick: Option<Time>,
     finding: Option<String>,
     chat: String,
-    landing: String,
-    change: String,
-    candidate: Value,
-    run: Option<u64>,
-    panel: Value,
-    changed: Value,
-    last: Value,
+    linked_before: usize,
+    turn: String,
+    committed: Value,
     unit: unit_stop::Stop,
 }
 
@@ -175,32 +171,47 @@ impl Judge {
     fn calls(&self, host: &mut Root, calls: Vec<Call>) -> Result<(), String> {
         self.queue(host, calls.into_iter().map(Step::Run).collect())
     }
-    fn list(&mut self, host: &mut Root) -> Result<(), String> {
-        self.stage = Stage::List;
-        self.queue(
-            host,
-            vec![Step::Until(Call::new(&["landing", "list", "--project", "1", "--ended", "--json"]), b"\"task\":")],
-        )
-    }
-    fn panel(&mut self, host: &mut Root) -> Result<(), String> {
-        self.stage = Stage::Panel;
-        self.calls(host, vec![Call::new(&["landing", "show", &self.landing, "--json"])])
-    }
     fn begin(&mut self, host: &mut Root) -> Result<(), String> {
         let address = self.members.capture("forge", "address").ok_or("forge address")?;
         let settings_root = self.root.clone();
-        let landing_settings = self.members.dir("engine").join("config/landing-settings.json");
         let workers = support::cluster::worker_adds(&self.members.dir("engine").join("settings.json"));
         let mut steps = vec![
             Step::Run(Call::sign_in()),
             Step::Run(Call::new(&["project", "make", "Cluster turn", "--key", "turn-project"])),
             Step::Run(Call::new(&["settings", "show", "--json"])),
-            Step::Run(Call::new(&["settings", "show", "policy", "1", "--json"])),
             Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])),
             Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])),
             Step::Then(Box::new(move |calls| setup::settings(&settings_root, &calls[1..]))),
         ];
         steps.extend(workers.into_iter().map(Step::Run));
+        if self.cut != Cut::Engine {
+            self.adopt(address, &mut steps)?;
+        }
+        steps.extend([
+            Step::Run(Call::new(&[
+                "account",
+                "add-key",
+                "1",
+                self.key.to_str().ok_or("key path")?,
+                "--deployment",
+                "--key",
+                "turn-llm",
+            ])),
+            Step::Run(Call::new(&["account", "list", "--until", "usable"])),
+            Step::Run(Call::new(&["project", "show", "1", "--json"])),
+            Step::Then(Box::new(|calls| {
+                let project = ctl::json(calls.last().expect("project read"));
+                let period = project["policy"]["period_spend"].as_u64().expect("project period");
+                let spend = period / 48 * 41;
+                let amount = format!("{}.{:02}", spend / 100, spend % 100);
+                Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-funds"])
+            })),
+        ]);
+        self.queue(host, steps)?;
+        self.stage = Stage::Configured;
+        Ok(())
+    }
+    fn adopt(&self, address: &str, steps: &mut Vec<Step>) -> Result<(), String> {
         steps.extend([
             Step::Run(Call::new(&[
                 "forge",
@@ -231,10 +242,6 @@ impl Judge {
                 "--key",
                 "turn-adopt",
             ])),
-            Step::Run(Call::new(&["settings", "show", "--json"])),
-            Step::Then(Box::new(move |calls| {
-                ctl::settings_change(calls.last().expect("post-adoption settings"), &landing_settings, "turn-landing")
-            })),
             Step::Run(self.api_request(
                 "/collaborators/temper-admin",
                 &[
@@ -246,27 +253,7 @@ impl Judge {
                     r#"{"permission":"admin"}"#,
                 ],
             )?),
-            Step::Run(Call::new(&[
-                "account",
-                "add-key",
-                "1",
-                self.key.to_str().ok_or("key path")?,
-                "--deployment",
-                "--key",
-                "turn-llm",
-            ])),
-            Step::Run(Call::new(&["account", "list", "--until", "usable"])),
-            Step::Run(Call::new(&["project", "show", "1", "--json"])),
-            Step::Then(Box::new(|calls| {
-                let project = ctl::json(calls.last().expect("project read"));
-                let period = project["policy"]["period_spend"].as_u64().expect("project period");
-                let spend = period / 48 * 41;
-                let amount = format!("{}.{:02}", spend / 100, spend % 100);
-                Call::new(&["project", "fund", "1", &amount, "--role", "0", "--key", "turn-funds"])
-            })),
         ]);
-        self.queue(host, steps)?;
-        self.stage = Stage::Configured;
         Ok(())
     }
     fn api(&self, suffix: &str) -> Result<Call, String> {
@@ -289,33 +276,6 @@ impl Judge {
         arguments.extend_from_slice(extra);
         Ok(Call::command(Path::new("/usr/bin/curl"), &arguments))
     }
-    fn candidate_sha1(&self) -> Result<&str, String> {
-        // Landing panels pad commits to 32 bytes; this fake forge spells SHA-1 objects in 40 digits.
-        self.candidate.as_str().and_then(|s| s.get(..40)).ok_or_else(|| "candidate SHA-1".into())
-    }
-    fn verify(&mut self, host: &mut Root) -> Result<(), String> {
-        self.stage = Stage::Verify;
-        let candidate = self.candidate_sha1()?;
-        let member = self.changed["pull"]["number"].as_u64().ok_or("change pull")?;
-        let round = self.panel["round"]["pull"]["number"].as_u64().ok_or("round pull")?;
-        self.calls(
-            host,
-            vec![
-                Call::new(&["landing", "list", "--project", "1", "--ended", "--json"]),
-                self.api("/branches/main")?,
-                self.api("/issues?state=all&limit=32&page=1")?,
-                self.api(&format!("/pulls/{member}"))?,
-                self.api(&format!("/pulls/{round}"))?,
-                self.api(&format!("/actions/runs?workflow_id=gate.yml&head_sha={candidate}&limit=32&page=1"))?,
-                self.api(&format!("/raw/NOTICE?ref={candidate}"))?,
-            ],
-        )
-    }
-
-    #[expect(
-        clippy::too_many_lines,
-        reason = "keep the settings start and both process cuts in one story transition table"
-    )]
     fn advance(&mut self, now: Time, hosts: &mut [Root]) -> Result<(), String> {
         self.members.act(now, hosts);
         if self.members.failed() {
@@ -329,36 +289,10 @@ impl Judge {
         self.tick = None;
         match self.stage {
             Stage::Start if self.members.capture("engine", "link").is_some() => self.begin(host)?,
-            Stage::ConfiguredStop if self.members.ended("engine") => {
-                self.members.restart("engine");
-                self.stage = Stage::ConfiguredStart;
-            }
-            Stage::ConfiguredStart if self.members.is_up() => {
-                self.calls(
-                    host,
-                    vec![Call::new(&[
-                        "chat",
-                        "start",
-                        "--project",
-                        "1",
-                        "--key",
-                        "turn-chat",
-                        "Add a file NOTICE to widget",
-                        "--json",
-                    ])],
-                )?;
-                self.stage = Stage::Created;
-            }
-            Stage::PanelAgain(at) => {
-                if now >= at {
-                    self.panel(host)?;
-                } else {
-                    self.tick = Some(at);
-                }
-            }
             Stage::Holding => {
-                if self.root.join("delivery.entered").is_file() {
+                if self.members.is_up() && self.root.join("delivery.entered").is_file() {
                     self.members.stop_one("w1");
+                    self.linked_before = self.members.linked("w1");
                     self.stage = Stage::Releasing;
                     self.tick = Some(now);
                 } else {
@@ -366,8 +300,7 @@ impl Judge {
                 }
             }
             Stage::Releasing => {
-                // members.act has now requested the worker's orderly stop. Let its
-                // already running push finish, so its delivery is part of the drain.
+                // members.act has signalled the worker; the in-flight push is part of its drain.
                 fs::remove_file(self.root.join("delivery.hold")).map_err(|why| why.to_string())?;
                 self.stage = Stage::WorkerEnded;
             }
@@ -381,240 +314,225 @@ impl Judge {
                 self.stage = Stage::Restarted;
                 self.tick = Some(now);
             }
-            Stage::Restarted if self.members.is_up() => {
+            Stage::Restarted if self.members.is_up() && self.members.linked("w1") > self.linked_before => {
                 if self.cut == Cut::Engine {
-                    self.panel(host)?;
+                    self.read_turn(host, Stage::AfterRestart)?;
                 } else {
-                    self.list(host)?;
+                    self.read_worker(host)?;
+                }
+            }
+            Stage::PullReady => {
+                if self.pull_opened()? {
+                    self.calls(host, vec![self.api("/pulls?state=all&limit=32&page=1")?])?;
+                    self.stage = Stage::Pull;
+                } else {
+                    self.tick = Some(now.saturating_add(Duration::from_millis(20)));
                 }
             }
             Stage::Configured
             | Stage::Created
-            | Stage::List
-            | Stage::Panel
-            | Stage::Change
-            | Stage::Verify
-            | Stage::Jobs
+            | Stage::ChatReplied
+            | Stage::ChatClosed
+            | Stage::BeforeKill
+            | Stage::WorkerRead
+            | Stage::Pull
+            | Stage::Head
+            | Stage::AfterRestart
             | Stage::Closed
                 if host.is_empty() =>
             {
-                let Root::Client { calls, .. } = host else {
-                    return Err("client root".into());
-                };
-                let calls = calls.take().ok_or("completed calls")?;
-                for ended in calls.ends() {
-                    if ended.exit != Some(Exit::Code(0)) {
-                        return Err(format!(
-                            "story call {:?}: {}",
-                            ended.exit,
-                            support::without_secrets(&ended.stderr)
-                        ));
-                    }
-                }
+                let calls = check_calls(host)?;
                 self.completed(now, host, calls.ends())?;
             }
             Stage::Start
             | Stage::Configured
-            | Stage::ConfiguredStop
-            | Stage::ConfiguredStart
             | Stage::Created
+            | Stage::ChatReplied
+            | Stage::ChatClosed
+            | Stage::BeforeKill
             | Stage::WorkerEnded
             | Stage::EngineEnded
             | Stage::Restarted
-            | Stage::List
-            | Stage::Panel
-            | Stage::Change
-            | Stage::Verify
-            | Stage::Jobs
+            | Stage::WorkerRead
+            | Stage::Pull
+            | Stage::Head
+            | Stage::AfterRestart
             | Stage::Closed
             | Stage::Stopping
             | Stage::Unit => {}
         }
         Ok(())
     }
-
+    // The link can reopen before the engine has opened the pull. Use the fake's
+    // event only as readiness; the oracle reads the pull and its head through HTTP.
+    fn pull_opened(&self) -> Result<bool, String> {
+        let path = self.members.dir("forge").join("observations.jsonl");
+        let bytes = match fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(why) => return Err(format!("forge observations: {why}")),
+        };
+        for line in bytes.split_inclusive(|byte| *byte == b'\n').filter(|line| line.ends_with(b"\n")) {
+            let entry: Value = serde_json::from_slice(line).map_err(|why| format!("forge observation: {why}"))?;
+            if entry["observation"] == "opened" {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+    fn close_chat(&self) -> Vec<Call> {
+        vec![
+            Call::new(&["chat", "close", &self.chat, "--key", "close-cluster-chat"]),
+            Call::new(&["task", "show", &self.chat, "--until", "ended", "--json"]),
+        ]
+    }
+    fn read_turn(&mut self, host: &mut Root, stage: Stage) -> Result<(), String> {
+        self.calls(host, vec![Call::new(&["task", "turn", &self.chat, &self.turn, "--json"])])?;
+        self.stage = stage;
+        Ok(())
+    }
+    fn read_worker(&mut self, host: &mut Root) -> Result<(), String> {
+        self.calls(host, vec![Call::new(&["account", "list", "--json"])])?;
+        self.stage = Stage::WorkerRead;
+        Ok(())
+    }
     fn completed(&mut self, now: Time, host: &mut Root, calls: &[support::Ended]) -> Result<(), String> {
-        // Verification ends with raw file bytes, not a ctl document.
-        let document = if self.stage == Stage::Verify { calls.first() } else { calls.last() };
-        self.last = if self.stage == Stage::Configured { Value::Null } else { json(document.ok_or("last document")?)? };
+        let call = calls.last().ok_or("completed story call")?;
         match self.stage {
             Stage::Configured => {
-                // domain/landing-settings.md, 1.1: landing and gates take effect at the next start.
-                self.members.stop_one("engine");
-                self.stage = Stage::ConfiguredStop;
+                let cue = if self.cut == Cut::Engine { CHAT } else { DELIVERY };
+                self.calls(
+                    host,
+                    vec![Call::new(&["chat", "start", "--project", "1", "--key", "cluster-chat", cue, "--json"])],
+                )?;
+                self.stage = Stage::Created;
             }
             Stage::Created => {
-                self.chat = self.last["outcome"]["done"]["document"]["created"]["first"]
+                self.chat = json(call)?["outcome"]["done"]["document"]["created"]["first"]
                     .as_u64()
                     .ok_or("chat task")?
                     .to_string();
-                if self.cut == Cut::Unit {
-                    self.stage = Stage::Unit;
-                    self.tick = Some(now);
-                } else if self.cut == Cut::Worker {
-                    self.stage = Stage::Holding;
-                    self.tick = Some(now);
-                } else {
-                    self.list(host)?;
-                }
-            }
-            Stage::List => {
-                if self.last["landings"].as_array().ok_or("landings")?.is_empty() {
-                    self.list(host)?;
-                } else {
-                    let row = one(&self.last, "landings")?;
-                    if self.cut == Cut::Engine && self.run.is_none() {
-                        setup::proof_cut(row)?;
+                match self.cut {
+                    Cut::Engine => {
+                        self.calls(
+                            host,
+                            vec![
+                                Call::new(&["task", "show", &self.chat, "--until", "replied", "--json"]),
+                                Call::new(&["account", "list", "--json"]),
+                            ],
+                        )?;
+                        self.stage = Stage::ChatReplied;
                     }
-                    self.landing = row["task"].as_u64().ok_or("landing task")?.to_string();
-                    self.panel(host)?;
+                    Cut::Worker => self.stage = Stage::Holding,
+                    Cut::Unit => self.stage = Stage::Unit,
                 }
-            }
-            Stage::Panel => self.landing_read(now, host)?,
-            Stage::Change => {
-                if !self.last["hold"].is_null() {
-                    return Err(format!("change held: {}", self.last));
-                }
-                if self.last["step"] == "landed" {
-                    let candidate = self.candidate_sha1()?;
-                    if self.last["merge"] != candidate {
-                        return Err(format!("change at candidate: {}", self.last));
-                    }
-                    self.changed = self.last.clone();
-                    self.verify(host)?;
-                } else {
-                    self.calls(host, vec![Call::new(&["change", "show", &self.change, "--json"])])?;
-                }
-            }
-            Stage::Verify => self.forge_read(host, calls)?,
-            Stage::Jobs => {
-                let [job] = self.last.as_array().ok_or("gate jobs")?.as_slice() else {
-                    return Err("one gate job".into());
-                };
-                if job["name"] != "gate" || job["status"] != "success" {
-                    return Err(format!("gate passed: {job}"));
-                }
-                self.stage = Stage::Closed;
-                self.calls(
-                    host,
-                    vec![
-                        Call::new(&["chat", "close", &self.chat, "--key", "close-turn-chat"]),
-                        Call::new(&["task", "show", &self.chat, "--until", "ended", "--json"]),
-                    ],
-                )?;
-            }
-            Stage::Closed => {
-                self.members.stop();
-                self.stage = Stage::Stopping;
                 self.tick = Some(now);
             }
+            Stage::ChatReplied => {
+                let task = json(calls.first().ok_or("live chat")?)?;
+                let details = &task["task"]["chip"]["details"]["owner"]["details"];
+                let hosts = json(call)?;
+                if worker_channel(&hosts)?
+                    != details["observation"]["channel"].as_u64().ok_or("answered chat's channel")?
+                {
+                    return Err("the chat was answered on w1".into());
+                }
+                let attempt = details["attempt"].as_u64().ok_or("answered chat's attempt")?;
+                self.turn = format!("{attempt}.1");
+                self.calls(host, self.close_chat())?;
+                self.stage = Stage::ChatClosed;
+            }
+            Stage::ChatClosed => self.read_turn(host, Stage::BeforeKill)?,
+            Stage::BeforeKill => {
+                self.committed = committed_reply(call, REPLY)?;
+                self.linked_before = self.members.linked("w1");
+                self.members.kill("engine");
+                self.stage = Stage::EngineEnded;
+                self.tick = Some(now);
+            }
+            Stage::AfterRestart => {
+                if committed_reply(call, REPLY)? != self.committed {
+                    return Err("the committed turn changed after restarting the engine".into());
+                }
+                self.stop(now);
+            }
+            Stage::WorkerRead => {
+                worker_channel(&json(call)?)?;
+                self.stage = Stage::PullReady;
+                self.tick = Some(now);
+            }
+            Stage::Pull => {
+                let pulls = json(call)?;
+                let [pull] = pulls.as_array().ok_or("forge pulls")?.as_slice() else {
+                    return Err(format!("one change pull request: {pulls}"));
+                };
+                let head = pull["head"]["sha"].as_str().ok_or("pull head")?;
+                self.calls(host, vec![self.api(&format!("/raw/NOTICE?ref={head}"))?])?;
+                self.stage = Stage::Head;
+            }
+            Stage::Head => {
+                if call.stdout != setup::CONTENT {
+                    return Err(format!("both lines at the pull head: {}", String::from_utf8_lossy(&call.stdout)));
+                }
+                self.calls(host, self.close_chat())?;
+                self.stage = Stage::Closed;
+            }
+            Stage::Closed => self.stop(now),
             Stage::Start
-            | Stage::ConfiguredStop
-            | Stage::ConfiguredStart
             | Stage::Holding
             | Stage::Releasing
             | Stage::WorkerEnded
             | Stage::EngineEnded
             | Stage::Restarted
-            | Stage::PanelAgain(_)
+            | Stage::PullReady
             | Stage::Stopping
             | Stage::Unit => return Err("no calls in this stage".into()),
         }
         Ok(())
     }
-    fn panel_later(&mut self, now: Time) {
-        let at = now.saturating_add(Duration::from_millis(100));
-        self.stage = Stage::PanelAgain(at);
-        self.tick = Some(at);
+    fn stop(&mut self, now: Time) {
+        self.members.stop();
+        self.tick = Some(now);
+        self.stage = Stage::Stopping;
     }
-    fn landing_read(&mut self, now: Time, host: &mut Root) -> Result<(), String> {
-        let panel = self.last.clone();
-        if !panel["hold"].is_null() {
-            return Err(format!("landing held: {panel}"));
-        }
-        let member = one(&panel, "members")?;
-        self.change = member["change"].as_u64().ok_or("member change")?.to_string();
-        if self.cut == Cut::Engine && self.run.is_none() {
-            if let Some(run) = setup::proof_cut(&panel)? {
-                self.candidate = member["candidate"].clone();
-                self.run = Some(run);
-                self.members.kill("engine");
-                self.stage = Stage::EngineEnded;
-                self.tick = Some(now);
-            } else {
-                self.panel_later(now);
-            }
-            return Ok(());
-        }
-        if panel["phase"] != "landed" {
-            self.panel_later(now);
-            return Ok(());
-        }
-        if self.candidate.is_null() {
-            self.candidate = member["candidate"].clone();
-        }
-        if !self.candidate.is_string()
-            || member["candidate"] != self.candidate
-            || member["landed"] != self.candidate
-            || panel["preparation"] != 1
-            || panel["stale_proofs"] != 0
-        {
-            return Err(format!("one preparation lands the same candidate: {panel}"));
-        }
-        self.panel = panel;
-        self.stage = Stage::Change;
-        self.calls(host, vec![Call::new(&["change", "show", &self.change, "--json"])])
+}
+
+fn worker_channel(accounts: &Value) -> Result<u64, String> {
+    accounts["accounts"]["deployment_facts"]["program_hosts"]
+        .as_array()
+        .ok_or("deployment hosts")?
+        .iter()
+        .find(|host| host["name"] == "w1" && host["connected"] == true)
+        .and_then(|host| host["channel"].as_u64())
+        .ok_or_else(|| "connected w1 in the engine".into())
+}
+
+fn committed_reply(call: &support::Ended, reply: &str) -> Result<Value, String> {
+    let turn = json(call)?;
+    crate::complete_cluster_json(&turn)?;
+    let decoded = &turn["turn"]["decoded"];
+    let messages = decoded["messages"].as_array().ok_or("committed turn's messages")?;
+    if !messages
+        .iter()
+        .filter(|message| message["speaker"] == "assistant")
+        .filter_map(|message| message["blocks"].as_array())
+        .flatten()
+        .any(|block| block["text"]["text"].as_str().is_some_and(|text| text.contains(reply)))
+    {
+        return Err(format!("the committed turn holds {reply:?}: {turn}"));
     }
-    fn forge_read(&mut self, host: &mut Root, calls: &[support::Ended]) -> Result<(), String> {
-        let [list, main, pulls, member_pull, round_pull, runs, content] = calls else {
-            return Err("final seven reads".into());
-        };
-        let list = json(list)?;
-        let row = one(&list, "landings")?;
-        if row["task"].as_u64().map(|n| n.to_string()).as_deref() != Some(&self.landing) || row["phase"] != "landed" {
-            return Err(format!("one ended, landed landing: {list}"));
+    Ok(decoded.clone())
+}
+
+fn check_calls(host: &mut Root) -> Result<Box<ctl::Calls>, String> {
+    let Root::Client { calls, .. } = host else { return Err("client root".into()) };
+    let calls = calls.take().ok_or("completed story calls")?;
+    for ended in calls.ends() {
+        if ended.exit != Some(Exit::Code(0)) {
+            return Err(format!("story call {:?}: {}", ended.exit, support::without_secrets(&ended.stderr)));
         }
-        let main = json(main)?;
-        let candidate = self.candidate_sha1()?;
-        if main["commit"]["id"] != candidate {
-            return Err(format!("main at candidate: {main}"));
-        }
-        let pulls = json(pulls)?;
-        let pulls = pulls.as_array().ok_or("pulls")?;
-        let member = &self.changed["pull"]["number"];
-        let round = &self.panel["round"]["pull"]["number"];
-        let member_pull = json(member_pull)?;
-        let round_pull = json(round_pull)?;
-        if pulls.len() != 2
-            || member == round
-            || pulls.iter().filter(|pull| pull["number"] == *member && !pull["pull_request"].is_null()).count() != 1
-            || pulls.iter().filter(|pull| pull["number"] == *round && !pull["pull_request"].is_null()).count() != 1
-            || member_pull["number"] != *member
-            || member_pull["merged"] != true
-            || round_pull["number"] != *round
-            || round_pull["merged"] != true
-        {
-            return Err(format!(
-                "one change PR and one round PR, both merged: {pulls:?}; member={member}, round={round}"
-            ));
-        }
-        let runs = json(runs)?;
-        let run = one(&runs, "workflow_runs")?;
-        if run["workflow_id"] != "gate.yml"
-            || run["commit_sha"] != candidate
-            || run["trigger_event"] != "workflow_dispatch"
-            || run["status"] != "success"
-            || self.run.is_some_and(|id| run["id"] != id)
-        {
-            return Err(format!("one successful gate.yml run at the candidate: {runs}"));
-        }
-        if content.stdout != setup::CONTENT {
-            return Err(format!("both lines at main: {}", String::from_utf8_lossy(&content.stdout)));
-        }
-        let run_id = run["id"].as_u64().ok_or("run id")?;
-        self.stage = Stage::Jobs;
-        self.calls(host, vec![self.api(&format!("/actions/runs/{run_id}/jobs"))?])
     }
+    Ok(calls)
 }
 
 impl skein_world::Referee<Root> for Judge {
@@ -631,24 +549,30 @@ impl skein_world::Referee<Root> for Judge {
         self.members.observe(now, members);
         self.members.verdict()?;
         if let Some(stopped) = self.members.stopped() {
-            if self.cut == Cut::Unit {
-                self.unit_queries()?;
-            }
-            let restarted = if self.cut == Cut::Engine { "engine" } else { "w1" };
-            let lives = match self.cut {
-                Cut::Engine => 3,
-                Cut::Worker => 2,
-                Cut::Unit => 1,
+            use support::cluster::Ending::{Alone, Cluster, Kill};
+            let expected: &[(&str, usize, support::cluster::Ending)] = match self.cut {
+                Cut::Engine => &[
+                    ("engine", 0, Kill),
+                    ("engine", 1, Cluster),
+                    ("w1", 0, Cluster),
+                    ("llm", 0, Cluster),
+                    ("forge", 0, Cluster),
+                ],
+                Cut::Worker => &[
+                    ("w1", 0, Alone),
+                    ("w1", 1, Cluster),
+                    ("engine", 0, Cluster),
+                    ("llm", 0, Cluster),
+                    ("forge", 0, Cluster),
+                ],
+                Cut::Unit => &[("w1", 0, Alone), ("engine", 0, Cluster), ("llm", 0, Cluster), ("forge", 0, Cluster)],
             };
-            if stopped.iter().filter(|life| life.name == restarted).count() != lives {
-                return Err(format!("{lives} lives of {restarted}, including the landing-settings start"));
+            let order: Vec<_> = stopped.iter().map(|life| (life.name.as_str(), life.life, life.ending)).collect();
+            if order != expected {
+                return Err(format!("intentional endings then reverse stop: {order:?}"));
             }
             for life in stopped {
-                let expected = if life.name == "engine" && life.life == 1 && self.cut == Cut::Engine {
-                    Exit::Signal(9)
-                } else {
-                    Exit::Code(0)
-                };
+                let expected = if life.ending == Kill { Exit::Signal(9) } else { Exit::Code(0) };
                 if life.exit != Some(expected) || life.killed || !life.survivors.is_empty() {
                     return Err(format!(
                         "{} life {}: {:?}; {}",
@@ -670,7 +594,7 @@ impl skein_world::Referee<Root> for Judge {
             if self.stage == Stage::Unit {
                 format!("cluster unit stop {:?}", self.unit)
             } else {
-                format!("cluster turn {:?}; last read: {}", self.stage, self.last)
+                format!("cluster restart {:?}", self.stage)
             }
         })
     }

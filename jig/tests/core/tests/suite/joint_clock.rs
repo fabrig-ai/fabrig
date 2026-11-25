@@ -8,6 +8,50 @@ use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Time, Token, Wall};
 
+/// Adoption and advancement drain due work without spending simulated time
+/// (jig/docs/design/domain/testing-fakes.md, 1.2).
+#[test]
+fn restart_and_advance_keep_the_implicit_clock_at_their_boundary() {
+    use jig_domain_fleet::AttemptState;
+    use skein_lib::Duration;
+
+    let seed = 8457;
+    let mut world = World::new(Setup { seed, ..Setup::default() });
+    let task = world.task();
+    let grace = world.env().limits.core.fleet.grace;
+    world.restart(seed, false);
+    let before = world.clocks();
+    let claims = world.domain.core().fleet.attempt_views();
+    let claim = claims.iter().find(|claim| claim.run == Token::new(task)).expect("restored claim");
+    assert_eq!(claim.state, AttemptState::Adopted);
+    assert_eq!(claim.until, Some(before.0.saturating_add(grace)), "restart returns at its adoption clock");
+    let attempt = claim.attempt;
+
+    let almost = Duration::from_nanos(grace.as_nanos() - 1);
+    world.advance(almost);
+    assert_eq!(
+        world.clocks(),
+        (
+            before.0.saturating_add(almost),
+            Wall::from_nanos(before.1.as_nanos().checked_add(almost.as_nanos()).expect("test wall fits"))
+        )
+    );
+    assert!(world.domain.core().fleet.attempt_views().iter().any(|claim| claim.attempt == attempt));
+    world.advance(Duration::from_nanos(1));
+    assert_eq!(
+        world.clocks(),
+        (
+            before.0.saturating_add(grace),
+            Wall::from_nanos(before.1.as_nanos().checked_add(grace.as_nanos()).expect("test wall fits"))
+        )
+    );
+    assert!(!world.domain.core().fleet.attempt_views().iter().any(|claim| claim.attempt == attempt));
+
+    let after = world.clocks();
+    world.drain();
+    assert!(world.clocks().0 > after.0, "ordinary drains retain implicit iteration ticks");
+}
+
 fn sign_in(world: &mut World, number: u64) {
     world.send(signin(Token::new(number), 0, &number.to_be_bytes(), b"person", b"Person"));
 }

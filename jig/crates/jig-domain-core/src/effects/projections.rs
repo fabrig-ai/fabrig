@@ -1,5 +1,5 @@
 //! Whole task-tree feeds and closing retention (`domain/connectors.md`, 8;
-//! `domain/engine/README.md`, 4.4 and 5.4). The core retains only the feed's task
+//! `domain/engine/vocabulary.md`, 1.4, and `domain/engine/decisions.md`, 1.4). The core retains only the feed's task
 //! facts and unread history milestones. Connector digests and writes stay
 //! with their owners. Roots call `finish_decision` after routing ordinary
 //! work, route its asks synchronously, and call again until it emits no work.
@@ -70,6 +70,7 @@ pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, ou
 }
 
 fn save_in(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, number: u64, out: &mut Queue<Request>) {
+    assert!(phase_within(&row.phase, limits), "task phase fits its projection");
     let fresh = number == row.number && row.tracked.is_some() && !core.projections.contains_key(&number);
     if fresh {
         core.projections
@@ -353,7 +354,7 @@ fn forget(core: &mut Core, goal: u64, out: &mut Queue<Request>) {
 /// Checked maximum owned bytes of one retained projection feed cache.
 #[must_use]
 pub fn projection_bytes(limits: &Limits) -> Option<u64> {
-    let phase = u64::from(limits.tasks.result_bytes).checked_mul(2)?;
+    let phase = tasks::phase_bound(&limits.tasks)?;
     let goal = u64::try_from(size_of::<ProjectionGoal>())
         .ok()?
         .checked_add(u64::from(limits.tasks.spec_bytes))?
@@ -376,7 +377,10 @@ pub fn projection_bytes(limits: &Limits) -> Option<u64> {
 
 pub(crate) fn phase_within(phase: &tasks::Phase, limits: &Limits) -> bool {
     match tasks::phase_bytes(phase) {
-        Some(bytes) => bytes <= u64::from(limits.tasks.result_bytes) * 2,
+        Some(bytes) => match tasks::phase_bound(&limits.tasks) {
+            Some(bound) => bytes <= bound,
+            None => false,
+        },
         None => false,
     }
 }

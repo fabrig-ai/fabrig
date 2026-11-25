@@ -185,6 +185,7 @@ pub fn limits() -> engine::Limits {
             records: Duration::from_secs(30 * 86_400),
             summaries: Duration::from_secs(365 * 86_400),
         },
+        waits: jig_protocol_config_fixtures::small().core.waits,
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,
@@ -453,7 +454,7 @@ pub fn models() -> Box<[engine::Model]> {
 }
 
 /// The deployment's one charter: the chats' and the forge's agent work's.
-/// Its default spend holds its reserve floor (jig's `domain/authority.md`, 7).
+/// Its default spend holds its reserve floor (jig's `domain/authority-budgets.md`, 1).
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
@@ -515,7 +516,7 @@ pub struct Settings {
     /// before its completion or ACK/result release; mutually exclusive with
     /// `restart`. The retained worker answer recovers through the real root
     /// routes; reading the result after the cut is the core's (jig's
-    /// `client/domain/contract/README.md`, 4).
+    /// `client/domain/contract/reads.md`, 1).
     pub terminal_restart: bool,
     /// Drain observational child facts or leave their tiny queues saturated.
     pub facts: bool,
@@ -551,6 +552,7 @@ enum TerminalRecovery {
 /// outlive replacement of the root process (domain/root.md, section 11).
 #[derive(Hash, Debug)]
 pub struct World {
+    ends: crate::ends::Ends,
     settings: Settings,
     domain: engine::Domain,
     environment: Env<engine::Limits>,
@@ -561,6 +563,8 @@ pub struct World {
     /// Independent expectations derived from person and worker inputs.
     pub referee: WalkingReferee,
     finding: Option<String>,
+    checks: crate::checks::Checks,
+    bound_steps: u32,
     /// Deterministic outside observations, excluding optional diagnostic facts.
     pub trace: Vec<String>,
     /// Exact number of injected process restarts.
@@ -594,7 +598,10 @@ impl World {
     fn over(settings: Settings, store: Store) -> World {
         let limits = limits();
         let config = config(settings.seed);
+        let mut ends = crate::ends::Ends::new(settings.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         let mut world = World {
+            ends,
             domain: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             environment: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -602,6 +609,8 @@ impl World {
             store,
             referee: WalkingReferee::default(),
             finding: None,
+            checks: crate::checks::Checks::new(settings.seed),
+            bound_steps: 0,
             trace: Vec::new(),
             restarts: 0,
             pages: 0,
@@ -650,6 +659,7 @@ impl World {
     }
 
     fn restart(&mut self, terminal: bool) {
+        self.ends.restarted(self.environment.now);
         assert!(self.store.pending.is_empty(), "cut has no later submitted commit");
         self.domain = engine::Domain::new(config(self.settings.seed), &self.environment.limits)
             .expect("valid engine configuration");
@@ -667,15 +677,64 @@ impl World {
         self.hello();
     }
 
+    /// Drive one iteration and retain its first referee finding.
+    pub fn iterate(&mut self) {
+        self.iterate_inner();
+        if self.ends.awaiting_open() && self.domain.ready() {
+            self.ends.opened(self.environment.now);
+        }
+        if let Err(finding) = self.ends.step(self.environment.now, &self.store)
+            && self.finding.is_none()
+        {
+            self.finding = Some(finding);
+        }
+    }
+
     /// Drive one up/ready/timer/reclaim iteration and independent fake effects.
     #[expect(clippy::too_many_lines, reason = "one scripted iteration includes each journal release pass")]
-    pub fn iterate(&mut self) {
+    fn iterate_inner(&mut self) {
         if self.finding.is_some() {
             return;
         }
+        if self.events.is_empty()
+            && self.out.is_empty()
+            && self.store.idle()
+            && self.domain.quiescent()
+            && let Err(finding) = self.checks.quiet(&self.domain, self.environment.now, u64::from(self.iteration))
+        {
+            self.finding = Some(finding);
+            return;
+        }
         self.iteration += 1;
-        self.environment.now = Time::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
-        self.environment.wall = Wall::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
+        let mut at = Time::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
+        if let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if self.environment.now >= bound
+                && self.quiet()
+                && let Err(finding) = self.checks.step(at, u64::from(self.iteration))
+            {
+                self.finding = Some(finding);
+                return;
+            }
+            at = bound.max(self.environment.now);
+            self.bound_steps += 1;
+            if self.bound_steps > 600 {
+                self.finding = Some(format!(
+                    "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in 600 steps",
+                    self.settings.seed,
+                    at.as_nanos(),
+                    self.iteration
+                ));
+                return;
+            }
+        } else {
+            self.bound_steps = 0;
+        }
+        self.environment.now = at;
+        self.environment.wall = Wall::from_nanos(at.as_nanos());
+        if let Err(finding) = self.checks.step(self.environment.now, u64::from(self.iteration)) {
+            self.finding = Some(finding);
+            return;
+        }
         crate::poll(&mut self.domain, &self.environment, &mut self.out);
         self.observe();
         if self.finding.is_some() {
@@ -814,6 +873,14 @@ impl World {
             // external clock past its five-second grace, staying within the
             // person's sixty-second session and account validity.
             self.recovery_clock_offset = 6_000_000_000;
+        }
+        if self.events.is_empty()
+            && self.out.is_empty()
+            && self.store.idle()
+            && self.domain.quiescent()
+            && let Err(finding) = self.checks.quiet(&self.domain, self.environment.now, u64::from(self.iteration))
+        {
+            self.finding = Some(finding);
         }
     }
 
@@ -1022,6 +1089,7 @@ impl World {
             Delivery::Providers(..)
             | Delivery::WorkerFigures { .. }
             | Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
+            Delivery::PartBusy { .. } => unreachable!("this caller sends no parts"),
             Delivery::TurnBusy { turn, .. } => self.turn(turn),
             Delivery::Result { person, task, words } => {
                 if let Err(why) = self.referee.result(&self.store.rows, person, task, &words) {
@@ -1077,6 +1145,7 @@ impl World {
     /// Close this story through the shared cold restart oracle.
     pub fn close(&mut self) {
         self.run();
+        self.ends.close(self.environment.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         crate::oracle::close_world(
             &mut self.domain,
             &self.environment,
@@ -1097,12 +1166,16 @@ impl World {
         for _ in 0..600 {
             self.check_finding()?;
             if self.settled() {
-                return Ok(());
+                return self.ends.close(self.environment.now, &self.store);
             }
             self.iterate();
         }
         self.check_finding()?;
         Err(format!("walking story did not settle: {:?}", self.trace))
+    }
+
+    fn quiet(&self) -> bool {
+        self.events.is_empty() && self.out.is_empty() && self.store.idle() && self.domain.quiescent()
     }
 
     fn check_finding(&self) -> Result<(), String> {

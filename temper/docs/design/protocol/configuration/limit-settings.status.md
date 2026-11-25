@@ -1,6 +1,7 @@
 # limit-settings: status
 
-2026-11-20. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
+2026-11-23. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
+
 
 - **Not yet:** 3: `temper-box`'s stopped tools, `upgrade`, `checkpoint` and `restore`, size their engine from the stock alone: they take neither `limits-held` nor, for `upgrade --check`, the copy's two kinds (`temper-box-shell/src/upgrade.rs`).
 

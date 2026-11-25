@@ -1,13 +1,17 @@
 //! The walking root with real children, an ordered paged fake store, scripted
 //! person and worker, independent durable-delivery referee and restart cuts.
+pub mod acts;
+pub mod checks;
 pub mod host_tool;
 pub mod journal_limits;
+pub mod outcome;
 /// The protocol layer the world plays: link records, tool decode and render, outcomes, accounts.
 pub mod protocol;
 pub mod replay;
 pub mod store;
 pub mod walking;
 pub mod walking_referee;
+pub mod workload;
 
 /// Real held-chat escalation driver.
 pub mod escalation;
@@ -19,8 +23,11 @@ pub mod roles;
 /// Independent role-cohort and recipient evidence.
 pub mod roles_referee;
 
+pub mod budget;
+pub mod check;
 /// Shared direct root route driver for focused and randomized scenarios.
 pub mod direct;
+pub mod ends;
 pub mod fixtures;
 /// Requester-backed forge change fixture and delayed required-read control.
 pub mod forge_routes;
@@ -46,14 +53,10 @@ pub fn poll(
     }
 }
 
-/// Peer input waits for durable Wires (temper/docs/design/domain/root.md, 8.1).
+/// Peer input waits for durable Wires (temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn waits_for_start(root: &temper_engine_domain::Domain, event: &temper_engine_domain::Event) -> bool {
     use jig_domain_core::start::Phase;
-    let runtime = root.ready()
-        || matches!(
-            root.start_phase(),
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open)
-        );
+    let runtime = root.ready() || matches!(root.start_phase(), Some(Phase::AdoptRuns | Phase::Open));
     !runtime
         && matches!(
             event,

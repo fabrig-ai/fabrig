@@ -1,11 +1,14 @@
-//! A registry and job upgrade at the build's levels (temper/docs/design/draft/store-floor.md, 4.4).
+//! A registry and job upgrade at the build's levels (temper/docs/design/draft/archive/store-floor.md, 4.4).
 pub mod check;
 pub(crate) mod maps;
 pub mod rehearsal;
 pub mod story;
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{KeptMap, Owner, OwnerSets, codec, keys};
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 /// Pending production jobs upgrade the second build without moving any owner's level.
 pub(super) const JOB: &str = "deleted-repository-forge-rows";
@@ -216,19 +219,19 @@ fn registry(component: &keys::Own, value: &[u8]) -> &'static str {
     }
 }
 
-/// Added task suspension parts register current tasks layouts and core layouts that hold task ends.
-/// Only new registry rows are admitted; existing history must remain byte-for-byte unchanged.
+/// Current task and transcript layouts register new rows and retire unused replaced rows.
+/// Existing history must remain byte-for-byte unchanged.
 fn suspension_layouts(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
     let families: Vec<_> = CURRENT_SETS.sets.iter().flat_map(|set| set.families).collect();
     let schemas: Vec<_> = families
         .iter()
-        .filter(|family| !family.types.is_empty())
         .map(|family| skein_codec::schema::parse(family.current.as_bytes()).expect("current registered schema"))
         .collect();
     let held: Vec<_> = schemas.iter().collect();
     let mut changed = BTreeSet::new();
+    let mut replaced = BTreeSet::new();
     for (key, value) in &after.store {
         if before.store.contains_key(key) {
             continue;
@@ -252,12 +255,41 @@ fn suspension_layouts(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u
                 )
                 .expect("new text");
                 assert_eq!(text.text.as_ref(), family.current.as_bytes());
+                replaced.insert((name, number));
                 changed.insert(key.clone());
                 if !before.store.contains_key(text_key.as_ref()) {
                     changed.insert(text_key.into_vec());
                 }
+                for digest in &layout.held {
+                    let key = keys::encode_own(&keys::Own::Text(*digest), 1024).expect("held text key");
+                    let text = wire::Text::decode(
+                        &wire::CEILINGS,
+                        &mut Reader::new(after.store.get(key.as_ref()).expect("held text")),
+                    )
+                    .expect("held schema text");
+                    assert!(
+                        families.iter().any(|family| family.current.as_bytes() == text.text.as_ref()),
+                        "a held text is a current family's schema"
+                    );
+                    if !before.store.contains_key(key.as_ref()) {
+                        changed.insert(key.into_vec());
+                    }
+                }
             }
             _ => {}
+        }
+    }
+    for (key, value) in &before.store {
+        if after.store.contains_key(key) {
+            continue;
+        }
+        if let Some(keys::Own::Layout { family, number, .. }) = keys::decode_own(key)
+            && replaced.contains(&(family, number))
+        {
+            let retired = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("retired layout");
+            let text_key = keys::encode_own(&keys::Own::Text(retired.text), 1024).expect("retired text key");
+            assert!(after.store.contains_key(text_key.as_ref()), "retired layout's text is retained");
+            changed.insert(key.clone());
         }
     }
     changed
@@ -338,12 +370,50 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
         assert!(job.ended > 0, "job end committed");
         changed.insert(job_key.into_vec());
     }
-    changed.extend(pause_registry_upgrade(before, after));
+    changed.extend(pause_registry_upgrade(before, after, new.text));
+    changed.extend(registry_orders(before, after, &changed));
     changed
 }
 
-/// Retained answers and acts register the pause vocabulary while their old rows stay readable.
-fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>> {
+/// A validated new layout may append its fingerprint, not change the remembered prefix.
+fn registry_orders(before: &maps::Maps, after: &maps::Maps, layouts: &BTreeSet<Vec<u8>>) -> BTreeSet<Vec<u8>> {
+    use jig_protocol_store::registry_v1 as wire;
+    use skein_lib::Reader;
+
+    let mut added = BTreeMap::<_, Vec<_>>::new();
+    for key in layouts {
+        if let Some(keys::Own::Layout { family, number, .. }) = keys::decode_own(key)
+            && !before.store.contains_key(key)
+            && let Some(bytes) = after.store.get(key)
+        {
+            let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("added layout");
+            added.entry((family, number)).or_default().push(layout.layout);
+        }
+    }
+    let mut changed = BTreeSet::new();
+    for ((family, number), digests) in added {
+        let key = keys::order(&family, number, 1024).expect("order key");
+        let order = |maps: &maps::Maps| {
+            let bytes = maps.store.get(key.as_ref()).expect("type order");
+            wire::Order::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("order row")
+        };
+        let old = order(before);
+        let mut expected = old.layouts.as_slice().to_vec();
+        for digest in digests {
+            if !expected.contains(&digest) {
+                expected.push(digest);
+            }
+        }
+        assert_eq!(order(after).layouts.as_slice(), expected, "layout order of {family} type {number}");
+        if old.layouts.as_slice() != expected {
+            changed.insert(key.into_vec());
+        }
+    }
+    changed
+}
+
+/// Register the pause, landing and closer layouts, retiring earlier layouts only for unused types.
+fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps, temper_text: [u8; 32]) -> BTreeSet<Vec<u8>> {
     use jig_protocol_store::registry_v1 as wire;
     use skein_lib::Reader;
     let family = CURRENT_SETS
@@ -361,6 +431,8 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<V
         (Owner::Jig, "jig-store-people", "answer"),
         (Owner::Jig, "jig-store-people", "acted"),
         (Owner::Application, "temper-store", "application"),
+        (Owner::Application, "temper-store", "landing"),
+        (Owner::Application, "temper-store", "closer"),
     ] {
         let family = CURRENT_SETS
             .sets
@@ -380,13 +452,14 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<V
                 if name.as_ref() == family.name && number == ty.number)
                 && !after.store.contains_key(key)
             {
-                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("old people layout");
+                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("earlier layout");
                 assert_ne!(layout.layout, digest, "only an earlier layout is retired");
                 assert!(
-                    !before.store.keys().any(|key| ty
-                        .keys
-                        .iter()
-                        .any(|range| range.from <= key.as_slice() && key.as_slice() < range.to)),
+                    !before.store.keys().any(|key| {
+                        let key =
+                            if owner == Owner::Application { keys::of_application(key) } else { Some(key.as_slice()) };
+                        key.is_some_and(|key| ty.keys.iter().any(|range| range.from <= key && key < range.to))
+                    }),
                     "only an unused type's earlier layout is retired"
                 );
                 changed.insert(key.clone());
@@ -397,14 +470,17 @@ fn pause_registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<V
                 if name.as_ref() == family.name && number == ty.number)
                 && !before.store.contains_key(key)
             {
-                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("people layout");
+                let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("added layout");
                 assert_eq!(layout.layout, digest, "only the production layout is added");
+                if owner == Owner::Application {
+                    assert_eq!(layout.text, temper_text, "temper-store layouts name the same text as the receipt");
+                }
                 let text_key = keys::encode_own(&keys::Own::Text(layout.text), 1024).expect("text key").into_vec();
                 let text = wire::Text::decode(
                     &wire::CEILINGS,
-                    &mut Reader::new(after.store.get(&text_key).expect("people text")),
+                    &mut Reader::new(after.store.get(&text_key).expect("layout text")),
                 )
-                .expect("people text");
+                .expect("registered text");
                 assert_eq!(text.text.as_ref(), family.current.as_bytes());
                 changed.insert(key.clone());
                 if !before.store.contains_key(&text_key) {

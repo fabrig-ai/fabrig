@@ -3,6 +3,15 @@ use crate::{forge, limits, store};
 use jig_protocol_config as config;
 use temper_service_core::derived::{self, STOCK};
 
+#[test]
+fn stock_journal_holds_the_deepest_row() {
+    let jig = config::stock();
+    let mut own = limits::stock();
+    limits::engine(&jig, &own).expect("the stock journal holds its largest wrapped row");
+    own.root.journal.transcript_bytes -= 1;
+    assert!(limits::engine(&jig, &own).is_none());
+}
+
 fn forge_check(own: &limits::Limits) -> Result<(), skein_forge_connection::Unusable> {
     let mut problems = config::Problems::empty();
     let settings = forge::settings(&[], skein_lib::List::with_capacity(0), None, &mut problems).unwrap();

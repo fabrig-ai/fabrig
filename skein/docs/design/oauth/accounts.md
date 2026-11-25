@@ -29,7 +29,7 @@ never renames or reuses one on its own. An account has:
 
 - **its registration** (`README.md`, section 1), and the token endpoint's address,
   resolved before the loop (../runtime/io/README.md, 3), with its transport: TLS, with the
-  roots it trusts (../runtime/shell.md, 6.2), or plaintext on loopback. Where the
+  roots it trusts (../runtime/shell-startup.md, 1.2), or plaintext on loopback. Where the
   registration's terms name endpoints on other origins (the metadata, the
   key set, revocation), the account has each origin's address and transport
   too. A key set's URL found in the metadata on an origin the account was
@@ -127,7 +127,7 @@ never renames or reuses one on its own. An account has:
 - **Sign-out** is an exchange, for a signed-in account that holds a
   record. It revokes the record's refresh token where the registration has
   a revocation endpoint (`README.md`, section 2.3), then forgets the record: an account
-  kept in private files removes its file (../runtime/io/files.md, 3), and for one the
+  kept in private files removes its file (../runtime/io/files.md, 11), and for one the
   owner keeps, `signed out` tells the owner to drop its own. A held grant
   ends as expired. `signed out` says whether revocation was confirmed: an
   unconfirmed one, or a registration without revocation, leaves the issuer
@@ -148,8 +148,8 @@ never renames or reuses one on its own. An account has:
 ## 4. Keeping records
 
 - **The keeper is the owner's choice, per account:**
-  - skein's private files (../runtime/io/files.md, 3): one file per account, replaced
-    whole and durable before a grant (../runtime/io/files.md, 2), and loaded at the start;
+  - skein's private files (../runtime/io/files.md, 11): one file per account, replaced
+    whole and durable before a grant (../runtime/io/files.md, 10), and loaded at the start;
   - or the owner's own store, as a service keeps its secrets among its own
     records: the owner hands in the kept record when it makes the
     component, and each new one goes out as `keep`, lent only once the
@@ -175,7 +175,7 @@ never renames or reuses one on its own. An account has:
   runtime limits', never the schema's ceilings. The saved token is a
   format outside the store's registry, fixed at version 3: a change
   designs and brings how the deployed store gets there (temper's
-  `draft/store-floor.md`, section 5). An owner hands the component
+  `draft/archive/store-floor.md`, section 5). An owner hands the component
   records of the current version only; where it holds one inside a
   registered record, its field is a `secret N holds skein-oauth
   SavedToken` (../data/codec/README.md, section 3), so layout conversion
@@ -186,7 +186,7 @@ never renames or reuses one on its own. An account has:
 
 **Loading a private record.** At the start, an account kept in private
 files opens its private directory, making it if absent, then loads its
-file (../runtime/io/files.md, 3). A grant or a sign-in that arrives meanwhile waits for
+file (../runtime/io/files.md, 11). A grant or a sign-in that arrives meanwhile waits for
 the load, which ends in one of three ways:
 
 - **A record:** the account holds it, as if the owner had handed it in
@@ -551,6 +551,6 @@ accounts component nor its listener requires a sum of heap prices.
   issuer runs in its process, on loopback, with no added latency, for the
   stories that sign a person in: the test drives the redirect, following
   each `visit` to the listener as the scripted browser does. Stories that
-  need an account but no sign-in give it a key instead (../llm/README.md, 2.6), and
+  need an account but no sign-in give it a key instead (../llm/vocabulary.md, 1.6), and
   stories of a program that signs in by itself use a fake program; neither
   needs the issuer.

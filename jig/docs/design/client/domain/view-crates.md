@@ -1,8 +1,8 @@
 # The view's crates
 
-Provisional, 2026-11-16. From `temper/docs/design/draft/gate-compile.md`, 5, milestone C7 of
-`temper/docs/design/draft/gate-compile.execution.md`: `jig-client-view` split by
-`temper/docs/design/draft/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
+Provisional, 2026-11-16. From `temper/docs/design/draft/archive/gate-compile.md`, 5, milestone C7 of
+`temper/docs/design/draft/archive/gate-compile.execution.md`: `jig-client-view` split by
+`temper/docs/design/draft/archive/crate-graph.md`, 5.2's rules, and landed as its 5.3 says. It says what
 each piece holds and why, the preparation that lets every file go whole to one piece, where the
 tests go, the change of moves, and the readers. What the reference UI's view does is `view.md`'s and
 `view-state.md`'s: nothing here changes a behaviour, a public path or a test's check.
@@ -51,7 +51,7 @@ landed. A directory goes with the file of its name.
 `tree`, `sizes` and `generated`: the words' root takes the `words` module's lines, and the view's
 root keeps the others.
 
-Their sizes, counted as raw lines of today's files, are each under the bound of `crate-graph.md`,
+Their sizes, counted as raw lines of today's files, are each under the bound of `temper/docs/design/draft/archive/crate-graph.md`,
 7.3, which `tools/crates/design.md`, 2's rules count a little lower: about 13,400 for the words, its
 tests about 250 of it; and about 51,200 for `jig-client-view`, 24,000 of code and 27,000 of tests
 (4.1).
@@ -69,7 +69,7 @@ tests about 250 of it; and about 51,200 for `jig-client-view`, 24,000 of code an
 
 ### 2.3 Why there
 
-From the crate's history, `crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
+From the crate's history, `temper/docs/design/draft/archive/crate-graph.md`, 5.2's first rule, and its module graph, its fourth:
 
 - **The history.** From 2026-10-28, the repository's first landing, to `5e6b0d671e`, 53 landings
   changed the crate's library sources, its `src/tests/` not counted. The tree, `binding.rs` and the
@@ -79,7 +79,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   of `jig-client`, `jig-client-domain` or `jig-client-protocol-link`, the others of `skein-ui`,
   skein-lib, `skein-codec` or `jig-protocol-transcript`. So a piece is reused in about three of the
   history's builds, whatever the cut. A split saves only in such builds
-  (`gate-compile.md`, 5); the figure after landing says whether it did (`gate-compile.md`, 8).
+  (`temper/docs/design/draft/archive/gate-compile.md`, 5); the figure after landing says whether it did (`temper/docs/design/draft/archive/gate-compile.md`, 8).
 - **One graph today.** The words, the state, the tree, the sizes and the bindings lie on one cycle:
   `Words` methods draw chips and outcomes by the tree's builders, `Words::progress` names the state's
   `Progress`, and the words read the sizes' text bound; the state names the tree's kept notices and
@@ -106,7 +106,7 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   today's names, the items its files name at `crate::` (`crate::Owner` among them), and carries
   today's crate attributes that its files meet (`no_std` but under test, `forbid(unsafe_code)`, the
   `clippy::manual_map` expectation if its files still meet it) and `extern crate alloc;`.
-- **`jig-client-view` keeps its name and every public path** (`crate-graph.md`, 5.3): its root
+- **`jig-client-view` keeps its name and every public path** (`temper/docs/design/draft/archive/crate-graph.md`, 5.3): its root
   re-exports `pub use jig_client_view_words::{regions, styles, words};` in place of those modules,
   and brings `owner` into scope privately so that `pub use owner::Owner;` and its files'
   `crate::owner::` paths stay; every other line of today's root stays, `pub use
@@ -204,8 +204,8 @@ stays.
 - **The rendered goldens** under `golden/rendered/` are read by `kit::Goldens` from its package's
   directory (`skein_scratch::paths::package()`), which doesn't move.
 - **The records' owner stays** `jig-client-view`, with `schema/records-v1.schema`.
-  `jig/tests/codec-families.rs` compares the generated records and refuses unpinned constructs;
-  it keeps no records' golden bytes or generated tests (skein's `data/codec/README.md`, section 6).
+  `jig/tests/codec-families.rs` compares the generated records with the committed module;
+  it keeps no records' golden bytes or generated tests (skein's `data/codec/golden.md`, section 1).
 - **`.config/fixture-readers.toml`** keeps `jig-client-view`'s entry. The words have no
   `src/tests/fixtures/` directory, so no entry of their own.
 - **No file is read by path** in the words' library: no `include_str!`, `include_bytes!`, `#[path]`
@@ -213,7 +213,7 @@ stays.
 
 ## 5. Landing the split
 
-One change of moves, after the preparation (`crate-graph.md`, 5.3):
+One change of moves, after the preparation (`temper/docs/design/draft/archive/crate-graph.md`, 5.3):
 
 - **Each file moved whole** to its piece, by 2.1 and 4.1, in a commit of moves alone, and not edited
   but where the build forces it, in a commit after the moves: a visibility (2.4), what a newly public
@@ -232,7 +232,7 @@ One change of moves, after the preparation (`crate-graph.md`, 5.3):
   `jig-client-view/src/words/`, or its `owner.rs`, `regions.rs` or `styles.rs`, names it under
   `jig-client-view-words/src/`.
 - **Out of the way of plans in flight:** it lands between other landings in the crate, as
-  `crate-graph.md`, 5.3 says, and goes before none that was marked first. Main is read afresh
+  `temper/docs/design/draft/archive/crate-graph.md`, 5.3 says, and goes before none that was marked first. Main is read afresh
   before it: a landing there in the crate that the goal's branch lacks is caught up first, so that
   the moves carry it.
 
@@ -259,5 +259,5 @@ needs only the words, and none of whose other dependencies of the same kind reac
   harness of their own that the tree's tests needn't share, or the view nears the bound again. Its
   kept notices (`tree/notices/kept.rs`), its frame summary (`tree/frame/me.rs`) and its
   configuration (`sizes/limits/ui.rs`) come down to it first, and the boundary goes with it.
-- **The figure after landing** is `gate-compile.md`, 8's: each piece's units against
+- **The figure after landing** is `temper/docs/design/draft/archive/gate-compile.md`, 8's: each piece's units against
   `jig-client-view`'s and whether the builds after it reused the words.

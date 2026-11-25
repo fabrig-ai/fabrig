@@ -1,4 +1,4 @@
-//! The browser's clipboard promise (skein/docs/design/ui/web/README.md, sections 4.1 and 9).
+//! The browser's clipboard promise (skein/docs/design/ui/web/README.md, section 4.1, and skein/docs/design/ui/web/effects.md, section 2).
 use super::{Outcome, Report, rejected};
 use crate::inbox::Inbox;
 use std::rc::Rc;

@@ -1,4 +1,4 @@
-//! Landing verification stories (temper/docs/design/domain/after-landing.md, 5.3, 6 and 10).
+//! Landing verification stories (temper/docs/design/domain/after-landing.md, 5.3 and 6, and temper/docs/design/domain/after-landing-storage.md, 1).
 #[path = "verification/switched.rs"]
 mod switched;
 use super::*;
@@ -288,6 +288,7 @@ fn opening_row() -> ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        close_at: None,
         report: Box::new([]),
         repairs: None,
         follows: None,
@@ -301,6 +302,14 @@ fn opening_row() -> ChangeRow {
 
 fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     let mut d = domain();
+    let mut out = Queue::uncapped();
+    restored(&mut d, &env(), skein_forge_client::RecoveryClock::Monotonic, &mut out);
+    read_afresh(&mut d, &env(), &mut out);
+    settle_outbox(&mut d, &env(), &mut out);
+    configured_tiers(d, names)
+}
+
+fn configured_tiers(mut d: Domain, names: &[(&[u8], Option<&[u8]>)]) -> Domain {
     d.repositories.insert(REPO, Box::new(adopted())).expect("adoption");
     let mut tiers = List::uncapped();
     for (name, branch) in names {
@@ -373,6 +382,7 @@ fn heard(cancelled: bool) -> change::Heard {
         no_test: false,
         delegate_live: false,
         review_request: None,
+        closer_waiting: false,
         start_conflict: None,
         lacking: None,
         spend: None,
@@ -442,6 +452,7 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
                 started: None,
                 record: policy::Record {
                     sequence: number,
+                    last_run: None,
                     judged: None,
                     failing: policy::Failures::Tests(Box::new([])),
                     flakes: Box::new([]),

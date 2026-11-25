@@ -12,12 +12,14 @@ test = false
 doctest = false
 
 [dependencies]
+skein-checks.workspace = true
 skein-scratch.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-world.workspace = true
 temper-worker-domain-checkout.workspace = true
 temper-worker-protocol-git.workspace = true
+temper-worker-inspect.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

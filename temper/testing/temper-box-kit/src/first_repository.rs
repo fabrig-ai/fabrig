@@ -31,12 +31,6 @@ pub fn restarted_llm(config: &Path) -> CtlLlm {
 pub fn playground_llm(config: &Path) -> CtlLlm {
     model(config, playground_scripts())
 }
-#[must_use]
-pub fn playground_read_llm(config: &Path) -> CtlLlm {
-    let mut scripts = playground_scripts();
-    batch_reads(&mut scripts[1], 3);
-    model(config, scripts)
-}
 fn batch_reads(script: &mut Script, count: usize) {
     let mut turns = std::mem::take(&mut script.turns).into_vec();
     let lines = turns.drain(..count).flat_map(|turn| turn.lines.into_vec()).collect();
@@ -370,20 +364,6 @@ pub fn task_steps_for(root: &Path, task: Task) -> Vec<Step> {
 pub fn playground_task_steps(root: &Path) -> Vec<Step> {
     task_steps_in(root, FIRST, "playground/widget")
 }
-/// temper/docs/design/testing/process-tier.md: cloned reads and a real pull, before landing.
-#[must_use]
-pub fn playground_read_steps(root: &Path) -> Vec<Step> {
-    let mut steps = task_steps_in(root, FIRST, "playground/widget");
-    steps.truncate(3);
-    steps.extend([
-        Step::TaskExists { project: FIRST.project, parent: FIRST.chat, task: FIRST.change },
-        Step::Run(Call::new(&["change", "show", "2", "--until", "pull", "--json"])),
-        // The producer's final turn must be durable before reading its calls.
-        Step::Run(Call::new(&["task", "show", "3", "--until", "ended", "--json"])),
-        Step::Mark("playground read evidence"),
-    ]);
-    steps
-}
 fn task_steps_in(root: &Path, task: Task, repository: &str) -> Vec<Step> {
     let project = task.project.to_string();
     let chat = task.chat.to_string();
@@ -480,23 +460,6 @@ pub struct Evidence {
 #[must_use]
 pub fn live(config: &Path, data: &Path, client: &Path) -> Evidence {
     live_for(config, data, client, FIRST)
-}
-
-/// temper/docs/design/testing/process-tier.md: evidence owned by the playground-copy process story.
-pub struct PlaygroundReads {
-    pub address: std::net::SocketAddr,
-    pub producer: String,
-    pub panel: super::Ended,
-}
-#[must_use]
-pub fn playground_read_evidence(data: &Path, client: &Path) -> PlaygroundReads {
-    let number = u16::try_from(owned_forge(client)["number"].as_u64().expect("forge number")).expect("forge u16");
-    let setup = super::owned::setup_value(data, number, "owned");
-    PlaygroundReads {
-        address: setup["listen"]["socket"].as_str().expect("forge address").parse().expect("socket"),
-        producer: turns(client, "3"),
-        panel: super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"])),
-    }
 }
 
 /// Resolve ctl setup's default project by its repository name in the person's read.
@@ -771,7 +734,7 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
 
 /// CI on temper's change page: passed at the landed change's head, at the
 /// landing and after a restart, which keeps it with the change's record
-/// (domain/forge/change/README.md, 5).
+/// (domain/forge/change/panel.md, 1).
 pub fn assert_landed_ci(run: &str, page: &str) {
     check_landed_ci(run, page).unwrap_or_else(|why| panic!("{why}"));
 }
@@ -791,7 +754,7 @@ pub fn generated(root: &Path) {
     let addresses = super::free_addresses::<5>(&[]);
     let answer = temper_init::files(
         &Facts {
-            binary: skein_scratch::paths::binary("temper-box").as_os_str().as_bytes(),
+            binary: skein_scratch::paths::built("temper-box", "temper-box").as_os_str().as_bytes(),
             git: Some(b"/usr/bin/git"),
             claude: None,
             login: Some(b"qa-person"),

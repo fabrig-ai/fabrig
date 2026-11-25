@@ -1,10 +1,11 @@
 //! Wire asks into the people vocabulary (client/domain/contract/requests.md).
 use super::Untranslatable;
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
-use skein_lib::{List, Reader, Wall, length::len_u64};
+use skein_lib::{List, Reader, length::len_u64};
 #[derive(Debug)]
 pub(crate) struct NamedAsk {
     pub ask: p::Ask,
@@ -46,14 +47,9 @@ fn decode(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Ask, Untranslatable> {
     Ok(match record {
-        w::Ask::PauseWorker(value) => p::Ask::PauseWorker {
-            worker: value.worker,
-            mode: match value.mode {
-                w::WorkerPauseMode::Resume => jig_domain_link::PauseMode::Resume,
-                w::WorkerPauseMode::Pause => jig_domain_link::PauseMode::Pause,
-                w::WorkerPauseMode::Drain => jig_domain_link::PauseMode::Drain,
-            },
-        },
+        w::Ask::PauseWorker(value) => {
+            p::Ask::PauseWorker { worker: value.worker, mode: mapped::worker_pause_mode_to_domain(value.mode) }
+        }
         w::Ask::ReadLists(value) => p::Ask::AccountChange {
             holder: p::AccountHolder::Own,
             change: p::AccountChange::ReadLists { provider: value.provider },
@@ -127,7 +123,7 @@ fn decode(
         }
         w::Ask::Stop(value) => {
             let v = value;
-            p::Ask::Stop { project: v.project, task: v.task }
+            p::Ask::Stop { project: v.project, task: v.task, reason: v.reason }
         }
         w::Ask::Conclude(value) => p::Ask::Conclude { project: value.project, task: value.task },
         w::Ask::Cancel(value) => {
@@ -140,30 +136,33 @@ fn decode(
         }
         w::Ask::Seen(value) => {
             let v = value;
-            p::Ask::MarkSeen { seen: seen(v.through) }
+            p::Ask::MarkSeen { seen: mapped::seen_through_to_domain(v.through) }
         }
+        w::Ask::ReissueService(value) => p::Ask::ReissueService { party: value.party },
         w::Ask::MakeService(value) => {
             let v = value;
-            p::Ask::MakeService { project: v.project, name: v.name, role: role(v.role) }
+            p::Ask::MakeService { project: v.project, name: v.name, role: mapped::held_role_to_domain(v.role) }
         }
-        w::Ask::AccountChange(value) => {
-            p::Ask::AccountChange { holder: account_holder(&value.holder), change: account_change(&value.change)? }
-        }
-        w::Ask::SignIn(value) => {
-            p::Ask::AccountSignIn { holder: account_holder(&value.holder), provider: value.provider }
-        }
+        w::Ask::AccountChange(value) => p::Ask::AccountChange {
+            holder: mapped::ask_account_holder_to_domain(value.holder),
+            change: account_change(value.change)?,
+        },
+        w::Ask::SignIn(value) => p::Ask::AccountSignIn {
+            holder: mapped::ask_account_holder_to_domain(value.holder),
+            provider: value.provider,
+        },
         w::Ask::SignOut(value) => {
-            p::Ask::AccountSignOut { holder: account_holder(&value.holder), source: value.source }
+            p::Ask::AccountSignOut { holder: mapped::ask_account_holder_to_domain(value.holder), source: value.source }
         }
         w::Ask::SetVisibility(value) => p::Ask::SetVisibility { project: value.project, public: value.public },
         w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project, grace: value.grace },
         w::Ask::Rename(value) => {
             let v = value;
-            p::Ask::Rename { project: v.project, name: project_name(&v.name, w::paths::RENAME_NAME)? }
+            p::Ask::Rename { project: v.project, name: project_name(v.name, w::paths::RENAME_NAME)? }
         }
         w::Ask::MakeProject(value) => {
             let v = value;
-            p::Ask::MakeProject { name: project_name(&v.name, w::paths::MAKE_PROJECT_NAME)?, policy: v.policy }
+            p::Ask::MakeProject { name: project_name(v.name, w::paths::MAKE_PROJECT_NAME)?, policy: v.policy }
         }
         w::Ask::SetPool(value) => {
             let v = value;
@@ -202,7 +201,7 @@ fn decode(
             let v = value;
             let mut holdings = List::with_capacity(v.holdings.capacity());
             for item in v.holdings.into_boxed() {
-                holdings.push(p::Holding { person: item.party, role: role(item.role) }).expect("same capacity");
+                holdings.push(mapped::holding_to_domain(item)).expect("same capacity");
             }
             p::Ask::SetRoles { project: v.project, holdings: holdings.into_boxed() }
         }
@@ -218,10 +217,7 @@ fn recalled(value: w::Revision, path: w::Path) -> Result<u32, Untranslatable> {
     }
 }
 pub(super) fn proposer(value: &w::Proposer) -> p::Proposer {
-    match value {
-        w::Proposer::Task(v) => p::Proposer::Task(v.value),
-        w::Proposer::Party(v) => p::Proposer::Party(v.value),
-    }
+    mapped::proposer_to_domain(value.clone())
 }
 pub(super) fn proposal_decision(value: w::Decision) -> Result<p::ProposalDecision, Untranslatable> {
     match value {
@@ -246,37 +242,10 @@ pub(super) fn escalation_decision(value: w::Decision) -> Result<p::EscalationDec
     }
 }
 pub(super) fn person_answer(value: w::PersonAnswer) -> p::PersonResult {
-    match value {
-        w::PersonAnswer::Choice(v) => p::PersonResult::Verdict { code: v.option, words: v.reason },
-        w::PersonAnswer::Approved(v) => p::PersonResult::Approved { state: v.state, words: v.words },
-        w::PersonAnswer::Words(v) => p::PersonResult::Report { words: v.value },
-        w::PersonAnswer::Cannot(v) => p::PersonResult::Failure { reason: v.reason },
-    }
-}
-fn seen(value: w::SeenThrough) -> p::Seen {
-    match value {
-        w::SeenThrough::Results(v) => p::Seen::Results { through: v.through },
-        w::SeenThrough::Conversation(v) => p::Seen::Conversation { task: v.task, through: v.through },
-    }
-}
-fn role(value: w::HeldRole) -> p::Role {
-    match value {
-        w::HeldRole::Owner => p::Role::Owner,
-        w::HeldRole::Maintainer => p::Role::Maintainer,
-        w::HeldRole::Member => p::Role::Member,
-        w::HeldRole::Observer => p::Role::Observer,
-        w::HeldRole::Policy(v) => p::Role::Policy { role: v.role },
-    }
+    mapped::person_answer_to_domain(value)
 }
 fn pattern(value: w::Pattern) -> p::Pattern {
-    let v = value;
-    p::Pattern {
-        segments: v.segments.into_boxed(),
-        last: match v.last {
-            w::PatternEnd::Exact(v) => p::Last::Exact(v.value),
-            w::PatternEnd::Open(v) => p::Last::Open(v.value),
-        },
-    }
+    mapped::pattern_to_domain(value)
 }
 fn note_scope(value: w::NoteScope, project: u32, path: w::Path) -> Result<p::NoteScope, Untranslatable> {
     Ok(match value {
@@ -304,53 +273,10 @@ fn note_scope(value: w::NoteScope, project: u32, path: w::Path) -> Result<p::Not
     })
 }
 pub(super) fn spec(value: w::Specification) -> p::Spec {
-    let v = value;
-    let mut parameters = List::with_capacity(v.parameters.capacity());
-    for item in v.parameters.into_boxed() {
-        let item = match item {
-            w::Parameter::Number(v) => p::Parameter::Number { name: v.name, value: v.value },
-            w::Parameter::Bytes(v) => p::Parameter::Bytes { name: v.name, value: v.value },
-            w::Parameter::Resource(v) => {
-                p::Parameter::Resource { name: v.name, connector: v.connector, resource: v.resource }
-            }
-        };
-        parameters.push(item).expect("same capacity");
-    }
-    p::Spec { asks: v.asks, words: v.words, parameters: parameters.into_boxed(), inputs: v.inputs.into_boxed() }
-}
-fn wake_rule(value: w::WakeRule) -> p::WakeRule {
-    match value {
-        w::WakeRule::Never => p::WakeRule::Never,
-        w::WakeRule::Immediate => p::WakeRule::Immediate,
-        w::WakeRule::Batch(v) => p::WakeRule::Batch { count: v.count, age: v.age },
-        w::WakeRule::Paced(v) => p::WakeRule::Paced { span: v.span },
-    }
+    mapped::specification_to_domain(value)
 }
 pub(super) fn wake(value: w::WakePolicy) -> p::WakePolicy {
-    let v = value;
-    p::WakePolicy {
-        words: wake_rule(v.words),
-        notices: wake_rule(v.notices),
-        news: wake_rule(v.news),
-        results: match v.results {
-            w::ResultsWake::Never => p::ResultsWake::Never,
-            w::ResultsWake::Each => p::ResultsWake::Each,
-            w::ResultsWake::LastOrFailure => p::ResultsWake::LastOrFailure,
-        },
-        questions: v.questions,
-        answers: v.answers,
-        timers: v.timers,
-    }
-}
-fn address(value: w::AddressChange) -> p::AddressChange {
-    let v = value;
-    p::AddressChange {
-        revision: v.revision.value,
-        address: match v.address {
-            w::PersonAddress::Party(v) => p::PersonAddress::Person(v.value),
-            w::PersonAddress::Role(v) => p::PersonAddress::Role(v.value),
-        },
-    }
+    mapped::wake_policy_to_domain(value)
 }
 pub(super) fn amendment(
     value: w::Amendment,
@@ -370,7 +296,7 @@ pub(super) fn amendment(
             None => None,
         },
         addressed: match v.addressed {
-            Some(value) => Some(address(value)),
+            Some(value) => Some(mapped::address_change_to_domain(value)),
             None => None,
         },
         instructions: v.instructions,
@@ -411,8 +337,7 @@ fn sum(total: &mut u64, bytes: Option<u64>, ceiling: u32, path: w::Path) -> Resu
     Ok(())
 }
 pub(super) fn grant(value: w::Grant) -> p::Grant {
-    let v = value;
-    p::Grant { connector: v.connector, kind: v.kind, pattern: pattern(v.pattern) }
+    mapped::grant_to_domain(value)
 }
 pub(super) fn grants(
     bytes: &[u8],
@@ -441,18 +366,7 @@ pub(super) fn authority(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Authority, Untranslatable> {
     let v = value;
-    let delegation = v.delegation;
-    let mut kinds = List::with_capacity(delegation.kinds.capacity());
-    for kind in delegation.kinds.into_boxed() {
-        kinds
-            .push(match kind {
-                w::AuthorityExecutor::Job(v) => p::Executor::Job(v.value),
-                w::AuthorityExecutor::Charter(v) => p::Executor::Charter(v.value),
-                w::AuthorityExecutor::Procedure(v) => p::Executor::Procedure(v.value),
-                w::AuthorityExecutor::Role(v) => p::Executor::Role(v.value),
-            })
-            .expect("same capacity");
-    }
+    let delegation = mapped::delegation_to_domain(v.delegation);
     let path = w::paths::AUTHORITY_NOTE_RESOURCES;
     let count = count(&v.note_resources, path)?;
     let mut resources = List::with_capacity(count);
@@ -463,19 +377,19 @@ pub(super) fn authority(
         let Ok(value) = w::ResourceScope::decode(limits, &mut Reader::new(&bytes)) else {
             return Err(Untranslatable { path });
         };
-        let pattern = pattern(value.pattern);
-        let size = pattern_bytes(&pattern, size_of::<p::ResourceScope>());
+        let value = mapped::resource_scope_to_domain(value);
+        let size = pattern_bytes(&value.pattern, size_of::<p::ResourceScope>());
         sum(&mut total, size, limits.authority_note_resources, path)?;
-        resources.push(p::ResourceScope { connector: value.connector, pattern }).expect("counted pieces");
+        resources.push(value).expect("counted pieces");
     }
     Ok(p::Authority {
         tools: v.tools,
         models: super::llm::requested(v.models, names)?,
         grants: grants(&v.grants, limits.authority_grants, w::paths::AUTHORITY_GRANTS, limits)?,
-        delegation: p::Delegation { kinds: kinds.into_boxed(), tasks: delegation.tasks, depth: delegation.depth },
+        delegation,
         spend: v.spend,
         deadline: match v.deadline {
-            Some(value) => Some(Wall::from_nanos(value)),
+            Some(value) => Some(skein_codec::convert::wall_to_domain(value)),
             None => None,
         },
         notes: v.notes,
@@ -483,22 +397,7 @@ pub(super) fn authority(
     })
 }
 pub(super) fn requirement(value: w::PolicyRequirement) -> p::Requirement {
-    let v = value;
-    p::Requirement {
-        connector: v.connector,
-        kind: v.kind,
-        pattern: pattern(v.pattern),
-        judge: p::Judge {
-            connector: v.judge.connector,
-            requirement: v.judge.requirement,
-            parameters: v.judge.parameters,
-        },
-        guard: match v.guard {
-            w::PolicyGuard::Guarded => p::Guard::Guarded,
-            w::PolicyGuard::Observed(v) => p::Guard::Observed { freshness: v.freshness },
-        },
-        must_be_guarded: v.must_be_guarded,
-    }
+    mapped::policy_requirement_to_domain(value)
 }
 fn policy(
     value: w::PolicyEdit,
@@ -550,15 +449,9 @@ fn policy(
             )?,
         },
         w::PolicyEdit::Permissions(v) => {
-            let mut mappings = List::with_capacity(v.mappings.capacity());
+            let mut mappings = List::with_capacity(v.mappings.len());
             for value in v.mappings.into_boxed() {
-                mappings
-                    .push(p::PermissionRole {
-                        connector: value.connector,
-                        permission: value.permission,
-                        role: value.role,
-                    })
-                    .expect("same capacity");
+                mappings.push(mapped::policy_permission_to_domain(value)).expect("same capacity");
             }
             p::PolicyChange::Permissions { mappings: mappings.into_boxed() }
         }
@@ -577,38 +470,21 @@ fn pattern_bytes(value: &p::Pattern, fixed: usize) -> Option<u64> {
     })
 }
 
-fn account_holder(value: &w::AskAccountHolder) -> p::AccountHolder {
-    match value {
-        w::AskAccountHolder::Own => p::AccountHolder::Own,
-        w::AskAccountHolder::Deployment => p::AccountHolder::Deployment,
-    }
-}
-
-fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
+fn account_change(value: w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
     Ok(match value {
         // These receive typed interim refusals before core translation (domain/terminal-login.md, 5).
-        w::AccountChange::LoginProgram(row) => p::AccountChange::LoginProgram {
-            provider: row.provider,
-            name: skein_lib::bytes::copy_of(row.name.as_ref()),
-        },
+        w::AccountChange::LoginProgram(row) => {
+            p::AccountChange::LoginProgram { provider: row.provider, name: row.name }
+        }
         w::AccountChange::CancelLogin(row) => p::AccountChange::CancelLogin { number: row.number },
-        w::AccountChange::LoginEnded(row) => p::AccountChange::LoginEnded {
-            number: row.number,
-            exit: match &row.exit {
-                w::LoginExit::Exited(value) => p::LoginExit::Exited { code: value.code },
-                w::LoginExit::Killed(value) => p::LoginExit::Killed { signal: value.signal },
-                w::LoginExit::NotStarted => p::LoginExit::NotStarted,
-            },
-        },
+        w::AccountChange::LoginEnded(row) => {
+            p::AccountChange::LoginEnded { number: row.number, exit: mapped::login_exit_to_domain(row.exit) }
+        }
         w::AccountChange::DeclareProgram(row) => {
             if jig_domain_link::SourceName::new(row.name.as_ref()).is_none() {
                 return Err(Untranslatable { path: w::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME });
             }
-            p::AccountChange::DeclareProgram {
-                provider: row.provider,
-                join: row.join,
-                name: skein_lib::bytes::copy_of(row.name.as_ref()),
-            }
+            p::AccountChange::DeclareProgram { provider: row.provider, join: row.join, name: row.name }
         }
         w::AccountChange::CheckProgram(row) => p::AccountChange::CheckProgram { source: row.source },
         w::AccountChange::MoveOut(row) => p::AccountChange::MoveOut { account: row.account },
@@ -630,16 +506,12 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
         }
         w::AccountChange::SetUses(row) => p::AccountChange::SetUses {
             account: row.account,
-            uses: match &row.uses {
+            uses: match row.uses {
                 None => None,
                 Some(uses) => {
                     let mut rows = List::with_capacity(uses.len());
-                    for use_ in uses {
-                        rows.push(match use_ {
-                            w::AccountUse::Party(value) => p::Use::Party(value.party),
-                            w::AccountUse::Project(value) => p::Use::Project(value.project),
-                        })
-                        .expect("reserved uses");
+                    for use_ in uses.into_boxed() {
+                        rows.push(mapped::account_use_to_domain(use_)).expect("reserved uses");
                     }
                     Some(rows.into_boxed())
                 }
@@ -648,10 +520,9 @@ fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untransl
     })
 }
 
-#[expect(clippy::disallowed_methods, reason = "project names cross the wire as UTF-8 bytes")]
-fn project_name(bytes: &[u8], path: w::Path) -> Result<Box<str>, Untranslatable> {
-    match core::str::from_utf8(bytes) {
-        Ok(name) => Ok(name.into()),
+fn project_name(bytes: Box<[u8]>, path: w::Path) -> Result<Box<str>, Untranslatable> {
+    match skein_codec::convert::text_to_domain(bytes) {
+        Ok(name) => Ok(name),
         Err(_) => Err(Untranslatable { path }),
     }
 }

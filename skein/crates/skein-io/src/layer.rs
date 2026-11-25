@@ -100,7 +100,7 @@ pub(crate) enum Purpose {
     Cancel(Id<Flight>),
 }
 
-/// What an entity's deadline is for: a close or output write (runtime/io/sockets.md and runtime/io/files.md, 1), or
+/// What an entity's deadline is for: a close or output write (runtime/io/sockets.md and runtime/io/files.md, 9), or
 /// a retry of what found the kernel out of buffers or descriptors (runtime/io/sockets.md,
 /// 2 and 3). An entity has at most one of each.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -186,7 +186,7 @@ impl Io {
 
     /// Takes an inherited writable pipe descriptor at startup, with the same
     /// stream and ownership contract as [`Io::adopt_read_pipe`].
-    /// Each write has the owner's optional `write_timeout` (runtime/io/files.md, 1);
+    /// Each write has the owner's optional `write_timeout` (runtime/io/files.md, 9);
     /// without one it waits on its reader. With one, Close replaces it with
     /// io's close timeout.
     pub fn adopt_write_pipe(&mut self, fd: Fd, write_timeout: Option<Duration>) -> Result<Token, Fd> {
@@ -232,8 +232,26 @@ impl Io {
         }
     }
 
+    /// Bytes of complete send buffers still queued or in flight on a pipe.
+    /// Bytes in a partially written buffer remain counted until it finishes.
+    #[must_use]
+    pub fn pending_pipe_output(&self, stream: Token) -> u32 {
+        match self.entities.get(Id::from_token(stream)) {
+            Some(Entity::Pipe(pipe)) => pipe.pending_output(),
+            Some(
+                Entity::Stream(_)
+                | Entity::Joined(_)
+                | Entity::Listener(_)
+                | Entity::Child(_)
+                | Entity::Signals(_)
+                | Entity::Named(_),
+            )
+            | None => 0,
+        }
+    }
+
     /// Takes an output-only append file at startup. Each Append has the owner's
-    /// `write_timeout`; Close instead flushes under io's close timeout (runtime/io/files.md, 1).
+    /// `write_timeout`; Close instead flushes under io's close timeout (runtime/io/files.md, 9).
     /// A full slab returns the descriptor to its caller without closing it.
     pub fn adopt_append(&mut self, fd: Fd, write_timeout: Duration) -> Result<Token, Fd> {
         match self.entities.insert(Entity::Pipe(Pipe::append(fd, write_timeout))) {
@@ -256,7 +274,7 @@ impl Io {
     }
 
     /// Takes the signalfd opened after blocking termination signals at
-    /// startup (runtime/shell.md, section 6). Each read becomes `Event::Shutdown` or `Event::Resized`;
+    /// startup (runtime/shell-startup.md, section 1). Each read becomes `Event::Shutdown` or `Event::Resized`;
     /// `Close` or `Abort` on the returned token settles the read and closes
     /// the descriptor. On a full slab the caller retains the descriptor.
     pub fn adopt_signals(&mut self, fd: Fd) -> Result<Token, Fd> {

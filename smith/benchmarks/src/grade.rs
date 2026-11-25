@@ -1,7 +1,7 @@
 //! Agent-neutral checks and grader commands after tree settlement.
 //! Reads stay inside the candidate copy; links and special files are scope
 //! evidence and are never followed. No provider or agent state is inspected.
-//! Contracts: ../../docs/design/benchmarks/README.md, sections 3.2, 9 and 10.
+//! Contracts: ../../docs/design/benchmarks/README.md, section 3.2, and ../../docs/design/benchmarks/results.md, section 2, and ../../docs/design/benchmarks/isolation.md, section 1.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -12,6 +12,7 @@ use skein_lib::Duration;
 use skein_shell::Clock;
 use skein_world::end_to_end::Command;
 
+use crate::files::{Files, Kind, Native};
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private};
 use crate::process::{Bounds, Capture, execute};
@@ -35,59 +36,65 @@ pub type Snapshot = BTreeMap<PathBuf, Entry>;
 
 /// Inspect a settled directory without following links or opening special nodes.
 pub fn snapshot(root: &Path) -> Result<Snapshot, Fault> {
+    snapshot_with(&Native, root)
+}
+
+/// Inspect a settled directory on the supplied filesystem, excluding git metadata.
+pub fn snapshot_with(files: &dyn Files, root: &Path) -> Result<Snapshot, Fault> {
     let mut entries = BTreeMap::new();
-    walk(root, root, &mut entries, true)?;
+    walk(files, root, root, &mut entries, true)?;
     Ok(entries)
 }
 
 /// Inspect every node, including cache and git metadata, without following links.
 pub fn snapshot_all(root: &Path) -> Result<Snapshot, Fault> {
+    snapshot_all_with(&Native, root)
+}
+
+/// Inspect every node on the supplied filesystem without following links.
+pub fn snapshot_all_with(files: &dyn Files, root: &Path) -> Result<Snapshot, Fault> {
     let mut entries = BTreeMap::new();
-    walk(root, root, &mut entries, false)?;
+    walk(files, root, root, &mut entries, false)?;
     Ok(entries)
 }
 
-fn walk(root: &Path, directory: &Path, entries: &mut Snapshot, skip_git: bool) -> Result<(), Fault> {
-    use std::os::unix::fs::PermissionsExt;
-    let mut children = fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
-    children.sort_by_key(fs::DirEntry::file_name);
-    for child in children {
-        if skip_git && child.file_name() == ".git" {
+fn walk(files: &dyn Files, root: &Path, directory: &Path, entries: &mut Snapshot, skip_git: bool) -> Result<(), Fault> {
+    let mut children =
+        files.read_dir(directory)?.map(|child| child.map(|child| child.path())).collect::<Result<Vec<_>, _>>()?;
+    children.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
+    for path in children {
+        if skip_git && path.file_name().is_some_and(|name| name == ".git") {
             continue;
         }
-        let path = child.path();
-        let metadata = fs::symlink_metadata(&path)?;
-        if metadata.is_dir() {
-            entries.insert(path.strip_prefix(root).expect("walk stays under root").into(), Entry::Directory);
-            walk(root, &path, entries, skip_git)?;
-        } else {
-            let entry = if metadata.is_symlink() {
-                Entry::Link { target: fs::read_link(&path)? }
-            } else if metadata.is_file() {
-                Entry::File {
-                    sha256: crate::arm::binary_digest(&path)?,
-                    executable: metadata.permissions().mode() & 0o111 != 0,
-                }
-            } else {
-                Entry::Special
-            };
-            entries.insert(path.strip_prefix(root).expect("walk stays under root").into(), entry);
+        let metadata = files.symlink_metadata(&path)?;
+        let entry = match metadata.kind {
+            Kind::Directory => Entry::Directory,
+            Kind::Link => Entry::Link { target: files.read_link(&path)? },
+            Kind::File => Entry::File {
+                sha256: crate::arm::binary_digest_with(files, &path)?,
+                executable: metadata.mode & 0o111 != 0,
+            },
+            Kind::Other => Entry::Special,
+        };
+        entries.insert(path.strip_prefix(root).expect("walk stays under root").into(), entry);
+        if metadata.kind == Kind::Directory {
+            walk(files, root, &path, entries, skip_git)?;
         }
     }
     Ok(())
 }
 
-pub(crate) fn file(root: &Path, relative: &Path) -> Result<PathBuf, Fault> {
+pub(crate) fn file_with(files: &dyn Files, root: &Path, relative: &Path) -> Result<PathBuf, Fault> {
     if relative.is_absolute() || relative.components().any(|part| !matches!(part, Component::Normal(_))) {
         return Err(input("check path must be relative without traversal"));
     }
     let mut path = root.to_path_buf();
     for part in relative.components() {
         path.push(part);
-        let metadata = fs::symlink_metadata(&path)?;
-        refuse_if(metadata.is_symlink(), Input, "check path traverses a link")?;
+        let metadata = files.symlink_metadata(&path)?;
+        refuse_if(metadata.kind == Kind::Link, Input, "check path traverses a link")?;
     }
-    refuse_if(!fs::metadata(&path)?.is_file(), Input, "check path is not a regular file")?;
+    refuse_if(files.metadata(&path)?.kind != Kind::File, Input, "check path is not a regular file")?;
     Ok(path)
 }
 
@@ -122,6 +129,19 @@ pub fn checks(
     checks: &[OutcomeCheck],
     ended: &Ended,
 ) -> Vec<CheckVerdict> {
+    checks_with(&Native, workspace, before, after, checks, ended)
+}
+
+/// Judge outcomes and protected files on the supplied settled filesystem.
+#[must_use]
+pub fn checks_with(
+    files: &dyn Files,
+    workspace: &Path,
+    before: &Snapshot,
+    after: &Snapshot,
+    checks: &[OutcomeCheck],
+    ended: &Ended,
+) -> Vec<CheckVerdict> {
     checks
         .iter()
         .map(|check| {
@@ -139,22 +159,22 @@ pub fn checks(
                 | OutcomeCheck::CredentialRefresh => return outcomes::check(check, ended),
             };
             let value = match check {
-                OutcomeCheck::FileContent { path, content } => file(workspace, path)
-                    .and_then(|path| fs::read(path).map_err(Fault::from))
+                OutcomeCheck::FileContent { path, content } => file_with(files, workspace, path)
+                    .and_then(|path| files.read(&path).map_err(Fault::from))
                     .map(|bytes| bytes == content.as_bytes()),
-                OutcomeCheck::FileDigest { path, sha256 } => {
-                    file(workspace, path).and_then(|path| crate::arm::binary_digest(&path)).map(|got| got == *sha256)
-                }
-                OutcomeCheck::FileSize { path, bytes_at_least } => file(workspace, path)
-                    .and_then(|path| fs::metadata(path).map_err(Fault::from))
-                    .map(|metadata| metadata.len() >= *bytes_at_least),
+                OutcomeCheck::FileDigest { path, sha256 } => file_with(files, workspace, path)
+                    .and_then(|path| crate::arm::binary_digest_with(files, &path))
+                    .map(|got| got == *sha256),
+                OutcomeCheck::FileSize { path, bytes_at_least } => file_with(files, workspace, path)
+                    .and_then(|path| files.metadata(&path).map_err(Fault::from))
+                    .map(|metadata| metadata.size >= *bytes_at_least),
                 OutcomeCheck::Absent { path } => {
                     Ok(!after.contains_key(path) && !after.keys().any(|item| item.starts_with(path)))
                 }
                 OutcomeCheck::Pattern { path, pattern } => {
                     regex::Regex::new(pattern).map_err(|error| input(error.to_string())).and_then(|pattern| {
-                        file(workspace, path)
-                            .and_then(|path| fs::read_to_string(path).map_err(Fault::from))
+                        file_with(files, workspace, path)
+                            .and_then(|path| files.read_to_string(&path).map_err(Fault::from))
                             .map(|text| pattern.is_match(&text))
                     })
                 }
@@ -198,6 +218,27 @@ pub enum GradeEnd {
     Fault { reason: String },
 }
 
+/// The settled exit and captured streams supplied by the command runner to grading.
+#[derive(Debug)]
+pub struct CommandReceipt {
+    pub exit: Exit,
+    pub forced: Forced,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+    pub error: Option<String>,
+}
+
+pub(crate) fn run_command(clock: &Clock, command: Command, bounds: Bounds) -> Result<CommandReceipt, Fault> {
+    let result = execute(clock, command, Box::new([]), Capture::Raw, bounds)?;
+    Ok(CommandReceipt {
+        exit: result.exit,
+        forced: result.forced,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        error: result.error,
+    })
+}
+
 /// Grade a separate copy with the author's deadline and bounded logs.
 pub fn command(
     clock: &Clock,
@@ -208,19 +249,32 @@ pub fn command(
     bounds: Bounds,
     environment: &BTreeMap<String, String>,
 ) -> Result<GradeResult, Fault> {
+    command_with(&Native, machine, private, directory, grade, bounds, environment, &mut |command, bounds| {
+        run_command(clock, command, bounds)
+    })
+}
+
+#[expect(clippy::too_many_arguments, reason = "grade inputs plus the file and command boundaries")]
+pub(crate) fn command_with(
+    files: &dyn Files,
+    machine: &Machine,
+    private: &Private,
+    directory: &Path,
+    grade: &Grade,
+    bounds: Bounds,
+    environment: &BTreeMap<String, String>,
+    run: &mut impl FnMut(Command, Bounds) -> Result<CommandReceipt, Fault>,
+) -> Result<GradeResult, Fault> {
     let (program, arguments) = grade.command.split_first().ok_or_else(|| input("empty grading command"))?;
     let maximum = usize::try_from(grade.max_output_bytes)?;
     let command = Command {
-        program: crate::isolate::program(machine, directory, Path::new(program))?,
+        program: crate::isolate::program_with(files, machine, directory, Path::new(program))?,
         arguments: arguments.iter().map(Into::into).collect(),
         environment: crate::isolate::environment(machine, private, environment)?,
         directory: directory.into(),
     };
-    let result = execute(
-        clock,
+    let result = run(
         command,
-        Box::new([]),
-        Capture::Raw,
         Bounds {
             hard: Duration::from_secs(grade.deadline_seconds),
             teardown: Duration::ZERO,

@@ -8,6 +8,7 @@
     clippy::wildcard_enum_match_arm
 )]
 use crate::forge;
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client_protocol_link as link;
 use skein_lib::{List, Reader};
@@ -15,24 +16,10 @@ use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 #[must_use]
 pub fn request(a: &forge::Adoption, limits: &w::Limits) -> Option<jig_client::Family> {
-    let mut checks = List::with_capacity(limits.adopt_checks);
-    for check in &a.checks {
-        if checks.push(*check).is_err() {
-            return None;
-        }
+    if a.checks.len() > skein_lib::usize_of(limits.adopt_checks) {
+        return None;
     }
-    let record = w::Adopt {
-        project: a.project,
-        home: a.home,
-        forge: a.forge,
-        owner: a.owner.clone(),
-        name: a.name.clone(),
-        prefix: a.prefix.clone(),
-        role: role_to(a.role),
-        landing: a.landing.clone(),
-        ci: a.ci,
-        checks,
-    };
+    let record = maps::adopt_to_record(a).ok()?;
     Some(jig_client::Family {
         family: wire::number(wire::Owner::Forge),
         version: wire::CLIENT_VERSION,
@@ -80,50 +67,9 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         return None;
     }
     Some(match a.outcome {
-        w::Outcome::Adopted(a) => forge::Answer::Adopted(forge::Adopted {
-            forge: a.forge,
-            repository: a.repository,
-            owner: a.owner,
-            name: a.name,
-            landing: a.landing,
-            role: role_from(&a.role),
-            home: a.home,
-            kinds: forge::Kinds {
-                read: a.kinds.read,
-                push: a.kinds.push,
-                open: a.kinds.open,
-                land: a.kinds.land,
-                review: a.kinds.review,
-                status: a.kinds.status,
-                comment: a.kinds.comment,
-                issue: a.kinds.issue,
-                branch: a.kinds.branch,
-            },
-            protection: match a.protection {
-                w::Protection::Unknown => forge::Protection::Unknown,
-                w::Protection::Absent => forge::Protection::Absent,
-                w::Protection::Rule(rule) => forge::Protection::Rule(forge::Rule {
-                    branch: rule.branch,
-                    contexts: rule.contexts.into_boxed(),
-                    approvals: rule.approvals,
-                    dismiss_stale: rule.dismiss_stale,
-                }),
-            },
-        }),
+        w::Outcome::Adopted(a) => forge::Answer::Adopted(maps::adopted_to_domain(a)),
         w::Outcome::CoreRefused(a) => forge::Answer::CoreRefused(core_refusal(&a.refusal, link)?),
-        w::Outcome::ForgeRefused(a) => forge::Answer::ForgeRefused(match a.reason {
-            w::ForgeReason::NoSuchForge => forge::Reason::NoSuchForge,
-            w::ForgeReason::NotFound => forge::Reason::NotFound,
-            w::ForgeReason::NoAccess => forge::Reason::NoAccess,
-            w::ForgeReason::Refused => forge::Reason::Refused,
-            w::ForgeReason::InFlight => forge::Reason::InFlight,
-            w::ForgeReason::TooLarge => forge::Reason::TooLarge,
-            w::ForgeReason::Unreachable => forge::Reason::Unreachable,
-            w::ForgeReason::InvalidAnswer => forge::Reason::InvalidAnswer,
-            w::ForgeReason::AnotherProject => forge::Reason::AnotherProject,
-            w::ForgeReason::HomeHeld => forge::Reason::HomeHeld,
-            w::ForgeReason::PrefixOccupied => forge::Reason::PrefixOccupied,
-        }),
+        w::Outcome::ForgeRefused(a) => forge::Answer::ForgeRefused(maps::forge_reason_to_domain(a.reason)),
         w::Outcome::Unknown => forge::Answer::Unknown,
         w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_)
@@ -149,7 +95,7 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::Tried
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
@@ -181,22 +127,6 @@ pub fn core_refusal(bytes: &[u8], limits: &link::Limits) -> Option<jig_client::c
         jig_client::contract::Answer::Done(_) => None,
     }
 }
-const fn role_to(role: forge::Role) -> w::Role {
-    match role {
-        forge::Role::Owned => w::Role::Owned,
-        forge::Role::Adopted => w::Role::Adopted,
-        forge::Role::Fork => w::Role::Fork,
-        forge::Role::Context => w::Role::Context,
-    }
-}
-const fn role_from(role: &w::Role) -> forge::Role {
-    match role {
-        w::Role::Owned => forge::Role::Owned,
-        w::Role::Adopted => forge::Role::Adopted,
-        w::Role::Fork => forge::Role::Fork,
-        w::Role::Context => forge::Role::Context,
-    }
-}
 
 #[must_use]
 pub fn set_up(
@@ -215,7 +145,7 @@ pub fn set_up(
 }
 #[must_use]
 pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<forge::forges::SetUpOutcome> {
-    use forge::forges::{SetUpOutcome as O, SetUpRefusal as R};
+    use forge::forges::SetUpOutcome as O;
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
         return None;
     }
@@ -226,12 +156,7 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
     }
     Some(match answer.outcome {
         w::Outcome::SettingUp => O::SettingUp,
-        w::Outcome::SetUpRefused(why) => O::Refused(match why.why {
-            w::SetUpRefusal::NotOffered => R::NotOffered,
-            w::SetUpRefusal::NotUnderTheBox => R::NotUnderTheBox,
-            w::SetUpRefusal::Busy => R::Busy,
-            w::SetUpRefusal::Invalid => R::Invalid,
-        }),
+        w::Outcome::SetUpRefused(why) => O::Refused(maps::set_up_refusal_to_domain(why.why)),
         w::Outcome::Unknown => O::Unknown,
         w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_)
@@ -258,7 +183,7 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::Tried
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
@@ -282,7 +207,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
 /// The forge rows and whether the printed link signed in (client/forge/records.md).
 #[must_use]
 pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<forge::forges::Document> {
-    use forge::forges::{Kind, Mode, Offer, Row};
+    use forge::forges::Row;
     let record = wire::decode_forges(bytes, limits)?;
     let mut rows = List::with_capacity(record.forges.len());
     for row in record.forges.into_boxed() {
@@ -301,57 +226,39 @@ pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<forge::forges
                 .ok()?;
         }
         rows.push(Row {
+            catching_up: row.catching_up,
             makings: makings.into_boxed(),
             read_only: row.read_only,
             number: row.number,
             host: row.host,
-            kind: match row.kind {
-                w::Kind::Forgejo => Kind::Forgejo,
-                w::Kind::Github => Kind::GitHub,
-            },
-            mode: match row.mode {
-                w::Mode::Connected => Mode::Connected,
-                w::Mode::Managed => Mode::Managed,
-                w::Mode::Owned => Mode::Owned,
-                w::Mode::Fake => Mode::Fake,
-            },
+            kind: maps::kind_to_domain(row.kind),
+            mode: maps::mode_to_domain(row.mode),
             connection,
             fetched,
-            offer: match row.offer {
-                w::Offer::NotOffered => Offer::NotOffered,
-                w::Offer::NotUnderTheBox => Offer::NotUnderTheBox,
-                w::Offer::Offered => Offer::Offered,
-            },
+            offer: maps::offer_to_domain(row.offer),
             first: match row.first {
-                Some(first) => Some(first_from(first)),
+                Some(first) => Some(maps::first_repository_to_domain(first)),
                 None => None,
             },
-            starts_with: match row.starts_with {
-                w::StartsWith::Repository => super::forges::StartsWith::Repository,
-                w::StartsWith::Copies(copies) => {
-                    super::forges::StartsWith::Copies { addresses: copies.addresses.into_boxed() }
-                }
-                w::StartsWith::Nothing => super::forges::StartsWith::Nothing,
-            },
+            starts_with: maps::starts_with_to_domain(row.starts_with),
             installations: installations_from(row.installations)?,
             ended: match row.ended {
                 Some(ended) => Some(ended.why),
                 None => None,
             },
             app: match row.app {
-                Some(w::AppWay::Manifest) => Some(super::forges::AppWay::Manifest),
-                Some(w::AppWay::Pasted) => Some(super::forges::AppWay::Pasted),
+                Some(app) => Some(maps::app_way_to_domain(app)),
                 None => None,
             },
             web: row.web,
             repositories: adoptions_from(row.repositories)?,
             owned: match row.owned {
-                Some(owned) => Some(owned_from(owned)),
+                Some(owned) => Some(maps::owned_forge_to_domain(owned)),
                 None => None,
             },
             admin: row.admin,
             ended_stop: match row.ended_stop {
-                Some(stop) => Some(admin_stop(stop)),
+                Some(stop) => Some(maps::admin_stop_to_domain(stop)),
                 None => None,
             },
         })
@@ -361,35 +268,22 @@ pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<forge::forges
 }
 
 fn installations_from(values: List<w::Installation>) -> Option<Box<[forge::forges::Installation]>> {
-    use forge::forges::{Account, Installation};
     let mut installations = List::with_capacity(values.len());
     for installation in values.into_boxed() {
-        installations
-            .push(Installation {
-                id: installation.id,
-                account: match installation.account {
-                    Some(account) => Some(Account { id: account.id, login: account.login }),
-                    None => None,
-                },
-                suspended: installation.suspended,
-                stray: installation.stray,
-            })
-            .ok()?;
+        installations.push(maps::installation_to_domain(installation)).ok()?;
     }
     Some(installations.into_boxed())
 }
 fn adoptions_from(values: List<w::Adoption>) -> Option<Box<[forge::forges::Adoption]>> {
     let mut repositories = List::with_capacity(values.len());
     for adopted in values.into_boxed() {
-        repositories
-            .push(forge::forges::Adoption { owner: adopted.owner, name: adopted.name, project: adopted.project })
-            .ok()?;
+        repositories.push(maps::adoption_to_domain(adopted)).ok()?;
     }
     Some(repositories.into_boxed())
 }
 
 fn fetched_from(connection: &w::Connection) -> Option<forge::forges::Fetched> {
-    use forge::forges::{Binary, Fetched};
+    use forge::forges::Fetched;
     let value = match connection {
         w::Connection::SettingUp(value) => value,
         w::Connection::NotConnected
@@ -410,70 +304,33 @@ fn fetched_from(connection: &w::Connection) -> Option<forge::forges::Fetched> {
         return None;
     }
     Some(Fetched {
-        binary: match &fetched.binary {
-            w::SetUpBinary::Forgejo => Binary::Forgejo,
-            w::SetUpBinary::Runner => Binary::Runner,
-        },
+        binary: maps::set_up_binary_to_domain(fetched.binary.clone()),
         done: fetched.done,
         total: fetched.total,
     })
 }
 
 fn connection_from(connection: w::Connection) -> forge::forges::Connection {
-    use forge::forges::{Connection as C, Step};
+    use forge::forges::Connection as C;
     match connection {
         w::Connection::NotConnected => C::NotConnected,
         w::Connection::NotSetUp => C::NotSetUp,
         w::Connection::SettingUp(value) => C::SettingUp {
             step: match value.step {
-                Some(w::SetUpStep::Fetch) => Some(Step::Fetch),
-                Some(w::SetUpStep::Prepare) => Some(Step::Prepare),
-                Some(w::SetUpStep::Run) => Some(Step::Run),
-                Some(w::SetUpStep::Source) => Some(Step::Source),
+                Some(step) => Some(maps::set_up_step_to_domain(step)),
                 None => None,
             },
         },
         w::Connection::SetUpFailed(value) => C::SetUpFailed {
             why: value.why,
             at: match value.at {
-                Some(w::FailedStep::Fetch) => Some(forge::forges::FailedStep::Fetch),
-                Some(w::FailedStep::Prepare) => Some(forge::forges::FailedStep::Prepare),
-                Some(w::FailedStep::Run) => Some(forge::forges::FailedStep::Run),
-                Some(w::FailedStep::Connect) => Some(forge::forges::FailedStep::Connect),
+                Some(step) => Some(maps::failed_step_to_domain(step)),
                 None => None,
             },
         },
         w::Connection::Connecting => C::Connecting,
         w::Connection::Connected(value) => C::Connected { id: value.id, login: value.login },
         w::Connection::Stopped(value) => C::Stopped { reason: value.reason },
-    }
-}
-
-fn owned_from(owned: w::OwnedForge) -> forge::forges::Owned {
-    forge::forges::Owned { forgejo: owned.forgejo, runner: owned.runner, password: owned.password }
-}
-
-fn first_from(first: w::FirstRepository) -> forge::forges::First {
-    use forge::forges::{CreateStep, First, FirstState};
-
-    First {
-        playground: first.playground,
-        sample: first.sample,
-        org: first.org,
-        repository: first.repository,
-        state: match first.state {
-            w::FirstState::Making => FirstState::Making,
-            w::FirstState::Made(value) => FirstState::Made { id: value.id },
-            w::FirstState::Failed(value) => FirstState::Failed {
-                step: match &value.step {
-                    w::CreateStep::Admin => CreateStep::Admin,
-                    w::CreateStep::Org => CreateStep::Org,
-                    w::CreateStep::Repository => CreateStep::Repository,
-                    w::CreateStep::File => CreateStep::File,
-                },
-            },
-        },
-        label: first.label,
     }
 }
 
@@ -492,60 +349,14 @@ pub struct Reached {
 }
 #[must_use]
 pub fn page(value: w::Page) -> Page {
-    let mut rows = List::with_capacity(value.rows.len());
-    for row in value.rows.into_boxed() {
-        let owner = row.owner;
-        rows.push(Reached {
-            id: row.id,
-            owner: forge::forges::Account { id: owner.id, login: owner.login },
-            name: row.name,
-            private: row.private,
-        })
-        .expect("decoded page bound");
-    }
-    Page { rows: rows.into_boxed(), more: value.more }
-}
-
-fn admin_stop(stop: w::AdminStop) -> forge::forges::AdminStop {
-    use forge::forges::{AdminStop, SetupStage};
-    match stop {
-        w::AdminStop::NotAdmin => AdminStop::NotAdmin,
-        w::AdminStop::Unmarked => AdminStop::Unmarked,
-        w::AdminStop::Other => AdminStop::Other,
-        w::AdminStop::Refused(refused) => AdminStop::Refused {
-            status: refused.status,
-            stage: match &refused.stage {
-                w::SetupStage::Admin => SetupStage::Admin,
-                w::SetupStage::Bot => SetupStage::Bot,
-                w::SetupStage::Token => SetupStage::Token,
-                w::SetupStage::Org => SetupStage::Org,
-                w::SetupStage::Repository => SetupStage::Repository,
-                w::SetupStage::File => SetupStage::File,
-                w::SetupStage::App => SetupStage::App,
-                w::SetupStage::Installation => SetupStage::Installation,
-                w::SetupStage::State => SetupStage::State,
-            },
-        },
-    }
+    maps::page_to_domain(value)
 }
 
 /// Decode the playground's complete record (temper/docs/design/client/forge/family.md, 7).
 #[must_use]
 pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground> {
     let answer = wire::decode_playground_answer(record, limits)?;
-    Some(forge::Playground {
-        state: match answer.state {
-            w::PlaygroundState::Starting => forge::PlaygroundState::Starting,
-            w::PlaygroundState::Running => forge::PlaygroundState::Running,
-            w::PlaygroundState::Resetting => forge::PlaygroundState::Resetting,
-        },
-        forge: answer.forge,
-        project: answer.project,
-        provider: answer.provider,
-        owner: answer.owner,
-        name: answer.name,
-        cues: answer.cues.into_boxed(),
-    })
+    Some(maps::playground_answer_to_domain(answer))
 }
 
 /// The forge's keyed follow act (temper/docs/design/domain/forge/follows.md, 5).
@@ -563,7 +374,7 @@ pub fn follow_act(value: w::FollowActRequest, limits: &w::Limits) -> Option<jig_
     })
 }
 
-/// A keyed tier hold or release (temper/docs/design/domain/after-landing.md, 3).
+/// A keyed tier hold or release (temper/docs/design/domain/after-landing-runs.md, 2).
 #[must_use]
 pub fn tier_act(value: w::TierActRequest, limits: &w::Limits) -> Option<jig_client::Ask> {
     let project = value.project;

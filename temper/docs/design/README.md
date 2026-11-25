@@ -47,7 +47,7 @@ section 8.
   jig's core decides (`domain/root.md`). jig's rails hold temper to
   jig's promises: skein-lib's journal, jig's restart script, its
   conformance world and its referee, with temper's own wiring and its
-  fake forge (jig's `README.md`, section 6).
+  fake forge (jig's `rails.md`, section 1).
 - **One binary for the box, one per process for a deployment,
   standalone first** (`protocol/README.md`; `protocol/binaries.md`).
   `temper-box serve` runs the engine and one worker in one process on
@@ -76,20 +76,20 @@ One story:
 1. `temper-box serve` runs on a deployment's directories,
    configured for one Forgejo (with Actions, or with project checks), one
    git identity, one worker and its LLM providers, never an account
-   (`protocol/configuration/README.md`; `protocol/credentials.md`, sections 3
-   and 4). The forge is connected, managed, or owned on a box
+   (`protocol/configuration/README.md`; `protocol/credentials-llm-accounts.md`, section 1, and `protocol/credentials-git-identities.md`, section 1
+   ). The forge is connected, managed, or owned on a box
    (`protocol/setup/README.md`).
 2. `temper-box open DIRECTORY LINK` signs the person in by the printed link
-   and shows their inbox (`client/line.md` and `client/README.md`, section 4). With
+   and shows their inbox (`client/line.md` and `client/sign-in.md`, section 1). With
    no LLM account yet, a banner offers the ways to add one: a sign-in
    with an LLM provider, a Claude Code login made with `temper-box
    program-login`, or a key; the person adds one on the accounts page
-   (`client/pages/README.md` and `client/pages/accounts.md`, 2).
+   (`client/pages/README.md` and `client/pages/accounts-words.md`, 1).
 3. The person adopts a repository into the configured project, through
    the adoption form (`client/forge/family.md`, 4).
 4. The person starts a chat and asks for a change; the stock chat reads
    the code through the forge and delegates the change whole to a change
-   task (`domain/agent/tools.md`, 1; `domain/forge/change/README.md`, 1).
+   task (`domain/agent/tools-change.md`, 1; `domain/forge/change/README.md`, 1).
 5. Agents do the rest: the change is produced, its pull request opened,
    checked by CI and by an agent's review (a gate the usual landing rule
    asks for, `domain/forge/change/gates.md`, 1 and 2), repaired when either
@@ -156,15 +156,15 @@ forge, temper adds:
 
 - **Nothing is forced.** temper never forces a push, never writes to an
   object it does not own but as a participant, and never overwrites a
-  change it did not make (`domain/forge/change/README.md`, 3, and `domain/forge/change/gates.md`, 2).
+  change it did not make (`domain/forge/change/drift.md`, 1, and `domain/forge/change/gates.md`, 2).
 - **A merge lands what was checked:** exactly the head its decision saw,
   with every requirement its branch's rules enforce met: CI, gates and
   approvals at that head, up to date on the decision's reads
   (`domain/forge/change/gates.md`, 2).
 - **A landing temper did not make is news,** like any other
-  (`domain/forge/README.md`, 5.2).
+  (`domain/forge/topics.md`, 1.2).
 - **A change temper did not make to what it owns holds the task that
-  relies on it,** and the client says why (`domain/forge/change/README.md`, 3).
+  relies on it,** and the client says why (`domain/forge/change/drift.md`, 1).
 
 ## 6. Documents
 
@@ -172,6 +172,7 @@ forge, temper adds:
 - `domain/forge/change/repairs-later.md`: repairs, resolutions and releases: open questions.
 - `domain/landing-forge.md`: what the forge shows of landings and their open questions.
 - `protocol/git-later.md`: the checkout’s git: open questions.
+- `protocol/git-sweep.md`: the checkout’s git: the sweep of its trash.
 
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
@@ -180,9 +181,53 @@ forge, temper adds:
   what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
+  - `domain/root.md`: temper's root.
+  - `domain/root-translation.md`: the root's boundary translation and output assembly.
+  - `domain/root-restart.md`: restarting and stopping the root.
+  - `domain/landing.md`: landing by turn.
+  - `domain/landing-prepare.md`: preparing candidates, rounds and merge trains.
+  - `domain/landing-proof.md`: keys, receipts and proof by dispatch.
+  - `domain/landing-turn.md`: the landing turn and its trains.
+  - `domain/after-landing.md`: verdicts and clearing after landing.
+  - `domain/after-landing-runs.md`: tier definitions, scheduling and run reports.
+  - `domain/after-landing-storage.md`: after-landing effects, reads and durable records.
+  - `domain/agent/tools.md`: the agent's tool families and call contracts.
+  - `domain/agent/tools-forge.md`: the agent's forge reads.
+  - `domain/agent/tools-change.md`: a change in the run's words.
+  - `domain/agent/tools-goal.md`: a goal in the run's words.
+  - `domain/forge/README.md`: the forge connector and its documents.
+  - `domain/forge/effects.md`: effects and recovery across restarts.
+  - `domain/forge/topics.md`: topics and landings as news.
+  - `domain/forge/updates.md`: lazy, mechanical updates.
+  - `domain/forge/adoption.md`: adopting repositories, rules, workflows and landing branches.
+  - `domain/forge/adoption-connection.md`: a forge's connection, access state and removal.
+  - `domain/forge/adoption-person.md`: a box's person on its forges.
+  - `domain/forge/change/README.md`: the change procedure and its documents.
+  - `domain/forge/change/drift.md`: a change's drift and its own writes.
+  - `domain/forge/change/panel.md`: a change's panel.
+  - `domain/forge/change/records.md`: a change's records and room.
+  - `domain/forge/change/repairs.md`: repairs and their outcomes.
+  - `domain/forge/change/repairs-resolutions.md`: merge jobs and conflict resolutions.
+  - `domain/forge/change/repairs-briefs.md`: gathering the forge sections of a brief.
+  - `domain/forge/change/repairs-releases.md`: holds and releases.
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
-  - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
+  - `domain/worker/hosted-runs.md`: assignments, lifecycle and failures.
+  - `domain/worker/agent-processes.md`: the worker's agent processes and their bounds.
+  - `domain/worker/checkouts.md`: workspaces, their stores and holds, a workspace kept for its run, and the checkout's open questions.
+  - `domain/worker/checkouts-prepare.md`: checkout preparation, starting points and failure diagnostics.
+  - `domain/worker/checkouts-push.md`: delivery, saving and their open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
+  - `testing/README.md`: the testing overview, neighbours and layout.
+  - `testing/tiers.md`: temper's testing tiers and their open work.
+  - `testing/scenarios.md`: scenarios and their referee.
+  - `testing/checks.md`: what the worlds check beyond the strategy.
+  - `testing/checks-stage-one.md`: stage 1's golden, its check and its judge.
+  - `testing/reference-case.md`: the case library and its opening act.
+  - `testing/reference-case-changing-direction.md`: the case's change of direction.
+  - `testing/reference-case-milestones.md`: the case's milestones and hand-offs.
+  - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
+  - `testing/box/README.md`: where the box's own checks run, the facts they are handed at the shell's boundary, and what its slow binaries keep.
+  - `testing/shells.md`: where temper's shells' own checks run, the facts they are handed at the shell's boundary, and what their slow binaries keep.
   - `testing/qa/README.md`: QA after landing, beside the deployment: its
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the
     watcher on main (`testing/qa/landings.md`), kept builds
@@ -199,6 +244,33 @@ forge, temper adds:
   accounts, the forge's protocol on skein's forge kit (skein's
   `forge/README.md`), git, and the forge's setup. Its `README.md` gives the
   reading order and the names.
+  - `protocol/README.md`: the protocol layer's overview, reading order and names.
+  - `protocol/service-routing.md`: the engine and worker services' routing.
+  - `protocol/service-process.md`: the services in one process, its waits and stops.
+  - `protocol/binaries.md`: the deployment's binaries and their closures.
+  - `protocol/binaries-box.md`: the box's commands and standalone processes.
+  - `protocol/binaries-client.md`: the client binary's interface.
+  - `protocol/credentials.md`: credential records and forge access.
+  - `protocol/credentials-llm-accounts.md`: LLM accounts and program sign-in.
+  - `protocol/credentials-git-identities.md`: git identity credentials.
+  - `protocol/store.md`: the store's families, keys and testing.
+  - `protocol/store-versions.md`: records and store version changes.
+  - `protocol/store-restart.md`: the store's restart and restore protocol.
+  - `protocol/git.md`: git invocation mechanics, processes and testing.
+  - `protocol/git-operations.md`: the checkout's git operations.
+  - `protocol/configuration/settings-kinds.md`: the settings kinds and their values.
+  - `protocol/configuration/settings-output.md`: output-derived bounds for larger models.
+  - `protocol/configuration/worker.md`: the worker and agent configuration.
+  - `protocol/configuration/startup.md`: configuration at the first and later starts.
+  - `protocol/configuration/limits-startup.md`: cross-limit startup checks.
+  - `protocol/configuration/limits-client.md`: engine and client bounds and watch rooms.
+  - `protocol/setup/box-supervision.md`: step supervision, restarts, stops and output.
+  - `protocol/setup/box-backends.md`: the retained sandbox and fake backends.
+  - `protocol/setup/box-front.md`: the box beneath its terminal front.
+  - `protocol/setup/owned-repositories.md`: the first repository and later makes or copies.
+  - `protocol/setup/owned-sign-in.md`: signing in through temper to an owned forge.
+  - `protocol/setup/webhooks.md`: webhook delivery on a box.
+  - `protocol/setup/crate-layout.md`: the setup crates and their dependencies.
 - **`client/`:** temper's client on `jig-client`. Its `README.md` is the
   client: its client root and pages, the forge's client family, its view,
   the terminal, signing in, and the clients' listener; `client/forge/README.md` is the
@@ -228,6 +300,55 @@ forge, temper adds:
   Its documents go by surface (the user, 2026-11-07): what is generic
   to the client in `client/` itself, the browser's in `client/web/`, the
   TUI's in `client/tui/`, and `temper ctl`'s in `client/ctl/`.
+  - `client/README.md`: the client's overview and crates.
+  - `client/root.md`: the client root's state, routing and requests.
+  - `client/sign-in.md`: signing in and the small store.
+  - `client/view.md`: the view's shape, limits, cards and times.
+  - `client/view-navigation.md`: the view's navigation.
+  - `client/tui/README.md`: the TUI's overview and loop.
+  - `client/tui/directory.md`: the TUI's directory and local link.
+  - `client/tui/host.md`: the TUI's host and seam.
+  - `client/tui/box.md`: the TUI in front of a box.
+  - `client/tui/box-startup.md`: the box front's stages and startup screens.
+  - `client/tui/box-lending.md`: lending the box front's terminal.
+  - `client/tui/box-web.md`: opening the browser from the box front.
+  - `client/web/README.md`: the browser shell overview.
+  - `client/web/shell.md`: the browser shell and host.
+  - `client/web/serving.md`: serving the page and bundle.
+  - `client/web/addresses.md`: addresses and navigation.
+  - `client/web/sign-in.md`: signing in.
+  - `client/web/bundle.md`: the bundle in the binary.
+  - `client/web/push.md`: push notifications.
+  - `client/web/gallery.md`: the gallery and its tests.
+  - `client/web/gallery-project-states.md`: project and settings states.
+  - `client/web/gallery-journey-states.md`: journey and interaction states.
+  - `client/web/look.md`: the shared look.
+  - `client/web/look-welcome.md`: the welcome's look.
+  - `client/web/look-settings.md`: settings and accounts' look.
+  - `client/web/look-chats.md`: chats and their documents' look.
+  - `client/web/look-ways.md`: ways of working's look.
+  - `client/web/journeys.md`: journey walks and prints.
+  - `client/web/journeys-recordings.md`: recording and replaying journeys.
+  - `client/journey-walks.md`: a journey's walk.
+  - `client/journey-walks-world.md`: executing a walk in a world.
+  - `client/pages/README.md`: the pages' overview, reads and deferred checks.
+  - `client/pages/address-contracts.md`: the pages' addresses, watches, reads and acts.
+  - `client/pages/shared-behaviour.md`: task titles, Away and terminal approval across pages.
+  - `client/pages/needs-you.md`: the browser's needs and Only you.
+  - `client/pages/needs-you-terminal.md`: the terminal inbox and its cards.
+  - `client/pages/needs-you-tell.md`: filing a person's words through Tell temper.
+  - `client/pages/needs-you-state.md`: the needs, replies and decisions the client keeps.
+  - `client/pages/settings.md`: the settings and deployment frames.
+  - `client/pages/settings-workflow.md`: How work runs and choosing a way.
+  - `client/pages/settings-proposals.md`: proposing, reviewing and deciding settings.
+  - `client/pages/home.md`: a project's Home and the rules for its parts.
+  - `client/pages/home-across-projects.md`: Home's aggregation across projects.
+  - `client/pages/home-findings.md`: findings' severity, groups and cards on Home.
+  - `client/pages/home-decisions.md`: Decided for you and overturning a decision.
+  - `client/pages/welcome.md`: the welcome's frame, Forge and Ready.
+  - `client/pages/welcome-model.md`: connecting and trying a model in the welcome.
+  - `client/pages/accounts.md`: the accounts page and connecting an account.
+  - `client/pages/accounts-words.md`: the accounts' phrasebook, waits and sign-in words.
   - `client/tui/pages/README.md`: the TUI's state, shared words, foot and commands.
   - `client/tui/pages/sign-in.md`: signing in and renewing from the engine's link, and at a deployment by name.
   - `client/tui/pages/refused.md`: the screen for a build the engine refuses.
@@ -247,14 +368,10 @@ forge, temper adds:
   its identity and floors, what the machine must have, how a release
   is made, Apple Silicon's file for the site, and its walk on a fresh
   machine.
-- **`redeploy.md`:** a deployment taking a new build while its work
-  goes on: the deployment's description, the build staged, the engine
-  alone by default, workers in turn, every part together, the record and
-  the referee, in `temper-redeploy`.
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where
-  the code lags or departs from it; `STATUS.md` indexes them.
+  the code lags or departs from it; `STATUS.md` tells how to roll them up.
 
 ## 7. Conventions
 
@@ -295,7 +412,7 @@ forge, temper adds:
 
 ## 9. Crates' names
 
-temper's crates follow jig's rule (jig's `README.md`, section 15), with
+temper's crates follow jig's rule (jig's `crate-names.md`, section 1), with
 temper's side before the layer:
 
 - `temper-engine-domain` (the root), its forge children

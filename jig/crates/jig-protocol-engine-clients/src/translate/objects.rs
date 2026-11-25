@@ -12,7 +12,7 @@ pub use current::{escalation, person_task, question, result};
 pub use projects::project;
 pub use proposals::proposal;
 pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) -> Result<w::Ended, w::Problem> {
-    let key = ended_key(&value.value, limits)?;
+    let key = ended_key(&value.value)?;
     let record = match &value.value {
         reads::EndedValue::Task { document, result } => w::EndedValue::Task(w::EndedValueTask {
             document: task::document(document, models, limits)?,
@@ -31,7 +31,7 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
                 w::EndedValue::PersonProposal(w::EndedValuePersonProposal {
                     proposal: ended::person_proposal(models, proposal, limits)?,
                     decision: match *decision {
-                        Some(item) => Some(ended::proposal_decision(item, limits)?),
+                        Some(item) => Some(ended::proposal_decision(item)),
                         None => None,
                     },
                 })
@@ -40,7 +40,7 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
         reads::EndedValue::Escalation { task: document, decision, hold } => {
             w::EndedValue::Escalation(w::EndedValueEscalation {
                 task: task::document(document, models, limits)?,
-                decision: ended::escalation_decision(decision, limits)?,
+                decision: ended::escalation_decision(decision),
                 hold: match hold {
                     Some(item) => Some(ended::hold(item, limits)?),
                     None => None,
@@ -50,7 +50,7 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
         reads::EndedValue::Question { question, answer, ending } => w::EndedValue::Question(w::EndedValueQuestion {
             question: current::question(models, question, limits)?,
             answer: match answer {
-                Some(item) => Some(question_answer::answer(item, limits)?),
+                Some(item) => Some(question_answer::answer(item)?),
                 None => None,
             },
             ending: match ending {
@@ -74,7 +74,7 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
             None => None,
         },
         by: match value.by {
-            Some(item) => Some(owner::requester(item, limits)?),
+            Some(item) => Some(owner::requester(item)),
             None => None,
         },
     })
@@ -87,7 +87,6 @@ pub fn document(
 ) -> Result<w::ReadValue, w::Problem> {
     Ok(match answer {
         reads::Answer::Document(value) => match value.as_ref() {
-            d::Document::Frame(value) => w::ReadValue::Me(owner::frame(value, models, limits)?),
             d::Document::Task(value) => w::ReadValue::Task(task::document(value, models, limits)?),
             d::Document::Proposal(value) => w::ReadValue::Proposal(proposal(models, value, limits)?),
             d::Document::Escalation(value) => w::ReadValue::Escalation(escalation(value, models, limits)?),
@@ -95,9 +94,11 @@ pub fn document(
             d::Document::PersonTask(value) => w::ReadValue::PersonTask(person_task(models, value, limits)?),
             d::Document::Result(value) => w::ReadValue::Result(result(models, value, limits)?),
             d::Document::Project(value) => w::ReadValue::Project(project(models, value, limits)?),
-            d::Document::Settings(value) => w::ReadValue::Settings(super::settings::document(value, limits)?),
+            d::Document::Settings(value) => w::ReadValue::Settings(super::settings::document(value)?),
             d::Document::Deployment(value) => w::ReadValue::Deployment(deployment::document(value, limits)?),
-            d::Document::Chips(_)
+            // The component translates me with the reading sign-in's expiry.
+            d::Document::Frame(_)
+            | d::Document::Chips(_)
             | d::Document::Run(_)
             | d::Document::Tree(_)
             | d::Document::Lines(_)
@@ -134,28 +135,28 @@ pub fn document(
     })
 }
 
-fn ended_key(value: &reads::EndedValue, limits: &w::Limits) -> Result<w::ObjectKey, w::Problem> {
+fn ended_key(value: &reads::EndedValue) -> Result<w::ObjectKey, w::Problem> {
     Ok(match value {
         reads::EndedValue::Task { document, .. } => {
             w::ObjectKey::Task(w::ObjectKeyTask { value: document.chip.number })
         }
         reads::EndedValue::Proposal(value) => w::ObjectKey::Proposal(w::ObjectKeyProposal {
-            value: task::proposal(
-                &d::ProposalRef { proposer: d::Proposer::Task(value.proposer), number: value.number },
-                limits,
-            )?,
+            value: task::proposal(&d::ProposalRef {
+                proposer: d::Proposer::Task(value.proposer),
+                number: value.number,
+            }),
         }),
         reads::EndedValue::PartyProposal(value) => w::ObjectKey::Proposal(w::ObjectKeyProposal {
-            value: task::proposal(
-                &d::ProposalRef { proposer: d::Proposer::Party(value.proposer), number: value.number },
-                limits,
-            )?,
+            value: task::proposal(&d::ProposalRef {
+                proposer: d::Proposer::Party(value.proposer),
+                number: value.number,
+            }),
         }),
         reads::EndedValue::PersonProposal { proposal, .. } => w::ObjectKey::Proposal(w::ObjectKeyProposal {
-            value: task::proposal(
-                &d::ProposalRef { proposer: d::Proposer::Party(proposal.proposer), number: proposal.number },
-                limits,
-            )?,
+            value: task::proposal(&d::ProposalRef {
+                proposer: d::Proposer::Party(proposal.proposer),
+                number: proposal.number,
+            }),
         }),
         reads::EndedValue::Escalation { task: document, .. } => {
             w::ObjectKey::Escalation(w::ObjectKeyEscalation { value: document.chip.number })

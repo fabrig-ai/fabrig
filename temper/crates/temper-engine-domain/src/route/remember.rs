@@ -74,6 +74,7 @@ pub(crate) fn call(
                 | Read::History { .. }
                 | Read::Notes { .. }
                 | Read::SettingsNote { .. }
+                | Read::CloserReport(_)
                 | Read::Document(_),
             )
             | None,

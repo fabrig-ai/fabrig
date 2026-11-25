@@ -275,7 +275,7 @@ pub struct EndedDelegate {
 pub fn ended_delegate_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<EndedDelegate, Missing> {
     match &row.phase {
         tasks::Phase::Ended(value) => Ok(EndedDelegate {
-            chip: super::small::chip_from_row(limits, row)?,
+            chip: super::small::chip_from_row(limits, row, None)?,
             ended: super::task_tree::ending(limits, value)?,
             at: row.ended_at,
         }),

@@ -71,8 +71,13 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         heartbeat: Duration::from_millis(50),
         rows,
         served: jig_client_kit::test::list([
-            Served { family: None, first: jig_client_protocol_wire::VERSION, last: jig_client_protocol_wire::VERSION },
-            Served { family: Some(1), first: 2, last: 2 },
+            Served {
+                family: None,
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+                layout: jig_client_protocol_wire::LAYOUT,
+            },
+            Served { family: Some(1), first: 2, last: 2, layout: jig_client_test_protocol_wire::LAYOUT },
         ]),
         providers: jig_client_kit::test::list([0]),
         seed: Secret::new(Box::new([7; 32])),
@@ -183,7 +188,11 @@ pub fn family_world(seed: u64) -> World<Test, Protocol> {
 #[must_use]
 pub fn domain_limits() -> jig_client_domain::Limits {
     jig_client_domain::Limits {
-        owners: &[jig_client_domain::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION }],
+        owners: &[jig_client_domain::Spoken {
+            family: 1,
+            version: jig_client_test_protocol_wire::VERSION,
+            layout: jig_client_test_protocol_wire::LAYOUT,
+        }],
         handles: 8,
         ..jig_client_kit::stories::shared::a_roles::limits().client.domain
     }
@@ -317,7 +326,7 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The task owner's open suspension, accumulated gap and restarted mark occupy 48 inline bytes.
 // The worker proof adds eight bytes to each of Row's two record slots and its charged record carrier.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2937;
+pub const TURN_OVERLAP_BYTES: u64 = 3_072;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();
@@ -326,7 +335,7 @@ pub fn turn_overlap_limits() -> jig_test_domain::Limits {
 }
 #[must_use]
 pub fn callable_turn() -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     let mut blocks = List::with_capacity(2);
     blocks.push(s::Block::Text(s::Text { text: TURN_TEXT.into(), replay: None })).expect("source text block");
     blocks
@@ -339,8 +348,8 @@ pub fn callable_turn() -> Box<[u8]> {
         .expect("source call block");
     turn_with_blocks(blocks)
 }
-fn turn_with_blocks(blocks: List<smith_transcript::v7::Block>) -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+fn turn_with_blocks(blocks: List<smith_transcript::v8::Block>) -> Box<[u8]> {
+    use smith_transcript::v8 as s;
     let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &turn_bytes()).expect("v7 fixture");
     let mut message = turn.messages.get(0).expect("person message").clone();
     message.blocks = blocks;
@@ -368,7 +377,7 @@ pub fn turn_page_limits() -> jig_test_domain::Limits {
 }
 #[must_use]
 pub fn large_turn() -> Box<[u8]> {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     let mut blocks = List::with_capacity(1);
     blocks
         .push(s::Block::Text(s::Text {

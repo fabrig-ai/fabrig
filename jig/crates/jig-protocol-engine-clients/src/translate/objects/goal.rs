@@ -1,22 +1,15 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{owner, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer, bytes};
-pub fn pattern(value: &t::Pattern, _limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
-    let mut segments = List::with_capacity(super::super::count(value.segments.len())?);
-    for row in &value.segments {
-        segments.push(bytes::copy_of(row)).expect("supplied rows fit");
+pub fn pattern(value: &t::Pattern) -> Result<w::Pattern, w::Problem> {
+    match mapped::pattern_to_record(value) {
+        Ok(record) => Ok(record),
+        Err(problem) => Err(super::super::problem(problem.reason)),
     }
-
-    Ok(w::Pattern {
-        segments,
-        last: match &value.last {
-            t::Last::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact { value: bytes::copy_of(value) }),
-            t::Last::Open(value) => w::PatternEnd::Open(w::PatternEndOpen { value: bytes::copy_of(value) }),
-        },
-    })
 }
 pub fn authority(
     models: &[crate::Model],
@@ -25,20 +18,17 @@ pub fn authority(
 ) -> Result<w::Authority, w::Problem> {
     let mut grants = List::with_capacity(super::super::count(value.grants.len())?);
     for row in &value.grants {
-        grants
-            .push(w::Grant { connector: row.connector, kind: row.kind, pattern: pattern(&row.pattern, limits)? })
-            .expect("supplied rows fit");
+        grants.push(crate::translate::client::grant(row)?).expect("supplied rows fit");
     }
     let grants = owner::grants_pieces(&grants, limits.authority_grants, w::paths::AUTHORITY_GRANTS, limits)?;
-    let mut kinds = List::with_capacity(super::super::count(value.delegation.kinds.len())?);
-    for row in &value.delegation.kinds {
-        kinds.push(owner::authority_executor(*row, limits)?).expect("supplied rows fit");
-    }
+    let delegation = mapped::delegation_to_record(&value.delegation);
+    let delegation = match delegation {
+        Ok(value) => value,
+        Err(problem) => return Err(super::super::problem(problem.reason)),
+    };
     let mut scopes = List::with_capacity(super::super::count(value.note_resources.len())?);
     for row in &value.note_resources {
-        scopes
-            .push(w::ResourceScope { connector: row.connector, pattern: pattern(&row.pattern, limits)? })
-            .expect("supplied rows fit");
+        scopes.push(crate::translate::client::resource_scope(row)?).expect("supplied rows fit");
     }
     let scopes =
         owner::scopes_pieces(&scopes, limits.authority_note_resources, w::paths::AUTHORITY_NOTE_RESOURCES, limits)?;
@@ -47,38 +37,23 @@ pub fn authority(
         models: super::super::llm::authority(
             jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
             models,
-            limits,
-        )?,
-        tools: value.tools.0,
+        ),
+        tools: crate::translate::convert::tools_to_record(&value.tools),
         grants,
-        delegation: w::Delegation { kinds, tasks: value.delegation.tasks, depth: value.delegation.depth },
+        delegation,
         spend: value.budget.spend,
         deadline: match value.budget.deadline {
-            Some(item) => Some(item.as_nanos()),
+            Some(item) => Some(skein_codec::convert::wall_to_record(&item)),
             None => None,
         },
-        notes: value.notes.0,
+        notes: crate::translate::convert::scopes_to_record(value.notes),
         note_resources: scopes,
     })
 }
-pub fn spec(value: &t::Spec, _limits: &w::Limits) -> Result<w::Specification, w::Problem> {
+pub fn spec(value: &t::Spec) -> Result<w::Specification, w::Problem> {
     let mut parameters = List::with_capacity(super::super::count(value.parameters.len())?);
     for row in &value.parameters {
-        parameters
-            .push(match row {
-                t::Parameter::Number { name, value } => {
-                    w::Parameter::Number(w::ParameterNumber { name: *name, value: *value })
-                }
-                t::Parameter::Bytes { name, value } => {
-                    w::Parameter::Bytes(w::ParameterBytes { name: *name, value: bytes::copy_of(value) })
-                }
-                t::Parameter::Resource { name, connector, resource } => w::Parameter::Resource(w::ParameterResource {
-                    name: *name,
-                    connector: *connector,
-                    resource: *resource,
-                }),
-            })
-            .expect("supplied parameters fit");
+        parameters.push(mapped::parameter_to_record(row)).expect("supplied parameters fit");
     }
     let mut inputs = List::with_capacity(super::super::count(value.inputs.len())?);
     for row in &value.inputs {
@@ -92,7 +67,7 @@ pub fn contract(value: &t::Contract, limits: &w::Limits) -> Result<w::TaskContra
         t::Contract::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob { bytes: *bytes }),
         t::Contract::Approval { state, part } => w::TaskContractDocument::Approval(w::TaskContractDocumentApproval {
             state: bytes::copy_of(state),
-            part: owner::part(part, limits)?,
+            part: owner::part(part),
         }),
         t::Contract::Report { words } => {
             w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: *words })
@@ -107,15 +82,7 @@ pub fn contract(value: &t::Contract, limits: &w::Limits) -> Result<w::TaskContra
         t::Contract::Verdict { choices } => {
             let mut copied = List::with_capacity(super::super::count(choices.len())?);
             for row in choices {
-                let mut fields = List::with_capacity(super::super::count(row.fields.len())?);
-                for field in &row.fields {
-                    fields
-                        .push(w::FieldRule { name: bytes::copy_of(&field.name), max: field.max })
-                        .expect("supplied fields fit");
-                }
-                copied
-                    .push(w::VerdictChoice { code: row.code, words: row.words, followups: row.followups, fields })
-                    .expect("supplied choices fit");
+                copied.push(crate::translate::client::verdict_choice(row)?).expect("supplied choices");
             }
             w::TaskContractDocument::Verdict(w::TaskContractDocumentVerdict {
                 choices: owner::choices_pieces(
@@ -168,15 +135,15 @@ pub fn goal(models: &[crate::Model], value: &t::New, limits: &w::Limits) -> Resu
     Ok(w::PersonProposalGoal {
         number: value.number,
         project: value.project,
-        executor: owner::executor(value.executor, limits)?,
-        spec: spec(&value.spec, limits)?,
+        executor: owner::executor(value.executor),
+        spec: spec(&value.spec)?,
         contract: contract(&value.contract, limits)?,
         authority: authority(models, &value.authority, limits)?,
-        numbers: owner::numbers(value.numbers, limits)?,
-        funder: owner::funder(value.funder, limits)?,
+        numbers: owner::numbers(value.numbers),
+        funder: owner::funder(value.funder),
         dependencies,
         holdings,
-        wake: owner::wake(value.wake, limits)?,
+        wake: owner::wake(value.wake),
         tracked: value.tracked,
     })
 }

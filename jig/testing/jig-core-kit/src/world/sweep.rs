@@ -1,5 +1,5 @@
 //! A sweep holds its prefix once (`jig/docs/design/domain/testing.md`, 4).
-use super::{Cut, World};
+use super::{Cut, StoreChecks, World};
 
 impl World {
     /// Arm one sweep. Its children continue the caller's story at the selected
@@ -67,10 +67,18 @@ impl World {
                 self.store.sweep_kills(Vec::new());
                 self.forked.clear();
                 self.fork_child = Some(cut);
+                self.store_checks(StoreChecks::none("a cut's child checks its cut by its restart"));
+                self.restart_check = match cut {
+                    Cut::Durable(number) => Some((number, false)),
+                    Cut::Submitted(_) | Cut::Failed(_) | Cut::Disk { .. } => None,
+                };
                 self.cut = Some(cut);
                 Ok(true)
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
+                if let Cut::Durable(number) = cut {
+                    self.store_checks.fork_restarted(number);
+                }
                 self.forked.push(cut);
                 Ok(false)
             }
@@ -86,57 +94,10 @@ impl World {
             self.sweep.clear();
             self.forked.clear();
             self.fork_child = Some(cut);
+            self.store_checks(StoreChecks::none("a cut's child checks its cut by its restart"));
             self.cut = Some(cut);
         } else {
             self.forked.extend(passed.into_iter().map(|(from, operation)| Cut::Disk { from, operation }));
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn shared_setup_children_keep_the_parent_and_report_case_failures() {
-        let mut world = World::new(super::super::Setup { seed: 190, ..super::super::Setup::default() });
-        world.turn(1, 1, None, b"durable answer");
-        world.end(jig_domain_tasks::End::Parked, 1);
-        let rows = world.store.rows.clone();
-        let commits = world.store.applied;
-        for name in ["first restart", "second restart"] {
-            world
-                .case(name, |child| {
-                    child.restart(190, false);
-                    assert!(child.domain.ready());
-                    child.say(71);
-                    assert!(child.store.applied > commits);
-                })
-                .expect("case passed");
-        }
-        assert_eq!(world.store.rows, rows, "children leave the held setup unchanged");
-        assert_eq!(world.store.applied, commits);
-        assert_eq!(
-            world.case("failed route", |_| panic!("case check")),
-            Err("forked case failed route failed: Code(101)".into())
-        );
-        assert_eq!(
-            world.case("unread transcript", |child| child.store.unread_transcript(1)),
-            Err("forked case unread transcript failed: Code(101)".into()),
-            "a child cannot pass before its closing oracle"
-        );
-        assert!(!world.oracle_closed, "the parent's closing oracle still waits");
-    }
-
-    #[test]
-    fn a_child_failure_names_its_cut() {
-        let mut world = World::new(super::super::Setup::default());
-        let cut = Cut::Submitted(world.store.applied + 1);
-        world.sweep(vec![cut]);
-        let result = world.fork_cut(cut);
-        if result == Ok(true) {
-            std::process::exit(23);
-        }
-        assert_eq!(result, Err(format!("forked cut {cut:?} failed: Code(23)")));
     }
 }

@@ -1,11 +1,13 @@
 # The tree as elements
 
 Each node is one element, by its role, through the page part's default
-mapping, this table (../README.md, 3.1 and 3.2, and ../shells.md, 1); the browser's face finds
+mapping, this table (../tree.md, 1.1 and 1.2, and ../shells.md, 1); the browser's face finds
 the person's roles through the same table (`testing.md`, 2). An application
-overrides it for its own nodes only (1). A role, state or property the
-light path adds (../README.md, 4.3) adds its row here, with its golden row in
+overrides it for its own nodes only (5). A role, state or property the
+light path adds (../tree.md, 2.3) adds its row here, with its golden row in
 the host tests (`testing.md`).
+
+## 1. The default mapping
 
 | Role | Element (ARIA role where the element has none) |
 |---|---|
@@ -26,7 +28,7 @@ the host tests (`testing.md`).
 | choice, choice group | `<input type="radio">` with its label, `role="radiogroup"` |
 | check | `<input type="checkbox">` with its label |
 | select, option | `<select>`, `<option>` showing its name as its text |
-| menu, menu item | `role="menu"` behind its button, `role="menuitem"`; the button, `aria-haspopup="menu"`, shows the menu's name as its text, or, where the menu has a button (`../README.md`, 3.2), that button's words as its text and its name as its `aria-label`, the menu's `aria-label` its own name either way; a menu of a field's options (`../README.md`, 3.2), `role="listbox"` with no button, `id="skein-ui-options-N"`, and its items `role="option"`, `id="skein-ui-option-N"`, N the node's id (`README.md`, section 5) |
+| menu, menu item | `role="menu"` behind its button, `role="menuitem"`; the button, `aria-haspopup="menu"`, shows the menu's name as its text, or, where the menu has a button (`../tree.md`, 1.2), that button's words as its text and its name as its `aria-label`, the menu's `aria-label` its own name either way; a menu of a field's options (`../tree.md`, 1.2), `role="listbox"` with no button, `id="skein-ui-options-N"`, and its items `role="option"`, `id="skein-ui-option-N"`, N the node's id (`patches.md`, section 1) |
 | disclosure | `<details>` with `<summary>`, holding its name, then its description's element, then its children shown folded |
 | dialog | `<dialog>`, shown modal |
 | status, alert, log | `role="status"`, `role="alert"`, `role="log"` |
@@ -39,7 +41,7 @@ the host tests (`testing.md`).
 | image | one of its owner's pictures: `<img src="<prefix><digest>/pictures/<owner prefix>/<file>" alt="<name>">`; an address: `<img src="<the address>" alt="<name>">`; a picture the look lacks: its name as text |
 | figure | `<figure>` |
 | slot | `<div>`, its children the owner's nodes |
-| drawing | `<figure>` named by its name: the scene's `<svg aria-hidden="true">`, then the fallback's elements, hidden from sight but not from assistive technology while the scene is drawn, shown when it is not (`README.md`, section 6) |
+| drawing | `<figure>` named by its name: the scene's `<svg aria-hidden="true">`, then the fallback's elements, hidden from sight but not from assistive technology while the scene is drawn, shown when it is not (`svg.md`, section 1) |
 
 - **An ARIA role alone** in the table is a `<div>` with that role.
 - **Nested tree items:** each run of consecutive tree-item children of a
@@ -48,6 +50,9 @@ the host tests (`testing.md`).
   A leaf has no group, and removing the last item removes its group.
   The browser derives levels and set sizes from this nesting where the
   owner gives no explicit count or position.
+
+## 2. Attributes
+
 - **Attributes:**
   - *a name* is `aria-label` where the element's own text does not give
     it; a button, a tab, a menu item and an option show their name as
@@ -61,7 +66,7 @@ the host tests (`testing.md`).
     element: after it; inside it, last, for an item, a cell and a
     header, whose parents take no other child; after the `<select>` for
     an option, which holds text alone. A disclosure's is drawn with its
-    name, folded or not (../README.md, section 3): in its `<summary>`, after
+    name, folded or not (../tree.md, section 1): in its `<summary>`, after
     the name, a `<span id="skein-ui-description-<node id>">` holding a
     space and its words, and alone there for a disclosure with no name.
     The summary's words are its accessible name, so the `<details>`
@@ -69,12 +74,12 @@ the host tests (`testing.md`).
     description once, within the name ("3 tool calls read · grep ·
     edit, collapsed"). An owner's look tones it by that id, as
     `summary > [id^="skein-ui-description-"]`;
-  - *shown folded* (../README.md, 3.2): a disclosure's child shown folded
+  - *shown folded* (../tree.md, 1.2): a disclosure's child shown folded
     is drawn in its `<summary>`, after its name and its description's
     `<span>`, in the tree's order, its element made as anywhere else, and a
     patch to it or under it lands there. No attribute stands for it. A
     summary is phrasing content, so an owner whose nodes there are blocks
-    gives them a `<span>` through its own elements (section 1). Its words
+    gives them a `<span>` through its own elements (`elements.md`, section 5). Its words
     join the summary's, the disclosure's accessible name;
   - *states:* disabled is `disabled` where the element takes it, else
     `aria-disabled`; expanded `aria-expanded`; busy `aria-busy`; current
@@ -82,9 +87,9 @@ the host tests (`testing.md`).
     `aria-pressed`, a check's `checked`; selected `aria-selected`, a
     choice's `checked`, an option's `selected`; required `required`
     where the element takes it, else `aria-required`; submits on enter
-    `enterkeyhint="send"`. There is no provisional state (../README.md, 3.2),
+    `enterkeyhint="send"`. There is no provisional state (../tree.md, 1.2),
     and no attribute stands for one;
-  - *completed,* which no attribute stands for either (../README.md, 3.2), is
+  - *completed,* which no attribute stands for either (../tree.md, 1.2), is
     the page part's word for it (`README.md`, 3.2), a space before it, in a
     `<span id="skein-ui-state-<node id>">` of its own, last of the
     item's content and before its description's element. `skein-ui.css`
@@ -106,18 +111,18 @@ the host tests (`testing.md`).
     value, and a screen reader reads it after the name, as a hint
     ("Message, edit text, Message T6…");
   - *a hint* is `title` on the node's element, which a browser shows on
-    hover (../README.md, 3.2). The name stays `aria-label`'s or the element's
+    hover (../tree.md, 1.2). The name stays `aria-label`'s or the element's
     text. Where the node has no description, a browser reads the hint
     as one, after the name;
   - *a focus request* is no attribute: the page part moves the focus
-    (`README.md`, section 5);
+    (`patches.md`, section 1);
   - *a collection's count and an item's position:* a list's or a tree's
     count is `aria-setsize` on each of its items or tree items, an
     item's position `aria-posinset`; a table's count is `aria-rowcount`,
     a row's position `aria-rowindex`;
   - *a list's order* is `<ol start="N">` in place of `<ul>`, N its first
     number, written at 1 too, and the browser numbers its items. An
-    element a look gives the list (1) keeps its tag, and `start`
+    element a look gives the list (5) keeps its tag, and `start`
     goes only on an `<ol>`;
   - *a cell's spans* are `colspan` and `rowspan`, left out at 1; *a
     column header's sort* is `aria-sort`, `ascending` or `descending`;
@@ -126,12 +131,15 @@ the host tests (`testing.md`).
     `aria-keyshortcuts`, in ARIA's form (`Alt+K`, `K`, `Escape`), a
     primary one by the primary modifier the page part was given (`README.md`, 4.1):
     `Control+K`, or `Meta+K`, never both.
+
+## 3. Images, values and text
+
 - **An image's address** is a path on the origin or an `https` URL,
-  checked by skein-ui as Markdown's external links are (../README.md, 3.5);
+  checked by skein-ui as Markdown's external links are (../tree.md, 1.5);
   the `src` takes it as is. An `https` one needs its origin in the
   server's `img-src` (`bundle.md`, 4), else the image shows its name. The name is
   its text alternative, always.
-- **Values** are in the element's own formats (../README.md, 3.4): a number in
+- **Values** are in the element's own formats (../tree.md, 1.4): a number in
   decimal digits, a date `YYYY-MM-DD`, a time `HH:MM`. A value the
   element does not accept shows empty, and an `Input` carries what the
   element gives back: an `<input type="number">` holding no number gives
@@ -141,10 +149,13 @@ the host tests (`testing.md`).
 - **Text is text:** every name, description, run, value and mark's text
   is written as text, never read as markup (../markdown.md); bytes
   that are not UTF-8 show as U+FFFD.
+
+## 4. Reserved attributes and event routing
+
 - **What the page part sets, and so reserves:** `data-node`, a node's
   id, on its element; `data-region`; `data-drawn` on a drawing's figure
   while its scene is drawn; `data-act` on a mark that carries an act
-  (`README.md`, section 6); and ids starting `skein-ui-` on its own elements, which
+  (`svg.md`, section 1); and ids starting `skein-ui-` on its own elements, which
   a description's `aria-describedby` and a menu button's `aria-controls`
   name, by which `skein-ui.css` hides a completed item's word, and by
   which an owner's look finds a disclosure's description. It reserves no
@@ -155,10 +166,10 @@ the host tests (`testing.md`).
   node of the element acted on, by its nearest `data-node`. A click
   finds instead the nearest element whose node a person presses, a
   link, a button, a tab or a menu item, as a browser's own `<a>` and
-  `<button>` take a click on their content (../README.md, section 3); a click
+  `<button>` take a click on their content (../tree.md, section 1); a click
   inside none of them, its nearest `data-node`.
 
-## 1. An application's elements and components
+## 5. An application's elements and components
 
 - **Another element,** for a role carrying one of its owner's style
   tokens (an `<article>` for a region carrying `notes-card`), keeps the
@@ -182,7 +193,7 @@ the host tests (`testing.md`).
   renders a node and never stands in for a role.** The node and its
   fallback stay in the tree, which is all the text shell, the fake
   person and a screen reader see (../README.md, section 10); a drawing's
-  fallback stays beside the host, hidden from sight only (`README.md`, section 6).
+  fallback stays beside the host, hidden from sight only (`svg.md`, section 1).
 - **Inside the host element is the component's:** the page part's
   listeners leave its events to it; while the focus is inside, a
   shortcut with no modifier is not taken, as in a field.

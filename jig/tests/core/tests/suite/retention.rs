@@ -351,7 +351,9 @@ fn restart_makes_retention_due_at_once_then_arms_an_hour_after_completion() {
     at(&mut w, &record, 15);
     w.restart(4006, false);
     let (now, wall) = w.clocks();
-    assert_eq!(w.domain.core().due(now, wall), Some(core::Timer::Retention));
+    // domain/testing-fakes.md 1.2: restart settles after firing the due retention pass.
+    assert!(!places(&mut w, record.number));
+    assert_ne!(w.domain.core().due(now, wall), Some(core::Timer::Retention));
     pass(&mut w);
     assert!(!places(&mut w, record.number));
     assert_ne!(w.domain.core().due(now, wall), Some(core::Timer::Retention));

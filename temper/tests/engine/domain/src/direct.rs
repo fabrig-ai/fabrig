@@ -1,5 +1,6 @@
 //! Direct root fixture shared by focused routes and the ending sweep.
 
+use jig_conformance::store_check::StoreChecks;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -7,13 +8,19 @@ use std::collections::VecDeque;
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key, Record, Write};
 
+use crate::check;
 use crate::protocol::Protocol;
 use crate::store::Store;
 use crate::walking::{config, limits};
 
 pub struct Driver {
+    pub ends: crate::ends::Ends,
+    pub(crate) store_checks: check::Run,
+    pub(crate) store_finding: Option<String>,
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
+    /// Set to `Some(Default::default())` to capture the next successful oracle close.
+    pub close_observation: Option<crate::oracle::CloseObservation>,
     creating: jig_test_profile::fixtures::Creating,
     pub forge: Option<crate::forge_stand::ForgeStand>,
     pub root: engine::Domain,
@@ -45,7 +52,9 @@ pub struct Driver {
     /// Whether the deployment's first period was sent once the root was ready.
     pub period_sent: bool,
     /// Outputs collected, including deliveries that need no reply or commit.
-    collected: u64,
+    pub(crate) collected: u64,
+    checks: crate::checks::Checks,
+    iteration: u64,
 }
 
 impl Driver {
@@ -67,19 +76,21 @@ impl Driver {
         for worker in &mut configuration.core.defaults.workers {
             worker.places = self.env.limits.fleet.slots;
         }
-        self.restart_config = crate::oracle::config::copy(&configuration);
+        self.store_checks.replace_config(&mut self.restart_config, crate::oracle::config::copy(&configuration));
         self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
+        self.ends.restarted(self.env.now);
     }
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {
-        self.broken("cold-cut fixture transfers its store to the receiving root");
+        self.broken = crate::oracle::Fixture::Transferred;
+        self.store_finding = None;
+        self.store_checks(StoreChecks::none("its store moved on to another driver"));
         self.store.take_for_drop()
     }
     /// Consume a cold-cut driver without opening a replacement store for its destructor.
     pub(crate) fn into_store(mut self) -> Store {
-        self.broken("cold-cut fixture transfers its store to the receiving root");
-        self.store.take_for_drop()
+        self.take_store()
     }
     #[must_use]
     pub fn new(store: Store) -> Driver {
@@ -124,11 +135,18 @@ impl Driver {
         for worker in &mut config.core.defaults.workers {
             worker.places = limits.fleet.slots;
         }
+        let config_seed = config.core.seed;
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
+        let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         Driver {
+            ends,
+            store_checks: check::Run::new(StoreChecks::one(config_seed)),
+            store_finding: None,
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
+            close_observation: None,
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             forge: None,
             root: engine::Domain::new(config, limits).expect("valid engine configuration"),
@@ -151,6 +169,8 @@ impl Driver {
             immediate: Vec::new(),
             period_sent: false,
             collected: 0,
+            checks: crate::checks::Checks::new(config_seed),
+            iteration: 0,
         }
     }
     #[must_use]
@@ -210,6 +230,7 @@ impl Driver {
 
     #[expect(clippy::too_many_lines, reason = "the world routes each root request in its collection pass")]
     pub fn collect(&mut self) {
+        self.store.record_wall = self.store.record_wall.max(self.root.core().inspection_wall());
         self.collected += u64::from(self.out.len());
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
@@ -267,17 +288,7 @@ impl Driver {
                         self.fail_archive_once = false;
                         self.events.push_back(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
                     } else {
-                        let terminal = match terminal {
-                            engine::StoreInput::Loaded { rows, next, texts, .. } => {
-                                assert!(rows.len() <= usize::try_from(most).expect("small count"));
-                                let texts = transcript_texts(texts, &rows);
-                                engine::StoreInput::Loaded { owner, rows, next, texts }
-                            }
-                            engine::StoreInput::Unloaded { .. } => engine::StoreInput::Unloaded { owner },
-                            terminal @ engine::StoreInput::Uncommitted { .. } => terminal,
-                            terminal => panic!("page terminal: {terminal:?}"),
-                        };
-                        self.events.push_back(engine::Event::Store(terminal));
+                        self.events.push_back(engine::Event::Store(page_at_owner(terminal, owner, most)));
                     }
                 }
                 engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Push(push))) => {
@@ -368,8 +379,13 @@ impl Driver {
     }
 
     pub fn advance(&mut self, apply: bool) {
+        self.iteration += 1;
+        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
         if let Some(forge) = &mut self.forge {
             self.events.extend(forge.replies());
+        }
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
         }
         if !self.period_sent && self.root.ready() {
             self.period_sent = true;
@@ -379,13 +395,51 @@ impl Driver {
             let event = self.events.remove(index).expect("eligible queued input");
             self.send(event);
         }
-        if apply && !self.store.pending.is_empty() {
-            let number = self.store.apply();
-            self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+        if apply {
+            let previous = self.store.applied;
+            let committed = self.store.tick(false).expect("direct store commit");
+            self.check_commit(previous);
+            if let Some(number) = committed {
+                self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+            }
         }
         crate::poll(&mut self.root, &self.env, &mut self.out);
         self.collect();
         self.root.reclaim();
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
+        self.ends.step(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Make one pending commit durable and check it, leaving its acknowledgement to the caller.
+    pub fn apply_commit(&mut self) -> u64 {
+        let previous = self.store.applied;
+        let number = self.store.apply();
+        self.check_commit(previous);
+        number
+    }
+
+    /// Choose which of this run's subsequent commits rehearse a start.
+    pub fn store_checks(&mut self, checks: StoreChecks) {
+        self.store_checks = check::Run::new(checks);
+    }
+
+    #[must_use]
+    pub fn store_check_counts(&self) -> &StoreChecks {
+        self.store_checks.counts()
+    }
+
+    /// Read and consume the first store-check finding, as a referee reads its run.
+    pub fn check_store(&mut self) -> Result<(), String> {
+        self.store_finding.take().map_or(Ok(()), Err)
+    }
+
+    fn check_commit(&mut self, previous: u64) {
+        let result = self.store_checks.committed(&self.store, &self.restart_config, &self.env, previous);
+        if self.store_finding.is_none() {
+            self.store_finding = result.err();
+        }
     }
 
     /// Drive immediate work while a story deliberately keeps a fleet deadline armed.
@@ -406,12 +460,18 @@ impl Driver {
             if self.collected == collected && self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
+                    self.check_quiet();
                     return;
                 }
             } else {
                 quiet = 0;
             }
         }
+    }
+
+    pub(crate) fn check_quiet(&mut self) {
+        self.checks.observe_wall(self.store.record_wall);
+        self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// The restart oracle's immediate-work fence. Quiescent also waits for
@@ -428,10 +488,38 @@ impl Driver {
             && self.store.applied == commit
     }
 
+    /// Move through every kept bound, draining its immediate work before going on.
+    pub fn advance_to(&mut self, at: Time) {
+        assert!(at >= self.env.now, "the story clock moves forward");
+        while let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if bound < self.env.now {
+                self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+            self.move_clock(bound);
+            self.fire();
+            self.settle();
+            if self.checks.next_bound().is_some_and(|next| next <= bound) {
+                self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+        }
+        self.move_clock(at);
+        self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn move_clock(&mut self, at: Time) {
+        let elapsed = at.as_nanos().saturating_sub(self.env.now.as_nanos());
+        self.env.wall = Wall::from_nanos(self.env.wall.as_nanos().saturating_add(elapsed));
+        self.env.now = at;
+    }
+
     /// Fire timers at an absolute simulated time; the caller drives their outputs.
     pub fn fire_at(&mut self, elapsed: Duration) {
-        self.env.now = Time::from_nanos(elapsed.as_nanos());
+        self.advance_to(Time::from_nanos(elapsed.as_nanos()));
         self.env.wall = Wall::from_nanos(elapsed.as_nanos());
+        self.fire();
+    }
+
+    fn fire(&mut self) {
         engine::fire(&mut self.root, &self.env);
         engine::release(&mut self.root, &self.env, &mut self.out);
         self.collect();
@@ -454,10 +542,17 @@ impl Driver {
                 // A stopped root is never quiescent: Domain::quiescent requires ready(),
                 // false once the journal stops. Bytes it drops uncounted never reach this check.
                 assert_eq!(self.root.held_bytes(), 0, "a quiescent root holds no transcript or turn bytes");
+                self.check_quiet();
                 return;
             }
         }
-        panic!("direct root routes did not settle: {:?}", self.root);
+        panic!(
+            "seed {}: at {} ns, iteration {}: engine direct drain: immediate work did not settle in 200 steps: {:?}",
+            self.restart_config.core.seed,
+            self.env.now.as_nanos(),
+            self.iteration,
+            self.root
+        );
     }
 
     /// One worker's empty hello on `channel`.
@@ -507,6 +602,17 @@ impl Driver {
         self.protocol.answers.iter().rev().find_map(|(named, answer)| (named.as_ref() == name).then_some(answer))
     }
 
+    /// A fresh root over an independent copy of this driver's committed store.
+    #[must_use]
+    pub fn cold_fork(&self) -> Driver {
+        Self::from_store_at(
+            self.store.fork(),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+            self.env.wall,
+        )
+    }
+
     /// Restart from a store at a chosen wall, without replaying the first-start source.
     #[must_use]
     pub fn from_store_at(store: Store, config: engine::Config, limits: &engine::Limits, wall: Wall) -> Driver {
@@ -514,6 +620,8 @@ impl Driver {
         driver.period_sent = true;
         driver.env.wall = wall;
         driver.env.now = Time::from_nanos(wall.as_nanos());
+        driver.ends.no_opening(driver.env.now);
+        driver.ends.restarted(driver.env.now);
         driver
     }
 
@@ -690,6 +798,19 @@ pub fn say_ask(sign_in: u64, task: u64, key: u8) -> engine::Event {
         key: [key; 16],
         ask: people::Ask::Say { project: 1, task, words: Box::from([key]) },
     })
+}
+
+pub(crate) fn page_at_owner(terminal: engine::StoreInput, owner: Token, most: u32) -> engine::StoreInput {
+    match terminal {
+        engine::StoreInput::Loaded { rows, next, texts, .. } => {
+            assert!(rows.len() <= usize::try_from(most).expect("small count"));
+            let texts = transcript_texts(texts, &rows);
+            engine::StoreInput::Loaded { owner, rows, next, texts }
+        }
+        engine::StoreInput::Unloaded { .. } => engine::StoreInput::Unloaded { owner },
+        terminal @ engine::StoreInput::Uncommitted { .. } => terminal,
+        terminal => panic!("page terminal: {terminal:?}"),
+    }
 }
 
 /// The service renders a transcript window's turns as text (temper-engine-service

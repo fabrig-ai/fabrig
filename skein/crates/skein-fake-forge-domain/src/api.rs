@@ -401,7 +401,7 @@ pub enum Write {
         branch: Box<[u8]>,
         inputs: Box<[WorkflowInput]>,
     },
-    /// Cancels a dispatched run in flight. Needs write permission.
+    /// Cancels a commit's CI run or a dispatched run in flight. Needs write permission.
     Cancel {
         run: u64,
     },
@@ -777,7 +777,7 @@ pub enum QueueRemoval {
 }
 
 impl QueueRemoval {
-    /// GitHub's spelling (forge/github.md, 4.1).
+    /// GitHub's spelling (forge/github-operations.md, 1.1).
     #[must_use]
     pub fn github(self) -> &'static [u8] {
         match self {

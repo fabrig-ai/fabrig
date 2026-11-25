@@ -387,7 +387,7 @@ fn a_box_document_starts_and_its_printed_link_supplies_the_persons_verified_clai
     .unwrap();
     clients.starting = None;
     let mut service = fixtures::ready();
-    service.engine.as_mut().unwrap().clients = clients;
+    *service.engine.as_mut().unwrap().clients = clients;
     fixtures::listening(&mut service);
     let record = wire::LinkSignIn { secret: seeds.link_secret.unwrap() };
     let mut out = Writer::new(

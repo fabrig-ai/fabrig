@@ -35,6 +35,12 @@ fn saved(subject: &[u8]) -> Vec<u8> {
     .into_vec()
 }
 
+fn assert_no_values(words: &str) {
+    for value in ["access-for-work", "refresh-for-work", "key-for-work"] {
+        assert!(!words.contains(value), "credential value absent from output");
+    }
+}
+
 fn keep(path: &std::path::Path, bytes: &[u8]) {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};
     let mut file =
@@ -54,6 +60,7 @@ struct Exchange {
     root: Opened,
     arriving: Option<Vec<u8>>,
     urls: Vec<Vec<u8>>,
+    words: Vec<String>,
 }
 
 impl Exchange {
@@ -80,6 +87,9 @@ impl Exchange {
             keys_url: Some(format!("{origin}/keys")),
             revocation_url: Some(format!("{origin}/revoke")),
         };
+        let registration = registration::openai("host-for-tests", Some(2345), &moved);
+        let saved = prior.map(|bytes| skein_oauth::decode_record(bytes, &sign_in::document_limits()).expect("prior"));
+        let notice = super::super::first_plan(&registration, saved.as_ref());
         let mut sources = List::with_capacity(1);
         sources
             .push(smith_local_service::Source::SignIn {
@@ -88,7 +98,7 @@ impl Exchange {
                 user: 7,
                 directory: b"tokens".as_slice().into(),
                 file: b"work".as_slice().into(),
-                registration: registration::openai("host-for-tests", Some(2345), &moved),
+                registration,
                 endpoint: skein_oauth_accounts::Endpoint {
                     address: ([127, 0, 0, 1], 444).into(),
                     transport: skein_oauth_accounts::Transport::Plaintext,
@@ -110,7 +120,7 @@ impl Exchange {
                 outcome: None,
                 state: if revocation.is_some() { State::SignOut } else { State::SignIn },
                 closing: false,
-                notice: false,
+                notice,
                 others: Vec::new(),
                 ssh: None,
                 operations: 128,
@@ -127,6 +137,7 @@ impl Exchange {
             root,
             arriving: None,
             urls: Vec::new(),
+            words: Vec::new(),
         }
     }
 
@@ -148,7 +159,7 @@ impl Exchange {
                     self.files.write(file, 0, &bytes).expect("winner bytes");
                     self.files.close(file);
                 }
-                self.login.visit(&url);
+                assert_no_values(&self.login.visit(&url));
                 self.urls.push(url.to_vec());
                 self.browser.visit(&url);
             }
@@ -171,7 +182,7 @@ impl Exchange {
         self.login.driver.advance(now, wall, &mut self.login.out);
         self.visits();
         while let Some((_, terminal)) = self.login.driver.settled() {
-            self.login.terminal(terminal, now);
+            self.words.push(self.login.terminal(terminal, now));
         }
         if self.login.outcome.is_some() && !self.login.closing {
             self.login.driver.cancel(0);
@@ -223,6 +234,14 @@ impl Exchange {
         panic!("credential component did not settle from seed {SEED}");
     }
 
+    fn assert_words(&self, expected: &[&str]) {
+        for words in &self.words {
+            assert_no_values(words);
+        }
+        let lines: Vec<_> = self.words.iter().flat_map(|words| words.lines()).collect();
+        assert_eq!(lines, expected, "credential command diagnostics");
+    }
+
     fn revocations(&self) -> usize {
         self.issuer
             .peer()
@@ -236,7 +255,8 @@ impl Exchange {
 #[test]
 fn a_second_login_reuses_registration_and_subject_hints() {
     let mut exchange = Exchange::new(Some(&saved(SUBJECT)), SUBJECT, true, None);
-    assert_eq!(exchange.finish(), LoginOutcome::Usable, "second login");
+    assert_eq!(exchange.finish().code(), 0, "second login");
+    exchange.assert_words(&["account work: signed in"]);
     let url = String::from_utf8_lossy(&exchange.urls[0]);
     for parameter in ["client_id=oaiapp_for_work", "ext_agent_host_id=host-for-tests", "id_token_hint="] {
         assert!(url.contains(parameter), "authorization carries {parameter}");
@@ -248,7 +268,8 @@ fn a_second_login_reuses_registration_and_subject_hints() {
 fn a_replacement_subject_keeps_the_saved_bytes() {
     let prior = saved(SUBJECT);
     let mut exchange = Exchange::new(Some(&prior), OTHER, true, None);
-    assert_eq!(exchange.finish(), LoginOutcome::Refused, "another subject is refused");
+    assert_eq!(exchange.finish().code(), 2, "another subject is refused");
+    exchange.assert_words(&["smith: account work: another subject was refused"]);
     assert_eq!(exchange.urls.len(), 1, "one authorization visit");
     assert_eq!(exchange.record(), Some(prior), "saved bytes remain identical");
 }
@@ -257,7 +278,8 @@ fn a_replacement_subject_keeps_the_saved_bytes() {
 fn declined_plan_scope_is_saved_and_reported_unavailable() {
     let files = Files::new("smith-credentials");
     let mut exchange = Exchange::new(None, SUBJECT, false, None);
-    assert_eq!(exchange.finish(), LoginOutcome::Unavailable, "declining plan usage maps to exit 3");
+    assert_eq!(exchange.finish().code(), 3, "declining plan usage maps to exit 3");
+    exchange.assert_words(&["Signed in without plan usage: run `smith login work` again and allow it, or use a key"]);
     let bytes = exchange.record().expect("the declined-scope record is kept");
     let file = files.path().join("record");
     keep(&file, &bytes);
@@ -273,12 +295,24 @@ fn declined_plan_scope_is_saved_and_reported_unavailable() {
 #[test]
 fn a_duplicate_subject_rolls_back_only_the_new_account() {
     let files = Files::new("smith-credentials");
-    let first = files.path().join("first");
+    let settings = crate::settings::merge(
+        &crate::command::Shared::default(),
+        files.path().into(),
+        &[crate::settings::Source {
+            layer: crate::settings::Layer::User,
+            path: files.path().join("settings.toml"),
+            text: "[accounts.work]\nprovider='openai'\nsource='sign_in'\n[accounts.first]\nprovider='openai'\nsource='sign_in'\n".into(),
+        }],
+    ).expect("account declarations");
+    let directory = credentials::Directory::from_base(files.path().into()).expect("absolute fixture directory");
+    let first = directory.token("first");
+    std::fs::create_dir(first.parent().expect("tokens directory")).expect("token fixture directory");
     let prior = saved(SUBJECT);
     keep(&first, &prior);
     let mut exchange = Exchange::new(None, SUBJECT, true, None);
-    exchange.login.others.push(("first".into(), first.clone()));
-    assert_eq!(exchange.finish(), LoginOutcome::Refused, "duplicate subject refusal");
+    exchange.login.others = super::super::other_sign_ins(&settings, Some(&directory), "work");
+    assert_eq!(exchange.finish().code(), 2, "duplicate subject refusal");
+    exchange.assert_words(&["smith: account work: already signed in as account first", "account work: signed out"]);
     assert_eq!(exchange.revocations(), 1, "new grant is revoked once");
     assert!(exchange.record().is_none(), "the new account is removed");
     assert_eq!(std::fs::read(first).expect("first account"), prior, "the existing account remains unchanged");
@@ -287,7 +321,8 @@ fn a_duplicate_subject_rolls_back_only_the_new_account() {
 #[test]
 fn unconfirmed_revocation_still_removes_the_record() {
     let mut exchange = Exchange::new(Some(&saved(SUBJECT)), SUBJECT, true, Some(false));
-    assert_eq!(exchange.finish(), LoginOutcome::Usable, "unconfirmed revocation does not refuse local sign-out");
+    assert_eq!(exchange.finish().code(), 0, "unconfirmed revocation does not refuse local sign-out");
+    exchange.assert_words(&["account work: disconnect smith at chatgpt.com/settings", "account work: signed out"]);
     assert_eq!(exchange.revocations(), 1, "one revocation request");
     assert!(exchange.record().is_none(), "local sign-out removes the record");
 }
@@ -297,7 +332,8 @@ fn an_arriving_record_wins_before_the_login_save() {
     let winner = saved(OTHER);
     let mut exchange = Exchange::new(None, SUBJECT, true, None);
     exchange.arriving = Some(winner.clone());
-    assert_eq!(exchange.finish(), LoginOutcome::Refused, "another subject arrived before save");
+    assert_eq!(exchange.finish().code(), 2, "another subject arrived before save");
+    exchange.assert_words(&["smith: account work: another subject was refused"]);
     assert_eq!(exchange.urls.len(), 1, "one authorization visit");
     assert_eq!(exchange.record(), Some(winner), "the winner stays byte-for-byte");
 }

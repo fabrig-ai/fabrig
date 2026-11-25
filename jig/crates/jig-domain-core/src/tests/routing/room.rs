@@ -11,6 +11,7 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -27,6 +28,7 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
         &mut core,
         &env,
         Event::Tasks(tasks::Event::Procedure {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(1)),
             task: 1,
             step: step_number,
@@ -63,4 +65,49 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
     assert_eq!((saved, refused), (1, 1));
     assert_eq!(core.tasks.task(1).unwrap().room_wait, Some(wait));
     assert!(core.tasks.procedure_due(1).is_none());
+}
+
+#[test]
+fn ending_a_procedure_releases_its_memory_only_wait_report() {
+    let (mut core, limits) = tree_core();
+    let mut procedure = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
+    procedure.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Make {
+            reads_project: false,
+            maker: None,
+            places: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(1)),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([procedure]),
+        },
+    );
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let report = Reported {
+        kind: WaitKind::Step,
+        object: WaitObject::Procedure { step: 1, things: List::with_capacity(0) },
+        since: env.wall,
+        bound: ReportedBound::None(Unbounded::OperatorHold),
+    };
+    let out =
+        step(&mut core, &env, Event::Waits { connector: 1, task: 1, waits: List::from_boxed(Box::new([report])) });
+    assert!(out.is_empty());
+    assert!(core.reported_waits.contains_key(&1));
+    drop(step(
+        &mut core,
+        &env,
+        Event::Tasks(tasks::Event::Cancel {
+            by: tasks::Party::Person(1),
+            reply_to: ReplyTo::new(Token::new(2)),
+            operation: tasks::Cancel { task: 1, reason: Box::new([]), grace: None, message: None },
+        }),
+    ));
+    for number in core.connectors.clone() {
+        drop(step(&mut core, &env, Event::EffectConnector(connector::Event::Closed { task: 1, connector: number })));
+    }
+    drop(step(&mut core, &env, Event::Tasks(tasks::Event::Settled { task: 1 })));
+    assert!(core.tasks.task(1).is_none());
+    assert!(core.reported_waits.is_empty(), "the ended task's report must not occupy a slot");
 }

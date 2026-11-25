@@ -1,4 +1,4 @@
-//! Open conversations on one program input (smith/docs/design/protocol/programs.md 5.9).
+//! Open conversations on one program input (smith/docs/design/protocol/programs-claude-code.md 1.9).
 use skein_lib::{Duration, Reader};
 use smith_agent_process_world::program_world::{self, HostMessage, Run, When};
 use smith_channel::Record;

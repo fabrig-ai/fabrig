@@ -1,11 +1,8 @@
 //! Generic delegate executor and symbolic-grant decisions owned by the core
-//! (domain/engine/README.md, 4.4, and domain/engine/settings.md, 3).
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::result_large_err,
-        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
-    )
+//! (domain/engine/vocabulary.md, 1.4, and domain/engine/settings.md, 3).
+#![expect(
+    clippy::result_large_err,
+    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
 )]
 
 pub use jig_domain_core_vocabulary::runs::delegation::*;
@@ -89,7 +86,7 @@ impl Core {
         }
     }
     /// A delegate naming no deadline ends with its creator's: its
-    /// deadline is never later (domain/authority.md, 5 and 7).
+    /// deadline is never later (domain/authority.md, 5, and domain/authority-budgets.md, 1).
     pub(crate) fn take_deadline(&self, task: u64, batch: &mut [Delegate]) {
         let Some(context) = self.tasks.delegation(task) else { return };
         for member in batch {
@@ -230,7 +227,7 @@ impl Core {
     }
 }
 
-/// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 pub(crate) fn missing_closer(flags: tasks::Flags, authority: &tasks::Authority) -> Option<tasks::Closer> {
     match flags.ended_by {
         tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => None,

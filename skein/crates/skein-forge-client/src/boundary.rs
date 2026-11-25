@@ -28,7 +28,7 @@ pub struct Effect {
     pub condition: Condition,
 }
 /// How the pinned Forgejo can recover a write whose answer was lost
-/// (forge/client.md, section 7.3).
+/// (forge/client-effects.md, section 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Recovery {
     /// Forgejo refuses another creation with the same identity.
@@ -112,7 +112,7 @@ pub struct Entry {
     pub start: Option<Position>,
     pub attempt: Option<Attempt>,
     pub failures: u32,
-    /// The merge was answered `Queued` and the forge's queue holds it (forge/client.md, 7.7).
+    /// The merge was answered `Queued` and the forge's queue holds it (forge/client-effects.md, 1.7).
     pub queued: bool,
 }
 /// A live forge object watched by the client.
@@ -194,7 +194,7 @@ pub enum Stored {
     Live(LiveRecord),
     /// A repository scan row.
     Repository(RepositoryRecord),
-    /// A forge's writer, given at runtime (forge/client.md, 7.1).
+    /// A forge's writer, given at runtime (forge/client-effects.md, 1.1).
     Writer(Writer),
 }
 /// The key under which a client working-set record is saved.
@@ -246,7 +246,7 @@ pub enum Outcome {
 /// A request or answer delivered by the connector top.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
-    /// The owner is stopping: send no write and finish entries sent (forge/client.md, 7.8).
+    /// The owner is stopping: send no write and finish entries sent (forge/client-effects.md, 1.8).
     Settle,
     /// The complete union of resources named by live tasks. Admission is
     /// atomic; the top owns naming and task references.
@@ -270,11 +270,9 @@ pub enum Event {
     Restore { record: Stored },
     /// Finish restoring the working set and select a recovery clock.
     Restored { clock: RecoveryClock },
-    /// Hold restored writes while the connector reads its live resources.
-    PauseOutbox,
     /// Read every restored live resource before procedures resume.
     ReadAfresh,
-    /// Reconcile restored outbox entries after the fresh reads.
+    /// Reconcile restored outbox entries alongside the fresh reads.
     SettleOutbox,
     /// A page read for a decision. Always enters the fresh class.
     Read { owner: Token, repository: Repository, read: Read },
@@ -296,7 +294,7 @@ pub enum Event {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Entries sent still without an outcome at twice the sum of lifetime and clock margin from Settle.
-    /// Emitted once, at once with an empty list if none remain (forge/client.md, 7.8).
+    /// Emitted once, at once with an empty list if none remain (forge/client-effects.md, 1.8).
     Settled { left: Box<[u64]> },
     /// Report whether a complete watch set was admitted.
     Kept { owner: Token, result: Result<(), Error> },

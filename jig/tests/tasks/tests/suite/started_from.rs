@@ -53,6 +53,7 @@ fn amendment(dependencies: &[u64]) -> tasks::Amendment {
 fn amend(world: &mut World, dependencies: &[u64]) -> Reply {
     let message = world.record(PROCEDURE).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: PROCEDURE,
@@ -163,6 +164,7 @@ fn a_procedure_amendment_cannot_drop_a_delegates_marked_dependency() {
     let read = world.contexts[&4].inbox.last().map(|word| word.number);
     refuses(
         response(&mut world, |reply_to| Event::Procedure {
+            reads_project: false,
             reply_to,
             task: 4,
             step: 1,

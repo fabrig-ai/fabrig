@@ -60,6 +60,29 @@ impl Queued {
         self.charges.len()
     }
 
+    pub(crate) fn writing(&self, key: &[u8]) -> bool {
+        self.charges.contains_key(key)
+    }
+
+    pub(crate) fn projected_used(&self, map: &KvMap) -> u64 {
+        if self.charges.is_empty() { map.used } else { self.used }
+    }
+
+    pub(crate) fn delta(&self, map: &KvMap, key: &[u8], value_bytes: Option<u64>) -> i128 {
+        let old = match self.charges.get(key) {
+            Some(charge) => i128::from(charge.bytes.unwrap_or(0)),
+            None => match map.entries.get(key) {
+                Some(value) => charge(key, value),
+                None => 0,
+            },
+        };
+        let new = match value_bytes {
+            Some(bytes) => charge_bytes(key, bytes),
+            None => 0,
+        };
+        new.checked_sub(old).expect("row charges fit i128")
+    }
+
     /// Admit `ops`, which `check` projected: they are commit `number`.
     #[expect(clippy::manual_map, reason = "admission explicitly narrows a charge already checked against the budget")]
     pub(crate) fn reserve(&mut self, ops: &[Op], projected: Projected, number: u64) {
@@ -171,10 +194,14 @@ fn op_charge(op: &Op) -> Option<i128> {
 }
 
 fn charge(key: &[u8], value: &[u8]) -> i128 {
+    charge_bytes(key, skein_lib::len_u64(value.len()))
+}
+
+fn charge_bytes(key: &[u8], value: u64) -> i128 {
     let size = i128::from(ENTRY)
         .checked_add(i128::from(skein_lib::len_u64(key.len())))
         .expect("entry and key charges fit i128");
-    size.checked_add(i128::from(skein_lib::len_u64(value.len()))).expect("a row's charge fits i128")
+    size.checked_add(i128::from(value)).expect("a row's charge fits i128")
 }
 
 impl KvMap {

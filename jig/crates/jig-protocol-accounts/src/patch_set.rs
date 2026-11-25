@@ -1,4 +1,4 @@
-//! Jig's owner set (jig/docs/design/protocol/store/opening.md, 3).
+//! Jig's owner set (jig/docs/design/protocol/store/opening-owners.md, 1).
 use jig_protocol_store::{KeptFamily, KeptMap, OwnerSet};
 
 /// The component, core, children and secrets; Moved is held inside Carried.
@@ -19,7 +19,7 @@ pub const JIG_SET: OwnerSet = {
             secrets,
             KeptFamily {
                 retired: &[],
-                current: crate::patches::kept::jig_accounts::TEXTS.last().expect("kept text"),
+                current: crate::SCHEMA,
                 types: &[],
                 name: "jig-accounts",
                 map: KeptMap::Secrets,

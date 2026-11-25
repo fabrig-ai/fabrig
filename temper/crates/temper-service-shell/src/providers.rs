@@ -1,7 +1,8 @@
 //! The pre-store copy of the current providers (protocol/configuration/providers.md, 3).
 use jig_protocol_config::{self as config, ProviderSetting};
 use std::{
-    io::{Read, Write},
+    fs,
+    io::{self, Read, Write},
     os::unix::fs::OpenOptionsExt,
     path::Path,
 };
@@ -11,7 +12,17 @@ const BYTES: u32 = 128 * 1024 * 1024;
 
 /// A missing or unreadable copy leaves the application's defaults running.
 pub fn read(path: &Path, defaults: Box<[ProviderSetting]>, log: &mut impl Write) -> Box<[ProviderSetting]> {
-    match load(path) {
+    read_using(path, defaults, log, load)
+}
+
+/// Decode the startup copy supplied by a reader, with the same bound and fallback as the file reader.
+pub fn read_using(
+    path: &Path,
+    defaults: Box<[ProviderSetting]>,
+    log: &mut impl Write,
+    load: impl FnOnce(&Path) -> std::io::Result<Option<Vec<u8>>>,
+) -> Box<[ProviderSetting]> {
+    match load(path).map_err(|why| why.to_string()).and_then(|bytes| bytes.as_deref().map(decode).transpose()) {
         Ok(Some(values)) => values,
         Ok(None) => defaults,
         Err(why) => {
@@ -21,15 +32,18 @@ pub fn read(path: &Path, defaults: Box<[ProviderSetting]>, log: &mut impl Write)
         }
     }
 }
-fn load(path: &Path) -> Result<Option<Box<[ProviderSetting]>>, String> {
+fn load(path: &Path) -> std::io::Result<Option<Vec<u8>>> {
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(why) => return Err(why.to_string()),
+        Err(why) => return Err(why),
     };
     let mut bytes = Vec::new();
-    file.take(u64::from(BYTES) + 1).read_to_end(&mut bytes).map_err(|why| why.to_string())?;
-    let document = config::document(&bytes, &config::DocumentLimits { bytes: BYTES, tokens: 65_536, depth: 32 })
+    file.take(u64::from(BYTES) + 1).read_to_end(&mut bytes)?;
+    Ok(Some(bytes))
+}
+fn decode(bytes: &[u8]) -> Result<Box<[ProviderSetting]>, String> {
+    let document = config::document(bytes, &config::DocumentLimits { bytes: BYTES, tokens: 65_536, depth: 32 })
         .map_err(|_| "cannot decode the provider list")?;
     let mut problems = config::Problems::empty();
     let values = config::llm::providers_setting(&document, 0, &config::Path::root(), &mut problems)
@@ -37,7 +51,7 @@ fn load(path: &Path) -> Result<Option<Box<[ProviderSetting]>>, String> {
     if !problems.is_empty() {
         return Err("cannot decode the provider list".into());
     }
-    Ok(Some(values))
+    Ok(values)
 }
 #[must_use]
 pub fn render(values: &[ProviderSetting]) -> Box<[u8]> {
@@ -49,27 +63,72 @@ pub fn render(values: &[ProviderSetting]) -> Box<[u8]> {
     writer.finish()
 }
 /// Returns whether different bytes were durably replaced. Never changes an equal file.
-pub fn write(path: &Path, values: &[ProviderSetting]) -> std::io::Result<bool> {
+pub fn write(path: &Path, values: &[ProviderSetting]) -> io::Result<bool> {
+    write_with(path, values, &mut Native)
+}
+
+// The copy's publication effects (temper/docs/design/testing/shells.md, 3.14).
+trait Publication {
+    type File;
+
+    fn previous(&mut self, path: &Path) -> io::Result<Vec<u8>>;
+    fn remove(&mut self, path: &Path) -> io::Result<()>;
+    fn create_new(&mut self, path: &Path, mode: u32) -> io::Result<Self::File>;
+    fn write_all(&mut self, file: &mut Self::File, bytes: &[u8]) -> io::Result<()>;
+    fn sync_file(&mut self, file: &Self::File) -> io::Result<()>;
+    fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()>;
+    fn sync_directory(&mut self, path: &Path) -> io::Result<()>;
+}
+
+struct Native;
+
+impl Publication for Native {
+    type File = fs::File;
+
+    fn previous(&mut self, path: &Path) -> io::Result<Vec<u8>> {
+        fs::read(path)
+    }
+    fn remove(&mut self, path: &Path) -> io::Result<()> {
+        fs::remove_file(path)
+    }
+    fn create_new(&mut self, path: &Path, mode: u32) -> io::Result<Self::File> {
+        fs::OpenOptions::new().write(true).create_new(true).mode(mode).open(path)
+    }
+    fn write_all(&mut self, file: &mut Self::File, bytes: &[u8]) -> io::Result<()> {
+        file.write_all(bytes)
+    }
+    fn sync_file(&mut self, file: &Self::File) -> io::Result<()> {
+        file.sync_all()
+    }
+    fn rename(&mut self, from: &Path, to: &Path) -> io::Result<()> {
+        fs::rename(from, to)
+    }
+    fn sync_directory(&mut self, path: &Path) -> io::Result<()> {
+        fs::File::open(path)?.sync_all()
+    }
+}
+
+fn write_with(path: &Path, values: &[ProviderSetting], disk: &mut impl Publication) -> io::Result<bool> {
     let bytes = render(values);
-    if std::fs::read(path).is_ok_and(|previous| previous.as_slice() == bytes.as_ref()) {
+    if disk.previous(path).is_ok_and(|previous| previous.as_slice() == bytes.as_ref()) {
         return Ok(false);
     }
     let temporary = path.with_extension("setting.new");
-    match std::fs::remove_file(&temporary) {
+    match disk.remove(&temporary) {
         Ok(()) => {}
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) if why.kind() == io::ErrorKind::NotFound => {}
         Err(why) => return Err(why),
     }
     let result = (|| {
-        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&temporary)?;
-        file.write_all(&bytes)?;
-        file.sync_all()?;
-        std::fs::rename(&temporary, path)?;
-        std::fs::File::open(path.parent().expect("data directory"))?.sync_all()?;
+        let mut file = disk.create_new(&temporary, 0o600)?;
+        disk.write_all(&mut file, &bytes)?;
+        disk.sync_file(&file)?;
+        disk.rename(&temporary, path)?;
+        disk.sync_directory(path.parent().expect("data directory"))?;
         Ok(true)
     })();
     if result.is_err() {
-        let _ = std::fs::remove_file(temporary);
+        let _ = disk.remove(&temporary);
     }
     result
 }

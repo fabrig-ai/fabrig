@@ -14,6 +14,7 @@ fn proof(domain: &mut Domain, task: u64) {
         .insert(
             task,
             jig_domain_core::RunProof {
+                kept_part: 0,
                 worker: None,
                 task,
                 attempt: 1,
@@ -476,6 +477,44 @@ fn decide_report(
         Box::default()
     }
 }
+fn fresh_reads(domain: &mut Domain, env: &Env<Limits>) {
+    let e = env.with(env.limits.forge);
+    let mut out = Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &e,
+        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        &mut out,
+    );
+    forge::step(&mut domain.forge, &e, forge::Event::CatchUp, &mut out);
+    for _ in 0..env.limits.forge.client.pending {
+        forge::resume(&mut domain.forge, &e, &mut out);
+        while let Some(request) = out.pop() {
+            if request == (forge::Request::RestartDone { stage: forge::RestartStage::ReadAfresh }) {
+                return;
+            }
+            if let forge::Request::Call { call, op, .. } = request {
+                let skein_forge::api::Op::Read(skein_forge::api::Read::Branch { .. }) = op else {
+                    panic!("restart's branch read: {op:?}");
+                };
+                forge::step(
+                    &mut domain.forge,
+                    &e,
+                    forge::Event::Client(skein_forge_client::Event::Answered {
+                        call,
+                        cost: 1,
+                        free: 0,
+                        rate: None,
+                        result: Ok(skein_forge::api::Answer::Commit([1; 32])),
+                    }),
+                    &mut out,
+                );
+            }
+        }
+    }
+    panic!("the restart's fresh reads finish")
+}
+
 #[test]
 fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
     use temper_engine_domain_forge_change as change;
@@ -492,9 +531,11 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
         &mut domain,
         &env,
         forge::Stored::Landing(forge::LandingRow {
+            read_hold: None,
             last_event: None,
             turn_since: None,
             waiting: None,
+            follows: None,
             flake_reruns: Box::new([]),
             room: None,
             job: None,
@@ -534,6 +575,7 @@ fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
             entries: Box::new([]),
         }),
     );
+    fresh_reads(&mut domain, &env);
     let event = super::super::change_step(&domain, &env, 20, 1, adopted(1).provider, b"temper/8/g7", false);
     let mut out = Queue::uncapped();
     forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);

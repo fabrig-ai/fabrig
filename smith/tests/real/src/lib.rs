@@ -1,5 +1,5 @@
-//! The real kernel beneath the shared local-process stories (testing.md,
-//! sections 2.2, 5 and 6). Scratch files and outside git observations are kept
+//! The real kernel beneath the shared local-process stories (testing-tiers.md, section 2, and testing.md, sections 5 and 6
+//! ). Scratch files and outside git observations are kept
 //! here; service state is never inspected. `World::settle` registers the same
 //! local and agent factories over one ring, with TLS peers on loopback.
 
@@ -144,6 +144,24 @@ pub struct World {
     outcome: Option<real::CheckedOutcome<Proc>>,
 }
 
+/// Access to the real world's startup and outcome for its integration stories.
+#[doc(hidden)]
+pub mod testing {
+    use super::*;
+
+    pub fn files(scratch: &Scratch) -> &Files {
+        &scratch.files
+    }
+
+    pub fn configured(scenario: Scenario, scratch: &Scratch) -> World {
+        World::configured(scenario, scratch)
+    }
+
+    pub fn outcome(world: &World) -> Option<&real::CheckedOutcome<Proc>> {
+        world.outcome.as_ref()
+    }
+}
+
 impl World {
     #[must_use]
     pub fn new(seed: u64, scratch: &Scratch, placement: Placement, answer: &[u8]) -> Self {
@@ -175,7 +193,7 @@ impl World {
         settled::assert_no_children();
         let before = settled::Before::new(&self.scenario.launch.root_path);
         let launch = &self.scenario.launch;
-        let referee = Run::new(
+        let mut referee = Run::new(
             launch.seed,
             self.scenario.ending.clone(),
             Box::new(self.checkout.clone()),
@@ -184,6 +202,7 @@ impl World {
             launch.keep_facts,
             self.scenario.expected_token_posts(),
         );
+        referee.observe_grant(self.scenario.expected_query_grant());
         let mut world = real::World::new_checked(referee);
         let lower = process::lower_configuration();
         let local_operations =
@@ -267,53 +286,6 @@ mod tests {
         for macos in [false, true] {
             assert_eq!(listen_on(false, macos, 513, 34_444), "127.0.0.1:34444".parse().expect("simulated address"));
         }
-    }
-
-    #[test]
-    fn macos_real_peers_serve_on_their_distinct_held_listeners() {
-        use super::*;
-        use smith_agent_process_world::fake;
-        use smith_local_process_world::world::Authentication;
-
-        let scratch = Scratch::new();
-        let _held = fake::real_loopback_on(true);
-        let provider = address(34_443);
-        let issuer = address(34_444);
-        assert_eq!(provider.ip(), std::net::Ipv4Addr::LOCALHOST);
-        assert_eq!(issuer.ip(), std::net::Ipv4Addr::LOCALHOST);
-        assert_ne!(provider.port(), 0);
-        assert_ne!(issuer.port(), 0);
-        assert_ne!(provider.port(), issuer.port(), "two held listeners cannot share a port");
-        for (port, expected) in [(34_443, provider), (34_444, issuer)] {
-            let fds = listener_fds(port);
-            assert_eq!(skein_shell::listener_at(*fds.first().expect("held descriptor")), Ok(expected));
-        }
-        let scenario =
-            Simulated::authenticated(12, &scratch.files, Placement::InProcess, Authentication::SignIn).scenario;
-        let mut world = World::configured(scenario, &scratch);
-        world.settle();
-        let outcome = world.outcome.as_ref().expect("drained real world");
-        let peer = outcome
-            .procs
-            .iter()
-            .find_map(|proc| match proc {
-                Proc::Peer(peer) => Some(peer),
-                _ => None,
-            })
-            .expect("LLM peer");
-        let oauth = outcome
-            .procs
-            .iter()
-            .find_map(|proc| match proc {
-                Proc::Issuer(peer) => Some(peer.peer()),
-                _ => None,
-            })
-            .expect("OAuth peer");
-        assert_eq!(peer.address(), Some(provider), "LLM announces the held address");
-        assert_eq!(oauth.address(), Some(issuer), "OAuth announces the held address");
-        assert!(fake::replied(peer), "LLM answered its client");
-        assert_eq!(smith_local_process_world::oauth::posts(oauth), 1, "issuer answered its client");
-        assert!(outcome.procs.iter().all(Host::is_empty), "clients and peers drained");
     }
 
     #[test]

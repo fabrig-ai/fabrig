@@ -5,19 +5,25 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod reference_settings;
 #[path = "../fixtures/stock.rs"]
 mod stock;
+mod store_check;
 
 mod accounts;
 mod accounts_restart;
+mod acts;
 mod admission;
 mod agent_reads;
 mod applications;
 mod budget;
+mod catching_up;
+mod catching_up_progress;
 mod checkpoints;
+mod checks;
 mod configuring;
 mod deleted_project;
 mod direct_driver;
 mod document_limits;
 mod drafts;
+mod ends;
 mod escalation;
 mod fabrig_scale;
 mod findings;
@@ -29,9 +35,12 @@ mod loads;
 mod mark;
 mod memory;
 mod notes_load;
+mod open;
 mod opened;
+mod opening;
 mod oracle;
 mod orders;
+mod outcome;
 mod panel_before_change;
 mod panels;
 mod periods;
@@ -51,6 +60,7 @@ mod trials;
 mod walking;
 mod watch_room;
 mod ways;
+mod workload;
 
 mod fuzzy {
     mod closer_attempts;
@@ -60,16 +70,13 @@ mod fuzzy {
     mod follows;
     mod landing_settings;
     mod loads;
+    mod opening;
     mod reds_owed;
-    #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
-    #[path = "../removal.rs"]
-    mod removal;
-    #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
-    #[path = "../reset.rs"]
-    mod reset;
+    mod restarts;
     mod roles;
     mod see;
     mod walking;
+    mod workload;
 }
 
 mod added_deps;

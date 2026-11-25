@@ -1,6 +1,6 @@
 //! Effect decisions and answer lifetimes belong to the core. Descriptions,
 //! facts and outbox payloads belong to their numbered connectors
-//! (`domain/engine/README.md`, 4.3, and `domain/engine/executors.md`, 3; `domain/connectors.md`, 4.4–4.5).
+//! (`domain/engine/vocabulary.md`, 1.3, and `domain/engine/executors-tools.md`, 1; `domain/connectors-effects.md`, 1.4–1.5).
 //! Projection origins use current project grants and requirements, with no
 //! task debit (`domain/authority.md`, 6; `domain/connectors.md`, 8).
 //!
@@ -1257,6 +1257,7 @@ pub(crate) fn procedure_proposed(
         drop_effect(out, route.connector, token, authority::Answer::Refuse);
     }
     tasks::Event::Procedure {
+        reads_project: false,
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
         task: route.task,
         step: route.step,
@@ -1267,6 +1268,7 @@ pub(crate) fn procedure_proposed(
 
 fn procedure_wait(core: &mut Core, work: &mut Queue<Work>, task: u64, step: u64) {
     work.push(Work::Event(Event::Tasks(tasks::Event::Procedure {
+        reads_project: false,
         reply_to: ReplyTo::new(core.internal(crate::routing::flight::Internal::Delegate)),
         task,
         step,
@@ -1427,7 +1429,7 @@ fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>
 
 impl Core {
     /// Earliest absolute wall time among retained effect reply rights
-    /// (`domain/engine/README.md`, 4.4). Stale rights remain visible until the
+    /// (`domain/engine/vocabulary.md`, 1.4). Stale rights remain visible until the
     /// existing effect-deadline event consumes them; this query changes nothing.
     #[must_use]
     pub fn effect_deadline(&self) -> Option<Wall> {

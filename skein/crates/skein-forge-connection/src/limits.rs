@@ -1,8 +1,8 @@
-//! Forge component limits (forge/connection.md, sections 2, 3.5, 7 and 8).
+//! Forge component limits (forge/connection.md, sections 2 and 3.5, and forge/connection-machines.md, sections 1 and 2).
 use skein_forge::forgejo::limits as documents;
 use skein_lib::{Duration, len_u64, usize_of};
 
-/// The component's limits (forge/connection.md, section 7).
+/// The component's limits (forge/connection-machines.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// The forges served.
@@ -67,7 +67,7 @@ pub struct Limits {
 }
 
 /// What the component is given of its neighbours' limits
-/// (forge/connection.md, 7.3).
+/// (forge/connection-machines.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Shared {
     /// The forge client's: `calls`, `rows`, `answer_bytes`, `op_bytes`, `lifetime`.
@@ -84,7 +84,7 @@ pub struct Shared {
     pub io: skein_io::Limits,
 }
 
-/// Configured forge counts by dialect (forge/connection.md, 7.5).
+/// Configured forge counts by dialect (forge/connection-machines.md, 1.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Forges {
     pub forgejo: u32,
@@ -202,7 +202,7 @@ use crate::{
 use core::mem::size_of;
 use skein_forge::api;
 use skein_json::{tokenizer, writer};
-/// A GitHub call's cap, half a JWT's life (skein/docs/design/forge/connection.md, 7.4).
+/// A GitHub call's cap, half a JWT's life (skein/docs/design/forge/connection-machines.md, 1.4).
 pub const APP_DEADLINE: Duration = Duration::from_secs(270);
 const MAX_RENEW_BEFORE: Duration = Duration::from_secs(1800);
 

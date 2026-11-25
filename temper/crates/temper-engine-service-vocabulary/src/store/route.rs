@@ -113,7 +113,7 @@ fn opening_to_store(opening: engine::WorkerOpening) -> store::WorkerOpening {
     let mut wires = List::with_capacity(u32::try_from(opening.statement.wires.len()).expect("opening wires fit u32"));
     for wire in opening.statement.wires {
         wires
-            .push(store::OpenedWire { name: wire.name, lowest: wire.lowest, layouts: wire.layouts })
+            .push(store::OpenedWire { name: wire.name, layout: wire.layout, text: wire.text })
             .expect("one stored wire per opening wire");
     }
     let mut terms = List::with_capacity(u32::try_from(opening.statement.terms.len()).expect("opening terms fit u32"));
@@ -132,14 +132,14 @@ fn opening_to_store(opening: engine::WorkerOpening) -> store::WorkerOpening {
 }
 
 /// Why a commit failed: the store's cause or its routing stopping on its own
-/// (temper/docs/design/protocol/store.md, 4). In-process only.
+/// (temper/docs/design/protocol/store-versions.md, 1). In-process only.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CommitStop {
     Store(store::CommitFailure),
     Route(RouteStop),
 }
 
-/// Why the engine's store routing stopped (temper/docs/design/protocol/store.md, 4).
+/// Why the engine's store routing stopped (temper/docs/design/protocol/store-versions.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RouteStop {
     /// The store answered a refused open while the engine ran.
@@ -321,9 +321,6 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         }
         store::Event::Job { owner, of, job, page } => {
             into.push(Up::Ask(job_answer(owner, of, &job, &page, &routes.families)));
-        }
-        store::Event::Site { owner, of, site, at, patcher, key: _ } => {
-            into.push(Up::Ask(dispatch(owner, of, site, at, patcher)));
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } => stop(routes, RouteStop::Open, into),
@@ -519,6 +516,7 @@ fn cut_turn(record: &mut engine::Record) -> Option<u32> {
             core::Record::Core(
                 core::CoreRecord::ProposalDecision(_)
                 | core::CoreRecord::Settings(_)
+                | core::CoreRecord::Part(_)
                 | core::CoreRecord::Call(_)
                 | core::CoreRecord::EscalationDecision(_)
                 | core::CoreRecord::Deployment(_)
@@ -644,29 +642,8 @@ fn job_answer(
     store::Request::Job { owner, answer }
 }
 
-/// Route each written site to its owner with the deployment's admitted inputs.
-fn dispatch(
-    owner: Token,
-    of: store::Owner,
-    site: skein_codec::patch::Site,
-    at: skein_codec::value::Node,
-    mut patcher: Box<skein_codec::patch::Patcher>,
-) -> store::Request {
-    let (old, new) = patcher.parts();
-    let result = match of {
-        store::Owner::Smith => {
-            let mut context = smith_transcript::patches::Context::default();
-            smith_transcript::patches::written(site, old, new, at, &mut context)
-        }
-        store::Owner::Skein | store::Owner::Jig | store::Owner::Application => {
-            Err(skein_codec::patch::Halt::NoSite(site))
-        }
-    };
-    store::Request::Site { owner, patcher, result }
-}
-
 /// Read a job page's stored facts; later pages inherit no input.
-pub fn site(routes: &mut Routes, component: &mut store::Store, event: store::Event, into: &mut Queue<Up>) {
+pub fn job(routes: &mut Routes, component: &mut store::Store, event: store::Event, into: &mut Queue<Up>) {
     if let store::Event::Job { owner, of: store::Owner::Jig, job, page } = &event {
         let answer = store::jobs::page(job, page, component);
         into.push(Up::Ask(store::Request::Job { owner: *owner, answer }));

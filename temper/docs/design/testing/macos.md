@@ -161,12 +161,12 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   | `bin/temper-box/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `bin/temper-box/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box; `bin/temper-box/tests/suite/box_lifetime.rs`: `a_hangup_stops_a_box_and_leaves_nothing_running`'s check that nothing outlived the box; `bin/temper-box/tests/process.rs`: `a_killed_serve_keeps_its_port_and_prints_a_fresh_link` | `parent::Guard`'s retained identities and its observation are Linux's |
   | `bin/temper-box/tests/fake_backends/deployment.rs`: `a_stopped_deployment_restored_at_its_place_uses_new_files`; `bin/temper-box/tests/fake_backends/newer_build.rs`: `a_stopped_fake_box_starts_with_new_files_at_the_same_paths`; `testing/temper-process-guard/tests/parent.rs`, the whole binary | an executable's observation reads `parent::Guard`'s retained Linux process identities |
   | `bin/temper-box/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup/owned.md`, 4) |
-  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `testing/temper-box-kit/src/forgejo_elsewhere.rs`; `bin/temper-box/tests/suite/support_tests.rs`: `the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directory` and `elsewhere_settings_follow_the_connected_project`, which reach that module | the capture witness uses Linux's abstract Unix sockets |
+  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_its_first_repository_and_is_found_after_a_restart`, and `testing/temper-box-kit/src/forgejo_elsewhere.rs`; `bin/temper-box/tests/domain/support_tests.rs`: `the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directory` and `elsewhere_reads_the_connected_project`, which reach that module | the capture witness uses Linux's abstract Unix sockets |
   | `bin/temper-box/tests/process.rs`: `a_default_box_with_a_sign_in_registration_starts_without_dns` | it takes the box's network and name service away with Linux's namespaces (`unshare`) |
-  | `bin/temper-box/tests/process.rs`: `temper_box_restarts_a_killed_forgejo_while_the_engine_serves`; `bin/temper-box/tests/suite/startover.rs`: `owned_setup_cuts_start_over_and_a_removal_cut_finishes_on_restart` | each finds a box's step among its processes by the step's `/proc` executable or command line, and on macOS the box's tree reads empty (section 2) |
+  | `bin/temper-box/tests/process.rs`: `temper_box_restarts_a_killed_forgejo_while_the_engine_serves`; `bin/temper-box/tests/suite/startover.rs`: `an_owned_setup_killed_at_its_run_is_kept_and_a_removal_cut_finishes_on_restart` | each finds a box's step among its processes by the step's `/proc` executable or command line, and on macOS the box's tree reads empty (section 2) |
   | `crates/temper-box-shell/src/tests.rs`: `the_standalone_operations_check_retains_no_descriptors` | it names each open descriptor's file by its `/proc/self/fd` link, and macOS's `/dev/fd` holds no links |
-  | `crates/temper-qa-tool/tests/suite/builds.rs`: `a_manifest_keeps_a_non_utf8_path_as_its_bytes`; `crates/temper-qa-tool/tests/suite/build_files.rs`: `real_checksums_keep_a_non_utf8_path_as_its_bytes`; `crates/temper-qa-tool/tests/suite/run_passes.rs`: `installation_reads_a_non_utf8_manifest_path_as_its_bytes`; `crates/temper-qa-tool/tests/suite/place.rs`: `a_new_recipe_reads_a_non_utf8_commit_path_as_its_bytes` | APFS, macOS's file system, holds no file name that is not UTF-8; their plain and escaped UTF-8 halves run on both systems (`qa/builds.md`, 4) |
-  | The cluster's stories, each reading its description through `testing/temper-box-kit`'s `Cluster::read` or `Cluster::read_from`: in `bin/temper-box/tests/process.rs`, `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `the_cluster_stops_in_reverse_each_exiting_0`, `a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal`, `a_task_runs_on_each_worker`, `a_task_runs_on_each_worker_of_the_deployments_binaries`, `a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another`, `a_worker_hung_past_the_grace_is_fenced_and_links_again`, `a_worker_started_later_takes_the_waiting_task`, `a_worker_restarted_on_its_directories_links_at_its_position`, `an_unexpected_member_exit_is_reported_after_its_client_settles` and the ignored `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace`, with the helpers only they use; its `cluster_turn` module, whole; `bin/temper-box/tests/live_github.rs`, the whole binary | the cluster's members run in skein-world's cgroup trees, which the user's service manager delegates on Linux alone (`../protocol/cluster.md`, 5); macOS has no cgroups |
+  | `crates/temper-qa-tool/tests/suite/build_files.rs`: `real_checksums_keep_a_non_utf8_path_as_its_bytes` | APFS, macOS's file system, holds no file name that is not UTF-8; its plain and escaped UTF-8 halves run on both systems (`qa/builds.md`, 4), and so do the QA world's byte paths, held in memory (`qa/README.md`, 6) |
+  | The cluster's stories, each reading its description through `testing/temper-box-kit`'s `Cluster::read` or `Cluster::read_from`: in `bin/temper-box/tests/process.rs`, `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `the_cluster_stops_in_reverse_each_exiting_0`, `a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal`, `a_task_runs_on_each_worker_of_the_deployments_binaries`, `a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes`, `a_worker_stopped_past_the_silence_links_again_as_the_same_process` and `an_unexpected_member_exit_is_reported_after_its_client_settles`, with the helpers only they use; its `cluster_turn` module, whole; `bin/temper-box/tests/live_github.rs`, the whole binary | the cluster's members run in skein-world's cgroup trees, which the user's service manager delegates on Linux alone (`../protocol/cluster.md`, 5); macOS has no cgroups |
 
 ## 4. The parts
 
@@ -175,7 +175,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 | `process` | `e2e` | the pair `process-temper`: `tools/tiers/run temper process` | in `tools/tiers/packages.toml`'s `process-temper` |
 | `browser` | `e2e` | the pairs `browser-jig` and `browser-skein`: `tools/tiers/run TREE browser` for each | in one of those pairs' lists |
 | `browser-temper` | `e2e` | the pair `browser-temper`, the one that takes the playground: `tools/tiers/run temper browser` | in `tools/tiers/packages.toml`'s `browser-temper` |
-| `skein`, `smith`, `jig`, `temper` | `suites` | the tree's focused suite, then its fuzzy one: `tools/tiers/one-process default`, then `fuzzy`, with a `-p` for each of the tree's packages | the tree's |
+| `skein`, `smith`, `jig`, `temper` | `suites` | the tree's focused suite, then its fuzzy one, every layer: `tools/tiers/one-process --layers all default`, then `fuzzy`, with a `-p` for each of the tree's packages | the tree's |
 | `live` | `live` | section 8's stories | in `live-temper`'s or `live-skein`'s list |
 
 - **`browser-temper` apart from `browser`** (6.3): the playground is that
@@ -193,7 +193,13 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   item 4): each test binary's tests in one process (`tools/tiers/design.md`,
   11), with no `--gate`, `--walls` or `--ledger`, and no budget: `--budgets`
   names an empty file, since macOS has no budgets yet
-  (`../draft/macos-tiers.md`, section 8). The binaries
+  (`../draft/macos-tiers.md`, section 8).
+- **Every layer, the real loop and end to end with them.** The gate runs
+  the layers that replay and leaves the real-loop and end-to-end binaries
+  to after landing (`tools/tiers/layers.md`, 9); a suites part passes
+  `--layers all`, so that those binaries run on macOS's kernel as before:
+  kqueue's readiness backend, real children and files are what a macOS
+  run checks that Linux's can't (`skein/docs/design/testing/conformance.md`). The binaries
   `tools/tiers/packages.toml`'s `[test-binaries]` lists for the tree's
   packages are built first, as the delivery check builds them
   (`tools/pre-pr/design.md`, 4).
@@ -204,7 +210,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 ### 4.1 Which part holds an id
 
 - **An id is `classname.name`,** as tier main's report has it
-  (`../domain/after-landing.md`, section 4): a test's binary ID, a `.`,
+  (`../domain/after-landing-runs.md`, section 3): a test's binary ID, a `.`,
   its name. The binary ID is the id's text before its first `.`; its
   package is the binary ID's text before `::`, or the whole binary ID
   where it has none (a library's).
@@ -420,7 +426,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   goes on the job's `PATH`, so that smith's suites find it on the test
   process's `PATH`, as smith finds `rg` on the commands' `PATH`
   (`smith/docs/design/protocol/agent.md`, section 2;
-  `smith/docs/design/testing.md`, 2.2). The workflow prints
+  `smith/docs/design/testing-tiers.md`, 2). The workflow prints
   `rg --version` through the runner of checks first, so that a binary
   that does not run shows apart from the suites. A download refused or
   not its digest is a fault (5.4).

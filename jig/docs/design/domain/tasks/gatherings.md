@@ -13,12 +13,12 @@ section 4), and its requester ends it with `Conclude` (section 3).
 - **A core procedure, never stepped.** Its executor is the core's, so no
   connector steps it and nothing it hears runs anything (section 4).
 - **Made by a party, who ends it.** A party's `Create` makes it, as a
-  root, with `ended_by: Requester` (`lifecycle.md`, section 9) and a
-  report for its contract (section 2).
+  root, with `ended_by: Requester` (`lifecycle-endings.md`, section 2) and a
+  report for its contract (`gatherings.md`, section 2).
 - **Filled by parties.** A party who may act on it makes its delegates
   with `Delegate`, funded from its budget, within its delegation and its
   deadline, as if it had made them itself (`README.md`, section 4;
-  `../authority.md`, 8.4).
+  `../authority-checks.md`, 1.4).
 - **Concluded by its requester's word.** `Conclude` says no delegate
   joins it any more. It ends done once that is said and every delegate
   it has has ended, with a report counting their endings (section 3).
@@ -49,19 +49,19 @@ section 4), and its requester ends it with `Conclude` (section 3).
     spec's `asks` false;
   - *no dependencies:* a batch naming one for it, and an amendment
     adding one, are refused. It waits on nothing, so it is active from
-    the commit that makes it, and never kept (`lifecycle.md`, 8).
+    the commit that makes it, and never kept (`lifecycle-endings.md`, 1).
 - **Its template,** where an application offers one: a template whose
   executor is chosen, whose ending is `Requester` and which is no
   conversation is a gathering's.
   The configuration checks its flags as a gathering's
-  (`../../protocol/configuration.md`, 3.1), and its creator fills the
+  (`../../protocol/configuration-templates.md`, 1), and its creator fills the
   gathering's executor, as temper's milestone template does
   (`temper/docs/design/domain/milestones.md`, section 2).
 - **The rest is any task's:** its words (what it is for), parameters
   none, tracked and priority, label, listed and retention, budget,
   deadline and authority. Its authority bounds its delegates, as any
   task's bounds those it makes: its delegation's kinds, tasks and depth,
-  its budget, its deadline (`../authority.md`, 8.1).
+  its budget, its deadline (`../authority-checks.md`, 1.1).
 
 ## 3. Concluding
 
@@ -77,7 +77,7 @@ section 4), and its requester ends it with `Conclude` (section 3).
 - **No delegate joins it once concluded.** A batch beneath a concluded
   gathering is refused `Concluded { at }`, naming when, in the tasks
   child and to the party (*concluded*,
-  `../../client/domain/contract/README.md`, section 3).
+  `../../client/domain/contract/answers.md`, section 1).
 - **It ends** in the decision where the last of these comes to hold: it
   is concluded; no delegate of it lives; it is active, not held. So at
   `Conclude` itself when it has no live delegate; when its last live
@@ -119,15 +119,15 @@ section 4), and its requester ends it with `Conclude` (section 3).
   Where the gathering's requester is the deployment, the question waits
   in its inbox, which no run reads.
 - **It spends nothing of its own.** It has no run; what it spends is its
-  delegates' (`../authority.md`, section 7).
+  delegates' (`../authority-budgets.md`, section 1).
 
 ## 5. Reads
 
 - **Its document** carries `concluded`, or none while delegates may join
   (`../../client/domain/contract/documents.md`, 1).
 - **Its delegates,** live and ended, are read as any task's: its live
-  subtree, and the ended delegates' index (`../../protocol/store/README.md`,
-  4.4).
+  subtree, and the ended delegates' index (`../../protocol/store/keys.md`,
+  1.4).
 
 ## 6. Its world
 

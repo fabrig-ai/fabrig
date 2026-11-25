@@ -305,6 +305,7 @@ fn closed_work_ends_at_the_park_despite_a_timer_and_subscription() {
     let (mut world, run) = start(true);
     story::turn(&mut world, run, None);
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(985)),
         task: run.0,
         subscription: tasks::Subscription {

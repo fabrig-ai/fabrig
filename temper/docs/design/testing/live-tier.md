@@ -2,8 +2,8 @@
 
 Nothing is handed in: no input takes a record, no tool reads another
 program's login, and a ChatGPT account comes only from a sign-in
-(../protocol/credentials.md, section 3), on the owned example's
-registration (../protocol/setup/init.md, 1). The one exception is a held
+(../protocol/credentials-llm-accounts.md, section 1), on the owned example's
+registration (../protocol/setup/init.md, 4). The one exception is a held
 record, a person's signed-in ChatGPT account moved in by `temper ctl
 account import` and back by `account export`, never copied, which the
 owned-forge landing story and the ladder's rungs take when given one
@@ -11,13 +11,15 @@ owned-forge landing story and the ladder's rungs take when given one
 the key landing story hands to `temper ctl account add-key`, never read,
 printed or copied by the story (below).
 
-`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service.md`,
-section 8; skein/docs/foundation/testing-strategy.md, 2.9).
+`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service-testing.md`,
+section 1; skein/docs/foundation/testing-strategy.md, 2.9).
+
+## 1. Services and live accounts
 
 - **What runs:** the process tier's binary, owned Forgejo, real git and
   person, with a real model: the live configuration, a configuration
   directory (../protocol/configuration/directories.md), is the owned
-  example's (../protocol/setup/init.md, 1), its LLM providers'
+  example's (../protocol/setup/init.md, 4), its LLM providers'
   endpoints the providers' own and Claude Code's path the machine's
   `claude`. Each run is a fresh deployment, with no LLM account until
   the script adds one, in place of the process tier's key (`process-tier.md`, step
@@ -29,7 +31,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   developer runs `temper-box program-login --config LIVE live`, `LIVE` the
   live configuration's directory, once on each
   machine that runs the tier, and signs in as Claude Code asks
-  (../protocol/credentials.md, section 3). Each run's deployment declares
+  (../protocol/credentials-llm-accounts.md, section 1). Each run's deployment declares
   the program source `live` (`temper ctl DIRECTORY account declare 2
   claude_code live --key live-program`, ../client/ctl/areas.md, area
   5), then waits with `account list --until usable`: the name, not the
@@ -43,7 +45,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   prints its address, and runs `account list --until settled`, within the
   sign-in's deadline, while the developer approves it in a browser on
   the same machine, or through the port forwarded to it
-  (../protocol/credentials.md, section 3). The account is the person's
+  (../protocol/credentials-llm-accounts.md, section 1). The account is the person's
   that `temper ctl` signed in, a plan's (jig's `domain/accounts.md`,
   3.2), in the run's deployment, and goes with it; its runs are on
   smith's direct backend.
@@ -58,7 +60,10 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   Forgejo alone and never call github.com. github.com is reached only
   by the GitHub story below and by skein's opt-in conformance (skein's
   `testing/fakes/github.md`, section 2), each run by hand by the developer who
-  holds the probe App's fixtures (`README.md`, section 2), never by an implementer.
+  holds the probe App's fixtures (`tiers.md`, section 1), never by an implementer.
+
+## 2. Landing stories on an owned forge
+
 - **The stories:** the process tier's chat, answered by the real model;
   and one small change, made by the model in a repository of the owned
   Forgejo, adopted as in `process-tier.md`, and pushed by real git. The story ends
@@ -68,7 +73,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   waits out the run's 30 minutes after its task has ended. An account
   limited, refused or needing sign-in fails the test the same way,
   naming the account's state and its reset, since its task would wait
-  for it (jig's `domain/authority.md`, 8.3).
+  for it (jig's `domain/authority-checks.md`, 1.3).
 - **The owned-forge landing story,**
   `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge`, run by
   `scripts/proof-live.sh forge-land`: a fresh ChatGPT sign-in, init's
@@ -88,7 +93,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   restarts on its three directories, without another provider sign-in,
   push or merge. The change's page says "Passed" for CI at its head on
   both runs: a landed change keeps its last verdict at its head with its
-  record through the restart (../domain/forge/change/README.md, 5), as `process-tier.md`'s restart stories
+  record through the restart (../domain/forge/change/panel.md, 1), as `process-tier.md`'s restart stories
   read it. It closes the chat and drains the box; the sitting
   allows ten minutes for sign-in, forty minutes in total and 1–25
   completions, counted through ctl. Progress and final evidence reach
@@ -113,17 +118,17 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   Every ctl call of a sitting names one DIRECTORY, `client` beneath the
   run's root in the store (`first`, `second`, or tagged on a kept
   store): the import, the held record's give-back and the sitting's
-  reads alike (../client/ctl/README.md, 6.1). The chat's ended delegates and
+  reads alike (../client/ctl/command-line.md, 1.1). The chat's ended delegates and
   the change's are read whole, a page at a time: `task list --project
   PROJECT --parent TASK --ended --json`, then the same with `--after`
   and the cursor the page printed (`ended.rows.after.value`), until a
-  page prints none (../client/ctl/tools.md, 2); a page cut with no cursor,
+  page prints none (../client/ctl/tools-reads.md, 1); a page cut with no cursor,
   or past 32 pages in all, fails the story, naming it.
   - **A failure says why:** once a sitting has returned with a finding,
     before the test fails with it, the story prints each run the box's
     serve log records as failed or refused, serve's operator line
-    (`../domain/worker/README.md`, 4.3; `../domain/worker/checkouts.md`,
-    1.4): its task, run, attempt and jig's failure, then its detail,
+    (`../domain/worker/hosted-runs.md`, 1.3; `../domain/worker/checkouts-prepare.md`,
+    12.4): its task, run, attempt and jig's failure, then its detail,
     the agent's last error. Each line goes out redacted as every notice
     is, and the redaction also masks an `x-api-key` header's value and
     an Anthropic key (`sk-ant-`). Task JSON alone can't say why: a run's
@@ -144,10 +149,10 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
   role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
-  (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
+  (../protocol/credentials-llm-accounts.md, 1). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
   subscription's model on Settings' Models and then chooses it (jig's
-  `domain/engine/settings.md`, 11), in two `settings apply`s. The first sets a
+  `domain/engine/settings-catalogue.md`, 1), in two `settings apply`s. The first sets a
   model at the highest number its catalogue leaves free, with the figures
   of the provider's dearest stock model, `claude-fable-5-1`, marked
   estimated and the person's, its efforts with `low` its default; the
@@ -193,7 +198,12 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its configuration:** init's owned example as init writes it, both
     Anthropic endpoints and Claude Code's program included, but the
     `anthropic` provider without `keep` and `drop`, so that its accounts
-    read no list (jig's `domain/accounts.md`, 3.7). A key's first read
+    read no list (jig's `domain/accounts-lists.md`, 1). The store keeps
+    the providers and `providers.setting` is only its copy
+    (`../protocol/configuration/providers.md`, 3), so a fresh store's
+    sitting changes provider 2 as a setting
+    (`../protocol/configuration/providers.md`, 6), and a start has taken
+    it before the key is added. A key's first read
     would add Anthropic's models at the catalogue's highest free numbers
     while the sitting adds Haiku there by name, and the two racing would
     stale the apply's revision or double the name. Its catalogue is the
@@ -203,27 +213,34 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     name with `claude-fable-5-1`'s figures, `low` its default, then has
     charters 1 and 2 name it. The run takes the key's direct endpoint
     whatever endpoint the model's row names, since the endpoint is the
-    chosen source's (`../draft/claude-api.md`, section 4).
+    chosen source's (`../draft/claude-api.md`, section 4). A focused test
+    builds both files from the stock settings as a fresh deployment shows
+    them and has the settings' parse and check admit them in order, so
+    that a change of the model setting's shape reddens the gate, not the
+    live run.
   - **Its store** is `forge-land-claude-key` under
     `TEMPER_TEST_LIVE_STORE`.
 - **Its referee:** the process tier's, without the restart; and the
   completions, counted from the engine's transcripts. Each completion is
   a turn of main's conversation on either backend: on the program
   backend, each assistant message the program writes (smith's
-  `protocol/programs.md`, 5.5), so the count holds for Claude Code's
+  `protocol/programs-claude-code.md`, 1.5), so the count holds for Claude Code's
   runs as for direct ones.
 - **Budget:** at most 25 completions and 30 minutes in all. The live
   configuration's charters bound each run's turns so the two stories
   together make at most 25 completions, which smith's agent holds on
   either backend (on the program backend with `--max-turns` behind its
-  own count; smith's `protocol/programs.md`, 5.7), the script stops the
+  own count; smith's `protocol/programs-claude-code.md`, 1.7), the script stops the
   run at 30 minutes, and the test fails when the transcripts count more
   than 25. Each run's summary, a failed run's included, records its
   completions and its wall time. Nothing in the test catches a panic for
   it: a sitting's checks return their findings, and the test writes the
-  summary before it fails with one (`../draft/panics.md`, 4). A panic
+  summary before it fails with one (`../draft/archive/panics.md`, 4). A panic
   of our own code ends the test without it, and the launcher's lines
   say what it returned and stopped.
+
+## 3. GitHub landing and restart
+
 - **A chat's change lands on github.com, through a restart,** a test
   of its own, `bin/temper-box/tests/live_github.rs`, run by
   `scripts/proof-live-github.sh OWNER`, `OWNER` the org `fabrig-ai` and
@@ -283,9 +300,9 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     file, `forge list --until connected:1`, then `--until settled`;
     `forge install 1` issues a state, asked again while setup answers
     "busy", at most 30 times, one a 2 s poll, each under a fresh key (a
-    key's first answer is replayed, ../client/ctl/README.md, 5) and logged
+    key's first answer is replayed, ../client/ctl/requests.md, 1) and logged
     with its time, since the reconcile after a connect is the engine's,
-    which `settled` does not cover (../client/ctl/tools.md, 4); and the
+    which `settled` does not cover (../client/ctl/tools-waiting.md, 1); and the
     test brings it to the engine's setup route with the installation's
     id, as GitHub's redirect would
     (`/forges/1/github/setup?installation_id=I&setup_action=install&state=S`),
@@ -317,14 +334,14 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     teardown, and the teardown returns its own, a branch or a pull it
     could not remove or a token it could not revoke, after trying
     every one; the test fails with the story's finding first. Nothing
-    in the test catches a panic for it (`../draft/panics.md`, 5). The
+    in the test catches a panic for it (`../draft/archive/panics.md`, 5). The
     landed file stays on main, one a run. When the teardown did not
     finish, a panic of our own code or a signal having ended the test
     first, the script, once the test process has ended (on a signal it
     stops the runner with TERM and reaps it first, as
     `scripts/proof-live.sh` does), deletes the
     branches and closes the pulls with the cleanup token it mints from
-    the App's key and revokes afterwards (`../draft/github.md`, 17),
+    the App's key and revokes afterwards (`../draft/archive/github.md`, 17),
     within what is left of the 400. The installation tokens the relay
     minted, which only they revoke and which are never written, lapse
     at GitHub's hour.
@@ -344,22 +361,25 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     (making the App, installing it) are the fixtures', made once by
     hand, and a failing or stalled check is the process tier's on
     fakes.
+
+## 4. The live ladder
+
 - **The ladder's rungs,** a live story of their own each once its
   acceptance story (`../../development/acceptance.md`) passes on real
   backends (`../draft/v0.1.0.md`, 3): the acceptance story's steps as a
   test in `bin/temper-box/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
-  (`real-loop.md`). B0's offline proofs need no person: its setup and its walk on
-  the twin are the process tier's (`process-tier.md`, *Two drivers' offline proofs*),
+  (`real-loop.md`). B0's offline proof needs no person: its walk on
+  the twin, its setup checked at the account's import, is the process tier's (`process-tier.md`, *Two drivers' offline proofs*),
   and its live configuration's admission is `suite`'s (`startup.rs`).
-  `scripts/proof-live.sh rung-b0-offline` runs the first two before the
+  `scripts/proof-live.sh rung-b0-offline` runs it before the
   live story, under profile `process-temper`, whose default filter
-  selects them; it admits no live account. A driver's own fault is met there, never
+  selects it; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy
-    (`../protocol/setup/owned.md`, 7); the model a held ChatGPT record,
+    (`../protocol/setup/owned-repositories.md`, 1); the model a held ChatGPT record,
     `TEMPER_TEST_LIVE_ACCOUNT`, moved in by `temper ctl account import` and
     moved back by `account export` over the same path before the box
     stops; on any ending that comes first, a pass, a failure or a
@@ -381,6 +401,9 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its other pairs** come as the rung's walks with GitHub and with
     Claude pass (`../draft/v0.1.0.md`, 2.2): the same story, its forge
     or its model named by the script's argument.
+
+## 5. After-landing runs and account return
+
 - **After every landing,** the owned-forge landing pair, needing no person:
   `a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge` on an
   Anthropic API key (`TEMPER_TEST_LIVE_ANTHROPIC_KEY`) and
@@ -409,12 +432,12 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     the tier runs Claude Code's alone. No directory above these
     needs a mode or a name: ctl opens DIRECTORY and FILE through their
     parents and checks DIRECTORY, its files and FILE alone
-    (../client/ctl/README.md, 6.1).
+    (../client/ctl/command-line.md, 1.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
 - **The held record's return,** for each story that moves a held record
   in, the ChatGPT landing story and B0's rung: the launcher's, once the
-  test process has ended, however it ended (`../draft/panics.md`, 5).
+  test process has ended, however it ended (`../draft/archive/panics.md`, 5).
   Each box of a story still returns the record before it stops, as its
   own act (above); this return is for whatever ends a sitting first, a
   panic, an abort, a failed return or a signal. Nothing in the test
@@ -456,6 +479,9 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   launcher (`bin/temper-box/tests/proof_live.rs`). A held Claude Code login is used in place
   and has no return: the launcher checks it by `stat` once every process
   has stopped.
+
+## 6. Running tests with live inputs
+
 - **What needs a person,** seven tests, each ignored, its reason naming what
   only a person gives, and each run by its script. None runs on a scripted
   person alone: each needs a person's account, key or sign-in, or

@@ -1,7 +1,7 @@
 //! A goal lands its held branch without handing it to the change
-//! (temper/docs/design/domain/agent/tools.md, 1; temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/branches.md).
+//! (temper/docs/design/domain/agent/tools-change.md, 1; temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/branches.md).
 //! Its delegates' moves become its landing's new head, and its close releases the branch
-//! (temper/docs/design/domain/forge/change/README.md, 3; temper/docs/design/domain/after-landing.md, 6).
+//! (temper/docs/design/domain/forge/change/drift.md, 1; temper/docs/design/domain/after-landing.md, 6).
 use super::goal_branch::{branch_tip, change, forge_hold, resource, running_goal, writer};
 use super::*;
 
@@ -482,7 +482,7 @@ const PLAN_MERGES: u32 = 1; // The plan change into g, before L merges.
 const TWO_CHANGE_MERGES: u32 = 2; // The plan and implementation changes into g.
 const GOAL_MERGES: u32 = 3; // Those two changes, then L's whole goal branch into main.
 
-pub(super) fn status(world: &mut World, head: u64, state: raw::Check) {
+pub(crate) fn status(world: &mut World, head: u64, state: raw::Check) {
     assert_eq!(
         world.external(
             1,

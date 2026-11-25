@@ -6,6 +6,73 @@ use crate::{Hold, Limits, Party, Phase, Request, Tries, Was};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, ReplyTo, Time, Wall};
 
+/// Whether a durable escalation waits for this task (domain/tasks/messages.md, 3).
+pub(crate) fn has_waiting(domain: &Domain, holder: u64) -> bool {
+    domain.escalation_holders.range((holder, 0)..=(holder, u64::MAX)).next().is_some()
+}
+
+fn task_holder(escalation: &Escalation) -> Option<u64> {
+    match escalation {
+        Escalation::Waiting { holder: EscalationHolder::Task(holder), .. } => Some(*holder),
+        Escalation::Waiting { holder: EscalationHolder::Person(_) | EscalationHolder::Role { .. }, .. }
+        | Escalation::Unheld { .. }
+        | Escalation::Routing { .. }
+        | Escalation::Rejected { .. } => None,
+    }
+}
+
+pub(crate) fn restore_holder(domain: &mut Domain, number: u64) {
+    let row = record(domain, number).expect("restored escalation source live");
+    if let Some(holder) = task_holder(&row.escalation) {
+        index_holder(domain, holder, number);
+    }
+}
+
+// One reverse edge per waiting source, including when its holder is not live.
+fn index_holder(domain: &mut Domain, holder: u64, number: u64) {
+    let indexed = domain.escalation_holders.insert((holder, number), ());
+    assert!(indexed == Ok(None), "one escalation edge per live task");
+}
+
+pub(crate) fn refresh_holder(domain: &mut Domain, env: &Env<Limits>, number: u64) {
+    let task = task_mut(domain, number).expect("published escalation source live");
+    let previous = match &task.published {
+        Some(row) => task_holder(&row.escalation),
+        None => None,
+    };
+    let next = task_holder(&task.record.escalation);
+    if previous == next {
+        return;
+    }
+    if let Some(holder) = previous {
+        unindex_holder(domain, env, holder, number);
+    }
+    if let Some(holder) = next {
+        index_holder(domain, holder, number);
+    }
+}
+
+pub(crate) fn forget_holder(domain: &mut Domain, env: &Env<Limits>, row: &crate::TaskRecord) {
+    if let Some(holder) = task_holder(&row.escalation) {
+        unindex_holder(domain, env, holder, row.number);
+    }
+}
+
+fn unindex_holder(domain: &mut Domain, env: &Env<Limits>, holder: u64, number: u64) {
+    let removed = domain.escalation_holders.remove(&(holder, number));
+    assert!(removed.is_some(), "published escalation edge indexed");
+    if !has_waiting(domain, holder)
+        && let Some(row) = record(domain, holder)
+        && match row.executor {
+            crate::Executor::Agent { .. } => true,
+            crate::Executor::Person(_) | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
+        }
+    {
+        // The holder's policy can hold messages by batch or pace again.
+        crate::wake::schedule(domain, env, holder);
+    }
+}
+
 pub(crate) fn schedule(domain: &mut Domain, env: &Env<Limits>, number: u64) {
     let Some(task) = record(domain, number) else { return };
     match task.escalation {
@@ -46,12 +113,13 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     }
 }
 
-fn word(task: u64, revision: u64, entry: u64, since: Wall) -> crate::Word {
+fn word(domain: &Domain, row: &crate::TaskRecord, revision: u64, entry: u64, since: Wall) -> crate::Word {
+    let task = row.number;
     crate::Word {
         number: entry,
         from: Party::Task(task),
         kind: crate::MessageKind::Escalation { task, revision },
-        words: Box::from(&b"Held task needs a decision"[..]),
+        words: crate::hold_words(Some(domain), row).expect("an escalation waits for a held task").bytes,
         at: since,
         hits: 1,
         eligible: true,
@@ -66,7 +134,7 @@ pub(crate) fn waiting_for(domain: &Domain, holder: u64) -> Box<[crate::Word]> {
             Escalation::Waiting { revision, holder: EscalationHolder::Task(target), entry, since }
                 if target == holder =>
             {
-                entries.push(word(*number, revision, entry, since)).expect("one escalation per held task");
+                entries.push(word(domain, task, revision, entry, since)).expect("one escalation per held task");
             }
             Escalation::Waiting { .. }
             | Escalation::Unheld { .. }
@@ -91,7 +159,7 @@ fn wake_holder(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Qu
     if record(domain, holder).is_none() {
         out.push(Request::EscalationStalled { task: number, revision, holder: EscalationHolder::Task(holder) });
     } else {
-        crate::wake::after_message(domain, env, holder, None, word(number, revision, entry, since), out);
+        crate::wake::after_message(domain, env, holder, None, word(domain, task, revision, entry, since), out);
     }
 }
 
@@ -125,7 +193,7 @@ pub(crate) fn wake_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             Escalation::Waiting { revision, holder: EscalationHolder::Task(holder), entry, since } => {
                 if let Some(row) = record(domain, holder)
                     && row.phase == Phase::Active(crate::Active::Idle)
-                    && crate::reasons::covered(&word(number, revision, entry, since), row.offered)
+                    && crate::reasons::covered(&word(domain, task, revision, entry, since), row.offered)
                 {
                     continue;
                 }

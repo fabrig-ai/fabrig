@@ -1,5 +1,5 @@
 //! A goal's delivery leaves its proving landing; keys and runs survive the departure
-//! (temper/docs/design/domain/landing.md, 4.3, 6, 7.1 and 15–16).
+//! (temper/docs/design/domain/landing.md, 4.3, and temper/docs/design/domain/landing-proof.md, 1 and 2.1, and temper/docs/design/domain/landing.md, 15–16).
 use super::super::goal_branch::{branch_tip, running_goal_in};
 use super::super::goal_landing::{finish_goal, land_into_goal, mine, row};
 use super::*;
@@ -100,11 +100,11 @@ fn proving_goal() -> ProvingGoal {
         world.tick();
         if let Some(landing) = landing_rows(&world).into_iter().find(|landing| {
             landing.landing.members.iter().any(|member| member.change == change)
-                && landing.entries.iter().any(|entry| entry.run.is_some_and(|run| !run.ended))
+                && landing.follows().iter().any(|follow| follow.entry.run.is_some_and(|run| !run.ended))
         }) {
             let member = &landing.landing.members[0];
             let Proof::Dispatched { key, .. } = member.gates[0].proof else { panic!("gate dispatched") };
-            let run = landing.entries.iter().find_map(|entry| entry.run).expect("run found").id;
+            let run = landing.follows().iter().find_map(|follow| follow.entry.run).expect("run found").id;
             let departed = landing.landing.task;
             let candidate = member.candidate.expect("prepared candidate");
             assert_eq!(landing.landing.phase, forge_top::LandingPhase::Proving);
@@ -165,7 +165,7 @@ fn deliver_second(setup: &mut ProvingGoal, file: &[u8]) -> u64 {
 }
 
 fn assert_landed(setup: &mut ProvingGoal, second_file: &[u8], successor: u64) {
-    setup.world.env.now = setup.world.env.now.saturating_add(WORKFLOW_LATENCY);
+    setup.world.advance_to(setup.world.env.now.saturating_add(WORKFLOW_LATENCY));
     for _ in 0..STEPS {
         setup.world.tick();
         if ended(&setup.world, setup.change) && ended(&setup.world, setup.departed) && ended(&setup.world, successor) {
@@ -211,7 +211,7 @@ fn a_goal_delivering_mid_proof_leaves_and_lands_its_new_head() {
         if let Some(row) = landing_rows(&setup.world).into_iter().find(|row| {
             row.landing.task != setup.departed
                 && row.landing.members.iter().any(|member| member.change == setup.change)
-                && row.entries.iter().any(|entry| entry.run.is_some_and(|run| !run.ended))
+                && row.follows().iter().any(|follow| follow.entry.run.is_some_and(|run| !run.ended))
                 && matches!(row.landing.members[0].gates[0].proof, Proof::Dispatched { .. })
         }) {
             successor = Some(row.landing.task);
@@ -255,6 +255,14 @@ fn a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run() {
     assert_eq!(landing(&setup.world, successor).landing.members[0].gates[0].proof, Proof::Keyed { key: setup.key });
     assert_eq!(dispatches(&setup.world), 1);
     setup.world.restart_same();
+    // Drive the restart to its opening before the workflow clock jumps.
+    for _ in 0..STEPS {
+        setup.world.tick();
+        if setup.world.root.ready() {
+            break;
+        }
+    }
+    assert!(setup.world.root.ready(), "the restarted root opens before the workflow finishes");
     assert_landed(&mut setup, b"docs/guide.md", successor);
     assert_eq!(landing(&setup.world, successor).landing.members[0].gates[0].proof, Proof::Passed { key: setup.key });
     assert_eq!(dispatches(&setup.world), 1, "the departed run proves both candidates, including after restart");

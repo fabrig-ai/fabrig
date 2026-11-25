@@ -1,5 +1,6 @@
 use jig_channel_world::{
     fixtures,
+    restarts::{CrashScope, Point},
     stories::{Opening, Story},
     world,
 };
@@ -234,6 +235,17 @@ fn losing_a_link_past_the_grace_cancels_then_ends_its_run() {
     assert_eq!(outcome.answers_acknowledged, 1);
 }
 #[test]
+fn a_parts_telling_native_run_reaches_the_engine_and_is_acknowledged() {
+    let outcome = run(Story::Chat);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.starts_telling_parts, 1);
+    assert!(outcome.parts_received > 0, "the real agent tells a part before its whole turn");
+    assert_eq!(outcome.parts_acknowledged, outcome.parts_received);
+    assert_eq!(outcome.answers_acknowledged, 1);
+    assert!(outcome.services_empty);
+}
+
+#[test]
 fn a_worker_shutdown_stops_its_native_run() {
     let outcome = run(Story::Shutdown);
     assert_eq!(outcome.verdict, Verdict::Passed);
@@ -241,9 +253,163 @@ fn a_worker_shutdown_stops_its_native_run() {
     assert_eq!(outcome.agent_starts, 2);
     assert!(outcome.shutdown_cancelled);
     assert_eq!(outcome.answers_acknowledged, 2);
-    assert_eq!(outcome.resumed_turns, Some(1));
+    assert_eq!(outcome.resumed_turns, Some(2));
     assert!(outcome.identity_kept);
     assert_eq!(outcome.resumed_tries, Some(jig_domain_tasks::Tries::NONE));
+}
+
+fn resumed(point: jig_channel_world::restarts::Point) -> jig_channel_world::world::Outcome {
+    let outcome = run(Story::Resume(point));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.agent_starts, 2);
+    assert!(outcome.restart.suspended, "{:#?}", outcome.restart);
+    assert_eq!(outcome.resumed_tries, Some(jig_domain_tasks::Tries::NONE));
+    assert!(outcome.restart.same_worker);
+    assert_ne!(outcome.restart.kept, []);
+    assert_ne!(outcome.restart.resumed, [], "{:#?}", outcome.restart);
+    assert!(outcome.restart.retired_at_turn);
+    assert!(outcome.restart.committed_at_answer);
+    assert_eq!(outcome.resumed_turns, Some(1));
+    assert_eq!(outcome.parts_received, outcome.parts_acknowledged);
+    assert_eq!(outcome.restart.acknowledged_parts, outcome.parts_received);
+    parts_carried(&outcome);
+    assert_eq!(outcome.restart.queries, 3, "the cut answer is never planned again");
+    outcome
+}
+
+fn parts_carried(outcome: &jig_channel_world::world::Outcome) {
+    assert_eq!(outcome.restart.kept.len(), outcome.restart.resumed.len());
+    for (kept, resumed) in outcome.restart.kept.iter().zip(&outcome.restart.resumed) {
+        assert_eq!(
+            (kept.key.attempt, kept.turn, kept.thread, kept.call),
+            (resumed.attempt, resumed.turn, resumed.thread, resumed.call)
+        );
+        assert_eq!(kept.body, resumed.body);
+        assert_eq!(
+            kept.kind,
+            match resumed.kind {
+                jig_protocol_worker_wire::PartKind::Answer => jig_domain_link::PartKind::Answer,
+                jig_protocol_worker_wire::PartKind::Result => jig_domain_link::PartKind::Result,
+                jig_protocol_worker_wire::PartKind::Window => jig_domain_link::PartKind::Window,
+            }
+        );
+    }
+}
+
+fn crashed(point: Point, scope: CrashScope) -> world::Outcome {
+    let outcome = run(Story::Crash(point, scope));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.agent_starts, 2);
+    assert!(outcome.restart.suspended, "{:#?}", outcome.restart);
+    assert_eq!(outcome.restart.suspension_cause, Some(jig_domain_tasks::SuspendWhy::Restarted));
+    assert!(outcome.restart.fresh_hello_at.is_some(), "the new process says fresh");
+    assert_eq!(outcome.restart.suspended_at, outcome.restart.fresh_hello_at, "no grace after the hello");
+    assert_eq!(outcome.resumed_tries, Some(jig_domain_tasks::Tries::NONE));
+    assert!(outcome.restart.same_worker);
+    assert_eq!(outcome.resumed_turns, Some(1));
+    assert_eq!(outcome.parts_received, outcome.parts_acknowledged);
+    assert_eq!(outcome.restart.acknowledged_parts, outcome.parts_received);
+    parts_carried(&outcome);
+    outcome
+}
+
+#[test]
+fn a_worker_crashed_while_awaiting_an_answer_asks_its_turn_again() {
+    let outcome = crashed(Point::Answer, CrashScope::Unit);
+    assert_eq!(outcome.restart.kept, []);
+    assert_eq!(outcome.restart.queries, 4, "the lost answer is planned again");
+    assert_eq!(outcome.restart.checks, 1);
+    assert!(outcome.restart.delivered);
+}
+
+#[test]
+fn a_worker_killed_alone_while_awaiting_an_answer_leaves_its_agent_to_end() {
+    let outcome = crashed(Point::Answer, CrashScope::Worker);
+    assert_eq!(outcome.restart.kept, []);
+    // The replacement asks again immediately. Waiting to release the hold until
+    // the orphan has cancelled its query takes two provider retries.
+    assert_eq!(outcome.restart.queries, 6);
+    assert_eq!(outcome.restart.checks, 1);
+    assert!(outcome.restart.delivered);
+
+    let orphan = outcome.restart.orphan_exit.expect("the first agent exited on its own");
+    assert_eq!(orphan.exit, skein_io::kernel::Exit::Code(1));
+    let elapsed = orphan.exited_at.saturating_since(orphan.cut_at);
+    assert!(elapsed <= orphan.bound, "orphan exited after {elapsed:?}, bound {0:?}", orphan.bound);
+    eprintln!("worker kill to orphan exit: {elapsed:?}; orphan_exit: {:?}", orphan.bound);
+}
+
+#[test]
+fn a_worker_crashed_during_a_check_runs_it_again_on_the_same_tree() {
+    let outcome = crashed(Point::Check, CrashScope::Unit);
+    assert_eq!(outcome.restart.queries, 3, "the kept answer is not planned again");
+    assert_eq!(outcome.restart.kept.len(), 1);
+    assert_eq!(outcome.restart.kept[0].kind, jig_domain_link::PartKind::Answer);
+    assert_eq!(outcome.restart.checks, 2);
+    assert!(outcome.restart.same_tree);
+    assert!(outcome.restart.delivered);
+    assert!(outcome.restart.retired_at_turn);
+    assert!(outcome.restart.committed_at_answer);
+}
+
+#[test]
+fn a_worker_crashed_during_a_command_resumes_it_interrupted() {
+    use smith_transcript::Record as _;
+    let outcome = crashed(Point::Command, CrashScope::Unit);
+    assert_eq!(outcome.restart.queries, 3, "the kept answer is not planned again");
+    assert_eq!(outcome.restart.commands, 1);
+    assert_eq!(outcome.restart.kept.len(), 2);
+    assert_eq!(outcome.restart.kept[0].kind, jig_domain_link::PartKind::Answer);
+    let start = &outcome.restart.kept[1];
+    assert_eq!(start.kind, jig_domain_link::PartKind::Result);
+    let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(&start.body))
+        .expect("command start");
+    let results: Vec<_> = turn
+        .messages
+        .iter()
+        .flat_map(|message| &message.blocks)
+        .filter_map(
+            |block| if let smith_transcript::Block::Result(result) = block { Some(&result.returned) } else { None },
+        )
+        .collect();
+    assert!(
+        matches!(results.as_slice(), [smith_transcript::Returned::Outcome(smith_transcript::OwnedOutcome { value: smith_transcript::Outcome::Interrupted(value) })]
+        if value.ran_ms.is_none() && value.head.is_empty() && value.last.is_empty() && value.dropped == 0)
+    );
+    assert!(outcome.restart.unknown_time, "{:?}", outcome.restart.outputs);
+    assert!(outcome.restart.retired_at_turn);
+    assert!(outcome.restart.committed_at_answer);
+}
+
+#[test]
+fn a_worker_drained_while_awaiting_an_answer_resumes_its_cut_turn() {
+    let outcome = resumed(jig_channel_world::restarts::Point::Answer);
+    assert_eq!(outcome.restart.checks, 2, "{:#?}", outcome.restart);
+    assert!(outcome.restart.same_tree);
+    assert!(outcome.restart.delivered);
+    assert!(outcome.restart.answer_after_drain);
+    assert_eq!(outcome.restart.kept.len(), 1);
+}
+
+#[test]
+fn a_worker_drained_during_a_check_runs_it_again_on_the_same_tree() {
+    let outcome = resumed(jig_channel_world::restarts::Point::Check);
+    assert_eq!(outcome.restart.checks, 2, "{:#?}", outcome.restart);
+    assert!(outcome.restart.same_tree);
+    assert!(outcome.restart.delivered);
+    assert_eq!(outcome.restart.kept.len(), 1, "a cut check has no result part");
+    assert_eq!(outcome.restart.drain_to_end, Some(skein_lib::Duration::from_secs(1)));
+}
+
+#[test]
+fn a_worker_drained_during_a_command_resumes_with_its_interrupted_output() {
+    let outcome = resumed(jig_channel_world::restarts::Point::Command);
+    assert_eq!(outcome.restart.commands, 1);
+    assert_eq!(outcome.restart.kept.len(), 3);
+    assert_eq!(outcome.restart.kept[1].kind, jig_domain_link::PartKind::Result);
+    assert_eq!(outcome.restart.kept[2].kind, jig_domain_link::PartKind::Result);
+    assert!(outcome.restart.interrupted_output);
+    assert_eq!(outcome.restart.drain_to_end, Some(skein_lib::Duration::from_secs(1)));
 }
 
 #[test]

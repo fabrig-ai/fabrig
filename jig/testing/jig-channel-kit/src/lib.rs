@@ -1,8 +1,9 @@
-//! Joint workers channel on the simulated kernel (protocol/channel/README.md, 11).
+//! Joint workers channel on the simulated kernel (protocol/channel/testing.md, 1).
 pub mod fixtures;
 mod processes;
 pub mod referee;
 mod relay;
+pub mod restarts;
 pub mod stories;
 pub mod world;
 
@@ -20,6 +21,10 @@ pub mod worker_orders;
 pub mod list_read;
 
 pub mod usage_read;
+
+#[cfg(test)]
+#[global_allocator]
+static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 #[cfg(test)]
 mod cursor_fixture;

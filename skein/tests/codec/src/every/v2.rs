@@ -8,8 +8,13 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 2;
+pub const LAYOUT: [u8; 32] = [
+    0xc6, 0xdc, 0x91, 0x0f, 0xfe, 0x83, 0x4d, 0xcc, 0xdf, 0x3e, 0x7d, 0x3d, 0xa0, 0x3b, 0xbd, 0xaa, 0xbd, 0x63, 0xbd,
+    0x34, 0x6b, 0xe5, 0x9c, 0xe4, 0xeb, 0xb5, 0x6c, 0xe9, 0x81, 0x82, 0xe3, 0x47,
+];
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub texts_raw: u32,
@@ -77,26 +82,51 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.texts_raw).expect("room for every named limit");
-        values.push(self.texts_key).expect("room for every named limit");
-        values.push(self.texts_words).expect("room for every named limit");
-        values.push(self.stamp_note_some).expect("room for every named limit");
-        values.push(self.stamp_zone).expect("room for every named limit");
-        values.push(self.nest_blanks).expect("room for every named limit");
-        values.push(self.nest_lights).expect("room for every named limit");
-        values.push(self.nest_maybe_lights).expect("room for every named limit");
-        values.push(self.nest_grid).expect("room for every named limit");
-        values.push(self.nest_grid_item).expect("room for every named limit");
-        values.push(self.nest_maybe_list_some).expect("room for every named limit");
-        values.push(self.nest_shapes).expect("room for every named limit");
-        values.push(self.nest_secrets).expect("room for every named limit");
-        values.push(self.nest_secrets_item).expect("room for every named limit");
-        values.push(self.nest_stamps).expect("room for every named limit");
-        values.push(self.nest_label_some).expect("room for every named limit");
-        values.push(self.every_held).expect("room for every named limit");
-        values.push(self.every_items).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.texts_raw,
+            self.texts_key,
+            self.texts_words,
+            self.stamp_note_some,
+            self.stamp_zone,
+            self.nest_blanks,
+            self.nest_lights,
+            self.nest_maybe_lights,
+            self.nest_grid,
+            self.nest_grid_item,
+            self.nest_maybe_list_some,
+            self.nest_shapes,
+            self.nest_secrets,
+            self.nest_secrets_item,
+            self.nest_stamps,
+            self.nest_label_some,
+            self.every_held,
+            self.every_items,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            texts_raw: self.texts_raw.min(most),
+            texts_key: self.texts_key.min(most),
+            texts_words: self.texts_words.min(most),
+            stamp_note_some: self.stamp_note_some.min(most),
+            stamp_zone: self.stamp_zone.min(most),
+            nest_blanks: self.nest_blanks.min(most),
+            nest_lights: self.nest_lights.min(most),
+            nest_maybe_lights: self.nest_maybe_lights.min(most),
+            nest_grid: self.nest_grid.min(most),
+            nest_grid_item: self.nest_grid_item.min(most),
+            nest_maybe_list_some: self.nest_maybe_list_some.min(most),
+            nest_shapes: self.nest_shapes.min(most),
+            nest_secrets: self.nest_secrets.min(most),
+            nest_secrets_item: self.nest_secrets_item.min(most),
+            nest_stamps: self.nest_stamps.min(most),
+            nest_label_some: self.nest_label_some.min(most),
+            every_held: self.every_held.min(most),
+            every_items: self.every_items.min(most),
+        }
     }
 }
 
@@ -130,216 +160,53 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const BLANK_VERSION: Path = Path::new(0, 0);
-    pub const BLANK_TAIL: Path = Path::new(0, 1);
-    pub const NUMBERS_SMALL: Path = Path::new(1, 0);
-    pub const NUMBERS_SHORT: Path = Path::new(1, 1);
-    pub const NUMBERS_WORD: Path = Path::new(1, 2);
-    pub const NUMBERS_LONG: Path = Path::new(1, 3);
-    pub const NUMBERS_FLAG: Path = Path::new(1, 4);
-    pub const NUMBERS_PAUSE: Path = Path::new(1, 5);
-    pub const NUMBERS_TAG: Path = Path::new(1, 6);
-    pub const NUMBERS_TAIL: Path = Path::new(1, 7);
-    pub const TEXTS_RAW: Path = Path::new(2, 0);
-    pub const TEXTS_KEY: Path = Path::new(2, 1);
-    pub const TEXTS_WORDS: Path = Path::new(2, 2);
-    pub const TEXTS_TAIL: Path = Path::new(2, 3);
-    pub const LIGHT_TAG: Path = Path::new(3, 0);
-    pub const STAMP_AT: Path = Path::new(4, 0);
-    pub const STAMP_NOTE: Path = Path::new(4, 1);
-    pub const STAMP_ZONE: Path = Path::new(4, 2);
-    pub const STAMP_VERSION: Path = Path::new(4, 3);
-    pub const STAMP_TAIL: Path = Path::new(4, 4);
-    pub const SHAPE_TAG: Path = Path::new(5, 0);
-    pub const NEST_BLANKS: Path = Path::new(6, 0);
-    pub const NEST_LIGHTS: Path = Path::new(6, 1);
-    pub const NEST_MAYBE_LIGHTS: Path = Path::new(6, 2);
-    pub const NEST_GRID: Path = Path::new(6, 3);
-    pub const NEST_MAYBE_LIST: Path = Path::new(6, 4);
-    pub const NEST_MAYBE_NUMBERS: Path = Path::new(6, 5);
-    pub const NEST_SHAPES: Path = Path::new(6, 6);
-    pub const NEST_SECRETS: Path = Path::new(6, 7);
-    pub const NEST_STAMPS: Path = Path::new(6, 8);
-    pub const NEST_LABEL: Path = Path::new(6, 9);
-    pub const NEST_TAIL: Path = Path::new(6, 10);
-    pub const EVERY_NUMBERS: Path = Path::new(7, 0);
-    pub const EVERY_STRINGS: Path = Path::new(7, 1);
-    pub const EVERY_LIGHT: Path = Path::new(7, 2);
-    pub const EVERY_SHAPE: Path = Path::new(7, 3);
-    pub const EVERY_STAMP: Path = Path::new(7, 4);
-    pub const EVERY_EMPTY: Path = Path::new(7, 5);
-    pub const EVERY_NEST: Path = Path::new(7, 6);
-    pub const EVERY_SCORE: Path = Path::new(7, 7);
-    pub const EVERY_HELD: Path = Path::new(7, 8);
-    pub const EVERY_ITEMS: Path = Path::new(7, 9);
-    pub const EVERY_VERSION: Path = Path::new(7, 10);
-    pub const EVERY_TAIL: Path = Path::new(7, 11);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Blank (version)",
-        "Blank (tail)",
-    ],
-    &[
-        "Numbers.small",
-        "Numbers.short",
-        "Numbers.word",
-        "Numbers.long",
-        "Numbers.flag",
-        "Numbers.pause",
-        "Numbers.tag",
-        "Numbers (tail)",
-    ],
-    &[
-        "Texts.raw",
-        "Texts.key",
-        "Texts.words",
-        "Texts (tail)",
-    ],
-    &[
-        "Light (tag)",
-    ],
-    &[
-        "Stamp.at",
-        "Stamp.note",
-        "Stamp.zone",
-        "Stamp (version)",
-        "Stamp (tail)",
-    ],
-    &[
-        "Shape (tag)",
-    ],
-    &[
-        "Nest.blanks",
-        "Nest.lights",
-        "Nest.maybe_lights",
-        "Nest.grid",
-        "Nest.maybe_list",
-        "Nest.maybe_numbers",
-        "Nest.shapes",
-        "Nest.secrets",
-        "Nest.stamps",
-        "Nest.label",
-        "Nest (tail)",
-    ],
-    &[
-        "Every.numbers",
-        "Every.strings",
-        "Every.light",
-        "Every.shape",
-        "Every.stamp",
-        "Every.empty",
-        "Every.nest",
-        "Every.score",
-        "Every.held",
-        "Every.items",
-        "Every (version)",
-        "Every (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(3),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3, 4, 5, 6, 7] },
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[9, 10, 11] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[13, 14, 15, 16] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 3 },
-    skein_codec::bounds::Node::Option { item: 19 },
-    skein_codec::bounds::Node::Bytes { limit: 4 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[18, 20, 21] },
-    skein_codec::bounds::Node::Boxed { item: 12, size: size_of::<Texts>() },
-    skein_codec::bounds::Node::Enum { variants: &[0, 8, 23, 22] },
-    skein_codec::bounds::Node::List { limit: 5, item: 0, size: size_of::<Blank>() },
-    skein_codec::bounds::Node::List { limit: 6, item: 17, size: size_of::<Light>() },
-    skein_codec::bounds::Node::Option { item: 17 },
-    skein_codec::bounds::Node::List { limit: 7, item: 27, size: size_of::<Option<Light>>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 9, item: 29, size: size_of::<u32>() },
-    skein_codec::bounds::Node::List { limit: 8, item: 30, size: size_of::<List<u32>>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 10, item: 32, size: size_of::<u8>() },
-    skein_codec::bounds::Node::Option { item: 33 },
-    skein_codec::bounds::Node::Option { item: 8 },
-    skein_codec::bounds::Node::List { limit: 11, item: 24, size: size_of::<Shape>() },
-    skein_codec::bounds::Node::Bytes { limit: 13 },
-    skein_codec::bounds::Node::List { limit: 12, item: 37, size: size_of::<skein_lib::Secret>() },
-    skein_codec::bounds::Node::List { limit: 14, item: 22, size: size_of::<Stamp>() },
-    skein_codec::bounds::Node::Bytes { limit: 15 },
-    skein_codec::bounds::Node::Option { item: 40 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[25, 26, 28, 31, 34, 35, 36, 38, 39, 41] },
-    skein_codec::bounds::Node::Option { item: 17 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Bytes { limit: 16 },
-    skein_codec::bounds::Node::Bytes { limit: 17 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[8, 12, 43, 24, 22, 0, 42, 44, 45, 46] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    0,
-    8,
-    12,
-    17,
-    22,
-    24,
-    42,
-    47,
-];
-
-const CEILING_VALUES: &[u32] = &[
-    8,
-    5,
-    7,
-    4,
-    8,
-    3,
-    3,
-    2,
-    2,
-    2,
-    3,
-    2,
-    2,
-    3,
-    2,
-    8,
-    8,
-    64,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const BLANK_VERSION: Path = Path::new("Blank (version)");
+    pub const BLANK_TAIL: Path = Path::new("Blank (tail)");
+    pub const NUMBERS_SMALL: Path = Path::new("Numbers.small");
+    pub const NUMBERS_SHORT: Path = Path::new("Numbers.short");
+    pub const NUMBERS_WORD: Path = Path::new("Numbers.word");
+    pub const NUMBERS_LONG: Path = Path::new("Numbers.long");
+    pub const NUMBERS_FLAG: Path = Path::new("Numbers.flag");
+    pub const NUMBERS_PAUSE: Path = Path::new("Numbers.pause");
+    pub const NUMBERS_TAG: Path = Path::new("Numbers.tag");
+    pub const NUMBERS_TAIL: Path = Path::new("Numbers (tail)");
+    pub const TEXTS_RAW: Path = Path::new("Texts.raw");
+    pub const TEXTS_KEY: Path = Path::new("Texts.key");
+    pub const TEXTS_WORDS: Path = Path::new("Texts.words");
+    pub const TEXTS_TAIL: Path = Path::new("Texts (tail)");
+    pub const LIGHT_TAG: Path = Path::new("Light (tag)");
+    pub const STAMP_AT: Path = Path::new("Stamp.at");
+    pub const STAMP_NOTE: Path = Path::new("Stamp.note");
+    pub const STAMP_ZONE: Path = Path::new("Stamp.zone");
+    pub const STAMP_VERSION: Path = Path::new("Stamp (version)");
+    pub const STAMP_TAIL: Path = Path::new("Stamp (tail)");
+    pub const SHAPE_TAG: Path = Path::new("Shape (tag)");
+    pub const NEST_BLANKS: Path = Path::new("Nest.blanks");
+    pub const NEST_LIGHTS: Path = Path::new("Nest.lights");
+    pub const NEST_MAYBE_LIGHTS: Path = Path::new("Nest.maybe_lights");
+    pub const NEST_GRID: Path = Path::new("Nest.grid");
+    pub const NEST_MAYBE_LIST: Path = Path::new("Nest.maybe_list");
+    pub const NEST_MAYBE_NUMBERS: Path = Path::new("Nest.maybe_numbers");
+    pub const NEST_SHAPES: Path = Path::new("Nest.shapes");
+    pub const NEST_SECRETS: Path = Path::new("Nest.secrets");
+    pub const NEST_STAMPS: Path = Path::new("Nest.stamps");
+    pub const NEST_LABEL: Path = Path::new("Nest.label");
+    pub const NEST_TAIL: Path = Path::new("Nest (tail)");
+    pub const EVERY_NUMBERS: Path = Path::new("Every.numbers");
+    pub const EVERY_STRINGS: Path = Path::new("Every.strings");
+    pub const EVERY_LIGHT: Path = Path::new("Every.light");
+    pub const EVERY_SHAPE: Path = Path::new("Every.shape");
+    pub const EVERY_STAMP: Path = Path::new("Every.stamp");
+    pub const EVERY_EMPTY: Path = Path::new("Every.empty");
+    pub const EVERY_NEST: Path = Path::new("Every.nest");
+    pub const EVERY_SCORE: Path = Path::new("Every.score");
+    pub const EVERY_HELD: Path = Path::new("Every.held");
+    pub const EVERY_ITEMS: Path = Path::new("Every.items");
+    pub const EVERY_VERSION: Path = Path::new("Every (version)");
+    pub const EVERY_TAIL: Path = Path::new("Every (tail)");
 }
 
 // Type: Blank.
@@ -348,16 +215,34 @@ pub struct Blank {
 }
 
 // Record: Blank.
+impl Blank {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for Blank {
     type Limits = Limits;
     const TAIL: Path = paths::BLANK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Blank")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Blank")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -385,16 +270,41 @@ pub struct Numbers {
 }
 
 // Record: Numbers.
+impl Numbers {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(3),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 27;
+}
+
 impl Record for Numbers {
     type Limits = Limits;
     const TAIL: Path = paths::NUMBERS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Numbers")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Numbers")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -430,16 +340,37 @@ pub struct Texts {
 }
 
 // Record: Texts.
+impl Texts {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, texts_raw) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, texts_key) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, texts_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for Texts {
     type Limits = Limits;
     const TAIL: Path = paths::TEXTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Texts")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Texts")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -468,16 +399,38 @@ pub enum Light {
 }
 
 // Record: Light.
+impl Light {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Light {
     type Limits = Limits;
     const TAIL: Path = paths::LIGHT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Light")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Light")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -510,16 +463,38 @@ pub struct Stamp {
 }
 
 // Record: Stamp.
+impl Stamp {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stamp_note_some) },
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stamp_zone) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 19;
+}
+
 impl Record for Stamp {
     type Limits = Limits;
     const TAIL: Path = paths::STAMP_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 22)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Stamp")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 22)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Stamp")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -550,16 +525,39 @@ pub enum Shape {
 }
 
 // Record: Shape.
+impl Shape {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Blank"),
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::Named("Texts"),
+        skein_codec::bounds::Node::Boxed { item: 2, size: size_of::<Texts>() },
+        skein_codec::bounds::Node::Named("Stamp"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 3, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for Shape {
     type Limits = Limits;
     const TAIL: Path = paths::SHAPE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 24)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Shape")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 24)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Shape")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -599,16 +597,57 @@ pub struct Nest {
 }
 
 // Record: Nest.
+impl Nest {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Blank"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_blanks), item: 0, size: size_of::<Blank>() },
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_lights), item: 2, size: size_of::<Light>() },
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_maybe_lights), item: 5, size: size_of::<Option<Light>>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_grid_item), item: 7, size: size_of::<u32>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_grid), item: 8, size: size_of::<List<u32>>() },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_maybe_list_some), item: 10, size: size_of::<u8>() },
+        skein_codec::bounds::Node::Option { item: 11 },
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::Option { item: 13 },
+        skein_codec::bounds::Node::Named("Shape"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_shapes), item: 15, size: size_of::<Shape>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, nest_secrets_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_secrets), item: 17, size: size_of::<skein_lib::Secret>() },
+        skein_codec::bounds::Node::Named("Stamp"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_stamps), item: 19, size: size_of::<Stamp>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, nest_label_some) },
+        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 6, 9, 12, 14, 16, 18, 20, 22] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 66;
+}
+
 impl Record for Nest {
     type Limits = Limits;
     const TAIL: Path = paths::NEST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 42)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Nest")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 42)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Nest")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -657,16 +696,36 @@ pub struct Every {
 }
 
 // Record: Every.
+impl Every {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::Named("Texts"),
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Named("Shape"),
+        skein_codec::bounds::Node::Named("Stamp"),
+        skein_codec::bounds::Node::Named("Blank"),
+        skein_codec::bounds::Node::Named("Nest"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, every_held) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, every_items) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 3, 4, 5, 6, 7, 8, 9, 10] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 170;
+}
+
 impl Record for Every {
     type Limits = Limits;
     const TAIL: Path = paths::EVERY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 47)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Every")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 47)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Every")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -710,3 +769,45 @@ impl Record for Every {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Blank", nodes: Blank::SHAPE },
+    skein_codec::bounds::Declaration { name: "Every", nodes: Every::SHAPE },
+    skein_codec::bounds::Declaration { name: "Light", nodes: Light::SHAPE },
+    skein_codec::bounds::Declaration { name: "Nest", nodes: Nest::SHAPE },
+    skein_codec::bounds::Declaration { name: "Numbers", nodes: Numbers::SHAPE },
+    skein_codec::bounds::Declaration { name: "Shape", nodes: Shape::SHAPE },
+    skein_codec::bounds::Declaration { name: "Stamp", nodes: Stamp::SHAPE },
+    skein_codec::bounds::Declaration { name: "Texts", nodes: Texts::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.texts_raw,
+    CEILINGS.texts_key,
+    CEILINGS.texts_words,
+    CEILINGS.stamp_note_some,
+    CEILINGS.stamp_zone,
+    CEILINGS.nest_blanks,
+    CEILINGS.nest_lights,
+    CEILINGS.nest_maybe_lights,
+    CEILINGS.nest_grid,
+    CEILINGS.nest_grid_item,
+    CEILINGS.nest_maybe_list_some,
+    CEILINGS.nest_shapes,
+    CEILINGS.nest_secrets,
+    CEILINGS.nest_secrets_item,
+    CEILINGS.nest_stamps,
+    CEILINGS.nest_label_some,
+    CEILINGS.every_held,
+    CEILINGS.every_items,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

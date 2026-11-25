@@ -141,7 +141,7 @@ fn serves_work(core: &Core, party: u64) -> bool {
     false
 }
 
-/// Program sources need a current worker login allowed by the host rule (accounts.md, 3.4).
+/// Program sources need a current worker login allowed by the host rule (domain/accounts-sources.md, 1).
 fn source_usable(core: &Core, fact: &accounts::Fact) -> bool {
     if !fact.usable {
         return false;
@@ -169,7 +169,7 @@ fn source_usable(core: &Core, fact: &accounts::Fact) -> bool {
     false
 }
 
-/// Walk the holder's source order before document truncation (accounts.md, 3.4).
+/// Walk the holder's source order before document truncation (domain/accounts-sources.md, 1).
 pub(super) fn account_usable(core: &Core, account: &accounts::Account) -> bool {
     for (_, number) in account.sources() {
         let fact = core.accounts.source(*number).expect("an account's sources are kept");
@@ -241,7 +241,7 @@ pub(super) fn manage_usage(core: &Core, account: &accounts::Account) -> Option<B
 }
 
 /// Public list history (jig/docs/design/client/domain/contract/documents.md, 1).
-/// Capability is separate from a first attempt's history (domain/accounts.md, 3.7).
+/// Capability is separate from a first attempt's history (domain/accounts-lists.md, 1).
 pub(super) fn list(core: &Core, account: u32) -> Option<AccountList> {
     if !core.accounts.has_list(account) {
         return None;

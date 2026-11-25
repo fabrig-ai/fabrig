@@ -117,7 +117,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                     None => false,
                 }
         }
-        Ask::RemoveProject { .. }
+        Ask::ReissueService { .. }
+        | Ask::RemoveProject { .. }
         | Ask::SetVisibility { .. }
         | Ask::ChangeSettings { .. }
         | Ask::PauseWorker { .. }
@@ -138,11 +139,13 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         Ask::Move { task, reason, .. } | Ask::Cancel { task, reason, .. } => {
             *task != 0 && reason.len() <= skein_lib::length::usize_of(limits.words)
         }
+        Ask::Stop { task, reason, .. } => {
+            *task != 0 && !reason.is_empty() && reason.len() <= skein_lib::length::usize_of(limits.words)
+        }
         Ask::Lift { hold, .. } => *hold != 0,
         Ask::TakePerson { task, .. }
         | Ask::HandBackPerson { task, .. }
         | Ask::Conclude { task, .. }
-        | Ask::Stop { task, .. }
         | Ask::Leave { task, .. }
         | Ask::Release { task, .. } => *task != 0,
         Ask::AnswerPerson { task, result, .. } => *task != 0 && valid_person_result(limits, result),
@@ -227,11 +230,11 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
             LimitKind::Words
         }
         Ask::MarkSeen { .. }
+        | Ask::ReissueService { .. }
         | Ask::Application { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
         | Ask::Conclude { .. }
-        | Ask::Stop { .. }
         | Ask::Lift { .. }
         | Ask::Leave { .. }
         | Ask::Release { .. }
@@ -255,7 +258,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         | Ask::MoveToNewest { .. }
         | Ask::AccountChange { .. }
         | Ask::Propose { action: crate::Action::Amend { .. } | crate::Action::Settings { .. }, .. } => LimitKind::Words,
-        Ask::Talk { task, words, .. } | Ask::Say { task, words, .. } => {
+        Ask::Talk { task, words, .. } | Ask::Say { task, words, .. } | Ask::Stop { task, reason: words, .. } => {
             if *task == 0 {
                 return Refusal::Unknown;
             }
@@ -314,6 +317,7 @@ mod classifications {
                     (0, None, None, true)
                 }
                 AskFamily::Seen => (0, None, None, false),
+                AskFamily::ReissueService => (crate::DEPLOYMENT, Some(crate::DEPLOYMENT), None, false),
             };
             assert_eq!(project(&ask), scope, "{ask:?}");
             assert_eq!(crate::capacity::project(&ask), capacity, "{ask:?}");

@@ -1,0 +1,15 @@
+Checked: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+Empty: ceilings encoded=0 decoded=0; at_most(3) encoded=0 decoded=0
+Event: ceilings encoded=21 decoded=16; at_most(3) encoded=8 decoded=4
+HandChoice: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Item: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+Label: ceilings encoded=20 decoded=16; at_most(3) encoded=7 decoded=3
+LongChoice: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Packet: ceilings encoded=455 decoded=576; at_most(3) encoded=211 decoded=228
+Reference: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+Root: ceilings encoded=455 decoded=576; at_most(3) encoded=211 decoded=228
+Rows: ceilings encoded=20 decoded=16; at_most(3) encoded=16 decoded=12
+RowsExchange: ceilings encoded=20 decoded=16; at_most(3) encoded=16 decoded=12
+RowsNotice: ceilings encoded=20 decoded=16; at_most(3) encoded=16 decoded=12
+Shared: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+family: ceilings encoded=455 decoded=576; at_most(3) encoded=211 decoded=228

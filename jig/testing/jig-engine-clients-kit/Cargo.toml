@@ -8,13 +8,14 @@ rust-version.workspace = true
 publish.workspace = true
 
 [lib]
-test = false
+test = true
 doctest = false
 
 [dependencies]
 jig-protocol-config-fixtures.workspace = true
 jig-test-service.workspace = true
 skein-world.workspace = true
+jig-inspect.workspace = true
 jig-protocol-engine-clients.workspace = true
 jig-protocol-engine-clients-http.workspace = true
 jig-client-protocol-wire.workspace = true

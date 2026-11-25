@@ -1,7 +1,9 @@
-//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
+//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{
     Box, Limits, Wall, c, chip_fields, offered_piece, piece_problem, task_contract_document_fields, task_link_piece, w,
 };
+#[cfg(test)]
+use crate::generated::client;
 
 pub(crate) fn result_value_fields(value: &w::ResultValue, limits: &Limits) -> Result<c::ResultValue, w::Problem> {
     match crate::translate::facts::decode(&value.rows, limits)? {
@@ -15,14 +17,6 @@ pub(crate) fn result_value_fields(value: &w::ResultValue, limits: &Limits) -> Re
         | crate::translate::facts::Node::ChipDetails(_)
         | crate::translate::facts::Node::ChipEnding(_) => Err(piece_problem(skein_codec::Reason::Malformed)),
     }
-}
-
-pub(crate) fn spend_line_fields(value: &w::SpendLine) -> c::SpendLine {
-    let opt0 = match &value.attempt {
-        Some(item) => Some(*item),
-        None => None,
-    };
-    c::SpendLine { task: value.task, attempt: opt0, spent: value.spent }
 }
 
 pub(crate) fn ending_fields(value: &w::Ending, limits: &Limits) -> Result<c::Ending, w::Problem> {
@@ -101,21 +95,7 @@ pub(crate) fn chip_ending_fields(value: &w::ChipEnding, limits: &Limits) -> Resu
     }
 }
 
-pub(crate) fn task_result_fields(value: &w::TaskResult, limits: &Limits) -> Result<c::TaskResult, w::Problem> {
-    Ok(match value {
-        w::TaskResult::Document(row) => c::TaskResult::Document(Box::new(result_fields(&row.value, limits)?)),
-        w::TaskResult::Ending(row) => c::TaskResult::Ending(Box::new(chip_ending_fields(&row.value, limits)?)),
-    })
-}
-
+#[cfg(test)]
 pub(crate) fn effect_fields(value: &w::Effect) -> c::Effect {
-    match value {
-        w::Effect::Release(value) => c::Effect::Release(match &value.what {
-            w::ReleaseEffect::Judged => c::ReleaseEffect::Judged,
-            w::ReleaseEffect::RunAgain => c::ReleaseEffect::RunAgain,
-            w::ReleaseEffect::Uncertain => c::ReleaseEffect::Uncertain,
-        }),
-        w::Effect::Cancel(value) => c::Effect::Cancel(super::impact_fields(value)),
-        w::Effect::MoveTask(value) => c::Effect::Move { reservation: value.reservation },
-    }
+    client::effect_to_domain(value.clone())
 }

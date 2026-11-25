@@ -2,7 +2,7 @@ use crate::{CoreWait, Note, core_wait::Watch};
 use jig_domain_core::start::Phase;
 use skein_lib::{Duration, Time, Wall};
 
-// protocol/README.md, 6.2 bounds the whole line, including its newline.
+// protocol/service-process.md, 1.2 bounds the whole line, including its newline.
 const LINE_BYTES: usize = 240;
 
 fn at(ms: u64) -> Time {
@@ -124,11 +124,6 @@ fn each_wait_names_the_gate_that_holds_it() {
         (CoreWait::Starting { step: Some(Phase::Switch) }, "starting: switching the store"),
         (CoreWait::Starting { step: Some(Phase::Wires) }, "starting: committing the wires"),
         (CoreWait::Starting { step: Some(Phase::AdoptRuns) }, "starting: adopting runs"),
-        (CoreWait::Starting { step: Some(Phase::ReadAfresh { connector: 1 }) }, "starting: reading the forge afresh"),
-        (
-            CoreWait::Starting { step: Some(Phase::SettleOutbox { connector: 1 }) },
-            "starting: settling the forge's outbox",
-        ),
         (CoreWait::Starting { step: Some(Phase::Open) }, "starting: opening decisions"),
         (CoreWait::ForgeRecords, "loading the forges' records"),
         (CoreWait::FirstPeriods, "opening the first periods"),

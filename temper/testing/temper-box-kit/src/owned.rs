@@ -37,7 +37,7 @@ pub fn setup(directory: &Path, names: &Names<'_>) {
 }
 
 pub fn configuration(directory: &Path, names: &Names<'_>) {
-    super::configuration(directory, &super::Forge::Unreached);
+    super::lay_configuration(directory, &super::Forge::Unreached);
     setup(directory, names);
     fs::create_dir_all(directory.join("box/groups")).expect("groups");
     super::write_private(&directory.join("box/groups/1"), b"owned\n");
@@ -45,7 +45,7 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
 
 #[must_use]
 pub fn prepare_command(directory: &Path, forge: u16) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     command
         .args(["forge", "prepare"])
         .args(super::configuration::flags(directory))
@@ -343,7 +343,7 @@ impl Programs {
 }
 #[must_use]
 pub fn command(directory: &Path, program: &str) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     command
         .args(["forge", "run"])
         .args(super::configuration::flags(directory))
@@ -606,8 +606,12 @@ pub fn binaries() -> (PathBuf, PathBuf) {
 /// Writes the process tier's owned setup and engine configuration without starting a process.
 #[must_use]
 pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
+    tier_configuration_with_runner(directory, true)
+}
+
+pub(super) fn tier_configuration_with_runner(directory: &Path, runner: bool) -> std::net::SocketAddr {
     let owned = Owned::tier();
-    super::configuration(
+    super::lay_configuration(
         directory,
         &super::Forge::Throwaway {
             forgejo: &owned.forgejo_binary,
@@ -619,7 +623,7 @@ pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
         directory,
         &Names {
             forgejo: &owned.forgejo_binary,
-            runner: Some(&owned.runner_binary),
+            runner: runner.then_some(owned.runner_binary.as_path()),
             port: owned.forgejo.port(),
             bot: "temper",
             person: "ada",
@@ -699,8 +703,27 @@ pub fn example_file(owned: &Owned) -> temper_config_shell::File {
     temper_config_shell::File { listen: Some(owned.clients), webhooks: Some(owned.webhooks), ..Default::default() }
 }
 
+/// The machine configuration used to start the owned example, without a kept forge.
 #[must_use]
-pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
+pub fn example_read() -> temper_config_shell::Read {
+    let shape = temper_config_shell::Shape::Standalone;
+    super::configuration::parse(&temper_config_shell::render(&example_file(&Owned::example()), shape), shape)
+}
+
+/// The owned example's named-file inventory before any forge is kept.
+#[must_use]
+pub fn example_files() -> temper_service::settings::Files {
+    let mut entries = skein_lib::List::with_capacity(2);
+    for (name, bytes) in [(b"root.der".as_slice(), skein_tls_kit::pki::ROOT), (b"worker.secret", EXAMPLE_WORKER_SECRET)]
+    {
+        entries.push((name.into(), skein_lib::Secret::new(bytes.into()))).expect("owned inventory count");
+    }
+    temper_service::settings::Files { entries }
+}
+
+const EXAMPLE_WORKER_SECRET: &[u8] = b"worker-secret\n";
+
+fn example_start(directory: &Path, owned: &Owned) -> (Vec<u8>, Box<[jig_protocol_config::ProviderSetting]>) {
     let mut value = example_value(owned);
     value["workers"][0]["secret"] = "worker.secret".into();
     for endpoint in temper_agent_fixtures::providers::input(&mut value)["endpoints"].as_array_mut().expect("endpoints")
@@ -710,12 +733,13 @@ pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
             endpoint["trust"] = serde_json::json!(directory.join("root.der"));
         }
     }
-    temper_agent_fixtures::providers::keep(&mut value, directory);
-    serde_json::to_string(&value)
+    let providers = temper_agent_fixtures::providers::take(&mut value).expect("example providers");
+    let document = serde_json::to_string(&value)
         .expect("example JSON")
         .replace("/home/me/temper", directory.to_str().expect("deployment path"))
-        .replace("/usr/local/bin/temper", skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"))
-        .into_bytes()
+        .replace("/usr/local/bin/temper", "/fixture/temper-box")
+        .into_bytes();
+    (document, providers)
 }
 /// The files the walk server copies before its start (temper help server) and private forge credentials.
 pub fn lay(directory: &Path, owned: &Owned) {
@@ -723,14 +747,11 @@ pub fn lay(directory: &Path, owned: &Owned) {
     fs::create_dir_all(&path).expect("example directory");
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private directory");
     super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    if !owned.review {
-        native_landing_settings(directory);
+    if let Some(bytes) = owned_landing_settings(owned) {
+        write_landing_settings(directory, &bytes);
     }
-    super::write_private(&directory.join("worker.secret"), b"worker-secret\n");
+    super::write_private(&directory.join("worker.secret"), EXAMPLE_WORKER_SECRET);
 }
-
-// Reuse the shell's conversion without making a second public configuration API.
-use temper_worker_shell::agent;
 
 /// The strings the service counts, at checked bounds; these paths are never opened.
 pub struct Bounded {
@@ -769,33 +790,7 @@ impl Bounded {
     }
     #[must_use]
     pub fn accounts(&self) -> temper_service::AccountsRuntime {
-        use skein_oauth_accounts::{Endpoint, Origin, Transport};
-        let mut runtime =
-            temper_service::AccountsRuntime { providers: skein_lib::List::with_capacity(16), trust: None };
-        for value in self.given.running() {
-            let Some(sign_in) = &value.provider.sign_in else { continue };
-            let endpoint = || {
-                let transport = match &sign_in.endpoint_transport {
-                    jig_protocol_config::Transport::Plaintext => Transport::Plaintext,
-                    jig_protocol_config::Transport::Tls { server_name, .. } => {
-                        let (trust, _) = skein_tls::Config::from_der(&[skein_tls_kit::pki::ROOT.into()], &[])
-                            .expect("fixture trust");
-                        Transport::Tls {
-                            server_name: skein_tls::Name::new(std::str::from_utf8(server_name).expect("TLS name"))
-                                .expect("configured TLS name"),
-                            trust,
-                        }
-                    }
-                };
-                Endpoint { address: "127.0.0.1:9".parse().expect("unopened stand-in"), transport }
-            };
-            let mut origins = skein_lib::List::with_capacity(1);
-            origins
-                .push(Origin { uri: sign_in.issuer.clone(), endpoint: endpoint() })
-                .expect("one shared issuer origin");
-            runtime.providers.push((value.provider.number, endpoint(), origins)).expect("bounded providers");
-        }
-        runtime
+        super::admission::accounts(&self.given)
     }
     /// Admission without constructing a service, for both split and standalone profiles.
     pub fn admission(&self) -> Result<(), temper_service::startup::Problems> {
@@ -857,7 +852,6 @@ impl Bounded {
             &self.seeds,
             Some(self.accounts()),
             Some(temper_service::WorkerRuntime {
-                wires: None,
                 root: skein_io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: temper_playground::documents::pinned_agent(),
@@ -871,34 +865,32 @@ impl Bounded {
 /// One owned forge's longest base; small's token bound; two worker paths and two program paths.
 #[must_use]
 pub fn bounded(directory: &Path) -> Bounded {
-    let owned = Owned { forgejo: "127.255.255.254:65535".parse().expect("longest owned forge"), ..Owned::example() };
-    lay(directory, &owned);
-    let value = serde_json::from_slice(&example_document(directory, &owned)).expect("example JSON");
-    bounded_document(
-        directory,
-        &value,
-        temper_service::ForgeRuntime {
-            log_origins: skein_lib::List::with_capacity(0),
-            number: 1,
-            address: owned.forgejo,
-            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-        },
-    )
+    bounded_owned(directory, false)
 }
 
 /// The shipped owned form has file-free access.
 #[must_use]
 pub fn bounded_records(directory: &Path) -> Bounded {
-    let owned =
-        Owned { forgejo: "127.255.255.254:65535".parse().expect("bounded records fixture"), ..Owned::example() };
-    lay(directory, &owned);
-    let value: serde_json::Value =
-        serde_json::from_slice(&example_document(directory, &owned)).expect("bounded records fixture");
-    // Startup has no setup directory or handover until a forge is kept.
-    assert!(value["application"].get("setup").is_none());
+    bounded_owned(directory, true)
+}
+
+fn bounded_owned(directory: &Path, records: bool) -> Bounded {
+    let owned = Owned { forgejo: "127.255.255.254:65535".parse().expect("longest owned forge"), ..Owned::example() };
+    let (document, providers) = example_start(directory, &owned);
+    let value: serde_json::Value = serde_json::from_slice(&document).expect("example JSON");
+    if records {
+        // Startup has no setup directory or handover until a forge is kept.
+        assert!(value["application"].get("setup").is_none());
+    }
+    let given = temper_agent_fixtures::providers::given_with(providers, Some(([127, 0, 0, 1], 8370).into()));
+    let mut composed = temper_agent_fixtures::with_providers(&value, &given.running());
+    local_program(&mut composed, directory);
     bounded_document(
         directory,
-        &value,
+        temper_playground::documents::Configuration::from_jig(value),
+        given,
+        composed,
+        b"worker-secret\n",
         temper_service::ForgeRuntime {
             log_origins: skein_lib::List::with_capacity(0),
             number: 1,
@@ -944,48 +936,47 @@ fn bounded_template_profile(directory: &Path, room: Option<&[u8]>) -> Bounded {
         &[7; 32],
     )
     .expect("template files");
-    for file in answer.files {
-        match file.content {
-            Content::Bytes { bytes, .. } => {
-                let path = directory.join(std::ffi::OsStr::from_bytes(file.name));
-                fs::create_dir_all(path.parent().expect("file parent")).expect("template directories");
-                fs::write(path, bytes).expect("template file");
-            }
-            Content::Link { .. } => {}
-        }
-    }
-    let file = temper_config_shell::File {
-        listen: Some("127.0.0.1:8367".parse().expect("init listener")),
-        webhooks: Some("127.0.0.1:8371".parse().expect("init webhooks")),
-        ..Default::default()
-    };
-    super::write_file(&directory.join(temper_config_shell::FILE), &file, temper_config_shell::Shape::Standalone);
-    let mut value: serde_json::Value =
+    let worker_secret = answer
+        .files
+        .iter()
+        .find_map(|file| match &file.content {
+            Content::Bytes { bytes, .. } if file.name == b"worker.secret" => Some(bytes.as_ref()),
+            Content::Bytes { .. } | Content::Link { .. } => None,
+        })
+        .expect("init worker secret");
+    let value: serde_json::Value =
         serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start");
-    if let Some(room) = room {
+    let given = temper_agent_fixtures::providers::given_with(
+        temper_service::stock::providers(),
+        Some(([127, 0, 0, 1], 8370).into()),
+    );
+    let mut agent = temper_agent_fixtures::with_providers(&value, &given.running());
+    let mut limits_document = value.clone();
+    let given = if let Some(room) = room {
         let room: serde_json::Value = serde_json::from_slice(room).expect("reference room");
-        let mut agent = temper_agent_fixtures::read(directory);
         agent["profile"]["declared"]["tool_payload"] = room["agent"]["tool_payload"].clone();
         for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {
             endpoint["limits"]["output"] = room["agent"]["output"].clone();
         }
-        temper_agent_fixtures::install(directory, &agent);
-        let mut document = value.clone();
-        document["engine"]["limits"]["overrides"]["io.output"] =
-            room["worker"]["limits"]["overrides"]["io.output"].clone();
-        merge_profile(&mut document["engine"]["limits"], room["worker"]["limits"].clone());
+        let setting = temper_agent_fixtures::compose_setting(&mut limits_document, &agent, &given.running());
+        agent = temper_agent_fixtures::with_figures(&value, &setting.figures, directory, &setting.providers);
+        merge_profile(&mut limits_document["engine"]["limits"], room["worker"]["limits"].clone());
         if let Some(application) = room.get("application") {
-            merge_profile(&mut document["application"], application.clone());
+            merge_profile(&mut limits_document["application"], application.clone());
         }
-        let document = temper_playground::documents::Configuration::from_jig(document);
-        super::limit_settings::remember(directory, &document);
-        value = document.document;
-    }
+        temper_agent_fixtures::providers::given_with(setting.providers, Some(([127, 0, 0, 1], 8370).into()))
+    } else {
+        given
+    };
+    local_program(&mut agent, directory);
 
     let (trust, _) = skein_tls::Config::from_der(&[skein_tls_kit::pki::ROOT.into()], &[]).expect("fixture trust");
     bounded_document(
         directory,
-        &value,
+        temper_playground::documents::Configuration::from_jig(limits_document),
+        given,
+        agent,
+        worker_secret,
         temper_service::ForgeRuntime {
             log_origins: skein_lib::List::with_capacity(0),
             number: 2,
@@ -1062,20 +1053,11 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
     }
     let figures = if value.get("engine").is_none() { Some(super::cluster::figures(&engine)) } else { None };
     let mut agent = super::cluster::agent_configuration(&engine, directory);
-    // Keep every Smith profile/model declaration; only destinations are local.
-    for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
-        endpoint["address"] = "127.0.0.1:9000".into();
-        endpoint["transport"] = "plaintext".into();
-        let endpoint = endpoint.as_object_mut().expect("endpoint");
-        endpoint.remove("server_name");
-        endpoint.remove("trust_der");
-        endpoint.remove("trust");
-    }
-    let agent_path = directory.join("agent-metadata.json");
-    fs::write(&agent_path, serde_json::to_vec(&agent).expect("agent JSON")).expect("local agent");
-    let agent = agent::read(&agent_path).expect("actual Smith metadata");
+    let agent = prepare_local_agent(&mut agent, "127.0.0.1:9000");
     let mut clean_engine = engine.clone();
-    let given = temper_agent_fixtures::providers::given(&mut clean_engine, directory, None);
+    let providers =
+        temper_agent_fixtures::providers::take(&mut clean_engine).unwrap_or_else(temper_service::stock::providers);
+    let given = temper_agent_fixtures::providers::given_with(providers, None);
     let value = if value.get("engine").is_some() { clean_engine } else { value };
     let document = serde_json::to_vec(&value).expect("profile JSON");
     let (files, setup, forges) = if value.get("engine").is_some() {
@@ -1142,14 +1124,42 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
     }
 }
 
-fn bounded_document(directory: &Path, value: &serde_json::Value, forge: temper_service::ForgeRuntime) -> Bounded {
+fn local_program(agent: &mut serde_json::Value, directory: &Path) {
+    agent["programs"] =
+        serde_json::json!({"claude_code":{"path":"/fixture/claude","directory":directory.join("programs")}});
+}
+
+fn prepare_local_agent(agent: &mut serde_json::Value, address: &str) -> temper_service::settings::Agent {
+    // Keep every Smith profile/model declaration; only destinations are local.
+    for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint["address"] = address.into();
+        endpoint["transport"] = "plaintext".into();
+        let endpoint = endpoint.as_object_mut().expect("endpoint");
+        for name in ["server_name", "trust_der", "trust"] {
+            endpoint.remove(name);
+        }
+    }
+    temper_worker_shell::agent::prepare_bytes_with(
+        serde_json::to_vec(agent).expect("agent JSON").into_boxed_slice(),
+        &mut std::io::sink(),
+        |_| Ok(()),
+    )
+    .expect("ordinary agent declarations")
+    .agent
+}
+
+fn bounded_document(
+    directory: &Path,
+    limits: temper_playground::documents::Configuration,
+    given: temper_service::stock::Given,
+    mut generated: serde_json::Value,
+    worker_secret: &[u8],
+    forge: temper_service::ForgeRuntime,
+) -> Bounded {
     use skein_lib::{List, Secret};
     use temper_service::settings::{Files, PROGRAM_PATH_BYTES, Seeds};
     let path = format!("/{}", "p".repeat(PROGRAM_PATH_BYTES - 1));
-
-    let mut clean = value.clone();
-    let given = temper_agent_fixtures::providers::given(&mut clean, directory, Some(([127, 0, 0, 1], 8370).into()));
-    let document = serde_json::to_vec(&clean).expect("bounded JSON");
+    let document = serde_json::to_vec(&limits).expect("bounded JSON");
     let named = temper_service::startup::named_with(&document, &jig_protocol_config::Directories::working(), &given)
         .expect("bounded example named");
     let mut forges = List::with_capacity(u32::try_from(named.forges.len()).expect("forge count"));
@@ -1172,23 +1182,7 @@ fn bounded_document(directory: &Path, value: &serde_json::Value, forge: temper_s
     if !named.forges.is_empty() {
         forges.push(forge).expect("primary forge");
     }
-    let mut generated = if directory.join("agents.setting").exists() {
-        temper_agent_fixtures::at(&clean, directory)
-    } else {
-        temper_agent_fixtures::with_providers(&clean, &given.running())
-    };
-    generated["programs"] =
-        serde_json::json!({"claude_code":{"path":"/fixture/claude","directory":directory.join("programs")}});
-    for endpoint in generated["endpoints"].as_array_mut().expect("endpoints") {
-        endpoint["address"] = "127.0.0.1:8370".into();
-        endpoint["transport"] = "plaintext".into();
-        let endpoint = endpoint.as_object_mut().expect("endpoint");
-        endpoint.remove("server_name");
-        endpoint.remove("trust_der");
-    }
-    let mut agent = agent::prepare_bytes(serde_json::to_vec(&generated).expect("agent JSON").into_boxed_slice())
-        .expect("ordinary agent declarations")
-        .agent;
+    let mut agent = prepare_local_agent(&mut generated, "127.0.0.1:8370");
     assert_eq!(agent.programs.len(), 1, "owned example declares Claude Code");
     agent.programs[0].path = path.as_bytes().into();
     agent.programs[0].directory = path.as_bytes().into();
@@ -1196,6 +1190,7 @@ fn bounded_document(directory: &Path, value: &serde_json::Value, forge: temper_s
     let named_files = named.files.into_vec();
     let mut entries = List::with_capacity(u32::try_from(named_files.len()).expect("file count"));
     let token_bytes = temper_limits_fixtures::small().forge_component.token_bytes;
+    let trust = directory.join("root.der");
     for file in named_files {
         let bytes = match file.path.as_ref() {
             b"forge-1/api_token" | b"demo/forge/api_token" | b"forge-3/api_token" => {
@@ -1208,17 +1203,15 @@ fn bounded_document(directory: &Path, value: &serde_json::Value, forge: temper_s
             b"demo/forge/admin_token" => b"0123456789abcdef0123456789abcdef01234567".to_vec(),
             name if name.ends_with(b"/admin_token") => vec![b't'; usize::try_from(file.max).expect("handover bound")],
             b"forge-1/git_token" | b"demo/forge/git_token" | b"forge-3/git_token" => b"git-token".to_vec(),
-            name => fs::read(directory.join(std::ffi::OsStr::from_bytes(name))).expect("fixture file"),
+            b"worker.secret" => worker_secret.to_vec(),
+            name if name == trust.as_os_str().as_bytes() => skein_tls_kit::pki::ROOT.to_vec(),
+            name => panic!("no composed bytes for {}", String::from_utf8_lossy(name)),
         };
         entries.push((file.path, Secret::new(bytes.into_boxed_slice()))).expect("named file count");
     }
     Bounded {
         figures: None,
-        limits: if directory.join("fixture-limits.json").exists() {
-            super::limit_settings::configuration(directory)
-        } else {
-            temper_playground::documents::Configuration::from_jig(value.clone())
-        },
+        limits,
         given,
         document,
         setup,
@@ -1298,22 +1291,25 @@ pub fn adopt(
     }
 }
 
-/// This fixture's changes use the ordinary charter without an agent review.
-pub fn native_landing_settings(directory: &Path) {
-    producer_landing_settings(directory, 1);
+/// The walk server's no-review fixture uses the ordinary producer.
+#[must_use]
+pub fn owned_landing_settings(owned: &Owned) -> Option<Vec<u8>> {
+    (!owned.review).then(|| producer_landing_settings_bytes(1))
+}
+
+pub(super) fn write_landing_settings(directory: &Path, bytes: &[u8]) {
+    super::write_private(&directory.join("native-landing-settings.json"), bytes);
 }
 
 /// Replace seeded project 1's review rule and select this fixture's producer charter.
 /// temper/docs/design/protocol/configuration/stock.md and temper/docs/design/protocol/configuration/settings.md, 4–5.
-pub fn producer_landing_settings(directory: &Path, producer: u64) {
+#[must_use]
+pub fn producer_landing_settings_bytes(producer: u64) -> Vec<u8> {
     let value = serde_json::json!({"items":[
         {"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
             "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
             "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}},
         {"setting":{"kind":"forge-charter","number":1},"set":producer}
     ]});
-    super::write_private(
-        &directory.join("native-landing-settings.json"),
-        &serde_json::to_vec(&value).expect("native landing settings"),
-    );
+    serde_json::to_vec(&value).expect("native landing settings")
 }

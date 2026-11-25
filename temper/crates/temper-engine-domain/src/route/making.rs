@@ -1,4 +1,4 @@
-//! The made repository's connector act (temper/docs/design/domain/forge/adoption.md, 5;
+//! The made repository's connector act (temper/docs/design/domain/forge/adoption.md, 9;
 //! jig/docs/design/domain/people/acts.md, 3).
 use super::{Domain, Work, core, forge, forge_route, people};
 use alloc::boxed::Box;
@@ -130,6 +130,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::SignedOut
         | people::Outcome::NoteEdited { .. }
         | people::Outcome::ServiceMade { .. }
+        | people::Outcome::ServiceReissued { .. }
         | people::Outcome::Proposed { .. }
         | people::Outcome::Withdrawn { .. }
         | people::Outcome::Left { .. }
@@ -213,6 +214,9 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::Result { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }

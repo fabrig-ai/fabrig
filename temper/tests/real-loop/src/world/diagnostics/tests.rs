@@ -1,9 +1,15 @@
 //! Diagnostic hooks and bounded history (temper/docs/design/testing/real-loop.md).
 use super::terminals::Terminals;
-use super::{Operation, Operations, ROWS, Rows, Summary, Task, Tasks};
-use crate::world::{Kind, Proc};
+use super::{Context, Judge, Operation, Operations, ROWS, Rows, Summary, Task, Tasks};
+use crate::{
+    calls, case,
+    patience::Patience,
+    world::{Kind, Proc},
+};
+use jig_domain_tasks as tasks_domain;
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
+use skein_shell::Host;
 use std::collections::BTreeMap;
 
 const START: Time = Time::from_nanos(10);
@@ -83,6 +89,192 @@ fn journal(numbers: &[u64]) -> Queue<Complete> {
 fn end(tasks: &mut Tasks, terminals: &mut Terminals, numbers: &[u64]) {
     terminals.observe(&journal(numbers));
     tasks.observe_terminals(terminals).expect("terminal rows");
+}
+
+fn review_tree() -> (tasks_domain::Domain, Env<tasks_domain::Limits>) {
+    use tasks_domain::*;
+    let env = Env { limits: jig_protocol_config_fixtures::small().core.tasks, now: START, wall: Wall::EPOCH };
+    let charters = [1, super::REVIEW_CHARTER].map(|number| CharterModels {
+        number,
+        resumes: false,
+        revision: 1,
+        models: Some(Box::new([0])),
+    });
+    let mut tree =
+        Domain::new(&env.limits, Kept { revisions: 4, versions: 8 }, 91, 1, Box::new(charters), Box::new([0]));
+    let reply_to = || ReplyTo::new(Token::new(1));
+    let mut out = Queue::uncapped();
+    for event in [
+        Event::Check,
+        Event::Restored,
+        Event::OpenPeriod { reply_to: reply_to(), project: 1, period: 0, budget: 10_000 },
+    ] {
+        step(&mut tree, &env, event, &mut out);
+    }
+    for (number, creator, executor) in [
+        (case::A, Party::Person(9), Executor::Agent { charter: 1 }),
+        (case::DESIGN, Party::Task(case::A), Executor::Procedure { connector: 1, code: 1 }),
+        (case::REVIEW, Party::Task(case::DESIGN), Executor::Agent { charter: super::REVIEW_CHARTER }),
+    ] {
+        let task = New {
+            number,
+            project: 1,
+            executor,
+            funder: Funder::Period { project: 1, period: 0 },
+            deadline: Deadline::Named,
+            label: 0,
+            flags: Flags::PLAIN,
+            llm: None,
+            spec: Spec {
+                job: None,
+                asks: false,
+                words: b"review".as_slice().into(),
+                parameters: Box::new([]),
+                inputs: Box::new([]),
+            },
+            contract: Contract::Report { words: 32 },
+            authority: Authority {
+                tools: Tools(0),
+                models: Models::All,
+                grants: Box::new([]),
+                delegation: Delegation { kinds: Box::new([]), tasks: 4, depth: 4 },
+                budget: Budget { spend: 100, deadline: None },
+                notes: Scopes(0),
+                note_resources: Box::new([]),
+            },
+            numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+            dependencies: Box::new([]),
+            holdings: Box::new([]),
+            wake: WakePolicy::DEFAULT,
+            recurring: None,
+            tracked: None,
+        };
+        out.clear();
+        step(
+            &mut tree,
+            &env,
+            Event::Make {
+                reads_project: false,
+                maker: None,
+                places: Box::new([]),
+                reply_to: reply_to(),
+                creator,
+                batch: Box::new([task]),
+            },
+            &mut out,
+        );
+        assert!(tree.task(number).is_some(), "could not make task {number}: {out:?}");
+    }
+    (tree, env)
+}
+
+fn finish_review(tree: &mut tasks_domain::Domain, env: &Env<tasks_domain::Limits>) {
+    use tasks_domain::*;
+    let task = case::REVIEW;
+    let reply_to = || ReplyTo::new(Token::new(1));
+    let mut out = Queue::uncapped();
+    for event in [
+        Event::Prepare { reply_to: reply_to(), task },
+        Event::Claim {
+            fresh: None,
+            reply_to: reply_to(),
+            task,
+            attempt: 1,
+            resumed: false,
+            budget: 1,
+            account: None,
+            writes: Box::new([]),
+            reasons: Reasons::FIRST,
+            offered: Reasons::ALL,
+            session_end: None,
+        },
+        Event::Activation {
+            reads_project: false,
+            reply_to: reply_to(),
+            task,
+            attempt: 1,
+            end: End::Finished {
+                result: TaskResult::Report { words: b"reviewed".as_slice().into() },
+                cancel_delegates: false,
+            },
+            saved: None,
+            cause: Cause::Priced { cumulative: 0 },
+        },
+        Event::EffectsSettled { task },
+        Event::Settled { task },
+    ] {
+        step(tree, env, event, &mut out);
+    }
+    assert!(
+        out.iter().any(|request| matches!(request, Request::Save { record: Stored::Ended(row) }
+        if row.number == task && matches!(row.phase, Phase::Ended(Ending::Done(_))))),
+        "ordinary review ended: {out:?}"
+    );
+    assert!(tree.task(task).is_none());
+    assert!(tree.stub(task).is_none(), "ordinary delegate completion needs no stub");
+}
+
+#[test]
+fn a_durable_review_terminal_reaches_the_forced_overdue_report() {
+    let (mut tree, env) = review_tree();
+    let mut caller = calls::Caller::new(
+        vec![calls::call(calls::D1, crate::argv!["wait", "task", calls::number(case::A), "--until", "ended"])],
+        std::path::PathBuf::new(),
+        Fd::new(0),
+    );
+    caller.released = true;
+    let mut procs = [Proc::new(Kind::Caller(Box::new(caller))), crate::world::tests::ctl(false)];
+    // No kernel: the caller emits a spawn request; the admitted ctl and its pipe read are scripted.
+    procs[0].iterate(START, Wall::EPOCH);
+    procs[0].drain();
+    let mut reads = Queue::uncapped();
+    reads.push(Submit { op: Token::new(9), kind: Op::PipeRead { fd: Fd::new(5), buf: Box::new([0; 8]) } });
+    procs[1].diagnostics.complete(&Queue::uncapped(), START, false);
+    procs[1].diagnostics.submit(&reads);
+
+    let mut engine = Operations::default();
+    let mut judge = Judge::new(Patience::scripted(crate::PATIENCE, START));
+    assert!(!judge.act(START, &mut procs, Context::default()));
+    judge.watch(&procs, std::iter::once((1, &tree, &engine))).expect("live task snapshot");
+    finish_review(&mut tree, &env);
+    let terminal = journal(&[case::REVIEW]);
+    let mut submissions = Queue::uncapped();
+    let sync = Token::new(3);
+    submissions.push(Submit { op: sync, kind: Op::Sync { fd: Fd::new(4) } });
+    engine.complete(&Queue::uncapped(), START, true);
+    engine.submit(&submissions);
+    assert!(engine.pending.contains_key(&sync));
+    let synced = Time::from_nanos(20);
+    engine.complete(&terminal, synced, true);
+    judge.watch(&procs, std::iter::once((2, &tree, &engine))).expect("synced task snapshot");
+    // The observer's journal witness is independent of the judge's task projection.
+    assert_eq!(engine.terminals.ended, [case::REVIEW]);
+    assert_eq!(engine.terminals.last_sync, Some(sync));
+    assert!(!engine.pending.contains_key(&sync), "completion removes the witnessed sync");
+
+    judge.patience.force_failed();
+    assert!(NOW < judge.patience.deadline().expect("armed diagnostic deadline"));
+    assert!(judge.act(NOW, &mut procs, Context::default()));
+    let message = judge
+        .watch(&procs, std::iter::once((2, &tree, &engine)))
+        .expect_err("the review terminal forces the overdue dispatch");
+    for expected in [
+        "the referee failed the real loop before patience",
+        "task=2 state=landing",
+        "wait=story-step step=0 setup=false age_ns=20",
+        "kind=ctl age_ns=20",
+        "child-run=ctl observed_age_ns=Some(20)",
+        "operation=pipe-read token=9 age_ns=20",
+        "outstanding total=5 shown=5 omitted=0",
+        "caller step=0",
+        "forced failed deadline figures",
+    ] {
+        assert!(message.contains(expected), "missing {expected}: {message}");
+    }
+    let design =
+        message.lines().find(|line| line.starts_with("task=3 ")).unwrap_or_else(|| panic!("missing task 3: {message}"));
+    assert!(design.contains("reviewed_below=1"), "missing completed reviewer: {design}");
+    assert!(!message.contains("task=5 state=absent"), "the review terminal has no stub: {message}");
 }
 
 #[test]
@@ -181,7 +373,7 @@ fn operation_completion_and_token_reuse_reset_only_the_new_age() {
     let mut submissions = Queue::uncapped();
     let mut completions = Queue::uncapped();
     let token = Token::new(1);
-    operations.complete(&completions, START);
+    operations.complete(&completions, START, false);
     submissions.push(Submit { op: token, kind: Op::Wait { pidfd: Fd::new(4), reap: false } });
     operations.submit(&submissions);
     operations.now = Time::from_nanos(20);
@@ -196,7 +388,7 @@ fn operation_completion_and_token_reuse_reset_only_the_new_age() {
         kind: Op::Wait { pidfd: Fd::new(4), reap: false },
         result: Ok(Done::Exit(crate::Exit::Code(0))),
     });
-    operations.complete(&completions, NOW);
+    operations.complete(&completions, NOW, false);
     assert!(operations.pending.is_empty());
     operations.submit(&submissions);
     assert_eq!(operations.pending[&token].since, NOW);

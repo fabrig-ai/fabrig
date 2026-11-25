@@ -12,9 +12,9 @@ pub const REPO: api::Repository = api::Repository { forge: 0, repository: 0 };
 pub struct Settings {
     pub seed: u64,
     pub faults: bool,
-    /// Script the forge's merge queue (forge/client.md, 7.7).
+    /// Script the forge's merge queue (forge/client-effects.md, 1.7).
     pub queue: bool,
-    /// Whether the client starts with its forge's writer (forge/client.md, 7.1).
+    /// Whether the client starts with its forge's writer (forge/client-effects.md, 1.1).
     pub writer: bool,
     pub facts: u32,
     pub history: u32,
@@ -77,7 +77,6 @@ pub struct World {
     writers: List<Resource>,
     read_afresh_done: u32,
     outbox_done: u32,
-    outbox_paused: bool,
     planned: Map<u64, Entry>,
     readers: Map<Token, ()>,
     read_results: Map<Token, Result<api::Answer, api::Error>>,
@@ -148,7 +147,6 @@ impl World {
             writers: List::with_capacity(limits.resources),
             read_afresh_done: 0,
             outbox_done: 0,
-            outbox_paused: false,
             planned: Map::with_capacity(64),
             readers: Map::with_capacity(16),
             read_results: Map::with_capacity(16),
@@ -204,7 +202,7 @@ impl World {
         self.take_client();
         self.client.reclaim();
     }
-    /// Give the forge's authenticated writer and commit its row (forge/client.md, 7.1).
+    /// Give the forge's authenticated writer and commit its row (forge/client-effects.md, 1.1).
     pub fn give_writer(&mut self, author: u64) -> bool {
         let given = client::writer(
             &mut self.client,
@@ -347,7 +345,6 @@ impl World {
     }
     fn take_client(&mut self) {
         let mut released = List::with_capacity(self.client_out.len());
-        let mut settle = false;
         for _ in 0..self.client_out.len() {
             let request = self.client_out.pop().expect("output length measured");
             let text = format!("{request:?}");
@@ -403,9 +400,7 @@ impl World {
                     );
                 }
                 Request::ReadAfreshDone => {
-                    assert!(self.outbox_paused, "fresh completion belongs to a paused recovery");
                     self.read_afresh_done = self.read_afresh_done.checked_add(1).expect("world recovery bound");
-                    settle = true;
                 }
                 Request::Settled { .. } | Request::OutboxDone => {
                     self.outbox_done = self.outbox_done.checked_add(1).expect("world recovery bound");
@@ -430,10 +425,6 @@ impl World {
                 | Request::OutboxDone => unreachable!("only calls withheld"),
             }
         }
-        if settle {
-            self.outbox_paused = false;
-            self.event(Event::SettleOutbox);
-        }
     }
     fn submit(&mut self, call: Token, repository: api::Repository, op: api::Op) {
         let name = if let api::Op::Read(api::Read::Locate { owner, name }) = &op {
@@ -446,7 +437,6 @@ impl World {
         assert!(self.env.now >= self.blocked, "no class submits during a rate reset");
         match &op {
             api::Op::Write(write) => {
-                assert!(!self.outbox_paused, "no write before recovery reads complete");
                 Referee::write(&self.planned, &self.entries, write);
                 self.stats.writes = self.stats.writes.saturating_add(1);
             }

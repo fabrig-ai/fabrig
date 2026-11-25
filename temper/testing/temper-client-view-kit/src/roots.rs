@@ -1094,6 +1094,7 @@ pub fn fixture_me(project_name: &[u8]) -> c::Me {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
         party: MeParty {
             number: 73,
             kind: PartyKind::Person,
@@ -1829,6 +1830,7 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
             event: jig_client::Event::Up {
                 up: jig_client::Up::FamilyServed {
                     family: wire::FORGE,
+                    served: true,
                     versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
                 },
             },

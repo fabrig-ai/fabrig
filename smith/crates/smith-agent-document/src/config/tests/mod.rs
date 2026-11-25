@@ -4,6 +4,7 @@ use smith_agent_profile::profile::Per;
 mod native;
 mod programs;
 mod prompt_line;
+mod resolution;
 
 use super::*;
 use prompt_line::assert_native_prompt_line;
@@ -203,6 +204,16 @@ fn overflowing_declared_durations_name_the_first_field_and_its_scope() {
     assert_eq!(
         duration(u64::MAX, endpoint).err().map(ConfigurationRefusal::detail).as_deref(),
         Some("derived: declared.idle[endpoint=7] does not fit its type")
+    );
+}
+
+#[test]
+fn an_overflowing_orphan_exit_refuses_at_startup_by_name() {
+    let mut document = document();
+    document.profile.policy.cancel_grace = Some(u64::MAX / 1_000_000);
+    assert_eq!(
+        decode_document(document).err().map(ConfigurationRefusal::detail).as_deref(),
+        Some("derived: service.orphan_exit does not fit its type"),
     );
 }
 

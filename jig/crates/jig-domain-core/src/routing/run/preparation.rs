@@ -1,5 +1,5 @@
 //! Run admission, briefs and workspace preparation across the task, brief,
-//! notes and account children (`domain/engine/README.md`, section 4.4, and `domain/engine/executors.md`, section 2).
+//! notes and account children (`domain/engine/vocabulary.md`, section 1.4, and `domain/engine/executors-transcripts.md`, section 1).
 
 use crate::{
     Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof,
@@ -158,7 +158,7 @@ pub(crate) fn workspace_prepared(
             },
         );
     }
-    // A task's earlier tries do not close this window (jig/docs/design/domain/engine/executors.md, 2).
+    // A task's earlier tries do not close this window (jig/docs/design/domain/engine/executors-transcripts.md, 1).
     let moved =
         transcript.moved || window_moved(core, task, &allowance.choice.accounts, &allowance.choice.policy.model);
     let mut resume = !moved
@@ -198,7 +198,7 @@ pub(crate) fn workspace_prepared(
             resume = false;
         }
     }
-    // Keep the verdict before replacing the proof and consuming its window (domain/engine/executors.md, 2).
+    // Keep the verdict before replacing the proof and consuming its window (domain/engine/executors-transcripts.md, 1).
     let earlier_window = transcript.window.is_some()
         || match core.proofs.get(&task) {
             Some(proof) => proof.window.is_some(),
@@ -238,6 +238,11 @@ pub(crate) fn workspace_prepared(
         None
     };
     proof.credentials = core.workspace_credentials.remove(&task).expect("prepared credentials");
+    let parts = if resume && transcript.last.is_some() {
+        core.resumed_parts(task, attempt, transcript.bytes)
+    } else {
+        Box::new([])
+    };
     let turns = if resume { core.resumed_turns(transcript) } else { Box::new([]) };
     let answered = answered_calls(core, task, attempt, env.limits.call_records);
     let mut policy = allowance.choice.policy;
@@ -300,6 +305,7 @@ pub(crate) fn workspace_prepared(
         messages,
         saved: context.saved,
         transcript: turns,
+        parts,
         answered,
         grants: grants.into_boxed(),
     })));
@@ -604,7 +610,7 @@ pub(crate) fn plan_brief(
     out
 }
 
-/// A saved window resumes only on its main model's endpoint (jig/docs/design/domain/engine/executors.md, 2).
+/// A saved window resumes only on its main model's endpoint (jig/docs/design/domain/engine/executors-transcripts.md, 1).
 fn window_moved(core: &Core, task: u64, accounts: &[authority::AccountBinding], main: &crate::Model) -> bool {
     let Some(proof) = core.proofs.get(&task) else { return false };
     if proof.window.is_none() {
@@ -675,7 +681,7 @@ pub(crate) fn plan_note_index(
     }
 }
 
-/// Load the saved window for resume, or its tail when closed (jig/docs/design/domain/engine/executors.md, 2).
+/// Load the saved window for resume, or its tail when closed (jig/docs/design/domain/engine/executors-transcripts.md, 1).
 fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32)> {
     let proof = core.proofs.get(&context.task)?;
     let window = proof.window?;
@@ -727,7 +733,7 @@ pub(crate) fn route_activate(
     if core.tasks.task(number).expect("current activation").phase != tasks::Phase::Active(tasks::Active::Due) {
         return out;
     }
-    if core.settling || !ready || !core.start_opened() || core.start_stopped() {
+    if core.settling || !ready || !core.start_opened() || core.start_stopped() || core.unsettled_effect(number) {
         remember_due(core, context);
     } else if core.tasks.recurring_template(number).is_none()
         && context.executor != (tasks::Executor::Procedure { connector: crate::RECURRING, code: crate::GATHERING })
@@ -807,6 +813,30 @@ pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out:
             tasks::Event::PreparationCounted { task, class: tasks::Class::Permanent, reason }
         }
     }
+}
+
+/// Check the next durable claim against live worker claims, including those
+/// whose fleet handoff trails their commit. The same claims must fit at a cold start.
+pub(crate) fn claim_fits(core: &Core, task: u64, attempt: u64) -> bool {
+    match core.claiming.get(&task) {
+        Some((prepared, ..)) if *prepared == attempt => {}
+        Some(_) | None => return true,
+    }
+    if core.workers_in_process
+        || core.proofs.get(&task).expect("prepared claim proof").host == jig_domain_fleet::HostKind::Engine
+    {
+        return true;
+    }
+    let mut held = 0_u32;
+    for (number, proof) in &core.proofs {
+        if proof.host == jig_domain_fleet::HostKind::Worker
+            && let Some(row) = core.tasks.task(*number)
+            && tasks::run_attempt(&row.phase).is_some()
+        {
+            held = held.checked_add(1).expect("bounded live tasks");
+        }
+    }
+    held < core.restart_attempts
 }
 
 pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
@@ -971,7 +1001,7 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
         core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
-        // An unread open window counts once and closes in that decision (domain/engine/executors.md, 2).
+        // An unread open window counts once and closes in that decision (domain/engine/executors-transcripts.md, 1).
         core.close_window(task);
         let mut out = route_preparation_failed(
             core,

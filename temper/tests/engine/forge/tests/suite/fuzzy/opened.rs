@@ -37,6 +37,7 @@ fn ask(world: &mut World, task: u64, entry: u64) {
         queue_repair_active: false,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -52,7 +53,7 @@ fn ask(world: &mut World, task: u64, entry: u64) {
     });
     world.run_for(1);
 }
-fn release(world: &mut World, task: u64, ending: top::ReleaseEnding) {
+pub(super) fn release(world: &mut World, task: u64, ending: top::ReleaseEnding) {
     let branch = world.change(task).branch.clone();
     world.event(top::Event::SettleEffects { task, root: task, ending });
     for entry in task * 1000..task * 1000 + 50 {
@@ -146,7 +147,7 @@ impl Oracle {
     }
 }
 #[derive(Debug, PartialEq)]
-struct Replay {
+pub(crate) struct Replay {
     exercised: u16,
     landing: landing::Landing,
     main: u64,
@@ -155,13 +156,36 @@ struct Replay {
     histories: Vec<Vec<top::history::Event>>,
 }
 
-#[expect(clippy::too_many_lines, reason = "one replay generates taking boundaries, then proves and cleans its batch")]
 fn run(seed: u64) -> Replay {
+    let world = World::batch_turn(seed, Some(workflow(false)));
+    run_in(world, seed, 120).1
+}
+/// Run the same workload and checks, retaining the world for a sweep's ledger.
+pub(crate) fn run_in(world: World, seed: u64, horizon: u64) -> (World, Replay) {
+    run_with(world, seed, horizon, |_, _| {})
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum Moment {
+    Sourced(u64),
+    Kept(u64),
+    Ready(u64),
+    Landing,
+}
+
+/// Interleave a sweep's legitimate events at the workload's commit boundaries.
+#[expect(clippy::too_many_lines, reason = "one replay generates taking boundaries, then proves and cleans its batch")]
+pub(super) fn run_with(
+    world: World,
+    seed: u64,
+    horizon: u64,
+    mut act: impl FnMut(&mut World, Moment),
+) -> (World, Replay) {
     let mut rng = Rng::new(seed);
     let count = 2 + rng.below(2);
     let squash = rng.below(2) == 0;
     let mut exercised = if squash { 1 } else { 2 };
-    let mut world = landings::turn_in(World::batch_turn(seed, Some(workflow(false))));
+    let mut world = landings::turn_in(world);
     world.batch(u16::try_from(count).expect("small batch"));
     let mut oracle = Oracle::default();
     for index in 0..count {
@@ -173,6 +197,7 @@ fn run(seed: u64) -> Replay {
             2,
         );
         world.push_as(source.as_bytes(), path.as_bytes(), b"first", 2);
+        act(&mut world, Moment::Sourced(task));
         let at = (rng.below(2) == 0).then(|| translate::commit(world.branch(source.as_bytes())));
         exercised |= if at.is_some() { 4 } else { 8 };
         changes::open_change(&mut world, task, source.as_bytes(), at);
@@ -199,6 +224,7 @@ fn run(seed: u64) -> Replay {
             ask(&mut world, task, task * 100);
             let kept = world.change(task).kept.expect("read kept its head before make");
             oracle.members.last_mut().expect("member").kept = Some(kept);
+            act(&mut world, Moment::Kept(task));
             assert!(!world.has_branch(&world.change(task).branch), "seed {seed}, task {task}: make waits for commit");
             if rng.below(2) == 0 {
                 world.push_as(source.as_bytes(), path.as_bytes(), b"newer after read", 2);
@@ -217,6 +243,9 @@ fn run(seed: u64) -> Replay {
                 if cancel != 2 {
                     assert_eq!(step(&mut world, task, task * 100 + 1), change::Decision::Effect(change::Effect::Open));
                     assert_eq!(step(&mut world, task, task * 100 + 2), change::Decision::Ready);
+                    if cancel == 4 {
+                        act(&mut world, Moment::Ready(task));
+                    }
                 }
             }
         }
@@ -238,7 +267,7 @@ fn run(seed: u64) -> Replay {
     Trains::default().judge(&mut world);
     assert_eq!(world.landing(LANDING).landing.members.len(), oracle.members.iter().filter(|m| !m.cancelled).count());
     let mut finished = false;
-    for entry in 10_000..10_120 {
+    for entry in 10_000..10_000 + horizon {
         if rng.below(7) == 0 {
             let before: Vec<_> = oracle.members.iter().map(|m| world.history(m.task)).collect();
             restart(&mut world);
@@ -255,6 +284,7 @@ fn run(seed: u64) -> Replay {
             world.push_as(&member.source, format!("member{index}").as_bytes(), b"source during landing", 2);
             exercised |= 2048;
         }
+        act(&mut world, Moment::Landing);
         let before = world.branch(b"main");
         let decision = landings::step_landing_heard(&mut world, LANDING, entry, heard(landing::Preparation::Idle, b""));
         if matches!(decision, landing::Decision::Prepare { .. }) {
@@ -322,7 +352,8 @@ fn run(seed: u64) -> Replay {
         histories.push(events);
         oracle.check(&mut world);
     }
-    Replay { exercised, landing: row, main, calls: oracle.calls, members: oracle.members, histories }
+    let replay = Replay { exercised, landing: row, main, calls: oracle.calls, members: oracle.members, histories };
+    (world, replay)
 }
 #[test]
 fn seeded_opens_keep_sources_untouched_and_land_only_proved_prefixes() {

@@ -1,4 +1,4 @@
-//! A landing gate with no uploaded verdict is the runner's (landing.md, 7.4).
+//! A landing gate with no uploaded verdict is the runner's (domain/landing-proof.md, 2.4).
 use super::*;
 use crate::history::{Event as HistoryEvent, GateVerdict, What};
 use skein_forge::api::{self, Answer, Op, Read, Write};
@@ -31,15 +31,7 @@ fn gate(members: u16) -> (Domain, ReceiptKey, api::Run) {
         d.changes.insert(52, change).unwrap();
     }
     let top = members.checked_sub(1).unwrap();
-    row.entries = Box::new([LandingEntry {
-        preparation: Some(row.landing.preparation),
-        base: Some(fixtures::BASE),
-        entry: 9,
-        member: top,
-        gate: 0,
-        operation: Operation::Dispatch,
-        run: None,
-    }]);
+    row.follows.as_mut().unwrap()[0].entry.member = top;
     let flight = d.landing.flights.get_mut(&key).unwrap();
     flight.purpose = purpose::EffectPurpose::Landing {
         task: 61,
@@ -56,24 +48,6 @@ fn gate(members: u16) -> (Domain, ReceiptKey, api::Run) {
         api::Input { name: b"temper_commit".as_slice().into(), value: commit_text(&run.commit) },
         api::Input { name: b"temper_key".as_slice().into(), value: commit_text(&key.key) },
     ]);
-    let entry = skein_forge_client::Entry {
-        number: 9,
-        task: 61,
-        repository: REPO,
-        effect: skein_forge_client::Effect {
-            write: Write::Dispatch {
-                workflow: flight.workflow.clone(),
-                branch: flight.branch.clone(),
-                inputs: flight.inputs.clone(),
-            },
-            condition: skein_forge_client::Condition::None,
-        },
-        start: Some(skein_forge_client::Position { at: Time::from_nanos(10), comment: 0, review: 0, review_page: 1 }),
-        attempt: None,
-        failures: 0,
-        queued: false,
-    };
-    outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held: true } });
     begin_reporting_gate(&mut d, 91);
     (d, key, run)
 }
@@ -299,10 +273,10 @@ fn restarting_after_an_absent_report_finds_the_unsent_rerun_without_a_receipt_or
     restored.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, key.key)).unwrap();
     fixtures::connect(&mut restored);
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut restored, Event::ReadAfresh);
+    outputs(&mut restored, Event::CatchUp);
     unblamed(&restored, &key);
     assert_eq!(restored.landing.flights.get(&key).unwrap().entry, 91, "find the rerun kept before its write");
-    outputs(&mut restored, Event::SettleOutbox);
+
     rerun(&mut restored, 91, &run);
     unblamed(&restored, &key);
 }

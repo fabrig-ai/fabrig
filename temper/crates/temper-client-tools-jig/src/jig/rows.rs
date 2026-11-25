@@ -93,7 +93,7 @@ pub const WORKER_RESUME: Tool = Tool {
     area: DEPLOYMENT_CENSUS.area,
     notes: b"A run already asked to stop still stops at its turn's end.\nAn ask is no settings change: no key, no revision, no retry.\n",
 };
-/// Deployment census (client/ctl/tools.md, 2; client/ctl/results.md, 1 and 2).
+/// Deployment census (client/ctl/tools-reads.md, 1; client/ctl/results.md, 1 and 2).
 pub const DEPLOYMENT_CENSUS_AT: u8 = 98;
 pub const DEPLOYMENT_CENSUS: Tool = Tool {
     name: b"deployment census",
@@ -108,7 +108,7 @@ pub const DEPLOYMENT_CENSUS: Tool = Tool {
 pub const ME: Tool = Tool {
     name: b"me",
     line: b"Read your party: its projects, what it may start, and what waits on it",
-    prints: b"`party N`, its login and name, its projects and bounds, what waits on it, the requests' retention, the providers it may use, and `digest: me`",
+    prints: b"`party N`, its login and name, `sign-in expires: U` in UTC, its projects and bounds, what waits on it, the requests' retention, the providers it may use, and `digest: me`",
     result: b"me",
     forms: &[&[
         flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
@@ -242,16 +242,16 @@ pub const RUN: Tool = Tool {
 };
 pub const SIGN_IN: Tool = Tool {
     name: b"sign-in",
-    line: b"Sign in with a printed link or a service file",
+    line: b"Sign in with a person's link, a service link or a service file",
     prints: b"Your party, as me prints it",
     result: b"sign_in",
     forms: &[
-        &[positional(b"file", b"FILE", Kind::File, Required, b"The file holding the link, or - for stdin")],
+        &[positional(b"file", b"FILE", Kind::File, Required, b"A file holding a person's or service's link, or - for stdin")],
         &[flag(b"service", b"FILE", Kind::File, Required, b"The private file party make wrote")],
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`. For a fresh link, temper-box serve\nprints one, or a signed-in client asks with\n`temper ctl DIRECTORY link --out FILE`. Other refusals keep the\nline without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
+    notes: b"Writes the token, engine's address and party into DIR.\nA person's link signs in once and expires. A held token refuses it\nbefore sending, leaving it unspent: run `temper ctl DIR sign-out`\nfirst, or use another directory. `the sign-in link was refused`\n(exit 1) says whether the link was used, expired, or unknown; other\nrefusals give no reason. For a fresh link, use temper-box serve or\nask with `temper ctl DIRECTORY link --out FILE` when signed in.\nWith all sign-ins in use, it says when the earliest ends and when\nthe link expires. The link's file stays as it was.\nA service link from `party reissue` signs in as the service, even\nin a signed-in DIR. If refused, an owner can replace it with\n`temper ctl DIRECTORY party reissue PARTY --out FILE`.\n`--service FILE` takes party make's owner-only file instead; it\nrefuses any other form or mode before sending.\n",
 };
 pub const LINK: Tool = Tool {
     name: b"link",
@@ -502,10 +502,13 @@ pub const STOP: Tool = Tool {
     line: b"Hold a task and every task below it, stopping their runs",
     prints: b"`done: task N, stop`",
     result: b"stop",
-    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The task's number")]],
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+        positional(b"reason", b"REASON", Kind::Text, Required, b"Why"),
+    ]],
     keyed: Keyed::Optional,
     area: 1,
-    notes: b"The stop is a placed hold of yours over the task's subtree. The\ntasks stay held until task release of the stopped task lifts it,\nhold lift lifts it, or task cancel ends them.\n",
+    notes: b"Separate reason words are joined with spaces. Without a reason,\nusage exits 2 before sending anything.\nThe stop is a placed hold of yours over the task's subtree. The\ntasks stay held until task release of the stopped task lifts it,\nhold lift lifts it, or task cancel ends them.\n",
 };
 pub const CANCEL: Tool = Tool {
     name: b"task cancel",
@@ -657,7 +660,7 @@ pub const RANK: Tool = Tool {
 };
 /// Account uses append after the existing tools to preserve keyed identities.
 pub const USES_AT: u8 = 111;
-/// The wire's `AccountChangeSetUses` list bound (client/ctl/README.md, 5).
+/// The wire's `AccountChangeSetUses` list bound (client/ctl/requests.md, 1).
 pub const ACCOUNT_USES: u32 = 16;
 pub const USES: Tool = Tool {
     name: b"account uses",
@@ -1103,7 +1106,7 @@ pub const TASK_TEXT: Tool = Tool {
     notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision. Result reads the kept terminal\nreport; unavailable reports are unknown.\n",
 };
 
-/// Whole notes of a task's scope (client/ctl/tools.md, 2).
+/// Whole notes of a task's scope (client/ctl/tools-reads.md, 1).
 pub const TASK_NOTES_AT: u8 = 69;
 pub const TASK_NOTES: Tool = Tool {
     name: b"task notes",
@@ -1125,7 +1128,7 @@ pub const ROLE_START_AT: u8 = 72;
 pub const ROLE_LIST_AT: u8 = 73;
 pub const ROLE_SHOW_AT: u8 = 74;
 pub const ROLE_TALK_AT: u8 = 75;
-/// Standing roles (client/ctl/tools.md, 2 and 3).
+/// Standing roles (client/ctl/tools-reads.md, 1, and client/ctl/tools-acts.md, 1).
 pub const ROLE_START: Tool = Tool {
     name: b"role start",
     line: b"Start a standing role from template 7",
@@ -1311,7 +1314,7 @@ pub const RESTORE: Tool = Tool {
     notes: b"A forgotten revision exits 2, naming the oldest kept. A revision\ntoo large to restore exits 2; restore a later revision instead.\nRead the proposal with proposal show PROPOSAL, then decide it\nwith proposal decide PROPOSAL accept --key KEY.\n",
 };
 
-/// Visibility's position in the tools table (client/ctl/tools.md, 3).
+/// Visibility's position in the tools table (client/ctl/tools-acts.md, 1).
 pub const PROJECT_AMEND_AT: u8 = 64;
 pub const PROJECT_AMEND: Tool = Tool {
     name: b"project amend",
@@ -1327,7 +1330,7 @@ pub const PROJECT_AMEND: Tool = Tool {
     notes: b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too. Nothing asks first; made public, it prints these words on stderr. Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };
 
-/// Appended position for deleting an owned project (client/ctl/tools.md, 3).
+/// Appended position for deleting an owned project (client/ctl/tools-acts.md, 1).
 pub const PROJECT_DELETE_AT: u8 = 71;
 pub const PROJECT_DELETE: Tool = Tool {
     name: b"project delete",
@@ -1384,6 +1387,20 @@ pub const PARTY_MAKE: Tool = Tool {
     area: 3,
     notes: b"The project's owner makes a party with no person, holding ROLE.\nFILE existing refuses the call before anything is sent, exit 1.\nThe host writes FILE at 0o600, with this engine's address and\nthe credential answered once. The credential is never printed\nor passed in argv. A key replay prints the party and writes nothing.\n",
 };
+pub const PARTY_REISSUE_AT: u8 = 120;
+pub const PARTY_REISSUE: Tool = Tool {
+    name: b"party reissue",
+    line: b"Reissue a service's credential and write its service link",
+    prints: b"`reissued: party N; its sign-ins have ended`, then how to sign its directory in again",
+    result: b"reissue-service",
+    forms: &[&[
+        positional(b"party", b"PARTY", Kind::Number, Required, b"The service's party number"),
+        flag(b"out", b"FILE", Kind::File, Required, b"A new private file for sign-in, or - for stdout"),
+    ]],
+    keyed: Keyed::Optional,
+    area: 3,
+    notes: b"An owner of the deployment or of every project the service holds\na role in reissues it, not the service itself. Its sign-ins end at once.\nFILE must not exist; the service link is written at 0o600.\nWith --out -, stdout holds only the service link and the answer goes\nto stderr. Sign the service directory in again with sign-in FILE.\n",
+};
 pub const PROJECT_MAKE_AT: u8 = 70;
 /// Create a project from policy 1 and return its number under a kept key.
 pub const PROJECT_MAKE: Tool = Tool {
@@ -1397,7 +1414,7 @@ pub const PROJECT_MAKE: Tool = Tool {
     notes: b"Copies policy 1 as it is now. A key replay returns the first project's number. Add a repository with repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.\n",
 };
 
-// Findings and needs (client/ctl/tools.md, 2 and 3).
+// Findings and needs (client/ctl/tools-reads.md, 1, and client/ctl/tools-acts.md, 1).
 pub const FINDING_LIST_AT: u8 = 89;
 pub const FINDING_SHOW_AT: u8 = 90;
 pub const FINDING_FILE_AT: u8 = 91;
@@ -1405,6 +1422,8 @@ pub const FINDING_HAND_AT: u8 = 92;
 pub const FINDING_ROUTE_AT: u8 = 93;
 pub const FINDING_BACKLOG_AT: u8 = 94;
 pub const FINDING_DROP_AT: u8 = 95;
+pub const FINDING_REPAIR_AT: u8 = 118;
+pub const FINDING_BLAME_AT: u8 = 119;
 pub const NEED_ASK_AT: u8 = 96;
 const FINDING: super::table::Argument = positional(
     b"finding",
@@ -1507,6 +1526,38 @@ pub const FINDING_DROP: Tool = Tool {
     keyed: Keyed::Required,
     area: 2,
     notes: b"Only its holder or a project owner may triage. Its issue, if any, closes with the reason.\n",
+};
+pub const FINDING_REPAIR: Tool = Tool {
+    name: b"finding repair",
+    line: b"Make one repair goal for findings of one project",
+    prints: b"repair goal G made for P/N, P/M",
+    result: b"finding_repaired",
+    forms: &[&[
+        positional(
+            b"findings",
+            b"FINDING",
+            Kind::Finding,
+            Repeated { most: 16 },
+            b"One to sixteen findings of one project, each named once",
+        ),
+        positional(b"words", b"TEXT", Kind::Text, Required, b"The repair's words, 1 to 4096 bytes"),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only the holder or a project owner may triage. A refusal prints its words, exit 2.\n",
+};
+pub const FINDING_BLAME: Tool = Tool {
+    name: b"finding blame",
+    line: b"Move a finding's blame to a landing or to no landing",
+    prints: b"blamed: P/N on landing COMMIT (its first twelve digits), or blamed: P/N on no landing",
+    result: b"finding_blamed",
+    forms: &[
+        &[FINDING, flag(b"landing", b"COMMIT", Kind::Literal, Required, b"The landing's full commit, 40 or 64 hex digits"), positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")],
+        &[FINDING, super::table::Argument { occurs: Required, ..switch(b"none", b"Blame no landing") }, positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")],
+    ],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Name exactly one of --landing and --none. Only the holder or a project owner may triage. A refusal prints its words, exit 2.\n",
 };
 pub const NEED_ASK: Tool = Tool {
     name: b"need ask", line: b"Ask a person a question with choices and why", prints: b"done: task N, need", result: b"need",

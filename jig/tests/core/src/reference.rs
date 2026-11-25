@@ -25,7 +25,7 @@ pub fn waits_on(rows: &BTreeMap<root::Key, root::Record>, task: u64) -> WaitsOn 
         if matches!(row.phase, tasks::Phase::Closing(_) | tasks::Phase::Ended(_)) {
             continue;
         }
-        waiting(row, &mut entries);
+        waiting(rows, row, &mut entries);
     }
     entries.sort_by_key(|(at, number, _, _)| (*at, *number));
     if let Some((_, number, whom, kind)) = entries.first() {
@@ -39,8 +39,14 @@ pub fn waits_on(rows: &BTreeMap<root::Key, root::Record>, task: u64) -> WaitsOn 
     if matches!(owner.phase, tasks::Phase::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. })) {
         WaitsOn::Nothing
     } else if let tasks::Phase::Active(_) = owner.phase
-        && let Some(number) =
-            owner.questions.iter().filter(|credit| credit.asked == owner.requester).map(|credit| credit.number).min()
+        && let Some(number) = owner
+            .questions
+            .iter()
+            .filter(|credit| {
+                credit.asked == owner.requester && matches!(question_holder(credit), tasks::EscalationHolder::Task(_))
+            })
+            .map(|credit| credit.number)
+            .min()
     {
         WaitsOn::Question { number }
     } else if !owner.delegates.is_empty() {
@@ -54,17 +60,53 @@ pub fn waits_on(rows: &BTreeMap<root::Key, root::Record>, task: u64) -> WaitsOn 
 
 type Waiting = (Wall, u64, people::Whom, people::EntryKind);
 
-fn waiting(row: &tasks::TaskRecord, entries: &mut Vec<Waiting>) {
-    if let tasks::Party::Person(party) = row.requester {
-        for word in &row.inbox {
-            if word.kind == tasks::MessageKind::Question
-                && !row.inbox.iter().any(|answer| answer.kind == tasks::MessageKind::Answer { question: word.number })
+fn question_holder(credit: &tasks::QuestionCredit) -> tasks::EscalationHolder {
+    credit.offer.as_ref().map_or_else(
+        || match credit.answerer {
+            tasks::Party::Task(task) => tasks::EscalationHolder::Task(task),
+            tasks::Party::Person(person) => tasks::EscalationHolder::Person(person),
+            tasks::Party::Deployment { .. } => unreachable!("a deployment does not answer questions"),
+        },
+        |offer| offer.holder,
+    )
+}
+
+fn question_time(rows: &BTreeMap<root::Key, root::Record>, task: u64, line: u64) -> Option<Wall> {
+    let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task, position: line }));
+    let root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(line))) = rows.get(&key)? else {
+        return None;
+    };
+    Some(line.at)
+}
+
+fn waiting(rows: &BTreeMap<root::Key, root::Record>, row: &tasks::TaskRecord, entries: &mut Vec<Waiting>) {
+    for credit in &row.questions {
+        let whom = match question_holder(credit) {
+            tasks::EscalationHolder::Task(_) => continue,
+            tasks::EscalationHolder::Person(person) => people::Whom::Person(person),
+            tasks::EscalationHolder::Role { project, role } => people::Whom::Role { project, role },
+        };
+        let at =
+            credit.offer.as_ref().map(|offer| offer.since).or_else(|| question_time(rows, row.number, credit.line));
+        if let Some(at) = at {
+            entries.push((at, row.number, whom, people::EntryKind::Question { message: credit.number }));
+        }
+    }
+    if let tasks::Party::Person(person) = row.requester {
+        for line in &row.question_lines {
+            let has_credit = rows.values().any(|stored| {
+                let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(asker))) = stored else { return false };
+                asker.questions.iter().any(|credit| credit.number == line.message)
+            });
+            if line.answer.is_none()
+                && !has_credit
+                && let Some(at) = question_time(rows, row.number, line.line)
             {
                 entries.push((
-                    word.at,
+                    at,
                     row.number,
-                    people::Whom::Person(party),
-                    people::EntryKind::Question { message: word.number },
+                    people::Whom::Person(person),
+                    people::EntryKind::Question { message: line.message },
                 ));
             }
         }

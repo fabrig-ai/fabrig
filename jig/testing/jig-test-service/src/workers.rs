@@ -1,4 +1,4 @@
-//! The reference's assignments and root events around the workers' host (service.md, 11.3).
+//! The reference's assignments and root events around the workers' host (protocol/service-parts.md, 1.3).
 use crate::{tools, values::Values};
 use alloc::boxed::Box;
 use jig_domain_host as host;
@@ -14,21 +14,42 @@ pub(super) struct Workers {
     deployment: [u8; 16],
     endpoints: List<jig_protocol_charter::EndpointName>,
 }
+/// Immutable channel setup; each reader starts with empty peer caches.
+#[derive(Debug)]
+pub(super) struct PreparedHost {
+    schema: skein_channel::Schema,
+    wires: kit::PreparedWires,
+}
+impl PreparedHost {
+    pub(super) fn new(limits: &kit::Limits) -> Result<Self, Problems> {
+        let schema = kit::limits::schema(limits).ok_or(kit::host::invalid(config::What::Bound))?;
+        let wires =
+            kit::PreparedWires::new(wire::spoken(), application()).or(Err(kit::host::invalid(config::What::Bound)))?;
+        Ok(Self { schema, wires })
+    }
+    pub(super) fn fresh(&self) -> Self {
+        Self { schema: self.schema.clone(), wires: self.wires.fresh() }
+    }
+}
+fn application() -> wire::Application {
+    wire::Application::opaque(List::with_capacity(0))
+}
 impl Workers {
     pub fn new(
         config: &config::Engine,
         deployment: [u8; 16],
         limits: &kit::Limits,
-        schema: Option<skein_channel::Schema>,
+        prepared: Option<PreparedHost>,
     ) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
-        let application = jig_protocol_worker_wire::Application::opaque(List::with_capacity(0));
-        let mut host = match schema {
-            Some(schema) => kit::host::Workers::with_schema(config, tokens, application, limits, schema),
-            None => kit::host::Workers::new(config, tokens, application, limits),
+        let mut host = match prepared {
+            Some(PreparedHost { schema, wires }) => {
+                kit::host::Workers::with_prepared_wires(config, tokens, limits, schema, wires)
+            }
+            None => kit::host::Workers::new(config, tokens, application(), limits),
         }?;
         let mut limits_by_name = List::with_capacity(wire::CEILINGS.figures_limits);
         for (name, value) in &config::overrides::list(&config.limits) {
@@ -132,54 +153,20 @@ impl Workers {
                 Some(kit::host::Output::Lost { channel }) => {
                     events.push(root::Event::Link { channel, link: root::link::Event::Lost });
                 }
-                Some(kit::host::Output::Unsent { channel, unsent, .. }) => match unsent.bound {
-                    kit::Bound::Room(_) | kit::Bound::Channel(_) => {}
-                    kit::Bound::Translation { .. } => match unsent.kind {
-                        jig_protocol_worker_wire::Kind::Assignment | jig_protocol_worker_wire::Kind::Job => {}
-                        jig_protocol_worker_wire::Kind::Hello
-                        | jig_protocol_worker_wire::Kind::Turn
-                        | jig_protocol_worker_wire::Kind::Call
-                        | jig_protocol_worker_wire::Kind::Answer
-                        | jig_protocol_worker_wire::Kind::Fact
-                        | jig_protocol_worker_wire::Kind::Unauthorized
-                        | jig_protocol_worker_wire::Kind::Usage
-                        | jig_protocol_worker_wire::Kind::UsageRead
-                        | jig_protocol_worker_wire::Kind::ReadUsage
-                        | jig_protocol_worker_wire::Kind::Limited
-                        | jig_protocol_worker_wire::Kind::AccountRefused
-                        | jig_protocol_worker_wire::Kind::Message
-                        | jig_protocol_worker_wire::Kind::Relayed
-                        | jig_protocol_worker_wire::Kind::TurnKept
-                        | jig_protocol_worker_wire::Kind::TurnBusy
-                        | jig_protocol_worker_wire::Kind::Acknowledge
-                        | jig_protocol_worker_wire::Kind::Cancel
-                        | jig_protocol_worker_wire::Kind::Grant
-                        | jig_protocol_worker_wire::Kind::Sources
-                        | jig_protocol_worker_wire::Kind::Check
-                        | jig_protocol_worker_wire::Kind::ReadList
-                        | jig_protocol_worker_wire::Kind::ListRead
-                        | jig_protocol_worker_wire::Kind::Draining
-                        | jig_protocol_worker_wire::Kind::SignOut
-                        | jig_protocol_worker_wire::Kind::Logins
-                        | jig_protocol_worker_wire::Kind::SignedOut
-                        | jig_protocol_worker_wire::Kind::JobAnswer
-                        | jig_protocol_worker_wire::Kind::Ask
-                        | jig_protocol_worker_wire::Kind::Figures
-                        | jig_protocol_worker_wire::Kind::Pause
-                        | jig_protocol_worker_wire::Kind::Paused
-                        | jig_protocol_worker_wire::Kind::Restarting
-                        | jig_protocol_worker_wire::Kind::Asked
-                        | jig_protocol_worker_wire::Kind::Wires => events.push(root::Event::Core(
-                            jig_domain_core::Event::Fleet(jig_domain_fleet::Event::Mismatch { channel }),
-                        )),
-                    },
-                },
+                Some(kit::host::Output::Unsent { channel, unsent, .. }) => {
+                    if unsent.mismatches() {
+                        events.push(root::Event::Core(jig_domain_core::Event::Fleet(
+                            jig_domain_fleet::Event::Mismatch { channel },
+                        )));
+                    }
+                }
                 Some(
                     kit::host::Output::FiguresTaken { .. }
                     | kit::host::Output::Unpaused { .. }
                     | kit::host::Output::Told { .. }
                     | kit::host::Output::Opened { .. }
                     | kit::host::Output::Refused { .. }
+                    | kit::host::Output::Unread { .. }
                     | kit::host::Output::Ended { .. },
                 )
                 | None => {}

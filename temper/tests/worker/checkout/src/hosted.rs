@@ -30,6 +30,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
         }
         Command::Store { .. } => Some(git::Kind::Store),
         Command::SnapshotFetch { .. } | Command::Fetch { .. } => Some(git::Kind::Fetch),
+        Command::FetchCounts { .. } => Some(git::Kind::Counts),
         Command::Create { .. } => Some(git::Kind::Create),
         Command::Push { .. } | Command::IsAncestor { .. } => Some(git::Kind::Push),
         Command::SnapshotHead
@@ -43,9 +44,9 @@ pub fn spawn_of(command: &Command) -> Spawn {
         | Command::WriteTree
         | Command::CommitTree { .. } => Some(git::Kind::Commit),
         Command::CheckOut { .. } => Some(git::Kind::CheckOut),
-        Command::Merge { .. } => Some(git::Kind::Merge),
+        Command::Merge { .. } | Command::MergeHistory { .. } => Some(git::Kind::Merge),
         Command::DiffPaths { .. } => Some(git::Kind::DiffPaths),
-        Command::Version | Command::Clean => None,
+        Command::Version | Command::Clean | Command::UpdateCounts { .. } | Command::DeleteCounts => None,
         Command::Origin { .. } => Some(git::Kind::Look),
     };
     let mut pipes =
@@ -254,8 +255,13 @@ pub fn answer_case(case: &str, fault: Fault) -> Answer {
         _ => b"fixture/specimen",
     };
     let mut scenario = named(full, protected);
+    if matches!(case, "counts-present" | "counts-update" | "counts-delete") {
+        let mut forge = scenario.transport.forge.borrow_mut();
+        let config = forge.config.clone();
+        scenario.transport.counts.publish(&mut forge.domain, &config, full, b"{}\n");
+    }
     let command = command_case(case, &mut scenario);
-    if matches!(command, Command::Fetch { .. }) {
+    if matches!(command, Command::Fetch { .. } | Command::FetchCounts { .. }) {
         scenario.at = b"stores/1".to_vec();
         local::init(&mut scenario.checkout, &scenario.at, true);
         if matches!(case, "fetch-commit" | "fetch-default" | "fetch-up-to-date") {
@@ -335,6 +341,21 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
             Command::Remote { remote, format: invocation::Format::Sha1 }
         }
         "update-ref" => Command::UpdateRef { into: git::Into::Fetched, commit: base },
+        "counts-present" | "counts-absent" => Command::FetchCounts { remote, workspace: skein_lib::Token::new(1) },
+        "counts-update" | "counts-delete" => {
+            let full = b"fixture/specimen";
+            let number = scenario.transport.counts.tip(full).expect("published fixture");
+            scenario
+                .checkout
+                .write(&[scenario.at.as_slice(), format!("/.git/objects/{number}").as_bytes()].concat(), b"");
+            let update = Command::UpdateCounts { commit: commit(number) };
+            if case == "counts-delete" {
+                assert_eq!(apply(scenario, &update).exit, 0);
+                Command::DeleteCounts
+            } else {
+                update
+            }
+        }
         "origin-matches" => Command::Origin { directory: [scenario.at.as_slice(), b"/.git"].concat().into() },
         "origin-no-repository" => Command::Origin { directory: b"workspaces/1/absent".as_slice().into() },
         "origin-no-remote" => {

@@ -98,10 +98,11 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             b"count: 0\nsize: 0\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0\n"
                 .to_vec(),
         ),
-        Command::Repack { .. } => Answer::success(Vec::new()),
+        // The fake has no missing blobs to fetch during the history comparison.
+        Command::Repack { .. } | Command::MergeHistory { .. } => Answer::success(Vec::new()),
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Origin { directory } => {
-            let directory = path(&checked.root, directory);
+            let directory = explicit_path(&checked.root, directory);
             if let Some(remote) = checkout.content(&path(&directory, b"temper-remote")) {
                 Answer::success([remote, b"\n"].concat())
             } else if checkout.exists(&path(&directory, b"HEAD")) {
@@ -163,6 +164,29 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             source,
             &temper_worker_protocol_git::invocation::store_reference(*workspace, *into),
         ),
+        Command::FetchCounts { remote, workspace } => {
+            let reference = crate::counts::store_reference(*workspace);
+            match transport.fetch_counts(remote) {
+                Ok(Some(commit)) => {
+                    let previous = checkout.content(&path(at, &reference)).map_or(0, count_bytes);
+                    crate::counts::import(checkout, at, &reference, commit, &transport.tree(commit));
+                    fetched(transport, &reference, previous, commit)
+                }
+                Ok(None) => Answer { exit: 128, stdout: Vec::new(), stderr: crate::counts::ABSENT.to_vec() },
+                Err(fault) => failed(remote, fault),
+            }
+        }
+        Command::UpdateCounts { commit } => {
+            if git::update_ref(checkout, at, crate::counts::REFERENCE, count(*commit)).is_ok() {
+                Answer::success(Vec::new())
+            } else {
+                Answer::local_failure()
+            }
+        }
+        Command::DeleteCounts => {
+            checkout.remove(&meta(checkout, at, crate::counts::REFERENCE));
+            Answer::success(Vec::new())
+        }
         Command::Create { remote, branch, commit } => create(checked, checkout, transport, remote, branch, commit),
         Command::CheckOut { commit } => {
             let lock = meta(checkout, at, b"index.lock");
@@ -367,6 +391,13 @@ fn count_bytes(bytes: &[u8]) -> u64 {
 pub(crate) fn path(at: &[u8], name: &[u8]) -> Vec<u8> {
     if at.is_empty() { name.to_vec() } else { [at, b"/", name].concat() }
 }
+/// Resolve a Git option beneath the program's file root.
+pub(crate) fn explicit_path(at: &[u8], name: &[u8]) -> Vec<u8> {
+    if let Some(absolute) = name.strip_prefix(b"/") {
+        return absolute.to_vec();
+    }
+    path(if at == b"." { b"" } else { at }, name)
+}
 pub(crate) fn meta(checkout: &Checkout, at: &[u8], name: &[u8]) -> Vec<u8> {
     path(&git::directory(checkout, at), name)
 }
@@ -387,7 +418,7 @@ fn working(checkout: &Checkout, at: &[u8]) -> Tree {
 fn staged(checkout: &Checkout, at: &[u8]) -> Tree {
     checkout.tree(&meta(checkout, at, b"temper-index"))
 }
-// protocol/git.md, 4.7: excluded logs retain the index's contents, even when deleted.
+// protocol/git-operations.md, 1.7: excluded logs retain the index's contents, even when deleted.
 fn stage(checkout: &mut Checkout, at: &[u8]) {
     let mut tree = working(checkout, at);
     let prior = staged(checkout, at);
@@ -451,24 +482,27 @@ fn fetch(
     match git::fetch(transport, checkout, remote, at, want) {
         Ok(commit) => {
             checkout.write(&target, &commit.to_le_bytes());
-            let flag = if previous == 0 {
-                b'*'
-            } else if previous == commit {
-                b'='
-            } else if transport.is_ancestor(previous, commit) {
-                b' '
-            } else {
-                b'+'
-            };
-            // An absent previous head is git's zero marker, not the fake's count-zero id.
-            let previous_id = if previous == 0 { [b'0'; 40] } else { id(previous) };
-            Answer::success(
-                format!("{} {} {} {}\n", char::from(flag), text(&previous_id), text(&id(commit)), text(reference))
-                    .into_bytes(),
-            )
+            fetched(transport, reference, previous, commit)
         }
         Err(fault) => failed(remote, fault),
     }
+}
+
+fn fetched(transport: &mut impl Transport, reference: &[u8], previous: u64, commit: u64) -> Answer {
+    let flag = if previous == 0 {
+        b'*'
+    } else if previous == commit {
+        b'='
+    } else if transport.is_ancestor(previous, commit) {
+        b' '
+    } else {
+        b'+'
+    };
+    // An absent previous head is git's zero marker, not the fake's count-zero id.
+    let previous_id = if previous == 0 { [b'0'; 40] } else { id(previous) };
+    Answer::success(
+        format!("{} {} {} {}\n", char::from(flag), text(&previous_id), text(&id(commit)), text(reference)).into_bytes(),
+    )
 }
 
 fn create(

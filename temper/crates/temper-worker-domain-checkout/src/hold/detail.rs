@@ -1,4 +1,4 @@
-//! Failed prepare evidence (domain/worker/checkouts.md, 1.1 and 1.2).
+//! Failed prepare evidence (domain/worker/checkouts-prepare.md, 12.1 and 12.2).
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Time, Writer};
@@ -7,7 +7,7 @@ use super::{Holding, PrepareStep, Timing, candidate, hex_length, nth, put_hex};
 use crate::boundary::Start;
 use crate::git::Done;
 
-// domain/worker/checkouts.md, 1.2: fields keep their room; words take the rest.
+// domain/worker/checkouts-prepare.md, 12.2: fields keep their room; words take the rest.
 const DETAIL_BYTES: usize = 2048;
 const NAME_BYTES: usize = 256;
 
@@ -59,7 +59,11 @@ pub(super) fn preparation_detail(
             },
             Some(repository),
         ),
-        PrepareStep::Reds { .. } => return Box::new([]),
+        PrepareStep::Unkeep => (b"consume kept workspace", None),
+        PrepareStep::CompareKept { repository } => (b"compare saved workspace", Some(repository)),
+        PrepareStep::Reds { .. } | PrepareStep::Pack { .. } | PrepareStep::Mark | PrepareStep::Marked => {
+            return Box::new([]);
+        }
         PrepareStep::Store { repository, .. } => (b"store", Some(repository)),
         PrepareStep::Look { repository, .. } => (b"look", Some(repository)),
         PrepareStep::Make => (b"make", None),
@@ -74,6 +78,7 @@ pub(super) fn preparation_detail(
         PrepareStep::PointLanding { repository, .. } | PrepareStep::PinReplaced { repository, .. } => {
             (b"point landing", Some(repository))
         }
+        PrepareStep::Counts { repository, .. } => (b"fetch counts", Some(repository)),
         PrepareStep::FetchBase { repository, .. } => (b"fetch base", Some(repository)),
         PrepareStep::PointBase { repository, .. } => (b"point base", Some(repository)),
         PrepareStep::CheckOutMerge { repository, .. } => (b"check out merge", Some(repository)),
@@ -89,7 +94,7 @@ pub(super) fn preparation_detail(
         PrepareStep::CommitMerge { repository, .. } => (b"commit merge", Some(repository)),
         PrepareStep::CheckOutMerged { repository, .. } => (b"check out merged", Some(repository)),
     };
-    let workspace = Decimal::of(holding.workspace.token().raw());
+    let workspace = Decimal::of(holding.disk.raw());
     let place = Decimal::of(u64::from(repository.unwrap_or(0)));
     let (place, space, name) = match repository {
         Some(repository) => {

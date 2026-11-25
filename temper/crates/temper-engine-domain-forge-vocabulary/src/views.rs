@@ -42,6 +42,7 @@ pub enum Document {
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingView {
+    pub read_hold: Option<Box<[u8]>>,
     pub waits: Option<LandingWait>,
     pub task: u64,
     pub project: u32,
@@ -85,7 +86,7 @@ pub enum LandingWaitFor {
     Read,
     Room,
 }
-/// A train is one repository and landing branch (domain/landing.md, 9).
+/// A train is one repository and landing branch (domain/landing-turn.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingTrain {
     pub repository: skein_forge::api::Repository,

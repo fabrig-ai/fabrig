@@ -8,11 +8,14 @@ and escalations travel the tree. It is the first primitive of ../model.md
 (../engine/README.md, section 3).
 Authority, which every action here is checked against, is ../authority.md;
 what an agent's run is, ../engine/executors.md; a connector's procedures,
-../connectors.md, section 6; what a party asks, ../people/acts.md; a task
+../connectors-procedures.md, section 1; what a party asks, ../people/acts.md; a task
 that stands, its budget per period, its sessions and its Now,
 `standing.md`; a gathering, which parties fill with delegates and its
 requester concludes, `gatherings.md`. What
 is still open is listed in `README.md`, section 8.
+
+- [`lifecycle-holds.md`](lifecycle-holds.md): failures and placed holds.
+- [`lifecycle-endings.md`](lifecycle-endings.md): added dependencies and ending a task.
 
 ## 1. In one page
 
@@ -41,7 +44,7 @@ is still open is listed in `README.md`, section 8.
 - **A dependency may be added to a live task.** It stops the task going
   on and never sends it back: while it is pending, an active task is
   kept, starts no run, asks no effect that waits for dependencies, and
-  ends no way but failed or cancelled (`lifecycle.md`, 8).
+  ends no way but failed or cancelled (`lifecycle-endings.md`, 1).
 - **Holds are taken whole, and no waits circle.** A task takes every
   resource it writes at once, or waits with none. A task holding some
   may still wait, for its delegates or, kept, for its dependencies, so
@@ -74,14 +77,14 @@ What it does not know, and how it is told:
   activation ends.
 - **Authority** is a value of its own type, which it carries and keeps
   the numbers of (budgets spent and reserved, tasks made), as it keeps
-  every other funder's (../authority.md, section 7), and never judges: every
+  every other funder's (../authority-budgets.md, section 1), and never judges: every
   check goes to the authority child domain, whose answers say what the
   numbers become.
 - **Resources** are names (a connector's number and a path) and the kind
   of hold each takes; what they are is their connector's.
 - **Connectors' news** reaches it as messages already classified (`messages.md`, 3).
 - **The store** is the root's: this domain's saves and erases are part of
-  the decision the core's step is making (../engine/README.md, 5.6).
+  the decision the core's step is making (../engine/decisions.md, 1.6).
 
 ## 3. A task
 
@@ -149,7 +152,7 @@ it is live:
   delegates (`messages.md`, 5).
 - **Its executor** (2) and, for an agent, its **charter**: the role's
   instructions, the models it allows, in order, its resolution in the
-  catalogue (../engine/settings.md, 11), the tools, the outcome it must produce, its default wake policy
+  catalogue (../engine/settings-catalogue.md, 1), the tools, the outcome it must produce, its default wake policy
   and waiting time, whether a run resumes its transcript or starts
   fresh, and which hosts may run it (../engine/executors.md, 1); and its **parts**, in
   order, each with instructions of its own for some of the reasons a run
@@ -165,14 +168,14 @@ it is live:
   its revision (../engine/settings.md, 3).
 - **Its LLM choice,** for an agent task, what its runs' LLMs are:
   - *main:* a configured model, and an effort among those the model
-    declares (`../../protocol/configuration.md`, section 3); its runs use
-    it, and their check holds its most costly completion (../authority.md,
-    8.3);
+    declares (`../../protocol/configuration-engine.md`, section 1); its runs use
+    it, and their check holds its most costly completion (../authority-checks.md,
+    1.3);
   - *sub-agents:* the models its runs' sub-agents may use, each with an
     effort, among which smith chooses within a run (smith's
     `domain/run.md`, 5.3);
   - *account:* optionally, one LLM account its creator wants in
-    particular, within the account's uses (../accounts.md, 4.3);
+    particular, within the account's uses (../accounts-uses.md, 1.3);
   - *later:* optionally, a second main model with its effort and the
     sub-agents' models with theirs, which every run whose reasons hold no
     `first` takes (`messages.md`, 6), the first choice going to the runs of its first
@@ -183,12 +186,12 @@ it is live:
     whose charter has come to resume since takes the first choice.
 
   Its creator gives it, or a template does
-  (`../../protocol/configuration.md`, 3.1), each model within the task's
+  (`../../protocol/configuration-templates.md`, 1), each model within the task's
   authority (../authority.md, section 3). A task given none keeps none: each
   of its runs' checks takes its models from its charter, within its
   authority, the first it can use its main and the others its sub-agents'
-  (../accounts.md, 4.3); each takes the effort its charter selects, or else
-  its model's default (`effort`, `../../protocol/configuration.md`, section 3),
+  (../accounts-uses.md, 1.3); each takes the effort its charter selects, or else
+  its model's default (`effort`, `../../protocol/configuration-engine.md`, section 1),
   or none where it declares none, which leaves its LLM provider's default. Its document shows what its next run would take
   (`../../client/domain/contract/documents.md`, 1). A batch or an amendment that
   leaves such a task with an authority allowing none of its charter's
@@ -205,7 +208,7 @@ it is live:
   provider, chosen at its first run's check and kept from run to run,
   so that a conversation stays on one account's cache and replay, until
   a change of its payer or of that LLM provider chooses again
-  (../accounts.md, 4.3), as its first run to take a `later` on another LLM
+  (../accounts-uses.md, 1.3), as its first run to take a `later` on another LLM
   provider does. The accounts its sub-agents use are each run's,
   recorded in its claim (../engine/executors.md, 1, step 3). This kept number is separate
   from the creator's optional preference. Only a successful claim changes it,
@@ -223,10 +226,10 @@ it is live:
   (`messages.md`, 4), has it projected (../connectors.md, section 8), and gives it a
   scope for notes (../engine/briefs.md, section 2).
 - **Its label:** an opaque 32-bit number the application gives, through
-  a template or by hand (`../../protocol/configuration.md`, 3.1). jig gives
+  a template or by hand (`../../protocol/configuration-templates.md`, 1). jig gives
   it no meaning, and no rule of the engine's keys on it: task queries
   filter on it, and the indexes of ended tasks are keyed by it
-  (`../../protocol/store/README.md`, 4.4).
+  (`../../protocol/store/keys.md`, 1.4).
 - **Its flags,** each with the engine's semantics:
   - *conversation:* its turns are entries for its requester, while that
     requester is a party, with their read position and an unread count
@@ -236,16 +239,16 @@ it is live:
   - *listed:* once ended, it is indexed by its project and its label, so
     its project's lists find it. Every ended task a party requested is
     indexed by that party and its label, listed or not
-    (`../../protocol/store/README.md`, 4.4);
+    (`../../protocol/store/keys.md`, 1.4);
   - *its retention class,* what becomes of it once it has ended: *kept*,
     to the deployment's retention horizon, and whole while none is set
-    (`../../protocol/store/README.md`, 6.1); or *forgotten once read*, erased once
+    (`../../protocol/store/growth.md`, 1.1); or *forgotten once read*, erased once
     its requester, a party, has read it. When and how is ../people/README.md,
     section 5. Whatever its class, a task of a project being deleted is
     erased whole once every task of the project has ended, with no
     horizon waited for, as its retention would erase it at the horizon,
     its transcript's file with it (../people/acts.md, 2;
-    `../../protocol/store/transcripts.md`, 5, and `../../protocol/store/README.md`, 6.1).
+    `../../protocol/store/transcripts.md`, 5, and `../../protocol/store/growth.md`, 1.1).
 
   The label and the flags are what a task is made as: no amendment
   changes them (`changes.md`).
@@ -257,7 +260,7 @@ it is live:
   done, failed and cancelled, kept as each ends, so that a list of tasks says
   how far a task has gone without reading its delegates. A delegate moved
   away is not counted, and a retained delegate's erasure takes nothing back.
-- **Its closer,** while one lives: its number (`lifecycle.md`, 11).
+- **Its closer,** while one lives: its number (`lifecycle-endings.md`, 3).
 - **Its holds:** the resources it writes and holds alone, or the pool
   slots it holds; or, while it waits for them, its place in their queues
   (`holds.md`).
@@ -276,7 +279,7 @@ it is live:
 - **Its result,** once it has one.
 
 What the store keeps beside it, and the engine loads only when wanted:
-its transcript (../engine/executors.md, 2), its history (every change made to it,
+its transcript (../engine/executors-transcripts.md, 1), its history (every change made to it,
 by whom, and why), its attempts and holds (`lifecycle.md`, 12), and the
 results of its ended delegates. While a task
 that ended is named by a live one (a dependency's result not yet read,
@@ -287,7 +290,7 @@ What a task **waits on** is not kept: the engine computes it when a
 document shows the task, since only the engine holds the tree and the
 inbox together (../engine/views.md). It is a party, and who, for a
 question, a proposal, an escalation or a person task in its tree; its
-dependencies, for a kept task (`lifecycle.md`, 8); its delegates; news; or nothing.
+dependencies, for a kept task (`lifecycle-endings.md`, 1); its delegates; news; or nothing.
 
 ## 4. Batches
 
@@ -307,7 +310,7 @@ dependencies among them.
   its flags, and an agent task's LLM choice (section 3). Both pass the
   same checks; only the source of the creator's authority differs: a
   task's authority and what it has left, or a party's role and pool
-  (../authority.md, 8.1 and 8.4).
+  (../authority-checks.md, 1.1 and 1.4).
 - **A party's root has someone to escalate to.** Every task a party
   requests is the root of a tree, whose escalations wait for that party
   or past them (`proposals.md`). A party becomes a root's requester only
@@ -321,23 +324,24 @@ dependencies among them.
   root and depth below it, as if it had made them; none of them is a
   root, so it needs no holder of its own escalations. It is checked as
   both: within the party's role and within what the task has left
-  (../authority.md, 8.4). It reaches as the party does: its
+  (../authority-checks.md, 1.4). It reaches as the party does: its
   dependencies and inputs within the party's reach, never the task's.
   The history of each task it makes names the party.
 - **Dependencies** name tasks in the same batch, or tasks the
-  creator reaches: for a task, its own live delegates, or a live task it is
-  introduced to (`messages.md`, 5); for a party, a task in their tree, or any task of
+  creator reaches: for a task, its own live delegates, a live task it is
+  introduced to, or any live task of its project that its tree's
+  requester reads (`messages.md`, 5, *Waits by reading*); for a party, a task in their tree, or any task of
   the project for a maintainer (../people/acts.md, 1). A party's batch,
   a `Create`'s or a `Delegate`'s, may name a task that has ended, judged
   on its stored row as an amendment's added dependency is (`changes.md`,
   *An ended one* and *Its prerequisite*): one done adds no wait and is
   kept as a met dependency, its result read as any dependency's; one
   failed or cancelled refuses the batch, naming it and how it ended
-  (*dependency*, `../../client/domain/contract/README.md`, section 3).
+  (*dependency*, `../../client/domain/contract/answers.md`, section 1).
   Each is judged at the batch's admission, against the state the batch
   commits in, never by an earlier read: a dependency that ends while the
   batch waits for another's row is judged as it ended. A task's batch
-  names live tasks alone (section 8). An amendment may add
+  names live tasks alone (`README.md`, section 8). An amendment may add
   more once a task is made (`changes.md`). Admission checks the batch's new
   waits with the live ones (`holds.md`, 7): its tasks' dependencies, the queues
   they join and the holds handed down to them, and its creator's wait
@@ -348,13 +352,13 @@ dependencies among them.
   reach.
 - **A budget as `AsAllowed`.** A creator gives each task's budget as an
   amount, or, for one task of a batch, as `AsAllowed`, which the
-  authority child resolves as it checks the batch (../authority.md,
-  section 7); the task keeps the amount, and the batch's answer names
+  authority child resolves as it checks the batch (../authority-budgets.md,
+  section 1); the task keeps the amount, and the batch's answer names
   it.
 - **A deadline as a span.** A creator gives each task's deadline as a
   wall, as a span from the decision that makes the task, or none;
-  authority makes a span a wall as it checks the batch (../authority.md,
-  section 7), and the task keeps the wall.
+  authority makes a span a wall as it checks the batch (../authority-budgets.md,
+  section 1), and the task keeps the wall.
 - **Checked whole,** before anything of it exists:
   - every task well formed: a known executor kind, a charter or
     procedure the deployment has, a result contract its executor can
@@ -364,7 +368,7 @@ dependencies among them.
     and its efforts among those its models declare, and each of its
     models, main and sub-agent, one its charter allows at the newest
     revision (section 3), as a template's and a move's are checked
-    (`../../protocol/configuration.md`, 3.1; ../engine/settings.md, 4). Whoever
+    (`../../protocol/configuration-templates.md`, 1; ../engine/settings.md, 4). Whoever
     makes the batch, a party, a run's delegation, a procedure's step,
     an accepted proposal or a recurrence, the check is the same. The
     tasks child answers it alone too, for a charter and an authority's
@@ -376,10 +380,10 @@ dependencies among them.
     tasks in the deployment, tasks in the tree, depth below its root,
     delegates of the creator, goals in its project (section 6);
   - within authority: each task's authority fits what the creator has
-    left, its budgets carved from what it has left (../authority.md, 8.1),
-    or, for a party, fits their role and their pool (../authority.md, 8.4);
+    left, its budgets carved from what it has left (../authority-checks.md, 1.1),
+    or, for a party, fits their role and their pool (../authority-checks.md, 1.4);
     its LLM choice names models its authority allows, and an account
-    only one whose uses serve its payer (../authority.md, 8.1).
+    only one whose uses serve its payer (../authority-checks.md, 1.1).
 
   A batch that fails a check other than authority is refused, saying
   which task and why, and nothing of it is made. One that fails only on
@@ -400,7 +404,7 @@ dependencies among them.
   resources by their specs and the grants named after them, and hands
   down none, since a party holds nothing (`holds.md`, 1).
 - **Procedure tasks' parameters** go to their connector in the same
-  decision, under the numbers the batch gives (../connectors.md, 6.1).
+  decision, under the numbers the batch gives (../connectors-procedures.md, 1.1).
 
 ## 5. Core procedures
 
@@ -411,8 +415,8 @@ Procedures the core owns, stepped by this child domain:
   templates, ../model.md, 7.3): at each period, as the period reaches the
   core from the application's root, it makes its recurring batch as its
   own delegates, within its authority, its budget carved again each
-  period from the project's spend for that period (../authority.md,
-  section 7). If the last batch is still live, the period passes, or the
+  period from the project's spend for that period (../authority-budgets.md,
+  section 1). If the last batch is still live, the period passes, or the
   new batch waits, as its maker chose. A recurring task ends when it is
   cancelled.
 - **Gathering.** A task whose procedure does nothing: parties make its
@@ -423,9 +427,9 @@ Procedures the core owns, stepped by this child domain:
 The core has no other procedure. A static plan is a batch; waiting for
 several tasks is a dependency; anything that needs a condition over
 results is a coordinator's judgement. A standing task that makes tasks
-from news is a connector's procedure (../connectors.md, 6.6). Both kinds of
+from news is a connector's procedure (../connectors-procedures.md, 1.6). Both kinds of
 standing task have their allotment of tasks and spend renewed each
-period (../authority.md, section 7), and so does an agent task made
+period (../authority-budgets.md, section 1), and so does an agent task made
 standing (`standing.md`, section 4), which also ends only when it is
 cancelled.
 
@@ -470,7 +474,7 @@ worst case (../engine/README.md, section 7):
   (`standing.md`, section 2);
 - a grace's span: the longest grace a cancel may give;
 - placed holds per project and per party, live at once, and the
-  exemptions one holds (`lifecycle.md`, 10), which a start refuses past the live
+  exemptions one holds (`lifecycle-holds.md`, 2), which a start refuses past the live
   tasks: a profile that shrinks its live tasks shrinks the exemption
   bound it inherits.
 
@@ -509,7 +513,7 @@ go beyond its task's authority, their proposal accepted and the
 follow-ups run before the result reaches the requester, and another
 whose proposal is rejected, its result delivered at once.
 
-Its stories of placed holds (`lifecycle.md`, 10): a person's stop
+Its stories of placed holds (`lifecycle-holds.md`, 2): a person's stop
 of a goal, its runs and its delegates' runs cancelled, a maintainer's
 release refused for it as the person's, the coordinator above it
 proposing the release, the person accepting it in their inbox, and the
@@ -525,7 +529,7 @@ event, the hold lifting itself as the event's commit delivers it, and
 another parked until a time; a restart in the middle of a drain,
 draining on.
 
-Its stories of added dependencies (`lifecycle.md`, 8; `holds.md`, 7; `changes.md`): the
+Its stories of added dependencies (`lifecycle-endings.md`, 1; `holds.md`, 7; `changes.md`): the
 reordering, two tasks waiting for one write hold, the first given a
 dependency on the second, leaving the queue, the second taking the
 hold and ending, and the first back at its place, ahead of a third that
@@ -610,7 +614,7 @@ the newest when it moved.
   the fresh settings proposal may count the set it replaces as room.
   Default: the core checks the bound before withdrawing anything; a full
   bound refuses the fresh proposal and leaves the old one pending
-  (`../engine/README.md`, 10, and `../engine/settings.md`, 6).
+  (`../engine/README.md`, 10, and `../engine/settings-proposals.md`, 1).
 
 - **Wake defaults:** which kinds wake each charter's tasks, and how
   batching is tuned; whether a cheap model should triage news before a
@@ -635,11 +639,11 @@ the newest when it moved.
   roles when the policy stops naming any for its kind, or that stalls
   past its last holder: who may decide it then, or whether it is
   withdrawn, saying why.
-- **A finish refused at the call** (`lifecycle.md`, 8): a run with its own question open
+- **A finish refused at the call** (`lifecycle-endings.md`, 1): a run with its own question open
   that calls `finish` parks, the run hearing nothing live, and its next run's
   transcript shows that finish as accepted. Refusing it at the call needs a
   new crossing from jig through the worker to smith, since the run serves
-  `finish` with no call to its host (../engine/executors.md, 3 and 4), and costs a turn;
+  `finish` with no call to its host (../engine/executors-tools.md, 1, and ../engine/executors.md, 4), and costs a turn;
   parking stays underneath it, as a refusal can't cover every path to a finish.
   Default: it parks, an application's charter saying beforehand to call `wait`.
 - **A finish put off for live delegates, told** (`lifecycle.md`, 7; ../engine/executors.md, 4):

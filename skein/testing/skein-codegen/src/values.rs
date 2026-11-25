@@ -1,22 +1,22 @@
-//! Shared current-text values (data/codec/README.md, section 6).
+//! Shared current-text values (data/codec/golden.md, section 1).
 
 use alloc::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
 
-use crate::{Golden, Schema, goldens, parse};
+use crate::{FixedValue, Schema, fixed_values, parse};
 
 /// A text's parsed schema and fixed-rule encodings, built once for the process.
 #[derive(Debug)]
 pub struct Values {
     pub schema: Schema,
-    pub goldens: Vec<Golden>,
+    pub fixed: Vec<FixedValue>,
 }
 
 /// Returns the process's values for this text, panicking with its parse error.
 #[must_use]
 #[expect(
     clippy::panic,
-    reason = "invalid author-owned schema text panics with its parse error (data/codec/README.md, 6)"
+    reason = "invalid author-owned schema text panics with its parse error (data/codec/golden.md, 1)"
 )]
 pub fn values(text: &'static str) -> &'static Values {
     static TEXTS: OnceLock<Mutex<BTreeMap<&'static str, &'static OnceLock<Values>>>> = OnceLock::new();
@@ -26,8 +26,8 @@ pub fn values(text: &'static str) -> &'static Values {
     };
     cell.get_or_init(|| {
         let schema = parse(text).unwrap_or_else(|why| panic!("{why}"));
-        let goldens = goldens(&schema);
-        Values { schema, goldens }
+        let fixed_values = fixed_values(&schema);
+        Values { schema, fixed: fixed_values }
     })
 }
 
@@ -45,7 +45,7 @@ mod tests {
         assert!(core::ptr::eq(first, values(copied)), "the key is text, not its address");
         let schema = parse(TEXT).expect("test schema");
         assert_eq!(first.schema, schema);
-        assert_eq!(first.goldens, goldens(&schema));
+        assert_eq!(first.fixed, fixed_values(&schema));
         let other = values("family other 1 record Item { value: bool }");
         assert!(!core::ptr::eq(first, other));
         assert_eq!(other.schema.family, "other");

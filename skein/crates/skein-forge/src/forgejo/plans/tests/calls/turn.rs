@@ -2,8 +2,9 @@
 use super::*;
 use crate::api::Excess;
 use crate::api::{MergeHow, UpdateStyle, Write};
-use crate::forgejo::{client, document as d, request::Request, server};
+use crate::forgejo::{client, document as d, plans::plan::Bounds, request::Request, server};
 use alloc::boxed::Box;
+use skein_lib::List;
 // Two full run documents and their listing envelope fit within this fixture's cap.
 const TURN_DOCUMENT_BYTES: u32 = 1024;
 fn limits() -> crate::forgejo::limits::Limits {
@@ -380,48 +381,197 @@ fn range_values() -> [api::CommitMessage; 3] {
     ]
 }
 fn range_document() -> server::Answer {
-    // The fixture has three commits and at most two parents per commit.
+    // The fixture has three commits.
     const COMMITS: u32 = 3;
-    const PARENTS: u32 = 2;
-    let mut commits = skein_lib::List::with_capacity(COMMITS);
+    let mut commits = List::with_capacity(COMMITS);
     for value in range_values().into_iter().rev() {
-        let mut parents = skein_lib::List::with_capacity(PARENTS);
-        for id in &value.parents {
-            parents
-                .push(crate::forgejo::id::ObjectId { bytes: *id, format: crate::forgejo::id::ObjectFormat::Sha1 })
-                .expect("fixture parents");
-        }
-        commits
-            .push(d::CommitMessage {
-                id: crate::forgejo::id::ObjectId { bytes: value.id, format: crate::forgejo::id::ObjectFormat::Sha1 },
-                parents: parents.into_boxed(),
-                message: value.message,
-            })
-            .expect("fixture commits");
+        commits.push(wire_commit(value)).expect("fixture commits");
     }
     server::Answer::Commits { commits: commits.into_boxed() }
+}
+
+const COMMITS_GET: &str = "GET /api/v1/repos/fixture/specimen/compare/0300000000000000000000000000000000000000...0100000000000000000000000000000000000000?files=false&verification=false";
+
+fn read_commit_page(run: &mut Run, count: Option<&[u8]>, document: &[u8]) -> Step {
+    let started = run.begin();
+    if let Step::Done(_) = started {
+        return started;
+    }
+    if let Some(count) = count {
+        let counted = run.answer(200, count);
+        if let Step::Done(_) = counted {
+            return counted;
+        }
+    }
+    run.answer(200, document)
 }
 
 #[test]
 fn commits_reverse_before_paging_and_keep_merge_parents() {
     let [first, second, merge] = range_values();
-    for (page, expected) in [
-        (1, Answer::Commits { commits: Box::new([first, second]), more: true }),
-        (2, Answer::Commits { commits: Box::new([merge]), more: false }),
+    let document = server_answer(&range_document());
+    for (page, count, requests, expected) in [
+        (1, None, [COMMITS_GET].as_slice(), Answer::Commits { commits: Box::new([first, second]), more: true }),
+        (
+            2,
+            Some(document.as_ref()),
+            [COMMITS_GET; 2].as_slice(),
+            Answer::Commits { commits: Box::new([merge]), more: false },
+        ),
     ] {
         let mut run =
             Run::with_limits(range_limits(), BOUNDS, Op::Read(Read::Commits { before: BASE, after: HEAD, page }));
-        run.begin();
-        assert_eq!(run.answer(200, &server_answer(&range_document())), Step::Done(Ok(expected)));
-        run.assert_sent(&["GET /api/v1/repos/fixture/specimen/compare/0300000000000000000000000000000000000000...0100000000000000000000000000000000000000?files=false&verification=false"]);
+        assert_eq!(read_commit_page(&mut run, count, &document), Step::Done(Ok(expected)));
+        run.assert_sent(requests);
     }
 }
+
+// The incident's 24 commits at eight per page, with a two-parent newest commit.
+const RANGE_COMMITS: u32 = 24;
+const RANGE_PAGE: u32 = 8;
+const LONG_RANGE_BOUNDS: Bounds = Bounds { page_size: RANGE_PAGE, rows: RANGE_PAGE, ..BOUNDS };
+// The 24 wire rows, each under 150 bytes except for the merge's extra parent.
+const LONG_RANGE_DOCUMENT_BYTES: u32 = 4096;
+const RANGE_MESSAGE: &[u8] = b"commit\n";
+// Eight native commit slots, nine parents and eight whole messages.
+const NEWEST_PAGE_BYTES: u32 = 8 * 64 + 9 * 32 + 8 * 7;
+
+fn long_range_id(ordinal: u32) -> api::Commit {
+    let mut id = [0; 32];
+    *id.get_mut(1).expect("id has 32 bytes") = u8::try_from(ordinal).expect("fixture ordinal fits");
+    id
+}
+
+fn long_range_value(ordinal: u32) -> api::CommitMessage {
+    let parent = if ordinal == 1 { BASE } else { long_range_id(ordinal.saturating_sub(1)) };
+    let parents: Box<[api::Commit]> =
+        if ordinal == RANGE_COMMITS { Box::new([BASE, parent]) } else { Box::new([parent]) };
+    api::CommitMessage { id: long_range_id(ordinal), parents, message: Box::from(RANGE_MESSAGE) }
+}
+
+fn long_range_limits() -> crate::forgejo::limits::Limits {
+    let mut limits = range_limits();
+    limits.writer.length = LONG_RANGE_DOCUMENT_BYTES;
+    limits.json.length = LONG_RANGE_DOCUMENT_BYTES;
+    limits
+}
+
+fn wire_id(bytes: api::Commit) -> crate::forgejo::id::ObjectId {
+    crate::forgejo::id::ObjectId { bytes, format: crate::forgejo::id::ObjectFormat::Sha1 }
+}
+
+fn wire_commit(value: api::CommitMessage) -> d::CommitMessage {
+    // The fixtures have at most two parents per commit.
+    const PARENTS: u32 = 2;
+    let mut parents = List::with_capacity(PARENTS);
+    for id in &value.parents {
+        parents.push(wire_id(*id)).expect("fixture parents");
+    }
+    d::CommitMessage { id: wire_id(value.id), parents: parents.into_boxed(), message: value.message }
+}
+
+fn long_range_document() -> Box<[u8]> {
+    let mut commits = List::with_capacity(RANGE_COMMITS);
+    for ordinal in (1..=RANGE_COMMITS).rev() {
+        commits.push(wire_commit(long_range_value(ordinal))).expect("fixture commits");
+    }
+    server::encode(&server::Answer::Commits { commits: commits.into_boxed() }, &long_range_limits())
+        .expect("long range fits")
+}
+
+fn long_range_run(page: u32, bounds: Bounds) -> Run {
+    Run::with_limits(long_range_limits(), bounds, Op::Read(Read::Commits { before: BASE, after: HEAD, page }))
+}
+
+fn long_range_page(first: u32, last: u32, more: bool) -> Step {
+    let mut commits = List::with_capacity(RANGE_PAGE);
+    for ordinal in first..=last {
+        commits.push(long_range_value(ordinal)).expect("fixture page");
+    }
+    Step::Done(Ok(Answer::Commits { commits: commits.into_boxed(), more }))
+}
+
+// The count probe needs no commit fields, even when the commits precede the count.
+const LONG_RANGE_COUNT: &[u8] = br#"{"commits":[{"commit":{"message":"this message is longer than the decoder cap"}}],"total_commits":24,"files":[]}"#;
+
 #[test]
-fn a_commit_page_past_the_range_bound_is_refused() {
-    let mut run = known(Op::Read(Read::Commits { before: BASE, after: HEAD, page: ROWS }));
-    let Step::Done(Err(Error::TooLarge(_))) = run.begin() else {
-        panic!("expected a typed size refusal");
-    };
+fn a_long_commit_range_answers_every_page_oldest_first() {
+    let document = long_range_document();
+    for (page, count, requests, expected) in [
+        (1, None, [COMMITS_GET].as_slice(), long_range_page(1, 8, true)),
+        (2, Some(LONG_RANGE_COUNT), [COMMITS_GET; 2].as_slice(), long_range_page(9, 16, true)),
+        (3, Some(LONG_RANGE_COUNT), [COMMITS_GET; 2].as_slice(), long_range_page(17, 24, false)),
+    ] {
+        let mut run = long_range_run(page, LONG_RANGE_BOUNDS);
+        assert_eq!(read_commit_page(&mut run, count, &document), expected, "page {page}");
+        run.assert_sent(requests);
+    }
+}
+
+#[test]
+fn a_later_commit_page_needs_only_its_own_bytes() {
+    let document = long_range_document();
+    let mut run = long_range_run(3, Bounds { answer_bytes: NEWEST_PAGE_BYTES, ..LONG_RANGE_BOUNDS });
+    assert_eq!(read_commit_page(&mut run, Some(LONG_RANGE_COUNT), &document), long_range_page(17, 24, false));
+}
+
+#[test]
+fn a_later_commit_page_refuses_its_own_excess() {
+    let document = long_range_document();
+    for (bounds, excess) in [
+        (
+            Bounds { answer_bytes: NEWEST_PAGE_BYTES - 1, ..LONG_RANGE_BOUNDS },
+            Excess::at_least(api::Bound::AnswerBytes, u64::from(NEWEST_PAGE_BYTES - 1), u64::from(NEWEST_PAGE_BYTES)),
+        ),
+        (
+            Bounds { rows: RANGE_PAGE - 1, ..LONG_RANGE_BOUNDS },
+            Excess::at_least(api::Bound::Rows, u64::from(RANGE_PAGE - 1), u64::from(RANGE_PAGE)),
+        ),
+    ] {
+        let mut run = long_range_run(3, bounds);
+        assert_eq!(
+            read_commit_page(&mut run, Some(LONG_RANGE_COUNT), &document),
+            Step::Done(Err(Error::TooLarge(excess)))
+        );
+    }
+}
+
+#[test]
+fn a_commit_page_past_the_range_ends_after_counting() {
+    for page in [4, u32::MAX] {
+        let mut run = long_range_run(page, LONG_RANGE_BOUNDS);
+        assert_eq!(
+            read_commit_page(&mut run, Some(LONG_RANGE_COUNT), b""),
+            Step::Done(Ok(Answer::Commits { commits: Box::new([]), more: false })),
+        );
+        run.assert_sent(&[COMMITS_GET]);
+    }
+}
+
+#[test]
+fn the_two_commit_passes_must_agree_on_the_total() {
+    // Both bodies report a count, but only the second's rows matter.
+    const FIRST_COUNT: &[u8] = br#"{"total_commits":25,"commits":[],"files":[]}"#;
+    let mut run = long_range_run(3, LONG_RANGE_BOUNDS);
+    assert_eq!(
+        read_commit_page(&mut run, Some(FIRST_COUNT), &long_range_document()),
+        Step::Done(Err(Error::InvalidAnswer)),
+    );
+    run.assert_sent(&[COMMITS_GET; 2]);
+}
+
+#[test]
+fn later_commit_pages_skip_both_sides_of_their_window() {
+    // Only the middle wire row fits the decoder's message bound. The count follows the rows.
+    const DOCUMENT: &[u8] = br#"{"commits":[{"sha":"0200000000000000000000000000000000000000","parents":[],"commit":{"message":"newer message past the body cap"}},{"sha":"0100000000000000000000000000000000000000","parents":[{"sha":"0300000000000000000000000000000000000000"}],"commit":{"message":"second\n"}},{"sha":"0300000000000000000000000000000000000000","parents":[],"commit":{"message":"older message past the body cap"}}],"total_commits":3,"files":[]}"#;
+    let [_, middle, _] = range_values();
+    let bounds = Bounds { page_size: 1, ..BOUNDS };
+    let mut run =
+        Run::with_limits(range_limits(), bounds, Op::Read(Read::Commits { before: BASE, after: HEAD, page: 2 }));
+    assert_eq!(
+        read_commit_page(&mut run, Some(DOCUMENT), DOCUMENT),
+        Step::Done(Ok(Answer::Commits { commits: Box::new([middle]), more: true })),
+    );
 }
 // Three native commit slots, three parent ids, and these whole messages.
 const RANGE_BYTES: u32 = 192 + 96 + 22 + 7 + 23;
@@ -437,22 +587,16 @@ fn a_range_past_the_answer_keeps_its_oldest_commits() {
     };
     skein_rows::check(
         [
-            (
-                "all_three_at_the_answer_bound",
-                (crate::forgejo::plans::plan::Bounds { answer_bytes: RANGE_BYTES, ..BOUNDS }, 1, oldest_page()),
-            ),
+            ("all_three_at_the_answer_bound", (Bounds { answer_bytes: RANGE_BYTES, ..BOUNDS }, 1, oldest_page())),
             (
                 "one_byte_under_keeps_the_oldest_two",
-                (crate::forgejo::plans::plan::Bounds { answer_bytes: RANGE_BYTES - 1, ..BOUNDS }, 1, oldest_page()),
+                (Bounds { answer_bytes: RANGE_BYTES - 1, ..BOUNDS }, 1, oldest_page()),
             ),
-            (
-                "two_rows_keep_the_oldest_two",
-                (crate::forgejo::plans::plan::Bounds { rows: 2, ..BOUNDS }, 1, oldest_page()),
-            ),
+            ("two_rows_keep_the_oldest_two", (Bounds { rows: 2, ..BOUNDS }, 1, oldest_page())),
             (
                 "only_the_oldest_kept_holds_no_whole_page",
                 (
-                    crate::forgejo::plans::plan::Bounds { answer_bytes: OLDEST_TWO_BYTES - 1, ..BOUNDS },
+                    Bounds { answer_bytes: OLDEST_TWO_BYTES - 1, ..BOUNDS },
                     1,
                     Step::Done(Err(Error::TooLarge(Excess::at_least(
                         api::Bound::AnswerBytes,
@@ -464,7 +608,7 @@ fn a_range_past_the_answer_keeps_its_oldest_commits() {
             (
                 "the_oldest_alone_past_the_answer",
                 (
-                    crate::forgejo::plans::plan::Bounds { answer_bytes: OLDEST_BYTES - 1, ..BOUNDS },
+                    Bounds { answer_bytes: OLDEST_BYTES - 1, ..BOUNDS },
                     1,
                     Step::Done(Err(Error::TooLarge(Excess::at_least(
                         api::Bound::AnswerBytes,
@@ -474,26 +618,23 @@ fn a_range_past_the_answer_keeps_its_oldest_commits() {
                 ),
             ),
             (
-                "page_two_past_two_rows_is_refused_before_sending",
+                "page_two_fits_two_rows",
                 (
-                    crate::forgejo::plans::plan::Bounds { rows: 2, ..BOUNDS },
+                    Bounds { rows: 2, ..BOUNDS },
                     2,
-                    Step::Done(Err(Error::TooLarge(Excess::at_least(api::Bound::Rows, 2, 3)))),
+                    Step::Done(Ok(Answer::Commits {
+                        commits: Box::new([range_values().into_iter().last().expect("merge fixture")]),
+                        more: false,
+                    })),
                 ),
             ),
         ],
         |(bounds, page, expected)| {
             let mut run =
                 Run::with_limits(range_limits(), bounds, Op::Read(Read::Commits { before: BASE, after: HEAD, page }));
-            let begun = run.begin();
-            let answer = match begun {
-                Step::Send(_) => run.answer(200, &server_answer(&range_document())),
-                Step::Done(_) => {
-                    run.assert_sent(&[]);
-                    begun
-                }
-            };
-            assert_eq!(answer, expected);
+            let document = server_answer(&range_document());
+            let count = (page > 1).then_some(document.as_ref());
+            assert_eq!(read_commit_page(&mut run, count, &document), expected);
         },
     );
 }

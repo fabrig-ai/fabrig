@@ -21,8 +21,23 @@ pub fn start(file: &File, shape: Shape) -> serde_json::Value {
 
 #[must_use]
 pub fn parse(text: &[u8], shape: Shape) -> temper_config_shell::Read {
-    let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+    parse_with_key(text, shape, false)
+}
+
+pub(crate) fn parse_with_key(text: &[u8], shape: Shape, provider_key: bool) -> temper_config_shell::Read {
+    let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key };
     temper_config_shell::parse(text, shape, &facts).expect("fixture file")
+}
+
+/// Render an engine template for admission with explicitly bound facts.
+#[must_use]
+pub fn engine_template(path: &Path, escaped: bool, bindings: &[(&str, &str)]) -> serde_json::Value {
+    let text = std::fs::read_to_string(path).expect("engine template");
+    let mut text = if escaped { text.replace("{{", "{").replace("}}", "}") } else { text };
+    for (name, value) in bindings {
+        text = text.replace(&format!("{{{name}}}"), value);
+    }
+    serde_json::from_slice(&parse(text.as_bytes(), Shape::EngineAlone).document).expect("template start")
 }
 
 /// Turn measurements retain model declarations with inert direct endpoints.
@@ -177,7 +192,6 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
         ("hub.transcript_bytes", 16_777_216),
         ("hub.turn_bytes", 1_327_470),
         ("hub.turn_queue_bytes", 10_619_760),
-        ("hub.turns", 1),
         ("io.output", if turn { 1_327_857 } else { 1_328_262 }),
         ("link.ping_ms", 100),
         ("link.silence_ms", 1000),
@@ -224,6 +238,7 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
     ] {
         value.jig_over(name, figure);
     }
+    cluster_agent_limits(value, &temper_service::stock::agents());
     let grace = temper_service::startup::worker_fleet_grace(&value.jig);
     value.jig_over("fleet.grace_ms", grace.as_millis());
     if !github {
@@ -255,6 +270,15 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
     if turn {
         value.temper_over("forge.client.poll_ms", 50);
     }
+}
+
+/// The worker and its fleet must agree on the window the agent offers at hello.
+pub(crate) fn cluster_agent_limits(
+    value: &mut temper_playground::documents::Configuration,
+    agents: &temper_client_protocol_wire::v1::AgentFigures,
+) {
+    let turns = agents.profile.iter().find(|figure| figure.name.as_ref() == b"policy.unacknowledged");
+    value.jig_over("hub.turns", turns.expect("cluster agents' unacknowledged turns").value);
 }
 
 /// All directories are explicit and belong to this fixture's scratch.

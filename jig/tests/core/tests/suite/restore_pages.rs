@@ -1,4 +1,4 @@
-//! Public cold-restore page scheduling (`domain/testing.md`, sections 4 and 7).
+//! Public cold-restore page scheduling (`domain/testing.md`, section 4, and `domain/testing-fakes.md`, section 1).
 
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures::sign_in as signin;
@@ -107,16 +107,15 @@ fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer
     world.hold_restart_reads = true;
     world.finish_restore_pages();
     assert_eq!(world.store.rows, with_start_mark(&rows), "whole original restored facts and the start's mark");
-    assert!(!world.domain.ready());
+    assert!(world.domain.ready(), "fresh reads do not hold the opening");
+    assert!(!world.domain.core_mut().caught_up(1));
     let applied = world.store.applied;
-    let commits = world.commits.len();
     world.send(ask(&world, sign_in, 7101));
-    assert_eq!(reply(&mut world, 7101).1, people::Reply::Again(people::Again::NotReady));
+    let answered = reply(&mut world, 7101).1;
+    assert!(matches!(answered, people::Reply::Outcome(people::Outcome::Created { .. })));
     world.send(self::sign_in(7102));
-    assert_eq!(reply(&mut world, 7102).1, people::Reply::Again(people::Again::NotReady));
-    assert_eq!(world.store.applied, applied);
-    assert_eq!(world.commits.len(), commits);
-    assert_eq!(world.store.rows, with_start_mark(&rows));
+    assert!(matches!(reply(&mut world, 7102).1, people::Reply::SignedIn { .. }));
+    assert!(world.store.applied > applied, "both decisions commit while the connector catches up");
     world.hold_restart_reads = false;
     world.drain();
     assert!(world.domain.ready());
@@ -158,7 +157,7 @@ fn paused_polls_preserve_multiple_whole_pages_and_repeated_release_is_safe() {
     assert!(!world.trace[trace_start..].iter().any(|line| line.starts_with("store page")));
     world.finish_restore_pages();
     assert!(!world.store.loading());
-    assert_eq!(world.restart_steps.last(), Some(&core::start::Phase::ReadAfresh { connector: 2 }));
+    assert_eq!(world.restart_steps.last(), Some(&core::start::Phase::Switch));
     let rows = with_start_mark(&rows);
     assert_eq!(world.store.rows, rows);
     let pages: Vec<_> =
@@ -231,8 +230,6 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
     world.finish_restore_pages();
     assert!(world.domain.ready());
     let marked = with_start_mark(&rows);
-    assert_eq!(world.store.rows, marked, "the captured start precedes expiry; runtime deadlines wait for Open");
-    world.advance(Duration::ZERO);
     let mut expected = rows;
     assert!(expected.remove(&root::Key::Core(core::Key::People(people::Key::SignIn(sign_in)))).is_some());
     let header = expected
@@ -244,10 +241,15 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
         .expect("whole original deployment header");
     assert_eq!(header.commits, applied);
     header.commits += 2;
-    assert_eq!(world.store.rows, expected, "the runtime deadline erases the expired sign-in after Open");
+    assert_eq!(
+        world.store.rows, expected,
+        "the settled restore fires the expired sign-in's runtime deadline after Open"
+    );
+    world.advance(Duration::ZERO);
+    assert_eq!(world.store.rows, expected, "the expired sign-in is already erased before explicit advancement");
     let snapshots = world.store_peer.as_mut().expect("store peer").take();
     assert_eq!(snapshots.len(), 2);
-    assert_eq!(snapshots[0].rows, marked);
+    assert_eq!(snapshots[0].rows, marked, "the captured start precedes expiry");
     assert_eq!(snapshots[0].commit, applied + 1);
     assert_eq!(snapshots[1].rows, world.store.rows);
     assert_eq!(snapshots[1].commit, world.store.applied);

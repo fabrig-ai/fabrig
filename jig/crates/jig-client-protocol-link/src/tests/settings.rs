@@ -12,419 +12,419 @@ use skein_lib::{List, Writer};
 fn every_new_record_translates_in_both_directions() {
     let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     {
-        let bytes = client_values::value("record_setting_number_smallest.bin");
+        let bytes = client_values::fixed_value("record_setting_number_smallest.bin");
         let wire = w::SettingNumber::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_number(&wire).unwrap();
-        assert_eq!(t::wire_setting_number(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting_number(&wire);
+        assert_eq!(t::wire_setting_number(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_charter_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_charter_smallest.bin");
         let wire = w::Setting::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting(&wire).unwrap();
-        assert_eq!(t::wire_setting(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting(&wire);
+        assert_eq!(t::wire_setting(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_template_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_template_smallest.bin");
         let wire = w::Setting::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting(&wire).unwrap();
-        assert_eq!(t::wire_setting(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting(&wire);
+        assert_eq!(t::wire_setting(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_policy_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_policy_smallest.bin");
         let wire = w::Setting::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting(&wire).unwrap();
-        assert_eq!(t::wire_setting(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting(&wire);
+        assert_eq!(t::wire_setting(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_rules_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_rules_smallest.bin");
         let wire = w::Setting::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting(&wire).unwrap();
-        assert_eq!(t::wire_setting(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting(&wire);
+        assert_eq!(t::wire_setting(&client), wire);
     }
     {
-        let bytes = client_values::value("record_setting_model_smallest.bin");
+        let bytes = client_values::fixed_value("record_setting_model_smallest.bin");
         let wire = w::SettingModel::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_model(&wire).unwrap();
-        assert_eq!(t::wire_setting_model(&client, limits.wire()), Ok(wire));
+        assert_eq!(t::wire_setting_model(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_hosts_workers_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_hosts_workers_smallest.bin");
         let wire = w::SettingHosts::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_hosts(&wire).unwrap();
-        assert_eq!(t::wire_setting_hosts(&client), Ok(wire));
+        let client = t::restore_setting_hosts(&wire);
+        assert_eq!(t::wire_setting_hosts(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_hosts_engine_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_hosts_engine_smallest.bin");
         let wire = w::SettingHosts::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_hosts(&wire).unwrap();
-        assert_eq!(t::wire_setting_hosts(&client), Ok(wire));
+        let client = t::restore_setting_hosts(&wire);
+        assert_eq!(t::wire_setting_hosts(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_hosts_both_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_hosts_both_smallest.bin");
         let wire = w::SettingHosts::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_hosts(&wire).unwrap();
-        assert_eq!(t::wire_setting_hosts(&client), Ok(wire));
+        let client = t::restore_setting_hosts(&wire);
+        assert_eq!(t::wire_setting_hosts(&client), wire);
     }
     {
-        let bytes = client_values::value("record_charter_smallest.bin");
+        let bytes = client_values::fixed_value("record_charter_smallest.bin");
         let wire = w::Charter::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_charter(&wire).unwrap();
-        assert_eq!(t::wire_charter(&client, limits.wire()), Ok(wire));
+        assert_eq!(t::wire_charter(&client), wire);
     }
     {
-        let bytes = client_values::value("record_setting_policy_smallest.bin");
+        let bytes = client_values::fixed_value("record_setting_policy_smallest.bin");
         let wire = w::SettingPolicy::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_policy(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_policy(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_rules_smallest.bin");
+        let bytes = client_values::fixed_value("record_rules_smallest.bin");
         let wire = w::Rules::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_rules(&wire, &limits).unwrap();
         assert_eq!(t::wire_rules(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_setting_value_charter_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_value_charter_smallest.bin");
         let wire = w::SettingValue::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_value(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_value(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_setting_value_template_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_value_template_smallest.bin");
         let wire = w::SettingValue::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_value(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_value(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_setting_value_policy_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_value_policy_smallest.bin");
         let wire = w::SettingValue::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_value(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_value(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_setting_value_rules_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_value_rules_smallest.bin");
         let wire = w::SettingValue::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_value(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_value(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_setting_set_smallest.bin");
+        let bytes = client_values::fixed_value("record_setting_set_smallest.bin");
         let wire = w::SettingSet::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_set(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_set(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_setting_edit_set_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_edit_set_smallest.bin");
         let wire = w::SettingEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_edit(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_edit(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_setting_edit_removed_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_edit_removed_smallest.bin");
         let wire = w::SettingEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_edit(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_edit(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_setting_edit_reset_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_edit_reset_smallest.bin");
         let wire = w::SettingEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_edit(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_edit(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_setting_item_smallest.bin");
+        let bytes = client_values::fixed_value("record_setting_item_smallest.bin");
         let wire = w::SettingItem::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_item(&wire, &limits).unwrap();
         assert_eq!(t::wire_setting_item(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_running_stays_smallest.bin");
+        let bytes = client_values::fixed_value("enum_running_stays_smallest.bin");
         let wire = w::Running::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_running(&wire).unwrap();
-        assert_eq!(t::wire_running(&client), Ok(wire));
+        let client = t::restore_running(&wire);
+        assert_eq!(t::wire_running(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_running_moves_smallest.bin");
+        let bytes = client_values::fixed_value("enum_running_moves_smallest.bin");
         let wire = w::Running::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_running(&wire).unwrap();
-        assert_eq!(t::wire_running(&client), Ok(wire));
+        let client = t::restore_running(&wire);
+        assert_eq!(t::wire_running(&client), wire);
     }
     {
-        let bytes = client_values::value("record_change_settings_smallest.bin");
+        let bytes = client_values::fixed_value("record_change_settings_smallest.bin");
         let wire = w::ChangeSettings::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_change_settings(&wire, &limits).unwrap();
         assert_eq!(t::wire_change_settings(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_outcome_settings_changed_smallest.bin");
+        let bytes = client_values::fixed_value("record_outcome_settings_changed_smallest.bin");
         let wire = w::OutcomeSettingsChanged::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_outcome_settings_changed(&wire).unwrap();
-        assert_eq!(e::wire_outcome_settings_changed(&client, limits.wire()), Ok(wire));
+        let client = t::restore_outcome_settings_changed(&wire);
+        assert_eq!(e::wire_outcome_settings_changed(&client), wire);
     }
     {
-        let bytes = client_values::value("record_refusal_stale_smallest.bin");
+        let bytes = client_values::fixed_value("record_refusal_stale_smallest.bin");
         let wire = w::RefusalStale::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_refusal_stale(&wire).unwrap();
-        assert_eq!(e::wire_refusal_stale(&client, limits.wire()), Ok(wire));
+        let client = t::restore_refusal_stale(&wire);
+        assert_eq!(e::wire_refusal_stale(&client), wire);
     }
     {
-        let bytes = client_values::value("record_refusal_full_smallest.bin");
+        let bytes = client_values::fixed_value("record_refusal_full_smallest.bin");
         let wire = w::RefusalFull::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_refusal_full(&wire).unwrap();
-        assert_eq!(e::wire_refusal_full(&client, limits.wire()), Ok(wire));
+        let client = t::restore_refusal_full(&wire);
+        assert_eq!(e::wire_refusal_full(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_shape_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_shape_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        let client = t::restore_setting_fault(&wire);
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_count_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_count_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        let client = t::restore_setting_fault(&wire);
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_reference_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_reference_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        let client = t::restore_setting_fault(&wire);
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_rules_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_rules_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        let client = t::restore_setting_fault(&wire);
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_budget_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_budget_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        let client = t::restore_setting_fault(&wire);
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_grace_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_grace_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        let client = t::restore_setting_fault(&wire);
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_owner_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_owner_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        let client = t::restore_setting_fault(&wire);
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_fault_range_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_fault_range_smallest.bin");
         let wire = w::SettingFault::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_fault(&wire).unwrap();
+        let client = t::restore_setting_fault(&wire);
         assert_eq!(client, c::SettingFault::Range);
-        assert_eq!(e::wire_setting_fault(&client), Ok(wire));
+        assert_eq!(e::wire_setting_fault(&client), wire);
     }
     {
-        let bytes = client_values::value("record_malformed_settings_smallest.bin");
+        let bytes = client_values::fixed_value("record_malformed_settings_smallest.bin");
         let wire = w::MalformedSettings::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_malformed_settings(&wire).unwrap();
-        assert_eq!(e::wire_malformed_settings(&client, limits.wire()), Ok(wire));
+        let client = t::restore_malformed_settings(&wire);
+        assert_eq!(e::wire_malformed_settings(&client), wire);
     }
     {
-        let bytes = client_values::value("record_read_setting_smallest.bin");
+        let bytes = client_values::fixed_value("record_read_setting_smallest.bin");
         let wire = w::ReadSetting::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = e::restore_read_setting(&wire).unwrap();
-        assert_eq!(t::wire_read_setting(&client, limits.wire()), Ok(wire));
+        let client = e::restore_read_setting(&wire);
+        assert_eq!(t::wire_read_setting(&client), wire);
     }
     {
-        let bytes = client_values::value("record_read_revision_smallest.bin");
+        let bytes = client_values::fixed_value("record_read_revision_smallest.bin");
         let wire = w::ReadRevision::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = e::restore_read_revision(&wire).unwrap();
-        assert_eq!(t::wire_read_revision(&client, limits.wire()), Ok(wire));
+        let client = e::restore_read_revision(&wire);
+        assert_eq!(t::wire_read_revision(&client), wire);
     }
     {
-        let bytes = client_values::value("record_read_revisions_smallest.bin");
+        let bytes = client_values::fixed_value("record_read_revisions_smallest.bin");
         let wire = w::ReadRevisions::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = e::restore_read_revisions(&wire).unwrap();
-        assert_eq!(t::wire_read_revisions(&client, limits.wire()), Ok(wire));
+        let client = e::restore_read_revisions(&wire);
+        assert_eq!(t::wire_read_revisions(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_follows_default_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_follows_default_smallest.bin");
         let wire = w::SettingFollows::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_follows(&wire).unwrap();
-        assert_eq!(e::wire_setting_follows(&client), Ok(wire));
+        let client = t::restore_setting_follows(&wire);
+        assert_eq!(e::wire_setting_follows(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_setting_follows_change_smallest.bin");
+        let bytes = client_values::fixed_value("enum_setting_follows_change_smallest.bin");
         let wire = w::SettingFollows::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_setting_follows(&wire).unwrap();
-        assert_eq!(e::wire_setting_follows(&client), Ok(wire));
+        let client = t::restore_setting_follows(&wire);
+        assert_eq!(e::wire_setting_follows(&client), wire);
     }
     {
-        let bytes = client_values::value("record_setting_line_smallest.bin");
+        let bytes = client_values::fixed_value("record_setting_line_smallest.bin");
         let wire = w::SettingLine::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_line(&wire, &limits).unwrap();
-        assert_eq!(e::wire_setting_line(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_setting_line(&client), wire);
     }
     {
-        let bytes = client_values::value("record_revision_party_smallest.bin");
+        let bytes = client_values::fixed_value("record_revision_party_smallest.bin");
         let wire = w::RevisionParty::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_party(&wire).unwrap();
-        assert_eq!(e::wire_revision_party(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_party(&wire);
+        assert_eq!(e::wire_revision_party(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_revision_decider_first_start_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_decider_first_start_smallest.bin");
         let wire = w::RevisionDecider::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_decider(&wire).unwrap();
-        assert_eq!(e::wire_revision_decider(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_decider(&wire);
+        assert_eq!(e::wire_revision_decider(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_revision_decider_release_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_decider_release_smallest.bin");
         let wire = w::RevisionDecider::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_decider(&wire).unwrap();
-        assert_eq!(e::wire_revision_decider(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_decider(&wire);
+        assert_eq!(e::wire_revision_decider(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_revision_decider_party_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_decider_party_smallest.bin");
         let wire = w::RevisionDecider::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_decider(&wire).unwrap();
-        assert_eq!(e::wire_revision_decider(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_decider(&wire);
+        assert_eq!(e::wire_revision_decider(&client), wire);
     }
     {
-        let bytes = client_values::value("record_revision_head_smallest.bin");
+        let bytes = client_values::fixed_value("record_revision_head_smallest.bin");
         let wire = w::RevisionHead::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_head(&wire).unwrap();
-        assert_eq!(e::wire_revision_head(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_head(&wire);
+        assert_eq!(e::wire_revision_head(&client), wire);
     }
     {
-        let bytes = client_values::value("record_held_revision_smallest.bin");
+        let bytes = client_values::fixed_value("record_held_revision_smallest.bin");
         let wire = w::HeldRevision::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_held_revision(&wire).unwrap();
-        assert_eq!(e::wire_held_revision(&client, limits.wire()), Ok(wire));
+        let client = t::restore_held_revision(&wire);
+        assert_eq!(e::wire_held_revision(&client), wire);
     }
     {
-        let bytes = client_values::value("record_settings_proposal_smallest.bin");
+        let bytes = client_values::fixed_value("record_settings_proposal_smallest.bin");
         let wire = w::SettingsProposal::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_settings_proposal(&wire).unwrap();
-        assert_eq!(e::wire_settings_proposal(&client, limits.wire()), Ok(wire));
+        let client = t::restore_settings_proposal(&wire);
+        assert_eq!(e::wire_settings_proposal(&client), wire);
     }
     {
-        let bytes = client_values::value("record_settings_document_smallest.bin");
+        let bytes = client_values::fixed_value("record_settings_document_smallest.bin");
         let wire = w::SettingsDocument::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_settings_document(&wire, &limits).unwrap();
-        assert_eq!(e::wire_settings_document(&client, limits.wire()), Ok(wire));
+        assert_eq!(e::wire_settings_document(&client), wire);
     }
     {
-        let bytes = client_values::value("record_setting_document_smallest.bin");
+        let bytes = client_values::fixed_value("record_setting_document_smallest.bin");
         let wire = w::SettingDocument::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_setting_document(&wire, &limits).unwrap();
         assert_eq!(e::wire_setting_document(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_size_smallest.bin");
+        let bytes = client_values::fixed_value("record_size_smallest.bin");
         let wire = w::Size::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_size(&wire).unwrap();
-        assert_eq!(e::wire_size(&client, limits.wire()), Ok(wire));
+        let client = t::restore_size(&wire);
+        assert_eq!(e::wire_size(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_revision_edit_set_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_edit_set_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_revision_edit_too_large_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_edit_too_large_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_revision_edit_removed_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_edit_removed_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_revision_edit_reset_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_edit_reset_smallest.bin");
         let wire = w::RevisionEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_edit(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_edit(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_revision_item_smallest.bin");
+        let bytes = client_values::fixed_value("record_revision_item_smallest.bin");
         let wire = w::RevisionItem::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_item(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_item(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_revision_document_smallest.bin");
+        let bytes = client_values::fixed_value("record_revision_document_smallest.bin");
         let wire = w::RevisionDocument::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_document(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_document(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_revision_forgotten_smallest.bin");
+        let bytes = client_values::fixed_value("record_revision_forgotten_smallest.bin");
         let wire = w::RevisionForgotten::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_forgotten(&wire).unwrap();
-        assert_eq!(e::wire_revision_forgotten(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_forgotten(&wire);
+        assert_eq!(e::wire_revision_forgotten(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_revision_answer_revision_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_answer_revision_smallest.bin");
         let wire = w::RevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_answer(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_revision_answer_forgotten_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_answer_forgotten_smallest.bin");
         let wire = w::RevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_answer(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_revision_answer_unknown_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_answer_unknown_smallest.bin");
         let wire = w::RevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = t::restore_revision_answer(&wire, &limits).unwrap();
         assert_eq!(e::wire_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("record_read_revision_answer_smallest.bin");
+        let bytes = client_values::fixed_value("record_read_revision_answer_smallest.bin");
         let wire = w::ReadRevisionAnswer::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
         let client = e::restore_read_revision_answer(&wire, &limits).unwrap();
         assert_eq!(e::wire_read_revision_answer(&client, limits.wire()), Ok(wire));
     }
     {
-        let bytes = client_values::value("enum_revision_item_edit_set_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_item_edit_set_smallest.bin");
         let wire = w::RevisionItemEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_item_edit(&wire).unwrap();
-        assert_eq!(e::wire_revision_item_edit(&client), Ok(wire));
+        let client = t::restore_revision_item_edit(&wire);
+        assert_eq!(e::wire_revision_item_edit(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_revision_item_edit_removed_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_item_edit_removed_smallest.bin");
         let wire = w::RevisionItemEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_item_edit(&wire).unwrap();
-        assert_eq!(e::wire_revision_item_edit(&client), Ok(wire));
+        let client = t::restore_revision_item_edit(&wire);
+        assert_eq!(e::wire_revision_item_edit(&client), wire);
     }
     {
-        let bytes = client_values::value("enum_revision_item_edit_reset_smallest.bin");
+        let bytes = client_values::fixed_value("enum_revision_item_edit_reset_smallest.bin");
         let wire = w::RevisionItemEdit::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_item_edit(&wire).unwrap();
-        assert_eq!(e::wire_revision_item_edit(&client), Ok(wire));
+        let client = t::restore_revision_item_edit(&wire);
+        assert_eq!(e::wire_revision_item_edit(&client), wire);
     }
     {
-        let bytes = client_values::value("record_revision_item_head_smallest.bin");
+        let bytes = client_values::fixed_value("record_revision_item_head_smallest.bin");
         let wire = w::RevisionItemHead::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_item_head(&wire).unwrap();
-        assert_eq!(e::wire_revision_item_head(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_item_head(&wire);
+        assert_eq!(e::wire_revision_item_head(&client), wire);
     }
     {
-        let bytes = client_values::value("record_revision_row_smallest.bin");
+        let bytes = client_values::fixed_value("record_revision_row_smallest.bin");
         let wire = w::RevisionRow::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revision_row(&wire).unwrap();
-        assert_eq!(e::wire_revision_row(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revision_row(&wire);
+        assert_eq!(e::wire_revision_row(&client), wire);
     }
     {
-        let bytes = client_values::value("record_revisions_page_smallest.bin");
+        let bytes = client_values::fixed_value("record_revisions_page_smallest.bin");
         let wire = w::RevisionsPage::decode(limits.wire(), &mut Reader::new(bytes)).unwrap();
-        let client = t::restore_revisions_page(&wire).unwrap();
-        assert_eq!(e::wire_revisions_page(&client, limits.wire()), Ok(wire));
+        let client = t::restore_revisions_page(&wire);
+        assert_eq!(e::wire_revisions_page(&client), wire);
     }
 }
 
@@ -439,14 +439,14 @@ fn whole_values_changes_and_history_keep_every_nonempty_field() {
     let wire = t::wire_change_settings(&change, limits.wire()).unwrap();
     assert_eq!(t::restore_change_settings(&wire, &limits), Ok(change.clone()));
     let document = values::settings_document();
-    let wire = e::wire_settings_document(&document, limits.wire()).unwrap();
+    let wire = e::wire_settings_document(&document);
     assert_eq!(t::restore_settings_document(&wire, &limits), Ok(document));
     let revision = values::settings_revision();
     let wire = e::wire_revision_document(&revision, limits.wire()).unwrap();
     assert_eq!(t::restore_revision_document(&wire, &limits), Ok(revision));
     let page = values::settings_page();
-    let wire = e::wire_revisions_page(&page, limits.wire()).unwrap();
-    assert_eq!(t::restore_revisions_page(&wire), Ok(page));
+    let wire = e::wire_revisions_page(&page);
+    assert_eq!(t::restore_revisions_page(&wire), page);
     for running in [c::Running::Moves, c::Running::Stays] {
         for edit in [c::SettingEdit::Removed, c::SettingEdit::Reset] {
             let mut change = change.clone();
@@ -461,7 +461,7 @@ fn whole_values_changes_and_history_keep_every_nonempty_field() {
 #[test]
 fn settings_change_survives_the_small_store_and_carried_transport() {
     let ask = c::Ask::ChangeSettings(values::settings_change());
-    let saved = fixtures::saved_table(ask.clone());
+    let saved = fixtures::table_record(ask.clone());
     let mut h = fixtures::Harness::new(&fixtures::limits());
     h.start_store(fixtures::one_store_read(fixtures::store_read(saved.clone())));
     assert!(h.restored(&saved));
@@ -559,7 +559,7 @@ fn settings_inventory_round_trips_beyond_a_page_and_at_its_ceiling() {
     let limits = fixtures::limits();
     for count in [STANDARD_SETTINGS, MAX_SETTINGS] {
         let document = settings_inventory(count);
-        let wire = e::wire_settings_document(&document, limits.wire()).unwrap();
+        let wire = e::wire_settings_document(&document);
         let mut encoded = Writer::new(
             usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
@@ -573,13 +573,10 @@ fn settings_inventory_round_trips_beyond_a_page_and_at_its_ceiling() {
 fn settings_inventory_refuses_one_line_past_the_wire_and_receiving_limits() {
     let limits = fixtures::limits();
     let problem = w::Problem { path: w::paths::SETTINGS_DOCUMENT_SETTINGS, reason: skein_codec::Reason::Bound };
-    assert_eq!(
-        e::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()).unwrap().encode(limits.wire()),
-        Err(problem)
-    );
+    assert_eq!(e::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1)).encode(limits.wire()), Err(problem));
     let mut narrow = *limits.wire();
     narrow.settings_document_settings = STANDARD_SETTINGS - 1;
-    let wire = e::wire_settings_document(&settings_inventory(STANDARD_SETTINGS), limits.wire()).unwrap();
+    let wire = e::wire_settings_document(&settings_inventory(STANDARD_SETTINGS));
     let mut encoded = Writer::new(
         usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
@@ -612,23 +609,21 @@ fn move_to_newest_retains_its_revision_and_hears_both_counts() {
 
 #[test]
 fn proposed_setting_read_round_trips_its_exact_proposal_key() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     let client = c::ReadSetting {
         setting: c::Setting::Rules,
         revision: 0,
         proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
     };
-    let wire = t::wire_read_setting(&client, limits.wire()).unwrap();
-    assert_eq!(e::restore_read_setting(&wire), Ok(client));
+    let wire = t::wire_read_setting(&client);
+    assert_eq!(e::restore_read_setting(&wire), client);
 }
 
 #[test]
 fn charter_documents_round_trip_through_the_contract() {
-    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
     let c::SettingValue::Charter(value) = values::settings_values().get(0).unwrap().clone() else {
         panic!("charter");
     };
-    let wire = t::wire_charter(&value, limits.wire()).unwrap();
+    let wire = t::wire_charter(&value);
     assert_eq!(wire.parts.len(), 2);
     assert_eq!(wire.parts.get(0).unwrap().on, 1);
     assert_eq!(wire.parts.get(1).unwrap().instructions.as_ref(), "later part λ".as_bytes());
@@ -637,7 +632,7 @@ fn charter_documents_round_trip_through_the_contract() {
     assert_eq!(wire.documents.get(1).unwrap().heading.as_deref(), Some(b"Rules".as_slice()));
     let restored = t::restore_charter(&wire).unwrap();
     assert_eq!(restored, *value);
-    assert_eq!(t::wire_charter(&restored, limits.wire()), Ok(wire));
+    assert_eq!(t::wire_charter(&restored), wire);
 }
 
 #[test]
@@ -655,7 +650,7 @@ fn charter_documents_and_parts_use_the_clients_row_and_name_bounds() {
     let mut wire_limits = w::CEILINGS;
     for (count, accepted) in [(2, true), (1, false)] {
         wire_limits.charter_parts = count;
-        assert_eq!(t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).is_ok(), accepted);
+        assert_eq!(t::wire_charter(&value).encode(&wire_limits).is_ok(), accepted);
     }
     wire_limits.charter_parts = 2;
     let instructions = value.parts.get(0).unwrap().instructions.bytes().len();
@@ -663,30 +658,21 @@ fn charter_documents_and_parts_use_the_clients_row_and_name_bounds() {
         wire_limits.charter_part_instructions = u32::try_from(bytes).unwrap();
         // The other part uses the same bound.
         value.parts.get_mut(1).unwrap().instructions = value.parts.get(0).unwrap().instructions.clone();
-        assert_eq!(t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).is_ok(), accepted);
+        assert_eq!(t::wire_charter(&value).encode(&wire_limits).is_ok(), accepted);
     }
     wire_limits.charter_part_instructions = w::CEILINGS.charter_part_instructions;
     wire_limits.charter_documents = 2;
     wire_limits.charter_document_name = 2;
     wire_limits.charter_document_name_item = 8;
-    t::wire_charter(&value, &wire_limits).unwrap();
+    drop(t::wire_charter(&value));
     *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"123456789".as_slice());
-    assert_eq!(
-        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
-        w::paths::CHARTER_DOCUMENT_NAME
-    );
+    assert_eq!(t::wire_charter(&value).encode(&wire_limits).unwrap_err().path, w::paths::CHARTER_DOCUMENT_NAME);
     *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"resource".as_slice());
     wire_limits.charter_document_name = 1;
-    assert_eq!(
-        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
-        w::paths::CHARTER_DOCUMENT_NAME
-    );
+    assert_eq!(t::wire_charter(&value).encode(&wire_limits).unwrap_err().path, w::paths::CHARTER_DOCUMENT_NAME);
     wire_limits.charter_document_name = 2;
     wire_limits.charter_documents = 1;
-    assert_eq!(
-        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
-        w::paths::CHARTER_DOCUMENTS
-    );
+    assert_eq!(t::wire_charter(&value).encode(&wire_limits).unwrap_err().path, w::paths::CHARTER_DOCUMENTS);
 }
 
 #[test]
@@ -715,7 +701,7 @@ fn application_items_and_states_round_trip_without_treating_bytes_as_text() {
             last: Some(4),
             application: Some(state),
         };
-        let wire = e::wire_setting_line(&source, limits.wire()).unwrap();
+        let wire = e::wire_setting_line(&source);
         assert_eq!(t::restore_setting_line(&wire, &limits), Ok(source));
     }
 }
@@ -725,7 +711,7 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
     let overlay = values::overlay();
     let limits = Limits::new(jig_client_domain::Limits { rows: 2, ..*fixtures::limits().client() }, 4).unwrap();
     let mut wire_limits = *limits.wire();
-    let wire = t::wire_overlay(&overlay, &wire_limits).unwrap();
+    let wire = t::wire_overlay(&overlay);
     assert_eq!(t::restore_overlay(&wire), Ok(overlay.clone()));
     let mut bytes = Writer::new(
         usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
@@ -747,11 +733,7 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
                 }
             };
             *bound.0 = bound.1 - u32::from(past);
-            assert_eq!(
-                t::wire_overlay(&overlay, &wire_limits).unwrap().encode(&wire_limits).is_ok(),
-                !past,
-                "encode field {field}"
-            );
+            assert_eq!(t::wire_overlay(&overlay).encode(&wire_limits).is_ok(), !past, "encode field {field}");
             assert_eq!(
                 w::Overlay::decode(&wire_limits, &mut Reader::new(&bytes)).is_ok(),
                 !past,
@@ -769,7 +751,7 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
     };
     let wire = e::wire_setting_document(&document, limits.wire()).unwrap();
     assert_eq!(t::restore_setting_document(&wire, &limits), Ok(document));
-    assert_eq!(t::restore_setting_follows(&w::SettingFollows::Overlay), Ok(c::SettingFollows::Overlay));
+    assert_eq!(t::restore_setting_follows(&w::SettingFollows::Overlay), c::SettingFollows::Overlay);
 }
 
 #[test]
@@ -800,8 +782,8 @@ fn limits_kind_and_each_override_cross_the_client_wire_without_loss() {
 fn workers_and_linked_refusals_keep_their_client_identity_and_values() {
     let limits = fixtures::limits();
     let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
-    let wire = t::wire_setting(&setting, limits.wire()).unwrap();
-    assert_eq!(t::restore_setting(&wire).unwrap(), setting);
+    let wire = t::wire_setting(&setting);
+    assert_eq!(t::restore_setting(&wire), setting);
     for digest in [None, Some([9; 32])] {
         let value = c::SettingValue::Worker(Box::new(c::WorkerSetting {
             number: 2,

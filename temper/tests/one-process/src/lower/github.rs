@@ -1,4 +1,4 @@
-//! Installation scope through the simulated service and authenticated git route (temper/docs/design/testing/real-loop.md and temper/docs/design/testing/README.md, 2.5).
+//! Installation scope through the simulated service and authenticated git route (temper/docs/design/testing/real-loop.md and temper/docs/design/testing/tiers.md, 1.5).
 use crate::{
     ctl::{Caller, Command},
     fixtures,
@@ -22,6 +22,9 @@ use temper_playground::{
     machine::{Machine, SignalHost},
     programs,
 };
+mod manifest;
+pub use manifest::{manifest_picker, manifest_push};
+
 const ACME: u64 = 10;
 const UMBRA: u64 = 20;
 const REPOSITORY: u32 = 2;
@@ -47,6 +50,7 @@ pub(crate) fn configure(value: &mut temper_playground::documents::Configuration)
         return;
     }
     value["application"]["test"]["github"] = json!({"api":{"socket":fixtures::FORGE.to_string()},"transport":"plaintext","remote":format!("http://{}",fixtures::FORGE),"web":format!("http://{}",fixtures::FORGE)});
+    manifest::configure(value);
     for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
         for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
             for grant in project.pointer_mut(pointer).expect("grants").as_array_mut().expect("grants") {
@@ -136,6 +140,9 @@ pub(crate) fn peer_with_ci(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
     peer_options(life, true)
 }
 fn peer_options(life: Duration, ci: bool) -> (Rc<RefCell<Forge>>, Peer) {
+    peer_with_readme(life, ci, b"Scope fixture\n")
+}
+fn peer_with_readme(life: Duration, ci: bool, readme: &[u8]) -> (Rc<RefCell<Forge>>, Peer) {
     let wire = protocol();
     let mut config = temper_worker_checkout_world::hosted::config();
     config.limits.files = 4;
@@ -154,7 +161,7 @@ fn peer_options(life: Duration, ci: bool) -> (Rc<RefCell<Forge>>, Peer) {
                 name: name.into(),
                 default: b"main".as_slice().into(),
                 tree: Box::new([
-                    api::File { path: b"README.md".as_slice().into(), content: b"Scope fixture\n".as_slice().into() },
+                    api::File { path: b"README.md".as_slice().into(), content: readme.into() },
                     api::File { path: b"conflict.txt".as_slice().into(), content: b"base\n".as_slice().into() },
                 ]),
                 workflows: Box::default(),

@@ -1,8 +1,8 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use super::super::{chips, owner, task, w};
+use super::super::{owner, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents as d;
-use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
 pub fn retained_amendment(
@@ -10,45 +10,7 @@ pub fn retained_amendment(
     value: &d::AmendmentChange,
     limits: &w::Limits,
 ) -> Result<w::RetainedAmendment, w::Problem> {
-    let dependencies = match &value.dependencies {
-        Some(rows) => {
-            let mut copied = List::with_capacity(rows.len());
-            for row in rows {
-                copied.push(*row).expect("supplied rows fit");
-            }
-            Some(copied)
-        }
-        None => None,
-    };
-    Ok(w::RetainedAmendment {
-        addressed: match value.addressed {
-            Some(item) => Some(w::AddressChange {
-                revision: w::Revision { value: item.revision },
-                address: chips::address(item.address, limits)?,
-            }),
-            None => None,
-        },
-        instructions: match &value.instructions {
-            Some(item) => Some(owner::text(item, limits)?),
-            None => None,
-        },
-        release: value.release,
-        spec: match &value.spec {
-            Some(item) => Some(owner::specification(item, limits)?),
-            None => None,
-        },
-        authority: match &value.authority {
-            Some(item) => Some(owner::authority(models, item, limits)?),
-            None => None,
-        },
-        wake: match value.wake {
-            Some(item) => Some(owner::wake(item, limits)?),
-            None => None,
-        },
-        dependencies,
-        reason: owner::text(&value.reason, limits)?,
-        cut: value.cut,
-    })
+    mapped::retained_amendment_to_record(value, &(models, limits))
 }
 pub fn retained_action(
     models: &[crate::Model],
@@ -60,7 +22,7 @@ pub fn retained_action(
             w::RetainedAction::Settings(w::RetainedActionSettings {
                 projects: projects.clone(),
                 against: *against,
-                items: super::super::settings::item_heads(items, limits)?,
+                items: super::super::settings::item_heads(items),
                 made: *made,
             })
         }
@@ -79,7 +41,7 @@ pub fn retained_action(
         }
         d::RetainedAction::Effect { part, authority, attempt, completion, position, purpose } => {
             w::RetainedAction::Effect(w::RetainedActionEffect {
-                part: owner::part(part, limits)?,
+                part: owner::part(part),
                 authority: owner::authority(models, authority, limits)?,
                 attempt: *attempt,
                 completion: *completion,
@@ -89,7 +51,7 @@ pub fn retained_action(
         }
         d::RetainedAction::ProcedureEffect { part, authority, step, purpose } => {
             w::RetainedAction::ProcedureEffect(w::RetainedActionProcedureEffect {
-                part: owner::part(part, limits)?,
+                part: owner::part(part),
                 authority: owner::authority(models, authority, limits)?,
                 step: *step,
                 purpose: *purpose,
@@ -111,120 +73,22 @@ pub fn proposal_history(
     value: &d::ProposalHistory,
     limits: &w::Limits,
 ) -> Result<w::ProposalHistory, w::Problem> {
-    Ok(w::ProposalHistory {
-        reason: owner::text(&value.reason, limits)?,
-        action: retained_action(models, &value.action, limits)?,
-        number: value.number,
-        proposer: value.proposer,
-        as_holder: value.as_holder,
-        state: match &value.state {
-            d::ProposalHistoryState::Pending(value) => {
-                w::ProposalHistoryState::Pending(w::ProposalHistoryStatePending {
-                    holder: super::proposals::holder(value.holder, limits)?,
-                    since: value.since.as_nanos(),
-                })
-            }
-            d::ProposalHistoryState::Accepted { by } => {
-                w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted {
-                    by: owner::requester(*by, limits)?,
-                })
-            }
-            d::ProposalHistoryState::Rejected { by, reason } => {
-                w::ProposalHistoryState::Rejected(w::ProposalHistoryStateRejected {
-                    by: owner::requester(*by, limits)?,
-                    reason: owner::text(reason, limits)?,
-                })
-            }
-            d::ProposalHistoryState::Withdrawn => w::ProposalHistoryState::Withdrawn,
-        },
-    })
+    mapped::proposal_history_to_record(value, &(models, limits))
 }
-/// Retained lifecycle facts (client/domain/contract/README.md, 4).
-pub fn attempt(value: &d::AttemptLine, limits: &w::Limits) -> Result<w::AttemptLine, w::Problem> {
-    Ok(w::AttemptLine {
-        task: value.task,
-        attempt: value.attempt,
-        claimed: match value.claimed {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        started: match value.started {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        ended: match value.ended {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        end: match value.end {
-            Some(end) => Some(super::super::activity::end(end, limits)?),
-            None => None,
-        },
-        phases: value.phases,
-    })
+/// Retained lifecycle facts (client/domain/contract/reads.md, 1).
+pub fn attempt(value: &d::AttemptLine) -> w::AttemptLine {
+    mapped::attempt_line_to_record(value)
 }
 pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::Problem> {
-    Ok(w::HoldLine {
-        task: value.task,
-        position: value.position,
-        at: value.at.as_nanos(),
-        before: chips::prior(value.before, limits)?,
-        why: chips::hold(value.why, limits)?,
-        source: match &value.source {
-            Some(item) => Some(owner::part(item, limits)?),
-            None => None,
-        },
-        ending: match &value.ending {
-            Some(item) => Some(chips::ending(item, limits)?),
-            None => None,
-        },
-    })
+    mapped::hold_line_to_record(value, &(&[], limits))
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub fn escalation_decision(
     value: &jig_domain_core_vocabulary::EscalationDecisionRecord,
-    _limits: &w::Limits,
-) -> Result<w::EscalationDecisionRecord, w::Problem> {
-    Ok(w::EscalationDecisionRecord {
-        project: value.project,
-        requester: value.requester,
-        task: value.task,
-        revision: value.revision,
-        by: value.by,
-        at: value.at.as_nanos(),
-        decision: match &value.decision {
-            p::EscalationDecision::Release => w::EscalationDecision::Release,
-            p::EscalationDecision::Pass => w::EscalationDecision::Pass,
-            p::EscalationDecision::Reject { reason } => {
-                w::EscalationDecision::Reject(w::EscalationDecisionReject { reason: bytes::copy_of(reason) })
-            }
-        },
-    })
+) -> w::EscalationDecisionRecord {
+    mapped::escalation_decision_record_to_record(value)
 }
-pub fn proposal_decision(
-    value: jig_domain_core_vocabulary::ProposalDecisionRecord,
-    limits: &w::Limits,
-) -> Result<w::ProposalDecision, w::Problem> {
-    Ok(w::ProposalDecision {
-        project: value.project,
-        proposer: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.proposal }, limits)?
-            .proposer,
-        proposal: value.proposal,
-        kind: super::proposals::kind(value.kind),
-        by: value.by,
-        at: value.at.as_nanos(),
-        choice: match value.choice {
-            p::ProposalChoice::Accepted => w::ProposalChoice::Accepted,
-            p::ProposalChoice::Rejected => w::ProposalChoice::Rejected,
-            p::ProposalChoice::Passed => w::ProposalChoice::Passed,
-            p::ProposalChoice::Withdrawn => w::ProposalChoice::Withdrawn,
-            p::ProposalChoice::Stale => w::ProposalChoice::Stale,
-        },
-        created: match value.created {
-            Some(item) => Some(w::ProposalDecisionCreated { first: item.0, last: item.1 }),
-            None => None,
-        },
-    })
+pub fn proposal_decision(value: jig_domain_core_vocabulary::ProposalDecisionRecord) -> w::ProposalDecision {
+    mapped::proposal_decision_to_record(&value)
 }
 pub fn person_proposal(
     models: &[crate::Model],
@@ -245,11 +109,11 @@ pub fn person_proposal(
                 w::PersonProposalState::Pending(w::PersonProposalStatePending { since: since.as_nanos() })
             }
             t::PersonProposalState::Accepted { by } | t::PersonProposalState::SettingsAccepted { by, .. } => {
-                w::PersonProposalState::Accepted(w::PersonProposalStateAccepted { by: owner::requester(*by, limits)? })
+                w::PersonProposalState::Accepted(w::PersonProposalStateAccepted { by: owner::requester(*by) })
             }
             t::PersonProposalState::Rejected { by, reason, message, at } => {
                 w::PersonProposalState::Rejected(w::PersonProposalStateRejected {
-                    by: owner::requester(*by, limits)?,
+                    by: owner::requester(*by),
                     reason: bytes::copy_of(reason),
                     message: *message,
                     at: at.as_nanos(),

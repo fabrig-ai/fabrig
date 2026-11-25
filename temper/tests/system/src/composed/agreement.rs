@@ -8,6 +8,10 @@ use std::fmt::Write;
 
 /// Stock charters and policies on the composed world's fake model and forge.
 pub(super) fn config(seed: u64) -> engine::Config {
+    config_with_result_bytes(seed, temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes)
+}
+
+pub(super) fn config_with_result_bytes(seed: u64, result_bytes: u32) -> engine::Config {
     let mut config = super::config(seed);
     let llm = jig_protocol_config::Llm {
         endpoints: Box::default(),
@@ -31,10 +35,7 @@ pub(super) fn config(seed: u64) -> engine::Config {
     };
     let workers = config.core.defaults.workers.clone();
     let providers = config.core.defaults.providers.clone();
-    config.core.defaults = temper_engine_service_stock::stock::with_models(
-        llm.models.clone(),
-        temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
-    );
+    config.core.defaults = temper_engine_service_stock::stock::with_models(llm.models.clone(), result_bytes);
     config.core.defaults.workers = workers;
     config.core.defaults.providers = providers;
     config.core.connectors = Box::new([1]);
@@ -119,6 +120,8 @@ pub(super) fn worker_limits(engine: &engine::Limits) -> worker::Limits {
     limits.host.event_bytes = u64::from(limits.bounds.message_bytes);
     // The worker adds two separator bytes to each host event.
     limits.agent.message_bytes = (limits.host.event_bytes + 2).max(8192);
+    // Stock walks carry repository remotes as well as basenames.
+    limits.checkout.name_bytes = 256;
     limits.reply_bytes = 8192;
     limits
 }
@@ -149,25 +152,33 @@ pub(super) fn answered(to: Token, reply: &people::Reply) -> bool {
 impl World {
     /// Select the next task's script or restore its parked concrete history.
     pub(super) fn select_process(&mut self, task: u64) {
-        if self.assignment.as_ref().is_some_and(|previous| previous.task == task) {
-            if self.process.answered.is_some() {
-                self.process.resume(Script { cue: Box::default(), turns: Box::default() });
+        if self.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == task) {
+            if self.lanes[0].process.answered.is_some() {
+                self.lanes[0].process.resume(Script { cue: Box::default(), turns: Box::default() });
             }
             return;
         }
         let next = if let Some(mut parked) = self.parked.remove(&task) {
             if !parked.prepared() {
-                let turns = if task == 1 { Box::from([call(b"wait", b"{}")]) } else { Box::default() };
+                let turns = if task == 1 && self.playback.is_none() {
+                    Box::from([call(b"wait", b"{}")])
+                } else {
+                    Box::default()
+                };
                 parked.resume(Script { cue: Box::default(), turns });
             }
             parked
+        } else if self.playback.is_some() {
+            let mut process = Process::new(self.seed, Script { cue: Box::default(), turns: Box::default() });
+            process.wire = true;
+            process
         } else if let Some(script) = self.scripts.pop_front() {
             Process::new(self.seed, script)
         } else {
             return;
         };
-        let previous = core::mem::replace(&mut self.process, next);
-        if let Some(assignment) = &self.assignment {
+        let previous = core::mem::replace(&mut self.lanes[0].process, next);
+        if let Some(assignment) = &self.lanes[0].assignment {
             assert!(
                 previous.answered.is_some() || previous.prepared(),
                 "one live process per slot: previous {}, next {task}",
@@ -188,7 +199,12 @@ impl World {
         };
         let question = row.questions[0].number;
         let tasks::Party::Task(requester) = row.questions[0].asked else { panic!("question to the chat") };
-        self.process.resume(script);
+        self.lanes[0].process.resume(script);
+        self.answer_inbox_question(requester, question, words);
+    }
+
+    /// Answer a numbered question as the authenticated person, on the task shown in their inbox.
+    pub fn answer_inbox_question(&mut self, requester: u64, question: u64, words: &[u8]) {
         self.root_events.push_back(engine::Event::Party(engine::PartyInput::Ask {
             models: Box::default(),
             reply_to: ReplyTo::new(ANSWER),
@@ -201,7 +217,7 @@ impl World {
     /// Hold the person's answer past parking with no active process to drive.
     pub fn hold_goal(&mut self, duration: Duration) {
         assert!(matches!(self.agent().answer(), run::Answer::Parked { .. }));
-        self.env.now = self.env.now.saturating_add(duration);
+        self.jump(duration);
         self.tick();
     }
 
@@ -238,12 +254,12 @@ impl World {
     pub fn finish_goal(&mut self) {
         let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(2)));
         for _ in 0..10000 {
-            if self.process.answered.is_some()
+            if self.lanes[0].process.answered.is_some()
                 && self.root_events.is_empty()
-                && self.worker_events.is_empty()
+                && self.lanes[0].worker_events.is_empty()
                 && !self.committing()
             {
-                self.env.now = self.env.now.saturating_add(Duration::from_secs(1));
+                self.jump(Duration::from_secs(1));
             }
             self.tick();
             if let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =

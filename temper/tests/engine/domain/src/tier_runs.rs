@@ -1,4 +1,4 @@
-//! Engine story fixtures for temper/docs/design/domain/after-landing.md, 3–6 and 12.
+//! Engine story fixtures for temper/docs/design/domain/after-landing-runs.md, 2–3, and temper/docs/design/domain/after-landing.md, 5–6 and 12.
 use crate::forge_routes::{Gate, StoryLimits, World};
 use crate::tier_runs;
 use jig_domain_people as people;
@@ -37,7 +37,7 @@ const GOAL_INBOX_BYTES: u32 = 8192;
 const GOAL_INBOX_RECIPIENTS: u32 = GOAL_INBOX_MESSAGES * 2 + 1 + 4;
 // Four change calls and the timer retain their replay answers.
 const GOAL_CALL_RECORDS: u32 = 5;
-const GOAL_SPAN_MS: u64 = 1_200_000; // after-landing.md, 2: g's 20-minute span.
+const GOAL_SPAN_MS: u64 = 1_200_000; // domain/after-landing-runs.md, 1: g's 20-minute span.
 
 #[derive(Clone, Copy)]
 pub struct Tier {
@@ -267,9 +267,14 @@ pub fn job_logs(world: &World, run: &raw::Run) -> Vec<temper_engine_domain_forge
 }
 
 /// Complete the typed run read with the fake's jobs, as the forge protocol does
-/// (skein/docs/design/forge/forgejo.md, 1.2). The root world's generic projection carries
+/// (skein/docs/design/forge/forgejo-operations.md, 1). The root world's generic projection carries
 /// the run alone; the forge world's projection uses the same `run_jobs` builder.
 pub fn tick(world: &mut World) {
+    try_tick(world).unwrap_or_else(|finding| panic!("{finding}"));
+}
+
+/// The same tier-job projection, returning a workload's first finding.
+pub fn try_tick(world: &mut World) -> Result<(), String> {
     for event in &mut world.events {
         if let engine::Event::Forge(event) = event
             && let temper_engine_domain_forge::Event::Client(skein_forge_client::Event::Answered {
@@ -287,7 +292,7 @@ pub fn tick(world: &mut World) {
             run.jobs = temper_engine_forge_world::translate::run_jobs(jobs);
         }
     }
-    world.tick();
+    world.try_tick()
 }
 
 #[must_use]

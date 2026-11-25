@@ -6,6 +6,19 @@ use std::path::{Component, Path, PathBuf};
 
 use serde_json::Value;
 
+/// The destination commit supplied by the landing gate. Local runs choose their own Git base.
+#[must_use]
+pub fn gate_landing_base() -> Option<String> {
+    let value = std::env::var_os("CI_GATE_LANDING_BASE")?;
+    let commit = value.into_string().expect("gate landing base is a hexadecimal commit ID");
+    assert!(
+        matches!(commit.len(), 40 | 64) && commit.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "invalid gate landing base: {commit:?}"
+    );
+    eprintln!("historical comparison uses gate landing base {commit}");
+    Some(commit)
+}
+
 /// One Cargo target, including whether Cargo builds its test binary (section 2.4).
 #[derive(Debug)]
 pub struct Target {
@@ -86,9 +99,18 @@ enum Token<'a> {
     Literal,
 }
 
-/// A byte scan, not a Rust parse. Only path and include strings are decoded.
+/// A byte scan, not a Rust parse. Checks decode only the string tokens they need.
 fn tokens(source: &str) -> Vec<Token<'_>> {
     located_tokens(source).into_iter().map(|(_, token)| token).collect()
+}
+
+/// First line naming an identifier outside comments and literals.
+#[must_use]
+pub fn identifier_line(source: &str, identifier: &str) -> Option<usize> {
+    located_tokens(source)
+        .into_iter()
+        .find(|(_, token)| *token == Token::Word(identifier))
+        .map(|(at, _)| source[..at].bytes().filter(|byte| *byte == b'\n').count() + 1)
 }
 
 fn located_tokens(source: &str) -> Vec<(usize, Token<'_>)> {
@@ -148,6 +170,30 @@ pub fn schema_includes(source: &str) -> Vec<(&str, usize)> {
                 (_, Token::String(input)),
                 (_, Token::Symbol(close)),
             ] if [(b'(', b')'), (b'[', b']'), (b'{', b'}')].contains(&(*open, *close)) => Some((*input, *at)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Literal scenario arguments to `Exclusion::new` and their source lines,
+/// including in macro bodies, but not in comments or literal contents.
+#[must_use]
+pub fn exclusion_scenarios(source: &str) -> Vec<(String, usize)> {
+    if !source.contains("Exclusion") {
+        return Vec::new();
+    }
+    located_tokens(source)
+        .windows(7)
+        .filter_map(|tokens| match tokens {
+            [
+                (at, Token::Word("Exclusion")),
+                (_, Token::Symbol(b':')),
+                (_, Token::Symbol(b':')),
+                (_, Token::Word("new")),
+                (_, Token::Symbol(b'(')),
+                (_, scenario @ Token::String(_)),
+                (_, Token::Symbol(b',' | b')')),
+            ] => string(scenario).map(|name| (name, source[..*at].bytes().filter(|byte| *byte == b'\n').count() + 1)),
             _ => None,
         })
         .collect()

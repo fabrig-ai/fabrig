@@ -145,7 +145,7 @@ pub fn signed_in_account(signing: &[u8], name: &[u8]) -> Script {
 }
 /// Read the state in the sign-in source's own Item, inside the account card
 /// whose heading holds these words.
-/// The source kind and state are separate nodes (client/pages/accounts.md, 2).
+/// The source kind and state are separate nodes (client/pages/accounts-words.md, 1).
 #[must_use]
 pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
     use skein_ui::Role;
@@ -493,10 +493,21 @@ impl Person {
         }
     }
     fn start(&mut self, now: Time) {
+        self.start_with(now, super::boxed::serve_listening, |settings, root, seed, start| {
+            NativeClient::new(settings, root, skein_shell::effective_user(), seed, start).expect("printed sign-in link")
+        });
+    }
+
+    fn start_with(
+        &mut self,
+        now: Time,
+        listening: impl FnOnce(&std::path::Path) -> bool,
+        start_client: impl FnOnce(Settings, Fd, u64, Start) -> NativeClient,
+    ) {
         if self.client.is_none()
             && let Some(link) = super::printed_link(&self.bytes)
         {
-            if self.serve_data.as_deref().is_some_and(|data| !super::boxed::serve_listening(data)) {
+            if self.serve_data.as_deref().is_some_and(|data| !listening(data)) {
                 self.wake = Some(now.saturating_add(skein_lib::Duration::from_millis(100)));
                 return;
             }
@@ -511,25 +522,21 @@ impl Person {
                 .parse()
                 .expect("socket address");
             self.signing_until = Some(now.saturating_add(START_WITHIN));
-            self.client = Some(
-                NativeClient::new(
-                    Settings {
-                        engine: skein_io::Addr::Ip(address),
-                        directory: self.directory.clone(),
-                        limits: {
-                            let mut limits = temper_client_shell_terminal::limits::native();
-                            // One standing inbox open beside the eight native logical exchanges.
-                            limits.client.client.exchanges = 9;
-                            limits
-                        },
+            self.client = Some(start_client(
+                Settings {
+                    engine: skein_io::Addr::Ip(address),
+                    directory: self.directory.clone(),
+                    limits: {
+                        let mut limits = temper_client_shell_terminal::limits::native();
+                        // One standing inbox open beside the eight native logical exchanges.
+                        limits.client.client.exchanges = 9;
+                        limits
                     },
-                    self.root.take().expect("client root"),
-                    skein_shell::effective_user(),
-                    self.seed,
-                    if self.begin == Begin::Token { Start::Token } else { Start::Link(link.into()) },
-                )
-                .expect("printed sign-in link"),
-            );
+                },
+                self.root.take().expect("client root"),
+                self.seed,
+                if self.begin == Begin::Token { Start::Token } else { Start::Link(link.into()) },
+            ));
         }
     }
     fn notices(&mut self) {
@@ -762,7 +769,7 @@ pub fn a_native_adoption_refusal_names_the_alert_without_a_wait() {
     assert_eq!(adoption_refusal(&builder.finish()).as_deref(), Some("Forge 1 did not answer; nothing was adopted."));
 }
 /// The switcher's button for a project `me` leaves unnamed, "Project N"
-/// (client/view.md, 3).
+/// (client/view-navigation.md, 1).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)
@@ -996,10 +1003,11 @@ pub fn inbox_reply(entry: &[u8]) -> Step<Address> {
 }
 
 pub mod serve_gate_tests {
-    use super::{Fd, Host, Person, START_WITHIN, Time, found};
+    use super::{Fd, Host, NativeClient, Person, START_WITHIN, Time, found};
+    use std::path::Path;
 
     pub fn native_sign_in_keeps_its_start_bound_until_serve_listens() {
-        let scratch = super::super::Scratch::new("person-serve-gate");
+        let data = Path::new("box-data");
         let mut person = Person::with_link(
             Fd::new(0),
             Fd::new(1),
@@ -1007,18 +1015,34 @@ pub mod serve_gate_tests {
             found(),
             b"http://127.0.0.1:8367/sign-in?secret=fixture",
         )
-        .with_serve_data(scratch.path());
-        person.start(Time::ZERO);
+        .with_serve_data(data);
+        person.start_with(
+            Time::ZERO,
+            |path| {
+                assert_eq!(path, data);
+                false
+            },
+            |_, _, _, _| panic!("an early link does not start a client"),
+        );
         assert!(person.client.is_none(), "an early link starts no native sign-in");
         assert!(person.signing_until.is_none(), "serve startup spends none of START_WITHIN");
         assert!(person.next_policy_deadline().is_some(), "the log is checked again without pipe output");
-        std::fs::create_dir_all(scratch.path().join("box/logs")).expect("logs");
-        std::fs::write(scratch.path().join("box/logs/serve.log"), b"listening clients 127.0.0.1:8367\n")
-            .expect("listening");
-        let now = Time::from_nanos(START_WITHIN.as_nanos());
-        person.start(now);
+
+        let now = Time::ZERO.saturating_add(START_WITHIN);
+        let mut started = false;
+        person.start_with(
+            now,
+            |path| {
+                assert_eq!(path, data);
+                true
+            },
+            |settings, root, seed, start| {
+                started = true;
+                NativeClient::new(settings, root, 0, seed, start).expect("printed sign-in link")
+            },
+        );
+        assert!(started, "listening requested a client");
         assert!(person.client.is_some(), "listening admits native sign-in");
         assert_eq!(person.signing_until, Some(now.saturating_add(START_WITHIN)));
-        scratch.remove();
     }
 }

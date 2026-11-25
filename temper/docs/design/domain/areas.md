@@ -40,14 +40,14 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 - **Its owner:** an owner (section 3).
 - **A project's areas** are the value of kind 14, at most 16, in the
   order their owners wrote them
-  (`../protocol/configuration/settings.md`, 2). With none, every
+  (`../protocol/configuration/settings-kinds.md`, 1). With none, every
   finding is the triager's.
 - **Changed as any setting:** by the project's owners, or by proposal
-  (jig's `domain/engine/settings.md`, 6). Handing an area to a role, or
+  (jig's `domain/engine/settings-proposals.md`, 1). Handing an area to a role, or
   back, is a change of its owner. A standing role may propose a change
   of its own area's words (`agent/standing.md`, section 5). An area
   removed leaves its findings' `area` as written, and their owner falls
-  to the triager by section 4's chain.
+  to the triager by `areas.md`, section 4's chain.
 
 ## 3. Owners
 
@@ -66,11 +66,11 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   the project labelled 3 (`agent/standing.md`, section 2) runs under
   charter N, the one with the lowest number. An owner that does not
   stand gives none.
-- **Judged when saved** (`../protocol/configuration/settings.md`, 2):
+- **Judged when saved** (`../protocol/configuration/settings-kinds.md`, 1):
   `task N` must be a live task of the project, `party N` a party with a
   role in it, `role N` within jig's `authority.roles`, and `charter N`
   within 1 to 64, a charter's numbers (jig's `domain/engine/settings.md`,
-  1), read by the root from the core as a way's template is. What stands later is section 4's to read.
+  1), read by the root from the core as a way's template is. What stands later is `areas.md`, section 4's to read.
 
 ## 4. Who owns a finding
 
@@ -111,7 +111,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 - **Kept:** what fits no area the triager keeps, and triages as any
   owner does (`findings.md`, section 6).
 - **A task hears** through the project's findings topic
-  (`forge/README.md`, 5.1): in the decision that files or hands a
+  (`forge/topics.md`, 1.1): in the decision that files or hands a
   finding to a task, the root subscribes that task to `findings {
   project }` if it isn't already, as it subscribes a goal to its
   landings, and gives it the news, class `Wakes`, its wake policy
@@ -129,20 +129,21 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   `P/N` the project's and the finding's numbers; `no area` where it has
   none; the third line for a hand-off alone, `WHO` as `task N` or
   `party N`; the body cut from its end, marked `[cut]`.
-- **Its subscription is apart from the task's room.** The root asks
-  for it as the topic jig admits one past the task's
-  `tasks.subscriptions` (jig's `domain/tasks/messages.md`, 4), so a
-  holder whose own subscriptions fill that bound, as a triager waiting
-  on four people's answers does in stock, is subscribed all the same,
-  and no later subscription can take its place: the task's own stop at
-  the bound, counting it, as they did when it came first. Its news has
+- **Its subscription takes the holder's room as any does.** The root
+  asks for it as an ordinary topic, in the task's one room of
+  `tasks.subscriptions` and one more, where tasks, topics and timers
+  count alike, in any order (jig's `domain/tasks/messages.md`, 4). So a
+  triager waiting on four people's answers in stock holds the findings
+  topic too, whether it watched them first or took the topic first.
+  A holder whose own subscriptions fill the room is refused it as any
+  topic is, and keeps the finding unheard, as below. Its news has
   a merged slot in the task's inbox, kept from the subscription on
   (jig's `domain/tasks/messages.md`, 2). A goal a finding is routed to
   is subscribed the same way (`findings.md`, section 6).
 - **A finding never waits on it.** A filing, a hand-off or a route is
   written whatever its holder's room, and refused only for its own
   (`findings.md`, section 4). Where the subscription can't be made,
-  the holder's inbox having no room for its slot or the forge's
+  the holder's room or its inbox having no room for its slot, or the forge's
   subscriptions full (`forge.subscriptions`), the finding is written
   and its holder isn't told: it reads it with its `finding` tool's
   `list` (section 7), and its next finding asks for the subscription
@@ -236,11 +237,11 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   reaching the area's owner with its why; a finding no area fits staying
   with the triager; an act by one who doesn't own it refused; kinds 14
   and 15 judged; a save moving open findings and telling their new
-  owners; a triager whose subscriptions fill `tasks.subscriptions`,
-  each on a person task still waiting, taking a filed finding and a
-  handed-on one and hearing each through the findings topic; a holder
-  whose inbox has no room for the subscription's slot keeping the
-  finding unheard.
+  owners; a triager watching `tasks.subscriptions` person tasks still
+  waiting, taking a filed finding and a handed-on one and hearing each
+  through the findings topic, whether its watches came first or the
+  topic did; a holder whose room or inbox has no room for the
+  subscription keeping the finding unheard.
 - **Fuzzy:** random areas, triagers, owners standing or not, filings,
   hand-offs and saves: after each step every finding has exactly one
   holder, the rule's, and each news went to the holder the rule gave

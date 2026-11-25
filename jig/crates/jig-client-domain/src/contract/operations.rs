@@ -9,7 +9,7 @@ pub enum Operation {
     Amend { project: u32, task: u64, revision: Option<Revision>, change: Box<Amendment>, reason: Text },
     Cancel { project: u32, task: u64, reason: Text, grace: Option<Duration> },
     Release { project: u32, task: u64, revision: Revision, again: Option<bool> },
-    Stop { project: u32, task: u64 },
+    Stop { project: u32, task: u64, reason: Text },
     Move { project: u32, task: u64, reason: Text },
 }
 /// Why the request is malformed; its refusal names the place.
@@ -76,7 +76,7 @@ pub struct TaskFlags {
     pub retention: Retention,
     pub ended_by: EndedBy,
 }
-/// A connector's resource named after the task (protocol/configuration.md, 3.3).
+/// A connector's resource named after the task (protocol/configuration-templates.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Symbol {
     pub connector: u16,
@@ -116,20 +116,20 @@ pub enum ProposeAction {
     Amendment { task: u64, revision: Revision, change: Box<Amendment> },
 }
 
-/// The immutable authority that may end a task (domain/tasks/lifecycle.md, 9).
+/// The immutable authority that may end a task (domain/tasks/lifecycle-endings.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndedBy {
     /// Its run's judged result ends it.
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     Closer(Closer),
     /// A standing agent task ends only by cancel (jig/docs/design/domain/tasks/standing.md, 2).
     Standing,
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,

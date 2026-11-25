@@ -1,6 +1,6 @@
 //! Retained procedure and resource hold accounts
 //! (temper/docs/design/domain/forge/change/repairs.md;
-//! temper/docs/design/domain/forge/change/README.md, 3;
+//! temper/docs/design/domain/forge/change/drift.md, 1;
 //! temper/docs/design/domain/forge/branches.md).
 use crate as forge;
 use crate::routing::{append, decimal};

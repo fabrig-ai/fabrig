@@ -4,7 +4,7 @@ How `temper box` finds the `temper-box` it runs: one of its own build,
 beside it, in its cache, or downloaded once from the site, and checked
 (`../draft/cli.md`, 5.1 and 5.2). What it does with the box once found
 is `tui/box.md`'s, in a terminal, and section 5's without one; the box's
-side is `../protocol/setup/box.md`, 6.
+side is `../protocol/setup/box-front.md`, 1.
 
 ## 1. In one page
 
@@ -83,7 +83,7 @@ side is `../protocol/setup/box.md`, 6.
 
 - **What's trusted:** fabrig.ai over HTTPS, with the machine's roots or
   `SSL_CERT_FILE`, read as the forge's fetch reads them (skein's
-  `runtime/shell.md`, 6.2; `../protocol/setup/owned.md`, 6). The sums
+  `runtime/shell-startup.md`, 1.2; `../protocol/setup/owned.md`, 6). The sums
   come from the same site, so they catch a damaged file, not a site that
   lies; writing the checksum into `temper` at release is Later
   (`../draft/cli.md`, section 10).
@@ -176,8 +176,8 @@ TUI's loop.
   first, `fetching temper-box`, on its stderr, and then runs it in its
   own place (exec), `temper-box ARGUMENT...`, the arguments unchanged,
   with its environment and its descriptors: for scripts and units, and
-  for the box's own echo on its terminal (`../protocol/setup/box.md`,
-  2). A refusal or a failure prints its words on stderr, exit 1.
+  for the box's own echo on its terminal (`../protocol/setup/box-supervision.md`,
+  1). A refusal or a failure prints its words on stderr, exit 1.
 - **A `temper-box` refused its arguments** after the exec answers as
   `temper-box` does, exit 2: `temper` doesn't read the box's grammar.
 
@@ -245,10 +245,13 @@ TUI's loop.
   line, none, two and a malformed one; each bound, passed by one byte;
   a redirect to the same origin and one elsewhere; and the progress
   lines' rule.
-- **The host,** in its unit tests on a scratch directory: the lock taken
-  before the cache is read, staging files removed, the publication's
-  order, and a refusal leaving no staging file. The fetch over TLS is
-  the forge's fetch's host's, tested there.
+- **The host,** in its step tests over the cache's effects and a
+  candidate's facts (`../testing/shells.md`, 3.6): the lock taken before
+  the cache is read, staging files removed, a candidate's identity and
+  its bound, and a refusal leaving no staging file; and on a scratch
+  directory, one real candidate's run and one whole publication under
+  the native lock, with its order and modes (`../testing/shells.md`, 4).
+  The fetch over TLS is the forge's fetch's host's, tested there.
 - **The process tier,** written and compiled, run after landing: a fake
   site, a loopback HTTPS server holding a gzipped `temper-box` and its
   sums under `TEMPER_INTERNAL_SITE` and an `SSL_CERT_FILE` naming its

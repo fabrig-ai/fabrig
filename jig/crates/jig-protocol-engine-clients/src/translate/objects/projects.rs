@@ -1,60 +1,31 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{chips, owner, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
-use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
 pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) -> Result<w::Project, w::Problem> {
     let mut resources = List::with_capacity(value.resources.len());
     for row in &value.resources {
-        resources
-            .push(w::ProjectResource {
-                part: owner::part(&row.part, limits)?,
-                home: row.home,
-                role: match row.role {
-                    d::ResourceRole::Fork => w::ProjectResourceRole::Fork,
-                    d::ResourceRole::Owned => w::ProjectResourceRole::Owned,
-                    d::ResourceRole::Participant => w::ProjectResourceRole::Participant,
-                    d::ResourceRole::Unavailable => w::ProjectResourceRole::Unavailable,
-                    d::ResourceRole::Context => w::ProjectResourceRole::Context,
-                },
-            })
-            .expect("supplied rows fit");
+        resources.push(mapped::project_resource_to_record(row)).expect("supplied rows fit");
     }
     let resources = project_resource_pieces(&resources, limits.project_resources, w::paths::PROJECT_RESOURCES, limits)?;
     let mut members = List::with_capacity(value.members.len());
     for row in &value.members {
-        members
-            .push(w::ProjectMember {
-                party: row.party,
-                kind: match row.kind {
-                    jig_domain_people::Kind::Person => w::PartyKind::Person,
-                    jig_domain_people::Kind::Service => w::PartyKind::Service,
-                },
-                role: owner::held_role(row.role, limits)?,
-                login: owner::text(&row.login, limits)?,
-                name: owner::text(&row.name, limits)?,
-            })
-            .expect("supplied rows fit");
+        members.push(mapped::project_member_to_record(row)).expect("supplied rows fit");
     }
     let mut pools = List::with_capacity(value.pools.len());
     for row in &value.pools {
-        pools.push(owner::ledger(row, limits)?).expect("supplied rows fit");
+        pools.push(owner::ledger(row)).expect("supplied rows fit");
     }
     let mut configured_pools = List::with_capacity(value.configured_pools.len());
     for row in &value.configured_pools {
-        configured_pools.push(owner::ledger(row, limits)?).expect("supplied rows fit");
+        configured_pools.push(owner::ledger(row)).expect("supplied rows fit");
     }
     let mut spend = List::with_capacity(value.spend.len());
     for row in &value.spend {
-        spend
-            .push(w::ProjectSpend {
-                chip: chips::chip(&row.chip, limits)?,
-                funder: owner::funder(row.funder, limits)?,
-                numbers: owner::numbers(row.numbers, limits)?,
-            })
-            .expect("supplied rows fit");
+        spend.push(mapped::project_spend_to_record(row, &(&[], limits))?).expect("supplied rows fit");
     }
     let spend = project_spend_pieces(&spend, limits.project_spend, w::paths::PROJECT_SPEND, limits)?;
     let mut recurring = List::with_capacity(value.recurring.len());
@@ -66,12 +37,12 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
     Ok(w::Project {
         acts: task::offered(models, &value.acts, limits, limits.project_acts, w::paths::PROJECT_ACTS)?,
         number: value.number,
-        name: owner::text(&value.name, limits)?,
+        name: owner::text(&value.name),
         resources,
         policy: policy(models, &value.policy, limits)?,
         members,
         current_period: match &value.current_period {
-            Some(item) => Some(owner::ledger(item, limits)?),
+            Some(item) => Some(owner::ledger(item)),
             None => None,
         },
         pools,
@@ -86,21 +57,13 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
 pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) -> Result<w::ProjectPolicy, w::Problem> {
     let mut projections = List::with_capacity(value.projections.len());
     for row in &value.projections {
-        projections.push(owner::grant(row, limits)?).expect("supplied rows fit");
+        projections.push(owner::grant(row)).expect("supplied rows fit");
     }
     let projections =
         grant_pieces(&projections, limits.project_policy_projections, w::paths::PROJECT_POLICY_PROJECTIONS, limits)?;
     let mut roles = List::with_capacity(value.roles.len());
     for row in &value.roles {
-        roles
-            .push(w::ProjectPolicyRole {
-                number: row.number,
-                authority: owner::authority(models, &row.authority, limits)?,
-                period_spend: row.period_spend,
-                requests: row.requests.0,
-                decides: row.decides.0,
-            })
-            .expect("supplied rows fit");
+        roles.push(mapped::project_policy_role_to_record(row, &(models, limits))?).expect("supplied rows fit");
     }
     let roles =
         project_policy_role_pieces(&roles, limits.project_policy_roles, w::paths::PROJECT_POLICY_ROLES, limits)?;
@@ -110,18 +73,9 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
             .push(w::PolicyRequirement {
                 connector: row.grant.connector,
                 kind: row.grant.kind,
-                pattern: owner::pattern(&row.grant.segments, &row.grant.last, limits)?,
-                judge: w::PolicyJudge {
-                    connector: row.judge.connector,
-                    requirement: row.judge.requirement,
-                    parameters: row.judge.parameters,
-                },
-                guard: match row.guard {
-                    jig_domain_authority::Guard::Guarded => w::PolicyGuard::Guarded,
-                    jig_domain_authority::Guard::Observed { freshness } => {
-                        w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness })
-                    }
-                },
+                pattern: owner::pattern(&row.grant.segments, &row.grant.last),
+                judge: mapped::policy_judge_to_record(&row.judge),
+                guard: mapped::policy_guard_to_record(&row.guard),
                 must_be_guarded: row.must_be_guarded,
             })
             .expect("supplied rows fit");
@@ -136,16 +90,14 @@ pub fn policy(models: &[crate::Model], value: &d::Policy, limits: &w::Limits) ->
         Some(rows) => {
             let mut copied = List::with_capacity(rows.len());
             for row in rows {
-                copied
-                    .push(w::PolicyPermission { connector: row.connector, permission: row.permission, role: row.role })
-                    .expect("supplied permissions fit");
+                copied.push(mapped::policy_permission_to_record(row)).expect("supplied permissions fit");
             }
             Some(copied)
         }
         None => None,
     };
     Ok(w::ProjectPolicy {
-        templates: super::super::me::overrides(&value.templates, limits)?,
+        templates: super::super::me::overrides(&value.templates),
         ceiling: owner::authority(models, &value.ceiling, limits)?,
         period_spend: value.period_spend,
         escalation_role: value.escalation_role,
@@ -178,10 +130,7 @@ pub fn recurrence(
         key: value.key,
         batch,
         budget: value.budget,
-        overlap: match value.overlap {
-            t::RecurringOverlap::Skip => w::RecurringOverlap::Skip,
-            t::RecurringOverlap::Wait => w::RecurringOverlap::Wait,
-        },
+        overlap: mapped::recurring_overlap_to_record(&value.overlap),
         current_period: value.current_period,
         began: match value.began {
             Some(item) => Some(item.as_nanos()),

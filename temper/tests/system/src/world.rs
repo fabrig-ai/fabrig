@@ -160,25 +160,25 @@ pub fn chat(words: &[u8], job: Job) -> World {
 /// previous activation parked within the root's resume bound.
 #[must_use]
 pub fn agent_for(assignment: &engine::Assignment, transcript: Option<smith::Transcript>, job: Job) -> Agent {
-    agent_for_with_options(assignment, transcript, job, None, None)
+    agent_for_with_options(assignment, transcript, job, None, None, None)
 }
 
 /// A Smith run whose scripted host observes the person's cancellation.
 #[must_use]
 pub fn cancelled_agent_for(assignment: &engine::Assignment, job: Job) -> Agent {
-    agent_for_with_options(assignment, None, job, Some(Duration::from_millis(1)), None)
+    agent_for_with_options(assignment, None, job, Some(Duration::from_millis(1)), None, None)
 }
 
 /// A caller-supplied fake LLM script with a distinct cue in the task brief.
 #[must_use]
 pub fn scripted_agent_for(assignment: &engine::Assignment, script: Script) -> Agent {
-    agent_for_with_options(assignment, None, Job::Reporting, None, Some(script))
+    agent_for_with_options(assignment, None, Job::Reporting, None, Some(script), None)
 }
 
 /// A caller-supplied fake LLM script for a Smith coding assignment.
 #[must_use]
 pub fn scripted_coding_agent_for(assignment: &engine::Assignment, script: Script) -> Agent {
-    agent_for_with_options(assignment, None, Job::Coding, None, Some(script))
+    agent_for_with_options(assignment, None, Job::Coding, None, Some(script), None)
 }
 
 /// A caller-supplied script for a Smith run that can park on `wait`.
@@ -188,12 +188,23 @@ pub fn scripted_waiting_agent_for(
     transcript: Option<smith::Transcript>,
     script: Script,
 ) -> Agent {
-    agent_for_with_options(assignment, transcript, Job::Waiting, None, Some(script))
+    agent_for_with_options(assignment, transcript, Job::Waiting, None, Some(script), None)
+}
+
+/// A waiting run over the guide in this activation's prepared checkout.
+#[must_use]
+pub fn scripted_waiting_agent_with_guide(
+    assignment: &engine::Assignment,
+    transcript: Option<smith::Transcript>,
+    script: Script,
+    guide: &[u8],
+) -> Agent {
+    agent_for_with_options(assignment, transcript, Job::Waiting, None, Some(script), Some(guide))
 }
 
 /// The concrete Smith history of an agent's turns, as a resume gives it.
 #[must_use]
-pub fn transcript(agent: &Agent) -> smith::Transcript {
+pub fn transcript<B: smith_agent_world::backend::Backend>(agent: &smith_agent_world::World<B>) -> smith::Transcript {
     let first = agent.turns().first().expect("a concrete Smith turn");
     smith::Transcript {
         version: first.version,
@@ -203,17 +214,25 @@ pub fn transcript(agent: &Agent) -> smith::Transcript {
     }
 }
 
+/// Size the immutable registry once, without rebuilding every schema per activation.
+#[must_use]
+pub(crate) fn host_tool_count() -> u32 {
+    static COUNT: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *COUNT.get_or_init(|| u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count"))
+}
+
 fn agent_for_with_options(
     assignment: &engine::Assignment,
     transcript: Option<smith::Transcript>,
     job: Job,
     cancel_at: Option<Duration>,
     script: Option<Script>,
+    guide: Option<&[u8]>,
 ) -> Agent {
     let mut disk = Checkout::new();
     disk.mkdir(b"work");
     disk.write(b"work/README.md", b"The answer is 42.\n");
-    disk.write(b"work/AGENTS.md", b"Report what you found.\n");
+    disk.write(b"work/AGENTS.md", guide.unwrap_or(b"Report what you found.\n"));
     disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 42 }\n");
     disk.write(b"work/.temper/pre-pr", b"#!checks\nsrc/lib.rs 43\n");
     disk.program(
@@ -227,6 +246,7 @@ fn agent_for_with_options(
     );
     let workspace = Some(run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(disk.root(b"work")),
@@ -246,8 +266,7 @@ fn agent_for_with_options(
         time: assignment.run.policy.time,
     };
     settings.limits.run.budget = settings.budget;
-    settings.limits.run.host_tools =
-        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
+    settings.limits.run.host_tools = host_tool_count();
     settings.limits.run.brief_sections = 16;
     settings.limits.session.spend = settings.budget.spend;
     let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
@@ -318,8 +337,8 @@ pub fn relay(
     root.answered(call).expect("committed root call answer").clone()
 }
 
-/// Execute one root assignment in the Smith world and commit its typed output.
-pub fn run_assignment(root: &mut Driver, assignment: &engine::Assignment, agent: &mut Agent) {
+/// Drive the model and its real root host calls, leaving its turn and terminal uncommitted.
+pub fn drive_assignment(root: &mut Driver, assignment: &engine::Assignment, agent: &mut Agent) {
     agent.enable_parent_host_calls();
     loop {
         if agent.drive(1000) {
@@ -334,6 +353,11 @@ pub fn run_assignment(root: &mut Driver, assignment: &engine::Assignment, agent:
                 .expect("one pending Smith host relay");
         }
     }
+}
+
+/// Execute one root assignment in the Smith world and commit its typed output.
+pub fn run_assignment(root: &mut Driver, assignment: &engine::Assignment, agent: &mut Agent) {
+    drive_assignment(root, assignment, agent);
     for (number, read, spent) in agent.turn_metadata() {
         let index = usize::try_from(*number - 1).expect("positive turn");
         let turn = turn(assignment, *number, *read, *spent, &agent.turns()[index]);

@@ -40,17 +40,47 @@ struct Connection {
     header: bool,
     body: Vec<u8>,
     answered: bool,
-    sent_application: Option<()>,
+    request_owner: Option<wire::Owner>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Landing {
+    pub(crate) task: u64,
+    pub(crate) pull: u64,
+    pub(crate) merge: [u8; 32],
+}
+
+#[derive(Default)]
+enum LandingRead {
+    #[default]
+    Off,
+    Watching,
+    Landed(Landing),
+}
+
 #[derive(Default)]
 pub(crate) struct Wire {
     connections: BTreeMap<i32, Connection>,
     capture_only: bool,
+    landing: LandingRead,
     pub(crate) received: Vec<Received>,
 }
 impl Wire {
     pub(crate) fn capturing() -> Self {
         Self { capture_only: true, ..Self::default() }
+    }
+    /// A full keyed Jig request was sent, not just the command queued or its stream opened.
+    pub(crate) fn sent_jig(&self) -> bool {
+        self.connections.values().any(|connection| connection.request_owner.as_ref() == Some(&wire::Owner::Jig))
+    }
+
+    pub(crate) fn watch_landing(&mut self) {
+        self.landing = LandingRead::Watching;
+    }
+    pub(crate) fn landing(&self) -> Option<&Landing> {
+        match &self.landing {
+            LandingRead::Off | LandingRead::Watching => None,
+            LandingRead::Landed(landing) => Some(landing),
+        }
     }
     pub(crate) fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
@@ -64,7 +94,7 @@ impl Wire {
             (Op::Recv { fd, buf }, Ok(Done::Count(count))) => {
                 let connection = self.connections.entry(fd.raw()).or_default();
                 connection.incoming.extend_from_slice(&buf[..*count as usize]);
-                connection.progress(&mut self.received, self.capture_only);
+                connection.progress(&mut self.received, self.capture_only, &mut self.landing);
             }
             (Op::Connect { .. }, Ok(Done::Fd(fd))) => {
                 self.connections.insert(fd.raw(), Connection::default());
@@ -86,7 +116,7 @@ pub(super) fn picker(owner: &wire::Owner, request: &[u8]) -> bool {
 }
 impl Connection {
     fn request(&mut self, received: &mut Vec<Received>) {
-        if self.sent_application.is_some() {
+        if self.request_owner.is_some() {
             return;
         }
         let Some(end) = mark(&self.sent, b"\r\n\r\n") else { return };
@@ -108,12 +138,12 @@ impl Connection {
         let limits = native_link_limits();
         let keyed =
             wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
-        self.sent_application = Some(());
         if matches!(&keyed.owner, wire::Owner::Family(_)) && !picker(&keyed.owner, keyed.request.as_ref()) {
             received.push(Received::ApplicationSent { key: keyed.key });
         }
+        self.request_owner = Some(keyed.owner);
     }
-    fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool) {
+    fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool, landing: &mut LandingRead) {
         if !self.header {
             let Some(end) = mark(&self.incoming, b"\r\n\r\n") else { return };
             let header = std::str::from_utf8(&self.incoming[..end]).expect("HTTP response header");
@@ -141,7 +171,7 @@ impl Connection {
                 assert_eq!(&self.incoming[end + 2 + size..end + 4 + size], b"\r\n", "chunk ending");
                 self.incoming.drain(..end + size + 4);
             }
-            self.stream(received, capture_only);
+            self.stream(received, capture_only, landing);
         } else if !self.answered && self.remaining.is_some_and(|size| self.incoming.len() >= size) {
             let size = self.remaining.expect("length-framed reply");
             crate::m15::observer::artifact("wire reply body", &self.incoming[..size]);
@@ -159,9 +189,8 @@ impl Connection {
             b"/jig/v1/sign-in/link" => {
                 let answer =
                     wire::SignInAnswer::decode(limits.wire(), &mut Reader::new(bytes)).expect("sign-in reply bytes");
-                // NotReady asks the native caller to retry after startup. Only an
-                // actual SignedIn answer releases the referee's sign-in receipt.
-                if matches!(answer, wire::SignInAnswer::NotReady) {
+                // A startup retry or a spent link does not issue a sign-in receipt.
+                if matches!(answer, wire::SignInAnswer::NotReady | wire::SignInAnswer::LinkUsed) {
                     return;
                 }
                 let wire::SignInAnswer::SignedIn(value) = answer else { panic!("sign-in accepted: {answer:?}") };
@@ -215,7 +244,7 @@ impl Connection {
             _ => panic!("unobserved client request target"),
         }
     }
-    fn stream(&mut self, received: &mut Vec<Received>, capture_only: bool) {
+    fn stream(&mut self, received: &mut Vec<Received>, capture_only: bool, landing: &mut LandingRead) {
         let limits = native_link_limits();
         while let Some(end) = mark(&self.body, b"\n\n") {
             let mut data = Vec::new();
@@ -240,12 +269,23 @@ impl Connection {
                 wire::StreamEvent::Delivery(value) => Some(value.document),
                 wire::StreamEvent::Hello(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_) => None,
             };
-            if let Some(document) = document
-                && document.owner == wire::Owner::Jig
-            {
-                received.push(Received::Delivery(
-                    translate::watches::delivery(document.record.as_ref(), &limits).expect("delivery document"),
-                ));
+            if let Some(document) = document {
+                match document.owner {
+                    wire::Owner::Jig => received.push(Received::Delivery(
+                        translate::watches::delivery(document.record.as_ref(), &limits).expect("delivery document"),
+                    )),
+                    wire::Owner::Family(family) => {
+                        use temper_client_protocol_wire as forge;
+                        if matches!(landing, LandingRead::Watching)
+                            && family.number == forge::FORGE
+                            && let Some(panel) = forge::decode_change_panel(&document.record, &forge::v1::CEILINGS)
+                            && let (forge::v1::Step::Landed(at), Some(pull)) = (panel.step, panel.pull)
+                        {
+                            *landing =
+                                LandingRead::Landed(Landing { task: panel.task, pull: pull.number, merge: at.merge });
+                        }
+                    }
+                }
             }
         }
     }

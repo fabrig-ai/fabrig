@@ -1,4 +1,4 @@
-//! Exact secret-boundary observations on the simulated service (temper/docs/design/testing/README.md, 2.5).
+//! Exact secret-boundary observations on the simulated service (temper/docs/design/testing/tiers.md, 1.5).
 use temper_playground::{
     machine::{Machine, SignalHost},
     programs,
@@ -179,7 +179,7 @@ impl skein_world::Referee<Proc> for Judge {
         self.finding.is_none() && (self.stopping)
     }
 }
-fn checkpoint(service: &world::ServiceHost, store: &Store) -> Result<(), String> {
+pub(crate) fn checkpoint(service: &world::ServiceHost, store: &Store) -> Result<(), String> {
     observer::artifact("public roots", format!("{:?}", referee::secrets::Roots(&service.service)).as_bytes());
     observer::artifact("nonsecret records", format!("{:?}", store.rows).as_bytes());
     observer::checkpoint()?;
@@ -249,7 +249,7 @@ pub fn refused_replayed_pastes() -> Counts {
 }
 
 // The delivery story pushes, opens and merges; a change also holds its branch's re-run kind.
-const DELIVERY_KINDS: [u16; 4] = [2, 3, 4, 17];
+pub(crate) const DELIVERY_KINDS: [u16; 4] = [2, 3, 4, 17];
 
 pub(crate) fn configure(value: &mut temper_playground::documents::Configuration) {
     if !observer::enabled() {

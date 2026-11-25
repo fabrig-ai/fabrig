@@ -1,4 +1,4 @@
-//! Take the printed link out of history before starting the host (protocol/browser/README.md, 11).
+//! Take the printed link out of history before starting the host (protocol/browser/sign-in.md, 1).
 use skein_lib::base64::{self, Alphabet};
 #[derive(Debug)]
 pub struct Route<'a> {
@@ -11,7 +11,7 @@ pub struct Taken {
     pub secret: Box<[u8]>,
     pub address: Box<[u8]>,
 }
-// Hide sign-in secret bytes to keep diagnostics safe (skein/docs/design/runtime/lib.md, 6).
+// Hide sign-in secret bytes to keep diagnostics safe (skein/docs/design/runtime/lib-bytes.md, 1).
 impl core::fmt::Debug for Taken {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Taken").field("secret_len", &self.secret.len()).field("address", &self.address).finish()

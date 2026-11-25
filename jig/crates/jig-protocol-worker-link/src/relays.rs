@@ -1,15 +1,9 @@
-//! Calls retained across channels (protocol/channel/README.md, 9.1).
+//! Calls retained across channels (protocol/channel/worker-link.md, 1.1).
 use crate::Limits;
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_lib::{List, Map, Token, bytes};
 type Key = (Token, Token, Box<[u8]>);
-pub(crate) struct Replay {
-    pub run: Token,
-    pub attempt: Token,
-    pub call: Box<[u8]>,
-    pub frame: Frame,
-}
 #[derive(Debug)]
 pub(crate) struct Relays {
     records: Map<Key, Frame>,
@@ -48,10 +42,10 @@ impl Relays {
         self.order.truncate(to);
         true
     }
-    pub(crate) fn replay(&self, index: u32) -> Option<Replay> {
+    pub(crate) fn replay(&self, index: u32) -> Option<Frame> {
         let key = self.order.get(index)?;
         let record = self.records.get(key)?;
-        Some(Replay { run: key.0, attempt: key.1, call: bytes::copy_of(&key.2), frame: copy(record) })
+        Some(copy(record))
     }
 }
 fn copy(record: &Frame) -> Frame {

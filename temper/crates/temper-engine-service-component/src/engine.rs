@@ -1,4 +1,4 @@
-//! One root input per pass, with completions passing held new work (protocol/README.md, 4).
+//! One root input per pass, with completions passing held new work (protocol/service-routing.md, 1).
 mod diagnostics;
 use crate::{CoreWait, End, route, stop, store::route::Up};
 use alloc::boxed::Box;
@@ -23,7 +23,7 @@ pub struct Engine {
     pub(crate) store: crate::store::Store,
     pub(crate) accounts: Option<crate::accounts::Accounts>,
     pub(crate) workers: crate::workers::Workers,
-    pub(crate) clients: crate::clients::Clients,
+    pub(crate) clients: Box<crate::clients::Clients>,
     pub(crate) demo: Option<crate::settings::Demo>,
     pub(crate) providers: Queue<Box<[jig_protocol_config::ProviderSetting]>>,
     pub(crate) providers_path: Box<[u8]>,
@@ -60,6 +60,9 @@ pub struct Engine {
     aborted: Option<()>,
     #[cfg(test)]
     pub(crate) release_trace: Option<ReleaseTrace>,
+    #[cfg(test)]
+    #[expect(clippy::disallowed_types, reason = "tests count reads of the deadline without changing readiness")]
+    pub(crate) deadline_reads: core::cell::Cell<u32>,
 }
 
 /// Test observations of the release/dispatch order (skein/docs/foundation/programming-model.md, 7.2).
@@ -122,7 +125,7 @@ fn release_snapshot(request: &root::Request) -> Box<[u8]> {
 pub(crate) struct Children {
     pub(crate) accounts: Option<crate::accounts::Accounts>,
     pub(crate) workers: crate::workers::Workers,
-    pub(crate) clients: crate::clients::Clients,
+    pub(crate) clients: Box<crate::clients::Clients>,
     pub(crate) demo: Option<crate::settings::Demo>,
     pub(crate) setup: crate::setup::Layer,
     pub(crate) forge: crate::forge::Layer,
@@ -199,6 +202,9 @@ impl Engine {
             aborted: None,
             #[cfg(test)]
             release_trace: None,
+            #[cfg(test)]
+            #[expect(clippy::disallowed_types, reason = "the deadline read counter is test-only")]
+            deadline_reads: core::cell::Cell::new(0),
         };
         let mut documents =
             core::mem::replace(&mut engine.workers.forges, crate::forges::Forges::with_capacity(own.forge.forges));
@@ -218,7 +224,7 @@ impl Engine {
     pub(crate) fn start_runtime(&self) -> bool {
         use jig_domain_core::start::Phase;
         match self.domain.start_phase() {
-            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+            Some(Phase::AdoptRuns | Phase::Open) => true,
             Some(
                 Phase::LoadCore
                 | Phase::LoadInbox
@@ -365,6 +371,7 @@ impl Engine {
                         ]),
                     });
                 }
+                root::Fact::LandingRead(note) => self.notes.push(crate::Note::LandingRead(note)),
                 root::Fact::LandingUnmade { task, repository, branch, changes } => {
                     self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
                 }
@@ -409,6 +416,8 @@ impl Engine {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
+        #[cfg(test)]
+        self.deadline_reads.set(self.deadline_reads.get().saturating_add(1));
         let mut next = skein_lib::earliest(self.store.host.next_deadline(), self.workers.host.next_deadline());
         if self.end.is_none() {
             next = skein_lib::earliest(next, self.domain.next_deadline(&self.env));
@@ -465,10 +474,7 @@ impl Engine {
         if self.end.is_some() || !self.store.opened {
             return components;
         }
-        let due = match self.next_deadline() {
-            Some(deadline) => deadline <= now,
-            None => false,
-        };
+        // A deadline only decides readiness when no other eligible work does.
         components
             || (self.facts_waiting && notes_room > 0)
             || self.room()
@@ -481,8 +487,11 @@ impl Engine {
                                 && (self.passing.is_some()
                                     || self.pending.is_some()
                                     || !self.events.is_empty()
-                                    || due
-                                    || self.domain.ready() && !self.first_periods.is_empty())))
+                                    || self.domain.ready() && !self.first_periods.is_empty()
+                                    || match self.next_deadline() {
+                                        Some(deadline) => deadline <= now,
+                                        None => false,
+                                    })))
     }
     pub fn abort_if_ended(&mut self) {
         if self.end.is_some() {
@@ -737,7 +746,7 @@ pub(crate) fn release(engine: &mut Engine) {
         if let Some(trace) = &mut engine.release_trace {
             trace.released(&engine.requests, before, engine.store.host.above.len());
         }
-        if engine.requests.is_empty() {
+        if engine.requests.is_empty() && !engine.domain.rehearsed() {
             stop::advance(engine);
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
             engine.restored_limit_revision();
@@ -760,6 +769,9 @@ pub(crate) fn release(engine: &mut Engine) {
             empty = 0;
         }
         if !dispatch(engine) {
+            break;
+        }
+        if engine.domain.rehearsed() {
             break;
         }
         if empty == 2 {
@@ -897,8 +909,8 @@ pub(crate) fn answer(engine: &mut Engine) {
                     .try_push(crate::Note::Ran { of, job, rows, commits, counts })
                     .expect("job progress note room");
             }
-            event @ (jig_protocol_store::Event::Site { .. } | jig_protocol_store::Event::Job { .. }) => {
-                crate::store::route::site(
+            event @ jig_protocol_store::Event::Job { .. } => {
+                crate::store::route::job(
                     &mut engine.store.routes,
                     &mut engine.store.host.component,
                     event,

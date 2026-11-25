@@ -1,4 +1,4 @@
-//! Shared constants and per-reader copies (jig/docs/design/protocol/channel/README.md, 11).
+//! Shared constants and per-reader copies (jig/docs/design/protocol/channel/testing.md, 1).
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant, Hello, Hosting, Operation, Phase, Scheme};
 use jig_protocol_worker_link::{Credential, Limits};
 use jig_protocol_worker_wire::Record;
@@ -8,7 +8,9 @@ pub const SECRET_A: &[u8] = b"secret-a";
 #[must_use]
 pub fn application() -> skein_lib::List<wire::Spoken> {
     let mut wires = skein_lib::List::with_capacity(1);
-    wires.push(wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    let text = "family test-worker-wire 3\nrecord Test { value: u32 note: u8 = 0 }\n";
+    let layout = skein_codec::schema::parse(text.as_bytes()).expect("test wire").fingerprints().family().digest();
+    wires.push(wire::Spoken { name: "test-worker-wire", version: 3, layout, text }).expect("application wire");
     wires
 }
 pub const SEED_ONE: u64 = 1;
@@ -89,6 +91,16 @@ fn prepared_channel_limits() -> &'static skein_channel::Limits {
 pub fn schema() -> skein_channel::Schema {
     prepared_schema().clone()
 }
+/// Reuse the fixture's table only when its size inputs match; changed limits build their own.
+#[must_use]
+pub fn schema_for_sizes(sizes: &wire::sizes::Sizes) -> skein_channel::Schema {
+    if sizes == &SIZES {
+        schema()
+    } else {
+        let codec = wire::sizes::limits(sizes).expect("world codec");
+        wire::schema(&codec).expect("world schema")
+    }
+}
 fn prepared_schema() -> &'static skein_channel::Schema {
     static SCHEMA: std::sync::OnceLock<skein_channel::Schema> = std::sync::OnceLock::new();
     SCHEMA.get_or_init(|| {
@@ -105,60 +117,8 @@ fn prepared_spoken() -> &'static List<wire::Spoken> {
     SPOKEN.get_or_init(wire::spoken)
 }
 fn peer(schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
-    let mut peer = skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Responder,
-        engine_channel_limits(),
-        wire::VERSION,
-        Box::new([]),
-    )
-    .expect("scripted engine");
-    peer.play(agreement());
-    peer
-}
-#[must_use]
-pub fn agreement() -> skein_channel::Frame {
-    frame(0x018d, prepared_agreement_body())
-}
-fn prepared_agreement_body() -> &'static [u8] {
-    static BODY: std::sync::OnceLock<Box<[u8]>> = std::sync::OnceLock::new();
-    BODY.get_or_init(|| {
-        let mut wires = List::with_capacity(5);
-        for spoken in prepared_spoken() {
-            wires
-                .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
-                .expect("four jig wires");
-        }
-        wires
-            .push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 })
-            .expect("application wire");
-        let record = wire::v21::Agreed { wires };
-        let mut body = Writer::new(skein_lib::length::usize_of(
-            record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
-        ));
-        record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
-        body.finish()
-    })
-}
-#[must_use]
-pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-    let record = wire::v21::Agreed { wires };
-    let mut body = Writer::new(skein_lib::length::usize_of(
-        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
-    ));
-    record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
-    let mut frame = skein_channel::frame_writer(
-        0x018d,
-        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
-    )
-    .expect("frame");
-    frame.put(&body.finish()).expect("body");
-    frame.finish().expect("measured frame")
-}
-#[must_use]
-pub fn engine_without_statement() -> skein_fake_channel::ScriptedPeer {
     skein_fake_channel::ScriptedPeer::new(
-        schema(),
+        schema,
         skein_channel::Role::Responder,
         engine_channel_limits(),
         wire::VERSION,
@@ -166,6 +126,16 @@ pub fn engine_without_statement() -> skein_fake_channel::ScriptedPeer {
     )
     .expect("scripted engine")
 }
+
+/// The engine's terms do not advertise this sending kind of the worker's.
+#[must_use]
+pub fn engine_without_term(kind: wire::Kind) -> skein_fake_channel::ScriptedPeer {
+    let mut schema = schema();
+    let table = schema.versions.get_mut(0).expect("one version");
+    table.kinds = List::from_boxed(table.kinds.iter().copied().filter(|rule| rule.kind != kind.number()).collect());
+    peer(schema)
+}
+
 #[must_use]
 pub fn engine_accepting() -> skein_fake_channel::ScriptedPeer {
     peer(schema())
@@ -202,8 +172,9 @@ pub const TOKEN_TWO: &[u8] = b"app-access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
 #[must_use]
-pub fn codec() -> wire::v21::Limits {
-    wire::sizes::limits(&SIZES).expect("small codec limits")
+pub fn codec() -> wire::v22::Limits {
+    static CODEC: std::sync::OnceLock<wire::v22::Limits> = std::sync::OnceLock::new();
+    *CODEC.get_or_init(|| wire::sizes::limits(&SIZES).expect("small codec limits"))
 }
 #[must_use]
 pub fn hello() -> Hello {
@@ -357,6 +328,7 @@ pub fn assignment_record(transcript: Box<[u8]>) -> wire::Assignment {
         })
         .expect("room");
     wire::Assignment {
+        parts: Box::new([]),
         task: 7,
         attempt: 2,
         identity: [9; 16],
@@ -417,7 +389,7 @@ pub fn down_frames() -> Vec<skein_channel::Frame> {
     frames
 }
 
-pub fn encoded<R: Record<Limits = wire::v21::Limits>>(record: &R) -> Box<[u8]> {
+pub fn encoded<R: Record<Limits = wire::v22::Limits>>(record: &R) -> Box<[u8]> {
     record.encode(&codec()).expect("record within fixture limits")
 }
 
@@ -462,24 +434,15 @@ pub fn acknowledge() -> skein_channel::Frame {
 
 #[must_use]
 pub fn engine_accepting_with(limits: &Limits) -> skein_fake_channel::ScriptedPeer {
-    let codec = wire::sizes::limits(&limits.sizes).expect("sizes");
-    let schema = wire::schema(&codec).expect("schema");
-    let cap = wire::sizes::engine_cap(&limits.sizes).expect("engine cap");
+    let schema = schema_for_sizes(&limits.sizes);
+    let cap = wire::sizes::engine_cap(&limits.sizes, limits.room).expect("engine cap");
     let channel = skein_channel::Limits {
         output_bytes: cap.bytes,
         output_frames: cap.frames,
         ..jig_protocol_worker_link::channel_limits(limits).expect("channel limits")
     };
-    let mut engine = skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Responder,
-        channel,
-        wire::VERSION,
-        Box::new([]),
-    )
-    .expect("engine");
-    engine.play(agreement());
-    engine
+    skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Responder, channel, wire::VERSION, Box::new([]))
+        .expect("engine")
 }
 
 #[must_use]
@@ -493,6 +456,8 @@ pub fn grant(form: Form) -> Grant {
 #[must_use]
 pub fn assignment() -> host::Assignment {
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         assignment: host::RunAssignment {
             run: RUN_SEVEN,
             attempt: ATTEMPT_TWO,
@@ -534,8 +499,11 @@ pub fn relay_answer(name: &[u8]) -> host::LinkDown {
 /// The scripted engine can send the fixed schema-bound figures record.
 #[must_use]
 pub fn engine_channel_limits() -> skein_channel::Limits {
-    let cap = wire::sizes::engine_cap(&SIZES).expect("engine cap");
-    skein_channel::Limits { output_bytes: cap.bytes, output_frames: cap.frames, ..channel_limits() }
+    static CHANNEL: std::sync::OnceLock<skein_channel::Limits> = std::sync::OnceLock::new();
+    *CHANNEL.get_or_init(|| {
+        let cap = wire::sizes::engine_cap(&SIZES, LIMITS.room).expect("engine cap");
+        skein_channel::Limits { output_bytes: cap.bytes, output_frames: cap.frames, ..channel_limits() }
+    })
 }
 
 #[must_use]

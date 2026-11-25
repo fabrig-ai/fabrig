@@ -35,7 +35,7 @@ hearth-fake-machine
   error, and checks what its client guarantees: a handle it issued, a
   process it started. Each check returns its finding, a value apart
   from Linux's refusals, which its call panics on, as skein's minimal
-  fake machine's check of a handle does (`skein/docs/design/testing/README.md`, 5);
+  fake machine's check of a handle does (`skein/docs/design/testing/service-tiers.md`, 1);
   the checks' tests read the finding.
 - **It keeps a ledger:** every operation, who made it (process, ids,
   view; one process until the steward and its builders run apart [M3],

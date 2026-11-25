@@ -13,7 +13,7 @@ use crate::{
     Active, End, EscalationHolder, Event, MessageKind as M, Party, Phase, Reasons as R, Request, ResultsWake,
     TaskResult, WakePolicy, WakeRule, Why, Word,
 };
-use skein_lib::{Duration, Queue, Wall};
+use skein_lib::{Duration, Queue, Time, Wall};
 
 const TASK: u64 = 1;
 const SOURCE: u64 = 2;
@@ -23,19 +23,34 @@ const FENCE: u64 = 20;
 // The fixture has 100 to spend; this attempt reserves ten and spends none.
 const RUN_BUDGET: u64 = 10;
 const PACE: Duration = Duration::from_secs(60);
+// A batch of two holds the single test message until its age expires.
+const BATCH_AGE: Duration = Duration::from_secs(30);
+const BATCH: WakeRule = WakeRule::Batch { count: 2, age: BATCH_AGE };
 
 fn fixture() -> Harness {
+    holder(
+        WakePolicy {
+            questions: true,
+            answers: true,
+            timers: true,
+            results: ResultsWake::Each,
+            words: WakeRule::Immediate,
+            notices: WakeRule::Immediate,
+            news: WakeRule::Immediate,
+        },
+        crate::EndedBy::Result,
+    )
+}
+
+fn holder(wake: WakePolicy, ended_by: crate::EndedBy) -> Harness {
     let mut h = Harness::new();
     let mut new = task(TASK, &[]);
-    new.wake = WakePolicy {
-        questions: true,
-        answers: true,
-        timers: true,
-        results: ResultsWake::Each,
-        words: WakeRule::Immediate,
-        notices: WakeRule::Immediate,
-        news: WakeRule::Immediate,
-    };
+    new.wake = wake;
+    new.flags.ended_by = ended_by;
+    if let crate::EndedBy::Closer(closer) = ended_by {
+        new.authority.delegation.kinds =
+            Box::new([crate::AuthorityExecutor::Charter(1), crate::AuthorityExecutor::Procedure(closer.code)]);
+    }
     h.make(vec![new]);
     h
 }
@@ -69,6 +84,11 @@ fn start(h: &mut Harness, offered: R) {
 }
 
 fn start_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
+    claim_task(h, number, attempt, offered);
+    h.send(Event::Started { task: number, attempt });
+}
+
+fn claim_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
     let reasons = h.domain.run_context(number).expect("activation context").reasons;
     h.send(Event::Prepare { reply_to: to(), task: number });
     let out = h.send(Event::Claim {
@@ -91,12 +111,19 @@ fn start_task(h: &mut Harness, number: u64, attempt: u64, offered: R) {
         }),
         "{out:?}"
     );
-    h.send(Event::Started { task: number, attempt });
 }
 
 fn end(h: &mut Harness, end: End) {
     let attempt = h.domain.task(TASK).expect("running fixture").attempt;
-    h.send(Event::Activation { reply_to: to(), task: TASK, attempt, end, saved: None, cause: crate::Cause::Unpriced });
+    h.send(Event::Activation {
+        reads_project: false,
+        reply_to: to(),
+        task: TASK,
+        attempt,
+        end,
+        saved: None,
+        cause: crate::Cause::Unpriced,
+    });
 }
 
 fn escalation(h: &mut Harness) -> Vec<Request> {
@@ -185,6 +212,7 @@ fn setup(h: &mut Harness, actions: &[Setup]) {
                         answerer: Party::Person(PERSON),
                         asked: Party::Person(PERSON),
                         line: 1,
+                        offer: None,
                     }])
                 } else {
                     Box::new([])
@@ -709,6 +737,15 @@ const LANDING: u64 = 2;
 const REPAIR: u64 = 9;
 const PERSON_TASK: u64 = 10;
 const ENTRY: u64 = 22;
+const LEAD_ATTEMPT: u64 = 12;
+const FOLLOW_UP: u64 = 11;
+const RESULT: u64 = 23;
+const FOLLOW_UP_ATTEMPT: u64 = 1;
+const FOLLOW_UP_MESSAGE: u64 = 24;
+const REPAIR_QUESTION: u64 = 25;
+const REPAIR_ANSWER: u64 = 26;
+const CLOSER: crate::EndedBy = crate::EndedBy::Closer(crate::Closer { connector: 1, code: 6 });
+const LAST: WakePolicy = WakePolicy { results: ResultsWake::LastOrFailure, ..WakePolicy::DEFAULT };
 
 fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
     let mut new = task(number, &[]);
@@ -719,6 +756,7 @@ fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
         new.executor = crate::Executor::Person(crate::PersonAddress::Person(PERSON));
     }
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -737,6 +775,7 @@ fn delegate(h: &mut Harness, parent: u64, number: u64, person: bool) {
 fn repair_attempt(h: &mut Harness, attempt: u64) {
     start_task(h, REPAIR, attempt, R::ALL);
     let out = h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: REPAIR,
         attempt,
@@ -755,10 +794,21 @@ fn repair_attempt(h: &mut Harness, attempt: u64) {
 
 fn held_repair(offered: R) -> Harness {
     let mut h = fixture();
-    delegate(&mut h, TASK, LANDING, false);
-    delegate(&mut h, LANDING, REPAIR, false);
+    hold_repair(&mut h, offered);
+    h
+}
+
+fn hold_repair(h: &mut Harness, offered: R) {
+    exhaust_repair(h);
+    start_task(h, TASK, LEAD_ATTEMPT, offered);
+    route_repair(h);
+}
+
+fn exhaust_repair(h: &mut Harness) {
+    delegate(h, TASK, LANDING, false);
+    delegate(h, LANDING, REPAIR, false);
     for attempt in 1..=3 {
-        repair_attempt(&mut h, attempt);
+        repair_attempt(h, attempt);
         h.env.now = h.env.now.saturating_add(Duration::from_secs(1));
         h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
         let mut out = Queue::uncapped();
@@ -768,7 +818,9 @@ fn held_repair(offered: R) -> Harness {
         Phase::Held { why: crate::Hold::Failures(crate::Class::Invalid), .. } => true,
         _ => false,
     });
-    start_task(&mut h, TASK, 12, offered);
+}
+
+fn route_repair(h: &mut Harness) {
     let revision = h.domain.task(REPAIR).expect("held repair").revisions.hold;
     let out =
         h.send(Event::RoutedEscalation { task: REPAIR, revision, holder: EscalationHolder::Task(TASK), entry: ENTRY });
@@ -776,7 +828,6 @@ fn held_repair(offered: R) -> Harness {
         Request::Relay { word, .. } if word.number == ENTRY => true,
         _ => false,
     }));
-    h
 }
 
 fn commit_read(h: &mut Harness, read: Option<u64>, refused: &[u64], entries: &[u64]) {
@@ -799,6 +850,258 @@ fn commit_read(h: &mut Harness, read: Option<u64>, refused: &[u64], entries: &[u
         }),
         "{out:?}"
     );
+}
+
+fn finish_follow_up(h: &mut Harness) -> Vec<Request> {
+    delegate(h, TASK, FOLLOW_UP, false);
+    start_task(h, FOLLOW_UP, FOLLOW_UP_ATTEMPT, R::ALL);
+    h.send(Event::Activation {
+        reads_project: false,
+        reply_to: to(),
+        task: FOLLOW_UP,
+        attempt: FOLLOW_UP_ATTEMPT,
+        end: End::Finished { result: TaskResult::Report { words: Box::new([]) }, cancel_delegates: false },
+        saved: None,
+        cause: crate::Cause::Unpriced,
+    });
+    h.send(Event::EffectsSettled { task: FOLLOW_UP });
+    h.send(Event::Settled { task: FOLLOW_UP });
+    h.send(Event::DelegateResult {
+        task: TASK,
+        word: word(RESULT, M::Result(crate::ResultKind::Report), Party::Task(FOLLOW_UP)),
+    })
+}
+
+fn park_undecided_repair(h: &mut Harness) {
+    hold_repair(h, R::ALL);
+    park_covered_repair(h);
+}
+
+fn park_covered_repair(h: &mut Harness) {
+    commit_read(h, Some(ENTRY), &[], &[ENTRY]);
+    end(h, End::Parked);
+}
+
+#[test]
+fn a_nonlast_success_wakes_a_parked_escalation_holder() {
+    for ended_by in [crate::EndedBy::Result, CLOSER] {
+        let mut h = holder(LAST, ended_by);
+        park_undecided_repair(&mut h);
+        finish_follow_up(&mut h);
+        let row = h.domain.task(TASK).expect("lead");
+        assert_eq!(row.phase, Phase::Active(Active::Due), "{ended_by:?}");
+        assert_eq!(row.delegates.as_ref(), &[LANDING], "the result was not last");
+        assert_eq!(row.due_reason, Why::Message { message: RESULT });
+        assert_eq!(h.domain.run_context(TASK).expect("next run").reasons, R::ESCALATION.union(R::RESULT));
+    }
+}
+
+const QUIET: WakePolicy = WakePolicy {
+    questions: false,
+    answers: false,
+    timers: false,
+    results: ResultsWake::Never,
+    words: WakeRule::Never,
+    notices: WakeRule::Never,
+    news: WakeRule::Paced { span: PACE },
+};
+
+fn arrive_news(h: &mut Harness, class: crate::NewsClass) {
+    let mut news = word(FOLLOW_UP_MESSAGE, M::News { subscription: SOURCE, class }, Party::Task(LANDING));
+    news.at = h.env.wall;
+    arrive(h, news);
+}
+
+fn fire_at(h: &mut Harness, due: Time) {
+    h.env.now = due;
+    h.env.wall = Wall::from_nanos(due.as_nanos());
+    let mut out = Queue::uncapped();
+    crate::fire(&mut h.domain, &h.env, &mut out);
+}
+
+fn parked_batched_holder() -> Harness {
+    let mut h = holder(WakePolicy { news: BATCH, ..QUIET }, crate::EndedBy::Result);
+    hold_repair(&mut h, R::ESCALATION);
+    park_covered_repair(&mut h);
+    h
+}
+
+#[test]
+fn a_single_batched_news_message_wakes_the_escalation_holder() {
+    let mut h = parked_batched_holder();
+    arrive_news(&mut h, crate::NewsClass::Wakes);
+    assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Due));
+    assert_eq!(h.domain.run_context(TASK).expect("next run").reasons, R::ESCALATION.union(R::NEWS));
+}
+
+#[test]
+fn without_an_escalation_single_batched_news_waits_for_age() {
+    let mut h = parked_batched_holder();
+    reject_repair(&mut h);
+    arrive_news(&mut h, crate::NewsClass::Wakes);
+    let due = h.env.now.saturating_add(BATCH_AGE);
+    assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Idle));
+    assert_eq!(h.domain.next_deadline(), Some(due));
+    fire_at(&mut h, due);
+    assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Due));
+}
+
+fn send_spoken(h: &mut Harness, task: u64, mut word: Word, words: &[u8]) {
+    word.words = words.into();
+    word.at = h.env.wall;
+    h.send(Event::Message { reply_to: to(), project: 1, operation: crate::Message { task, word } });
+}
+
+#[test]
+fn a_policy_kept_answer_wakes_the_escalation_holder() {
+    let mut h = holder(QUIET, crate::EndedBy::Result);
+    hold_repair(&mut h, R::ESCALATION);
+    // The question is to a delegate, not the lead's requester, so its answer has no mandatory wake.
+    send_spoken(&mut h, LANDING, word(REPAIR_QUESTION, M::Question, Party::Task(TASK)), b"Can you help?");
+    park_covered_repair(&mut h);
+    send_spoken(
+        &mut h,
+        TASK,
+        word(REPAIR_ANSWER, M::Answer { question: REPAIR_QUESTION }, Party::Task(LANDING)),
+        b"Yes.",
+    );
+    let row = h.domain.task(TASK).expect("lead");
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(row.due_reason, Why::Message { message: REPAIR_ANSWER });
+}
+
+#[test]
+fn unoffered_kept_news_wakes_an_escalation_holder_after_park() {
+    let mut h = holder(QUIET, crate::EndedBy::Result);
+    hold_repair(&mut h, R::ESCALATION);
+    arrive_news(&mut h, crate::NewsClass::Kept);
+    park_covered_repair(&mut h);
+    // This pin checks the wake, not whether a park has to pause before it.
+    if let Phase::Active(Active::BackingOff { until }) = h.domain.task(TASK).expect("lead").phase {
+        fire_at(&mut h, Time::from_nanos(until.as_nanos()));
+    }
+    let row = h.domain.task(TASK).expect("lead");
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(row.due_reason, Why::Message { message: FOLLOW_UP_MESSAGE });
+}
+
+fn kept_arrivals() -> [(M, R); 7] {
+    [
+        (M::Result(crate::ResultKind::Report), R::RESULT),
+        (M::News { subscription: SOURCE, class: crate::NewsClass::Kept }, R::NEWS),
+        (M::News { subscription: SOURCE, class: crate::NewsClass::Wakes }, R::NEWS),
+        (M::Question, R::QUESTION),
+        (M::Timer { subscription: SOURCE }, R::TIMER),
+        (M::Notice { subscription: SOURCE, target: SOURCE, state: crate::NoticeState::Done }, R::NOTICE),
+        (M::Words, R::WORDS),
+    ]
+}
+
+#[test]
+fn otherwise_kept_messages_wake_a_covered_escalation_holder() {
+    for (kind, reason) in kept_arrivals() {
+        let mut h = holder(QUIET, crate::EndedBy::Result);
+        park_undecided_repair(&mut h);
+        arrive(&mut h, word(FOLLOW_UP_MESSAGE, kind.clone(), Party::Task(LANDING)));
+        let row = h.domain.task(TASK).expect("lead");
+        assert_eq!(row.phase, Phase::Active(Active::Due), "{kind:?}");
+        assert_eq!(row.due_reason, Why::Message { message: FOLLOW_UP_MESSAGE }, "{kind:?}");
+        assert_eq!(h.domain.run_context(TASK).expect("next run").reasons, R::ESCALATION.union(reason), "{kind:?}");
+    }
+}
+
+#[test]
+fn a_restored_covered_escalation_wakes_on_the_next_message() {
+    let mut h = holder(LAST, crate::EndedBy::Result);
+    park_undecided_repair(&mut h);
+    h.restart();
+    finish_follow_up(&mut h);
+    assert_eq!(h.domain.run_context(TASK).expect("next run").reasons, R::ESCALATION.union(R::RESULT));
+    assert_eq!(h.domain.task(TASK).expect("lead").due_reason, Why::Message { message: RESULT });
+}
+
+#[test]
+fn live_escalation_holders_hear_nonlast_successes_without_new_parts() {
+    for started in [false, true] {
+        let mut h = holder(LAST, crate::EndedBy::Result);
+        exhaust_repair(&mut h);
+        claim_task(&mut h, TASK, LEAD_ATTEMPT, R::FIRST);
+        if started {
+            h.send(Event::Started { task: TASK, attempt: LEAD_ATTEMPT });
+        }
+        route_repair(&mut h);
+        let out = finish_follow_up(&mut h);
+        let row = h.domain.task(TASK).expect("lead");
+        assert!(
+            out.iter().any(|request| match request {
+                Request::Relay { task: TASK, attempt: LEAD_ATTEMPT, word, .. } => word.number == RESULT,
+                _ => false,
+            }),
+            "started={started}: {out:?}"
+        );
+        assert_eq!(h.domain.next_waiting(TASK, Some(ENTRY)).map(|word| word.number), Some(RESULT));
+        assert_eq!((row.offered, row.reasons), (R::FIRST, R::FIRST));
+    }
+}
+
+fn reject_repair(h: &mut Harness) {
+    let revision = h.domain.task(REPAIR).expect("repair").revisions.hold;
+    h.send(Event::DecideEscalation {
+        reply_to: to(),
+        task: REPAIR,
+        revision,
+        by: crate::EscalationDecider::Task(TASK),
+        entry: None,
+        decision: crate::EscalationDecision::Reject { reason: Box::new([]) },
+    });
+}
+
+#[test]
+fn suppressed_arrivals_stay_kept_without_a_waiting_escalation() {
+    for decided in [false, true] {
+        for (kind, _) in kept_arrivals() {
+            let mut h = holder(QUIET, crate::EndedBy::Result);
+            if decided {
+                park_undecided_repair(&mut h);
+                reject_repair(&mut h);
+            } else {
+                delegate(&mut h, TASK, LANDING, false);
+                start(&mut h, R::ALL);
+                end(&mut h, End::Parked);
+            }
+            arrive(&mut h, word(FOLLOW_UP_MESSAGE, kind.clone(), Party::Task(LANDING)));
+            assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Idle), "{decided}: {kind:?}");
+        }
+    }
+}
+
+#[test]
+fn a_covered_proposal_does_not_wake_on_nonlast_success() {
+    let mut h = holder(LAST, crate::EndedBy::Result);
+    delegate(&mut h, TASK, REPAIR, false);
+    start(&mut h, R::ALL);
+    proposal(&mut h);
+    commit_read(&mut h, Some(MESSAGE), &[], &[MESSAGE]);
+    end(&mut h, End::Parked);
+    finish_follow_up(&mut h);
+    assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Idle));
+}
+
+#[test]
+fn ending_escalation_wait_restores_batch_and_pace_deadlines() {
+    for (rule, span) in [(BATCH, BATCH_AGE), (WakeRule::Paced { span: PACE }, PACE)] {
+        let mut h = holder(WakePolicy { news: rule, ..QUIET }, crate::EndedBy::Result);
+        hold_repair(&mut h, R::ALL);
+        arrive_news(&mut h, crate::NewsClass::Wakes);
+        reject_repair(&mut h);
+        let due = h.env.now.saturating_add(span);
+        assert_eq!(h.domain.next_deadline(), Some(due), "{rule:?}");
+        end(&mut h, End::Parked);
+        assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Idle), "{rule:?}");
+        fire_at(&mut h, due);
+        assert_eq!(h.domain.task(TASK).expect("lead").phase, Phase::Active(Active::Due), "{rule:?}");
+        assert_eq!(h.domain.run_context(TASK).expect("next run").reasons, R::NEWS, "{rule:?}");
+    }
 }
 
 #[test]

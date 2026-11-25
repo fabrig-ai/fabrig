@@ -1,8 +1,8 @@
 //! Values crossing the connector top's parent boundary. Durable records are
 //! whole rows: the parent saves them in the decision and only then sends
-//! `Committed` for a new outbox entry (jig's domain/connectors.md, 4.2).
+//! `Committed` for a new outbox entry (jig's domain/connectors-effects.md, 1.2).
 use alloc::boxed::Box;
-use skein_lib::Token;
+use skein_lib::{List, Token};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_issues as issues;
 use temper_engine_domain_forge_landing as landing;
@@ -106,7 +106,7 @@ pub struct Kinds {
 /// Forge read grants (domain/forge/README.md, section 2).
 pub const READ_KINDS: [u16; 1] = [1];
 
-/// Forge grants needed by the change procedure (domain/forge/README.md, section 4 and domain/forge/change/README.md).
+/// Forge grants needed by the change procedure (domain/forge/effects.md, section 1 and domain/forge/change/README.md).
 pub const CHANGE_KINDS: [u16; 7] = [2, 3, 4, 10, 11, 12, 17];
 
 /// One adopted repository, with provider name and project ownership.
@@ -130,9 +130,9 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
-    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 8).
+    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 12).
     pub landing: Box<[u8]>,
-    /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
+    /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 11).
     pub workflows: Box<[Box<[u8]>]>,
 }
 impl Repository {
@@ -309,7 +309,7 @@ pub enum Answered {
     TriageFinding(crate::TriageFindingAnswer),
     SetDraft(crate::SetDraftAnswer),
 }
-/// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
+/// Making admission (temper/docs/design/domain/forge/adoption.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MakeAnswer {
     Kept,
@@ -401,7 +401,7 @@ pub enum SetUpAnswer {
     SettingUp,
     Refused(SetUpRefusal),
 }
-/// The configured forge provider (domain/forge/adoption.md, 1).
+/// The configured forge provider (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     Forgejo,
@@ -477,7 +477,7 @@ pub struct EmptyIntent {
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
 }
-/// The set up's durable choice (temper/docs/design/protocol/setup/owned.md, 7).
+/// The set up's durable choice (temper/docs/design/protocol/setup/owned-repositories.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FirstIntent {
     Empty(EmptyIntent),
@@ -491,7 +491,7 @@ pub enum SetUpFirst {
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
-/// The row's first-repository choice (temper/docs/design/protocol/setup/owned.md, 7).
+/// The row's first-repository choice (temper/docs/design/protocol/setup/owned-repositories.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartsWith {
     Repository,
@@ -499,7 +499,7 @@ pub enum StartsWith {
     Nothing,
 }
 /// A forge's link to a box's one person: on this forge, that party is that user
-/// (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 6).
+/// (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption-person.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     /// The forge's user, never 0.
@@ -508,7 +508,7 @@ pub struct Link {
     pub person: u64,
 }
 
-/// What setup read of the forge's person (temper/docs/design/domain/forge/adoption.md, 6).
+/// What setup read of the forge's person (temper/docs/design/domain/forge/adoption-person.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PersonAnswer {
     /// The person's user: a Forgejo `Reconcile`'s `Person` id or a manifest-made App's `User` account.
@@ -519,7 +519,7 @@ pub enum PersonAnswer {
     NotTheirs,
 }
 
-/// What happened to the forge's link (temper/docs/design/domain/forge/adoption.md, 6).
+/// What happened to the forge's link (temper/docs/design/domain/forge/adoption-person.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LinkNote {
     Gone,
@@ -545,7 +545,7 @@ pub struct ForgeRecord {
     /// The forge's link to a box's person, or none (temper/docs/design/protocol/forge/engine.md, 1).
     pub person: Option<Link>,
 }
-/// Kept, or ended with removal's answers (temper/docs/design/domain/forge/adoption.md, 1).
+/// Kept, or ended with removal's answers (temper/docs/design/domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeState {
     Kept,
@@ -600,7 +600,7 @@ pub enum ResetStep {
     Forge,
     Account,
 }
-/// Removal's answer (temper/docs/design/domain/forge/adoption.md, 1).
+/// Removal's answer (temper/docs/design/domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RemoveAnswer {
     Removed,
@@ -613,7 +613,7 @@ pub enum EndAnswer {
     NotOffered,
 }
 
-/// The row's setup offer, also used to admit `SetUp` (domain/forge/adoption.md, 1).
+/// The row's setup offer, also used to admit `SetUp` (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Offer {
     NotOffered,
@@ -670,9 +670,22 @@ pub struct AdoptedRow {
     pub project: u32,
 }
 
+/// What one forge still owes after a restart (domain/forge/catching-up.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CatchingUp {
+    pub fresh: u32,
+    pub gathers: u32,
+    pub ci: u32,
+    pub goal_files: u32,
+    pub lost_writers: u32,
+    pub goal_branches: u32,
+    pub uncertain: u32,
+}
+
 /// One configured forge, including its connection, offer and first repository.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Row {
+    pub catching_up: Option<CatchingUp>,
     pub read_only: bool,
     pub number: u16,
     /// The host in repository resource names, including an explicit port.
@@ -695,13 +708,13 @@ pub struct Row {
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
 }
-/// The deployment's forges, ordered by number (domain/forge/adoption.md, 1).
+/// The deployment's forges, ordered by number (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Forges {
     pub rows: Box<[Row]>,
     pub full: Box<[FullTable]>,
 }
-/// Tables full past the report bound (protocol/README.md, 6.3).
+/// Tables full past the report bound (protocol/service-process.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FullKind {
     Outbox,
@@ -898,7 +911,7 @@ pub enum Writer {
     /// An outbox entry making a change to the resource.
     Entry(u64),
 }
-/// A subject published by the forge (domain/forge/README.md, section 5).
+/// A subject published by the forge (domain/forge/topics.md, section 1).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Topic {
     /// A branch's tip moved.
@@ -1084,7 +1097,7 @@ pub struct ChangeRow {
     pub body: Box<[u8]>,
     pub priority: i32,
     pub change: change::Change,
-    /// Last exact-head CI observation retained when the change lands or ends (domain/forge/change/README.md, 5).
+    /// Last exact-head CI observation retained when the change lands or ends (domain/forge/change/panel.md, 1).
     pub ci: Option<change::Ci>,
     pub pull: Option<u64>,
     pub pending: Option<u64>,
@@ -1122,11 +1135,12 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
+    pub close_at: Option<change::CloseAt>,
     /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
     pub report: Box<[u8]>,
     /// Its agents' questions and their relay (domain/forge/change/questions.md, 1).
     pub questions: change::Questions,
-    /// The red landing this change repairs (temper/docs/design/domain/agent/tools.md, 1).
+    /// The red landing this change repairs (temper/docs/design/domain/agent/tools-change.md, 1).
     pub repairs: Option<skein_forge::api::Commit>,
     pub follows: Option<ChangeFollows>,
     pub follow_check: Option<FollowCheck>,
@@ -1210,6 +1224,7 @@ pub struct ChangeHot {
     pub queue_repairs: u32,
     pub effect_account: Option<EffectAccount>,
     pub producer_failure: Option<Box<[u8]>>,
+    pub close_at: Option<change::CloseAt>,
     pub questions: change::Questions,
     pub follow_check: Option<FollowCheck>,
     pub merge_result: Option<Box<[u8]>>,
@@ -1268,6 +1283,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            close_at,
             report,
             questions,
             repairs,
@@ -1335,6 +1351,7 @@ impl ChangeRow {
                 queue_repairs,
                 effect_account,
                 producer_failure,
+                close_at,
                 questions,
                 follow_check,
                 merge_result,
@@ -1402,6 +1419,7 @@ impl ChangeRow {
             queue_repairs,
             effect_account,
             producer_failure,
+            close_at,
             questions,
             follow_check,
             merge_result,
@@ -1456,6 +1474,7 @@ impl ChangeRow {
             review_llm,
             effect_account,
             producer_failure,
+            close_at,
             report,
             questions,
             repairs,
@@ -1526,7 +1545,7 @@ pub struct RepositoryGates {
 /// A tier description's byte bound (temper/docs/design/protocol/configuration/engine.md).
 pub const DESCRIPTION_BYTES: usize = 120;
 
-/// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
+/// A repository's tier and followed branch (temper/docs/design/domain/after-landing-runs.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Tier {
     pub name: Box<[u8]>,
@@ -1538,7 +1557,7 @@ pub struct Tier {
     pub span: Option<skein_lib::Duration>,
     pub description: Box<[u8]>,
 }
-/// What a tier follows (temper/docs/design/domain/after-landing.md, 2).
+/// What a tier follows (temper/docs/design/domain/after-landing-runs.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Follows {
     /// The repository's landing branch, its adoption's default.
@@ -1564,9 +1583,24 @@ pub enum LandingRefusal {
     Repository,
     Way,
 }
+/// Engine log for a run of fresh-read waits (domain/landing-waits.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingReadNote {
+    pub task: u64,
+    pub round: u16,
+    pub reading: Box<[u8]>,
+    pub kind: LandingReadNoteKind,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum LandingReadNoteKind {
+    Started { why: Box<[u8]> },
+    Read { elapsed: skein_lib::Duration },
+    Held { elapsed: skein_lib::Duration, why: Box<[u8]> },
+}
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub read_hold: Option<Box<[u8]>>,
     pub last_event: Option<skein_lib::Wall>,
     pub turn_since: Option<skein_lib::Wall>,
     pub waiting: Option<landing::Awaited>,
@@ -1575,7 +1609,75 @@ pub struct LandingRow {
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
+    /// Independent of the outbox; an absent list has no saved follows or marks.
+    pub follows: Option<Box<[LandingFollow]>>,
     pub flake_reruns: Box<[FlakeRerun]>,
+}
+/// A gate run's durable follow, independent of the lifetime of its writes.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingFollow {
+    /// The latest write's position and observation mark, even after it settles.
+    pub entry: LandingEntry,
+    /// Absent once only the run's observation mark is needed.
+    pub dispatch: Option<LandingDispatch>,
+    pub start: Option<skein_lib::Time>,
+    pub since: Option<skein_lib::Time>,
+    pub wall: Option<skein_lib::Wall>,
+    pub try_number: u16,
+    pub failed: bool,
+    pub reruns: Box<[skein_forge::api::JobAttempt]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingDispatch {
+    pub workflow: Box<[u8]>,
+    pub branch: Box<[u8]>,
+    pub inputs: Box<[skein_forge::api::Input]>,
+}
+impl LandingRow {
+    #[must_use]
+    pub fn follows(&self) -> &[LandingFollow] {
+        self.follows.as_deref().unwrap_or(&[])
+    }
+
+    pub fn follows_mut(&mut self) -> &mut [LandingFollow] {
+        self.follows.as_deref_mut().unwrap_or(&mut [])
+    }
+
+    pub fn keep_follows(&mut self, follows: Box<[LandingFollow]>) {
+        self.follows = if follows.is_empty() { None } else { Some(follows) };
+    }
+
+    /// Observation metadata for a followed write; old rows may still keep it in `entries`.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "the strict subset has no closures")]
+    pub fn run_entry(&self, number: u64) -> Option<&LandingEntry> {
+        for follow in self.follows() {
+            if follow.entry.entry == number {
+                return Some(&follow.entry);
+            }
+        }
+        for entry in &self.entries {
+            if entry.entry == number {
+                return Some(entry);
+            }
+        }
+        None
+    }
+
+    #[expect(clippy::manual_find, reason = "the strict subset has no closures")]
+    pub fn run_entry_mut(&mut self, number: u64) -> Option<&mut LandingEntry> {
+        for follow in self.follows.as_deref_mut().unwrap_or(&mut []) {
+            if follow.entry.entry == number {
+                return Some(&mut follow.entry);
+            }
+        }
+        for entry in &mut self.entries {
+            if entry.entry == number {
+                return Some(entry);
+            }
+        }
+        None
+    }
 }
 /// A spent key and its durable job cursor (domain/landing-regate.md, 2, 4, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1633,13 +1735,13 @@ pub struct LandingHeard {
     pub released: bool,
     pub cancelled: bool,
 }
-/// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
+/// Family 24, a result of a run dispatched by temper (domain/landing-proof.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
     pub report: ReceiptReport,
     pub base: Option<skein_forge::api::Commit>,
     pub jobs: Box<[ReceiptJob]>,
-    /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
+    /// Failed workflow jobs, captured before this receipt is published (domain/landing-proof.md, 2.3).
     pub logs: Box<[u8]>,
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
@@ -1647,7 +1749,7 @@ pub struct Receipt {
     pub candidate: skein_forge::api::Commit,
     pub ended: skein_lib::Wall,
 }
-/// Failed tests retained independently of a tier's failures (domain/landing.md, 7.3).
+/// Failed tests retained independently of a tier's failures (domain/landing-proof.md, 2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ReceiptReport {
     Unset,
@@ -1661,7 +1763,7 @@ pub struct ReceiptTest {
     pub fuzzy: bool,
 }
 
-/// A failed gate job, retained for `read_job` (domain/landing.md, 6.2).
+/// A failed gate job, retained for `read_job` (domain/landing-proof.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReceiptJob {
     pub job: u64,
@@ -1765,7 +1867,7 @@ pub enum Stored {
     LimitHold(LimitHold),
     /// One held resource.
     Hold(Hold),
-    /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption.md, 1).
+    /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption-connection.md, 1).
     Names {
         task: u64,
         resources: Box<[Name]>,
@@ -1784,7 +1886,7 @@ pub enum Stored {
     },
     /// An unsettled outbox entry. A held one is out of the client's outbox,
     /// keeping its room until a person makes it again or it is settled not
-    /// made (domain/forge/README.md, 4; jig's `domain/connectors.md`, 4.3).
+    /// made (domain/forge/effects.md, 1; jig's `domain/connectors-effects.md`, 1.3).
     Entry {
         entry: skein_forge_client::Entry,
         held: bool,
@@ -1804,7 +1906,7 @@ pub enum Stored {
         until: skein_lib::Wall,
         outcome: ApplicationOutcome,
     },
-    /// A forge's writer, kept before any restored effect (domain/forge/adoption.md, 1).
+    /// A forge's writer, kept before any restored effect (domain/forge/adoption-connection.md, 1).
     Writer(skein_forge_client::Writer),
     /// First Google subject for a member address (protocol/sign-in.md, 5).
     Binding {
@@ -1813,7 +1915,7 @@ pub enum Stored {
     },
     /// The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge/change/gates.md, 3).
     Setting(crate::settings::SettingRow),
-    /// A sent write not yet settled (domain/forge/README.md, 4; protocol/store.md, 2).
+    /// A sent write not yet settled (domain/forge/effects.md, 1; protocol/store.md, 2).
     Flight {
         task: u64,
         entry: u64,
@@ -1823,7 +1925,7 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
-    /// A forge's durable setup and removal state (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 1).
+    /// A forge's durable setup and removal state (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption-connection.md, 1).
     Forge(ForgeRecord),
     /// The last forge number given (temper/docs/design/protocol/forge/engine.md, 1).
     ForgeNumber {
@@ -1969,7 +2071,7 @@ pub enum RestartStage {
     /// Every uncertain restored entry has been looked for.
     Settled,
 }
-/// Volatile connection information, rebuilt from routing at every start (domain/forge/adoption.md, 1).
+/// Volatile connection information, rebuilt from routing at every start (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Connection {
     NotConnected,
@@ -2013,7 +2115,7 @@ pub struct SetUpFetched {
     pub done: u64,
     pub total: Option<u64>,
 }
-/// The held connection's step when setup failed (domain/forge/adoption.md, 1).
+/// The held connection's step when setup failed (domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FailedStep {
     Fetch,
@@ -2021,7 +2123,7 @@ pub enum FailedStep {
     Run,
     Connect,
 }
-/// Why a `SetUp` is refused (protocol/forge/engine.md, 8; domain/forge/adoption.md, 1).
+/// Why a `SetUp` is refused (protocol/forge/engine.md, 8; domain/forge/adoption-connection.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpRefusal {
     NotOffered,
@@ -2037,7 +2139,7 @@ pub struct Installation {
     pub suspended: bool,
 }
 /// Pending task dependencies supplied by the root, never retained by the connector
-/// (jig's domain/tasks/lifecycle.md, 8; domain/landing.md, 4.1).
+/// (jig's domain/tasks/lifecycle-endings.md, 1; domain/landing.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeDependencies {
     pub change: u64,
@@ -2206,12 +2308,12 @@ pub enum Event {
         entry: u64,
     },
     /// Release adoptions after the project's tasks are erased
-    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
     ReleaseProject {
         project: u32,
         request: Token,
     },
-    /// Removal completions (temper/docs/design/domain/forge/adoption.md, 1).
+    /// Removal completions (temper/docs/design/domain/forge/adoption-connection.md, 1).
     SecretsErased {
         forge: u16,
     },
@@ -2230,6 +2332,11 @@ pub enum Event {
     Landing {
         row: LandingRow,
     },
+    /// An uncommitted merge waits for authority: give up its number, not the turn.
+    DeferLandingMerge {
+        task: u64,
+        entry: u64,
+    },
     VetoLanding {
         task: u64,
         entry: u64,
@@ -2239,7 +2346,7 @@ pub enum Event {
         entry: u64,
         heard: LandingHeard,
     },
-    /// The engine stops: finish sent entries without starting another write (domain/forge/README.md, 4).
+    /// The engine stops: finish sent entries without starting another write (domain/forge/effects.md, 1).
     Settle,
     /// A successful conversion kept its App records.
     AppRecorded {
@@ -2263,7 +2370,7 @@ pub enum Event {
         key: [u8; 16],
         keep: bool,
     },
-    /// The box ended its pipe (domain/forge/adoption.md, 1).
+    /// The box ended its pipe (domain/forge/adoption-connection.md, 1).
     BoxClosed,
     /// The routing's answer to a core-admitted connect request.
     ConnectAnswered {
@@ -2508,11 +2615,11 @@ pub enum Event {
         entry: u64,
         goal: u64,
     },
-    /// Give a full table an unpinned row's room, settled first (domain/forge/change/README.md, 7).
+    /// Give a full table an unpinned row's room, settled first (domain/forge/change/records.md, 1).
     DropChange {
         task: u64,
     },
-    /// Drop an unpinned change with its task's record, full table or not (domain/forge/change/README.md, 7).
+    /// Drop an unpinned change with its task's record, full table or not (domain/forge/change/records.md, 1).
     DropErased {
         task: u64,
     },
@@ -2546,6 +2653,12 @@ pub enum Event {
         task: u64,
         child: u64,
         kind: change::Delegate,
+    },
+    /// Remember the two measured tips when a close job is admitted.
+    CloseDelegated {
+        task: u64,
+        child: u64,
+        at: change::CloseAt,
     },
     /// The whole procedure batch was refused before a child number was admitted.
     DelegateAdmissionRefused {
@@ -2655,6 +2768,11 @@ pub enum Event {
         task: u64,
         ending: Ending,
     },
+    /// The close change keeps the failure, not the failed job, when it holds.
+    RetireFailedClose {
+        task: u64,
+        child: u64,
+    },
     /// A requester or person released a held change.
     ReleaseChange {
         task: u64,
@@ -2707,7 +2825,7 @@ pub enum Event {
         entry: u64,
     },
     /// A person settled a held entry: make it again, or record it not made
-    /// (domain/forge/README.md, 4; jig's `domain/connectors.md`, 4.3).
+    /// (domain/forge/effects.md, 1; jig's `domain/connectors-effects.md`, 1.3).
     Resolve {
         entry: u64,
         again: bool,
@@ -2747,21 +2865,24 @@ pub enum Event {
     Restored {
         clock: skein_forge_client::RecoveryClock,
     },
-    /// Read the system's live resources before procedures step.
-    ReadAfresh,
-    /// Look for each restored uncertain entry before procedures step.
-    SettleOutbox,
+    /// Read afresh and settle the restored outbox while the engine serves.
+    CatchUp,
+    /// A wait report was not admitted; it did not decide a procedure step.
+    WaitsRefused {
+        task: u64,
+        why: jig_domain_core_vocabulary::ReportRefusal,
+    },
     /// A connected Forgejo's Check found the user its tokens answer as: the connector keeps its
     /// login as the record's bot (protocol/forge/engine.md, 2).
     BotLogin {
         forge: u16,
         login: Box<[u8]>,
     },
-    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root.md, 8.1).
+    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root-restart.md, 1.1).
     Owner {
         party: Option<u64>,
     },
-    /// What a setup run read of the forge's person (temper/docs/design/domain/forge/adoption.md, 6).
+    /// What a setup run read of the forge's person (temper/docs/design/domain/forge/adoption-person.md, 1).
     PersonOf {
         forge: u16,
         answer: PersonAnswer,
@@ -2801,7 +2922,7 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
-    /// A table report, words after `serve: ` (protocol/README.md, 6.3).
+    /// A table report, words after `serve: ` (protocol/service-process.md, 1.3).
     FullTableFact {
         words: Box<[u8]>,
     },
@@ -2872,6 +2993,14 @@ pub enum Request {
     FileVerdict {
         task: u64,
         filing: crate::findings::VerdictFiling,
+    },
+    /// Return a judged finding through the root's holder and news path.
+    ReturnFinding(crate::Finding),
+    /// A live repair passed its wall deadline; ask jig to fail it once per start.
+    FailRepair {
+        project: u32,
+        task: u64,
+        until: skein_lib::Wall,
     },
     TierDecision {
         task: u64,
@@ -2985,6 +3114,11 @@ pub enum Request {
     MilestoneMarked {
         task: u64,
     },
+    /// Replace a procedure's current waits in the core.
+    Waits {
+        task: u64,
+        waits: List<jig_domain_core_vocabulary::Reported>,
+    },
     /// Changed panel subjects, bounded by `MARKED` (domain/root.md, 9).
     Marked {
         tasks: Box<[u64]>,
@@ -3022,7 +3156,7 @@ pub enum Request {
         hold: crate::resources::HoldKind,
     },
 
-    /// Drop a goal's core CI subscription at restart (domain/forge/README.md, 5.2).
+    /// Drop a goal's core CI subscription at restart (domain/forge/topics.md, 1.2).
     GoalUntopic {
         goal: u64,
         topic: Topic,
@@ -3183,6 +3317,12 @@ pub enum Request {
         entry: Option<u64>,
         evidence: Option<ChangeEvidence>,
     },
+    /// A close job offer or the replay of its failure, with the tips just read.
+    CloseDecision {
+        task: u64,
+        at: change::CloseAt,
+        replay: bool,
+    },
     /// Task-specific news with a connector classification.
     News {
         task: u64,
@@ -3218,6 +3358,7 @@ pub enum Request {
         request: Token,
         carried: jig_domain_core_vocabulary::Carried,
     },
+    LandingRead(LandingReadNote),
     /// A taskless landing ended in Link (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,
@@ -3230,7 +3371,7 @@ pub enum Request {
         name: Name,
         task: u64,
     },
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption-person.md, 1).
     LinkNoted {
         forge: u16,
         note: LinkNote,
@@ -3253,7 +3394,7 @@ pub struct Unfinished {
     pub task: u64,
 }
 
-/// A tier task's step (temper/docs/design/domain/after-landing.md, 10).
+/// A tier task's step (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TierDecision {
     Wait { until: Option<skein_lib::Wall> },
@@ -3266,7 +3407,7 @@ pub struct TierHeard {
     /// The root's `tasks.message_bytes`, for the red finding's news body.
     pub message_bytes: u32,
 }
-/// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
+/// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing-runs.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierGoal {
     /// The goal task holding the branch.
@@ -3282,7 +3423,15 @@ pub struct TierGoal {
     /// When its last run started.
     pub started: Option<skein_lib::Time>,
 }
-/// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
+/// Why a tier's run is held (temper/docs/design/domain/after-landing-runs.md, section 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TierHeld {
+    /// Past the project's `tier_retries`: the last runner fault's kind.
+    Faults(landing::Fault),
+    /// Waiting or blocked for a runner past `forge.change_policy.runner_wait_ms`.
+    RunnerWait,
+}
+/// Family 28's policy and task (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
     /// The judged run's whole report's names, retained until the next run starts.
@@ -3304,7 +3453,7 @@ pub struct TierRow {
     /// The current or completed probe, retained until its branch is released.
     pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
-    pub held: Option<landing::Fault>,
+    pub held: Option<TierHeld>,
     pub hold: Option<TierHold>,
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
@@ -3314,7 +3463,7 @@ pub struct TierRow {
     pub goal: Option<u64>,
     pub started: Option<skein_lib::Time>,
 }
-/// Kept verdict projections (temper/docs/design/domain/after-landing.md, sections 9 and 10).
+/// Kept verdict projections (temper/docs/design/domain/after-landing.md, section 9, and temper/docs/design/domain/after-landing-storage.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierPosting {
     pub number: u64,
@@ -3327,7 +3476,7 @@ pub struct TierPosting {
     /// Status is 0; comment i is i + 1.
     pub next: u32,
     pub entry: Option<u64>,
-    /// Zero for a verdict, a distinct positive status part at each fault hold.
+    /// Zero for a verdict, a distinct positive status part at each run hold.
     pub part: u16,
     /// Retains the rendering bound across restart and settings changes.
     pub op_bytes: u32,
@@ -3350,7 +3499,7 @@ pub enum TierCommentKind {
     Verdict { at: u16 },
     Repaired { by: Option<u64> },
 }
-/// A person's independent hold of a tier (domain/after-landing.md, sections 3 and 10).
+/// A person's independent hold of a tier (domain/after-landing-runs.md, section 2, and domain/after-landing-storage.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierHold {
     pub party: u64,
@@ -3377,6 +3526,7 @@ pub struct TierProbeBranch {
 /// Durable follower progress; trees and workflow details are read again after restart.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierFlight {
+    pub clock: Option<change::Clock>,
     pub entry: u64,
     pub start: Option<skein_lib::Time>,
     pub since: Option<skein_lib::Time>,
@@ -3388,7 +3538,7 @@ pub struct TierFlight {
     /// A failed part awaiting its artifact, read again after restart.
     pub report: Option<ReceiptRun>,
 }
-/// Family 29's landing verdicts (temper/docs/design/domain/after-landing.md, 10).
+/// Family 29's landing verdicts (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Verification {
     pub repository: skein_forge::api::Repository,
@@ -3416,7 +3566,7 @@ pub struct TierRepair {
     pub by: Option<skein_forge::api::Commit>,
 }
 
-/// Family 30's ring, oldest first (temper/docs/design/domain/after-landing.md, 10).
+/// Family 30's ring, oldest first (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingLog {
     pub repository: skein_forge::api::Repository,

@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
 /// Remove a cancelled member, retaining the remaining members' proofs
-/// (domain/landing.md, 4.2, 5.1).
+/// (domain/landing.md, 4.2, domain/landing-prepare.md, 1.1).
 #[must_use]
 pub fn leave(mut landing: Landing, change: u64) -> Landing {
     let mut members = List::with_capacity(u32::try_from(landing.members.len()).expect("bounded members"));
@@ -30,18 +30,7 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
     let mut next = landing.clone();
     match &landing.phase {
         Phase::Landed | Phase::Cancelled => return done(next, Decision::None),
-        Phase::Held { .. } => {
-            if !facts.released {
-                return wait(next, None, Awaited::Release);
-            }
-            next.phase = Phase::Preparing;
-            for member in &mut next.members {
-                for gate in &mut member.gates {
-                    gate.faults = 0;
-                }
-            }
-            return done(next, Decision::None);
-        }
+        Phase::Held { .. } => return crate::domain::held(next, facts.released, now),
         Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => {}
     }
     for member in &facts.members {
@@ -364,7 +353,7 @@ fn gate_step(
 }
 
 fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Stepped {
-    // Record read-back successes before any stale exit (domain/landing.md, 8).
+    // Record read-back successes before any stale exit (domain/landing-turn.md, 1).
     for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
         if member.candidate.is_some() && fresh.merged == member.candidate {
             member.landed = member.candidate;

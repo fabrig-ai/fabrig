@@ -23,19 +23,20 @@ pub enum Decoded {
 }
 
 macro_rules! lean_roots {
-    ($module:ident; $($name:ident),+ $(,)?) => {
+    ($module:path; $($name:ident),+ $(,)?) => {
         &[$(Root {
             name: stringify!($name),
             decode: |bytes| {
-                use skein_codec_tests::$module::{self, Record, $name};
-                match $name::decode(&$module::CEILINGS, &mut Reader::new(bytes)) {
+                use $module as codec;
+                use codec::{Record, $name};
+                match $name::decode(&codec::CEILINGS, &mut Reader::new(bytes)) {
                     Ok(value) => Decoded::Value {
                         debug: format!("{value:?}"),
-                        bytes: value.encode(&$module::CEILINGS).expect("decoded value encodes").into_vec(),
-                        measured: value.measure(&$module::CEILINGS).expect("decoded value measures"),
+                        bytes: value.encode(&codec::CEILINGS).expect("decoded value encodes").into_vec(),
+                        measured: value.measure(&codec::CEILINGS).expect("decoded value measures"),
                     },
                     Err(problem) => Decoded::Problem {
-                        path: $module::name(problem.path).expect("generated path").into(),
+                        path: problem.path.name().into(),
                         reason: problem.reason,
                     },
                 }
@@ -61,44 +62,59 @@ pub fn current_text(path: &str) -> Option<&'static str> {
     }
 }
 
-pub fn families() -> [Family; 8] {
+pub fn families() -> [Family; 10] {
     [
+        Family {
+            name: "growth",
+            text: skein_codec_tests::GROWTH_SCHEMA,
+            roots: lean_roots!(skein_codec_tests::growth; Growth),
+        },
+        Family {
+            name: "notes",
+            text: skein_ui_example_view_codec::SCHEMA,
+            roots: lean_roots!(skein_ui_example_view_codec::records; Label, Note, Add, Notes),
+        },
         Family {
             name: "sample",
             text: skein_codec_tests::SAMPLE_SCHEMA,
-            roots: lean_roots!(v1; Field, Effect, Report, Choice, Marker),
+            roots: lean_roots!(skein_codec_tests::v1; Field, Effect, Report, Choice, Marker),
         },
         Family {
             name: "mapped",
             text: skein_codec_tests::MAPPED_SCHEMA,
-            roots: lean_roots!(mapped_records; Reference, Label, Item, Empty, Shared, Checked, HandChoice, Event, Packet, Root, LongChoice),
+            roots: lean_roots!(skein_codec_tests::mapped_records; Reference, Label, Item, Empty, Shared, Checked, HandChoice, Event, Packet, Root, LongChoice,
+                Rows, RowsNotice, RowsExchange),
         },
         Family {
             name: "scalars",
             text: skein_codec_tests::SCALARS_SCHEMA,
-            roots: lean_roots!(scalars; Empty, Flag, Scalars),
+            roots: lean_roots!(skein_codec_tests::scalars; Empty, Flag, Scalars),
         },
         Family {
             name: "lint-fixture",
             text: skein_codec_tests::LINTS_SCHEMA,
-            roots: lean_roots!(lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
+            roots: lean_roots!(skein_codec_tests::lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
                 OptionalPayload, BoxedChoice, InlineChoice, FixedWidthItems, LongRecord),
         },
-        Family { name: "secrets", text: skein_codec_tests::SECRETS_SCHEMA, roots: lean_roots!(secrets; Credential) },
+        Family {
+            name: "secrets",
+            text: skein_codec_tests::SECRETS_SCHEMA,
+            roots: lean_roots!(skein_codec_tests::secrets; Credential),
+        },
         Family {
             name: "every",
             text: include_str!("../../schema/every-v1.schema"),
-            roots: lean_roots!(every; Blank, Numbers, Strings, Light, Stamp, Shape, Nest, Every),
+            roots: lean_roots!(skein_codec_tests::every; Blank, Numbers, Strings, Light, Stamp, Shape, Nest, Every),
         },
         Family {
             name: "every",
             text: include_str!("../../schema/every-v2.schema"),
-            roots: lean_roots!(every_v2; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every),
+            roots: lean_roots!(skein_codec_tests::every_v2; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every),
         },
         Family {
             name: "every",
             text: skein_codec_tests::EVERY_SCHEMA,
-            roots: lean_roots!(every_v3; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every,
+            roots: lean_roots!(skein_codec_tests::every_v3; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every,
                 Kinds, Lists, Options, Grouped, Held, LongRecord),
         },
     ]

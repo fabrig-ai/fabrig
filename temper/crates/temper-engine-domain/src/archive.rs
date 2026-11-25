@@ -1,6 +1,6 @@
 //! Loads of durable rows outside the working set: what a run's preparation
 //! reads (its transcript and inputs), notes, and
-//! the core's historical queries (jig's `domain/engine/executors.md`, 2).
+//! the core's historical queries (jig's `domain/engine/executors-transcripts.md`, 1).
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 
 use crate::boundary::{EndedRead, Read, Request, Work};
@@ -26,6 +26,7 @@ pub(crate) enum Waiting {
     GoalWords,
     Notes,
     Document,
+    CloserReport,
     Remember,
     Parts,
 }
@@ -43,13 +44,14 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
         Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
         Some(Read::Document(_)) => Some(Waiting::Document),
+        Some(Read::CloserReport(_)) => Some(Waiting::CloserReport),
         Some(Read::Parts(_)) => Some(Waiting::Parts),
         Some(Read::Remember(_)) => Some(Waiting::Remember),
         None => None,
     }
 }
 
-/// Reserve both owners before the held load can wait on durability (root.md, 7).
+/// Reserve both owners before the held load can wait on durability (domain/root.md, 7).
 pub(crate) fn reserve_ended(domain: &mut Domain, read: EndedRead) -> Token {
     let EndedRead::EndedTask { task, .. } = &read else { unreachable!("only ended tasks wait for room") };
     let task = *task;
@@ -112,6 +114,7 @@ pub(crate) fn input_loaded(
         Record::Core(
             jig_domain_core::Record::Core(
                 jig_domain_core::CoreRecord::Settings(_)
+                | jig_domain_core::CoreRecord::Part(_)
                 | jig_domain_core::CoreRecord::Call(_)
                 | jig_domain_core::CoreRecord::Deployment(_)
                 | jig_domain_core::CoreRecord::EscalationDecision(_)
@@ -161,6 +164,7 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
             Read::ChangeDelegate { .. }
             | Read::History { .. }
             | Read::Parts(_)
+            | Read::CloserReport(_)
             | Read::Document(_)
             | Read::Remember(_)
             | Read::SettingsNote { .. }
@@ -177,6 +181,10 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
 }
 
 pub(crate) fn note_failed(domain: &mut Domain, waiter: Token) {
+    if waiting(domain, waiter) == Some(Waiting::CloserReport) {
+        crate::route::forge_route::goal_report::failed(domain, waiter);
+        return;
+    }
     if waiting(domain, waiter) == Some(Waiting::Remember) {
         crate::route::remember::failed(domain, waiter);
         return;
@@ -242,6 +250,7 @@ fn ordinary_note_loaded(
             Record::Core(
                 jig_domain_core::Record::Core(
                     jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Part(_)
                     | jig_domain_core::CoreRecord::Call(_)
                     | jig_domain_core::CoreRecord::Deployment(_)
                     | jig_domain_core::CoreRecord::EscalationDecision(_)
@@ -344,7 +353,7 @@ pub(crate) fn transcript_failed(domain: &mut Domain, waiter: Token) {
 pub(crate) fn transcript_unread(domain: &mut Domain, waiter: Token) {
     let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
     domain.archive_reads.retire(Id::from_token(waiter));
-    // The core owns the closed/open window policy (jig's `domain/engine/executors.md`, 2).
+    // The core owns the closed/open window policy (jig's `domain/engine/executors-transcripts.md`, 1).
     if domain.core.transcripts.contains_key(&task) {
         domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
             task,
@@ -423,6 +432,7 @@ fn transcript_page(
                 jig_domain_core::Record::Core(
                     jig_domain_core::CoreRecord::ProposalDecision(_)
                     | jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Part(_)
                     | jig_domain_core::CoreRecord::Call(_)
                     | jig_domain_core::CoreRecord::EscalationDecision(_)
                     | jig_domain_core::CoreRecord::Deployment(_)

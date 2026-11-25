@@ -1,4 +1,4 @@
-//! Restart and task closure from jig/docs/design/domain/connectors.md, sections 4 and 14.
+//! Restart and task closure from jig/docs/design/domain/connectors-effects.md, section 1, and jig/docs/design/domain/connectors.md, section 14.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -150,15 +150,20 @@ fn assert_results(world: &InfrastructureWorld, stages: &[infra::RestartStage]) {
     assert_eq!(restarts(world), stages);
 }
 
-/// Pins `read_afresh_complete` and `outbox_settled`: 65 refreshes are live
+/// Pins the two catching-up reports: 65 refreshes are live
 /// concurrently, past the 64-slot carrier; 65 ready closes run in single-task
 /// batches because the closing table cannot hold 65. A fact and two lookups wait.
 #[test]
-fn a_restart_reports_only_after_every_refresh_settles() {
+fn each_catch_up_half_reports_only_after_ending_with_the_engine_open() {
+    let mut core = jig_core_kit::fixtures::opened_before_catch_up(714);
+    assert!(core.ready() && !core.caught_up(1));
     let (mut world, _) = loaded_world();
     let fact = hold_refresh_under_load(&mut world);
     world.event(infra::Event::System(fact.clone()));
     assert_eq!(restarts(&world), [infra::RestartStage::ReadAfresh]);
+    assert!(core.ready(), "the engine is open before the fresh reads' report");
+    core.catch_up_done(1, jig_domain_core::effects::connector::RestartStage::ReadAfresh);
+    assert!(!core.caught_up(1));
     let mut replies = VecDeque::new();
     for request in world.event(infra::Event::Restart) {
         if let infra::Request::System(call) = request {
@@ -178,6 +183,9 @@ fn a_restart_reports_only_after_every_refresh_settles() {
     }
     world.event(infra::Event::System(first));
     assert_results(&world, &[infra::RestartStage::ReadAfresh, infra::RestartStage::Outbox]);
+    assert!(core.ready(), "the engine is open before the settle's report");
+    core.catch_up_done(1, jig_domain_core::effects::connector::RestartStage::Settled);
+    assert!(core.caught_up(1));
 }
 
 /// Pins `task_effects_settled`: 65 concurrent refreshes and 65 ready closes

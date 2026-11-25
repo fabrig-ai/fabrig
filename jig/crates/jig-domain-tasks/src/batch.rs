@@ -1,23 +1,45 @@
 //! Whole-batch structural and financial admission (domain/tasks/README.md, section 4, and domain/tasks/holds.md, section 7, and domain/tasks/README.md, section 6).
 //! Dependencies, delegation and threshold queue waits are checked together
 //! before mutation; tasks does not judge root-authorized authority.
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::result_large_err,
-        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
-    )
+#![expect(
+    clippy::result_large_err,
+    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
 )]
 use crate::domain::{Domain, record};
 use crate::{Authority, Contract, Executor, Last, Limits, New, Parameter, Party, Phase, Problem, Refusal, Spec, Was};
 use skein_lib::bytes::is_utf8;
 
+impl Domain {
+    /// Read-only admission shared with Make (jig/docs/design/domain/authority.md, 6.3).
+    #[expect(clippy::result_large_err, reason = "preserve the making's exact problem")]
+    pub fn check_make(
+        &self,
+        limits: &Limits,
+        creator: Party,
+        maker: Option<u64>,
+        batch: &[New],
+        places: &[crate::DependencyPlace],
+        reads_project: bool,
+    ) -> Result<(), Problem> {
+        if !self.ready() {
+            return Err(problem(None, Refusal::NotReady));
+        }
+        check_places(self, limits, creator, maker, batch, places, reads_project)
+    }
+}
+
 fn problem(task: Option<u64>, why: Refusal) -> Problem {
     Problem { task, why, blocked_by: None, capacity: None }
 }
 
-pub(crate) fn check(domain: &Domain, limits: &Limits, creator: Party, batch: &[New]) -> Result<(), Problem> {
-    check_places(domain, limits, creator, None, batch, &[])
+pub(crate) fn check(
+    domain: &Domain,
+    limits: &Limits,
+    creator: Party,
+    batch: &[New],
+    reads_project: bool,
+) -> Result<(), Problem> {
+    check_places(domain, limits, creator, None, batch, &[], reads_project)
 }
 
 /// A party's ended dependencies are judged on loaded places (jig/docs/design/domain/tasks/README.md, 4).
@@ -28,8 +50,9 @@ pub(crate) fn check_places(
     maker: Option<u64>,
     batch: &[New],
     places: &[crate::DependencyPlace],
+    reads_project: bool,
 ) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, creator, batch, None, None, maker, places)
+    check_with_result_proposal(domain, limits, creator, batch, None, None, maker, places, reads_project)
 }
 
 /// Preflight an agent verdict's own delegates after its current run reservation and charge settle.
@@ -39,8 +62,19 @@ pub(crate) fn check_direct_followups(
     proposer: u64,
     charge: u64,
     batch: &[New],
+    reads_project: bool,
 ) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, Party::Task(proposer), batch, None, Some((proposer, charge)), None, &[])
+    check_with_result_proposal(
+        domain,
+        limits,
+        Party::Task(proposer),
+        batch,
+        None,
+        Some((proposer, charge)),
+        None,
+        &[],
+        reads_project,
+    )
 }
 
 /// A result proposal may admit its accepted batch while the proposer closes.
@@ -50,8 +84,9 @@ pub(crate) fn check_result_followups(
     creator: Party,
     proposal: u64,
     batch: &[New],
+    reads_project: bool,
 ) -> Result<(), Problem> {
-    check_with_result_proposal(domain, limits, creator, batch, Some(proposal), None, None, &[])
+    check_with_result_proposal(domain, limits, creator, batch, Some(proposal), None, None, &[], reads_project)
 }
 
 #[expect(
@@ -68,6 +103,7 @@ fn check_with_result_proposal(
     direct_finish: Option<(u64, u64)>,
     maker: Option<u64>,
     places: &[crate::DependencyPlace],
+    reads_project: bool,
 ) -> Result<(), Problem> {
     let size = u32::try_from(batch.len()).unwrap_or(u32::MAX);
     if size == 0 {
@@ -165,7 +201,7 @@ fn check_with_result_proposal(
         }
         Party::Person(_) | Party::Deployment { .. } => None,
     };
-    check_members(domain, limits, creator, batch, parent, maker, places)?;
+    check_members(domain, limits, creator, batch, parent, maker, places, reads_project)?;
     crate::holds::check_batch(domain, limits, creator, batch)?;
     if !crate::funders::can_reserve(domain, creator, batch, result_proposal, direct_finish) {
         return Err(problem(None, Refusal::Funding));
@@ -232,7 +268,11 @@ fn result_proposal_number(parent: &crate::TaskRecord) -> Option<u64> {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one batch member validates its complete creation shape")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::too_many_arguments,
+    reason = "one batch member validates its shape and its creator's reach"
+)]
 fn check_members(
     domain: &Domain,
     limits: &Limits,
@@ -241,6 +281,7 @@ fn check_members(
     parent: Option<&crate::TaskRecord>,
     maker: Option<u64>,
     places: &[crate::DependencyPlace],
+    reads_project: bool,
 ) -> Result<(), Problem> {
     for (at, new) in batch.iter().enumerate() {
         assert!(new.deadline == crate::Deadline::Named, "root resolves every made deadline");
@@ -249,6 +290,14 @@ fn check_members(
             || (new.flags.ended_by == crate::EndedBy::Standing && new.tracked.is_some())
         {
             return Err(problem(number, Refusal::Contract));
+        }
+        match new.flags.ended_by {
+            crate::EndedBy::Closer(closer) => {
+                if !new.authority.delegation.kinds.contains(&crate::AuthorityExecutor::Procedure(closer.code)) {
+                    return Err(problem(number, Refusal::Executor));
+                }
+            }
+            crate::EndedBy::Result | crate::EndedBy::Requester | crate::EndedBy::Standing => {}
         }
         if crate::gathering::executor(new.executor) && !crate::gathering::shape(new) {
             return Err(problem(number, Refusal::Contract));
@@ -388,6 +437,14 @@ fn check_members(
             }
             if !known && let Some(parent) = parent {
                 known = contains(&parent.references, *dependency) && domain.names.contains_key(dependency);
+            }
+            if !known
+                && reads_project
+                && parent.is_some()
+                && maker.is_none()
+                && let Some(row) = record(domain, *dependency)
+            {
+                known = row.project == new.project;
             }
             if !known {
                 return Err(problem(number, Refusal::Dependencies));

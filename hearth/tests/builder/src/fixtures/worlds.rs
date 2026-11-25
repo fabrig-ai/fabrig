@@ -2,7 +2,10 @@
 use super::{File, Laid, THIN};
 use core::cell::{Ref, RefCell, RefMut};
 use hearth_domain_builder::vocabulary::Call;
-use hearth_fake_git::{objects, repository::Repositories};
+use hearth_fake_git::{
+    objects,
+    repository::{Repositories, Repository},
+};
 use hearth_fake_machine::{
     behind::{self, Behind},
     hearth::{draw::Draw, universe::Universe},
@@ -50,9 +53,10 @@ pub struct Shared(Rc<RefCell<Fake>>);
 impl Shared {
     #[must_use]
     pub fn new(files: &[File], seed: u64) -> Self {
-        Self::build(files, &[], seed, WORLD_PIPE, None)
+        let (repository, _) = first_revision(files);
+        Self::build(Some(repository), &[], seed, WORLD_PIPE, None)
     }
-    fn build(files: &[File], laid: &[Laid], seed: u64, pipe: u32, fault: Option<Fault>) -> Self {
+    fn build(repository: Option<Repository>, laid: &[Laid], seed: u64, pipe: u32, fault: Option<Fault>) -> Self {
         let mut machine = hearth_fake_machine::Machine::new(
             seed,
             linux::Sizes { files: 4096, bytes: 16 << 20, processes: 32, pipe, ledger: 256 },
@@ -83,10 +87,12 @@ impl Shared {
             }
         }
         machine.install(b"/usr/bin/mmdebstrap", hearth_fake_machine::hearth::Tool::Mmdebstrap);
-        let mut repository = hearth_fake_git::repository::Repository::new(b"refs/heads/main");
-        repository.commit(&commit(files, Box::default()));
         let mut repositories = Repositories::default();
-        repositories.lay(machine.linux_mut(), GIT_DIR, BUILDER, repository);
+        if let Some(repository) = repository {
+            repositories.lay(machine.linux_mut(), GIT_DIR, BUILDER, repository);
+        } else {
+            machine.linux_mut().lay(&[linux::Item::directory(GIT_DIR, 0o755).owner(BUILDER)]);
+        }
         let universe = Universe::draw(&mut Rng::new(seed), &Draw { packages: WORLD_PACKAGES, names: &[] });
         Self(Rc::new(RefCell::new(Fake {
             output: OutputHold::default(),
@@ -204,6 +210,8 @@ impl skein_world::Machine for Shared {
 #[derive(Clone, Debug)]
 pub struct Scenario<'a> {
     pub files: &'a [File],
+    /// Complete second tree, committed over `files` and named by `HEAD`.
+    pub later: Option<&'a [File]>,
     pub laid: &'a [Laid],
     pub call: Call,
     pub form: hearth::Form,
@@ -215,12 +223,16 @@ pub enum Fault {
     KilledAt { stdout_bytes: u32 },
     CacheFileGone { sha256: hearth_lib::encode::Digest },
     NotInstalled { absent: bool },
+    NoRepository,
+    UnreadableTree,
     Stalled { after: u64 },
+    Resolution(RecordedFailure),
 }
 #[must_use]
 pub fn thin() -> Scenario<'static> {
     Scenario {
         files: THIN,
+        later: None,
         laid: &[],
         call: Call::Render {
             resolve: false,
@@ -234,14 +246,33 @@ pub fn thin() -> Scenario<'static> {
     }
 }
 #[must_use]
+pub fn diffing<'a>(files: &'a [File], later: &'a [File]) -> Scenario<'a> {
+    Scenario {
+        files,
+        later: Some(later),
+        call: Call::Diff {
+            resolve: false,
+            repository: GIT_DIR.into(),
+            from: b"before".as_slice().into(),
+            to: b"HEAD".as_slice().into(),
+            targets: Box::default(),
+        },
+        ..thin()
+    }
+}
+#[must_use]
 pub fn resolving(files: &[File]) -> Scenario<'_> {
+    render_targets(files, &[], true)
+}
+#[must_use]
+pub fn render_targets<'a>(files: &'a [File], targets: &[&[u8]], resolve: bool) -> Scenario<'a> {
     Scenario {
         files,
         call: Call::Render {
-            resolve: true,
+            resolve,
             repository: GIT_DIR.into(),
             revision: b"HEAD".as_slice().into(),
-            targets: Box::default(),
+            targets: targets.iter().map(|target| Box::<[u8]>::from(*target)).collect(),
         },
         ..thin()
     }
@@ -262,6 +293,7 @@ pub fn each_domain(test: impl FnMut(crate::domain::Run, u64)) {
 pub fn each_scenario(scenario: &Scenario<'_>, mut test: impl FnMut(crate::domain::Run, u64)) {
     for seed in WORLD_SEEDS {
         test(crate::domain::Run::new(scenario, seed), seed);
+        skein_checks::count("seed", 1);
     }
 }
 #[must_use]
@@ -362,35 +394,56 @@ pub(super) fn commit(files: &[File], parents: Box<[objects::Oid]>) -> objects::C
     }
 }
 
+fn first_revision(files: &[File]) -> (Repository, objects::Oid) {
+    let mut repository = Repository::new(b"refs/heads/main");
+    let head = repository.commit(&commit(files, Box::default()));
+    (repository, head)
+}
+
+fn inferred_later(files: &[File], resolve: bool) -> Vec<File> {
+    let replacement = if resolve {
+        CHANGED_PACKAGE_TARGET
+    } else if files.iter().any(|file| file.path == super::MOTD_KIND.path) {
+        super::MOTD_KIND
+    } else {
+        super::budgets::FLEET_EDIT
+    };
+    let mut later: Vec<_> =
+        files.iter().map(|file| if file.path == replacement.path { replacement } else { *file }).collect();
+    if resolve {
+        later.push(DIFF_PACKAGE_TASK);
+    }
+    later
+}
+
+fn scenario_repository(scenario: &Scenario<'_>) -> Repository {
+    let (mut repository, before) = first_revision(scenario.files);
+    let inferred;
+    let later = match (scenario.later, &scenario.call) {
+        (Some(files), _) => Some(files),
+        (None, Call::Diff { resolve, .. }) => {
+            inferred = inferred_later(scenario.files, *resolve);
+            Some(inferred.as_slice())
+        }
+        (None, _) => None,
+    };
+    let head = if let Some(files) = later {
+        repository.set_ref(b"refs/heads/before", before);
+        repository.commit(&commit(files, Box::new([before])))
+    } else {
+        before
+    };
+    if matches!(scenario.fault, Some(Fault::UnreadableTree)) {
+        repository.drop_listing(head);
+    }
+    repository
+}
+
 impl Shared {
     #[must_use]
     pub fn for_scenario(scenario: &Scenario<'_>, seed: u64, pipe: u32) -> Self {
-        let shared = Self::build(scenario.files, scenario.laid, seed, pipe, scenario.fault);
-        if let Call::Diff { resolve, .. } = scenario.call {
-            let mut fake = shared.borrow_mut();
-            let repository = fake.repositories.0.get_mut(GIT_DIR).expect("laid repository");
-            let hearth_fake_git::repository::Resolved::Commit(before) = repository.resolve(b"HEAD") else {
-                unreachable!("initial commit")
-            };
-            repository.set_ref(b"refs/heads/before", before);
-            let replacement = if resolve {
-                CHANGED_PACKAGE_TARGET
-            } else if scenario.files.iter().any(|file| file.path == super::MOTD_KIND.path) {
-                super::MOTD_KIND
-            } else {
-                super::budgets::FLEET_EDIT
-            };
-            let mut files: Vec<_> = scenario
-                .files
-                .iter()
-                .map(|file| if file.path == replacement.path { replacement } else { *file })
-                .collect();
-            if resolve {
-                files.push(DIFF_PACKAGE_TASK);
-            }
-            repository.commit(&commit(&files, Box::new([before])));
-        }
-        shared
+        let repository = (!matches!(scenario.fault, Some(Fault::NoRepository))).then(|| scenario_repository(scenario));
+        Self::build(repository, scenario.laid, seed, pipe, scenario.fault)
     }
     /// Preserve the machine ledger after every pure fake turn as after every file record.
     pub fn drain_ledger(&self) {

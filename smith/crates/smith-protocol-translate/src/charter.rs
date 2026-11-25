@@ -1,15 +1,16 @@
 //! Charter values become bounded wire policy (smith/docs/design/protocol/charter.md, sections 2
 //! and 5). This translation retains no state, addresses or credentials;
 //! `encode_charter` resolves domain endpoint names without admitting policy.
+use crate::generated::charter as mapped;
 use crate::{Endpoints, Error};
 use alloc::boxed::Box;
+use skein_codec::Reason;
 use skein_lib::List;
 use smith_charter as wire;
 use smith_charter::Record;
 use smith_domain::run;
 
 /// Encode every declared charter form using the configured endpoint names.
-#[expect(clippy::too_many_lines, reason = "total checked translation of the complete charter vocabulary")]
 pub fn encode_charter(
     source: &run::Charter,
     limits: &wire::v5::Limits,
@@ -17,30 +18,18 @@ pub fn encode_charter(
 ) -> Result<Box<[u8]>, Error> {
     let mut brief = List::with_capacity(count(source.brief.sections.len())?);
     for section in &source.brief.sections {
-        if brief.push(wire::Section { title: section.title.clone(), body: section.text.clone() }).is_err() {
+        if brief.push(mapped::section_to_record(section)).is_err() {
             return Err(Error::Capacity);
         }
     }
     let mut host = List::with_capacity(count(source.grants.host_tools.len())?);
     for tool in &source.grants.host_tools {
-        let effect = match tool.effect {
-            run::HostEffect::Read => wire::Effect::Read,
-            run::HostEffect::Write => wire::Effect::Write,
-        };
-        let item = wire::HostTool {
-            reserve: tool.reserve,
-            name: tool.name.clone(),
-            description: tool.description.clone(),
-            input: tool.schema.clone(),
-            effect,
-            deadline: tool.timeout,
-        };
-        if host.push(item).is_err() {
+        if host.push(mapped::host_tool_to_record(tool)).is_err() {
             return Err(Error::Capacity);
         }
     }
     let deliver = match &source.grants.deliver {
-        Some(rule) => Some(change(rule)?),
+        Some(rule) => Some(mapped::change_rule_to_record(rule).or(Err(Error::Capacity))?),
         None => None,
     };
     let tools = wire::Tools {
@@ -56,44 +45,9 @@ pub fn encode_charter(
         host,
         contract: source.grants.contract,
     };
-    let mut verdicts = List::with_capacity(count(source.outcome.verdicts.len())?);
-    for rule in &source.outcome.verdicts {
-        let mut kinds = List::with_capacity(count(rule.items.kinds.len())?);
-        for kind in &rule.items.kinds {
-            let item = wire::ItemKind { kind: kind.kind.clone(), fields: fields(&kind.fields)? };
-            if kinds.push(item).is_err() {
-                return Err(Error::Capacity);
-            }
-        }
-        let item = wire::VerdictRule {
-            label: rule.name.clone(),
-            text_max: rule.text_max,
-            fields: fields(&rule.fields)?,
-            least: rule.items.min,
-            most: rule.items.max,
-            kinds,
-        };
-        if verdicts.push(item).is_err() {
-            return Err(Error::Capacity);
-        }
-    }
-    let contract = wire::Contract {
-        change: match &source.outcome.change {
-            Some(rule) => Some(change(rule)?),
-            None => None,
-        },
-        report: match &source.outcome.report {
-            Some(rule) => Some(text(rule)?),
-            None => None,
-        },
-        failure: match &source.outcome.failure {
-            Some(rule) => Some(text(rule)?),
-            None => None,
-        },
-        verdicts,
-    };
+    let contract = mapped::contract_to_record(&source.outcome).or(Err(Error::Capacity))?;
     let conventions = match &source.conventions {
-        Some(paths) => Some(wire::Conventions { guide: paths.guide.clone(), checks: paths.checks.clone() }),
+        Some(paths) => Some(mapped::conventions_to_record(paths)),
         None => None,
     };
     let mut models = List::with_capacity(count(source.models.len())?);
@@ -104,10 +58,7 @@ pub fn encode_charter(
     }
     let record = wire::Charter {
         check_timeout: source.check_timeout,
-        mode: match source.mode {
-            run::Mode::Finite => wire::Mode::Finite,
-            run::Mode::Open => wire::Mode::Open,
-        },
+        mode: mapped::mode_to_record(&source.mode),
         instructions: source.instructions.clone(),
         brief,
         tools,
@@ -117,7 +68,7 @@ pub fn encode_charter(
             turns: source.budget.turns,
             spend: source.budget.spend,
             time: source.budget.time,
-            reserve: wire::Reserve { turns: source.reserve.turns, time: source.reserve.time },
+            reserve: mapped::reserve_to_record(&source.reserve),
         },
         main: llm(&source.llm, endpoints)?,
         models,
@@ -137,23 +88,46 @@ fn count(length: usize) -> Result<u32, Error> {
     }
 }
 
-fn fields(source: &[run::outcome::FieldRule]) -> Result<List<wire::FieldRule>, Error> {
-    let mut fields = List::with_capacity(count(source.len())?);
-    for field in source {
-        let item = wire::FieldRule { name: field.name.clone(), max: field.max };
-        if fields.push(item).is_err() {
-            return Err(Error::Capacity);
-        }
+pub(super) fn verdict_rule_to_record(
+    source: &run::outcome::VerdictRule,
+) -> Result<wire::VerdictRule, wire::v5::Problem> {
+    let kind_count =
+        u32::try_from(source.items.kinds.len()).or(Err(wire::v5::paths::VERDICT_RULE_KINDS.problem(Reason::Bound)))?;
+    let mut kinds = List::with_capacity(kind_count);
+    for kind in &source.items.kinds {
+        assert!(kinds.push(mapped::item_kind_to_record(kind)?).is_ok(), "one output per item kind");
     }
-    Ok(fields)
+    let count =
+        u32::try_from(source.fields.len()).or(Err(wire::v5::paths::VERDICT_RULE_FIELDS.problem(Reason::Bound)))?;
+    let mut fields = List::with_capacity(count);
+    for field in &source.fields {
+        assert!(fields.push(mapped::field_rule_to_record(field)).is_ok(), "one output per field rule");
+    }
+    Ok(wire::VerdictRule {
+        label: source.name.clone(),
+        text_max: source.text_max,
+        fields,
+        least: source.items.min,
+        most: source.items.max,
+        kinds,
+    })
 }
 
-fn change(source: &run::outcome::ChangeSpec) -> Result<wire::ChangeRule, Error> {
-    Ok(wire::ChangeRule { checks_must_pass: source.checks_must_pass, fields: fields(&source.fields)? })
-}
-
-fn text(source: &run::outcome::TextSpec) -> Result<wire::TextRule, Error> {
-    Ok(wire::TextRule { max: source.max, fields: fields(&source.fields)? })
+pub(super) fn verdict_rule_to_domain(source: wire::VerdictRule) -> run::outcome::VerdictRule {
+    let mut fields = List::with_capacity(source.fields.len());
+    for field in source.fields.into_boxed() {
+        assert!(fields.push(mapped::field_rule_to_domain(field)).is_ok(), "one output per field rule");
+    }
+    let mut kinds = List::with_capacity(source.kinds.len());
+    for kind in source.kinds.into_boxed() {
+        assert!(kinds.push(mapped::item_kind_to_domain(kind)).is_ok(), "one output per item kind");
+    }
+    run::outcome::VerdictRule {
+        name: source.label,
+        text_max: source.text_max,
+        fields: fields.into_boxed(),
+        items: run::outcome::ItemSpec { min: source.least, max: source.most, kinds: kinds.into_boxed() },
+    }
 }
 
 fn llm(source: &run::charter::Llm, endpoints: &Endpoints) -> Result<wire::Llm, Error> {
@@ -168,13 +142,7 @@ fn llm(source: &run::charter::Llm, endpoints: &Endpoints) -> Result<wire::Llm, E
         effort: source.effort.clone(),
         window: source.window,
         output: source.output,
-        prices: wire::Prices {
-            input: source.prices.input,
-            cached: source.prices.cached,
-            cache_write: source.prices.cache_write,
-            output: source.prices.output,
-            unit: source.prices.unit,
-        },
+        prices: mapped::prices_to_record(&source.prices),
     })
 }
 
@@ -204,8 +172,9 @@ mod tests {
         let mut endpoints = List::with_capacity(1);
         endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
         let endpoints = Endpoints::new(endpoints);
-        let golden = &charter_fixture();
-        let charter = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(golden)).expect("current golden");
+        let fixed_value = &charter_fixture();
+        let charter =
+            wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(fixed_value)).expect("current fixed-rule value");
         let source = charter.encode(&wire::CEILINGS).expect("bounded charter");
         for mode in [run::Mode::Finite, run::Mode::Open] {
             let mut charter = crate::decode_charter(&source, &wire::CEILINGS, &endpoints).expect("known endpoint");
@@ -219,7 +188,7 @@ mod tests {
     }
     fn charter_fixture() -> Box<[u8]> {
         let values = skein_codegen::values(smith_charter::SCHEMA);
-        for value in values.goldens.clone() {
+        for value in values.fixed.clone() {
             if value.name == "record_charter_smallest.bin" {
                 return value.bytes.into_boxed_slice();
             }

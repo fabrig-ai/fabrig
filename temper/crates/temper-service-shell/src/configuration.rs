@@ -11,16 +11,28 @@ pub struct Read {
 
 /// Refuse the configuration before opening data or cache.
 pub fn read(directories: &Directories, shape: Shape) -> Result<Read, String> {
-    let read = read_only(directories, shape)?;
-    directories.open(skein_shell::effective_user())?;
-    Ok(read)
+    read_with(temper_config_shell::read(directories, shape), || directories.open(skein_shell::effective_user()))
+}
+
+/// Open data and cache only after a successful configuration read.
+pub fn read_with(
+    read: Result<temper_config_shell::Read, temper_config_shell::Refusal>,
+    open: impl FnOnce() -> Result<(), String>,
+) -> Result<Read, String> {
+    let read = read.map_err(|why| why.to_string())?;
+    open()?;
+    Ok(Read::from(read))
 }
 
 /// Offline readers do not create or open data directories.
 pub fn read_only(directories: &Directories, shape: Shape) -> Result<Read, String> {
-    let temper_config_shell::Read { file, document, keys } =
-        temper_config_shell::read(directories, shape).map_err(|why| why.to_string())?;
-    Ok(Read { file, document, keys })
+    temper_config_shell::read(directories, shape).map(Read::from).map_err(|why| why.to_string())
+}
+
+impl From<temper_config_shell::Read> for Read {
+    fn from(temper_config_shell::Read { file, document, keys }: temper_config_shell::Read) -> Self {
+        Self { file, document, keys }
+    }
 }
 
 /// Program-login prints file refusals one per line and other problems on one line.
@@ -39,6 +51,14 @@ pub fn login_problems(command: &str, lines: &str) -> String {
 impl Read {
     /// Programs are process inputs, not members of the start's document (file.md, 4).
     pub fn programs(&self) -> Result<temper_config_shell::Programs, String> {
+        self.programs_with(temper_shell::lookup::is_executable)
+    }
+
+    /// Check the configured program paths using the supplied executable lookup.
+    pub fn programs_with(
+        &self,
+        is_executable: impl Fn(&std::path::Path) -> bool,
+    ) -> Result<temper_config_shell::Programs, String> {
         let programs = self.file.programs.clone();
         let mut problems = Vec::new();
         for (key, path) in [
@@ -50,7 +70,7 @@ impl Read {
             let Some(path) = path else { continue };
             let words = if !path.is_absolute() {
                 Some(format!("{}: must be an absolute path", path.display()))
-            } else if !temper_shell::lookup::is_executable(path) {
+            } else if !is_executable(path) {
                 Some(format!("{}: must be an executable regular file", path.display()))
             } else {
                 None

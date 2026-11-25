@@ -28,6 +28,14 @@ impl Domain {
         rows.into_boxed()
     }
 
+    /// The retained limit account only while its exact task hold still stands.
+    /// Inspection uses the same ownership test as release (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_limit_hold(&self, task: u64) -> Option<&forge::LimitHold> {
+        let waiting = self.forge_limit_holds.get(&task)?;
+        if current(self, &waiting.row) { Some(&waiting.row) } else { None }
+    }
+
     /// End every wait on a raised setting; otherwise give freed room oldest first.
     /// Each queued release checks the exact hold revision before going through jig's control path.
     pub fn end_forge_limit_holds(&mut self, member: &[u8], configured: u64) {
@@ -193,7 +201,7 @@ fn forget(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task:
 }
 
 pub(crate) fn reconcile(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
-    if domain.start_phase().is_some() {
+    if domain.start_phase().is_some() || !domain.forge.fresh_reads_in() {
         return;
     }
     for row in domain.forge_limit_holds() {
@@ -282,7 +290,7 @@ pub(super) fn set(member: &str, operation: &[u8], resource: Option<&forge::Name>
 }
 
 pub(super) fn room_freed(domain: &mut Domain, limits: &forge::Limits) {
-    if domain.start_phase().is_some() {
+    if domain.start_phase().is_some() || !domain.forge.fresh_reads_in() {
         return;
     }
     let mut freed = Map::with_capacity(domain.forge_limit_holds.len());

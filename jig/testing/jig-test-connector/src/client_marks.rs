@@ -187,11 +187,13 @@ pub(crate) fn collect(domain: &Domain, env: &Env<Limits>, out: &mut Queue<Reques
                 | Request::Closed { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }
+                | Request::Waits { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
                 | Request::Section { .. }
                 | Request::Workspace { .. }
                 | Request::DriftResource { .. }
+                | Request::ReadAfreshDone
                 | Request::RestartDone
                 | Request::Described { .. }
                 | Request::EffectRefused { .. }

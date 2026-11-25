@@ -46,8 +46,8 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
             },
         ));
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         fixtures::step_change(&mut d);
         let mut pull = fixtures::open_pull();
         pull.ci = skein_forge::api::Ci::Pending;
@@ -89,7 +89,7 @@ fn a_restart_wakes_a_change_with_words_to_pass_or_a_requester_to_tell() {
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        let out = outputs(&mut d, Event::ReadAfresh);
+        let out = outputs(&mut d, Event::CatchUp);
         let mut wakes: u32 = 0;
         for request in &out {
             if *request == (Request::WakeProcedure { task: fixtures::CHANGE }) {
@@ -108,7 +108,7 @@ fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
         row.pending = None;
         row.change.state = State::Held { was: Box::new(State::Producing { requested: false }), why };
         row.change.ended_held = prior;
-        let mut d = domain();
+        let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(
             &mut d,
@@ -143,7 +143,7 @@ fn ending_landed_or_no_change_keeps_no_ending_hold() {
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.change.state = state;
-        let mut d = domain();
+        let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(
             &mut d,
@@ -212,8 +212,8 @@ fn a_head_contained_in_its_base_ends_without_rereading_the_pair() {
         row.change.clean = Box::new([fixtures::HEAD]);
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         for (tip, read, live) in [
             (fixtures::BASE, true, true),
             (fixtures::BASE, false, true),
@@ -334,8 +334,8 @@ fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     row.change.since = Wall::from_nanos(env.wall.as_nanos() - Duration::from_secs(10).as_nanos());
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::step_change(&mut d);
     let mut pull = fixtures::open_pull();
     pull.ci = skein_forge::api::Ci::Pending;
@@ -401,8 +401,8 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
         row.change.since = Wall::from_nanos(env.wall.as_nanos() - Duration::from_secs(10).as_nanos());
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         outputs(&mut d, Event::Connection { forge: 1, state: Connection::Connecting });
         fixtures::step_change(&mut d);
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
@@ -499,8 +499,8 @@ fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     row.change.last_head = if pushed { Some(fixtures::HEAD) } else { None };
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::step_change(&mut d);
     fixtures::answer_next(
         &mut d,
@@ -673,8 +673,8 @@ fn a_numbered_missing_pull_holds_instead_of_opening_another() {
         row.change.released = released.then_some(change::Hold::Stalled);
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         fixtures::step_change(&mut d);
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
@@ -701,8 +701,8 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
         let name = run_branch(b"51");
         outputs(&mut d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         outputs(&mut d, Event::Names { task: fixtures::CHANGE, resources: Box::new([name.clone()]) });
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         outputs(
@@ -779,6 +779,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
                 no_test: false,
                 delegate_live: false,
                 review_request: None,
+                closer_waiting: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,
@@ -801,8 +802,8 @@ fn reversed_openings(lower_requested: bool) -> (Domain, Token) {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.pull = None;
@@ -898,8 +899,8 @@ fn a_wake_that_unkeeps_an_inflight_chain_is_not_lost() {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -1046,8 +1047,8 @@ fn first_change(protection: Protection, pull_ci: skein_forge::api::Ci, mergeable
     repository.protection = protection;
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -1234,7 +1235,7 @@ fn named_pull_verdict(number: u64) -> Box<[Request]> {
     row.branch = Box::from(LATER_BRANCH);
     outputs(&mut d, Event::Change { row });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     outputs(
         &mut d,
         Event::Names {
@@ -1376,8 +1377,8 @@ fn projected_words_at(explicit_title: &[u8], words: &[u8], op_bytes: u32) -> ske
     fixtures::connect(&mut d);
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.effect = temper_engine_domain_forge_change::EffectResult::None;
@@ -1566,8 +1567,8 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
         let mut d = fixtures::connected_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::None;
@@ -1686,8 +1687,8 @@ fn delegate_waiting(
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -1744,6 +1745,7 @@ fn waiting_step(live: bool, released: bool) -> Event {
         entry: fixtures::OPEN + 1,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -2103,15 +2105,15 @@ fn opens_pull(requests: &[Request]) -> bool {
     false
 }
 
-// A settled update is interpreted by the top (temper/docs/design/domain/forge/README.md, 6).
+// A settled update is interpreted by the top (temper/docs/design/domain/forge/updates.md, 1).
 fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     use skein_forge::api::{UpdateStyle, Write};
     use temper_engine_domain_forge_change as change;
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
     row.change.updates = 1;
@@ -2321,8 +2323,8 @@ fn a_let_go_update_restored_is_decided_again() {
         outputs(&mut restored, Event::Restore { record: Stored::ChangeHot(saved) });
         assert_eq!(restored.restore_fit_failure(), None);
         outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut restored, Event::ReadAfresh);
-        outputs(&mut restored, Event::SettleOutbox);
+        outputs(&mut restored, Event::CatchUp);
+
         decide_update_again(&mut restored, preparing, 2);
     }
 }
@@ -2518,8 +2520,8 @@ fn head_ci_contexts_are_read_once_per_gather() {
         repository.protection = ci_protection(required);
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::None;
@@ -2605,8 +2607,8 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
         repository.protection = ci_protection(false);
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::None;
@@ -2770,8 +2772,8 @@ fn a_moved_base_wakes_a_change_from_its_turn() {
         outputs(&mut d, Event::Change { row });
         seen_base(&mut d, fixtures::BASE);
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         fixtures::step_change(&mut d);
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         d.procedure_wakes.remove(&fixtures::CHANGE);
@@ -2859,8 +2861,8 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
         let mut d = fixtures::connected_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::Failed;
@@ -2901,8 +2903,8 @@ fn restarted_producing() -> Domain {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -3340,8 +3342,8 @@ fn change_saves_put_hot_alone_until_a_cold_field_changes() {
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut row = fixtures::opening_row();
     row.task = 12;
     row.change.task = 12;

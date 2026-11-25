@@ -1,4 +1,4 @@
-//! Store fill and admission at the high-water mark (protocol/store/README.md, 6.2).
+//! Store fill and admission at the high-water mark (protocol/store/growth.md, 1.2).
 use super::*;
 
 pub(super) fn filled_core(bytes: u64) -> (Core, Env<Limits>) {
@@ -188,6 +188,7 @@ fn take_write_holdings(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         core,
         env,
         Event::Tasks(tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(7203)),

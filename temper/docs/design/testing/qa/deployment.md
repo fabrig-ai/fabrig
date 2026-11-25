@@ -1,7 +1,7 @@
 # A deployment at its place
 
-Provisional, 2026-11-14, revised 2026-11-17, from `../../draft/landed-qa.md`, sections 2, 5,
-6 and 10, milestones Q6 and Q7 of `../../draft/landed-qa.execution.md`. A place
+Provisional, 2026-11-14, revised 2026-11-17, from `../../draft/archive/landed-qa.md`, sections 2, 5,
+6 and 10, milestones Q6 and Q7 of `../../draft/archive/landed-qa.execution.md`. A place
 of the deployment's kind: temper's engine, worker and agent, each its own
 process from its own document, with the fake Forgejo and the fake model
 as processes of their own beside them, started from a setup's `config/`
@@ -48,7 +48,7 @@ deployment's engine rather than a box of their own.
 A deployment's root recipe holds `config/` (`../../client/recipe.md`,
 2): the documents its processes start from, as a deployment writes
 them, with the fakes in place of real backends
-(`../../draft/landed-qa.md`, 5 and 6): the engine's and the worker's
+(`../../draft/archive/landed-qa.md`, 5 and 6): the engine's and the worker's
 each a `temper.toml` of its binary's shape
 (`../../protocol/configuration/file.md`), the fakes' JSON.
 
@@ -68,7 +68,7 @@ each a `temper.toml` of its binary's shape
   (`../../protocol/configuration/figures.md`, 6 and 7). A setup's
   `config/agent.json` is refused as any other unexpected file is.
 - **No credential:** no document holds a key, a token or a secret
-  (`../../draft/landed-qa.md`, 5). The worker's secret and its digest are
+  (`../../draft/archive/landed-qa.md`, 5). The worker's secret and its digest are
   the place's (section 4); the model's key and the forge's admin token
   are outputs the fakes write where their documents say; accounts and
   forges are made by the recipe's lines, as a person makes them.
@@ -106,12 +106,12 @@ each a `temper.toml` of its binary's shape
   `--bundle` refuses it the same way, naming the document and saying
   that the name needs `--bundle`. A root whose engine serves the page
   names `{place.bundle}`, so that the page is the kept build's bundle
-  whatever the engine's binary holds (`../../client/web/README.md`,
-  2.6), and a place gives every session its `bundle/` (`places.md`, 4
+  whatever the engine's binary holds (`../../client/web/bundle.md`,
+  1), and a place gives every session its `bundle/` (`places.md`, 4
   and 5).
 - **Its ports** are the place's nine (`places.md`, 2), in the order
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists a box's
-  (`../../protocol/setup/box.md`, 5), each position bound by the
+  (`../../protocol/setup/box-backends.md`, 1), each position bound by the
   deployment as a box binds it where they share a use:
 
   | Position | A box binds | A deployment binds |
@@ -195,7 +195,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
    SCRATCH/config/model.json --ready "listening "`, with `--scripts
    SCRATCH/session/scripts.json` where the session was given scripts,
    its files joined into that one as the box joins its `--scripts`
-   (`../../protocol/setup/box.md`, 5), and `--strict` as given; ready at
+   (`../../protocol/setup/box-backends.md`, 1), and `--strict` as given; ready at
    `listening `, within 60 seconds.
 3. **The engine:** `temper-engine serve --config SCRATCH/config/engine
    --data SCRATCH/data/engine --cache SCRATCH/cache/engine`, ready once
@@ -204,7 +204,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
    seconds.
 4. **ctl, signed in from a file:** the engine's first link written to
    `session/link`, 0o600, then `temper ctl SCRATCH/session/ctl sign-in
-   SCRATCH/session/link </dev/null` (`../../client/ctl/README.md`, 6.1),
+   SCRATCH/session/link </dev/null` (`../../client/ctl/command-line.md`, 1.1),
    exit 0 within 60 seconds, then `session/link` removed.
 5. **The worker's setting:** an engine admits only a worker its settings
    hold (`../../draft/config.md`, 6.7), so the session adds it as its
@@ -243,7 +243,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
 Every link the engine prints but its first and, in a full session, the
 fresh one step 7 takes is read and dropped, and the engine's stdout is
 written nowhere. So no link is printed, logged, answered or kept, and no
-copy holds a sign-in (`../../draft/landed-qa.md`, 5 and 11).
+copy holds a sign-in (`../../draft/archive/landed-qa.md`, 5 and 11).
 
 While a step waits, any process's exit ends the wait as the
 deployment's failure.
@@ -282,7 +282,7 @@ session's, never the deployment's: no copy holds it.
 ### 6.2 `deployment patch`
 
 `deployment patch DOCUMENT PATH`, an owner's change to the deployment's
-configuration between two of its starts (`../../draft/landed-qa.md`,
+configuration between two of its starts (`../../draft/archive/landed-qa.md`,
 10): DOCUMENT `engine` or `worker`, the documents an owner writes
 (section 2); PATH a file of the files
 directory as a `forge commit` line's is, the session's `--files DIR` or,
@@ -348,7 +348,7 @@ owner writes in the file, such as `public` or `[sign_in.google]`.
   | Status | When | Its last lines on stdout |
   |---|---|---|
   | 0 | ended, every process stopped cleanly, whatever the lines answered | `ended` |
-  | 3 | a store refused by name: the engine's log holds a line starting `temper-engine serve: ` that names a directory under the scratch directory (`../../protocol/store.md`, 5), or the fake Forgejo's a line starting `temper-box fake forge: state ` naming a file under it (`../fakes.md`, 2) | `refused: ` and that line |
+  | 3 | a store refused by name: the engine's log holds a line starting `temper-engine serve: ` that names a directory under the scratch directory (`../../protocol/store-restart.md`, 1), or the fake Forgejo's a line starting `temper-box fake forge: state ` naming a file under it (`../fakes.md`, 2) | `refused: ` and that line |
   | 4 | the deployment failed: a process exited, panicked, or missed its ready line within its bound, ctl's sign-in failed, the browser's start failed (its fresh link or the page not within its bound, or a trouble at the start that `../../client/drive.md`, 2.3 counts, in its words), or a stop passed its bound | `deployment failed: WHY`, then the last 20 lines of each process's log, each prefixed `\| ` |
   | 1 | the session's own failure: its command line, a document missing, past its bound or no JSON, a `{place.NAME}` of no name, `{place.bundle}` with no `--bundle`, `config/` or `data/` alone | `failed: WHY`, on stderr |
 
@@ -367,8 +367,9 @@ owner writes in the file, such as `public` or `[sign_in.google]`.
   build's, so a copy restores only at the place that made it, as a
   box's does.
 - **Upgraded at open:** the engine plans the store's registry and runs
-  pending jobs in a copy before restoring and switching, as a redeploy
-  does (`../../protocol/store.md`, 4 and 5; `../../redeploy.md`). A
+  pending jobs in a copy before restoring and switching, as a new
+  build's start does (`../../protocol/store-versions.md`, 1, and `../../protocol/store-restart.md`, 1;
+  `../../protocol/binaries.md`, section 2). A
   store below the floor is refused by name (`../../protocol/floor.md`,
   4), status 3, and the place makes the copy again. The fake Forgejo restores its state; a state it
   cannot read is refused by name, status 3, too.
@@ -415,9 +416,12 @@ owner writes in the file, such as `public` or `[sign_in.google]`.
   - the end: the TUI ended and the browser closed before the worker's
     `SIGTERM`.
 - **The process tier's story** of a deployment at its place
-  (`../process-tier.md`), written and compiled in Q6 and run after
-  landing; Q7 opens its sessions as ctl sessions, `--ctl`, with a
-  fixture bundle as `--bundle`.
+  (`../process-tier.md`, *A deployment at its place restarted with a
+  newer build*): a fresh walk, a stopped copy with replaced executables,
+  and one restored `drive --ctl --deployment` session. Both take a
+  fixture bundle as `--bundle`. The restored store and fake forge reads
+  below that boundary are in
+  `../../../development/slow-tests-moves-2026-11-24-temper-cluster.md`, 3.
 
 ## 10. Later
 

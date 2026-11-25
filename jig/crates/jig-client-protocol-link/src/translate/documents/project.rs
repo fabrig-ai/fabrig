@@ -1,27 +1,10 @@
-//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
+//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1).
 use super::{
     Limits, List, Reader, Wall, authority_document_fields, c, chip_fields, grant_piece, offered_piece,
     pool_ledger_fields, specification_document_fields, task_contract_document_fields, too_large, w,
 };
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
-
-pub(crate) fn project_resource_role_fields(value: &w::ProjectResourceRole) -> c::ProjectResourceRole {
-    match value {
-        w::ProjectResourceRole::Fork => c::ProjectResourceRole::Fork,
-        w::ProjectResourceRole::Owned => c::ProjectResourceRole::Owned,
-        w::ProjectResourceRole::Participant => c::ProjectResourceRole::Participant,
-        w::ProjectResourceRole::Unavailable => c::ProjectResourceRole::Unavailable,
-        w::ProjectResourceRole::Context => c::ProjectResourceRole::Context,
-    }
-}
-
-pub(crate) fn project_resource_fields(value: &w::ProjectResource) -> c::ProjectResource {
-    c::ProjectResource {
-        part: crate::translate::facts::part(&value.part),
-        role: project_resource_role_fields(&value.role),
-        home: value.home,
-    }
-}
 
 pub(crate) fn project_resource_piece(
     bytes: &[u8],
@@ -34,25 +17,12 @@ pub(crate) fn project_resource_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::ProjectResource::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = project_resource_fields(&row);
+        let row = client::project_resource_to_domain(row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
     }
     Err(too_large())
-}
-
-pub(crate) fn project_policy_role_fields(
-    value: &w::ProjectPolicyRole,
-    limits: &Limits,
-) -> Result<c::ProjectPolicyRole, w::Problem> {
-    Ok(c::ProjectPolicyRole {
-        number: value.number,
-        authority: authority_document_fields(&value.authority, limits)?,
-        period_spend: value.period_spend,
-        requests: value.requests,
-        decides: value.decides,
-    })
 }
 
 pub(crate) fn project_policy_role_piece(
@@ -66,7 +36,7 @@ pub(crate) fn project_policy_role_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::ProjectPolicyRole::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = project_policy_role_fields(&row, limits)?;
+        let row = client::project_policy_role_to_domain(row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -74,26 +44,8 @@ pub(crate) fn project_policy_role_piece(
     Err(too_large())
 }
 
-pub(crate) fn policy_judge_fields(value: &w::PolicyJudge) -> c::PolicyJudge {
-    c::PolicyJudge { connector: value.connector, requirement: value.requirement, parameters: value.parameters }
-}
-
-pub(crate) fn policy_guard_fields(value: &w::PolicyGuard) -> c::PolicyGuard {
-    match value {
-        w::PolicyGuard::Guarded => c::PolicyGuard::Guarded,
-        w::PolicyGuard::Observed(row) => c::PolicyGuard::Observed { freshness: row.freshness },
-    }
-}
-
 pub(crate) fn policy_requirement_fields(value: &w::PolicyRequirement) -> c::PolicyRequirement {
-    c::PolicyRequirement {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: crate::translate::answers::pattern(&value.pattern),
-        judge: policy_judge_fields(&value.judge),
-        guard: policy_guard_fields(&value.guard),
-        must_be_guarded: value.must_be_guarded,
-    }
+    client::policy_requirement_to_domain(value.clone())
 }
 
 pub(crate) fn policy_requirement_piece(
@@ -116,7 +68,7 @@ pub(crate) fn policy_requirement_piece(
 }
 
 pub(crate) fn policy_permission_fields(value: &w::PolicyPermission) -> c::PolicyPermission {
-    c::PolicyPermission { connector: value.connector, permission: value.permission, role: value.role }
+    client::policy_permission_to_domain(value.clone())
 }
 
 pub(crate) fn project_policy_fields(value: &w::ProjectPolicy, limits: &Limits) -> Result<c::ProjectPolicy, w::Problem> {
@@ -151,24 +103,6 @@ pub(crate) fn project_policy_fields(value: &w::ProjectPolicy, limits: &Limits) -
     })
 }
 
-pub(crate) fn project_member_fields(value: &w::ProjectMember, limits: &Limits) -> Result<c::ProjectMember, w::Problem> {
-    Ok(c::ProjectMember {
-        party: value.party,
-        kind: crate::translate::answers::party_kind(&value.kind),
-        role: crate::translate::answers::held_role(&value.role),
-        login: crate::translate::facts::document_text(&value.login, limits)?,
-        name: crate::translate::facts::document_text(&value.name, limits)?,
-    })
-}
-
-pub(crate) fn project_spend_fields(value: &w::ProjectSpend, limits: &Limits) -> Result<c::ProjectSpend, w::Problem> {
-    Ok(c::ProjectSpend {
-        chip: chip_fields(&value.chip, limits)?,
-        funder: crate::translate::facts::funder(&value.funder),
-        numbers: crate::translate::facts::numbers(&value.numbers),
-    })
-}
-
 pub(crate) fn project_spend_piece(
     bytes: &[u8],
     limits: &Limits,
@@ -180,7 +114,7 @@ pub(crate) fn project_spend_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::ProjectSpend::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = project_spend_fields(&row, limits)?;
+        let row = client::project_spend_to_domain(row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -216,10 +150,7 @@ pub(crate) fn proposed_task_fields(value: &w::ProposedTask, limits: &Limits) -> 
         None => None,
     };
     Ok(c::ProposedTask {
-        deadline: match &value.deadline {
-            w::NewDeadline::Named => c::NewDeadline::Named,
-            w::NewDeadline::Span(value) => c::NewDeadline::Span(value.value),
-        },
+        deadline: client::new_deadline_to_domain(value.deadline.clone()),
         number: value.number,
         spec: specification_document_fields(&value.spec, limits)?,
         executor: crate::translate::facts::executor(&value.executor),
@@ -254,13 +185,6 @@ pub(crate) fn proposed_task_piece(
     Err(too_large())
 }
 
-pub(crate) fn recurring_overlap_fields(value: &w::RecurringOverlap) -> c::RecurringOverlap {
-    match value {
-        w::RecurringOverlap::Skip => c::RecurringOverlap::Skip,
-        w::RecurringOverlap::Wait => c::RecurringOverlap::Wait,
-    }
-}
-
 pub(crate) fn recurring_fields(value: &w::Recurring, limits: &Limits) -> Result<c::Recurring, w::Problem> {
     let opt0 = match &value.began {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -286,7 +210,7 @@ pub(crate) fn recurring_fields(value: &w::Recurring, limits: &Limits) -> Result<
         key: value.key,
         batch: proposed_task_piece(&value.batch, limits, limits.client().rows)?,
         budget: value.budget,
-        overlap: recurring_overlap_fields(&value.overlap),
+        overlap: client::recurring_overlap_to_domain(value.overlap.clone()),
         current_period: value.current_period,
         began: opt0,
         next: opt1,
@@ -318,7 +242,7 @@ pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::P
     }
     let mut list0 = List::with_capacity(value.members.len());
     for item in &value.members {
-        list0.push(project_member_fields(item, limits)?).expect("reserved supplied list");
+        list0.push(client::project_member_to_domain(item.clone(), limits)?).expect("reserved supplied list");
     }
     let opt1 = match &value.current_period {
         Some(item) => Some(pool_ledger_fields(item)),

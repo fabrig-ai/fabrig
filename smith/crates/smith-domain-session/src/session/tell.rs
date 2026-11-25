@@ -1,5 +1,5 @@
 //! Concrete turns and content-free facts. The cursor tracks the told prefix; emitted turns resolve live calls into historical blocks.
-//! Contract: smith/docs/design/domain/session.md, sections 3, 4 and 6.
+//! Contract: smith/docs/design/domain/session.md, sections 3, 4 and 6; smith/docs/design/domain/turn-parts.md, section 3.
 
 use super::{
     Block, Box, Conversation, Decoded, End, FactKind, Facts, Id, List, Message, Queue, Request, Run, Session, Slab,
@@ -44,7 +44,11 @@ pub(super) fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, o
                 FactKind::DelegateStarted { opener, block: run.block }
             }
             Request::JobsCancelled { .. }
+            | Request::RateLimitWait { .. }
+            | Request::RateLimitWaitDone { .. }
+            | Request::RateLimitOutlastsSession { .. }
             | Request::Turn { .. }
+            | Request::Part { .. }
             | Request::Priced { .. }
             | Request::Cancel { .. }
             | Request::Yield { .. }
@@ -67,7 +71,11 @@ pub(super) fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, o
             }
             Request::Opened { .. } | Request::Yielded { .. } | Request::Ended { .. } => facts.push(fact),
             Request::JobsCancelled { .. }
+            | Request::RateLimitWait { .. }
+            | Request::RateLimitWaitDone { .. }
+            | Request::RateLimitOutlastsSession { .. }
             | Request::Turn { .. }
+            | Request::Part { .. }
             | Request::Priced { .. }
             | Request::Cancel { .. }
             | Request::Yield { .. }
@@ -103,6 +111,10 @@ pub(super) fn tell_turn(conversation: &mut Conversation, out: &mut Queue<Request
     *told = conversation.transcript.len();
     let dialect = *dialect;
     let kind = opening_kind(conversation, next);
+    match &kind {
+        crate::record::Kind::Window(_) => conversation.answer_told = conversation.transcript.len(),
+        crate::record::Kind::First(_) | crate::record::Kind::Ordinary => {}
+    }
     let turn = crate::record::Turn {
         version: crate::record::VERSION,
         kind,
@@ -118,6 +130,143 @@ pub(super) fn tell_turn(conversation: &mut Conversation, out: &mut Queue<Request
     };
     out.push(Request::Turn { opener: conversation.opener, turn });
     None
+}
+
+/// An answer precedes scheduling and uses its own message cursor, including children's prior results.
+pub(super) fn answer(conversation: &mut Conversation, out: &mut Queue<Request>) {
+    if !conversation.tell_parts {
+        return;
+    }
+    let told = if conversation.affinity.thread == 0 { conversation.cursor.told } else { conversation.answer_told };
+    let messages = copied_messages(&conversation.transcript, told);
+    conversation.answer_told = conversation.transcript.len();
+    let mut body = part_body(conversation, messages);
+    if body.sequence == 1 {
+        body.kind = opening_kind(conversation, 1);
+    }
+    out.push(Request::Part {
+        opener: conversation.opener,
+        part: crate::record::Part {
+            thread: conversation.affinity.thread,
+            call: 0,
+            kind: crate::record::PartKind::Answer,
+            body,
+        },
+    });
+}
+
+pub(super) fn slot(conversation: &Conversation, tools: &super::Tools, slot: u32, out: &mut Queue<Request>) {
+    match tools.slots.get(slot).expect("answered slot") {
+        super::Slot::Done { result: block } => result(conversation, block, out),
+        super::Slot::Running { .. } | super::Slot::Unstarted | super::Slot::Withheld => {}
+    }
+}
+
+pub(super) fn not_run(conversation: &Conversation, tools: &super::Tools, out: &mut Queue<Request>) {
+    let mut slot = 0;
+    for block in &conversation.transcript.last().expect("late answer").content {
+        if let Some(call) = block.tool_call() {
+            match tools.slots.get(slot).expect("one slot per late call") {
+                super::Slot::Done { result: block } => result(conversation, block, out),
+                super::Slot::Unstarted => result(
+                    conversation,
+                    &Block::ToolResult {
+                        id: call.id.clone(),
+                        result: crate::llm::Returned::NotRun { why: crate::llm::NotRun::Stopped },
+                    },
+                    out,
+                ),
+                super::Slot::Running { .. } | super::Slot::Withheld => unreachable!("late calls never start"),
+            }
+            slot = slot.checked_add(1).expect("bounded calls");
+        }
+    }
+}
+
+/// A command's start stands as interrupted until its end or a drain supersedes it.
+pub(super) fn started(conversation: &Conversation, block: &Block, out: &mut Queue<Request>) {
+    if !conversation.tell_parts {
+        return;
+    }
+    let call = block.tool_call().expect("a running workspace call");
+    let starts = match &call.call {
+        Decoded::Owned { call } => match call {
+            smith_domain_tools::Call::Shell { .. } => true,
+            smith_domain_tools::Call::Job { stop, .. } => !stop,
+            smith_domain_tools::Call::Read { .. }
+            | smith_domain_tools::Call::List { .. }
+            | smith_domain_tools::Call::Search { .. }
+            | smith_domain_tools::Call::Remove { .. }
+            | smith_domain_tools::Call::Write { .. }
+            | smith_domain_tools::Call::Edit { .. } => false,
+        },
+        Decoded::Builtin { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical => false,
+    };
+    if starts {
+        result(
+            conversation,
+            &Block::ToolResult {
+                id: call.id.clone(),
+                result: crate::llm::Returned::Owned {
+                    outcome: smith_domain_tools::Outcome::Interrupted {
+                        ran: None,
+                        head: Box::default(),
+                        last: Box::default(),
+                        dropped: 0,
+                    },
+                },
+            },
+            out,
+        );
+    }
+}
+
+pub(super) fn result(conversation: &Conversation, block: &Block, out: &mut Queue<Request>) {
+    if !conversation.tell_parts {
+        return;
+    }
+    if conversation.cut {
+        match block {
+            Block::ToolResult {
+                result: crate::llm::Returned::Owned { outcome: smith_domain_tools::Outcome::Interrupted { .. } },
+                ..
+            }
+            | Block::ToolResult { result: crate::llm::Returned::Text { .. }, .. } => {}
+            Block::ToolResult { .. }
+            | Block::ToolCall(_)
+            | Block::Text { .. }
+            | Block::Refusal { .. }
+            | Block::Opaque { .. } => return,
+        }
+    }
+    let messages = Box::new([Message { role: crate::llm::Role::User, content: Box::new([block.clone()]) }]);
+    let mut body = part_body(conversation, messages);
+    body.usage = Usage::NONE;
+    out.push(Request::Part {
+        opener: conversation.opener,
+        part: crate::record::Part {
+            thread: conversation.affinity.thread,
+            call: 0,
+            kind: crate::record::PartKind::Result,
+            body,
+        },
+    });
+}
+
+fn part_body(conversation: &Conversation, messages: Box<[Message]>) -> crate::record::Turn {
+    crate::record::Turn {
+        version: crate::record::VERSION,
+        kind: crate::record::Kind::Ordinary,
+        endpoint: Some(conversation.endpoint),
+        model: conversation.model.clone(),
+        effort: conversation.effort.clone(),
+        dialect: conversation.cursor.dialect,
+        sequence: next_sequence(conversation),
+        usage: conversation.cursor.pending.unwrap_or(Usage::NONE),
+        spent: conversation.spending.total,
+        jobs: conversation.jobs.highest,
+        messages,
+    }
 }
 
 pub(super) fn next_sequence(conversation: &Conversation) -> u32 {

@@ -3,16 +3,13 @@
 
 use skein_fake_llm_domain::api;
 use skein_lib::List;
-use smith_agent_process_world::{World, charter};
+use smith_agent_process_world::{CODING_LINES, CODING_OUTPUT, World, charter, large_coding_write};
 use smith_charter::Record;
 
-// The end-to-end regression repeats this twenty-byte line 160 times: 3,200
-// content bytes across a 2,048-byte input threshold.
-const CODING_LINES: usize = 160;
+// The repeated lines cross this regression threshold.
 const INPUT_THRESHOLD: usize = 2048;
 // Seven provider turns: large write, two reads, edit, replacement, shell, finish.
 const CALLS: usize = 7;
-const OUTPUT: u32 = 32_768;
 // Each rounded fixture turn can cost one spend unit; twenty covers seven calls.
 const SPEND: u64 = 20;
 
@@ -27,7 +24,7 @@ fn coding_charter() -> Box<[u8]> {
         budget.reserve = smith_charter::Reserve { turns: 0, time: skein_lib::Duration::from_secs(300) };
         parts.budget = budget;
         let mut main = parts.main.clone();
-        main.output = OUTPUT;
+        main.output = CODING_OUTPUT;
         parts.main = main;
         let mut tools = parts.tools.clone();
         tools.families = smith_charter::Families { inspect: true, modify: true, shell: true, agents: false };
@@ -44,8 +41,7 @@ fn coding_charter() -> Box<[u8]> {
 
 #[test]
 fn a_standard_coding_write_reaches_following_calls_and_checks() {
-    let content = "// coding regression\n".repeat(CODING_LINES);
-    let large = serde_json::to_vec(&serde_json::json!({"path":"result.txt", "content":content})).expect("write input");
+    let large = large_coding_write();
     assert!(large.len() > INPUT_THRESHOLD, "the write crosses the input threshold");
     let mut calls = vec![(b"write".as_slice(), large)];
     calls.extend(
@@ -58,7 +54,7 @@ fn a_standard_coding_write_reaches_following_calls_and_checks() {
             ("finish", r#"{"form":"change","text":"","fields":{}}"#),
         ]
         .into_iter()
-        .map(|(tool, input)| (tool.as_bytes(), input.as_bytes().to_vec())),
+        .map(|(tool, input)| (tool.as_bytes(), input.as_bytes().into())),
     );
     let mut world = World::new(37, &coding_charter());
     world.standard_workspace();
@@ -66,10 +62,7 @@ fn a_standard_coding_write_reaches_following_calls_and_checks() {
         calls
             .into_iter()
             .map(|(name, arguments)| {
-                smith_agent_world::fixture::calls(
-                    Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
-                    1,
-                )
+                smith_agent_world::fixture::calls(Box::new([api::Line::Call { name: name.into(), arguments }]), 1)
             })
             .collect(),
     );
@@ -134,7 +127,7 @@ fn report_delivery_charter() -> Box<[u8]> {
     })
 }
 
-/// Delivery is an independent grant beside a report (domain/run.md, 3.1 and 8.4).
+/// Delivery is an independent grant beside a report (domain/run-start.md, 1.1, and domain/run-delivery.md, 1.4).
 #[test]
 fn a_report_run_offers_its_delivery_grant_and_continues() {
     const REPORT: &[u8] = b"The files were delivered.";

@@ -1,6 +1,9 @@
-//! Question credits, requester moves and unanswered exits (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
+//! Question credits, requester moves and unanswered exits (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
 use crate::domain::{Domain, publish, record, refused, task_mut};
-use crate::{Limits, MessageKind, Party, Refusal, Request, Word};
+use crate::{
+    EscalationHolder, Limits, MessageKind, Party, QuestionAnswerNotice, QuestionAnswerer, QuestionCredit,
+    QuestionOffer, QuestionResolution, Refusal, Request, Word,
+};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Env, List, Map, Queue, ReplyTo, Writer};
 
@@ -8,12 +11,50 @@ use skein_lib::{Decimal, Env, List, Map, Queue, ReplyTo, Writer};
 pub(crate) const ANSWER_NOTICE_BYTES: usize = 256;
 
 /// An unanswered received question whose asker still reserves an answer from this task.
-/// Words stay on the asker's activity line (domain/tasks/lifecycle.md, 8).
+/// Words stay on the asker's activity line (domain/tasks/lifecycle-endings.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct OpenQuestion {
     pub asker: u64,
     pub number: u64,
     pub line: u64,
+}
+
+/// One live question or its kept first answer. A party link may name the
+/// original addressee or (for an offer) the asker.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct QuestionTicket {
+    pub asker: u64,
+    pub asked: u64,
+    pub first: QuestionAnswerer,
+    pub holder: Option<EscalationHolder>,
+    pub by: Option<QuestionAnswerer>,
+    pub line: u64,
+}
+
+impl QuestionCredit {
+    pub(crate) fn ticket(&self, asker: u64) -> QuestionTicket {
+        let recipient = match self.asked {
+            Party::Task(task) => task,
+            Party::Person(_) => asker,
+            Party::Deployment { .. } => unreachable!("questions are addressed to tasks or people"),
+        };
+        let first = match self.answerer {
+            Party::Task(task) => QuestionAnswerer::Task(task),
+            Party::Person(person) => QuestionAnswerer::Person(person),
+            Party::Deployment { .. } => unreachable!("questions are answered by tasks or people"),
+        };
+        let holder = match &self.offer {
+            Some(offer) => Some(offer.holder),
+            None => None,
+        };
+        QuestionTicket { asker, asked: recipient, first, holder, by: None, line: self.line }
+    }
+}
+
+impl QuestionTicket {
+    pub(crate) fn task_may_answer(self, task: u64) -> bool {
+        self.first == QuestionAnswerer::Task(task) || self.holder == Some(EscalationHolder::Task(task))
+    }
 }
 
 /// The bounded reason for an exhausted question wake (domain/tasks/lifecycle.md, 2).
@@ -81,26 +122,158 @@ impl Domain {
         questions
     }
 
-    /// The credit owner of one question offered in this person's inbox.
-    /// The recipient's current requester authorizes its answer, including when
-    /// startup enables direct answers for a credit retaining its task answerer.
+    /// The bounded durable question state, using the link carried by an inbox entry.
     #[must_use]
-    pub fn question_asker(&self, asked: u64, person: u64, question: u64) -> Option<u64> {
-        let recipient = record(self, asked)?;
-        if recipient.requester != Party::Person(person) {
-            return None;
+    pub fn question_ticket(&self, link: u64, question: u64) -> Option<QuestionTicket> {
+        let row = record(self, link)?;
+        // Offers are linked to the asker; the original inbox entry to its addressee.
+        if let Some(ticket) = credit(row, question) {
+            return Some(ticket);
         }
+        for position in &row.question_lines {
+            if position.message == question {
+                if let Some(ticket) = settled(row.number, position) {
+                    return Some(ticket);
+                }
+                if position.answer.is_none() {
+                    for (number, _) in &self.names {
+                        let source = record(self, *number).expect("live question owner");
+                        if let Some(ticket) = credit(source, question)
+                            && ticket.asked == link
+                        {
+                            return Some(ticket);
+                        }
+                    }
+                }
+                return None;
+            }
+        }
+        self.settled_question(link, question)
+    }
+
+    fn settled_question(&self, asker: u64, question: u64) -> Option<QuestionTicket> {
         for (number, _) in &self.names {
-            let row = record(self, *number).expect("live asker");
-            for credit in &row.questions {
-                if credit.number == question
-                    && (credit.asked == Party::Task(asked) || *number == asked && credit.asked == Party::Person(person))
+            let row = record(self, *number).expect("live question addressee");
+            for position in &row.question_lines {
+                if position.message == question
+                    && let Some(ticket) = settled(*number, position)
+                    && ticket.asker == asker
                 {
-                    return Some(*number);
+                    return Some(ticket);
                 }
             }
         }
         None
+    }
+
+    /// The answer form gets only this question's reference, not ordinary messaging rights.
+    #[must_use]
+    pub fn question_answer_reference(&self, asker: u64, task: u64, question: u64) -> bool {
+        if let Some(row) = record(self, asker)
+            && let Some(ticket) = credit(row, question)
+            && ticket.task_may_answer(task)
+        {
+            return true;
+        }
+        self.late_task_answer(asker, task, question).is_some()
+    }
+
+    pub(crate) fn late_task_answer(&self, asker: u64, task: u64, question: u64) -> Option<Refusal> {
+        if let Some(ticket) = self.settled_question(asker, question)
+            && ticket.task_may_answer(task)
+            && let Some(by) = ticket.by
+        {
+            return Some(Refusal::QuestionAnswered { question, by });
+        }
+        None
+    }
+}
+
+fn credit(row: &crate::TaskRecord, question: u64) -> Option<QuestionTicket> {
+    for credit in &row.questions {
+        if credit.number == question {
+            return Some(credit.ticket(row.number));
+        }
+    }
+    None
+}
+
+fn settled(asked: u64, line: &crate::QuestionLine) -> Option<QuestionTicket> {
+    let answer = line.answer?;
+    let resolution = line.resolution.as_ref()?;
+    Some(QuestionTicket {
+        asker: answer.task,
+        asked,
+        first: resolution.first,
+        holder: resolution.holder,
+        by: Some(resolution.by),
+        line: line.line,
+    })
+}
+
+fn offered_word(asker: u64, question: u64, offer: &QuestionOffer) -> Option<Word> {
+    let relay = offer.relay.as_ref()?;
+    Some(Word {
+        number: relay.entry,
+        from: Party::Task(asker),
+        kind: MessageKind::PassedQuestion { question },
+        words: relay.words.clone(),
+        at: offer.since,
+        hits: 1,
+        eligible: true,
+    })
+}
+
+pub(crate) fn waiting_for(domain: &Domain, holder: u64) -> Box<[Word]> {
+    let mut entries = List::uncapped();
+    for (asker, _) in &domain.names {
+        let row = record(domain, *asker).expect("live question owner");
+        for credit in &row.questions {
+            if let Some(offer) = &credit.offer
+                && offer.holder == EscalationHolder::Task(holder)
+                && let Some(word) = offered_word(*asker, credit.number, offer)
+            {
+                entries.push(word).expect("bounded by credits of live tasks");
+            }
+        }
+    }
+    if let Some(row) = record(domain, holder) {
+        for position in &row.question_lines {
+            if let Some(resolution) = &position.resolution
+                && let Some(notice) = &resolution.notice
+            {
+                entries
+                    .push(notice_word(position.message, resolution.by, notice))
+                    .expect("bounded by question positions");
+            }
+        }
+    }
+    entries.into_boxed()
+}
+
+pub(crate) fn pass(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    asker: u64,
+    question: u64,
+    offer: QuestionOffer,
+    out: &mut Queue<Request>,
+) {
+    let Some(row) = task_mut(domain, asker) else { return };
+    for credit in &mut row.record.questions {
+        if credit.number != question {
+            continue;
+        }
+        let word = offered_word(asker, question, &offer);
+        let holder = offer.holder;
+        credit.offer = Some(offer);
+        publish(domain, env, asker, out);
+        if let EscalationHolder::Task(task) = holder
+            && let Some(word) = word
+        {
+            crate::wake::after_message(domain, env, task, None, word, out);
+        }
+        return;
     }
 }
 
@@ -169,50 +342,47 @@ pub(crate) fn person_answer(
     out: &mut Queue<Request>,
 ) {
     let Answering { project, recipient, person, question, mut word, notice } = answering;
-    let Some(asker) = domain.question_asker(recipient, person, question) else {
+    let Some(ticket) = domain.question_ticket(recipient, question) else {
         return refused(reply_to, Some(recipient), Refusal::Reference, out);
     };
-    let row = record(domain, asker).expect("credit owner live");
-    if row.project != project
-        || !crate::moving::mutable(&row.phase)
-        || word.from != Party::Person(person)
-        || word.kind != (MessageKind::Answer { question })
-        || word.words.is_empty()
-        || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
-    {
+    let Some(row) = record(domain, recipient) else {
+        return refused(reply_to, Some(recipient), Refusal::Reference, out);
+    };
+    if ticket.asked != recipient || row.requester != Party::Person(person) {
+        return refused(reply_to, Some(recipient), Refusal::Reference, out);
+    }
+    if let Some(by) = ticket.by {
+        return refused(reply_to, Some(recipient), Refusal::QuestionAnswered { question, by }, out);
+    }
+    let Some(row) = record(domain, ticket.asker) else {
+        return refused(reply_to, Some(recipient), Refusal::Reference, out);
+    };
+    if word.from != Party::Person(person) || word.kind != (MessageKind::Answer { question }) {
         return refused(reply_to, Some(recipient), Refusal::State, out);
     }
-    let mut selected = None;
-    for credit in &row.questions {
-        if credit.number == question {
-            selected = Some(credit.clone());
-        }
-    }
-    let credit = selected.expect("selected credit");
-    word.eligible = credit.asked == row.requester;
-    word.from = row.requester;
     let words = answer_notice_words(word.words.clone());
-    let Some(prepared) = crate::inbox::prepare(domain, &env.limits, asker, word, crate::inbox::Admission::RoomKept)
-    else {
-        return refused(reply_to, Some(asker), Refusal::Read, out);
-    };
-    let (task, word) = crate::inbox::apply_message(
+    word.from = row.requester;
+    let (task, word) = match party_answer(
         domain,
         env,
-        crate::inbox::MessagePlan { number: asker, prepared, answer: Some(question), asked_by: None },
+        project,
+        ticket.asker,
+        question,
+        word,
+        QuestionAnswerer::Person(person),
+        false,
         out,
-    );
-    // The asked task retains the answer's location even when its sender is a
-    // person after a move. A gathering keeps no answer notice in its inbox.
-    let heard = crate::AnswerLine { task: asker, position: record(domain, asker).expect("answered asker").activity };
-    crate::positions::sent_answer(domain, env, Party::Task(recipient), question, heard, out);
-    if recipient != asker
+    ) {
+        Ok(answer) => answer,
+        Err(why) => return refused(reply_to, Some(recipient), why, out),
+    };
+    if recipient != task
         && !crate::gathering::executor(record(domain, recipient).expect("question recipient live").executor)
         && let Some((previous, word)) = append_notice(
             domain,
             env,
             recipient,
-            Notice { message: notice, from: asker, kind: MessageKind::QuestionAnswered { question }, words },
+            Notice { message: notice, from: task, kind: MessageKind::QuestionAnswered { question }, words },
             out,
         )
     {
@@ -220,6 +390,131 @@ pub(crate) fn person_answer(
         crate::wake::after_message(domain, env, recipient, previous, word, out);
     }
     out.push(Request::Sent { reply_to, task, word });
+}
+
+pub(crate) fn offered_answer(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    reply_to: ReplyTo,
+    project: u32,
+    asker: u64,
+    mut word: Word,
+    out: &mut Queue<Request>,
+) {
+    let MessageKind::Answer { question } = word.kind else {
+        return refused(reply_to, Some(asker), Refusal::Reference, out);
+    };
+    let Party::Person(person) = word.from else {
+        return refused(reply_to, Some(asker), Refusal::Reference, out);
+    };
+    let Some(row) = record(domain, asker) else {
+        return refused(reply_to, Some(asker), Refusal::Unknown, out);
+    };
+    let Some(ticket) = domain.question_ticket(asker, question) else {
+        return refused(reply_to, Some(asker), Refusal::Reference, out);
+    };
+    let admitted = match ticket.holder {
+        Some(EscalationHolder::Person(holder)) => holder == person,
+        Some(EscalationHolder::Role { project: held_project, .. }) => held_project == project,
+        Some(EscalationHolder::Task(_)) | None => false,
+    };
+    if !admitted || ticket.asker != asker {
+        return refused(reply_to, Some(asker), Refusal::Reference, out);
+    }
+    if let Some(by) = ticket.by {
+        return refused(reply_to, Some(asker), Refusal::QuestionAnswered { question, by }, out);
+    }
+    word.from = row.requester;
+    let (task, word) =
+        match party_answer(domain, env, project, asker, question, word, QuestionAnswerer::Person(person), true, out) {
+            Ok(answer) => answer,
+            Err(why) => return refused(reply_to, Some(asker), why, out),
+        };
+    out.push(Request::Sent { reply_to, task, word });
+}
+
+#[expect(clippy::too_many_arguments, reason = "one answer shares the message plan and durable settlement")]
+fn party_answer(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    project: u32,
+    asker: u64,
+    question: u64,
+    word: Word,
+    by: QuestionAnswerer,
+    notice: bool,
+    out: &mut Queue<Request>,
+) -> Result<(u64, Word), Refusal> {
+    let row = record(domain, asker).ok_or(Refusal::Unknown)?;
+    if row.project != project
+        || !crate::moving::mutable(&row.phase)
+        || word.words.is_empty()
+        || word.words.len() > skein_lib::length::usize_of(env.limits.message_bytes)
+    {
+        return Err(Refusal::State);
+    }
+    let ticket = credit(row, question).ok_or(Refusal::Reference)?;
+    let mut word = word;
+    word.eligible = if ticket.asked == asker {
+        ticket.first.party() == row.requester
+    } else {
+        Party::Task(ticket.asked) == row.requester
+    };
+    let prepared = crate::inbox::prepare(domain, &env.limits, asker, word, crate::inbox::Admission::RoomKept)
+        .ok_or(Refusal::Read)?;
+    let answer = crate::inbox::Answering { question, by, notice };
+    Ok(crate::inbox::apply_message(
+        domain,
+        env,
+        crate::inbox::MessagePlan { number: asker, prepared, answer: Some(answer), asked_by: None },
+        out,
+    ))
+}
+
+fn notice_word(question: u64, by: QuestionAnswerer, notice: &QuestionAnswerNotice) -> Word {
+    Word {
+        number: notice.number,
+        from: by.party(),
+        kind: MessageKind::PassedAnswer { question },
+        words: notice.words.clone(),
+        at: notice.at,
+        hits: 1,
+        eligible: true,
+    }
+}
+
+pub(crate) fn settle(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    credit: &QuestionCredit,
+    answer: crate::inbox::Answering,
+    heard: crate::AnswerLine,
+    word: &Word,
+    out: &mut Queue<Request>,
+) {
+    let ticket = credit.ticket(heard.task);
+    let Some(row) = task_mut(domain, ticket.asked) else { return };
+    let notice = if answer.notice
+        && ticket.first != answer.by
+        && ticket.asked != heard.task
+        && crate::moving::mutable(&row.record.phase)
+        && !crate::gathering::executor(row.record.executor)
+    {
+        Some(QuestionAnswerNotice { number: word.number, at: word.at, words: answer_notice_words(word.words.clone()) })
+    } else {
+        None
+    };
+    let arrival = match &notice {
+        Some(notice) => Some(notice_word(answer.question, answer.by, notice)),
+        None => None,
+    };
+    let resolution = QuestionResolution { by: answer.by, first: ticket.first, holder: ticket.holder, notice };
+    if crate::positions::settle(&mut row.record, answer.question, heard, resolution) {
+        changed(domain, ticket.asked);
+        if let Some(word) = arrival {
+            crate::wake::after_message(domain, env, ticket.asked, None, word, out);
+        }
+    }
 }
 
 pub(crate) fn cancel(
@@ -273,7 +568,7 @@ pub(crate) fn forget_received(domain: &mut Domain, env: &Env<Limits>, task: u64,
     let mut lines = List::with_capacity(env.limits.inbox_messages);
     for line in &row.record.question_lines {
         if line.message != question {
-            lines.push(*line).expect("question subset");
+            lines.push(line.clone()).expect("question subset");
         }
     }
     row.record.question_lines = lines.into_boxed();

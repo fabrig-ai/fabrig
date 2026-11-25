@@ -18,11 +18,11 @@ pub fn proposal_text(value: &w::Proposal, limits: &Limits) -> Result<Box<[u8]>, 
 }
 
 /// Render the retained outcome and item heads of a decided settings proposal.
-pub fn ended_proposal_text(value: &w::Ended, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
+pub fn ended_proposal_text(value: &w::Ended) -> Result<Box<[u8]>, w::Problem> {
     let mut measured = Text::measure();
-    decided(value, limits, &mut measured)?;
+    decided(value, &mut measured)?;
     let mut out = Text::writing_exact(measured);
-    decided(value, limits, &mut out)?;
+    decided(value, &mut out)?;
     Ok(out.finish())
 }
 
@@ -37,12 +37,12 @@ fn waiting(value: &w::Proposal, limits: &Limits, out: &mut Text) -> Result<(), w
         | w::ProposalAction::Release(_) => return Err(wire::root_too_large()),
     };
     out.put(b"proposal ");
-    render::proposal_text(wire::answers_proposal_key(&value.key, limits), out);
+    render::proposal_text(wire::answers_proposal_key(&value.key), out);
     out.put(b" of settings, waiting, against revision ");
     out.number(u64::from(settings.against));
     out.put(b"\n");
     reason(&value.reason, out);
-    items(&settings.items, limits, out);
+    items(&settings.items, out);
     if let Some(review) = &settings.review {
         out.put(b"review at revision ");
         out.number(u64::from(review.newest));
@@ -57,7 +57,7 @@ fn waiting(value: &w::Proposal, limits: &Limits, out: &mut Text) -> Result<(), w
             };
             let item = w::ReviewItem::decode(&limits.settings, &mut Reader::new(&piece))?;
             out.put(b"  ");
-            let setting = wire::settings_restore_setting(&item.setting, limits);
+            let setting = wire::settings_restore_setting(&item.setting);
             render::setting_text(setting, out);
             out.put(b"\n    now:\n");
             match &item.application {
@@ -76,7 +76,7 @@ fn waiting(value: &w::Proposal, limits: &Limits, out: &mut Text) -> Result<(), w
     Ok(())
 }
 
-fn decided(value: &w::Ended, limits: &Limits, out: &mut Text) -> Result<(), w::Problem> {
+fn decided(value: &w::Ended, out: &mut Text) -> Result<(), w::Problem> {
     let history = match &value.value {
         w::EndedValue::Proposal(value) => &value.value,
         w::EndedValue::Task(_)
@@ -104,7 +104,7 @@ fn decided(value: &w::Ended, limits: &Limits, out: &mut Text) -> Result<(), w::P
         | w::ObjectKey::Note(_) => return Err(wire::root_too_large()),
     };
     out.put(b"proposal ");
-    render::proposal_text(wire::answers_proposal_key(key, limits), out);
+    render::proposal_text(wire::answers_proposal_key(key), out);
     out.put(b" of settings, ");
     match &history.state {
         w::ProposalHistoryState::Accepted(_) => {
@@ -120,7 +120,7 @@ fn decided(value: &w::Ended, limits: &Limits, out: &mut Text) -> Result<(), w::P
     }
     out.put(b"\n");
     reason(&history.reason, out);
-    items(&settings.items, limits, out);
+    items(&settings.items, out);
     Ok(())
 }
 
@@ -138,10 +138,10 @@ fn reason(value: &w::DocumentText, out: &mut Text) {
     }
 }
 
-fn items(values: &List<w::RevisionItemHead>, limits: &Limits, out: &mut Text) {
+fn items(values: &List<w::RevisionItemHead>, out: &mut Text) {
     out.put(b"items:\n");
     for item in values {
-        let item = wire::settings_restore_revision_item_head(item, limits);
+        let item = wire::settings_restore_revision_item_head(item);
         out.put(b"  ");
         render::setting_text(item.setting, out);
         out.put(b": ");

@@ -1,5 +1,6 @@
-//! The core's vocabulary toward its root (`domain/engine/README.md`, section 4).
+//! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
+use crate::waits::Figures;
 use crate::{CallKey, CallPart, Delegate, EscalationDecisionRecord, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -30,6 +31,7 @@ pub struct Assignment {
     /// Whole words and prior committed conversation offered to the worker.
     pub messages: Box<[tasks::Word]>,
     pub transcript: Box<[Box<[u8]>]>,
+    pub parts: Box<[jig_domain_link::KeptPart]>,
     pub answered: Box<[crate::Settled]>,
     /// The selected account and application credential grants.
     pub grants: Box<[jig_domain_link::Grant]>,
@@ -100,6 +102,11 @@ pub enum Ask {
         step: u64,
         why: StepRefusal,
     },
+    /// The report was refused, independently of any procedure step.
+    WaitsRefused {
+        task: u64,
+        why: crate::ReportRefusal,
+    },
 
     /// Discard the connector-owned binding of a refused application watch or read.
     DropDocument {
@@ -147,7 +154,7 @@ pub enum Ask {
         task: u64,
         resource: tasks::Name,
         /// The taking's own outbox entry, for the effects its connector's kind has at a taking
-        /// (domain/connectors.md, 4.7).
+        /// (domain/connectors-effects.md, 1.7).
         entry: u64,
     },
     /// Tell the owning connector to end a task's topic interest.
@@ -295,7 +302,7 @@ pub enum Ask {
     )
 )]
 pub enum Write {
-    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1;
+    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1;
     /// jig/docs/design/domain/people/acts.md, 2).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
@@ -318,7 +325,7 @@ pub enum Held {
     },
     /// Every earlier commit is durable when the journal releases this terminal.
     Drained,
-    /// A settled stop has durably kept its restart word (domain/engine/restart.md, 1).
+    /// A settled stop has durably kept its restart word (domain/engine/restart.md, 5).
     Restarting {
         wait: skein_lib::Duration,
     },
@@ -427,7 +434,7 @@ pub enum Held {
         name: SourceName,
         result: Option<SignOutResult>,
     },
-    /// A grant follows every prior commit and its attempt's assignment (domain/engine/README.md, 5.2).
+    /// A grant follows every prior commit and its attempt's assignment (domain/engine/decisions.md, 1.2).
     Grant {
         channel: Token,
         run: Token,
@@ -483,6 +490,22 @@ pub enum Held {
     TaskTerminalAcknowledged {
         task: u64,
         attempt: u64,
+    },
+    /// The fleet may forget a part after its write commits.
+    TaskPartKept {
+        key: crate::PartKey,
+    },
+    AcknowledgePart {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
+    },
+    PartBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        part: u32,
     },
     /// The fleet may forget one accepted turn after its decision commits.
     TaskTurnKept {
@@ -555,7 +578,7 @@ pub enum Held {
     },
 }
 
-/// Why an unkeyed watch was not admitted (`client/domain/contract/README.md`, 5.2).
+/// Why an unkeyed watch was not admitted (`client/domain/contract/watches.md`, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WatchRefusal {
     /// Its sign-in is absent or expired.
@@ -578,7 +601,7 @@ pub enum LinkNow {
         number: u64,
         answer: jig_domain_link::AskAnswer,
     },
-    /// The host receives a read answer without waiting for a commit (domain/engine/README.md, 4.4).
+    /// The host receives a read answer without waiting for a commit (domain/engine/vocabulary.md, 1.4).
     Relayed {
         channel: Token,
         run: Token,
@@ -589,6 +612,13 @@ pub enum LinkNow {
     /// Forget a root-owned host payload that the fleet no longer needs.
     DropPayload {
         payload: Token,
+    },
+    /// Read the root-owned part after the fleet admits it.
+    PartPayload {
+        run: Token,
+        attempt: Token,
+        part: u32,
+        body: Token,
     },
     /// Read the root-owned turn payload before routing the charged turn.
     TurnPayload {
@@ -625,37 +655,94 @@ pub enum LinkNow {
 /// Core output that follows no mutation.
 #[derive(Hash, Debug)]
 pub enum Now {
+    PartBusy {
+        key: crate::PartKey,
+    },
     /// An admitted application read, answered through `fleet::Event::Asked` without a commit.
-    Ask { channel: Token, run: Token, attempt: Token, number: u64, bytes: Box<[u8]> },
+    Ask {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        bytes: Box<[u8]>,
+    },
     /// The core's outputs for the link (domain/root.md, 5).
     Link(LinkNow),
-    /// A bounded task read has no durable call record (domain/engine/executors.md, 3).
-    TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
-    /// A settings document leaves without a durable call record (domain/engine/executors.md, 3).
-    SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
+    /// A bounded task read has no durable call record (domain/engine/executors-tools.md, 1).
+    TaskRead {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>>,
+    },
+    /// A settings document leaves without a durable call record (domain/engine/executors-tools.md, 1).
+    SettingsAnswer {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<crate::reads::SettingsAnswer>,
+    },
     /// A run's read as its person answered: the party read's own answer, `None(Why::Unknown)`
-    /// for what is not admitted, `None(Why::Busy)` where the loads are full (domain/engine/executors.md, 3).
-    PersonAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::Answer> },
-    /// A run's proposal read answered (domain/engine/executors.md, 3).
-    ProposalRead { to: ReplyTo, key: CallKey, answer: Box<crate::reads::ProposalRead> },
+    /// for what is not admitted, `None(Why::Busy)` where the loads are full (domain/engine/executors-tools.md, 1).
+    PersonAnswer {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<crate::reads::Answer>,
+    },
+    /// A run's proposal read answered (domain/engine/executors-tools.md, 1).
+    ProposalRead {
+        to: ReplyTo,
+        key: CallKey,
+        answer: Box<crate::reads::ProposalRead>,
+    },
     /// The root answers this host call with its own busy payload.
-    CallBusy { to: ReplyTo },
+    CallBusy {
+        to: ReplyTo,
+    },
     /// An effect wait or capacity refusal changed no durable state.
-    EffectAnswer { to: ReplyTo, key: CallKey, part: CallPart },
+    EffectAnswer {
+        to: ReplyTo,
+        key: CallKey,
+        part: CallPart,
+    },
     /// A settled answer exceeded its bounded record or no retained call owns it.
-    SettledCallRefused { to: ReplyTo, key: CallKey, name: Box<[u8]>, tool: Box<[u8]> },
+    SettledCallRefused {
+        to: ReplyTo,
+        key: CallKey,
+        name: Box<[u8]>,
+        tool: Box<[u8]>,
+    },
     /// The protocol layer decodes this attested tool and input at the root boundary.
-    Call { to: ReplyTo, run: Token, attempt: Token, call: fleet::Call },
+    Call {
+        to: ReplyTo,
+        run: Token,
+        attempt: Token,
+        call: fleet::Call,
+    },
     /// A current host's call found no room; only its name crosses.
-    RelayBusy { channel: Token, run: Token, attempt: Token, call: Box<[u8]> },
+    RelayBusy {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        call: Box<[u8]>,
+    },
     /// A fenced call or an overlong name changed nothing.
-    DropCall { call: fleet::Call },
+    DropCall {
+        call: fleet::Call,
+    },
     /// The host did not take this message; its durable inbox word remains unread.
-    Undelivered { run: Token, attempt: Token, message: fleet::Message },
+    Undelivered {
+        run: Token,
+        attempt: Token,
+        message: fleet::Message,
+    },
     /// A sign-in whose core-owned person or session counter is exhausted.
-    SignInRefused { to: ReplyTo },
+    SignInRefused {
+        to: ReplyTo,
+    },
     /// A volatile watch refused before any durable decision.
-    WatchRefused { watcher: Token, why: WatchRefusal },
+    WatchRefused {
+        watcher: Token,
+        why: WatchRefusal,
+    },
     /// Secret-free account protocol output with no store decision.
     Account(accounts::Request),
     /// A provisional run suffix leaves through the journal door, without a commit.
@@ -670,35 +757,89 @@ pub enum Now {
         writing: Option<views::WritingCall>,
     },
     /// One page of scope index lines.
-    NotesIndexed { owner: Token, lines: List<notes::Line>, more: u32 },
+    NotesIndexed {
+        owner: Token,
+        lines: List<notes::Line>,
+        more: u32,
+    },
     /// One page of recalled entries.
-    NotesRecalled { owner: Token, entries: List<notes::Entry>, more: bool },
+    NotesRecalled {
+        owner: Token,
+        entries: List<notes::Entry>,
+        more: bool,
+    },
     /// A note request refused before changing state.
-    NotesRefused { owner: Token, why: notes::Refusal },
+    NotesRefused {
+        owner: Token,
+        why: notes::Refusal,
+    },
     /// The notes child could not serve this named call yet; the host retries its name.
-    NoteBusy { to: ReplyTo, key: CallKey },
+    NoteBusy {
+        to: ReplyTo,
+        key: CallKey,
+    },
     /// Forget the application's assignment for a run the host never started.
-    DropAssignment { task: u64 },
+    DropAssignment {
+        task: u64,
+    },
     /// Ask the root for its current readiness before a due activation route.
-    Activate { context: Box<tasks::RunContext> },
+    Activate {
+        context: Box<tasks::RunContext>,
+    },
     /// Load the current transcript window in key order from its first turn.
-    StartPreparation { task: u64, from: (u64, u32) },
+    StartPreparation {
+        task: u64,
+        from: (u64, u32),
+    },
     /// Load one proposal decision that has left live task memory.
-    SeenConversation { request: Token, task: u64 },
+    SeenConversation {
+        request: Token,
+        task: u64,
+    },
     /// Load the durable position of one ended conversation for its mark.
-    LoadEndedRead { request: Token, task: u64, party: u64 },
+    LoadEndedRead {
+        request: Token,
+        task: u64,
+        party: u64,
+    },
     /// Load one proposal decision that has left live task memory.
-    EndedProposal { request: Token, person: u64, project: u32, proposer: people::Proposer, proposal: u64 },
+    EndedProposal {
+        request: Token,
+        person: u64,
+        project: u32,
+        proposer: people::Proposer,
+        proposal: u64,
+    },
     /// Load a task proposal from the proposer's retained history.
-    DecidedProposal { to: ReplyTo, key: CallKey, proposal: u64 },
+    DecidedProposal {
+        to: ReplyTo,
+        key: CallKey,
+        proposal: u64,
+    },
     /// Load the ended owner row for a person-task act whose live row is gone.
-    EndedPersonTask { request: Token, person: u64, project: u32, task: u64 },
+    EndedPersonTask {
+        request: Token,
+        person: u64,
+        project: u32,
+        task: u64,
+    },
     /// Load an ended task row; the core retains why it needs the result.
-    EndedTask { request: Token, task: u64 },
+    EndedTask {
+        request: Token,
+        task: u64,
+    },
     /// Load the first input or ended tree root; later inputs return to the core between gets.
-    PartyInputs { request: Token, person: u64, project: u32, tasks: Box<[u64]> },
+    PartyInputs {
+        request: Token,
+        person: u64,
+        project: u32,
+        tasks: Box<[u64]>,
+    },
     /// Assemble connector-held sections for a still-current brief.
-    CompleteBrief { brief: Token, order: Box<[brief::GatherPlaced]> },
+    CompleteBrief {
+        brief: Token,
+        order: Box<[brief::GatherPlaced]>,
+    },
     /// Core-owned sections and charter documents are ready; the root may append its connector
     /// sections (domain/engine/settings.md, 9).
     BriefCorePlanned {
@@ -708,11 +849,20 @@ pub enum Now {
         documents: Box<[PlannedDocument]>,
     },
     /// The root assembles a numbered connector workspace for this core-selected attempt.
-    WorkspaceRequest { task: u64, attempt: u64, context: Box<tasks::RunContext> },
+    WorkspaceRequest {
+        task: u64,
+        attempt: u64,
+        context: Box<tasks::RunContext>,
+    },
     /// Core admission and claim preparation failed; discard root-owned assembly parts.
-    RunPreparationFailed { task: u64 },
+    RunPreparationFailed {
+        task: u64,
+    },
     /// A brief failed, for the application's log (`domain/engine/briefs.md`, 1.1).
-    BriefFailed { task: u64, failure: brief::GatherFailure },
+    BriefFailed {
+        task: u64,
+        failure: brief::GatherFailure,
+    },
     /// Core-owned run parts are ready for root assembly with the connector workspace.
     RunPrepared {
         live: crate::LiveAsk,
@@ -724,11 +874,18 @@ pub enum Now {
         messages: Box<[tasks::Word]>,
         saved: Box<[tasks::SavedResource]>,
         transcript: Box<[Box<[u8]>]>,
+        parts: Box<[jig_domain_link::KeptPart]>,
         answered: Box<[CallKey]>,
         grants: Box<[jig_domain_link::Grant]>,
     },
     /// Load one held-chat decision that has left live task memory.
-    EndedEscalation { request: Token, person: u64, project: u32, task: u64, revision: u64 },
+    EndedEscalation {
+        request: Token,
+        person: u64,
+        project: u32,
+        task: u64,
+        revision: u64,
+    },
     /// The first child admitted from a connector procedure's batch, if any.
     /// A restored task row was refused; the root must fail startup.
     RestoreRefused,
@@ -738,6 +895,7 @@ pub enum Now {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub retention: RetentionLimits,
+    pub waits: Figures,
     pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
     /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).
@@ -745,7 +903,7 @@ pub struct Limits {
     pub settings: crate::settings::Limits,
     /// Configured templates and overrides per project policy.
     pub templates: u32,
-    /// Store map bytes at or above which new party work is refused (protocol/store/README.md, 6.2).
+    /// Store map bytes at or above which new party work is refused (protocol/store/growth.md, 1.2).
     pub fill_mark: u64,
     /// Number of numbered connectors retained by the core.
     pub connectors: u32,
@@ -839,13 +997,20 @@ pub enum Event {
         connector: u16,
         tasks: List<u64>,
     },
+    /// Replace the live procedure's wait report. Empty clears it; at most four waits and
+    /// four things per wait (jig/docs/design/domain/engine/waits.md, 6).
+    Waits {
+        connector: u16,
+        task: u64,
+        waits: List<crate::Reported>,
+    },
     /// A connector's release of a deleted project's adoptions has committed
     /// (jig/docs/design/domain/people/acts.md, 2).
     ProjectReleased {
         connector: u16,
         project: u32,
     },
-    /// One model act at the newest revision (domain/engine/settings.md, 11).
+    /// One model act at the newest revision (domain/engine/settings-catalogue.md, 1).
     ChangeModel {
         reply_to: ReplyTo,
         sign_in: u64,
@@ -881,15 +1046,15 @@ pub enum Event {
         act: Box<people::Act>,
         carried: Option<Carried>,
     },
-    /// Store map bytes from each commit answer; needs no commit (protocol/store/README.md, 6.2).
+    /// Store map bytes from each commit answer; needs no commit (protocol/store/growth.md, 1.2).
     Fill {
         bytes: u64,
     },
-    /// Last store report; refresh the deployment document (protocol/store/README.md, 6.3).
+    /// Last store report; refresh the deployment document (protocol/store/growth.md, 1.3).
     Census(Box<crate::documents::deployment::StoreCensus>),
-    /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
+    /// Refuse new decisions while the service drains (domain/engine/restart.md, 5).
     Stopping,
-    /// Place nothing while taking every commit (domain/engine/restart.md, 1).
+    /// Place nothing while taking every commit (domain/engine/restart.md, 5).
     Settling,
     /// A connector's state change names its opaque subjects in this decision.
     Marked {
@@ -1098,6 +1263,10 @@ pub enum Event {
     People(people::Event),
     /// Host, run or attempt.
     Fleet(fleet::Event),
+    /// Root-translated part; its body remains opaque.
+    PartPayload {
+        record: crate::PartRecord,
+    },
     /// Root-translated contents of a host turn payload.
     TurnPayload {
         run: Token,
@@ -1328,20 +1497,20 @@ pub enum NamedAction {
         field: crate::reads::TaskTextField,
         task: u64,
         from: u64,
-        /// The most words this answer holds, named by its application (domain/engine/executors.md, 3).
+        /// The most words this answer holds, named by its application (domain/engine/executors-tools.md, 1).
         room: u32,
     },
-    /// A settings read decides nothing and keeps no call record (domain/engine/executors.md, 3).
+    /// A settings read decides nothing and keeps no call record (domain/engine/executors-tools.md, 1).
     Settings(crate::reads::SettingsRead),
     /// A run reads as its task's requester, a person, of its task's project alone
-    /// (domain/engine/executors.md, 3, *A run's read as its person*). Decides nothing, keeps no call record.
+    /// (domain/engine/executors-tools.md, 1, *A run's read as its person*). Decides nothing, keeps no call record.
     PersonRead(Box<crate::reads::Read>),
-    /// A run's read of one proposal of settings, by the `settings` family (domain/engine/executors.md, 3).
+    /// A run's read of one proposal of settings, by the `settings` family (domain/engine/executors-tools.md, 1).
     ReadProposal {
         proposer: jig_domain_people::Proposer,
         number: u64,
     },
-    /// A run proposes settings against the revision it read (domain/engine/settings.md, 6).
+    /// A run proposes settings against the revision it read (domain/engine/settings-proposals.md, 1).
     ProposeSettings {
         against: u32,
         items: Box<[crate::settings::Item]>,
@@ -1447,6 +1616,11 @@ pub enum ToolKind {
     Message {
         target: u64,
     },
+    /// A reference granted only to answer this question.
+    AnswerQuestion {
+        target: u64,
+        question: u64,
+    },
     /// The message family alone, without a reference to another task.
     MarkRead,
     Control,
@@ -1483,6 +1657,8 @@ pub enum EscalationChoice {
 pub enum Timer {
     /// Sign-in and retained keyed-answer expiration.
     People,
+    /// Bounds of a task's own waits.
+    WaitBounds,
     /// Task deadlines and standing work.
     Tasks,
     /// Missing batch reports reach their bound (domain/tasks/holds.md, 2).
@@ -1542,6 +1718,7 @@ impl Event {
             | Self::Stopping
             | Self::Parts { .. }
             | Self::PartsMarked { .. }
+            | Self::Waits { .. }
             | Self::Marked { .. }
             | Self::ReadLoaded { .. }
             | Self::PublicAnswered { .. }
@@ -1564,6 +1741,7 @@ impl Event {
             | Self::ConnectorRepair { .. }
             | Self::PersonTask { .. }
             | Self::TranscriptLoaded { .. }
+            | Self::PartPayload { .. }
             | Self::TurnPayload { .. }
             | Self::AnswerPayload { .. }
             | Self::AcceptedTurn { .. }
@@ -1614,18 +1792,19 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::WithdrawProposal { .. }
         | tasks::Event::Conclude { .. }
         | tasks::Event::Cancel { .. }
+        | tasks::Event::Fail { .. }
         | tasks::Event::Release { .. }
         | tasks::Event::Amend { .. }
         | tasks::Event::Move { .. }
         | tasks::Event::Subscribe { .. }
         | tasks::Event::SubscribeTopic { .. }
-        | tasks::Event::SubscribeTopicApart { .. }
         | tasks::Event::Unsubscribe { .. }
         | tasks::Event::Notice { .. }
         | tasks::Event::Introduce { .. }
         | tasks::Event::Message { .. }
         | tasks::Event::PersonQuestion { .. }
         | tasks::Event::PersonQuestionAnswer { .. }
+        | tasks::Event::AnswerOfferedQuestion { .. }
         | tasks::Event::Talk { .. }
         | tasks::Event::Leave { .. }
         | tasks::Event::AuthorizedMessage { .. }
@@ -1648,6 +1827,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::DelegateResult { .. }
         | tasks::Event::RememberStub { .. }
         | tasks::Event::InspectEscalations { .. }
+        | tasks::Event::ReadingLost { .. }
         | tasks::Event::RecheckEscalations { .. }
         | tasks::Event::RoutedEscalation { .. }
         | tasks::Event::DecideEscalation { .. }
@@ -1671,12 +1851,14 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Retained { .. }
         | tasks::Event::Settled { .. }
         | tasks::Event::PersonStallNotice { .. }
+        | tasks::Event::RearmPersonStall { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
         | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::CancelQuestion { .. }
+        | tasks::Event::PassQuestion { .. }
         | tasks::Event::Restore { .. }
         | tasks::Event::Check
         | tasks::Event::Restored => false,
@@ -1724,6 +1906,9 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. }
         | fleet::Event::Answer { .. }
+        | fleet::Event::Part { .. }
+        | fleet::Event::PartKept { .. }
+        | fleet::Event::PartBusy { .. }
         | fleet::Event::Turn { .. }
         | fleet::Event::TurnKept { .. }
         | fleet::Event::TurnBusy { .. }
@@ -1750,6 +1935,7 @@ fn people_new_work(event: &people::Event) -> bool {
         | people::Event::ConversationSeen { .. }
         | people::Event::Forget { .. }
         | people::Event::MakeService { .. }
+        | people::Event::ReissueService { .. }
         | people::Event::Waiting { .. }
         | people::Event::ApplyRoles { .. }
         | people::Event::Decided { .. }
@@ -1851,13 +2037,13 @@ impl Timer {
     #[must_use]
     pub const fn new_work(self) -> bool {
         match self {
-            Self::Tasks => true,
+            Self::Tasks | Self::WaitBounds => true,
             Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention | Self::Resources => false,
         }
     }
 }
 
-/// The store transport's transcript answer (jig/docs/design/domain/engine/README.md, 4.1, and jig/docs/design/domain/engine/executors.md, 2).
+/// The store transport's transcript answer (jig/docs/design/domain/engine/vocabulary.md, 1.1, and jig/docs/design/domain/engine/executors-transcripts.md, 1).
 #[derive(Hash, Debug)]
 pub enum TranscriptLoad {
     Page {
@@ -1866,7 +2052,7 @@ pub enum TranscriptLoad {
     },
     /// A window's turn past its store page's room, alone in its page: its
     /// fields, `turn.transcript` empty and its transcript's length
-    /// (jig/docs/design/domain/engine/executors.md, 2).
+    /// (jig/docs/design/domain/engine/executors-transcripts.md, 1).
     Cut {
         turn: crate::TurnRecord,
         bytes: u64,
@@ -1886,7 +2072,7 @@ impl Timer {
 
 pub fn waits(timer: Timer) -> bool {
     match timer {
-        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
+        Timer::People | Timer::WaitBounds | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
         Timer::Account | Timer::Resources => false,
     }
 }

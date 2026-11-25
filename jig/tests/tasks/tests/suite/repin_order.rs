@@ -21,6 +21,7 @@ fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
 fn amend(world: &mut World, by: Party, task: u64, dependencies: &[u64]) -> Reply {
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task,
@@ -92,7 +93,7 @@ fn finish(world: &mut World, task: u64) {
     assert!(matches!(world.results.get(&task), Some(Ending::Done(_))));
 }
 
-// domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md and domain/tasks/messages.md, 1 and domain/tasks/README.md, 7.
+// domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md and domain/tasks/messages.md, 1 and domain/tasks/README.md, 7.
 // Story 3's queue order is already covered in added.rs by
 // a_waiter_given_a_dependency_leaves_the_queue_and_returns_ahead_of_a_later_waiter.
 #[test]
@@ -159,7 +160,7 @@ fn a_running_repin_given_a_dependency_lands_after_the_other_and_starts_its_depen
     world.complete_cancel();
 }
 
-// domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md and domain/tasks/messages.md, 1 and domain/tasks/README.md, 7.
+// domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md and domain/tasks/messages.md, 1 and domain/tasks/README.md, 7.
 #[test]
 fn an_owner_adds_a_dependency_its_child_found_while_working() {
     const CHILD: u64 = 2;

@@ -172,6 +172,7 @@ pub struct Frozen {
     kept_starts: Box<[tasks::KeptStart]>,
     kinds: Vec<tasks::Kind>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
+    person_stall_route: [Option<tasks::PersonAddress>; 2],
     restoring: bool,
     facts: Vec<Fact>,
     consume_facts: bool,
@@ -227,6 +228,8 @@ pub struct World {
     pub facts: Vec<Fact>,
     pub accounting_referee: crate::accounting_referee::Accounting,
     pub consume_facts: bool,
+    /// First and final parties supplied by the fake parent for person stalls.
+    pub person_stall_route: [Option<tasks::PersonAddress>; 2],
     pub referee: Referee<Tasks>,
     pub trace: Trace,
     seed: u64,
@@ -269,6 +272,7 @@ impl World {
             facts: Vec::new(),
             accounting_referee: crate::accounting_referee::Accounting::default(),
             consume_facts: true,
+            person_stall_route: [None; 2],
             referee: Referee::new(Tasks::default()),
             trace,
             seed,
@@ -313,6 +317,7 @@ impl World {
             restoring: self.restoring,
             facts: self.facts,
             consume_facts: self.consume_facts,
+            person_stall_route: self.person_stall_route,
             limits: self.env.limits,
             seed: self.seed,
             priced: self.priced,
@@ -448,14 +453,38 @@ impl World {
         );
     }
 
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.domain.next_deadline()
+    }
+
+    fn person_stall_next(&self, wait: tasks::PersonWait) -> Option<tasks::PersonAddress> {
+        let [first, last] = self.person_stall_route;
+        if wait.offer.is_some() { last } else { first.or(last) }
+    }
+
+    fn person_stall_due(&mut self, task: u64) {
+        let wait = self.record(task).person_wait.expect("due person task");
+        let offer = self.person_stall_next(wait);
+        let message = if wait.notice.is_none() {
+            self.message = self.message.checked_add(1).expect("stall message number room");
+            Some(self.message)
+        } else {
+            None
+        };
+        tasks::step(&mut self.domain, &self.env, Event::PersonStallNotice { task, message, offer }, &mut self.out);
+    }
+
     fn route_hint(&mut self, request: &Request) {
         match request {
-            Request::PersonStallDue { task } => {
-                self.message = self.message.checked_add(1).expect("stall message number room");
+            Request::PersonStallDue { task } => self.person_stall_due(*task),
+            Request::PersonStallRestored { task } => {
+                let wait = self.record(*task).person_wait.expect("restored person task");
+                let may_pass = self.person_stall_next(wait).is_some();
                 tasks::step(
                     &mut self.domain,
                     &self.env,
-                    Event::PersonStallNotice { task: *task, message: self.message },
+                    Event::RearmPersonStall { task: *task, may_pass },
                     &mut self.out,
                 );
             }
@@ -576,7 +605,11 @@ impl World {
                 None
             }
             Event::Turn { task, cumulative, .. }
-            | Event::Activation { task, cause: Cause::Priced { cumulative }, .. } => Some((*task, *cumulative)),
+            | Event::Activation {
+                task,
+                cause: Cause::Priced { cumulative } | Cause::Parked { cumulative: Some(cumulative) },
+                ..
+            } => Some((*task, *cumulative)),
             Event::Leave { .. }
             | Event::CloseProject { .. }
             | Event::Place { .. }
@@ -605,6 +638,7 @@ impl World {
             | Event::AnswerPerson { .. }
             | Event::Conclude { .. }
             | Event::Cancel { .. }
+            | Event::Fail { .. }
             | Event::Release { .. }
             | Event::Propose { .. }
             | Event::ProposePerson { .. }
@@ -625,7 +659,7 @@ impl World {
             | Event::NowWritten { .. }
             | Event::RecordWords { .. }
             | Event::Refusals { .. }
-            | Event::Activation { cause: Cause::Unpriced, .. }
+            | Event::Activation { cause: Cause::Unpriced | Cause::Parked { cumulative: None }, .. }
             | Event::PreparationWaiting { .. }
             | Event::PreparationPaused { .. }
             | Event::PreparationCounted { .. }
@@ -644,6 +678,8 @@ impl World {
             | Event::Message { .. }
             | Event::PersonQuestion { .. }
             | Event::PersonQuestionAnswer { .. }
+            | Event::PassQuestion { .. }
+            | Event::AnswerOfferedQuestion { .. }
             | Event::Talk { .. }
             | Event::AuthorizedMessage { .. }
             | Event::Introduce { .. }
@@ -651,7 +687,6 @@ impl World {
             | Event::RememberStub { .. }
             | Event::Subscribe { .. }
             | Event::SubscribeTopic { .. }
-            | Event::SubscribeTopicApart { .. }
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
             | Event::QuestionOwedNotice { .. }
@@ -660,9 +695,16 @@ impl World {
             | Event::QuestionEndedNotice { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::ReadingLost { .. }
+            | Event::RearmPersonStall { .. }
             | Event::Notice { .. } => None,
         };
         match event {
+            Event::PassQuestion { offer, .. } => {
+                if let Some(relay) = &offer.relay {
+                    self.message = self.message.max(relay.entry);
+                }
+            }
             Event::QuestionEndedNotice { notices, .. } => {
                 for notice in notices {
                     self.message = self.message.max(notice.message);
@@ -679,6 +721,7 @@ impl World {
             Event::Message { operation: tasks::Message { word, .. }, .. }
             | Event::PersonQuestion { word, .. }
             | Event::PersonQuestionAnswer { word, .. }
+            | Event::AnswerOfferedQuestion { word, .. }
             | Event::Talk { operation: tasks::Message { word, .. }, .. }
             | Event::AuthorizedMessage { operation: tasks::Message { word, .. }, .. }
             | Event::DelegateResult { word, .. }
@@ -712,6 +755,7 @@ impl World {
             | Event::AnswerPerson { .. }
             | Event::Conclude { .. }
             | Event::Cancel { .. }
+            | Event::Fail { .. }
             | Event::Release { .. }
             | Event::MoveToNewest { .. }
             | Event::Move { .. }
@@ -754,12 +798,13 @@ impl World {
             | Event::RememberStub { .. }
             | Event::Subscribe { .. }
             | Event::SubscribeTopic { .. }
-            | Event::SubscribeTopicApart { .. }
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
             | Event::QuestionParked { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::ReadingLost { .. }
+            | Event::RearmPersonStall { .. }
             | Event::Turn { .. } => {}
         }
     }
@@ -772,9 +817,11 @@ impl World {
         if let Event::Procedure { task, step, read, .. } = &event {
             self.accounting_referee.procedure(*task, *step, *read);
         }
-        let (event, procedure_reply) = if let Event::Procedure { reply_to, task, step, read, decision } = event {
+        let (event, procedure_reply) = if let Event::Procedure { reply_to, task, step, read, decision, reads_project } =
+            event
+        {
             let token = reply_to.into_token();
-            (Event::Procedure { reply_to: ReplyTo::new(token), task, step, read, decision }, Some(token))
+            (Event::Procedure { reads_project, reply_to: ReplyTo::new(token), task, step, read, decision }, Some(token))
         } else {
             (event, None)
         };
@@ -926,6 +973,7 @@ impl World {
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
+                | Request::PersonStallRestored { .. }
                 | Request::Notify { .. }
                 | Request::Timer { .. }
                 | Request::EndTopic { .. }
@@ -1023,6 +1071,7 @@ impl World {
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
+                | Request::PersonStallRestored { .. }
                 | Request::Notify { .. }
                 | Request::Timer { .. }
                 | Request::ProposalRerouteNeeded { .. }
@@ -1183,7 +1232,7 @@ impl World {
         self.records.keys().filter(|key| matches!(key, Key::Live(_))).count()
     }
 
-    /// Current holder eligibility as the core reads it (domain/tasks/lifecycle.md, 8 and domain/tasks/proposals.md).
+    /// Current holder eligibility as the core reads it (domain/tasks/lifecycle-endings.md, 1 and domain/tasks/proposals.md).
     #[must_use]
     pub fn delegation(&self, number: u64) -> tasks::DelegationContext {
         self.domain.delegation(number).expect("live task's delegation context")
@@ -1253,6 +1302,7 @@ impl World {
         let reply_to = self.to();
         let call = self.call;
         self.send(Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to,
@@ -1357,7 +1407,7 @@ impl World {
         let attempt = self.runs[&task];
         let reply_to = self.to();
         let call = self.call;
-        self.send(Event::Activation { reply_to, task, attempt, end, saved: None, cause });
+        self.send(Event::Activation { reads_project: false, reply_to, task, attempt, end, saved: None, cause });
         self.replies[&call].clone()
     }
 

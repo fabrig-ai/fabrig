@@ -1,4 +1,4 @@
-family temper-client-wire 44
+family temper-client-wire 47
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -108,7 +108,7 @@ record FindingDrop { reason: text 400 }
 record Filed { number: u32 }
 record FindingAreas { areas: list 16 text 32 }
 record FindingsFull { count: u32 }
-record FindingWords { field: text 32 }
+record FindingWords { field: text 1024 }
 record FindingRead { project: u32 number: u32 }
 
 enum DraftChange { ready: ReadyDraft, not_ready, started: StartedDraft }
@@ -139,12 +139,15 @@ record FindingNotYours { holder: Holder }
 enum Filer { task: HolderTask, party: HolderParty }
 record FindingClearing { tier: bytes 64 run: u64 at: u64 }
 record FindingRow { number: u32 kind: FindingKind severity: Severity area: option text 32 state: FindingState title: text 200 holder: Holder at: u64 why: option text 200 hander: option Filer goal: option u64 reason: option text 400 cleared: option FindingClearing }
-enum BlameStrength { owned, suspected, unblamed }
+enum BlameStrength { owned, suspected, unblamed, moved }
 record BlamedGoal { goal: u64 milestone: option u64 person: option u64 }
 record BlamedLanding { commit: fixed 32 goals: list 64 BlamedGoal }
 record FindingBlame { strength: BlameStrength landings: list 256 BlamedLanding }
 record FindingDetail { row: FindingRow body: text 4096 filer: Filer blame: option FindingBlame }
-enum Triage { route: FindingRoute, backlog, drop: FindingDrop }
+record FindingRepair { more: list 15 u32 words: text 4096 }
+record FindingBlameAct { landing: option bytes 32 why: text 200 }
+record Triaged { goal: option u64 }
+enum Triage { route: FindingRoute, backlog, drop: FindingDrop, repair: FindingRepair, blame: FindingBlameAct }
 record TriageFinding { project: u32 number: u32 act: Triage }
 enum FindingRefusal { no_area: FindingAreas, full: FindingsFull, not_yours: FindingNotYours, no_finding, no_goal, ended, words: FindingWords }
 record FindingRefused { reason: FindingRefusal }
@@ -214,7 +217,8 @@ record MakingFailed { step: MakeStep reason: MakeFailure words: bytes 256 }
 enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, failed: MakingFailed }
 record RepositoryMaking { org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto state: MakingState }
 enum StartsWith { repository, copies: CopyAddresses, nothing }
-record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
+record CatchingUp { fresh: u32 gathers: u32 ci: u32 goal_files: u32 lost_writers: u32 goal_branches: u32 uncertain: u32 }
+record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking catching_up: option CatchingUp }
 enum FullKind { outbox, read_admission }
 record FullTable { table: FullKind since: u64 words: bytes 1024 }
 versioned record Forges { forges: list 16 ForgeRow linked: bool full: list 2 FullTable }
@@ -387,7 +391,8 @@ enum Way { queue, turn }
 record HeldFaults { member: u16 gate: u16 }
 record HeldTimeout { member: u16 gate: u16 run: u64 }
 record HeldRecord { member: u16 }
-enum LandingHold { faults: HeldFaults, prepare, record: HeldRecord, timeout: HeldTimeout, turn }
+record HeldRead { reason: bytes 256 }
+enum LandingHold { faults: HeldFaults, prepare, record: HeldRecord, timeout: HeldTimeout, turn, read: HeldRead }
 enum Combined { merge, squash }
 record Train { forge: u16 repository: u32 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 }
 enum LandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling, probing, probing_by_test }
@@ -419,7 +424,7 @@ record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since:
 record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued way: Way in_flight: option TrainLanding }
 record ChangesSigned { party: u64 head: fixed 32 at: u64 name: option bytes 256 }
 record ChangesLanded { signed: list 8 ChangesSigned task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool goal: option ChangeFrom chat: option ChangeFrom milestone: option ChangeFrom }
-versioned record ChangesPanel { project: u32 landing: bytes 1024 queues: list 32 ChangesQueue more: u32 landed: list 32 ChangesLanded landed_more: u32 landed_default: list 32 ChangesLanded landed_default_more: u32 }
+versioned record ChangesPanel { project: u32 landing: bytes 1024 queues: list 32 ChangesQueue more: u32 landed: list 32 ChangesLanded landed_more: u32 landed_default: list 32 ChangesLanded landed_default_more: u32 catching_up: option CatchingUp }
 # A party's project status (temper/docs/design/client/forge/records.md).
 record StatusBrief { sentence: bytes 200 lede: bytes 600 at: u64 landed: u64 }
 versioned record ProjectStatus { project: u32 landed: u64 last_landed: option u64 brief: option StatusBrief previous: option u64 seen: u64 queued: u32 red: bool branch: bytes 1024 unpaid: bool }
@@ -486,11 +491,11 @@ record CheckpointFailed { path: text 128 error: text 128 }
 enum CheckpointWhy { not_owner, in_progress, unavailable, files, unrecognized: CheckpointPath, vanished: CheckpointPath, failed: CheckpointFailed }
 record CheckpointRefused { why: CheckpointWhy }
 
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused, filed: Filed, handed, triaged, finding_refused: FindingRefused, tier: TierOutcome, opened: Opened, open_refused: OpenRefused, checkpointed: Checkpointed, checkpoint_refused: CheckpointRefused }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused, filed: Filed, handed, triaged: Triaged, finding_refused: FindingRefused, tier: TierOutcome, opened: Opened, open_refused: OpenRefused, checkpointed: Checkpointed, checkpoint_refused: CheckpointRefused }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/routing.md, 6;
-# temper/docs/design/protocol/configuration/settings.md, 2).
+# temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 record LandingExact { value: bytes 4096 }
 record LandingOpen { value: bytes 4096 }
 enum LandingLast { exact: LandingExact, open: LandingOpen }
@@ -542,7 +547,7 @@ record FollowWords { words: bytes 8192 }
 record FollowWait { change: u64 }
 record FollowSkip { after: fixed 32 reason: bytes 8192 }
 record FollowFailing { count: u32 }
-# Project ownership (temper/docs/design/protocol/configuration/settings.md, 2).
+# Project ownership (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 record AreaTask { number: u64 }
 record AreaParty { number: u64 }
 record AreaRole { number: u32 }

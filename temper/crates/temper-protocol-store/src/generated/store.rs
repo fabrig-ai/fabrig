@@ -3,61 +3,59 @@
 
 use alloc::boxed::Box;
 
-// Maps line 15: Repository.
-pub fn repository_to_record(value: &skein_forge::api::Repository, _context: &crate::records::Context) -> Result<crate::v25::Repository, crate::v25::Problem> {
+#[must_use]
+pub fn repository_to_record(value: &skein_forge::api::Repository) -> crate::v25::Repository {
     let skein_forge::api::Repository { forge: field_000000, repository: field_000001 } = value;
-    Ok(crate::v25::Repository {
+    crate::v25::Repository {
         forge: *field_000000,
         repository: *field_000001
-    })
+    }
 }
 
-// Maps line 15: Repository.
-pub fn repository_to_domain(record: crate::v25::Repository, _context: &crate::records::Context) -> Result<skein_forge::api::Repository, crate::v25::Problem> {
+#[must_use]
+pub fn repository_to_domain(record: crate::v25::Repository) -> skein_forge::api::Repository {
     let crate::v25::Repository { forge: field_000000, repository: field_000001 } = record;
-    Ok(skein_forge::api::Repository {
+    skein_forge::api::Repository {
         forge: field_000000,
         repository: field_000001
+    }
+}
+
+#[must_use]
+pub fn what_to_record(value: &temper_engine_domain_forge_vocabulary::What) -> crate::v25::What {
+    match value {
+        temper_engine_domain_forge_vocabulary::What::Repository => crate::v25::What::Repository,
+        temper_engine_domain_forge_vocabulary::What::Branch(held) => crate::v25::What::Branch(crate::records::by_hand::segments_to_record(held)),
+        temper_engine_domain_forge_vocabulary::What::Pull(held) => crate::v25::What::Pull(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::What::Issue(held) => crate::v25::What::Issue(crate::v25::Number { number: *held }),
+    }
+}
+
+pub fn what_to_domain(record: crate::v25::What, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::What, crate::v25::Problem> {
+    Ok(match record {
+        crate::v25::What::Repository => temper_engine_domain_forge_vocabulary::What::Repository,
+        crate::v25::What::Branch(held) => temper_engine_domain_forge_vocabulary::What::Branch(crate::records::by_hand::segments_to_domain(held, context)?),
+        crate::v25::What::Pull(held) => temper_engine_domain_forge_vocabulary::What::Pull({
+            let crate::v25::Number { number: held } = held;
+            held
+        }),
+        crate::v25::What::Issue(held) => temper_engine_domain_forge_vocabulary::What::Issue({
+            let crate::v25::Number { number: held } = held;
+            held
+        }),
     })
 }
 
-// Maps line 21: What.
-pub fn what_to_record(value: &temper_engine_domain_forge_vocabulary::What, context: &crate::records::Context) -> Result<crate::v25::What, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::What::Repository => Ok(crate::v25::What::Repository),
-        temper_engine_domain_forge_vocabulary::What::Branch(held) => Ok(crate::v25::What::Branch(crate::records::by_hand::segments_to_record(held, context)?)),
-        temper_engine_domain_forge_vocabulary::What::Pull(held) => Ok(crate::v25::What::Pull(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::What::Issue(held) => Ok(crate::v25::What::Issue(crate::v25::Number { number: *held })),
-    }
-}
-
-// Maps line 21: What.
-pub fn what_to_domain(record: crate::v25::What, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::What, crate::v25::Problem> {
-    match record {
-        crate::v25::What::Repository => Ok(temper_engine_domain_forge_vocabulary::What::Repository),
-        crate::v25::What::Branch(held) => Ok(temper_engine_domain_forge_vocabulary::What::Branch(crate::records::by_hand::segments_to_domain(held, context)?)),
-        crate::v25::What::Pull(held) => Ok(temper_engine_domain_forge_vocabulary::What::Pull({
-            let crate::v25::Number { number: held } = held;
-            held
-        })),
-        crate::v25::What::Issue(held) => Ok(temper_engine_domain_forge_vocabulary::What::Issue({
-            let crate::v25::Number { number: held } = held;
-            held
-        })),
-    }
-}
-
-// Maps line 22: Name.
-pub fn name_to_record(value: &temper_engine_domain_forge_vocabulary::Name, context: &crate::records::Context) -> Result<crate::v25::Name, crate::v25::Problem> {
+#[must_use]
+pub fn name_to_record(value: &temper_engine_domain_forge_vocabulary::Name) -> crate::v25::Name {
     let temper_engine_domain_forge_vocabulary::Name { forge: field_000000, repository: field_000001, what: field_000002 } = value;
-    Ok(crate::v25::Name {
+    crate::v25::Name {
         forge: *field_000000,
         repository: *field_000001,
-        what: what_to_record(field_000002, context)?
-    })
+        what: what_to_record(field_000002)
+    }
 }
 
-// Maps line 22: Name.
 pub fn name_to_domain(record: crate::v25::Name, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Name, crate::v25::Problem> {
     let crate::v25::Name { forge: field_000000, repository: field_000001, what: field_000002 } = record;
     Ok(temper_engine_domain_forge_vocabulary::Name {
@@ -67,106 +65,106 @@ pub fn name_to_domain(record: crate::v25::Name, context: &crate::records::Contex
     })
 }
 
-// Maps line 23: ItemState.
-pub fn item_state_to_record(value: &skein_forge::api::State, _context: &crate::records::Context) -> Result<crate::v25::ItemState, crate::v25::Problem> {
+#[must_use]
+pub fn item_state_to_record(value: &skein_forge::api::State) -> crate::v25::ItemState {
     match value {
-        skein_forge::api::State::Open => Ok(crate::v25::ItemState::Open),
-        skein_forge::api::State::Closed => Ok(crate::v25::ItemState::Closed),
+        skein_forge::api::State::Open => crate::v25::ItemState::Open,
+        skein_forge::api::State::Closed => crate::v25::ItemState::Closed,
     }
 }
 
-// Maps line 23: ItemState.
-pub fn item_state_to_domain(record: crate::v25::ItemState, _context: &crate::records::Context) -> Result<skein_forge::api::State, crate::v25::Problem> {
+#[must_use]
+pub fn item_state_to_domain(record: crate::v25::ItemState) -> skein_forge::api::State {
     match record {
-        crate::v25::ItemState::Open => Ok(skein_forge::api::State::Open),
-        crate::v25::ItemState::Closed => Ok(skein_forge::api::State::Closed),
+        crate::v25::ItemState::Open => skein_forge::api::State::Open,
+        crate::v25::ItemState::Closed => skein_forge::api::State::Closed,
     }
 }
 
-// Maps line 24: Ci.
-pub fn ci_to_record(value: &skein_forge::api::Ci, _context: &crate::records::Context) -> Result<crate::v25::Ci, crate::v25::Problem> {
+#[must_use]
+pub fn ci_to_record(value: &skein_forge::api::Ci) -> crate::v25::Ci {
     match value {
-        skein_forge::api::Ci::None => Ok(crate::v25::Ci::None),
-        skein_forge::api::Ci::Pending => Ok(crate::v25::Ci::Pending),
-        skein_forge::api::Ci::Passed => Ok(crate::v25::Ci::Passed),
-        skein_forge::api::Ci::Failed => Ok(crate::v25::Ci::Failed),
+        skein_forge::api::Ci::None => crate::v25::Ci::None,
+        skein_forge::api::Ci::Pending => crate::v25::Ci::Pending,
+        skein_forge::api::Ci::Passed => crate::v25::Ci::Passed,
+        skein_forge::api::Ci::Failed => crate::v25::Ci::Failed,
     }
 }
 
-// Maps line 24: Ci.
-pub fn ci_to_domain(record: crate::v25::Ci, _context: &crate::records::Context) -> Result<skein_forge::api::Ci, crate::v25::Problem> {
+#[must_use]
+pub fn ci_to_domain(record: crate::v25::Ci) -> skein_forge::api::Ci {
     match record {
-        crate::v25::Ci::None => Ok(skein_forge::api::Ci::None),
-        crate::v25::Ci::Pending => Ok(skein_forge::api::Ci::Pending),
-        crate::v25::Ci::Passed => Ok(skein_forge::api::Ci::Passed),
-        crate::v25::Ci::Failed => Ok(skein_forge::api::Ci::Failed),
+        crate::v25::Ci::None => skein_forge::api::Ci::None,
+        crate::v25::Ci::Pending => skein_forge::api::Ci::Pending,
+        crate::v25::Ci::Passed => skein_forge::api::Ci::Passed,
+        crate::v25::Ci::Failed => skein_forge::api::Ci::Failed,
     }
 }
 
-// Maps line 25: Bypass.
-pub fn bypass_to_record(value: &skein_forge::api::Bypass, _context: &crate::records::Context) -> Result<crate::v25::Bypass, crate::v25::Problem> {
+#[must_use]
+pub fn bypass_to_record(value: &skein_forge::api::Bypass) -> crate::v25::Bypass {
     match value {
-        skein_forge::api::Bypass::Never => Ok(crate::v25::Bypass::Never),
-        skein_forge::api::Bypass::PullsOnly => Ok(crate::v25::Bypass::PullsOnly),
-        skein_forge::api::Bypass::Always => Ok(crate::v25::Bypass::Always),
+        skein_forge::api::Bypass::Never => crate::v25::Bypass::Never,
+        skein_forge::api::Bypass::PullsOnly => crate::v25::Bypass::PullsOnly,
+        skein_forge::api::Bypass::Always => crate::v25::Bypass::Always,
     }
 }
 
-// Maps line 25: Bypass.
-pub fn bypass_to_domain(record: crate::v25::Bypass, _context: &crate::records::Context) -> Result<skein_forge::api::Bypass, crate::v25::Problem> {
+#[must_use]
+pub fn bypass_to_domain(record: crate::v25::Bypass) -> skein_forge::api::Bypass {
     match record {
-        crate::v25::Bypass::Never => Ok(skein_forge::api::Bypass::Never),
-        crate::v25::Bypass::PullsOnly => Ok(skein_forge::api::Bypass::PullsOnly),
-        crate::v25::Bypass::Always => Ok(skein_forge::api::Bypass::Always),
+        crate::v25::Bypass::Never => skein_forge::api::Bypass::Never,
+        crate::v25::Bypass::PullsOnly => skein_forge::api::Bypass::PullsOnly,
+        crate::v25::Bypass::Always => skein_forge::api::Bypass::Always,
     }
 }
 
-// Maps line 27: Settings.
-pub fn settings_to_record(value: &skein_forge::api::Settings, _context: &crate::records::Context) -> Result<crate::v25::Settings, crate::v25::Problem> {
+#[must_use]
+pub fn settings_to_record(value: &skein_forge::api::Settings) -> crate::v25::Settings {
     let skein_forge::api::Settings { default_branch: field_000000, merge: field_000001, squash: field_000002, rebase: field_000003 } = value;
-    Ok(crate::v25::Settings {
+    crate::v25::Settings {
         default_branch: field_000000.clone(),
         merge: *field_000001,
         squash: *field_000002,
         rebase: *field_000003
-    })
+    }
 }
 
-// Maps line 27: Settings.
-pub fn settings_to_domain(record: crate::v25::Settings, _context: &crate::records::Context) -> Result<skein_forge::api::Settings, crate::v25::Problem> {
+#[must_use]
+pub fn settings_to_domain(record: crate::v25::Settings) -> skein_forge::api::Settings {
     let crate::v25::Settings { default_branch: field_000000, merge: field_000001, squash: field_000002, rebase: field_000003 } = record;
-    Ok(skein_forge::api::Settings {
+    skein_forge::api::Settings {
         default_branch: field_000000,
         merge: field_000001,
         squash: field_000002,
         rebase: field_000003
-    })
+    }
 }
 
-// Maps line 28: Role.
-pub fn role_to_record(value: &temper_engine_domain_forge_vocabulary::Role, _context: &crate::records::Context) -> Result<crate::v25::Role, crate::v25::Problem> {
+#[must_use]
+pub fn role_to_record(value: &temper_engine_domain_forge_vocabulary::Role) -> crate::v25::Role {
     match value {
-        temper_engine_domain_forge_vocabulary::Role::Owned => Ok(crate::v25::Role::Owned),
-        temper_engine_domain_forge_vocabulary::Role::Adopted => Ok(crate::v25::Role::Adopted),
-        temper_engine_domain_forge_vocabulary::Role::Fork => Ok(crate::v25::Role::Fork),
-        temper_engine_domain_forge_vocabulary::Role::Context => Ok(crate::v25::Role::Context),
+        temper_engine_domain_forge_vocabulary::Role::Owned => crate::v25::Role::Owned,
+        temper_engine_domain_forge_vocabulary::Role::Adopted => crate::v25::Role::Adopted,
+        temper_engine_domain_forge_vocabulary::Role::Fork => crate::v25::Role::Fork,
+        temper_engine_domain_forge_vocabulary::Role::Context => crate::v25::Role::Context,
     }
 }
 
-// Maps line 28: Role.
-pub fn role_to_domain(record: crate::v25::Role, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Role, crate::v25::Problem> {
+#[must_use]
+pub fn role_to_domain(record: crate::v25::Role) -> temper_engine_domain_forge_vocabulary::Role {
     match record {
-        crate::v25::Role::Owned => Ok(temper_engine_domain_forge_vocabulary::Role::Owned),
-        crate::v25::Role::Adopted => Ok(temper_engine_domain_forge_vocabulary::Role::Adopted),
-        crate::v25::Role::Fork => Ok(temper_engine_domain_forge_vocabulary::Role::Fork),
-        crate::v25::Role::Context => Ok(temper_engine_domain_forge_vocabulary::Role::Context),
+        crate::v25::Role::Owned => temper_engine_domain_forge_vocabulary::Role::Owned,
+        crate::v25::Role::Adopted => temper_engine_domain_forge_vocabulary::Role::Adopted,
+        crate::v25::Role::Fork => temper_engine_domain_forge_vocabulary::Role::Fork,
+        crate::v25::Role::Context => temper_engine_domain_forge_vocabulary::Role::Context,
     }
 }
 
-// Maps line 29: Kinds.
-pub fn kinds_to_record(value: &temper_engine_domain_forge_vocabulary::Kinds, _context: &crate::records::Context) -> Result<crate::v25::Kinds, crate::v25::Problem> {
+#[must_use]
+pub fn kinds_to_record(value: &temper_engine_domain_forge_vocabulary::Kinds) -> crate::v25::Kinds {
     let temper_engine_domain_forge_vocabulary::Kinds { read: field_000000, push: field_000001, open: field_000002, land: field_000003, review: field_000004, status: field_000005, comment: field_000006, issue: field_000007, branch: field_000008 } = value;
-    Ok(crate::v25::Kinds {
+    crate::v25::Kinds {
         read: *field_000000,
         push: *field_000001,
         open: *field_000002,
@@ -176,13 +174,13 @@ pub fn kinds_to_record(value: &temper_engine_domain_forge_vocabulary::Kinds, _co
         comment: *field_000006,
         issue: *field_000007,
         branch: *field_000008
-    })
+    }
 }
 
-// Maps line 29: Kinds.
-pub fn kinds_to_domain(record: crate::v25::Kinds, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Kinds, crate::v25::Problem> {
+#[must_use]
+pub fn kinds_to_domain(record: crate::v25::Kinds) -> temper_engine_domain_forge_vocabulary::Kinds {
     let crate::v25::Kinds { read: field_000000, push: field_000001, open: field_000002, land: field_000003, review: field_000004, status: field_000005, comment: field_000006, issue: field_000007, branch: field_000008 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Kinds {
+    temper_engine_domain_forge_vocabulary::Kinds {
         read: field_000000,
         push: field_000001,
         open: field_000002,
@@ -192,191 +190,207 @@ pub fn kinds_to_domain(record: crate::v25::Kinds, _context: &crate::records::Con
         comment: field_000006,
         issue: field_000007,
         branch: field_000008
+    }
+}
+
+#[must_use]
+pub fn repository_protection_to_record(value: &temper_engine_domain_forge_vocabulary::Protection) -> crate::v25::RepositoryProtection {
+    match value {
+        temper_engine_domain_forge_vocabulary::Protection::Unknown => crate::v25::RepositoryProtection::Unknown,
+        temper_engine_domain_forge_vocabulary::Protection::Absent => crate::v25::RepositoryProtection::Absent,
+        temper_engine_domain_forge_vocabulary::Protection::Rule(held) => crate::v25::RepositoryProtection::Rule(crate::records::by_hand::protection_to_record(held)),
+    }
+}
+
+pub fn repository_protection_to_domain(record: crate::v25::RepositoryProtection, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Protection, crate::v25::Problem> {
+    Ok(match record {
+        crate::v25::RepositoryProtection::Unknown => temper_engine_domain_forge_vocabulary::Protection::Unknown,
+        crate::v25::RepositoryProtection::Absent => temper_engine_domain_forge_vocabulary::Protection::Absent,
+        crate::v25::RepositoryProtection::Rule(held) => temper_engine_domain_forge_vocabulary::Protection::Rule(crate::records::by_hand::protection_to_domain(held, context)?),
     })
 }
 
-// Maps line 30: RepositoryProtection.
-pub fn repository_protection_to_record(value: &temper_engine_domain_forge_vocabulary::Protection, context: &crate::records::Context) -> Result<crate::v25::RepositoryProtection, crate::v25::Problem> {
+#[must_use]
+pub fn writer_to_record(value: &temper_engine_domain_forge_vocabulary::Writer) -> crate::v25::Writer {
     match value {
-        temper_engine_domain_forge_vocabulary::Protection::Unknown => Ok(crate::v25::RepositoryProtection::Unknown),
-        temper_engine_domain_forge_vocabulary::Protection::Absent => Ok(crate::v25::RepositoryProtection::Absent),
-        temper_engine_domain_forge_vocabulary::Protection::Rule(held) => Ok(crate::v25::RepositoryProtection::Rule(crate::records::by_hand::protection_to_record(held, context)?)),
-    }
-}
-
-// Maps line 30: RepositoryProtection.
-pub fn repository_protection_to_domain(record: crate::v25::RepositoryProtection, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Protection, crate::v25::Problem> {
-    match record {
-        crate::v25::RepositoryProtection::Unknown => Ok(temper_engine_domain_forge_vocabulary::Protection::Unknown),
-        crate::v25::RepositoryProtection::Absent => Ok(temper_engine_domain_forge_vocabulary::Protection::Absent),
-        crate::v25::RepositoryProtection::Rule(held) => Ok(temper_engine_domain_forge_vocabulary::Protection::Rule(crate::records::by_hand::protection_to_domain(held, context)?)),
-    }
-}
-
-// Maps line 33: Writer.
-pub fn writer_to_record(value: &temper_engine_domain_forge_vocabulary::Writer, _context: &crate::records::Context) -> Result<crate::v25::Writer, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::Writer::Run { task: field_000000, attempt: field_000001 } => Ok(crate::v25::Writer::Run(crate::v25::RunWriter {
+        temper_engine_domain_forge_vocabulary::Writer::Run { task: field_000000, attempt: field_000001 } => crate::v25::Writer::Run(crate::v25::RunWriter {
             task: *field_000000,
             attempt: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::Writer::Lost { task: field_000000, attempt: field_000001 } => Ok(crate::v25::Writer::Lost(crate::v25::RunWriter {
+        }),
+        temper_engine_domain_forge_vocabulary::Writer::Lost { task: field_000000, attempt: field_000001 } => crate::v25::Writer::Lost(crate::v25::RunWriter {
             task: *field_000000,
             attempt: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::Writer::Entry(held) => Ok(crate::v25::Writer::Entry(crate::v25::Number { number: *held })),
+        }),
+        temper_engine_domain_forge_vocabulary::Writer::Entry(held) => crate::v25::Writer::Entry(crate::v25::Number { number: *held }),
     }
 }
 
-// Maps line 33: Writer.
-pub fn writer_to_domain(record: crate::v25::Writer, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Writer, crate::v25::Problem> {
+#[must_use]
+pub fn writer_to_domain(record: crate::v25::Writer) -> temper_engine_domain_forge_vocabulary::Writer {
     match record {
         crate::v25::Writer::Run(held) => {
             let crate::v25::RunWriter { task: field_000000, attempt: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Writer::Run {
+            temper_engine_domain_forge_vocabulary::Writer::Run {
                 task: field_000000,
                 attempt: field_000001
-            })
+            }
         },
         crate::v25::Writer::Lost(held) => {
             let crate::v25::RunWriter { task: field_000000, attempt: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Writer::Lost {
+            temper_engine_domain_forge_vocabulary::Writer::Lost {
                 task: field_000000,
                 attempt: field_000001
-            })
+            }
         },
-        crate::v25::Writer::Entry(held) => Ok(temper_engine_domain_forge_vocabulary::Writer::Entry({
+        crate::v25::Writer::Entry(held) => temper_engine_domain_forge_vocabulary::Writer::Entry({
             let crate::v25::Number { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 36: DriftChange.
-pub fn drift_change_to_record(value: &temper_engine_domain_forge_vocabulary::DriftChange, _context: &crate::records::Context) -> Result<crate::v25::DriftChange, crate::v25::Problem> {
+#[must_use]
+pub fn drift_change_to_record(value: &temper_engine_domain_forge_vocabulary::DriftChange) -> crate::v25::DriftChange {
     match value {
-        temper_engine_domain_forge_vocabulary::DriftChange::Branch { expected: field_000000, observed: field_000001 } => Ok(crate::v25::DriftChange::Branch(crate::v25::BranchDrift {
+        temper_engine_domain_forge_vocabulary::DriftChange::Branch { expected: field_000000, observed: field_000001 } => crate::v25::DriftChange::Branch(crate::v25::BranchDrift {
             expected: *field_000000,
             observed: match field_000001 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::DriftChange::PullClosed { number: field_000000 } => Ok(crate::v25::DriftChange::PullClosed(crate::v25::Number {
+        }),
+        temper_engine_domain_forge_vocabulary::DriftChange::PullClosed { number: field_000000 } => crate::v25::DriftChange::PullClosed(crate::v25::Number {
             number: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::DriftChange::Retargeted { number: field_000000, before: field_000001, after: field_000002 } => Ok(crate::v25::DriftChange::Retargeted(crate::v25::Retargeted {
+        }),
+        temper_engine_domain_forge_vocabulary::DriftChange::Retargeted { number: field_000000, before: field_000001, after: field_000002 } => crate::v25::DriftChange::Retargeted(crate::v25::Retargeted {
             number: *field_000000,
             before: field_000001.clone(),
             after: field_000002.clone()
-        })),
+        }),
     }
 }
 
-// Maps line 36: DriftChange.
-pub fn drift_change_to_domain(record: crate::v25::DriftChange, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::DriftChange, crate::v25::Problem> {
+#[must_use]
+pub fn drift_change_to_domain(record: crate::v25::DriftChange) -> temper_engine_domain_forge_vocabulary::DriftChange {
     match record {
         crate::v25::DriftChange::Branch(held) => {
             let crate::v25::BranchDrift { expected: field_000000, observed: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::DriftChange::Branch {
+            temper_engine_domain_forge_vocabulary::DriftChange::Branch {
                 expected: field_000000,
                 observed: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::DriftChange::PullClosed(held) => {
             let crate::v25::Number { number: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::DriftChange::PullClosed {
+            temper_engine_domain_forge_vocabulary::DriftChange::PullClosed {
                 number: field_000000
-            })
+            }
         },
         crate::v25::DriftChange::Retargeted(held) => {
             let crate::v25::Retargeted { number: field_000000, before: field_000001, after: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::DriftChange::Retargeted {
+            temper_engine_domain_forge_vocabulary::DriftChange::Retargeted {
                 number: field_000000,
                 before: field_000001,
                 after: field_000002
-            })
+            }
         },
     }
 }
 
-// Maps line 37: Drift.
-pub fn drift_to_record(value: &temper_engine_domain_forge_vocabulary::Drift, context: &crate::records::Context) -> Result<crate::v25::Drift, crate::v25::Problem> {
+#[must_use]
+pub fn drift_to_record(value: &temper_engine_domain_forge_vocabulary::Drift) -> crate::v25::Drift {
     let temper_engine_domain_forge_vocabulary::Drift { at: field_000000, change: field_000001 } = value;
-    Ok(crate::v25::Drift {
-        at: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::DRIFT_AT.problem(reason)) },
-        change: drift_change_to_record(field_000001, context)?
-    })
+    crate::v25::Drift {
+        at: skein_codec::convert::wall_to_record(field_000000),
+        change: drift_change_to_record(field_000001)
+    }
 }
 
-// Maps line 37: Drift.
-pub fn drift_to_domain(record: crate::v25::Drift, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Drift, crate::v25::Problem> {
+#[must_use]
+pub fn drift_to_domain(record: crate::v25::Drift) -> temper_engine_domain_forge_vocabulary::Drift {
     let crate::v25::Drift { at: field_000000, change: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Drift {
-        at: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::DRIFT_AT.problem(reason)) },
-        change: drift_change_to_domain(field_000001, context)?
-    })
+    temper_engine_domain_forge_vocabulary::Drift {
+        at: skein_codec::convert::wall_to_domain(field_000000),
+        change: drift_change_to_domain(field_000001)
+    }
 }
 
-// Maps line 38: DesignWriter.
-pub fn design_writer_to_record(value: &temper_engine_domain_forge_vocabulary::DesignWriter, _context: &crate::records::Context) -> Result<crate::v25::DesignWriter, crate::v25::Problem> {
+#[must_use]
+pub fn design_writer_to_record(value: &temper_engine_domain_forge_vocabulary::DesignWriter) -> crate::v25::DesignWriter {
     let temper_engine_domain_forge_vocabulary::DesignWriter { task: field_000000, attempt: field_000001, rereading: field_000002 } = value;
-    Ok(crate::v25::DesignWriter {
+    crate::v25::DesignWriter {
         task: *field_000000,
         attempt: *field_000001,
         rereading: *field_000002
-    })
+    }
 }
 
-// Maps line 38: DesignWriter.
-pub fn design_writer_to_domain(record: crate::v25::DesignWriter, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::DesignWriter, crate::v25::Problem> {
+#[must_use]
+pub fn design_writer_to_domain(record: crate::v25::DesignWriter) -> temper_engine_domain_forge_vocabulary::DesignWriter {
     let crate::v25::DesignWriter { task: field_000000, attempt: field_000001, rereading: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::DesignWriter {
+    temper_engine_domain_forge_vocabulary::DesignWriter {
         task: field_000000,
         attempt: field_000001,
         rereading: field_000002
-    })
+    }
 }
 
-// Maps line 39: HeadBeside.
-pub fn head_beside_to_record(value: &temper_engine_domain_forge_vocabulary::HeadBeside, _context: &crate::records::Context) -> Result<crate::v25::HeadBeside, crate::v25::Problem> {
+#[must_use]
+pub fn head_beside_to_record(value: &temper_engine_domain_forge_vocabulary::HeadBeside) -> crate::v25::HeadBeside {
     let temper_engine_domain_forge_vocabulary::HeadBeside { head: field_000000, waiting: field_000001 } = value;
-    Ok(crate::v25::HeadBeside {
+    crate::v25::HeadBeside {
         head: *field_000000,
         waiting: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 39: HeadBeside.
-pub fn head_beside_to_domain(record: crate::v25::HeadBeside, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::HeadBeside, crate::v25::Problem> {
+#[must_use]
+pub fn head_beside_to_domain(record: crate::v25::HeadBeside) -> temper_engine_domain_forge_vocabulary::HeadBeside {
     let crate::v25::HeadBeside { head: field_000000, waiting: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::HeadBeside {
+    temper_engine_domain_forge_vocabulary::HeadBeside {
         head: field_000000,
         waiting: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 40: Hold.
-pub fn hold_to_record(value: &temper_engine_domain_forge_vocabulary::Hold, context: &crate::records::Context) -> Result<crate::v25::Hold, crate::v25::Problem> {
+pub fn hold_to_record(value: &temper_engine_domain_forge_vocabulary::Hold) -> Result<crate::v25::Hold, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::Hold { beside: field_000000, name: field_000001, task: field_000002, writer: field_000003, design_writers: field_000004, drift: field_000005 } = value;
     Ok(crate::v25::Hold {
         beside: match field_000000 {
-            Some(item) => Some(head_beside_to_record(item, context)?),
+            Some(item) => {
+                let converted = head_beside_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        name: name_to_record(field_000001, context)?,
+        name: name_to_record(field_000001),
         task: *field_000002,
         writer: match field_000003 {
-            Some(item) => Some(writer_to_record(item, context)?),
+            Some(item) => {
+                let converted = writer_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         design_writers: {
@@ -384,30 +398,38 @@ pub fn hold_to_record(value: &temper_engine_domain_forge_vocabulary::Hold, conte
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::HOLD_DESIGN_WRITERS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = design_writer_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::HOLD_DESIGN_WRITERS.problem(skein_codec::Reason::Bound)); }
+                let converted = design_writer_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         drift: match field_000005 {
-            Some(item) => Some(drift_to_record(item, context)?),
+            Some(item) => {
+                let converted = drift_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 40: Hold.
 pub fn hold_to_domain(record: crate::v25::Hold, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Hold, crate::v25::Problem> {
     let crate::v25::Hold { beside: field_000000, name: field_000001, task: field_000002, writer: field_000003, design_writers: field_000004, drift: field_000005 } = record;
     Ok(temper_engine_domain_forge_vocabulary::Hold {
         beside: match field_000000 {
-            Some(item) => Some(head_beside_to_domain(item, context)?),
+            Some(item) => {
+                let converted = head_beside_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         name: name_to_domain(field_000001, context)?,
         task: field_000002,
         writer: match field_000003 {
-            Some(item) => Some(writer_to_domain(item, context)?),
+            Some(item) => {
+                let converted = writer_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         design_writers: {
@@ -415,69 +437,70 @@ pub fn hold_to_domain(record: crate::v25::Hold, context: &crate::records::Contex
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = design_writer_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::HOLD_DESIGN_WRITERS.problem(skein_codec::Reason::Bound)); }
+                let converted = design_writer_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         drift: match field_000005 {
-            Some(item) => Some(drift_to_domain(item, context)?),
+            Some(item) => {
+                let converted = drift_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 42: LimitSet.
-pub fn limit_set_to_record(value: &temper_engine_domain_forge_vocabulary::LimitSet, context: &crate::records::Context) -> Result<crate::v25::LimitSet, crate::v25::Problem> {
+#[must_use]
+pub fn limit_set_to_record(value: &temper_engine_domain_forge_vocabulary::LimitSet) -> crate::v25::LimitSet {
     match value {
-        temper_engine_domain_forge_vocabulary::LimitSet::Operation => Ok(crate::v25::LimitSet::Operation),
-        temper_engine_domain_forge_vocabulary::LimitSet::Entries => Ok(crate::v25::LimitSet::Entries),
-        temper_engine_domain_forge_vocabulary::LimitSet::Holds => Ok(crate::v25::LimitSet::Holds),
-        temper_engine_domain_forge_vocabulary::LimitSet::Tasks => Ok(crate::v25::LimitSet::Tasks),
-        temper_engine_domain_forge_vocabulary::LimitSet::Changes => Ok(crate::v25::LimitSet::Changes),
-        temper_engine_domain_forge_vocabulary::LimitSet::Steps => Ok(crate::v25::LimitSet::Steps),
-        temper_engine_domain_forge_vocabulary::LimitSet::Subscriptions => Ok(crate::v25::LimitSet::Subscriptions),
-        temper_engine_domain_forge_vocabulary::LimitSet::Watches => Ok(crate::v25::LimitSet::Watches),
-        temper_engine_domain_forge_vocabulary::LimitSet::Heads => Ok(crate::v25::LimitSet::Heads),
-        temper_engine_domain_forge_vocabulary::LimitSet::Repositories => Ok(crate::v25::LimitSet::Repositories),
-        temper_engine_domain_forge_vocabulary::LimitSet::DesignWriters(held) => Ok(crate::v25::LimitSet::DesignWriters(name_to_record(held, context)?)),
+        temper_engine_domain_forge_vocabulary::LimitSet::Operation => crate::v25::LimitSet::Operation,
+        temper_engine_domain_forge_vocabulary::LimitSet::Entries => crate::v25::LimitSet::Entries,
+        temper_engine_domain_forge_vocabulary::LimitSet::Holds => crate::v25::LimitSet::Holds,
+        temper_engine_domain_forge_vocabulary::LimitSet::Tasks => crate::v25::LimitSet::Tasks,
+        temper_engine_domain_forge_vocabulary::LimitSet::Changes => crate::v25::LimitSet::Changes,
+        temper_engine_domain_forge_vocabulary::LimitSet::Steps => crate::v25::LimitSet::Steps,
+        temper_engine_domain_forge_vocabulary::LimitSet::Subscriptions => crate::v25::LimitSet::Subscriptions,
+        temper_engine_domain_forge_vocabulary::LimitSet::Watches => crate::v25::LimitSet::Watches,
+        temper_engine_domain_forge_vocabulary::LimitSet::Heads => crate::v25::LimitSet::Heads,
+        temper_engine_domain_forge_vocabulary::LimitSet::Repositories => crate::v25::LimitSet::Repositories,
+        temper_engine_domain_forge_vocabulary::LimitSet::DesignWriters(held) => crate::v25::LimitSet::DesignWriters(name_to_record(held)),
     }
 }
 
-// Maps line 42: LimitSet.
 pub fn limit_set_to_domain(record: crate::v25::LimitSet, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LimitSet, crate::v25::Problem> {
-    match record {
-        crate::v25::LimitSet::Operation => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Operation),
-        crate::v25::LimitSet::Entries => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Entries),
-        crate::v25::LimitSet::Holds => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Holds),
-        crate::v25::LimitSet::Tasks => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Tasks),
-        crate::v25::LimitSet::Changes => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Changes),
-        crate::v25::LimitSet::Steps => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Steps),
-        crate::v25::LimitSet::Subscriptions => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Subscriptions),
-        crate::v25::LimitSet::Watches => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Watches),
-        crate::v25::LimitSet::Heads => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Heads),
-        crate::v25::LimitSet::Repositories => Ok(temper_engine_domain_forge_vocabulary::LimitSet::Repositories),
-        crate::v25::LimitSet::DesignWriters(held) => Ok(temper_engine_domain_forge_vocabulary::LimitSet::DesignWriters(name_to_domain(held, context)?)),
-    }
+    Ok(match record {
+        crate::v25::LimitSet::Operation => temper_engine_domain_forge_vocabulary::LimitSet::Operation,
+        crate::v25::LimitSet::Entries => temper_engine_domain_forge_vocabulary::LimitSet::Entries,
+        crate::v25::LimitSet::Holds => temper_engine_domain_forge_vocabulary::LimitSet::Holds,
+        crate::v25::LimitSet::Tasks => temper_engine_domain_forge_vocabulary::LimitSet::Tasks,
+        crate::v25::LimitSet::Changes => temper_engine_domain_forge_vocabulary::LimitSet::Changes,
+        crate::v25::LimitSet::Steps => temper_engine_domain_forge_vocabulary::LimitSet::Steps,
+        crate::v25::LimitSet::Subscriptions => temper_engine_domain_forge_vocabulary::LimitSet::Subscriptions,
+        crate::v25::LimitSet::Watches => temper_engine_domain_forge_vocabulary::LimitSet::Watches,
+        crate::v25::LimitSet::Heads => temper_engine_domain_forge_vocabulary::LimitSet::Heads,
+        crate::v25::LimitSet::Repositories => temper_engine_domain_forge_vocabulary::LimitSet::Repositories,
+        crate::v25::LimitSet::DesignWriters(held) => temper_engine_domain_forge_vocabulary::LimitSet::DesignWriters(name_to_domain(held, context)?),
+    })
 }
 
-// Maps line 43: LimitHold.
-pub fn limit_hold_to_record(value: &temper_engine_domain_forge_vocabulary::LimitHold, context: &crate::records::Context) -> Result<crate::v25::LimitHold, crate::v25::Problem> {
+#[must_use]
+pub fn limit_hold_to_record(value: &temper_engine_domain_forge_vocabulary::LimitHold) -> crate::v25::LimitHold {
     let temper_engine_domain_forge_vocabulary::LimitHold { task: field_000000, member: field_000001, configured: field_000002, needed: field_000003, revision: field_000004, at: field_000005, room: field_000006, set: field_000007, order: field_000008 } = value;
-    Ok(crate::v25::LimitHold {
+    crate::v25::LimitHold {
         task: *field_000000,
         member: field_000001.clone(),
         configured: *field_000002,
         needed: *field_000003,
         revision: *field_000004,
-        at: match skein_codec::convert::wall_to_record(field_000005) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LIMIT_HOLD_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000005),
         room: *field_000006,
-        set: limit_set_to_record(field_000007, context)?,
+        set: limit_set_to_record(field_000007),
         order: *field_000008
-    })
+    }
 }
 
-// Maps line 43: LimitHold.
 pub fn limit_hold_to_domain(record: crate::v25::LimitHold, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LimitHold, crate::v25::Problem> {
     let crate::v25::LimitHold { task: field_000000, member: field_000001, configured: field_000002, needed: field_000003, revision: field_000004, at: field_000005, room: field_000006, set: field_000007, order: field_000008 } = record;
     Ok(temper_engine_domain_forge_vocabulary::LimitHold {
@@ -486,24 +509,23 @@ pub fn limit_hold_to_domain(record: crate::v25::LimitHold, context: &crate::reco
         configured: field_000002,
         needed: field_000003,
         revision: field_000004,
-        at: match skein_codec::convert::wall_to_domain(field_000005) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LIMIT_HOLD_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000005),
         room: field_000006,
         set: limit_set_to_domain(field_000007, context)?,
         order: field_000008
     })
 }
 
-// Maps line 47: BranchHead.
-pub fn branch_head_to_record(value: &temper_engine_domain_forge_vocabulary::BranchHead, context: &crate::records::Context) -> Result<crate::v25::BranchHead, crate::v25::Problem> {
+#[must_use]
+pub fn branch_head_to_record(value: &temper_engine_domain_forge_vocabulary::BranchHead) -> crate::v25::BranchHead {
     let temper_engine_domain_forge_vocabulary::BranchHead { name: field_000000, commit: field_000001, owned: field_000002 } = value;
-    Ok(crate::v25::BranchHead {
-        name: name_to_record(field_000000, context)?,
+    crate::v25::BranchHead {
+        name: name_to_record(field_000000),
         commit: *field_000001,
         owned: *field_000002
-    })
+    }
 }
 
-// Maps line 47: BranchHead.
 pub fn branch_head_to_domain(record: crate::v25::BranchHead, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::BranchHead, crate::v25::Problem> {
     let crate::v25::BranchHead { name: field_000000, commit: field_000001, owned: field_000002 } = record;
     Ok(temper_engine_domain_forge_vocabulary::BranchHead {
@@ -513,1114 +535,1230 @@ pub fn branch_head_to_domain(record: crate::v25::BranchHead, context: &crate::re
     })
 }
 
-// Maps line 48: PullState.
-pub fn pull_state_to_record(value: &temper_engine_domain_forge_vocabulary::PullState, context: &crate::records::Context) -> Result<crate::v25::PullState, crate::v25::Problem> {
+#[must_use]
+pub fn pull_state_to_record(value: &temper_engine_domain_forge_vocabulary::PullState) -> crate::v25::PullState {
     let temper_engine_domain_forge_vocabulary::PullState { name: field_000000, head: field_000001, ci: field_000002, state: field_000003 } = value;
-    Ok(crate::v25::PullState {
-        name: name_to_record(field_000000, context)?,
+    crate::v25::PullState {
+        name: name_to_record(field_000000),
         head: *field_000001,
-        ci: ci_to_record(field_000002, context)?,
-        state: item_state_to_record(field_000003, context)?
-    })
+        ci: ci_to_record(field_000002),
+        state: item_state_to_record(field_000003)
+    }
 }
 
-// Maps line 48: PullState.
 pub fn pull_state_to_domain(record: crate::v25::PullState, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::PullState, crate::v25::Problem> {
     let crate::v25::PullState { name: field_000000, head: field_000001, ci: field_000002, state: field_000003 } = record;
     Ok(temper_engine_domain_forge_vocabulary::PullState {
         name: name_to_domain(field_000000, context)?,
         head: field_000001,
-        ci: ci_to_domain(field_000002, context)?,
-        state: item_state_to_domain(field_000003, context)?
+        ci: ci_to_domain(field_000002),
+        state: item_state_to_domain(field_000003)
     })
 }
 
-// Maps line 49: CiState.
-pub fn ci_state_to_record(value: &temper_engine_domain_forge_vocabulary::CiState, context: &crate::records::Context) -> Result<crate::v25::CiState, crate::v25::Problem> {
+#[must_use]
+pub fn ci_state_to_record(value: &temper_engine_domain_forge_vocabulary::CiState) -> crate::v25::CiState {
     let temper_engine_domain_forge_vocabulary::CiState { repository: field_000000, head: field_000001, status: field_000002 } = value;
-    Ok(crate::v25::CiState {
-        repository: repository_to_record(field_000000, context)?,
+    crate::v25::CiState {
+        repository: repository_to_record(field_000000),
         head: *field_000001,
-        status: ci_to_record(field_000002, context)?
-    })
+        status: ci_to_record(field_000002)
+    }
 }
 
-// Maps line 49: CiState.
-pub fn ci_state_to_domain(record: crate::v25::CiState, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::CiState, crate::v25::Problem> {
+#[must_use]
+pub fn ci_state_to_domain(record: crate::v25::CiState) -> temper_engine_domain_forge_vocabulary::CiState {
     let crate::v25::CiState { repository: field_000000, head: field_000001, status: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::CiState {
-        repository: repository_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::CiState {
+        repository: repository_to_domain(field_000000),
         head: field_000001,
-        status: ci_to_domain(field_000002, context)?
-    })
+        status: ci_to_domain(field_000002)
+    }
 }
 
-// Maps line 51: ReleaseEnding.
-pub fn release_ending_to_record(value: &temper_engine_domain_forge_vocabulary::ReleaseEnding, _context: &crate::records::Context) -> Result<crate::v25::ReleaseEnding, crate::v25::Problem> {
+#[must_use]
+pub fn release_ending_to_record(value: &temper_engine_domain_forge_vocabulary::ReleaseEnding) -> crate::v25::ReleaseEnding {
     match value {
-        temper_engine_domain_forge_vocabulary::ReleaseEnding::Done => Ok(crate::v25::ReleaseEnding::Done),
-        temper_engine_domain_forge_vocabulary::ReleaseEnding::Failed => Ok(crate::v25::ReleaseEnding::Failed),
-        temper_engine_domain_forge_vocabulary::ReleaseEnding::Cancelled => Ok(crate::v25::ReleaseEnding::Cancelled),
+        temper_engine_domain_forge_vocabulary::ReleaseEnding::Done => crate::v25::ReleaseEnding::Done,
+        temper_engine_domain_forge_vocabulary::ReleaseEnding::Failed => crate::v25::ReleaseEnding::Failed,
+        temper_engine_domain_forge_vocabulary::ReleaseEnding::Cancelled => crate::v25::ReleaseEnding::Cancelled,
     }
 }
 
-// Maps line 51: ReleaseEnding.
-pub fn release_ending_to_domain(record: crate::v25::ReleaseEnding, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ReleaseEnding, crate::v25::Problem> {
+#[must_use]
+pub fn release_ending_to_domain(record: crate::v25::ReleaseEnding) -> temper_engine_domain_forge_vocabulary::ReleaseEnding {
     match record {
-        crate::v25::ReleaseEnding::Done => Ok(temper_engine_domain_forge_vocabulary::ReleaseEnding::Done),
-        crate::v25::ReleaseEnding::Failed => Ok(temper_engine_domain_forge_vocabulary::ReleaseEnding::Failed),
-        crate::v25::ReleaseEnding::Cancelled => Ok(temper_engine_domain_forge_vocabulary::ReleaseEnding::Cancelled),
+        crate::v25::ReleaseEnding::Done => temper_engine_domain_forge_vocabulary::ReleaseEnding::Done,
+        crate::v25::ReleaseEnding::Failed => temper_engine_domain_forge_vocabulary::ReleaseEnding::Failed,
+        crate::v25::ReleaseEnding::Cancelled => temper_engine_domain_forge_vocabulary::ReleaseEnding::Cancelled,
     }
 }
 
-// Maps line 53: ReleaseRow.
-pub fn release_row_to_record(value: &temper_engine_domain_forge_vocabulary::ReleaseRow, context: &crate::records::Context) -> Result<crate::v25::ReleaseRow, crate::v25::Problem> {
+#[must_use]
+pub fn release_row_to_record(value: &temper_engine_domain_forge_vocabulary::ReleaseRow) -> crate::v25::ReleaseRow {
     let temper_engine_domain_forge_vocabulary::ReleaseRow { task: field_000000, root: field_000001, ending: field_000002, close_pull: field_000003, comment: field_000004, pending: field_000005, failed: field_000006, effects_settled: field_000007, releasing: field_000008, room: field_000009 } = value;
-    Ok(crate::v25::ReleaseRow {
+    crate::v25::ReleaseRow {
         task: *field_000000,
         root: *field_000001,
-        ending: release_ending_to_record(field_000002, context)?,
+        ending: release_ending_to_record(field_000002),
         close_pull: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         comment: match field_000004 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         pending_release: match field_000005 {
-            Some(item) => Some(crate::records::by_hand::pending_release_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::pending_release_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         failed: *field_000006,
         effects_settled: *field_000007,
         releasing: *field_000008,
         room: match field_000009 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 53: ReleaseRow.
 pub fn release_row_to_domain(record: crate::v25::ReleaseRow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ReleaseRow, crate::v25::Problem> {
     let crate::v25::ReleaseRow { task: field_000000, root: field_000001, ending: field_000002, close_pull: field_000003, comment: field_000004, pending_release: field_000005, failed: field_000006, effects_settled: field_000007, releasing: field_000008, room: field_000009 } = record;
     Ok(temper_engine_domain_forge_vocabulary::ReleaseRow {
         task: field_000000,
         root: field_000001,
-        ending: release_ending_to_domain(field_000002, context)?,
+        ending: release_ending_to_domain(field_000002),
         close_pull: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         comment: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         pending: match field_000005 {
-            Some(item) => Some(crate::records::by_hand::pending_release_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::pending_release_to_domain(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
         failed: field_000006,
         effects_settled: field_000007,
         releasing: field_000008,
         room: match field_000009 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 54: Verdict.
-pub fn verdict_to_record(value: &skein_forge::api::Verdict, _context: &crate::records::Context) -> Result<crate::v25::Verdict, crate::v25::Problem> {
+#[must_use]
+pub fn verdict_to_record(value: &skein_forge::api::Verdict) -> crate::v25::Verdict {
     match value {
-        skein_forge::api::Verdict::Approve => Ok(crate::v25::Verdict::Approve),
-        skein_forge::api::Verdict::RequestChanges => Ok(crate::v25::Verdict::RequestChanges),
-        skein_forge::api::Verdict::Comment => Ok(crate::v25::Verdict::Comment),
+        skein_forge::api::Verdict::Approve => crate::v25::Verdict::Approve,
+        skein_forge::api::Verdict::RequestChanges => crate::v25::Verdict::RequestChanges,
+        skein_forge::api::Verdict::Comment => crate::v25::Verdict::Comment,
     }
 }
 
-// Maps line 54: Verdict.
-pub fn verdict_to_domain(record: crate::v25::Verdict, _context: &crate::records::Context) -> Result<skein_forge::api::Verdict, crate::v25::Problem> {
+#[must_use]
+pub fn verdict_to_domain(record: crate::v25::Verdict) -> skein_forge::api::Verdict {
     match record {
-        crate::v25::Verdict::Approve => Ok(skein_forge::api::Verdict::Approve),
-        crate::v25::Verdict::RequestChanges => Ok(skein_forge::api::Verdict::RequestChanges),
-        crate::v25::Verdict::Comment => Ok(skein_forge::api::Verdict::Comment),
+        crate::v25::Verdict::Approve => skein_forge::api::Verdict::Approve,
+        crate::v25::Verdict::RequestChanges => skein_forge::api::Verdict::RequestChanges,
+        crate::v25::Verdict::Comment => skein_forge::api::Verdict::Comment,
     }
 }
 
-// Maps line 55: Check.
-pub fn check_to_record(value: &skein_forge::api::Check, _context: &crate::records::Context) -> Result<crate::v25::Check, crate::v25::Problem> {
+#[must_use]
+pub fn check_to_record(value: &skein_forge::api::Check) -> crate::v25::Check {
     match value {
-        skein_forge::api::Check::Pending => Ok(crate::v25::Check::Pending),
-        skein_forge::api::Check::Passed => Ok(crate::v25::Check::Passed),
-        skein_forge::api::Check::Failed => Ok(crate::v25::Check::Failed),
+        skein_forge::api::Check::Pending => crate::v25::Check::Pending,
+        skein_forge::api::Check::Passed => crate::v25::Check::Passed,
+        skein_forge::api::Check::Failed => crate::v25::Check::Failed,
     }
 }
 
-// Maps line 55: Check.
-pub fn check_to_domain(record: crate::v25::Check, _context: &crate::records::Context) -> Result<skein_forge::api::Check, crate::v25::Problem> {
+#[must_use]
+pub fn check_to_domain(record: crate::v25::Check) -> skein_forge::api::Check {
     match record {
-        crate::v25::Check::Pending => Ok(skein_forge::api::Check::Pending),
-        crate::v25::Check::Passed => Ok(skein_forge::api::Check::Passed),
-        crate::v25::Check::Failed => Ok(skein_forge::api::Check::Failed),
+        crate::v25::Check::Pending => skein_forge::api::Check::Pending,
+        crate::v25::Check::Passed => skein_forge::api::Check::Passed,
+        crate::v25::Check::Failed => skein_forge::api::Check::Failed,
     }
 }
 
-// Maps line 62: JobAttempt.
-pub fn job_attempt_to_record(value: &skein_forge::api::JobAttempt, _context: &crate::records::Context) -> Result<crate::v25::JobAttempt, crate::v25::Problem> {
+#[must_use]
+pub fn job_attempt_to_record(value: &skein_forge::api::JobAttempt) -> crate::v25::JobAttempt {
     let skein_forge::api::JobAttempt { head: field_000000, run: field_000001, job: field_000002, attempt: field_000003 } = value;
-    Ok(crate::v25::JobAttempt {
+    crate::v25::JobAttempt {
         head: *field_000000,
         run: *field_000001,
         job: *field_000002,
         attempt: *field_000003
-    })
+    }
 }
 
-// Maps line 62: JobAttempt.
-pub fn job_attempt_to_domain(record: crate::v25::JobAttempt, _context: &crate::records::Context) -> Result<skein_forge::api::JobAttempt, crate::v25::Problem> {
+#[must_use]
+pub fn job_attempt_to_domain(record: crate::v25::JobAttempt) -> skein_forge::api::JobAttempt {
     let crate::v25::JobAttempt { head: field_000000, run: field_000001, job: field_000002, attempt: field_000003 } = record;
-    Ok(skein_forge::api::JobAttempt {
+    skein_forge::api::JobAttempt {
         head: field_000000,
         run: field_000001,
         job: field_000002,
         attempt: field_000003
-    })
-}
-
-// Maps line 64: MergeHow.
-pub fn merge_how_to_record(value: &skein_forge::api::MergeHow, _context: &crate::records::Context) -> Result<crate::v25::MergeHow, crate::v25::Problem> {
-    match value {
-        skein_forge::api::MergeHow::Style => Ok(crate::v25::MergeHow::Style),
-        skein_forge::api::MergeHow::FastForwardOnly => Ok(crate::v25::MergeHow::FastForwardOnly),
-        skein_forge::api::MergeHow::Recorded { commit: field_000000 } => Ok(crate::v25::MergeHow::Recorded(crate::v25::RecordedMerge {
-            commit: *field_000000
-        })),
     }
 }
 
-// Maps line 64: MergeHow.
-pub fn merge_how_to_domain(record: crate::v25::MergeHow, _context: &crate::records::Context) -> Result<skein_forge::api::MergeHow, crate::v25::Problem> {
+#[must_use]
+pub fn merge_how_to_record(value: &skein_forge::api::MergeHow) -> crate::v25::MergeHow {
+    match value {
+        skein_forge::api::MergeHow::Style => crate::v25::MergeHow::Style,
+        skein_forge::api::MergeHow::FastForwardOnly => crate::v25::MergeHow::FastForwardOnly,
+        skein_forge::api::MergeHow::Recorded { commit: field_000000 } => crate::v25::MergeHow::Recorded(crate::v25::RecordedMerge {
+            commit: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn merge_how_to_domain(record: crate::v25::MergeHow) -> skein_forge::api::MergeHow {
     match record {
-        crate::v25::MergeHow::Style => Ok(skein_forge::api::MergeHow::Style),
-        crate::v25::MergeHow::FastForwardOnly => Ok(skein_forge::api::MergeHow::FastForwardOnly),
+        crate::v25::MergeHow::Style => skein_forge::api::MergeHow::Style,
+        crate::v25::MergeHow::FastForwardOnly => skein_forge::api::MergeHow::FastForwardOnly,
         crate::v25::MergeHow::Recorded(held) => {
             let crate::v25::RecordedMerge { commit: field_000000 } = held;
-            Ok(skein_forge::api::MergeHow::Recorded {
+            skein_forge::api::MergeHow::Recorded {
                 commit: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 65: UpdateStyle.
-pub fn update_style_to_record(value: &skein_forge::api::UpdateStyle, _context: &crate::records::Context) -> Result<crate::v25::UpdateStyle, crate::v25::Problem> {
+#[must_use]
+pub fn update_style_to_record(value: &skein_forge::api::UpdateStyle) -> crate::v25::UpdateStyle {
     match value {
-        skein_forge::api::UpdateStyle::Merge => Ok(crate::v25::UpdateStyle::Merge),
-        skein_forge::api::UpdateStyle::Rebase => Ok(crate::v25::UpdateStyle::Rebase),
+        skein_forge::api::UpdateStyle::Merge => crate::v25::UpdateStyle::Merge,
+        skein_forge::api::UpdateStyle::Rebase => crate::v25::UpdateStyle::Rebase,
     }
 }
 
-// Maps line 65: UpdateStyle.
-pub fn update_style_to_domain(record: crate::v25::UpdateStyle, _context: &crate::records::Context) -> Result<skein_forge::api::UpdateStyle, crate::v25::Problem> {
+#[must_use]
+pub fn update_style_to_domain(record: crate::v25::UpdateStyle) -> skein_forge::api::UpdateStyle {
     match record {
-        crate::v25::UpdateStyle::Merge => Ok(skein_forge::api::UpdateStyle::Merge),
-        crate::v25::UpdateStyle::Rebase => Ok(skein_forge::api::UpdateStyle::Rebase),
+        crate::v25::UpdateStyle::Merge => skein_forge::api::UpdateStyle::Merge,
+        crate::v25::UpdateStyle::Rebase => skein_forge::api::UpdateStyle::Rebase,
     }
 }
 
-// Maps line 68: DispatchInput.
-pub fn dispatch_input_to_record(value: &skein_forge::api::Input, _context: &crate::records::Context) -> Result<crate::v25::DispatchInput, crate::v25::Problem> {
+#[must_use]
+pub fn dispatch_input_to_record(value: &skein_forge::api::Input) -> crate::v25::DispatchInput {
     let skein_forge::api::Input { name: field_000000, value: field_000001 } = value;
-    Ok(crate::v25::DispatchInput {
+    crate::v25::DispatchInput {
         name: field_000000.clone(),
         value: field_000001.clone()
-    })
-}
-
-// Maps line 68: DispatchInput.
-pub fn dispatch_input_to_domain(record: crate::v25::DispatchInput, _context: &crate::records::Context) -> Result<skein_forge::api::Input, crate::v25::Problem> {
-    let crate::v25::DispatchInput { name: field_000000, value: field_000001 } = record;
-    Ok(skein_forge::api::Input {
-        name: field_000000,
-        value: field_000001
-    })
-}
-
-// Maps line 76: Condition.
-pub fn condition_to_record(value: &skein_forge_client::Condition, _context: &crate::records::Context) -> Result<crate::v25::Condition, crate::v25::Problem> {
-    match value {
-        skein_forge_client::Condition::None => Ok(crate::v25::Condition::None),
-        skein_forge_client::Condition::Merge { base: field_000000 } => Ok(crate::v25::Condition::Merge(crate::v25::MergeCondition {
-            base: field_000000.clone()
-        })),
-        skein_forge_client::Condition::Update { head: field_000000, base: field_000001 } => Ok(crate::v25::Condition::Update(crate::v25::UpdateCondition {
-            head: *field_000000,
-            base: *field_000001
-        })),
-        skein_forge_client::Condition::Review { head: field_000000 } => Ok(crate::v25::Condition::Review(crate::v25::Commit {
-            commit: *field_000000
-        })),
     }
 }
 
-// Maps line 76: Condition.
-pub fn condition_to_domain(record: crate::v25::Condition, _context: &crate::records::Context) -> Result<skein_forge_client::Condition, crate::v25::Problem> {
+#[must_use]
+pub fn dispatch_input_to_domain(record: crate::v25::DispatchInput) -> skein_forge::api::Input {
+    let crate::v25::DispatchInput { name: field_000000, value: field_000001 } = record;
+    skein_forge::api::Input {
+        name: field_000000,
+        value: field_000001
+    }
+}
+
+pub fn dispatch_write_to_record(value: &temper_engine_domain_forge_vocabulary::LandingDispatch) -> Result<crate::v25::DispatchWrite, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::LandingDispatch { workflow: field_000000, branch: field_000001, inputs: field_000002 } = value;
+    Ok(crate::v25::DispatchWrite {
+        workflow: field_000000.clone(),
+        branch: field_000001.clone(),
+        inputs: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::DISPATCH_WRITE_INPUTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = dispatch_input_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn dispatch_write_to_domain(record: crate::v25::DispatchWrite) -> temper_engine_domain_forge_vocabulary::LandingDispatch {
+    let crate::v25::DispatchWrite { workflow: field_000000, branch: field_000001, inputs: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::LandingDispatch {
+        workflow: field_000000,
+        branch: field_000001,
+        inputs: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = dispatch_input_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    }
+}
+
+#[must_use]
+pub fn condition_to_record(value: &skein_forge_client::Condition) -> crate::v25::Condition {
+    match value {
+        skein_forge_client::Condition::None => crate::v25::Condition::None,
+        skein_forge_client::Condition::Merge { base: field_000000 } => crate::v25::Condition::Merge(crate::v25::MergeCondition {
+            base: field_000000.clone()
+        }),
+        skein_forge_client::Condition::Update { head: field_000000, base: field_000001 } => crate::v25::Condition::Update(crate::v25::UpdateCondition {
+            head: *field_000000,
+            base: *field_000001
+        }),
+        skein_forge_client::Condition::Review { head: field_000000 } => crate::v25::Condition::Review(crate::v25::Commit {
+            commit: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn condition_to_domain(record: crate::v25::Condition) -> skein_forge_client::Condition {
     match record {
-        crate::v25::Condition::None => Ok(skein_forge_client::Condition::None),
+        crate::v25::Condition::None => skein_forge_client::Condition::None,
         crate::v25::Condition::Merge(held) => {
             let crate::v25::MergeCondition { base: field_000000 } = held;
-            Ok(skein_forge_client::Condition::Merge {
+            skein_forge_client::Condition::Merge {
                 base: field_000000
-            })
+            }
         },
         crate::v25::Condition::Update(held) => {
             let crate::v25::UpdateCondition { head: field_000000, base: field_000001 } = held;
-            Ok(skein_forge_client::Condition::Update {
+            skein_forge_client::Condition::Update {
                 head: field_000000,
                 base: field_000001
-            })
+            }
         },
         crate::v25::Condition::Review(held) => {
             let crate::v25::Commit { commit: field_000000 } = held;
-            Ok(skein_forge_client::Condition::Review {
+            skein_forge_client::Condition::Review {
                 head: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 77: Effect.
-pub fn effect_to_record(value: &skein_forge_client::Effect, context: &crate::records::Context) -> Result<crate::v25::Effect, crate::v25::Problem> {
+#[must_use]
+pub fn effect_to_record(value: &skein_forge_client::Effect) -> crate::v25::Effect {
     let skein_forge_client::Effect { write: field_000000, condition: field_000001 } = value;
-    Ok(crate::v25::Effect {
-        write: crate::records::by_hand::write_to_record(field_000000, context)?,
-        condition: condition_to_record(field_000001, context)?
-    })
+    crate::v25::Effect {
+        write: crate::records::by_hand::write_to_record(field_000000),
+        condition: condition_to_record(field_000001)
+    }
 }
 
-// Maps line 77: Effect.
-pub fn effect_to_domain(record: crate::v25::Effect, context: &crate::records::Context) -> Result<skein_forge_client::Effect, crate::v25::Problem> {
+#[must_use]
+pub fn effect_to_domain(record: crate::v25::Effect) -> skein_forge_client::Effect {
     let crate::v25::Effect { write: field_000000, condition: field_000001 } = record;
-    Ok(skein_forge_client::Effect {
-        write: crate::records::by_hand::write_to_domain(field_000000, context)?,
-        condition: condition_to_domain(field_000001, context)?
-    })
+    skein_forge_client::Effect {
+        write: crate::records::by_hand::write_to_domain(field_000000),
+        condition: condition_to_domain(field_000001)
+    }
 }
 
-// Maps line 78: Position.
-pub fn position_to_record(value: &skein_forge_client::Position, _context: &crate::records::Context) -> Result<crate::v25::Position, crate::v25::Problem> {
+#[must_use]
+pub fn position_to_record(value: &skein_forge_client::Position) -> crate::v25::Position {
     let skein_forge_client::Position { at: field_000000, comment: field_000001, review: field_000002, review_page: field_000003 } = value;
-    Ok(crate::v25::Position {
-        at: match skein_codec::convert::time_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::POSITION_AT.problem(reason)) },
+    crate::v25::Position {
+        at: skein_codec::convert::time_to_record(field_000000),
         comment: *field_000001,
         review: *field_000002,
         review_page: *field_000003
-    })
+    }
 }
 
-// Maps line 78: Position.
-pub fn position_to_domain(record: crate::v25::Position, _context: &crate::records::Context) -> Result<skein_forge_client::Position, crate::v25::Problem> {
+#[must_use]
+pub fn position_to_domain(record: crate::v25::Position) -> skein_forge_client::Position {
     let crate::v25::Position { at: field_000000, comment: field_000001, review: field_000002, review_page: field_000003 } = record;
-    Ok(skein_forge_client::Position {
-        at: match skein_codec::convert::time_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::POSITION_AT.problem(reason)) },
+    skein_forge_client::Position {
+        at: skein_codec::convert::time_to_domain(field_000000),
         comment: field_000001,
         review: field_000002,
         review_page: field_000003
-    })
+    }
 }
 
-// Maps line 79: Attempt.
-pub fn attempt_to_record(value: &skein_forge_client::Attempt, _context: &crate::records::Context) -> Result<crate::v25::Attempt, crate::v25::Problem> {
+#[must_use]
+pub fn attempt_to_record(value: &skein_forge_client::Attempt) -> crate::v25::Attempt {
     let skein_forge_client::Attempt { sent: field_000000, deadline: field_000001, wall: field_000002, expires: field_000003 } = value;
-    Ok(crate::v25::Attempt {
-        sent: match skein_codec::convert::time_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_SENT.problem(reason)) },
-        deadline: match skein_codec::convert::time_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_DEADLINE.problem(reason)) },
-        wall: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_WALL.problem(reason)) },
-        expires: match skein_codec::convert::wall_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_EXPIRES.problem(reason)) }
-    })
+    crate::v25::Attempt {
+        sent: skein_codec::convert::time_to_record(field_000000),
+        deadline: skein_codec::convert::time_to_record(field_000001),
+        wall: skein_codec::convert::wall_to_record(field_000002),
+        expires: skein_codec::convert::wall_to_record(field_000003)
+    }
 }
 
-// Maps line 79: Attempt.
-pub fn attempt_to_domain(record: crate::v25::Attempt, _context: &crate::records::Context) -> Result<skein_forge_client::Attempt, crate::v25::Problem> {
+#[must_use]
+pub fn attempt_to_domain(record: crate::v25::Attempt) -> skein_forge_client::Attempt {
     let crate::v25::Attempt { sent: field_000000, deadline: field_000001, wall: field_000002, expires: field_000003 } = record;
-    Ok(skein_forge_client::Attempt {
-        sent: match skein_codec::convert::time_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_SENT.problem(reason)) },
-        deadline: match skein_codec::convert::time_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_DEADLINE.problem(reason)) },
-        wall: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_WALL.problem(reason)) },
-        expires: match skein_codec::convert::wall_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::ATTEMPT_EXPIRES.problem(reason)) }
-    })
+    skein_forge_client::Attempt {
+        sent: skein_codec::convert::time_to_domain(field_000000),
+        deadline: skein_codec::convert::time_to_domain(field_000001),
+        wall: skein_codec::convert::wall_to_domain(field_000002),
+        expires: skein_codec::convert::wall_to_domain(field_000003)
+    }
 }
 
-// Maps line 80: Entry.
-pub fn entry_to_record(value: &skein_forge_client::Entry, context: &crate::records::Context) -> Result<crate::v25::Entry, crate::v25::Problem> {
+#[must_use]
+pub fn entry_to_record(value: &skein_forge_client::Entry) -> crate::v25::Entry {
     let skein_forge_client::Entry { number: field_000000, task: field_000001, repository: field_000002, effect: field_000003, start: field_000004, attempt: field_000005, failures: field_000006, queued: field_000007 } = value;
-    Ok(crate::v25::Entry {
+    crate::v25::Entry {
         number: *field_000000,
         task: *field_000001,
-        repository: repository_to_record(field_000002, context)?,
-        effect: effect_to_record(field_000003, context)?,
+        repository: repository_to_record(field_000002),
+        effect: effect_to_record(field_000003),
         start: match field_000004 {
-            Some(item) => Some(position_to_record(item, context)?),
+            Some(item) => {
+                let converted = position_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         attempt: match field_000005 {
-            Some(item) => Some(attempt_to_record(item, context)?),
+            Some(item) => {
+                let converted = attempt_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         failures: *field_000006,
         queued: *field_000007
-    })
+    }
 }
 
-// Maps line 80: Entry.
-pub fn entry_to_domain(record: crate::v25::Entry, context: &crate::records::Context) -> Result<skein_forge_client::Entry, crate::v25::Problem> {
+#[must_use]
+pub fn entry_to_domain(record: crate::v25::Entry) -> skein_forge_client::Entry {
     let crate::v25::Entry { number: field_000000, task: field_000001, repository: field_000002, effect: field_000003, start: field_000004, attempt: field_000005, failures: field_000006, queued: field_000007 } = record;
-    Ok(skein_forge_client::Entry {
+    skein_forge_client::Entry {
         number: field_000000,
         task: field_000001,
-        repository: repository_to_domain(field_000002, context)?,
-        effect: effect_to_domain(field_000003, context)?,
+        repository: repository_to_domain(field_000002),
+        effect: effect_to_domain(field_000003),
         start: match field_000004 {
-            Some(item) => Some(position_to_domain(item, context)?),
+            Some(item) => {
+                let converted = position_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         attempt: match field_000005 {
-            Some(item) => Some(attempt_to_domain(item, context)?),
+            Some(item) => {
+                let converted = attempt_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         failures: field_000006,
         queued: field_000007
-    })
+    }
 }
 
-// Maps line 82: ProposedEffect.
-pub fn proposed_effect_to_record(value: &temper_engine_domain_forge_vocabulary::ProposedEffect, context: &crate::records::Context) -> Result<crate::v25::ProposedEffect, crate::v25::Problem> {
+#[must_use]
+pub fn proposed_effect_to_record(value: &temper_engine_domain_forge_vocabulary::ProposedEffect) -> crate::v25::ProposedEffect {
     let temper_engine_domain_forge_vocabulary::ProposedEffect { number: field_000000, resource: field_000001, entry: field_000002 } = value;
-    Ok(crate::v25::ProposedEffect {
+    crate::v25::ProposedEffect {
         number: *field_000000,
-        resource: what_to_record(field_000001, context)?,
-        entry: entry_to_record(field_000002, context)?
-    })
+        resource: what_to_record(field_000001),
+        entry: entry_to_record(field_000002)
+    }
 }
 
-// Maps line 82: ProposedEffect.
 pub fn proposed_effect_to_domain(record: crate::v25::ProposedEffect, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ProposedEffect, crate::v25::Problem> {
     let crate::v25::ProposedEffect { number: field_000000, resource: field_000001, entry: field_000002 } = record;
     Ok(temper_engine_domain_forge_vocabulary::ProposedEffect {
         number: field_000000,
         resource: what_to_domain(field_000001, context)?,
-        entry: entry_to_domain(field_000002, context)?
+        entry: entry_to_domain(field_000002)
     })
 }
 
-// Maps line 85: Bound.
-pub fn bound_to_record(value: &skein_forge::api::Bound, _context: &crate::records::Context) -> Result<crate::v25::Bound, crate::v25::Problem> {
+#[must_use]
+pub fn bound_to_record(value: &skein_forge::api::Bound) -> crate::v25::Bound {
     match value {
-        skein_forge::api::Bound::OpBytes => Ok(crate::v25::Bound::OpBytes),
-        skein_forge::api::Bound::AnswerBytes => Ok(crate::v25::Bound::AnswerBytes),
-        skein_forge::api::Bound::Rows => Ok(crate::v25::Bound::Rows),
-        skein_forge::api::Bound::Forge => Ok(crate::v25::Bound::Forge),
-        skein_forge::api::Bound::Unnamed => Ok(crate::v25::Bound::Unnamed),
+        skein_forge::api::Bound::OpBytes => crate::v25::Bound::OpBytes,
+        skein_forge::api::Bound::AnswerBytes => crate::v25::Bound::AnswerBytes,
+        skein_forge::api::Bound::Rows => crate::v25::Bound::Rows,
+        skein_forge::api::Bound::Forge => crate::v25::Bound::Forge,
+        skein_forge::api::Bound::Unnamed => crate::v25::Bound::Unnamed,
     }
 }
 
-// Maps line 85: Bound.
-pub fn bound_to_domain(record: crate::v25::Bound, _context: &crate::records::Context) -> Result<skein_forge::api::Bound, crate::v25::Problem> {
+#[must_use]
+pub fn bound_to_domain(record: crate::v25::Bound) -> skein_forge::api::Bound {
     match record {
-        crate::v25::Bound::OpBytes => Ok(skein_forge::api::Bound::OpBytes),
-        crate::v25::Bound::AnswerBytes => Ok(skein_forge::api::Bound::AnswerBytes),
-        crate::v25::Bound::Rows => Ok(skein_forge::api::Bound::Rows),
-        crate::v25::Bound::Forge => Ok(skein_forge::api::Bound::Forge),
-        crate::v25::Bound::Unnamed => Ok(skein_forge::api::Bound::Unnamed),
+        crate::v25::Bound::OpBytes => skein_forge::api::Bound::OpBytes,
+        crate::v25::Bound::AnswerBytes => skein_forge::api::Bound::AnswerBytes,
+        crate::v25::Bound::Rows => skein_forge::api::Bound::Rows,
+        crate::v25::Bound::Forge => skein_forge::api::Bound::Forge,
+        crate::v25::Bound::Unnamed => skein_forge::api::Bound::Unnamed,
     }
 }
 
-// Maps line 86: Excess.
-pub fn excess_to_record(value: &skein_forge::api::Excess, context: &crate::records::Context) -> Result<crate::v25::Excess, crate::v25::Problem> {
+#[must_use]
+pub fn excess_to_record(value: &skein_forge::api::Excess) -> crate::v25::Excess {
     let skein_forge::api::Excess { bound: field_000000, limit: field_000001, size: field_000002, exact: field_000003 } = value;
-    Ok(crate::v25::Excess {
-        bound: bound_to_record(field_000000, context)?,
+    crate::v25::Excess {
+        bound: bound_to_record(field_000000),
         limit: *field_000001,
         size: *field_000002,
         exact: *field_000003
-    })
+    }
 }
 
-// Maps line 86: Excess.
-pub fn excess_to_domain(record: crate::v25::Excess, context: &crate::records::Context) -> Result<skein_forge::api::Excess, crate::v25::Problem> {
+#[must_use]
+pub fn excess_to_domain(record: crate::v25::Excess) -> skein_forge::api::Excess {
     let crate::v25::Excess { bound: field_000000, limit: field_000001, size: field_000002, exact: field_000003 } = record;
-    Ok(skein_forge::api::Excess {
-        bound: bound_to_domain(field_000000, context)?,
+    skein_forge::api::Excess {
+        bound: bound_to_domain(field_000000),
         limit: field_000001,
         size: field_000002,
         exact: field_000003
-    })
-}
-
-// Maps line 89: Made.
-pub fn made_to_record(value: &skein_forge_client::Made, _context: &crate::records::Context) -> Result<crate::v25::Made, crate::v25::Problem> {
-    match value {
-        skein_forge_client::Made::Created(held) => Ok(crate::v25::Made::Created(crate::v25::Number { number: *held })),
-        skein_forge_client::Made::Commented(held) => Ok(crate::v25::Made::Commented(crate::v25::Number { number: *held })),
-        skein_forge_client::Made::Reviewed(held) => Ok(crate::v25::Made::Reviewed(crate::v25::Number { number: *held })),
-        skein_forge_client::Made::Merged(held) => Ok(crate::v25::Made::Merged(crate::v25::Commit { commit: *held })),
-        skein_forge_client::Made::Updated(held) => Ok(crate::v25::Made::Updated(crate::v25::Commit { commit: *held })),
-        skein_forge_client::Made::Branch(held) => Ok(crate::v25::Made::Branch(crate::v25::Commit { commit: *held })),
-        skein_forge_client::Made::Set => Ok(crate::v25::Made::Set),
     }
 }
 
-// Maps line 89: Made.
-pub fn made_to_domain(record: crate::v25::Made, _context: &crate::records::Context) -> Result<skein_forge_client::Made, crate::v25::Problem> {
+#[must_use]
+pub fn made_to_record(value: &skein_forge_client::Made) -> crate::v25::Made {
+    match value {
+        skein_forge_client::Made::Created(held) => crate::v25::Made::Created(crate::v25::Number { number: *held }),
+        skein_forge_client::Made::Commented(held) => crate::v25::Made::Commented(crate::v25::Number { number: *held }),
+        skein_forge_client::Made::Reviewed(held) => crate::v25::Made::Reviewed(crate::v25::Number { number: *held }),
+        skein_forge_client::Made::Merged(held) => crate::v25::Made::Merged(crate::v25::Commit { commit: *held }),
+        skein_forge_client::Made::Updated(held) => crate::v25::Made::Updated(crate::v25::Commit { commit: *held }),
+        skein_forge_client::Made::Branch(held) => crate::v25::Made::Branch(crate::v25::Commit { commit: *held }),
+        skein_forge_client::Made::Set => crate::v25::Made::Set,
+    }
+}
+
+#[must_use]
+pub fn made_to_domain(record: crate::v25::Made) -> skein_forge_client::Made {
     match record {
-        crate::v25::Made::Created(held) => Ok(skein_forge_client::Made::Created({
+        crate::v25::Made::Created(held) => skein_forge_client::Made::Created({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::Made::Commented(held) => Ok(skein_forge_client::Made::Commented({
+        }),
+        crate::v25::Made::Commented(held) => skein_forge_client::Made::Commented({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::Made::Reviewed(held) => Ok(skein_forge_client::Made::Reviewed({
+        }),
+        crate::v25::Made::Reviewed(held) => skein_forge_client::Made::Reviewed({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::Made::Merged(held) => Ok(skein_forge_client::Made::Merged({
+        }),
+        crate::v25::Made::Merged(held) => skein_forge_client::Made::Merged({
             let crate::v25::Commit { commit: held } = held;
             held
-        })),
-        crate::v25::Made::Updated(held) => Ok(skein_forge_client::Made::Updated({
+        }),
+        crate::v25::Made::Updated(held) => skein_forge_client::Made::Updated({
             let crate::v25::Commit { commit: held } = held;
             held
-        })),
-        crate::v25::Made::Branch(held) => Ok(skein_forge_client::Made::Branch({
+        }),
+        crate::v25::Made::Branch(held) => skein_forge_client::Made::Branch({
             let crate::v25::Commit { commit: held } = held;
             held
-        })),
-        crate::v25::Made::Set => Ok(skein_forge_client::Made::Set),
+        }),
+        crate::v25::Made::Set => skein_forge_client::Made::Set,
     }
 }
 
-// Maps line 92: Outcome.
-pub fn outcome_to_record(value: &skein_forge_client::Outcome, context: &crate::records::Context) -> Result<crate::v25::Outcome, crate::v25::Problem> {
+#[must_use]
+pub fn outcome_to_record(value: &skein_forge_client::Outcome) -> crate::v25::Outcome {
     match value {
-        skein_forge_client::Outcome::Made { made: field_000000, found: field_000001 } => Ok(crate::v25::Outcome::Made(crate::v25::OutcomeMade {
-            made: made_to_record(field_000000, context)?,
+        skein_forge_client::Outcome::Made { made: field_000000, found: field_000001 } => crate::v25::Outcome::Made(crate::v25::OutcomeMade {
+            made: made_to_record(field_000000),
             found: *field_000001
-        })),
-        skein_forge_client::Outcome::Failed(held) => Ok(crate::v25::Outcome::Failed(crate::v25::ErrorValue { error: crate::records::by_hand::error_to_record(held, context)? })),
-        skein_forge_client::Outcome::Raced { made: field_000000, why: field_000001 } => Ok(crate::v25::Outcome::Raced(crate::v25::OutcomeRaced {
-            made: made_to_record(field_000000, context)?,
-            why: crate::records::by_hand::error_to_record(field_000001, context)?
-        })),
-        skein_forge_client::Outcome::Uncertain => Ok(crate::v25::Outcome::Uncertain),
-        skein_forge_client::Outcome::Held => Ok(crate::v25::Outcome::Held),
-        skein_forge_client::Outcome::Withdrawn => Ok(crate::v25::Outcome::Withdrawn),
-        skein_forge_client::Outcome::Queued => Ok(crate::v25::Outcome::Queued),
+        }),
+        skein_forge_client::Outcome::Failed(held) => crate::v25::Outcome::Failed(crate::v25::ErrorValue { error: crate::records::by_hand::error_to_record(held) }),
+        skein_forge_client::Outcome::Raced { made: field_000000, why: field_000001 } => crate::v25::Outcome::Raced(crate::v25::OutcomeRaced {
+            made: made_to_record(field_000000),
+            why: crate::records::by_hand::error_to_record(field_000001)
+        }),
+        skein_forge_client::Outcome::Uncertain => crate::v25::Outcome::Uncertain,
+        skein_forge_client::Outcome::Held => crate::v25::Outcome::Held,
+        skein_forge_client::Outcome::Withdrawn => crate::v25::Outcome::Withdrawn,
+        skein_forge_client::Outcome::Queued => crate::v25::Outcome::Queued,
     }
 }
 
-// Maps line 92: Outcome.
-pub fn outcome_to_domain(record: crate::v25::Outcome, context: &crate::records::Context) -> Result<skein_forge_client::Outcome, crate::v25::Problem> {
+#[must_use]
+pub fn outcome_to_domain(record: crate::v25::Outcome) -> skein_forge_client::Outcome {
     match record {
         crate::v25::Outcome::Made(held) => {
             let crate::v25::OutcomeMade { made: field_000000, found: field_000001 } = held;
-            Ok(skein_forge_client::Outcome::Made {
-                made: made_to_domain(field_000000, context)?,
+            skein_forge_client::Outcome::Made {
+                made: made_to_domain(field_000000),
                 found: field_000001
-            })
+            }
         },
-        crate::v25::Outcome::Failed(held) => Ok(skein_forge_client::Outcome::Failed({
+        crate::v25::Outcome::Failed(held) => skein_forge_client::Outcome::Failed({
             let crate::v25::ErrorValue { error: held } = held;
-            crate::records::by_hand::error_to_domain(held, context)?
-        })),
+            crate::records::by_hand::error_to_domain(held)
+        }),
         crate::v25::Outcome::Raced(held) => {
             let crate::v25::OutcomeRaced { made: field_000000, why: field_000001 } = held;
-            Ok(skein_forge_client::Outcome::Raced {
-                made: made_to_domain(field_000000, context)?,
-                why: crate::records::by_hand::error_to_domain(field_000001, context)?
-            })
+            skein_forge_client::Outcome::Raced {
+                made: made_to_domain(field_000000),
+                why: crate::records::by_hand::error_to_domain(field_000001)
+            }
         },
-        crate::v25::Outcome::Uncertain => Ok(skein_forge_client::Outcome::Uncertain),
-        crate::v25::Outcome::Held => Ok(skein_forge_client::Outcome::Held),
-        crate::v25::Outcome::Withdrawn => Ok(skein_forge_client::Outcome::Withdrawn),
-        crate::v25::Outcome::Queued => Ok(skein_forge_client::Outcome::Queued),
+        crate::v25::Outcome::Uncertain => skein_forge_client::Outcome::Uncertain,
+        crate::v25::Outcome::Held => skein_forge_client::Outcome::Held,
+        crate::v25::Outcome::Withdrawn => skein_forge_client::Outcome::Withdrawn,
+        crate::v25::Outcome::Queued => skein_forge_client::Outcome::Queued,
     }
 }
 
-// Maps line 93: Permission.
-pub fn permission_to_record(value: &skein_forge::api::Permission, _context: &crate::records::Context) -> Result<crate::v25::Permission, crate::v25::Problem> {
+#[must_use]
+pub fn permission_to_record(value: &skein_forge::api::Permission) -> crate::v25::Permission {
     match value {
-        skein_forge::api::Permission::None => Ok(crate::v25::Permission::None),
-        skein_forge::api::Permission::Read => Ok(crate::v25::Permission::Read),
-        skein_forge::api::Permission::Write => Ok(crate::v25::Permission::Write),
-        skein_forge::api::Permission::Admin => Ok(crate::v25::Permission::Admin),
+        skein_forge::api::Permission::None => crate::v25::Permission::None,
+        skein_forge::api::Permission::Read => crate::v25::Permission::Read,
+        skein_forge::api::Permission::Write => crate::v25::Permission::Write,
+        skein_forge::api::Permission::Admin => crate::v25::Permission::Admin,
     }
 }
 
-// Maps line 93: Permission.
-pub fn permission_to_domain(record: crate::v25::Permission, _context: &crate::records::Context) -> Result<skein_forge::api::Permission, crate::v25::Problem> {
+#[must_use]
+pub fn permission_to_domain(record: crate::v25::Permission) -> skein_forge::api::Permission {
     match record {
-        crate::v25::Permission::None => Ok(skein_forge::api::Permission::None),
-        crate::v25::Permission::Read => Ok(skein_forge::api::Permission::Read),
-        crate::v25::Permission::Write => Ok(skein_forge::api::Permission::Write),
-        crate::v25::Permission::Admin => Ok(skein_forge::api::Permission::Admin),
+        crate::v25::Permission::None => skein_forge::api::Permission::None,
+        crate::v25::Permission::Read => skein_forge::api::Permission::Read,
+        crate::v25::Permission::Write => skein_forge::api::Permission::Write,
+        crate::v25::Permission::Admin => skein_forge::api::Permission::Admin,
     }
 }
 
-// Maps line 94: BranchCreation.
-pub fn branch_creation_to_record(value: &skein_forge::api::BranchCreation, _context: &crate::records::Context) -> Result<crate::v25::BranchCreation, crate::v25::Problem> {
+#[must_use]
+pub fn branch_creation_to_record(value: &skein_forge::api::BranchCreation) -> crate::v25::BranchCreation {
     match value {
-        skein_forge::api::BranchCreation::Created => Ok(crate::v25::BranchCreation::Created),
-        skein_forge::api::BranchCreation::Exists => Ok(crate::v25::BranchCreation::Exists),
+        skein_forge::api::BranchCreation::Created => crate::v25::BranchCreation::Created,
+        skein_forge::api::BranchCreation::Exists => crate::v25::BranchCreation::Exists,
     }
 }
 
-// Maps line 94: BranchCreation.
-pub fn branch_creation_to_domain(record: crate::v25::BranchCreation, _context: &crate::records::Context) -> Result<skein_forge::api::BranchCreation, crate::v25::Problem> {
+#[must_use]
+pub fn branch_creation_to_domain(record: crate::v25::BranchCreation) -> skein_forge::api::BranchCreation {
     match record {
-        crate::v25::BranchCreation::Created => Ok(skein_forge::api::BranchCreation::Created),
-        crate::v25::BranchCreation::Exists => Ok(skein_forge::api::BranchCreation::Exists),
+        crate::v25::BranchCreation::Created => skein_forge::api::BranchCreation::Created,
+        crate::v25::BranchCreation::Exists => skein_forge::api::BranchCreation::Exists,
     }
 }
 
-// Maps line 96: Step.
-pub fn step_to_record(value: &skein_forge::api::Step, _context: &crate::records::Context) -> Result<crate::v25::Step, crate::v25::Problem> {
+#[must_use]
+pub fn step_to_record(value: &skein_forge::api::Step) -> crate::v25::Step {
     let skein_forge::api::Step { number: field_000000, name: field_000001 } = value;
-    Ok(crate::v25::Step {
+    crate::v25::Step {
         number: *field_000000,
         name: field_000001.clone()
-    })
+    }
 }
 
-// Maps line 96: Step.
-pub fn step_to_domain(record: crate::v25::Step, _context: &crate::records::Context) -> Result<skein_forge::api::Step, crate::v25::Problem> {
+#[must_use]
+pub fn step_to_domain(record: crate::v25::Step) -> skein_forge::api::Step {
     let crate::v25::Step { number: field_000000, name: field_000001 } = record;
-    Ok(skein_forge::api::Step {
+    skein_forge::api::Step {
         number: field_000000,
         name: field_000001
-    })
+    }
 }
 
-// Maps line 99: DirectoryKind.
-pub fn directory_kind_to_record(value: &skein_forge::api::EntryKind, _context: &crate::records::Context) -> Result<crate::v25::DirectoryKind, crate::v25::Problem> {
+#[must_use]
+pub fn directory_kind_to_record(value: &skein_forge::api::EntryKind) -> crate::v25::DirectoryKind {
     match value {
-        skein_forge::api::EntryKind::File => Ok(crate::v25::DirectoryKind::File),
-        skein_forge::api::EntryKind::Directory => Ok(crate::v25::DirectoryKind::Directory),
-        skein_forge::api::EntryKind::Submodule => Ok(crate::v25::DirectoryKind::Submodule),
+        skein_forge::api::EntryKind::File => crate::v25::DirectoryKind::File,
+        skein_forge::api::EntryKind::Directory => crate::v25::DirectoryKind::Directory,
+        skein_forge::api::EntryKind::Submodule => crate::v25::DirectoryKind::Submodule,
     }
 }
 
-// Maps line 99: DirectoryKind.
-pub fn directory_kind_to_domain(record: crate::v25::DirectoryKind, _context: &crate::records::Context) -> Result<skein_forge::api::EntryKind, crate::v25::Problem> {
+#[must_use]
+pub fn directory_kind_to_domain(record: crate::v25::DirectoryKind) -> skein_forge::api::EntryKind {
     match record {
-        crate::v25::DirectoryKind::File => Ok(skein_forge::api::EntryKind::File),
-        crate::v25::DirectoryKind::Directory => Ok(skein_forge::api::EntryKind::Directory),
-        crate::v25::DirectoryKind::Submodule => Ok(skein_forge::api::EntryKind::Submodule),
+        crate::v25::DirectoryKind::File => skein_forge::api::EntryKind::File,
+        crate::v25::DirectoryKind::Directory => skein_forge::api::EntryKind::Directory,
+        crate::v25::DirectoryKind::Submodule => skein_forge::api::EntryKind::Submodule,
     }
 }
 
-// Maps line 100: DirectoryEntry.
-pub fn directory_entry_to_record(value: &skein_forge::api::Entry, context: &crate::records::Context) -> Result<crate::v25::DirectoryEntry, crate::v25::Problem> {
+#[must_use]
+pub fn directory_entry_to_record(value: &skein_forge::api::Entry) -> crate::v25::DirectoryEntry {
     let skein_forge::api::Entry { name: field_000000, kind: field_000001 } = value;
-    Ok(crate::v25::DirectoryEntry {
+    crate::v25::DirectoryEntry {
         name: field_000000.clone(),
-        kind: directory_kind_to_record(field_000001, context)?
-    })
+        kind: directory_kind_to_record(field_000001)
+    }
 }
 
-// Maps line 100: DirectoryEntry.
-pub fn directory_entry_to_domain(record: crate::v25::DirectoryEntry, context: &crate::records::Context) -> Result<skein_forge::api::Entry, crate::v25::Problem> {
+#[must_use]
+pub fn directory_entry_to_domain(record: crate::v25::DirectoryEntry) -> skein_forge::api::Entry {
     let crate::v25::DirectoryEntry { name: field_000000, kind: field_000001 } = record;
-    Ok(skein_forge::api::Entry {
+    skein_forge::api::Entry {
         name: field_000000,
-        kind: directory_kind_to_domain(field_000001, context)?
-    })
+        kind: directory_kind_to_domain(field_000001)
+    }
 }
 
-// Maps line 104: PermissionValue.
-pub fn permission_value_to_record(value: &skein_forge::api::UserPermission, context: &crate::records::Context) -> Result<crate::v25::PermissionValue, crate::v25::Problem> {
+#[must_use]
+pub fn permission_value_to_record(value: &skein_forge::api::UserPermission) -> crate::v25::PermissionValue {
     let skein_forge::api::UserPermission { permission: field_000000, user: field_000001, login: field_000002 } = value;
-    Ok(crate::v25::PermissionValue {
-        permission: permission_to_record(field_000000, context)?,
+    crate::v25::PermissionValue {
+        permission: permission_to_record(field_000000),
         user: *field_000001,
         login: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 104: PermissionValue.
-pub fn permission_value_to_domain(record: crate::v25::PermissionValue, context: &crate::records::Context) -> Result<skein_forge::api::UserPermission, crate::v25::Problem> {
+#[must_use]
+pub fn permission_value_to_domain(record: crate::v25::PermissionValue) -> skein_forge::api::UserPermission {
     let crate::v25::PermissionValue { permission: field_000000, user: field_000001, login: field_000002 } = record;
-    Ok(skein_forge::api::UserPermission {
-        permission: permission_to_domain(field_000000, context)?,
+    skein_forge::api::UserPermission {
+        permission: permission_to_domain(field_000000),
         user: field_000001,
         login: field_000002
-    })
+    }
 }
 
-// Maps line 106: Kind.
-pub fn kind_to_record(value: &skein_forge::api::Kind, _context: &crate::records::Context) -> Result<crate::v25::Kind, crate::v25::Problem> {
+#[must_use]
+pub fn kind_to_record(value: &skein_forge::api::Kind) -> crate::v25::Kind {
     match value {
-        skein_forge::api::Kind::Issue => Ok(crate::v25::Kind::Issue),
-        skein_forge::api::Kind::Pull => Ok(crate::v25::Kind::Pull),
+        skein_forge::api::Kind::Issue => crate::v25::Kind::Issue,
+        skein_forge::api::Kind::Pull => crate::v25::Kind::Pull,
     }
 }
 
-// Maps line 106: Kind.
-pub fn kind_to_domain(record: crate::v25::Kind, _context: &crate::records::Context) -> Result<skein_forge::api::Kind, crate::v25::Problem> {
+#[must_use]
+pub fn kind_to_domain(record: crate::v25::Kind) -> skein_forge::api::Kind {
     match record {
-        crate::v25::Kind::Issue => Ok(skein_forge::api::Kind::Issue),
-        crate::v25::Kind::Pull => Ok(skein_forge::api::Kind::Pull),
+        crate::v25::Kind::Issue => skein_forge::api::Kind::Issue,
+        crate::v25::Kind::Pull => skein_forge::api::Kind::Pull,
     }
 }
 
-// Maps line 107: Provenance.
-pub fn provenance_to_record(value: &skein_forge::api::Provenance, _context: &crate::records::Context) -> Result<crate::v25::Provenance, crate::v25::Problem> {
+#[must_use]
+pub fn provenance_to_record(value: &skein_forge::api::Provenance) -> crate::v25::Provenance {
     match value {
-        skein_forge::api::Provenance::Original => Ok(crate::v25::Provenance::Original),
-        skein_forge::api::Provenance::Revised => Ok(crate::v25::Provenance::Revised),
-        skein_forge::api::Provenance::Unknown => Ok(crate::v25::Provenance::Unknown),
+        skein_forge::api::Provenance::Original => crate::v25::Provenance::Original,
+        skein_forge::api::Provenance::Revised => crate::v25::Provenance::Revised,
+        skein_forge::api::Provenance::Unknown => crate::v25::Provenance::Unknown,
     }
 }
 
-// Maps line 107: Provenance.
-pub fn provenance_to_domain(record: crate::v25::Provenance, _context: &crate::records::Context) -> Result<skein_forge::api::Provenance, crate::v25::Problem> {
+#[must_use]
+pub fn provenance_to_domain(record: crate::v25::Provenance) -> skein_forge::api::Provenance {
     match record {
-        crate::v25::Provenance::Original => Ok(skein_forge::api::Provenance::Original),
-        crate::v25::Provenance::Revised => Ok(skein_forge::api::Provenance::Revised),
-        crate::v25::Provenance::Unknown => Ok(skein_forge::api::Provenance::Unknown),
+        crate::v25::Provenance::Original => skein_forge::api::Provenance::Original,
+        crate::v25::Provenance::Revised => skein_forge::api::Provenance::Revised,
+        crate::v25::Provenance::Unknown => skein_forge::api::Provenance::Unknown,
     }
 }
 
-// Maps line 109: Comment.
-pub fn comment_to_record(value: &skein_forge::api::Comment, context: &crate::records::Context) -> Result<crate::v25::Comment, crate::v25::Problem> {
+#[must_use]
+pub fn comment_to_record(value: &skein_forge::api::Comment) -> crate::v25::Comment {
     let skein_forge::api::Comment { id: field_000000, provenance: field_000001, author: field_000002, created: field_000003, revision: field_000004, key: field_000005, body: field_000006 } = value;
-    Ok(crate::v25::Comment {
+    crate::v25::Comment {
         id: *field_000000,
-        provenance: provenance_to_record(field_000001, context)?,
+        provenance: provenance_to_record(field_000001),
         author: *field_000002,
-        created: match skein_codec::convert::time_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::COMMENT_CREATED.problem(reason)) },
+        created: skein_codec::convert::time_to_record(field_000003),
         revision: *field_000004,
         key: match field_000005 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         body: field_000006.clone()
-    })
+    }
 }
 
-// Maps line 109: Comment.
-pub fn comment_to_domain(record: crate::v25::Comment, context: &crate::records::Context) -> Result<skein_forge::api::Comment, crate::v25::Problem> {
+#[must_use]
+pub fn comment_to_domain(record: crate::v25::Comment) -> skein_forge::api::Comment {
     let crate::v25::Comment { id: field_000000, provenance: field_000001, author: field_000002, created: field_000003, revision: field_000004, key: field_000005, body: field_000006 } = record;
-    Ok(skein_forge::api::Comment {
+    skein_forge::api::Comment {
         id: field_000000,
-        provenance: provenance_to_domain(field_000001, context)?,
+        provenance: provenance_to_domain(field_000001),
         author: field_000002,
-        created: match skein_codec::convert::time_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::COMMENT_CREATED.problem(reason)) },
+        created: skein_codec::convert::time_to_domain(field_000003),
         revision: field_000004,
         key: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         body: field_000006
-    })
+    }
 }
 
-// Maps line 110: Review.
-pub fn review_to_record(value: &skein_forge::api::Review, context: &crate::records::Context) -> Result<crate::v25::Review, crate::v25::Problem> {
+#[must_use]
+pub fn review_to_record(value: &skein_forge::api::Review) -> crate::v25::Review {
     let skein_forge::api::Review { id: field_000000, provenance: field_000001, revision: field_000002, author: field_000003, verdict: field_000004, commit: field_000005, key: field_000006, body: field_000007, at: field_000008, official: field_000009 } = value;
-    Ok(crate::v25::Review {
+    crate::v25::Review {
         id: *field_000000,
-        provenance: provenance_to_record(field_000001, context)?,
+        provenance: provenance_to_record(field_000001),
         revision: *field_000002,
         author: *field_000003,
-        verdict: verdict_to_record(field_000004, context)?,
+        verdict: verdict_to_record(field_000004),
         commit: *field_000005,
         key: match field_000006 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         body: field_000007.clone(),
-        at: match skein_codec::convert::time_to_record(field_000008) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REVIEW_AT.problem(reason)) },
+        at: skein_codec::convert::time_to_record(field_000008),
         official: *field_000009
-    })
+    }
 }
 
-// Maps line 110: Review.
-pub fn review_to_domain(record: crate::v25::Review, context: &crate::records::Context) -> Result<skein_forge::api::Review, crate::v25::Problem> {
+#[must_use]
+pub fn review_to_domain(record: crate::v25::Review) -> skein_forge::api::Review {
     let crate::v25::Review { id: field_000000, provenance: field_000001, revision: field_000002, author: field_000003, verdict: field_000004, commit: field_000005, key: field_000006, body: field_000007, at: field_000008, official: field_000009 } = record;
-    Ok(skein_forge::api::Review {
+    skein_forge::api::Review {
         id: field_000000,
-        provenance: provenance_to_domain(field_000001, context)?,
+        provenance: provenance_to_domain(field_000001),
         revision: field_000002,
         author: field_000003,
-        verdict: verdict_to_domain(field_000004, context)?,
+        verdict: verdict_to_domain(field_000004),
         commit: field_000005,
         key: match field_000006 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         body: field_000007,
-        at: match skein_codec::convert::time_to_domain(field_000008) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REVIEW_AT.problem(reason)) },
+        at: skein_codec::convert::time_to_domain(field_000008),
         official: field_000009
-    })
+    }
 }
 
-// Maps line 114: Status.
-pub fn status_to_record(value: &skein_forge::api::Status, context: &crate::records::Context) -> Result<crate::v25::Status, crate::v25::Problem> {
+#[must_use]
+pub fn status_to_record(value: &skein_forge::api::Status) -> crate::v25::Status {
     let skein_forge::api::Status { at: field_000000, context: field_000001, check: field_000002, description: field_000003, url: field_000004, job: field_000005 } = value;
-    Ok(crate::v25::Status {
-        at: match skein_codec::convert::time_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::STATUS_AT.problem(reason)) },
+    crate::v25::Status {
+        at: skein_codec::convert::time_to_record(field_000000),
         context: field_000001.clone(),
-        verdict: check_to_record(field_000002, context)?,
+        verdict: check_to_record(field_000002),
         description: field_000003.clone(),
         url: field_000004.clone(),
         job: match field_000005 {
-            Some(item) => Some(job_attempt_to_record(item, context)?),
+            Some(item) => {
+                let converted = job_attempt_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 114: Status.
-pub fn status_to_domain(record: crate::v25::Status, context: &crate::records::Context) -> Result<skein_forge::api::Status, crate::v25::Problem> {
+#[must_use]
+pub fn status_to_domain(record: crate::v25::Status) -> skein_forge::api::Status {
     let crate::v25::Status { at: field_000000, context: field_000001, verdict: field_000002, description: field_000003, url: field_000004, job: field_000005 } = record;
-    Ok(skein_forge::api::Status {
-        at: match skein_codec::convert::time_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::STATUS_AT.problem(reason)) },
+    skein_forge::api::Status {
+        at: skein_codec::convert::time_to_domain(field_000000),
         context: field_000001,
-        check: check_to_domain(field_000002, context)?,
+        check: check_to_domain(field_000002),
         description: field_000003,
         url: field_000004,
         job: match field_000005 {
-            Some(item) => Some(job_attempt_to_domain(item, context)?),
+            Some(item) => {
+                let converted = job_attempt_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 115: Remark.
-pub fn remark_to_record(value: &skein_forge::api::Remark, _context: &crate::records::Context) -> Result<crate::v25::Remark, crate::v25::Problem> {
+#[must_use]
+pub fn remark_to_record(value: &skein_forge::api::Remark) -> crate::v25::Remark {
     let skein_forge::api::Remark { id: field_000000, author: field_000001, path: field_000002, line: field_000003, body: field_000004 } = value;
-    Ok(crate::v25::Remark {
+    crate::v25::Remark {
         id: *field_000000,
         author: *field_000001,
         path: field_000002.clone(),
         line: *field_000003,
         body: field_000004.clone()
-    })
+    }
 }
 
-// Maps line 115: Remark.
-pub fn remark_to_domain(record: crate::v25::Remark, _context: &crate::records::Context) -> Result<skein_forge::api::Remark, crate::v25::Problem> {
+#[must_use]
+pub fn remark_to_domain(record: crate::v25::Remark) -> skein_forge::api::Remark {
     let crate::v25::Remark { id: field_000000, author: field_000001, path: field_000002, line: field_000003, body: field_000004 } = record;
-    Ok(skein_forge::api::Remark {
+    skein_forge::api::Remark {
         id: field_000000,
         author: field_000001,
         path: field_000002,
         line: field_000003,
         body: field_000004
-    })
+    }
 }
 
-// Maps line 116: File.
-pub fn file_to_record(value: &skein_forge::api::File, _context: &crate::records::Context) -> Result<crate::v25::File, crate::v25::Problem> {
+#[must_use]
+pub fn file_to_record(value: &skein_forge::api::File) -> crate::v25::File {
     let skein_forge::api::File { path: field_000000, before: field_000001, after: field_000002 } = value;
-    Ok(crate::v25::File {
+    crate::v25::File {
         path: field_000000.clone(),
         before: match field_000001 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         after: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 116: File.
-pub fn file_to_domain(record: crate::v25::File, _context: &crate::records::Context) -> Result<skein_forge::api::File, crate::v25::Problem> {
+#[must_use]
+pub fn file_to_domain(record: crate::v25::File) -> skein_forge::api::File {
     let crate::v25::File { path: field_000000, before: field_000001, after: field_000002 } = record;
-    Ok(skein_forge::api::File {
+    skein_forge::api::File {
         path: field_000000,
         before: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         after: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 117: Collaborator.
-pub fn collaborator_to_record(value: &skein_forge::api::Collaborator, context: &crate::records::Context) -> Result<crate::v25::Collaborator, crate::v25::Problem> {
+#[must_use]
+pub fn collaborator_to_record(value: &skein_forge::api::Collaborator) -> crate::v25::Collaborator {
     let skein_forge::api::Collaborator { user: field_000000, permission: field_000001 } = value;
-    Ok(crate::v25::Collaborator {
+    crate::v25::Collaborator {
         user: *field_000000,
-        permission: permission_to_record(field_000001, context)?
-    })
+        permission: permission_to_record(field_000001)
+    }
 }
 
-// Maps line 117: Collaborator.
-pub fn collaborator_to_domain(record: crate::v25::Collaborator, context: &crate::records::Context) -> Result<skein_forge::api::Collaborator, crate::v25::Problem> {
+#[must_use]
+pub fn collaborator_to_domain(record: crate::v25::Collaborator) -> skein_forge::api::Collaborator {
     let crate::v25::Collaborator { user: field_000000, permission: field_000001 } = record;
-    Ok(skein_forge::api::Collaborator {
+    skein_forge::api::Collaborator {
         user: field_000000,
-        permission: permission_to_domain(field_000001, context)?
-    })
+        permission: permission_to_domain(field_000001)
+    }
 }
 
-// Maps line 130: ReachKind.
-pub fn reach_kind_to_record(value: &temper_protocol_reaches::Kind, _context: &crate::records::Context) -> Result<crate::v25::ReachKind, crate::v25::Problem> {
+#[must_use]
+pub fn reach_kind_to_record(value: &temper_protocol_reaches::Kind) -> crate::v25::ReachKind {
     match value {
-        temper_protocol_reaches::Kind::Wording => Ok(crate::v25::ReachKind::Wording),
-        temper_protocol_reaches::Kind::Retry => Ok(crate::v25::ReachKind::Retry),
-        temper_protocol_reaches::Kind::Implementation => Ok(crate::v25::ReachKind::Implementation),
-        temper_protocol_reaches::Kind::Tests => Ok(crate::v25::ReachKind::Tests),
-        temper_protocol_reaches::Kind::Dependency => Ok(crate::v25::ReachKind::Dependency),
-        temper_protocol_reaches::Kind::Departure => Ok(crate::v25::ReachKind::Departure),
-        temper_protocol_reaches::Kind::Money => Ok(crate::v25::ReachKind::Money),
-        temper_protocol_reaches::Kind::Irreversible => Ok(crate::v25::ReachKind::Irreversible),
-        temper_protocol_reaches::Kind::Rules => Ok(crate::v25::ReachKind::Rules),
-        temper_protocol_reaches::Kind::Other => Ok(crate::v25::ReachKind::Other),
-        temper_protocol_reaches::Kind::Findings => Ok(crate::v25::ReachKind::Findings),
+        temper_protocol_reaches::Kind::Wording => crate::v25::ReachKind::Wording,
+        temper_protocol_reaches::Kind::Retry => crate::v25::ReachKind::Retry,
+        temper_protocol_reaches::Kind::Implementation => crate::v25::ReachKind::Implementation,
+        temper_protocol_reaches::Kind::Tests => crate::v25::ReachKind::Tests,
+        temper_protocol_reaches::Kind::Dependency => crate::v25::ReachKind::Dependency,
+        temper_protocol_reaches::Kind::Departure => crate::v25::ReachKind::Departure,
+        temper_protocol_reaches::Kind::Money => crate::v25::ReachKind::Money,
+        temper_protocol_reaches::Kind::Irreversible => crate::v25::ReachKind::Irreversible,
+        temper_protocol_reaches::Kind::Rules => crate::v25::ReachKind::Rules,
+        temper_protocol_reaches::Kind::Other => crate::v25::ReachKind::Other,
+        temper_protocol_reaches::Kind::Findings => crate::v25::ReachKind::Findings,
     }
 }
 
-// Maps line 130: ReachKind.
-pub fn reach_kind_to_domain(record: crate::v25::ReachKind, _context: &crate::records::Context) -> Result<temper_protocol_reaches::Kind, crate::v25::Problem> {
+#[must_use]
+pub fn reach_kind_to_domain(record: crate::v25::ReachKind) -> temper_protocol_reaches::Kind {
     match record {
-        crate::v25::ReachKind::Wording => Ok(temper_protocol_reaches::Kind::Wording),
-        crate::v25::ReachKind::Retry => Ok(temper_protocol_reaches::Kind::Retry),
-        crate::v25::ReachKind::Implementation => Ok(temper_protocol_reaches::Kind::Implementation),
-        crate::v25::ReachKind::Tests => Ok(temper_protocol_reaches::Kind::Tests),
-        crate::v25::ReachKind::Dependency => Ok(temper_protocol_reaches::Kind::Dependency),
-        crate::v25::ReachKind::Departure => Ok(temper_protocol_reaches::Kind::Departure),
-        crate::v25::ReachKind::Money => Ok(temper_protocol_reaches::Kind::Money),
-        crate::v25::ReachKind::Irreversible => Ok(temper_protocol_reaches::Kind::Irreversible),
-        crate::v25::ReachKind::Rules => Ok(temper_protocol_reaches::Kind::Rules),
-        crate::v25::ReachKind::Other => Ok(temper_protocol_reaches::Kind::Other),
-        crate::v25::ReachKind::Findings => Ok(temper_protocol_reaches::Kind::Findings),
+        crate::v25::ReachKind::Wording => temper_protocol_reaches::Kind::Wording,
+        crate::v25::ReachKind::Retry => temper_protocol_reaches::Kind::Retry,
+        crate::v25::ReachKind::Implementation => temper_protocol_reaches::Kind::Implementation,
+        crate::v25::ReachKind::Tests => temper_protocol_reaches::Kind::Tests,
+        crate::v25::ReachKind::Dependency => temper_protocol_reaches::Kind::Dependency,
+        crate::v25::ReachKind::Departure => temper_protocol_reaches::Kind::Departure,
+        crate::v25::ReachKind::Money => temper_protocol_reaches::Kind::Money,
+        crate::v25::ReachKind::Irreversible => temper_protocol_reaches::Kind::Irreversible,
+        crate::v25::ReachKind::Rules => temper_protocol_reaches::Kind::Rules,
+        crate::v25::ReachKind::Other => temper_protocol_reaches::Kind::Other,
+        crate::v25::ReachKind::Findings => temper_protocol_reaches::Kind::Findings,
     }
 }
 
-// Maps line 131: ReachClass.
-pub fn reach_class_to_record(value: &temper_protocol_reaches::Class, _context: &crate::records::Context) -> Result<crate::v25::ReachClass, crate::v25::Problem> {
+#[must_use]
+pub fn reach_class_to_record(value: &temper_protocol_reaches::Class) -> crate::v25::ReachClass {
     match value {
-        temper_protocol_reaches::Class::Decide => Ok(crate::v25::ReachClass::Decide),
-        temper_protocol_reaches::Class::Ask => Ok(crate::v25::ReachClass::Ask),
-        temper_protocol_reaches::Class::AskAway => Ok(crate::v25::ReachClass::AskAway),
-        temper_protocol_reaches::Class::Wait => Ok(crate::v25::ReachClass::Wait),
+        temper_protocol_reaches::Class::Decide => crate::v25::ReachClass::Decide,
+        temper_protocol_reaches::Class::Ask => crate::v25::ReachClass::Ask,
+        temper_protocol_reaches::Class::AskAway => crate::v25::ReachClass::AskAway,
+        temper_protocol_reaches::Class::Wait => crate::v25::ReachClass::Wait,
     }
 }
 
-// Maps line 131: ReachClass.
-pub fn reach_class_to_domain(record: crate::v25::ReachClass, _context: &crate::records::Context) -> Result<temper_protocol_reaches::Class, crate::v25::Problem> {
+#[must_use]
+pub fn reach_class_to_domain(record: crate::v25::ReachClass) -> temper_protocol_reaches::Class {
     match record {
-        crate::v25::ReachClass::Decide => Ok(temper_protocol_reaches::Class::Decide),
-        crate::v25::ReachClass::Ask => Ok(temper_protocol_reaches::Class::Ask),
-        crate::v25::ReachClass::AskAway => Ok(temper_protocol_reaches::Class::AskAway),
-        crate::v25::ReachClass::Wait => Ok(temper_protocol_reaches::Class::Wait),
+        crate::v25::ReachClass::Decide => temper_protocol_reaches::Class::Decide,
+        crate::v25::ReachClass::Ask => temper_protocol_reaches::Class::Ask,
+        crate::v25::ReachClass::AskAway => temper_protocol_reaches::Class::AskAway,
+        crate::v25::ReachClass::Wait => temper_protocol_reaches::Class::Wait,
     }
 }
 
-// Maps line 133: ReachReason.
-pub fn reach_reason_to_record(value: &temper_protocol_reaches::Reason, _context: &crate::records::Context) -> Result<crate::v25::ReachReason, crate::v25::Problem> {
+#[must_use]
+pub fn reach_reason_to_record(value: &temper_protocol_reaches::Reason) -> crate::v25::ReachReason {
     match value {
-        temper_protocol_reaches::Reason::Kind => Ok(crate::v25::ReachReason::Kind),
-        temper_protocol_reaches::Reason::Set(held) => Ok(crate::v25::ReachReason::Set(crate::v25::ReachSet { number: *held })),
-        temper_protocol_reaches::Reason::Always => Ok(crate::v25::ReachReason::Always),
+        temper_protocol_reaches::Reason::Kind => crate::v25::ReachReason::Kind,
+        temper_protocol_reaches::Reason::Set(held) => crate::v25::ReachReason::Set(crate::v25::ReachSet { number: *held }),
+        temper_protocol_reaches::Reason::Always => crate::v25::ReachReason::Always,
     }
 }
 
-// Maps line 133: ReachReason.
-pub fn reach_reason_to_domain(record: crate::v25::ReachReason, _context: &crate::records::Context) -> Result<temper_protocol_reaches::Reason, crate::v25::Problem> {
+#[must_use]
+pub fn reach_reason_to_domain(record: crate::v25::ReachReason) -> temper_protocol_reaches::Reason {
     match record {
-        crate::v25::ReachReason::Kind => Ok(temper_protocol_reaches::Reason::Kind),
-        crate::v25::ReachReason::Set(held) => Ok(temper_protocol_reaches::Reason::Set({
+        crate::v25::ReachReason::Kind => temper_protocol_reaches::Reason::Kind,
+        crate::v25::ReachReason::Set(held) => temper_protocol_reaches::Reason::Set({
             let crate::v25::ReachSet { number: held } = held;
             held
-        })),
-        crate::v25::ReachReason::Always => Ok(temper_protocol_reaches::Reason::Always),
+        }),
+        crate::v25::ReachReason::Always => temper_protocol_reaches::Reason::Always,
     }
 }
 
-// Maps line 136: NamedCall.
-pub fn named_call_to_record(value: &temper_engine_domain_forge_vocabulary::NamedCall, _context: &crate::records::Context) -> Result<crate::v25::NamedCall, crate::v25::Problem> {
+#[must_use]
+pub fn named_call_to_record(value: &temper_engine_domain_forge_vocabulary::NamedCall) -> crate::v25::NamedCall {
     let temper_engine_domain_forge_vocabulary::NamedCall { task: field_000000, attempt: field_000001, completion: field_000002, position: field_000003 } = value;
-    Ok(crate::v25::NamedCall {
+    crate::v25::NamedCall {
         task: *field_000000,
         attempt: *field_000001,
         completion: *field_000002,
         position: *field_000003
-    })
+    }
 }
 
-// Maps line 136: NamedCall.
-pub fn named_call_to_domain(record: crate::v25::NamedCall, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::NamedCall, crate::v25::Problem> {
+#[must_use]
+pub fn named_call_to_domain(record: crate::v25::NamedCall) -> temper_engine_domain_forge_vocabulary::NamedCall {
     let crate::v25::NamedCall { task: field_000000, attempt: field_000001, completion: field_000002, position: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::NamedCall {
+    temper_engine_domain_forge_vocabulary::NamedCall {
         task: field_000000,
         attempt: field_000001,
         completion: field_000002,
         position: field_000003
-    })
-}
-
-// Maps line 138: LiveWhat.
-pub fn live_what_to_record(value: &skein_forge_client::What, _context: &crate::records::Context) -> Result<crate::v25::LiveWhat, crate::v25::Problem> {
-    match value {
-        skein_forge_client::What::Repository => Ok(crate::v25::LiveWhat::Repository),
-        skein_forge_client::What::Branch(held) => Ok(crate::v25::LiveWhat::Branch(crate::v25::LiveBranch { branch: held.clone() })),
-        skein_forge_client::What::Pull(held) => Ok(crate::v25::LiveWhat::Pull(crate::v25::Number { number: *held })),
-        skein_forge_client::What::Issue(held) => Ok(crate::v25::LiveWhat::Issue(crate::v25::Number { number: *held })),
     }
 }
 
-// Maps line 138: LiveWhat.
-pub fn live_what_to_domain(record: crate::v25::LiveWhat, _context: &crate::records::Context) -> Result<skein_forge_client::What, crate::v25::Problem> {
+#[must_use]
+pub fn live_what_to_record(value: &skein_forge_client::What) -> crate::v25::LiveWhat {
+    match value {
+        skein_forge_client::What::Repository => crate::v25::LiveWhat::Repository,
+        skein_forge_client::What::Branch(held) => crate::v25::LiveWhat::Branch(crate::v25::LiveBranch { branch: held.clone() }),
+        skein_forge_client::What::Pull(held) => crate::v25::LiveWhat::Pull(crate::v25::Number { number: *held }),
+        skein_forge_client::What::Issue(held) => crate::v25::LiveWhat::Issue(crate::v25::Number { number: *held }),
+    }
+}
+
+#[must_use]
+pub fn live_what_to_domain(record: crate::v25::LiveWhat) -> skein_forge_client::What {
     match record {
-        crate::v25::LiveWhat::Repository => Ok(skein_forge_client::What::Repository),
-        crate::v25::LiveWhat::Branch(held) => Ok(skein_forge_client::What::Branch({
+        crate::v25::LiveWhat::Repository => skein_forge_client::What::Repository,
+        crate::v25::LiveWhat::Branch(held) => skein_forge_client::What::Branch({
             let crate::v25::LiveBranch { branch: held } = held;
             held
-        })),
-        crate::v25::LiveWhat::Pull(held) => Ok(skein_forge_client::What::Pull({
+        }),
+        crate::v25::LiveWhat::Pull(held) => skein_forge_client::What::Pull({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::LiveWhat::Issue(held) => Ok(skein_forge_client::What::Issue({
+        }),
+        crate::v25::LiveWhat::Issue(held) => skein_forge_client::What::Issue({
             let crate::v25::Number { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 139: LiveResource.
-pub fn live_resource_to_record(value: &skein_forge_client::Resource, context: &crate::records::Context) -> Result<crate::v25::LiveResource, crate::v25::Problem> {
+#[must_use]
+pub fn live_resource_to_record(value: &skein_forge_client::Resource) -> crate::v25::LiveResource {
     let skein_forge_client::Resource { repository: field_000000, what: field_000001 } = value;
-    Ok(crate::v25::LiveResource {
-        repository: repository_to_record(field_000000, context)?,
-        what: live_what_to_record(field_000001, context)?
-    })
+    crate::v25::LiveResource {
+        repository: repository_to_record(field_000000),
+        what: live_what_to_record(field_000001)
+    }
 }
 
-// Maps line 139: LiveResource.
-pub fn live_resource_to_domain(record: crate::v25::LiveResource, context: &crate::records::Context) -> Result<skein_forge_client::Resource, crate::v25::Problem> {
+#[must_use]
+pub fn live_resource_to_domain(record: crate::v25::LiveResource) -> skein_forge_client::Resource {
     let crate::v25::LiveResource { repository: field_000000, what: field_000001 } = record;
-    Ok(skein_forge_client::Resource {
-        repository: repository_to_domain(field_000000, context)?,
-        what: live_what_to_domain(field_000001, context)?
-    })
+    skein_forge_client::Resource {
+        repository: repository_to_domain(field_000000),
+        what: live_what_to_domain(field_000001)
+    }
 }
 
-// Maps line 140: Watch.
-pub fn watch_to_record(value: &skein_forge_client::Watch, context: &crate::records::Context) -> Result<crate::v25::Watch, crate::v25::Problem> {
+#[must_use]
+pub fn watch_to_record(value: &skein_forge_client::Watch) -> crate::v25::Watch {
     let skein_forge_client::Watch { resource: field_000000, participating: field_000001 } = value;
-    Ok(crate::v25::Watch {
-        resource: live_resource_to_record(field_000000, context)?,
+    crate::v25::Watch {
+        resource: live_resource_to_record(field_000000),
         participating: *field_000001
-    })
+    }
 }
 
-// Maps line 140: Watch.
-pub fn watch_to_domain(record: crate::v25::Watch, context: &crate::records::Context) -> Result<skein_forge_client::Watch, crate::v25::Problem> {
+#[must_use]
+pub fn watch_to_domain(record: crate::v25::Watch) -> skein_forge_client::Watch {
     let crate::v25::Watch { resource: field_000000, participating: field_000001 } = record;
-    Ok(skein_forge_client::Watch {
-        resource: live_resource_to_domain(field_000000, context)?,
+    skein_forge_client::Watch {
+        resource: live_resource_to_domain(field_000000),
         participating: field_000001
-    })
+    }
 }
 
-// Maps line 141: Delivery.
-pub fn delivery_to_record(value: &skein_forge_client::Delivery, _context: &crate::records::Context) -> Result<crate::v25::Delivery, crate::v25::Problem> {
+#[must_use]
+pub fn delivery_to_record(value: &skein_forge_client::Delivery) -> crate::v25::Delivery {
     let skein_forge_client::Delivery { id: field_000000, revision: field_000001 } = value;
-    Ok(crate::v25::Delivery {
+    crate::v25::Delivery {
         id: *field_000000,
         revision: *field_000001
-    })
+    }
 }
 
-// Maps line 141: Delivery.
-pub fn delivery_to_domain(record: crate::v25::Delivery, _context: &crate::records::Context) -> Result<skein_forge_client::Delivery, crate::v25::Problem> {
+#[must_use]
+pub fn delivery_to_domain(record: crate::v25::Delivery) -> skein_forge_client::Delivery {
     let crate::v25::Delivery { id: field_000000, revision: field_000001 } = record;
-    Ok(skein_forge_client::Delivery {
+    skein_forge_client::Delivery {
         id: field_000000,
         revision: field_000001
-    })
+    }
 }
 
-// Maps line 142: Echo.
-pub fn echo_to_record(value: &skein_forge_client::Echo, _context: &crate::records::Context) -> Result<crate::v25::Echo, crate::v25::Problem> {
+#[must_use]
+pub fn echo_to_record(value: &skein_forge_client::Echo) -> crate::v25::Echo {
     match value {
-        skein_forge_client::Echo::Comment(held) => Ok(crate::v25::Echo::Comment(crate::v25::Number { number: *held })),
-        skein_forge_client::Echo::Review(held) => Ok(crate::v25::Echo::Review(crate::v25::Number { number: *held })),
+        skein_forge_client::Echo::Comment(held) => crate::v25::Echo::Comment(crate::v25::Number { number: *held }),
+        skein_forge_client::Echo::Review(held) => crate::v25::Echo::Review(crate::v25::Number { number: *held }),
     }
 }
 
-// Maps line 142: Echo.
-pub fn echo_to_domain(record: crate::v25::Echo, _context: &crate::records::Context) -> Result<skein_forge_client::Echo, crate::v25::Problem> {
+#[must_use]
+pub fn echo_to_domain(record: crate::v25::Echo) -> skein_forge_client::Echo {
     match record {
-        crate::v25::Echo::Comment(held) => Ok(skein_forge_client::Echo::Comment({
+        crate::v25::Echo::Comment(held) => skein_forge_client::Echo::Comment({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::Echo::Review(held) => Ok(skein_forge_client::Echo::Review({
+        }),
+        crate::v25::Echo::Review(held) => skein_forge_client::Echo::Review({
             let crate::v25::Number { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 143: Cached.
-pub fn cached_to_record(value: &skein_forge_client::Cached, context: &crate::records::Context) -> Result<crate::v25::Cached, crate::v25::Problem> {
+#[must_use]
+pub fn cached_to_record(value: &skein_forge_client::Cached) -> crate::v25::Cached {
     let skein_forge_client::Cached { item: field_000000, pull: field_000001, tip: field_000002 } = value;
-    Ok(crate::v25::Cached {
+    crate::v25::Cached {
         item: match field_000000 {
-            Some(item) => Some(crate::records::by_hand::summary_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::summary_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         pull: match field_000001 {
-            Some(item) => Some(crate::records::by_hand::pull_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::pull_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         tip: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 143: Cached.
 pub fn cached_to_domain(record: crate::v25::Cached, context: &crate::records::Context) -> Result<skein_forge_client::Cached, crate::v25::Problem> {
     let crate::v25::Cached { item: field_000000, pull: field_000001, tip: field_000002 } = record;
     Ok(skein_forge_client::Cached {
         item: match field_000000 {
-            Some(item) => Some(crate::records::by_hand::summary_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::summary_to_domain(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
         pull: match field_000001 {
-            Some(item) => Some(crate::records::by_hand::pull_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::pull_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         tip: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 144: LiveRecord.
-pub fn live_record_to_record(value: &skein_forge_client::LiveRecord, context: &crate::records::Context) -> Result<crate::v25::LiveRecord, crate::v25::Problem> {
+pub fn live_record_to_record(value: &skein_forge_client::LiveRecord) -> Result<crate::v25::LiveRecord, crate::v25::Problem> {
     let skein_forge_client::LiveRecord { watch: field_000000, position: field_000001, listed: field_000002, comment_after: field_000003, comment_page: field_000004, comment_scanning: field_000005, comment_repair: field_000006, review_page: field_000007, comments: field_000008, reviews: field_000009, cached: field_000010, pushed: field_000011, echoes: field_000012 } = value;
     Ok(crate::v25::LiveRecord {
-        watch: watch_to_record(field_000000, context)?,
-        position: position_to_record(field_000001, context)?,
-        listed: match skein_codec::convert::time_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LIVE_RECORD_LISTED.problem(reason)) },
+        watch: watch_to_record(field_000000),
+        position: position_to_record(field_000001),
+        listed: skein_codec::convert::time_to_record(field_000002),
         comment_after: *field_000003,
         comment_page: *field_000004,
         comment_scanning: *field_000005,
@@ -1631,8 +1769,8 @@ pub fn live_record_to_record(value: &skein_forge_client::LiveRecord, context: &c
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LIVE_RECORD_COMMENTS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = delivery_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LIVE_RECORD_COMMENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = delivery_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -1641,14 +1779,17 @@ pub fn live_record_to_record(value: &skein_forge_client::LiveRecord, context: &c
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LIVE_RECORD_REVIEWS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = delivery_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LIVE_RECORD_REVIEWS.problem(skein_codec::Reason::Bound)); }
+                let converted = delivery_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        cached: cached_to_record(field_000010, context)?,
+        cached: cached_to_record(field_000010),
         pushed: match field_000011 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         echoes: {
@@ -1656,21 +1797,20 @@ pub fn live_record_to_record(value: &skein_forge_client::LiveRecord, context: &c
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LIVE_RECORD_ECHOES.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = echo_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LIVE_RECORD_ECHOES.problem(skein_codec::Reason::Bound)); }
+                let converted = echo_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 144: LiveRecord.
 pub fn live_record_to_domain(record: crate::v25::LiveRecord, context: &crate::records::Context) -> Result<skein_forge_client::LiveRecord, crate::v25::Problem> {
     let crate::v25::LiveRecord { watch: field_000000, position: field_000001, listed: field_000002, comment_after: field_000003, comment_page: field_000004, comment_scanning: field_000005, comment_repair: field_000006, review_page: field_000007, comments: field_000008, reviews: field_000009, cached: field_000010, pushed: field_000011, echoes: field_000012 } = record;
     Ok(skein_forge_client::LiveRecord {
-        watch: watch_to_domain(field_000000, context)?,
-        position: position_to_domain(field_000001, context)?,
-        listed: match skein_codec::convert::time_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LIVE_RECORD_LISTED.problem(reason)) },
+        watch: watch_to_domain(field_000000),
+        position: position_to_domain(field_000001),
+        listed: skein_codec::convert::time_to_domain(field_000002),
         comment_after: field_000003,
         comment_page: field_000004,
         comment_scanning: field_000005,
@@ -1681,8 +1821,8 @@ pub fn live_record_to_domain(record: crate::v25::LiveRecord, context: &crate::re
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = delivery_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LIVE_RECORD_COMMENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = delivery_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -1691,14 +1831,17 @@ pub fn live_record_to_domain(record: crate::v25::LiveRecord, context: &crate::re
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = delivery_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LIVE_RECORD_REVIEWS.problem(skein_codec::Reason::Bound)); }
+                let converted = delivery_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         cached: Box::new(cached_to_domain(field_000010, context)?),
         pushed: match field_000011 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         echoes: {
@@ -1706,788 +1849,828 @@ pub fn live_record_to_domain(record: crate::v25::LiveRecord, context: &crate::re
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = echo_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LIVE_RECORD_ECHOES.problem(skein_codec::Reason::Bound)); }
+                let converted = echo_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
     })
 }
 
-// Maps line 145: RepositoryRecord.
-pub fn repository_record_to_record(value: &skein_forge_client::RepositoryRecord, context: &crate::records::Context) -> Result<crate::v25::RepositoryRecord, crate::v25::Problem> {
+#[must_use]
+pub fn repository_record_to_record(value: &skein_forge_client::RepositoryRecord) -> crate::v25::RepositoryRecord {
     let skein_forge_client::RepositoryRecord { repository: field_000000, mark: field_000001, clock: field_000002 } = value;
-    Ok(crate::v25::RepositoryRecord {
-        repository: repository_to_record(field_000000, context)?,
+    crate::v25::RepositoryRecord {
+        repository: repository_to_record(field_000000),
         mark: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::time_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REPOSITORY_RECORD_MARK.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        clock: match skein_codec::convert::time_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REPOSITORY_RECORD_CLOCK.problem(reason)) }
-    })
+        clock: skein_codec::convert::time_to_record(field_000002)
+    }
 }
 
-// Maps line 145: RepositoryRecord.
-pub fn repository_record_to_domain(record: crate::v25::RepositoryRecord, context: &crate::records::Context) -> Result<skein_forge_client::RepositoryRecord, crate::v25::Problem> {
+#[must_use]
+pub fn repository_record_to_domain(record: crate::v25::RepositoryRecord) -> skein_forge_client::RepositoryRecord {
     let crate::v25::RepositoryRecord { repository: field_000000, mark: field_000001, clock: field_000002 } = record;
-    Ok(skein_forge_client::RepositoryRecord {
-        repository: repository_to_domain(field_000000, context)?,
+    skein_forge_client::RepositoryRecord {
+        repository: repository_to_domain(field_000000),
         mark: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::time_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REPOSITORY_RECORD_MARK.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        clock: match skein_codec::convert::time_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REPOSITORY_RECORD_CLOCK.problem(reason)) }
-    })
+        clock: skein_codec::convert::time_to_domain(field_000002)
+    }
 }
 
-// Maps line 148: ChangeStatus.
-pub fn change_status_to_record(value: &temper_engine_domain_forge_change::Status, _context: &crate::records::Context) -> Result<crate::v25::ChangeStatus, crate::v25::Problem> {
+#[must_use]
+pub fn change_status_to_record(value: &temper_engine_domain_forge_change::Status) -> crate::v25::ChangeStatus {
     match value {
-        temper_engine_domain_forge_change::Status::Unknown => Ok(crate::v25::ChangeStatus::Unknown),
-        temper_engine_domain_forge_change::Status::Pending => Ok(crate::v25::ChangeStatus::Pending),
-        temper_engine_domain_forge_change::Status::Passed => Ok(crate::v25::ChangeStatus::Passed),
-        temper_engine_domain_forge_change::Status::Failed => Ok(crate::v25::ChangeStatus::Failed),
+        temper_engine_domain_forge_change::Status::Unknown => crate::v25::ChangeStatus::Unknown,
+        temper_engine_domain_forge_change::Status::Pending => crate::v25::ChangeStatus::Pending,
+        temper_engine_domain_forge_change::Status::Passed => crate::v25::ChangeStatus::Passed,
+        temper_engine_domain_forge_change::Status::Failed => crate::v25::ChangeStatus::Failed,
     }
 }
 
-// Maps line 148: ChangeStatus.
-pub fn change_status_to_domain(record: crate::v25::ChangeStatus, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Status, crate::v25::Problem> {
+#[must_use]
+pub fn change_status_to_domain(record: crate::v25::ChangeStatus) -> temper_engine_domain_forge_change::Status {
     match record {
-        crate::v25::ChangeStatus::Unknown => Ok(temper_engine_domain_forge_change::Status::Unknown),
-        crate::v25::ChangeStatus::Pending => Ok(temper_engine_domain_forge_change::Status::Pending),
-        crate::v25::ChangeStatus::Passed => Ok(temper_engine_domain_forge_change::Status::Passed),
-        crate::v25::ChangeStatus::Failed => Ok(temper_engine_domain_forge_change::Status::Failed),
+        crate::v25::ChangeStatus::Unknown => temper_engine_domain_forge_change::Status::Unknown,
+        crate::v25::ChangeStatus::Pending => temper_engine_domain_forge_change::Status::Pending,
+        crate::v25::ChangeStatus::Passed => temper_engine_domain_forge_change::Status::Passed,
+        crate::v25::ChangeStatus::Failed => temper_engine_domain_forge_change::Status::Failed,
     }
 }
 
-// Maps line 149: Freshness.
-pub fn freshness_to_record(value: &temper_engine_domain_forge_change::Freshness, _context: &crate::records::Context) -> Result<crate::v25::Freshness, crate::v25::Problem> {
+#[must_use]
+pub fn freshness_to_record(value: &temper_engine_domain_forge_change::Freshness) -> crate::v25::Freshness {
     match value {
-        temper_engine_domain_forge_change::Freshness::Exact => Ok(crate::v25::Freshness::Exact),
-        temper_engine_domain_forge_change::Freshness::Clean => Ok(crate::v25::Freshness::Clean),
+        temper_engine_domain_forge_change::Freshness::Exact => crate::v25::Freshness::Exact,
+        temper_engine_domain_forge_change::Freshness::Clean => crate::v25::Freshness::Clean,
     }
 }
 
-// Maps line 149: Freshness.
-pub fn freshness_to_domain(record: crate::v25::Freshness, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Freshness, crate::v25::Problem> {
+#[must_use]
+pub fn freshness_to_domain(record: crate::v25::Freshness) -> temper_engine_domain_forge_change::Freshness {
     match record {
-        crate::v25::Freshness::Exact => Ok(temper_engine_domain_forge_change::Freshness::Exact),
-        crate::v25::Freshness::Clean => Ok(temper_engine_domain_forge_change::Freshness::Clean),
+        crate::v25::Freshness::Exact => temper_engine_domain_forge_change::Freshness::Exact,
+        crate::v25::Freshness::Clean => temper_engine_domain_forge_change::Freshness::Clean,
     }
 }
 
-// Maps line 150: GateKind.
-pub fn gate_kind_to_record(value: &temper_engine_domain_forge_change::GateKind, _context: &crate::records::Context) -> Result<crate::v25::GateKind, crate::v25::Problem> {
+#[must_use]
+pub fn gate_kind_to_record(value: &temper_engine_domain_forge_change::GateKind) -> crate::v25::GateKind {
     match value {
-        temper_engine_domain_forge_change::GateKind::Agent => Ok(crate::v25::GateKind::Agent),
-        temper_engine_domain_forge_change::GateKind::Person => Ok(crate::v25::GateKind::Person),
-        temper_engine_domain_forge_change::GateKind::Check => Ok(crate::v25::GateKind::Check),
-        temper_engine_domain_forge_change::GateKind::Follow => Ok(crate::v25::GateKind::Follow),
+        temper_engine_domain_forge_change::GateKind::Agent => crate::v25::GateKind::Agent,
+        temper_engine_domain_forge_change::GateKind::Person => crate::v25::GateKind::Person,
+        temper_engine_domain_forge_change::GateKind::Check => crate::v25::GateKind::Check,
+        temper_engine_domain_forge_change::GateKind::Follow => crate::v25::GateKind::Follow,
     }
 }
 
-// Maps line 150: GateKind.
-pub fn gate_kind_to_domain(record: crate::v25::GateKind, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::GateKind, crate::v25::Problem> {
+#[must_use]
+pub fn gate_kind_to_domain(record: crate::v25::GateKind) -> temper_engine_domain_forge_change::GateKind {
     match record {
-        crate::v25::GateKind::Agent => Ok(temper_engine_domain_forge_change::GateKind::Agent),
-        crate::v25::GateKind::Person => Ok(temper_engine_domain_forge_change::GateKind::Person),
-        crate::v25::GateKind::Check => Ok(temper_engine_domain_forge_change::GateKind::Check),
-        crate::v25::GateKind::Follow => Ok(temper_engine_domain_forge_change::GateKind::Follow),
+        crate::v25::GateKind::Agent => temper_engine_domain_forge_change::GateKind::Agent,
+        crate::v25::GateKind::Person => temper_engine_domain_forge_change::GateKind::Person,
+        crate::v25::GateKind::Check => temper_engine_domain_forge_change::GateKind::Check,
+        crate::v25::GateKind::Follow => temper_engine_domain_forge_change::GateKind::Follow,
     }
 }
 
-// Maps line 151: AuthorityLack.
-pub fn authority_lack_to_record(value: &temper_engine_domain_forge_change::AuthorityLack, _context: &crate::records::Context) -> Result<crate::v25::AuthorityLack, crate::v25::Problem> {
+#[must_use]
+pub fn authority_lack_to_record(value: &temper_engine_domain_forge_change::AuthorityLack) -> crate::v25::AuthorityLack {
     match value {
-        temper_engine_domain_forge_change::AuthorityLack::Tasks => Ok(crate::v25::AuthorityLack::Tasks),
-        temper_engine_domain_forge_change::AuthorityLack::Depth => Ok(crate::v25::AuthorityLack::Depth),
-        temper_engine_domain_forge_change::AuthorityLack::Spend => Ok(crate::v25::AuthorityLack::Spend),
+        temper_engine_domain_forge_change::AuthorityLack::Tasks => crate::v25::AuthorityLack::Tasks,
+        temper_engine_domain_forge_change::AuthorityLack::Depth => crate::v25::AuthorityLack::Depth,
+        temper_engine_domain_forge_change::AuthorityLack::Spend => crate::v25::AuthorityLack::Spend,
     }
 }
 
-// Maps line 151: AuthorityLack.
-pub fn authority_lack_to_domain(record: crate::v25::AuthorityLack, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::AuthorityLack, crate::v25::Problem> {
+#[must_use]
+pub fn authority_lack_to_domain(record: crate::v25::AuthorityLack) -> temper_engine_domain_forge_change::AuthorityLack {
     match record {
-        crate::v25::AuthorityLack::Tasks => Ok(temper_engine_domain_forge_change::AuthorityLack::Tasks),
-        crate::v25::AuthorityLack::Depth => Ok(temper_engine_domain_forge_change::AuthorityLack::Depth),
-        crate::v25::AuthorityLack::Spend => Ok(temper_engine_domain_forge_change::AuthorityLack::Spend),
+        crate::v25::AuthorityLack::Tasks => temper_engine_domain_forge_change::AuthorityLack::Tasks,
+        crate::v25::AuthorityLack::Depth => temper_engine_domain_forge_change::AuthorityLack::Depth,
+        crate::v25::AuthorityLack::Spend => temper_engine_domain_forge_change::AuthorityLack::Spend,
     }
 }
 
-// Maps line 153: ChangeHold.
-pub fn change_hold_to_record(value: &temper_engine_domain_forge_change::Hold, context: &crate::records::Context) -> Result<crate::v25::ChangeHold, crate::v25::Problem> {
+#[must_use]
+pub fn change_hold_to_record(value: &temper_engine_domain_forge_change::Hold) -> crate::v25::ChangeHold {
     match value {
-        temper_engine_domain_forge_change::Hold::Stalled => Ok(crate::v25::ChangeHold::Stalled),
-        temper_engine_domain_forge_change::Hold::Repairs => Ok(crate::v25::ChangeHold::Repairs),
-        temper_engine_domain_forge_change::Hold::Resolutions => Ok(crate::v25::ChangeHold::Resolutions),
-        temper_engine_domain_forge_change::Hold::Updates => Ok(crate::v25::ChangeHold::Updates),
-        temper_engine_domain_forge_change::Hold::BranchMoved => Ok(crate::v25::ChangeHold::BranchMoved),
-        temper_engine_domain_forge_change::Hold::BranchMissing => Ok(crate::v25::ChangeHold::BranchMissing),
-        temper_engine_domain_forge_change::Hold::PullClosed => Ok(crate::v25::ChangeHold::PullClosed),
-        temper_engine_domain_forge_change::Hold::Retargeted => Ok(crate::v25::ChangeHold::Retargeted),
-        temper_engine_domain_forge_change::Hold::Failed => Ok(crate::v25::ChangeHold::Failed),
-        temper_engine_domain_forge_change::Hold::Rejected => Ok(crate::v25::ChangeHold::Rejected),
-        temper_engine_domain_forge_change::Hold::Authority(held) => Ok(crate::v25::ChangeHold::Authority(crate::records::by_hand::authority_hold_to_record(held, context)?)),
-        temper_engine_domain_forge_change::Hold::Questions => Ok(crate::v25::ChangeHold::Questions),
-        temper_engine_domain_forge_change::Hold::Flake => Ok(crate::v25::ChangeHold::Flake),
-        temper_engine_domain_forge_change::Hold::NoTest => Ok(crate::v25::ChangeHold::NoTest),
+        temper_engine_domain_forge_change::Hold::Stalled => crate::v25::ChangeHold::Stalled,
+        temper_engine_domain_forge_change::Hold::Repairs => crate::v25::ChangeHold::Repairs,
+        temper_engine_domain_forge_change::Hold::Resolutions => crate::v25::ChangeHold::Resolutions,
+        temper_engine_domain_forge_change::Hold::Updates => crate::v25::ChangeHold::Updates,
+        temper_engine_domain_forge_change::Hold::BranchMoved => crate::v25::ChangeHold::BranchMoved,
+        temper_engine_domain_forge_change::Hold::BranchMissing => crate::v25::ChangeHold::BranchMissing,
+        temper_engine_domain_forge_change::Hold::PullClosed => crate::v25::ChangeHold::PullClosed,
+        temper_engine_domain_forge_change::Hold::Retargeted => crate::v25::ChangeHold::Retargeted,
+        temper_engine_domain_forge_change::Hold::Failed => crate::v25::ChangeHold::Failed,
+        temper_engine_domain_forge_change::Hold::Rejected => crate::v25::ChangeHold::Rejected,
+        temper_engine_domain_forge_change::Hold::Authority(held) => crate::v25::ChangeHold::Authority(crate::records::by_hand::authority_hold_to_record(held)),
+        temper_engine_domain_forge_change::Hold::Questions => crate::v25::ChangeHold::Questions,
+        temper_engine_domain_forge_change::Hold::Flake => crate::v25::ChangeHold::Flake,
+        temper_engine_domain_forge_change::Hold::NoTest => crate::v25::ChangeHold::NoTest,
     }
 }
 
-// Maps line 153: ChangeHold.
-pub fn change_hold_to_domain(record: crate::v25::ChangeHold, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Hold, crate::v25::Problem> {
+#[must_use]
+pub fn change_hold_to_domain(record: crate::v25::ChangeHold) -> temper_engine_domain_forge_change::Hold {
     match record {
-        crate::v25::ChangeHold::Stalled => Ok(temper_engine_domain_forge_change::Hold::Stalled),
-        crate::v25::ChangeHold::Repairs => Ok(temper_engine_domain_forge_change::Hold::Repairs),
-        crate::v25::ChangeHold::Resolutions => Ok(temper_engine_domain_forge_change::Hold::Resolutions),
-        crate::v25::ChangeHold::Updates => Ok(temper_engine_domain_forge_change::Hold::Updates),
-        crate::v25::ChangeHold::BranchMoved => Ok(temper_engine_domain_forge_change::Hold::BranchMoved),
-        crate::v25::ChangeHold::BranchMissing => Ok(temper_engine_domain_forge_change::Hold::BranchMissing),
-        crate::v25::ChangeHold::PullClosed => Ok(temper_engine_domain_forge_change::Hold::PullClosed),
-        crate::v25::ChangeHold::Retargeted => Ok(temper_engine_domain_forge_change::Hold::Retargeted),
-        crate::v25::ChangeHold::Failed => Ok(temper_engine_domain_forge_change::Hold::Failed),
-        crate::v25::ChangeHold::Rejected => Ok(temper_engine_domain_forge_change::Hold::Rejected),
-        crate::v25::ChangeHold::Authority(held) => Ok(temper_engine_domain_forge_change::Hold::Authority(crate::records::by_hand::authority_hold_to_domain(held, context)?)),
-        crate::v25::ChangeHold::Questions => Ok(temper_engine_domain_forge_change::Hold::Questions),
-        crate::v25::ChangeHold::Flake => Ok(temper_engine_domain_forge_change::Hold::Flake),
-        crate::v25::ChangeHold::NoTest => Ok(temper_engine_domain_forge_change::Hold::NoTest),
+        crate::v25::ChangeHold::Stalled => temper_engine_domain_forge_change::Hold::Stalled,
+        crate::v25::ChangeHold::Repairs => temper_engine_domain_forge_change::Hold::Repairs,
+        crate::v25::ChangeHold::Resolutions => temper_engine_domain_forge_change::Hold::Resolutions,
+        crate::v25::ChangeHold::Updates => temper_engine_domain_forge_change::Hold::Updates,
+        crate::v25::ChangeHold::BranchMoved => temper_engine_domain_forge_change::Hold::BranchMoved,
+        crate::v25::ChangeHold::BranchMissing => temper_engine_domain_forge_change::Hold::BranchMissing,
+        crate::v25::ChangeHold::PullClosed => temper_engine_domain_forge_change::Hold::PullClosed,
+        crate::v25::ChangeHold::Retargeted => temper_engine_domain_forge_change::Hold::Retargeted,
+        crate::v25::ChangeHold::Failed => temper_engine_domain_forge_change::Hold::Failed,
+        crate::v25::ChangeHold::Rejected => temper_engine_domain_forge_change::Hold::Rejected,
+        crate::v25::ChangeHold::Authority(held) => temper_engine_domain_forge_change::Hold::Authority(crate::records::by_hand::authority_hold_to_domain(held)),
+        crate::v25::ChangeHold::Questions => temper_engine_domain_forge_change::Hold::Questions,
+        crate::v25::ChangeHold::Flake => temper_engine_domain_forge_change::Hold::Flake,
+        crate::v25::ChangeHold::NoTest => temper_engine_domain_forge_change::Hold::NoTest,
     }
 }
 
-// Maps line 154: EffectResult.
-pub fn effect_result_to_record(value: &temper_engine_domain_forge_change::EffectResult, _context: &crate::records::Context) -> Result<crate::v25::EffectResult, crate::v25::Problem> {
+#[must_use]
+pub fn effect_result_to_record(value: &temper_engine_domain_forge_change::EffectResult) -> crate::v25::EffectResult {
     match value {
-        temper_engine_domain_forge_change::EffectResult::None => Ok(crate::v25::EffectResult::None),
-        temper_engine_domain_forge_change::EffectResult::Pending => Ok(crate::v25::EffectResult::Pending),
-        temper_engine_domain_forge_change::EffectResult::Made => Ok(crate::v25::EffectResult::Made),
-        temper_engine_domain_forge_change::EffectResult::Conflict => Ok(crate::v25::EffectResult::Conflict),
-        temper_engine_domain_forge_change::EffectResult::Failed => Ok(crate::v25::EffectResult::Failed),
-        temper_engine_domain_forge_change::EffectResult::Stale => Ok(crate::v25::EffectResult::Stale),
+        temper_engine_domain_forge_change::EffectResult::None => crate::v25::EffectResult::None,
+        temper_engine_domain_forge_change::EffectResult::Pending => crate::v25::EffectResult::Pending,
+        temper_engine_domain_forge_change::EffectResult::Made => crate::v25::EffectResult::Made,
+        temper_engine_domain_forge_change::EffectResult::Conflict => crate::v25::EffectResult::Conflict,
+        temper_engine_domain_forge_change::EffectResult::Failed => crate::v25::EffectResult::Failed,
+        temper_engine_domain_forge_change::EffectResult::Stale => crate::v25::EffectResult::Stale,
     }
 }
 
-// Maps line 154: EffectResult.
-pub fn effect_result_to_domain(record: crate::v25::EffectResult, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::EffectResult, crate::v25::Problem> {
+#[must_use]
+pub fn effect_result_to_domain(record: crate::v25::EffectResult) -> temper_engine_domain_forge_change::EffectResult {
     match record {
-        crate::v25::EffectResult::None => Ok(temper_engine_domain_forge_change::EffectResult::None),
-        crate::v25::EffectResult::Pending => Ok(temper_engine_domain_forge_change::EffectResult::Pending),
-        crate::v25::EffectResult::Made => Ok(temper_engine_domain_forge_change::EffectResult::Made),
-        crate::v25::EffectResult::Conflict => Ok(temper_engine_domain_forge_change::EffectResult::Conflict),
-        crate::v25::EffectResult::Failed => Ok(temper_engine_domain_forge_change::EffectResult::Failed),
-        crate::v25::EffectResult::Stale => Ok(temper_engine_domain_forge_change::EffectResult::Stale),
+        crate::v25::EffectResult::None => temper_engine_domain_forge_change::EffectResult::None,
+        crate::v25::EffectResult::Pending => temper_engine_domain_forge_change::EffectResult::Pending,
+        crate::v25::EffectResult::Made => temper_engine_domain_forge_change::EffectResult::Made,
+        crate::v25::EffectResult::Conflict => temper_engine_domain_forge_change::EffectResult::Conflict,
+        crate::v25::EffectResult::Failed => temper_engine_domain_forge_change::EffectResult::Failed,
+        crate::v25::EffectResult::Stale => temper_engine_domain_forge_change::EffectResult::Stale,
     }
 }
 
-// Maps line 156: LandedBelow.
-pub fn landed_below_to_record(value: &temper_engine_domain_forge_change::Landed, _context: &crate::records::Context) -> Result<crate::v25::LandedBelow, crate::v25::Problem> {
+#[must_use]
+pub fn landed_below_to_record(value: &temper_engine_domain_forge_change::Landed) -> crate::v25::LandedBelow {
     let temper_engine_domain_forge_change::Landed { change: field_000000, pull: field_000001 } = value;
-    Ok(crate::v25::LandedBelow {
+    crate::v25::LandedBelow {
         change: *field_000000,
         pull: *field_000001
-    })
+    }
 }
 
-// Maps line 156: LandedBelow.
-pub fn landed_below_to_domain(record: crate::v25::LandedBelow, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Landed, crate::v25::Problem> {
+#[must_use]
+pub fn landed_below_to_domain(record: crate::v25::LandedBelow) -> temper_engine_domain_forge_change::Landed {
     let crate::v25::LandedBelow { change: field_000000, pull: field_000001 } = record;
-    Ok(temper_engine_domain_forge_change::Landed {
+    temper_engine_domain_forge_change::Landed {
         change: field_000000,
         pull: field_000001
-    })
+    }
 }
 
-// Maps line 159: Repair.
-pub fn repair_to_record(value: &temper_engine_domain_forge_change::Repair, context: &crate::records::Context) -> Result<crate::v25::Repair, crate::v25::Problem> {
+#[must_use]
+pub fn repair_to_record(value: &temper_engine_domain_forge_change::Repair) -> crate::v25::Repair {
     match value {
-        temper_engine_domain_forge_change::Repair::Ci => Ok(crate::v25::Repair::Ci),
-        temper_engine_domain_forge_change::Repair::Gate(held) => Ok(crate::v25::Repair::Gate(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_change::Repair::Semantic => Ok(crate::v25::Repair::Semantic),
-        temper_engine_domain_forge_change::Repair::Landing { gate: field_000000 } => Ok(crate::v25::Repair::Landing(crate::v25::LandingRepair {
+        temper_engine_domain_forge_change::Repair::Ci => crate::v25::Repair::Ci,
+        temper_engine_domain_forge_change::Repair::Gate(held) => crate::v25::Repair::Gate(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_change::Repair::Semantic => crate::v25::Repair::Semantic,
+        temper_engine_domain_forge_change::Repair::Landing { gate: field_000000 } => crate::v25::Repair::Landing(crate::v25::LandingRepair {
             gate: *field_000000
-        })),
-        temper_engine_domain_forge_change::Repair::Review { head: field_000000 } => Ok(crate::v25::Repair::Review(crate::v25::Commit {
+        }),
+        temper_engine_domain_forge_change::Repair::Review { head: field_000000 } => crate::v25::Repair::Review(crate::v25::Commit {
             commit: *field_000000
-        })),
-        temper_engine_domain_forge_change::Repair::LandingAt { gate: field_000000, candidate: field_000001, below: field_000002 } => Ok(crate::v25::Repair::LandingAt(crate::v25::LandingRepairAt {
+        }),
+        temper_engine_domain_forge_change::Repair::LandingAt { gate: field_000000, candidate: field_000001, below: field_000002 } => crate::v25::Repair::LandingAt(crate::v25::LandingRepairAt {
             gate: *field_000000,
             candidate: *field_000001,
             below: match field_000002 {
-                Some(item) => Some(crate::records::by_hand::landing_below_to_record(item, context)?),
+                Some(item) => {
+                    let converted = crate::records::by_hand::landing_below_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
+        }),
     }
 }
 
-// Maps line 159: Repair.
-pub fn repair_to_domain(record: crate::v25::Repair, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Repair, crate::v25::Problem> {
+#[must_use]
+pub fn repair_to_domain(record: crate::v25::Repair) -> temper_engine_domain_forge_change::Repair {
     match record {
-        crate::v25::Repair::Ci => Ok(temper_engine_domain_forge_change::Repair::Ci),
-        crate::v25::Repair::Gate(held) => Ok(temper_engine_domain_forge_change::Repair::Gate({
+        crate::v25::Repair::Ci => temper_engine_domain_forge_change::Repair::Ci,
+        crate::v25::Repair::Gate(held) => temper_engine_domain_forge_change::Repair::Gate({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::Repair::Semantic => Ok(temper_engine_domain_forge_change::Repair::Semantic),
+        }),
+        crate::v25::Repair::Semantic => temper_engine_domain_forge_change::Repair::Semantic,
         crate::v25::Repair::Landing(held) => {
             let crate::v25::LandingRepair { gate: field_000000 } = held;
-            Ok(temper_engine_domain_forge_change::Repair::Landing {
+            temper_engine_domain_forge_change::Repair::Landing {
                 gate: field_000000
-            })
+            }
         },
         crate::v25::Repair::Review(held) => {
             let crate::v25::Commit { commit: field_000000 } = held;
-            Ok(temper_engine_domain_forge_change::Repair::Review {
+            temper_engine_domain_forge_change::Repair::Review {
                 head: field_000000
-            })
+            }
         },
         crate::v25::Repair::LandingAt(held) => {
             let crate::v25::LandingRepairAt { gate: field_000000, candidate: field_000001, below: field_000002 } = held;
-            Ok(temper_engine_domain_forge_change::Repair::LandingAt {
+            temper_engine_domain_forge_change::Repair::LandingAt {
                 gate: field_000000,
                 candidate: field_000001,
                 below: match field_000002 {
-                    Some(item) => Some(crate::records::by_hand::landing_below_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = crate::records::by_hand::landing_below_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
     }
 }
 
-// Maps line 163: Delegate.
-pub fn delegate_to_record(value: &temper_engine_domain_forge_change::Delegate, context: &crate::records::Context) -> Result<crate::v25::Delegate, crate::v25::Problem> {
+#[must_use]
+pub fn delegate_to_record(value: &temper_engine_domain_forge_change::Delegate) -> crate::v25::Delegate {
     match value {
-        temper_engine_domain_forge_change::Delegate::Produce => Ok(crate::v25::Delegate::Produce),
-        temper_engine_domain_forge_change::Delegate::Repair(held) => Ok(crate::v25::Delegate::Repair(crate::v25::RepairValue { why: repair_to_record(held, context)? })),
-        temper_engine_domain_forge_change::Delegate::Resolve { base: field_000000 } => Ok(crate::v25::Delegate::Resolve(crate::v25::Commit {
+        temper_engine_domain_forge_change::Delegate::Produce => crate::v25::Delegate::Produce,
+        temper_engine_domain_forge_change::Delegate::Repair(held) => crate::v25::Delegate::Repair(crate::v25::RepairValue { why: repair_to_record(held) }),
+        temper_engine_domain_forge_change::Delegate::Resolve { base: field_000000 } => crate::v25::Delegate::Resolve(crate::v25::Commit {
             commit: *field_000000
-        })),
-        temper_engine_domain_forge_change::Delegate::Gate { number: field_000000, head: field_000001 } => Ok(crate::v25::Delegate::Gate(crate::v25::DelegateGate {
+        }),
+        temper_engine_domain_forge_change::Delegate::Gate { number: field_000000, head: field_000001 } => crate::v25::Delegate::Gate(crate::v25::DelegateGate {
             number: *field_000000,
             head: *field_000001
-        })),
-        temper_engine_domain_forge_change::Delegate::Merge { base: field_000000, from: field_000001 } => Ok(crate::v25::Delegate::Merge(crate::v25::MergeDelegate {
+        }),
+        temper_engine_domain_forge_change::Delegate::Merge { base: field_000000, from: field_000001 } => crate::v25::Delegate::Merge(crate::v25::MergeDelegate {
             base: crate::v25::Commit { commit: *field_000000 },
             from: match field_000001 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_change::Delegate::Close => Ok(crate::v25::Delegate::Close),
+        }),
+        temper_engine_domain_forge_change::Delegate::Close => crate::v25::Delegate::Close,
     }
 }
 
-// Maps line 163: Delegate.
-pub fn delegate_to_domain(record: crate::v25::Delegate, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Delegate, crate::v25::Problem> {
+#[must_use]
+pub fn delegate_to_domain(record: crate::v25::Delegate) -> temper_engine_domain_forge_change::Delegate {
     match record {
-        crate::v25::Delegate::Produce => Ok(temper_engine_domain_forge_change::Delegate::Produce),
-        crate::v25::Delegate::Repair(held) => Ok(temper_engine_domain_forge_change::Delegate::Repair({
+        crate::v25::Delegate::Produce => temper_engine_domain_forge_change::Delegate::Produce,
+        crate::v25::Delegate::Repair(held) => temper_engine_domain_forge_change::Delegate::Repair({
             let crate::v25::RepairValue { why: held } = held;
-            repair_to_domain(held, context)?
-        })),
+            repair_to_domain(held)
+        }),
         crate::v25::Delegate::Resolve(held) => {
             let crate::v25::Commit { commit: field_000000 } = held;
-            Ok(temper_engine_domain_forge_change::Delegate::Resolve {
+            temper_engine_domain_forge_change::Delegate::Resolve {
                 base: field_000000
-            })
+            }
         },
         crate::v25::Delegate::Gate(held) => {
             let crate::v25::DelegateGate { number: field_000000, head: field_000001 } = held;
-            Ok(temper_engine_domain_forge_change::Delegate::Gate {
+            temper_engine_domain_forge_change::Delegate::Gate {
                 number: field_000000,
                 head: field_000001
-            })
+            }
         },
         crate::v25::Delegate::Merge(held) => {
             let crate::v25::MergeDelegate { base: field_000000, from: field_000001 } = held;
-            Ok(temper_engine_domain_forge_change::Delegate::Merge {
+            temper_engine_domain_forge_change::Delegate::Merge {
                 base: {
                     let crate::v25::Commit { commit: held } = field_000000;
                     held
                 },
                 from: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-        crate::v25::Delegate::Close => Ok(temper_engine_domain_forge_change::Delegate::Close),
+        crate::v25::Delegate::Close => temper_engine_domain_forge_change::Delegate::Close,
     }
 }
 
-// Maps line 178: Judgement.
-pub fn judgement_to_record(value: &temper_engine_domain_forge_change::Judgement, _context: &crate::records::Context) -> Result<crate::v25::Judgement, crate::v25::Problem> {
+#[must_use]
+pub fn judgement_to_record(value: &temper_engine_domain_forge_change::Judgement) -> crate::v25::Judgement {
     let temper_engine_domain_forge_change::Judgement { landing: field_000000, round: field_000001, pull: field_000002, branch: field_000003, base: field_000004, prefix: field_000005 } = value;
-    Ok(crate::v25::Judgement {
+    crate::v25::Judgement {
         landing: *field_000000,
         round: *field_000001,
         pull: *field_000002,
         branch: field_000003.clone(),
         base: field_000004.clone(),
         prefix: *field_000005
-    })
+    }
 }
 
-// Maps line 178: Judgement.
-pub fn judgement_to_domain(record: crate::v25::Judgement, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Judgement, crate::v25::Problem> {
+#[must_use]
+pub fn judgement_to_domain(record: crate::v25::Judgement) -> temper_engine_domain_forge_change::Judgement {
     let crate::v25::Judgement { landing: field_000000, round: field_000001, pull: field_000002, branch: field_000003, base: field_000004, prefix: field_000005 } = record;
-    Ok(temper_engine_domain_forge_change::Judgement {
+    temper_engine_domain_forge_change::Judgement {
         landing: field_000000,
         round: field_000001,
         pull: field_000002,
         branch: field_000003,
         base: field_000004,
         prefix: field_000005
-    })
+    }
 }
 
-// Maps line 182: Gate.
-pub fn gate_to_record(value: &temper_engine_domain_forge_change::Gate, context: &crate::records::Context) -> Result<crate::v25::Gate, crate::v25::Problem> {
+#[must_use]
+pub fn gate_to_record(value: &temper_engine_domain_forge_change::Gate) -> crate::v25::Gate {
     let temper_engine_domain_forge_change::Gate { number: field_000000, kind: field_000001, blocking: field_000002, freshness: field_000003, eager: field_000004 } = value;
-    Ok(crate::v25::Gate {
+    crate::v25::Gate {
         number: *field_000000,
-        kind: gate_kind_to_record(field_000001, context)?,
+        kind: gate_kind_to_record(field_000001),
         blocking: *field_000002,
-        freshness: freshness_to_record(field_000003, context)?,
+        freshness: freshness_to_record(field_000003),
         eager: *field_000004
-    })
+    }
 }
 
-// Maps line 182: Gate.
-pub fn gate_to_domain(record: crate::v25::Gate, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Gate, crate::v25::Problem> {
+#[must_use]
+pub fn gate_to_domain(record: crate::v25::Gate) -> temper_engine_domain_forge_change::Gate {
     let crate::v25::Gate { number: field_000000, kind: field_000001, blocking: field_000002, freshness: field_000003, eager: field_000004 } = record;
-    Ok(temper_engine_domain_forge_change::Gate {
+    temper_engine_domain_forge_change::Gate {
         number: field_000000,
-        kind: gate_kind_to_domain(field_000001, context)?,
+        kind: gate_kind_to_domain(field_000001),
         blocking: field_000002,
-        freshness: freshness_to_domain(field_000003, context)?,
+        freshness: freshness_to_domain(field_000003),
         eager: field_000004
-    })
+    }
 }
 
-// Maps line 183: GateReport.
-pub fn gate_report_to_record(value: &temper_engine_domain_forge_change::GateReport, context: &crate::records::Context) -> Result<crate::v25::GateReport, crate::v25::Problem> {
+#[must_use]
+pub fn gate_report_to_record(value: &temper_engine_domain_forge_change::GateReport) -> crate::v25::GateReport {
     let temper_engine_domain_forge_change::GateReport { number: field_000000, head: field_000001, status: field_000002, revision: field_000003 } = value;
-    Ok(crate::v25::GateReport {
+    crate::v25::GateReport {
         number: *field_000000,
         head: *field_000001,
-        status: change_status_to_record(field_000002, context)?,
+        status: change_status_to_record(field_000002),
         revision: *field_000003
-    })
+    }
 }
 
-// Maps line 183: GateReport.
-pub fn gate_report_to_domain(record: crate::v25::GateReport, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::GateReport, crate::v25::Problem> {
+#[must_use]
+pub fn gate_report_to_domain(record: crate::v25::GateReport) -> temper_engine_domain_forge_change::GateReport {
     let crate::v25::GateReport { number: field_000000, head: field_000001, status: field_000002, revision: field_000003 } = record;
-    Ok(temper_engine_domain_forge_change::GateReport {
+    temper_engine_domain_forge_change::GateReport {
         number: field_000000,
         head: field_000001,
-        status: change_status_to_domain(field_000002, context)?,
+        status: change_status_to_domain(field_000002),
         revision: field_000003
-    })
+    }
 }
 
-// Maps line 184: GateFailure.
-pub fn gate_failure_to_record(value: &temper_engine_domain_forge_change::GateFailure, _context: &crate::records::Context) -> Result<crate::v25::GateFailure, crate::v25::Problem> {
+#[must_use]
+pub fn gate_failure_to_record(value: &temper_engine_domain_forge_change::GateFailure) -> crate::v25::GateFailure {
     let temper_engine_domain_forge_change::GateFailure { number: field_000000, count: field_000001 } = value;
-    Ok(crate::v25::GateFailure {
+    crate::v25::GateFailure {
         number: *field_000000,
         count: *field_000001
-    })
+    }
 }
 
-// Maps line 184: GateFailure.
-pub fn gate_failure_to_domain(record: crate::v25::GateFailure, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::GateFailure, crate::v25::Problem> {
+#[must_use]
+pub fn gate_failure_to_domain(record: crate::v25::GateFailure) -> temper_engine_domain_forge_change::GateFailure {
     let crate::v25::GateFailure { number: field_000000, count: field_000001 } = record;
-    Ok(temper_engine_domain_forge_change::GateFailure {
+    temper_engine_domain_forge_change::GateFailure {
         number: field_000000,
         count: field_000001
-    })
+    }
 }
 
-// Maps line 185: GateRemark.
-pub fn gate_remark_to_record(value: &temper_engine_domain_forge_vocabulary::GateRemark, _context: &crate::records::Context) -> Result<crate::v25::GateRemark, crate::v25::Problem> {
+#[must_use]
+pub fn gate_remark_to_record(value: &temper_engine_domain_forge_vocabulary::GateRemark) -> crate::v25::GateRemark {
     let temper_engine_domain_forge_vocabulary::GateRemark { number: field_000000, head: field_000001, words: field_000002 } = value;
-    Ok(crate::v25::GateRemark {
+    crate::v25::GateRemark {
         number: *field_000000,
         head: *field_000001,
         words: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 185: GateRemark.
-pub fn gate_remark_to_domain(record: crate::v25::GateRemark, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::GateRemark, crate::v25::Problem> {
+#[must_use]
+pub fn gate_remark_to_domain(record: crate::v25::GateRemark) -> temper_engine_domain_forge_vocabulary::GateRemark {
     let crate::v25::GateRemark { number: field_000000, head: field_000001, words: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::GateRemark {
+    temper_engine_domain_forge_vocabulary::GateRemark {
         number: field_000000,
         head: field_000001,
         words: field_000002
-    })
+    }
 }
 
-// Maps line 186: Way.
-pub fn way_to_record(value: &temper_engine_domain_forge_change::Way, _context: &crate::records::Context) -> Result<crate::v25::Way, crate::v25::Problem> {
+#[must_use]
+pub fn way_to_record(value: &temper_engine_domain_forge_change::Way) -> crate::v25::Way {
     match value {
-        temper_engine_domain_forge_change::Way::Queue => Ok(crate::v25::Way::Queue),
-        temper_engine_domain_forge_change::Way::Turn => Ok(crate::v25::Way::Turn),
+        temper_engine_domain_forge_change::Way::Queue => crate::v25::Way::Queue,
+        temper_engine_domain_forge_change::Way::Turn => crate::v25::Way::Turn,
     }
 }
 
-// Maps line 186: Way.
-pub fn way_to_domain(record: crate::v25::Way, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Way, crate::v25::Problem> {
+#[must_use]
+pub fn way_to_domain(record: crate::v25::Way) -> temper_engine_domain_forge_change::Way {
     match record {
-        crate::v25::Way::Queue => Ok(temper_engine_domain_forge_change::Way::Queue),
-        crate::v25::Way::Turn => Ok(temper_engine_domain_forge_change::Way::Turn),
+        crate::v25::Way::Queue => temper_engine_domain_forge_change::Way::Queue,
+        crate::v25::Way::Turn => temper_engine_domain_forge_change::Way::Turn,
     }
 }
 
-// Maps line 187: StartedFrom.
-pub fn started_from_to_record(value: &temper_engine_domain_forge_change::StartedFrom, _context: &crate::records::Context) -> Result<crate::v25::StartedFrom, crate::v25::Problem> {
+#[must_use]
+pub fn started_from_to_record(value: &temper_engine_domain_forge_change::StartedFrom) -> crate::v25::StartedFrom {
     let temper_engine_domain_forge_change::StartedFrom { task: field_000000, head: field_000001 } = value;
-    Ok(crate::v25::StartedFrom {
+    crate::v25::StartedFrom {
         task: *field_000000,
         head: *field_000001
-    })
+    }
 }
 
-// Maps line 187: StartedFrom.
-pub fn started_from_to_domain(record: crate::v25::StartedFrom, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::StartedFrom, crate::v25::Problem> {
+#[must_use]
+pub fn started_from_to_domain(record: crate::v25::StartedFrom) -> temper_engine_domain_forge_change::StartedFrom {
     let crate::v25::StartedFrom { task: field_000000, head: field_000001 } = record;
-    Ok(temper_engine_domain_forge_change::StartedFrom {
+    temper_engine_domain_forge_change::StartedFrom {
         task: field_000000,
         head: field_000001
-    })
+    }
 }
 
-// Maps line 190: Execution.
-pub fn execution_to_record(value: &temper_engine_domain_forge_change::Execution, _context: &crate::records::Context) -> Result<crate::v25::Execution, crate::v25::Problem> {
+#[must_use]
+pub fn execution_to_record(value: &temper_engine_domain_forge_change::Execution) -> crate::v25::Execution {
     match value {
-        temper_engine_domain_forge_change::Execution::Unknown => Ok(crate::v25::Execution::Unknown),
-        temper_engine_domain_forge_change::Execution::Waiting => Ok(crate::v25::Execution::Waiting),
-        temper_engine_domain_forge_change::Execution::Running => Ok(crate::v25::Execution::Running),
+        temper_engine_domain_forge_change::Execution::Unknown => crate::v25::Execution::Unknown,
+        temper_engine_domain_forge_change::Execution::Waiting => crate::v25::Execution::Waiting,
+        temper_engine_domain_forge_change::Execution::Running => crate::v25::Execution::Running,
     }
 }
 
-// Maps line 190: Execution.
-pub fn execution_to_domain(record: crate::v25::Execution, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Execution, crate::v25::Problem> {
+#[must_use]
+pub fn execution_to_domain(record: crate::v25::Execution) -> temper_engine_domain_forge_change::Execution {
     match record {
-        crate::v25::Execution::Unknown => Ok(temper_engine_domain_forge_change::Execution::Unknown),
-        crate::v25::Execution::Waiting => Ok(temper_engine_domain_forge_change::Execution::Waiting),
-        crate::v25::Execution::Running => Ok(temper_engine_domain_forge_change::Execution::Running),
+        crate::v25::Execution::Unknown => temper_engine_domain_forge_change::Execution::Unknown,
+        crate::v25::Execution::Waiting => temper_engine_domain_forge_change::Execution::Waiting,
+        crate::v25::Execution::Running => temper_engine_domain_forge_change::Execution::Running,
     }
 }
 
-// Maps line 191: ExecutionClock.
-pub fn execution_clock_to_record(value: &temper_engine_domain_forge_change::Clock, context: &crate::records::Context) -> Result<crate::v25::ExecutionClock, crate::v25::Problem> {
+#[must_use]
+pub fn execution_clock_to_record(value: &temper_engine_domain_forge_change::Clock) -> crate::v25::ExecutionClock {
     let temper_engine_domain_forge_change::Clock { since: field_000000, head: field_000001, run: field_000002, attempt: field_000003, ran: field_000004, waited: field_000005, unknown: field_000006, at: field_000007, seen: field_000008 } = value;
-    Ok(crate::v25::ExecutionClock {
-        since: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_SINCE.problem(reason)) },
+    crate::v25::ExecutionClock {
+        since: skein_codec::convert::wall_to_record(field_000000),
         head: *field_000001,
         run: *field_000002,
         attempt: *field_000003,
-        ran: match skein_codec::convert::duration_to_record(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_RAN.problem(reason)) },
-        waited: match skein_codec::convert::duration_to_record(field_000005) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_WAITED.problem(reason)) },
-        unknown: match skein_codec::convert::duration_to_record(field_000006) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_UNKNOWN.problem(reason)) },
-        at: match skein_codec::convert::wall_to_record(field_000007) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_AT.problem(reason)) },
-        seen: execution_to_record(field_000008, context)?
-    })
+        ran: skein_codec::convert::duration_to_record(field_000004),
+        waited: skein_codec::convert::duration_to_record(field_000005),
+        unknown: skein_codec::convert::duration_to_record(field_000006),
+        at: skein_codec::convert::wall_to_record(field_000007),
+        seen: execution_to_record(field_000008)
+    }
 }
 
-// Maps line 191: ExecutionClock.
-pub fn execution_clock_to_domain(record: crate::v25::ExecutionClock, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Clock, crate::v25::Problem> {
+#[must_use]
+pub fn execution_clock_to_domain(record: crate::v25::ExecutionClock) -> temper_engine_domain_forge_change::Clock {
     let crate::v25::ExecutionClock { since: field_000000, head: field_000001, run: field_000002, attempt: field_000003, ran: field_000004, waited: field_000005, unknown: field_000006, at: field_000007, seen: field_000008 } = record;
-    Ok(temper_engine_domain_forge_change::Clock {
-        since: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_SINCE.problem(reason)) },
+    temper_engine_domain_forge_change::Clock {
+        since: skein_codec::convert::wall_to_domain(field_000000),
         head: field_000001,
         run: field_000002,
         attempt: field_000003,
-        ran: match skein_codec::convert::duration_to_domain(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_RAN.problem(reason)) },
-        waited: match skein_codec::convert::duration_to_domain(field_000005) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_WAITED.problem(reason)) },
-        unknown: match skein_codec::convert::duration_to_domain(field_000006) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_UNKNOWN.problem(reason)) },
-        at: match skein_codec::convert::wall_to_domain(field_000007) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::EXECUTION_CLOCK_AT.problem(reason)) },
-        seen: execution_to_domain(field_000008, context)?
-    })
+        ran: skein_codec::convert::duration_to_domain(field_000004),
+        waited: skein_codec::convert::duration_to_domain(field_000005),
+        unknown: skein_codec::convert::duration_to_domain(field_000006),
+        at: skein_codec::convert::wall_to_domain(field_000007),
+        seen: execution_to_domain(field_000008)
+    }
 }
 
-// Maps line 196: LandingAsk.
-pub fn landing_ask_to_record(value: &temper_engine_domain_forge_change::Ask, context: &crate::records::Context) -> Result<crate::v25::LandingAsk, crate::v25::Problem> {
+#[must_use]
+pub fn landing_ask_to_record(value: &temper_engine_domain_forge_change::Ask) -> crate::v25::LandingAsk {
     match value {
-        temper_engine_domain_forge_change::Ask::Prepare { head: field_000000, main: field_000001 } => Ok(crate::v25::LandingAsk::Prepare(crate::v25::LandingPrepare {
+        temper_engine_domain_forge_change::Ask::Prepare { head: field_000000, main: field_000001 } => crate::v25::LandingAsk::Prepare(crate::v25::LandingPrepare {
             head: *field_000000,
             main: *field_000001
-        })),
-        temper_engine_domain_forge_change::Ask::Repair { gate: field_000000, candidate: field_000001, below: field_000002 } => Ok(crate::v25::LandingAsk::Repair(crate::v25::LandingRepairAsk {
+        }),
+        temper_engine_domain_forge_change::Ask::Repair { gate: field_000000, candidate: field_000001, below: field_000002 } => crate::v25::LandingAsk::Repair(crate::v25::LandingRepairAsk {
             gate: *field_000000,
             candidate: *field_000001,
             below: match field_000002 {
-                Some(item) => Some(crate::records::by_hand::landing_below_to_record(item, context)?),
+                Some(item) => {
+                    let converted = crate::records::by_hand::landing_below_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_change::Ask::Landed { prefix: field_000000 } => Ok(crate::v25::LandingAsk::Landed(crate::v25::LandingPrefix {
+        }),
+        temper_engine_domain_forge_change::Ask::Landed { prefix: field_000000 } => crate::v25::LandingAsk::Landed(crate::v25::LandingPrefix {
             prefix: *field_000000
-        })),
-        temper_engine_domain_forge_change::Ask::Resolve { base: field_000000 } => Ok(crate::v25::LandingAsk::Resolve(crate::v25::LandingResolve {
+        }),
+        temper_engine_domain_forge_change::Ask::Resolve { base: field_000000 } => crate::v25::LandingAsk::Resolve(crate::v25::LandingResolve {
             base: *field_000000
-        })),
-        temper_engine_domain_forge_change::Ask::Judge(held) => Ok(crate::v25::LandingAsk::Judge(judgement_to_record(held, context)?)),
+        }),
+        temper_engine_domain_forge_change::Ask::Judge(held) => crate::v25::LandingAsk::Judge(judgement_to_record(held)),
     }
 }
 
-// Maps line 196: LandingAsk.
-pub fn landing_ask_to_domain(record: crate::v25::LandingAsk, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Ask, crate::v25::Problem> {
+#[must_use]
+pub fn landing_ask_to_domain(record: crate::v25::LandingAsk) -> temper_engine_domain_forge_change::Ask {
     match record {
         crate::v25::LandingAsk::Prepare(held) => {
             let crate::v25::LandingPrepare { head: field_000000, main: field_000001 } = held;
-            Ok(temper_engine_domain_forge_change::Ask::Prepare {
+            temper_engine_domain_forge_change::Ask::Prepare {
                 head: field_000000,
                 main: field_000001
-            })
+            }
         },
         crate::v25::LandingAsk::Repair(held) => {
             let crate::v25::LandingRepairAsk { gate: field_000000, candidate: field_000001, below: field_000002 } = held;
-            Ok(temper_engine_domain_forge_change::Ask::Repair {
+            temper_engine_domain_forge_change::Ask::Repair {
                 gate: field_000000,
                 candidate: field_000001,
                 below: match field_000002 {
-                    Some(item) => Some(crate::records::by_hand::landing_below_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = crate::records::by_hand::landing_below_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::LandingAsk::Landed(held) => {
             let crate::v25::LandingPrefix { prefix: field_000000 } = held;
-            Ok(temper_engine_domain_forge_change::Ask::Landed {
+            temper_engine_domain_forge_change::Ask::Landed {
                 prefix: field_000000
-            })
+            }
         },
         crate::v25::LandingAsk::Resolve(held) => {
             let crate::v25::LandingResolve { base: field_000000 } = held;
-            Ok(temper_engine_domain_forge_change::Ask::Resolve {
+            temper_engine_domain_forge_change::Ask::Resolve {
                 base: field_000000
-            })
+            }
         },
-        crate::v25::LandingAsk::Judge(held) => Ok(temper_engine_domain_forge_change::Ask::Judge(judgement_to_domain(held, context)?)),
+        crate::v25::LandingAsk::Judge(held) => temper_engine_domain_forge_change::Ask::Judge(judgement_to_domain(held)),
     }
 }
 
-// Maps line 198: ChangeCi.
-pub fn change_ci_to_record(value: &temper_engine_domain_forge_change::Ci, context: &crate::records::Context) -> Result<crate::v25::ChangeCi, crate::v25::Problem> {
+#[must_use]
+pub fn change_ci_to_record(value: &temper_engine_domain_forge_change::Ci) -> crate::v25::ChangeCi {
     let temper_engine_domain_forge_change::Ci { head: field_000000, status: field_000001 } = value;
-    Ok(crate::v25::ChangeCi {
+    crate::v25::ChangeCi {
         head: *field_000000,
-        status: change_status_to_record(field_000001, context)?
-    })
+        status: change_status_to_record(field_000001)
+    }
 }
 
-// Maps line 198: ChangeCi.
-pub fn change_ci_to_domain(record: crate::v25::ChangeCi, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Ci, crate::v25::Problem> {
+#[must_use]
+pub fn change_ci_to_domain(record: crate::v25::ChangeCi) -> temper_engine_domain_forge_change::Ci {
     let crate::v25::ChangeCi { head: field_000000, status: field_000001 } = record;
-    Ok(temper_engine_domain_forge_change::Ci {
+    temper_engine_domain_forge_change::Ci {
         head: field_000000,
-        status: change_status_to_domain(field_000001, context)?
-    })
+        status: change_status_to_domain(field_000001)
+    }
 }
 
-// Maps line 199: EffectAccount.
-pub fn effect_account_to_record(value: &temper_engine_domain_forge_vocabulary::EffectAccount, _context: &crate::records::Context) -> Result<crate::v25::EffectAccount, crate::v25::Problem> {
+#[must_use]
+pub fn effect_account_to_record(value: &temper_engine_domain_forge_vocabulary::EffectAccount) -> crate::v25::EffectAccount {
     let temper_engine_domain_forge_vocabulary::EffectAccount { entry: field_000000, words: field_000001 } = value;
-    Ok(crate::v25::EffectAccount {
+    crate::v25::EffectAccount {
         entry: *field_000000,
         words: field_000001.clone()
-    })
+    }
 }
 
-// Maps line 199: EffectAccount.
-pub fn effect_account_to_domain(record: crate::v25::EffectAccount, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::EffectAccount, crate::v25::Problem> {
+#[must_use]
+pub fn effect_account_to_domain(record: crate::v25::EffectAccount) -> temper_engine_domain_forge_vocabulary::EffectAccount {
     let crate::v25::EffectAccount { entry: field_000000, words: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::EffectAccount {
+    temper_engine_domain_forge_vocabulary::EffectAccount {
         entry: field_000000,
         words: field_000001
-    })
+    }
 }
 
-// Maps line 200: ResultText.
-pub fn result_text_to_record(value: &temper_engine_domain_forge_vocabulary::ResultText, _context: &crate::records::Context) -> Result<crate::v25::ResultText, crate::v25::Problem> {
+#[must_use]
+pub fn result_text_to_record(value: &temper_engine_domain_forge_vocabulary::ResultText) -> crate::v25::ResultText {
     let temper_engine_domain_forge_vocabulary::ResultText { bytes: field_000000, cut: field_000001 } = value;
-    Ok(crate::v25::ResultText {
+    crate::v25::ResultText {
         bytes: field_000000.clone(),
         cut: *field_000001
-    })
+    }
 }
 
-// Maps line 200: ResultText.
-pub fn result_text_to_domain(record: crate::v25::ResultText, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ResultText, crate::v25::Problem> {
+#[must_use]
+pub fn result_text_to_domain(record: crate::v25::ResultText) -> temper_engine_domain_forge_vocabulary::ResultText {
     let crate::v25::ResultText { bytes: field_000000, cut: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ResultText {
+    temper_engine_domain_forge_vocabulary::ResultText {
         bytes: field_000000,
         cut: field_000001
-    })
+    }
 }
 
-// Maps line 201: ChangeResult.
-pub fn change_result_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeResult, context: &crate::records::Context) -> Result<crate::v25::ChangeResult, crate::v25::Problem> {
+#[must_use]
+pub fn change_result_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeResult) -> crate::v25::ChangeResult {
     let temper_engine_domain_forge_vocabulary::ChangeResult { head: field_000000, checks: field_000001, failed: field_000002, repairs: field_000003, repair_count: field_000004, reviews: field_000005 } = value;
-    Ok(crate::v25::ChangeResult {
+    crate::v25::ChangeResult {
         head: match field_000000 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        checks: result_text_to_record(field_000001, context)?,
-        failed: result_text_to_record(field_000002, context)?,
-        repairs: result_text_to_record(field_000003, context)?,
+        checks: result_text_to_record(field_000001),
+        failed: result_text_to_record(field_000002),
+        repairs: result_text_to_record(field_000003),
         repair_count: *field_000004,
-        reviews: result_text_to_record(field_000005, context)?
-    })
+        reviews: result_text_to_record(field_000005)
+    }
 }
 
-// Maps line 201: ChangeResult.
-pub fn change_result_to_domain(record: crate::v25::ChangeResult, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ChangeResult, crate::v25::Problem> {
+#[must_use]
+pub fn change_result_to_domain(record: crate::v25::ChangeResult) -> temper_engine_domain_forge_vocabulary::ChangeResult {
     let crate::v25::ChangeResult { head: field_000000, checks: field_000001, failed: field_000002, repairs: field_000003, repair_count: field_000004, reviews: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ChangeResult {
+    temper_engine_domain_forge_vocabulary::ChangeResult {
         head: match field_000000 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        checks: result_text_to_domain(field_000001, context)?,
-        failed: result_text_to_domain(field_000002, context)?,
-        repairs: result_text_to_domain(field_000003, context)?,
+        checks: result_text_to_domain(field_000001),
+        failed: result_text_to_domain(field_000002),
+        repairs: result_text_to_domain(field_000003),
         repair_count: field_000004,
-        reviews: result_text_to_domain(field_000005, context)?
-    })
+        reviews: result_text_to_domain(field_000005)
+    }
 }
 
-// Maps line 202: ModelEffort.
-pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort, _context: &crate::records::Context) -> Result<crate::v25::ModelEffort, crate::v25::Problem> {
+#[must_use]
+pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::v25::ModelEffort {
     let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001 } = value;
-    Ok(crate::v25::ModelEffort {
+    crate::v25::ModelEffort {
         model: *field_000000,
         effort: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 202: ModelEffort.
-pub fn model_effort_to_domain(record: crate::v25::ModelEffort, _context: &crate::records::Context) -> Result<jig_domain_tasks::ModelEffort, crate::v25::Problem> {
+#[must_use]
+pub fn model_effort_to_domain(record: crate::v25::ModelEffort) -> jig_domain_tasks::ModelEffort {
     let crate::v25::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    Ok(jig_domain_tasks::ModelEffort {
+    jig_domain_tasks::ModelEffort {
         model: field_000000,
         effort: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 207: Open.
-pub fn open_to_record(value: &temper_engine_domain_forge_change::Open, context: &crate::records::Context) -> Result<crate::v25::Open, crate::v25::Problem> {
+#[must_use]
+pub fn open_to_record(value: &temper_engine_domain_forge_change::Open) -> crate::v25::Open {
     let temper_engine_domain_forge_change::Open { asker: field_000000, number: field_000001, line: field_000002, words: field_000003, stands: field_000004 } = value;
-    Ok(crate::v25::Open {
+    crate::v25::Open {
         asker: *field_000000,
         number: *field_000001,
         line: field_000002.clone(),
         words: field_000003.clone(),
-        stands: crate::records::by_hand::stands_to_record(field_000004, context)?
-    })
+        stands: crate::records::by_hand::stands_to_record(field_000004)
+    }
 }
 
-// Maps line 207: Open.
-pub fn open_to_domain(record: crate::v25::Open, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Open, crate::v25::Problem> {
+pub fn open_to_domain(record: crate::v25::Open) -> Result<temper_engine_domain_forge_change::Open, crate::v25::Problem> {
     let crate::v25::Open { asker: field_000000, number: field_000001, line: field_000002, words: field_000003, stands: field_000004 } = record;
     Ok(temper_engine_domain_forge_change::Open {
         asker: field_000000,
         number: field_000001,
         line: field_000002,
         words: field_000003,
-        stands: crate::records::by_hand::stands_to_domain(field_000004, context)?
+        stands: crate::records::by_hand::stands_to_domain(field_000004)?
     })
 }
 
-// Maps line 208: Waiting.
-pub fn waiting_to_record(value: &temper_engine_domain_forge_change::Waiting, _context: &crate::records::Context) -> Result<crate::v25::Waiting, crate::v25::Problem> {
+#[must_use]
+pub fn waiting_to_record(value: &temper_engine_domain_forge_change::Waiting) -> crate::v25::Waiting {
     let temper_engine_domain_forge_change::Waiting { from: field_000000, number: field_000001, words: field_000002, passed: field_000003 } = value;
-    Ok(crate::v25::Waiting {
+    crate::v25::Waiting {
         from: *field_000000,
         number: *field_000001,
         words: field_000002.clone(),
         passed: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 208: Waiting.
-pub fn waiting_to_domain(record: crate::v25::Waiting, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Waiting, crate::v25::Problem> {
+#[must_use]
+pub fn waiting_to_domain(record: crate::v25::Waiting) -> temper_engine_domain_forge_change::Waiting {
     let crate::v25::Waiting { from: field_000000, number: field_000001, words: field_000002, passed: field_000003 } = record;
-    Ok(temper_engine_domain_forge_change::Waiting {
+    temper_engine_domain_forge_change::Waiting {
         from: field_000000,
         number: field_000001,
         words: field_000002,
         passed: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 209: Answered.
-pub fn answered_to_record(value: &temper_engine_domain_forge_change::Answered, _context: &crate::records::Context) -> Result<crate::v25::Answered, crate::v25::Problem> {
+#[must_use]
+pub fn answered_to_record(value: &temper_engine_domain_forge_change::Answered) -> crate::v25::Answered {
     let temper_engine_domain_forge_change::Answered { asker: field_000000, number: field_000001, line: field_000002, answer: field_000003, revision: field_000004 } = value;
-    Ok(crate::v25::Answered {
+    crate::v25::Answered {
         asker: *field_000000,
         number: *field_000001,
         line: field_000002.clone(),
         answer: field_000003.clone(),
         revision: *field_000004
-    })
+    }
 }
 
-// Maps line 209: Answered.
-pub fn answered_to_domain(record: crate::v25::Answered, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Answered, crate::v25::Problem> {
+#[must_use]
+pub fn answered_to_domain(record: crate::v25::Answered) -> temper_engine_domain_forge_change::Answered {
     let crate::v25::Answered { asker: field_000000, number: field_000001, line: field_000002, answer: field_000003, revision: field_000004 } = record;
-    Ok(temper_engine_domain_forge_change::Answered {
+    temper_engine_domain_forge_change::Answered {
         asker: field_000000,
         number: field_000001,
         line: field_000002,
         answer: field_000003,
         revision: field_000004
-    })
+    }
 }
 
-// Maps line 210: Amended.
-pub fn amended_to_record(value: &temper_engine_domain_forge_change::Amended, _context: &crate::records::Context) -> Result<crate::v25::Amended, crate::v25::Problem> {
+#[must_use]
+pub fn amended_to_record(value: &temper_engine_domain_forge_change::Amended) -> crate::v25::Amended {
     let temper_engine_domain_forge_change::Amended { revision: field_000000, reason: field_000001 } = value;
-    Ok(crate::v25::Amended {
+    crate::v25::Amended {
         revision: *field_000000,
         reason: field_000001.clone()
-    })
+    }
 }
 
-// Maps line 210: Amended.
-pub fn amended_to_domain(record: crate::v25::Amended, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Amended, crate::v25::Problem> {
+#[must_use]
+pub fn amended_to_domain(record: crate::v25::Amended) -> temper_engine_domain_forge_change::Amended {
     let crate::v25::Amended { revision: field_000000, reason: field_000001 } = record;
-    Ok(temper_engine_domain_forge_change::Amended {
+    temper_engine_domain_forge_change::Amended {
         revision: field_000000,
         reason: field_000001
-    })
+    }
 }
 
-// Maps line 211: Questions.
-pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions, context: &crate::records::Context) -> Result<crate::v25::Questions, crate::v25::Problem> {
+pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions) -> Result<crate::v25::Questions, crate::v25::Problem> {
     let temper_engine_domain_forge_change::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005 } = value;
     Ok(crate::v25::Questions {
-        route: crate::records::by_hand::route_to_record(field_000000, context)?,
+        route: crate::records::by_hand::route_to_record(field_000000),
         taken: *field_000001,
         open: {
             let source = field_000002;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::QUESTIONS_OPEN.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = open_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_OPEN.problem(skein_codec::Reason::Bound)); }
+                let converted = open_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -2496,8 +2679,8 @@ pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions,
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::QUESTIONS_WAITING.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = waiting_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_WAITING.problem(skein_codec::Reason::Bound)); }
+                let converted = waiting_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -2506,8 +2689,8 @@ pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions,
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::QUESTIONS_ANSWERED.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = answered_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_ANSWERED.problem(skein_codec::Reason::Bound)); }
+                let converted = answered_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -2516,27 +2699,26 @@ pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions,
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::QUESTIONS_AMENDED.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = amended_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_AMENDED.problem(skein_codec::Reason::Bound)); }
+                let converted = amended_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 211: Questions.
-pub fn questions_to_domain(record: crate::v25::Questions, context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Questions, crate::v25::Problem> {
+pub fn questions_to_domain(record: crate::v25::Questions) -> Result<temper_engine_domain_forge_change::Questions, crate::v25::Problem> {
     let crate::v25::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005 } = record;
     Ok(temper_engine_domain_forge_change::Questions {
-        route: crate::records::by_hand::route_to_domain(field_000000, context)?,
+        route: crate::records::by_hand::route_to_domain(field_000000)?,
         taken: field_000001,
         open: {
             let source = field_000002;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = open_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_OPEN.problem(skein_codec::Reason::Bound)); }
+                let converted = open_to_domain(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -2545,8 +2727,8 @@ pub fn questions_to_domain(record: crate::v25::Questions, context: &crate::recor
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = waiting_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_WAITING.problem(skein_codec::Reason::Bound)); }
+                let converted = waiting_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -2555,8 +2737,8 @@ pub fn questions_to_domain(record: crate::v25::Questions, context: &crate::recor
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = answered_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_ANSWERED.problem(skein_codec::Reason::Bound)); }
+                let converted = answered_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -2565,63 +2747,62 @@ pub fn questions_to_domain(record: crate::v25::Questions, context: &crate::recor
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = amended_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::QUESTIONS_AMENDED.problem(skein_codec::Reason::Bound)); }
+                let converted = amended_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
     })
 }
 
-// Maps line 213: ChangeEnding.
-pub fn change_ending_to_record(value: &temper_engine_domain_forge_vocabulary::Ending, _context: &crate::records::Context) -> Result<crate::v25::ChangeEnding, crate::v25::Problem> {
+#[must_use]
+pub fn change_ending_to_record(value: &temper_engine_domain_forge_vocabulary::Ending) -> crate::v25::ChangeEnding {
     match value {
-        temper_engine_domain_forge_vocabulary::Ending::Landed => Ok(crate::v25::ChangeEnding::Landed),
-        temper_engine_domain_forge_vocabulary::Ending::NoChange => Ok(crate::v25::ChangeEnding::NoChange),
-        temper_engine_domain_forge_vocabulary::Ending::Cancelled => Ok(crate::v25::ChangeEnding::Cancelled),
-        temper_engine_domain_forge_vocabulary::Ending::Failed { line: field_000000 } => Ok(crate::v25::ChangeEnding::Failed(crate::v25::ChangeFailure {
+        temper_engine_domain_forge_vocabulary::Ending::Landed => crate::v25::ChangeEnding::Landed,
+        temper_engine_domain_forge_vocabulary::Ending::NoChange => crate::v25::ChangeEnding::NoChange,
+        temper_engine_domain_forge_vocabulary::Ending::Cancelled => crate::v25::ChangeEnding::Cancelled,
+        temper_engine_domain_forge_vocabulary::Ending::Failed { line: field_000000 } => crate::v25::ChangeEnding::Failed(crate::v25::ChangeFailure {
             line: field_000000.clone()
-        })),
+        }),
     }
 }
 
-// Maps line 213: ChangeEnding.
-pub fn change_ending_to_domain(record: crate::v25::ChangeEnding, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Ending, crate::v25::Problem> {
+#[must_use]
+pub fn change_ending_to_domain(record: crate::v25::ChangeEnding) -> temper_engine_domain_forge_vocabulary::Ending {
     match record {
-        crate::v25::ChangeEnding::Landed => Ok(temper_engine_domain_forge_vocabulary::Ending::Landed),
-        crate::v25::ChangeEnding::NoChange => Ok(temper_engine_domain_forge_vocabulary::Ending::NoChange),
-        crate::v25::ChangeEnding::Cancelled => Ok(temper_engine_domain_forge_vocabulary::Ending::Cancelled),
+        crate::v25::ChangeEnding::Landed => temper_engine_domain_forge_vocabulary::Ending::Landed,
+        crate::v25::ChangeEnding::NoChange => temper_engine_domain_forge_vocabulary::Ending::NoChange,
+        crate::v25::ChangeEnding::Cancelled => temper_engine_domain_forge_vocabulary::Ending::Cancelled,
         crate::v25::ChangeEnding::Failed(held) => {
             let crate::v25::ChangeFailure { line: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Ending::Failed {
+            temper_engine_domain_forge_vocabulary::Ending::Failed {
                 line: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 214: SignOff.
-pub fn sign_off_to_record(value: &temper_engine_domain_forge_vocabulary::SignOff, _context: &crate::records::Context) -> Result<crate::v25::SignOff, crate::v25::Problem> {
+#[must_use]
+pub fn sign_off_to_record(value: &temper_engine_domain_forge_vocabulary::SignOff) -> crate::v25::SignOff {
     let temper_engine_domain_forge_vocabulary::SignOff { person: field_000000, head: field_000001, at: field_000002 } = value;
-    Ok(crate::v25::SignOff {
+    crate::v25::SignOff {
         person: *field_000000,
         head: *field_000001,
-        at: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::SIGN_OFF_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_record(field_000002)
+    }
 }
 
-// Maps line 214: SignOff.
-pub fn sign_off_to_domain(record: crate::v25::SignOff, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::SignOff, crate::v25::Problem> {
+#[must_use]
+pub fn sign_off_to_domain(record: crate::v25::SignOff) -> temper_engine_domain_forge_vocabulary::SignOff {
     let crate::v25::SignOff { person: field_000000, head: field_000001, at: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::SignOff {
+    temper_engine_domain_forge_vocabulary::SignOff {
         person: field_000000,
         head: field_000001,
-        at: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::SIGN_OFF_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_domain(field_000002)
+    }
 }
 
-// Maps line 215: ChangeFollows.
-pub fn change_follows_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeFollows, _context: &crate::records::Context) -> Result<crate::v25::ChangeFollows, crate::v25::Problem> {
+pub fn change_follows_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeFollows) -> Result<crate::v25::ChangeFollows, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::ChangeFollows { follow: field_000000, commits: field_000001 } = value;
     Ok(crate::v25::ChangeFollows {
         follow: *field_000000,
@@ -2631,17 +2812,17 @@ pub fn change_follows_to_record(value: &temper_engine_domain_forge_vocabulary::C
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_FOLLOWS_COMMITS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 215: ChangeFollows.
-pub fn change_follows_to_domain(record: crate::v25::ChangeFollows, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ChangeFollows, crate::v25::Problem> {
+#[must_use]
+pub fn change_follows_to_domain(record: crate::v25::ChangeFollows) -> temper_engine_domain_forge_vocabulary::ChangeFollows {
     let crate::v25::ChangeFollows { follow: field_000000, commits: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ChangeFollows {
+    temper_engine_domain_forge_vocabulary::ChangeFollows {
         follow: field_000000,
         commits: {
             let source = field_000001;
@@ -2649,149 +2830,146 @@ pub fn change_follows_to_domain(record: crate::v25::ChangeFollows, _context: &cr
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_FOLLOWS_COMMITS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 216: Phase.
-pub fn phase_to_record(value: &temper_engine_domain_forge_issues::Phase, _context: &crate::records::Context) -> Result<crate::v25::Phase, crate::v25::Problem> {
+#[must_use]
+pub fn phase_to_record(value: &temper_engine_domain_forge_issues::Phase) -> crate::v25::Phase {
     match value {
-        temper_engine_domain_forge_issues::Phase::Waiting => Ok(crate::v25::Phase::Waiting),
-        temper_engine_domain_forge_issues::Phase::Active => Ok(crate::v25::Phase::Active),
-        temper_engine_domain_forge_issues::Phase::Settling => Ok(crate::v25::Phase::Settling),
-        temper_engine_domain_forge_issues::Phase::Held => Ok(crate::v25::Phase::Held),
-        temper_engine_domain_forge_issues::Phase::Done => Ok(crate::v25::Phase::Done),
-        temper_engine_domain_forge_issues::Phase::Failed => Ok(crate::v25::Phase::Failed),
-        temper_engine_domain_forge_issues::Phase::Cancelled => Ok(crate::v25::Phase::Cancelled),
+        temper_engine_domain_forge_issues::Phase::Waiting => crate::v25::Phase::Waiting,
+        temper_engine_domain_forge_issues::Phase::Active => crate::v25::Phase::Active,
+        temper_engine_domain_forge_issues::Phase::Settling => crate::v25::Phase::Settling,
+        temper_engine_domain_forge_issues::Phase::Held => crate::v25::Phase::Held,
+        temper_engine_domain_forge_issues::Phase::Done => crate::v25::Phase::Done,
+        temper_engine_domain_forge_issues::Phase::Failed => crate::v25::Phase::Failed,
+        temper_engine_domain_forge_issues::Phase::Cancelled => crate::v25::Phase::Cancelled,
     }
 }
 
-// Maps line 216: Phase.
-pub fn phase_to_domain(record: crate::v25::Phase, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_issues::Phase, crate::v25::Problem> {
+#[must_use]
+pub fn phase_to_domain(record: crate::v25::Phase) -> temper_engine_domain_forge_issues::Phase {
     match record {
-        crate::v25::Phase::Waiting => Ok(temper_engine_domain_forge_issues::Phase::Waiting),
-        crate::v25::Phase::Active => Ok(temper_engine_domain_forge_issues::Phase::Active),
-        crate::v25::Phase::Settling => Ok(temper_engine_domain_forge_issues::Phase::Settling),
-        crate::v25::Phase::Held => Ok(temper_engine_domain_forge_issues::Phase::Held),
-        crate::v25::Phase::Done => Ok(temper_engine_domain_forge_issues::Phase::Done),
-        crate::v25::Phase::Failed => Ok(temper_engine_domain_forge_issues::Phase::Failed),
-        crate::v25::Phase::Cancelled => Ok(temper_engine_domain_forge_issues::Phase::Cancelled),
+        crate::v25::Phase::Waiting => temper_engine_domain_forge_issues::Phase::Waiting,
+        crate::v25::Phase::Active => temper_engine_domain_forge_issues::Phase::Active,
+        crate::v25::Phase::Settling => temper_engine_domain_forge_issues::Phase::Settling,
+        crate::v25::Phase::Held => temper_engine_domain_forge_issues::Phase::Held,
+        crate::v25::Phase::Done => temper_engine_domain_forge_issues::Phase::Done,
+        crate::v25::Phase::Failed => temper_engine_domain_forge_issues::Phase::Failed,
+        crate::v25::Phase::Cancelled => temper_engine_domain_forge_issues::Phase::Cancelled,
     }
 }
 
-// Maps line 217: PlanItem.
-pub fn plan_item_to_record(value: &temper_engine_domain_forge_issues::PlanItem, context: &crate::records::Context) -> Result<crate::v25::PlanItem, crate::v25::Problem> {
+#[must_use]
+pub fn plan_item_to_record(value: &temper_engine_domain_forge_issues::PlanItem) -> crate::v25::PlanItem {
     let temper_engine_domain_forge_issues::PlanItem { text: field_000000, phase: field_000001 } = value;
-    Ok(crate::v25::PlanItem {
-        text: match skein_codec::convert::text_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PLAN_ITEM_TEXT.problem(reason)) },
-        phase: phase_to_record(field_000001, context)?
-    })
+    crate::v25::PlanItem {
+        text: skein_codec::convert::text_to_record(field_000000),
+        phase: phase_to_record(field_000001)
+    }
 }
 
-// Maps line 217: PlanItem.
-pub fn plan_item_to_domain(record: crate::v25::PlanItem, context: &crate::records::Context) -> Result<temper_engine_domain_forge_issues::PlanItem, crate::v25::Problem> {
+pub fn plan_item_to_domain(record: crate::v25::PlanItem) -> Result<temper_engine_domain_forge_issues::PlanItem, crate::v25::Problem> {
     let crate::v25::PlanItem { text: field_000000, phase: field_000001 } = record;
     Ok(temper_engine_domain_forge_issues::PlanItem {
         text: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PLAN_ITEM_TEXT.problem(reason)) },
-        phase: phase_to_domain(field_000001, context)?
+        phase: phase_to_domain(field_000001)
     })
 }
 
-// Maps line 220: MilestoneKey.
-pub fn milestone_key_to_record(value: &temper_engine_domain_forge_issues::MilestoneKey, _context: &crate::records::Context) -> Result<crate::v25::MilestoneKey, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_key_to_record(value: &temper_engine_domain_forge_issues::MilestoneKey) -> crate::v25::MilestoneKey {
     match value {
-        temper_engine_domain_forge_issues::MilestoneKey::Lifecycle { task: field_000000, position: field_000001 } => Ok(crate::v25::MilestoneKey::Lifecycle(crate::v25::Lifecycle {
+        temper_engine_domain_forge_issues::MilestoneKey::Lifecycle { task: field_000000, position: field_000001 } => crate::v25::MilestoneKey::Lifecycle(crate::v25::Lifecycle {
             task: *field_000000,
             position: *field_000001
-        })),
-        temper_engine_domain_forge_issues::MilestoneKey::TaskRevision { task: field_000000, revision: field_000001 } => Ok(crate::v25::MilestoneKey::TaskRevision(crate::v25::TaskRevision {
+        }),
+        temper_engine_domain_forge_issues::MilestoneKey::TaskRevision { task: field_000000, revision: field_000001 } => crate::v25::MilestoneKey::TaskRevision(crate::v25::TaskRevision {
             task: *field_000000,
             revision: *field_000001
-        })),
-        temper_engine_domain_forge_issues::MilestoneKey::PlanAccepted => Ok(crate::v25::MilestoneKey::PlanAccepted),
-        temper_engine_domain_forge_issues::MilestoneKey::Revision(held) => Ok(crate::v25::MilestoneKey::Revision(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_issues::MilestoneKey::ChangeLanded(held) => Ok(crate::v25::MilestoneKey::ChangeLanded(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_issues::MilestoneKey::ChangeHeld(held) => Ok(crate::v25::MilestoneKey::ChangeHeld(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_issues::MilestoneKey::Report(held) => Ok(crate::v25::MilestoneKey::Report(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_issues::MilestoneKey::Finished => Ok(crate::v25::MilestoneKey::Finished),
+        }),
+        temper_engine_domain_forge_issues::MilestoneKey::PlanAccepted => crate::v25::MilestoneKey::PlanAccepted,
+        temper_engine_domain_forge_issues::MilestoneKey::Revision(held) => crate::v25::MilestoneKey::Revision(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_issues::MilestoneKey::ChangeLanded(held) => crate::v25::MilestoneKey::ChangeLanded(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_issues::MilestoneKey::ChangeHeld(held) => crate::v25::MilestoneKey::ChangeHeld(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_issues::MilestoneKey::Report(held) => crate::v25::MilestoneKey::Report(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_issues::MilestoneKey::Finished => crate::v25::MilestoneKey::Finished,
     }
 }
 
-// Maps line 220: MilestoneKey.
-pub fn milestone_key_to_domain(record: crate::v25::MilestoneKey, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_issues::MilestoneKey, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_key_to_domain(record: crate::v25::MilestoneKey) -> temper_engine_domain_forge_issues::MilestoneKey {
     match record {
         crate::v25::MilestoneKey::Lifecycle(held) => {
             let crate::v25::Lifecycle { task: field_000000, position: field_000001 } = held;
-            Ok(temper_engine_domain_forge_issues::MilestoneKey::Lifecycle {
+            temper_engine_domain_forge_issues::MilestoneKey::Lifecycle {
                 task: field_000000,
                 position: field_000001
-            })
+            }
         },
         crate::v25::MilestoneKey::TaskRevision(held) => {
             let crate::v25::TaskRevision { task: field_000000, revision: field_000001 } = held;
-            Ok(temper_engine_domain_forge_issues::MilestoneKey::TaskRevision {
+            temper_engine_domain_forge_issues::MilestoneKey::TaskRevision {
                 task: field_000000,
                 revision: field_000001
-            })
+            }
         },
-        crate::v25::MilestoneKey::PlanAccepted => Ok(temper_engine_domain_forge_issues::MilestoneKey::PlanAccepted),
-        crate::v25::MilestoneKey::Revision(held) => Ok(temper_engine_domain_forge_issues::MilestoneKey::Revision({
+        crate::v25::MilestoneKey::PlanAccepted => temper_engine_domain_forge_issues::MilestoneKey::PlanAccepted,
+        crate::v25::MilestoneKey::Revision(held) => temper_engine_domain_forge_issues::MilestoneKey::Revision({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::MilestoneKey::ChangeLanded(held) => Ok(temper_engine_domain_forge_issues::MilestoneKey::ChangeLanded({
+        }),
+        crate::v25::MilestoneKey::ChangeLanded(held) => temper_engine_domain_forge_issues::MilestoneKey::ChangeLanded({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::MilestoneKey::ChangeHeld(held) => Ok(temper_engine_domain_forge_issues::MilestoneKey::ChangeHeld({
+        }),
+        crate::v25::MilestoneKey::ChangeHeld(held) => temper_engine_domain_forge_issues::MilestoneKey::ChangeHeld({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::MilestoneKey::Report(held) => Ok(temper_engine_domain_forge_issues::MilestoneKey::Report({
+        }),
+        crate::v25::MilestoneKey::Report(held) => temper_engine_domain_forge_issues::MilestoneKey::Report({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::MilestoneKey::Finished => Ok(temper_engine_domain_forge_issues::MilestoneKey::Finished),
+        }),
+        crate::v25::MilestoneKey::Finished => temper_engine_domain_forge_issues::MilestoneKey::Finished,
     }
 }
 
-// Maps line 221: Milestone.
-pub fn milestone_to_record(value: &temper_engine_domain_forge_issues::Milestone, context: &crate::records::Context) -> Result<crate::v25::Milestone, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_to_record(value: &temper_engine_domain_forge_issues::Milestone) -> crate::v25::Milestone {
     let temper_engine_domain_forge_issues::Milestone { key: field_000000, text: field_000001 } = value;
-    Ok(crate::v25::Milestone {
-        key: milestone_key_to_record(field_000000, context)?,
-        text: match skein_codec::convert::text_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::MILESTONE_TEXT.problem(reason)) }
-    })
+    crate::v25::Milestone {
+        key: milestone_key_to_record(field_000000),
+        text: skein_codec::convert::text_to_record(field_000001)
+    }
 }
 
-// Maps line 221: Milestone.
-pub fn milestone_to_domain(record: crate::v25::Milestone, context: &crate::records::Context) -> Result<temper_engine_domain_forge_issues::Milestone, crate::v25::Problem> {
+pub fn milestone_to_domain(record: crate::v25::Milestone) -> Result<temper_engine_domain_forge_issues::Milestone, crate::v25::Problem> {
     let crate::v25::Milestone { key: field_000000, text: field_000001 } = record;
     Ok(temper_engine_domain_forge_issues::Milestone {
-        key: milestone_key_to_domain(field_000000, context)?,
+        key: milestone_key_to_domain(field_000000),
         text: match skein_codec::convert::text_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::MILESTONE_TEXT.problem(reason)) }
     })
 }
 
-// Maps line 222: GoalView.
-pub fn goal_view_to_record(value: &temper_engine_domain_forge_issues::GoalView, context: &crate::records::Context) -> Result<crate::v25::GoalView, crate::v25::Problem> {
+pub fn goal_view_to_record(value: &temper_engine_domain_forge_issues::GoalView) -> Result<crate::v25::GoalView, crate::v25::Problem> {
     let temper_engine_domain_forge_issues::GoalView { phase: field_000000, goal: field_000001, repository: field_000002, title: field_000003, goal_text: field_000004, plan: field_000005, milestones: field_000006, finished: field_000007 } = value;
     Ok(crate::v25::GoalView {
-        phase: phase_to_record(field_000000, context)?,
+        phase: phase_to_record(field_000000),
         goal: *field_000001,
         repository: *field_000002,
-        title: match skein_codec::convert::text_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::GOAL_VIEW_TITLE.problem(reason)) },
-        goal_text: match skein_codec::convert::text_to_record(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::GOAL_VIEW_GOAL_TEXT.problem(reason)) },
+        title: skein_codec::convert::text_to_record(field_000003),
+        goal_text: skein_codec::convert::text_to_record(field_000004),
         plan: {
             let source = field_000005;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::GOAL_VIEW_PLAN.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = plan_item_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::GOAL_VIEW_PLAN.problem(skein_codec::Reason::Bound)); }
+                let converted = plan_item_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -2800,23 +2978,25 @@ pub fn goal_view_to_record(value: &temper_engine_domain_forge_issues::GoalView, 
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::GOAL_VIEW_MILESTONES.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = milestone_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::GOAL_VIEW_MILESTONES.problem(skein_codec::Reason::Bound)); }
+                let converted = milestone_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         finished: match field_000007 {
-            Some(item) => Some(match skein_codec::convert::text_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::GOAL_VIEW_FINISHED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::text_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 222: GoalView.
-pub fn goal_view_to_domain(record: crate::v25::GoalView, context: &crate::records::Context) -> Result<temper_engine_domain_forge_issues::GoalView, crate::v25::Problem> {
+pub fn goal_view_to_domain(record: crate::v25::GoalView) -> Result<temper_engine_domain_forge_issues::GoalView, crate::v25::Problem> {
     let crate::v25::GoalView { phase: field_000000, goal: field_000001, repository: field_000002, title: field_000003, goal_text: field_000004, plan: field_000005, milestones: field_000006, finished: field_000007 } = record;
     Ok(temper_engine_domain_forge_issues::GoalView {
-        phase: phase_to_domain(field_000000, context)?,
+        phase: phase_to_domain(field_000000),
         goal: field_000001,
         repository: field_000002,
         title: match skein_codec::convert::text_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::GOAL_VIEW_TITLE.problem(reason)) },
@@ -2826,8 +3006,8 @@ pub fn goal_view_to_domain(record: crate::v25::GoalView, context: &crate::record
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = plan_item_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::GOAL_VIEW_PLAN.problem(skein_codec::Reason::Bound)); }
+                let converted = plan_item_to_domain(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -2836,29 +3016,37 @@ pub fn goal_view_to_domain(record: crate::v25::GoalView, context: &crate::record
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = milestone_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::GOAL_VIEW_MILESTONES.problem(skein_codec::Reason::Bound)); }
+                let converted = milestone_to_domain(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         finished: match field_000007 {
-            Some(item) => Some(match skein_codec::convert::text_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::GOAL_VIEW_FINISHED.problem(reason)) }),
+            Some(item) => {
+                let converted = match skein_codec::convert::text_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::GOAL_VIEW_FINISHED.problem(reason)) };
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 223: Projected.
-pub fn projected_to_record(value: &temper_engine_domain_forge_issues::Projected, context: &crate::records::Context) -> Result<crate::v25::Projected, crate::v25::Problem> {
+pub fn projected_to_record(value: &temper_engine_domain_forge_issues::Projected) -> Result<crate::v25::Projected, crate::v25::Problem> {
     let temper_engine_domain_forge_issues::Projected { opened: field_000000, digest: field_000001, last_body: field_000002, body_revision: field_000003, milestones: field_000004, closed: field_000005 } = value;
     Ok(crate::v25::Projected {
         opened: *field_000000,
         digest: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         last_body: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PROJECTED_LAST_BODY.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         body_revision: *field_000003,
@@ -2867,8 +3055,8 @@ pub fn projected_to_record(value: &temper_engine_domain_forge_issues::Projected,
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::PROJECTED_MILESTONES.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = milestone_key_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::PROJECTED_MILESTONES.problem(skein_codec::Reason::Bound)); }
+                let converted = milestone_key_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -2876,17 +3064,23 @@ pub fn projected_to_record(value: &temper_engine_domain_forge_issues::Projected,
     })
 }
 
-// Maps line 223: Projected.
-pub fn projected_to_domain(record: crate::v25::Projected, context: &crate::records::Context) -> Result<temper_engine_domain_forge_issues::Projected, crate::v25::Problem> {
+#[must_use]
+pub fn projected_to_domain(record: crate::v25::Projected) -> temper_engine_domain_forge_issues::Projected {
     let crate::v25::Projected { opened: field_000000, digest: field_000001, last_body: field_000002, body_revision: field_000003, milestones: field_000004, closed: field_000005 } = record;
-    Ok(temper_engine_domain_forge_issues::Projected {
+    temper_engine_domain_forge_issues::Projected {
         opened: field_000000,
         digest: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         last_body: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PROJECTED_LAST_BODY.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         body_revision: field_000003,
@@ -2895,745 +3089,777 @@ pub fn projected_to_domain(record: crate::v25::Projected, context: &crate::recor
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = milestone_key_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::PROJECTED_MILESTONES.problem(skein_codec::Reason::Bound)); }
+                let converted = milestone_key_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         closed: field_000005
-    })
+    }
 }
 
-// Maps line 224: IssueRow.
-pub fn issue_row_to_record(value: &temper_engine_domain_forge_vocabulary::IssueRow, context: &crate::records::Context) -> Result<crate::v25::IssueRow, crate::v25::Problem> {
+pub fn issue_row_to_record(value: &temper_engine_domain_forge_vocabulary::IssueRow) -> Result<crate::v25::IssueRow, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::IssueRow { goal: field_000000, repository: field_000001, state: field_000002, number: field_000003, pending: field_000004, before: field_000005, failed: field_000006, desired: field_000007 } = value;
     Ok(crate::v25::IssueRow {
         goal: *field_000000,
-        repository: repository_to_record(field_000001, context)?,
-        state: projected_to_record(field_000002, context)?,
+        repository: repository_to_record(field_000001),
+        state: projected_to_record(field_000002)?,
         number: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         pending: match field_000004 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         before: match field_000005 {
-            Some(item) => Some(projected_to_record(item, context)?),
+            Some(item) => {
+                let converted = projected_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         failed: *field_000006,
         desired: match field_000007 {
-            Some(item) => Some(goal_view_to_record(item, context)?),
+            Some(item) => {
+                let converted = goal_view_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 224: IssueRow.
-pub fn issue_row_to_domain(record: crate::v25::IssueRow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::IssueRow, crate::v25::Problem> {
+pub fn issue_row_to_domain(record: crate::v25::IssueRow) -> Result<temper_engine_domain_forge_vocabulary::IssueRow, crate::v25::Problem> {
     let crate::v25::IssueRow { goal: field_000000, repository: field_000001, state: field_000002, number: field_000003, pending: field_000004, before: field_000005, failed: field_000006, desired: field_000007 } = record;
     Ok(temper_engine_domain_forge_vocabulary::IssueRow {
         goal: field_000000,
-        repository: repository_to_domain(field_000001, context)?,
-        state: projected_to_domain(field_000002, context)?,
+        repository: repository_to_domain(field_000001),
+        state: projected_to_domain(field_000002),
         number: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         pending: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         before: match field_000005 {
-            Some(item) => Some(projected_to_domain(item, context)?),
+            Some(item) => {
+                let converted = projected_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         failed: field_000006,
         desired: match field_000007 {
-            Some(item) => Some(goal_view_to_domain(item, context)?),
+            Some(item) => {
+                let converted = goal_view_to_domain(item)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 225: ApplicationAdopted.
-pub fn application_adopted_to_record(value: &temper_engine_domain_forge_vocabulary::AdoptedRepository, context: &crate::records::Context) -> Result<crate::v25::ApplicationAdopted, crate::v25::Problem> {
+#[must_use]
+pub fn application_adopted_to_record(value: &temper_engine_domain_forge_vocabulary::AdoptedRepository) -> crate::v25::ApplicationAdopted {
     let temper_engine_domain_forge_vocabulary::AdoptedRepository { repository: field_000000, owner: field_000001, name: field_000002, role: field_000003, home: field_000004, kinds: field_000005, protection: field_000006, landing: field_000007 } = value;
-    Ok(crate::v25::ApplicationAdopted {
-        repository: repository_to_record(field_000000, context)?,
+    crate::v25::ApplicationAdopted {
+        repository: repository_to_record(field_000000),
         owner: field_000001.clone(),
         name: field_000002.clone(),
-        role: role_to_record(field_000003, context)?,
+        role: role_to_record(field_000003),
         home: *field_000004,
-        kinds: kinds_to_record(field_000005, context)?,
-        protection: repository_protection_to_record(field_000006, context)?,
+        kinds: kinds_to_record(field_000005),
+        protection: repository_protection_to_record(field_000006),
         landing: field_000007.clone()
-    })
+    }
 }
 
-// Maps line 225: ApplicationAdopted.
 pub fn application_adopted_to_domain(record: crate::v25::ApplicationAdopted, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::AdoptedRepository, crate::v25::Problem> {
     let crate::v25::ApplicationAdopted { repository: field_000000, owner: field_000001, name: field_000002, role: field_000003, home: field_000004, kinds: field_000005, protection: field_000006, landing: field_000007 } = record;
     Ok(temper_engine_domain_forge_vocabulary::AdoptedRepository {
-        repository: repository_to_domain(field_000000, context)?,
+        repository: repository_to_domain(field_000000),
         owner: field_000001,
         name: field_000002,
-        role: role_to_domain(field_000003, context)?,
+        role: role_to_domain(field_000003),
         home: field_000004,
-        kinds: kinds_to_domain(field_000005, context)?,
+        kinds: kinds_to_domain(field_000005),
         protection: repository_protection_to_domain(field_000006, context)?,
         landing: field_000007
     })
 }
 
-// Maps line 227: ForgeReason.
-pub fn forge_reason_to_record(value: &temper_engine_domain_forge_vocabulary::AdoptionRefusal, _context: &crate::records::Context) -> Result<crate::v25::ForgeReason, crate::v25::Problem> {
+#[must_use]
+pub fn forge_reason_to_record(value: &temper_engine_domain_forge_vocabulary::AdoptionRefusal) -> crate::v25::ForgeReason {
     match value {
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoSuchForge => Ok(crate::v25::ForgeReason::NoSuchForge),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotFound => Ok(crate::v25::ForgeReason::NotFound),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoAccess => Ok(crate::v25::ForgeReason::NoAccess),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::Refused => Ok(crate::v25::ForgeReason::Refused),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::InFlight => Ok(crate::v25::ForgeReason::InFlight),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::TooLarge => Ok(crate::v25::ForgeReason::TooLarge),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::Unreachable => Ok(crate::v25::ForgeReason::Unreachable),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::InvalidAnswer => Ok(crate::v25::ForgeReason::InvalidAnswer),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotInstalled => Ok(crate::v25::ForgeReason::NotInstalled),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::AnotherProject => Ok(crate::v25::ForgeReason::AnotherProject),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::HomeHeld => Ok(crate::v25::ForgeReason::HomeHeld),
-        temper_engine_domain_forge_vocabulary::AdoptionRefusal::PrefixOccupied => Ok(crate::v25::ForgeReason::PrefixOccupied),
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoSuchForge => crate::v25::ForgeReason::NoSuchForge,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotFound => crate::v25::ForgeReason::NotFound,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoAccess => crate::v25::ForgeReason::NoAccess,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::Refused => crate::v25::ForgeReason::Refused,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::InFlight => crate::v25::ForgeReason::InFlight,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::TooLarge => crate::v25::ForgeReason::TooLarge,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::Unreachable => crate::v25::ForgeReason::Unreachable,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::InvalidAnswer => crate::v25::ForgeReason::InvalidAnswer,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotInstalled => crate::v25::ForgeReason::NotInstalled,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::AnotherProject => crate::v25::ForgeReason::AnotherProject,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::HomeHeld => crate::v25::ForgeReason::HomeHeld,
+        temper_engine_domain_forge_vocabulary::AdoptionRefusal::PrefixOccupied => crate::v25::ForgeReason::PrefixOccupied,
     }
 }
 
-// Maps line 227: ForgeReason.
-pub fn forge_reason_to_domain(record: crate::v25::ForgeReason, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::AdoptionRefusal, crate::v25::Problem> {
+#[must_use]
+pub fn forge_reason_to_domain(record: crate::v25::ForgeReason) -> temper_engine_domain_forge_vocabulary::AdoptionRefusal {
     match record {
-        crate::v25::ForgeReason::NoSuchForge => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoSuchForge),
-        crate::v25::ForgeReason::NotFound => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotFound),
-        crate::v25::ForgeReason::NoAccess => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoAccess),
-        crate::v25::ForgeReason::Refused => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::Refused),
-        crate::v25::ForgeReason::InFlight => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::InFlight),
-        crate::v25::ForgeReason::TooLarge => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::TooLarge),
-        crate::v25::ForgeReason::Unreachable => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::Unreachable),
-        crate::v25::ForgeReason::InvalidAnswer => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::InvalidAnswer),
-        crate::v25::ForgeReason::NotInstalled => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotInstalled),
-        crate::v25::ForgeReason::AnotherProject => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::AnotherProject),
-        crate::v25::ForgeReason::HomeHeld => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::HomeHeld),
-        crate::v25::ForgeReason::PrefixOccupied => Ok(temper_engine_domain_forge_vocabulary::AdoptionRefusal::PrefixOccupied),
+        crate::v25::ForgeReason::NoSuchForge => temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoSuchForge,
+        crate::v25::ForgeReason::NotFound => temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotFound,
+        crate::v25::ForgeReason::NoAccess => temper_engine_domain_forge_vocabulary::AdoptionRefusal::NoAccess,
+        crate::v25::ForgeReason::Refused => temper_engine_domain_forge_vocabulary::AdoptionRefusal::Refused,
+        crate::v25::ForgeReason::InFlight => temper_engine_domain_forge_vocabulary::AdoptionRefusal::InFlight,
+        crate::v25::ForgeReason::TooLarge => temper_engine_domain_forge_vocabulary::AdoptionRefusal::TooLarge,
+        crate::v25::ForgeReason::Unreachable => temper_engine_domain_forge_vocabulary::AdoptionRefusal::Unreachable,
+        crate::v25::ForgeReason::InvalidAnswer => temper_engine_domain_forge_vocabulary::AdoptionRefusal::InvalidAnswer,
+        crate::v25::ForgeReason::NotInstalled => temper_engine_domain_forge_vocabulary::AdoptionRefusal::NotInstalled,
+        crate::v25::ForgeReason::AnotherProject => temper_engine_domain_forge_vocabulary::AdoptionRefusal::AnotherProject,
+        crate::v25::ForgeReason::HomeHeld => temper_engine_domain_forge_vocabulary::AdoptionRefusal::HomeHeld,
+        crate::v25::ForgeReason::PrefixOccupied => temper_engine_domain_forge_vocabulary::AdoptionRefusal::PrefixOccupied,
     }
 }
 
-// Maps line 229: MakingKey.
-pub fn making_key_to_record(value: &temper_engine_domain_forge_vocabulary::MakingKey, _context: &crate::records::Context) -> Result<crate::v25::MakingKey, crate::v25::Problem> {
+#[must_use]
+pub fn making_key_to_record(value: &temper_engine_domain_forge_vocabulary::MakingKey) -> crate::v25::MakingKey {
     let temper_engine_domain_forge_vocabulary::MakingKey { forge: field_000000, org: field_000001, name: field_000002 } = value;
-    Ok(crate::v25::MakingKey {
+    crate::v25::MakingKey {
         forge: *field_000000,
         org: field_000001.clone(),
         name: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 229: MakingKey.
-pub fn making_key_to_domain(record: crate::v25::MakingKey, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakingKey, crate::v25::Problem> {
+#[must_use]
+pub fn making_key_to_domain(record: crate::v25::MakingKey) -> temper_engine_domain_forge_vocabulary::MakingKey {
     let crate::v25::MakingKey { forge: field_000000, org: field_000001, name: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::MakingKey {
+    temper_engine_domain_forge_vocabulary::MakingKey {
         forge: field_000000,
         org: field_000001,
         name: field_000002
-    })
-}
-
-// Maps line 231: MakeFrom.
-pub fn make_from_to_record(value: &temper_engine_domain_forge_vocabulary::MakeFrom, _context: &crate::records::Context) -> Result<crate::v25::MakeFrom, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::MakeFrom::Empty => Ok(crate::v25::MakeFrom::Empty),
-        temper_engine_domain_forge_vocabulary::MakeFrom::Copy { address: field_000000 } => Ok(crate::v25::MakeFrom::Copy(crate::v25::CopyFrom {
-            address: field_000000.clone()
-        })),
     }
 }
 
-// Maps line 231: MakeFrom.
-pub fn make_from_to_domain(record: crate::v25::MakeFrom, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakeFrom, crate::v25::Problem> {
+#[must_use]
+pub fn make_from_to_record(value: &temper_engine_domain_forge_vocabulary::MakeFrom) -> crate::v25::MakeFrom {
+    match value {
+        temper_engine_domain_forge_vocabulary::MakeFrom::Empty => crate::v25::MakeFrom::Empty,
+        temper_engine_domain_forge_vocabulary::MakeFrom::Copy { address: field_000000 } => crate::v25::MakeFrom::Copy(crate::v25::CopyFrom {
+            address: field_000000.clone()
+        }),
+    }
+}
+
+#[must_use]
+pub fn make_from_to_domain(record: crate::v25::MakeFrom) -> temper_engine_domain_forge_vocabulary::MakeFrom {
     match record {
-        crate::v25::MakeFrom::Empty => Ok(temper_engine_domain_forge_vocabulary::MakeFrom::Empty),
+        crate::v25::MakeFrom::Empty => temper_engine_domain_forge_vocabulary::MakeFrom::Empty,
         crate::v25::MakeFrom::Copy(held) => {
             let crate::v25::CopyFrom { address: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::MakeFrom::Copy {
+            temper_engine_domain_forge_vocabulary::MakeFrom::Copy {
                 address: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 232: MakeInto.
-pub fn make_into_to_record(value: &temper_engine_domain_forge_vocabulary::MakeInto, _context: &crate::records::Context) -> Result<crate::v25::MakeInto, crate::v25::Problem> {
+#[must_use]
+pub fn make_into_to_record(value: &temper_engine_domain_forge_vocabulary::MakeInto) -> crate::v25::MakeInto {
     let temper_engine_domain_forge_vocabulary::MakeInto { project: field_000000, home: field_000001, host: field_000002 } = value;
-    Ok(crate::v25::MakeInto {
+    crate::v25::MakeInto {
         project: *field_000000,
         home: *field_000001,
         host: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 232: MakeInto.
-pub fn make_into_to_domain(record: crate::v25::MakeInto, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakeInto, crate::v25::Problem> {
+#[must_use]
+pub fn make_into_to_domain(record: crate::v25::MakeInto) -> temper_engine_domain_forge_vocabulary::MakeInto {
     let crate::v25::MakeInto { project: field_000000, home: field_000001, host: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::MakeInto {
+    temper_engine_domain_forge_vocabulary::MakeInto {
         project: field_000000,
         home: field_000001,
         host: field_000002
-    })
-}
-
-// Maps line 233: MakeStep.
-pub fn make_step_to_record(value: &temper_engine_domain_forge_vocabulary::MakeStep, _context: &crate::records::Context) -> Result<crate::v25::MakeStep, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::MakeStep::Admin => Ok(crate::v25::MakeStep::Admin),
-        temper_engine_domain_forge_vocabulary::MakeStep::Org => Ok(crate::v25::MakeStep::Org),
-        temper_engine_domain_forge_vocabulary::MakeStep::Repository => Ok(crate::v25::MakeStep::Repository),
-        temper_engine_domain_forge_vocabulary::MakeStep::File => Ok(crate::v25::MakeStep::File),
-        temper_engine_domain_forge_vocabulary::MakeStep::Adoption => Ok(crate::v25::MakeStep::Adoption),
     }
 }
 
-// Maps line 233: MakeStep.
-pub fn make_step_to_domain(record: crate::v25::MakeStep, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakeStep, crate::v25::Problem> {
+#[must_use]
+pub fn make_step_to_record(value: &temper_engine_domain_forge_vocabulary::MakeStep) -> crate::v25::MakeStep {
+    match value {
+        temper_engine_domain_forge_vocabulary::MakeStep::Admin => crate::v25::MakeStep::Admin,
+        temper_engine_domain_forge_vocabulary::MakeStep::Org => crate::v25::MakeStep::Org,
+        temper_engine_domain_forge_vocabulary::MakeStep::Repository => crate::v25::MakeStep::Repository,
+        temper_engine_domain_forge_vocabulary::MakeStep::File => crate::v25::MakeStep::File,
+        temper_engine_domain_forge_vocabulary::MakeStep::Adoption => crate::v25::MakeStep::Adoption,
+    }
+}
+
+#[must_use]
+pub fn make_step_to_domain(record: crate::v25::MakeStep) -> temper_engine_domain_forge_vocabulary::MakeStep {
     match record {
-        crate::v25::MakeStep::Admin => Ok(temper_engine_domain_forge_vocabulary::MakeStep::Admin),
-        crate::v25::MakeStep::Org => Ok(temper_engine_domain_forge_vocabulary::MakeStep::Org),
-        crate::v25::MakeStep::Repository => Ok(temper_engine_domain_forge_vocabulary::MakeStep::Repository),
-        crate::v25::MakeStep::File => Ok(temper_engine_domain_forge_vocabulary::MakeStep::File),
-        crate::v25::MakeStep::Adoption => Ok(temper_engine_domain_forge_vocabulary::MakeStep::Adoption),
+        crate::v25::MakeStep::Admin => temper_engine_domain_forge_vocabulary::MakeStep::Admin,
+        crate::v25::MakeStep::Org => temper_engine_domain_forge_vocabulary::MakeStep::Org,
+        crate::v25::MakeStep::Repository => temper_engine_domain_forge_vocabulary::MakeStep::Repository,
+        crate::v25::MakeStep::File => temper_engine_domain_forge_vocabulary::MakeStep::File,
+        crate::v25::MakeStep::Adoption => temper_engine_domain_forge_vocabulary::MakeStep::Adoption,
     }
 }
 
-// Maps line 235: MakeFailure.
-pub fn make_failure_to_record(value: &temper_engine_domain_forge_vocabulary::MakeFailure, _context: &crate::records::Context) -> Result<crate::v25::MakeFailure, crate::v25::Problem> {
+#[must_use]
+pub fn make_failure_to_record(value: &temper_engine_domain_forge_vocabulary::MakeFailure) -> crate::v25::MakeFailure {
     match value {
-        temper_engine_domain_forge_vocabulary::MakeFailure::Taken => Ok(crate::v25::MakeFailure::Taken),
-        temper_engine_domain_forge_vocabulary::MakeFailure::Empty => Ok(crate::v25::MakeFailure::Empty),
-        temper_engine_domain_forge_vocabulary::MakeFailure::TimedOut => Ok(crate::v25::MakeFailure::TimedOut),
-        temper_engine_domain_forge_vocabulary::MakeFailure::Refused { status: field_000000 } => Ok(crate::v25::MakeFailure::Refused(crate::v25::MakeStatus {
+        temper_engine_domain_forge_vocabulary::MakeFailure::Taken => crate::v25::MakeFailure::Taken,
+        temper_engine_domain_forge_vocabulary::MakeFailure::Empty => crate::v25::MakeFailure::Empty,
+        temper_engine_domain_forge_vocabulary::MakeFailure::TimedOut => crate::v25::MakeFailure::TimedOut,
+        temper_engine_domain_forge_vocabulary::MakeFailure::Refused { status: field_000000 } => crate::v25::MakeFailure::Refused(crate::v25::MakeStatus {
             status: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::MakeFailure::NotAllowed => Ok(crate::v25::MakeFailure::NotAllowed),
-        temper_engine_domain_forge_vocabulary::MakeFailure::Other => Ok(crate::v25::MakeFailure::Other),
+        }),
+        temper_engine_domain_forge_vocabulary::MakeFailure::NotAllowed => crate::v25::MakeFailure::NotAllowed,
+        temper_engine_domain_forge_vocabulary::MakeFailure::Other => crate::v25::MakeFailure::Other,
     }
 }
 
-// Maps line 235: MakeFailure.
-pub fn make_failure_to_domain(record: crate::v25::MakeFailure, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakeFailure, crate::v25::Problem> {
+#[must_use]
+pub fn make_failure_to_domain(record: crate::v25::MakeFailure) -> temper_engine_domain_forge_vocabulary::MakeFailure {
     match record {
-        crate::v25::MakeFailure::Taken => Ok(temper_engine_domain_forge_vocabulary::MakeFailure::Taken),
-        crate::v25::MakeFailure::Empty => Ok(temper_engine_domain_forge_vocabulary::MakeFailure::Empty),
-        crate::v25::MakeFailure::TimedOut => Ok(temper_engine_domain_forge_vocabulary::MakeFailure::TimedOut),
+        crate::v25::MakeFailure::Taken => temper_engine_domain_forge_vocabulary::MakeFailure::Taken,
+        crate::v25::MakeFailure::Empty => temper_engine_domain_forge_vocabulary::MakeFailure::Empty,
+        crate::v25::MakeFailure::TimedOut => temper_engine_domain_forge_vocabulary::MakeFailure::TimedOut,
         crate::v25::MakeFailure::Refused(held) => {
             let crate::v25::MakeStatus { status: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::MakeFailure::Refused {
+            temper_engine_domain_forge_vocabulary::MakeFailure::Refused {
                 status: field_000000
-            })
+            }
         },
-        crate::v25::MakeFailure::NotAllowed => Ok(temper_engine_domain_forge_vocabulary::MakeFailure::NotAllowed),
-        crate::v25::MakeFailure::Other => Ok(temper_engine_domain_forge_vocabulary::MakeFailure::Other),
+        crate::v25::MakeFailure::NotAllowed => temper_engine_domain_forge_vocabulary::MakeFailure::NotAllowed,
+        crate::v25::MakeFailure::Other => temper_engine_domain_forge_vocabulary::MakeFailure::Other,
     }
 }
 
-// Maps line 236: MakingFailed.
-pub fn making_failed_to_record(value: &temper_engine_domain_forge_vocabulary::MakingFailed, context: &crate::records::Context) -> Result<crate::v25::MakingFailed, crate::v25::Problem> {
+#[must_use]
+pub fn making_failed_to_record(value: &temper_engine_domain_forge_vocabulary::MakingFailed) -> crate::v25::MakingFailed {
     let temper_engine_domain_forge_vocabulary::MakingFailed { step: field_000000, reason: field_000001, words: field_000002 } = value;
-    Ok(crate::v25::MakingFailed {
-        step: make_step_to_record(field_000000, context)?,
-        reason: make_failure_to_record(field_000001, context)?,
+    crate::v25::MakingFailed {
+        step: make_step_to_record(field_000000),
+        reason: make_failure_to_record(field_000001),
         words: field_000002.clone()
-    })
-}
-
-// Maps line 236: MakingFailed.
-pub fn making_failed_to_domain(record: crate::v25::MakingFailed, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakingFailed, crate::v25::Problem> {
-    let crate::v25::MakingFailed { step: field_000000, reason: field_000001, words: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::MakingFailed {
-        step: make_step_to_domain(field_000000, context)?,
-        reason: make_failure_to_domain(field_000001, context)?,
-        words: field_000002
-    })
-}
-
-// Maps line 238: MakingState.
-pub fn making_state_to_record(value: &temper_engine_domain_forge_vocabulary::MakingState, context: &crate::records::Context) -> Result<crate::v25::MakingState, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::MakingState::Waiting => Ok(crate::v25::MakingState::Waiting),
-        temper_engine_domain_forge_vocabulary::MakingState::Making => Ok(crate::v25::MakingState::Making),
-        temper_engine_domain_forge_vocabulary::MakingState::Made { id: field_000000, branch: field_000001 } => Ok(crate::v25::MakingState::Made(crate::v25::MakingMade {
-            id: *field_000000,
-            branch: field_000001.clone()
-        })),
-        temper_engine_domain_forge_vocabulary::MakingState::Adopting { id: field_000000, branch: field_000001 } => Ok(crate::v25::MakingState::Adopting(crate::v25::MakingMade {
-            id: *field_000000,
-            branch: field_000001.clone()
-        })),
-        temper_engine_domain_forge_vocabulary::MakingState::Failed(held) => Ok(crate::v25::MakingState::Failed(making_failed_to_record(held, context)?)),
     }
 }
 
-// Maps line 238: MakingState.
-pub fn making_state_to_domain(record: crate::v25::MakingState, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakingState, crate::v25::Problem> {
+#[must_use]
+pub fn making_failed_to_domain(record: crate::v25::MakingFailed) -> temper_engine_domain_forge_vocabulary::MakingFailed {
+    let crate::v25::MakingFailed { step: field_000000, reason: field_000001, words: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::MakingFailed {
+        step: make_step_to_domain(field_000000),
+        reason: make_failure_to_domain(field_000001),
+        words: field_000002
+    }
+}
+
+#[must_use]
+pub fn making_state_to_record(value: &temper_engine_domain_forge_vocabulary::MakingState) -> crate::v25::MakingState {
+    match value {
+        temper_engine_domain_forge_vocabulary::MakingState::Waiting => crate::v25::MakingState::Waiting,
+        temper_engine_domain_forge_vocabulary::MakingState::Making => crate::v25::MakingState::Making,
+        temper_engine_domain_forge_vocabulary::MakingState::Made { id: field_000000, branch: field_000001 } => crate::v25::MakingState::Made(crate::v25::MakingMade {
+            id: *field_000000,
+            branch: field_000001.clone()
+        }),
+        temper_engine_domain_forge_vocabulary::MakingState::Adopting { id: field_000000, branch: field_000001 } => crate::v25::MakingState::Adopting(crate::v25::MakingMade {
+            id: *field_000000,
+            branch: field_000001.clone()
+        }),
+        temper_engine_domain_forge_vocabulary::MakingState::Failed(held) => crate::v25::MakingState::Failed(making_failed_to_record(held)),
+    }
+}
+
+#[must_use]
+pub fn making_state_to_domain(record: crate::v25::MakingState) -> temper_engine_domain_forge_vocabulary::MakingState {
     match record {
-        crate::v25::MakingState::Waiting => Ok(temper_engine_domain_forge_vocabulary::MakingState::Waiting),
-        crate::v25::MakingState::Making => Ok(temper_engine_domain_forge_vocabulary::MakingState::Making),
+        crate::v25::MakingState::Waiting => temper_engine_domain_forge_vocabulary::MakingState::Waiting,
+        crate::v25::MakingState::Making => temper_engine_domain_forge_vocabulary::MakingState::Making,
         crate::v25::MakingState::Made(held) => {
             let crate::v25::MakingMade { id: field_000000, branch: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::MakingState::Made {
+            temper_engine_domain_forge_vocabulary::MakingState::Made {
                 id: field_000000,
                 branch: field_000001
-            })
+            }
         },
         crate::v25::MakingState::Adopting(held) => {
             let crate::v25::MakingMade { id: field_000000, branch: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::MakingState::Adopting {
+            temper_engine_domain_forge_vocabulary::MakingState::Adopting {
                 id: field_000000,
                 branch: field_000001
-            })
+            }
         },
-        crate::v25::MakingState::Failed(held) => Ok(temper_engine_domain_forge_vocabulary::MakingState::Failed(making_failed_to_domain(held, context)?)),
+        crate::v25::MakingState::Failed(held) => temper_engine_domain_forge_vocabulary::MakingState::Failed(making_failed_to_domain(held)),
     }
 }
 
-// Maps line 239: RepositoryMaking.
-pub fn repository_making_to_record(value: &temper_engine_domain_forge_vocabulary::RepositoryMaking, context: &crate::records::Context) -> Result<crate::v25::RepositoryMaking, crate::v25::Problem> {
+#[must_use]
+pub fn repository_making_to_record(value: &temper_engine_domain_forge_vocabulary::RepositoryMaking) -> crate::v25::RepositoryMaking {
     let temper_engine_domain_forge_vocabulary::RepositoryMaking { key: field_000000, from: field_000001, into: field_000002, asked: field_000003, copying: field_000004, state: field_000005 } = value;
-    Ok(crate::v25::RepositoryMaking {
-        key: making_key_to_record(field_000000, context)?,
-        from: make_from_to_record(field_000001, context)?,
+    crate::v25::RepositoryMaking {
+        key: making_key_to_record(field_000000),
+        from: make_from_to_record(field_000001),
         into: match field_000002 {
-            Some(item) => Some(make_into_to_record(item, context)?),
+            Some(item) => {
+                let converted = make_into_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        asked: match skein_codec::convert::wall_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REPOSITORY_MAKING_ASKED.problem(reason)) },
+        asked: skein_codec::convert::wall_to_record(field_000003),
         copying: *field_000004,
-        state: making_state_to_record(field_000005, context)?
-    })
+        state: making_state_to_record(field_000005)
+    }
 }
 
-// Maps line 239: RepositoryMaking.
-pub fn repository_making_to_domain(record: crate::v25::RepositoryMaking, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::RepositoryMaking, crate::v25::Problem> {
+#[must_use]
+pub fn repository_making_to_domain(record: crate::v25::RepositoryMaking) -> temper_engine_domain_forge_vocabulary::RepositoryMaking {
     let crate::v25::RepositoryMaking { key: field_000000, from: field_000001, into: field_000002, asked: field_000003, copying: field_000004, state: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::RepositoryMaking {
-        key: making_key_to_domain(field_000000, context)?,
-        from: make_from_to_domain(field_000001, context)?,
+    temper_engine_domain_forge_vocabulary::RepositoryMaking {
+        key: making_key_to_domain(field_000000),
+        from: make_from_to_domain(field_000001),
         into: match field_000002 {
-            Some(item) => Some(make_into_to_domain(item, context)?),
+            Some(item) => {
+                let converted = make_into_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        asked: match skein_codec::convert::wall_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::REPOSITORY_MAKING_ASKED.problem(reason)) },
+        asked: skein_codec::convert::wall_to_domain(field_000003),
         copying: field_000004,
-        state: making_state_to_domain(field_000005, context)?
-    })
-}
-
-// Maps line 240: MakeRefusal.
-pub fn make_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::MakeRefusal, _context: &crate::records::Context) -> Result<crate::v25::MakeRefusal, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::MakeRefusal::NoSuchForge => Ok(crate::v25::MakeRefusal::NoSuchForge),
-        temper_engine_domain_forge_vocabulary::MakeRefusal::NotOffered => Ok(crate::v25::MakeRefusal::NotOffered),
-        temper_engine_domain_forge_vocabulary::MakeRefusal::NotOwner => Ok(crate::v25::MakeRefusal::NotOwner),
-        temper_engine_domain_forge_vocabulary::MakeRefusal::Invalid => Ok(crate::v25::MakeRefusal::Invalid),
-        temper_engine_domain_forge_vocabulary::MakeRefusal::HomeHeld => Ok(crate::v25::MakeRefusal::HomeHeld),
-        temper_engine_domain_forge_vocabulary::MakeRefusal::Full => Ok(crate::v25::MakeRefusal::Full),
-        temper_engine_domain_forge_vocabulary::MakeRefusal::NotFailed => Ok(crate::v25::MakeRefusal::NotFailed),
+        state: making_state_to_domain(field_000005)
     }
 }
 
-// Maps line 240: MakeRefusal.
-pub fn make_refusal_to_domain(record: crate::v25::MakeRefusal, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MakeRefusal, crate::v25::Problem> {
+#[must_use]
+pub fn make_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::MakeRefusal) -> crate::v25::MakeRefusal {
+    match value {
+        temper_engine_domain_forge_vocabulary::MakeRefusal::NoSuchForge => crate::v25::MakeRefusal::NoSuchForge,
+        temper_engine_domain_forge_vocabulary::MakeRefusal::NotOffered => crate::v25::MakeRefusal::NotOffered,
+        temper_engine_domain_forge_vocabulary::MakeRefusal::NotOwner => crate::v25::MakeRefusal::NotOwner,
+        temper_engine_domain_forge_vocabulary::MakeRefusal::Invalid => crate::v25::MakeRefusal::Invalid,
+        temper_engine_domain_forge_vocabulary::MakeRefusal::HomeHeld => crate::v25::MakeRefusal::HomeHeld,
+        temper_engine_domain_forge_vocabulary::MakeRefusal::Full => crate::v25::MakeRefusal::Full,
+        temper_engine_domain_forge_vocabulary::MakeRefusal::NotFailed => crate::v25::MakeRefusal::NotFailed,
+    }
+}
+
+#[must_use]
+pub fn make_refusal_to_domain(record: crate::v25::MakeRefusal) -> temper_engine_domain_forge_vocabulary::MakeRefusal {
     match record {
-        crate::v25::MakeRefusal::NoSuchForge => Ok(temper_engine_domain_forge_vocabulary::MakeRefusal::NoSuchForge),
-        crate::v25::MakeRefusal::NotOffered => Ok(temper_engine_domain_forge_vocabulary::MakeRefusal::NotOffered),
-        crate::v25::MakeRefusal::NotOwner => Ok(temper_engine_domain_forge_vocabulary::MakeRefusal::NotOwner),
-        crate::v25::MakeRefusal::Invalid => Ok(temper_engine_domain_forge_vocabulary::MakeRefusal::Invalid),
-        crate::v25::MakeRefusal::HomeHeld => Ok(temper_engine_domain_forge_vocabulary::MakeRefusal::HomeHeld),
-        crate::v25::MakeRefusal::Full => Ok(temper_engine_domain_forge_vocabulary::MakeRefusal::Full),
-        crate::v25::MakeRefusal::NotFailed => Ok(temper_engine_domain_forge_vocabulary::MakeRefusal::NotFailed),
+        crate::v25::MakeRefusal::NoSuchForge => temper_engine_domain_forge_vocabulary::MakeRefusal::NoSuchForge,
+        crate::v25::MakeRefusal::NotOffered => temper_engine_domain_forge_vocabulary::MakeRefusal::NotOffered,
+        crate::v25::MakeRefusal::NotOwner => temper_engine_domain_forge_vocabulary::MakeRefusal::NotOwner,
+        crate::v25::MakeRefusal::Invalid => temper_engine_domain_forge_vocabulary::MakeRefusal::Invalid,
+        crate::v25::MakeRefusal::HomeHeld => temper_engine_domain_forge_vocabulary::MakeRefusal::HomeHeld,
+        crate::v25::MakeRefusal::Full => temper_engine_domain_forge_vocabulary::MakeRefusal::Full,
+        crate::v25::MakeRefusal::NotFailed => temper_engine_domain_forge_vocabulary::MakeRefusal::NotFailed,
     }
 }
 
-// Maps line 245: FollowAct.
-pub fn follow_act_to_record(value: &temper_engine_domain_forge_vocabulary::follows::FollowAct, _context: &crate::records::Context) -> Result<crate::v25::FollowAct, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::follows::FollowAct::Start { after: field_000000 } => Ok(crate::v25::FollowAct::Start(crate::v25::FollowAt {
+pub fn follow_act_to_record(value: &temper_engine_domain_forge_vocabulary::follows::FollowAct) -> Result<crate::v25::FollowAct, crate::v25::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge_vocabulary::follows::FollowAct::Start { after: field_000000 } => crate::v25::FollowAct::Start(crate::v25::FollowAt {
             after: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::follows::FollowAct::Hold { after: field_000000, reason: field_000001 } => Ok(crate::v25::FollowAct::Hold(crate::v25::FollowReasonAct {
+        }),
+        temper_engine_domain_forge_vocabulary::follows::FollowAct::Hold { after: field_000000, reason: field_000001 } => crate::v25::FollowAct::Hold(crate::v25::FollowReasonAct {
             after: *field_000000,
             reason: field_000001.clone()
-        })),
-        temper_engine_domain_forge_vocabulary::follows::FollowAct::Skip { after: field_000000, reason: field_000001 } => Ok(crate::v25::FollowAct::Skip(crate::v25::FollowReasonAct {
+        }),
+        temper_engine_domain_forge_vocabulary::follows::FollowAct::Skip { after: field_000000, reason: field_000001 } => crate::v25::FollowAct::Skip(crate::v25::FollowReasonAct {
             after: *field_000000,
             reason: field_000001.clone()
-        })),
-        temper_engine_domain_forge_vocabulary::follows::FollowAct::Merge { afters: field_000000 } => Ok(crate::v25::FollowAct::Merge(crate::v25::FollowMergeAct {
+        }),
+        temper_engine_domain_forge_vocabulary::follows::FollowAct::Merge { afters: field_000000 } => crate::v25::FollowAct::Merge(crate::v25::FollowMergeAct {
             afters: {
                 let source = field_000000;
                 let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::FOLLOW_MERGE_ACT_AFTERS.problem(skein_codec::Reason::Bound)) };
                 let mut translated = skein_lib::List::with_capacity(count);
                 for item in source.as_ref() {
                     let converted = *item;
-                    if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_MERGE_ACT_AFTERS.problem(skein_codec::Reason::Bound)); }
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
                 }
                 translated
             }
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 245: FollowAct.
-pub fn follow_act_to_domain(record: crate::v25::FollowAct, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::follows::FollowAct, crate::v25::Problem> {
+#[must_use]
+pub fn follow_act_to_domain(record: crate::v25::FollowAct) -> temper_engine_domain_forge_vocabulary::follows::FollowAct {
     match record {
         crate::v25::FollowAct::Start(held) => {
             let crate::v25::FollowAt { after: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::follows::FollowAct::Start {
+            temper_engine_domain_forge_vocabulary::follows::FollowAct::Start {
                 after: field_000000
-            })
+            }
         },
         crate::v25::FollowAct::Hold(held) => {
             let crate::v25::FollowReasonAct { after: field_000000, reason: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::follows::FollowAct::Hold {
+            temper_engine_domain_forge_vocabulary::follows::FollowAct::Hold {
                 after: field_000000,
                 reason: field_000001
-            })
+            }
         },
         crate::v25::FollowAct::Skip(held) => {
             let crate::v25::FollowReasonAct { after: field_000000, reason: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::follows::FollowAct::Skip {
+            temper_engine_domain_forge_vocabulary::follows::FollowAct::Skip {
                 after: field_000000,
                 reason: field_000001
-            })
+            }
         },
         crate::v25::FollowAct::Merge(held) => {
             let crate::v25::FollowMergeAct { afters: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::follows::FollowAct::Merge {
+            temper_engine_domain_forge_vocabulary::follows::FollowAct::Merge {
                 afters: {
                     let source = field_000000;
                     let count = source.len();
                     let mut translated = skein_lib::List::with_capacity(count);
                     for item in source.into_boxed() {
                         let converted = item;
-                        if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_MERGE_ACT_AFTERS.problem(skein_codec::Reason::Bound)); }
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
                     }
                     Box::from(translated)
                 }
-            })
+            }
         },
     }
 }
 
-// Maps line 248: OpenRepository.
-pub fn open_repository_to_record(value: &temper_engine_domain_forge_vocabulary::DraftRepository, _context: &crate::records::Context) -> Result<crate::v25::OpenRepository, crate::v25::Problem> {
+#[must_use]
+pub fn open_repository_to_record(value: &temper_engine_domain_forge_vocabulary::DraftRepository) -> crate::v25::OpenRepository {
     let temper_engine_domain_forge_vocabulary::DraftRepository { owner: field_000000, name: field_000001 } = value;
-    Ok(crate::v25::OpenRepository {
+    crate::v25::OpenRepository {
         owner: field_000000.clone(),
         name: field_000001.clone()
-    })
+    }
 }
 
-// Maps line 248: OpenRepository.
-pub fn open_repository_to_domain(record: crate::v25::OpenRepository, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::DraftRepository, crate::v25::Problem> {
+#[must_use]
+pub fn open_repository_to_domain(record: crate::v25::OpenRepository) -> temper_engine_domain_forge_vocabulary::DraftRepository {
     let crate::v25::OpenRepository { owner: field_000000, name: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::DraftRepository {
+    temper_engine_domain_forge_vocabulary::DraftRepository {
         owner: field_000000,
         name: field_000001
-    })
+    }
 }
 
-// Maps line 252: OpenRefusal.
-pub fn open_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::OpenRefusal, context: &crate::records::Context) -> Result<crate::v25::OpenRefusal, crate::v25::Problem> {
+#[must_use]
+pub fn open_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::OpenRefusal) -> crate::v25::OpenRefusal {
     match value {
-        temper_engine_domain_forge_vocabulary::OpenRefusal::Several(held) => Ok(crate::v25::OpenRefusal::Several(crate::records::by_hand::several_repositories_to_record(held, context)?)),
-        temper_engine_domain_forge_vocabulary::OpenRefusal::NoRepository => Ok(crate::v25::OpenRefusal::NoRepository),
-        temper_engine_domain_forge_vocabulary::OpenRefusal::NotARepository => Ok(crate::v25::OpenRefusal::NotARepository),
-        temper_engine_domain_forge_vocabulary::OpenRefusal::UnderPrefix { owner: field_000000, name: field_000001, prefix: field_000002 } => Ok(crate::v25::OpenRefusal::UnderPrefix(crate::v25::UnderPrefix {
+        temper_engine_domain_forge_vocabulary::OpenRefusal::Several(held) => crate::v25::OpenRefusal::Several(crate::records::by_hand::several_repositories_to_record(held)),
+        temper_engine_domain_forge_vocabulary::OpenRefusal::NoRepository => crate::v25::OpenRefusal::NoRepository,
+        temper_engine_domain_forge_vocabulary::OpenRefusal::NotARepository => crate::v25::OpenRefusal::NotARepository,
+        temper_engine_domain_forge_vocabulary::OpenRefusal::UnderPrefix { owner: field_000000, name: field_000001, prefix: field_000002 } => crate::v25::OpenRefusal::UnderPrefix(crate::v25::UnderPrefix {
             owner: field_000000.clone(),
             name: field_000001.clone(),
             prefix: field_000002.clone()
-        })),
-        temper_engine_domain_forge_vocabulary::OpenRefusal::NamePast { bound: field_000000 } => Ok(crate::v25::OpenRefusal::NamePast(crate::v25::NamePast {
+        }),
+        temper_engine_domain_forge_vocabulary::OpenRefusal::NamePast { bound: field_000000 } => crate::v25::OpenRefusal::NamePast(crate::v25::NamePast {
             bound: *field_000000
-        })),
+        }),
     }
 }
 
-// Maps line 252: OpenRefusal.
-pub fn open_refusal_to_domain(record: crate::v25::OpenRefusal, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::OpenRefusal, crate::v25::Problem> {
-    match record {
-        crate::v25::OpenRefusal::Several(held) => Ok(temper_engine_domain_forge_vocabulary::OpenRefusal::Several(crate::records::by_hand::several_repositories_to_domain(held, context)?)),
-        crate::v25::OpenRefusal::NoRepository => Ok(temper_engine_domain_forge_vocabulary::OpenRefusal::NoRepository),
-        crate::v25::OpenRefusal::NotARepository => Ok(temper_engine_domain_forge_vocabulary::OpenRefusal::NotARepository),
+pub fn open_refusal_to_domain(record: crate::v25::OpenRefusal) -> Result<temper_engine_domain_forge_vocabulary::OpenRefusal, crate::v25::Problem> {
+    Ok(match record {
+        crate::v25::OpenRefusal::Several(held) => temper_engine_domain_forge_vocabulary::OpenRefusal::Several(crate::records::by_hand::several_repositories_to_domain(held)?),
+        crate::v25::OpenRefusal::NoRepository => temper_engine_domain_forge_vocabulary::OpenRefusal::NoRepository,
+        crate::v25::OpenRefusal::NotARepository => temper_engine_domain_forge_vocabulary::OpenRefusal::NotARepository,
         crate::v25::OpenRefusal::UnderPrefix(held) => {
             let crate::v25::UnderPrefix { owner: field_000000, name: field_000001, prefix: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::OpenRefusal::UnderPrefix {
+            temper_engine_domain_forge_vocabulary::OpenRefusal::UnderPrefix {
                 owner: field_000000,
                 name: field_000001,
                 prefix: field_000002
-            })
+            }
         },
         crate::v25::OpenRefusal::NamePast(held) => {
             let crate::v25::NamePast { bound: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::OpenRefusal::NamePast {
+            temper_engine_domain_forge_vocabulary::OpenRefusal::NamePast {
                 bound: field_000000
-            })
+            }
         },
-    }
+    })
 }
 
-// Maps line 254: ApplicationOutcome.
-pub fn application_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::ApplicationOutcome, context: &crate::records::Context) -> Result<crate::v25::ApplicationOutcome, crate::v25::Problem> {
+#[must_use]
+pub fn application_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::ApplicationOutcome) -> crate::v25::ApplicationOutcome {
     match value {
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::Adopted(held) => Ok(crate::v25::ApplicationOutcome::Adopted(application_adopted_to_record(held, context)?)),
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::CoreRefused(held) => Ok(crate::v25::ApplicationOutcome::CoreRefused(crate::records::by_hand::core_refused_to_record(held, context)?)),
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::ForgeRefused(held) => Ok(crate::v25::ApplicationOutcome::ForgeRefused(crate::v25::ForgeRefused { reason: forge_reason_to_record(held, context)? })),
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeKept => Ok(crate::v25::ApplicationOutcome::MakeKept),
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeRefused(held) => Ok(crate::v25::ApplicationOutcome::MakeRefused(crate::v25::MakeRefused { reason: make_refusal_to_record(held, context)? })),
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::Follow(held) => Ok(crate::v25::ApplicationOutcome::Follow(crate::v25::FollowOutcome { refusal: match held {
-                Some(item) => Some(item.clone()),
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::Adopted(held) => crate::v25::ApplicationOutcome::Adopted(application_adopted_to_record(held)),
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::CoreRefused(held) => crate::v25::ApplicationOutcome::CoreRefused(crate::records::by_hand::core_refused_to_record(held)),
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::ForgeRefused(held) => crate::v25::ApplicationOutcome::ForgeRefused(crate::v25::ForgeRefused { reason: forge_reason_to_record(held) }),
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeKept => crate::v25::ApplicationOutcome::MakeKept,
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeRefused(held) => crate::v25::ApplicationOutcome::MakeRefused(crate::v25::MakeRefused { reason: make_refusal_to_record(held) }),
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::Follow(held) => crate::v25::ApplicationOutcome::Follow(crate::v25::FollowOutcome { refusal: match held {
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
                 None => None,
-            } })),
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::Opened { task: field_000000 } => Ok(crate::v25::ApplicationOutcome::Opened(crate::v25::Opened {
+            } }),
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::Opened { task: field_000000 } => crate::v25::ApplicationOutcome::Opened(crate::v25::Opened {
             task: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::ApplicationOutcome::OpenRefused(held) => Ok(crate::v25::ApplicationOutcome::OpenRefused(crate::v25::OpenRefused { reason: open_refusal_to_record(held, context)? })),
+        }),
+        temper_engine_domain_forge_vocabulary::ApplicationOutcome::OpenRefused(held) => crate::v25::ApplicationOutcome::OpenRefused(crate::v25::OpenRefused { reason: open_refusal_to_record(held) }),
     }
 }
 
-// Maps line 254: ApplicationOutcome.
 pub fn application_outcome_to_domain(record: crate::v25::ApplicationOutcome, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ApplicationOutcome, crate::v25::Problem> {
-    match record {
-        crate::v25::ApplicationOutcome::Adopted(held) => Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::Adopted(application_adopted_to_domain(held, context)?)),
-        crate::v25::ApplicationOutcome::CoreRefused(held) => Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::CoreRefused(crate::records::by_hand::core_refused_to_domain(held, context)?)),
-        crate::v25::ApplicationOutcome::ForgeRefused(held) => Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::ForgeRefused({
+    Ok(match record {
+        crate::v25::ApplicationOutcome::Adopted(held) => temper_engine_domain_forge_vocabulary::ApplicationOutcome::Adopted(application_adopted_to_domain(held, context)?),
+        crate::v25::ApplicationOutcome::CoreRefused(held) => temper_engine_domain_forge_vocabulary::ApplicationOutcome::CoreRefused(crate::records::by_hand::core_refused_to_domain(held)?),
+        crate::v25::ApplicationOutcome::ForgeRefused(held) => temper_engine_domain_forge_vocabulary::ApplicationOutcome::ForgeRefused({
             let crate::v25::ForgeRefused { reason: held } = held;
-            forge_reason_to_domain(held, context)?
-        })),
-        crate::v25::ApplicationOutcome::MakeKept => Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeKept),
-        crate::v25::ApplicationOutcome::MakeRefused(held) => Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeRefused({
+            forge_reason_to_domain(held)
+        }),
+        crate::v25::ApplicationOutcome::MakeKept => temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeKept,
+        crate::v25::ApplicationOutcome::MakeRefused(held) => temper_engine_domain_forge_vocabulary::ApplicationOutcome::MakeRefused({
             let crate::v25::MakeRefused { reason: held } = held;
-            make_refusal_to_domain(held, context)?
-        })),
-        crate::v25::ApplicationOutcome::Follow(held) => Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::Follow({
+            make_refusal_to_domain(held)
+        }),
+        crate::v25::ApplicationOutcome::Follow(held) => temper_engine_domain_forge_vocabulary::ApplicationOutcome::Follow({
             let crate::v25::FollowOutcome { refusal: held } = held;
             match held {
-                Some(item) => Some(item),
+                Some(item) => {
+                    let converted = item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
+        }),
         crate::v25::ApplicationOutcome::Opened(held) => {
             let crate::v25::Opened { task: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::Opened {
+            temper_engine_domain_forge_vocabulary::ApplicationOutcome::Opened {
                 task: field_000000
-            })
+            }
         },
-        crate::v25::ApplicationOutcome::OpenRefused(held) => Ok(temper_engine_domain_forge_vocabulary::ApplicationOutcome::OpenRefused({
+        crate::v25::ApplicationOutcome::OpenRefused(held) => temper_engine_domain_forge_vocabulary::ApplicationOutcome::OpenRefused({
             let crate::v25::OpenRefused { reason: held } = held;
-            open_refusal_to_domain(held, context)?
-        })),
-    }
+            open_refusal_to_domain(held)?
+        }),
+    })
 }
 
-// Maps line 256: ForgeWriter.
-pub fn forge_writer_to_record(value: &skein_forge_client::Writer, _context: &crate::records::Context) -> Result<crate::v25::ForgeWriter, crate::v25::Problem> {
+#[must_use]
+pub fn forge_writer_to_record(value: &skein_forge_client::Writer) -> crate::v25::ForgeWriter {
     let skein_forge_client::Writer { forge: field_000000, author: field_000001 } = value;
-    Ok(crate::v25::ForgeWriter {
+    crate::v25::ForgeWriter {
         forge: *field_000000,
         author: *field_000001
-    })
-}
-
-// Maps line 256: ForgeWriter.
-pub fn forge_writer_to_domain(record: crate::v25::ForgeWriter, _context: &crate::records::Context) -> Result<skein_forge_client::Writer, crate::v25::Problem> {
-    let crate::v25::ForgeWriter { forge: field_000000, author: field_000001 } = record;
-    Ok(skein_forge_client::Writer {
-        forge: field_000000,
-        author: field_000001
-    })
-}
-
-// Maps line 265: GateProofState.
-pub fn gate_proof_state_to_record(value: &temper_engine_domain_forge_landing::Proof, _context: &crate::records::Context) -> Result<crate::v25::GateProofState, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_landing::Proof::Unkeyed => Ok(crate::v25::GateProofState::Unkeyed),
-        temper_engine_domain_forge_landing::Proof::Keyed { key: field_000000 } => Ok(crate::v25::GateProofState::Keyed(crate::v25::GateKey {
-            key: *field_000000
-        })),
-        temper_engine_domain_forge_landing::Proof::Dispatched { key: field_000000, try_: field_000001 } => Ok(crate::v25::GateProofState::Dispatched(crate::v25::DispatchedKey {
-            key: *field_000000,
-            try_: *field_000001
-        })),
-        temper_engine_domain_forge_landing::Proof::Passed { key: field_000000 } => Ok(crate::v25::GateProofState::Passed(crate::v25::GateKey {
-            key: *field_000000
-        })),
-        temper_engine_domain_forge_landing::Proof::Failed { key: field_000000 } => Ok(crate::v25::GateProofState::Failed(crate::v25::GateKey {
-            key: *field_000000
-        })),
     }
 }
 
-// Maps line 265: GateProofState.
-pub fn gate_proof_state_to_domain(record: crate::v25::GateProofState, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Proof, crate::v25::Problem> {
+#[must_use]
+pub fn forge_writer_to_domain(record: crate::v25::ForgeWriter) -> skein_forge_client::Writer {
+    let crate::v25::ForgeWriter { forge: field_000000, author: field_000001 } = record;
+    skein_forge_client::Writer {
+        forge: field_000000,
+        author: field_000001
+    }
+}
+
+#[must_use]
+pub fn gate_proof_state_to_record(value: &temper_engine_domain_forge_landing::Proof) -> crate::v25::GateProofState {
+    match value {
+        temper_engine_domain_forge_landing::Proof::Unkeyed => crate::v25::GateProofState::Unkeyed,
+        temper_engine_domain_forge_landing::Proof::Keyed { key: field_000000 } => crate::v25::GateProofState::Keyed(crate::v25::GateKey {
+            key: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Proof::Dispatched { key: field_000000, try_: field_000001 } => crate::v25::GateProofState::Dispatched(crate::v25::DispatchedKey {
+            key: *field_000000,
+            try_: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Proof::Passed { key: field_000000 } => crate::v25::GateProofState::Passed(crate::v25::GateKey {
+            key: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Proof::Failed { key: field_000000 } => crate::v25::GateProofState::Failed(crate::v25::GateKey {
+            key: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn gate_proof_state_to_domain(record: crate::v25::GateProofState) -> temper_engine_domain_forge_landing::Proof {
     match record {
-        crate::v25::GateProofState::Unkeyed => Ok(temper_engine_domain_forge_landing::Proof::Unkeyed),
+        crate::v25::GateProofState::Unkeyed => temper_engine_domain_forge_landing::Proof::Unkeyed,
         crate::v25::GateProofState::Keyed(held) => {
             let crate::v25::GateKey { key: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Proof::Keyed {
+            temper_engine_domain_forge_landing::Proof::Keyed {
                 key: field_000000
-            })
+            }
         },
         crate::v25::GateProofState::Dispatched(held) => {
             let crate::v25::DispatchedKey { key: field_000000, try_: field_000001 } = held;
-            Ok(temper_engine_domain_forge_landing::Proof::Dispatched {
+            temper_engine_domain_forge_landing::Proof::Dispatched {
                 key: field_000000,
                 try_: field_000001
-            })
+            }
         },
         crate::v25::GateProofState::Passed(held) => {
             let crate::v25::GateKey { key: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Proof::Passed {
+            temper_engine_domain_forge_landing::Proof::Passed {
                 key: field_000000
-            })
+            }
         },
         crate::v25::GateProofState::Failed(held) => {
             let crate::v25::GateKey { key: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Proof::Failed {
+            temper_engine_domain_forge_landing::Proof::Failed {
                 key: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 266: GatePosted.
-pub fn gate_posted_to_record(value: &temper_engine_domain_forge_landing::Posted, _context: &crate::records::Context) -> Result<crate::v25::GatePosted, crate::v25::Problem> {
+#[must_use]
+pub fn gate_posted_to_record(value: &temper_engine_domain_forge_landing::Posted) -> crate::v25::GatePosted {
     match value {
-        temper_engine_domain_forge_landing::Posted::Nothing => Ok(crate::v25::GatePosted::Nothing),
-        temper_engine_domain_forge_landing::Posted::Pending => Ok(crate::v25::GatePosted::Pending),
-        temper_engine_domain_forge_landing::Posted::Verdict => Ok(crate::v25::GatePosted::Verdict),
-        temper_engine_domain_forge_landing::Posted::ByTest => Ok(crate::v25::GatePosted::ByTest),
+        temper_engine_domain_forge_landing::Posted::Nothing => crate::v25::GatePosted::Nothing,
+        temper_engine_domain_forge_landing::Posted::Pending => crate::v25::GatePosted::Pending,
+        temper_engine_domain_forge_landing::Posted::Verdict => crate::v25::GatePosted::Verdict,
+        temper_engine_domain_forge_landing::Posted::ByTest => crate::v25::GatePosted::ByTest,
     }
 }
 
-// Maps line 266: GatePosted.
-pub fn gate_posted_to_domain(record: crate::v25::GatePosted, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Posted, crate::v25::Problem> {
+#[must_use]
+pub fn gate_posted_to_domain(record: crate::v25::GatePosted) -> temper_engine_domain_forge_landing::Posted {
     match record {
-        crate::v25::GatePosted::Nothing => Ok(temper_engine_domain_forge_landing::Posted::Nothing),
-        crate::v25::GatePosted::Pending => Ok(temper_engine_domain_forge_landing::Posted::Pending),
-        crate::v25::GatePosted::Verdict => Ok(temper_engine_domain_forge_landing::Posted::Verdict),
-        crate::v25::GatePosted::ByTest => Ok(temper_engine_domain_forge_landing::Posted::ByTest),
+        crate::v25::GatePosted::Nothing => temper_engine_domain_forge_landing::Posted::Nothing,
+        crate::v25::GatePosted::Pending => temper_engine_domain_forge_landing::Posted::Pending,
+        crate::v25::GatePosted::Verdict => temper_engine_domain_forge_landing::Posted::Verdict,
+        crate::v25::GatePosted::ByTest => temper_engine_domain_forge_landing::Posted::ByTest,
     }
 }
 
-// Maps line 267: GateProof.
-pub fn gate_proof_to_record(value: &temper_engine_domain_forge_landing::GateProof, context: &crate::records::Context) -> Result<crate::v25::GateProof, crate::v25::Problem> {
+#[must_use]
+pub fn gate_proof_to_record(value: &temper_engine_domain_forge_landing::GateProof) -> crate::v25::GateProof {
     let temper_engine_domain_forge_landing::GateProof { proof: field_000000, posted: field_000001, faults: field_000002 } = value;
-    Ok(crate::v25::GateProof {
-        proof: gate_proof_state_to_record(field_000000, context)?,
-        posted: gate_posted_to_record(field_000001, context)?,
+    crate::v25::GateProof {
+        proof: gate_proof_state_to_record(field_000000),
+        posted: gate_posted_to_record(field_000001),
         faults: *field_000002
-    })
+    }
 }
 
-// Maps line 267: GateProof.
-pub fn gate_proof_to_domain(record: crate::v25::GateProof, context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::GateProof, crate::v25::Problem> {
+#[must_use]
+pub fn gate_proof_to_domain(record: crate::v25::GateProof) -> temper_engine_domain_forge_landing::GateProof {
     let crate::v25::GateProof { proof: field_000000, posted: field_000001, faults: field_000002 } = record;
-    Ok(temper_engine_domain_forge_landing::GateProof {
-        proof: gate_proof_state_to_domain(field_000000, context)?,
-        posted: gate_posted_to_domain(field_000001, context)?,
+    temper_engine_domain_forge_landing::GateProof {
+        proof: gate_proof_state_to_domain(field_000000),
+        posted: gate_posted_to_domain(field_000001),
         faults: field_000002
-    })
+    }
 }
 
-// Maps line 275: LandingCombine.
-pub fn landing_combine_to_record(value: &temper_engine_domain_forge_landing::Combine, _context: &crate::records::Context) -> Result<crate::v25::LandingCombine, crate::v25::Problem> {
+#[must_use]
+pub fn landing_combine_to_record(value: &temper_engine_domain_forge_landing::Combine) -> crate::v25::LandingCombine {
     match value {
-        temper_engine_domain_forge_landing::Combine::Merge => Ok(crate::v25::LandingCombine::Merge),
-        temper_engine_domain_forge_landing::Combine::Squash => Ok(crate::v25::LandingCombine::Squash),
+        temper_engine_domain_forge_landing::Combine::Merge => crate::v25::LandingCombine::Merge,
+        temper_engine_domain_forge_landing::Combine::Squash => crate::v25::LandingCombine::Squash,
     }
 }
 
-// Maps line 275: LandingCombine.
-pub fn landing_combine_to_domain(record: crate::v25::LandingCombine, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Combine, crate::v25::Problem> {
+#[must_use]
+pub fn landing_combine_to_domain(record: crate::v25::LandingCombine) -> temper_engine_domain_forge_landing::Combine {
     match record {
-        crate::v25::LandingCombine::Merge => Ok(temper_engine_domain_forge_landing::Combine::Merge),
-        crate::v25::LandingCombine::Squash => Ok(temper_engine_domain_forge_landing::Combine::Squash),
+        crate::v25::LandingCombine::Merge => temper_engine_domain_forge_landing::Combine::Merge,
+        crate::v25::LandingCombine::Squash => temper_engine_domain_forge_landing::Combine::Squash,
     }
 }
 
-// Maps line 277: LandingRoundEnd.
-pub fn landing_round_end_to_record(value: &temper_engine_domain_forge_landing::RoundEnd, _context: &crate::records::Context) -> Result<crate::v25::LandingRoundEnd, crate::v25::Problem> {
+#[must_use]
+pub fn landing_round_end_to_record(value: &temper_engine_domain_forge_landing::RoundEnd) -> crate::v25::LandingRoundEnd {
     match value {
-        temper_engine_domain_forge_landing::RoundEnd::Stale => Ok(crate::v25::LandingRoundEnd::Stale),
-        temper_engine_domain_forge_landing::RoundEnd::Leave => Ok(crate::v25::LandingRoundEnd::Leave),
-        temper_engine_domain_forge_landing::RoundEnd::Conflict => Ok(crate::v25::LandingRoundEnd::Conflict),
-        temper_engine_domain_forge_landing::RoundEnd::Cut => Ok(crate::v25::LandingRoundEnd::Cut),
+        temper_engine_domain_forge_landing::RoundEnd::Stale => crate::v25::LandingRoundEnd::Stale,
+        temper_engine_domain_forge_landing::RoundEnd::Leave => crate::v25::LandingRoundEnd::Leave,
+        temper_engine_domain_forge_landing::RoundEnd::Conflict => crate::v25::LandingRoundEnd::Conflict,
+        temper_engine_domain_forge_landing::RoundEnd::Cut => crate::v25::LandingRoundEnd::Cut,
     }
 }
 
-// Maps line 277: LandingRoundEnd.
-pub fn landing_round_end_to_domain(record: crate::v25::LandingRoundEnd, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::RoundEnd, crate::v25::Problem> {
+#[must_use]
+pub fn landing_round_end_to_domain(record: crate::v25::LandingRoundEnd) -> temper_engine_domain_forge_landing::RoundEnd {
     match record {
-        crate::v25::LandingRoundEnd::Stale => Ok(temper_engine_domain_forge_landing::RoundEnd::Stale),
-        crate::v25::LandingRoundEnd::Leave => Ok(temper_engine_domain_forge_landing::RoundEnd::Leave),
-        crate::v25::LandingRoundEnd::Conflict => Ok(temper_engine_domain_forge_landing::RoundEnd::Conflict),
-        crate::v25::LandingRoundEnd::Cut => Ok(temper_engine_domain_forge_landing::RoundEnd::Cut),
+        crate::v25::LandingRoundEnd::Stale => temper_engine_domain_forge_landing::RoundEnd::Stale,
+        crate::v25::LandingRoundEnd::Leave => temper_engine_domain_forge_landing::RoundEnd::Leave,
+        crate::v25::LandingRoundEnd::Conflict => temper_engine_domain_forge_landing::RoundEnd::Conflict,
+        crate::v25::LandingRoundEnd::Cut => temper_engine_domain_forge_landing::RoundEnd::Cut,
     }
 }
 
-// Maps line 285: LandingProbed.
-pub fn landing_probed_to_record(value: &temper_engine_domain_forge_landing::Probed, _context: &crate::records::Context) -> Result<crate::v25::LandingProbed, crate::v25::Problem> {
+#[must_use]
+pub fn landing_probed_to_record(value: &temper_engine_domain_forge_landing::Probed) -> crate::v25::LandingProbed {
     let temper_engine_domain_forge_landing::Probed { member: field_000000, gate: field_000001, run: field_000002, passed: field_000003 } = value;
-    Ok(crate::v25::LandingProbed {
+    crate::v25::LandingProbed {
         member: *field_000000,
         gate: *field_000001,
         run: *field_000002,
         passed: *field_000003
-    })
+    }
 }
 
-// Maps line 285: LandingProbed.
-pub fn landing_probed_to_domain(record: crate::v25::LandingProbed, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Probed, crate::v25::Problem> {
+#[must_use]
+pub fn landing_probed_to_domain(record: crate::v25::LandingProbed) -> temper_engine_domain_forge_landing::Probed {
     let crate::v25::LandingProbed { member: field_000000, gate: field_000001, run: field_000002, passed: field_000003 } = record;
-    Ok(temper_engine_domain_forge_landing::Probed {
+    temper_engine_domain_forge_landing::Probed {
         member: field_000000,
         gate: field_000001,
         run: field_000002,
         passed: field_000003
-    })
+    }
 }
 
-// Maps line 288: LandingSearch.
-pub fn landing_search_to_record(value: &temper_engine_domain_forge_landing::Search, context: &crate::records::Context) -> Result<crate::v25::LandingSearch, crate::v25::Problem> {
+#[must_use]
+pub fn landing_search_to_record(value: &temper_engine_domain_forge_landing::Search) -> crate::v25::LandingSearch {
     let temper_engine_domain_forge_landing::Search { green: field_000000, red: field_000001, tests: field_000002 } = value;
-    Ok(crate::v25::LandingSearch {
+    crate::v25::LandingSearch {
         green: *field_000000,
         red: *field_000001,
-        tests: crate::records::by_hand::landing_search_tests_to_record(field_000002, context)?
-    })
+        tests: crate::records::by_hand::landing_search_tests_to_record(field_000002)
+    }
 }
 
-// Maps line 288: LandingSearch.
-pub fn landing_search_to_domain(record: crate::v25::LandingSearch, context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Search, crate::v25::Problem> {
+#[must_use]
+pub fn landing_search_to_domain(record: crate::v25::LandingSearch) -> temper_engine_domain_forge_landing::Search {
     let crate::v25::LandingSearch { green: field_000000, red: field_000001, tests: field_000002 } = record;
-    Ok(temper_engine_domain_forge_landing::Search {
+    temper_engine_domain_forge_landing::Search {
         green: field_000000,
         red: field_000001,
-        tests: crate::records::by_hand::landing_search_tests_to_domain(field_000002, context)?
-    })
+        tests: crate::records::by_hand::landing_search_tests_to_domain(field_000002)
+    }
 }
 
-// Maps line 289: LandingSearched.
-pub fn landing_searched_to_record(value: &temper_engine_domain_forge_landing::Searched, _context: &crate::records::Context) -> Result<crate::v25::LandingSearched, crate::v25::Problem> {
+pub fn landing_searched_to_record(value: &temper_engine_domain_forge_landing::Searched) -> Result<crate::v25::LandingSearched, crate::v25::Problem> {
     let temper_engine_domain_forge_landing::Searched { red: field_000000, green: field_000001, changes: field_000002 } = value;
     Ok(crate::v25::LandingSearched {
         red: *field_000000,
         green: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         changes: {
@@ -3642,20 +3868,23 @@ pub fn landing_searched_to_record(value: &temper_engine_domain_forge_landing::Se
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_SEARCHED_CHANGES.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 289: LandingSearched.
-pub fn landing_searched_to_domain(record: crate::v25::LandingSearched, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Searched, crate::v25::Problem> {
+#[must_use]
+pub fn landing_searched_to_domain(record: crate::v25::LandingSearched) -> temper_engine_domain_forge_landing::Searched {
     let crate::v25::LandingSearched { red: field_000000, green: field_000001, changes: field_000002 } = record;
-    Ok(temper_engine_domain_forge_landing::Searched {
+    temper_engine_domain_forge_landing::Searched {
         red: field_000000,
         green: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         changes: {
@@ -3664,89 +3893,124 @@ pub fn landing_searched_to_domain(record: crate::v25::LandingSearched, _context:
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_SEARCHED_CHANGES.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 290: LandingRound.
-pub fn landing_round_to_record(value: &temper_engine_domain_forge_landing::Round, context: &crate::records::Context) -> Result<crate::v25::LandingRound, crate::v25::Problem> {
+#[must_use]
+pub fn landing_round_to_record(value: &temper_engine_domain_forge_landing::Round) -> crate::v25::LandingRound {
     let temper_engine_domain_forge_landing::Round { merges: field_000000, branch: field_000001, pull: field_000002, upstream: field_000003, combined: field_000004, recorded: field_000005, told: field_000006, ending: field_000007, failure: field_000008, judging: field_000009, changed: field_000010, search: field_000011 } = value;
-    Ok(crate::v25::LandingRound {
+    crate::v25::LandingRound {
         merges: *field_000000,
         branch: field_000001.clone(),
         pull: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         upstream: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         combined: match field_000004 {
-            Some(item) => Some(landing_combine_to_record(item, context)?),
+            Some(item) => {
+                let converted = landing_combine_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         recorded: *field_000005,
         told: *field_000006,
         ending: match field_000007 {
-            Some(item) => Some(landing_round_end_to_record(item, context)?),
+            Some(item) => {
+                let converted = landing_round_end_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         failure: field_000008.clone(),
         judging: *field_000009,
         changed: match field_000010 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         search: match field_000011 {
-            Some(item) => Some(landing_search_to_record(item, context)?),
+            Some(item) => {
+                let converted = landing_search_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 290: LandingRound.
-pub fn landing_round_to_domain(record: crate::v25::LandingRound, context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Round, crate::v25::Problem> {
+#[must_use]
+pub fn landing_round_to_domain(record: crate::v25::LandingRound) -> temper_engine_domain_forge_landing::Round {
     let crate::v25::LandingRound { merges: field_000000, branch: field_000001, pull: field_000002, upstream: field_000003, combined: field_000004, recorded: field_000005, told: field_000006, ending: field_000007, failure: field_000008, judging: field_000009, changed: field_000010, search: field_000011 } = record;
-    Ok(temper_engine_domain_forge_landing::Round {
+    temper_engine_domain_forge_landing::Round {
         merges: field_000000,
         branch: field_000001,
         pull: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         upstream: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         combined: match field_000004 {
-            Some(item) => Some(landing_combine_to_domain(item, context)?),
+            Some(item) => {
+                let converted = landing_combine_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         recorded: field_000005,
         told: field_000006,
         ending: match field_000007 {
-            Some(item) => Some(landing_round_end_to_domain(item, context)?),
+            Some(item) => {
+                let converted = landing_round_end_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         failure: field_000008,
         judging: field_000009,
         changed: match field_000010 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         search: match field_000011 {
-            Some(item) => Some(landing_search_to_domain(item, context)?),
+            Some(item) => {
+                let converted = landing_search_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 291: LandingLastPrepare.
-pub fn landing_last_prepare_to_record(value: &temper_engine_domain_forge_landing::LastPrepare, _context: &crate::records::Context) -> Result<crate::v25::LandingLastPrepare, crate::v25::Problem> {
+pub fn landing_last_prepare_to_record(value: &temper_engine_domain_forge_landing::LastPrepare) -> Result<crate::v25::LandingLastPrepare, crate::v25::Problem> {
     let temper_engine_domain_forge_landing::LastPrepare { member: field_000000, head: field_000001, main: field_000002, suffix: field_000003, asks: field_000004, again: field_000005 } = value;
     Ok(crate::v25::LandingLastPrepare {
         member: *field_000000,
@@ -3758,22 +4022,25 @@ pub fn landing_last_prepare_to_record(value: &temper_engine_domain_forge_landing
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_LAST_PREPARE_SUFFIX.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         asks: *field_000004,
         again: match field_000005 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LANDING_LAST_PREPARE_AGAIN.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 291: LandingLastPrepare.
-pub fn landing_last_prepare_to_domain(record: crate::v25::LandingLastPrepare, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::LastPrepare, crate::v25::Problem> {
+#[must_use]
+pub fn landing_last_prepare_to_domain(record: crate::v25::LandingLastPrepare) -> temper_engine_domain_forge_landing::LastPrepare {
     let crate::v25::LandingLastPrepare { member: field_000000, head: field_000001, main: field_000002, suffix: field_000003, asks: field_000004, again: field_000005 } = record;
-    Ok(temper_engine_domain_forge_landing::LastPrepare {
+    temper_engine_domain_forge_landing::LastPrepare {
         member: field_000000,
         head: field_000001,
         main: field_000002,
@@ -3783,211 +4050,237 @@ pub fn landing_last_prepare_to_domain(record: crate::v25::LandingLastPrepare, _c
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_LAST_PREPARE_SUFFIX.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         asks: field_000004,
         again: match field_000005 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LANDING_LAST_PREPARE_AGAIN.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 294: LandingOperation.
-pub fn landing_operation_to_record(value: &temper_engine_domain_forge_vocabulary::Operation, _context: &crate::records::Context) -> Result<crate::v25::LandingOperation, crate::v25::Problem> {
+#[must_use]
+pub fn landing_operation_to_record(value: &temper_engine_domain_forge_vocabulary::Operation) -> crate::v25::LandingOperation {
     match value {
-        temper_engine_domain_forge_vocabulary::Operation::Dispatch => Ok(crate::v25::LandingOperation::Dispatch),
-        temper_engine_domain_forge_vocabulary::Operation::Rerun => Ok(crate::v25::LandingOperation::Rerun),
-        temper_engine_domain_forge_vocabulary::Operation::Pending => Ok(crate::v25::LandingOperation::Pending),
-        temper_engine_domain_forge_vocabulary::Operation::Verdict => Ok(crate::v25::LandingOperation::Verdict),
-        temper_engine_domain_forge_vocabulary::Operation::Merge => Ok(crate::v25::LandingOperation::Merge),
-        temper_engine_domain_forge_vocabulary::Operation::Open => Ok(crate::v25::LandingOperation::Open),
-        temper_engine_domain_forge_vocabulary::Operation::Close => Ok(crate::v25::LandingOperation::Close),
-        temper_engine_domain_forge_vocabulary::Operation::Delete => Ok(crate::v25::LandingOperation::Delete),
-        temper_engine_domain_forge_vocabulary::Operation::Record => Ok(crate::v25::LandingOperation::Record),
+        temper_engine_domain_forge_vocabulary::Operation::Dispatch => crate::v25::LandingOperation::Dispatch,
+        temper_engine_domain_forge_vocabulary::Operation::Rerun => crate::v25::LandingOperation::Rerun,
+        temper_engine_domain_forge_vocabulary::Operation::Pending => crate::v25::LandingOperation::Pending,
+        temper_engine_domain_forge_vocabulary::Operation::Verdict => crate::v25::LandingOperation::Verdict,
+        temper_engine_domain_forge_vocabulary::Operation::Merge => crate::v25::LandingOperation::Merge,
+        temper_engine_domain_forge_vocabulary::Operation::Open => crate::v25::LandingOperation::Open,
+        temper_engine_domain_forge_vocabulary::Operation::Close => crate::v25::LandingOperation::Close,
+        temper_engine_domain_forge_vocabulary::Operation::Delete => crate::v25::LandingOperation::Delete,
+        temper_engine_domain_forge_vocabulary::Operation::Record => crate::v25::LandingOperation::Record,
     }
 }
 
-// Maps line 294: LandingOperation.
-pub fn landing_operation_to_domain(record: crate::v25::LandingOperation, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Operation, crate::v25::Problem> {
+#[must_use]
+pub fn landing_operation_to_domain(record: crate::v25::LandingOperation) -> temper_engine_domain_forge_vocabulary::Operation {
     match record {
-        crate::v25::LandingOperation::Dispatch => Ok(temper_engine_domain_forge_vocabulary::Operation::Dispatch),
-        crate::v25::LandingOperation::Rerun => Ok(temper_engine_domain_forge_vocabulary::Operation::Rerun),
-        crate::v25::LandingOperation::Pending => Ok(temper_engine_domain_forge_vocabulary::Operation::Pending),
-        crate::v25::LandingOperation::Verdict => Ok(temper_engine_domain_forge_vocabulary::Operation::Verdict),
-        crate::v25::LandingOperation::Merge => Ok(temper_engine_domain_forge_vocabulary::Operation::Merge),
-        crate::v25::LandingOperation::Open => Ok(temper_engine_domain_forge_vocabulary::Operation::Open),
-        crate::v25::LandingOperation::Close => Ok(temper_engine_domain_forge_vocabulary::Operation::Close),
-        crate::v25::LandingOperation::Delete => Ok(temper_engine_domain_forge_vocabulary::Operation::Delete),
-        crate::v25::LandingOperation::Record => Ok(temper_engine_domain_forge_vocabulary::Operation::Record),
+        crate::v25::LandingOperation::Dispatch => temper_engine_domain_forge_vocabulary::Operation::Dispatch,
+        crate::v25::LandingOperation::Rerun => temper_engine_domain_forge_vocabulary::Operation::Rerun,
+        crate::v25::LandingOperation::Pending => temper_engine_domain_forge_vocabulary::Operation::Pending,
+        crate::v25::LandingOperation::Verdict => temper_engine_domain_forge_vocabulary::Operation::Verdict,
+        crate::v25::LandingOperation::Merge => temper_engine_domain_forge_vocabulary::Operation::Merge,
+        crate::v25::LandingOperation::Open => temper_engine_domain_forge_vocabulary::Operation::Open,
+        crate::v25::LandingOperation::Close => temper_engine_domain_forge_vocabulary::Operation::Close,
+        crate::v25::LandingOperation::Delete => temper_engine_domain_forge_vocabulary::Operation::Delete,
+        crate::v25::LandingOperation::Record => temper_engine_domain_forge_vocabulary::Operation::Record,
     }
 }
 
-// Maps line 295: LandingRun.
-pub fn landing_run_to_record(value: &temper_engine_domain_forge_vocabulary::LandingRun, context: &crate::records::Context) -> Result<crate::v25::LandingRun, crate::v25::Problem> {
+#[must_use]
+pub fn landing_run_to_record(value: &temper_engine_domain_forge_vocabulary::LandingRun) -> crate::v25::LandingRun {
     let temper_engine_domain_forge_vocabulary::LandingRun { id: field_000000, attempt: field_000001, ended: field_000002, clock: field_000003 } = value;
-    Ok(crate::v25::LandingRun {
+    crate::v25::LandingRun {
         id: *field_000000,
         attempt: *field_000001,
         ended: *field_000002,
         clock: match field_000003 {
-            Some(item) => Some(execution_clock_to_record(item, context)?),
+            Some(item) => {
+                let converted = execution_clock_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 295: LandingRun.
-pub fn landing_run_to_domain(record: crate::v25::LandingRun, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LandingRun, crate::v25::Problem> {
+#[must_use]
+pub fn landing_run_to_domain(record: crate::v25::LandingRun) -> temper_engine_domain_forge_vocabulary::LandingRun {
     let crate::v25::LandingRun { id: field_000000, attempt: field_000001, ended: field_000002, clock: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::LandingRun {
+    temper_engine_domain_forge_vocabulary::LandingRun {
         id: field_000000,
         attempt: field_000001,
         ended: field_000002,
         clock: match field_000003 {
-            Some(item) => Some(execution_clock_to_domain(item, context)?),
+            Some(item) => {
+                let converted = execution_clock_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 296: LandingEntry.
-pub fn landing_entry_to_record(value: &temper_engine_domain_forge_vocabulary::LandingEntry, context: &crate::records::Context) -> Result<crate::v25::LandingEntry, crate::v25::Problem> {
+#[must_use]
+pub fn landing_entry_to_record(value: &temper_engine_domain_forge_vocabulary::LandingEntry) -> crate::v25::LandingEntry {
     let temper_engine_domain_forge_vocabulary::LandingEntry { entry: field_000000, member: field_000001, gate: field_000002, operation: field_000003, preparation: field_000004, base: field_000005, run: field_000006 } = value;
-    Ok(crate::v25::LandingEntry {
+    crate::v25::LandingEntry {
         entry: *field_000000,
         member: *field_000001,
         gate: *field_000002,
-        operation: landing_operation_to_record(field_000003, context)?,
+        operation: landing_operation_to_record(field_000003),
         preparation: match field_000004 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         base: match field_000005 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         run: match field_000006 {
-            Some(item) => Some(landing_run_to_record(item, context)?),
+            Some(item) => {
+                let converted = landing_run_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 296: LandingEntry.
-pub fn landing_entry_to_domain(record: crate::v25::LandingEntry, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LandingEntry, crate::v25::Problem> {
+#[must_use]
+pub fn landing_entry_to_domain(record: crate::v25::LandingEntry) -> temper_engine_domain_forge_vocabulary::LandingEntry {
     let crate::v25::LandingEntry { entry: field_000000, member: field_000001, gate: field_000002, operation: field_000003, preparation: field_000004, base: field_000005, run: field_000006 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::LandingEntry {
+    temper_engine_domain_forge_vocabulary::LandingEntry {
         entry: field_000000,
         member: field_000001,
         gate: field_000002,
-        operation: landing_operation_to_domain(field_000003, context)?,
+        operation: landing_operation_to_domain(field_000003),
         preparation: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         base: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         run: match field_000006 {
-            Some(item) => Some(landing_run_to_domain(item, context)?),
+            Some(item) => {
+                let converted = landing_run_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 297: HistoryJob.
-pub fn history_job_to_record(value: &temper_engine_domain_forge_vocabulary::history::Job, _context: &crate::records::Context) -> Result<crate::v25::HistoryJob, crate::v25::Problem> {
+#[must_use]
+pub fn history_job_to_record(value: &temper_engine_domain_forge_vocabulary::history::Job) -> crate::v25::HistoryJob {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Job::Prepare => Ok(crate::v25::HistoryJob::Prepare),
-        temper_engine_domain_forge_vocabulary::history::Job::Merge => Ok(crate::v25::HistoryJob::Merge),
+        temper_engine_domain_forge_vocabulary::history::Job::Prepare => crate::v25::HistoryJob::Prepare,
+        temper_engine_domain_forge_vocabulary::history::Job::Merge => crate::v25::HistoryJob::Merge,
     }
 }
 
-// Maps line 297: HistoryJob.
-pub fn history_job_to_domain(record: crate::v25::HistoryJob, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Job, crate::v25::Problem> {
+#[must_use]
+pub fn history_job_to_domain(record: crate::v25::HistoryJob) -> temper_engine_domain_forge_vocabulary::history::Job {
     match record {
-        crate::v25::HistoryJob::Prepare => Ok(temper_engine_domain_forge_vocabulary::history::Job::Prepare),
-        crate::v25::HistoryJob::Merge => Ok(temper_engine_domain_forge_vocabulary::history::Job::Merge),
+        crate::v25::HistoryJob::Prepare => temper_engine_domain_forge_vocabulary::history::Job::Prepare,
+        crate::v25::HistoryJob::Merge => temper_engine_domain_forge_vocabulary::history::Job::Merge,
     }
 }
 
-// Maps line 298: HistoryJobFailure.
-pub fn history_job_failure_to_record(value: &temper_engine_domain_forge_vocabulary::history::JobFailure, _context: &crate::records::Context) -> Result<crate::v25::HistoryJobFailure, crate::v25::Problem> {
+#[must_use]
+pub fn history_job_failure_to_record(value: &temper_engine_domain_forge_vocabulary::history::JobFailure) -> crate::v25::HistoryJobFailure {
     match value {
-        temper_engine_domain_forge_vocabulary::history::JobFailure::Unprepared => Ok(crate::v25::HistoryJobFailure::Unprepared),
-        temper_engine_domain_forge_vocabulary::history::JobFailure::Run => Ok(crate::v25::HistoryJobFailure::Run),
-        temper_engine_domain_forge_vocabulary::history::JobFailure::Result => Ok(crate::v25::HistoryJobFailure::Result),
-        temper_engine_domain_forge_vocabulary::history::JobFailure::Unstarted => Ok(crate::v25::HistoryJobFailure::Unstarted),
-        temper_engine_domain_forge_vocabulary::history::JobFailure::Undelivered => Ok(crate::v25::HistoryJobFailure::Undelivered),
-        temper_engine_domain_forge_vocabulary::history::JobFailure::Unknown => Ok(crate::v25::HistoryJobFailure::Unknown),
+        temper_engine_domain_forge_vocabulary::history::JobFailure::Unprepared => crate::v25::HistoryJobFailure::Unprepared,
+        temper_engine_domain_forge_vocabulary::history::JobFailure::Run => crate::v25::HistoryJobFailure::Run,
+        temper_engine_domain_forge_vocabulary::history::JobFailure::Result => crate::v25::HistoryJobFailure::Result,
+        temper_engine_domain_forge_vocabulary::history::JobFailure::Unstarted => crate::v25::HistoryJobFailure::Unstarted,
+        temper_engine_domain_forge_vocabulary::history::JobFailure::Undelivered => crate::v25::HistoryJobFailure::Undelivered,
+        temper_engine_domain_forge_vocabulary::history::JobFailure::Unknown => crate::v25::HistoryJobFailure::Unknown,
     }
 }
 
-// Maps line 298: HistoryJobFailure.
-pub fn history_job_failure_to_domain(record: crate::v25::HistoryJobFailure, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::JobFailure, crate::v25::Problem> {
+#[must_use]
+pub fn history_job_failure_to_domain(record: crate::v25::HistoryJobFailure) -> temper_engine_domain_forge_vocabulary::history::JobFailure {
     match record {
-        crate::v25::HistoryJobFailure::Unprepared => Ok(temper_engine_domain_forge_vocabulary::history::JobFailure::Unprepared),
-        crate::v25::HistoryJobFailure::Run => Ok(temper_engine_domain_forge_vocabulary::history::JobFailure::Run),
-        crate::v25::HistoryJobFailure::Result => Ok(temper_engine_domain_forge_vocabulary::history::JobFailure::Result),
-        crate::v25::HistoryJobFailure::Unstarted => Ok(temper_engine_domain_forge_vocabulary::history::JobFailure::Unstarted),
-        crate::v25::HistoryJobFailure::Undelivered => Ok(temper_engine_domain_forge_vocabulary::history::JobFailure::Undelivered),
-        crate::v25::HistoryJobFailure::Unknown => Ok(temper_engine_domain_forge_vocabulary::history::JobFailure::Unknown),
+        crate::v25::HistoryJobFailure::Unprepared => temper_engine_domain_forge_vocabulary::history::JobFailure::Unprepared,
+        crate::v25::HistoryJobFailure::Run => temper_engine_domain_forge_vocabulary::history::JobFailure::Run,
+        crate::v25::HistoryJobFailure::Result => temper_engine_domain_forge_vocabulary::history::JobFailure::Result,
+        crate::v25::HistoryJobFailure::Unstarted => temper_engine_domain_forge_vocabulary::history::JobFailure::Unstarted,
+        crate::v25::HistoryJobFailure::Undelivered => temper_engine_domain_forge_vocabulary::history::JobFailure::Undelivered,
+        crate::v25::HistoryJobFailure::Unknown => temper_engine_domain_forge_vocabulary::history::JobFailure::Unknown,
     }
 }
 
-// Maps line 303: ReceiptCheck.
-pub fn receipt_check_to_record(value: &temper_engine_domain_forge_vocabulary::Check, _context: &crate::records::Context) -> Result<crate::v25::ReceiptCheck, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_check_to_record(value: &temper_engine_domain_forge_vocabulary::Check) -> crate::v25::ReceiptCheck {
     match value {
-        temper_engine_domain_forge_vocabulary::Check::Gate(held) => Ok(crate::v25::ReceiptCheck::Gate(crate::v25::ReceiptName { name: held.clone() })),
-        temper_engine_domain_forge_vocabulary::Check::Tier(held) => Ok(crate::v25::ReceiptCheck::Tier(crate::v25::ReceiptName { name: held.clone() })),
+        temper_engine_domain_forge_vocabulary::Check::Gate(held) => crate::v25::ReceiptCheck::Gate(crate::v25::ReceiptName { name: held.clone() }),
+        temper_engine_domain_forge_vocabulary::Check::Tier(held) => crate::v25::ReceiptCheck::Tier(crate::v25::ReceiptName { name: held.clone() }),
     }
 }
 
-// Maps line 303: ReceiptCheck.
-pub fn receipt_check_to_domain(record: crate::v25::ReceiptCheck, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Check, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_check_to_domain(record: crate::v25::ReceiptCheck) -> temper_engine_domain_forge_vocabulary::Check {
     match record {
-        crate::v25::ReceiptCheck::Gate(held) => Ok(temper_engine_domain_forge_vocabulary::Check::Gate({
+        crate::v25::ReceiptCheck::Gate(held) => temper_engine_domain_forge_vocabulary::Check::Gate({
             let crate::v25::ReceiptName { name: held } = held;
             held
-        })),
-        crate::v25::ReceiptCheck::Tier(held) => Ok(temper_engine_domain_forge_vocabulary::Check::Tier({
+        }),
+        crate::v25::ReceiptCheck::Tier(held) => temper_engine_domain_forge_vocabulary::Check::Tier({
             let crate::v25::ReceiptName { name: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 304: ReceiptKey.
-pub fn receipt_key_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptKey, context: &crate::records::Context) -> Result<crate::v25::ReceiptKey, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_key_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptKey) -> crate::v25::ReceiptKey {
     let temper_engine_domain_forge_vocabulary::ReceiptKey { project: field_000000, repository: field_000001, check: field_000002, key: field_000003 } = value;
-    Ok(crate::v25::ReceiptKey {
+    crate::v25::ReceiptKey {
         project: *field_000000,
-        repository: repository_to_record(field_000001, context)?,
-        check_name: receipt_check_to_record(field_000002, context)?,
+        repository: repository_to_record(field_000001),
+        check_name: receipt_check_to_record(field_000002),
         key: *field_000003
-    })
+    }
 }
 
-// Maps line 304: ReceiptKey.
-pub fn receipt_key_to_domain(record: crate::v25::ReceiptKey, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ReceiptKey, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_key_to_domain(record: crate::v25::ReceiptKey) -> temper_engine_domain_forge_vocabulary::ReceiptKey {
     let crate::v25::ReceiptKey { project: field_000000, repository: field_000001, check_name: field_000002, key: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ReceiptKey {
+    temper_engine_domain_forge_vocabulary::ReceiptKey {
         project: field_000000,
-        repository: repository_to_domain(field_000001, context)?,
-        check: receipt_check_to_domain(field_000002, context)?,
+        repository: repository_to_domain(field_000001),
+        check: receipt_check_to_domain(field_000002),
         key: field_000003
-    })
+    }
 }
 
-// Maps line 305: LandingFlakeRerun.
-pub fn landing_flake_rerun_to_record(value: &temper_engine_domain_forge_vocabulary::FlakeRerun, context: &crate::records::Context) -> Result<crate::v25::LandingFlakeRerun, crate::v25::Problem> {
+pub fn landing_flake_rerun_to_record(value: &temper_engine_domain_forge_vocabulary::FlakeRerun) -> Result<crate::v25::LandingFlakeRerun, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::FlakeRerun { key: field_000000, run: field_000001, findings: field_000002, pending: field_000003, redispatch: field_000004, ended: field_000005 } = value;
     Ok(crate::v25::LandingFlakeRerun {
-        key: receipt_key_to_record(field_000000, context)?,
+        key: receipt_key_to_record(field_000000),
         run: *field_000001,
         findings: {
             let source = field_000002;
@@ -3995,7 +4288,7 @@ pub fn landing_flake_rerun_to_record(value: &temper_engine_domain_forge_vocabula
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_FLAKE_RERUN_FINDINGS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -4004,8 +4297,8 @@ pub fn landing_flake_rerun_to_record(value: &temper_engine_domain_forge_vocabula
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_FLAKE_RERUN_PENDING.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = job_attempt_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_FLAKE_RERUN_PENDING.problem(skein_codec::Reason::Bound)); }
+                let converted = job_attempt_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -4014,11 +4307,11 @@ pub fn landing_flake_rerun_to_record(value: &temper_engine_domain_forge_vocabula
     })
 }
 
-// Maps line 305: LandingFlakeRerun.
-pub fn landing_flake_rerun_to_domain(record: crate::v25::LandingFlakeRerun, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FlakeRerun, crate::v25::Problem> {
+#[must_use]
+pub fn landing_flake_rerun_to_domain(record: crate::v25::LandingFlakeRerun) -> temper_engine_domain_forge_vocabulary::FlakeRerun {
     let crate::v25::LandingFlakeRerun { key: field_000000, run: field_000001, findings: field_000002, pending: field_000003, redispatch: field_000004, ended: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FlakeRerun {
-        key: receipt_key_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::FlakeRerun {
+        key: receipt_key_to_domain(field_000000),
         run: field_000001,
         findings: {
             let source = field_000002;
@@ -4026,7 +4319,7 @@ pub fn landing_flake_rerun_to_domain(record: crate::v25::LandingFlakeRerun, cont
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_FLAKE_RERUN_FINDINGS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -4035,423 +4328,594 @@ pub fn landing_flake_rerun_to_domain(record: crate::v25::LandingFlakeRerun, cont
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = job_attempt_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_FLAKE_RERUN_PENDING.problem(skein_codec::Reason::Bound)); }
+                let converted = job_attempt_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         redispatch: field_000004,
         ended: field_000005
-    })
-}
-
-// Maps line 308: LandingAwaited.
-pub fn landing_awaited_to_record(value: &temper_engine_domain_forge_landing::Awaited, _context: &crate::records::Context) -> Result<crate::v25::LandingAwaited, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_landing::Awaited::Release => Ok(crate::v25::LandingAwaited::Release),
-        temper_engine_domain_forge_landing::Awaited::Ready { member: field_000000 } => Ok(crate::v25::LandingAwaited::Ready(crate::v25::LandingWaitMember {
-            member: *field_000000
-        })),
-        temper_engine_domain_forge_landing::Awaited::Turn => Ok(crate::v25::LandingAwaited::Turn),
-        temper_engine_domain_forge_landing::Awaited::Prepare => Ok(crate::v25::LandingAwaited::Prepare),
-        temper_engine_domain_forge_landing::Awaited::Prefixes => Ok(crate::v25::LandingAwaited::Prefixes),
-        temper_engine_domain_forge_landing::Awaited::Open => Ok(crate::v25::LandingAwaited::Open),
-        temper_engine_domain_forge_landing::Awaited::Close => Ok(crate::v25::LandingAwaited::Close),
-        temper_engine_domain_forge_landing::Awaited::Delete { member: field_000000 } => Ok(crate::v25::LandingAwaited::Delete(crate::v25::LandingWaitMember {
-            member: *field_000000
-        })),
-        temper_engine_domain_forge_landing::Awaited::Post { member: field_000000, gate: field_000001 } => Ok(crate::v25::LandingAwaited::Post(crate::v25::LandingWaitGate {
-            member: *field_000000,
-            gate: *field_000001
-        })),
-        temper_engine_domain_forge_landing::Awaited::Run { member: field_000000, gate: field_000001 } => Ok(crate::v25::LandingAwaited::Run(crate::v25::LandingWaitGate {
-            member: *field_000000,
-            gate: *field_000001
-        })),
-        temper_engine_domain_forge_landing::Awaited::Receipt { member: field_000000, gate: field_000001 } => Ok(crate::v25::LandingAwaited::Receipt(crate::v25::LandingWaitGate {
-            member: *field_000000,
-            gate: *field_000001
-        })),
-        temper_engine_domain_forge_landing::Awaited::Judgement { member: field_000000 } => Ok(crate::v25::LandingAwaited::Judgement(crate::v25::LandingWaitMember {
-            member: *field_000000
-        })),
-        temper_engine_domain_forge_landing::Awaited::Merge => Ok(crate::v25::LandingAwaited::Merge),
-        temper_engine_domain_forge_landing::Awaited::Record { member: field_000000 } => Ok(crate::v25::LandingAwaited::Record(crate::v25::LandingWaitMember {
-            member: *field_000000
-        })),
-        temper_engine_domain_forge_landing::Awaited::Ancestry { member: field_000000 } => Ok(crate::v25::LandingAwaited::Ancestry(crate::v25::LandingWaitMember {
-            member: *field_000000
-        })),
-        temper_engine_domain_forge_landing::Awaited::Read => Ok(crate::v25::LandingAwaited::Read),
     }
 }
 
-// Maps line 308: LandingAwaited.
-pub fn landing_awaited_to_domain(record: crate::v25::LandingAwaited, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Awaited, crate::v25::Problem> {
+#[must_use]
+pub fn landing_awaited_to_record(value: &temper_engine_domain_forge_landing::Awaited) -> crate::v25::LandingAwaited {
+    match value {
+        temper_engine_domain_forge_landing::Awaited::Release => crate::v25::LandingAwaited::Release,
+        temper_engine_domain_forge_landing::Awaited::Ready { member: field_000000 } => crate::v25::LandingAwaited::Ready(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Turn => crate::v25::LandingAwaited::Turn,
+        temper_engine_domain_forge_landing::Awaited::Prepare => crate::v25::LandingAwaited::Prepare,
+        temper_engine_domain_forge_landing::Awaited::Prefixes => crate::v25::LandingAwaited::Prefixes,
+        temper_engine_domain_forge_landing::Awaited::Open => crate::v25::LandingAwaited::Open,
+        temper_engine_domain_forge_landing::Awaited::Close => crate::v25::LandingAwaited::Close,
+        temper_engine_domain_forge_landing::Awaited::Delete { member: field_000000 } => crate::v25::LandingAwaited::Delete(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Post { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Post(crate::v25::LandingWaitGate {
+            member: *field_000000,
+            gate: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Awaited::Run { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Run(crate::v25::LandingWaitGate {
+            member: *field_000000,
+            gate: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Awaited::Receipt { member: field_000000, gate: field_000001 } => crate::v25::LandingAwaited::Receipt(crate::v25::LandingWaitGate {
+            member: *field_000000,
+            gate: *field_000001
+        }),
+        temper_engine_domain_forge_landing::Awaited::Judgement { member: field_000000 } => crate::v25::LandingAwaited::Judgement(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Merge => crate::v25::LandingAwaited::Merge,
+        temper_engine_domain_forge_landing::Awaited::Record { member: field_000000 } => crate::v25::LandingAwaited::Record(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Ancestry { member: field_000000 } => crate::v25::LandingAwaited::Ancestry(crate::v25::LandingWaitMember {
+            member: *field_000000
+        }),
+        temper_engine_domain_forge_landing::Awaited::Read => crate::v25::LandingAwaited::Read,
+    }
+}
+
+#[must_use]
+pub fn landing_awaited_to_domain(record: crate::v25::LandingAwaited) -> temper_engine_domain_forge_landing::Awaited {
     match record {
-        crate::v25::LandingAwaited::Release => Ok(temper_engine_domain_forge_landing::Awaited::Release),
+        crate::v25::LandingAwaited::Release => temper_engine_domain_forge_landing::Awaited::Release,
         crate::v25::LandingAwaited::Ready(held) => {
             let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Ready {
+            temper_engine_domain_forge_landing::Awaited::Ready {
                 member: field_000000
-            })
+            }
         },
-        crate::v25::LandingAwaited::Turn => Ok(temper_engine_domain_forge_landing::Awaited::Turn),
-        crate::v25::LandingAwaited::Prepare => Ok(temper_engine_domain_forge_landing::Awaited::Prepare),
-        crate::v25::LandingAwaited::Prefixes => Ok(temper_engine_domain_forge_landing::Awaited::Prefixes),
-        crate::v25::LandingAwaited::Open => Ok(temper_engine_domain_forge_landing::Awaited::Open),
-        crate::v25::LandingAwaited::Close => Ok(temper_engine_domain_forge_landing::Awaited::Close),
+        crate::v25::LandingAwaited::Turn => temper_engine_domain_forge_landing::Awaited::Turn,
+        crate::v25::LandingAwaited::Prepare => temper_engine_domain_forge_landing::Awaited::Prepare,
+        crate::v25::LandingAwaited::Prefixes => temper_engine_domain_forge_landing::Awaited::Prefixes,
+        crate::v25::LandingAwaited::Open => temper_engine_domain_forge_landing::Awaited::Open,
+        crate::v25::LandingAwaited::Close => temper_engine_domain_forge_landing::Awaited::Close,
         crate::v25::LandingAwaited::Delete(held) => {
             let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Delete {
+            temper_engine_domain_forge_landing::Awaited::Delete {
                 member: field_000000
-            })
+            }
         },
         crate::v25::LandingAwaited::Post(held) => {
             let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Post {
+            temper_engine_domain_forge_landing::Awaited::Post {
                 member: field_000000,
                 gate: field_000001
-            })
+            }
         },
         crate::v25::LandingAwaited::Run(held) => {
             let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Run {
+            temper_engine_domain_forge_landing::Awaited::Run {
                 member: field_000000,
                 gate: field_000001
-            })
+            }
         },
         crate::v25::LandingAwaited::Receipt(held) => {
             let crate::v25::LandingWaitGate { member: field_000000, gate: field_000001 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Receipt {
+            temper_engine_domain_forge_landing::Awaited::Receipt {
                 member: field_000000,
                 gate: field_000001
-            })
+            }
         },
         crate::v25::LandingAwaited::Judgement(held) => {
             let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Judgement {
+            temper_engine_domain_forge_landing::Awaited::Judgement {
                 member: field_000000
-            })
+            }
         },
-        crate::v25::LandingAwaited::Merge => Ok(temper_engine_domain_forge_landing::Awaited::Merge),
+        crate::v25::LandingAwaited::Merge => temper_engine_domain_forge_landing::Awaited::Merge,
         crate::v25::LandingAwaited::Record(held) => {
             let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Record {
+            temper_engine_domain_forge_landing::Awaited::Record {
                 member: field_000000
-            })
+            }
         },
         crate::v25::LandingAwaited::Ancestry(held) => {
             let crate::v25::LandingWaitMember { member: field_000000 } = held;
-            Ok(temper_engine_domain_forge_landing::Awaited::Ancestry {
+            temper_engine_domain_forge_landing::Awaited::Ancestry {
                 member: field_000000
-            })
+            }
         },
-        crate::v25::LandingAwaited::Read => Ok(temper_engine_domain_forge_landing::Awaited::Read),
+        crate::v25::LandingAwaited::Read => temper_engine_domain_forge_landing::Awaited::Read,
     }
 }
 
-// Maps line 309: LandingRow.
-pub fn landing_row_to_record(value: &temper_engine_domain_forge_vocabulary::LandingRow, context: &crate::records::Context) -> Result<crate::v25::LandingRow, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::LandingRow { last_event: field_000000, turn_since: field_000001, waiting: field_000002, room: field_000003, job: field_000004, landing: field_000005, asks: field_000006, entries: field_000007, flake_reruns: field_000008 } = value;
-    Ok(crate::v25::LandingRow {
-        last_event: match field_000000 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LANDING_ROW_LAST_EVENT.problem(reason)) }),
-            None => None,
-        },
-        turn_since: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LANDING_ROW_TURN_SINCE.problem(reason)) }),
-            None => None,
-        },
-        waiting: match field_000002 {
-            Some(item) => Some(landing_awaited_to_record(item, context)?),
-            None => None,
-        },
-        room: match field_000003 {
-            Some(item) => Some(*item),
-            None => None,
-        },
-        job: match field_000004 {
-            Some(item) => Some(crate::records::by_hand::history_job_record_to_record(item, context)?),
-            None => None,
-        },
-        landing: crate::records::by_hand::landing_state_to_record(field_000005, context)?,
-        asks: {
-            let source = field_000006;
-            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_ROW_ASKS.problem(skein_codec::Reason::Bound)) };
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.as_ref() {
-                let converted = crate::v25::LandingAskSlot { ask: match item {
-                        Some(item) => Some(landing_ask_to_record(item, context)?),
-                        None => None,
-                    } };
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_ROW_ASKS.problem(skein_codec::Reason::Bound)); }
+pub fn landing_follow_to_record(value: &temper_engine_domain_forge_vocabulary::LandingFollow) -> Result<crate::v25::LandingFollow, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::LandingFollow { entry: field_000000, dispatch: field_000001, start: field_000002, since: field_000003, wall: field_000004, try_number: field_000005, failed: field_000006, reruns: field_000007 } = value;
+    Ok(crate::v25::LandingFollow {
+        entry: landing_entry_to_record(field_000000),
+        dispatch: match field_000001 {
+            Some(item) => {
+                let converted = dispatch_write_to_record(item)?;
+                Some(converted)
             }
-            translated
+            None => None,
         },
-        entries: {
+        start: match field_000002 {
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        since: match field_000003 {
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        wall: match field_000004 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        try_number: *field_000005,
+        failed: *field_000006,
+        reruns: {
             let source = field_000007;
-            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_ROW_ENTRIES.problem(skein_codec::Reason::Bound)) };
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_FOLLOW_RERUNS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = landing_entry_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_ROW_ENTRIES.problem(skein_codec::Reason::Bound)); }
-            }
-            translated
-        },
-        flake_reruns: {
-            let source = field_000008;
-            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_ROW_FLAKE_RERUNS.problem(skein_codec::Reason::Bound)) };
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.as_ref() {
-                let converted = landing_flake_rerun_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_ROW_FLAKE_RERUNS.problem(skein_codec::Reason::Bound)); }
+                let converted = job_attempt_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 309: LandingRow.
-pub fn landing_row_to_domain(record: crate::v25::LandingRow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LandingRow, crate::v25::Problem> {
-    let crate::v25::LandingRow { last_event: field_000000, turn_since: field_000001, waiting: field_000002, room: field_000003, job: field_000004, landing: field_000005, asks: field_000006, entries: field_000007, flake_reruns: field_000008 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::LandingRow {
-        last_event: match field_000000 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LANDING_ROW_LAST_EVENT.problem(reason)) }),
+#[must_use]
+pub fn landing_follow_to_domain(record: crate::v25::LandingFollow) -> temper_engine_domain_forge_vocabulary::LandingFollow {
+    let crate::v25::LandingFollow { entry: field_000000, dispatch: field_000001, start: field_000002, since: field_000003, wall: field_000004, try_number: field_000005, failed: field_000006, reruns: field_000007 } = record;
+    temper_engine_domain_forge_vocabulary::LandingFollow {
+        entry: landing_entry_to_domain(field_000000),
+        dispatch: match field_000001 {
+            Some(item) => {
+                let converted = dispatch_write_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        turn_since: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LANDING_ROW_TURN_SINCE.problem(reason)) }),
+        start: match field_000002 {
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        waiting: match field_000002 {
-            Some(item) => Some(landing_awaited_to_domain(item, context)?),
+        since: match field_000003 {
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        room: match field_000003 {
-            Some(item) => Some(item),
+        wall: match field_000004 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        job: match field_000004 {
-            Some(item) => Some(crate::records::by_hand::history_job_record_to_domain(item, context)?),
+        try_number: field_000005,
+        failed: field_000006,
+        reruns: {
+            let source = field_000007;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = job_attempt_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        }
+    }
+}
+
+pub fn landing_row_to_record(value: &temper_engine_domain_forge_vocabulary::LandingRow) -> Result<crate::v25::LandingRow, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::LandingRow { read_hold: field_000000, last_event: field_000001, turn_since: field_000002, waiting: field_000003, room: field_000004, job: field_000005, landing: field_000006, asks: field_000007, entries: field_000008, flake_reruns: field_000009, follows: field_000010 } = value;
+    Ok(crate::v25::LandingRow {
+        read_hold: match field_000000 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
-        landing: crate::records::by_hand::landing_state_to_domain(field_000005, context)?,
+        last_event: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        turn_since: match field_000002 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        waiting: match field_000003 {
+            Some(item) => {
+                let converted = landing_awaited_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        room: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        job: match field_000005 {
+            Some(item) => {
+                let converted = crate::records::by_hand::history_job_record_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        landing: crate::records::by_hand::landing_state_to_record(field_000006),
         asks: {
-            let source = field_000006;
+            let source = field_000007;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_ROW_ASKS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = crate::v25::LandingAskSlot { ask: match item {
+                        Some(item) => {
+                            let converted = landing_ask_to_record(item);
+                            Some(converted)
+                        }
+                        None => None,
+                    } };
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        entries: {
+            let source = field_000008;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_ROW_ENTRIES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = landing_entry_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        flake_reruns: {
+            let source = field_000009;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_ROW_FLAKE_RERUNS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = landing_flake_rerun_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        follows: match field_000010 {
+            Some(item) => {
+                let converted = crate::records::by_hand::landing_follows_to_record(item)?;
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn landing_row_to_domain(record: crate::v25::LandingRow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LandingRow, crate::v25::Problem> {
+    let crate::v25::LandingRow { read_hold: field_000000, last_event: field_000001, turn_since: field_000002, waiting: field_000003, room: field_000004, job: field_000005, landing: field_000006, asks: field_000007, entries: field_000008, flake_reruns: field_000009, follows: field_000010 } = record;
+    Ok(temper_engine_domain_forge_vocabulary::LandingRow {
+        read_hold: match field_000000 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        last_event: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        turn_since: match field_000002 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        waiting: match field_000003 {
+            Some(item) => {
+                let converted = landing_awaited_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        room: match field_000004 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        job: match field_000005 {
+            Some(item) => {
+                let converted = crate::records::by_hand::history_job_record_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        landing: crate::records::by_hand::landing_state_to_domain(field_000006)?,
+        asks: {
+            let source = field_000007;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = {
                     let crate::v25::LandingAskSlot { ask: held } = item;
                     match held {
-                        Some(item) => Some(landing_ask_to_domain(item, context)?),
+                        Some(item) => {
+                            let converted = landing_ask_to_domain(item);
+                            Some(converted)
+                        }
                         None => None,
                     }
                 };
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_ROW_ASKS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         entries: {
-            let source = field_000007;
-            let count = source.len();
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.into_boxed() {
-                let converted = landing_entry_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_ROW_ENTRIES.problem(skein_codec::Reason::Bound)); }
-            }
-            Box::from(translated)
-        },
-        flake_reruns: {
             let source = field_000008;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = landing_flake_rerun_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_ROW_FLAKE_RERUNS.problem(skein_codec::Reason::Bound)); }
+                let converted = landing_entry_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
+        },
+        flake_reruns: {
+            let source = field_000009;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = landing_flake_rerun_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        follows: match field_000010 {
+            Some(item) => {
+                let converted = crate::records::by_hand::landing_follows_to_domain(item, context)?;
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
-// Maps line 310: ReceiptRun.
-pub fn receipt_run_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptRun, _context: &crate::records::Context) -> Result<crate::v25::ReceiptRun, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_run_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptRun) -> crate::v25::ReceiptRun {
     let temper_engine_domain_forge_vocabulary::ReceiptRun { id: field_000000, number: field_000001, url: field_000002 } = value;
-    Ok(crate::v25::ReceiptRun {
+    crate::v25::ReceiptRun {
         id: *field_000000,
         number: *field_000001,
         url: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 310: ReceiptRun.
-pub fn receipt_run_to_domain(record: crate::v25::ReceiptRun, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ReceiptRun, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_run_to_domain(record: crate::v25::ReceiptRun) -> temper_engine_domain_forge_vocabulary::ReceiptRun {
     let crate::v25::ReceiptRun { id: field_000000, number: field_000001, url: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ReceiptRun {
+    temper_engine_domain_forge_vocabulary::ReceiptRun {
         id: field_000000,
         number: field_000001,
         url: field_000002
-    })
+    }
 }
 
-// Maps line 314: Blame.
-pub fn blame_to_record(value: &temper_engine_domain_forge_tiers::Blame, context: &crate::records::Context) -> Result<crate::v25::Blame, crate::v25::Problem> {
+#[must_use]
+pub fn blame_to_record(value: &temper_engine_domain_forge_tiers::Blame) -> crate::v25::Blame {
     match value {
-        temper_engine_domain_forge_tiers::Blame::Cleared => Ok(crate::v25::Blame::Cleared),
-        temper_engine_domain_forge_tiers::Blame::Owns(held) => Ok(crate::v25::Blame::Owns(crate::v25::BlamedFailures { failures: crate::records::by_hand::failures_to_record(held, context)? })),
-        temper_engine_domain_forge_tiers::Blame::Suspect(held) => Ok(crate::v25::Blame::Suspect(crate::v25::BlamedFailures { failures: crate::records::by_hand::failures_to_record(held, context)? })),
+        temper_engine_domain_forge_tiers::Blame::Cleared => crate::v25::Blame::Cleared,
+        temper_engine_domain_forge_tiers::Blame::Owns(held) => crate::v25::Blame::Owns(crate::v25::BlamedFailures { failures: crate::records::by_hand::failures_to_record(held) }),
+        temper_engine_domain_forge_tiers::Blame::Suspect(held) => crate::v25::Blame::Suspect(crate::v25::BlamedFailures { failures: crate::records::by_hand::failures_to_record(held) }),
     }
 }
 
-// Maps line 314: Blame.
-pub fn blame_to_domain(record: crate::v25::Blame, context: &crate::records::Context) -> Result<temper_engine_domain_forge_tiers::Blame, crate::v25::Problem> {
-    match record {
-        crate::v25::Blame::Cleared => Ok(temper_engine_domain_forge_tiers::Blame::Cleared),
-        crate::v25::Blame::Owns(held) => Ok(temper_engine_domain_forge_tiers::Blame::Owns({
+pub fn blame_to_domain(record: crate::v25::Blame) -> Result<temper_engine_domain_forge_tiers::Blame, crate::v25::Problem> {
+    Ok(match record {
+        crate::v25::Blame::Cleared => temper_engine_domain_forge_tiers::Blame::Cleared,
+        crate::v25::Blame::Owns(held) => temper_engine_domain_forge_tiers::Blame::Owns({
             let crate::v25::BlamedFailures { failures: held } = held;
-            crate::records::by_hand::failures_to_domain(held, context)?
-        })),
-        crate::v25::Blame::Suspect(held) => Ok(temper_engine_domain_forge_tiers::Blame::Suspect({
+            crate::records::by_hand::failures_to_domain(held)?
+        }),
+        crate::v25::Blame::Suspect(held) => temper_engine_domain_forge_tiers::Blame::Suspect({
             let crate::v25::BlamedFailures { failures: held } = held;
-            crate::records::by_hand::failures_to_domain(held, context)?
-        })),
-    }
-}
-
-// Maps line 315: TierVerdict.
-pub fn tier_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::TierVerdict, context: &crate::records::Context) -> Result<crate::v25::TierVerdict, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::TierVerdict { run: field_000000, blame: field_000001 } = value;
-    Ok(crate::v25::TierVerdict {
-        run: *field_000000,
-        blame: blame_to_record(field_000001, context)?
+            crate::records::by_hand::failures_to_domain(held)?
+        }),
     })
 }
 
-// Maps line 315: TierVerdict.
-pub fn tier_verdict_to_domain(record: crate::v25::TierVerdict, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierVerdict, crate::v25::Problem> {
+#[must_use]
+pub fn tier_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::TierVerdict) -> crate::v25::TierVerdict {
+    let temper_engine_domain_forge_vocabulary::TierVerdict { run: field_000000, blame: field_000001 } = value;
+    crate::v25::TierVerdict {
+        run: *field_000000,
+        blame: blame_to_record(field_000001)
+    }
+}
+
+pub fn tier_verdict_to_domain(record: crate::v25::TierVerdict) -> Result<temper_engine_domain_forge_vocabulary::TierVerdict, crate::v25::Problem> {
     let crate::v25::TierVerdict { run: field_000000, blame: field_000001 } = record;
     Ok(temper_engine_domain_forge_vocabulary::TierVerdict {
         run: field_000000,
-        blame: blame_to_domain(field_000001, context)?
+        blame: blame_to_domain(field_000001)?
     })
 }
 
-// Maps line 316: TierRepair.
-pub fn tier_repair_to_record(value: &temper_engine_domain_forge_vocabulary::TierRepair, _context: &crate::records::Context) -> Result<crate::v25::TierRepair, crate::v25::Problem> {
+#[must_use]
+pub fn tier_repair_to_record(value: &temper_engine_domain_forge_vocabulary::TierRepair) -> crate::v25::TierRepair {
     let temper_engine_domain_forge_vocabulary::TierRepair { run: field_000000, tip: field_000001, by: field_000002 } = value;
-    Ok(crate::v25::TierRepair {
+    crate::v25::TierRepair {
         run: *field_000000,
         tip: *field_000001,
         by: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 316: TierRepair.
-pub fn tier_repair_to_domain(record: crate::v25::TierRepair, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierRepair, crate::v25::Problem> {
+#[must_use]
+pub fn tier_repair_to_domain(record: crate::v25::TierRepair) -> temper_engine_domain_forge_vocabulary::TierRepair {
     let crate::v25::TierRepair { run: field_000000, tip: field_000001, by: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::TierRepair {
+    temper_engine_domain_forge_vocabulary::TierRepair {
         run: field_000000,
         tip: field_000001,
         by: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 317: TierVerification.
-pub fn tier_verification_to_record(value: &temper_engine_domain_forge_vocabulary::TierVerification, context: &crate::records::Context) -> Result<crate::v25::TierVerification, crate::v25::Problem> {
+#[must_use]
+pub fn tier_verification_to_record(value: &temper_engine_domain_forge_vocabulary::TierVerification) -> crate::v25::TierVerification {
     let temper_engine_domain_forge_vocabulary::TierVerification { tier: field_000000, verdict: field_000001, repaired: field_000002 } = value;
-    Ok(crate::v25::TierVerification {
+    crate::v25::TierVerification {
         tier: field_000000.clone(),
         verdict: match field_000001 {
-            Some(item) => Some(tier_verdict_to_record(item, context)?),
+            Some(item) => {
+                let converted = tier_verdict_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         repaired: match field_000002 {
-            Some(item) => Some(tier_repair_to_record(item, context)?),
+            Some(item) => {
+                let converted = tier_repair_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 317: TierVerification.
-pub fn tier_verification_to_domain(record: crate::v25::TierVerification, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierVerification, crate::v25::Problem> {
+pub fn tier_verification_to_domain(record: crate::v25::TierVerification) -> Result<temper_engine_domain_forge_vocabulary::TierVerification, crate::v25::Problem> {
     let crate::v25::TierVerification { tier: field_000000, verdict: field_000001, repaired: field_000002 } = record;
     Ok(temper_engine_domain_forge_vocabulary::TierVerification {
         tier: field_000000,
         verdict: match field_000001 {
-            Some(item) => Some(tier_verdict_to_domain(item, context)?),
+            Some(item) => {
+                let converted = tier_verdict_to_domain(item)?;
+                Some(converted)
+            }
             None => None,
         },
         repaired: match field_000002 {
-            Some(item) => Some(tier_repair_to_domain(item, context)?),
+            Some(item) => {
+                let converted = tier_repair_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 319: TierJudged.
-pub fn tier_judged_to_record(value: &temper_engine_domain_forge_tiers::Judged, _context: &crate::records::Context) -> Result<crate::v25::TierJudged, crate::v25::Problem> {
+#[must_use]
+pub fn tier_judged_to_record(value: &temper_engine_domain_forge_tiers::Judged) -> crate::v25::TierJudged {
     let temper_engine_domain_forge_tiers::Judged { tip: field_000000, key: field_000001 } = value;
-    Ok(crate::v25::TierJudged {
+    crate::v25::TierJudged {
         tip: *field_000000,
         key: *field_000001
-    })
+    }
 }
 
-// Maps line 319: TierJudged.
-pub fn tier_judged_to_domain(record: crate::v25::TierJudged, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_tiers::Judged, crate::v25::Problem> {
+#[must_use]
+pub fn tier_judged_to_domain(record: crate::v25::TierJudged) -> temper_engine_domain_forge_tiers::Judged {
     let crate::v25::TierJudged { tip: field_000000, key: field_000001 } = record;
-    Ok(temper_engine_domain_forge_tiers::Judged {
+    temper_engine_domain_forge_tiers::Judged {
         tip: field_000000,
         key: field_000001
-    })
+    }
 }
 
-// Maps line 320: TierFlake.
-pub fn tier_flake_to_record(value: &temper_engine_domain_forge_tiers::Flake, _context: &crate::records::Context) -> Result<crate::v25::TierFlake, crate::v25::Problem> {
+#[must_use]
+pub fn tier_flake_to_record(value: &temper_engine_domain_forge_tiers::Flake) -> crate::v25::TierFlake {
     let temper_engine_domain_forge_tiers::Flake { test: field_000000, count: field_000001 } = value;
-    Ok(crate::v25::TierFlake {
+    crate::v25::TierFlake {
         test: field_000000.clone(),
         count: *field_000001
-    })
+    }
 }
 
-// Maps line 320: TierFlake.
-pub fn tier_flake_to_domain(record: crate::v25::TierFlake, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_tiers::Flake, crate::v25::Problem> {
+#[must_use]
+pub fn tier_flake_to_domain(record: crate::v25::TierFlake) -> temper_engine_domain_forge_tiers::Flake {
     let crate::v25::TierFlake { test: field_000000, count: field_000001 } = record;
-    Ok(temper_engine_domain_forge_tiers::Flake {
+    temper_engine_domain_forge_tiers::Flake {
         test: field_000000,
         count: field_000001
-    })
+    }
 }
 
-// Maps line 321: TierLanding.
-pub fn tier_landing_to_record(value: &temper_engine_domain_forge_tiers::Landing, _context: &crate::records::Context) -> Result<crate::v25::TierLanding, crate::v25::Problem> {
+#[must_use]
+pub fn tier_landing_to_record(value: &temper_engine_domain_forge_tiers::Landing) -> crate::v25::TierLanding {
     let temper_engine_domain_forge_tiers::Landing { commit: field_000000, key: field_000001 } = value;
-    Ok(crate::v25::TierLanding {
+    crate::v25::TierLanding {
         commit: *field_000000,
         key: *field_000001
-    })
+    }
 }
 
-// Maps line 321: TierLanding.
-pub fn tier_landing_to_domain(record: crate::v25::TierLanding, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_tiers::Landing, crate::v25::Problem> {
+#[must_use]
+pub fn tier_landing_to_domain(record: crate::v25::TierLanding) -> temper_engine_domain_forge_tiers::Landing {
     let crate::v25::TierLanding { commit: field_000000, key: field_000001 } = record;
-    Ok(temper_engine_domain_forge_tiers::Landing {
+    temper_engine_domain_forge_tiers::Landing {
         commit: field_000000,
         key: field_000001
-    })
+    }
 }
 
-// Maps line 325: TierGroup.
-pub fn tier_group_to_record(value: &temper_engine_domain_forge_tiers::Group, _context: &crate::records::Context) -> Result<crate::v25::TierGroup, crate::v25::Problem> {
+pub fn tier_group_to_record(value: &temper_engine_domain_forge_tiers::Group) -> Result<crate::v25::TierGroup, crate::v25::Problem> {
     let temper_engine_domain_forge_tiers::Group { low: field_000000, high: field_000001, tests: field_000002 } = value;
     Ok(crate::v25::TierGroup {
         low: *field_000000,
@@ -4462,17 +4926,17 @@ pub fn tier_group_to_record(value: &temper_engine_domain_forge_tiers::Group, _co
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::TIER_GROUP_TESTS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 325: TierGroup.
-pub fn tier_group_to_domain(record: crate::v25::TierGroup, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_tiers::Group, crate::v25::Problem> {
+#[must_use]
+pub fn tier_group_to_domain(record: crate::v25::TierGroup) -> temper_engine_domain_forge_tiers::Group {
     let crate::v25::TierGroup { low: field_000000, high: field_000001, tests: field_000002 } = record;
-    Ok(temper_engine_domain_forge_tiers::Group {
+    temper_engine_domain_forge_tiers::Group {
         low: field_000000,
         high: field_000001,
         tests: {
@@ -4481,110 +4945,127 @@ pub fn tier_group_to_domain(record: crate::v25::TierGroup, _context: &crate::rec
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::TIER_GROUP_TESTS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 330: TierPending.
-pub fn tier_pending_to_record(value: &temper_engine_domain_forge_vocabulary::TierLanding, _context: &crate::records::Context) -> Result<crate::v25::TierPending, crate::v25::Problem> {
+#[must_use]
+pub fn tier_pending_to_record(value: &temper_engine_domain_forge_vocabulary::TierLanding) -> crate::v25::TierPending {
     let temper_engine_domain_forge_vocabulary::TierLanding { commit: field_000000, key: field_000001 } = value;
-    Ok(crate::v25::TierPending {
+    crate::v25::TierPending {
         commit: *field_000000,
         key: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 330: TierPending.
-pub fn tier_pending_to_domain(record: crate::v25::TierPending, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierLanding, crate::v25::Problem> {
+#[must_use]
+pub fn tier_pending_to_domain(record: crate::v25::TierPending) -> temper_engine_domain_forge_vocabulary::TierLanding {
     let crate::v25::TierPending { commit: field_000000, key: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::TierLanding {
+    temper_engine_domain_forge_vocabulary::TierLanding {
         commit: field_000000,
         key: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
-}
-
-// Maps line 332: TierBranch.
-pub fn tier_branch_to_record(value: &temper_engine_domain_forge_vocabulary::TierBranch, _context: &crate::records::Context) -> Result<crate::v25::TierBranch, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::TierBranch::Absent => Ok(crate::v25::TierBranch::Absent),
-        temper_engine_domain_forge_vocabulary::TierBranch::Pending { entry: field_000000 } => Ok(crate::v25::TierBranch::Pending(crate::v25::TierBranchEntry {
-            entry: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::TierBranch::Made => Ok(crate::v25::TierBranch::Made),
     }
 }
 
-// Maps line 332: TierBranch.
-pub fn tier_branch_to_domain(record: crate::v25::TierBranch, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierBranch, crate::v25::Problem> {
+#[must_use]
+pub fn tier_branch_to_record(value: &temper_engine_domain_forge_vocabulary::TierBranch) -> crate::v25::TierBranch {
+    match value {
+        temper_engine_domain_forge_vocabulary::TierBranch::Absent => crate::v25::TierBranch::Absent,
+        temper_engine_domain_forge_vocabulary::TierBranch::Pending { entry: field_000000 } => crate::v25::TierBranch::Pending(crate::v25::TierBranchEntry {
+            entry: *field_000000
+        }),
+        temper_engine_domain_forge_vocabulary::TierBranch::Made => crate::v25::TierBranch::Made,
+    }
+}
+
+#[must_use]
+pub fn tier_branch_to_domain(record: crate::v25::TierBranch) -> temper_engine_domain_forge_vocabulary::TierBranch {
     match record {
-        crate::v25::TierBranch::Absent => Ok(temper_engine_domain_forge_vocabulary::TierBranch::Absent),
+        crate::v25::TierBranch::Absent => temper_engine_domain_forge_vocabulary::TierBranch::Absent,
         crate::v25::TierBranch::Pending(held) => {
             let crate::v25::TierBranchEntry { entry: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::TierBranch::Pending {
+            temper_engine_domain_forge_vocabulary::TierBranch::Pending {
                 entry: field_000000
-            })
+            }
         },
-        crate::v25::TierBranch::Made => Ok(temper_engine_domain_forge_vocabulary::TierBranch::Made),
+        crate::v25::TierBranch::Made => temper_engine_domain_forge_vocabulary::TierBranch::Made,
     }
 }
 
-// Maps line 333: TierFault.
-pub fn tier_fault_to_record(value: &temper_engine_domain_forge_landing::Fault, _context: &crate::records::Context) -> Result<crate::v25::TierFault, crate::v25::Problem> {
+#[must_use]
+pub fn tier_fault_to_record(value: &temper_engine_domain_forge_landing::Fault) -> crate::v25::TierFault {
     match value {
-        temper_engine_domain_forge_landing::Fault::SetUp => Ok(crate::v25::TierFault::Setup),
-        temper_engine_domain_forge_landing::Fault::Completion => Ok(crate::v25::TierFault::Completion),
-        temper_engine_domain_forge_landing::Fault::NoStep => Ok(crate::v25::TierFault::NoStep),
-        temper_engine_domain_forge_landing::Fault::Cancelled => Ok(crate::v25::TierFault::Cancelled),
-        temper_engine_domain_forge_landing::Fault::OtherCommit => Ok(crate::v25::TierFault::OtherCommit),
-        temper_engine_domain_forge_landing::Fault::Lost => Ok(crate::v25::TierFault::Lost),
-        temper_engine_domain_forge_landing::Fault::MissingWorkflow => Ok(crate::v25::TierFault::MissingWorkflow),
-        temper_engine_domain_forge_landing::Fault::Unreported => Ok(crate::v25::TierFault::Unreported),
+        temper_engine_domain_forge_landing::Fault::SetUp => crate::v25::TierFault::Setup,
+        temper_engine_domain_forge_landing::Fault::Completion => crate::v25::TierFault::Completion,
+        temper_engine_domain_forge_landing::Fault::NoStep => crate::v25::TierFault::NoStep,
+        temper_engine_domain_forge_landing::Fault::Cancelled => crate::v25::TierFault::Cancelled,
+        temper_engine_domain_forge_landing::Fault::OtherCommit => crate::v25::TierFault::OtherCommit,
+        temper_engine_domain_forge_landing::Fault::Lost => crate::v25::TierFault::Lost,
+        temper_engine_domain_forge_landing::Fault::MissingWorkflow => crate::v25::TierFault::MissingWorkflow,
+        temper_engine_domain_forge_landing::Fault::Unreported => crate::v25::TierFault::Unreported,
     }
 }
 
-// Maps line 333: TierFault.
-pub fn tier_fault_to_domain(record: crate::v25::TierFault, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Fault, crate::v25::Problem> {
+#[must_use]
+pub fn tier_fault_to_domain(record: crate::v25::TierFault) -> temper_engine_domain_forge_landing::Fault {
     match record {
-        crate::v25::TierFault::Setup => Ok(temper_engine_domain_forge_landing::Fault::SetUp),
-        crate::v25::TierFault::Completion => Ok(temper_engine_domain_forge_landing::Fault::Completion),
-        crate::v25::TierFault::NoStep => Ok(temper_engine_domain_forge_landing::Fault::NoStep),
-        crate::v25::TierFault::Cancelled => Ok(temper_engine_domain_forge_landing::Fault::Cancelled),
-        crate::v25::TierFault::OtherCommit => Ok(temper_engine_domain_forge_landing::Fault::OtherCommit),
-        crate::v25::TierFault::Lost => Ok(temper_engine_domain_forge_landing::Fault::Lost),
-        crate::v25::TierFault::MissingWorkflow => Ok(temper_engine_domain_forge_landing::Fault::MissingWorkflow),
-        crate::v25::TierFault::Unreported => Ok(temper_engine_domain_forge_landing::Fault::Unreported),
+        crate::v25::TierFault::Setup => temper_engine_domain_forge_landing::Fault::SetUp,
+        crate::v25::TierFault::Completion => temper_engine_domain_forge_landing::Fault::Completion,
+        crate::v25::TierFault::NoStep => temper_engine_domain_forge_landing::Fault::NoStep,
+        crate::v25::TierFault::Cancelled => temper_engine_domain_forge_landing::Fault::Cancelled,
+        crate::v25::TierFault::OtherCommit => temper_engine_domain_forge_landing::Fault::OtherCommit,
+        crate::v25::TierFault::Lost => temper_engine_domain_forge_landing::Fault::Lost,
+        crate::v25::TierFault::MissingWorkflow => temper_engine_domain_forge_landing::Fault::MissingWorkflow,
+        crate::v25::TierFault::Unreported => temper_engine_domain_forge_landing::Fault::Unreported,
     }
 }
 
-// Maps line 335: TierFlight.
-pub fn tier_flight_to_record(value: &temper_engine_domain_forge_vocabulary::TierFlight, context: &crate::records::Context) -> Result<crate::v25::TierFlight, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008 } = value;
+pub fn tier_flight_to_record(value: &temper_engine_domain_forge_vocabulary::TierFlight) -> Result<crate::v25::TierFlight, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008, clock: field_000009 } = value;
     Ok(crate::v25::TierFlight {
         entry: *field_000000,
         start: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::time_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_FLIGHT_START.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         since: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::time_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_FLIGHT_SINCE.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         waiting: *field_000003,
         next: match field_000004 {
-            Some(item) => Some(match skein_codec::convert::time_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_FLIGHT_NEXT.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         run: match field_000005 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         pending: {
@@ -4592,42 +5073,67 @@ pub fn tier_flight_to_record(value: &temper_engine_domain_forge_vocabulary::Tier
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::TIER_FLIGHT_PENDING.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = job_attempt_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::TIER_FLIGHT_PENDING.problem(skein_codec::Reason::Bound)); }
+                let converted = job_attempt_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         fault: match field_000007 {
-            Some(item) => Some(tier_fault_to_record(item, context)?),
+            Some(item) => {
+                let converted = tier_fault_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         report: match field_000008 {
-            Some(item) => Some(receipt_run_to_record(item, context)?),
+            Some(item) => {
+                let converted = receipt_run_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        clock: match field_000009 {
+            Some(item) => {
+                let converted = execution_clock_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 335: TierFlight.
-pub fn tier_flight_to_domain(record: crate::v25::TierFlight, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierFlight, crate::v25::Problem> {
-    let crate::v25::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::TierFlight {
+#[must_use]
+pub fn tier_flight_to_domain(record: crate::v25::TierFlight) -> temper_engine_domain_forge_vocabulary::TierFlight {
+    let crate::v25::TierFlight { entry: field_000000, start: field_000001, since: field_000002, waiting: field_000003, next: field_000004, run: field_000005, pending: field_000006, fault: field_000007, report: field_000008, clock: field_000009 } = record;
+    temper_engine_domain_forge_vocabulary::TierFlight {
         entry: field_000000,
         start: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::time_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_FLIGHT_START.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         since: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::time_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_FLIGHT_SINCE.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         waiting: field_000003,
         next: match field_000004 {
-            Some(item) => Some(match skein_codec::convert::time_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_FLIGHT_NEXT.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         run: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         pending: {
@@ -4635,560 +5141,639 @@ pub fn tier_flight_to_domain(record: crate::v25::TierFlight, context: &crate::re
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = job_attempt_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::TIER_FLIGHT_PENDING.problem(skein_codec::Reason::Bound)); }
+                let converted = job_attempt_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         fault: match field_000007 {
-            Some(item) => Some(tier_fault_to_domain(item, context)?),
+            Some(item) => {
+                let converted = tier_fault_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         report: match field_000008 {
-            Some(item) => Some(receipt_run_to_domain(item, context)?),
+            Some(item) => {
+                let converted = receipt_run_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        clock: match field_000009 {
+            Some(item) => {
+                let converted = execution_clock_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 336: ReceiptJob.
-pub fn receipt_job_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptJob, _context: &crate::records::Context) -> Result<crate::v25::ReceiptJob, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_job_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptJob) -> crate::v25::ReceiptJob {
     let temper_engine_domain_forge_vocabulary::ReceiptJob { job: field_000000, attempt: field_000001, name: field_000002 } = value;
-    Ok(crate::v25::ReceiptJob {
+    crate::v25::ReceiptJob {
         job: *field_000000,
         attempt: *field_000001,
         name: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 336: ReceiptJob.
-pub fn receipt_job_to_domain(record: crate::v25::ReceiptJob, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ReceiptJob, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_job_to_domain(record: crate::v25::ReceiptJob) -> temper_engine_domain_forge_vocabulary::ReceiptJob {
     let crate::v25::ReceiptJob { job: field_000000, attempt: field_000001, name: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ReceiptJob {
+    temper_engine_domain_forge_vocabulary::ReceiptJob {
         job: field_000000,
         attempt: field_000001,
         name: field_000002
-    })
+    }
 }
 
-// Maps line 337: ReceiptTest.
-pub fn receipt_test_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptTest, _context: &crate::records::Context) -> Result<crate::v25::ReceiptTest, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_test_to_record(value: &temper_engine_domain_forge_vocabulary::ReceiptTest) -> crate::v25::ReceiptTest {
     let temper_engine_domain_forge_vocabulary::ReceiptTest { key: field_000000, fuzzy: field_000001 } = value;
-    Ok(crate::v25::ReceiptTest {
+    crate::v25::ReceiptTest {
         key: field_000000.clone(),
         fuzzy: *field_000001
-    })
+    }
 }
 
-// Maps line 337: ReceiptTest.
-pub fn receipt_test_to_domain(record: crate::v25::ReceiptTest, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ReceiptTest, crate::v25::Problem> {
+#[must_use]
+pub fn receipt_test_to_domain(record: crate::v25::ReceiptTest) -> temper_engine_domain_forge_vocabulary::ReceiptTest {
     let crate::v25::ReceiptTest { key: field_000000, fuzzy: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ReceiptTest {
+    temper_engine_domain_forge_vocabulary::ReceiptTest {
         key: field_000000,
         fuzzy: field_000001
-    })
+    }
 }
 
-// Maps line 342: TierGoal.
-pub fn tier_goal_to_record(value: &temper_engine_domain_forge_vocabulary::TierGoal, context: &crate::records::Context) -> Result<crate::v25::TierGoal, crate::v25::Problem> {
+#[must_use]
+pub fn tier_goal_to_record(value: &temper_engine_domain_forge_vocabulary::TierGoal) -> crate::v25::TierGoal {
     let temper_engine_domain_forge_vocabulary::TierGoal { goal: field_000000, branch: field_000001, tip: field_000002, ran: field_000003, failing: field_000004, started: field_000005 } = value;
-    Ok(crate::v25::TierGoal {
+    crate::v25::TierGoal {
         goal: *field_000000,
         branch: field_000001.clone(),
         tip: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         ran: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        failing: crate::records::by_hand::failures_to_record(field_000004, context)?,
+        failing: crate::records::by_hand::failures_to_record(field_000004),
         started: match field_000005 {
-            Some(item) => Some(match skein_codec::convert::time_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_GOAL_STARTED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 342: TierGoal.
-pub fn tier_goal_to_domain(record: crate::v25::TierGoal, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierGoal, crate::v25::Problem> {
+pub fn tier_goal_to_domain(record: crate::v25::TierGoal) -> Result<temper_engine_domain_forge_vocabulary::TierGoal, crate::v25::Problem> {
     let crate::v25::TierGoal { goal: field_000000, branch: field_000001, tip: field_000002, ran: field_000003, failing: field_000004, started: field_000005 } = record;
     Ok(temper_engine_domain_forge_vocabulary::TierGoal {
         goal: field_000000,
         branch: field_000001,
         tip: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         ran: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        failing: crate::records::by_hand::failures_to_domain(field_000004, context)?,
+        failing: crate::records::by_hand::failures_to_domain(field_000004)?,
         started: match field_000005 {
-            Some(item) => Some(match skein_codec::convert::time_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_GOAL_STARTED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::time_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 343: TierHold.
-pub fn tier_hold_to_record(value: &temper_engine_domain_forge_vocabulary::TierHold, _context: &crate::records::Context) -> Result<crate::v25::TierHold, crate::v25::Problem> {
+#[must_use]
+pub fn tier_hold_to_record(value: &temper_engine_domain_forge_vocabulary::TierHold) -> crate::v25::TierHold {
     let temper_engine_domain_forge_vocabulary::TierHold { party: field_000000, at: field_000001, reason: field_000002 } = value;
-    Ok(crate::v25::TierHold {
+    crate::v25::TierHold {
         party: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_HOLD_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000001),
         reason: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 343: TierHold.
-pub fn tier_hold_to_domain(record: crate::v25::TierHold, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierHold, crate::v25::Problem> {
+#[must_use]
+pub fn tier_hold_to_domain(record: crate::v25::TierHold) -> temper_engine_domain_forge_vocabulary::TierHold {
     let crate::v25::TierHold { party: field_000000, at: field_000001, reason: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::TierHold {
+    temper_engine_domain_forge_vocabulary::TierHold {
         party: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TIER_HOLD_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000001),
         reason: field_000002
-    })
+    }
 }
 
-// Maps line 346: TierPostedLanding.
-pub fn tier_posted_landing_to_record(value: &temper_engine_domain_forge_vocabulary::TierPostedLanding, context: &crate::records::Context) -> Result<crate::v25::TierPostedLanding, crate::v25::Problem> {
+#[must_use]
+pub fn tier_posted_landing_to_record(value: &temper_engine_domain_forge_vocabulary::TierPostedLanding, context: &crate::records::Context) -> crate::v25::TierPostedLanding {
     let temper_engine_domain_forge_vocabulary::TierPostedLanding { commit: field_000000, blame: field_000001, change: field_000002 } = value;
-    Ok(crate::v25::TierPostedLanding {
+    crate::v25::TierPostedLanding {
         commit: *field_000000,
-        blame: crate::records::by_hand::tier_posted_blame_to_record(field_000001, context)?,
+        blame: crate::records::by_hand::tier_posted_blame_to_record(field_000001, context),
         change: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 346: TierPostedLanding.
 pub fn tier_posted_landing_to_domain(record: crate::v25::TierPostedLanding, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierPostedLanding, crate::v25::Problem> {
     let crate::v25::TierPostedLanding { commit: field_000000, blame: field_000001, change: field_000002 } = record;
     Ok(temper_engine_domain_forge_vocabulary::TierPostedLanding {
         commit: field_000000,
         blame: crate::records::by_hand::tier_posted_blame_to_domain(field_000001, context)?,
         change: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 349: TierCommentKind.
-pub fn tier_comment_kind_to_record(value: &temper_engine_domain_forge_vocabulary::TierCommentKind, _context: &crate::records::Context) -> Result<crate::v25::TierCommentKind, crate::v25::Problem> {
+#[must_use]
+pub fn tier_comment_kind_to_record(value: &temper_engine_domain_forge_vocabulary::TierCommentKind) -> crate::v25::TierCommentKind {
     match value {
-        temper_engine_domain_forge_vocabulary::TierCommentKind::Verdict { at: field_000000 } => Ok(crate::v25::TierCommentKind::Verdict(crate::v25::TierCommentVerdict {
+        temper_engine_domain_forge_vocabulary::TierCommentKind::Verdict { at: field_000000 } => crate::v25::TierCommentKind::Verdict(crate::v25::TierCommentVerdict {
             at: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::TierCommentKind::Repaired { by: field_000000 } => Ok(crate::v25::TierCommentKind::Repaired(crate::v25::TierCommentRepair {
+        }),
+        temper_engine_domain_forge_vocabulary::TierCommentKind::Repaired { by: field_000000 } => crate::v25::TierCommentKind::Repaired(crate::v25::TierCommentRepair {
             by: match field_000000 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
+        }),
     }
 }
 
-// Maps line 349: TierCommentKind.
-pub fn tier_comment_kind_to_domain(record: crate::v25::TierCommentKind, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierCommentKind, crate::v25::Problem> {
+#[must_use]
+pub fn tier_comment_kind_to_domain(record: crate::v25::TierCommentKind) -> temper_engine_domain_forge_vocabulary::TierCommentKind {
     match record {
         crate::v25::TierCommentKind::Verdict(held) => {
             let crate::v25::TierCommentVerdict { at: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::TierCommentKind::Verdict {
+            temper_engine_domain_forge_vocabulary::TierCommentKind::Verdict {
                 at: field_000000
-            })
+            }
         },
         crate::v25::TierCommentKind::Repaired(held) => {
             let crate::v25::TierCommentRepair { by: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::TierCommentKind::Repaired {
+            temper_engine_domain_forge_vocabulary::TierCommentKind::Repaired {
                 by: match field_000000 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
     }
 }
 
-// Maps line 350: TierComment.
-pub fn tier_comment_to_record(value: &temper_engine_domain_forge_vocabulary::TierComment, context: &crate::records::Context) -> Result<crate::v25::TierComment, crate::v25::Problem> {
+#[must_use]
+pub fn tier_comment_to_record(value: &temper_engine_domain_forge_vocabulary::TierComment) -> crate::v25::TierComment {
     let temper_engine_domain_forge_vocabulary::TierComment { pull: field_000000, landing: field_000001, kind: field_000002 } = value;
-    Ok(crate::v25::TierComment {
+    crate::v25::TierComment {
         pull: *field_000000,
         landing: *field_000001,
-        kind: tier_comment_kind_to_record(field_000002, context)?
-    })
+        kind: tier_comment_kind_to_record(field_000002)
+    }
 }
 
-// Maps line 350: TierComment.
-pub fn tier_comment_to_domain(record: crate::v25::TierComment, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TierComment, crate::v25::Problem> {
+#[must_use]
+pub fn tier_comment_to_domain(record: crate::v25::TierComment) -> temper_engine_domain_forge_vocabulary::TierComment {
     let crate::v25::TierComment { pull: field_000000, landing: field_000001, kind: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::TierComment {
+    temper_engine_domain_forge_vocabulary::TierComment {
         pull: field_000000,
         landing: field_000001,
-        kind: tier_comment_kind_to_domain(field_000002, context)?
-    })
+        kind: tier_comment_kind_to_domain(field_000002)
+    }
 }
 
-// Maps line 353: ForgeKind.
-pub fn forge_kind_to_record(value: &temper_engine_domain_forge_vocabulary::Kind, _context: &crate::records::Context) -> Result<crate::v25::ForgeKind, crate::v25::Problem> {
+#[must_use]
+pub fn forge_kind_to_record(value: &temper_engine_domain_forge_vocabulary::Kind) -> crate::v25::ForgeKind {
     match value {
-        temper_engine_domain_forge_vocabulary::Kind::Forgejo => Ok(crate::v25::ForgeKind::Forgejo),
-        temper_engine_domain_forge_vocabulary::Kind::GitHub => Ok(crate::v25::ForgeKind::Github),
+        temper_engine_domain_forge_vocabulary::Kind::Forgejo => crate::v25::ForgeKind::Forgejo,
+        temper_engine_domain_forge_vocabulary::Kind::GitHub => crate::v25::ForgeKind::Github,
     }
 }
 
-// Maps line 353: ForgeKind.
-pub fn forge_kind_to_domain(record: crate::v25::ForgeKind, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Kind, crate::v25::Problem> {
+#[must_use]
+pub fn forge_kind_to_domain(record: crate::v25::ForgeKind) -> temper_engine_domain_forge_vocabulary::Kind {
     match record {
-        crate::v25::ForgeKind::Forgejo => Ok(temper_engine_domain_forge_vocabulary::Kind::Forgejo),
-        crate::v25::ForgeKind::Github => Ok(temper_engine_domain_forge_vocabulary::Kind::GitHub),
+        crate::v25::ForgeKind::Forgejo => temper_engine_domain_forge_vocabulary::Kind::Forgejo,
+        crate::v25::ForgeKind::Github => temper_engine_domain_forge_vocabulary::Kind::GitHub,
     }
 }
 
-// Maps line 354: ForgeMode.
-pub fn forge_mode_to_record(value: &temper_engine_domain_forge_vocabulary::Mode, _context: &crate::records::Context) -> Result<crate::v25::ForgeMode, crate::v25::Problem> {
+#[must_use]
+pub fn forge_mode_to_record(value: &temper_engine_domain_forge_vocabulary::Mode) -> crate::v25::ForgeMode {
     match value {
-        temper_engine_domain_forge_vocabulary::Mode::Connected => Ok(crate::v25::ForgeMode::Connected),
-        temper_engine_domain_forge_vocabulary::Mode::Managed => Ok(crate::v25::ForgeMode::Managed),
-        temper_engine_domain_forge_vocabulary::Mode::Owned => Ok(crate::v25::ForgeMode::Owned),
-        temper_engine_domain_forge_vocabulary::Mode::Fake => Ok(crate::v25::ForgeMode::Fake),
+        temper_engine_domain_forge_vocabulary::Mode::Connected => crate::v25::ForgeMode::Connected,
+        temper_engine_domain_forge_vocabulary::Mode::Managed => crate::v25::ForgeMode::Managed,
+        temper_engine_domain_forge_vocabulary::Mode::Owned => crate::v25::ForgeMode::Owned,
+        temper_engine_domain_forge_vocabulary::Mode::Fake => crate::v25::ForgeMode::Fake,
     }
 }
 
-// Maps line 354: ForgeMode.
-pub fn forge_mode_to_domain(record: crate::v25::ForgeMode, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Mode, crate::v25::Problem> {
+#[must_use]
+pub fn forge_mode_to_domain(record: crate::v25::ForgeMode) -> temper_engine_domain_forge_vocabulary::Mode {
     match record {
-        crate::v25::ForgeMode::Connected => Ok(temper_engine_domain_forge_vocabulary::Mode::Connected),
-        crate::v25::ForgeMode::Managed => Ok(temper_engine_domain_forge_vocabulary::Mode::Managed),
-        crate::v25::ForgeMode::Owned => Ok(temper_engine_domain_forge_vocabulary::Mode::Owned),
-        crate::v25::ForgeMode::Fake => Ok(temper_engine_domain_forge_vocabulary::Mode::Fake),
+        crate::v25::ForgeMode::Connected => temper_engine_domain_forge_vocabulary::Mode::Connected,
+        crate::v25::ForgeMode::Managed => temper_engine_domain_forge_vocabulary::Mode::Managed,
+        crate::v25::ForgeMode::Owned => temper_engine_domain_forge_vocabulary::Mode::Owned,
+        crate::v25::ForgeMode::Fake => temper_engine_domain_forge_vocabulary::Mode::Fake,
     }
 }
 
-// Maps line 355: Address.
-pub fn address_to_record(value: &temper_engine_domain_forge_vocabulary::Address, _context: &crate::records::Context) -> Result<crate::v25::Address, crate::v25::Problem> {
+#[must_use]
+pub fn address_to_record(value: &temper_engine_domain_forge_vocabulary::Address) -> crate::v25::Address {
     let temper_engine_domain_forge_vocabulary::Address { host: field_000000, port: field_000001, tls: field_000002 } = value;
-    Ok(crate::v25::Address {
+    crate::v25::Address {
         host: field_000000.clone(),
         port: *field_000001,
         tls: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 355: Address.
-pub fn address_to_domain(record: crate::v25::Address, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Address, crate::v25::Problem> {
+#[must_use]
+pub fn address_to_domain(record: crate::v25::Address) -> temper_engine_domain_forge_vocabulary::Address {
     let crate::v25::Address { host: field_000000, port: field_000001, tls: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Address {
+    temper_engine_domain_forge_vocabulary::Address {
         host: field_000000,
         port: field_000001,
         tls: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 356: Place.
-pub fn place_to_record(value: &temper_engine_domain_forge_vocabulary::Place, context: &crate::records::Context) -> Result<crate::v25::Place, crate::v25::Problem> {
+#[must_use]
+pub fn place_to_record(value: &temper_engine_domain_forge_vocabulary::Place) -> crate::v25::Place {
     let temper_engine_domain_forge_vocabulary::Place { api: field_000000, git: field_000001, web: field_000002 } = value;
-    Ok(crate::v25::Place {
-        api: address_to_record(field_000000, context)?,
+    crate::v25::Place {
+        api: address_to_record(field_000000),
         git: field_000001.clone(),
         web: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 356: Place.
-pub fn place_to_domain(record: crate::v25::Place, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Place, crate::v25::Problem> {
+#[must_use]
+pub fn place_to_domain(record: crate::v25::Place) -> temper_engine_domain_forge_vocabulary::Place {
     let crate::v25::Place { api: field_000000, git: field_000001, web: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Place {
-        api: address_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::Place {
+        api: address_to_domain(field_000000),
         git: field_000001,
         web: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 357: Bot.
-pub fn bot_to_record(value: &temper_engine_domain_forge_vocabulary::Bot, _context: &crate::records::Context) -> Result<crate::v25::Bot, crate::v25::Problem> {
+#[must_use]
+pub fn bot_to_record(value: &temper_engine_domain_forge_vocabulary::Bot) -> crate::v25::Bot {
     let temper_engine_domain_forge_vocabulary::Bot { login: field_000000, name: field_000001, email: field_000002 } = value;
-    Ok(crate::v25::Bot {
+    crate::v25::Bot {
         login: field_000000.clone(),
         name: field_000001.clone(),
         email: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 357: Bot.
-pub fn bot_to_domain(record: crate::v25::Bot, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Bot, crate::v25::Problem> {
+#[must_use]
+pub fn bot_to_domain(record: crate::v25::Bot) -> temper_engine_domain_forge_vocabulary::Bot {
     let crate::v25::Bot { login: field_000000, name: field_000001, email: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Bot {
+    temper_engine_domain_forge_vocabulary::Bot {
         login: field_000000,
         name: field_000001,
         email: field_000002
-    })
+    }
 }
 
-// Maps line 358: EmptyIntent.
-pub fn empty_intent_to_record(value: &temper_engine_domain_forge_vocabulary::EmptyIntent, _context: &crate::records::Context) -> Result<crate::v25::EmptyIntent, crate::v25::Problem> {
+#[must_use]
+pub fn empty_intent_to_record(value: &temper_engine_domain_forge_vocabulary::EmptyIntent) -> crate::v25::EmptyIntent {
     let temper_engine_domain_forge_vocabulary::EmptyIntent { playground: field_000000, org: field_000001, repository: field_000002, label: field_000003, sample: field_000004 } = value;
-    Ok(crate::v25::EmptyIntent {
+    crate::v25::EmptyIntent {
         playground: *field_000000,
         org: field_000001.clone(),
         repository: field_000002.clone(),
         label: field_000003.clone(),
         sample: *field_000004
-    })
+    }
 }
 
-// Maps line 358: EmptyIntent.
-pub fn empty_intent_to_domain(record: crate::v25::EmptyIntent, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::EmptyIntent, crate::v25::Problem> {
+#[must_use]
+pub fn empty_intent_to_domain(record: crate::v25::EmptyIntent) -> temper_engine_domain_forge_vocabulary::EmptyIntent {
     let crate::v25::EmptyIntent { playground: field_000000, org: field_000001, repository: field_000002, label: field_000003, sample: field_000004 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::EmptyIntent {
+    temper_engine_domain_forge_vocabulary::EmptyIntent {
         playground: field_000000,
         org: field_000001,
         repository: field_000002,
         label: field_000003,
         sample: field_000004
-    })
+    }
 }
 
-// Maps line 360: FirstIntent.
-pub fn first_intent_to_record(value: &temper_engine_domain_forge_vocabulary::FirstIntent, context: &crate::records::Context) -> Result<crate::v25::FirstIntent, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::FirstIntent::Empty(held) => Ok(crate::v25::FirstIntent::Empty(empty_intent_to_record(held, context)?)),
-        temper_engine_domain_forge_vocabulary::FirstIntent::Copies { addresses: field_000000 } => Ok(crate::v25::FirstIntent::Copies(crate::v25::CopyIntent {
+pub fn first_intent_to_record(value: &temper_engine_domain_forge_vocabulary::FirstIntent) -> Result<crate::v25::FirstIntent, crate::v25::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge_vocabulary::FirstIntent::Empty(held) => crate::v25::FirstIntent::Empty(empty_intent_to_record(held)),
+        temper_engine_domain_forge_vocabulary::FirstIntent::Copies { addresses: field_000000 } => crate::v25::FirstIntent::Copies(crate::v25::CopyIntent {
             addresses: {
                 let source = field_000000;
                 let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::COPY_INTENT_ADDRESSES.problem(skein_codec::Reason::Bound)) };
                 let mut translated = skein_lib::List::with_capacity(count);
                 for item in source.as_ref() {
                     let converted = item.clone();
-                    if translated.push(converted).is_err() { return Err(crate::v25::paths::COPY_INTENT_ADDRESSES.problem(skein_codec::Reason::Bound)); }
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
                 }
                 translated
             }
-        })),
-        temper_engine_domain_forge_vocabulary::FirstIntent::Nothing => Ok(crate::v25::FirstIntent::Nothing),
-    }
+        }),
+        temper_engine_domain_forge_vocabulary::FirstIntent::Nothing => crate::v25::FirstIntent::Nothing,
+    })
 }
 
-// Maps line 360: FirstIntent.
-pub fn first_intent_to_domain(record: crate::v25::FirstIntent, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FirstIntent, crate::v25::Problem> {
+#[must_use]
+pub fn first_intent_to_domain(record: crate::v25::FirstIntent) -> temper_engine_domain_forge_vocabulary::FirstIntent {
     match record {
-        crate::v25::FirstIntent::Empty(held) => Ok(temper_engine_domain_forge_vocabulary::FirstIntent::Empty(empty_intent_to_domain(held, context)?)),
+        crate::v25::FirstIntent::Empty(held) => temper_engine_domain_forge_vocabulary::FirstIntent::Empty(empty_intent_to_domain(held)),
         crate::v25::FirstIntent::Copies(held) => {
             let crate::v25::CopyIntent { addresses: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::FirstIntent::Copies {
+            temper_engine_domain_forge_vocabulary::FirstIntent::Copies {
                 addresses: {
                     let source = field_000000;
                     let count = source.len();
                     let mut translated = skein_lib::List::with_capacity(count);
                     for item in source.into_boxed() {
                         let converted = item;
-                        if translated.push(converted).is_err() { return Err(crate::v25::paths::COPY_INTENT_ADDRESSES.problem(skein_codec::Reason::Bound)); }
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
                     }
                     Box::from(translated)
                 }
-            })
+            }
         },
-        crate::v25::FirstIntent::Nothing => Ok(temper_engine_domain_forge_vocabulary::FirstIntent::Nothing),
+        crate::v25::FirstIntent::Nothing => temper_engine_domain_forge_vocabulary::FirstIntent::Nothing,
     }
 }
 
-// Maps line 362: ForgeState.
-pub fn forge_state_to_record(value: &temper_engine_domain_forge_vocabulary::ForgeState, _context: &crate::records::Context) -> Result<crate::v25::ForgeState, crate::v25::Problem> {
+#[must_use]
+pub fn forge_state_to_record(value: &temper_engine_domain_forge_vocabulary::ForgeState) -> crate::v25::ForgeState {
     match value {
-        temper_engine_domain_forge_vocabulary::ForgeState::Kept => Ok(crate::v25::ForgeState::Kept),
-        temper_engine_domain_forge_vocabulary::ForgeState::Ended { secrets_erased: field_000000, box_removed: field_000001 } => Ok(crate::v25::ForgeState::Ended(crate::v25::EndedForge {
+        temper_engine_domain_forge_vocabulary::ForgeState::Kept => crate::v25::ForgeState::Kept,
+        temper_engine_domain_forge_vocabulary::ForgeState::Ended { secrets_erased: field_000000, box_removed: field_000001 } => crate::v25::ForgeState::Ended(crate::v25::EndedForge {
             secrets_erased: *field_000000,
             box_removed: *field_000001
-        })),
+        }),
     }
 }
 
-// Maps line 362: ForgeState.
-pub fn forge_state_to_domain(record: crate::v25::ForgeState, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ForgeState, crate::v25::Problem> {
+#[must_use]
+pub fn forge_state_to_domain(record: crate::v25::ForgeState) -> temper_engine_domain_forge_vocabulary::ForgeState {
     match record {
-        crate::v25::ForgeState::Kept => Ok(temper_engine_domain_forge_vocabulary::ForgeState::Kept),
+        crate::v25::ForgeState::Kept => temper_engine_domain_forge_vocabulary::ForgeState::Kept,
         crate::v25::ForgeState::Ended(held) => {
             let crate::v25::EndedForge { secrets_erased: field_000000, box_removed: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::ForgeState::Ended {
+            temper_engine_domain_forge_vocabulary::ForgeState::Ended {
                 secrets_erased: field_000000,
                 box_removed: field_000001
-            })
+            }
         },
     }
 }
 
-// Maps line 364: Forge.
-pub fn forge_to_record(value: &temper_engine_domain_forge_vocabulary::ForgeRecord, context: &crate::records::Context) -> Result<crate::v25::Forge, crate::v25::Problem> {
+pub fn forge_to_record(value: &temper_engine_domain_forge_vocabulary::ForgeRecord) -> Result<crate::v25::Forge, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::ForgeRecord { number: field_000000, kind: field_000001, mode: field_000002, state: field_000003, place: field_000004, git_program: field_000005, read_only: field_000006, bot: field_000007, asked: field_000008, first: field_000009, person: field_000010 } = value;
     Ok(crate::v25::Forge {
         number: *field_000000,
-        kind: forge_kind_to_record(field_000001, context)?,
-        mode: forge_mode_to_record(field_000002, context)?,
-        state: forge_state_to_record(field_000003, context)?,
-        place: place_to_record(field_000004, context)?,
+        kind: forge_kind_to_record(field_000001),
+        mode: forge_mode_to_record(field_000002),
+        state: forge_state_to_record(field_000003),
+        place: place_to_record(field_000004),
         git_program: match field_000005 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         read_only: *field_000006,
-        bot: bot_to_record(field_000007, context)?,
+        bot: bot_to_record(field_000007),
         asked: *field_000008,
         first: match field_000009 {
-            Some(item) => Some(first_intent_to_record(item, context)?),
+            Some(item) => {
+                let converted = first_intent_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         person: match field_000010 {
-            Some(item) => Some(crate::records::by_hand::forge_link_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::forge_link_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 364: Forge.
-pub fn forge_to_domain(record: crate::v25::Forge, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ForgeRecord, crate::v25::Problem> {
+pub fn forge_to_domain(record: crate::v25::Forge) -> Result<temper_engine_domain_forge_vocabulary::ForgeRecord, crate::v25::Problem> {
     let crate::v25::Forge { number: field_000000, kind: field_000001, mode: field_000002, state: field_000003, place: field_000004, git_program: field_000005, read_only: field_000006, bot: field_000007, asked: field_000008, first: field_000009, person: field_000010 } = record;
     Ok(temper_engine_domain_forge_vocabulary::ForgeRecord {
         number: field_000000,
-        kind: forge_kind_to_domain(field_000001, context)?,
-        mode: forge_mode_to_domain(field_000002, context)?,
-        state: forge_state_to_domain(field_000003, context)?,
-        place: place_to_domain(field_000004, context)?,
+        kind: forge_kind_to_domain(field_000001),
+        mode: forge_mode_to_domain(field_000002),
+        state: forge_state_to_domain(field_000003),
+        place: place_to_domain(field_000004),
         git_program: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         read_only: field_000006,
-        bot: bot_to_domain(field_000007, context)?,
+        bot: bot_to_domain(field_000007),
         asked: field_000008,
         first: match field_000009 {
-            Some(item) => Some(first_intent_to_domain(item, context)?),
+            Some(item) => {
+                let converted = first_intent_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         person: match field_000010 {
-            Some(item) => Some(crate::records::by_hand::forge_link_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::forge_link_to_domain(item)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 366: ResetStep.
-pub fn reset_step_to_record(value: &temper_engine_domain_forge_vocabulary::ResetStep, _context: &crate::records::Context) -> Result<crate::v25::ResetStep, crate::v25::Problem> {
+#[must_use]
+pub fn reset_step_to_record(value: &temper_engine_domain_forge_vocabulary::ResetStep) -> crate::v25::ResetStep {
     match value {
-        temper_engine_domain_forge_vocabulary::ResetStep::Project => Ok(crate::v25::ResetStep::Project),
-        temper_engine_domain_forge_vocabulary::ResetStep::Forge => Ok(crate::v25::ResetStep::Forge),
-        temper_engine_domain_forge_vocabulary::ResetStep::Account => Ok(crate::v25::ResetStep::Account),
+        temper_engine_domain_forge_vocabulary::ResetStep::Project => crate::v25::ResetStep::Project,
+        temper_engine_domain_forge_vocabulary::ResetStep::Forge => crate::v25::ResetStep::Forge,
+        temper_engine_domain_forge_vocabulary::ResetStep::Account => crate::v25::ResetStep::Account,
     }
 }
 
-// Maps line 366: ResetStep.
-pub fn reset_step_to_domain(record: crate::v25::ResetStep, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ResetStep, crate::v25::Problem> {
+#[must_use]
+pub fn reset_step_to_domain(record: crate::v25::ResetStep) -> temper_engine_domain_forge_vocabulary::ResetStep {
     match record {
-        crate::v25::ResetStep::Project => Ok(temper_engine_domain_forge_vocabulary::ResetStep::Project),
-        crate::v25::ResetStep::Forge => Ok(temper_engine_domain_forge_vocabulary::ResetStep::Forge),
-        crate::v25::ResetStep::Account => Ok(temper_engine_domain_forge_vocabulary::ResetStep::Account),
+        crate::v25::ResetStep::Project => temper_engine_domain_forge_vocabulary::ResetStep::Project,
+        crate::v25::ResetStep::Forge => temper_engine_domain_forge_vocabulary::ResetStep::Forge,
+        crate::v25::ResetStep::Account => temper_engine_domain_forge_vocabulary::ResetStep::Account,
     }
 }
 
-// Maps line 368: PlaygroundState.
-pub fn playground_state_to_record(value: &temper_engine_domain_forge_vocabulary::PlaygroundState, context: &crate::records::Context) -> Result<crate::v25::PlaygroundState, crate::v25::Problem> {
+#[must_use]
+pub fn playground_state_to_record(value: &temper_engine_domain_forge_vocabulary::PlaygroundState) -> crate::v25::PlaygroundState {
     match value {
-        temper_engine_domain_forge_vocabulary::PlaygroundState::Starting => Ok(crate::v25::PlaygroundState::Starting),
-        temper_engine_domain_forge_vocabulary::PlaygroundState::Running => Ok(crate::v25::PlaygroundState::Running),
-        temper_engine_domain_forge_vocabulary::PlaygroundState::Resetting(held) => Ok(crate::v25::PlaygroundState::Resetting(crate::v25::Resetting { step: reset_step_to_record(held, context)? })),
+        temper_engine_domain_forge_vocabulary::PlaygroundState::Starting => crate::v25::PlaygroundState::Starting,
+        temper_engine_domain_forge_vocabulary::PlaygroundState::Running => crate::v25::PlaygroundState::Running,
+        temper_engine_domain_forge_vocabulary::PlaygroundState::Resetting(held) => crate::v25::PlaygroundState::Resetting(crate::v25::Resetting { step: reset_step_to_record(held) }),
     }
 }
 
-// Maps line 368: PlaygroundState.
-pub fn playground_state_to_domain(record: crate::v25::PlaygroundState, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::PlaygroundState, crate::v25::Problem> {
+#[must_use]
+pub fn playground_state_to_domain(record: crate::v25::PlaygroundState) -> temper_engine_domain_forge_vocabulary::PlaygroundState {
     match record {
-        crate::v25::PlaygroundState::Starting => Ok(temper_engine_domain_forge_vocabulary::PlaygroundState::Starting),
-        crate::v25::PlaygroundState::Running => Ok(temper_engine_domain_forge_vocabulary::PlaygroundState::Running),
-        crate::v25::PlaygroundState::Resetting(held) => Ok(temper_engine_domain_forge_vocabulary::PlaygroundState::Resetting({
+        crate::v25::PlaygroundState::Starting => temper_engine_domain_forge_vocabulary::PlaygroundState::Starting,
+        crate::v25::PlaygroundState::Running => temper_engine_domain_forge_vocabulary::PlaygroundState::Running,
+        crate::v25::PlaygroundState::Resetting(held) => temper_engine_domain_forge_vocabulary::PlaygroundState::Resetting({
             let crate::v25::Resetting { step: held } = held;
-            reset_step_to_domain(held, context)?
-        })),
+            reset_step_to_domain(held)
+        }),
     }
 }
 
-// Maps line 369: Playground.
-pub fn playground_to_record(value: &temper_engine_domain_forge_vocabulary::Playground, context: &crate::records::Context) -> Result<crate::v25::Playground, crate::v25::Problem> {
+#[must_use]
+pub fn playground_to_record(value: &temper_engine_domain_forge_vocabulary::Playground) -> crate::v25::Playground {
     let temper_engine_domain_forge_vocabulary::Playground { state: field_000000, forge: field_000001, project: field_000002, account: field_000003 } = value;
-    Ok(crate::v25::Playground {
-        state: playground_state_to_record(field_000000, context)?,
+    crate::v25::Playground {
+        state: playground_state_to_record(field_000000),
         forge: *field_000001,
         project: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         account: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 369: Playground.
-pub fn playground_to_domain(record: crate::v25::Playground, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Playground, crate::v25::Problem> {
+#[must_use]
+pub fn playground_to_domain(record: crate::v25::Playground) -> temper_engine_domain_forge_vocabulary::Playground {
     let crate::v25::Playground { state: field_000000, forge: field_000001, project: field_000002, account: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Playground {
-        state: playground_state_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::Playground {
+        state: playground_state_to_domain(field_000000),
         forge: field_000001,
         project: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         account: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 370: PatternLast.
-pub fn pattern_last_to_record(value: &temper_engine_domain_forge_vocabulary::GateLast, _context: &crate::records::Context) -> Result<crate::v25::PatternLast, crate::v25::Problem> {
+#[must_use]
+pub fn pattern_last_to_record(value: &temper_engine_domain_forge_vocabulary::GateLast) -> crate::v25::PatternLast {
     match value {
-        temper_engine_domain_forge_vocabulary::GateLast::Exact(held) => Ok(crate::v25::PatternLast::Exact(crate::v25::Segment { name: held.clone() })),
-        temper_engine_domain_forge_vocabulary::GateLast::Open(held) => Ok(crate::v25::PatternLast::Open(crate::v25::Segment { name: held.clone() })),
+        temper_engine_domain_forge_vocabulary::GateLast::Exact(held) => crate::v25::PatternLast::Exact(crate::v25::Segment { name: held.clone() }),
+        temper_engine_domain_forge_vocabulary::GateLast::Open(held) => crate::v25::PatternLast::Open(crate::v25::Segment { name: held.clone() }),
     }
 }
 
-// Maps line 370: PatternLast.
-pub fn pattern_last_to_domain(record: crate::v25::PatternLast, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::GateLast, crate::v25::Problem> {
+#[must_use]
+pub fn pattern_last_to_domain(record: crate::v25::PatternLast) -> temper_engine_domain_forge_vocabulary::GateLast {
     match record {
-        crate::v25::PatternLast::Exact(held) => Ok(temper_engine_domain_forge_vocabulary::GateLast::Exact({
+        crate::v25::PatternLast::Exact(held) => temper_engine_domain_forge_vocabulary::GateLast::Exact({
             let crate::v25::Segment { name: held } = held;
             held
-        })),
-        crate::v25::PatternLast::Open(held) => Ok(temper_engine_domain_forge_vocabulary::GateLast::Open({
+        }),
+        crate::v25::PatternLast::Open(held) => temper_engine_domain_forge_vocabulary::GateLast::Open({
             let crate::v25::Segment { name: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 374: LandingRule.
-pub fn landing_rule_to_record(value: &temper_engine_domain_forge_vocabulary::settings::LandingRule, context: &crate::records::Context) -> Result<crate::v25::LandingRule, crate::v25::Problem> {
+pub fn landing_rule_to_record(value: &temper_engine_domain_forge_vocabulary::settings::LandingRule) -> Result<crate::v25::LandingRule, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::LandingRule { pattern: field_000000, enforce: field_000001, ci: field_000002, up_to_date: field_000003, gates: field_000004, approvals: field_000005, sets: field_000006 } = value;
     Ok(crate::v25::LandingRule {
-        pattern: crate::records::by_hand::rule_pattern_to_record(field_000000, context)?,
+        pattern: crate::records::by_hand::rule_pattern_to_record(field_000000),
         enforce: *field_000001,
         ci: *field_000002,
         up_to_date: *field_000003,
@@ -5197,8 +5782,8 @@ pub fn landing_rule_to_record(value: &temper_engine_domain_forge_vocabulary::set
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_RULE_GATES.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = crate::records::by_hand::rule_gate_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_RULE_GATES.problem(skein_codec::Reason::Bound)); }
+                let converted = crate::records::by_hand::rule_gate_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -5207,8 +5792,8 @@ pub fn landing_rule_to_record(value: &temper_engine_domain_forge_vocabulary::set
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_RULE_APPROVALS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = crate::records::by_hand::rule_approval_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_RULE_APPROVALS.problem(skein_codec::Reason::Bound)); }
+                let converted = crate::records::by_hand::rule_approval_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -5218,14 +5803,13 @@ pub fn landing_rule_to_record(value: &temper_engine_domain_forge_vocabulary::set
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_RULE_SETS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 374: LandingRule.
 pub fn landing_rule_to_domain(record: crate::v25::LandingRule, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::LandingRule, crate::v25::Problem> {
     let crate::v25::LandingRule { pattern: field_000000, enforce: field_000001, ci: field_000002, up_to_date: field_000003, gates: field_000004, approvals: field_000005, sets: field_000006 } = record;
     Ok(temper_engine_domain_forge_vocabulary::settings::LandingRule {
@@ -5238,8 +5822,8 @@ pub fn landing_rule_to_domain(record: crate::v25::LandingRule, context: &crate::
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = crate::records::by_hand::rule_gate_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_RULE_GATES.problem(skein_codec::Reason::Bound)); }
+                let converted = crate::records::by_hand::rule_gate_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -5248,8 +5832,8 @@ pub fn landing_rule_to_domain(record: crate::v25::LandingRule, context: &crate::
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = crate::records::by_hand::rule_approval_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_RULE_APPROVALS.problem(skein_codec::Reason::Bound)); }
+                let converted = crate::records::by_hand::rule_approval_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -5259,198 +5843,216 @@ pub fn landing_rule_to_domain(record: crate::v25::LandingRule, context: &crate::
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_RULE_SETS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
     })
 }
 
-// Maps line 376: TemplateGoal.
-pub fn template_goal_to_record(value: &temper_engine_domain_forge_vocabulary::settings::TemplateGoal, _context: &crate::records::Context) -> Result<crate::v25::TemplateGoal, crate::v25::Problem> {
+#[must_use]
+pub fn template_goal_to_record(value: &temper_engine_domain_forge_vocabulary::settings::TemplateGoal) -> crate::v25::TemplateGoal {
     let temper_engine_domain_forge_vocabulary::settings::TemplateGoal { design: field_000000, close_out: field_000001 } = value;
-    Ok(crate::v25::TemplateGoal {
+    crate::v25::TemplateGoal {
         design: *field_000000,
         close_out: *field_000001
-    })
+    }
 }
 
-// Maps line 376: TemplateGoal.
-pub fn template_goal_to_domain(record: crate::v25::TemplateGoal, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::TemplateGoal, crate::v25::Problem> {
+#[must_use]
+pub fn template_goal_to_domain(record: crate::v25::TemplateGoal) -> temper_engine_domain_forge_vocabulary::settings::TemplateGoal {
     let crate::v25::TemplateGoal { design: field_000000, close_out: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::TemplateGoal {
+    temper_engine_domain_forge_vocabulary::settings::TemplateGoal {
         design: field_000000,
         close_out: field_000001
-    })
+    }
 }
 
-// Maps line 378: SettingsLandingWay.
-pub fn settings_landing_way_to_record(value: &temper_engine_domain_forge_change::Way, _context: &crate::records::Context) -> Result<crate::v25::SettingsLandingWay, crate::v25::Problem> {
+#[must_use]
+pub fn settings_landing_way_to_record(value: &temper_engine_domain_forge_change::Way) -> crate::v25::SettingsLandingWay {
     match value {
-        temper_engine_domain_forge_change::Way::Queue => Ok(crate::v25::SettingsLandingWay::Queue),
-        temper_engine_domain_forge_change::Way::Turn => Ok(crate::v25::SettingsLandingWay::Turn),
+        temper_engine_domain_forge_change::Way::Queue => crate::v25::SettingsLandingWay::Queue,
+        temper_engine_domain_forge_change::Way::Turn => crate::v25::SettingsLandingWay::Turn,
     }
 }
 
-// Maps line 378: SettingsLandingWay.
-pub fn settings_landing_way_to_domain(record: crate::v25::SettingsLandingWay, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Way, crate::v25::Problem> {
+#[must_use]
+pub fn settings_landing_way_to_domain(record: crate::v25::SettingsLandingWay) -> temper_engine_domain_forge_change::Way {
     match record {
-        crate::v25::SettingsLandingWay::Queue => Ok(temper_engine_domain_forge_change::Way::Queue),
-        crate::v25::SettingsLandingWay::Turn => Ok(temper_engine_domain_forge_change::Way::Turn),
+        crate::v25::SettingsLandingWay::Queue => temper_engine_domain_forge_change::Way::Queue,
+        crate::v25::SettingsLandingWay::Turn => temper_engine_domain_forge_change::Way::Turn,
     }
 }
 
-// Maps line 379: SettingsLandingWait.
-pub fn settings_landing_wait_to_record(value: &temper_engine_domain_forge_change::Wait, _context: &crate::records::Context) -> Result<crate::v25::SettingsLandingWait, crate::v25::Problem> {
+#[must_use]
+pub fn settings_landing_wait_to_record(value: &temper_engine_domain_forge_change::Wait) -> crate::v25::SettingsLandingWait {
     match value {
-        temper_engine_domain_forge_change::Wait::Cleared => Ok(crate::v25::SettingsLandingWait::Cleared),
-        temper_engine_domain_forge_change::Wait::Landed => Ok(crate::v25::SettingsLandingWait::Landed),
+        temper_engine_domain_forge_change::Wait::Cleared => crate::v25::SettingsLandingWait::Cleared,
+        temper_engine_domain_forge_change::Wait::Landed => crate::v25::SettingsLandingWait::Landed,
     }
 }
 
-// Maps line 379: SettingsLandingWait.
-pub fn settings_landing_wait_to_domain(record: crate::v25::SettingsLandingWait, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_change::Wait, crate::v25::Problem> {
+#[must_use]
+pub fn settings_landing_wait_to_domain(record: crate::v25::SettingsLandingWait) -> temper_engine_domain_forge_change::Wait {
     match record {
-        crate::v25::SettingsLandingWait::Cleared => Ok(temper_engine_domain_forge_change::Wait::Cleared),
-        crate::v25::SettingsLandingWait::Landed => Ok(temper_engine_domain_forge_change::Wait::Landed),
+        crate::v25::SettingsLandingWait::Cleared => temper_engine_domain_forge_change::Wait::Cleared,
+        crate::v25::SettingsLandingWait::Landed => temper_engine_domain_forge_change::Wait::Landed,
     }
 }
 
-// Maps line 380: SettingsCombine.
-pub fn settings_combine_to_record(value: &temper_engine_domain_forge_landing::Combine, _context: &crate::records::Context) -> Result<crate::v25::SettingsCombine, crate::v25::Problem> {
+#[must_use]
+pub fn settings_combine_to_record(value: &temper_engine_domain_forge_landing::Combine) -> crate::v25::SettingsCombine {
     match value {
-        temper_engine_domain_forge_landing::Combine::Merge => Ok(crate::v25::SettingsCombine::Merge),
-        temper_engine_domain_forge_landing::Combine::Squash => Ok(crate::v25::SettingsCombine::Squash),
+        temper_engine_domain_forge_landing::Combine::Merge => crate::v25::SettingsCombine::Merge,
+        temper_engine_domain_forge_landing::Combine::Squash => crate::v25::SettingsCombine::Squash,
     }
 }
 
-// Maps line 380: SettingsCombine.
-pub fn settings_combine_to_domain(record: crate::v25::SettingsCombine, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Combine, crate::v25::Problem> {
+#[must_use]
+pub fn settings_combine_to_domain(record: crate::v25::SettingsCombine) -> temper_engine_domain_forge_landing::Combine {
     match record {
-        crate::v25::SettingsCombine::Merge => Ok(temper_engine_domain_forge_landing::Combine::Merge),
-        crate::v25::SettingsCombine::Squash => Ok(temper_engine_domain_forge_landing::Combine::Squash),
+        crate::v25::SettingsCombine::Merge => temper_engine_domain_forge_landing::Combine::Merge,
+        crate::v25::SettingsCombine::Squash => temper_engine_domain_forge_landing::Combine::Squash,
     }
 }
 
-// Maps line 381: NamedModel.
-pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedModel, _context: &crate::records::Context) -> Result<crate::v25::NamedModel, crate::v25::Problem> {
+#[must_use]
+pub fn named_model_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedModel) -> crate::v25::NamedModel {
     let temper_engine_domain_forge_vocabulary::settings::NamedModel { model: field_000000, effort: field_000001 } = value;
-    Ok(crate::v25::NamedModel {
+    crate::v25::NamedModel {
         model: field_000000.clone(),
         effort: match field_000001 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 381: NamedModel.
-pub fn named_model_to_domain(record: crate::v25::NamedModel, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::NamedModel, crate::v25::Problem> {
+#[must_use]
+pub fn named_model_to_domain(record: crate::v25::NamedModel) -> temper_engine_domain_forge_vocabulary::settings::NamedModel {
     let crate::v25::NamedModel { model: field_000000, effort: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::NamedModel {
+    temper_engine_domain_forge_vocabulary::settings::NamedModel {
         model: field_000000,
         effort: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 382: NamedLater.
-pub fn named_later_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedLater, context: &crate::records::Context) -> Result<crate::v25::NamedLater, crate::v25::Problem> {
+pub fn named_later_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedLater) -> Result<crate::v25::NamedLater, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::NamedLater { main: field_000000, subagents: field_000001 } = value;
     Ok(crate::v25::NamedLater {
-        main: named_model_to_record(field_000000, context)?,
+        main: named_model_to_record(field_000000),
         subagents: {
             let source = field_000001;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::NAMED_LATER_SUBAGENTS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = named_model_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::NAMED_LATER_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = named_model_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 382: NamedLater.
-pub fn named_later_to_domain(record: crate::v25::NamedLater, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::NamedLater, crate::v25::Problem> {
+#[must_use]
+pub fn named_later_to_domain(record: crate::v25::NamedLater) -> temper_engine_domain_forge_vocabulary::settings::NamedLater {
     let crate::v25::NamedLater { main: field_000000, subagents: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::NamedLater {
-        main: named_model_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::settings::NamedLater {
+        main: named_model_to_domain(field_000000),
         subagents: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = named_model_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::NAMED_LATER_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = named_model_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 383: NamedLlm.
-pub fn named_llm_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedLlm, context: &crate::records::Context) -> Result<crate::v25::NamedLlm, crate::v25::Problem> {
+pub fn named_llm_to_record(value: &temper_engine_domain_forge_vocabulary::settings::NamedLlm) -> Result<crate::v25::NamedLlm, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::NamedLlm { account: field_000000, main: field_000001, subagents: field_000002, later: field_000003 } = value;
     Ok(crate::v25::NamedLlm {
         account: match field_000000 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        main: named_model_to_record(field_000001, context)?,
+        main: named_model_to_record(field_000001),
         subagents: {
             let source = field_000002;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::NAMED_LLM_SUBAGENTS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = named_model_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::NAMED_LLM_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = named_model_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         later: match field_000003 {
-            Some(item) => Some(named_later_to_record(item, context)?),
+            Some(item) => {
+                let converted = named_later_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 383: NamedLlm.
-pub fn named_llm_to_domain(record: crate::v25::NamedLlm, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::NamedLlm, crate::v25::Problem> {
+#[must_use]
+pub fn named_llm_to_domain(record: crate::v25::NamedLlm) -> temper_engine_domain_forge_vocabulary::settings::NamedLlm {
     let crate::v25::NamedLlm { account: field_000000, main: field_000001, subagents: field_000002, later: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::NamedLlm {
+    temper_engine_domain_forge_vocabulary::settings::NamedLlm {
         account: match field_000000 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        main: named_model_to_domain(field_000001, context)?,
+        main: named_model_to_domain(field_000001),
         subagents: {
             let source = field_000002;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = named_model_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::NAMED_LLM_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = named_model_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         later: match field_000003 {
-            Some(item) => Some(named_later_to_domain(item, context)?),
+            Some(item) => {
+                let converted = named_later_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 384: RepairGoalSettings.
-pub fn repair_goal_settings_to_record(value: &temper_engine_domain_forge_vocabulary::settings::RepairGoalSettings, context: &crate::records::Context) -> Result<crate::v25::RepairGoalSettings, crate::v25::Problem> {
+pub fn repair_goal_settings_to_record(value: &temper_engine_domain_forge_vocabulary::settings::RepairGoalSettings) -> Result<crate::v25::RepairGoalSettings, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::RepairGoalSettings { charter: field_000000, llm: field_000001, priority: field_000002, budget: field_000003 } = value;
     Ok(crate::v25::RepairGoalSettings {
         charter: *field_000000,
         llm: match field_000001 {
-            Some(item) => Some(named_llm_to_record(item, context)?),
+            Some(item) => {
+                let converted = named_llm_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         priority: *field_000002,
@@ -5458,152 +6060,182 @@ pub fn repair_goal_settings_to_record(value: &temper_engine_domain_forge_vocabul
     })
 }
 
-// Maps line 384: RepairGoalSettings.
-pub fn repair_goal_settings_to_domain(record: crate::v25::RepairGoalSettings, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::RepairGoalSettings, crate::v25::Problem> {
+#[must_use]
+pub fn repair_goal_settings_to_domain(record: crate::v25::RepairGoalSettings) -> temper_engine_domain_forge_vocabulary::settings::RepairGoalSettings {
     let crate::v25::RepairGoalSettings { charter: field_000000, llm: field_000001, priority: field_000002, budget: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::RepairGoalSettings {
+    temper_engine_domain_forge_vocabulary::settings::RepairGoalSettings {
         charter: field_000000,
         llm: match field_000001 {
-            Some(item) => Some(named_llm_to_domain(item, context)?),
+            Some(item) => {
+                let converted = named_llm_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         priority: field_000002,
         budget: field_000003
-    })
+    }
 }
 
-// Maps line 385: RepairSettings.
-pub fn repair_settings_to_record(value: &temper_engine_domain_forge_vocabulary::settings::RepairSettings, context: &crate::records::Context) -> Result<crate::v25::RepairSettings, crate::v25::Problem> {
+pub fn repair_settings_to_record(value: &temper_engine_domain_forge_vocabulary::settings::RepairSettings) -> Result<crate::v25::RepairSettings, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::RepairSettings { goals: field_000000, attempts: field_000001, deadline_ms: field_000002, goal: field_000003 } = value;
     Ok(crate::v25::RepairSettings {
         goals: *field_000000,
         attempts: *field_000001,
         deadline_ms: *field_000002,
-        goal: repair_goal_settings_to_record(field_000003, context)?
+        goal: repair_goal_settings_to_record(field_000003)?
     })
 }
 
-// Maps line 385: RepairSettings.
-pub fn repair_settings_to_domain(record: crate::v25::RepairSettings, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::RepairSettings, crate::v25::Problem> {
+#[must_use]
+pub fn repair_settings_to_domain(record: crate::v25::RepairSettings) -> temper_engine_domain_forge_vocabulary::settings::RepairSettings {
     let crate::v25::RepairSettings { goals: field_000000, attempts: field_000001, deadline_ms: field_000002, goal: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::RepairSettings {
+    temper_engine_domain_forge_vocabulary::settings::RepairSettings {
         goals: field_000000,
         attempts: field_000001,
         deadline_ms: field_000002,
-        goal: repair_goal_settings_to_domain(field_000003, context)?
-    })
+        goal: repair_goal_settings_to_domain(field_000003)
+    }
 }
 
-// Maps line 386: ProjectLanding.
-pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectLanding, context: &crate::records::Context) -> Result<crate::v25::ProjectLanding, crate::v25::Problem> {
+pub fn project_landing_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectLanding) -> Result<crate::v25::ProjectLanding, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013 } = value;
     Ok(crate::v25::ProjectLanding {
-        by: settings_landing_way_to_record(field_000000, context)?,
+        by: settings_landing_way_to_record(field_000000),
         batch: *field_000001,
-        combine_main: settings_combine_to_record(field_000002, context)?,
-        combine_other: settings_combine_to_record(field_000003, context)?,
+        combine_main: settings_combine_to_record(field_000002),
+        combine_other: settings_combine_to_record(field_000003),
         merge_job: match field_000004 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         close_job: match field_000005 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         landing_attempts: *field_000006,
         check_timeout_ms: match field_000007 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         gate_retries: *field_000008,
         gate_timeout_ms: *field_000009,
         tier_retries: *field_000010,
         verification_bound_ms: *field_000011,
-        wait: settings_landing_wait_to_record(field_000012, context)?,
+        wait: settings_landing_wait_to_record(field_000012),
         repairs: match field_000013 {
-            Some(item) => Some(repair_settings_to_record(item, context)?),
+            Some(item) => {
+                let converted = repair_settings_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 386: ProjectLanding.
-pub fn project_landing_to_domain(record: crate::v25::ProjectLanding, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::ProjectLanding, crate::v25::Problem> {
+#[must_use]
+pub fn project_landing_to_domain(record: crate::v25::ProjectLanding) -> temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
     let crate::v25::ProjectLanding { by: field_000000, batch: field_000001, combine_main: field_000002, combine_other: field_000003, merge_job: field_000004, close_job: field_000005, landing_attempts: field_000006, check_timeout_ms: field_000007, gate_retries: field_000008, gate_timeout_ms: field_000009, tier_retries: field_000010, verification_bound_ms: field_000011, wait: field_000012, repairs: field_000013 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
-        by: settings_landing_way_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::settings::ProjectLanding {
+        by: settings_landing_way_to_domain(field_000000),
         batch: field_000001,
-        combine_main: settings_combine_to_domain(field_000002, context)?,
-        combine_other: settings_combine_to_domain(field_000003, context)?,
+        combine_main: settings_combine_to_domain(field_000002),
+        combine_other: settings_combine_to_domain(field_000003),
         merge_job: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         close_job: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         landing_attempts: field_000006,
         check_timeout_ms: match field_000007 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         gate_retries: field_000008,
         gate_timeout_ms: field_000009,
         tier_retries: field_000010,
         verification_bound_ms: field_000011,
-        wait: settings_landing_wait_to_domain(field_000012, context)?,
+        wait: settings_landing_wait_to_domain(field_000012),
         repairs: match field_000013 {
-            Some(item) => Some(repair_settings_to_domain(item, context)?),
+            Some(item) => {
+                let converted = repair_settings_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 387: SettingsReportFormat.
-pub fn settings_report_format_to_record(value: &temper_engine_domain_forge_tiers::Format, _context: &crate::records::Context) -> Result<crate::v25::SettingsReportFormat, crate::v25::Problem> {
+#[must_use]
+pub fn settings_report_format_to_record(value: &temper_engine_domain_forge_tiers::Format) -> crate::v25::SettingsReportFormat {
     match value {
-        temper_engine_domain_forge_tiers::Format::Junit => Ok(crate::v25::SettingsReportFormat::Junit),
-        temper_engine_domain_forge_tiers::Format::Lines => Ok(crate::v25::SettingsReportFormat::Lines),
+        temper_engine_domain_forge_tiers::Format::Junit => crate::v25::SettingsReportFormat::Junit,
+        temper_engine_domain_forge_tiers::Format::Lines => crate::v25::SettingsReportFormat::Lines,
     }
 }
 
-// Maps line 387: SettingsReportFormat.
-pub fn settings_report_format_to_domain(record: crate::v25::SettingsReportFormat, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_tiers::Format, crate::v25::Problem> {
+#[must_use]
+pub fn settings_report_format_to_domain(record: crate::v25::SettingsReportFormat) -> temper_engine_domain_forge_tiers::Format {
     match record {
-        crate::v25::SettingsReportFormat::Junit => Ok(temper_engine_domain_forge_tiers::Format::Junit),
-        crate::v25::SettingsReportFormat::Lines => Ok(temper_engine_domain_forge_tiers::Format::Lines),
+        crate::v25::SettingsReportFormat::Junit => temper_engine_domain_forge_tiers::Format::Junit,
+        crate::v25::SettingsReportFormat::Lines => temper_engine_domain_forge_tiers::Format::Lines,
     }
 }
 
-// Maps line 388: SettingsGateReport.
-pub fn settings_gate_report_to_record(value: &temper_engine_domain_forge_landing::GateReport, context: &crate::records::Context) -> Result<crate::v25::SettingsGateReport, crate::v25::Problem> {
+#[must_use]
+pub fn settings_gate_report_to_record(value: &temper_engine_domain_forge_landing::GateReport) -> crate::v25::SettingsGateReport {
     let temper_engine_domain_forge_landing::GateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002 } = value;
-    Ok(crate::v25::SettingsGateReport {
+    crate::v25::SettingsGateReport {
         artifact: field_000000.clone(),
-        format: settings_report_format_to_record(field_000001, context)?,
+        format: settings_report_format_to_record(field_000001),
         fuzzy: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 388: SettingsGateReport.
-pub fn settings_gate_report_to_domain(record: crate::v25::SettingsGateReport, context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::GateReport, crate::v25::Problem> {
+#[must_use]
+pub fn settings_gate_report_to_domain(record: crate::v25::SettingsGateReport) -> temper_engine_domain_forge_landing::GateReport {
     let crate::v25::SettingsGateReport { artifact: field_000000, format: field_000001, fuzzy: field_000002 } = record;
-    Ok(temper_engine_domain_forge_landing::GateReport {
+    temper_engine_domain_forge_landing::GateReport {
         artifact: field_000000,
-        format: settings_report_format_to_domain(field_000001, context)?,
+        format: settings_report_format_to_domain(field_000001),
         fuzzy: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 389: SettingsGate.
-pub fn settings_gate_to_record(value: &temper_engine_domain_forge_landing::Gate, context: &crate::records::Context) -> Result<crate::v25::SettingsGate, crate::v25::Problem> {
+pub fn settings_gate_to_record(value: &temper_engine_domain_forge_landing::Gate) -> Result<crate::v25::SettingsGate, crate::v25::Problem> {
     let temper_engine_domain_forge_landing::Gate { name: field_000000, workflow: field_000001, ignored: field_000002, blocking: field_000003, base: field_000004, report: field_000005 } = value;
     Ok(crate::v25::SettingsGate {
         name: field_000000.clone(),
@@ -5614,23 +6246,26 @@ pub fn settings_gate_to_record(value: &temper_engine_domain_forge_landing::Gate,
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = item.clone();
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::SETTINGS_GATE_IGNORED.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         blocking: *field_000003,
         base: *field_000004,
         report: match field_000005 {
-            Some(item) => Some(settings_gate_report_to_record(item, context)?),
+            Some(item) => {
+                let converted = settings_gate_report_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 389: SettingsGate.
-pub fn settings_gate_to_domain(record: crate::v25::SettingsGate, context: &crate::records::Context) -> Result<temper_engine_domain_forge_landing::Gate, crate::v25::Problem> {
+#[must_use]
+pub fn settings_gate_to_domain(record: crate::v25::SettingsGate) -> temper_engine_domain_forge_landing::Gate {
     let crate::v25::SettingsGate { name: field_000000, workflow: field_000001, ignored: field_000002, blocking: field_000003, base: field_000004, report: field_000005 } = record;
-    Ok(temper_engine_domain_forge_landing::Gate {
+    temper_engine_domain_forge_landing::Gate {
         name: field_000000,
         workflow: field_000001,
         ignored: {
@@ -5639,106 +6274,108 @@ pub fn settings_gate_to_domain(record: crate::v25::SettingsGate, context: &crate
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::SETTINGS_GATE_IGNORED.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         blocking: field_000003,
         base: field_000004,
         report: match field_000005 {
-            Some(item) => Some(settings_gate_report_to_domain(item, context)?),
+            Some(item) => {
+                let converted = settings_gate_report_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
-}
-
-// Maps line 391: SettingsFollows.
-pub fn settings_follows_to_record(value: &temper_engine_domain_forge_vocabulary::Follows, _context: &crate::records::Context) -> Result<crate::v25::SettingsFollows, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::Follows::Landing => Ok(crate::v25::SettingsFollows::Landing),
-        temper_engine_domain_forge_vocabulary::Follows::Goals => Ok(crate::v25::SettingsFollows::Goals),
-        temper_engine_domain_forge_vocabulary::Follows::Branch(held) => Ok(crate::v25::SettingsFollows::Branch(crate::v25::SettingsBranch { name: held.clone() })),
     }
 }
 
-// Maps line 391: SettingsFollows.
-pub fn settings_follows_to_domain(record: crate::v25::SettingsFollows, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Follows, crate::v25::Problem> {
+#[must_use]
+pub fn settings_follows_to_record(value: &temper_engine_domain_forge_vocabulary::Follows) -> crate::v25::SettingsFollows {
+    match value {
+        temper_engine_domain_forge_vocabulary::Follows::Landing => crate::v25::SettingsFollows::Landing,
+        temper_engine_domain_forge_vocabulary::Follows::Goals => crate::v25::SettingsFollows::Goals,
+        temper_engine_domain_forge_vocabulary::Follows::Branch(held) => crate::v25::SettingsFollows::Branch(crate::v25::SettingsBranch { name: held.clone() }),
+    }
+}
+
+#[must_use]
+pub fn settings_follows_to_domain(record: crate::v25::SettingsFollows) -> temper_engine_domain_forge_vocabulary::Follows {
     match record {
-        crate::v25::SettingsFollows::Landing => Ok(temper_engine_domain_forge_vocabulary::Follows::Landing),
-        crate::v25::SettingsFollows::Goals => Ok(temper_engine_domain_forge_vocabulary::Follows::Goals),
-        crate::v25::SettingsFollows::Branch(held) => Ok(temper_engine_domain_forge_vocabulary::Follows::Branch({
+        crate::v25::SettingsFollows::Landing => temper_engine_domain_forge_vocabulary::Follows::Landing,
+        crate::v25::SettingsFollows::Goals => temper_engine_domain_forge_vocabulary::Follows::Goals,
+        crate::v25::SettingsFollows::Branch(held) => temper_engine_domain_forge_vocabulary::Follows::Branch({
             let crate::v25::SettingsBranch { name: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 395: ProjectWays.
-pub fn project_ways_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectWays, _context: &crate::records::Context) -> Result<crate::v25::ProjectWays, crate::v25::Problem> {
+#[must_use]
+pub fn project_ways_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectWays) -> crate::v25::ProjectWays {
     let temper_engine_domain_forge_vocabulary::settings::ProjectWays { drafts: field_000000, goals: field_000001, changes: field_000002, way: field_000003 } = value;
-    Ok(crate::v25::ProjectWays {
+    crate::v25::ProjectWays {
         drafts: *field_000000,
         goals: *field_000001,
         changes: *field_000002,
         way: *field_000003
-    })
+    }
 }
 
-// Maps line 395: ProjectWays.
-pub fn project_ways_to_domain(record: crate::v25::ProjectWays, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::ProjectWays, crate::v25::Problem> {
+#[must_use]
+pub fn project_ways_to_domain(record: crate::v25::ProjectWays) -> temper_engine_domain_forge_vocabulary::settings::ProjectWays {
     let crate::v25::ProjectWays { drafts: field_000000, goals: field_000001, changes: field_000002, way: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::ProjectWays {
+    temper_engine_domain_forge_vocabulary::settings::ProjectWays {
         drafts: field_000000,
         goals: field_000001,
         changes: field_000002,
         way: field_000003
-    })
-}
-
-// Maps line 397: ClassSubject.
-pub fn class_subject_to_record(value: &temper_protocol_reaches::Subject, context: &crate::records::Context) -> Result<crate::v25::ClassSubject, crate::v25::Problem> {
-    match value {
-        temper_protocol_reaches::Subject::Kind(held) => Ok(crate::v25::ClassSubject::Kind(crate::v25::ReachKindOf { kind: reach_kind_to_record(held, context)? })),
-        temper_protocol_reaches::Subject::Set(held) => Ok(crate::v25::ClassSubject::Set(crate::v25::ReachSet { number: *held })),
     }
 }
 
-// Maps line 397: ClassSubject.
-pub fn class_subject_to_domain(record: crate::v25::ClassSubject, context: &crate::records::Context) -> Result<temper_protocol_reaches::Subject, crate::v25::Problem> {
+#[must_use]
+pub fn class_subject_to_record(value: &temper_protocol_reaches::Subject) -> crate::v25::ClassSubject {
+    match value {
+        temper_protocol_reaches::Subject::Kind(held) => crate::v25::ClassSubject::Kind(crate::v25::ReachKindOf { kind: reach_kind_to_record(held) }),
+        temper_protocol_reaches::Subject::Set(held) => crate::v25::ClassSubject::Set(crate::v25::ReachSet { number: *held }),
+    }
+}
+
+#[must_use]
+pub fn class_subject_to_domain(record: crate::v25::ClassSubject) -> temper_protocol_reaches::Subject {
     match record {
-        crate::v25::ClassSubject::Kind(held) => Ok(temper_protocol_reaches::Subject::Kind({
+        crate::v25::ClassSubject::Kind(held) => temper_protocol_reaches::Subject::Kind({
             let crate::v25::ReachKindOf { kind: held } = held;
-            reach_kind_to_domain(held, context)?
-        })),
-        crate::v25::ClassSubject::Set(held) => Ok(temper_protocol_reaches::Subject::Set({
+            reach_kind_to_domain(held)
+        }),
+        crate::v25::ClassSubject::Set(held) => temper_protocol_reaches::Subject::Set({
             let crate::v25::ReachSet { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 398: ClassItem.
-pub fn class_item_to_record(value: &temper_protocol_reaches::Item, context: &crate::records::Context) -> Result<crate::v25::ClassItem, crate::v25::Problem> {
+#[must_use]
+pub fn class_item_to_record(value: &temper_protocol_reaches::Item) -> crate::v25::ClassItem {
     let temper_protocol_reaches::Item { subject: field_000000, words: field_000001, class: field_000002 } = value;
-    Ok(crate::v25::ClassItem {
-        subject: class_subject_to_record(field_000000, context)?,
+    crate::v25::ClassItem {
+        subject: class_subject_to_record(field_000000),
         words: field_000001.clone(),
-        class: reach_class_to_record(field_000002, context)?
-    })
+        class: reach_class_to_record(field_000002)
+    }
 }
 
-// Maps line 398: ClassItem.
-pub fn class_item_to_domain(record: crate::v25::ClassItem, context: &crate::records::Context) -> Result<temper_protocol_reaches::Item, crate::v25::Problem> {
+#[must_use]
+pub fn class_item_to_domain(record: crate::v25::ClassItem) -> temper_protocol_reaches::Item {
     let crate::v25::ClassItem { subject: field_000000, words: field_000001, class: field_000002 } = record;
-    Ok(temper_protocol_reaches::Item {
-        subject: class_subject_to_domain(field_000000, context)?,
+    temper_protocol_reaches::Item {
+        subject: class_subject_to_domain(field_000000),
         words: field_000001,
-        class: reach_class_to_domain(field_000002, context)?
-    })
+        class: reach_class_to_domain(field_000002)
+    }
 }
 
-// Maps line 399: PathSet.
-pub fn path_set_to_record(value: &temper_protocol_reaches::PathSet, _context: &crate::records::Context) -> Result<crate::v25::PathSet, crate::v25::Problem> {
+pub fn path_set_to_record(value: &temper_protocol_reaches::PathSet) -> Result<crate::v25::PathSet, crate::v25::Problem> {
     let temper_protocol_reaches::PathSet { number: field_000000, name: field_000001, patterns: field_000002 } = value;
     Ok(crate::v25::PathSet {
         number: *field_000000,
@@ -5749,17 +6386,17 @@ pub fn path_set_to_record(value: &temper_protocol_reaches::PathSet, _context: &c
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = item.clone();
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::PATH_SET_PATTERNS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 399: PathSet.
-pub fn path_set_to_domain(record: crate::v25::PathSet, _context: &crate::records::Context) -> Result<temper_protocol_reaches::PathSet, crate::v25::Problem> {
+#[must_use]
+pub fn path_set_to_domain(record: crate::v25::PathSet) -> temper_protocol_reaches::PathSet {
     let crate::v25::PathSet { number: field_000000, name: field_000001, patterns: field_000002 } = record;
-    Ok(temper_protocol_reaches::PathSet {
+    temper_protocol_reaches::PathSet {
         number: field_000000,
         name: field_000001,
         patterns: {
@@ -5768,52 +6405,51 @@ pub fn path_set_to_domain(record: crate::v25::PathSet, _context: &crate::records
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::PATH_SET_PATTERNS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 403: Dependency.
-pub fn dependency_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Dependency, _context: &crate::records::Context) -> Result<crate::v25::Dependency, crate::v25::Problem> {
+#[must_use]
+pub fn dependency_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Dependency) -> crate::v25::Dependency {
     let temper_engine_domain_forge_vocabulary::settings::Dependency { project: field_000000 } = value;
-    Ok(crate::v25::Dependency {
+    crate::v25::Dependency {
         project: *field_000000
-    })
+    }
 }
 
-// Maps line 403: Dependency.
-pub fn dependency_to_domain(record: crate::v25::Dependency, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::Dependency, crate::v25::Problem> {
+#[must_use]
+pub fn dependency_to_domain(record: crate::v25::Dependency) -> temper_engine_domain_forge_vocabulary::settings::Dependency {
     let crate::v25::Dependency { project: field_000000 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::Dependency {
+    temper_engine_domain_forge_vocabulary::settings::Dependency {
         project: field_000000
-    })
+    }
 }
 
-// Maps line 404: FollowRepository.
-pub fn follow_repository_to_record(value: &skein_forge::api::Repository, _context: &crate::records::Context) -> Result<crate::v25::FollowRepository, crate::v25::Problem> {
+#[must_use]
+pub fn follow_repository_to_record(value: &skein_forge::api::Repository) -> crate::v25::FollowRepository {
     let skein_forge::api::Repository { forge: field_000000, repository: field_000001 } = value;
-    Ok(crate::v25::FollowRepository {
+    crate::v25::FollowRepository {
         forge: *field_000000,
         repository: *field_000001
-    })
+    }
 }
 
-// Maps line 404: FollowRepository.
-pub fn follow_repository_to_domain(record: crate::v25::FollowRepository, _context: &crate::records::Context) -> Result<skein_forge::api::Repository, crate::v25::Problem> {
+#[must_use]
+pub fn follow_repository_to_domain(record: crate::v25::FollowRepository) -> skein_forge::api::Repository {
     let crate::v25::FollowRepository { forge: field_000000, repository: field_000001 } = record;
-    Ok(skein_forge::api::Repository {
+    skein_forge::api::Repository {
         forge: field_000000,
         repository: field_000001
-    })
+    }
 }
 
-// Maps line 405: FollowSource.
-pub fn follow_source_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowSource, context: &crate::records::Context) -> Result<crate::v25::FollowSource, crate::v25::Problem> {
+pub fn follow_source_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowSource) -> Result<crate::v25::FollowSource, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::FollowSource { repository: field_000000, branch: field_000001, paths: field_000002 } = value;
     Ok(crate::v25::FollowSource {
-        repository: follow_repository_to_record(field_000000, context)?,
+        repository: follow_repository_to_record(field_000000),
         branch: field_000001.clone(),
         paths: {
             let source = field_000002;
@@ -5821,18 +6457,18 @@ pub fn follow_source_to_record(value: &temper_engine_domain_forge_vocabulary::se
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = item.clone();
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_SOURCE_PATHS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 405: FollowSource.
-pub fn follow_source_to_domain(record: crate::v25::FollowSource, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::FollowSource, crate::v25::Problem> {
+#[must_use]
+pub fn follow_source_to_domain(record: crate::v25::FollowSource) -> temper_engine_domain_forge_vocabulary::settings::FollowSource {
     let crate::v25::FollowSource { repository: field_000000, branch: field_000001, paths: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::FollowSource {
-        repository: follow_repository_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::settings::FollowSource {
+        repository: follow_repository_to_domain(field_000000),
         branch: field_000001,
         paths: {
             let source = field_000002;
@@ -5840,214 +6476,218 @@ pub fn follow_source_to_domain(record: crate::v25::FollowSource, context: &crate
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_SOURCE_PATHS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
-}
-
-// Maps line 406: FollowTarget.
-pub fn follow_target_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowTarget, context: &crate::records::Context) -> Result<crate::v25::FollowTarget, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::settings::FollowTarget { repository: field_000000, branch: field_000001 } = value;
-    Ok(crate::v25::FollowTarget {
-        repository: follow_repository_to_record(field_000000, context)?,
-        branch: field_000001.clone()
-    })
-}
-
-// Maps line 406: FollowTarget.
-pub fn follow_target_to_domain(record: crate::v25::FollowTarget, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::FollowTarget, crate::v25::Problem> {
-    let crate::v25::FollowTarget { repository: field_000000, branch: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::FollowTarget {
-        repository: follow_repository_to_domain(field_000000, context)?,
-        branch: field_000001
-    })
-}
-
-// Maps line 409: FollowOwner.
-pub fn follow_owner_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowOwner, _context: &crate::records::Context) -> Result<crate::v25::FollowOwner, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::settings::FollowOwner::Person(held) => Ok(crate::v25::FollowOwner::Person(crate::v25::FollowPerson { person: *held })),
-        temper_engine_domain_forge_vocabulary::settings::FollowOwner::Task(held) => Ok(crate::v25::FollowOwner::Task(crate::v25::FollowOwnerTask { task: *held })),
     }
 }
 
-// Maps line 409: FollowOwner.
-pub fn follow_owner_to_domain(record: crate::v25::FollowOwner, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::FollowOwner, crate::v25::Problem> {
+#[must_use]
+pub fn follow_target_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowTarget) -> crate::v25::FollowTarget {
+    let temper_engine_domain_forge_vocabulary::settings::FollowTarget { repository: field_000000, branch: field_000001 } = value;
+    crate::v25::FollowTarget {
+        repository: follow_repository_to_record(field_000000),
+        branch: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn follow_target_to_domain(record: crate::v25::FollowTarget) -> temper_engine_domain_forge_vocabulary::settings::FollowTarget {
+    let crate::v25::FollowTarget { repository: field_000000, branch: field_000001 } = record;
+    temper_engine_domain_forge_vocabulary::settings::FollowTarget {
+        repository: follow_repository_to_domain(field_000000),
+        branch: field_000001
+    }
+}
+
+#[must_use]
+pub fn follow_owner_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowOwner) -> crate::v25::FollowOwner {
+    match value {
+        temper_engine_domain_forge_vocabulary::settings::FollowOwner::Person(held) => crate::v25::FollowOwner::Person(crate::v25::FollowPerson { person: *held }),
+        temper_engine_domain_forge_vocabulary::settings::FollowOwner::Task(held) => crate::v25::FollowOwner::Task(crate::v25::FollowOwnerTask { task: *held }),
+    }
+}
+
+#[must_use]
+pub fn follow_owner_to_domain(record: crate::v25::FollowOwner) -> temper_engine_domain_forge_vocabulary::settings::FollowOwner {
     match record {
-        crate::v25::FollowOwner::Person(held) => Ok(temper_engine_domain_forge_vocabulary::settings::FollowOwner::Person({
+        crate::v25::FollowOwner::Person(held) => temper_engine_domain_forge_vocabulary::settings::FollowOwner::Person({
             let crate::v25::FollowPerson { person: held } = held;
             held
-        })),
-        crate::v25::FollowOwner::Task(held) => Ok(temper_engine_domain_forge_vocabulary::settings::FollowOwner::Task({
+        }),
+        crate::v25::FollowOwner::Task(held) => temper_engine_domain_forge_vocabulary::settings::FollowOwner::Task({
             let crate::v25::FollowOwnerTask { task: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 410: FollowStart.
-pub fn follow_start_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowStart, _context: &crate::records::Context) -> Result<crate::v25::FollowStart, crate::v25::Problem> {
+#[must_use]
+pub fn follow_start_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowStart) -> crate::v25::FollowStart {
     match value {
-        temper_engine_domain_forge_vocabulary::settings::FollowStart::Owner => Ok(crate::v25::FollowStart::Owner),
-        temper_engine_domain_forge_vocabulary::settings::FollowStart::Code => Ok(crate::v25::FollowStart::Code),
+        temper_engine_domain_forge_vocabulary::settings::FollowStart::Owner => crate::v25::FollowStart::Owner,
+        temper_engine_domain_forge_vocabulary::settings::FollowStart::Code => crate::v25::FollowStart::Code,
     }
 }
 
-// Maps line 410: FollowStart.
-pub fn follow_start_to_domain(record: crate::v25::FollowStart, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::FollowStart, crate::v25::Problem> {
+#[must_use]
+pub fn follow_start_to_domain(record: crate::v25::FollowStart) -> temper_engine_domain_forge_vocabulary::settings::FollowStart {
     match record {
-        crate::v25::FollowStart::Owner => Ok(temper_engine_domain_forge_vocabulary::settings::FollowStart::Owner),
-        crate::v25::FollowStart::Code => Ok(temper_engine_domain_forge_vocabulary::settings::FollowStart::Code),
+        crate::v25::FollowStart::Owner => temper_engine_domain_forge_vocabulary::settings::FollowStart::Owner,
+        crate::v25::FollowStart::Code => temper_engine_domain_forge_vocabulary::settings::FollowStart::Code,
     }
 }
 
-// Maps line 411: FollowFormat.
-pub fn follow_format_to_record(value: &temper_engine_domain_forge_tiers::Format, _context: &crate::records::Context) -> Result<crate::v25::FollowFormat, crate::v25::Problem> {
+#[must_use]
+pub fn follow_format_to_record(value: &temper_engine_domain_forge_tiers::Format) -> crate::v25::FollowFormat {
     match value {
-        temper_engine_domain_forge_tiers::Format::Junit => Ok(crate::v25::FollowFormat::Junit),
-        temper_engine_domain_forge_tiers::Format::Lines => Ok(crate::v25::FollowFormat::Lines),
+        temper_engine_domain_forge_tiers::Format::Junit => crate::v25::FollowFormat::Junit,
+        temper_engine_domain_forge_tiers::Format::Lines => crate::v25::FollowFormat::Lines,
     }
 }
 
-// Maps line 411: FollowFormat.
-pub fn follow_format_to_domain(record: crate::v25::FollowFormat, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_tiers::Format, crate::v25::Problem> {
+#[must_use]
+pub fn follow_format_to_domain(record: crate::v25::FollowFormat) -> temper_engine_domain_forge_tiers::Format {
     match record {
-        crate::v25::FollowFormat::Junit => Ok(temper_engine_domain_forge_tiers::Format::Junit),
-        crate::v25::FollowFormat::Lines => Ok(temper_engine_domain_forge_tiers::Format::Lines),
+        crate::v25::FollowFormat::Junit => temper_engine_domain_forge_tiers::Format::Junit,
+        crate::v25::FollowFormat::Lines => temper_engine_domain_forge_tiers::Format::Lines,
     }
 }
 
-// Maps line 412: FollowCheck.
-pub fn follow_check_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowCheck, context: &crate::records::Context) -> Result<crate::v25::FollowCheck, crate::v25::Problem> {
+#[must_use]
+pub fn follow_check_to_record(value: &temper_engine_domain_forge_vocabulary::settings::FollowCheck) -> crate::v25::FollowCheck {
     let temper_engine_domain_forge_vocabulary::settings::FollowCheck { workflow: field_000000, artifact: field_000001, format: field_000002 } = value;
-    Ok(crate::v25::FollowCheck {
+    crate::v25::FollowCheck {
         workflow: field_000000.clone(),
         artifact: field_000001.clone(),
-        format: follow_format_to_record(field_000002, context)?
-    })
+        format: follow_format_to_record(field_000002)
+    }
 }
 
-// Maps line 412: FollowCheck.
-pub fn follow_check_to_domain(record: crate::v25::FollowCheck, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::FollowCheck, crate::v25::Problem> {
+#[must_use]
+pub fn follow_check_to_domain(record: crate::v25::FollowCheck) -> temper_engine_domain_forge_vocabulary::settings::FollowCheck {
     let crate::v25::FollowCheck { workflow: field_000000, artifact: field_000001, format: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::FollowCheck {
+    temper_engine_domain_forge_vocabulary::settings::FollowCheck {
         workflow: field_000000,
         artifact: field_000001,
-        format: follow_format_to_domain(field_000002, context)?
-    })
+        format: follow_format_to_domain(field_000002)
+    }
 }
 
-// Maps line 413: Follow.
-pub fn follow_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Follow, context: &crate::records::Context) -> Result<crate::v25::Follow, crate::v25::Problem> {
+pub fn follow_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Follow) -> Result<crate::v25::Follow, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::Follow { source: field_000000, target: field_000001, owner: field_000002, start: field_000003, producer: field_000004, check: field_000005 } = value;
     Ok(crate::v25::Follow {
-        source: follow_source_to_record(field_000000, context)?,
-        target: follow_target_to_record(field_000001, context)?,
-        owner: follow_owner_to_record(field_000002, context)?,
-        start: follow_start_to_record(field_000003, context)?,
+        source: follow_source_to_record(field_000000)?,
+        target: follow_target_to_record(field_000001),
+        owner: follow_owner_to_record(field_000002),
+        start: follow_start_to_record(field_000003),
         producer: match field_000004 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
-        verification: follow_check_to_record(field_000005, context)?
+        verification: follow_check_to_record(field_000005)
     })
 }
 
-// Maps line 413: Follow.
-pub fn follow_to_domain(record: crate::v25::Follow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::Follow, crate::v25::Problem> {
+#[must_use]
+pub fn follow_to_domain(record: crate::v25::Follow) -> temper_engine_domain_forge_vocabulary::settings::Follow {
     let crate::v25::Follow { source: field_000000, target: field_000001, owner: field_000002, start: field_000003, producer: field_000004, verification: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::Follow {
-        source: follow_source_to_domain(field_000000, context)?,
-        target: follow_target_to_domain(field_000001, context)?,
-        owner: follow_owner_to_domain(field_000002, context)?,
-        start: follow_start_to_domain(field_000003, context)?,
+    temper_engine_domain_forge_vocabulary::settings::Follow {
+        source: follow_source_to_domain(field_000000),
+        target: follow_target_to_domain(field_000001),
+        owner: follow_owner_to_domain(field_000002),
+        start: follow_start_to_domain(field_000003),
         producer: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        check: follow_check_to_domain(field_000005, context)?
-    })
-}
-
-// Maps line 414: SettingSlot.
-pub fn setting_slot_to_record(value: &temper_engine_domain_forge_vocabulary::settings::SettingSlot, _context: &crate::records::Context) -> Result<crate::v25::SettingSlot, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Default => Ok(crate::v25::SettingSlot::Default),
-        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Change => Ok(crate::v25::SettingSlot::Change),
-        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Proposal(held) => Ok(crate::v25::SettingSlot::Proposal(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Replaced(held) => Ok(crate::v25::SettingSlot::Replaced(crate::v25::Number { number: *held })),
+        check: follow_check_to_domain(field_000005)
     }
 }
 
-// Maps line 414: SettingSlot.
-pub fn setting_slot_to_domain(record: crate::v25::SettingSlot, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::SettingSlot, crate::v25::Problem> {
+#[must_use]
+pub fn setting_slot_to_record(value: &temper_engine_domain_forge_vocabulary::settings::SettingSlot) -> crate::v25::SettingSlot {
+    match value {
+        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Default => crate::v25::SettingSlot::Default,
+        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Change => crate::v25::SettingSlot::Change,
+        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Proposal(held) => crate::v25::SettingSlot::Proposal(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::settings::SettingSlot::Replaced(held) => crate::v25::SettingSlot::Replaced(crate::v25::Number { number: *held }),
+    }
+}
+
+#[must_use]
+pub fn setting_slot_to_domain(record: crate::v25::SettingSlot) -> temper_engine_domain_forge_vocabulary::settings::SettingSlot {
     match record {
-        crate::v25::SettingSlot::Default => Ok(temper_engine_domain_forge_vocabulary::settings::SettingSlot::Default),
-        crate::v25::SettingSlot::Change => Ok(temper_engine_domain_forge_vocabulary::settings::SettingSlot::Change),
-        crate::v25::SettingSlot::Proposal(held) => Ok(temper_engine_domain_forge_vocabulary::settings::SettingSlot::Proposal({
+        crate::v25::SettingSlot::Default => temper_engine_domain_forge_vocabulary::settings::SettingSlot::Default,
+        crate::v25::SettingSlot::Change => temper_engine_domain_forge_vocabulary::settings::SettingSlot::Change,
+        crate::v25::SettingSlot::Proposal(held) => temper_engine_domain_forge_vocabulary::settings::SettingSlot::Proposal({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::SettingSlot::Replaced(held) => Ok(temper_engine_domain_forge_vocabulary::settings::SettingSlot::Replaced({
+        }),
+        crate::v25::SettingSlot::Replaced(held) => temper_engine_domain_forge_vocabulary::settings::SettingSlot::Replaced({
             let crate::v25::Number { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 418: PersonFact.
-pub fn person_fact_to_record(value: &temper_engine_domain_forge_vocabulary::PersonFact, context: &crate::records::Context) -> Result<crate::v25::PersonFact, crate::v25::Problem> {
+#[must_use]
+pub fn person_fact_to_record(value: &temper_engine_domain_forge_vocabulary::PersonFact) -> crate::v25::PersonFact {
     match value {
-        temper_engine_domain_forge_vocabulary::PersonFact::ToBegin { project: field_000000 } => Ok(crate::v25::PersonFact::ToBegin(crate::v25::ToBegin {
+        temper_engine_domain_forge_vocabulary::PersonFact::ToBegin { project: field_000000 } => crate::v25::PersonFact::ToBegin(crate::v25::ToBegin {
             project: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::PersonFact::GoalFrom { project: field_000000, chat: field_000001, goal: field_000002, at: field_000003 } => Ok(crate::v25::PersonFact::GoalFrom(crate::v25::GoalFrom {
+        }),
+        temper_engine_domain_forge_vocabulary::PersonFact::GoalFrom { project: field_000000, chat: field_000001, goal: field_000002, at: field_000003 } => crate::v25::PersonFact::GoalFrom(crate::v25::GoalFrom {
             project: *field_000000,
             chat: *field_000001,
             goal: *field_000002,
             at: *field_000003
-        })),
-        temper_engine_domain_forge_vocabulary::PersonFact::KeepAsking { project: field_000000, subject: field_000001, at: field_000002 } => Ok(crate::v25::PersonFact::KeepAsking(crate::v25::KeepAsking {
+        }),
+        temper_engine_domain_forge_vocabulary::PersonFact::KeepAsking { project: field_000000, subject: field_000001, at: field_000002 } => crate::v25::PersonFact::KeepAsking(crate::v25::KeepAsking {
             project: *field_000000,
-            subject: class_subject_to_record(field_000001, context)?,
+            subject: class_subject_to_record(field_000001),
             at: *field_000002
-        })),
+        }),
     }
 }
 
-// Maps line 418: PersonFact.
-pub fn person_fact_to_domain(record: crate::v25::PersonFact, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::PersonFact, crate::v25::Problem> {
+#[must_use]
+pub fn person_fact_to_domain(record: crate::v25::PersonFact) -> temper_engine_domain_forge_vocabulary::PersonFact {
     match record {
         crate::v25::PersonFact::ToBegin(held) => {
             let crate::v25::ToBegin { project: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::PersonFact::ToBegin {
+            temper_engine_domain_forge_vocabulary::PersonFact::ToBegin {
                 project: field_000000
-            })
+            }
         },
         crate::v25::PersonFact::GoalFrom(held) => {
             let crate::v25::GoalFrom { project: field_000000, chat: field_000001, goal: field_000002, at: field_000003 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::PersonFact::GoalFrom {
+            temper_engine_domain_forge_vocabulary::PersonFact::GoalFrom {
                 project: field_000000,
                 chat: field_000001,
                 goal: field_000002,
                 at: field_000003
-            })
+            }
         },
         crate::v25::PersonFact::KeepAsking(held) => {
             let crate::v25::KeepAsking { project: field_000000, subject: field_000001, at: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::PersonFact::KeepAsking {
+            temper_engine_domain_forge_vocabulary::PersonFact::KeepAsking {
                 project: field_000000,
-                subject: class_subject_to_domain(field_000001, context)?,
+                subject: class_subject_to_domain(field_000001),
                 at: field_000002
-            })
+            }
         },
     }
 }
 
-// Maps line 420: LoggedChange.
-pub fn logged_change_to_record(value: &temper_engine_domain_forge_vocabulary::LoggedChange, context: &crate::records::Context) -> Result<crate::v25::LoggedChange, crate::v25::Problem> {
+pub fn logged_change_to_record(value: &temper_engine_domain_forge_vocabulary::LoggedChange) -> Result<crate::v25::LoggedChange, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::LoggedChange { fixes: field_000000, person: field_000001, goal_title: field_000002, draft: field_000003, signed: field_000004, task: field_000005, pull: field_000006, title: field_000007, goal: field_000008, milestone: field_000009 } = value;
     Ok(crate::v25::LoggedChange {
         fixes: {
@@ -6056,20 +6696,29 @@ pub fn logged_change_to_record(value: &temper_engine_domain_forge_vocabulary::Lo
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LOGGED_CHANGE_FIXES.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         person: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         goal_title: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         draft: match field_000003 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         signed: {
@@ -6077,52 +6726,70 @@ pub fn logged_change_to_record(value: &temper_engine_domain_forge_vocabulary::Lo
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LOGGED_CHANGE_SIGNED.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = sign_off_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LOGGED_CHANGE_SIGNED.problem(skein_codec::Reason::Bound)); }
+                let converted = sign_off_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         task: *field_000005,
         pull: match field_000006 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         title: field_000007.clone(),
         goal: match field_000008 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         milestone: match field_000009 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 420: LoggedChange.
-pub fn logged_change_to_domain(record: crate::v25::LoggedChange, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LoggedChange, crate::v25::Problem> {
+#[must_use]
+pub fn logged_change_to_domain(record: crate::v25::LoggedChange) -> temper_engine_domain_forge_vocabulary::LoggedChange {
     let crate::v25::LoggedChange { fixes: field_000000, person: field_000001, goal_title: field_000002, draft: field_000003, signed: field_000004, task: field_000005, pull: field_000006, title: field_000007, goal: field_000008, milestone: field_000009 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::LoggedChange {
+    temper_engine_domain_forge_vocabulary::LoggedChange {
         fixes: {
             let source = field_000000;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LOGGED_CHANGE_FIXES.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         person: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         goal_title: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         draft: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         signed: {
@@ -6130,607 +6797,697 @@ pub fn logged_change_to_domain(record: crate::v25::LoggedChange, context: &crate
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = sign_off_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LOGGED_CHANGE_SIGNED.problem(skein_codec::Reason::Bound)); }
+                let converted = sign_off_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         task: field_000005,
         pull: match field_000006 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         title: field_000007,
         goal: match field_000008 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         milestone: match field_000009 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 425: LoggedTier.
-pub fn logged_tier_to_record(value: &temper_engine_domain_forge_vocabulary::LoggedTier, context: &crate::records::Context) -> Result<crate::v25::LoggedTier, crate::v25::Problem> {
+#[must_use]
+pub fn logged_tier_to_record(value: &temper_engine_domain_forge_vocabulary::LoggedTier) -> crate::v25::LoggedTier {
     let temper_engine_domain_forge_vocabulary::LoggedTier { tier: field_000000, verdict: field_000001 } = value;
-    Ok(crate::v25::LoggedTier {
+    crate::v25::LoggedTier {
         tier: field_000000.clone(),
-        verdict: crate::records::by_hand::logged_verdict_to_record(field_000001, context)?
-    })
+        verdict: crate::records::by_hand::logged_verdict_to_record(field_000001)
+    }
 }
 
-// Maps line 425: LoggedTier.
-pub fn logged_tier_to_domain(record: crate::v25::LoggedTier, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LoggedTier, crate::v25::Problem> {
+pub fn logged_tier_to_domain(record: crate::v25::LoggedTier) -> Result<temper_engine_domain_forge_vocabulary::LoggedTier, crate::v25::Problem> {
     let crate::v25::LoggedTier { tier: field_000000, verdict: field_000001 } = record;
     Ok(temper_engine_domain_forge_vocabulary::LoggedTier {
         tier: field_000000,
-        verdict: crate::records::by_hand::logged_verdict_to_domain(field_000001, context)?
+        verdict: crate::records::by_hand::logged_verdict_to_domain(field_000001)?
     })
 }
 
-// Maps line 427: MilestoneLanding.
-pub fn milestone_landing_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneLanding, _context: &crate::records::Context) -> Result<crate::v25::MilestoneLanding, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_landing_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneLanding) -> crate::v25::MilestoneLanding {
     let temper_engine_domain_forge_vocabulary::MilestoneLanding { at: field_000000, goal: field_000001, change: field_000002 } = value;
-    Ok(crate::v25::MilestoneLanding {
-        at: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::MILESTONE_LANDING_AT.problem(reason)) },
+    crate::v25::MilestoneLanding {
+        at: skein_codec::convert::wall_to_record(field_000000),
         goal: *field_000001,
         change: *field_000002
-    })
+    }
 }
 
-// Maps line 427: MilestoneLanding.
-pub fn milestone_landing_to_domain(record: crate::v25::MilestoneLanding, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MilestoneLanding, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_landing_to_domain(record: crate::v25::MilestoneLanding) -> temper_engine_domain_forge_vocabulary::MilestoneLanding {
     let crate::v25::MilestoneLanding { at: field_000000, goal: field_000001, change: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::MilestoneLanding {
-        at: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::MILESTONE_LANDING_AT.problem(reason)) },
+    temper_engine_domain_forge_vocabulary::MilestoneLanding {
+        at: skein_codec::convert::wall_to_domain(field_000000),
         goal: field_000001,
         change: field_000002
-    })
+    }
 }
 
-// Maps line 428: MilestoneOutcome.
-pub fn milestone_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneOutcome, _context: &crate::records::Context) -> Result<crate::v25::MilestoneOutcome, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneOutcome) -> crate::v25::MilestoneOutcome {
     match value {
-        temper_engine_domain_forge_vocabulary::MilestoneOutcome::Complete => Ok(crate::v25::MilestoneOutcome::Complete),
-        temper_engine_domain_forge_vocabulary::MilestoneOutcome::Ended => Ok(crate::v25::MilestoneOutcome::Ended),
-        temper_engine_domain_forge_vocabulary::MilestoneOutcome::Closed => Ok(crate::v25::MilestoneOutcome::Closed),
+        temper_engine_domain_forge_vocabulary::MilestoneOutcome::Complete => crate::v25::MilestoneOutcome::Complete,
+        temper_engine_domain_forge_vocabulary::MilestoneOutcome::Ended => crate::v25::MilestoneOutcome::Ended,
+        temper_engine_domain_forge_vocabulary::MilestoneOutcome::Closed => crate::v25::MilestoneOutcome::Closed,
     }
 }
 
-// Maps line 428: MilestoneOutcome.
-pub fn milestone_outcome_to_domain(record: crate::v25::MilestoneOutcome, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MilestoneOutcome, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_outcome_to_domain(record: crate::v25::MilestoneOutcome) -> temper_engine_domain_forge_vocabulary::MilestoneOutcome {
     match record {
-        crate::v25::MilestoneOutcome::Complete => Ok(temper_engine_domain_forge_vocabulary::MilestoneOutcome::Complete),
-        crate::v25::MilestoneOutcome::Ended => Ok(temper_engine_domain_forge_vocabulary::MilestoneOutcome::Ended),
-        crate::v25::MilestoneOutcome::Closed => Ok(temper_engine_domain_forge_vocabulary::MilestoneOutcome::Closed),
+        crate::v25::MilestoneOutcome::Complete => temper_engine_domain_forge_vocabulary::MilestoneOutcome::Complete,
+        crate::v25::MilestoneOutcome::Ended => temper_engine_domain_forge_vocabulary::MilestoneOutcome::Ended,
+        crate::v25::MilestoneOutcome::Closed => temper_engine_domain_forge_vocabulary::MilestoneOutcome::Closed,
     }
 }
 
-// Maps line 429: MilestoneEnd.
-pub fn milestone_end_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneEnd, context: &crate::records::Context) -> Result<crate::v25::MilestoneEnd, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_end_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneEnd) -> crate::v25::MilestoneEnd {
     let temper_engine_domain_forge_vocabulary::MilestoneEnd { at: field_000000, outcome: field_000001, done: field_000002, failed: field_000003, closed: field_000004, spent: field_000005 } = value;
-    Ok(crate::v25::MilestoneEnd {
-        at: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::MILESTONE_END_AT.problem(reason)) },
-        outcome: milestone_outcome_to_record(field_000001, context)?,
+    crate::v25::MilestoneEnd {
+        at: skein_codec::convert::wall_to_record(field_000000),
+        outcome: milestone_outcome_to_record(field_000001),
         done: *field_000002,
         failed: *field_000003,
         closed: *field_000004,
         spent: *field_000005
-    })
+    }
 }
 
-// Maps line 429: MilestoneEnd.
-pub fn milestone_end_to_domain(record: crate::v25::MilestoneEnd, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MilestoneEnd, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_end_to_domain(record: crate::v25::MilestoneEnd) -> temper_engine_domain_forge_vocabulary::MilestoneEnd {
     let crate::v25::MilestoneEnd { at: field_000000, outcome: field_000001, done: field_000002, failed: field_000003, closed: field_000004, spent: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::MilestoneEnd {
-        at: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::MILESTONE_END_AT.problem(reason)) },
-        outcome: milestone_outcome_to_domain(field_000001, context)?,
+    temper_engine_domain_forge_vocabulary::MilestoneEnd {
+        at: skein_codec::convert::wall_to_domain(field_000000),
+        outcome: milestone_outcome_to_domain(field_000001),
         done: field_000002,
         failed: field_000003,
         closed: field_000004,
         spent: field_000005
-    })
+    }
 }
 
-// Maps line 430: MilestoneRow.
-pub fn milestone_row_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneRow, context: &crate::records::Context) -> Result<crate::v25::MilestoneRow, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_row_to_record(value: &temper_engine_domain_forge_vocabulary::MilestoneRow) -> crate::v25::MilestoneRow {
     let temper_engine_domain_forge_vocabulary::MilestoneRow { project: field_000000, task: field_000001, name: field_000002, last_landing: field_000003, ended: field_000004 } = value;
-    Ok(crate::v25::MilestoneRow {
+    crate::v25::MilestoneRow {
         project: *field_000000,
         task: *field_000001,
         name: field_000002.clone(),
         last_landing: match field_000003 {
-            Some(item) => Some(milestone_landing_to_record(item, context)?),
+            Some(item) => {
+                let converted = milestone_landing_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         ended: match field_000004 {
-            Some(item) => Some(milestone_end_to_record(item, context)?),
+            Some(item) => {
+                let converted = milestone_end_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 430: MilestoneRow.
-pub fn milestone_row_to_domain(record: crate::v25::MilestoneRow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::MilestoneRow, crate::v25::Problem> {
+#[must_use]
+pub fn milestone_row_to_domain(record: crate::v25::MilestoneRow) -> temper_engine_domain_forge_vocabulary::MilestoneRow {
     let crate::v25::MilestoneRow { project: field_000000, task: field_000001, name: field_000002, last_landing: field_000003, ended: field_000004 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::MilestoneRow {
+    temper_engine_domain_forge_vocabulary::MilestoneRow {
         project: field_000000,
         task: field_000001,
         name: field_000002,
         last_landing: match field_000003 {
-            Some(item) => Some(milestone_landing_to_domain(item, context)?),
+            Some(item) => {
+                let converted = milestone_landing_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         ended: match field_000004 {
-            Some(item) => Some(milestone_end_to_domain(item, context)?),
+            Some(item) => {
+                let converted = milestone_end_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 431: LandingLog.
-pub fn landing_log_to_record(value: &temper_engine_domain_forge_vocabulary::LandingLog, context: &crate::records::Context) -> Result<crate::v25::LandingLog, crate::v25::Problem> {
+pub fn landing_log_to_record(value: &temper_engine_domain_forge_vocabulary::LandingLog) -> Result<crate::v25::LandingLog, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::LandingLog { repository: field_000000, landings: field_000001 } = value;
     Ok(crate::v25::LandingLog {
-        repository: repository_to_record(field_000000, context)?,
+        repository: repository_to_record(field_000000),
         landings: {
             let source = field_000001;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::LANDING_LOG_LANDINGS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = crate::records::by_hand::logged_landing_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_LOG_LANDINGS.problem(skein_codec::Reason::Bound)); }
+                let converted = crate::records::by_hand::logged_landing_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 431: LandingLog.
 pub fn landing_log_to_domain(record: crate::v25::LandingLog, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::LandingLog, crate::v25::Problem> {
     let crate::v25::LandingLog { repository: field_000000, landings: field_000001 } = record;
     Ok(temper_engine_domain_forge_vocabulary::LandingLog {
-        repository: repository_to_domain(field_000000, context)?,
+        repository: repository_to_domain(field_000000),
         landings: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = crate::records::by_hand::logged_landing_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::LANDING_LOG_LANDINGS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
     })
 }
 
-// Maps line 432: StatusBrief.
-pub fn status_brief_to_record(value: &temper_engine_domain_forge_vocabulary::Brief, _context: &crate::records::Context) -> Result<crate::v25::StatusBrief, crate::v25::Problem> {
+#[must_use]
+pub fn status_brief_to_record(value: &temper_engine_domain_forge_vocabulary::Brief) -> crate::v25::StatusBrief {
     let temper_engine_domain_forge_vocabulary::Brief { sentence: field_000000, lede: field_000001, at: field_000002, landed: field_000003, findings: field_000004 } = value;
-    Ok(crate::v25::StatusBrief {
+    crate::v25::StatusBrief {
         sentence: field_000000.clone(),
         lede: field_000001.clone(),
-        at: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::STATUS_BRIEF_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000002),
         landed: *field_000003,
         findings: match field_000004 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 432: StatusBrief.
-pub fn status_brief_to_domain(record: crate::v25::StatusBrief, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Brief, crate::v25::Problem> {
+#[must_use]
+pub fn status_brief_to_domain(record: crate::v25::StatusBrief) -> temper_engine_domain_forge_vocabulary::Brief {
     let crate::v25::StatusBrief { sentence: field_000000, lede: field_000001, at: field_000002, landed: field_000003, findings: field_000004 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Brief {
+    temper_engine_domain_forge_vocabulary::Brief {
         sentence: field_000000,
         lede: field_000001,
-        at: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::STATUS_BRIEF_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000002),
         landed: field_000003,
         findings: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 433: StatusRunning.
-pub fn status_running_to_record(value: &temper_engine_domain_forge_vocabulary::StatusRunning, _context: &crate::records::Context) -> Result<crate::v25::StatusRunning, crate::v25::Problem> {
+#[must_use]
+pub fn status_running_to_record(value: &temper_engine_domain_forge_vocabulary::StatusRunning) -> crate::v25::StatusRunning {
     let temper_engine_domain_forge_vocabulary::StatusRunning { task: field_000000, landed: field_000001, since: field_000002, findings: field_000003 } = value;
-    Ok(crate::v25::StatusRunning {
+    crate::v25::StatusRunning {
         task: match field_000000 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         landed: *field_000001,
-        since: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::STATUS_RUNNING_SINCE.problem(reason)) },
+        since: skein_codec::convert::wall_to_record(field_000002),
         findings: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 433: StatusRunning.
-pub fn status_running_to_domain(record: crate::v25::StatusRunning, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::StatusRunning, crate::v25::Problem> {
+#[must_use]
+pub fn status_running_to_domain(record: crate::v25::StatusRunning) -> temper_engine_domain_forge_vocabulary::StatusRunning {
     let crate::v25::StatusRunning { task: field_000000, landed: field_000001, since: field_000002, findings: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::StatusRunning {
+    temper_engine_domain_forge_vocabulary::StatusRunning {
         task: match field_000000 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         landed: field_000001,
-        since: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::STATUS_RUNNING_SINCE.problem(reason)) },
+        since: skein_codec::convert::wall_to_domain(field_000002),
         findings: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 434: ProjectFacts.
-pub fn project_facts_to_record(value: &temper_engine_domain_forge_vocabulary::ProjectFacts, _context: &crate::records::Context) -> Result<crate::v25::ProjectFacts, crate::v25::Problem> {
+#[must_use]
+pub fn project_facts_to_record(value: &temper_engine_domain_forge_vocabulary::ProjectFacts) -> crate::v25::ProjectFacts {
     let temper_engine_domain_forge_vocabulary::ProjectFacts { project: field_000000, landed: field_000001, last_landed: field_000002 } = value;
-    Ok(crate::v25::ProjectFacts {
+    crate::v25::ProjectFacts {
         project: *field_000000,
         landed: *field_000001,
-        last_landed: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PROJECT_FACTS_LAST_LANDED.problem(reason)) }
-    })
+        last_landed: skein_codec::convert::wall_to_record(field_000002)
+    }
 }
 
-// Maps line 434: ProjectFacts.
-pub fn project_facts_to_domain(record: crate::v25::ProjectFacts, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ProjectFacts, crate::v25::Problem> {
+#[must_use]
+pub fn project_facts_to_domain(record: crate::v25::ProjectFacts) -> temper_engine_domain_forge_vocabulary::ProjectFacts {
     let crate::v25::ProjectFacts { project: field_000000, landed: field_000001, last_landed: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ProjectFacts {
+    temper_engine_domain_forge_vocabulary::ProjectFacts {
         project: field_000000,
         landed: field_000001,
-        last_landed: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PROJECT_FACTS_LAST_LANDED.problem(reason)) }
-    })
+        last_landed: skein_codec::convert::wall_to_domain(field_000002)
+    }
 }
 
-// Maps line 435: PersonBrief.
-pub fn person_brief_to_record(value: &temper_engine_domain_forge_vocabulary::PersonBrief, context: &crate::records::Context) -> Result<crate::v25::PersonBrief, crate::v25::Problem> {
+#[must_use]
+pub fn person_brief_to_record(value: &temper_engine_domain_forge_vocabulary::PersonBrief) -> crate::v25::PersonBrief {
     let temper_engine_domain_forge_vocabulary::PersonBrief { party: field_000000, project: field_000001, brief: field_000002, running: field_000003, unpaid: field_000004 } = value;
-    Ok(crate::v25::PersonBrief {
+    crate::v25::PersonBrief {
         party: *field_000000,
         project: *field_000001,
         brief: match field_000002 {
-            Some(item) => Some(status_brief_to_record(item, context)?),
+            Some(item) => {
+                let converted = status_brief_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         running: match field_000003 {
-            Some(item) => Some(status_running_to_record(item, context)?),
+            Some(item) => {
+                let converted = status_running_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         unpaid: match field_000004 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PERSON_BRIEF_UNPAID.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 435: PersonBrief.
-pub fn person_brief_to_domain(record: crate::v25::PersonBrief, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::PersonBrief, crate::v25::Problem> {
+#[must_use]
+pub fn person_brief_to_domain(record: crate::v25::PersonBrief) -> temper_engine_domain_forge_vocabulary::PersonBrief {
     let crate::v25::PersonBrief { party: field_000000, project: field_000001, brief: field_000002, running: field_000003, unpaid: field_000004 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::PersonBrief {
+    temper_engine_domain_forge_vocabulary::PersonBrief {
         party: field_000000,
         project: field_000001,
         brief: match field_000002 {
-            Some(item) => Some(status_brief_to_domain(item, context)?),
+            Some(item) => {
+                let converted = status_brief_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         running: match field_000003 {
-            Some(item) => Some(status_running_to_domain(item, context)?),
+            Some(item) => {
+                let converted = status_running_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         unpaid: match field_000004 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::PERSON_BRIEF_UNPAID.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 436: Looked.
-pub fn looked_to_record(value: &temper_engine_domain_forge_vocabulary::Looked, _context: &crate::records::Context) -> Result<crate::v25::Looked, crate::v25::Problem> {
+#[must_use]
+pub fn looked_to_record(value: &temper_engine_domain_forge_vocabulary::Looked) -> crate::v25::Looked {
     let temper_engine_domain_forge_vocabulary::Looked { party: field_000000, project: field_000001, previous: field_000002, latest: field_000003, seen: field_000004, next_seen: field_000005 } = value;
-    Ok(crate::v25::Looked {
+    crate::v25::Looked {
         party: *field_000000,
         project: *field_000001,
         previous: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LOOKED_PREVIOUS.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        latest: match skein_codec::convert::wall_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LOOKED_LATEST.problem(reason)) },
+        latest: skein_codec::convert::wall_to_record(field_000003),
         seen: *field_000004,
         next_seen: *field_000005
-    })
+    }
 }
 
-// Maps line 436: Looked.
-pub fn looked_to_domain(record: crate::v25::Looked, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Looked, crate::v25::Problem> {
+#[must_use]
+pub fn looked_to_domain(record: crate::v25::Looked) -> temper_engine_domain_forge_vocabulary::Looked {
     let crate::v25::Looked { party: field_000000, project: field_000001, previous: field_000002, latest: field_000003, seen: field_000004, next_seen: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Looked {
+    temper_engine_domain_forge_vocabulary::Looked {
         party: field_000000,
         project: field_000001,
         previous: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LOOKED_PREVIOUS.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        latest: match skein_codec::convert::wall_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::LOOKED_LATEST.problem(reason)) },
+        latest: skein_codec::convert::wall_to_domain(field_000003),
         seen: field_000004,
         next_seen: field_000005
-    })
+    }
 }
 
-// Maps line 437: Away.
-pub fn away_to_record(value: &temper_engine_domain_forge_vocabulary::Away, _context: &crate::records::Context) -> Result<crate::v25::Away, crate::v25::Problem> {
+#[must_use]
+pub fn away_to_record(value: &temper_engine_domain_forge_vocabulary::Away) -> crate::v25::Away {
     let temper_engine_domain_forge_vocabulary::Away { party: field_000000, project: field_000001, since: field_000002, until: field_000003, landed: field_000004, off: field_000005 } = value;
-    Ok(crate::v25::Away {
+    crate::v25::Away {
         party: *field_000000,
         project: *field_000001,
-        since: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::AWAY_SINCE.problem(reason)) },
+        since: skein_codec::convert::wall_to_record(field_000002),
         until: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::AWAY_UNTIL.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         landed: *field_000004,
         off: match field_000005 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::AWAY_OFF.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 437: Away.
-pub fn away_to_domain(record: crate::v25::Away, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Away, crate::v25::Problem> {
+#[must_use]
+pub fn away_to_domain(record: crate::v25::Away) -> temper_engine_domain_forge_vocabulary::Away {
     let crate::v25::Away { party: field_000000, project: field_000001, since: field_000002, until: field_000003, landed: field_000004, off: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Away {
+    temper_engine_domain_forge_vocabulary::Away {
         party: field_000000,
         project: field_000001,
-        since: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::AWAY_SINCE.problem(reason)) },
+        since: skein_codec::convert::wall_to_domain(field_000002),
         until: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::AWAY_UNTIL.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         landed: field_000004,
         off: match field_000005 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::AWAY_OFF.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
-}
-
-// Maps line 439: ClosingStep.
-pub fn closing_step_to_record(value: &temper_engine_domain_forge_closer::Step, _context: &crate::records::Context) -> Result<crate::v25::ClosingStep, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_closer::Step::Close => Ok(crate::v25::ClosingStep::Close),
-        temper_engine_domain_forge_closer::Step::Land => Ok(crate::v25::ClosingStep::Land),
     }
 }
 
-// Maps line 439: ClosingStep.
-pub fn closing_step_to_domain(record: crate::v25::ClosingStep, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::Step, crate::v25::Problem> {
+#[must_use]
+pub fn closing_step_to_record(value: &temper_engine_domain_forge_closer::Step) -> crate::v25::ClosingStep {
+    match value {
+        temper_engine_domain_forge_closer::Step::Close => crate::v25::ClosingStep::Close,
+        temper_engine_domain_forge_closer::Step::Land => crate::v25::ClosingStep::Land,
+    }
+}
+
+#[must_use]
+pub fn closing_step_to_domain(record: crate::v25::ClosingStep) -> temper_engine_domain_forge_closer::Step {
     match record {
-        crate::v25::ClosingStep::Close => Ok(temper_engine_domain_forge_closer::Step::Close),
-        crate::v25::ClosingStep::Land => Ok(temper_engine_domain_forge_closer::Step::Land),
+        crate::v25::ClosingStep::Close => temper_engine_domain_forge_closer::Step::Close,
+        crate::v25::ClosingStep::Land => temper_engine_domain_forge_closer::Step::Land,
     }
 }
 
-// Maps line 440: ClosingRun.
-pub fn closing_run_to_record(value: &temper_engine_domain_forge_closer::Running, context: &crate::records::Context) -> Result<crate::v25::ClosingRun, crate::v25::Problem> {
+#[must_use]
+pub fn closing_run_to_record(value: &temper_engine_domain_forge_closer::Running) -> crate::v25::ClosingRun {
     let temper_engine_domain_forge_closer::Running { step: field_000000, change: field_000001 } = value;
-    Ok(crate::v25::ClosingRun {
-        step: closing_step_to_record(field_000000, context)?,
+    crate::v25::ClosingRun {
+        step: closing_step_to_record(field_000000),
         change: *field_000001
-    })
+    }
 }
 
-// Maps line 440: ClosingRun.
-pub fn closing_run_to_domain(record: crate::v25::ClosingRun, context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::Running, crate::v25::Problem> {
+#[must_use]
+pub fn closing_run_to_domain(record: crate::v25::ClosingRun) -> temper_engine_domain_forge_closer::Running {
     let crate::v25::ClosingRun { step: field_000000, change: field_000001 } = record;
-    Ok(temper_engine_domain_forge_closer::Running {
-        step: closing_step_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_closer::Running {
+        step: closing_step_to_domain(field_000000),
         change: field_000001
-    })
+    }
 }
 
-// Maps line 444: ClosingSelectionProgress.
-pub fn closing_selection_progress_to_record(value: &temper_engine_domain_forge_closer::SelectionProgress, context: &crate::records::Context) -> Result<crate::v25::ClosingSelectionProgress, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_closer::SelectionProgress::Pull => Ok(crate::v25::ClosingSelectionProgress::Pull),
-        temper_engine_domain_forge_closer::SelectionProgress::Checks => Ok(crate::v25::ClosingSelectionProgress::Checks),
-        temper_engine_domain_forge_closer::SelectionProgress::Jobs { attempts: field_000000, next: field_000001 } => Ok(crate::v25::ClosingSelectionProgress::Jobs(crate::v25::ClosingJobs {
+pub fn closing_selection_progress_to_record(value: &temper_engine_domain_forge_closer::SelectionProgress) -> Result<crate::v25::ClosingSelectionProgress, crate::v25::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge_closer::SelectionProgress::Pull => crate::v25::ClosingSelectionProgress::Pull,
+        temper_engine_domain_forge_closer::SelectionProgress::Checks => crate::v25::ClosingSelectionProgress::Checks,
+        temper_engine_domain_forge_closer::SelectionProgress::Jobs { attempts: field_000000, next: field_000001 } => crate::v25::ClosingSelectionProgress::Jobs(crate::v25::ClosingJobs {
             attempts: {
                 let source = field_000000;
                 let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CLOSING_JOBS_ATTEMPTS.problem(skein_codec::Reason::Bound)) };
                 let mut translated = skein_lib::List::with_capacity(count);
                 for item in source.as_ref() {
-                    let converted = job_attempt_to_record(item, context)?;
-                    if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_JOBS_ATTEMPTS.problem(skein_codec::Reason::Bound)); }
+                    let converted = job_attempt_to_record(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
                 }
                 translated
             },
             next: *field_000001
-        })),
-        temper_engine_domain_forge_closer::SelectionProgress::Done { line: field_000000 } => Ok(crate::v25::ClosingSelectionProgress::Done(crate::v25::ClosingLine {
+        }),
+        temper_engine_domain_forge_closer::SelectionProgress::Done { line: field_000000 } => crate::v25::ClosingSelectionProgress::Done(crate::v25::ClosingLine {
             line: match field_000000 {
-                Some(item) => Some(item.clone()),
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 444: ClosingSelectionProgress.
-pub fn closing_selection_progress_to_domain(record: crate::v25::ClosingSelectionProgress, context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::SelectionProgress, crate::v25::Problem> {
+#[must_use]
+pub fn closing_selection_progress_to_domain(record: crate::v25::ClosingSelectionProgress) -> temper_engine_domain_forge_closer::SelectionProgress {
     match record {
-        crate::v25::ClosingSelectionProgress::Pull => Ok(temper_engine_domain_forge_closer::SelectionProgress::Pull),
-        crate::v25::ClosingSelectionProgress::Checks => Ok(temper_engine_domain_forge_closer::SelectionProgress::Checks),
+        crate::v25::ClosingSelectionProgress::Pull => temper_engine_domain_forge_closer::SelectionProgress::Pull,
+        crate::v25::ClosingSelectionProgress::Checks => temper_engine_domain_forge_closer::SelectionProgress::Checks,
         crate::v25::ClosingSelectionProgress::Jobs(held) => {
             let crate::v25::ClosingJobs { attempts: field_000000, next: field_000001 } = held;
-            Ok(temper_engine_domain_forge_closer::SelectionProgress::Jobs {
+            temper_engine_domain_forge_closer::SelectionProgress::Jobs {
                 attempts: {
                     let source = field_000000;
                     let count = source.len();
                     let mut translated = skein_lib::List::with_capacity(count);
                     for item in source.into_boxed() {
-                        let converted = job_attempt_to_domain(item, context)?;
-                        if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_JOBS_ATTEMPTS.problem(skein_codec::Reason::Bound)); }
+                        let converted = job_attempt_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
                     }
                     Box::from(translated)
                 },
                 next: field_000001
-            })
+            }
         },
         crate::v25::ClosingSelectionProgress::Done(held) => {
             let crate::v25::ClosingLine { line: field_000000 } = held;
-            Ok(temper_engine_domain_forge_closer::SelectionProgress::Done {
+            temper_engine_domain_forge_closer::SelectionProgress::Done {
                 line: match field_000000 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
     }
 }
 
-// Maps line 445: ClosingSelection.
-pub fn closing_selection_to_record(value: &temper_engine_domain_forge_closer::PullSelection, context: &crate::records::Context) -> Result<crate::v25::ClosingSelection, crate::v25::Problem> {
+pub fn closing_selection_to_record(value: &temper_engine_domain_forge_closer::PullSelection) -> Result<crate::v25::ClosingSelection, crate::v25::Problem> {
     let temper_engine_domain_forge_closer::PullSelection { pull: field_000000, head: field_000001, progress: field_000002 } = value;
     Ok(crate::v25::ClosingSelection {
         pull: *field_000000,
         head: match field_000001 {
-            Some(item) => Some(crate::v25::Commit { commit: *item }),
+            Some(item) => {
+                let converted = crate::v25::Commit { commit: *item };
+                Some(converted)
+            }
             None => None,
         },
-        progress: closing_selection_progress_to_record(field_000002, context)?
+        progress: closing_selection_progress_to_record(field_000002)?
     })
 }
 
-// Maps line 445: ClosingSelection.
-pub fn closing_selection_to_domain(record: crate::v25::ClosingSelection, context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::PullSelection, crate::v25::Problem> {
+#[must_use]
+pub fn closing_selection_to_domain(record: crate::v25::ClosingSelection) -> temper_engine_domain_forge_closer::PullSelection {
     let crate::v25::ClosingSelection { pull: field_000000, head: field_000001, progress: field_000002 } = record;
-    Ok(temper_engine_domain_forge_closer::PullSelection {
+    temper_engine_domain_forge_closer::PullSelection {
         pull: field_000000,
         head: match field_000001 {
-            Some(item) => Some({
-                let crate::v25::Commit { commit: held } = item;
-                held
-            }),
+            Some(item) => {
+                let converted = {
+                    let crate::v25::Commit { commit: held } = item;
+                    held
+                };
+                Some(converted)
+            }
             None => None,
         },
-        progress: closing_selection_progress_to_domain(field_000002, context)?
-    })
+        progress: closing_selection_progress_to_domain(field_000002)
+    }
 }
 
-// Maps line 447: ClosingStands.
-pub fn closing_stands_to_record(value: &temper_engine_domain_forge_closer::relay::Stands, _context: &crate::records::Context) -> Result<crate::v25::ClosingStands, crate::v25::Problem> {
+#[must_use]
+pub fn closing_stands_to_record(value: &temper_engine_domain_forge_closer::relay::Stands) -> crate::v25::ClosingStands {
     match value {
-        temper_engine_domain_forge_closer::relay::Stands::Taken => Ok(crate::v25::ClosingStands::Taken),
-        temper_engine_domain_forge_closer::relay::Stands::Asked { question: field_000000, answer: field_000001 } => Ok(crate::v25::ClosingStands::Asked(crate::v25::ClosingAsked {
+        temper_engine_domain_forge_closer::relay::Stands::Taken => crate::v25::ClosingStands::Taken,
+        temper_engine_domain_forge_closer::relay::Stands::Asked { question: field_000000, answer: field_000001 } => crate::v25::ClosingStands::Asked(crate::v25::ClosingAsked {
             question: *field_000000,
             answer: match field_000001 {
-                Some(item) => Some(item.clone()),
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
+        }),
     }
 }
 
-// Maps line 447: ClosingStands.
-pub fn closing_stands_to_domain(record: crate::v25::ClosingStands, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::relay::Stands, crate::v25::Problem> {
+#[must_use]
+pub fn closing_stands_to_domain(record: crate::v25::ClosingStands) -> temper_engine_domain_forge_closer::relay::Stands {
     match record {
-        crate::v25::ClosingStands::Taken => Ok(temper_engine_domain_forge_closer::relay::Stands::Taken),
+        crate::v25::ClosingStands::Taken => temper_engine_domain_forge_closer::relay::Stands::Taken,
         crate::v25::ClosingStands::Asked(held) => {
             let crate::v25::ClosingAsked { question: field_000000, answer: field_000001 } = held;
-            Ok(temper_engine_domain_forge_closer::relay::Stands::Asked {
+            temper_engine_domain_forge_closer::relay::Stands::Asked {
                 question: field_000000,
                 answer: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
     }
 }
 
-// Maps line 448: ClosingQuestion.
-pub fn closing_question_to_record(value: &temper_engine_domain_forge_closer::relay::Question, context: &crate::records::Context) -> Result<crate::v25::ClosingQuestion, crate::v25::Problem> {
+#[must_use]
+pub fn closing_question_to_record(value: &temper_engine_domain_forge_closer::relay::Question) -> crate::v25::ClosingQuestion {
     let temper_engine_domain_forge_closer::relay::Question { asker: field_000000, number: field_000001, step: field_000002, words: field_000003, stands: field_000004 } = value;
-    Ok(crate::v25::ClosingQuestion {
+    crate::v25::ClosingQuestion {
         asker: *field_000000,
         number: *field_000001,
-        step: closing_step_to_record(field_000002, context)?,
+        step: closing_step_to_record(field_000002),
         words: field_000003.clone(),
-        stands: closing_stands_to_record(field_000004, context)?
-    })
-}
-
-// Maps line 448: ClosingQuestion.
-pub fn closing_question_to_domain(record: crate::v25::ClosingQuestion, context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::relay::Question, crate::v25::Problem> {
-    let crate::v25::ClosingQuestion { asker: field_000000, number: field_000001, step: field_000002, words: field_000003, stands: field_000004 } = record;
-    Ok(temper_engine_domain_forge_closer::relay::Question {
-        asker: field_000000,
-        number: field_000001,
-        step: closing_step_to_domain(field_000002, context)?,
-        words: field_000003,
-        stands: closing_stands_to_domain(field_000004, context)?
-    })
-}
-
-// Maps line 449: ClosingForm.
-pub fn closing_form_to_record(value: &temper_engine_domain_forge_closer::relay::Form, _context: &crate::records::Context) -> Result<crate::v25::ClosingForm, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_closer::relay::Form::Words => Ok(crate::v25::ClosingForm::Words),
-        temper_engine_domain_forge_closer::relay::Form::Question => Ok(crate::v25::ClosingForm::Question),
-        temper_engine_domain_forge_closer::relay::Form::Answer { question: field_000000 } => Ok(crate::v25::ClosingForm::Answer(crate::v25::Number {
-            number: *field_000000
-        })),
+        stands: closing_stands_to_record(field_000004)
     }
 }
 
-// Maps line 449: ClosingForm.
-pub fn closing_form_to_domain(record: crate::v25::ClosingForm, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::relay::Form, crate::v25::Problem> {
+#[must_use]
+pub fn closing_question_to_domain(record: crate::v25::ClosingQuestion) -> temper_engine_domain_forge_closer::relay::Question {
+    let crate::v25::ClosingQuestion { asker: field_000000, number: field_000001, step: field_000002, words: field_000003, stands: field_000004 } = record;
+    temper_engine_domain_forge_closer::relay::Question {
+        asker: field_000000,
+        number: field_000001,
+        step: closing_step_to_domain(field_000002),
+        words: field_000003,
+        stands: closing_stands_to_domain(field_000004)
+    }
+}
+
+#[must_use]
+pub fn closing_form_to_record(value: &temper_engine_domain_forge_closer::relay::Form) -> crate::v25::ClosingForm {
+    match value {
+        temper_engine_domain_forge_closer::relay::Form::Words => crate::v25::ClosingForm::Words,
+        temper_engine_domain_forge_closer::relay::Form::Question => crate::v25::ClosingForm::Question,
+        temper_engine_domain_forge_closer::relay::Form::Answer { question: field_000000 } => crate::v25::ClosingForm::Answer(crate::v25::Number {
+            number: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn closing_form_to_domain(record: crate::v25::ClosingForm) -> temper_engine_domain_forge_closer::relay::Form {
     match record {
-        crate::v25::ClosingForm::Words => Ok(temper_engine_domain_forge_closer::relay::Form::Words),
-        crate::v25::ClosingForm::Question => Ok(temper_engine_domain_forge_closer::relay::Form::Question),
+        crate::v25::ClosingForm::Words => temper_engine_domain_forge_closer::relay::Form::Words,
+        crate::v25::ClosingForm::Question => temper_engine_domain_forge_closer::relay::Form::Question,
         crate::v25::ClosingForm::Answer(held) => {
             let crate::v25::Number { number: field_000000 } = held;
-            Ok(temper_engine_domain_forge_closer::relay::Form::Answer {
+            temper_engine_domain_forge_closer::relay::Form::Answer {
                 question: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 450: ClosingMessage.
-pub fn closing_message_to_record(value: &temper_engine_domain_forge_closer::relay::Message, context: &crate::records::Context) -> Result<crate::v25::ClosingMessage, crate::v25::Problem> {
+#[must_use]
+pub fn closing_message_to_record(value: &temper_engine_domain_forge_closer::relay::Message) -> crate::v25::ClosingMessage {
     let temper_engine_domain_forge_closer::relay::Message { target: field_000000, form: field_000001, words: field_000002 } = value;
-    Ok(crate::v25::ClosingMessage {
+    crate::v25::ClosingMessage {
         target: *field_000000,
-        form: closing_form_to_record(field_000001, context)?,
+        form: closing_form_to_record(field_000001),
         words: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 450: ClosingMessage.
-pub fn closing_message_to_domain(record: crate::v25::ClosingMessage, context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::relay::Message, crate::v25::Problem> {
+#[must_use]
+pub fn closing_message_to_domain(record: crate::v25::ClosingMessage) -> temper_engine_domain_forge_closer::relay::Message {
     let crate::v25::ClosingMessage { target: field_000000, form: field_000001, words: field_000002 } = record;
-    Ok(temper_engine_domain_forge_closer::relay::Message {
+    temper_engine_domain_forge_closer::relay::Message {
         target: field_000000,
-        form: closing_form_to_domain(field_000001, context)?,
+        form: closing_form_to_domain(field_000001),
         words: field_000002
-    })
+    }
 }
 
-// Maps line 451: ClosingRelay.
-pub fn closing_relay_to_record(value: &temper_engine_domain_forge_closer::relay::Relay, context: &crate::records::Context) -> Result<crate::v25::ClosingRelay, crate::v25::Problem> {
-    let temper_engine_domain_forge_closer::relay::Relay { open: field_000000, replies: field_000001 } = value;
+pub fn closing_relay_to_record(value: &temper_engine_domain_forge_closer::relay::Relay) -> Result<crate::v25::ClosingRelay, crate::v25::Problem> {
+    let temper_engine_domain_forge_closer::relay::Relay { open: field_000000, replies: field_000001, waiting: field_000002 } = value;
     Ok(crate::v25::ClosingRelay {
         open: match field_000000 {
-            Some(item) => Some(closing_question_to_record(item, context)?),
+            Some(item) => {
+                let converted = closing_question_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         replies: {
@@ -6738,20 +7495,33 @@ pub fn closing_relay_to_record(value: &temper_engine_domain_forge_closer::relay:
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CLOSING_RELAY_REPLIES.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = closing_message_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_RELAY_REPLIES.problem(skein_codec::Reason::Bound)); }
+                let converted = closing_message_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        waiting: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CLOSING_RELAY_WAITING.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = closing_question_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 451: ClosingRelay.
-pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay, context: &crate::records::Context) -> Result<temper_engine_domain_forge_closer::relay::Relay, crate::v25::Problem> {
-    let crate::v25::ClosingRelay { open: field_000000, replies: field_000001 } = record;
-    Ok(temper_engine_domain_forge_closer::relay::Relay {
+#[must_use]
+pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay) -> temper_engine_domain_forge_closer::relay::Relay {
+    let crate::v25::ClosingRelay { open: field_000000, replies: field_000001, waiting: field_000002 } = record;
+    temper_engine_domain_forge_closer::relay::Relay {
         open: match field_000000 {
-            Some(item) => Some(closing_question_to_domain(item, context)?),
+            Some(item) => {
+                let converted = closing_question_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         replies: {
@@ -6759,78 +7529,108 @@ pub fn closing_relay_to_domain(record: crate::v25::ClosingRelay, context: &crate
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = closing_message_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CLOSING_RELAY_REPLIES.problem(skein_codec::Reason::Bound)); }
+                let converted = closing_message_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        waiting: {
+            let source = field_000002;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = closing_question_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 454: FollowCommit.
-pub fn follow_commit_to_record(value: &temper_engine_domain_forge_vocabulary::FollowCommit, _context: &crate::records::Context) -> Result<crate::v25::FollowCommit, crate::v25::Problem> {
+#[must_use]
+pub fn closing_report_check_to_record(value: &temper_engine_domain_forge_closer::ReportCheck) -> crate::v25::ClosingReportCheck {
+    match value {
+        temper_engine_domain_forge_closer::ReportCheck::Unread => crate::v25::ClosingReportCheck::Unread,
+        temper_engine_domain_forge_closer::ReportCheck::Held => crate::v25::ClosingReportCheck::Held,
+        temper_engine_domain_forge_closer::ReportCheck::Released => crate::v25::ClosingReportCheck::Released,
+    }
+}
+
+#[must_use]
+pub fn closing_report_check_to_domain(record: crate::v25::ClosingReportCheck) -> temper_engine_domain_forge_closer::ReportCheck {
+    match record {
+        crate::v25::ClosingReportCheck::Unread => temper_engine_domain_forge_closer::ReportCheck::Unread,
+        crate::v25::ClosingReportCheck::Held => temper_engine_domain_forge_closer::ReportCheck::Held,
+        crate::v25::ClosingReportCheck::Released => temper_engine_domain_forge_closer::ReportCheck::Released,
+    }
+}
+
+#[must_use]
+pub fn follow_commit_to_record(value: &temper_engine_domain_forge_vocabulary::FollowCommit) -> crate::v25::FollowCommit {
     let temper_engine_domain_forge_vocabulary::FollowCommit { id: field_000000, message: field_000001 } = value;
-    Ok(crate::v25::FollowCommit {
+    crate::v25::FollowCommit {
         id: *field_000000,
         message: field_000001.clone()
-    })
+    }
 }
 
-// Maps line 454: FollowCommit.
-pub fn follow_commit_to_domain(record: crate::v25::FollowCommit, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowCommit, crate::v25::Problem> {
+#[must_use]
+pub fn follow_commit_to_domain(record: crate::v25::FollowCommit) -> temper_engine_domain_forge_vocabulary::FollowCommit {
     let crate::v25::FollowCommit { id: field_000000, message: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FollowCommit {
+    temper_engine_domain_forge_vocabulary::FollowCommit {
         id: field_000000,
         message: field_000001
-    })
-}
-
-// Maps line 456: FollowState.
-pub fn follow_state_to_record(value: &temper_engine_domain_forge_vocabulary::FollowState, _context: &crate::records::Context) -> Result<crate::v25::FollowState, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::FollowState::NotMade => Ok(crate::v25::FollowState::NotMade),
-        temper_engine_domain_forge_vocabulary::FollowState::WaitsWord => Ok(crate::v25::FollowState::WaitsWord),
-        temper_engine_domain_forge_vocabulary::FollowState::HeldByOwner(held) => Ok(crate::v25::FollowState::HeldByOwner(crate::v25::FollowReason { reason: held.clone() })),
-        temper_engine_domain_forge_vocabulary::FollowState::WaitsFor(held) => Ok(crate::v25::FollowState::WaitsFor(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::FollowState::Producing => Ok(crate::v25::FollowState::Producing),
-        temper_engine_domain_forge_vocabulary::FollowState::Held(held) => Ok(crate::v25::FollowState::Held(crate::v25::FollowReason { reason: held.clone() })),
-        temper_engine_domain_forge_vocabulary::FollowState::Ended(held) => Ok(crate::v25::FollowState::Ended(crate::v25::FollowReason { reason: held.clone() })),
     }
 }
 
-// Maps line 456: FollowState.
-pub fn follow_state_to_domain(record: crate::v25::FollowState, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowState, crate::v25::Problem> {
+#[must_use]
+pub fn follow_state_to_record(value: &temper_engine_domain_forge_vocabulary::FollowState) -> crate::v25::FollowState {
+    match value {
+        temper_engine_domain_forge_vocabulary::FollowState::NotMade => crate::v25::FollowState::NotMade,
+        temper_engine_domain_forge_vocabulary::FollowState::WaitsWord => crate::v25::FollowState::WaitsWord,
+        temper_engine_domain_forge_vocabulary::FollowState::HeldByOwner(held) => crate::v25::FollowState::HeldByOwner(crate::v25::FollowReason { reason: held.clone() }),
+        temper_engine_domain_forge_vocabulary::FollowState::WaitsFor(held) => crate::v25::FollowState::WaitsFor(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::FollowState::Producing => crate::v25::FollowState::Producing,
+        temper_engine_domain_forge_vocabulary::FollowState::Held(held) => crate::v25::FollowState::Held(crate::v25::FollowReason { reason: held.clone() }),
+        temper_engine_domain_forge_vocabulary::FollowState::Ended(held) => crate::v25::FollowState::Ended(crate::v25::FollowReason { reason: held.clone() }),
+    }
+}
+
+#[must_use]
+pub fn follow_state_to_domain(record: crate::v25::FollowState) -> temper_engine_domain_forge_vocabulary::FollowState {
     match record {
-        crate::v25::FollowState::NotMade => Ok(temper_engine_domain_forge_vocabulary::FollowState::NotMade),
-        crate::v25::FollowState::WaitsWord => Ok(temper_engine_domain_forge_vocabulary::FollowState::WaitsWord),
-        crate::v25::FollowState::HeldByOwner(held) => Ok(temper_engine_domain_forge_vocabulary::FollowState::HeldByOwner({
+        crate::v25::FollowState::NotMade => temper_engine_domain_forge_vocabulary::FollowState::NotMade,
+        crate::v25::FollowState::WaitsWord => temper_engine_domain_forge_vocabulary::FollowState::WaitsWord,
+        crate::v25::FollowState::HeldByOwner(held) => temper_engine_domain_forge_vocabulary::FollowState::HeldByOwner({
             let crate::v25::FollowReason { reason: held } = held;
             held
-        })),
-        crate::v25::FollowState::WaitsFor(held) => Ok(temper_engine_domain_forge_vocabulary::FollowState::WaitsFor({
+        }),
+        crate::v25::FollowState::WaitsFor(held) => temper_engine_domain_forge_vocabulary::FollowState::WaitsFor({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::FollowState::Producing => Ok(temper_engine_domain_forge_vocabulary::FollowState::Producing),
-        crate::v25::FollowState::Held(held) => Ok(temper_engine_domain_forge_vocabulary::FollowState::Held({
+        }),
+        crate::v25::FollowState::Producing => temper_engine_domain_forge_vocabulary::FollowState::Producing,
+        crate::v25::FollowState::Held(held) => temper_engine_domain_forge_vocabulary::FollowState::Held({
             let crate::v25::FollowReason { reason: held } = held;
             held
-        })),
-        crate::v25::FollowState::Ended(held) => Ok(temper_engine_domain_forge_vocabulary::FollowState::Ended({
+        }),
+        crate::v25::FollowState::Ended(held) => temper_engine_domain_forge_vocabulary::FollowState::Ended({
             let crate::v25::FollowReason { reason: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 458: FollowEntry.
-pub fn follow_entry_to_record(value: &temper_engine_domain_forge_vocabulary::FollowEntry, context: &crate::records::Context) -> Result<crate::v25::FollowEntry, crate::v25::Problem> {
+pub fn follow_entry_to_record(value: &temper_engine_domain_forge_vocabulary::FollowEntry) -> Result<crate::v25::FollowEntry, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::FollowEntry { before: field_000000, after: field_000001, pull: field_000002, commits: field_000003, more_commits: field_000004, files: field_000005, more_files: field_000006, change: field_000007, state: field_000008, word: field_000009, remake: field_000010 } = value;
     Ok(crate::v25::FollowEntry {
         before: *field_000000,
         after: *field_000001,
         pull: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         commits: {
@@ -6838,35 +7638,43 @@ pub fn follow_entry_to_record(value: &temper_engine_domain_forge_vocabulary::Fol
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::FOLLOW_ENTRY_COMMITS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = follow_commit_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ENTRY_COMMITS.problem(skein_codec::Reason::Bound)); }
+                let converted = follow_commit_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         more_commits: *field_000004,
         files: match field_000005 {
-            Some(item) => Some(crate::records::by_hand::follow_files_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::follow_files_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         more_files: *field_000006,
         change: match field_000007 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        state: follow_state_to_record(field_000008, context)?,
+        state: follow_state_to_record(field_000008),
         word: *field_000009,
         remake: *field_000010
     })
 }
 
-// Maps line 458: FollowEntry.
 pub fn follow_entry_to_domain(record: crate::v25::FollowEntry, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowEntry, crate::v25::Problem> {
     let crate::v25::FollowEntry { before: field_000000, after: field_000001, pull: field_000002, commits: field_000003, more_commits: field_000004, files: field_000005, more_files: field_000006, change: field_000007, state: field_000008, word: field_000009, remake: field_000010 } = record;
     Ok(temper_engine_domain_forge_vocabulary::FollowEntry {
         before: field_000000,
         after: field_000001,
         pull: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         commits: {
@@ -6874,150 +7682,182 @@ pub fn follow_entry_to_domain(record: crate::v25::FollowEntry, context: &crate::
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = follow_commit_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ENTRY_COMMITS.problem(skein_codec::Reason::Bound)); }
+                let converted = follow_commit_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         more_commits: field_000004,
         files: match field_000005 {
-            Some(item) => Some(crate::records::by_hand::follow_files_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::follow_files_to_domain(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
         more_files: field_000006,
         change: match field_000007 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        state: follow_state_to_domain(field_000008, context)?,
+        state: follow_state_to_domain(field_000008),
         word: field_000009,
         remake: field_000010
     })
 }
 
-// Maps line 459: FollowSkip.
-pub fn follow_skip_to_record(value: &temper_engine_domain_forge_vocabulary::FollowSkip, _context: &crate::records::Context) -> Result<crate::v25::FollowSkip, crate::v25::Problem> {
+#[must_use]
+pub fn follow_skip_to_record(value: &temper_engine_domain_forge_vocabulary::FollowSkip) -> crate::v25::FollowSkip {
     let temper_engine_domain_forge_vocabulary::FollowSkip { after: field_000000, reason: field_000001 } = value;
-    Ok(crate::v25::FollowSkip {
+    crate::v25::FollowSkip {
         after: *field_000000,
         reason: field_000001.clone()
-    })
+    }
 }
 
-// Maps line 459: FollowSkip.
-pub fn follow_skip_to_domain(record: crate::v25::FollowSkip, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowSkip, crate::v25::Problem> {
+#[must_use]
+pub fn follow_skip_to_domain(record: crate::v25::FollowSkip) -> temper_engine_domain_forge_vocabulary::FollowSkip {
     let crate::v25::FollowSkip { after: field_000000, reason: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FollowSkip {
+    temper_engine_domain_forge_vocabulary::FollowSkip {
         after: field_000000,
         reason: field_000001
-    })
-}
-
-// Maps line 461: FollowVerdict.
-pub fn follow_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::FollowVerdict, _context: &crate::records::Context) -> Result<crate::v25::FollowVerdict, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::FollowVerdict::Passed => Ok(crate::v25::FollowVerdict::Passed),
-        temper_engine_domain_forge_vocabulary::FollowVerdict::Failing(held) => Ok(crate::v25::FollowVerdict::Failing(crate::v25::FollowFailing { count: *held })),
-        temper_engine_domain_forge_vocabulary::FollowVerdict::Many => Ok(crate::v25::FollowVerdict::Many),
     }
 }
 
-// Maps line 461: FollowVerdict.
-pub fn follow_verdict_to_domain(record: crate::v25::FollowVerdict, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowVerdict, crate::v25::Problem> {
+#[must_use]
+pub fn follow_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::FollowVerdict) -> crate::v25::FollowVerdict {
+    match value {
+        temper_engine_domain_forge_vocabulary::FollowVerdict::Passed => crate::v25::FollowVerdict::Passed,
+        temper_engine_domain_forge_vocabulary::FollowVerdict::Failing(held) => crate::v25::FollowVerdict::Failing(crate::v25::FollowFailing { count: *held }),
+        temper_engine_domain_forge_vocabulary::FollowVerdict::Many => crate::v25::FollowVerdict::Many,
+    }
+}
+
+#[must_use]
+pub fn follow_verdict_to_domain(record: crate::v25::FollowVerdict) -> temper_engine_domain_forge_vocabulary::FollowVerdict {
     match record {
-        crate::v25::FollowVerdict::Passed => Ok(temper_engine_domain_forge_vocabulary::FollowVerdict::Passed),
-        crate::v25::FollowVerdict::Failing(held) => Ok(temper_engine_domain_forge_vocabulary::FollowVerdict::Failing({
+        crate::v25::FollowVerdict::Passed => temper_engine_domain_forge_vocabulary::FollowVerdict::Passed,
+        crate::v25::FollowVerdict::Failing(held) => temper_engine_domain_forge_vocabulary::FollowVerdict::Failing({
             let crate::v25::FollowFailing { count: held } = held;
             held
-        })),
-        crate::v25::FollowVerdict::Many => Ok(temper_engine_domain_forge_vocabulary::FollowVerdict::Many),
+        }),
+        crate::v25::FollowVerdict::Many => temper_engine_domain_forge_vocabulary::FollowVerdict::Many,
     }
 }
 
-// Maps line 462: FollowParity.
-pub fn follow_parity_to_record(value: &temper_engine_domain_forge_vocabulary::FollowParity, context: &crate::records::Context) -> Result<crate::v25::FollowParity, crate::v25::Problem> {
+#[must_use]
+pub fn follow_parity_to_record(value: &temper_engine_domain_forge_vocabulary::FollowParity) -> crate::v25::FollowParity {
     let temper_engine_domain_forge_vocabulary::FollowParity { source: field_000000, head: field_000001, verdict: field_000002, run: field_000003 } = value;
-    Ok(crate::v25::FollowParity {
+    crate::v25::FollowParity {
         source: *field_000000,
         head: *field_000001,
-        verdict: follow_verdict_to_record(field_000002, context)?,
+        verdict: follow_verdict_to_record(field_000002),
         run: field_000003.clone()
-    })
+    }
 }
 
-// Maps line 462: FollowParity.
-pub fn follow_parity_to_domain(record: crate::v25::FollowParity, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowParity, crate::v25::Problem> {
+#[must_use]
+pub fn follow_parity_to_domain(record: crate::v25::FollowParity) -> temper_engine_domain_forge_vocabulary::FollowParity {
     let crate::v25::FollowParity { source: field_000000, head: field_000001, verdict: field_000002, run: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FollowParity {
+    temper_engine_domain_forge_vocabulary::FollowParity {
         source: field_000000,
         head: field_000001,
-        verdict: follow_verdict_to_domain(field_000002, context)?,
+        verdict: follow_verdict_to_domain(field_000002),
         run: field_000003
-    })
+    }
 }
 
-// Maps line 463: FollowQuestion.
-pub fn follow_question_to_record(value: &temper_engine_domain_forge_vocabulary::FollowQuestion, _context: &crate::records::Context) -> Result<crate::v25::FollowQuestion, crate::v25::Problem> {
+#[must_use]
+pub fn follow_question_to_record(value: &temper_engine_domain_forge_vocabulary::FollowQuestion) -> crate::v25::FollowQuestion {
     let temper_engine_domain_forge_vocabulary::FollowQuestion { change: field_000000, number: field_000001, words: field_000002, person: field_000003, answer: field_000004, relayed: field_000005 } = value;
-    Ok(crate::v25::FollowQuestion {
+    crate::v25::FollowQuestion {
         change: *field_000000,
         number: *field_000001,
         words: field_000002.clone(),
         person: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         answer: match field_000004 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         relayed: match field_000005 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 463: FollowQuestion.
-pub fn follow_question_to_domain(record: crate::v25::FollowQuestion, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowQuestion, crate::v25::Problem> {
+#[must_use]
+pub fn follow_question_to_domain(record: crate::v25::FollowQuestion) -> temper_engine_domain_forge_vocabulary::FollowQuestion {
     let crate::v25::FollowQuestion { change: field_000000, number: field_000001, words: field_000002, person: field_000003, answer: field_000004, relayed: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FollowQuestion {
+    temper_engine_domain_forge_vocabulary::FollowQuestion {
         change: field_000000,
         number: field_000001,
         words: field_000002,
         person: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         answer: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         relayed: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 464: FollowRow.
-pub fn follow_row_to_record(value: &temper_engine_domain_forge_vocabulary::FollowRow, context: &crate::records::Context) -> Result<crate::v25::FollowRow, crate::v25::Problem> {
+pub fn follow_row_to_record(value: &temper_engine_domain_forge_vocabulary::FollowRow) -> Result<crate::v25::FollowRow, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::FollowRow { project: field_000000, follow: field_000001, source: field_000002, branch: field_000003, heard: field_000004, task: field_000005, stopped: field_000006, queue: field_000007, skips: field_000008, parity: field_000009, questions: field_000010, pending: field_000011 } = value;
     Ok(crate::v25::FollowRow {
         project: *field_000000,
         follow: *field_000001,
-        source: repository_to_record(field_000002, context)?,
+        source: repository_to_record(field_000002),
         branch: field_000003.clone(),
         heard: match field_000004 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         task: match field_000005 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         stopped: match field_000006 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         queue: {
@@ -7025,8 +7865,8 @@ pub fn follow_row_to_record(value: &temper_engine_domain_forge_vocabulary::Follo
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::FOLLOW_ROW_QUEUE.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = follow_entry_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ROW_QUEUE.problem(skein_codec::Reason::Bound)); }
+                let converted = follow_entry_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -7035,13 +7875,16 @@ pub fn follow_row_to_record(value: &temper_engine_domain_forge_vocabulary::Follo
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::FOLLOW_ROW_SKIPS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = follow_skip_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ROW_SKIPS.problem(skein_codec::Reason::Bound)); }
+                let converted = follow_skip_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         parity: match field_000009 {
-            Some(item) => Some(follow_parity_to_record(item, context)?),
+            Some(item) => {
+                let converted = follow_parity_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         questions: {
@@ -7049,36 +7892,47 @@ pub fn follow_row_to_record(value: &temper_engine_domain_forge_vocabulary::Follo
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::FOLLOW_ROW_QUESTIONS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = follow_question_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ROW_QUESTIONS.problem(skein_codec::Reason::Bound)); }
+                let converted = follow_question_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         pending: match field_000011 {
-            Some(item) => Some(follow_act_to_record(item, context)?),
+            Some(item) => {
+                let converted = follow_act_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 464: FollowRow.
 pub fn follow_row_to_domain(record: crate::v25::FollowRow, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowRow, crate::v25::Problem> {
     let crate::v25::FollowRow { project: field_000000, follow: field_000001, source: field_000002, branch: field_000003, heard: field_000004, task: field_000005, stopped: field_000006, queue: field_000007, skips: field_000008, parity: field_000009, questions: field_000010, pending: field_000011 } = record;
     Ok(temper_engine_domain_forge_vocabulary::FollowRow {
         project: field_000000,
         follow: field_000001,
-        source: repository_to_domain(field_000002, context)?,
+        source: repository_to_domain(field_000002),
         branch: field_000003,
         heard: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         task: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         stopped: match field_000006 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         queue: {
@@ -7087,7 +7941,7 @@ pub fn follow_row_to_domain(record: crate::v25::FollowRow, context: &crate::reco
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = follow_entry_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ROW_QUEUE.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -7096,13 +7950,16 @@ pub fn follow_row_to_domain(record: crate::v25::FollowRow, context: &crate::reco
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = follow_skip_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ROW_SKIPS.problem(skein_codec::Reason::Bound)); }
+                let converted = follow_skip_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         parity: match field_000009 {
-            Some(item) => Some(follow_parity_to_domain(item, context)?),
+            Some(item) => {
+                let converted = follow_parity_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         questions: {
@@ -7110,20 +7967,22 @@ pub fn follow_row_to_domain(record: crate::v25::FollowRow, context: &crate::reco
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = follow_question_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FOLLOW_ROW_QUESTIONS.problem(skein_codec::Reason::Bound)); }
+                let converted = follow_question_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         pending: match field_000011 {
-            Some(item) => Some(follow_act_to_domain(item, context)?),
+            Some(item) => {
+                let converted = follow_act_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 465: FollowCheckProgress.
-pub fn follow_check_progress_to_record(value: &temper_engine_domain_forge_vocabulary::FollowCheck, context: &crate::records::Context) -> Result<crate::v25::FollowCheckProgress, crate::v25::Problem> {
+pub fn follow_check_progress_to_record(value: &temper_engine_domain_forge_vocabulary::FollowCheck) -> Result<crate::v25::FollowCheckProgress, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::FollowCheck { follow: field_000000, source: field_000001, head: field_000002, definition: field_000003, key: field_000004, flight: field_000005, page: field_000006, faults: field_000007, held: field_000008 } = value;
     Ok(crate::v25::FollowCheckProgress {
         follow: *field_000000,
@@ -7131,138 +7990,194 @@ pub fn follow_check_progress_to_record(value: &temper_engine_domain_forge_vocabu
         head: *field_000002,
         definition: field_000003.clone(),
         key: match field_000004 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         flight: match field_000005 {
-            Some(item) => Some(tier_flight_to_record(item, context)?),
+            Some(item) => {
+                let converted = tier_flight_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         page: *field_000006,
         faults: *field_000007,
         held: match field_000008 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 465: FollowCheckProgress.
-pub fn follow_check_progress_to_domain(record: crate::v25::FollowCheckProgress, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FollowCheck, crate::v25::Problem> {
+#[must_use]
+pub fn follow_check_progress_to_domain(record: crate::v25::FollowCheckProgress) -> temper_engine_domain_forge_vocabulary::FollowCheck {
     let crate::v25::FollowCheckProgress { follow: field_000000, source: field_000001, head: field_000002, definition: field_000003, key: field_000004, flight: field_000005, page: field_000006, faults: field_000007, held: field_000008 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FollowCheck {
+    temper_engine_domain_forge_vocabulary::FollowCheck {
         follow: field_000000,
         source: field_000001,
         head: field_000002,
         definition: field_000003,
         key: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         flight: match field_000005 {
-            Some(item) => Some(tier_flight_to_domain(item, context)?),
+            Some(item) => {
+                let converted = tier_flight_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         page: field_000006,
         faults: field_000007,
         held: match field_000008 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 466: ChangeHistory.
-pub fn change_history_to_record(value: &temper_engine_domain_forge_vocabulary::history::ChangeHistory, _context: &crate::records::Context) -> Result<crate::v25::ChangeHistory, crate::v25::Problem> {
+#[must_use]
+pub fn change_history_to_record(value: &temper_engine_domain_forge_vocabulary::history::ChangeHistory) -> crate::v25::ChangeHistory {
     let temper_engine_domain_forge_vocabulary::history::ChangeHistory { last: field_000000, ready: field_000001, queued: field_000002, paused: field_000003, held: field_000004, landing_held: field_000005, delivered: field_000006 } = value;
-    Ok(crate::v25::ChangeHistory {
+    crate::v25::ChangeHistory {
         last: *field_000000,
         ready: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         queued: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         paused: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         held: match field_000004 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         landing_held: match field_000005 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         delivered: match field_000006 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 466: ChangeHistory.
-pub fn change_history_to_domain(record: crate::v25::ChangeHistory, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::ChangeHistory, crate::v25::Problem> {
+#[must_use]
+pub fn change_history_to_domain(record: crate::v25::ChangeHistory) -> temper_engine_domain_forge_vocabulary::history::ChangeHistory {
     let crate::v25::ChangeHistory { last: field_000000, ready: field_000001, queued: field_000002, paused: field_000003, held: field_000004, landing_held: field_000005, delivered: field_000006 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::ChangeHistory {
+    temper_engine_domain_forge_vocabulary::history::ChangeHistory {
         last: field_000000,
         ready: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         queued: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         paused: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         held: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         landing_held: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         delivered: match field_000006 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 467: HistoryMark.
-pub fn history_mark_to_record(value: &temper_engine_domain_forge_vocabulary::history::Mark, _context: &crate::records::Context) -> Result<crate::v25::HistoryMark, crate::v25::Problem> {
+#[must_use]
+pub fn history_mark_to_record(value: &temper_engine_domain_forge_vocabulary::history::Mark) -> crate::v25::HistoryMark {
     let temper_engine_domain_forge_vocabulary::history::Mark { hour: field_000000, first: field_000001 } = value;
-    Ok(crate::v25::HistoryMark {
-        hour: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_MARK_HOUR.problem(reason)) },
+    crate::v25::HistoryMark {
+        hour: skein_codec::convert::wall_to_record(field_000000),
         first: *field_000001
-    })
+    }
 }
 
-// Maps line 467: HistoryMark.
-pub fn history_mark_to_domain(record: crate::v25::HistoryMark, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Mark, crate::v25::Problem> {
+#[must_use]
+pub fn history_mark_to_domain(record: crate::v25::HistoryMark) -> temper_engine_domain_forge_vocabulary::history::Mark {
     let crate::v25::HistoryMark { hour: field_000000, first: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::Mark {
-        hour: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_MARK_HOUR.problem(reason)) },
+    temper_engine_domain_forge_vocabulary::history::Mark {
+        hour: skein_codec::convert::wall_to_domain(field_000000),
         first: field_000001
-    })
+    }
 }
 
-// Maps line 468: HistoryProject.
-pub fn history_project_to_record(value: &temper_engine_domain_forge_vocabulary::history::Project, context: &crate::records::Context) -> Result<crate::v25::HistoryProject, crate::v25::Problem> {
+pub fn history_project_to_record(value: &temper_engine_domain_forge_vocabulary::history::Project) -> Result<crate::v25::HistoryProject, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::history::Project { project: field_000000, next: field_000001, kept: field_000002, whole_since: field_000003, marks: field_000004, sweeping: field_000005, removing: field_000006 } = value;
     Ok(crate::v25::HistoryProject {
         project: *field_000000,
         next: *field_000001,
         kept: *field_000002,
         whole_since: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_PROJECT_WHOLE_SINCE.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         marks: {
@@ -7270,28 +8185,34 @@ pub fn history_project_to_record(value: &temper_engine_domain_forge_vocabulary::
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::HISTORY_PROJECT_MARKS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = history_mark_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::HISTORY_PROJECT_MARKS.problem(skein_codec::Reason::Bound)); }
+                let converted = history_mark_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         sweeping: match field_000005 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         removing: *field_000006
     })
 }
 
-// Maps line 468: HistoryProject.
-pub fn history_project_to_domain(record: crate::v25::HistoryProject, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Project, crate::v25::Problem> {
+#[must_use]
+pub fn history_project_to_domain(record: crate::v25::HistoryProject) -> temper_engine_domain_forge_vocabulary::history::Project {
     let crate::v25::HistoryProject { project: field_000000, next: field_000001, kept: field_000002, whole_since: field_000003, marks: field_000004, sweeping: field_000005, removing: field_000006 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::Project {
+    temper_engine_domain_forge_vocabulary::history::Project {
         project: field_000000,
         next: field_000001,
         kept: field_000002,
         whole_since: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_PROJECT_WHOLE_SINCE.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         marks: {
@@ -7299,1057 +8220,1165 @@ pub fn history_project_to_domain(record: crate::v25::HistoryProject, context: &c
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = history_mark_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::HISTORY_PROJECT_MARKS.problem(skein_codec::Reason::Bound)); }
+                let converted = history_mark_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         sweeping: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         removing: field_000006
-    })
+    }
 }
 
-// Maps line 469: HistoryInLanding.
-pub fn history_in_landing_to_record(value: &temper_engine_domain_forge_vocabulary::history::InLanding, _context: &crate::records::Context) -> Result<crate::v25::HistoryInLanding, crate::v25::Problem> {
+#[must_use]
+pub fn history_in_landing_to_record(value: &temper_engine_domain_forge_vocabulary::history::InLanding) -> crate::v25::HistoryInLanding {
     let temper_engine_domain_forge_vocabulary::history::InLanding { task: field_000000, round: field_000001, unit: field_000002 } = value;
-    Ok(crate::v25::HistoryInLanding {
+    crate::v25::HistoryInLanding {
         task: *field_000000,
         round: *field_000001,
         unit: *field_000002
-    })
+    }
 }
 
-// Maps line 469: HistoryInLanding.
-pub fn history_in_landing_to_domain(record: crate::v25::HistoryInLanding, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::InLanding, crate::v25::Problem> {
+#[must_use]
+pub fn history_in_landing_to_domain(record: crate::v25::HistoryInLanding) -> temper_engine_domain_forge_vocabulary::history::InLanding {
     let crate::v25::HistoryInLanding { task: field_000000, round: field_000001, unit: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::InLanding {
+    temper_engine_domain_forge_vocabulary::history::InLanding {
         task: field_000000,
         round: field_000001,
         unit: field_000002
-    })
+    }
 }
 
-// Maps line 470: HistoryUnready.
-pub fn history_unready_to_record(value: &temper_engine_domain_forge_vocabulary::history::Unready, _context: &crate::records::Context) -> Result<crate::v25::HistoryUnready, crate::v25::Problem> {
+#[must_use]
+pub fn history_unready_to_record(value: &temper_engine_domain_forge_vocabulary::history::Unready) -> crate::v25::HistoryUnready {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Unready::Held => Ok(crate::v25::HistoryUnready::Held),
-        temper_engine_domain_forge_vocabulary::history::Unready::HeadMoved => Ok(crate::v25::HistoryUnready::HeadMoved),
-        temper_engine_domain_forge_vocabulary::history::Unready::Refused => Ok(crate::v25::HistoryUnready::Refused),
-        temper_engine_domain_forge_vocabulary::history::Unready::Dependency => Ok(crate::v25::HistoryUnready::Dependency),
-        temper_engine_domain_forge_vocabulary::history::Unready::Approval => Ok(crate::v25::HistoryUnready::Approval),
-        temper_engine_domain_forge_vocabulary::history::Unready::Conflict => Ok(crate::v25::HistoryUnready::Conflict),
-        temper_engine_domain_forge_vocabulary::history::Unready::Closed => Ok(crate::v25::HistoryUnready::Closed),
+        temper_engine_domain_forge_vocabulary::history::Unready::Held => crate::v25::HistoryUnready::Held,
+        temper_engine_domain_forge_vocabulary::history::Unready::HeadMoved => crate::v25::HistoryUnready::HeadMoved,
+        temper_engine_domain_forge_vocabulary::history::Unready::Refused => crate::v25::HistoryUnready::Refused,
+        temper_engine_domain_forge_vocabulary::history::Unready::Dependency => crate::v25::HistoryUnready::Dependency,
+        temper_engine_domain_forge_vocabulary::history::Unready::Approval => crate::v25::HistoryUnready::Approval,
+        temper_engine_domain_forge_vocabulary::history::Unready::Conflict => crate::v25::HistoryUnready::Conflict,
+        temper_engine_domain_forge_vocabulary::history::Unready::Closed => crate::v25::HistoryUnready::Closed,
     }
 }
 
-// Maps line 470: HistoryUnready.
-pub fn history_unready_to_domain(record: crate::v25::HistoryUnready, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Unready, crate::v25::Problem> {
+#[must_use]
+pub fn history_unready_to_domain(record: crate::v25::HistoryUnready) -> temper_engine_domain_forge_vocabulary::history::Unready {
     match record {
-        crate::v25::HistoryUnready::Held => Ok(temper_engine_domain_forge_vocabulary::history::Unready::Held),
-        crate::v25::HistoryUnready::HeadMoved => Ok(temper_engine_domain_forge_vocabulary::history::Unready::HeadMoved),
-        crate::v25::HistoryUnready::Refused => Ok(temper_engine_domain_forge_vocabulary::history::Unready::Refused),
-        crate::v25::HistoryUnready::Dependency => Ok(temper_engine_domain_forge_vocabulary::history::Unready::Dependency),
-        crate::v25::HistoryUnready::Approval => Ok(temper_engine_domain_forge_vocabulary::history::Unready::Approval),
-        crate::v25::HistoryUnready::Conflict => Ok(temper_engine_domain_forge_vocabulary::history::Unready::Conflict),
-        crate::v25::HistoryUnready::Closed => Ok(temper_engine_domain_forge_vocabulary::history::Unready::Closed),
+        crate::v25::HistoryUnready::Held => temper_engine_domain_forge_vocabulary::history::Unready::Held,
+        crate::v25::HistoryUnready::HeadMoved => temper_engine_domain_forge_vocabulary::history::Unready::HeadMoved,
+        crate::v25::HistoryUnready::Refused => temper_engine_domain_forge_vocabulary::history::Unready::Refused,
+        crate::v25::HistoryUnready::Dependency => temper_engine_domain_forge_vocabulary::history::Unready::Dependency,
+        crate::v25::HistoryUnready::Approval => temper_engine_domain_forge_vocabulary::history::Unready::Approval,
+        crate::v25::HistoryUnready::Conflict => temper_engine_domain_forge_vocabulary::history::Unready::Conflict,
+        crate::v25::HistoryUnready::Closed => temper_engine_domain_forge_vocabulary::history::Unready::Closed,
     }
 }
 
-// Maps line 471: HistoryLine.
-pub fn history_line_to_record(value: &temper_engine_domain_forge_vocabulary::history::Line, _context: &crate::records::Context) -> Result<crate::v25::HistoryLine, crate::v25::Problem> {
+#[must_use]
+pub fn history_line_to_record(value: &temper_engine_domain_forge_vocabulary::history::Line) -> crate::v25::HistoryLine {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Line::Queue => Ok(crate::v25::HistoryLine::Queue),
-        temper_engine_domain_forge_vocabulary::history::Line::Landing => Ok(crate::v25::HistoryLine::Landing),
-        temper_engine_domain_forge_vocabulary::history::Line::ForgeQueue => Ok(crate::v25::HistoryLine::ForgeQueue),
+        temper_engine_domain_forge_vocabulary::history::Line::Queue => crate::v25::HistoryLine::Queue,
+        temper_engine_domain_forge_vocabulary::history::Line::Landing => crate::v25::HistoryLine::Landing,
+        temper_engine_domain_forge_vocabulary::history::Line::ForgeQueue => crate::v25::HistoryLine::ForgeQueue,
     }
 }
 
-// Maps line 471: HistoryLine.
-pub fn history_line_to_domain(record: crate::v25::HistoryLine, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Line, crate::v25::Problem> {
+#[must_use]
+pub fn history_line_to_domain(record: crate::v25::HistoryLine) -> temper_engine_domain_forge_vocabulary::history::Line {
     match record {
-        crate::v25::HistoryLine::Queue => Ok(temper_engine_domain_forge_vocabulary::history::Line::Queue),
-        crate::v25::HistoryLine::Landing => Ok(temper_engine_domain_forge_vocabulary::history::Line::Landing),
-        crate::v25::HistoryLine::ForgeQueue => Ok(temper_engine_domain_forge_vocabulary::history::Line::ForgeQueue),
+        crate::v25::HistoryLine::Queue => temper_engine_domain_forge_vocabulary::history::Line::Queue,
+        crate::v25::HistoryLine::Landing => temper_engine_domain_forge_vocabulary::history::Line::Landing,
+        crate::v25::HistoryLine::ForgeQueue => temper_engine_domain_forge_vocabulary::history::Line::ForgeQueue,
     }
 }
 
-// Maps line 474: HistoryDeparture.
-pub fn history_departure_to_record(value: &temper_engine_domain_forge_vocabulary::history::Departure, context: &crate::records::Context) -> Result<crate::v25::HistoryDeparture, crate::v25::Problem> {
+#[must_use]
+pub fn history_departure_to_record(value: &temper_engine_domain_forge_vocabulary::history::Departure) -> crate::v25::HistoryDeparture {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Departure::Landing(held) => Ok(crate::v25::HistoryDeparture::Landing(crate::v25::HistoryLandingDeparture { cause: crate::records::by_hand::landing_leave_to_record(held, context)? })),
-        temper_engine_domain_forge_vocabulary::history::Departure::Unready => Ok(crate::v25::HistoryDeparture::Unready),
-        temper_engine_domain_forge_vocabulary::history::Departure::Conflict => Ok(crate::v25::HistoryDeparture::Conflict),
-        temper_engine_domain_forge_vocabulary::history::Departure::Repair => Ok(crate::v25::HistoryDeparture::Repair),
-        temper_engine_domain_forge_vocabulary::history::Departure::Ejected => Ok(crate::v25::HistoryDeparture::Ejected),
+        temper_engine_domain_forge_vocabulary::history::Departure::Landing(held) => crate::v25::HistoryDeparture::Landing(crate::v25::HistoryLandingDeparture { cause: crate::records::by_hand::landing_leave_to_record(held) }),
+        temper_engine_domain_forge_vocabulary::history::Departure::Unready => crate::v25::HistoryDeparture::Unready,
+        temper_engine_domain_forge_vocabulary::history::Departure::Conflict => crate::v25::HistoryDeparture::Conflict,
+        temper_engine_domain_forge_vocabulary::history::Departure::Repair => crate::v25::HistoryDeparture::Repair,
+        temper_engine_domain_forge_vocabulary::history::Departure::Ejected => crate::v25::HistoryDeparture::Ejected,
     }
 }
 
-// Maps line 474: HistoryDeparture.
-pub fn history_departure_to_domain(record: crate::v25::HistoryDeparture, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Departure, crate::v25::Problem> {
+#[must_use]
+pub fn history_departure_to_domain(record: crate::v25::HistoryDeparture) -> temper_engine_domain_forge_vocabulary::history::Departure {
     match record {
-        crate::v25::HistoryDeparture::Landing(held) => Ok(temper_engine_domain_forge_vocabulary::history::Departure::Landing({
+        crate::v25::HistoryDeparture::Landing(held) => temper_engine_domain_forge_vocabulary::history::Departure::Landing({
             let crate::v25::HistoryLandingDeparture { cause: held } = held;
-            crate::records::by_hand::landing_leave_to_domain(held, context)?
-        })),
-        crate::v25::HistoryDeparture::Unready => Ok(temper_engine_domain_forge_vocabulary::history::Departure::Unready),
-        crate::v25::HistoryDeparture::Conflict => Ok(temper_engine_domain_forge_vocabulary::history::Departure::Conflict),
-        crate::v25::HistoryDeparture::Repair => Ok(temper_engine_domain_forge_vocabulary::history::Departure::Repair),
-        crate::v25::HistoryDeparture::Ejected => Ok(temper_engine_domain_forge_vocabulary::history::Departure::Ejected),
+            crate::records::by_hand::landing_leave_to_domain(held)
+        }),
+        crate::v25::HistoryDeparture::Unready => temper_engine_domain_forge_vocabulary::history::Departure::Unready,
+        crate::v25::HistoryDeparture::Conflict => temper_engine_domain_forge_vocabulary::history::Departure::Conflict,
+        crate::v25::HistoryDeparture::Repair => temper_engine_domain_forge_vocabulary::history::Departure::Repair,
+        crate::v25::HistoryDeparture::Ejected => temper_engine_domain_forge_vocabulary::history::Departure::Ejected,
     }
 }
 
-// Maps line 477: HistoryUpdateOutcome.
-pub fn history_update_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::history::UpdateOutcome, _context: &crate::records::Context) -> Result<crate::v25::HistoryUpdateOutcome, crate::v25::Problem> {
+#[must_use]
+pub fn history_update_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::history::UpdateOutcome) -> crate::v25::HistoryUpdateOutcome {
     match value {
-        temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Updated => Ok(crate::v25::HistoryUpdateOutcome::Updated),
-        temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Conflict => Ok(crate::v25::HistoryUpdateOutcome::Conflict),
-        temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Failed => Ok(crate::v25::HistoryUpdateOutcome::Failed),
+        temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Updated => crate::v25::HistoryUpdateOutcome::Updated,
+        temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Conflict => crate::v25::HistoryUpdateOutcome::Conflict,
+        temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Failed => crate::v25::HistoryUpdateOutcome::Failed,
     }
 }
 
-// Maps line 477: HistoryUpdateOutcome.
-pub fn history_update_outcome_to_domain(record: crate::v25::HistoryUpdateOutcome, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::UpdateOutcome, crate::v25::Problem> {
+#[must_use]
+pub fn history_update_outcome_to_domain(record: crate::v25::HistoryUpdateOutcome) -> temper_engine_domain_forge_vocabulary::history::UpdateOutcome {
     match record {
-        crate::v25::HistoryUpdateOutcome::Updated => Ok(temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Updated),
-        crate::v25::HistoryUpdateOutcome::Conflict => Ok(temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Conflict),
-        crate::v25::HistoryUpdateOutcome::Failed => Ok(temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Failed),
+        crate::v25::HistoryUpdateOutcome::Updated => temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Updated,
+        crate::v25::HistoryUpdateOutcome::Conflict => temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Conflict,
+        crate::v25::HistoryUpdateOutcome::Failed => temper_engine_domain_forge_vocabulary::history::UpdateOutcome::Failed,
     }
 }
 
-// Maps line 481: HistoryWith.
-pub fn history_with_to_record(value: &temper_engine_domain_forge_vocabulary::history::With, _context: &crate::records::Context) -> Result<crate::v25::HistoryWith, crate::v25::Problem> {
+#[must_use]
+pub fn history_with_to_record(value: &temper_engine_domain_forge_vocabulary::history::With) -> crate::v25::HistoryWith {
     match value {
-        temper_engine_domain_forge_vocabulary::history::With::Branch => Ok(crate::v25::HistoryWith::Branch),
-        temper_engine_domain_forge_vocabulary::history::With::Earlier => Ok(crate::v25::HistoryWith::Earlier),
+        temper_engine_domain_forge_vocabulary::history::With::Branch => crate::v25::HistoryWith::Branch,
+        temper_engine_domain_forge_vocabulary::history::With::Earlier => crate::v25::HistoryWith::Earlier,
     }
 }
 
-// Maps line 481: HistoryWith.
-pub fn history_with_to_domain(record: crate::v25::HistoryWith, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::With, crate::v25::Problem> {
+#[must_use]
+pub fn history_with_to_domain(record: crate::v25::HistoryWith) -> temper_engine_domain_forge_vocabulary::history::With {
     match record {
-        crate::v25::HistoryWith::Branch => Ok(temper_engine_domain_forge_vocabulary::history::With::Branch),
-        crate::v25::HistoryWith::Earlier => Ok(temper_engine_domain_forge_vocabulary::history::With::Earlier),
+        crate::v25::HistoryWith::Branch => temper_engine_domain_forge_vocabulary::history::With::Branch,
+        crate::v25::HistoryWith::Earlier => temper_engine_domain_forge_vocabulary::history::With::Earlier,
     }
 }
 
-// Maps line 483: HistoryAsk.
-pub fn history_ask_to_record(value: &temper_engine_domain_forge_vocabulary::history::Ask, _context: &crate::records::Context) -> Result<crate::v25::HistoryAsk, crate::v25::Problem> {
+#[must_use]
+pub fn history_ask_to_record(value: &temper_engine_domain_forge_vocabulary::history::Ask) -> crate::v25::HistoryAsk {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Ask::Resolution => Ok(crate::v25::HistoryAsk::Resolution),
-        temper_engine_domain_forge_vocabulary::history::Ask::Repair => Ok(crate::v25::HistoryAsk::Repair),
-        temper_engine_domain_forge_vocabulary::history::Ask::Judgement => Ok(crate::v25::HistoryAsk::Judgement),
+        temper_engine_domain_forge_vocabulary::history::Ask::Resolution => crate::v25::HistoryAsk::Resolution,
+        temper_engine_domain_forge_vocabulary::history::Ask::Repair => crate::v25::HistoryAsk::Repair,
+        temper_engine_domain_forge_vocabulary::history::Ask::Judgement => crate::v25::HistoryAsk::Judgement,
     }
 }
 
-// Maps line 483: HistoryAsk.
-pub fn history_ask_to_domain(record: crate::v25::HistoryAsk, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Ask, crate::v25::Problem> {
+#[must_use]
+pub fn history_ask_to_domain(record: crate::v25::HistoryAsk) -> temper_engine_domain_forge_vocabulary::history::Ask {
     match record {
-        crate::v25::HistoryAsk::Resolution => Ok(temper_engine_domain_forge_vocabulary::history::Ask::Resolution),
-        crate::v25::HistoryAsk::Repair => Ok(temper_engine_domain_forge_vocabulary::history::Ask::Repair),
-        crate::v25::HistoryAsk::Judgement => Ok(temper_engine_domain_forge_vocabulary::history::Ask::Judgement),
+        crate::v25::HistoryAsk::Resolution => temper_engine_domain_forge_vocabulary::history::Ask::Resolution,
+        crate::v25::HistoryAsk::Repair => temper_engine_domain_forge_vocabulary::history::Ask::Repair,
+        crate::v25::HistoryAsk::Judgement => temper_engine_domain_forge_vocabulary::history::Ask::Judgement,
     }
 }
 
-// Maps line 485: HistoryAnswer.
-pub fn history_answer_to_record(value: &temper_engine_domain_forge_vocabulary::history::Answer, _context: &crate::records::Context) -> Result<crate::v25::HistoryAnswer, crate::v25::Problem> {
+#[must_use]
+pub fn history_answer_to_record(value: &temper_engine_domain_forge_vocabulary::history::Answer) -> crate::v25::HistoryAnswer {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Answer::Pushed => Ok(crate::v25::HistoryAnswer::Pushed),
-        temper_engine_domain_forge_vocabulary::history::Answer::Passed => Ok(crate::v25::HistoryAnswer::Passed),
-        temper_engine_domain_forge_vocabulary::history::Answer::Refused => Ok(crate::v25::HistoryAnswer::Refused),
-        temper_engine_domain_forge_vocabulary::history::Answer::Nothing => Ok(crate::v25::HistoryAnswer::Nothing),
-        temper_engine_domain_forge_vocabulary::history::Answer::Failed => Ok(crate::v25::HistoryAnswer::Failed),
-        temper_engine_domain_forge_vocabulary::history::Answer::Cancelled => Ok(crate::v25::HistoryAnswer::Cancelled),
+        temper_engine_domain_forge_vocabulary::history::Answer::Pushed => crate::v25::HistoryAnswer::Pushed,
+        temper_engine_domain_forge_vocabulary::history::Answer::Passed => crate::v25::HistoryAnswer::Passed,
+        temper_engine_domain_forge_vocabulary::history::Answer::Refused => crate::v25::HistoryAnswer::Refused,
+        temper_engine_domain_forge_vocabulary::history::Answer::Nothing => crate::v25::HistoryAnswer::Nothing,
+        temper_engine_domain_forge_vocabulary::history::Answer::Failed => crate::v25::HistoryAnswer::Failed,
+        temper_engine_domain_forge_vocabulary::history::Answer::Cancelled => crate::v25::HistoryAnswer::Cancelled,
     }
 }
 
-// Maps line 485: HistoryAnswer.
-pub fn history_answer_to_domain(record: crate::v25::HistoryAnswer, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Answer, crate::v25::Problem> {
+#[must_use]
+pub fn history_answer_to_domain(record: crate::v25::HistoryAnswer) -> temper_engine_domain_forge_vocabulary::history::Answer {
     match record {
-        crate::v25::HistoryAnswer::Pushed => Ok(temper_engine_domain_forge_vocabulary::history::Answer::Pushed),
-        crate::v25::HistoryAnswer::Passed => Ok(temper_engine_domain_forge_vocabulary::history::Answer::Passed),
-        crate::v25::HistoryAnswer::Refused => Ok(temper_engine_domain_forge_vocabulary::history::Answer::Refused),
-        crate::v25::HistoryAnswer::Nothing => Ok(temper_engine_domain_forge_vocabulary::history::Answer::Nothing),
-        crate::v25::HistoryAnswer::Failed => Ok(temper_engine_domain_forge_vocabulary::history::Answer::Failed),
-        crate::v25::HistoryAnswer::Cancelled => Ok(temper_engine_domain_forge_vocabulary::history::Answer::Cancelled),
+        crate::v25::HistoryAnswer::Pushed => temper_engine_domain_forge_vocabulary::history::Answer::Pushed,
+        crate::v25::HistoryAnswer::Passed => temper_engine_domain_forge_vocabulary::history::Answer::Passed,
+        crate::v25::HistoryAnswer::Refused => temper_engine_domain_forge_vocabulary::history::Answer::Refused,
+        crate::v25::HistoryAnswer::Nothing => temper_engine_domain_forge_vocabulary::history::Answer::Nothing,
+        crate::v25::HistoryAnswer::Failed => temper_engine_domain_forge_vocabulary::history::Answer::Failed,
+        crate::v25::HistoryAnswer::Cancelled => temper_engine_domain_forge_vocabulary::history::Answer::Cancelled,
     }
 }
 
-// Maps line 488: HistoryPause.
-pub fn history_pause_to_record(value: &temper_engine_domain_forge_vocabulary::history::Pause, _context: &crate::records::Context) -> Result<crate::v25::HistoryPause, crate::v25::Problem> {
+#[must_use]
+pub fn history_pause_to_record(value: &temper_engine_domain_forge_vocabulary::history::Pause) -> crate::v25::HistoryPause {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Pause::BranchRed => Ok(crate::v25::HistoryPause::BranchRed),
-        temper_engine_domain_forge_vocabulary::history::Pause::TierRed => Ok(crate::v25::HistoryPause::TierRed),
+        temper_engine_domain_forge_vocabulary::history::Pause::BranchRed => crate::v25::HistoryPause::BranchRed,
+        temper_engine_domain_forge_vocabulary::history::Pause::TierRed => crate::v25::HistoryPause::TierRed,
     }
 }
 
-// Maps line 488: HistoryPause.
-pub fn history_pause_to_domain(record: crate::v25::HistoryPause, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Pause, crate::v25::Problem> {
+#[must_use]
+pub fn history_pause_to_domain(record: crate::v25::HistoryPause) -> temper_engine_domain_forge_vocabulary::history::Pause {
     match record {
-        crate::v25::HistoryPause::BranchRed => Ok(temper_engine_domain_forge_vocabulary::history::Pause::BranchRed),
-        crate::v25::HistoryPause::TierRed => Ok(temper_engine_domain_forge_vocabulary::history::Pause::TierRed),
+        crate::v25::HistoryPause::BranchRed => temper_engine_domain_forge_vocabulary::history::Pause::BranchRed,
+        crate::v25::HistoryPause::TierRed => temper_engine_domain_forge_vocabulary::history::Pause::TierRed,
     }
 }
 
-// Maps line 490: HistoryMember.
-pub fn history_member_to_record(value: &temper_engine_domain_forge_vocabulary::history::Member, _context: &crate::records::Context) -> Result<crate::v25::HistoryMember, crate::v25::Problem> {
+#[must_use]
+pub fn history_member_to_record(value: &temper_engine_domain_forge_vocabulary::history::Member) -> crate::v25::HistoryMember {
     let temper_engine_domain_forge_vocabulary::history::Member { change: field_000000, unit: field_000001, head: field_000002 } = value;
-    Ok(crate::v25::HistoryMember {
+    crate::v25::HistoryMember {
         change: *field_000000,
         unit: *field_000001,
         head: *field_000002
-    })
+    }
 }
 
-// Maps line 490: HistoryMember.
-pub fn history_member_to_domain(record: crate::v25::HistoryMember, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Member, crate::v25::Problem> {
+#[must_use]
+pub fn history_member_to_domain(record: crate::v25::HistoryMember) -> temper_engine_domain_forge_vocabulary::history::Member {
     let crate::v25::HistoryMember { change: field_000000, unit: field_000001, head: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::Member {
+    temper_engine_domain_forge_vocabulary::history::Member {
         change: field_000000,
         unit: field_000001,
         head: field_000002
-    })
+    }
 }
 
-// Maps line 492: HistoryRoundCause.
-pub fn history_round_cause_to_record(value: &temper_engine_domain_forge_vocabulary::history::RoundCause, _context: &crate::records::Context) -> Result<crate::v25::HistoryRoundCause, crate::v25::Problem> {
+#[must_use]
+pub fn history_round_cause_to_record(value: &temper_engine_domain_forge_vocabulary::history::RoundCause) -> crate::v25::HistoryRoundCause {
     match value {
-        temper_engine_domain_forge_vocabulary::history::RoundCause::Turned => Ok(crate::v25::HistoryRoundCause::Turned),
-        temper_engine_domain_forge_vocabulary::history::RoundCause::Left => Ok(crate::v25::HistoryRoundCause::Left),
-        temper_engine_domain_forge_vocabulary::history::RoundCause::Stale => Ok(crate::v25::HistoryRoundCause::Stale),
-        temper_engine_domain_forge_vocabulary::history::RoundCause::Cancelled => Ok(crate::v25::HistoryRoundCause::Cancelled),
-        temper_engine_domain_forge_vocabulary::history::RoundCause::Cut => Ok(crate::v25::HistoryRoundCause::Cut),
+        temper_engine_domain_forge_vocabulary::history::RoundCause::Turned => crate::v25::HistoryRoundCause::Turned,
+        temper_engine_domain_forge_vocabulary::history::RoundCause::Left => crate::v25::HistoryRoundCause::Left,
+        temper_engine_domain_forge_vocabulary::history::RoundCause::Stale => crate::v25::HistoryRoundCause::Stale,
+        temper_engine_domain_forge_vocabulary::history::RoundCause::Cancelled => crate::v25::HistoryRoundCause::Cancelled,
+        temper_engine_domain_forge_vocabulary::history::RoundCause::Cut => crate::v25::HistoryRoundCause::Cut,
     }
 }
 
-// Maps line 492: HistoryRoundCause.
-pub fn history_round_cause_to_domain(record: crate::v25::HistoryRoundCause, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::RoundCause, crate::v25::Problem> {
+#[must_use]
+pub fn history_round_cause_to_domain(record: crate::v25::HistoryRoundCause) -> temper_engine_domain_forge_vocabulary::history::RoundCause {
     match record {
-        crate::v25::HistoryRoundCause::Turned => Ok(temper_engine_domain_forge_vocabulary::history::RoundCause::Turned),
-        crate::v25::HistoryRoundCause::Left => Ok(temper_engine_domain_forge_vocabulary::history::RoundCause::Left),
-        crate::v25::HistoryRoundCause::Stale => Ok(temper_engine_domain_forge_vocabulary::history::RoundCause::Stale),
-        crate::v25::HistoryRoundCause::Cancelled => Ok(temper_engine_domain_forge_vocabulary::history::RoundCause::Cancelled),
-        crate::v25::HistoryRoundCause::Cut => Ok(temper_engine_domain_forge_vocabulary::history::RoundCause::Cut),
+        crate::v25::HistoryRoundCause::Turned => temper_engine_domain_forge_vocabulary::history::RoundCause::Turned,
+        crate::v25::HistoryRoundCause::Left => temper_engine_domain_forge_vocabulary::history::RoundCause::Left,
+        crate::v25::HistoryRoundCause::Stale => temper_engine_domain_forge_vocabulary::history::RoundCause::Stale,
+        crate::v25::HistoryRoundCause::Cancelled => temper_engine_domain_forge_vocabulary::history::RoundCause::Cancelled,
+        crate::v25::HistoryRoundCause::Cut => temper_engine_domain_forge_vocabulary::history::RoundCause::Cut,
     }
 }
 
-// Maps line 495: HistoryGateVerdict.
-pub fn history_gate_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::history::GateVerdict, _context: &crate::records::Context) -> Result<crate::v25::HistoryGateVerdict, crate::v25::Problem> {
+#[must_use]
+pub fn history_gate_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::history::GateVerdict) -> crate::v25::HistoryGateVerdict {
     match value {
-        temper_engine_domain_forge_vocabulary::history::GateVerdict::Passed => Ok(crate::v25::HistoryGateVerdict::Passed),
-        temper_engine_domain_forge_vocabulary::history::GateVerdict::Failed => Ok(crate::v25::HistoryGateVerdict::Failed),
-        temper_engine_domain_forge_vocabulary::history::GateVerdict::Fault => Ok(crate::v25::HistoryGateVerdict::Fault),
-        temper_engine_domain_forge_vocabulary::history::GateVerdict::Timeout => Ok(crate::v25::HistoryGateVerdict::Timeout),
-        temper_engine_domain_forge_vocabulary::history::GateVerdict::Superseded => Ok(crate::v25::HistoryGateVerdict::Superseded),
+        temper_engine_domain_forge_vocabulary::history::GateVerdict::Passed => crate::v25::HistoryGateVerdict::Passed,
+        temper_engine_domain_forge_vocabulary::history::GateVerdict::Failed => crate::v25::HistoryGateVerdict::Failed,
+        temper_engine_domain_forge_vocabulary::history::GateVerdict::Fault => crate::v25::HistoryGateVerdict::Fault,
+        temper_engine_domain_forge_vocabulary::history::GateVerdict::Timeout => crate::v25::HistoryGateVerdict::Timeout,
+        temper_engine_domain_forge_vocabulary::history::GateVerdict::Superseded => crate::v25::HistoryGateVerdict::Superseded,
     }
 }
 
-// Maps line 495: HistoryGateVerdict.
-pub fn history_gate_verdict_to_domain(record: crate::v25::HistoryGateVerdict, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::GateVerdict, crate::v25::Problem> {
+#[must_use]
+pub fn history_gate_verdict_to_domain(record: crate::v25::HistoryGateVerdict) -> temper_engine_domain_forge_vocabulary::history::GateVerdict {
     match record {
-        crate::v25::HistoryGateVerdict::Passed => Ok(temper_engine_domain_forge_vocabulary::history::GateVerdict::Passed),
-        crate::v25::HistoryGateVerdict::Failed => Ok(temper_engine_domain_forge_vocabulary::history::GateVerdict::Failed),
-        crate::v25::HistoryGateVerdict::Fault => Ok(temper_engine_domain_forge_vocabulary::history::GateVerdict::Fault),
-        crate::v25::HistoryGateVerdict::Timeout => Ok(temper_engine_domain_forge_vocabulary::history::GateVerdict::Timeout),
-        crate::v25::HistoryGateVerdict::Superseded => Ok(temper_engine_domain_forge_vocabulary::history::GateVerdict::Superseded),
+        crate::v25::HistoryGateVerdict::Passed => temper_engine_domain_forge_vocabulary::history::GateVerdict::Passed,
+        crate::v25::HistoryGateVerdict::Failed => temper_engine_domain_forge_vocabulary::history::GateVerdict::Failed,
+        crate::v25::HistoryGateVerdict::Fault => temper_engine_domain_forge_vocabulary::history::GateVerdict::Fault,
+        crate::v25::HistoryGateVerdict::Timeout => temper_engine_domain_forge_vocabulary::history::GateVerdict::Timeout,
+        crate::v25::HistoryGateVerdict::Superseded => temper_engine_domain_forge_vocabulary::history::GateVerdict::Superseded,
     }
 }
 
-// Maps line 497: HistoryProof.
-pub fn history_proof_to_record(value: &temper_engine_domain_forge_vocabulary::history::Proof, _context: &crate::records::Context) -> Result<crate::v25::HistoryProof, crate::v25::Problem> {
+#[must_use]
+pub fn history_proof_to_record(value: &temper_engine_domain_forge_vocabulary::history::Proof) -> crate::v25::HistoryProof {
     let temper_engine_domain_forge_vocabulary::history::Proof { gate: field_000000, run: field_000001 } = value;
-    Ok(crate::v25::HistoryProof {
+    crate::v25::HistoryProof {
         gate: *field_000000,
         run: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 497: HistoryProof.
-pub fn history_proof_to_domain(record: crate::v25::HistoryProof, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Proof, crate::v25::Problem> {
+#[must_use]
+pub fn history_proof_to_domain(record: crate::v25::HistoryProof) -> temper_engine_domain_forge_vocabulary::history::Proof {
     let crate::v25::HistoryProof { gate: field_000000, run: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::Proof {
+    temper_engine_domain_forge_vocabulary::history::Proof {
         gate: field_000000,
         run: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 502: HistoryRecordedState.
-pub fn history_recorded_state_to_record(value: &temper_engine_domain_forge_vocabulary::history::RecordedState, _context: &crate::records::Context) -> Result<crate::v25::HistoryRecordedState, crate::v25::Problem> {
+#[must_use]
+pub fn history_recorded_state_to_record(value: &temper_engine_domain_forge_vocabulary::history::RecordedState) -> crate::v25::HistoryRecordedState {
     match value {
-        temper_engine_domain_forge_vocabulary::history::RecordedState::Merged => Ok(crate::v25::HistoryRecordedState::Merged),
-        temper_engine_domain_forge_vocabulary::history::RecordedState::Closed => Ok(crate::v25::HistoryRecordedState::Closed),
+        temper_engine_domain_forge_vocabulary::history::RecordedState::Merged => crate::v25::HistoryRecordedState::Merged,
+        temper_engine_domain_forge_vocabulary::history::RecordedState::Closed => crate::v25::HistoryRecordedState::Closed,
     }
 }
 
-// Maps line 502: HistoryRecordedState.
-pub fn history_recorded_state_to_domain(record: crate::v25::HistoryRecordedState, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::RecordedState, crate::v25::Problem> {
+#[must_use]
+pub fn history_recorded_state_to_domain(record: crate::v25::HistoryRecordedState) -> temper_engine_domain_forge_vocabulary::history::RecordedState {
     match record {
-        crate::v25::HistoryRecordedState::Merged => Ok(temper_engine_domain_forge_vocabulary::history::RecordedState::Merged),
-        crate::v25::HistoryRecordedState::Closed => Ok(temper_engine_domain_forge_vocabulary::history::RecordedState::Closed),
+        crate::v25::HistoryRecordedState::Merged => temper_engine_domain_forge_vocabulary::history::RecordedState::Merged,
+        crate::v25::HistoryRecordedState::Closed => temper_engine_domain_forge_vocabulary::history::RecordedState::Closed,
     }
 }
 
-// Maps line 504: HistoryEnding.
-pub fn history_ending_to_record(value: &temper_engine_domain_forge_vocabulary::history::Ending, _context: &crate::records::Context) -> Result<crate::v25::HistoryEnding, crate::v25::Problem> {
+#[must_use]
+pub fn history_ending_to_record(value: &temper_engine_domain_forge_vocabulary::history::Ending) -> crate::v25::HistoryEnding {
     match value {
-        temper_engine_domain_forge_vocabulary::history::Ending::NoChange => Ok(crate::v25::HistoryEnding::NoChange),
-        temper_engine_domain_forge_vocabulary::history::Ending::Cancelled => Ok(crate::v25::HistoryEnding::Cancelled),
-        temper_engine_domain_forge_vocabulary::history::Ending::Failed => Ok(crate::v25::HistoryEnding::Failed),
+        temper_engine_domain_forge_vocabulary::history::Ending::NoChange => crate::v25::HistoryEnding::NoChange,
+        temper_engine_domain_forge_vocabulary::history::Ending::Cancelled => crate::v25::HistoryEnding::Cancelled,
+        temper_engine_domain_forge_vocabulary::history::Ending::Failed => crate::v25::HistoryEnding::Failed,
     }
 }
 
-// Maps line 504: HistoryEnding.
-pub fn history_ending_to_domain(record: crate::v25::HistoryEnding, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Ending, crate::v25::Problem> {
+#[must_use]
+pub fn history_ending_to_domain(record: crate::v25::HistoryEnding) -> temper_engine_domain_forge_vocabulary::history::Ending {
     match record {
-        crate::v25::HistoryEnding::NoChange => Ok(temper_engine_domain_forge_vocabulary::history::Ending::NoChange),
-        crate::v25::HistoryEnding::Cancelled => Ok(temper_engine_domain_forge_vocabulary::history::Ending::Cancelled),
-        crate::v25::HistoryEnding::Failed => Ok(temper_engine_domain_forge_vocabulary::history::Ending::Failed),
+        crate::v25::HistoryEnding::NoChange => temper_engine_domain_forge_vocabulary::history::Ending::NoChange,
+        crate::v25::HistoryEnding::Cancelled => temper_engine_domain_forge_vocabulary::history::Ending::Cancelled,
+        crate::v25::HistoryEnding::Failed => temper_engine_domain_forge_vocabulary::history::Ending::Failed,
     }
 }
 
-// Maps line 506: HistoryLandingOutcome.
-pub fn history_landing_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::history::LandingOutcome, _context: &crate::records::Context) -> Result<crate::v25::HistoryLandingOutcome, crate::v25::Problem> {
+#[must_use]
+pub fn history_landing_outcome_to_record(value: &temper_engine_domain_forge_vocabulary::history::LandingOutcome) -> crate::v25::HistoryLandingOutcome {
     match value {
-        temper_engine_domain_forge_vocabulary::history::LandingOutcome::Done => Ok(crate::v25::HistoryLandingOutcome::Done),
-        temper_engine_domain_forge_vocabulary::history::LandingOutcome::Cancelled => Ok(crate::v25::HistoryLandingOutcome::Cancelled),
-        temper_engine_domain_forge_vocabulary::history::LandingOutcome::Held => Ok(crate::v25::HistoryLandingOutcome::Held),
+        temper_engine_domain_forge_vocabulary::history::LandingOutcome::Done => crate::v25::HistoryLandingOutcome::Done,
+        temper_engine_domain_forge_vocabulary::history::LandingOutcome::Cancelled => crate::v25::HistoryLandingOutcome::Cancelled,
+        temper_engine_domain_forge_vocabulary::history::LandingOutcome::Held => crate::v25::HistoryLandingOutcome::Held,
     }
 }
 
-// Maps line 506: HistoryLandingOutcome.
-pub fn history_landing_outcome_to_domain(record: crate::v25::HistoryLandingOutcome, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::LandingOutcome, crate::v25::Problem> {
+#[must_use]
+pub fn history_landing_outcome_to_domain(record: crate::v25::HistoryLandingOutcome) -> temper_engine_domain_forge_vocabulary::history::LandingOutcome {
     match record {
-        crate::v25::HistoryLandingOutcome::Done => Ok(temper_engine_domain_forge_vocabulary::history::LandingOutcome::Done),
-        crate::v25::HistoryLandingOutcome::Cancelled => Ok(temper_engine_domain_forge_vocabulary::history::LandingOutcome::Cancelled),
-        crate::v25::HistoryLandingOutcome::Held => Ok(temper_engine_domain_forge_vocabulary::history::LandingOutcome::Held),
+        crate::v25::HistoryLandingOutcome::Done => temper_engine_domain_forge_vocabulary::history::LandingOutcome::Done,
+        crate::v25::HistoryLandingOutcome::Cancelled => temper_engine_domain_forge_vocabulary::history::LandingOutcome::Cancelled,
+        crate::v25::HistoryLandingOutcome::Held => temper_engine_domain_forge_vocabulary::history::LandingOutcome::Held,
     }
 }
 
-// Maps line 508: HistoryOn.
-pub fn history_on_to_record(value: &temper_engine_domain_forge_vocabulary::history::On, _context: &crate::records::Context) -> Result<crate::v25::HistoryOn, crate::v25::Problem> {
+#[must_use]
+pub fn history_on_to_record(value: &temper_engine_domain_forge_vocabulary::history::On) -> crate::v25::HistoryOn {
     match value {
-        temper_engine_domain_forge_vocabulary::history::On::Change => Ok(crate::v25::HistoryOn::Change),
-        temper_engine_domain_forge_vocabulary::history::On::Landing => Ok(crate::v25::HistoryOn::Landing),
+        temper_engine_domain_forge_vocabulary::history::On::Change => crate::v25::HistoryOn::Change,
+        temper_engine_domain_forge_vocabulary::history::On::Landing => crate::v25::HistoryOn::Landing,
     }
 }
 
-// Maps line 508: HistoryOn.
-pub fn history_on_to_domain(record: crate::v25::HistoryOn, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::On, crate::v25::Problem> {
+#[must_use]
+pub fn history_on_to_domain(record: crate::v25::HistoryOn) -> temper_engine_domain_forge_vocabulary::history::On {
     match record {
-        crate::v25::HistoryOn::Change => Ok(temper_engine_domain_forge_vocabulary::history::On::Change),
-        crate::v25::HistoryOn::Landing => Ok(temper_engine_domain_forge_vocabulary::history::On::Landing),
+        crate::v25::HistoryOn::Change => temper_engine_domain_forge_vocabulary::history::On::Change,
+        crate::v25::HistoryOn::Landing => temper_engine_domain_forge_vocabulary::history::On::Landing,
     }
 }
 
-// Maps line 509: HistoryBy.
-pub fn history_by_to_record(value: &temper_engine_domain_forge_vocabulary::history::By, _context: &crate::records::Context) -> Result<crate::v25::HistoryBy, crate::v25::Problem> {
+#[must_use]
+pub fn history_by_to_record(value: &temper_engine_domain_forge_vocabulary::history::By) -> crate::v25::HistoryBy {
     match value {
-        temper_engine_domain_forge_vocabulary::history::By::Party(held) => Ok(crate::v25::HistoryBy::Party(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::history::By::Task(held) => Ok(crate::v25::HistoryBy::Task(crate::v25::Number { number: *held })),
+        temper_engine_domain_forge_vocabulary::history::By::Party(held) => crate::v25::HistoryBy::Party(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::history::By::Task(held) => crate::v25::HistoryBy::Task(crate::v25::Number { number: *held }),
     }
 }
 
-// Maps line 509: HistoryBy.
-pub fn history_by_to_domain(record: crate::v25::HistoryBy, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::By, crate::v25::Problem> {
+#[must_use]
+pub fn history_by_to_domain(record: crate::v25::HistoryBy) -> temper_engine_domain_forge_vocabulary::history::By {
     match record {
-        crate::v25::HistoryBy::Party(held) => Ok(temper_engine_domain_forge_vocabulary::history::By::Party({
+        crate::v25::HistoryBy::Party(held) => temper_engine_domain_forge_vocabulary::history::By::Party({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::HistoryBy::Task(held) => Ok(temper_engine_domain_forge_vocabulary::history::By::Task({
+        }),
+        crate::v25::HistoryBy::Task(held) => temper_engine_domain_forge_vocabulary::history::By::Task({
             let crate::v25::Number { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 511: HistoryAfterVerdict.
-pub fn history_after_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::history::AfterVerdict, _context: &crate::records::Context) -> Result<crate::v25::HistoryAfterVerdict, crate::v25::Problem> {
+#[must_use]
+pub fn history_after_verdict_to_record(value: &temper_engine_domain_forge_vocabulary::history::AfterVerdict) -> crate::v25::HistoryAfterVerdict {
     match value {
-        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Verified => Ok(crate::v25::HistoryAfterVerdict::Verified),
-        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Red => Ok(crate::v25::HistoryAfterVerdict::Red),
-        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Cleared => Ok(crate::v25::HistoryAfterVerdict::Cleared),
-        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Uncleared => Ok(crate::v25::HistoryAfterVerdict::Uncleared),
+        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Verified => crate::v25::HistoryAfterVerdict::Verified,
+        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Red => crate::v25::HistoryAfterVerdict::Red,
+        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Cleared => crate::v25::HistoryAfterVerdict::Cleared,
+        temper_engine_domain_forge_vocabulary::history::AfterVerdict::Uncleared => crate::v25::HistoryAfterVerdict::Uncleared,
     }
 }
 
-// Maps line 511: HistoryAfterVerdict.
-pub fn history_after_verdict_to_domain(record: crate::v25::HistoryAfterVerdict, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::AfterVerdict, crate::v25::Problem> {
+#[must_use]
+pub fn history_after_verdict_to_domain(record: crate::v25::HistoryAfterVerdict) -> temper_engine_domain_forge_vocabulary::history::AfterVerdict {
     match record {
-        crate::v25::HistoryAfterVerdict::Verified => Ok(temper_engine_domain_forge_vocabulary::history::AfterVerdict::Verified),
-        crate::v25::HistoryAfterVerdict::Red => Ok(temper_engine_domain_forge_vocabulary::history::AfterVerdict::Red),
-        crate::v25::HistoryAfterVerdict::Cleared => Ok(temper_engine_domain_forge_vocabulary::history::AfterVerdict::Cleared),
-        crate::v25::HistoryAfterVerdict::Uncleared => Ok(temper_engine_domain_forge_vocabulary::history::AfterVerdict::Uncleared),
+        crate::v25::HistoryAfterVerdict::Verified => temper_engine_domain_forge_vocabulary::history::AfterVerdict::Verified,
+        crate::v25::HistoryAfterVerdict::Red => temper_engine_domain_forge_vocabulary::history::AfterVerdict::Red,
+        crate::v25::HistoryAfterVerdict::Cleared => temper_engine_domain_forge_vocabulary::history::AfterVerdict::Cleared,
+        crate::v25::HistoryAfterVerdict::Uncleared => temper_engine_domain_forge_vocabulary::history::AfterVerdict::Uncleared,
     }
 }
 
-// Maps line 514: HistoryWhat.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn history_what_to_record(value: &temper_engine_domain_forge_vocabulary::history::What, context: &crate::records::Context) -> Result<crate::v25::HistoryWhat, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::history::What::Ready => Ok(crate::v25::HistoryWhat::Ready),
-        temper_engine_domain_forge_vocabulary::history::What::Unready { why: field_000000 } => Ok(crate::v25::HistoryWhat::Unready(crate::v25::HistoryUnreadyStep {
-            why: history_unready_to_record(field_000000, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Joined { line: field_000000, place: field_000001, priority: field_000002 } => Ok(crate::v25::HistoryWhat::Joined(crate::v25::HistoryJoined {
-            line: history_line_to_record(field_000000, context)?,
+pub fn history_what_to_record(value: &temper_engine_domain_forge_vocabulary::history::What) -> Result<crate::v25::HistoryWhat, crate::v25::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge_vocabulary::history::What::Ready => crate::v25::HistoryWhat::Ready,
+        temper_engine_domain_forge_vocabulary::history::What::Unready { why: field_000000 } => crate::v25::HistoryWhat::Unready(crate::v25::HistoryUnreadyStep {
+            why: history_unready_to_record(field_000000)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Joined { line: field_000000, place: field_000001, priority: field_000002 } => crate::v25::HistoryWhat::Joined(crate::v25::HistoryJoined {
+            line: history_line_to_record(field_000000),
             place: match field_000001 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             },
             priority: match field_000002 {
-                Some(item) => Some(match crate::converters::signed_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_JOINED_PRIORITY.problem(reason)) }),
+                Some(item) => {
+                    let converted = crate::converters::signed_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Departed { line: field_000000, cause: field_000001 } => Ok(crate::v25::HistoryWhat::Departed(crate::v25::HistoryDeparted {
-            line: history_line_to_record(field_000000, context)?,
-            cause: history_departure_to_record(field_000001, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Selected => Ok(crate::v25::HistoryWhat::Selected),
-        temper_engine_domain_forge_vocabulary::history::What::Update { style: field_000000, forge_base: field_000001 } => Ok(crate::v25::HistoryWhat::Update(crate::v25::HistoryUpdate {
-            style: update_style_to_record(field_000000, context)?,
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Departed { line: field_000000, cause: field_000001 } => crate::v25::HistoryWhat::Departed(crate::v25::HistoryDeparted {
+            line: history_line_to_record(field_000000),
+            cause: history_departure_to_record(field_000001)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Selected => crate::v25::HistoryWhat::Selected,
+        temper_engine_domain_forge_vocabulary::history::What::Update { style: field_000000, forge_base: field_000001 } => crate::v25::HistoryWhat::Update(crate::v25::HistoryUpdate {
+            style: update_style_to_record(field_000000),
             forge_base: match field_000001 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Updated { outcome: field_000000, forge_base: field_000001 } => Ok(crate::v25::HistoryWhat::Updated(crate::v25::HistoryUpdated {
-            outcome: history_update_outcome_to_record(field_000000, context)?,
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Updated { outcome: field_000000, forge_base: field_000001 } => crate::v25::HistoryWhat::Updated(crate::v25::HistoryUpdated {
+            outcome: history_update_outcome_to_record(field_000000),
             forge_base: match field_000001 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Job { job: field_000000, task: field_000001 } => Ok(crate::v25::HistoryWhat::Job(crate::v25::HistoryJobStarted {
-            job: history_job_to_record(field_000000, context)?,
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Job { job: field_000000, task: field_000001 } => crate::v25::HistoryWhat::Job(crate::v25::HistoryJobStarted {
+            job: history_job_to_record(field_000000),
             task: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::JobEnded { job: field_000000, outcome: field_000001 } => Ok(crate::v25::HistoryWhat::JobEnded(crate::v25::HistoryJobEnded {
-            job: history_job_to_record(field_000000, context)?,
-            outcome: crate::records::by_hand::history_job_outcome_to_record(field_000001, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Conflict { with: field_000000, files: field_000001 } => Ok(crate::v25::HistoryWhat::Conflict(crate::v25::HistoryConflict {
-            with: history_with_to_record(field_000000, context)?,
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::JobEnded { job: field_000000, outcome: field_000001 } => crate::v25::HistoryWhat::JobEnded(crate::v25::HistoryJobEnded {
+            job: history_job_to_record(field_000000),
+            outcome: crate::records::by_hand::history_job_outcome_to_record(field_000001)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Conflict { with: field_000000, files: field_000001 } => crate::v25::HistoryWhat::Conflict(crate::v25::HistoryConflict {
+            with: history_with_to_record(field_000000),
             files: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Asked { ask: field_000000, task: field_000001, gate: field_000002 } => Ok(crate::v25::HistoryWhat::Asked(crate::v25::HistoryAsked {
-            ask: history_ask_to_record(field_000000, context)?,
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Asked { ask: field_000000, task: field_000001, gate: field_000002 } => crate::v25::HistoryWhat::Asked(crate::v25::HistoryAsked {
+            ask: history_ask_to_record(field_000000),
             task: *field_000001,
             gate: match field_000002 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Answered { ask: field_000000, outcome: field_000001 } => Ok(crate::v25::HistoryWhat::Answered(crate::v25::HistoryAnswered {
-            ask: history_ask_to_record(field_000000, context)?,
-            outcome: history_answer_to_record(field_000001, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Pushed => Ok(crate::v25::HistoryWhat::Pushed),
-        temper_engine_domain_forge_vocabulary::history::What::Delivered { checked: field_000000 } => Ok(crate::v25::HistoryWhat::Delivered(crate::v25::HistoryDelivered {
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Answered { ask: field_000000, outcome: field_000001 } => crate::v25::HistoryWhat::Answered(crate::v25::HistoryAnswered {
+            ask: history_ask_to_record(field_000000),
+            outcome: history_answer_to_record(field_000001)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Pushed => crate::v25::HistoryWhat::Pushed,
+        temper_engine_domain_forge_vocabulary::history::What::Delivered { checked: field_000000 } => crate::v25::HistoryWhat::Delivered(crate::v25::HistoryDelivered {
             checked: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Paused { why: field_000000 } => Ok(crate::v25::HistoryWhat::Paused(crate::v25::HistoryPaused {
-            why: history_pause_to_record(field_000000, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Resumed => Ok(crate::v25::HistoryWhat::Resumed),
-        temper_engine_domain_forge_vocabulary::history::What::Formed { members: field_000000, place: field_000001 } => Ok(crate::v25::HistoryWhat::Formed(crate::v25::HistoryFormed {
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Paused { why: field_000000 } => crate::v25::HistoryWhat::Paused(crate::v25::HistoryPaused {
+            why: history_pause_to_record(field_000000)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Resumed => crate::v25::HistoryWhat::Resumed,
+        temper_engine_domain_forge_vocabulary::history::What::Formed { members: field_000000, place: field_000001 } => crate::v25::HistoryWhat::Formed(crate::v25::HistoryFormed {
             members: {
                 let source = field_000000;
                 let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::HISTORY_FORMED_MEMBERS.problem(skein_codec::Reason::Bound)) };
                 let mut translated = skein_lib::List::with_capacity(count);
                 for item in source.as_ref() {
-                    let converted = history_member_to_record(item, context)?;
-                    if translated.push(converted).is_err() { return Err(crate::v25::paths::HISTORY_FORMED_MEMBERS.problem(skein_codec::Reason::Bound)); }
+                    let converted = history_member_to_record(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
                 }
                 translated
             },
             place: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::RoundEnded { cause: field_000000 } => Ok(crate::v25::HistoryWhat::RoundEnded(crate::v25::HistoryRoundEnded {
-            cause: history_round_cause_to_record(field_000000, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Gate { gate: field_000000, key: field_000001 } => Ok(crate::v25::HistoryWhat::Gate(crate::v25::HistoryGate {
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::RoundEnded { cause: field_000000 } => crate::v25::HistoryWhat::RoundEnded(crate::v25::HistoryRoundEnded {
+            cause: history_round_cause_to_record(field_000000)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Gate { gate: field_000000, key: field_000001 } => crate::v25::HistoryWhat::Gate(crate::v25::HistoryGate {
             gate: *field_000000,
             key: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::GateEnded { gate: field_000000, key: field_000001, verdict: field_000002 } => Ok(crate::v25::HistoryWhat::GateEnded(crate::v25::HistoryGateEnded {
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::GateEnded { gate: field_000000, key: field_000001, verdict: field_000002 } => crate::v25::HistoryWhat::GateEnded(crate::v25::HistoryGateEnded {
             gate: *field_000000,
             key: *field_000001,
-            verdict: history_gate_verdict_to_record(field_000002, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Proved { proofs: field_000000 } => Ok(crate::v25::HistoryWhat::Proved(crate::v25::HistoryProved {
+            verdict: history_gate_verdict_to_record(field_000002)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Proved { proofs: field_000000 } => crate::v25::HistoryWhat::Proved(crate::v25::HistoryProved {
             proofs: {
                 let source = field_000000;
                 let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::HISTORY_PROVED_PROOFS.problem(skein_codec::Reason::Bound)) };
                 let mut translated = skein_lib::List::with_capacity(count);
                 for item in source.as_ref() {
-                    let converted = history_proof_to_record(item, context)?;
-                    if translated.push(converted).is_err() { return Err(crate::v25::paths::HISTORY_PROVED_PROOFS.problem(skein_codec::Reason::Bound)); }
+                    let converted = history_proof_to_record(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
                 }
                 translated
             }
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Search => Ok(crate::v25::HistoryWhat::Search),
-        temper_engine_domain_forge_vocabulary::history::What::Searched { green: field_000000, red: field_000001, blamed: field_000002 } => Ok(crate::v25::HistoryWhat::Searched(crate::v25::HistorySearched {
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Search => crate::v25::HistoryWhat::Search,
+        temper_engine_domain_forge_vocabulary::history::What::Searched { green: field_000000, red: field_000001, blamed: field_000002 } => crate::v25::HistoryWhat::Searched(crate::v25::HistorySearched {
             green: match field_000000 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             },
             red: *field_000001,
             blamed: *field_000002
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Probe => Ok(crate::v25::HistoryWhat::Probe),
-        temper_engine_domain_forge_vocabulary::history::What::ProbeEnded { green: field_000000 } => Ok(crate::v25::HistoryWhat::ProbeEnded(crate::v25::HistoryProbeEnded {
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Probe => crate::v25::HistoryWhat::Probe,
+        temper_engine_domain_forge_vocabulary::history::What::ProbeEnded { green: field_000000 } => crate::v25::HistoryWhat::ProbeEnded(crate::v25::HistoryProbeEnded {
             green: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Turn { members: field_000000 } => Ok(crate::v25::HistoryWhat::Turn(crate::v25::HistoryTurn {
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Turn { members: field_000000 } => crate::v25::HistoryWhat::Turn(crate::v25::HistoryTurn {
             members: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Landed => Ok(crate::v25::HistoryWhat::Landed),
-        temper_engine_domain_forge_vocabulary::history::What::Recorded { state: field_000000 } => Ok(crate::v25::HistoryWhat::Recorded(crate::v25::HistoryRecorded {
-            state: history_recorded_state_to_record(field_000000, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Ended { ending: field_000000 } => Ok(crate::v25::HistoryWhat::Ended(crate::v25::HistoryEnded {
-            ending: history_ending_to_record(field_000000, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::LandingEnded { outcome: field_000000 } => Ok(crate::v25::HistoryWhat::LandingEnded(crate::v25::HistoryLandingEnded {
-            outcome: history_landing_outcome_to_record(field_000000, context)?
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Held { on: field_000000, reason: field_000001, by: field_000002 } => Ok(crate::v25::HistoryWhat::Held(crate::v25::HistoryHold {
-            on: history_on_to_record(field_000000, context)?,
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Landed => crate::v25::HistoryWhat::Landed,
+        temper_engine_domain_forge_vocabulary::history::What::Recorded { state: field_000000 } => crate::v25::HistoryWhat::Recorded(crate::v25::HistoryRecorded {
+            state: history_recorded_state_to_record(field_000000)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Ended { ending: field_000000 } => crate::v25::HistoryWhat::Ended(crate::v25::HistoryEnded {
+            ending: history_ending_to_record(field_000000)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::LandingEnded { outcome: field_000000 } => crate::v25::HistoryWhat::LandingEnded(crate::v25::HistoryLandingEnded {
+            outcome: history_landing_outcome_to_record(field_000000)
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Held { on: field_000000, reason: field_000001, by: field_000002 } => crate::v25::HistoryWhat::Held(crate::v25::HistoryHold {
+            on: history_on_to_record(field_000000),
             reason: field_000001.clone(),
             by: match field_000002 {
-                Some(item) => Some(history_by_to_record(item, context)?),
+                Some(item) => {
+                    let converted = history_by_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::Released { on: field_000000, reason: field_000001, by: field_000002 } => Ok(crate::v25::HistoryWhat::Released(crate::v25::HistoryHold {
-            on: history_on_to_record(field_000000, context)?,
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::Released { on: field_000000, reason: field_000001, by: field_000002 } => crate::v25::HistoryWhat::Released(crate::v25::HistoryHold {
+            on: history_on_to_record(field_000000),
             reason: field_000001.clone(),
             by: match field_000002 {
-                Some(item) => Some(history_by_to_record(item, context)?),
+                Some(item) => {
+                    let converted = history_by_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::history::What::After { verdict: field_000000 } => Ok(crate::v25::HistoryWhat::After(crate::v25::HistoryAfter {
-            verdict: history_after_verdict_to_record(field_000000, context)?
-        })),
-    }
+        }),
+        temper_engine_domain_forge_vocabulary::history::What::After { verdict: field_000000 } => crate::v25::HistoryWhat::After(crate::v25::HistoryAfter {
+            verdict: history_after_verdict_to_record(field_000000)
+        }),
+    })
 }
 
-// Maps line 514: HistoryWhat.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn history_what_to_domain(record: crate::v25::HistoryWhat, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::What, crate::v25::Problem> {
+#[must_use]
+pub fn history_what_to_domain(record: crate::v25::HistoryWhat) -> temper_engine_domain_forge_vocabulary::history::What {
     match record {
-        crate::v25::HistoryWhat::Ready => Ok(temper_engine_domain_forge_vocabulary::history::What::Ready),
+        crate::v25::HistoryWhat::Ready => temper_engine_domain_forge_vocabulary::history::What::Ready,
         crate::v25::HistoryWhat::Unready(held) => {
             let crate::v25::HistoryUnreadyStep { why: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Unready {
-                why: history_unready_to_domain(field_000000, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::Unready {
+                why: history_unready_to_domain(field_000000)
+            }
         },
         crate::v25::HistoryWhat::Joined(held) => {
             let crate::v25::HistoryJoined { line: field_000000, place: field_000001, priority: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Joined {
-                line: history_line_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Joined {
+                line: history_line_to_domain(field_000000),
                 place: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 },
                 priority: match field_000002 {
-                    Some(item) => Some(match crate::converters::signed_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_JOINED_PRIORITY.problem(reason)) }),
+                    Some(item) => {
+                        let converted = crate::converters::signed_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::HistoryWhat::Departed(held) => {
             let crate::v25::HistoryDeparted { line: field_000000, cause: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Departed {
-                line: history_line_to_domain(field_000000, context)?,
-                cause: history_departure_to_domain(field_000001, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::Departed {
+                line: history_line_to_domain(field_000000),
+                cause: history_departure_to_domain(field_000001)
+            }
         },
-        crate::v25::HistoryWhat::Selected => Ok(temper_engine_domain_forge_vocabulary::history::What::Selected),
+        crate::v25::HistoryWhat::Selected => temper_engine_domain_forge_vocabulary::history::What::Selected,
         crate::v25::HistoryWhat::Update(held) => {
             let crate::v25::HistoryUpdate { style: field_000000, forge_base: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Update {
-                style: update_style_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Update {
+                style: update_style_to_domain(field_000000),
                 forge_base: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::HistoryWhat::Updated(held) => {
             let crate::v25::HistoryUpdated { outcome: field_000000, forge_base: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Updated {
-                outcome: history_update_outcome_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Updated {
+                outcome: history_update_outcome_to_domain(field_000000),
                 forge_base: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::HistoryWhat::Job(held) => {
             let crate::v25::HistoryJobStarted { job: field_000000, task: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Job {
-                job: history_job_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Job {
+                job: history_job_to_domain(field_000000),
                 task: field_000001
-            })
+            }
         },
         crate::v25::HistoryWhat::JobEnded(held) => {
             let crate::v25::HistoryJobEnded { job: field_000000, outcome: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::JobEnded {
-                job: history_job_to_domain(field_000000, context)?,
-                outcome: crate::records::by_hand::history_job_outcome_to_domain(field_000001, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::JobEnded {
+                job: history_job_to_domain(field_000000),
+                outcome: crate::records::by_hand::history_job_outcome_to_domain(field_000001)
+            }
         },
         crate::v25::HistoryWhat::Conflict(held) => {
             let crate::v25::HistoryConflict { with: field_000000, files: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Conflict {
-                with: history_with_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Conflict {
+                with: history_with_to_domain(field_000000),
                 files: field_000001
-            })
+            }
         },
         crate::v25::HistoryWhat::Asked(held) => {
             let crate::v25::HistoryAsked { ask: field_000000, task: field_000001, gate: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Asked {
-                ask: history_ask_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Asked {
+                ask: history_ask_to_domain(field_000000),
                 task: field_000001,
                 gate: match field_000002 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::HistoryWhat::Answered(held) => {
             let crate::v25::HistoryAnswered { ask: field_000000, outcome: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Answered {
-                ask: history_ask_to_domain(field_000000, context)?,
-                outcome: history_answer_to_domain(field_000001, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::Answered {
+                ask: history_ask_to_domain(field_000000),
+                outcome: history_answer_to_domain(field_000001)
+            }
         },
-        crate::v25::HistoryWhat::Pushed => Ok(temper_engine_domain_forge_vocabulary::history::What::Pushed),
+        crate::v25::HistoryWhat::Pushed => temper_engine_domain_forge_vocabulary::history::What::Pushed,
         crate::v25::HistoryWhat::Delivered(held) => {
             let crate::v25::HistoryDelivered { checked: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Delivered {
+            temper_engine_domain_forge_vocabulary::history::What::Delivered {
                 checked: field_000000
-            })
+            }
         },
         crate::v25::HistoryWhat::Paused(held) => {
             let crate::v25::HistoryPaused { why: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Paused {
-                why: history_pause_to_domain(field_000000, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::Paused {
+                why: history_pause_to_domain(field_000000)
+            }
         },
-        crate::v25::HistoryWhat::Resumed => Ok(temper_engine_domain_forge_vocabulary::history::What::Resumed),
+        crate::v25::HistoryWhat::Resumed => temper_engine_domain_forge_vocabulary::history::What::Resumed,
         crate::v25::HistoryWhat::Formed(held) => {
             let crate::v25::HistoryFormed { members: field_000000, place: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Formed {
+            temper_engine_domain_forge_vocabulary::history::What::Formed {
                 members: {
                     let source = field_000000;
                     let count = source.len();
                     let mut translated = skein_lib::List::with_capacity(count);
                     for item in source.into_boxed() {
-                        let converted = history_member_to_domain(item, context)?;
-                        if translated.push(converted).is_err() { return Err(crate::v25::paths::HISTORY_FORMED_MEMBERS.problem(skein_codec::Reason::Bound)); }
+                        let converted = history_member_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
                     }
                     Box::from(translated)
                 },
                 place: field_000001
-            })
+            }
         },
         crate::v25::HistoryWhat::RoundEnded(held) => {
             let crate::v25::HistoryRoundEnded { cause: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::RoundEnded {
-                cause: history_round_cause_to_domain(field_000000, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::RoundEnded {
+                cause: history_round_cause_to_domain(field_000000)
+            }
         },
         crate::v25::HistoryWhat::Gate(held) => {
             let crate::v25::HistoryGate { gate: field_000000, key: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Gate {
+            temper_engine_domain_forge_vocabulary::history::What::Gate {
                 gate: field_000000,
                 key: field_000001
-            })
+            }
         },
         crate::v25::HistoryWhat::GateEnded(held) => {
             let crate::v25::HistoryGateEnded { gate: field_000000, key: field_000001, verdict: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::GateEnded {
+            temper_engine_domain_forge_vocabulary::history::What::GateEnded {
                 gate: field_000000,
                 key: field_000001,
-                verdict: history_gate_verdict_to_domain(field_000002, context)?
-            })
+                verdict: history_gate_verdict_to_domain(field_000002)
+            }
         },
         crate::v25::HistoryWhat::Proved(held) => {
             let crate::v25::HistoryProved { proofs: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Proved {
+            temper_engine_domain_forge_vocabulary::history::What::Proved {
                 proofs: {
                     let source = field_000000;
                     let count = source.len();
                     let mut translated = skein_lib::List::with_capacity(count);
                     for item in source.into_boxed() {
-                        let converted = history_proof_to_domain(item, context)?;
-                        if translated.push(converted).is_err() { return Err(crate::v25::paths::HISTORY_PROVED_PROOFS.problem(skein_codec::Reason::Bound)); }
+                        let converted = history_proof_to_domain(item);
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
                     }
                     Box::from(translated)
                 }
-            })
+            }
         },
-        crate::v25::HistoryWhat::Search => Ok(temper_engine_domain_forge_vocabulary::history::What::Search),
+        crate::v25::HistoryWhat::Search => temper_engine_domain_forge_vocabulary::history::What::Search,
         crate::v25::HistoryWhat::Searched(held) => {
             let crate::v25::HistorySearched { green: field_000000, red: field_000001, blamed: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Searched {
+            temper_engine_domain_forge_vocabulary::history::What::Searched {
                 green: match field_000000 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 },
                 red: field_000001,
                 blamed: field_000002
-            })
+            }
         },
-        crate::v25::HistoryWhat::Probe => Ok(temper_engine_domain_forge_vocabulary::history::What::Probe),
+        crate::v25::HistoryWhat::Probe => temper_engine_domain_forge_vocabulary::history::What::Probe,
         crate::v25::HistoryWhat::ProbeEnded(held) => {
             let crate::v25::HistoryProbeEnded { green: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::ProbeEnded {
+            temper_engine_domain_forge_vocabulary::history::What::ProbeEnded {
                 green: field_000000
-            })
+            }
         },
         crate::v25::HistoryWhat::Turn(held) => {
             let crate::v25::HistoryTurn { members: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Turn {
+            temper_engine_domain_forge_vocabulary::history::What::Turn {
                 members: field_000000
-            })
+            }
         },
-        crate::v25::HistoryWhat::Landed => Ok(temper_engine_domain_forge_vocabulary::history::What::Landed),
+        crate::v25::HistoryWhat::Landed => temper_engine_domain_forge_vocabulary::history::What::Landed,
         crate::v25::HistoryWhat::Recorded(held) => {
             let crate::v25::HistoryRecorded { state: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Recorded {
-                state: history_recorded_state_to_domain(field_000000, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::Recorded {
+                state: history_recorded_state_to_domain(field_000000)
+            }
         },
         crate::v25::HistoryWhat::Ended(held) => {
             let crate::v25::HistoryEnded { ending: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Ended {
-                ending: history_ending_to_domain(field_000000, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::Ended {
+                ending: history_ending_to_domain(field_000000)
+            }
         },
         crate::v25::HistoryWhat::LandingEnded(held) => {
             let crate::v25::HistoryLandingEnded { outcome: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::LandingEnded {
-                outcome: history_landing_outcome_to_domain(field_000000, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::LandingEnded {
+                outcome: history_landing_outcome_to_domain(field_000000)
+            }
         },
         crate::v25::HistoryWhat::Held(held) => {
             let crate::v25::HistoryHold { on: field_000000, reason: field_000001, by: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Held {
-                on: history_on_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Held {
+                on: history_on_to_domain(field_000000),
                 reason: field_000001,
                 by: match field_000002 {
-                    Some(item) => Some(history_by_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = history_by_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::HistoryWhat::Released(held) => {
             let crate::v25::HistoryHold { on: field_000000, reason: field_000001, by: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::Released {
-                on: history_on_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::history::What::Released {
+                on: history_on_to_domain(field_000000),
                 reason: field_000001,
                 by: match field_000002 {
-                    Some(item) => Some(history_by_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = history_by_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::v25::HistoryWhat::After(held) => {
             let crate::v25::HistoryAfter { verdict: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::history::What::After {
-                verdict: history_after_verdict_to_domain(field_000000, context)?
-            })
+            temper_engine_domain_forge_vocabulary::history::What::After {
+                verdict: history_after_verdict_to_domain(field_000000)
+            }
         },
     }
 }
 
-// Maps line 515: HistoryEvent.
-pub fn history_event_to_record(value: &temper_engine_domain_forge_vocabulary::history::Event, context: &crate::records::Context) -> Result<crate::v25::HistoryEvent, crate::v25::Problem> {
+pub fn history_event_to_record(value: &temper_engine_domain_forge_vocabulary::history::Event) -> Result<crate::v25::HistoryEvent, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::history::Event { project: field_000000, number: field_000001, at: field_000002, source_at: field_000003, change: field_000004, repository: field_000005, landing: field_000006, head: field_000007, base: field_000008, operation: field_000009, attempt: field_000010, what: field_000011 } = value;
     Ok(crate::v25::HistoryEvent {
         project: *field_000000,
         number: *field_000001,
-        at: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_EVENT_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000002),
         source_at: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_EVENT_SOURCE_AT.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         change: *field_000004,
-        repository: repository_to_record(field_000005, context)?,
+        repository: repository_to_record(field_000005),
         landing: match field_000006 {
-            Some(item) => Some(history_in_landing_to_record(item, context)?),
+            Some(item) => {
+                let converted = history_in_landing_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         head: match field_000007 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         base: match field_000008 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         operation: *field_000009,
         attempt: *field_000010,
-        what: history_what_to_record(field_000011, context)?
+        what: history_what_to_record(field_000011)?
     })
 }
 
-// Maps line 515: HistoryEvent.
-pub fn history_event_to_domain(record: crate::v25::HistoryEvent, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Event, crate::v25::Problem> {
+#[must_use]
+pub fn history_event_to_domain(record: crate::v25::HistoryEvent) -> temper_engine_domain_forge_vocabulary::history::Event {
     let crate::v25::HistoryEvent { project: field_000000, number: field_000001, at: field_000002, source_at: field_000003, change: field_000004, repository: field_000005, landing: field_000006, head: field_000007, base: field_000008, operation: field_000009, attempt: field_000010, what: field_000011 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::Event {
+    temper_engine_domain_forge_vocabulary::history::Event {
         project: field_000000,
         number: field_000001,
-        at: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_EVENT_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000002),
         source_at: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_EVENT_SOURCE_AT.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         change: field_000004,
-        repository: repository_to_domain(field_000005, context)?,
+        repository: repository_to_domain(field_000005),
         landing: match field_000006 {
-            Some(item) => Some(history_in_landing_to_domain(item, context)?),
+            Some(item) => {
+                let converted = history_in_landing_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         head: match field_000007 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         base: match field_000008 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         operation: field_000009,
         attempt: field_000010,
-        what: history_what_to_domain(field_000011, context)?
-    })
+        what: history_what_to_domain(field_000011)
+    }
 }
 
-// Maps line 516: HistoryChange.
-pub fn history_change_to_record(value: &temper_engine_domain_forge_vocabulary::history::ChangeIndex, _context: &crate::records::Context) -> Result<crate::v25::HistoryChange, crate::v25::Problem> {
+#[must_use]
+pub fn history_change_to_record(value: &temper_engine_domain_forge_vocabulary::history::ChangeIndex) -> crate::v25::HistoryChange {
     let temper_engine_domain_forge_vocabulary::history::ChangeIndex { project: field_000000, change: field_000001, number: field_000002, landing: field_000003 } = value;
-    Ok(crate::v25::HistoryChange {
+    crate::v25::HistoryChange {
         project: *field_000000,
         change: *field_000001,
         number: *field_000002,
         landing: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 516: HistoryChange.
-pub fn history_change_to_domain(record: crate::v25::HistoryChange, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::ChangeIndex, crate::v25::Problem> {
+#[must_use]
+pub fn history_change_to_domain(record: crate::v25::HistoryChange) -> temper_engine_domain_forge_vocabulary::history::ChangeIndex {
     let crate::v25::HistoryChange { project: field_000000, change: field_000001, number: field_000002, landing: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::ChangeIndex {
+    temper_engine_domain_forge_vocabulary::history::ChangeIndex {
         project: field_000000,
         change: field_000001,
         number: field_000002,
         landing: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 517: HistoryLanding.
-pub fn history_landing_to_record(value: &temper_engine_domain_forge_vocabulary::history::LandingIndex, _context: &crate::records::Context) -> Result<crate::v25::HistoryLanding, crate::v25::Problem> {
+#[must_use]
+pub fn history_landing_to_record(value: &temper_engine_domain_forge_vocabulary::history::LandingIndex) -> crate::v25::HistoryLanding {
     let temper_engine_domain_forge_vocabulary::history::LandingIndex { project: field_000000, landing: field_000001, number: field_000002, change: field_000003 } = value;
-    Ok(crate::v25::HistoryLanding {
+    crate::v25::HistoryLanding {
         project: *field_000000,
         landing: *field_000001,
         number: *field_000002,
         change: *field_000003
-    })
+    }
 }
 
-// Maps line 517: HistoryLanding.
-pub fn history_landing_to_domain(record: crate::v25::HistoryLanding, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::LandingIndex, crate::v25::Problem> {
+#[must_use]
+pub fn history_landing_to_domain(record: crate::v25::HistoryLanding) -> temper_engine_domain_forge_vocabulary::history::LandingIndex {
     let crate::v25::HistoryLanding { project: field_000000, landing: field_000001, number: field_000002, change: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::LandingIndex {
+    temper_engine_domain_forge_vocabulary::history::LandingIndex {
         project: field_000000,
         landing: field_000001,
         number: field_000002,
         change: field_000003
-    })
+    }
 }
 
-// Maps line 518: HistoryLast.
-pub fn history_last_to_record(value: &temper_engine_domain_forge_vocabulary::history::Last, _context: &crate::records::Context) -> Result<crate::v25::HistoryLast, crate::v25::Problem> {
+#[must_use]
+pub fn history_last_to_record(value: &temper_engine_domain_forge_vocabulary::history::Last) -> crate::v25::HistoryLast {
     let temper_engine_domain_forge_vocabulary::history::Last { project: field_000000, number: field_000001, change: field_000002, at: field_000003 } = value;
-    Ok(crate::v25::HistoryLast {
+    crate::v25::HistoryLast {
         project: *field_000000,
         number: *field_000001,
         change: *field_000002,
-        at: match skein_codec::convert::wall_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_LAST_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_record(field_000003)
+    }
 }
 
-// Maps line 518: HistoryLast.
-pub fn history_last_to_domain(record: crate::v25::HistoryLast, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::history::Last, crate::v25::Problem> {
+#[must_use]
+pub fn history_last_to_domain(record: crate::v25::HistoryLast) -> temper_engine_domain_forge_vocabulary::history::Last {
     let crate::v25::HistoryLast { project: field_000000, number: field_000001, change: field_000002, at: field_000003 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::history::Last {
+    temper_engine_domain_forge_vocabulary::history::Last {
         project: field_000000,
         number: field_000001,
         change: field_000002,
-        at: match skein_codec::convert::wall_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::HISTORY_LAST_AT.problem(reason)) }
-    })
-}
-
-// Maps line 519: TaskRelease.
-pub fn task_release_to_record(value: &temper_engine_domain_forge_vocabulary::TaskRelease, _context: &crate::records::Context) -> Result<crate::v25::TaskRelease, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::TaskRelease { revision: field_000000, at: field_000001 } = value;
-    Ok(crate::v25::TaskRelease {
-        revision: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TASK_RELEASE_AT.problem(reason)) }
-    })
-}
-
-// Maps line 519: TaskRelease.
-pub fn task_release_to_domain(record: crate::v25::TaskRelease, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::TaskRelease, crate::v25::Problem> {
-    let crate::v25::TaskRelease { revision: field_000000, at: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::TaskRelease {
-        revision: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::TASK_RELEASE_AT.problem(reason)) }
-    })
-}
-
-// Maps line 521: Topic.
-pub fn topic_to_record(value: &temper_engine_domain_forge_vocabulary::Topic, context: &crate::records::Context) -> Result<crate::v25::Topic, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::Topic::Landings { repository: field_000000, branch: field_000001 } => Ok(crate::v25::Topic::Landings(crate::v25::LandingsTopic {
-            repository: repository_to_record(field_000000, context)?,
-            branch: field_000001.clone()
-        })),
-        temper_engine_domain_forge_vocabulary::Topic::Ci { repository: field_000000, head: field_000001 } => Ok(crate::v25::Topic::Ci(crate::v25::CiTopic {
-            repository: repository_to_record(field_000000, context)?,
-            head: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::Topic::Pull { repository: field_000000, number: field_000001 } => Ok(crate::v25::Topic::Pull(crate::v25::NumberTopic {
-            repository: repository_to_record(field_000000, context)?,
-            number: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::Topic::Participation { repository: field_000000, number: field_000001 } => Ok(crate::v25::Topic::Participation(crate::v25::NumberTopic {
-            repository: repository_to_record(field_000000, context)?,
-            number: *field_000001
-        })),
-        temper_engine_domain_forge_vocabulary::Topic::Findings { project: field_000000 } => Ok(crate::v25::Topic::Findings(crate::v25::FindingsTopic {
-            project: *field_000000
-        })),
+        at: skein_codec::convert::wall_to_domain(field_000003)
     }
 }
 
-// Maps line 521: Topic.
-pub fn topic_to_domain(record: crate::v25::Topic, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Topic, crate::v25::Problem> {
+#[must_use]
+pub fn task_release_to_record(value: &temper_engine_domain_forge_vocabulary::TaskRelease) -> crate::v25::TaskRelease {
+    let temper_engine_domain_forge_vocabulary::TaskRelease { revision: field_000000, at: field_000001 } = value;
+    crate::v25::TaskRelease {
+        revision: *field_000000,
+        at: skein_codec::convert::wall_to_record(field_000001)
+    }
+}
+
+#[must_use]
+pub fn task_release_to_domain(record: crate::v25::TaskRelease) -> temper_engine_domain_forge_vocabulary::TaskRelease {
+    let crate::v25::TaskRelease { revision: field_000000, at: field_000001 } = record;
+    temper_engine_domain_forge_vocabulary::TaskRelease {
+        revision: field_000000,
+        at: skein_codec::convert::wall_to_domain(field_000001)
+    }
+}
+
+#[must_use]
+pub fn topic_to_record(value: &temper_engine_domain_forge_vocabulary::Topic) -> crate::v25::Topic {
+    match value {
+        temper_engine_domain_forge_vocabulary::Topic::Landings { repository: field_000000, branch: field_000001 } => crate::v25::Topic::Landings(crate::v25::LandingsTopic {
+            repository: repository_to_record(field_000000),
+            branch: field_000001.clone()
+        }),
+        temper_engine_domain_forge_vocabulary::Topic::Ci { repository: field_000000, head: field_000001 } => crate::v25::Topic::Ci(crate::v25::CiTopic {
+            repository: repository_to_record(field_000000),
+            head: *field_000001
+        }),
+        temper_engine_domain_forge_vocabulary::Topic::Pull { repository: field_000000, number: field_000001 } => crate::v25::Topic::Pull(crate::v25::NumberTopic {
+            repository: repository_to_record(field_000000),
+            number: *field_000001
+        }),
+        temper_engine_domain_forge_vocabulary::Topic::Participation { repository: field_000000, number: field_000001 } => crate::v25::Topic::Participation(crate::v25::NumberTopic {
+            repository: repository_to_record(field_000000),
+            number: *field_000001
+        }),
+        temper_engine_domain_forge_vocabulary::Topic::Findings { project: field_000000 } => crate::v25::Topic::Findings(crate::v25::FindingsTopic {
+            project: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn topic_to_domain(record: crate::v25::Topic) -> temper_engine_domain_forge_vocabulary::Topic {
     match record {
         crate::v25::Topic::Landings(held) => {
             let crate::v25::LandingsTopic { repository: field_000000, branch: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Topic::Landings {
-                repository: repository_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::Topic::Landings {
+                repository: repository_to_domain(field_000000),
                 branch: field_000001
-            })
+            }
         },
         crate::v25::Topic::Ci(held) => {
             let crate::v25::CiTopic { repository: field_000000, head: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Topic::Ci {
-                repository: repository_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::Topic::Ci {
+                repository: repository_to_domain(field_000000),
                 head: field_000001
-            })
+            }
         },
         crate::v25::Topic::Pull(held) => {
             let crate::v25::NumberTopic { repository: field_000000, number: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Topic::Pull {
-                repository: repository_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::Topic::Pull {
+                repository: repository_to_domain(field_000000),
                 number: field_000001
-            })
+            }
         },
         crate::v25::Topic::Participation(held) => {
             let crate::v25::NumberTopic { repository: field_000000, number: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Topic::Participation {
-                repository: repository_to_domain(field_000000, context)?,
+            temper_engine_domain_forge_vocabulary::Topic::Participation {
+                repository: repository_to_domain(field_000000),
                 number: field_000001
-            })
+            }
         },
         crate::v25::Topic::Findings(held) => {
             let crate::v25::FindingsTopic { project: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::Topic::Findings {
+            temper_engine_domain_forge_vocabulary::Topic::Findings {
                 project: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 522: ChangeSource.
-pub fn change_source_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeSource, _context: &crate::records::Context) -> Result<crate::v25::ChangeSource, crate::v25::Problem> {
+#[must_use]
+pub fn change_source_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeSource) -> crate::v25::ChangeSource {
     let temper_engine_domain_forge_vocabulary::ChangeSource { branch: field_000000, at: field_000001 } = value;
-    Ok(crate::v25::ChangeSource {
+    crate::v25::ChangeSource {
         branch: field_000000.clone(),
         at: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 522: ChangeSource.
-pub fn change_source_to_domain(record: crate::v25::ChangeSource, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ChangeSource, crate::v25::Problem> {
+#[must_use]
+pub fn change_source_to_domain(record: crate::v25::ChangeSource) -> temper_engine_domain_forge_vocabulary::ChangeSource {
     let crate::v25::ChangeSource { branch: field_000000, at: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ChangeSource {
+    temper_engine_domain_forge_vocabulary::ChangeSource {
         branch: field_000000,
         at: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 523: ChangeCold.
-pub fn change_cold_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeCold, context: &crate::records::Context) -> Result<crate::v25::ChangeCold, crate::v25::Problem> {
+pub fn change_cold_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeCold) -> Result<crate::v25::ChangeCold, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::ChangeCold { person: field_000000, goal_title: field_000001, draft: field_000002, milestone: field_000003, source: field_000004, goal: field_000005, task: field_000006, repository: field_000007, branch: field_000008, base: field_000009, title: field_000010, body: field_000011, base_repair: field_000012, producing_charter: field_000013, review_charter: field_000014, producing_llm: field_000015, review_llm: field_000016, report: field_000017, repairs: field_000018, follows: field_000019, catch_up: field_000020, close: field_000021 } = value;
     Ok(crate::v25::ChangeCold {
         person: match field_000000 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         goal_title: match field_000001 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         draft: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         milestone: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         source: match field_000004 {
-            Some(item) => Some(change_source_to_record(item, context)?),
+            Some(item) => {
+                let converted = change_source_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         goal: match field_000005 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         task: *field_000006,
-        repository: repository_to_record(field_000007, context)?,
+        repository: repository_to_record(field_000007),
         branch: field_000008.clone(),
         base: field_000009.clone(),
         title: field_000010.clone(),
@@ -8358,63 +9387,99 @@ pub fn change_cold_to_record(value: &temper_engine_domain_forge_vocabulary::Chan
         producing_charter: *field_000013,
         review_charter: *field_000014,
         producing_llm: match field_000015 {
-            Some(item) => Some(crate::records::by_hand::llm_choice_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::llm_choice_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         review_llm: match field_000016 {
-            Some(item) => Some(crate::records::by_hand::llm_choice_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::llm_choice_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         report: field_000017.clone(),
         repairs: match field_000018 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         follows: match field_000019 {
-            Some(item) => Some(change_follows_to_record(item, context)?),
+            Some(item) => {
+                let converted = change_follows_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         catch_up: match field_000020 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         close: match field_000021 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 523: ChangeCold.
-pub fn change_cold_to_domain(record: crate::v25::ChangeCold, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ChangeCold, crate::v25::Problem> {
+#[must_use]
+pub fn change_cold_to_domain(record: crate::v25::ChangeCold) -> temper_engine_domain_forge_vocabulary::ChangeCold {
     let crate::v25::ChangeCold { person: field_000000, goal_title: field_000001, draft: field_000002, milestone: field_000003, source: field_000004, goal: field_000005, task: field_000006, repository: field_000007, branch: field_000008, base: field_000009, title: field_000010, body: field_000011, base_repair: field_000012, producing_charter: field_000013, review_charter: field_000014, producing_llm: field_000015, review_llm: field_000016, report: field_000017, repairs: field_000018, follows: field_000019, catch_up: field_000020, close: field_000021 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::ChangeCold {
+    temper_engine_domain_forge_vocabulary::ChangeCold {
         person: match field_000000 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         goal_title: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         draft: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         milestone: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         source: match field_000004 {
-            Some(item) => Some(change_source_to_domain(item, context)?),
+            Some(item) => {
+                let converted = change_source_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         goal: match field_000005 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         task: field_000006,
-        repository: repository_to_domain(field_000007, context)?,
+        repository: repository_to_domain(field_000007),
         branch: field_000008,
         base: field_000009,
         title: field_000010,
@@ -8423,357 +9488,518 @@ pub fn change_cold_to_domain(record: crate::v25::ChangeCold, context: &crate::re
         producing_charter: field_000013,
         review_charter: field_000014,
         producing_llm: match field_000015 {
-            Some(item) => Some(crate::records::by_hand::llm_choice_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::llm_choice_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         review_llm: match field_000016 {
-            Some(item) => Some(crate::records::by_hand::llm_choice_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::records::by_hand::llm_choice_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         report: field_000017,
         repairs: match field_000018 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         follows: match field_000019 {
-            Some(item) => Some(change_follows_to_domain(item, context)?),
+            Some(item) => {
+                let converted = change_follows_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         catch_up: match field_000020 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         close: match field_000021 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 524: Regate.
-pub fn regate_to_record(value: &temper_engine_domain_forge_vocabulary::Regate, context: &crate::records::Context) -> Result<crate::v25::Regate, crate::v25::Problem> {
+#[must_use]
+pub fn regate_to_record(value: &temper_engine_domain_forge_vocabulary::Regate) -> crate::v25::Regate {
     let temper_engine_domain_forge_vocabulary::Regate { receipt: field_000000, run: field_000001 } = value;
-    Ok(crate::v25::Regate {
-        receipt: receipt_key_to_record(field_000000, context)?,
+    crate::v25::Regate {
+        receipt: receipt_key_to_record(field_000000),
         run: *field_000001
-    })
+    }
 }
 
-// Maps line 524: Regate.
-pub fn regate_to_domain(record: crate::v25::Regate, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Regate, crate::v25::Problem> {
+#[must_use]
+pub fn regate_to_domain(record: crate::v25::Regate) -> temper_engine_domain_forge_vocabulary::Regate {
     let crate::v25::Regate { receipt: field_000000, run: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Regate {
-        receipt: receipt_key_to_domain(field_000000, context)?,
+    temper_engine_domain_forge_vocabulary::Regate {
+        receipt: receipt_key_to_domain(field_000000),
         run: field_000001
-    })
+    }
 }
 
-// Maps line 525: ChangeHot.
+#[must_use]
+pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) -> crate::v25::CloseAt {
+    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001 } = value;
+    crate::v25::CloseAt {
+        branch: *field_000000,
+        landing: *field_000001
+    }
+}
+
+#[must_use]
+pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_forge_change::CloseAt {
+    let crate::v25::CloseAt { branch: field_000000, landing: field_000001 } = record;
+    temper_engine_domain_forge_change::CloseAt {
+        branch: field_000000,
+        landing: field_000001
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeHot, context: &crate::records::Context) -> Result<crate::v25::ChangeHot, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::ChangeHot { room: field_000000, delegate_head: field_000001, delegate_flake: field_000002, delegate_no_test: field_000003, regate: field_000004, kept: field_000005, task_release: field_000006, job: field_000007, signed: field_000008, ending: field_000009, repair_tasks: field_000010, resolution_tasks: field_000011, result: field_000012, task: field_000013, priority: field_000014, change: field_000015, ci: field_000016, pull: field_000017, pending: field_000018, effect: field_000019, delegate: field_000020, delegate_status: field_000021, spec_revision: field_000022, gate_revision: field_000023, verdicts: field_000024, gate_remarks: field_000025, drift: field_000026, queue_repair: field_000027, queue_repairs: field_000028, effect_account: field_000029, producer_failure: field_000030, questions: field_000031, follow_check: field_000032, merge_result: field_000033, history: field_000034 } = value;
+pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeHot) -> Result<crate::v25::ChangeHot, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::ChangeHot { close_at: field_000000, room: field_000001, delegate_head: field_000002, delegate_flake: field_000003, delegate_no_test: field_000004, regate: field_000005, kept: field_000006, task_release: field_000007, job: field_000008, signed: field_000009, ending: field_000010, repair_tasks: field_000011, resolution_tasks: field_000012, result: field_000013, task: field_000014, priority: field_000015, change: field_000016, ci: field_000017, pull: field_000018, pending: field_000019, effect: field_000020, delegate: field_000021, delegate_status: field_000022, spec_revision: field_000023, gate_revision: field_000024, verdicts: field_000025, gate_remarks: field_000026, drift: field_000027, queue_repair: field_000028, queue_repairs: field_000029, effect_account: field_000030, producer_failure: field_000031, questions: field_000032, follow_check: field_000033, merge_result: field_000034, history: field_000035 } = value;
     Ok(crate::v25::ChangeHot {
-        room: match field_000000 {
-            Some(item) => Some(*item),
+        close_at: match field_000000 {
+            Some(item) => {
+                let converted = close_at_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        delegate_head: match field_000001 {
-            Some(item) => Some(*item),
+        room: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        delegate_flake: *field_000002,
-        delegate_no_test: *field_000003,
-        regate: match field_000004 {
-            Some(item) => Some(regate_to_record(item, context)?),
+        delegate_head: match field_000002 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        kept: match field_000005 {
-            Some(item) => Some(*item),
+        delegate_flake: *field_000003,
+        delegate_no_test: *field_000004,
+        regate: match field_000005 {
+            Some(item) => {
+                let converted = regate_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        task_release: match field_000006 {
-            Some(item) => Some(task_release_to_record(item, context)?),
+        kept: match field_000006 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        job: match field_000007 {
-            Some(item) => Some(crate::records::by_hand::history_job_record_to_record(item, context)?),
+        task_release: match field_000007 {
+            Some(item) => {
+                let converted = task_release_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        job: match field_000008 {
+            Some(item) => {
+                let converted = crate::records::by_hand::history_job_record_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         signed: {
-            let source = field_000008;
+            let source = field_000009;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_SIGNED.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = sign_off_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_SIGNED.problem(skein_codec::Reason::Bound)); }
+                let converted = sign_off_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        ending: match field_000009 {
-            Some(item) => Some(change_ending_to_record(item, context)?),
+        ending: match field_000010 {
+            Some(item) => {
+                let converted = change_ending_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         repair_tasks: {
-            let source = field_000010;
+            let source = field_000011;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_REPAIR_TASKS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_REPAIR_TASKS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         resolution_tasks: {
-            let source = field_000011;
+            let source = field_000012;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_RESOLUTION_TASKS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_RESOLUTION_TASKS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        result: change_result_to_record(field_000012, context)?,
-        task: *field_000013,
-        priority: match crate::converters::signed_to_record(field_000014) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::CHANGE_HOT_PRIORITY.problem(reason)) },
-        change: crate::records::by_hand::change_to_record(field_000015, context)?,
-        ci: match field_000016 {
-            Some(item) => Some(change_ci_to_record(item, context)?),
+        result: change_result_to_record(field_000013),
+        task: *field_000014,
+        priority: crate::converters::signed_to_record(field_000015),
+        change: crate::records::by_hand::change_to_record(field_000016),
+        ci: match field_000017 {
+            Some(item) => {
+                let converted = change_ci_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        pull: match field_000017 {
-            Some(item) => Some(*item),
+        pull: match field_000018 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        pending: match field_000018 {
-            Some(item) => Some(*item),
+        pending: match field_000019 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        effect: effect_result_to_record(field_000019, context)?,
-        delegate: match field_000020 {
-            Some(item) => Some(crate::records::by_hand::delegate_ref_to_record(item, context)?),
+        effect: effect_result_to_record(field_000020),
+        delegate: match field_000021 {
+            Some(item) => {
+                let converted = crate::records::by_hand::delegate_ref_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        delegate_status: change_status_to_record(field_000021, context)?,
-        spec_revision: *field_000022,
-        gate_revision: *field_000023,
+        delegate_status: change_status_to_record(field_000022),
+        spec_revision: *field_000023,
+        gate_revision: *field_000024,
         verdicts: {
-            let source = field_000024;
+            let source = field_000025;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_VERDICTS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = gate_report_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_VERDICTS.problem(skein_codec::Reason::Bound)); }
+                let converted = gate_report_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         gate_remarks: {
-            let source = field_000025;
+            let source = field_000026;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_GATE_REMARKS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = gate_remark_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_GATE_REMARKS.problem(skein_codec::Reason::Bound)); }
+                let converted = gate_remark_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        drift: match field_000026 {
-            Some(item) => Some(change_hold_to_record(item, context)?),
+        drift: match field_000027 {
+            Some(item) => {
+                let converted = change_hold_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        queue_repair: match field_000027 {
-            Some(item) => Some(*item),
+        queue_repair: match field_000028 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        queue_repairs: *field_000028,
-        effect_account: match field_000029 {
-            Some(item) => Some(effect_account_to_record(item, context)?),
+        queue_repairs: *field_000029,
+        effect_account: match field_000030 {
+            Some(item) => {
+                let converted = effect_account_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
-        producer_failure: match field_000030 {
-            Some(item) => Some(item.clone()),
+        producer_failure: match field_000031 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
-        questions: questions_to_record(field_000031, context)?,
-        follow_check: match field_000032 {
-            Some(item) => Some(follow_check_progress_to_record(item, context)?),
+        questions: questions_to_record(field_000032)?,
+        follow_check: match field_000033 {
+            Some(item) => {
+                let converted = follow_check_progress_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
-        merge_result: match field_000033 {
-            Some(item) => Some(item.clone()),
+        merge_result: match field_000034 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
-        history: match field_000034 {
-            Some(item) => Some(change_history_to_record(item, context)?),
+        history: match field_000035 {
+            Some(item) => {
+                let converted = change_history_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 525: ChangeHot.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn change_hot_to_domain(record: crate::v25::ChangeHot, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::ChangeHot, crate::v25::Problem> {
-    let crate::v25::ChangeHot { room: field_000000, delegate_head: field_000001, delegate_flake: field_000002, delegate_no_test: field_000003, regate: field_000004, kept: field_000005, task_release: field_000006, job: field_000007, signed: field_000008, ending: field_000009, repair_tasks: field_000010, resolution_tasks: field_000011, result: field_000012, task: field_000013, priority: field_000014, change: field_000015, ci: field_000016, pull: field_000017, pending: field_000018, effect: field_000019, delegate: field_000020, delegate_status: field_000021, spec_revision: field_000022, gate_revision: field_000023, verdicts: field_000024, gate_remarks: field_000025, drift: field_000026, queue_repair: field_000027, queue_repairs: field_000028, effect_account: field_000029, producer_failure: field_000030, questions: field_000031, follow_check: field_000032, merge_result: field_000033, history: field_000034 } = record;
+pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engine_domain_forge_vocabulary::ChangeHot, crate::v25::Problem> {
+    let crate::v25::ChangeHot { close_at: field_000000, room: field_000001, delegate_head: field_000002, delegate_flake: field_000003, delegate_no_test: field_000004, regate: field_000005, kept: field_000006, task_release: field_000007, job: field_000008, signed: field_000009, ending: field_000010, repair_tasks: field_000011, resolution_tasks: field_000012, result: field_000013, task: field_000014, priority: field_000015, change: field_000016, ci: field_000017, pull: field_000018, pending: field_000019, effect: field_000020, delegate: field_000021, delegate_status: field_000022, spec_revision: field_000023, gate_revision: field_000024, verdicts: field_000025, gate_remarks: field_000026, drift: field_000027, queue_repair: field_000028, queue_repairs: field_000029, effect_account: field_000030, producer_failure: field_000031, questions: field_000032, follow_check: field_000033, merge_result: field_000034, history: field_000035 } = record;
     Ok(temper_engine_domain_forge_vocabulary::ChangeHot {
-        room: match field_000000 {
-            Some(item) => Some(item),
+        close_at: match field_000000 {
+            Some(item) => {
+                let converted = close_at_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        delegate_head: match field_000001 {
-            Some(item) => Some(item),
+        room: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        delegate_flake: field_000002,
-        delegate_no_test: field_000003,
-        regate: match field_000004 {
-            Some(item) => Some(regate_to_domain(item, context)?),
+        delegate_head: match field_000002 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        kept: match field_000005 {
-            Some(item) => Some(item),
+        delegate_flake: field_000003,
+        delegate_no_test: field_000004,
+        regate: match field_000005 {
+            Some(item) => {
+                let converted = regate_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        task_release: match field_000006 {
-            Some(item) => Some(task_release_to_domain(item, context)?),
+        kept: match field_000006 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        job: match field_000007 {
-            Some(item) => Some(crate::records::by_hand::history_job_record_to_domain(item, context)?),
+        task_release: match field_000007 {
+            Some(item) => {
+                let converted = task_release_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        job: match field_000008 {
+            Some(item) => {
+                let converted = crate::records::by_hand::history_job_record_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         signed: {
-            let source = field_000008;
+            let source = field_000009;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = sign_off_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_SIGNED.problem(skein_codec::Reason::Bound)); }
+                let converted = sign_off_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
-        ending: match field_000009 {
-            Some(item) => Some(change_ending_to_domain(item, context)?),
+        ending: match field_000010 {
+            Some(item) => {
+                let converted = change_ending_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         repair_tasks: {
-            let source = field_000010;
-            let count = source.len();
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.into_boxed() {
-                let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_REPAIR_TASKS.problem(skein_codec::Reason::Bound)); }
-            }
-            Box::from(translated)
-        },
-        resolution_tasks: {
             let source = field_000011;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_RESOLUTION_TASKS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
-        result: change_result_to_domain(field_000012, context)?,
-        task: field_000013,
-        priority: match crate::converters::signed_to_domain(field_000014) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::CHANGE_HOT_PRIORITY.problem(reason)) },
-        change: crate::records::by_hand::change_to_domain(field_000015, context)?,
-        ci: match field_000016 {
-            Some(item) => Some(change_ci_to_domain(item, context)?),
-            None => None,
-        },
-        pull: match field_000017 {
-            Some(item) => Some(item),
-            None => None,
-        },
-        pending: match field_000018 {
-            Some(item) => Some(item),
-            None => None,
-        },
-        effect: effect_result_to_domain(field_000019, context)?,
-        delegate: match field_000020 {
-            Some(item) => Some(crate::records::by_hand::delegate_ref_to_domain(item, context)?),
-            None => None,
-        },
-        delegate_status: change_status_to_domain(field_000021, context)?,
-        spec_revision: field_000022,
-        gate_revision: field_000023,
-        verdicts: {
-            let source = field_000024;
+        resolution_tasks: {
+            let source = field_000012;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = gate_report_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_VERDICTS.problem(skein_codec::Reason::Bound)); }
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
-        gate_remarks: {
+        result: change_result_to_domain(field_000013),
+        task: field_000014,
+        priority: crate::converters::signed_to_domain(field_000015),
+        change: crate::records::by_hand::change_to_domain(field_000016),
+        ci: match field_000017 {
+            Some(item) => {
+                let converted = change_ci_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        pull: match field_000018 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        pending: match field_000019 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        effect: effect_result_to_domain(field_000020),
+        delegate: match field_000021 {
+            Some(item) => {
+                let converted = crate::records::by_hand::delegate_ref_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        delegate_status: change_status_to_domain(field_000022),
+        spec_revision: field_000023,
+        gate_revision: field_000024,
+        verdicts: {
             let source = field_000025;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = gate_remark_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::CHANGE_HOT_GATE_REMARKS.problem(skein_codec::Reason::Bound)); }
+                let converted = gate_report_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
-        drift: match field_000026 {
-            Some(item) => Some(change_hold_to_domain(item, context)?),
+        gate_remarks: {
+            let source = field_000026;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = gate_remark_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        drift: match field_000027 {
+            Some(item) => {
+                let converted = change_hold_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        queue_repair: match field_000027 {
-            Some(item) => Some(item),
+        queue_repair: match field_000028 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        queue_repairs: field_000028,
-        effect_account: match field_000029 {
-            Some(item) => Some(effect_account_to_domain(item, context)?),
+        queue_repairs: field_000029,
+        effect_account: match field_000030 {
+            Some(item) => {
+                let converted = effect_account_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        producer_failure: match field_000030 {
-            Some(item) => Some(item),
+        producer_failure: match field_000031 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        questions: questions_to_domain(field_000031, context)?,
-        follow_check: match field_000032 {
-            Some(item) => Some(follow_check_progress_to_domain(item, context)?),
+        questions: questions_to_domain(field_000032)?,
+        follow_check: match field_000033 {
+            Some(item) => {
+                let converted = follow_check_progress_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
-        merge_result: match field_000033 {
-            Some(item) => Some(item),
+        merge_result: match field_000034 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        history: match field_000034 {
-            Some(item) => Some(change_history_to_domain(item, context)?),
+        history: match field_000035 {
+            Some(item) => {
+                let converted = change_history_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 526: Subscriber.
-pub fn subscriber_to_record(value: &temper_engine_domain_forge_vocabulary::Subscriber, context: &crate::records::Context) -> Result<crate::v25::Subscriber, crate::v25::Problem> {
+pub fn subscriber_to_record(value: &temper_engine_domain_forge_vocabulary::Subscriber) -> Result<crate::v25::Subscriber, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::Subscriber { task: field_000000, number: field_000001, topic: field_000002, own_change: field_000003, goal_tasks: field_000004, paths: field_000005 } = value;
     Ok(crate::v25::Subscriber {
         task: *field_000000,
         number: *field_000001,
-        topic: topic_to_record(field_000002, context)?,
+        topic: topic_to_record(field_000002),
         own_change: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         goal_tasks: match field_000004 {
-            Some(item) => Some({
-                let source = item;
-                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::SUBSCRIBER_GOAL_TASKS.problem(skein_codec::Reason::Bound)) };
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.as_ref() {
-                    let converted = *item;
-                    if translated.push(converted).is_err() { return Err(crate::v25::paths::SUBSCRIBER_GOAL_TASKS.problem(skein_codec::Reason::Bound)); }
-                }
-                translated
-            }),
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::SUBSCRIBER_GOAL_TASKS.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = *item;
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
             None => None,
         },
         paths: {
@@ -8782,35 +10008,41 @@ pub fn subscriber_to_record(value: &temper_engine_domain_forge_vocabulary::Subsc
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = item.clone();
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::SUBSCRIBER_PATHS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 526: Subscriber.
-pub fn subscriber_to_domain(record: crate::v25::Subscriber, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Subscriber, crate::v25::Problem> {
+#[must_use]
+pub fn subscriber_to_domain(record: crate::v25::Subscriber) -> temper_engine_domain_forge_vocabulary::Subscriber {
     let crate::v25::Subscriber { task: field_000000, number: field_000001, topic: field_000002, own_change: field_000003, goal_tasks: field_000004, paths: field_000005 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::Subscriber {
+    temper_engine_domain_forge_vocabulary::Subscriber {
         task: field_000000,
         number: field_000001,
-        topic: topic_to_domain(field_000002, context)?,
+        topic: topic_to_domain(field_000002),
         own_change: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         goal_tasks: match field_000004 {
-            Some(item) => Some({
-                let source = item;
-                let count = source.len();
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.into_boxed() {
-                    let converted = item;
-                    if translated.push(converted).is_err() { return Err(crate::v25::paths::SUBSCRIBER_GOAL_TASKS.problem(skein_codec::Reason::Bound)); }
-                }
-                Box::from(translated)
-            }),
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = item;
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                };
+                Some(converted)
+            }
             None => None,
         },
         paths: {
@@ -8819,289 +10051,347 @@ pub fn subscriber_to_domain(record: crate::v25::Subscriber, context: &crate::rec
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::SUBSCRIBER_PATHS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
+    }
+}
+
+#[must_use]
+pub fn finding_holder_to_record(value: &temper_engine_domain_forge_vocabulary::Holder) -> crate::v25::FindingHolder {
+    match value {
+        temper_engine_domain_forge_vocabulary::Holder::Task(held) => crate::v25::FindingHolder::Task(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::Holder::Party(held) => crate::v25::FindingHolder::Party(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::Holder::Role(held) => crate::v25::FindingHolder::Role(crate::v25::FindingCount { number: *held }),
+    }
+}
+
+#[must_use]
+pub fn finding_holder_to_domain(record: crate::v25::FindingHolder) -> temper_engine_domain_forge_vocabulary::Holder {
+    match record {
+        crate::v25::FindingHolder::Task(held) => temper_engine_domain_forge_vocabulary::Holder::Task({
+            let crate::v25::Number { number: held } = held;
+            held
+        }),
+        crate::v25::FindingHolder::Party(held) => temper_engine_domain_forge_vocabulary::Holder::Party({
+            let crate::v25::Number { number: held } = held;
+            held
+        }),
+        crate::v25::FindingHolder::Role(held) => temper_engine_domain_forge_vocabulary::Holder::Role({
+            let crate::v25::FindingCount { number: held } = held;
+            held
+        }),
+    }
+}
+
+#[must_use]
+pub fn finding_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::FindingRefusal) -> crate::v25::FindingRefusal {
+    match value {
+        temper_engine_domain_forge_vocabulary::FindingRefusal::NoArea(held) => crate::v25::FindingRefusal::NoArea(crate::records::by_hand::finding_areas_to_record(held)),
+        temper_engine_domain_forge_vocabulary::FindingRefusal::Full(held) => crate::v25::FindingRefusal::Full(crate::v25::FindingCount { number: *held }),
+        temper_engine_domain_forge_vocabulary::FindingRefusal::NotYours(held) => crate::v25::FindingRefusal::NotYours(crate::v25::FindingHeld { holder: finding_holder_to_record(held) }),
+        temper_engine_domain_forge_vocabulary::FindingRefusal::NoFinding => crate::v25::FindingRefusal::NoFinding,
+        temper_engine_domain_forge_vocabulary::FindingRefusal::NoGoal => crate::v25::FindingRefusal::NoGoal,
+        temper_engine_domain_forge_vocabulary::FindingRefusal::Ended => crate::v25::FindingRefusal::Ended,
+        temper_engine_domain_forge_vocabulary::FindingRefusal::Words(held) => crate::v25::FindingRefusal::Words(crate::v25::FindingWords { words: held.clone() }),
+    }
+}
+
+pub fn finding_refusal_to_domain(record: crate::v25::FindingRefusal) -> Result<temper_engine_domain_forge_vocabulary::FindingRefusal, crate::v25::Problem> {
+    Ok(match record {
+        crate::v25::FindingRefusal::NoArea(held) => temper_engine_domain_forge_vocabulary::FindingRefusal::NoArea(crate::records::by_hand::finding_areas_to_domain(held)?),
+        crate::v25::FindingRefusal::Full(held) => temper_engine_domain_forge_vocabulary::FindingRefusal::Full({
+            let crate::v25::FindingCount { number: held } = held;
+            held
+        }),
+        crate::v25::FindingRefusal::NotYours(held) => temper_engine_domain_forge_vocabulary::FindingRefusal::NotYours({
+            let crate::v25::FindingHeld { holder: held } = held;
+            finding_holder_to_domain(held)
+        }),
+        crate::v25::FindingRefusal::NoFinding => temper_engine_domain_forge_vocabulary::FindingRefusal::NoFinding,
+        crate::v25::FindingRefusal::NoGoal => temper_engine_domain_forge_vocabulary::FindingRefusal::NoGoal,
+        crate::v25::FindingRefusal::Ended => temper_engine_domain_forge_vocabulary::FindingRefusal::Ended,
+        crate::v25::FindingRefusal::Words(held) => temper_engine_domain_forge_vocabulary::FindingRefusal::Words({
+            let crate::v25::FindingWords { words: held } = held;
+            held
+        }),
     })
 }
 
-// Maps line 528: FindingHolder.
-pub fn finding_holder_to_record(value: &temper_engine_domain_forge_vocabulary::Holder, _context: &crate::records::Context) -> Result<crate::v25::FindingHolder, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::Holder::Task(held) => Ok(crate::v25::FindingHolder::Task(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::Holder::Party(held) => Ok(crate::v25::FindingHolder::Party(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::Holder::Role(held) => Ok(crate::v25::FindingHolder::Role(crate::v25::FindingCount { number: *held })),
-    }
-}
-
-// Maps line 528: FindingHolder.
-pub fn finding_holder_to_domain(record: crate::v25::FindingHolder, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Holder, crate::v25::Problem> {
-    match record {
-        crate::v25::FindingHolder::Task(held) => Ok(temper_engine_domain_forge_vocabulary::Holder::Task({
-            let crate::v25::Number { number: held } = held;
-            held
-        })),
-        crate::v25::FindingHolder::Party(held) => Ok(temper_engine_domain_forge_vocabulary::Holder::Party({
-            let crate::v25::Number { number: held } = held;
-            held
-        })),
-        crate::v25::FindingHolder::Role(held) => Ok(temper_engine_domain_forge_vocabulary::Holder::Role({
-            let crate::v25::FindingCount { number: held } = held;
-            held
-        })),
-    }
-}
-
-// Maps line 532: FindingRefusal.
-pub fn finding_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::FindingRefusal, context: &crate::records::Context) -> Result<crate::v25::FindingRefusal, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::FindingRefusal::NoArea(held) => Ok(crate::v25::FindingRefusal::NoArea(crate::records::by_hand::finding_areas_to_record(held, context)?)),
-        temper_engine_domain_forge_vocabulary::FindingRefusal::Full(held) => Ok(crate::v25::FindingRefusal::Full(crate::v25::FindingCount { number: *held })),
-        temper_engine_domain_forge_vocabulary::FindingRefusal::NotYours(held) => Ok(crate::v25::FindingRefusal::NotYours(crate::v25::FindingHeld { holder: finding_holder_to_record(held, context)? })),
-        temper_engine_domain_forge_vocabulary::FindingRefusal::NoFinding => Ok(crate::v25::FindingRefusal::NoFinding),
-        temper_engine_domain_forge_vocabulary::FindingRefusal::NoGoal => Ok(crate::v25::FindingRefusal::NoGoal),
-        temper_engine_domain_forge_vocabulary::FindingRefusal::Ended => Ok(crate::v25::FindingRefusal::Ended),
-        temper_engine_domain_forge_vocabulary::FindingRefusal::Words(held) => Ok(crate::v25::FindingRefusal::Words(crate::v25::FindingWords { words: held.clone() })),
-    }
-}
-
-// Maps line 532: FindingRefusal.
-pub fn finding_refusal_to_domain(record: crate::v25::FindingRefusal, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FindingRefusal, crate::v25::Problem> {
-    match record {
-        crate::v25::FindingRefusal::NoArea(held) => Ok(temper_engine_domain_forge_vocabulary::FindingRefusal::NoArea(crate::records::by_hand::finding_areas_to_domain(held, context)?)),
-        crate::v25::FindingRefusal::Full(held) => Ok(temper_engine_domain_forge_vocabulary::FindingRefusal::Full({
-            let crate::v25::FindingCount { number: held } = held;
-            held
-        })),
-        crate::v25::FindingRefusal::NotYours(held) => Ok(temper_engine_domain_forge_vocabulary::FindingRefusal::NotYours({
-            let crate::v25::FindingHeld { holder: held } = held;
-            finding_holder_to_domain(held, context)?
-        })),
-        crate::v25::FindingRefusal::NoFinding => Ok(temper_engine_domain_forge_vocabulary::FindingRefusal::NoFinding),
-        crate::v25::FindingRefusal::NoGoal => Ok(temper_engine_domain_forge_vocabulary::FindingRefusal::NoGoal),
-        crate::v25::FindingRefusal::Ended => Ok(temper_engine_domain_forge_vocabulary::FindingRefusal::Ended),
-        crate::v25::FindingRefusal::Words(held) => Ok(temper_engine_domain_forge_vocabulary::FindingRefusal::Words({
-            let crate::v25::FindingWords { words: held } = held;
-            held
-        })),
-    }
-}
-
-// Maps line 535: FindingReply.
-pub fn finding_reply_to_record(value: &temper_engine_domain_forge_vocabulary::FindingReply, context: &crate::records::Context) -> Result<crate::v25::FindingReply, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::FindingReply { project: field_000000, number: field_000001, area: field_000002, result: field_000003 } = value;
+pub fn finding_reply_to_record(value: &temper_engine_domain_forge_vocabulary::FindingReply) -> Result<crate::v25::FindingReply, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::FindingReply { project: field_000000, number: field_000001, area: field_000002, result: field_000003, more: field_000004, landing: field_000005 } = value;
     Ok(crate::v25::FindingReply {
         project: *field_000000,
         number: *field_000001,
         area: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
-        result: crate::records::by_hand::finding_result_to_record(field_000003, context)?
+        result: crate::records::by_hand::finding_result_to_record(field_000003)?,
+        more: {
+            let source = field_000004;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::FINDING_REPLY_MORE.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = *item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        landing: match field_000005 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
     })
 }
 
-// Maps line 535: FindingReply.
-pub fn finding_reply_to_domain(record: crate::v25::FindingReply, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FindingReply, crate::v25::Problem> {
-    let crate::v25::FindingReply { project: field_000000, number: field_000001, area: field_000002, result: field_000003 } = record;
+pub fn finding_reply_to_domain(record: crate::v25::FindingReply) -> Result<temper_engine_domain_forge_vocabulary::FindingReply, crate::v25::Problem> {
+    let crate::v25::FindingReply { project: field_000000, number: field_000001, area: field_000002, result: field_000003, more: field_000004, landing: field_000005 } = record;
     Ok(temper_engine_domain_forge_vocabulary::FindingReply {
         project: field_000000,
         number: field_000001,
         area: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        result: crate::records::by_hand::finding_result_to_domain(field_000003, context)?
+        result: crate::records::by_hand::finding_result_to_domain(field_000003)?,
+        more: {
+            let source = field_000004;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        landing: match field_000005 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        }
     })
 }
 
-// Maps line 537: Recorder.
-pub fn recorder_to_record(value: &temper_engine_domain_forge_vocabulary::Recorder, _context: &crate::records::Context) -> Result<crate::v25::Recorder, crate::v25::Problem> {
+#[must_use]
+pub fn recorder_to_record(value: &temper_engine_domain_forge_vocabulary::Recorder) -> crate::v25::Recorder {
     match value {
-        temper_engine_domain_forge_vocabulary::Recorder::Task(held) => Ok(crate::v25::Recorder::Task(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::Recorder::Party(held) => Ok(crate::v25::Recorder::Party(crate::v25::Number { number: *held })),
+        temper_engine_domain_forge_vocabulary::Recorder::Task(held) => crate::v25::Recorder::Task(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::Recorder::Party(held) => crate::v25::Recorder::Party(crate::v25::Number { number: *held }),
     }
 }
 
-// Maps line 537: Recorder.
-pub fn recorder_to_domain(record: crate::v25::Recorder, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Recorder, crate::v25::Problem> {
+#[must_use]
+pub fn recorder_to_domain(record: crate::v25::Recorder) -> temper_engine_domain_forge_vocabulary::Recorder {
     match record {
-        crate::v25::Recorder::Task(held) => Ok(temper_engine_domain_forge_vocabulary::Recorder::Task({
+        crate::v25::Recorder::Task(held) => temper_engine_domain_forge_vocabulary::Recorder::Task({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::Recorder::Party(held) => Ok(temper_engine_domain_forge_vocabulary::Recorder::Party({
+        }),
+        crate::v25::Recorder::Party(held) => temper_engine_domain_forge_vocabulary::Recorder::Party({
             let crate::v25::Number { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 543: RedRefusal.
-pub fn red_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::RedRefusal, _context: &crate::records::Context) -> Result<crate::v25::RedRefusal, crate::v25::Problem> {
+#[must_use]
+pub fn red_refusal_to_record(value: &temper_engine_domain_forge_vocabulary::RedRefusal) -> crate::v25::RedRefusal {
     match value {
-        temper_engine_domain_forge_vocabulary::RedRefusal::NoGoal => Ok(crate::v25::RedRefusal::NoGoal),
-        temper_engine_domain_forge_vocabulary::RedRefusal::Full { bound: field_000000 } => Ok(crate::v25::RedRefusal::Full(crate::v25::RedFull {
+        temper_engine_domain_forge_vocabulary::RedRefusal::NoGoal => crate::v25::RedRefusal::NoGoal,
+        temper_engine_domain_forge_vocabulary::RedRefusal::Full { bound: field_000000 } => crate::v25::RedRefusal::Full(crate::v25::RedFull {
             bound: *field_000000
-        })),
-        temper_engine_domain_forge_vocabulary::RedRefusal::NoSuch => Ok(crate::v25::RedRefusal::NoSuch),
+        }),
+        temper_engine_domain_forge_vocabulary::RedRefusal::NoSuch => crate::v25::RedRefusal::NoSuch,
     }
 }
 
-// Maps line 543: RedRefusal.
-pub fn red_refusal_to_domain(record: crate::v25::RedRefusal, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::RedRefusal, crate::v25::Problem> {
+#[must_use]
+pub fn red_refusal_to_domain(record: crate::v25::RedRefusal) -> temper_engine_domain_forge_vocabulary::RedRefusal {
     match record {
-        crate::v25::RedRefusal::NoGoal => Ok(temper_engine_domain_forge_vocabulary::RedRefusal::NoGoal),
+        crate::v25::RedRefusal::NoGoal => temper_engine_domain_forge_vocabulary::RedRefusal::NoGoal,
         crate::v25::RedRefusal::Full(held) => {
             let crate::v25::RedFull { bound: field_000000 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::RedRefusal::Full {
+            temper_engine_domain_forge_vocabulary::RedRefusal::Full {
                 bound: field_000000
-            })
+            }
         },
-        crate::v25::RedRefusal::NoSuch => Ok(temper_engine_domain_forge_vocabulary::RedRefusal::NoSuch),
+        crate::v25::RedRefusal::NoSuch => temper_engine_domain_forge_vocabulary::RedRefusal::NoSuch,
     }
 }
 
-// Maps line 547: CallPayload.
-pub fn call_payload_to_record(value: &temper_engine_domain_forge_vocabulary::CallPayload, context: &crate::records::Context) -> Result<crate::v25::CallPayload, crate::v25::Problem> {
-    match value {
-        temper_engine_domain_forge_vocabulary::CallPayload::Effect { entry: field_000000, deadline: field_000001, outcome: field_000002 } => Ok(crate::v25::CallPayload::Effect(crate::v25::CallEffect {
+pub fn call_payload_to_record(value: &temper_engine_domain_forge_vocabulary::CallPayload) -> Result<crate::v25::CallPayload, crate::v25::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge_vocabulary::CallPayload::Effect { entry: field_000000, deadline: field_000001, outcome: field_000002 } => crate::v25::CallPayload::Effect(crate::v25::CallEffect {
             entry: *field_000000,
-            deadline: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::CALL_EFFECT_DEADLINE.problem(reason)) },
+            deadline: skein_codec::convert::wall_to_record(field_000001),
             outcome: match field_000002 {
-                Some(item) => Some(outcome_to_record(item, context)?),
+                Some(item) => {
+                    let converted = outcome_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::CallPayload::Refused(held) => Ok(crate::v25::CallPayload::Refused(crate::v25::ErrorValue { error: crate::records::by_hand::error_to_record(held, context)? })),
-        temper_engine_domain_forge_vocabulary::CallPayload::Read(held) => Ok(crate::v25::CallPayload::Read(crate::v25::CallRead { result: crate::records::by_hand::read_result_to_record(held, context)? })),
-        temper_engine_domain_forge_vocabulary::CallPayload::Decided { took: field_000000, reach: field_000001 } => Ok(crate::v25::CallPayload::Decided(crate::v25::CallDecided {
+        }),
+        temper_engine_domain_forge_vocabulary::CallPayload::Refused(held) => crate::v25::CallPayload::Refused(crate::v25::ErrorValue { error: crate::records::by_hand::error_to_record(held) }),
+        temper_engine_domain_forge_vocabulary::CallPayload::Read(held) => crate::v25::CallPayload::Read(crate::v25::CallRead { result: crate::records::by_hand::read_result_to_record(held)? }),
+        temper_engine_domain_forge_vocabulary::CallPayload::Decided { took: field_000000, reach: field_000001 } => crate::v25::CallPayload::Decided(crate::v25::CallDecided {
             took: match field_000000 {
-                Some(item) => Some(item.clone()),
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
                 None => None,
             },
             reach: match field_000001 {
-                Some(item) => Some(crate::records::by_hand::reach_to_record(item, context)?),
+                Some(item) => {
+                    let converted = crate::records::by_hand::reach_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::CallPayload::Finding(held) => Ok(crate::v25::CallPayload::Finding(Box::new(finding_reply_to_record(held, context)?))),
-        temper_engine_domain_forge_vocabulary::CallPayload::Follow { follow: field_000000, refusal: field_000001 } => Ok(crate::v25::CallPayload::Follow(crate::v25::CallFollow {
+        }),
+        temper_engine_domain_forge_vocabulary::CallPayload::Finding(held) => crate::v25::CallPayload::Finding(Box::new(finding_reply_to_record(held)?)),
+        temper_engine_domain_forge_vocabulary::CallPayload::Follow { follow: field_000000, refusal: field_000001 } => crate::v25::CallPayload::Follow(crate::v25::CallFollow {
             follow: *field_000000,
             refusal: match field_000001 {
-                Some(item) => Some(item.clone()),
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        temper_engine_domain_forge_vocabulary::CallPayload::Red(held) => Ok(crate::v25::CallPayload::Red(Box::new(crate::records::by_hand::red_reply_to_record(held, context)?))),
-    }
+        }),
+        temper_engine_domain_forge_vocabulary::CallPayload::Red(held) => crate::v25::CallPayload::Red(Box::new(crate::records::by_hand::red_reply_to_record(held))),
+    })
 }
 
-// Maps line 547: CallPayload.
 pub fn call_payload_to_domain(record: crate::v25::CallPayload, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::CallPayload, crate::v25::Problem> {
-    match record {
+    Ok(match record {
         crate::v25::CallPayload::Effect(held) => {
             let crate::v25::CallEffect { entry: field_000000, deadline: field_000001, outcome: field_000002 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::CallPayload::Effect {
+            temper_engine_domain_forge_vocabulary::CallPayload::Effect {
                 entry: field_000000,
-                deadline: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::CALL_EFFECT_DEADLINE.problem(reason)) },
+                deadline: skein_codec::convert::wall_to_domain(field_000001),
                 outcome: match field_000002 {
-                    Some(item) => Some(outcome_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = outcome_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-        crate::v25::CallPayload::Refused(held) => Ok(temper_engine_domain_forge_vocabulary::CallPayload::Refused({
+        crate::v25::CallPayload::Refused(held) => temper_engine_domain_forge_vocabulary::CallPayload::Refused({
             let crate::v25::ErrorValue { error: held } = held;
-            crate::records::by_hand::error_to_domain(held, context)?
-        })),
-        crate::v25::CallPayload::Read(held) => Ok(temper_engine_domain_forge_vocabulary::CallPayload::Read(Box::new({
+            crate::records::by_hand::error_to_domain(held)
+        }),
+        crate::v25::CallPayload::Read(held) => temper_engine_domain_forge_vocabulary::CallPayload::Read(Box::new({
             let crate::v25::CallRead { result: held } = held;
             crate::records::by_hand::read_result_to_domain(held, context)?
-        }))),
+        })),
         crate::v25::CallPayload::Decided(held) => {
             let crate::v25::CallDecided { took: field_000000, reach: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::CallPayload::Decided {
+            temper_engine_domain_forge_vocabulary::CallPayload::Decided {
                 took: match field_000000 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 },
                 reach: match field_000001 {
-                    Some(item) => Some(crate::records::by_hand::reach_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = crate::records::by_hand::reach_to_domain(item)?;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-        crate::v25::CallPayload::Finding(held) => Ok(temper_engine_domain_forge_vocabulary::CallPayload::Finding(Box::new(finding_reply_to_domain(*held, context)?))),
+        crate::v25::CallPayload::Finding(held) => temper_engine_domain_forge_vocabulary::CallPayload::Finding(Box::new(finding_reply_to_domain(*held)?)),
         crate::v25::CallPayload::Follow(held) => {
             let crate::v25::CallFollow { follow: field_000000, refusal: field_000001 } = held;
-            Ok(temper_engine_domain_forge_vocabulary::CallPayload::Follow {
+            temper_engine_domain_forge_vocabulary::CallPayload::Follow {
                 follow: field_000000,
                 refusal: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-        crate::v25::CallPayload::Red(held) => Ok(temper_engine_domain_forge_vocabulary::CallPayload::Red(Box::new(crate::records::by_hand::red_reply_to_domain(*held, context)?))),
-    }
+        crate::v25::CallPayload::Red(held) => temper_engine_domain_forge_vocabulary::CallPayload::Red(Box::new(crate::records::by_hand::red_reply_to_domain(*held, context)?)),
+    })
 }
 
-// Maps line 553: AreaOwner.
-pub fn area_owner_to_record(value: &temper_engine_domain_forge_vocabulary::settings::AreaOwner, _context: &crate::records::Context) -> Result<crate::v25::AreaOwner, crate::v25::Problem> {
+#[must_use]
+pub fn area_owner_to_record(value: &temper_engine_domain_forge_vocabulary::settings::AreaOwner) -> crate::v25::AreaOwner {
     match value {
-        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Task(held) => Ok(crate::v25::AreaOwner::Task(crate::v25::AreaTask { number: *held })),
-        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Party(held) => Ok(crate::v25::AreaOwner::Party(crate::v25::AreaParty { number: *held })),
-        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Role(held) => Ok(crate::v25::AreaOwner::Role(crate::v25::AreaRole { number: *held })),
-        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter(held) => Ok(crate::v25::AreaOwner::Charter(crate::v25::AreaCharter { number: *held })),
+        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Task(held) => crate::v25::AreaOwner::Task(crate::v25::AreaTask { number: *held }),
+        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Party(held) => crate::v25::AreaOwner::Party(crate::v25::AreaParty { number: *held }),
+        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Role(held) => crate::v25::AreaOwner::Role(crate::v25::AreaRole { number: *held }),
+        temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter(held) => crate::v25::AreaOwner::Charter(crate::v25::AreaCharter { number: *held }),
     }
 }
 
-// Maps line 553: AreaOwner.
-pub fn area_owner_to_domain(record: crate::v25::AreaOwner, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::AreaOwner, crate::v25::Problem> {
+#[must_use]
+pub fn area_owner_to_domain(record: crate::v25::AreaOwner) -> temper_engine_domain_forge_vocabulary::settings::AreaOwner {
     match record {
-        crate::v25::AreaOwner::Task(held) => Ok(temper_engine_domain_forge_vocabulary::settings::AreaOwner::Task({
+        crate::v25::AreaOwner::Task(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::Task({
             let crate::v25::AreaTask { number: held } = held;
             held
-        })),
-        crate::v25::AreaOwner::Party(held) => Ok(temper_engine_domain_forge_vocabulary::settings::AreaOwner::Party({
+        }),
+        crate::v25::AreaOwner::Party(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::Party({
             let crate::v25::AreaParty { number: held } = held;
             held
-        })),
-        crate::v25::AreaOwner::Role(held) => Ok(temper_engine_domain_forge_vocabulary::settings::AreaOwner::Role({
+        }),
+        crate::v25::AreaOwner::Role(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::Role({
             let crate::v25::AreaRole { number: held } = held;
             held
-        })),
-        crate::v25::AreaOwner::Charter(held) => Ok(temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter({
+        }),
+        crate::v25::AreaOwner::Charter(held) => temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter({
             let crate::v25::AreaCharter { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 554: Area.
-pub fn area_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Area, context: &crate::records::Context) -> Result<crate::v25::Area, crate::v25::Problem> {
+#[must_use]
+pub fn area_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Area) -> crate::v25::Area {
     let temper_engine_domain_forge_vocabulary::settings::Area { name: field_000000, words: field_000001, owner: field_000002 } = value;
-    Ok(crate::v25::Area {
+    crate::v25::Area {
         name: field_000000.clone(),
         words: field_000001.clone(),
-        owner: area_owner_to_record(field_000002, context)?
-    })
+        owner: area_owner_to_record(field_000002)
+    }
 }
 
-// Maps line 554: Area.
-pub fn area_to_domain(record: crate::v25::Area, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::Area, crate::v25::Problem> {
+#[must_use]
+pub fn area_to_domain(record: crate::v25::Area) -> temper_engine_domain_forge_vocabulary::settings::Area {
     let crate::v25::Area { name: field_000000, words: field_000001, owner: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::Area {
+    temper_engine_domain_forge_vocabulary::settings::Area {
         name: field_000000,
         words: field_000001,
-        owner: area_owner_to_domain(field_000002, context)?
-    })
+        owner: area_owner_to_domain(field_000002)
+    }
 }
 
-// Maps line 555: ProjectAreas.
-pub fn project_areas_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectAreas, context: &crate::records::Context) -> Result<crate::v25::ProjectAreas, crate::v25::Problem> {
+pub fn project_areas_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectAreas) -> Result<crate::v25::ProjectAreas, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::settings::ProjectAreas { areas: field_000000 } = value;
     Ok(crate::v25::ProjectAreas {
         areas: {
@@ -9109,172 +10399,172 @@ pub fn project_areas_to_record(value: &temper_engine_domain_forge_vocabulary::se
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::PROJECT_AREAS_AREAS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = area_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::PROJECT_AREAS_AREAS.problem(skein_codec::Reason::Bound)); }
+                let converted = area_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 555: ProjectAreas.
-pub fn project_areas_to_domain(record: crate::v25::ProjectAreas, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::ProjectAreas, crate::v25::Problem> {
+#[must_use]
+pub fn project_areas_to_domain(record: crate::v25::ProjectAreas) -> temper_engine_domain_forge_vocabulary::settings::ProjectAreas {
     let crate::v25::ProjectAreas { areas: field_000000 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::ProjectAreas {
+    temper_engine_domain_forge_vocabulary::settings::ProjectAreas {
         areas: {
             let source = field_000000;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = area_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::PROJECT_AREAS_AREAS.problem(skein_codec::Reason::Bound)); }
+                let converted = area_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 556: ProjectTriager.
-pub fn project_triager_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectTriager, context: &crate::records::Context) -> Result<crate::v25::ProjectTriager, crate::v25::Problem> {
+#[must_use]
+pub fn project_triager_to_record(value: &temper_engine_domain_forge_vocabulary::settings::ProjectTriager) -> crate::v25::ProjectTriager {
     let temper_engine_domain_forge_vocabulary::settings::ProjectTriager { owner: field_000000 } = value;
-    Ok(crate::v25::ProjectTriager {
-        owner: area_owner_to_record(field_000000, context)?
-    })
+    crate::v25::ProjectTriager {
+        owner: area_owner_to_record(field_000000)
+    }
 }
 
-// Maps line 556: ProjectTriager.
-pub fn project_triager_to_domain(record: crate::v25::ProjectTriager, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::ProjectTriager, crate::v25::Problem> {
+#[must_use]
+pub fn project_triager_to_domain(record: crate::v25::ProjectTriager) -> temper_engine_domain_forge_vocabulary::settings::ProjectTriager {
     let crate::v25::ProjectTriager { owner: field_000000 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::ProjectTriager {
-        owner: area_owner_to_domain(field_000000, context)?
-    })
+    temper_engine_domain_forge_vocabulary::settings::ProjectTriager {
+        owner: area_owner_to_domain(field_000000)
+    }
 }
 
-// Maps line 557: Welcome.
-pub fn welcome_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Welcome, _context: &crate::records::Context) -> Result<crate::v25::Welcome, crate::v25::Problem> {
+#[must_use]
+pub fn welcome_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Welcome) -> crate::v25::Welcome {
     let temper_engine_domain_forge_vocabulary::settings::Welcome { shown: field_000000 } = value;
-    Ok(crate::v25::Welcome {
+    crate::v25::Welcome {
         shown: *field_000000
-    })
+    }
 }
 
-// Maps line 557: Welcome.
-pub fn welcome_to_domain(record: crate::v25::Welcome, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::Welcome, crate::v25::Problem> {
+#[must_use]
+pub fn welcome_to_domain(record: crate::v25::Welcome) -> temper_engine_domain_forge_vocabulary::settings::Welcome {
     let crate::v25::Welcome { shown: field_000000 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::settings::Welcome {
+    temper_engine_domain_forge_vocabulary::settings::Welcome {
         shown: field_000000
-    })
+    }
 }
 
-// Maps line 558: LimitOverride.
-pub fn limit_override_to_record(value: &jig_domain_core_vocabulary::settings::Override, _context: &crate::records::Context) -> Result<crate::v25::LimitOverride, crate::v25::Problem> {
+#[must_use]
+pub fn limit_override_to_record(value: &jig_domain_core_vocabulary::settings::Override) -> crate::v25::LimitOverride {
     let jig_domain_core_vocabulary::settings::Override { name: field_000000, value: field_000001, reason: field_000002 } = value;
-    Ok(crate::v25::LimitOverride {
+    crate::v25::LimitOverride {
         name: field_000000.clone(),
         value: *field_000001,
         reason: field_000002.clone()
-    })
+    }
 }
 
-// Maps line 558: LimitOverride.
-pub fn limit_override_to_domain(record: crate::v25::LimitOverride, _context: &crate::records::Context) -> Result<jig_domain_core_vocabulary::settings::Override, crate::v25::Problem> {
+#[must_use]
+pub fn limit_override_to_domain(record: crate::v25::LimitOverride) -> jig_domain_core_vocabulary::settings::Override {
     let crate::v25::LimitOverride { name: field_000000, value: field_000001, reason: field_000002 } = record;
-    Ok(jig_domain_core_vocabulary::settings::Override {
+    jig_domain_core_vocabulary::settings::Override {
         name: field_000000,
         value: field_000001,
         reason: field_000002
-    })
+    }
 }
 
-// Maps line 560: AgentFigure.
-pub fn agent_figure_to_record(value: &temper_client_protocol_wire::v1::AgentFigure, _context: &crate::records::Context) -> Result<crate::v25::AgentFigure, crate::v25::Problem> {
+#[must_use]
+pub fn agent_figure_to_record(value: &temper_client_protocol_wire::v1::AgentFigure) -> crate::v25::AgentFigure {
     let temper_client_protocol_wire::v1::AgentFigure { name: field_000000, value: field_000001 } = value;
-    Ok(crate::v25::AgentFigure {
+    crate::v25::AgentFigure {
         name: field_000000.clone(),
         value: *field_000001
-    })
+    }
 }
 
-// Maps line 560: AgentFigure.
-pub fn agent_figure_to_domain(record: crate::v25::AgentFigure, _context: &crate::records::Context) -> Result<temper_client_protocol_wire::v1::AgentFigure, crate::v25::Problem> {
+#[must_use]
+pub fn agent_figure_to_domain(record: crate::v25::AgentFigure) -> temper_client_protocol_wire::v1::AgentFigure {
     let crate::v25::AgentFigure { name: field_000000, value: field_000001 } = record;
-    Ok(temper_client_protocol_wire::v1::AgentFigure {
+    temper_client_protocol_wire::v1::AgentFigure {
         name: field_000000,
         value: field_000001
-    })
+    }
 }
 
-// Maps line 561: Oversized.
-pub fn oversized_to_record(value: &temper_client_protocol_wire::v1::Oversized, _context: &crate::records::Context) -> Result<crate::v25::Oversized, crate::v25::Problem> {
+#[must_use]
+pub fn oversized_to_record(value: &temper_client_protocol_wire::v1::Oversized) -> crate::v25::Oversized {
     match value {
-        temper_client_protocol_wire::v1::Oversized::Fail => Ok(crate::v25::Oversized::Fail),
-        temper_client_protocol_wire::v1::Oversized::Drop => Ok(crate::v25::Oversized::Drop),
+        temper_client_protocol_wire::v1::Oversized::Fail => crate::v25::Oversized::Fail,
+        temper_client_protocol_wire::v1::Oversized::Drop => crate::v25::Oversized::Drop,
     }
 }
 
-// Maps line 561: Oversized.
-pub fn oversized_to_domain(record: crate::v25::Oversized, _context: &crate::records::Context) -> Result<temper_client_protocol_wire::v1::Oversized, crate::v25::Problem> {
+#[must_use]
+pub fn oversized_to_domain(record: crate::v25::Oversized) -> temper_client_protocol_wire::v1::Oversized {
     match record {
-        crate::v25::Oversized::Fail => Ok(temper_client_protocol_wire::v1::Oversized::Fail),
-        crate::v25::Oversized::Drop => Ok(temper_client_protocol_wire::v1::Oversized::Drop),
+        crate::v25::Oversized::Fail => temper_client_protocol_wire::v1::Oversized::Fail,
+        crate::v25::Oversized::Drop => temper_client_protocol_wire::v1::Oversized::Drop,
     }
 }
 
-// Maps line 562: AgentLimits.
-pub fn agent_limits_to_record(value: &temper_client_protocol_wire::v1::AgentLimits, context: &crate::records::Context) -> Result<crate::v25::AgentLimits, crate::v25::Problem> {
+#[must_use]
+pub fn agent_limits_to_record(value: &temper_client_protocol_wire::v1::AgentLimits) -> crate::v25::AgentLimits {
     let temper_client_protocol_wire::v1::AgentLimits { window: field_000000, output: field_000001, reasoning_item: field_000002, head_ms: field_000003, idle_ms: field_000004, oversized: field_000005 } = value;
-    Ok(crate::v25::AgentLimits {
+    crate::v25::AgentLimits {
         window: *field_000000,
         output: *field_000001,
         reasoning_item: *field_000002,
         head_ms: *field_000003,
         idle_ms: *field_000004,
-        oversized: oversized_to_record(field_000005, context)?
-    })
+        oversized: oversized_to_record(field_000005)
+    }
 }
 
-// Maps line 562: AgentLimits.
-pub fn agent_limits_to_domain(record: crate::v25::AgentLimits, context: &crate::records::Context) -> Result<temper_client_protocol_wire::v1::AgentLimits, crate::v25::Problem> {
+#[must_use]
+pub fn agent_limits_to_domain(record: crate::v25::AgentLimits) -> temper_client_protocol_wire::v1::AgentLimits {
     let crate::v25::AgentLimits { window: field_000000, output: field_000001, reasoning_item: field_000002, head_ms: field_000003, idle_ms: field_000004, oversized: field_000005 } = record;
-    Ok(temper_client_protocol_wire::v1::AgentLimits {
+    temper_client_protocol_wire::v1::AgentLimits {
         window: field_000000,
         output: field_000001,
         reasoning_item: field_000002,
         head_ms: field_000003,
         idle_ms: field_000004,
-        oversized: oversized_to_domain(field_000005, context)?
-    })
+        oversized: oversized_to_domain(field_000005)
+    }
 }
 
-// Maps line 563: AgentEndpointLimits.
-pub fn agent_endpoint_limits_to_record(value: &temper_client_protocol_wire::v1::AgentEndpointLimits, context: &crate::records::Context) -> Result<crate::v25::AgentEndpointLimits, crate::v25::Problem> {
+#[must_use]
+pub fn agent_endpoint_limits_to_record(value: &temper_client_protocol_wire::v1::AgentEndpointLimits) -> crate::v25::AgentEndpointLimits {
     let temper_client_protocol_wire::v1::AgentEndpointLimits { endpoint: field_000000, limits: field_000001 } = value;
-    Ok(crate::v25::AgentEndpointLimits {
+    crate::v25::AgentEndpointLimits {
         endpoint: field_000000.clone(),
-        limits: agent_limits_to_record(field_000001, context)?
-    })
+        limits: agent_limits_to_record(field_000001)
+    }
 }
 
-// Maps line 563: AgentEndpointLimits.
-pub fn agent_endpoint_limits_to_domain(record: crate::v25::AgentEndpointLimits, context: &crate::records::Context) -> Result<temper_client_protocol_wire::v1::AgentEndpointLimits, crate::v25::Problem> {
+#[must_use]
+pub fn agent_endpoint_limits_to_domain(record: crate::v25::AgentEndpointLimits) -> temper_client_protocol_wire::v1::AgentEndpointLimits {
     let crate::v25::AgentEndpointLimits { endpoint: field_000000, limits: field_000001 } = record;
-    Ok(temper_client_protocol_wire::v1::AgentEndpointLimits {
+    temper_client_protocol_wire::v1::AgentEndpointLimits {
         endpoint: field_000000,
-        limits: agent_limits_to_domain(field_000001, context)?
-    })
+        limits: agent_limits_to_domain(field_000001)
+    }
 }
 
-// Maps line 564: AgentFigures.
-pub fn agent_figures_to_record(value: &temper_client_protocol_wire::v1::AgentFigures, context: &crate::records::Context) -> Result<crate::v25::AgentFigures, crate::v25::Problem> {
+#[must_use]
+pub fn agent_figures_to_record(value: &temper_client_protocol_wire::v1::AgentFigures) -> crate::v25::AgentFigures {
     let temper_client_protocol_wire::v1::AgentFigures { profile: field_000000, endpoints: field_000001, fallback: field_000002 } = value;
-    Ok(crate::v25::AgentFigures {
+    crate::v25::AgentFigures {
         profile: {
             let source = field_000000;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source {
-                let converted = agent_figure_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::AGENT_FIGURES_PROFILE.problem(skein_codec::Reason::Bound)); }
+                let converted = agent_figure_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -9283,26 +10573,26 @@ pub fn agent_figures_to_record(value: &temper_client_protocol_wire::v1::AgentFig
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source {
-                let converted = agent_endpoint_limits_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::AGENT_FIGURES_ENDPOINTS.problem(skein_codec::Reason::Bound)); }
+                let converted = agent_endpoint_limits_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        fallback: agent_limits_to_record(field_000002, context)?
-    })
+        fallback: agent_limits_to_record(field_000002)
+    }
 }
 
-// Maps line 564: AgentFigures.
-pub fn agent_figures_to_domain(record: crate::v25::AgentFigures, context: &crate::records::Context) -> Result<temper_client_protocol_wire::v1::AgentFigures, crate::v25::Problem> {
+#[must_use]
+pub fn agent_figures_to_domain(record: crate::v25::AgentFigures) -> temper_client_protocol_wire::v1::AgentFigures {
     let crate::v25::AgentFigures { profile: field_000000, endpoints: field_000001, fallback: field_000002 } = record;
-    Ok(temper_client_protocol_wire::v1::AgentFigures {
+    temper_client_protocol_wire::v1::AgentFigures {
         profile: {
             let source = field_000000;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = agent_figure_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::AGENT_FIGURES_PROFILE.problem(skein_codec::Reason::Bound)); }
+                let converted = agent_figure_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -9311,25 +10601,24 @@ pub fn agent_figures_to_domain(record: crate::v25::AgentFigures, context: &crate
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = agent_endpoint_limits_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::AGENT_FIGURES_ENDPOINTS.problem(skein_codec::Reason::Bound)); }
+                let converted = agent_endpoint_limits_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        fallback: agent_limits_to_domain(field_000002, context)?
-    })
+        fallback: agent_limits_to_domain(field_000002)
+    }
 }
 
-// Maps line 566: SizedValue.
-pub fn sized_value_to_record(value: &temper_engine_domain_forge_vocabulary::settings::SizedValue, context: &crate::records::Context) -> Result<crate::v25::SizedValue, crate::v25::Problem> {
+#[must_use]
+pub fn sized_value_to_record(value: &temper_engine_domain_forge_vocabulary::settings::SizedValue) -> crate::v25::SizedValue {
     let temper_engine_domain_forge_vocabulary::settings::SizedValue { value: field_000000, size: field_000001 } = value;
-    Ok(crate::v25::SizedValue {
-        value: crate::records::by_hand::setting_value_to_record(field_000000, context)?,
+    crate::v25::SizedValue {
+        value: crate::records::by_hand::setting_value_to_record(field_000000),
         size: *field_000001
-    })
+    }
 }
 
-// Maps line 566: SizedValue.
 pub fn sized_value_to_domain(record: crate::v25::SizedValue, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::SizedValue, crate::v25::Problem> {
     let crate::v25::SizedValue { value: field_000000, size: field_000001 } = record;
     Ok(temper_engine_domain_forge_vocabulary::settings::SizedValue {
@@ -9338,158 +10627,170 @@ pub fn sized_value_to_domain(record: crate::v25::SizedValue, context: &crate::re
     })
 }
 
-// Maps line 567: SettingEdit.
-pub fn setting_edit_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Edit, context: &crate::records::Context) -> Result<crate::v25::SettingEdit, crate::v25::Problem> {
+#[must_use]
+pub fn setting_edit_to_record(value: &temper_engine_domain_forge_vocabulary::settings::Edit) -> crate::v25::SettingEdit {
     match value {
-        temper_engine_domain_forge_vocabulary::settings::Edit::Set(held) => Ok(crate::v25::SettingEdit::Set(sized_value_to_record(held, context)?)),
-        temper_engine_domain_forge_vocabulary::settings::Edit::Remove => Ok(crate::v25::SettingEdit::Remove),
-        temper_engine_domain_forge_vocabulary::settings::Edit::Reset => Ok(crate::v25::SettingEdit::Reset),
+        temper_engine_domain_forge_vocabulary::settings::Edit::Set(held) => crate::v25::SettingEdit::Set(sized_value_to_record(held)),
+        temper_engine_domain_forge_vocabulary::settings::Edit::Remove => crate::v25::SettingEdit::Remove,
+        temper_engine_domain_forge_vocabulary::settings::Edit::Reset => crate::v25::SettingEdit::Reset,
     }
 }
 
-// Maps line 567: SettingEdit.
 pub fn setting_edit_to_domain(record: crate::v25::SettingEdit, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::settings::Edit, crate::v25::Problem> {
-    match record {
-        crate::v25::SettingEdit::Set(held) => Ok(temper_engine_domain_forge_vocabulary::settings::Edit::Set(sized_value_to_domain(held, context)?)),
-        crate::v25::SettingEdit::Remove => Ok(temper_engine_domain_forge_vocabulary::settings::Edit::Remove),
-        crate::v25::SettingEdit::Reset => Ok(temper_engine_domain_forge_vocabulary::settings::Edit::Reset),
-    }
+    Ok(match record {
+        crate::v25::SettingEdit::Set(held) => temper_engine_domain_forge_vocabulary::settings::Edit::Set(sized_value_to_domain(held, context)?),
+        crate::v25::SettingEdit::Remove => temper_engine_domain_forge_vocabulary::settings::Edit::Remove,
+        crate::v25::SettingEdit::Reset => temper_engine_domain_forge_vocabulary::settings::Edit::Reset,
+    })
 }
 
-// Maps line 569: FindingKind.
-pub fn finding_kind_to_record(value: &temper_engine_domain_forge_vocabulary::FindingKind, _context: &crate::records::Context) -> Result<crate::v25::FindingKind, crate::v25::Problem> {
+#[must_use]
+pub fn finding_kind_to_record(value: &temper_engine_domain_forge_vocabulary::FindingKind) -> crate::v25::FindingKind {
     match value {
-        temper_engine_domain_forge_vocabulary::FindingKind::Qa => Ok(crate::v25::FindingKind::Qa),
-        temper_engine_domain_forge_vocabulary::FindingKind::Flake => Ok(crate::v25::FindingKind::Flake),
-        temper_engine_domain_forge_vocabulary::FindingKind::Red => Ok(crate::v25::FindingKind::Red),
-        temper_engine_domain_forge_vocabulary::FindingKind::Review => Ok(crate::v25::FindingKind::Review),
-        temper_engine_domain_forge_vocabulary::FindingKind::Feedback => Ok(crate::v25::FindingKind::Feedback),
+        temper_engine_domain_forge_vocabulary::FindingKind::Qa => crate::v25::FindingKind::Qa,
+        temper_engine_domain_forge_vocabulary::FindingKind::Flake => crate::v25::FindingKind::Flake,
+        temper_engine_domain_forge_vocabulary::FindingKind::Red => crate::v25::FindingKind::Red,
+        temper_engine_domain_forge_vocabulary::FindingKind::Review => crate::v25::FindingKind::Review,
+        temper_engine_domain_forge_vocabulary::FindingKind::Feedback => crate::v25::FindingKind::Feedback,
     }
 }
 
-// Maps line 569: FindingKind.
-pub fn finding_kind_to_domain(record: crate::v25::FindingKind, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FindingKind, crate::v25::Problem> {
+#[must_use]
+pub fn finding_kind_to_domain(record: crate::v25::FindingKind) -> temper_engine_domain_forge_vocabulary::FindingKind {
     match record {
-        crate::v25::FindingKind::Qa => Ok(temper_engine_domain_forge_vocabulary::FindingKind::Qa),
-        crate::v25::FindingKind::Flake => Ok(temper_engine_domain_forge_vocabulary::FindingKind::Flake),
-        crate::v25::FindingKind::Red => Ok(temper_engine_domain_forge_vocabulary::FindingKind::Red),
-        crate::v25::FindingKind::Review => Ok(temper_engine_domain_forge_vocabulary::FindingKind::Review),
-        crate::v25::FindingKind::Feedback => Ok(temper_engine_domain_forge_vocabulary::FindingKind::Feedback),
+        crate::v25::FindingKind::Qa => temper_engine_domain_forge_vocabulary::FindingKind::Qa,
+        crate::v25::FindingKind::Flake => temper_engine_domain_forge_vocabulary::FindingKind::Flake,
+        crate::v25::FindingKind::Red => temper_engine_domain_forge_vocabulary::FindingKind::Red,
+        crate::v25::FindingKind::Review => temper_engine_domain_forge_vocabulary::FindingKind::Review,
+        crate::v25::FindingKind::Feedback => temper_engine_domain_forge_vocabulary::FindingKind::Feedback,
     }
 }
 
-// Maps line 570: Severity.
-pub fn severity_to_record(value: &temper_engine_domain_forge_vocabulary::Severity, _context: &crate::records::Context) -> Result<crate::v25::Severity, crate::v25::Problem> {
+#[must_use]
+pub fn severity_to_record(value: &temper_engine_domain_forge_vocabulary::Severity) -> crate::v25::Severity {
     match value {
-        temper_engine_domain_forge_vocabulary::Severity::Low => Ok(crate::v25::Severity::Low),
-        temper_engine_domain_forge_vocabulary::Severity::Medium => Ok(crate::v25::Severity::Medium),
-        temper_engine_domain_forge_vocabulary::Severity::High => Ok(crate::v25::Severity::High),
+        temper_engine_domain_forge_vocabulary::Severity::Low => crate::v25::Severity::Low,
+        temper_engine_domain_forge_vocabulary::Severity::Medium => crate::v25::Severity::Medium,
+        temper_engine_domain_forge_vocabulary::Severity::High => crate::v25::Severity::High,
     }
 }
 
-// Maps line 570: Severity.
-pub fn severity_to_domain(record: crate::v25::Severity, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Severity, crate::v25::Problem> {
+#[must_use]
+pub fn severity_to_domain(record: crate::v25::Severity) -> temper_engine_domain_forge_vocabulary::Severity {
     match record {
-        crate::v25::Severity::Low => Ok(temper_engine_domain_forge_vocabulary::Severity::Low),
-        crate::v25::Severity::Medium => Ok(temper_engine_domain_forge_vocabulary::Severity::Medium),
-        crate::v25::Severity::High => Ok(temper_engine_domain_forge_vocabulary::Severity::High),
+        crate::v25::Severity::Low => temper_engine_domain_forge_vocabulary::Severity::Low,
+        crate::v25::Severity::Medium => temper_engine_domain_forge_vocabulary::Severity::Medium,
+        crate::v25::Severity::High => temper_engine_domain_forge_vocabulary::Severity::High,
     }
 }
 
-// Maps line 571: FindingState.
-pub fn finding_state_to_record(value: &temper_engine_domain_forge_vocabulary::FindingState, _context: &crate::records::Context) -> Result<crate::v25::FindingState, crate::v25::Problem> {
+#[must_use]
+pub fn finding_state_to_record(value: &temper_engine_domain_forge_vocabulary::FindingState) -> crate::v25::FindingState {
     match value {
-        temper_engine_domain_forge_vocabulary::FindingState::New => Ok(crate::v25::FindingState::New),
-        temper_engine_domain_forge_vocabulary::FindingState::Routed => Ok(crate::v25::FindingState::Routed),
-        temper_engine_domain_forge_vocabulary::FindingState::Backlog => Ok(crate::v25::FindingState::Backlog),
-        temper_engine_domain_forge_vocabulary::FindingState::Dropped => Ok(crate::v25::FindingState::Dropped),
+        temper_engine_domain_forge_vocabulary::FindingState::New => crate::v25::FindingState::New,
+        temper_engine_domain_forge_vocabulary::FindingState::Routed => crate::v25::FindingState::Routed,
+        temper_engine_domain_forge_vocabulary::FindingState::Backlog => crate::v25::FindingState::Backlog,
+        temper_engine_domain_forge_vocabulary::FindingState::Dropped => crate::v25::FindingState::Dropped,
     }
 }
 
-// Maps line 571: FindingState.
-pub fn finding_state_to_domain(record: crate::v25::FindingState, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FindingState, crate::v25::Problem> {
+#[must_use]
+pub fn finding_state_to_domain(record: crate::v25::FindingState) -> temper_engine_domain_forge_vocabulary::FindingState {
     match record {
-        crate::v25::FindingState::New => Ok(temper_engine_domain_forge_vocabulary::FindingState::New),
-        crate::v25::FindingState::Routed => Ok(temper_engine_domain_forge_vocabulary::FindingState::Routed),
-        crate::v25::FindingState::Backlog => Ok(temper_engine_domain_forge_vocabulary::FindingState::Backlog),
-        crate::v25::FindingState::Dropped => Ok(temper_engine_domain_forge_vocabulary::FindingState::Dropped),
+        crate::v25::FindingState::New => temper_engine_domain_forge_vocabulary::FindingState::New,
+        crate::v25::FindingState::Routed => temper_engine_domain_forge_vocabulary::FindingState::Routed,
+        crate::v25::FindingState::Backlog => temper_engine_domain_forge_vocabulary::FindingState::Backlog,
+        crate::v25::FindingState::Dropped => temper_engine_domain_forge_vocabulary::FindingState::Dropped,
     }
 }
 
-// Maps line 572: Filer.
-pub fn filer_to_record(value: &temper_engine_domain_forge_vocabulary::Filer, _context: &crate::records::Context) -> Result<crate::v25::Filer, crate::v25::Problem> {
+#[must_use]
+pub fn filer_to_record(value: &temper_engine_domain_forge_vocabulary::Filer) -> crate::v25::Filer {
     match value {
-        temper_engine_domain_forge_vocabulary::Filer::Task(held) => Ok(crate::v25::Filer::Task(crate::v25::Number { number: *held })),
-        temper_engine_domain_forge_vocabulary::Filer::Party(held) => Ok(crate::v25::Filer::Party(crate::v25::Number { number: *held })),
+        temper_engine_domain_forge_vocabulary::Filer::Task(held) => crate::v25::Filer::Task(crate::v25::Number { number: *held }),
+        temper_engine_domain_forge_vocabulary::Filer::Party(held) => crate::v25::Filer::Party(crate::v25::Number { number: *held }),
     }
 }
 
-// Maps line 572: Filer.
-pub fn filer_to_domain(record: crate::v25::Filer, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::Filer, crate::v25::Problem> {
+#[must_use]
+pub fn filer_to_domain(record: crate::v25::Filer) -> temper_engine_domain_forge_vocabulary::Filer {
     match record {
-        crate::v25::Filer::Task(held) => Ok(temper_engine_domain_forge_vocabulary::Filer::Task({
+        crate::v25::Filer::Task(held) => temper_engine_domain_forge_vocabulary::Filer::Task({
             let crate::v25::Number { number: held } = held;
             held
-        })),
-        crate::v25::Filer::Party(held) => Ok(temper_engine_domain_forge_vocabulary::Filer::Party({
+        }),
+        crate::v25::Filer::Party(held) => temper_engine_domain_forge_vocabulary::Filer::Party({
             let crate::v25::Number { number: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 573: BlameStrength.
-pub fn blame_strength_to_record(value: &temper_engine_domain_forge_vocabulary::BlameStrength, _context: &crate::records::Context) -> Result<crate::v25::BlameStrength, crate::v25::Problem> {
+#[must_use]
+pub fn blame_strength_to_record(value: &temper_engine_domain_forge_vocabulary::BlameStrength) -> crate::v25::BlameStrength {
     match value {
-        temper_engine_domain_forge_vocabulary::BlameStrength::Owned => Ok(crate::v25::BlameStrength::Owned),
-        temper_engine_domain_forge_vocabulary::BlameStrength::Suspected => Ok(crate::v25::BlameStrength::Suspected),
-        temper_engine_domain_forge_vocabulary::BlameStrength::Unblamed => Ok(crate::v25::BlameStrength::None),
+        temper_engine_domain_forge_vocabulary::BlameStrength::Owned => crate::v25::BlameStrength::Owned,
+        temper_engine_domain_forge_vocabulary::BlameStrength::Suspected => crate::v25::BlameStrength::Suspected,
+        temper_engine_domain_forge_vocabulary::BlameStrength::Unblamed => crate::v25::BlameStrength::None,
+        temper_engine_domain_forge_vocabulary::BlameStrength::Moved => crate::v25::BlameStrength::Moved,
     }
 }
 
-// Maps line 573: BlameStrength.
-pub fn blame_strength_to_domain(record: crate::v25::BlameStrength, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::BlameStrength, crate::v25::Problem> {
+#[must_use]
+pub fn blame_strength_to_domain(record: crate::v25::BlameStrength) -> temper_engine_domain_forge_vocabulary::BlameStrength {
     match record {
-        crate::v25::BlameStrength::Owned => Ok(temper_engine_domain_forge_vocabulary::BlameStrength::Owned),
-        crate::v25::BlameStrength::Suspected => Ok(temper_engine_domain_forge_vocabulary::BlameStrength::Suspected),
-        crate::v25::BlameStrength::None => Ok(temper_engine_domain_forge_vocabulary::BlameStrength::Unblamed),
+        crate::v25::BlameStrength::Owned => temper_engine_domain_forge_vocabulary::BlameStrength::Owned,
+        crate::v25::BlameStrength::Suspected => temper_engine_domain_forge_vocabulary::BlameStrength::Suspected,
+        crate::v25::BlameStrength::None => temper_engine_domain_forge_vocabulary::BlameStrength::Unblamed,
+        crate::v25::BlameStrength::Moved => temper_engine_domain_forge_vocabulary::BlameStrength::Moved,
     }
 }
 
-// Maps line 574: BlamedGoal.
-pub fn blamed_goal_to_record(value: &temper_engine_domain_forge_vocabulary::BlamedGoal, _context: &crate::records::Context) -> Result<crate::v25::BlamedGoal, crate::v25::Problem> {
+#[must_use]
+pub fn blamed_goal_to_record(value: &temper_engine_domain_forge_vocabulary::BlamedGoal) -> crate::v25::BlamedGoal {
     let temper_engine_domain_forge_vocabulary::BlamedGoal { goal: field_000000, milestone: field_000001, person: field_000002 } = value;
-    Ok(crate::v25::BlamedGoal {
+    crate::v25::BlamedGoal {
         goal: *field_000000,
         milestone: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         person: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 574: BlamedGoal.
-pub fn blamed_goal_to_domain(record: crate::v25::BlamedGoal, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::BlamedGoal, crate::v25::Problem> {
+#[must_use]
+pub fn blamed_goal_to_domain(record: crate::v25::BlamedGoal) -> temper_engine_domain_forge_vocabulary::BlamedGoal {
     let crate::v25::BlamedGoal { goal: field_000000, milestone: field_000001, person: field_000002 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::BlamedGoal {
+    temper_engine_domain_forge_vocabulary::BlamedGoal {
         goal: field_000000,
         milestone: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         person: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 575: BlamedLanding.
-pub fn blamed_landing_to_record(value: &temper_engine_domain_forge_vocabulary::BlamedLanding, context: &crate::records::Context) -> Result<crate::v25::BlamedLanding, crate::v25::Problem> {
+pub fn blamed_landing_to_record(value: &temper_engine_domain_forge_vocabulary::BlamedLanding) -> Result<crate::v25::BlamedLanding, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::BlamedLanding { commit: field_000000, goals: field_000001 } = value;
     Ok(crate::v25::BlamedLanding {
         commit: *field_000000,
@@ -9498,123 +10799,164 @@ pub fn blamed_landing_to_record(value: &temper_engine_domain_forge_vocabulary::B
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::BLAMED_LANDING_GOALS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = blamed_goal_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::BLAMED_LANDING_GOALS.problem(skein_codec::Reason::Bound)); }
+                let converted = blamed_goal_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 575: BlamedLanding.
-pub fn blamed_landing_to_domain(record: crate::v25::BlamedLanding, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::BlamedLanding, crate::v25::Problem> {
+#[must_use]
+pub fn blamed_landing_to_domain(record: crate::v25::BlamedLanding) -> temper_engine_domain_forge_vocabulary::BlamedLanding {
     let crate::v25::BlamedLanding { commit: field_000000, goals: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::BlamedLanding {
+    temper_engine_domain_forge_vocabulary::BlamedLanding {
         commit: field_000000,
         goals: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = blamed_goal_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::BLAMED_LANDING_GOALS.problem(skein_codec::Reason::Bound)); }
+                let converted = blamed_goal_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 576: FindingBlame.
-pub fn finding_blame_to_record(value: &temper_engine_domain_forge_vocabulary::FindingBlame, context: &crate::records::Context) -> Result<crate::v25::FindingBlame, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::FindingBlame { strength: field_000000, landings: field_000001 } = value;
+#[must_use]
+pub fn blame_move_to_record(value: &temper_engine_domain_forge_vocabulary::BlameMove) -> crate::v25::BlameMove {
+    let temper_engine_domain_forge_vocabulary::BlameMove { by: field_000000, why: field_000001 } = value;
+    crate::v25::BlameMove {
+        by: filer_to_record(field_000000),
+        why: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn blame_move_to_domain(record: crate::v25::BlameMove) -> temper_engine_domain_forge_vocabulary::BlameMove {
+    let crate::v25::BlameMove { by: field_000000, why: field_000001 } = record;
+    temper_engine_domain_forge_vocabulary::BlameMove {
+        by: filer_to_domain(field_000000),
+        why: field_000001
+    }
+}
+
+pub fn finding_blame_to_record(value: &temper_engine_domain_forge_vocabulary::FindingBlame) -> Result<crate::v25::FindingBlame, crate::v25::Problem> {
+    let temper_engine_domain_forge_vocabulary::FindingBlame { strength: field_000000, landings: field_000001, moved: field_000002 } = value;
     Ok(crate::v25::FindingBlame {
-        strength: blame_strength_to_record(field_000000, context)?,
+        strength: blame_strength_to_record(field_000000),
         landings: {
             let source = field_000001;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::FINDING_BLAME_LANDINGS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = blamed_landing_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FINDING_BLAME_LANDINGS.problem(skein_codec::Reason::Bound)); }
+                let converted = blamed_landing_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        moved: match field_000002 {
+            Some(item) => {
+                let converted = blame_move_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     })
 }
 
-// Maps line 576: FindingBlame.
-pub fn finding_blame_to_domain(record: crate::v25::FindingBlame, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FindingBlame, crate::v25::Problem> {
-    let crate::v25::FindingBlame { strength: field_000000, landings: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FindingBlame {
-        strength: blame_strength_to_domain(field_000000, context)?,
+#[must_use]
+pub fn finding_blame_to_domain(record: crate::v25::FindingBlame) -> temper_engine_domain_forge_vocabulary::FindingBlame {
+    let crate::v25::FindingBlame { strength: field_000000, landings: field_000001, moved: field_000002 } = record;
+    temper_engine_domain_forge_vocabulary::FindingBlame {
+        strength: blame_strength_to_domain(field_000000),
         landings: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = blamed_landing_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::v25::paths::FINDING_BLAME_LANDINGS.problem(skein_codec::Reason::Bound)); }
+                let converted = blamed_landing_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
+        },
+        moved: match field_000002 {
+            Some(item) => {
+                let converted = blame_move_to_domain(item);
+                Some(converted)
+            }
+            None => None,
         }
-    })
+    }
 }
 
-// Maps line 577: FindingCleared.
-pub fn finding_cleared_to_record(value: &temper_engine_domain_forge_vocabulary::FindingCleared, _context: &crate::records::Context) -> Result<crate::v25::FindingCleared, crate::v25::Problem> {
+#[must_use]
+pub fn finding_cleared_to_record(value: &temper_engine_domain_forge_vocabulary::FindingCleared) -> crate::v25::FindingCleared {
     let temper_engine_domain_forge_vocabulary::FindingCleared { run: field_000000, at: field_000001 } = value;
-    Ok(crate::v25::FindingCleared {
+    crate::v25::FindingCleared {
         run: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::FINDING_CLEARED_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_record(field_000001)
+    }
 }
 
-// Maps line 577: FindingCleared.
-pub fn finding_cleared_to_domain(record: crate::v25::FindingCleared, _context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::FindingCleared, crate::v25::Problem> {
+#[must_use]
+pub fn finding_cleared_to_domain(record: crate::v25::FindingCleared) -> temper_engine_domain_forge_vocabulary::FindingCleared {
     let crate::v25::FindingCleared { run: field_000000, at: field_000001 } = record;
-    Ok(temper_engine_domain_forge_vocabulary::FindingCleared {
+    temper_engine_domain_forge_vocabulary::FindingCleared {
         run: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::v25::paths::FINDING_CLEARED_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_domain(field_000001)
+    }
 }
 
-// Maps line 579: VerdictFiling.
-pub fn verdict_filing_to_record(value: &temper_engine_domain_forge_vocabulary::VerdictFiling, context: &crate::records::Context) -> Result<crate::v25::VerdictFiling, crate::v25::Problem> {
+pub fn verdict_filing_to_record(value: &temper_engine_domain_forge_vocabulary::VerdictFiling) -> Result<crate::v25::VerdictFiling, crate::v25::Problem> {
     let temper_engine_domain_forge_vocabulary::VerdictFiling { project: field_000000, kind: field_000001, severity: field_000002, title: field_000003, body: field_000004, signature: field_000005, blame: field_000006, follow: field_000007 } = value;
     Ok(crate::v25::VerdictFiling {
         project: *field_000000,
-        kind: finding_kind_to_record(field_000001, context)?,
-        severity: severity_to_record(field_000002, context)?,
+        kind: finding_kind_to_record(field_000001),
+        severity: severity_to_record(field_000002),
         title: field_000003.clone(),
         body: field_000004.clone(),
-        signature: crate::records::by_hand::finding_signature_to_record(field_000005, context)?,
+        signature: crate::records::by_hand::finding_signature_to_record(field_000005),
         blame: match field_000006 {
-            Some(item) => Some(finding_blame_to_record(item, context)?),
+            Some(item) => {
+                let converted = finding_blame_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         follow: match field_000007 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 579: VerdictFiling.
-pub fn verdict_filing_to_domain(record: crate::v25::VerdictFiling, context: &crate::records::Context) -> Result<temper_engine_domain_forge_vocabulary::VerdictFiling, crate::v25::Problem> {
+pub fn verdict_filing_to_domain(record: crate::v25::VerdictFiling) -> Result<temper_engine_domain_forge_vocabulary::VerdictFiling, crate::v25::Problem> {
     let crate::v25::VerdictFiling { project: field_000000, kind: field_000001, severity: field_000002, title: field_000003, body: field_000004, signature: field_000005, blame: field_000006, follow: field_000007 } = record;
     Ok(temper_engine_domain_forge_vocabulary::VerdictFiling {
         project: field_000000,
-        kind: finding_kind_to_domain(field_000001, context)?,
-        severity: severity_to_domain(field_000002, context)?,
+        kind: finding_kind_to_domain(field_000001),
+        severity: severity_to_domain(field_000002),
         title: field_000003,
         body: field_000004,
-        signature: crate::records::by_hand::finding_signature_to_domain(field_000005, context)?,
+        signature: crate::records::by_hand::finding_signature_to_domain(field_000005)?,
         blame: match field_000006 {
-            Some(item) => Some(finding_blame_to_domain(item, context)?),
+            Some(item) => {
+                let converted = finding_blame_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         follow: match field_000007 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
     })

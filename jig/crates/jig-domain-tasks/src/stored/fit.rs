@@ -18,6 +18,20 @@ pub(crate) fn room(which: RestoreBound, len: u32, limit: u32) -> Result<(), Rest
     bound(which, u64::from(len).checked_add(1).ok_or(RestoreCause::Accounting)?, u64::from(limit))
 }
 
+pub(super) fn timers(domain: &Domain, task: &TaskRecord) -> Result<u32, RestoreCause> {
+    let mut held = u64::from(domain.timer_subscriptions);
+    for subscription in &task.subscriptions {
+        match subscription.kind {
+            crate::SubscriptionKind::Timer { .. } => {
+                held = held.checked_add(1).ok_or(RestoreCause::Accounting)?;
+            }
+            crate::SubscriptionKind::Task { .. } | crate::SubscriptionKind::Topic { .. } => {}
+        }
+    }
+    bound(RestoreBound::Timers, held, u64::from(domain.timer_capacity))?;
+    u32::try_from(held).or(Err(RestoreCause::Accounting))
+}
+
 pub(crate) fn numbers(value: Numbers) -> Result<(), RestoreCause> {
     let spent = crate::funders::total(value).ok_or(RestoreCause::Accounting)?;
     spent.checked_add(value.reserved).ok_or(RestoreCause::Accounting)?;
@@ -181,6 +195,7 @@ fn phase(value: &Phase, limits: &Limits) -> Result<(), RestoreCause> {
             HoldSource::Account { words, .. } => {
                 count(RestoreBound::AccountOriginBytes, words.len(), crate::hold_origin::ACCOUNT_BYTES)?;
             }
+            HoldSource::Wait { words } => count(RestoreBound::WaitOriginBytes, words.len(), crate::WAIT_WORDS)?,
             HoldSource::Circle(circle) => count(RestoreBound::Circle, circle.tasks.len(), limits.circle)?,
             HoldSource::Resource(resource) => name(resource, limits)?,
             HoldSource::Effect { .. } => {}
@@ -306,6 +321,17 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     } else if value.spec.job.is_some() || crate::batch::job_contract(&value.contract) {
         return Err(RestoreCause::Accounting);
     }
+    if let Some(wait) = value.person_wait
+        && let Some(offer) = wait.offer
+        && (wait.notice.is_none()
+            || !crate::control::valid_address(offer.holder)
+            || match value.executor {
+                Executor::Person(address) => address == offer.holder,
+                Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => true,
+            })
+    {
+        return Err(RestoreCause::Accounting);
+    }
     numbers(value.numbers)?;
     spec(&value.spec, limits)?;
     contract(&value.contract, limits)?;
@@ -323,16 +349,37 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     count(RestoreBound::Delegates, value.delegates.len(), limits.delegates)?;
     count(RestoreBound::Batch, value.result_followups.len(), limits.batch)?;
     count(RestoreBound::References, value.references.len(), limits.references)?;
-    count(
-        RestoreBound::Subscriptions,
-        value.subscriptions.len(),
-        crate::subscriptions::kept_capacity(limits).ok_or(RestoreCause::Accounting)?,
-    )?;
     count(RestoreBound::Dependencies, value.dependencies.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.waiting_on.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.added.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.started_from.len(), limits.dependencies)?;
     count(RestoreBound::InboxMessages, value.questions.len(), limits.inbox_messages)?;
+    for credit in &value.questions {
+        if let Some(offer) = &credit.offer {
+            match (&offer.holder, &offer.relay) {
+                (crate::EscalationHolder::Task(holder), Some(relay)) if *holder != 0 && relay.entry > credit.number => {
+                    count(RestoreBound::MessageBytes, relay.words.len(), limits.message_bytes)?;
+                }
+                (crate::EscalationHolder::Person(person), None) if *person != 0 => {}
+                (crate::EscalationHolder::Role { project, .. }, None) if *project == value.project => {}
+                _ => return Err(RestoreCause::Accounting),
+            }
+        }
+    }
+    for line in &value.question_lines {
+        if let Some(resolution) = &line.resolution {
+            if line.answer.is_none() {
+                return Err(RestoreCause::Accounting);
+            }
+            if let Some(notice) = &resolution.notice {
+                bound(
+                    RestoreBound::MessageBytes,
+                    len_u64(notice.words.len()),
+                    u64::try_from(crate::questions::ANSWER_NOTICE_BYTES).expect("question notice bound fits"),
+                )?;
+            }
+        }
+    }
     count(RestoreBound::InboxMessages, value.question_lines.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.proposal_rows.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.replies.len(), limits.inbox_messages)?;
@@ -461,6 +508,8 @@ fn payload_bound(value: &TaskRecord, word: &crate::Word, limits: &Limits) -> (Re
             }
         }
         MessageKind::EffectNotMade { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
         | MessageKind::Escalation { .. }
         | MessageKind::Proposal { .. }
         | MessageKind::PersonStalled { .. }
@@ -614,4 +663,78 @@ fn model(domain: &Domain, models: &[u8], chosen: crate::ModelEffort) -> Result<(
         return Err(RestoreCause::LlmChoice { chosen, why: RestoreLlmWhy::Effort });
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::phase;
+    use crate::{Ending, HoldSource, Phase, TaskResult, Was};
+    use skein_lib::{List, Wall, bytes::zeroed, length::usize_of};
+
+    #[test]
+    fn the_phase_bound_is_attained_by_admitted_closing_holds() {
+        let base = crate::tests::revisions::LIMITS;
+        for limits in [
+            crate::Limits { result_bytes: 0, ..base },
+            crate::Limits { result_bytes: 64, ..base },
+            crate::Limits { result_bytes: 1024, hold_bytes: 4096, ..base },
+            crate::Limits { result_bytes: 64, circle: 1024, ..base },
+        ] {
+            let mut fields = List::with_capacity(limits.result_bytes.min(crate::VERDICT_FIELDS));
+            for _ in 0..fields.capacity() {
+                fields.push(crate::ResultField { name: Box::new(*b"x"), value: Box::new([]) }).expect("field room");
+            }
+            let remaining = limits.result_bytes.checked_sub(fields.len()).expect("field names fit result");
+            let results = [
+                TaskResult::Verdict { code: 1, fields: fields.into_boxed(), words: zeroed(usize_of(remaining)) },
+                TaskResult::Change {
+                    connector: 1,
+                    kind: 1,
+                    resource: 1,
+                    title: crate::ChangeTitle::new(zeroed(usize_of(limits.result_bytes))),
+                    words: zeroed(usize_of(limits.result_bytes)),
+                },
+            ];
+            let mut path = List::with_capacity(limits.hold_segments);
+            for at in 0..limits.hold_segments {
+                path.push(zeroed(if at == 0 { usize_of(limits.hold_bytes) } else { 0 })).expect("path room");
+            }
+            let mut circle = List::with_capacity(limits.circle);
+            for number in 0..u64::from(limits.circle) {
+                circle.push(number).expect("circle room");
+            }
+            let mut largest = 0;
+            for result in results {
+                for source in [
+                    HoldSource::Preparation { words: zeroed(usize_of(crate::REASON_BYTES)) },
+                    HoldSource::Account {
+                        connector: 1,
+                        entry: None,
+                        words: zeroed(usize_of(crate::HOLD_ACCOUNT_BYTES)),
+                    },
+                    HoldSource::Resource(crate::Name { connector: 1, path: path.as_slice().into() }),
+                    HoldSource::Circle(crate::Circle { tasks: circle.as_slice().into(), cut: false }),
+                    HoldSource::Effect { connector: 1, entry: 1 },
+                ] {
+                    let value = Phase::Held {
+                        was: Was::Closing(crate::Closing {
+                            stage: crate::Stage::Effects,
+                            ending: Ending::Cancelled {
+                                by: crate::Party::Person(1),
+                                at: Wall::EPOCH,
+                                reason: zeroed(usize_of(limits.result_bytes)),
+                                result: Some(result.clone()),
+                            },
+                        }),
+                        why: crate::Hold::Stopped,
+                        source: Some(Box::new(source)),
+                    };
+                    assert_eq!(phase(&value, &limits), Ok(()));
+                    largest = largest.max(crate::phase_bytes(&value).expect("admitted phase accounted"));
+                    assert!(largest <= crate::phase_bound(&limits).expect("bounded limits"));
+                }
+            }
+            assert_eq!(Some(largest), crate::phase_bound(&limits));
+        }
+    }
 }

@@ -8,8 +8,13 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 3;
+pub const LAYOUT: [u8; 32] = [
+    0x73, 0xa0, 0x7d, 0x87, 0x19, 0x52, 0x65, 0x57, 0x55, 0xd3, 0x03, 0x7b, 0xa0, 0x73, 0x6f, 0x46, 0x89, 0xcc, 0xac,
+    0xb6, 0x4d, 0x26, 0x2a, 0xea, 0x70, 0x32, 0xc9, 0x21, 0x85, 0x26, 0xae, 0xef,
+];
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub texts_raw: u32,
@@ -462,154 +467,308 @@ impl Limits {
     #[expect(clippy::too_many_lines, reason = "one operation per schema field or limit")]
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.texts_raw).expect("room for every named limit");
-        values.push(self.texts_key).expect("room for every named limit");
-        values.push(self.texts_words).expect("room for every named limit");
-        values.push(self.stamp_note_some).expect("room for every named limit");
-        values.push(self.stamp_zone).expect("room for every named limit");
-        values.push(self.nest_blanks).expect("room for every named limit");
-        values.push(self.nest_lights).expect("room for every named limit");
-        values.push(self.nest_maybe_lights).expect("room for every named limit");
-        values.push(self.nest_grid).expect("room for every named limit");
-        values.push(self.nest_grid_item).expect("room for every named limit");
-        values.push(self.nest_maybe_list_some).expect("room for every named limit");
-        values.push(self.nest_shapes).expect("room for every named limit");
-        values.push(self.nest_secrets).expect("room for every named limit");
-        values.push(self.nest_secrets_item).expect("room for every named limit");
-        values.push(self.nest_stamps).expect("room for every named limit");
-        values.push(self.nest_label_some).expect("room for every named limit");
-        values.push(self.every_held).expect("room for every named limit");
-        values.push(self.every_items).expect("room for every named limit");
-        values.push(self.lists_small).expect("room for every named limit");
-        values.push(self.lists_short).expect("room for every named limit");
-        values.push(self.lists_word).expect("room for every named limit");
-        values.push(self.lists_long).expect("room for every named limit");
-        values.push(self.lists_flag).expect("room for every named limit");
-        values.push(self.lists_pause).expect("room for every named limit");
-        values.push(self.lists_tag).expect("room for every named limit");
-        values.push(self.lists_raw).expect("room for every named limit");
-        values.push(self.lists_raw_item).expect("room for every named limit");
-        values.push(self.lists_key).expect("room for every named limit");
-        values.push(self.lists_key_item).expect("room for every named limit");
-        values.push(self.lists_words).expect("room for every named limit");
-        values.push(self.lists_words_item).expect("room for every named limit");
-        values.push(self.lists_grid).expect("room for every named limit");
-        values.push(self.lists_grid_item).expect("room for every named limit");
-        values.push(self.lists_options).expect("room for every named limit");
-        values.push(self.lists_records).expect("room for every named limit");
-        values.push(self.lists_enums).expect("room for every named limit");
-        values.push(self.options_raw_some).expect("room for every named limit");
-        values.push(self.options_key_some).expect("room for every named limit");
-        values.push(self.options_words_some).expect("room for every named limit");
-        values.push(self.options_lists_some).expect("room for every named limit");
-        values.push(self.held_record_bytes).expect("room for every named limit");
-        values.push(self.held_enum_bytes).expect("room for every named limit");
-        values.push(self.held_record_secret).expect("room for every named limit");
-        values.push(self.held_enum_secret).expect("room for every named limit");
-        values.push(self.held_byte_pieces).expect("room for every named limit");
-        values.push(self.held_secret_pieces).expect("room for every named limit");
-        values.push(self.long_record_alpha).expect("room for every named limit");
-        values.push(self.long_record_bravo).expect("room for every named limit");
-        values.push(self.long_record_charlie).expect("room for every named limit");
-        values.push(self.long_record_delta).expect("room for every named limit");
-        values.push(self.long_record_echo).expect("room for every named limit");
-        values.push(self.long_record_foxtrot).expect("room for every named limit");
-        values.push(self.long_record_golf).expect("room for every named limit");
-        values.push(self.long_record_hotel).expect("room for every named limit");
-        values.push(self.long_record_india).expect("room for every named limit");
-        values.push(self.long_record_juliet).expect("room for every named limit");
-        values.push(self.long_record_kilo).expect("room for every named limit");
-        values.push(self.long_record_lima).expect("room for every named limit");
-        values.push(self.long_record_mike).expect("room for every named limit");
-        values.push(self.long_record_november).expect("room for every named limit");
-        values.push(self.long_record_oscar).expect("room for every named limit");
-        values.push(self.long_record_papa).expect("room for every named limit");
-        values.push(self.long_record_quebec).expect("room for every named limit");
-        values.push(self.long_record_romeo).expect("room for every named limit");
-        values.push(self.long_record_sierra).expect("room for every named limit");
-        values.push(self.long_record_tango).expect("room for every named limit");
-        values.push(self.long_record_uniform).expect("room for every named limit");
-        values.push(self.long_record_victor).expect("room for every named limit");
-        values.push(self.long_record_whiskey).expect("room for every named limit");
-        values.push(self.long_record_xray).expect("room for every named limit");
-        values.push(self.long_record_yankee).expect("room for every named limit");
-        values.push(self.long_record_zulu).expect("room for every named limit");
-        values.push(self.long_record_amber).expect("room for every named limit");
-        values.push(self.long_record_birch).expect("room for every named limit");
-        values.push(self.long_record_cedar).expect("room for every named limit");
-        values.push(self.long_record_dune).expect("room for every named limit");
-        values.push(self.long_record_acorn).expect("room for every named limit");
-        values.push(self.long_record_anchor).expect("room for every named limit");
-        values.push(self.long_record_apron).expect("room for every named limit");
-        values.push(self.long_record_atlas).expect("room for every named limit");
-        values.push(self.long_record_autumn).expect("room for every named limit");
-        values.push(self.long_record_avocado).expect("room for every named limit");
-        values.push(self.long_record_walnut).expect("room for every named limit");
-        values.push(self.long_record_badge).expect("room for every named limit");
-        values.push(self.long_record_bamboo).expect("room for every named limit");
-        values.push(self.long_record_barrel).expect("room for every named limit");
-        values.push(self.long_record_beacon).expect("room for every named limit");
-        values.push(self.long_record_beetle).expect("room for every named limit");
-        values.push(self.long_record_bronze).expect("room for every named limit");
-        values.push(self.long_record_cactus).expect("room for every named limit");
-        values.push(self.long_record_camera).expect("room for every named limit");
-        values.push(self.long_record_canyon).expect("room for every named limit");
-        values.push(self.long_record_cello).expect("room for every named limit");
-        values.push(self.long_record_cobalt).expect("room for every named limit");
-        values.push(self.long_record_comet).expect("room for every named limit");
-        values.push(self.long_record_compass).expect("room for every named limit");
-        values.push(self.long_record_coral).expect("room for every named limit");
-        values.push(self.long_record_cotton).expect("room for every named limit");
-        values.push(self.long_record_coyote).expect("room for every named limit");
-        values.push(self.long_record_cricket).expect("room for every named limit");
-        values.push(self.long_record_crystal).expect("room for every named limit");
-        values.push(self.long_record_dragon).expect("room for every named limit");
-        values.push(self.long_record_engine).expect("room for every named limit");
-        values.push(self.long_record_falcon).expect("room for every named limit");
-        values.push(self.long_record_feather).expect("room for every named limit");
-        values.push(self.long_record_fern).expect("room for every named limit");
-        values.push(self.long_record_flute).expect("room for every named limit");
-        values.push(self.long_record_fossil).expect("room for every named limit");
-        values.push(self.long_record_galaxy).expect("room for every named limit");
-        values.push(self.long_record_garden).expect("room for every named limit");
-        values.push(self.long_record_glacier).expect("room for every named limit");
-        values.push(self.long_record_granite).expect("room for every named limit");
-        values.push(self.long_record_harbor).expect("room for every named limit");
-        values.push(self.long_record_hazel).expect("room for every named limit");
-        values.push(self.long_record_helmet).expect("room for every named limit");
-        values.push(self.long_record_honey).expect("room for every named limit");
-        values.push(self.long_record_igloo).expect("room for every named limit");
-        values.push(self.long_record_island).expect("room for every named limit");
-        values.push(self.long_record_ivory).expect("room for every named limit");
-        values.push(self.long_record_jasmine).expect("room for every named limit");
-        values.push(self.long_record_kettle).expect("room for every named limit");
-        values.push(self.long_record_lantern).expect("room for every named limit");
-        values.push(self.long_record_leopard).expect("room for every named limit");
-        values.push(self.long_record_lobster).expect("room for every named limit");
-        values.push(self.long_record_magnet).expect("room for every named limit");
-        values.push(self.long_record_marble).expect("room for every named limit");
-        values.push(self.long_record_meadow).expect("room for every named limit");
-        values.push(self.long_record_mermaid).expect("room for every named limit");
-        values.push(self.long_record_meteor).expect("room for every named limit");
-        values.push(self.long_record_mosaic).expect("room for every named limit");
-        values.push(self.long_record_napkin).expect("room for every named limit");
-        values.push(self.long_record_nectar).expect("room for every named limit");
-        values.push(self.long_record_ocean).expect("room for every named limit");
-        values.push(self.long_record_olive).expect("room for every named limit");
-        values.push(self.long_record_orchid).expect("room for every named limit");
-        values.push(self.long_record_panda).expect("room for every named limit");
-        values.push(self.long_record_pencil).expect("room for every named limit");
-        values.push(self.long_record_planet).expect("room for every named limit");
-        values.push(self.long_record_pollen).expect("room for every named limit");
-        values.push(self.long_record_quartz).expect("room for every named limit");
-        values.push(self.long_record_rainbow).expect("room for every named limit");
-        values.push(self.long_record_raven).expect("room for every named limit");
-        values.push(self.long_record_rocket).expect("room for every named limit");
-        values.push(self.long_record_saffron).expect("room for every named limit");
-        values.push(self.long_record_salmon).expect("room for every named limit");
-        values.push(self.long_record_satin).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.texts_raw,
+            self.texts_key,
+            self.texts_words,
+            self.stamp_note_some,
+            self.stamp_zone,
+            self.nest_blanks,
+            self.nest_lights,
+            self.nest_maybe_lights,
+            self.nest_grid,
+            self.nest_grid_item,
+            self.nest_maybe_list_some,
+            self.nest_shapes,
+            self.nest_secrets,
+            self.nest_secrets_item,
+            self.nest_stamps,
+            self.nest_label_some,
+            self.every_held,
+            self.every_items,
+            self.lists_small,
+            self.lists_short,
+            self.lists_word,
+            self.lists_long,
+            self.lists_flag,
+            self.lists_pause,
+            self.lists_tag,
+            self.lists_raw,
+            self.lists_raw_item,
+            self.lists_key,
+            self.lists_key_item,
+            self.lists_words,
+            self.lists_words_item,
+            self.lists_grid,
+            self.lists_grid_item,
+            self.lists_options,
+            self.lists_records,
+            self.lists_enums,
+            self.options_raw_some,
+            self.options_key_some,
+            self.options_words_some,
+            self.options_lists_some,
+            self.held_record_bytes,
+            self.held_enum_bytes,
+            self.held_record_secret,
+            self.held_enum_secret,
+            self.held_byte_pieces,
+            self.held_secret_pieces,
+            self.long_record_alpha,
+            self.long_record_bravo,
+            self.long_record_charlie,
+            self.long_record_delta,
+            self.long_record_echo,
+            self.long_record_foxtrot,
+            self.long_record_golf,
+            self.long_record_hotel,
+            self.long_record_india,
+            self.long_record_juliet,
+            self.long_record_kilo,
+            self.long_record_lima,
+            self.long_record_mike,
+            self.long_record_november,
+            self.long_record_oscar,
+            self.long_record_papa,
+            self.long_record_quebec,
+            self.long_record_romeo,
+            self.long_record_sierra,
+            self.long_record_tango,
+            self.long_record_uniform,
+            self.long_record_victor,
+            self.long_record_whiskey,
+            self.long_record_xray,
+            self.long_record_yankee,
+            self.long_record_zulu,
+            self.long_record_amber,
+            self.long_record_birch,
+            self.long_record_cedar,
+            self.long_record_dune,
+            self.long_record_acorn,
+            self.long_record_anchor,
+            self.long_record_apron,
+            self.long_record_atlas,
+            self.long_record_autumn,
+            self.long_record_avocado,
+            self.long_record_walnut,
+            self.long_record_badge,
+            self.long_record_bamboo,
+            self.long_record_barrel,
+            self.long_record_beacon,
+            self.long_record_beetle,
+            self.long_record_bronze,
+            self.long_record_cactus,
+            self.long_record_camera,
+            self.long_record_canyon,
+            self.long_record_cello,
+            self.long_record_cobalt,
+            self.long_record_comet,
+            self.long_record_compass,
+            self.long_record_coral,
+            self.long_record_cotton,
+            self.long_record_coyote,
+            self.long_record_cricket,
+            self.long_record_crystal,
+            self.long_record_dragon,
+            self.long_record_engine,
+            self.long_record_falcon,
+            self.long_record_feather,
+            self.long_record_fern,
+            self.long_record_flute,
+            self.long_record_fossil,
+            self.long_record_galaxy,
+            self.long_record_garden,
+            self.long_record_glacier,
+            self.long_record_granite,
+            self.long_record_harbor,
+            self.long_record_hazel,
+            self.long_record_helmet,
+            self.long_record_honey,
+            self.long_record_igloo,
+            self.long_record_island,
+            self.long_record_ivory,
+            self.long_record_jasmine,
+            self.long_record_kettle,
+            self.long_record_lantern,
+            self.long_record_leopard,
+            self.long_record_lobster,
+            self.long_record_magnet,
+            self.long_record_marble,
+            self.long_record_meadow,
+            self.long_record_mermaid,
+            self.long_record_meteor,
+            self.long_record_mosaic,
+            self.long_record_napkin,
+            self.long_record_nectar,
+            self.long_record_ocean,
+            self.long_record_olive,
+            self.long_record_orchid,
+            self.long_record_panda,
+            self.long_record_pencil,
+            self.long_record_planet,
+            self.long_record_pollen,
+            self.long_record_quartz,
+            self.long_record_rainbow,
+            self.long_record_raven,
+            self.long_record_rocket,
+            self.long_record_saffron,
+            self.long_record_salmon,
+            self.long_record_satin,
+        ].into())
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one operation per schema field or limit")]
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            texts_raw: self.texts_raw.min(most),
+            texts_key: self.texts_key.min(most),
+            texts_words: self.texts_words.min(most),
+            stamp_note_some: self.stamp_note_some.min(most),
+            stamp_zone: self.stamp_zone.min(most),
+            nest_blanks: self.nest_blanks.min(most),
+            nest_lights: self.nest_lights.min(most),
+            nest_maybe_lights: self.nest_maybe_lights.min(most),
+            nest_grid: self.nest_grid.min(most),
+            nest_grid_item: self.nest_grid_item.min(most),
+            nest_maybe_list_some: self.nest_maybe_list_some.min(most),
+            nest_shapes: self.nest_shapes.min(most),
+            nest_secrets: self.nest_secrets.min(most),
+            nest_secrets_item: self.nest_secrets_item.min(most),
+            nest_stamps: self.nest_stamps.min(most),
+            nest_label_some: self.nest_label_some.min(most),
+            every_held: self.every_held.min(most),
+            every_items: self.every_items.min(most),
+            lists_small: self.lists_small.min(most),
+            lists_short: self.lists_short.min(most),
+            lists_word: self.lists_word.min(most),
+            lists_long: self.lists_long.min(most),
+            lists_flag: self.lists_flag.min(most),
+            lists_pause: self.lists_pause.min(most),
+            lists_tag: self.lists_tag.min(most),
+            lists_raw: self.lists_raw.min(most),
+            lists_raw_item: self.lists_raw_item.min(most),
+            lists_key: self.lists_key.min(most),
+            lists_key_item: self.lists_key_item.min(most),
+            lists_words: self.lists_words.min(most),
+            lists_words_item: self.lists_words_item.min(most),
+            lists_grid: self.lists_grid.min(most),
+            lists_grid_item: self.lists_grid_item.min(most),
+            lists_options: self.lists_options.min(most),
+            lists_records: self.lists_records.min(most),
+            lists_enums: self.lists_enums.min(most),
+            options_raw_some: self.options_raw_some.min(most),
+            options_key_some: self.options_key_some.min(most),
+            options_words_some: self.options_words_some.min(most),
+            options_lists_some: self.options_lists_some.min(most),
+            held_record_bytes: self.held_record_bytes.min(most),
+            held_enum_bytes: self.held_enum_bytes.min(most),
+            held_record_secret: self.held_record_secret.min(most),
+            held_enum_secret: self.held_enum_secret.min(most),
+            held_byte_pieces: self.held_byte_pieces.min(most),
+            held_secret_pieces: self.held_secret_pieces.min(most),
+            long_record_alpha: self.long_record_alpha.min(most),
+            long_record_bravo: self.long_record_bravo.min(most),
+            long_record_charlie: self.long_record_charlie.min(most),
+            long_record_delta: self.long_record_delta.min(most),
+            long_record_echo: self.long_record_echo.min(most),
+            long_record_foxtrot: self.long_record_foxtrot.min(most),
+            long_record_golf: self.long_record_golf.min(most),
+            long_record_hotel: self.long_record_hotel.min(most),
+            long_record_india: self.long_record_india.min(most),
+            long_record_juliet: self.long_record_juliet.min(most),
+            long_record_kilo: self.long_record_kilo.min(most),
+            long_record_lima: self.long_record_lima.min(most),
+            long_record_mike: self.long_record_mike.min(most),
+            long_record_november: self.long_record_november.min(most),
+            long_record_oscar: self.long_record_oscar.min(most),
+            long_record_papa: self.long_record_papa.min(most),
+            long_record_quebec: self.long_record_quebec.min(most),
+            long_record_romeo: self.long_record_romeo.min(most),
+            long_record_sierra: self.long_record_sierra.min(most),
+            long_record_tango: self.long_record_tango.min(most),
+            long_record_uniform: self.long_record_uniform.min(most),
+            long_record_victor: self.long_record_victor.min(most),
+            long_record_whiskey: self.long_record_whiskey.min(most),
+            long_record_xray: self.long_record_xray.min(most),
+            long_record_yankee: self.long_record_yankee.min(most),
+            long_record_zulu: self.long_record_zulu.min(most),
+            long_record_amber: self.long_record_amber.min(most),
+            long_record_birch: self.long_record_birch.min(most),
+            long_record_cedar: self.long_record_cedar.min(most),
+            long_record_dune: self.long_record_dune.min(most),
+            long_record_acorn: self.long_record_acorn.min(most),
+            long_record_anchor: self.long_record_anchor.min(most),
+            long_record_apron: self.long_record_apron.min(most),
+            long_record_atlas: self.long_record_atlas.min(most),
+            long_record_autumn: self.long_record_autumn.min(most),
+            long_record_avocado: self.long_record_avocado.min(most),
+            long_record_walnut: self.long_record_walnut.min(most),
+            long_record_badge: self.long_record_badge.min(most),
+            long_record_bamboo: self.long_record_bamboo.min(most),
+            long_record_barrel: self.long_record_barrel.min(most),
+            long_record_beacon: self.long_record_beacon.min(most),
+            long_record_beetle: self.long_record_beetle.min(most),
+            long_record_bronze: self.long_record_bronze.min(most),
+            long_record_cactus: self.long_record_cactus.min(most),
+            long_record_camera: self.long_record_camera.min(most),
+            long_record_canyon: self.long_record_canyon.min(most),
+            long_record_cello: self.long_record_cello.min(most),
+            long_record_cobalt: self.long_record_cobalt.min(most),
+            long_record_comet: self.long_record_comet.min(most),
+            long_record_compass: self.long_record_compass.min(most),
+            long_record_coral: self.long_record_coral.min(most),
+            long_record_cotton: self.long_record_cotton.min(most),
+            long_record_coyote: self.long_record_coyote.min(most),
+            long_record_cricket: self.long_record_cricket.min(most),
+            long_record_crystal: self.long_record_crystal.min(most),
+            long_record_dragon: self.long_record_dragon.min(most),
+            long_record_engine: self.long_record_engine.min(most),
+            long_record_falcon: self.long_record_falcon.min(most),
+            long_record_feather: self.long_record_feather.min(most),
+            long_record_fern: self.long_record_fern.min(most),
+            long_record_flute: self.long_record_flute.min(most),
+            long_record_fossil: self.long_record_fossil.min(most),
+            long_record_galaxy: self.long_record_galaxy.min(most),
+            long_record_garden: self.long_record_garden.min(most),
+            long_record_glacier: self.long_record_glacier.min(most),
+            long_record_granite: self.long_record_granite.min(most),
+            long_record_harbor: self.long_record_harbor.min(most),
+            long_record_hazel: self.long_record_hazel.min(most),
+            long_record_helmet: self.long_record_helmet.min(most),
+            long_record_honey: self.long_record_honey.min(most),
+            long_record_igloo: self.long_record_igloo.min(most),
+            long_record_island: self.long_record_island.min(most),
+            long_record_ivory: self.long_record_ivory.min(most),
+            long_record_jasmine: self.long_record_jasmine.min(most),
+            long_record_kettle: self.long_record_kettle.min(most),
+            long_record_lantern: self.long_record_lantern.min(most),
+            long_record_leopard: self.long_record_leopard.min(most),
+            long_record_lobster: self.long_record_lobster.min(most),
+            long_record_magnet: self.long_record_magnet.min(most),
+            long_record_marble: self.long_record_marble.min(most),
+            long_record_meadow: self.long_record_meadow.min(most),
+            long_record_mermaid: self.long_record_mermaid.min(most),
+            long_record_meteor: self.long_record_meteor.min(most),
+            long_record_mosaic: self.long_record_mosaic.min(most),
+            long_record_napkin: self.long_record_napkin.min(most),
+            long_record_nectar: self.long_record_nectar.min(most),
+            long_record_ocean: self.long_record_ocean.min(most),
+            long_record_olive: self.long_record_olive.min(most),
+            long_record_orchid: self.long_record_orchid.min(most),
+            long_record_panda: self.long_record_panda.min(most),
+            long_record_pencil: self.long_record_pencil.min(most),
+            long_record_planet: self.long_record_planet.min(most),
+            long_record_pollen: self.long_record_pollen.min(most),
+            long_record_quartz: self.long_record_quartz.min(most),
+            long_record_rainbow: self.long_record_rainbow.min(most),
+            long_record_raven: self.long_record_raven.min(most),
+            long_record_rocket: self.long_record_rocket.min(most),
+            long_record_saffron: self.long_record_saffron.min(most),
+            long_record_salmon: self.long_record_salmon.min(most),
+            long_record_satin: self.long_record_satin.min(most),
+        }
     }
 }
 
@@ -771,824 +930,198 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const BLANK_VERSION: Path = Path::new(0, 0);
-    pub const BLANK_TAIL: Path = Path::new(0, 1);
-    pub const NUMBERS_SMALL: Path = Path::new(1, 0);
-    pub const NUMBERS_SHORT: Path = Path::new(1, 1);
-    pub const NUMBERS_WORD: Path = Path::new(1, 2);
-    pub const NUMBERS_LONG: Path = Path::new(1, 3);
-    pub const NUMBERS_FLAG: Path = Path::new(1, 4);
-    pub const NUMBERS_PAUSE: Path = Path::new(1, 5);
-    pub const NUMBERS_TAG: Path = Path::new(1, 6);
-    pub const NUMBERS_TAIL: Path = Path::new(1, 7);
-    pub const TEXTS_RAW: Path = Path::new(2, 0);
-    pub const TEXTS_KEY: Path = Path::new(2, 1);
-    pub const TEXTS_WORDS: Path = Path::new(2, 2);
-    pub const TEXTS_TAIL: Path = Path::new(2, 3);
-    pub const LIGHT_TAG: Path = Path::new(3, 0);
-    pub const STAMP_AT: Path = Path::new(4, 0);
-    pub const STAMP_NOTE: Path = Path::new(4, 1);
-    pub const STAMP_ZONE: Path = Path::new(4, 2);
-    pub const STAMP_VERSION: Path = Path::new(4, 3);
-    pub const STAMP_TAIL: Path = Path::new(4, 4);
-    pub const SHAPE_TAG: Path = Path::new(5, 0);
-    pub const NEST_BLANKS: Path = Path::new(6, 0);
-    pub const NEST_LIGHTS: Path = Path::new(6, 1);
-    pub const NEST_MAYBE_LIGHTS: Path = Path::new(6, 2);
-    pub const NEST_GRID: Path = Path::new(6, 3);
-    pub const NEST_MAYBE_LIST: Path = Path::new(6, 4);
-    pub const NEST_MAYBE_NUMBERS: Path = Path::new(6, 5);
-    pub const NEST_SHAPES: Path = Path::new(6, 6);
-    pub const NEST_SECRETS: Path = Path::new(6, 7);
-    pub const NEST_STAMPS: Path = Path::new(6, 8);
-    pub const NEST_LABEL: Path = Path::new(6, 9);
-    pub const NEST_TAIL: Path = Path::new(6, 10);
-    pub const EVERY_NUMBERS: Path = Path::new(7, 0);
-    pub const EVERY_STRINGS: Path = Path::new(7, 1);
-    pub const EVERY_LIGHT: Path = Path::new(7, 2);
-    pub const EVERY_SHAPE: Path = Path::new(7, 3);
-    pub const EVERY_STAMP: Path = Path::new(7, 4);
-    pub const EVERY_EMPTY: Path = Path::new(7, 5);
-    pub const EVERY_NEST: Path = Path::new(7, 6);
-    pub const EVERY_SCORE: Path = Path::new(7, 7);
-    pub const EVERY_HELD: Path = Path::new(7, 8);
-    pub const EVERY_ITEMS: Path = Path::new(7, 9);
-    pub const EVERY_VERSION: Path = Path::new(7, 10);
-    pub const EVERY_TAIL: Path = Path::new(7, 11);
-    pub const KINDS_LIGHT: Path = Path::new(8, 0);
-    pub const KINDS_TAIL: Path = Path::new(8, 1);
-    pub const LISTS_SMALL: Path = Path::new(9, 0);
-    pub const LISTS_SHORT: Path = Path::new(9, 1);
-    pub const LISTS_WORD: Path = Path::new(9, 2);
-    pub const LISTS_LONG: Path = Path::new(9, 3);
-    pub const LISTS_FLAG: Path = Path::new(9, 4);
-    pub const LISTS_PAUSE: Path = Path::new(9, 5);
-    pub const LISTS_TAG: Path = Path::new(9, 6);
-    pub const LISTS_RAW: Path = Path::new(9, 7);
-    pub const LISTS_KEY: Path = Path::new(9, 8);
-    pub const LISTS_WORDS: Path = Path::new(9, 9);
-    pub const LISTS_GRID: Path = Path::new(9, 10);
-    pub const LISTS_OPTIONS: Path = Path::new(9, 11);
-    pub const LISTS_RECORDS: Path = Path::new(9, 12);
-    pub const LISTS_ENUMS: Path = Path::new(9, 13);
-    pub const LISTS_TAIL: Path = Path::new(9, 14);
-    pub const OPTIONS_SMALL: Path = Path::new(10, 0);
-    pub const OPTIONS_SHORT: Path = Path::new(10, 1);
-    pub const OPTIONS_WORD: Path = Path::new(10, 2);
-    pub const OPTIONS_LONG: Path = Path::new(10, 3);
-    pub const OPTIONS_FLAG: Path = Path::new(10, 4);
-    pub const OPTIONS_PAUSE: Path = Path::new(10, 5);
-    pub const OPTIONS_TAG: Path = Path::new(10, 6);
-    pub const OPTIONS_RAW: Path = Path::new(10, 7);
-    pub const OPTIONS_KEY: Path = Path::new(10, 8);
-    pub const OPTIONS_WORDS: Path = Path::new(10, 9);
-    pub const OPTIONS_LISTS: Path = Path::new(10, 10);
-    pub const OPTIONS_MAYBE: Path = Path::new(10, 11);
-    pub const OPTIONS_RECORDS: Path = Path::new(10, 12);
-    pub const OPTIONS_ENUMS: Path = Path::new(10, 13);
-    pub const OPTIONS_TAIL: Path = Path::new(10, 14);
-    pub const GROUPED_ALPHA: Path = Path::new(11, 0);
-    pub const GROUPED_BRAVO: Path = Path::new(11, 1);
-    pub const GROUPED_CHARLIE: Path = Path::new(11, 2);
-    pub const GROUPED_DELTA: Path = Path::new(11, 3);
-    pub const GROUPED_TAIL: Path = Path::new(11, 4);
-    pub const HELD_RECORD_BYTES: Path = Path::new(12, 0);
-    pub const HELD_ENUM_BYTES: Path = Path::new(12, 1);
-    pub const HELD_RECORD_SECRET: Path = Path::new(12, 2);
-    pub const HELD_ENUM_SECRET: Path = Path::new(12, 3);
-    pub const HELD_BYTE_PIECES: Path = Path::new(12, 4);
-    pub const HELD_SECRET_PIECES: Path = Path::new(12, 5);
-    pub const HELD_TAIL: Path = Path::new(12, 6);
-    pub const LONG_RECORD_ALPHA: Path = Path::new(13, 0);
-    pub const LONG_RECORD_BRAVO: Path = Path::new(13, 1);
-    pub const LONG_RECORD_CHARLIE: Path = Path::new(13, 2);
-    pub const LONG_RECORD_DELTA: Path = Path::new(13, 3);
-    pub const LONG_RECORD_ECHO: Path = Path::new(13, 4);
-    pub const LONG_RECORD_FOXTROT: Path = Path::new(13, 5);
-    pub const LONG_RECORD_GOLF: Path = Path::new(13, 6);
-    pub const LONG_RECORD_HOTEL: Path = Path::new(13, 7);
-    pub const LONG_RECORD_INDIA: Path = Path::new(13, 8);
-    pub const LONG_RECORD_JULIET: Path = Path::new(13, 9);
-    pub const LONG_RECORD_KILO: Path = Path::new(13, 10);
-    pub const LONG_RECORD_LIMA: Path = Path::new(13, 11);
-    pub const LONG_RECORD_MIKE: Path = Path::new(13, 12);
-    pub const LONG_RECORD_NOVEMBER: Path = Path::new(13, 13);
-    pub const LONG_RECORD_OSCAR: Path = Path::new(13, 14);
-    pub const LONG_RECORD_PAPA: Path = Path::new(13, 15);
-    pub const LONG_RECORD_QUEBEC: Path = Path::new(13, 16);
-    pub const LONG_RECORD_ROMEO: Path = Path::new(13, 17);
-    pub const LONG_RECORD_SIERRA: Path = Path::new(13, 18);
-    pub const LONG_RECORD_TANGO: Path = Path::new(13, 19);
-    pub const LONG_RECORD_UNIFORM: Path = Path::new(13, 20);
-    pub const LONG_RECORD_VICTOR: Path = Path::new(13, 21);
-    pub const LONG_RECORD_WHISKEY: Path = Path::new(13, 22);
-    pub const LONG_RECORD_XRAY: Path = Path::new(13, 23);
-    pub const LONG_RECORD_YANKEE: Path = Path::new(13, 24);
-    pub const LONG_RECORD_ZULU: Path = Path::new(13, 25);
-    pub const LONG_RECORD_AMBER: Path = Path::new(13, 26);
-    pub const LONG_RECORD_BIRCH: Path = Path::new(13, 27);
-    pub const LONG_RECORD_CEDAR: Path = Path::new(13, 28);
-    pub const LONG_RECORD_DUNE: Path = Path::new(13, 29);
-    pub const LONG_RECORD_ACORN: Path = Path::new(13, 30);
-    pub const LONG_RECORD_ANCHOR: Path = Path::new(13, 31);
-    pub const LONG_RECORD_APRON: Path = Path::new(13, 32);
-    pub const LONG_RECORD_ATLAS: Path = Path::new(13, 33);
-    pub const LONG_RECORD_AUTUMN: Path = Path::new(13, 34);
-    pub const LONG_RECORD_AVOCADO: Path = Path::new(13, 35);
-    pub const LONG_RECORD_WALNUT: Path = Path::new(13, 36);
-    pub const LONG_RECORD_BADGE: Path = Path::new(13, 37);
-    pub const LONG_RECORD_BAMBOO: Path = Path::new(13, 38);
-    pub const LONG_RECORD_BARREL: Path = Path::new(13, 39);
-    pub const LONG_RECORD_BEACON: Path = Path::new(13, 40);
-    pub const LONG_RECORD_BEETLE: Path = Path::new(13, 41);
-    pub const LONG_RECORD_BRONZE: Path = Path::new(13, 42);
-    pub const LONG_RECORD_CACTUS: Path = Path::new(13, 43);
-    pub const LONG_RECORD_CAMERA: Path = Path::new(13, 44);
-    pub const LONG_RECORD_CANYON: Path = Path::new(13, 45);
-    pub const LONG_RECORD_CELLO: Path = Path::new(13, 46);
-    pub const LONG_RECORD_COBALT: Path = Path::new(13, 47);
-    pub const LONG_RECORD_COMET: Path = Path::new(13, 48);
-    pub const LONG_RECORD_COMPASS: Path = Path::new(13, 49);
-    pub const LONG_RECORD_CORAL: Path = Path::new(13, 50);
-    pub const LONG_RECORD_COTTON: Path = Path::new(13, 51);
-    pub const LONG_RECORD_COYOTE: Path = Path::new(13, 52);
-    pub const LONG_RECORD_CRICKET: Path = Path::new(13, 53);
-    pub const LONG_RECORD_CRYSTAL: Path = Path::new(13, 54);
-    pub const LONG_RECORD_DRAGON: Path = Path::new(13, 55);
-    pub const LONG_RECORD_ENGINE: Path = Path::new(13, 56);
-    pub const LONG_RECORD_FALCON: Path = Path::new(13, 57);
-    pub const LONG_RECORD_FEATHER: Path = Path::new(13, 58);
-    pub const LONG_RECORD_FERN: Path = Path::new(13, 59);
-    pub const LONG_RECORD_FLUTE: Path = Path::new(13, 60);
-    pub const LONG_RECORD_FOSSIL: Path = Path::new(13, 61);
-    pub const LONG_RECORD_GALAXY: Path = Path::new(13, 62);
-    pub const LONG_RECORD_GARDEN: Path = Path::new(13, 63);
-    pub const LONG_RECORD_GLACIER: Path = Path::new(13, 64);
-    pub const LONG_RECORD_GRANITE: Path = Path::new(13, 65);
-    pub const LONG_RECORD_HARBOR: Path = Path::new(13, 66);
-    pub const LONG_RECORD_HAZEL: Path = Path::new(13, 67);
-    pub const LONG_RECORD_HELMET: Path = Path::new(13, 68);
-    pub const LONG_RECORD_HONEY: Path = Path::new(13, 69);
-    pub const LONG_RECORD_IGLOO: Path = Path::new(13, 70);
-    pub const LONG_RECORD_ISLAND: Path = Path::new(13, 71);
-    pub const LONG_RECORD_IVORY: Path = Path::new(13, 72);
-    pub const LONG_RECORD_JASMINE: Path = Path::new(13, 73);
-    pub const LONG_RECORD_KETTLE: Path = Path::new(13, 74);
-    pub const LONG_RECORD_LANTERN: Path = Path::new(13, 75);
-    pub const LONG_RECORD_LEOPARD: Path = Path::new(13, 76);
-    pub const LONG_RECORD_LOBSTER: Path = Path::new(13, 77);
-    pub const LONG_RECORD_MAGNET: Path = Path::new(13, 78);
-    pub const LONG_RECORD_MARBLE: Path = Path::new(13, 79);
-    pub const LONG_RECORD_MEADOW: Path = Path::new(13, 80);
-    pub const LONG_RECORD_MERMAID: Path = Path::new(13, 81);
-    pub const LONG_RECORD_METEOR: Path = Path::new(13, 82);
-    pub const LONG_RECORD_MOSAIC: Path = Path::new(13, 83);
-    pub const LONG_RECORD_NAPKIN: Path = Path::new(13, 84);
-    pub const LONG_RECORD_NECTAR: Path = Path::new(13, 85);
-    pub const LONG_RECORD_OCEAN: Path = Path::new(13, 86);
-    pub const LONG_RECORD_OLIVE: Path = Path::new(13, 87);
-    pub const LONG_RECORD_ORCHID: Path = Path::new(13, 88);
-    pub const LONG_RECORD_PANDA: Path = Path::new(13, 89);
-    pub const LONG_RECORD_PENCIL: Path = Path::new(13, 90);
-    pub const LONG_RECORD_PLANET: Path = Path::new(13, 91);
-    pub const LONG_RECORD_POLLEN: Path = Path::new(13, 92);
-    pub const LONG_RECORD_QUARTZ: Path = Path::new(13, 93);
-    pub const LONG_RECORD_RAINBOW: Path = Path::new(13, 94);
-    pub const LONG_RECORD_RAVEN: Path = Path::new(13, 95);
-    pub const LONG_RECORD_ROCKET: Path = Path::new(13, 96);
-    pub const LONG_RECORD_SAFFRON: Path = Path::new(13, 97);
-    pub const LONG_RECORD_SALMON: Path = Path::new(13, 98);
-    pub const LONG_RECORD_SATIN: Path = Path::new(13, 99);
-    pub const LONG_RECORD_TAIL: Path = Path::new(13, 100);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Blank (version)",
-        "Blank (tail)",
-    ],
-    &[
-        "Numbers.small",
-        "Numbers.short",
-        "Numbers.word",
-        "Numbers.long",
-        "Numbers.flag",
-        "Numbers.pause",
-        "Numbers.tag",
-        "Numbers (tail)",
-    ],
-    &[
-        "Texts.raw",
-        "Texts.key",
-        "Texts.words",
-        "Texts (tail)",
-    ],
-    &[
-        "Light (tag)",
-    ],
-    &[
-        "Stamp.at",
-        "Stamp.note",
-        "Stamp.zone",
-        "Stamp (version)",
-        "Stamp (tail)",
-    ],
-    &[
-        "Shape (tag)",
-    ],
-    &[
-        "Nest.blanks",
-        "Nest.lights",
-        "Nest.maybe_lights",
-        "Nest.grid",
-        "Nest.maybe_list",
-        "Nest.maybe_numbers",
-        "Nest.shapes",
-        "Nest.secrets",
-        "Nest.stamps",
-        "Nest.label",
-        "Nest (tail)",
-    ],
-    &[
-        "Every.numbers",
-        "Every.strings",
-        "Every.light",
-        "Every.shape",
-        "Every.stamp",
-        "Every.empty",
-        "Every.nest",
-        "Every.score",
-        "Every.held",
-        "Every.items",
-        "Every (version)",
-        "Every (tail)",
-    ],
-    &[
-        "Kinds.light",
-        "Kinds (tail)",
-    ],
-    &[
-        "Lists.small",
-        "Lists.short",
-        "Lists.word",
-        "Lists.long",
-        "Lists.flag",
-        "Lists.pause",
-        "Lists.tag",
-        "Lists.raw",
-        "Lists.key",
-        "Lists.words",
-        "Lists.grid",
-        "Lists.options",
-        "Lists.records",
-        "Lists.enums",
-        "Lists (tail)",
-    ],
-    &[
-        "Options.small",
-        "Options.short",
-        "Options.word",
-        "Options.long",
-        "Options.flag",
-        "Options.pause",
-        "Options.tag",
-        "Options.raw",
-        "Options.key",
-        "Options.words",
-        "Options.lists",
-        "Options.maybe",
-        "Options.records",
-        "Options.enums",
-        "Options (tail)",
-    ],
-    &[
-        "Grouped.alpha",
-        "Grouped.bravo",
-        "Grouped.charlie",
-        "Grouped.delta",
-        "Grouped (tail)",
-    ],
-    &[
-        "Held.record_bytes",
-        "Held.enum_bytes",
-        "Held.record_secret",
-        "Held.enum_secret",
-        "Held.byte_pieces",
-        "Held.secret_pieces",
-        "Held (tail)",
-    ],
-    &[
-        "LongRecord.alpha",
-        "LongRecord.bravo",
-        "LongRecord.charlie",
-        "LongRecord.delta",
-        "LongRecord.echo",
-        "LongRecord.foxtrot",
-        "LongRecord.golf",
-        "LongRecord.hotel",
-        "LongRecord.india",
-        "LongRecord.juliet",
-        "LongRecord.kilo",
-        "LongRecord.lima",
-        "LongRecord.mike",
-        "LongRecord.november",
-        "LongRecord.oscar",
-        "LongRecord.papa",
-        "LongRecord.quebec",
-        "LongRecord.romeo",
-        "LongRecord.sierra",
-        "LongRecord.tango",
-        "LongRecord.uniform",
-        "LongRecord.victor",
-        "LongRecord.whiskey",
-        "LongRecord.xray",
-        "LongRecord.yankee",
-        "LongRecord.zulu",
-        "LongRecord.amber",
-        "LongRecord.birch",
-        "LongRecord.cedar",
-        "LongRecord.dune",
-        "LongRecord.acorn",
-        "LongRecord.anchor",
-        "LongRecord.apron",
-        "LongRecord.atlas",
-        "LongRecord.autumn",
-        "LongRecord.avocado",
-        "LongRecord.walnut",
-        "LongRecord.badge",
-        "LongRecord.bamboo",
-        "LongRecord.barrel",
-        "LongRecord.beacon",
-        "LongRecord.beetle",
-        "LongRecord.bronze",
-        "LongRecord.cactus",
-        "LongRecord.camera",
-        "LongRecord.canyon",
-        "LongRecord.cello",
-        "LongRecord.cobalt",
-        "LongRecord.comet",
-        "LongRecord.compass",
-        "LongRecord.coral",
-        "LongRecord.cotton",
-        "LongRecord.coyote",
-        "LongRecord.cricket",
-        "LongRecord.crystal",
-        "LongRecord.dragon",
-        "LongRecord.engine",
-        "LongRecord.falcon",
-        "LongRecord.feather",
-        "LongRecord.fern",
-        "LongRecord.flute",
-        "LongRecord.fossil",
-        "LongRecord.galaxy",
-        "LongRecord.garden",
-        "LongRecord.glacier",
-        "LongRecord.granite",
-        "LongRecord.harbor",
-        "LongRecord.hazel",
-        "LongRecord.helmet",
-        "LongRecord.honey",
-        "LongRecord.igloo",
-        "LongRecord.island",
-        "LongRecord.ivory",
-        "LongRecord.jasmine",
-        "LongRecord.kettle",
-        "LongRecord.lantern",
-        "LongRecord.leopard",
-        "LongRecord.lobster",
-        "LongRecord.magnet",
-        "LongRecord.marble",
-        "LongRecord.meadow",
-        "LongRecord.mermaid",
-        "LongRecord.meteor",
-        "LongRecord.mosaic",
-        "LongRecord.napkin",
-        "LongRecord.nectar",
-        "LongRecord.ocean",
-        "LongRecord.olive",
-        "LongRecord.orchid",
-        "LongRecord.panda",
-        "LongRecord.pencil",
-        "LongRecord.planet",
-        "LongRecord.pollen",
-        "LongRecord.quartz",
-        "LongRecord.rainbow",
-        "LongRecord.raven",
-        "LongRecord.rocket",
-        "LongRecord.saffron",
-        "LongRecord.salmon",
-        "LongRecord.satin",
-        "LongRecord (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(3),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3, 4, 5, 6, 7] },
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[9, 10, 11] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[13, 14, 15, 16] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 3 },
-    skein_codec::bounds::Node::Option { item: 19 },
-    skein_codec::bounds::Node::Bytes { limit: 4 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[18, 20, 21] },
-    skein_codec::bounds::Node::Boxed { item: 12, size: size_of::<Texts>() },
-    skein_codec::bounds::Node::Enum { variants: &[0, 8, 23, 22] },
-    skein_codec::bounds::Node::List { limit: 5, item: 0, size: size_of::<Blank>() },
-    skein_codec::bounds::Node::List { limit: 6, item: 17, size: size_of::<Light>() },
-    skein_codec::bounds::Node::Option { item: 17 },
-    skein_codec::bounds::Node::List { limit: 7, item: 27, size: size_of::<Option<Light>>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 9, item: 29, size: size_of::<u32>() },
-    skein_codec::bounds::Node::List { limit: 8, item: 30, size: size_of::<List<u32>>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 10, item: 32, size: size_of::<u8>() },
-    skein_codec::bounds::Node::Option { item: 33 },
-    skein_codec::bounds::Node::Option { item: 8 },
-    skein_codec::bounds::Node::List { limit: 11, item: 24, size: size_of::<Shape>() },
-    skein_codec::bounds::Node::Bytes { limit: 13 },
-    skein_codec::bounds::Node::List { limit: 12, item: 37, size: size_of::<skein_lib::Secret>() },
-    skein_codec::bounds::Node::List { limit: 14, item: 22, size: size_of::<Stamp>() },
-    skein_codec::bounds::Node::Bytes { limit: 15 },
-    skein_codec::bounds::Node::Option { item: 40 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[25, 26, 28, 31, 34, 35, 36, 38, 39, 41] },
-    skein_codec::bounds::Node::Option { item: 17 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Bytes { limit: 16 },
-    skein_codec::bounds::Node::Bytes { limit: 17 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[8, 12, 43, 24, 22, 0, 42, 44, 45, 46] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[17] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 18, item: 49, size: size_of::<u8>() },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::List { limit: 19, item: 51, size: size_of::<u16>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 20, item: 53, size: size_of::<u32>() },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 21, item: 55, size: size_of::<u64>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 22, item: 57, size: size_of::<bool>() },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 23, item: 59, size: size_of::<skein_lib::Duration>() },
-    skein_codec::bounds::Node::Scalar(3),
-    skein_codec::bounds::Node::List { limit: 24, item: 61, size: size_of::<[u8; 3]>() },
-    skein_codec::bounds::Node::Bytes { limit: 26 },
-    skein_codec::bounds::Node::List { limit: 25, item: 63, size: size_of::<Box<[u8]>>() },
-    skein_codec::bounds::Node::Bytes { limit: 28 },
-    skein_codec::bounds::Node::List { limit: 27, item: 65, size: size_of::<skein_lib::Secret>() },
-    skein_codec::bounds::Node::Bytes { limit: 30 },
-    skein_codec::bounds::Node::List { limit: 29, item: 67, size: size_of::<Box<[u8]>>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 32, item: 69, size: size_of::<u8>() },
-    skein_codec::bounds::Node::List { limit: 31, item: 70, size: size_of::<List<u8>>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 72 },
-    skein_codec::bounds::Node::List { limit: 33, item: 73, size: size_of::<Option<u8>>() },
-    skein_codec::bounds::Node::List { limit: 34, item: 8, size: size_of::<Numbers>() },
-    skein_codec::bounds::Node::List { limit: 35, item: 17, size: size_of::<Light>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 71, 74, 75, 76] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 78 },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Option { item: 80 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 82 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 84 },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 86 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 88 },
-    skein_codec::bounds::Node::Scalar(3),
-    skein_codec::bounds::Node::Option { item: 90 },
-    skein_codec::bounds::Node::Bytes { limit: 36 },
-    skein_codec::bounds::Node::Option { item: 92 },
-    skein_codec::bounds::Node::Bytes { limit: 37 },
-    skein_codec::bounds::Node::Option { item: 94 },
-    skein_codec::bounds::Node::Bytes { limit: 38 },
-    skein_codec::bounds::Node::Option { item: 96 },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 39, item: 98, size: size_of::<u8>() },
-    skein_codec::bounds::Node::Option { item: 99 },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 101 },
-    skein_codec::bounds::Node::Option { item: 102 },
-    skein_codec::bounds::Node::Option { item: 8 },
-    skein_codec::bounds::Node::Option { item: 17 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[79, 81, 83, 85, 87, 89, 91, 93, 95, 97, 100, 103, 104, 105] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[107, 108, 109, 110] },
-    skein_codec::bounds::Node::Bytes { limit: 40 },
-    skein_codec::bounds::Node::Bytes { limit: 41 },
-    skein_codec::bounds::Node::Bytes { limit: 42 },
-    skein_codec::bounds::Node::Bytes { limit: 43 },
-    skein_codec::bounds::Node::Bytes { limit: 44 },
-    skein_codec::bounds::Node::Bytes { limit: 45 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[112, 113, 114, 115, 116, 117] },
-    skein_codec::bounds::Node::Bytes { limit: 46 },
-    skein_codec::bounds::Node::Bytes { limit: 47 },
-    skein_codec::bounds::Node::Bytes { limit: 48 },
-    skein_codec::bounds::Node::Bytes { limit: 49 },
-    skein_codec::bounds::Node::Bytes { limit: 50 },
-    skein_codec::bounds::Node::Bytes { limit: 51 },
-    skein_codec::bounds::Node::Bytes { limit: 52 },
-    skein_codec::bounds::Node::Bytes { limit: 53 },
-    skein_codec::bounds::Node::Bytes { limit: 54 },
-    skein_codec::bounds::Node::Bytes { limit: 55 },
-    skein_codec::bounds::Node::Bytes { limit: 56 },
-    skein_codec::bounds::Node::Bytes { limit: 57 },
-    skein_codec::bounds::Node::Bytes { limit: 58 },
-    skein_codec::bounds::Node::Bytes { limit: 59 },
-    skein_codec::bounds::Node::Bytes { limit: 60 },
-    skein_codec::bounds::Node::Bytes { limit: 61 },
-    skein_codec::bounds::Node::Bytes { limit: 62 },
-    skein_codec::bounds::Node::Bytes { limit: 63 },
-    skein_codec::bounds::Node::Bytes { limit: 64 },
-    skein_codec::bounds::Node::Bytes { limit: 65 },
-    skein_codec::bounds::Node::Bytes { limit: 66 },
-    skein_codec::bounds::Node::Bytes { limit: 67 },
-    skein_codec::bounds::Node::Bytes { limit: 68 },
-    skein_codec::bounds::Node::Bytes { limit: 69 },
-    skein_codec::bounds::Node::Bytes { limit: 70 },
-    skein_codec::bounds::Node::Bytes { limit: 71 },
-    skein_codec::bounds::Node::Bytes { limit: 72 },
-    skein_codec::bounds::Node::Bytes { limit: 73 },
-    skein_codec::bounds::Node::Bytes { limit: 74 },
-    skein_codec::bounds::Node::Bytes { limit: 75 },
-    skein_codec::bounds::Node::Bytes { limit: 76 },
-    skein_codec::bounds::Node::Bytes { limit: 77 },
-    skein_codec::bounds::Node::Bytes { limit: 78 },
-    skein_codec::bounds::Node::Bytes { limit: 79 },
-    skein_codec::bounds::Node::Bytes { limit: 80 },
-    skein_codec::bounds::Node::Bytes { limit: 81 },
-    skein_codec::bounds::Node::Bytes { limit: 82 },
-    skein_codec::bounds::Node::Bytes { limit: 83 },
-    skein_codec::bounds::Node::Bytes { limit: 84 },
-    skein_codec::bounds::Node::Bytes { limit: 85 },
-    skein_codec::bounds::Node::Bytes { limit: 86 },
-    skein_codec::bounds::Node::Bytes { limit: 87 },
-    skein_codec::bounds::Node::Bytes { limit: 88 },
-    skein_codec::bounds::Node::Bytes { limit: 89 },
-    skein_codec::bounds::Node::Bytes { limit: 90 },
-    skein_codec::bounds::Node::Bytes { limit: 91 },
-    skein_codec::bounds::Node::Bytes { limit: 92 },
-    skein_codec::bounds::Node::Bytes { limit: 93 },
-    skein_codec::bounds::Node::Bytes { limit: 94 },
-    skein_codec::bounds::Node::Bytes { limit: 95 },
-    skein_codec::bounds::Node::Bytes { limit: 96 },
-    skein_codec::bounds::Node::Bytes { limit: 97 },
-    skein_codec::bounds::Node::Bytes { limit: 98 },
-    skein_codec::bounds::Node::Bytes { limit: 99 },
-    skein_codec::bounds::Node::Bytes { limit: 100 },
-    skein_codec::bounds::Node::Bytes { limit: 101 },
-    skein_codec::bounds::Node::Bytes { limit: 102 },
-    skein_codec::bounds::Node::Bytes { limit: 103 },
-    skein_codec::bounds::Node::Bytes { limit: 104 },
-    skein_codec::bounds::Node::Bytes { limit: 105 },
-    skein_codec::bounds::Node::Bytes { limit: 106 },
-    skein_codec::bounds::Node::Bytes { limit: 107 },
-    skein_codec::bounds::Node::Bytes { limit: 108 },
-    skein_codec::bounds::Node::Bytes { limit: 109 },
-    skein_codec::bounds::Node::Bytes { limit: 110 },
-    skein_codec::bounds::Node::Bytes { limit: 111 },
-    skein_codec::bounds::Node::Bytes { limit: 112 },
-    skein_codec::bounds::Node::Bytes { limit: 113 },
-    skein_codec::bounds::Node::Bytes { limit: 114 },
-    skein_codec::bounds::Node::Bytes { limit: 115 },
-    skein_codec::bounds::Node::Bytes { limit: 116 },
-    skein_codec::bounds::Node::Bytes { limit: 117 },
-    skein_codec::bounds::Node::Bytes { limit: 118 },
-    skein_codec::bounds::Node::Bytes { limit: 119 },
-    skein_codec::bounds::Node::Bytes { limit: 120 },
-    skein_codec::bounds::Node::Bytes { limit: 121 },
-    skein_codec::bounds::Node::Bytes { limit: 122 },
-    skein_codec::bounds::Node::Bytes { limit: 123 },
-    skein_codec::bounds::Node::Bytes { limit: 124 },
-    skein_codec::bounds::Node::Bytes { limit: 125 },
-    skein_codec::bounds::Node::Bytes { limit: 126 },
-    skein_codec::bounds::Node::Bytes { limit: 127 },
-    skein_codec::bounds::Node::Bytes { limit: 128 },
-    skein_codec::bounds::Node::Bytes { limit: 129 },
-    skein_codec::bounds::Node::Bytes { limit: 130 },
-    skein_codec::bounds::Node::Bytes { limit: 131 },
-    skein_codec::bounds::Node::Bytes { limit: 132 },
-    skein_codec::bounds::Node::Bytes { limit: 133 },
-    skein_codec::bounds::Node::Bytes { limit: 134 },
-    skein_codec::bounds::Node::Bytes { limit: 135 },
-    skein_codec::bounds::Node::Bytes { limit: 136 },
-    skein_codec::bounds::Node::Bytes { limit: 137 },
-    skein_codec::bounds::Node::Bytes { limit: 138 },
-    skein_codec::bounds::Node::Bytes { limit: 139 },
-    skein_codec::bounds::Node::Bytes { limit: 140 },
-    skein_codec::bounds::Node::Bytes { limit: 141 },
-    skein_codec::bounds::Node::Bytes { limit: 142 },
-    skein_codec::bounds::Node::Bytes { limit: 143 },
-    skein_codec::bounds::Node::Bytes { limit: 144 },
-    skein_codec::bounds::Node::Bytes { limit: 145 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    0,
-    8,
-    12,
-    17,
-    22,
-    24,
-    42,
-    47,
-    48,
-    77,
-    106,
-    111,
-    118,
-    219,
-];
-
-const CEILING_VALUES: &[u32] = &[
-    8,
-    5,
-    7,
-    4,
-    8,
-    3,
-    3,
-    2,
-    2,
-    2,
-    3,
-    2,
-    2,
-    3,
-    2,
-    8,
-    8,
-    64,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    2,
-    4,
-    2,
-    4,
-    2,
-    4,
-    2,
-    2,
-    2,
-    2,
-    2,
-    4,
-    4,
-    4,
-    2,
-    8,
-    8,
-    8,
-    8,
-    64,
-    64,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const BLANK_VERSION: Path = Path::new("Blank (version)");
+    pub const BLANK_TAIL: Path = Path::new("Blank (tail)");
+    pub const NUMBERS_SMALL: Path = Path::new("Numbers.small");
+    pub const NUMBERS_SHORT: Path = Path::new("Numbers.short");
+    pub const NUMBERS_WORD: Path = Path::new("Numbers.word");
+    pub const NUMBERS_LONG: Path = Path::new("Numbers.long");
+    pub const NUMBERS_FLAG: Path = Path::new("Numbers.flag");
+    pub const NUMBERS_PAUSE: Path = Path::new("Numbers.pause");
+    pub const NUMBERS_TAG: Path = Path::new("Numbers.tag");
+    pub const NUMBERS_TAIL: Path = Path::new("Numbers (tail)");
+    pub const TEXTS_RAW: Path = Path::new("Texts.raw");
+    pub const TEXTS_KEY: Path = Path::new("Texts.key");
+    pub const TEXTS_WORDS: Path = Path::new("Texts.words");
+    pub const TEXTS_TAIL: Path = Path::new("Texts (tail)");
+    pub const LIGHT_TAG: Path = Path::new("Light (tag)");
+    pub const STAMP_AT: Path = Path::new("Stamp.at");
+    pub const STAMP_NOTE: Path = Path::new("Stamp.note");
+    pub const STAMP_ZONE: Path = Path::new("Stamp.zone");
+    pub const STAMP_VERSION: Path = Path::new("Stamp (version)");
+    pub const STAMP_TAIL: Path = Path::new("Stamp (tail)");
+    pub const SHAPE_TAG: Path = Path::new("Shape (tag)");
+    pub const NEST_BLANKS: Path = Path::new("Nest.blanks");
+    pub const NEST_LIGHTS: Path = Path::new("Nest.lights");
+    pub const NEST_MAYBE_LIGHTS: Path = Path::new("Nest.maybe_lights");
+    pub const NEST_GRID: Path = Path::new("Nest.grid");
+    pub const NEST_MAYBE_LIST: Path = Path::new("Nest.maybe_list");
+    pub const NEST_MAYBE_NUMBERS: Path = Path::new("Nest.maybe_numbers");
+    pub const NEST_SHAPES: Path = Path::new("Nest.shapes");
+    pub const NEST_SECRETS: Path = Path::new("Nest.secrets");
+    pub const NEST_STAMPS: Path = Path::new("Nest.stamps");
+    pub const NEST_LABEL: Path = Path::new("Nest.label");
+    pub const NEST_TAIL: Path = Path::new("Nest (tail)");
+    pub const EVERY_NUMBERS: Path = Path::new("Every.numbers");
+    pub const EVERY_STRINGS: Path = Path::new("Every.strings");
+    pub const EVERY_LIGHT: Path = Path::new("Every.light");
+    pub const EVERY_SHAPE: Path = Path::new("Every.shape");
+    pub const EVERY_STAMP: Path = Path::new("Every.stamp");
+    pub const EVERY_EMPTY: Path = Path::new("Every.empty");
+    pub const EVERY_NEST: Path = Path::new("Every.nest");
+    pub const EVERY_SCORE: Path = Path::new("Every.score");
+    pub const EVERY_HELD: Path = Path::new("Every.held");
+    pub const EVERY_ITEMS: Path = Path::new("Every.items");
+    pub const EVERY_VERSION: Path = Path::new("Every (version)");
+    pub const EVERY_TAIL: Path = Path::new("Every (tail)");
+    pub const KINDS_LIGHT: Path = Path::new("Kinds.light");
+    pub const KINDS_TAIL: Path = Path::new("Kinds (tail)");
+    pub const LISTS_SMALL: Path = Path::new("Lists.small");
+    pub const LISTS_SHORT: Path = Path::new("Lists.short");
+    pub const LISTS_WORD: Path = Path::new("Lists.word");
+    pub const LISTS_LONG: Path = Path::new("Lists.long");
+    pub const LISTS_FLAG: Path = Path::new("Lists.flag");
+    pub const LISTS_PAUSE: Path = Path::new("Lists.pause");
+    pub const LISTS_TAG: Path = Path::new("Lists.tag");
+    pub const LISTS_RAW: Path = Path::new("Lists.raw");
+    pub const LISTS_KEY: Path = Path::new("Lists.key");
+    pub const LISTS_WORDS: Path = Path::new("Lists.words");
+    pub const LISTS_GRID: Path = Path::new("Lists.grid");
+    pub const LISTS_OPTIONS: Path = Path::new("Lists.options");
+    pub const LISTS_RECORDS: Path = Path::new("Lists.records");
+    pub const LISTS_ENUMS: Path = Path::new("Lists.enums");
+    pub const LISTS_TAIL: Path = Path::new("Lists (tail)");
+    pub const OPTIONS_SMALL: Path = Path::new("Options.small");
+    pub const OPTIONS_SHORT: Path = Path::new("Options.short");
+    pub const OPTIONS_WORD: Path = Path::new("Options.word");
+    pub const OPTIONS_LONG: Path = Path::new("Options.long");
+    pub const OPTIONS_FLAG: Path = Path::new("Options.flag");
+    pub const OPTIONS_PAUSE: Path = Path::new("Options.pause");
+    pub const OPTIONS_TAG: Path = Path::new("Options.tag");
+    pub const OPTIONS_RAW: Path = Path::new("Options.raw");
+    pub const OPTIONS_KEY: Path = Path::new("Options.key");
+    pub const OPTIONS_WORDS: Path = Path::new("Options.words");
+    pub const OPTIONS_LISTS: Path = Path::new("Options.lists");
+    pub const OPTIONS_MAYBE: Path = Path::new("Options.maybe");
+    pub const OPTIONS_RECORDS: Path = Path::new("Options.records");
+    pub const OPTIONS_ENUMS: Path = Path::new("Options.enums");
+    pub const OPTIONS_TAIL: Path = Path::new("Options (tail)");
+    pub const GROUPED_ALPHA: Path = Path::new("Grouped.alpha");
+    pub const GROUPED_BRAVO: Path = Path::new("Grouped.bravo");
+    pub const GROUPED_CHARLIE: Path = Path::new("Grouped.charlie");
+    pub const GROUPED_DELTA: Path = Path::new("Grouped.delta");
+    pub const GROUPED_TAIL: Path = Path::new("Grouped (tail)");
+    pub const HELD_RECORD_BYTES: Path = Path::new("Held.record_bytes");
+    pub const HELD_ENUM_BYTES: Path = Path::new("Held.enum_bytes");
+    pub const HELD_RECORD_SECRET: Path = Path::new("Held.record_secret");
+    pub const HELD_ENUM_SECRET: Path = Path::new("Held.enum_secret");
+    pub const HELD_BYTE_PIECES: Path = Path::new("Held.byte_pieces");
+    pub const HELD_SECRET_PIECES: Path = Path::new("Held.secret_pieces");
+    pub const HELD_TAIL: Path = Path::new("Held (tail)");
+    pub const LONG_RECORD_ALPHA: Path = Path::new("LongRecord.alpha");
+    pub const LONG_RECORD_BRAVO: Path = Path::new("LongRecord.bravo");
+    pub const LONG_RECORD_CHARLIE: Path = Path::new("LongRecord.charlie");
+    pub const LONG_RECORD_DELTA: Path = Path::new("LongRecord.delta");
+    pub const LONG_RECORD_ECHO: Path = Path::new("LongRecord.echo");
+    pub const LONG_RECORD_FOXTROT: Path = Path::new("LongRecord.foxtrot");
+    pub const LONG_RECORD_GOLF: Path = Path::new("LongRecord.golf");
+    pub const LONG_RECORD_HOTEL: Path = Path::new("LongRecord.hotel");
+    pub const LONG_RECORD_INDIA: Path = Path::new("LongRecord.india");
+    pub const LONG_RECORD_JULIET: Path = Path::new("LongRecord.juliet");
+    pub const LONG_RECORD_KILO: Path = Path::new("LongRecord.kilo");
+    pub const LONG_RECORD_LIMA: Path = Path::new("LongRecord.lima");
+    pub const LONG_RECORD_MIKE: Path = Path::new("LongRecord.mike");
+    pub const LONG_RECORD_NOVEMBER: Path = Path::new("LongRecord.november");
+    pub const LONG_RECORD_OSCAR: Path = Path::new("LongRecord.oscar");
+    pub const LONG_RECORD_PAPA: Path = Path::new("LongRecord.papa");
+    pub const LONG_RECORD_QUEBEC: Path = Path::new("LongRecord.quebec");
+    pub const LONG_RECORD_ROMEO: Path = Path::new("LongRecord.romeo");
+    pub const LONG_RECORD_SIERRA: Path = Path::new("LongRecord.sierra");
+    pub const LONG_RECORD_TANGO: Path = Path::new("LongRecord.tango");
+    pub const LONG_RECORD_UNIFORM: Path = Path::new("LongRecord.uniform");
+    pub const LONG_RECORD_VICTOR: Path = Path::new("LongRecord.victor");
+    pub const LONG_RECORD_WHISKEY: Path = Path::new("LongRecord.whiskey");
+    pub const LONG_RECORD_XRAY: Path = Path::new("LongRecord.xray");
+    pub const LONG_RECORD_YANKEE: Path = Path::new("LongRecord.yankee");
+    pub const LONG_RECORD_ZULU: Path = Path::new("LongRecord.zulu");
+    pub const LONG_RECORD_AMBER: Path = Path::new("LongRecord.amber");
+    pub const LONG_RECORD_BIRCH: Path = Path::new("LongRecord.birch");
+    pub const LONG_RECORD_CEDAR: Path = Path::new("LongRecord.cedar");
+    pub const LONG_RECORD_DUNE: Path = Path::new("LongRecord.dune");
+    pub const LONG_RECORD_ACORN: Path = Path::new("LongRecord.acorn");
+    pub const LONG_RECORD_ANCHOR: Path = Path::new("LongRecord.anchor");
+    pub const LONG_RECORD_APRON: Path = Path::new("LongRecord.apron");
+    pub const LONG_RECORD_ATLAS: Path = Path::new("LongRecord.atlas");
+    pub const LONG_RECORD_AUTUMN: Path = Path::new("LongRecord.autumn");
+    pub const LONG_RECORD_AVOCADO: Path = Path::new("LongRecord.avocado");
+    pub const LONG_RECORD_WALNUT: Path = Path::new("LongRecord.walnut");
+    pub const LONG_RECORD_BADGE: Path = Path::new("LongRecord.badge");
+    pub const LONG_RECORD_BAMBOO: Path = Path::new("LongRecord.bamboo");
+    pub const LONG_RECORD_BARREL: Path = Path::new("LongRecord.barrel");
+    pub const LONG_RECORD_BEACON: Path = Path::new("LongRecord.beacon");
+    pub const LONG_RECORD_BEETLE: Path = Path::new("LongRecord.beetle");
+    pub const LONG_RECORD_BRONZE: Path = Path::new("LongRecord.bronze");
+    pub const LONG_RECORD_CACTUS: Path = Path::new("LongRecord.cactus");
+    pub const LONG_RECORD_CAMERA: Path = Path::new("LongRecord.camera");
+    pub const LONG_RECORD_CANYON: Path = Path::new("LongRecord.canyon");
+    pub const LONG_RECORD_CELLO: Path = Path::new("LongRecord.cello");
+    pub const LONG_RECORD_COBALT: Path = Path::new("LongRecord.cobalt");
+    pub const LONG_RECORD_COMET: Path = Path::new("LongRecord.comet");
+    pub const LONG_RECORD_COMPASS: Path = Path::new("LongRecord.compass");
+    pub const LONG_RECORD_CORAL: Path = Path::new("LongRecord.coral");
+    pub const LONG_RECORD_COTTON: Path = Path::new("LongRecord.cotton");
+    pub const LONG_RECORD_COYOTE: Path = Path::new("LongRecord.coyote");
+    pub const LONG_RECORD_CRICKET: Path = Path::new("LongRecord.cricket");
+    pub const LONG_RECORD_CRYSTAL: Path = Path::new("LongRecord.crystal");
+    pub const LONG_RECORD_DRAGON: Path = Path::new("LongRecord.dragon");
+    pub const LONG_RECORD_ENGINE: Path = Path::new("LongRecord.engine");
+    pub const LONG_RECORD_FALCON: Path = Path::new("LongRecord.falcon");
+    pub const LONG_RECORD_FEATHER: Path = Path::new("LongRecord.feather");
+    pub const LONG_RECORD_FERN: Path = Path::new("LongRecord.fern");
+    pub const LONG_RECORD_FLUTE: Path = Path::new("LongRecord.flute");
+    pub const LONG_RECORD_FOSSIL: Path = Path::new("LongRecord.fossil");
+    pub const LONG_RECORD_GALAXY: Path = Path::new("LongRecord.galaxy");
+    pub const LONG_RECORD_GARDEN: Path = Path::new("LongRecord.garden");
+    pub const LONG_RECORD_GLACIER: Path = Path::new("LongRecord.glacier");
+    pub const LONG_RECORD_GRANITE: Path = Path::new("LongRecord.granite");
+    pub const LONG_RECORD_HARBOR: Path = Path::new("LongRecord.harbor");
+    pub const LONG_RECORD_HAZEL: Path = Path::new("LongRecord.hazel");
+    pub const LONG_RECORD_HELMET: Path = Path::new("LongRecord.helmet");
+    pub const LONG_RECORD_HONEY: Path = Path::new("LongRecord.honey");
+    pub const LONG_RECORD_IGLOO: Path = Path::new("LongRecord.igloo");
+    pub const LONG_RECORD_ISLAND: Path = Path::new("LongRecord.island");
+    pub const LONG_RECORD_IVORY: Path = Path::new("LongRecord.ivory");
+    pub const LONG_RECORD_JASMINE: Path = Path::new("LongRecord.jasmine");
+    pub const LONG_RECORD_KETTLE: Path = Path::new("LongRecord.kettle");
+    pub const LONG_RECORD_LANTERN: Path = Path::new("LongRecord.lantern");
+    pub const LONG_RECORD_LEOPARD: Path = Path::new("LongRecord.leopard");
+    pub const LONG_RECORD_LOBSTER: Path = Path::new("LongRecord.lobster");
+    pub const LONG_RECORD_MAGNET: Path = Path::new("LongRecord.magnet");
+    pub const LONG_RECORD_MARBLE: Path = Path::new("LongRecord.marble");
+    pub const LONG_RECORD_MEADOW: Path = Path::new("LongRecord.meadow");
+    pub const LONG_RECORD_MERMAID: Path = Path::new("LongRecord.mermaid");
+    pub const LONG_RECORD_METEOR: Path = Path::new("LongRecord.meteor");
+    pub const LONG_RECORD_MOSAIC: Path = Path::new("LongRecord.mosaic");
+    pub const LONG_RECORD_NAPKIN: Path = Path::new("LongRecord.napkin");
+    pub const LONG_RECORD_NECTAR: Path = Path::new("LongRecord.nectar");
+    pub const LONG_RECORD_OCEAN: Path = Path::new("LongRecord.ocean");
+    pub const LONG_RECORD_OLIVE: Path = Path::new("LongRecord.olive");
+    pub const LONG_RECORD_ORCHID: Path = Path::new("LongRecord.orchid");
+    pub const LONG_RECORD_PANDA: Path = Path::new("LongRecord.panda");
+    pub const LONG_RECORD_PENCIL: Path = Path::new("LongRecord.pencil");
+    pub const LONG_RECORD_PLANET: Path = Path::new("LongRecord.planet");
+    pub const LONG_RECORD_POLLEN: Path = Path::new("LongRecord.pollen");
+    pub const LONG_RECORD_QUARTZ: Path = Path::new("LongRecord.quartz");
+    pub const LONG_RECORD_RAINBOW: Path = Path::new("LongRecord.rainbow");
+    pub const LONG_RECORD_RAVEN: Path = Path::new("LongRecord.raven");
+    pub const LONG_RECORD_ROCKET: Path = Path::new("LongRecord.rocket");
+    pub const LONG_RECORD_SAFFRON: Path = Path::new("LongRecord.saffron");
+    pub const LONG_RECORD_SALMON: Path = Path::new("LongRecord.salmon");
+    pub const LONG_RECORD_SATIN: Path = Path::new("LongRecord.satin");
+    pub const LONG_RECORD_TAIL: Path = Path::new("LongRecord (tail)");
 }
 
 // Type: Blank.
@@ -1597,16 +1130,34 @@ pub struct Blank {
 }
 
 // Record: Blank.
+impl Blank {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 2;
+}
+
 impl Record for Blank {
     type Limits = Limits;
     const TAIL: Path = paths::BLANK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Blank")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Blank")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1634,16 +1185,41 @@ pub struct Numbers {
 }
 
 // Record: Numbers.
+impl Numbers {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(3),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 27;
+}
+
 impl Record for Numbers {
     type Limits = Limits;
     const TAIL: Path = paths::NUMBERS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Numbers")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Numbers")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1679,16 +1255,37 @@ pub struct Texts {
 }
 
 // Record: Texts.
+impl Texts {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, texts_raw) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, texts_key) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, texts_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
 impl Record for Texts {
     type Limits = Limits;
     const TAIL: Path = paths::TEXTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Texts")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Texts")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1717,16 +1314,38 @@ pub enum Light {
 }
 
 // Record: Light.
+impl Light {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Light {
     type Limits = Limits;
     const TAIL: Path = paths::LIGHT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Light")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Light")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1759,16 +1378,38 @@ pub struct Stamp {
 }
 
 // Record: Stamp.
+impl Stamp {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stamp_note_some) },
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stamp_zone) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 19;
+}
+
 impl Record for Stamp {
     type Limits = Limits;
     const TAIL: Path = paths::STAMP_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 22)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Stamp")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 22)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Stamp")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1799,16 +1440,39 @@ pub enum Shape {
 }
 
 // Record: Shape.
+impl Shape {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Blank"),
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::Named("Texts"),
+        skein_codec::bounds::Node::Boxed { item: 2, size: size_of::<Texts>() },
+        skein_codec::bounds::Node::Named("Stamp"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 3, 4] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 28;
+}
+
 impl Record for Shape {
     type Limits = Limits;
     const TAIL: Path = paths::SHAPE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 24)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Shape")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 24)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Shape")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1848,16 +1512,57 @@ pub struct Nest {
 }
 
 // Record: Nest.
+impl Nest {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Blank"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_blanks), item: 0, size: size_of::<Blank>() },
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_lights), item: 2, size: size_of::<Light>() },
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_maybe_lights), item: 5, size: size_of::<Option<Light>>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_grid_item), item: 7, size: size_of::<u32>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_grid), item: 8, size: size_of::<List<u32>>() },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_maybe_list_some), item: 10, size: size_of::<u8>() },
+        skein_codec::bounds::Node::Option { item: 11 },
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::Option { item: 13 },
+        skein_codec::bounds::Node::Named("Shape"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_shapes), item: 15, size: size_of::<Shape>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, nest_secrets_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_secrets), item: 17, size: size_of::<skein_lib::Secret>() },
+        skein_codec::bounds::Node::Named("Stamp"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, nest_stamps), item: 19, size: size_of::<Stamp>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, nest_label_some) },
+        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 6, 9, 12, 14, 16, 18, 20, 22] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 66;
+}
+
 impl Record for Nest {
     type Limits = Limits;
     const TAIL: Path = paths::NEST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 42)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Nest")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 42)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Nest")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1906,16 +1611,36 @@ pub struct Every {
 }
 
 // Record: Every.
+impl Every {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::Named("Texts"),
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Named("Shape"),
+        skein_codec::bounds::Node::Named("Stamp"),
+        skein_codec::bounds::Node::Named("Blank"),
+        skein_codec::bounds::Node::Named("Nest"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, every_held) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, every_items) },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 1, 3, 4, 5, 6, 7, 8, 9, 10] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 170;
+}
+
 impl Record for Every {
     type Limits = Limits;
     const TAIL: Path = paths::EVERY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 47)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Every")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 47)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Every")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1966,16 +1691,26 @@ pub struct Kinds {
 }
 
 // Record: Kinds.
+impl Kinds {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Kinds {
     type Limits = Limits;
     const TAIL: Path = paths::KINDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 48)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Kinds")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 48)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Kinds")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -2019,16 +1754,55 @@ pub struct Lists {
 }
 
 // Record: Lists.
+impl Lists {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_small), item: 0, size: size_of::<u8>() },
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_short), item: 2, size: size_of::<u16>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_word), item: 4, size: size_of::<u32>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_long), item: 6, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_flag), item: 8, size: size_of::<bool>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_pause), item: 10, size: size_of::<skein_lib::Duration>() },
+        skein_codec::bounds::Node::Scalar(3),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_tag), item: 12, size: size_of::<[u8; 3]>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, lists_raw_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_raw), item: 14, size: size_of::<Box<[u8]>>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, lists_key_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_key), item: 16, size: size_of::<skein_lib::Secret>() },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, lists_words_item) },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_words), item: 18, size: size_of::<Box<[u8]>>() },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_grid_item), item: 20, size: size_of::<u8>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_grid), item: 21, size: size_of::<List<u8>>() },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Option { item: 23 },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_options), item: 24, size: size_of::<Option<u8>>() },
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_records), item: 26, size: size_of::<Numbers>() },
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, lists_enums), item: 28, size: size_of::<Light>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 22, 25, 27, 29] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 56;
+}
+
 impl Record for Lists {
     type Limits = Limits;
     const TAIL: Path = paths::LISTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 77)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Lists")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 77)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Lists")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -2098,16 +1872,55 @@ pub struct Options {
 }
 
 // Record: Options.
+impl Options {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Scalar(3),
+        skein_codec::bounds::Node::Option { item: 12 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, options_raw_some) },
+        skein_codec::bounds::Node::Option { item: 14 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, options_key_some) },
+        skein_codec::bounds::Node::Option { item: 16 },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, options_words_some) },
+        skein_codec::bounds::Node::Option { item: 18 },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, options_lists_some), item: 20, size: size_of::<u8>() },
+        skein_codec::bounds::Node::Option { item: 21 },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Option { item: 23 },
+        skein_codec::bounds::Node::Option { item: 24 },
+        skein_codec::bounds::Node::Named("Numbers"),
+        skein_codec::bounds::Node::Option { item: 26 },
+        skein_codec::bounds::Node::Named("Light"),
+        skein_codec::bounds::Node::Option { item: 28 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 22, 25, 27, 29] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 87;
+}
+
 impl Record for Options {
     type Limits = Limits;
     const TAIL: Path = paths::OPTIONS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 106)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Options")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 106)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Options")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -2168,16 +1981,29 @@ pub struct Grouped {
 }
 
 // Record: Grouped.
+impl Grouped {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Grouped {
     type Limits = Limits;
     const TAIL: Path = paths::GROUPED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 111)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Grouped")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 111)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Grouped")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -2219,16 +2045,31 @@ pub struct Held {
 }
 
 // Record: Held.
+impl Held {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_record_bytes) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_enum_bytes) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_record_secret) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_enum_secret) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_byte_pieces) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, held_secret_pieces) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 24;
+}
+
 impl Record for Held {
     type Limits = Limits;
     const TAIL: Path = paths::HELD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 118)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Held")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 118)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Held")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -2368,16 +2209,125 @@ pub struct LongRecord {
 }
 
 // Record: LongRecord.
+impl LongRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_alpha) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_bravo) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_charlie) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_delta) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_echo) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_foxtrot) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_golf) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_hotel) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_india) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_juliet) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_kilo) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_lima) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_mike) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_november) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_oscar) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_papa) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_quebec) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_romeo) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_sierra) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_tango) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_uniform) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_victor) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_whiskey) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_xray) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_yankee) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_zulu) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_amber) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_birch) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_cedar) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_dune) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_acorn) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_anchor) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_apron) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_atlas) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_autumn) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_avocado) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_walnut) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_badge) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_bamboo) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_barrel) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_beacon) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_beetle) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_bronze) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_cactus) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_camera) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_canyon) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_cello) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_cobalt) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_comet) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_compass) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_coral) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_cotton) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_coyote) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_cricket) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_crystal) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_dragon) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_engine) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_falcon) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_feather) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_fern) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_flute) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_fossil) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_galaxy) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_garden) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_glacier) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_granite) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_harbor) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_hazel) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_helmet) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_honey) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_igloo) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_island) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_ivory) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_jasmine) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_kettle) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_lantern) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_leopard) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_lobster) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_magnet) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_marble) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_meadow) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_mermaid) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_meteor) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_mosaic) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_napkin) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_nectar) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_ocean) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_olive) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_orchid) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_panda) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_pencil) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_planet) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_pollen) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_quartz) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_rainbow) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_raven) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_rocket) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_saffron) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_salmon) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, long_record_satin) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 400;
+}
+
 impl Record for LongRecord {
     type Limits = Limits;
     const TAIL: Path = paths::LONG_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 219)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LongRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 219)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LongRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -2601,3 +2551,179 @@ impl Record for LongRecord {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Blank", nodes: Blank::SHAPE },
+    skein_codec::bounds::Declaration { name: "Every", nodes: Every::SHAPE },
+    skein_codec::bounds::Declaration { name: "Grouped", nodes: Grouped::SHAPE },
+    skein_codec::bounds::Declaration { name: "Held", nodes: Held::SHAPE },
+    skein_codec::bounds::Declaration { name: "Kinds", nodes: Kinds::SHAPE },
+    skein_codec::bounds::Declaration { name: "Light", nodes: Light::SHAPE },
+    skein_codec::bounds::Declaration { name: "Lists", nodes: Lists::SHAPE },
+    skein_codec::bounds::Declaration { name: "LongRecord", nodes: LongRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "Nest", nodes: Nest::SHAPE },
+    skein_codec::bounds::Declaration { name: "Numbers", nodes: Numbers::SHAPE },
+    skein_codec::bounds::Declaration { name: "Options", nodes: Options::SHAPE },
+    skein_codec::bounds::Declaration { name: "Shape", nodes: Shape::SHAPE },
+    skein_codec::bounds::Declaration { name: "Stamp", nodes: Stamp::SHAPE },
+    skein_codec::bounds::Declaration { name: "Texts", nodes: Texts::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.texts_raw,
+    CEILINGS.texts_key,
+    CEILINGS.texts_words,
+    CEILINGS.stamp_note_some,
+    CEILINGS.stamp_zone,
+    CEILINGS.nest_blanks,
+    CEILINGS.nest_lights,
+    CEILINGS.nest_maybe_lights,
+    CEILINGS.nest_grid,
+    CEILINGS.nest_grid_item,
+    CEILINGS.nest_maybe_list_some,
+    CEILINGS.nest_shapes,
+    CEILINGS.nest_secrets,
+    CEILINGS.nest_secrets_item,
+    CEILINGS.nest_stamps,
+    CEILINGS.nest_label_some,
+    CEILINGS.every_held,
+    CEILINGS.every_items,
+    CEILINGS.lists_small,
+    CEILINGS.lists_short,
+    CEILINGS.lists_word,
+    CEILINGS.lists_long,
+    CEILINGS.lists_flag,
+    CEILINGS.lists_pause,
+    CEILINGS.lists_tag,
+    CEILINGS.lists_raw,
+    CEILINGS.lists_raw_item,
+    CEILINGS.lists_key,
+    CEILINGS.lists_key_item,
+    CEILINGS.lists_words,
+    CEILINGS.lists_words_item,
+    CEILINGS.lists_grid,
+    CEILINGS.lists_grid_item,
+    CEILINGS.lists_options,
+    CEILINGS.lists_records,
+    CEILINGS.lists_enums,
+    CEILINGS.options_raw_some,
+    CEILINGS.options_key_some,
+    CEILINGS.options_words_some,
+    CEILINGS.options_lists_some,
+    CEILINGS.held_record_bytes,
+    CEILINGS.held_enum_bytes,
+    CEILINGS.held_record_secret,
+    CEILINGS.held_enum_secret,
+    CEILINGS.held_byte_pieces,
+    CEILINGS.held_secret_pieces,
+    CEILINGS.long_record_alpha,
+    CEILINGS.long_record_bravo,
+    CEILINGS.long_record_charlie,
+    CEILINGS.long_record_delta,
+    CEILINGS.long_record_echo,
+    CEILINGS.long_record_foxtrot,
+    CEILINGS.long_record_golf,
+    CEILINGS.long_record_hotel,
+    CEILINGS.long_record_india,
+    CEILINGS.long_record_juliet,
+    CEILINGS.long_record_kilo,
+    CEILINGS.long_record_lima,
+    CEILINGS.long_record_mike,
+    CEILINGS.long_record_november,
+    CEILINGS.long_record_oscar,
+    CEILINGS.long_record_papa,
+    CEILINGS.long_record_quebec,
+    CEILINGS.long_record_romeo,
+    CEILINGS.long_record_sierra,
+    CEILINGS.long_record_tango,
+    CEILINGS.long_record_uniform,
+    CEILINGS.long_record_victor,
+    CEILINGS.long_record_whiskey,
+    CEILINGS.long_record_xray,
+    CEILINGS.long_record_yankee,
+    CEILINGS.long_record_zulu,
+    CEILINGS.long_record_amber,
+    CEILINGS.long_record_birch,
+    CEILINGS.long_record_cedar,
+    CEILINGS.long_record_dune,
+    CEILINGS.long_record_acorn,
+    CEILINGS.long_record_anchor,
+    CEILINGS.long_record_apron,
+    CEILINGS.long_record_atlas,
+    CEILINGS.long_record_autumn,
+    CEILINGS.long_record_avocado,
+    CEILINGS.long_record_walnut,
+    CEILINGS.long_record_badge,
+    CEILINGS.long_record_bamboo,
+    CEILINGS.long_record_barrel,
+    CEILINGS.long_record_beacon,
+    CEILINGS.long_record_beetle,
+    CEILINGS.long_record_bronze,
+    CEILINGS.long_record_cactus,
+    CEILINGS.long_record_camera,
+    CEILINGS.long_record_canyon,
+    CEILINGS.long_record_cello,
+    CEILINGS.long_record_cobalt,
+    CEILINGS.long_record_comet,
+    CEILINGS.long_record_compass,
+    CEILINGS.long_record_coral,
+    CEILINGS.long_record_cotton,
+    CEILINGS.long_record_coyote,
+    CEILINGS.long_record_cricket,
+    CEILINGS.long_record_crystal,
+    CEILINGS.long_record_dragon,
+    CEILINGS.long_record_engine,
+    CEILINGS.long_record_falcon,
+    CEILINGS.long_record_feather,
+    CEILINGS.long_record_fern,
+    CEILINGS.long_record_flute,
+    CEILINGS.long_record_fossil,
+    CEILINGS.long_record_galaxy,
+    CEILINGS.long_record_garden,
+    CEILINGS.long_record_glacier,
+    CEILINGS.long_record_granite,
+    CEILINGS.long_record_harbor,
+    CEILINGS.long_record_hazel,
+    CEILINGS.long_record_helmet,
+    CEILINGS.long_record_honey,
+    CEILINGS.long_record_igloo,
+    CEILINGS.long_record_island,
+    CEILINGS.long_record_ivory,
+    CEILINGS.long_record_jasmine,
+    CEILINGS.long_record_kettle,
+    CEILINGS.long_record_lantern,
+    CEILINGS.long_record_leopard,
+    CEILINGS.long_record_lobster,
+    CEILINGS.long_record_magnet,
+    CEILINGS.long_record_marble,
+    CEILINGS.long_record_meadow,
+    CEILINGS.long_record_mermaid,
+    CEILINGS.long_record_meteor,
+    CEILINGS.long_record_mosaic,
+    CEILINGS.long_record_napkin,
+    CEILINGS.long_record_nectar,
+    CEILINGS.long_record_ocean,
+    CEILINGS.long_record_olive,
+    CEILINGS.long_record_orchid,
+    CEILINGS.long_record_panda,
+    CEILINGS.long_record_pencil,
+    CEILINGS.long_record_planet,
+    CEILINGS.long_record_pollen,
+    CEILINGS.long_record_quartz,
+    CEILINGS.long_record_rainbow,
+    CEILINGS.long_record_raven,
+    CEILINGS.long_record_rocket,
+    CEILINGS.long_record_saffron,
+    CEILINGS.long_record_salmon,
+    CEILINGS.long_record_satin,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

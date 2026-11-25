@@ -84,7 +84,7 @@ desktop browsers are well supported (the user, 10-26).
 | Crate | Where | What |
 |---|---|---|
 | `temper-playground` | `crates/` | the world's composition and its stories' documents; on wasm32, the worker's start |
-| `temper-playground-page` | `crates/` | the page's entry, a `cdylib` for wasm32 with a bundle of its own: skein's worker platform for the shipped shell's loop, the starter, the frame, the failure page and the page's files (`index.html`, `playground.css`, `headers`) (section 6; `../client/web/README.md`, 2.1) |
+| `temper-playground-page` | `crates/` | the page's entry, a `cdylib` for wasm32 with a bundle of its own: skein's worker platform for the shipped shell's loop, the starter, the frame, the failure page and the page's files (`index.html`, `playground.css`, `headers`) (section 6; `client/web/shell.md`, 1) |
 | `temper-fake-git-hosted` | `crates/` | moved from `testing/`, its fixtures staying with the tests: the fake git program the world hosts ships in it; what the composition takes from `tests/fake-checkout` moves to it too |
 | `temper-playground-world` | `tests/playground` | the stories walked natively, through the client's host (section 9) |
 
@@ -97,7 +97,10 @@ desktop browsers are well supported (the user, 10-26).
 - **The composition,** moved out of `tests/one-process`: the service,
   the engine and one worker in one `iterate`, started from configuration
   bytes as `temper-box serve` starts them; jig's store on skein-kv over the
-  fake machine's disk; smith's agents hosted (smith's `shell/README.md`, 2.5);
+  fake machine's disk, handed the schemas of `OWNER_SETS`' texts, prepared
+  once in the process and kept across its services' starts, as are the
+  stores the one-process world rehearses over its disks (jig's
+  `protocol/store/opening.md`, 3); smith's agents hosted (smith's `shell/README.md`, 2.5);
   the fake LLM and fake forge peers on simulated sockets; the fake git
   program; skein's visitor (skein's `playground.md`, 4). Its process
   type and its program registry are the composition's; the harness's
@@ -115,7 +118,7 @@ desktop browsers are well supported (the user, 10-26).
 ## 4. The world
 
 - **What runs** is the one-process world's composition
-  (`testing/README.md`, 2.5) without its harness: no referee, no fake
+  (`testing/tiers.md`, 1.5) without its harness: no referee, no fake
   person, no terminal client, no captures and no fault schedule.
 - **No box.** The fakes are the world's processes, as for a deployment
   without the box (`protocol/setup/box.md`, 4), at the fakes' places the
@@ -138,7 +141,7 @@ desktop browsers are well supported (the user, 10-26).
 - **The clients' listener** is at the address the deployment's document
   names, and the visitor sends that address as its Host, so jig's guards
   hold as on a deployment.
-- **A start for a journey's walk** (`client/journey-walks.md`, 4.1):
+- **A start for a journey's walk** (`client/journey-walks-world.md`, 1.1):
   the composition starts at a forge address of its caller's, every part
   that names the forge taking it from that one address, and may hold a
   fake OAuth issuer among its fakes, with the service given its
@@ -210,17 +213,22 @@ delegate's phases; the frame's speed changes how long the person waits
   its own on `temper-client-shell-web`'s library, holds skein's worker
   platform where the shipped page holds the browser's (skein's
   `ui/web/README.md`, 15): the page gives the shell's loop its platform
-  through the shell's public seam, and nothing else of the loop changes.
+  through the shell's public seam. The playground draws the shell only
+  when the view needs a build, including when its time words come due
+  (`client/view.md`, 6). It still carries every report and finishes
+  non-drawing duties, and sets the client's timer at most once per turn.
   `scripts/bundle.sh --playground` builds its bundle from it.
 - **The starter:** it shows the frame and the loading line, starts the
   worker with the story, the seed it draws and the browser's time, waits
   for the printed link among the lines the world prints, puts the
   link's path and query in the address, and starts the client, whose
   sign-in part spends it as a person's browser does (jig's
-  `protocol/browser/README.md`, section 11). No credential is made by hand.
+  `protocol/browser/sign-in.md`, section 1). No credential is made by hand.
 - **The frame** wires its controls to the bridge's pace, the worker's
   restart and the story's choice, shows the world's time from the
-  platform's clock, and offers the session's log by a key.
+  platform's clock, and offers the session's log by a key. It writes only
+  the figure texts and selected-pace attributes that change at their
+  displayed precision.
 - **One life per page.** A reload, a reset or a new story ends the
   worker and starts a fresh world; nothing is saved.
 - **A failure** in either module stops the playground: the page says it
@@ -235,9 +243,13 @@ delegate's phases; the frame's speed changes how long the person waits
   glue, the stylesheets; each but the page under its digest's name and
   cached for good, the page with a short lifetime (skein's `ui/web/bundle.md`,
   4). Any path answers with the page, which always starts at the
-  printed link.
+  printed link. The tier's static host reads a request head in bounded
+  chunks, retaining at most 8192 bytes. It ends the head at the first
+  `CRLF CRLF`, even across reads, or uses the prefix at the limit; an
+  earlier EOF without a complete head gets no response. It serves only
+  one request per connection.
 - **At the site's playground address,** which the site's design names.
-- **The page's policy** is temper's (`client/web/README.md`, 2.2) with
+- **The page's policy** is temper's (`client/web/serving.md`, 1) with
   `worker-src 'self'`, and no `connect-src` beyond `'self'`: after the
   load, nothing is fetched. One function of temper's gives it, for the
   service and the playground alike; the build writes it beside the
@@ -306,10 +318,10 @@ delegate's phases; the frame's speed changes how long the person waits
   document's are, so a story past them fails its walk.
 - **The native heap at start, in the gate:** `tests/playground`'s `memory`
   binary holds each process's held and peak bytes at the first step and at
-  start, and the fake disk's and the shared forge's retained bytes, each at
-  most its figure in `../development/playground-memory.md` and a quarter
-  more. This bound catches a regression; it is not section 8's bar, which
-  stays the user's. Story A's high water in the one-process world
+  start, and the fake disk's, the shared forge's and the prepared schemas'
+  retained bytes, each at most its figure in `../development/playground-memory.md`
+  and a quarter more. This bound catches a regression; it is not section 8's
+  bar, which stays the user's. Story A's high water in the one-process world
   (`tests/one-process`'s `memory`) is bound the same way.
 - **The wasm32 builds,** in the gate: `temper-playground`, and the web
   shell with `playground`, with clippy's lints as errors for
@@ -331,7 +343,9 @@ delegate's phases; the frame's speed changes how long the person waits
   the built playground in headless Chromium (`client/web/testing.md`
   ), and measures the download from the bundle's files (raw,
   and each compressed alone by the machine's `gzip`, a tool beside the
-  code under test), and the memory's high water and the longest slice
+  code under test; one invocation emits an independent gzip member per
+  file and the test counts their concatenated bytes), and the memory's
+  high water and the longest slice
   from what the frame shows, reported against their bars.
 - **By hand, before the release:** Firefox and Safari on a desktop,
   walking story A.

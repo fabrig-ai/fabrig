@@ -1,2 +1,2 @@
-//! Hosted GitHub with real journal and transcript files over the simulated network.
+//! Hosted GitHub over the simulator, with output in the fake machine.
 mod tests;

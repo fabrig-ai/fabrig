@@ -18,16 +18,16 @@ results its wake policy wakes it for (jig's `domain/tasks/messages.md`, 3 and
 6): under the stock's `last_or_failure`, a change failing or
 cancelled, and the result of its last live change, a closer-ended goal's
 included, since a live run makes no closer. smith offers what arrives
-while the run works between two completions (smith's `domain/run.md`,
-section 6, *Messages mid-work*),
+while the run works between two completions (smith's `domain/run-messages.md`,
+section 1, *Messages mid-work*),
 so a design written beside its changes fits what landed or failed. A
 result its run leaves unread is judged again when the run ends.
 
 The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
-(`../../protocol/configuration/settings.md`, 2): its producing, repairs and
+(`../../protocol/configuration/settings-kinds.md`, 1): its producing, repairs and
 resolutions under its producer's charter, the one its `change` named
-(`tools.md`, 1) or else the forge's change charter, a coding agent's; its reviews
+(`tools-change.md`, 1) or else the forge's change charter, a coding agent's; its reviews
 under the forge's review charter, a reviewer's, whose instructions are
 to judge the change through its brief and the forge's reads and give a
 verdict, or fail saying why it cannot (../forge/change/gates.md, 1), and whose tools
@@ -49,7 +49,7 @@ archive-read room pressure remains busy, retried by the host; observing it
 changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
-message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
+message in the recorded tool result (smith's `protocol/programs-claude-code.md`, 1.4).
 Forge file, directory, pull-file and compare replies fit the effective
 core and receiving-agent body allowance (`tools.md`), retaining prefixes
 or actionable size feedback. A forge read still exceeding the core settled
@@ -77,7 +77,7 @@ how a person says they work into one proposal of settings: what temper's
 engine must do becomes settings an owner accepts, and what only its agents
 must do stays text its runs read. The proposal is a card in the chat and
 waits in the Needs you of each project it belongs to (jig's
-`domain/engine/settings.md`, 6; `../../client/pages/README.md`). Its instructions,
+`domain/engine/settings-proposals.md`, 1; `../../client/pages/README.md`). Its instructions,
 `ask.txt`'s *temper, as you explain it* and *Configuring*
 (`../../draft/ask-temper.md`, section 8), say how it asks and proposes; it
 reads by `see` (`ask-temper.md`, 1) and proposes by `propose_settings`' asking form
@@ -96,7 +96,7 @@ otherwise teach.
   the proposals of settings waiting. The authorized inventory also names the caller project's
   readable adopted repositories, each with the canonical host, owner and name
   from its retained repository record, and the landing branch that record
-  keeps (`../forge/adoption.md`, 8). Other projects and ended forges are
+  keeps (`../forge/adoption.md`, 12). Other projects and ended forges are
   excluded. These identities are read context, not settings or credentials;
   setting, revision and history reads carry no repository context. A charter
   document holds that host unchanged, including its port, and OWNER/NAME,
@@ -106,7 +106,7 @@ otherwise teach.
   its number, its login where temper holds one, its role's number, its
   account on each forge of the project's repositories, by the host their
   lines use, that forge's user's id or unknown (`../forge/adoption.md`): a
-  box's person's by the forge's link (`../forge/adoption.md`, 6), with no adoption, and
+  box's person's by the forge's link (`../forge/adoption-person.md`, 1), with no adoption, and
   marks for the task requester and for temper's own forge writer, who never
   counts as a person. Someone known on none of them is said so once: an
   absent forge identity is explicit and cannot count for
@@ -138,7 +138,7 @@ otherwise teach.
   finds nothing is an error whose words say it was not read and that this
   says nothing about the settings.
 - **The kinds it reads and proposes** are a settings file's
-  (`../../client/ctl/tools.md`, 3): `charter`, `template`, `policy`, `model`,
+  (`../../client/ctl/tools-acts.md`, 1): `charter`, `template`, `policy`, `model`,
   `rules`, `landing-rule` (with its `project`, the deployment's when left
   out), `forge-charter`, `charter-words` (with the charter's number),
   `project-policy`, `project-ways`, `project-questions`, `project-classes` and
@@ -148,7 +148,7 @@ otherwise teach.
   charters are. `see` reads them at the chat's own project (`ask-temper.md`, 1); a
   project's own policy is no address of its (`README.md`, section 8).
 - **A goal template's work,** `template-goal` with the template's number
-  (`../../protocol/configuration/settings.md`, 2, kind 11), `{"design": BOOL,
+  (`../../protocol/configuration/settings-kinds.md`, 1, kind 11), `{"design": BOOL,
   "close_out": BOOL}`, is read and proposed as a template is, beside it:
   a proposal of a goal template whose charter designs the goal first or
   makes a close-out carries the template's work saying so, and a read of
@@ -168,11 +168,11 @@ otherwise teach.
   says plainly, offering the nearest. A provider temper isn't set up for,
   listeners, workers and limits belong to whoever runs temper here: it
   says so and never proposes them. Making a project public is no setting,
-  done by its owner outside the chat (`../../client/ctl/tools.md`, 3), and no
+  done by its owner outside the chat (`../../client/ctl/tools-acts.md`, 1), and no
   proposal's item carries it.
 - **The approvals:** an approval counts a person with a known forge
   identity on the forge of the repository a rule covers, as the
-  inventory shows them, a box's person by its link (`../forge/adoption.md`, 6);
+  inventory shows them, a box's person by its link (`../forge/adoption-person.md`, 1);
   adoption seeds roles by the project's permission mapping, a stock admin
   as maintainer (1), never owner (0), keeping existing roles (`../forge/adoption.md`
   ). `propose_settings` judges each landing rule of the chat's
@@ -198,14 +198,14 @@ otherwise teach.
   whole, against the newest revision: the new card stands below, and the
   old one reads as replaced (`../../client/pages/settings.md`, 2). Refused, the
   one that waits stands. The outcome is heard in its inbox (jig's
-  `domain/engine/settings.md`, 6): accepted, it says so in one line naming the
+  `domain/engine/settings-proposals.md`, 1): accepted, it says so in one line naming the
   revision; rejected, it revises from the person's reason; withdrawn as
   stale, it reads again, proposes afresh and says what changed.
 - **It changes nothing itself.** Its tools are the reads and the proposal
   a person may make, through the same role and proposal checks: its
   task's authority, policy 1's for its role, holds the asking and settings
   families (`ask-temper.md`), and only an owner's decision changes settings (jig's
-  `domain/engine/settings.md`, 6). A member's Ask temper proposes as an owner's
+  `domain/engine/settings-proposals.md`, 1). A member's Ask temper proposes as an owner's
   does, and its proposal waits for an owner.
 - **It writes down how it understood the person** as the chat's
   document, "How this project works", with `document` (`ask-temper.md`, 3), once it
@@ -222,7 +222,7 @@ of `../../draft/v0.1.0.md`, 2.1.
 
 - **The work that waits asks; a change asks only as it is made to.** A
   change is decided work, asked for once what to change is agreed. Made
-  with `questions` `"none"` (`tools.md`, 1), the default, its agents, the
+  with `questions` `"none"` (`tools-change.md`, 1), the default, its agents, the
   table's first four rows, ask no one: the change procedure delegates
   each with the Message family taken out of the tool families it passes
   on, which a child's authority otherwise keeps (jig's
@@ -233,7 +233,7 @@ of `../../draft/v0.1.0.md`, 2.1.
   the change relays their questions (../forge/change/questions.md, 1); what follows is a
   chat's, whose changes take none.
 - **The chat delegates the work as a goal** when its person asks to
-  agree it first, with `goal` (`tools.md`, 2) and the person's words: a
+  agree it first, with `goal` (`tools-goal.md`, 1) and the person's words: a
   delegate under charter 1 holding the authority to call `change` and
   to ask; never `change` itself, which would start the work at once. The stock
   chat's instructions (charter 1, `../../protocol/configuration/stock.md`)
@@ -243,12 +243,12 @@ of `../../draft/v0.1.0.md`, 2.1.
   inbox, not through the chat. When the person answers the goal's question,
   the goal has the answer and does the work; the chat never calls `change`
   or `goal` for that answer and tells the person the work goes ahead. The chat passes the person's words whole, at once, even where they
-  ask for an advisor first, since the goal asks one itself (`tools.md`, 2): it
+  ask for an advisor first, since the goal asks one itself (`tools-goal.md`, 1): it
   never sets `advisor` for such work, writes the plan or asks the
   go-ahead in its own reply, nor calls `change`. The goal, once it has
   asked, waits for the answer: it never finishes before it, nor before
   every agreed change has landed. The brief opens with the caller's words
-  so that the task's title is the work (`tools.md`, 2); a blank line follows,
+  so that the task's title is the work (`tools-goal.md`, 1); a blank line follows,
   then the root's goal line and its line that the work is to be agreed,
   then the person's heading and words.
 - **A held change or goal waits for the person at once.** jig skips
@@ -293,7 +293,7 @@ of `../../draft/v0.1.0.md`, 2.1.
     that person's role. Another role is refused with
     `missing executor permission`; a person with no project role is
     refused with `Refused: executor`. A goal a chat calls loses every role
-    kind as `goal` narrows its authority (`tools.md`, 1 names what it keeps), so
+    kind as `goal` narrows its authority (`tools-change.md`, 1 names what it keeps), so
     it may address no one. Among holders of one role, the charter's words
     alone say "its requester" (`README.md`, section 8).
 - **Its person by name** (`../../draft/home-for-a-person.md`, section 7). A
@@ -378,7 +378,7 @@ of `../../draft/v0.1.0.md`, 2.1.
     reply alone. Any question
     a person or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
-  QUESTION TEXT` (`../../client/ctl/tools.md`, 3), Home's card or the inbox's
+  QUESTION TEXT` (`../../client/ctl/tools-acts.md`, 1), Home's card or the inbox's
   page, and
   nobody else does: the answer reaches the goal itself, as its
   requester's, never through the chat's model, which may not answer a
@@ -388,7 +388,7 @@ of `../../draft/v0.1.0.md`, 2.1.
   answered, with the person's answer words cut at 256 bytes on a UTF-8
   boundary and marked when cut, and says so. The goal is kept while its
   question waits, including when its ordinary turns expire after asking
-  (jig's `domain/tasks/lifecycle.md`, 8): a run of it that finishes before the
+  (jig's `domain/tasks/lifecycle-endings.md`, 1): a run of it that finishes before the
   answer parks, and the answer wakes it. It then calls `change` with
   what was agreed, waits for its result and reports; the chat says what
   landed.
@@ -397,8 +397,8 @@ of `../../draft/v0.1.0.md`, 2.1.
 - **The asking is the root's rail, not the goal's choice.** The chat
   marks such work once, as it delegates it: `goal` with `agree` set, at
   the moment its person asks to agree it first, and the root makes the
-  goal's task owing its requester a question (jig's `domain/tasks/lifecycle.md`,
-  8, its spec's `asks`), the typed mark everything below reads, never
+  goal's task owing its requester a question (jig's `domain/tasks/lifecycle-endings.md`,
+  1, its spec's `asks`), the typed mark everything below reads, never
   the brief's text. `finish` is the run's own, so an agreed goal that
   finishes before it has asked is not refused but parks, kept by what it
   owes, and wakes at once to the notice "this work is to be agreed: ask
@@ -510,7 +510,8 @@ and not its name.
 
 A goal tells its person where it stands in a **note**, one per goal, which
 needs no record, read or wire field of its own. The client reads and draws it
-(`../../client/pages/README.md`, *A goal's report*); a person reads it first.
+(`../../client/pages/README.md`, *A goal's report*); a person reads it first,
+and the goal's closer reads its `Left:` line.
 
 - **Its shape:** scope goal (the tool's scope `goal`, the client's
   `NoteScope::Task`). Its description is `report: ` then the headline, one line. Its body
@@ -529,7 +530,10 @@ needs no record, read or wire field of its own. The client reads and draws it
   reads first, naming no task, change or pull request by number, as `5 of its
   7 changes landed; the other 2 are building.` (`charter.md`, 4, *Words a
   person reads first*); the numbers are the body's. The paragraphs say what happened and why, in the first person.
-  `Left:` what remains; `Risk:` what could go wrong; `Decided:` what it decided
+  `Left:` what remains: each part it planned and has not cut into changes,
+  and what it leaves undone, with why, the line left out where nothing
+  remains, since a goal's closer holds on it before it ends the goal
+  (`../forge/branches.md`, 2); `Risk:` what could go wrong; `Decided:` what it decided
   itself, each with its time. A message that changes the plan becomes an
   amendment the goal shows the person first.
 - **Who is told:** the goal's part of charter 1's instructions and the
@@ -566,7 +570,7 @@ conversation its person ends, kept, listed among the project's chats.
   them: the declaration is the rail. Its charter names no inspect, modify or
   shell, so its runs are given no repository (`charter.md`, 2): it reads the project's
   code through the forge's reads, `read_forge what=branch` for a repository's head and
-  then `read_forge what=file`, as a chat does (`tools.md`, 1), and its model's sub-agents survey
+  then `read_forge what=file`, as a chat does (`tools-change.md`, 1), and its model's sub-agents survey
   where it has them, its charter's `agents` set.
 - **Its draft** is the chat's document (3): a `note` in its own task's
   scope, which its authority's goal scope admits, as a chat's.
@@ -578,7 +582,7 @@ conversation its person ends, kept, listed among the project's chats.
   templates (`../../client/pages/goal.md`, 3); the drafter calls no `goal`.
 - **Where one starts:** on the web, the new chat with a draft where `me`
   lists template 6 (`../../client/pages/README.md`, *A new chat*); from `temper
-  ctl`, `chat start --template 6` (`../../client/ctl/tools.md`, 3); in the
+  ctl`, `chat start --template 6` (`../../client/ctl/tools-acts.md`, 1); in the
   terminal, `/draft` (`../../draft/surfaces.md`, 11.2), which the terminal's
   design takes up.
 
@@ -586,7 +590,7 @@ conversation its person ends, kept, listed among the project's chats.
 
 - **A goal a chat calls naming its person** (`agents.md`, 2, *Its person by
   name*): its requester is the chat, so its brief names no one, and its
-  words say "your person". The root's goal line (`tools.md`, 2), a fixed
+  words say "your person". The root's goal line (`tools-goal.md`, 1), a fixed
   text that fakes cue on, could name the chat's person. Default: no name;
   the chat's own words may carry one.
 
@@ -676,7 +680,7 @@ conversation its person ends, kept, listed among the project's chats.
   path is independent of the stock and reference instructions, their
   wakes and their location. Those words and settings are folded into the
   reference workflow together. Calls, briefs and reports take the room
-  of `../../protocol/configuration/settings.md`, 7, with the reference's fallback.
+  of `../../protocol/configuration/settings-output.md`, 1, with the reference's fallback.
   Default: the existing stock and reference words and wakes; test charters
   exercise goal delivery.
 

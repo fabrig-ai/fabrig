@@ -5,7 +5,7 @@
 //! directory and the harness starts it in the test's. The first-run demo reserves every listener init wrote
 //! through `temper_fixtures::ports` (temper/docs/design/testing/process-tier.md, Three at a time).
 //! Ctl commits the world's kept providers before a restart (temper/docs/design/protocol/configuration/providers.md, 3, 6).
-use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 use temper_playground::documents::turn_bounds;
 
 /// A closed loopback port: the forge's and the LLM endpoint's, which no story reaches.
@@ -266,37 +266,21 @@ pub(crate) fn install(directory: &Path, program: &Path) {
     if !settings.is_file() || directory.join("browser-settings-applied").is_file() {
         return;
     }
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&settings).expect("settings")).expect("JSON");
-    let figures: serde_json::Value =
-        serde_json::from_slice(&fs::read(directory.join("fixture-limits.json")).expect("figures")).expect("JSON");
-    value["items"].as_array_mut().expect("items").extend(limit_items(&figures));
+    let value = prepared_settings(directory, &settings);
+    private(&settings, &serde_json::to_vec(&value).expect("settings JSON"));
     let client = directory.join("settings-client");
     fs::create_dir(&client).expect("settings client");
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
-    let mut steps = vec![Step::Run(Call::sign_in().by(program))];
-    // The seven numbered stock models keep their identities and figures; their endpoint bindings follow settings.
-    for number in 1..=7 {
-        steps.push(Step::Run(Call::new(&["settings", "show", "model", &number.to_string(), "--json"]).by(program)));
-    }
-    steps.push(Step::Run(Call::new(&["settings", "show", "--json"]).by(program)));
-    let file = settings.clone();
     let executable = program.to_path_buf();
-    let wanted = temper_agent_fixtures::providers::read(directory);
-    steps.push(Step::Then(Box::new(move |calls| {
-        for call in &calls[1..8] {
-            let read = temper_box_kit::ctl::json(call);
-            let mut model = read["value"].clone();
-            bind_model(&mut model, &wanted);
-            value["items"]
-                .as_array_mut()
-                .expect("items")
-                .push(serde_json::json!({"setting":read["setting"],"set":model}));
-        }
-        private(&file, &serde_json::to_vec(&value).expect("settings JSON"));
-        temper_box_kit::ctl::settings_change(calls.last().expect("inventory"), &file, "browser-settings")
-            .by(&executable)
-    })));
-    steps.push(Step::Run(Call::new(&["sign-out"]).by(program)));
+    let steps = vec![
+        Step::Run(Call::sign_in().by(program)),
+        Step::Run(Call::new(&["settings", "show", "--json"]).by(program)),
+        Step::Then(Box::new(move |calls| {
+            temper_box_kit::ctl::settings_change(calls.last().expect("inventory"), &settings, "browser-settings")
+                .by(&executable)
+        })),
+        Step::Run(Call::new(&["sign-out"]).by(program)),
+    ];
     let flags = flags(directory).into_iter().map(|word| word.into_string().expect("flag")).collect();
     let seen = temper_box_kit::boxed::run_ctl_from(program, directory, flags, &client, steps, |_| ());
     for call in &seen.calls {
@@ -304,18 +288,64 @@ pub(crate) fn install(directory: &Path, program: &Path) {
             call.exit,
             Some(skein_io::kernel::Exit::Code(0)),
             "settings setup: {}",
-            String::from_utf8_lossy(&call.stderr)
+            temper_box_kit::without_secrets(&call.stderr)
         );
     }
-    assert_eq!(seen.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", String::from_utf8_lossy(&seen.stderr));
+    assert_eq!(seen.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", temper_box_kit::without_secrets(&seen.stderr));
     assert_eq!(
         seen.calls.len(),
-        11,
-        "sign in, read seven models and inventory, apply, sign out; {}",
-        String::from_utf8_lossy(&seen.stderr)
+        4,
+        "sign in, read inventory, apply, sign out; {}",
+        temper_box_kit::without_secrets(&seen.stderr)
     );
     assert_eq!(seen.left, Some(Vec::new()), "settings sitting drained");
     private(&directory.join("browser-settings-applied"), b"applied\n");
+}
+
+fn prepared_settings(directory: &Path, settings: &Path) -> serde_json::Value {
+    use jig_domain_core_vocabulary::settings::{Setting, Value};
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(settings).expect("settings")).expect("JSON");
+    let figures: serde_json::Value =
+        serde_json::from_slice(&fs::read(directory.join("fixture-limits.json")).expect("figures")).expect("JSON");
+    let items = value["items"].as_array_mut().expect("items");
+    items.extend(limit_items(&figures));
+    let wanted = temper_agent_fixtures::providers::read(directory);
+    // The seven stock entries; the box adds its own fixed provider's model separately.
+    let llm = jig_protocol_config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
+    for model in temper_engine_service_stock::stock::models(&llm) {
+        let mut read = model_json(Setting::Model(model.number), Value::Model(Box::new(model)));
+        bind_model(&mut read["value"], &wanted);
+        items.push(serde_json::json!({"setting":read["setting"],"set":read["value"]}));
+    }
+    value
+}
+
+/// Use the same wire translation and JSON renderer as the owner's `settings show model`.
+fn model_json(
+    setting: jig_domain_core_vocabulary::settings::Setting,
+    value: jig_domain_core_vocabulary::settings::Value,
+) -> serde_json::Value {
+    use skein_json::writer::{Encoder, Limits};
+    let limits = settings_form::Limits::standard();
+    let read = jig_domain_core_vocabulary::reads::SettingDocument {
+        overlay: None,
+        setting,
+        revision: 0,
+        value: Some(value),
+        application: None,
+        proposed: None,
+    };
+    let record = jig_protocol_engine_clients::translate::settings::setting_document(&read, &[], &limits.settings)
+        .expect("stock model on the client wire");
+    let read = settings_form::view::ReadValue::Setting(Box::new(
+        settings_form::wire::restore_setting_document(&record, &limits).expect("stock setting value"),
+    ));
+    let json = Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("settings result bound") };
+    let mut measure = Encoder::measure(&json);
+    settings_form::render::encode(&read, &mut measure);
+    let mut write = Encoder::write(measure.measured().expect("model JSON fits"), &json);
+    settings_form::render::encode(&read, &mut write);
+    serde_json::from_slice(&write.finish()).expect("stock model JSON")
 }
 
 fn limit_items(figures: &serde_json::Value) -> Vec<serde_json::Value> {
@@ -365,7 +395,7 @@ fn provider_settings(directory: &Path, settings: &mut serde_json::Value) {
 }
 
 /// Persist the prospective startup figures through the owner's settings decision as well
-/// (temper/docs/design/draft/config.md, 6.3; protocol/configuration/settings.md, 2, kind 21).
+/// (temper/docs/design/draft/config.md, 6.3; protocol/configuration/settings-kinds.md, 1, kind 21).
 fn agent_settings(agent: &serde_json::Value) -> serde_json::Value {
     let mut profile = serde_json::Map::new();
     for group in ["declared", "policy"] {
@@ -408,7 +438,7 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
     assert!(initialized.status.success(), "demo init: {}", String::from_utf8_lossy(&initialized.stderr));
     let path = directory.join(temper_config_shell::FILE);
     let mut file = read_init(directory).file;
-    own_demo_listeners(&mut file);
+    own_demo_listeners(&mut file, temper_fixtures::ports::addresses::<2>);
     file.internal.bundle = Some(bundle.into());
     private(&path, &temper_config_shell::render(&file, temper_config_shell::Shape::Standalone));
 }
@@ -431,7 +461,7 @@ pub(crate) fn read_init(directory: &Path) -> temper_config_shell::Read {
 }
 
 /// Reserve both init listeners, leaving every other explicit value unchanged.
-fn own_demo_listeners(file: &mut temper_config_shell::File) {
+fn own_demo_listeners(file: &mut temper_config_shell::File, reserve: impl FnOnce(&[SocketAddr]) -> [SocketAddr; 2]) {
     let sockets = [
         file.listen.expect("init listener"),
         file.webhooks.unwrap_or_else(|| {
@@ -440,7 +470,7 @@ fn own_demo_listeners(file: &mut temper_config_shell::File) {
             address
         }),
     ];
-    let [listen, webhooks] = temper_fixtures::ports::addresses::<2>(&sockets);
+    let [listen, webhooks] = reserve(&sockets);
     file.listen = Some(listen);
     file.webhooks = Some(webhooks);
 }
@@ -454,10 +484,14 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
     crate::scripted::write(directory, &value);
 }
 
-/// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
-/// jig/docs/design/domain/people/public-reading.md, 7). Its two-second freshness is the walk's subject.
+/// Public reading's demo and its admitted board bounds (temper/docs/design/protocol/sign-in.md, 2.4;
+/// jig/docs/design/domain/people/public-reading.md, 7).
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
+    public_limits(directory);
+}
+
+fn public_limits(directory: &Path) {
     let figures = [
         ("clients.public.rate", 20),
         ("clients.public.rate_burst", 20),
@@ -465,8 +499,9 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("clients.public.bytes_burst", 2_097_152),
         // The 20/20/50 board reserves 730,728 bytes; this tier's approved ceiling is 1 MiB.
         ("clients.public.answer_bytes", 1_048_576),
-        ("clients.public.reads", 8),
+        // A zero-age record expires as soon as the page receives it.
         ("clients.public.max_age", 2),
+        ("clients.public.reads", 8),
         ("clients_http.public_calls", 8),
         ("core.public.goals", 20),
         ("core.public.ended", 20),
@@ -474,26 +509,6 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("core.public.depth", 16),
     ];
     crate::scripted::limits(directory, &figures);
-    let mut value: serde_json::Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("embedded scripts");
-    let mut delegates = 0_u32;
-    for script in value["asked"].as_array_mut().expect("asked scripts") {
-        if script["cue"] != "Add CSV export to widget" {
-            continue;
-        }
-        for turn in script["turns"].as_array_mut().expect("CSV turns") {
-            for line in turn["lines"].as_array_mut().expect("CSV lines") {
-                if line["call"] == "delegate" {
-                    for member in line["arguments"]["batch"].as_array_mut().expect("delegate batch") {
-                        // delegate's host-tool spelling of tracked priority 1.
-                        member["tracked"] = serde_json::json!({"priority": 1});
-                        delegates = delegates.checked_add(1).expect("bounded script");
-                    }
-                }
-            }
-        }
-    }
-    assert_eq!(delegates, 1, "one CSV delegate becomes a public goal");
-    crate::scripted::write(directory, &value);
 }
 
 /// Derive the stock charters and their model bounds from the edited deployment.
@@ -574,12 +589,61 @@ mod tests {
     }
 
     #[test]
-    fn settings_file_uses_the_public_agents_form() {
-        let scratch = skein_scratch::Scratch::new("browser-agents-form");
-        super::write(scratch.path(), &scratch.path().join("bundle"));
-        let bytes = std::fs::read(scratch.path().join("browser-agents.json")).expect("settings");
-        settings_form::file::decode(&bytes, &settings_form::Limits::standard())
-            .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&why)));
+    fn prepared_settings_preserve_world_inputs_and_rendered_stock_models() {
+        use jig_domain_core::settings::{Current, Setting};
+        use serde_json::{Value, json};
+        const STOCK_MODELS: std::ops::RangeInclusive<u32> = 1..=7; // stock.md, the numbered catalogue before demo.
+        for welcome in [false, true] {
+            let scratch = skein_scratch::Scratch::new("browser-settings-form");
+            let directory = scratch.path();
+            let mut world = super::write(directory, &directory.join("bundle"));
+            if welcome {
+                let sign_in = crate::account_registration("http://127.0.0.1:9");
+                crate::account_provider(&mut world, &sign_in);
+                crate::welcome_provider(&mut world, &sign_in);
+                super::persist(directory, &world);
+            }
+            let path = directory.join("browser-agents.json");
+            let value = super::prepared_settings(directory, &path);
+            let bytes = serde_json::to_vec(&value).expect("settings form");
+            settings_form::file::decode(&bytes, &settings_form::Limits::standard())
+                .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&why)));
+            let inputs: Value = serde_json::from_slice(&std::fs::read(&path).expect("world inputs")).expect("JSON");
+            let figures: Value =
+                serde_json::from_slice(&std::fs::read(directory.join("fixture-limits.json")).expect("figures"))
+                    .expect("JSON");
+            let mut expected = inputs["items"].as_array().expect("agents and providers").clone();
+            expected.extend(super::limit_items(&figures));
+            let rows = value["items"].as_array().expect("settings items");
+            let (non_models, models) = rows.split_at(expected.len());
+            assert_eq!(non_models, expected, "agents, providers and both kinds of limits");
+            assert_eq!(models.len(), STOCK_MODELS.count());
+
+            // Settings show reads the current value of each numbered stock model at first start.
+            let engine = stock_engine(&world);
+            let core = jig_protocol_config::core(&engine, [0; 16], 1);
+            let current = Current::new(core.defaults, &engine.limits.core, &[]);
+            for (number, row) in STOCK_MODELS.zip(models) {
+                let setting = Setting::Model(number);
+                let stock = current.value(setting).expect("stock setting").clone();
+                let mut read = super::model_json(setting, stock);
+                let model = &mut read["value"]["model"];
+                let endpoint = match model["provider"].as_u64() {
+                    Some(provider) if provider == u64::from(super::PROVIDER) => Some(super::ENDPOINT),
+                    Some(provider) if welcome && provider == u64::from(super::WELCOME_PROVIDER) => {
+                        Some(super::WELCOME_ENDPOINT)
+                    }
+                    _ => None,
+                };
+                if let Some(endpoint) = endpoint {
+                    model["endpoint"] = json!(endpoint);
+                    model["dialect"] = json!(3);
+                    model["program"] = Value::Null;
+                }
+                assert_eq!(row["setting"], read["setting"], "model {number} identity");
+                assert_eq!(row["set"], read["value"], "model {number} preserves the stock read except its binding");
+            }
+        }
     }
 
     #[test]
@@ -656,6 +720,21 @@ mod tests {
     }
 
     #[test]
+    fn public_board_reads_have_time_to_draw_before_they_expire() {
+        let scratch = skein_scratch::Scratch::new("browser-public-limits");
+        super::public_limits(scratch.path());
+        let bytes = std::fs::read(scratch.path().join("browser-limits.json")).expect("fixture limit settings");
+        let rows: Vec<serde_json::Value> = serde_json::from_slice(&bytes).expect("limit rows");
+        let mut limits = jig_protocol_config::stock();
+        for row in &rows {
+            let name = row["name"].as_str().expect("limit name");
+            let value = row["value"].as_u64().expect("limit value");
+            jig_protocol_config::overrides::apply(&mut limits, name.as_bytes(), value).expect("public limit");
+        }
+        assert_eq!(limits.clients.public.max_age, 2);
+    }
+
+    #[test]
     fn stock_models_follow_the_world_endpoint_bindings() {
         let mut value = super::typed_documents(std::path::Path::new("/fixture"), std::path::Path::new("/bundle")).1;
         let mut model = serde_json::json!({"number":2,"model":{"provider":1,"endpoint":1,"dialect":2,"program":"claude_code","name":"stock-name","output":8192}});
@@ -694,12 +773,15 @@ mod tests {
 
     #[test]
     fn demo_reserves_every_init_listener_and_moves_its_references() {
+        const EPHEMERAL_FIRST: u16 = 32_768;
         let mut file = temper_config_shell::File {
             listen: Some("127.0.0.1:8367".parse().expect("listen")),
             webhooks: Some("127.0.0.1:8371".parse().expect("webhooks")),
             ..Default::default()
         };
-        super::own_demo_listeners(&mut file);
+        super::own_demo_listeners(&mut file, |_| {
+            [10_001, 10_002].map(|port| (std::net::Ipv4Addr::LOCALHOST, port).into())
+        });
         let text = temper_config_shell::render(&file, temper_config_shell::Shape::Standalone);
         let facts = temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: true };
         let read =
@@ -715,7 +797,7 @@ mod tests {
             let address: std::net::SocketAddr =
                 value.pointer(pointer).expect("listener").as_str().expect("socket").parse().expect("address");
             assert!(address.ip().is_loopback());
-            assert!((10_000..temper_fixtures::ports::ephemeral_first()).contains(&address.port()));
+            assert!((10_000..EPHEMERAL_FIRST).contains(&address.port()));
             assert!(seen.insert(address), "listeners must be distinct: {address}");
         }
         assert!(value["application"].get("machine").is_none());

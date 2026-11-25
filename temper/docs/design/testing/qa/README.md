@@ -1,8 +1,8 @@
 # Landed QA
 
 Provisional, 2026-11-12, revised 2026-11-16, from
-`../../draft/landed-qa.md`, milestones Q1, Q3, Q4, Q6, Q7 and Q8 of
-`../../draft/landed-qa.execution.md`. QA after landing, beside
+`../../draft/archive/landed-qa.md`, milestones Q1, Q3, Q4, Q6, Q7 and Q8 of
+`../../draft/archive/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
 builds, restores setups, files findings and starts agents; agents triage
 each landing and run each pass. This document is the tool, its home, its
@@ -23,7 +23,7 @@ Q7's; the two kinds of place as one framework (`kinds.md`) are Q8's.
 - **One tool,** `temper-qa` (section 2), configured by the deployment in
   a home directory of its own (section 3). It builds nothing, takes none
   of the deployment's worker slots and runs on the machine that holds the
-  places (`../../draft/landed-qa.md`, 2).
+  places (`../../draft/archive/landed-qa.md`, 2).
 - **No coordinator** (section 4): one loop, `temper-qa run`, moves
   landings, cases, passes and builds through their states on what it
   sees: main moving, a build kept, an agent's session ending, a goal's
@@ -174,7 +174,7 @@ taken from the home.
   an argument list, in which every `{effort}` is replaced by the
   session's effort; `triage`, required, triage's effort, and `pass`,
   required, a pass's, each as the command takes it
-  (`../../draft/landed-qa.md`, 2).
+  (`../../draft/archive/landed-qa.md`, 2).
 - **`bounds`,** each in seconds: `poll`, the fetch interval when
   `git.fetch` is set, 60 when absent; without a remote it sets no
   periodic wake; `triage`, a triage session's time, 900 when absent;
@@ -188,7 +188,7 @@ taken from the home.
   (`places.md`, 2; `deployment.md`); `ports`, the nine ports its boxes
   or its deployment's processes bind, as
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists them
-  (`../../protocol/setup/box.md`, 5; `deployment.md`, 2), each nonzero
+  (`../../protocol/setup/box-backends.md`, 1; `deployment.md`, 2), each nonzero
   and distinct, and distinct across places, required for a
   deployment's place: `qa.json: place PLACE is a deployment's and names
   no ports`. Directories are distinct. A place's name in
@@ -298,7 +298,7 @@ older home are removed and their worktree registrations pruned.
 
 - **A line** is one sentence about the pass's own state, for the area
   `owner` names, never a finding against temper
-  (`../../draft/landed-qa.md`, 2): a landing whose triage recorded
+  (`../../draft/archive/landed-qa.md`, 2): a landing whose triage recorded
   nothing twice (`triage.md`, 6), a case waiting past its bound for a
   build (`ledger.md`, 4.7), a step failing for an hour (section 4), a
   pass session that recorded nothing and a case blocked twice
@@ -315,38 +315,76 @@ older home are removed and their worktree registrations pruned.
 
 ## 6. Its tests
 
-All in the focused and fuzzy suites, in the crate's test targets and
-its binary's table test (`../tools.md`, 6), each failing first. The crate's
-`step` target holds the ledger, configuration, parser and reference checks,
-the seeded ledger sequences included. Its `suite` target holds the real-file
-checks: even the fake-clock world writes a scratch home and takes file locks,
-so it belongs to the real loop (`tools/tiers/layers.md`, 6.1). Shared value
-fixtures compile once in the crate's library.
+Each failing first, in the crate's three test targets and its binary's
+table test (`../tools.md`, 6). What replays runs in the focused and fuzzy
+suites; only the production faces' own checks need the real loop
+(`tools/tiers/layers.md`, 6.1).
 
+- **Its world behind faces:** the tool reaches the machine through its
+  faces alone (`faces`): git (`GitFace`); its children (`Processes`: the
+  agents, the request's and `notify`'s commands, `tar`, the drive tool's
+  `recipe` commands, an executable's `--version`, the holder and its drive
+  session, and the loop's end of a holder); the clock (`ClockFace`: the
+  loop's waits, the holder's and its clients' polls); the drive tool and
+  the archive (`DriveFace`, `ArchiveFace`, `places.md`, 8); and every path
+  it keeps (`FilesFace`: the home's documents and locks, sessions, builds,
+  trees and places, their modes and links, the build files' checksums,
+  and the Unix sockets among them, `run.sock` and a place's
+  `drive.sock`). The binary's `main` makes the production faces once,
+  beside its captured arguments and environment
+  (`../tools.md`, 4.3), and hands them to the command entry, which runs
+  every command over the faces it is given; nothing else makes one. So
+  every rule below runs over a world in memory, and only the production
+  faces need the kernel.
+- **Three targets:** `step`, values and pure functions: the ledger,
+  configuration, parser and reference checks, the seeded ledger sequences
+  included (fuzzy), the command table's answers and `tune`'s figures;
+  `domain`, the QA runner's world: the home in memory, the loop, the
+  commands through the command entry, builds, installs, places and the
+  holder; `suite`, in the real loop, the production faces' witnesses
+  alone. Shared fixtures and the world compile once in the crate's
+  library, its `testing` module.
+- **The world** (`domain`): a files face holding a tree of files,
+  directories, links, modes, devices, locks and sockets, with the
+  failures a test injects by path; git of commits in memory whose
+  worktrees are directories of that tree; agents, request commands,
+  `tar`, the drive tool and the executables a build keeps as programs the
+  test scripts, each seeing the tree as it stands when it runs; a holder
+  and a drive session as scripted streams; a clock the test moves, which
+  a sleep advances. A test's home is a path of the tree with its own
+  `qa.json`.
 - **The ledger's rules over values** (`ledger.md`, 4): built in memory,
   driven through its operations, its records checked; the deletion
   rule's and the passes' invariants under random sequences of events, in
   the fuzzy suite: a case in one pass at a time, a held build never
   deleted.
-- **The commands through the binary,** in a scratch home with its own
-  `qa.json`: the agents' commands and their refusals, `show`, `lines`
-  and `report`.
-- **The watcher and the loop over a fake world:** a git of commits in
-  memory, an agent that records through the ledger's operations or ends
-  having recorded nothing, a clock the test moves, builds as directories
-  in the scratch home, and request commands that answer as the test
-  says.
-- **`build keep`** on a staging directory in the scratch home whose
-  executables are small scripts printing a version.
-- **The place's commands** over fakes of the drive tool and the archive
-  (`places.md`, 8): small scripts that answer as the drive session and
-  the recipe walk do, so that a copy's restore, its making again and the
-  holder's lines are checked with no box, a place's ports passed to
-  each walk and session among them.
-- **`tune`** over ledgers the test builds: each figure, and each
-  suggestion made or withheld at its threshold (`ledger.md`, 6), and a
-  wait for a place opened and closed by the loop's third step
-  (`ledger.md`, 4.17).
+- **The command table** (`step`): each help page, the front's refusals
+  and each command's argument refusals, with their words and exits
+  (section 2), answered before any effect.
+- **The commands through the command entry** (`domain`), in the world's
+  home: the agents' commands and their refusals, each refusal leaving
+  the ledger's bytes as they were, `show`, `lines`, `report`, `gaps` and
+  `wake`, a finding's evidence copied and its limits.
+- **The watcher and the loop over the world:** an agent that records
+  through the ledger's commands or ends having recorded nothing, builds
+  as directories of the tree, and request commands that answer as the
+  test says, seeing the files the loop wrote for them.
+- **`build keep`** on a staging directory of the tree whose executables
+  answer their version as the test scripts it.
+- **The place's commands** over the drive tool's and `tar`'s scripted
+  programs and the archive's fake (`places.md`, 8), so that a copy's
+  restore, its making again, a walk's log and the archive's set-aside
+  paths are checked with no box, a place's ports passed to each walk
+  and session among them.
+- **The holder's two halves:** its clients' `pass open`, `pass line` and
+  `pass close` against a scripted holder, and the holder against
+  scripted connections and a scripted drive session, so that its lines,
+  answers, exits, kept lines and the drive's arguments are checked with
+  no socket and no child (`places.md`, 5).
+- **`tune`** (`step`) over ledgers the test builds at a given time: each
+  figure, and each suggestion made or withheld at its threshold
+  (`ledger.md`, 6); and in the world a wait for a place opened and closed
+  by the loop's third step (`ledger.md`, 4.17).
 - **The `ctl` surface and the places' kinds:** a `ctl` case recorded
   against ctl's groups and listed first in triage's and a pass's
   briefs; a pass whose ctl cases run first opening its session with
@@ -356,10 +394,28 @@ fixtures compile once in the crate's library.
   pass briefed to run its ctl cases first in a ctl session and then its
   web and tui cases in a full one (`passes.md`, 4); triage's catalogue
   of the kinds the places run alone (`kinds.md`, 6).
+- **The production faces** (`suite`, the real loop), each where only the
+  kernel shows it: a file name that is not UTF-8, on Linux alone
+  (`../macos.md`); a staged build's executables run for their versions
+  and the build published; a saved command's poke, `run.sock` replacing
+  a stale path under any umask, and a child's exit waking the loop; the
+  holder tightening a place's modes before it starts, and ending its
+  drive and freeing the place on the ledger's watch; a restore private
+  under permissive umasks; the system's `tar` saving and restoring a
+  copy without its pinned agent; a bounded command's process group
+  killed at its bound; a pass's end reaching its holder through the
+  socket, captured before the path can be reused.
+- **The binary's table test** (end to end): `--help`, `--version` and
+  a command the table lacks (`../tools.md`, 6), and one shipped path
+  for each boundary a command crosses: `build keep` publishing a stage,
+  `triage case -` from stdin, `wake`, `triage gap`, a holder's `pass
+  open`, `pass line` and `pass close`, a box failing a line with status
+  4, `pass setup` and `pass recipe` with their walks' exits, `pass
+  finding` with its evidence, and `tune`.
 
 None starts a browser, a box, a real agent or the network; none runs
 `git` but the loop's real face, which the walk after landing exercises
-(`../../draft/landed-qa.execution.md`, 1).
+(`../../draft/archive/landed-qa.execution.md`, 1).
 
 ## 7. Setting it up
 
@@ -381,7 +437,7 @@ The deployment's, on the machine that holds the places:
 ## 8. Later
 
 - **Edge cases, the help as a surface, and real backends**
-  (`../../draft/landed-qa.md`, 12).
+  (`../../draft/archive/landed-qa.md`, 12).
 
 ## 9. Open questions
 

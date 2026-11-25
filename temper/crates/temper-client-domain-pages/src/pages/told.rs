@@ -1,4 +1,4 @@
-//! Telling you (temper/docs/design/client/pages/told.md; client/web/README.md, 2.7).
+//! Telling you (temper/docs/design/client/pages/told.md; client/web/push.md, 1).
 use super::Request;
 use crate::{
     forge::{Limits, devices, wire_limits},
@@ -451,7 +451,7 @@ fn answer(outcome: &Outcome, limits: Limits) -> Option<Answer> {
         | w::Outcome::Tier(_)
         | w::Outcome::Filed(_)
         | w::Outcome::Handed
-        | w::Outcome::Triaged
+        | w::Outcome::Triaged(_)
         | w::Outcome::FindingRefused(_)
         | w::Outcome::Away => None,
     }

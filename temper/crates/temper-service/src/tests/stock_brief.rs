@@ -103,6 +103,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
 fn workspace(writable: bool) -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(1),
@@ -207,9 +208,9 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 59_435);
+            assert_eq!(original.owned_bytes().unwrap(), 59_414);
 
-            assert_eq!(receiving, 127_407);
+            assert_eq!(receiving, 127_391);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");
         }
         if original.owned_bytes().unwrap() > receiving {
@@ -240,6 +241,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
                 workspace,
                 transcript: None,
                 resumed: false,
+                tell_parts: false,
             },
             &mut out,
         );
@@ -268,7 +270,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let assignments = Assignments::new();
     let largest = temper_engine_smith::charter(&assignments.assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 319_608, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 319_629, "charter 5's maximal non-brief host part leaves this room");
 
     assert_eq!(brief.brief_bytes, 318_046);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
@@ -515,7 +517,6 @@ fn measure_worker() {
         &crate::limits::worker(&own),
         &files,
         crate::WorkerRuntime {
-            wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: fixtures::pinned_agent(worker.jig.agent.as_ref().expect("checked worker agent")),
@@ -543,6 +544,8 @@ fn measure_turn(number: u32) {
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
     events.push(smith_domain::Event::Start(smith_domain::Start {
+        tell_parts: false,
+        parts: Box::default(),
         reply_to: ReplyTo::new(Token::new(1)),
         host_run: Token::new(1),
         activation: 1,

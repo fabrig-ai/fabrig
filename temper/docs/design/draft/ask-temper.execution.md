@@ -13,7 +13,7 @@ says so in the draft's status.
 - **M1 first:** the chat takes the configuring chat's place, small, with what
   configuring needs, so that the user can try it from its landing.
 - **M3a before M2:** the stock ways and the views drawn from settings
-  (`stock-ways.md`), which Ask temper's opening needs; then M2, `see`'s
+  (`archive/stock-ways.md`), which Ask temper's opening needs; then M2, `see`'s
   remaining addresses, then M3b, the views drawn from M2's reads.
 - **M3b after the whole story** (the user, 2026-11-08): nothing in
   `whole-story.md` needs its views, so it runs after that draft's stories.
@@ -40,8 +40,8 @@ says so in the draft's status.
 | | Milestone | Executes (`ask-temper.md`) | Needs | State |
 |---|---|---|---|---|
 | M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | built: plan `ui-ask-m1`; charter 3, template 3, `Configure` and Settings' offer gone by `ui-ask-drop`; its walk follows landing |
-| M2 | Reading | 2, 3, 5.1 | M1 | built: plan `ui-ask-m2`, its design in `../domain/agent/ask-temper.md`, 1 and jig's `domain/engine/executors.md`, 3; its walk follows landing |
-| M3a | Ways | `stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `stock-ways.md`, section 7's step 2 | built: plan `ui-ask-m3a`, and the page's drawing of the ways by the look request `ask-temper-ways`, plan `look-ask-ways`; its walk follows landing |
+| M2 | Reading | 2, 3, 5.1 | M1 | built: plan `ui-ask-m2`, its design in `../domain/agent/ask-temper.md`, 1 and jig's `domain/engine/executors-tools.md`, 1; its walk follows landing |
+| M3a | Ways | `archive/stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `archive/stock-ways.md`, section 7's step 2 | built: plan `ui-ask-m3a`, and the page's drawing of the ways by the look request `ask-temper-ways`, plan `look-ask-ways`; its walk follows landing |
 | M3b | Showing the rest | 6; the rest of 8's Showing part | M2, M3a; after the whole story | not started |
 | M4 | Remembering | 5.4, 7 | M1 | built: plan `ui-ask-m4`, its design in jig's `domain/engine/briefs.md`, 2.1, and temper's `../domain/agent/ask-temper.md`, 4 and `../client/pages/remembered.md`; its walk follows landing |
 
@@ -86,16 +86,16 @@ says so in the draft's status.
 
 ### M3a. Ways
 
-- **Executes:** `stock-ways.md`, sections 4 to 6: the stock ways as
+- **Executes:** `archive/stock-ways.md`, sections 4 to 6: the stock ways as
   data, their paths, the forge's `ways` read, `see ways`, the `view`
   block and the views `path`, `way`, `proposal` and `charter`, drawn by
   the browser from the same derivation; in `ask-temper.md`, section 8,
   `ways` on the `see` line and the Showing part's first step.
-- **Needs:** `stock-ways.md`, section 7's step 2 on main, so that "Use
+- **Needs:** `archive/stock-ways.md`, section 7's step 2 on main, so that "Use
   this" can set every way.
-- **Tests:** `stock-ways.md`, section 8.
+- **Tests:** `archive/stock-ways.md`, section 8.
 - **The look request `ask-temper-ways`** landed straight after it, by
-  plan `look-ask-ways` (`stock-ways.md`, section 7).
+  plan `look-ask-ways` (`archive/stock-ways.md`, section 7).
 - **Done** when it lands.
 
 ### M3b. Showing
@@ -106,7 +106,7 @@ says so in the draft's status.
   part of `ask-temper.md`, section 8. The TUI prints views instead of drawing
   them (`surfaces.md`, 11.5), which `whole-story.execution.md`'s T1 builds.
 - **Needs:** M2's reads, which the views draw from; the look designed with the
-  user, as look requests are (`look-requests.md`).
+  user, as look requests are (`archive/look-requests.md`).
 - **Tests:** each view's address parses and draws from a world's stored state;
   a flow's marks are read; an unknown mark keeps the block fenced code.
 - **Walk:** on the playground, Ask temper asked "show me how a change lands

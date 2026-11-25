@@ -22,7 +22,7 @@ than one per shape, buys:
 - **On a worker, the worker dials the engine** and keeps one channel
   open, through its protocol layer. The engine never connects to a
   worker, so a worker can run wherever it can reach the engine
-  (`../../protocol/channel/README.md`, 9.1).
+  (`../../protocol/channel/worker-link.md`, 1.1).
 - **In the engine, the link is direct:** the engine's root connects the
   hub to the core's fleet from construction, with one hello, and it is
   never lost. A restart settles its claims at once (../engine/restart.md
@@ -144,14 +144,14 @@ Typed, so the engine can act on them without reading prose:
   workstream holds its workspace), or permanent until something changes
   on a system, naming the resource the workspace says. The engine counts
   a transient one, a run's or a job's, as an infrastructure failure
-  (../tasks/lifecycle.md, 6), its detail the task's reason, cut to its
+  (../tasks/lifecycle-holds.md, 1), its detail the task's reason, cut to its
   last `REASON_BYTES` as a failed job's is (9), so that its hold names
   what failed; a permanent one as permanent;
 - **the run failed,** as it reports it (smith's `domain/run.md`,
   section 9), a failure of its model naming the model call where it can
   (below), or because the source of an LLM account it needs turned
   limited, refused or in need of a sign-in, naming the account, which
-  is no failure of its task's (../tasks/lifecycle.md, 6; ../accounts.md, 3.5),
+  is no failure of its task's (../tasks/lifecycle-holds.md, 1; ../accounts-sources.md, 2),
   or because its program started without its agent's tools, a fault of
   its place (below);
 - **the agent failed:** it could not be started, it exited or was dropped
@@ -190,7 +190,7 @@ run reporting a transcript failure all end as a transient task failure.
 The fleet closes these as any refused start (2; `../engine/fleet.md`),
 never acknowledging them; the task's terminal is the transient failure.
 The next preparation starts fresh with the transcript tail when
-readable and keeps unread inbox messages (`../engine/executors.md`, 2, and `../engine/briefs.md`, 1);
+readable and keeps unread inbox messages (`../engine/executors-transcripts.md`, 1, and `../engine/briefs.md`, 1);
 only such history closes the window, and every other failure leaves
 the next attempt to resume it;
 an unread tail does not spend another transient try. It does not retry the same
@@ -199,9 +199,9 @@ history as an invalid start or a model failure.
 **A program that started without its tools** is
 `RunFailure::Untooled`, a unit variant: the run's program, on a
 program source, gave a first output (its init) without smith's tools
-(smith's `protocol/programs.md`, 5.6), so the program source's login
+(smith's `protocol/programs-claude-code.md`, 1.6), so the program source's login
 on this host, not the task, is at fault. Its application names it from
-its agent's own fault (temper's `domain/worker/README.md`, 4.3), its
+its agent's own fault (temper's `domain/worker/hosted-runs.md`, 1.3), its
 detail the agent's bounded words as for any failed run, and `model`
 none. It crosses the channel as `untooled` (`../../protocol/channel/records.md`,
 1), and the engine keeps the task off that place without spending a
@@ -226,7 +226,7 @@ tag does not identify. Its bounds are:
 | `Window` | the model's window | tokens |
 | `Output` | the model's declared output ceiling | tokens |
 
-The tasks child holds this failure at once (../tasks/lifecycle.md, 6). It is not an
+The tasks child holds this failure at once (../tasks/lifecycle-holds.md, 1). It is not an
 account wait and is not rewritten to an account Recheck. The host, tasks,
 people and client domains each own their `Exceeded` and `Bound`; every
 translation between them is exhaustive, without a wildcard.
@@ -298,7 +298,7 @@ pub enum ModelEvidence { Unsent, Unknown, Response }
 - **An outage** is a failure of kind `Unavailable` or `Overloaded` whose
   evidence is `Unsent`: the provider could not be reached, and no call
   reached the model. The engine counts it an infrastructure failure
-  (../tasks/lifecycle.md, 6), as `End::FailedWithReason { class:
+  (../tasks/lifecycle-holds.md, 1), as `End::FailedWithReason { class:
   Infrastructure, reason }`, its words the reason. Any other named
   model failure, one answered (`Response`) or perhaps sent (`Unknown`)
   among them, is the run's own: `End::FailedWithReason { class: Run,
@@ -316,18 +316,18 @@ pub enum ModelEvidence { Unsent, Unknown, Response }
   it opens a window: a window turn, or a conversation's first. The hub
   reads only its number, its size, its spend, that name and that flag,
   which come beside the bytes. A resumed run is given its current
-  window's turns only (../engine/executors.md, 2; smith's `domain/host.md`,
+  window's turns only (../engine/executors-transcripts.md, 1; smith's `domain/host.md`,
   section 6).
 - **Refusals ride with turns.** A turn's fence covers every message
   relayed to its run before it, and takes only those: a message its run
   isn't offered, by its charter's parts or a pace, is never relayed, so no
-  fence takes it (../engine/executors.md, 2; ../tasks/messages.md, 6). The core must know of a
+  fence takes it (../engine/executors-transcripts.md, 1; ../tasks/messages.md, 6). The core must know of a
   refused message before it commits a turn whose fence passes it, across
   an engine restart too. No
   refusal crosses on its own: the hub keeps each, its name and smith's
   reason, with the run's next turn, or its answer if none follows, and
   the core records them in the commit that takes the turn's read
-  messages (../engine/executors.md, 2). An agent refuses a message only before a
+  messages (../engine/executors-transcripts.md, 1). An agent refuses a message only before a
   fence covers it (smith's `protocol/channel.md`, section 5), and the hub
   makes its own refusals before it relays a later message.
 - **Kept until acknowledged,** like an answer: sent at once, sent again
@@ -349,6 +349,36 @@ pub enum ModelEvidence { Unsent, Unknown, Response }
   reach, and the stop bound holds (6).
 - **Before the answer.** The answer says how many turns the run took,
   and is sent after them.
+- **Parts, as turns** (`../../protocol/channel/records.md`, 5): a run
+  whose assignment says its link carries parts, `tell_parts`, is
+  started asking its agent for them (smith's `domain/turn-parts.md`,
+  section 3), and is handed back those the engine kept, `parts`. The hub
+  takes each part its agent tells as it takes a turn: acknowledged to
+  the agent capability at once, counted with the run's turns and their
+  bytes against its room, sent up in the order told among the turns,
+  kept until the engine says `part kept`, sent again after every hello
+  and after a backoff when the engine answers `part busy`, and before
+  the answer. It reads only a part's numbers and size. The link sets
+  `tell_parts` from its engine's terms: a link whose engine does not
+  take `part` takes no part, so its runs are asked for none
+  (`../../protocol/channel/layouts.md`, 4.2).
+
+  ```rust
+  // jig-domain-link
+  pub enum PartKind { Answer, Result, Window }
+  pub struct Part { pub number: u32, pub turn: u32, pub thread: u32, pub call: u32, pub kind: PartKind, pub body: Box<[u8]> }
+  pub struct KeptPart { pub attempt: u64, pub turn: u32, pub thread: u32, pub call: u32, pub kind: PartKind, pub body: Box<[u8]> }
+  // jig-domain-host
+  pub enum FromAgent { /* as before */ Part { owner: Token, part: Part } }
+  pub enum ToAgent {
+      /* as before */
+      AcknowledgePart { agent: Token, number: u32 },
+      Drain { agent: Token, grace: Option<Duration> }, // grace: 7, for a run asked for parts
+  }
+  pub enum LinkUp { /* as before */ Part { run: Token, attempt: Token, part: Part } }
+  pub enum LinkDown { /* as before */ PartKept { run: Token, attempt: Token, part: u32 } }
+  pub struct Assignment { /* as before */ pub parts: Box<[KeptPart]>, pub tell_parts: bool }
+  ```
 - **Lost with the worker.** A turn not acknowledged when a worker dies is
   lost with the run; the transcript ends at the last turn committed, and
   the next run starts from there. In the engine, turns die only with the
@@ -425,7 +455,7 @@ Nothing decides on a fact.
   client and the application see a run's text the same way from an agent
   process and from `smith-inline-agent`.
 - **What jig asks of smith, later:** the LLM component's abort and
-  closed terminal (`../../protocol/README.md`, section 11).
+  closed terminal (`../../protocol/needs.md`, section 2).
 - **A conversation's delegated tasks give no text.** Only the run of the
   conversation's own task is asked; a task it delegates streams nothing
   (`README.md`, section 10).
@@ -439,7 +469,7 @@ happens.
   waits, never dropped: turns, with the refusals they carry, and relays,
   unless their call has closed meanwhile. On reconnecting, the worker
   says what it hosts and the engine keeps or cancels each run.
-- **A relay the link never carried** (temper's `draft/redeploys.md`,
+- **A relay the link never carried** (temper's `draft/archive/redeploys.md`,
   5.3): a call the run withdraws (2, step 4) that the link may never
   have carried is answered `CallAnswer::Unsent` rather than `Withdrawn`:
   the engine never heard it, so nothing it could do stands, and the run
@@ -451,7 +481,7 @@ happens.
   is made. A relay made before the hub's first hello is uncarried, and
   the engine's own hub, whose link is never lost, never answers unsent.
 - **Renewals held while the link is lost** (temper's
-  `draft/redeploys.md`, 5.3): at `LinkLost` the hub tells each hosted
+  `draft/archive/redeploys.md`, 5.3): at `LinkLost` the hub tells each hosted
   run's agent that its grants' renewals are held,
   `ToAgent::Renewals { agent, held: true }`, and when next asked to report what
   it hosts for a hello, that they are not, `held: false`, before the
@@ -467,14 +497,14 @@ happens.
   (../engine/restart.md, step 3), sends again what it had not
   acknowledged, and the run goes on with no new attempt. The clock
   stops only once the engine admits a hello, and the worker redials
-  within it (`../../protocol/channel/README.md`, 9.1).
+  within it (`../../protocol/channel/worker-link.md`, 1.1).
 - **A loss is told, with why,** on each side, once, in its log: silence,
-  stall, the stream, a refusal and its reason (`../../protocol/channel/README.md`,
-  section 8). A healthy link is never lost for its load: each side reads
+  stall, the stream, a refusal and its reason (`../../protocol/channel/liveness.md`,
+  section 1). A healthy link is never lost for its load: each side reads
   it and keeps its pings whatever its root has yet to take.
 - **A worker comes back as often as it is lost.** Nothing a lost link
   leaves holds its return: the engine closes the old connection within
-  its stall deadline (`../../protocol/channel/README.md`, 9.2), the fleet frees the
+  its stall deadline (`../../protocol/channel/worker-link.md`, 1.2), the fleet frees the
   worker's position as it hears the loss (../engine/fleet.md), and each
   hello is taken as the first was.
 - **Past the grace,** the hub cancels them itself, saving their work
@@ -483,7 +513,7 @@ happens.
   `Cancelled(Shutdown)` (7): the core ends the attempt interrupted, or
   for `Cancelled(Shutdown)` from a worker suspended (../engine/executors.md, 6),
   with no try spent and no backoff (../tasks/lifecycle.md, 2), and the next attempt
-  resumes from its transcript and its saved work (../engine/executors.md, 2).
+  resumes from its transcript and its saved work (../engine/executors-transcripts.md, 1).
 - **The stop bound** the worker says at its hello is the longest it may
   take to stop a run, counted from the last moment the engine may have
   heard from it, or from its own shutdown: the longer of the time its
@@ -495,7 +525,7 @@ happens.
   holds whichever comes first. The engine's grace, counted from when the
   engine notices the loss, is strictly longer (../engine/fleet.md), so no
   next attempt starts while this one may still write, however each
-  side's link notices a partition (`../../protocol/channel/README.md`, 9.1).
+  side's link notices a partition (`../../protocol/channel/worker-link.md`, 1.1).
 - **It is kept, not only stated.** The root that composes the hub holds
   the timers (2), and keeps the stop bound as a deadline over the drain,
   every cancellation, delivery and save, and its agents' teardown: from
@@ -523,7 +553,14 @@ hub arms no timers (2):
    tail (2): stop, save, release, and the answer `Cancelled(Shutdown)`,
    unless the run said in that turn how it finished, which is its
    answer. A job runs on (9): its work is never saved, so a job that
-   finishes within the drain is not run again.
+   finishes within the drain is not run again. A run asked for parts
+   (4) is asked to stop at its answer instead, the drain carrying the
+   hub's drain grace, by default 10 seconds (the worker's
+   `graces.drain_grace_ms`, `../../protocol/configuration.md`, section 4): its agent
+   lets the answer in flight arrive, gives the calls in flight the
+   grace, then cuts them, and the turn stays open for the next attempt
+   (smith's `domain/turn-parts.md`, section 4). Its end takes the same
+   tail, its save included.
 2. **The cancel** of every run and job still going, for shutdown: at
    the drain's bound, or at once for a root that does not drain. A run
    whose stop has begun goes on with it.
@@ -541,13 +578,13 @@ done once the engine has every turn and answer. A worker gives up what
 it keeps, counted, once no run is left and the engine is still out of
 reach past the grace, or at its stop bound (6). A worker's root drains;
 the engine's own hub has no drain, since the engine's stop settles its
-claims at once (../engine/restart.md, 1).
+claims at once (../engine/restart.md, 5).
 
 **Paused over the link.** Beside its shutdown, a worker's hub takes the
 engine's ask to pause, to drain or to take work again,
 `LinkDown::Pause { mode }` (`../../protocol/channel/pause.md`), and
 keeps its state, `jig_domain_link::PauseState`, for its process's life.
-Nothing of it stops the process (temper's `draft/worker-restarts.md`,
+Nothing of it stops the process (temper's `draft/archive/worker-restarts.md`,
 section 2):
 
 - **`Pause`,** from taking: *paused*. The hub admits no new run or job,
@@ -555,7 +592,8 @@ section 2):
   go on as ever.
 - **`Drain`,** from taking or paused: *draining*. The hub admits
   nothing, and drains as step 1 does: each live run's agent asked to
-  stop at the end of its current turn, a run not yet live cancelled at
+  stop at the end of its current turn, or at its answer with the drain's
+  grace for a run asked for parts, a run not yet live cancelled at
   once, a job running on, and a drained run's end taking the cancel's
   tail and answering `Cancelled(Shutdown)`. Its root times the drain's
   bound, as for a stop's, and at it sends `Event::DrainPassed`: the hub
@@ -580,6 +618,13 @@ section 2):
   more `paused`, and its root's own deadlines for the stop then hold
   alone. A drained hub's stop finds nothing to drain.
 
+A host may supply a local limit on occupied places. Once occupancy reaches
+that limit the hub advertises paused and answers a crossed assignment as
+busy before preparation. Work already admitted continues. When capacity
+returns it advertises taking only while the owner is taking. A reconnect
+advertises the effective state after hello. The root's pause notifications
+continue to reflect the owner's own pause and drain.
+
 ## 8. smith's payloads
 
 - **Bytes in the hub.** The hub links no smith crate. It carries as
@@ -598,7 +643,7 @@ section 2):
   and `smith-channel`'s records for a call's name and a fact), keeping
   no state,
   and hands it back as an event of the root, in the order it went out:
-  the path of host tools' calls (`../../protocol/channel/README.md`, 5.3).
+  the path of host tools' calls (`../../protocol/channel/owners.md`, 1.3).
   - **Down,** the charter, the transcript and the committed calls'
     names are decoded, with the endpoints of the agent's configuration,
     which resolve those the charter names, and smith's start goes to the
@@ -612,14 +657,14 @@ section 2):
     progress (`README.md`, 5.1).
 - **Who links smith:** `jig-protocol-charter` (`charters.md`), a worker's
   agents part, `jig-protocol-worker-agents`, which an application whose
-  workers run no agents leaves out (`../../protocol/service.md`, 11.2), a
+  workers run no agents leaves out (`../../protocol/service-parts.md`, 1.2), a
   client's decoding of turns (`../../client/domain/client/conversations.md`),
   and an application's roots that compose smith's agent capability, with
   their protocol layers' routing, which also runs smith's components
   where it composes them. Never the hub, the core, or jig's channel's components,
-  which pass smith's bytes through (`jig/docs/design/protocol/channel/README.md`, 5.1),
-  translating them by smith's bridges, as bytes, between versions
-  (`../../protocol/channel/bridges.md`, 5.3).
+  which pass smith's bytes through (`jig/docs/design/protocol/channel/owners.md`, 1.1),
+  the engine's converting them, as bytes, between the two sides'
+  layouts (`../../protocol/channel/layouts.md`, 2.1).
 - **A call carries its charter's contract.** The worker's routing, as it
   decodes a start, hands the hub the version of the host's tools
   contract its charter names (smith's `protocol/charter.md`, 2), a
@@ -674,7 +719,7 @@ with no agent:
   within the result's bound, or failed: the job's own failure (it said
   so), its deadline passed, a workspace that would not prepare or
   deliver, or the host's loss, each typed as a run's are (3), and
-  retried by the core within the task's tries (../tasks/lifecycle.md, 6).
+  retried by the core within the task's tries (../tasks/lifecycle-holds.md, 1).
 - **The job capability is the application's,** a capability of the
   worker's root beside the agent capability: it knows the kinds it
   runs and declares them in the host's hello, and the fleet places a
@@ -724,7 +769,8 @@ and reports a check's results when they end (temper's
   an ask lost with an engine's restart is never answered, and its
   asker's clock ends it.
 - **Bytes the hub never reads,** as a call's input and a job's spec: the
-  application's codecs encode and decode them, and its wires translate
-  them across versions (`../../protocol/channel/bridges.md`, 5.4).
+  application's codecs encode and decode them, and the engine converts
+  them between the two sides' layouts by the application's roots
+  (`../../protocol/channel/layouts.md`, 2.1 and 7).
 - **The engine's own hub** asks the same way, its root routing the ask
   to the fleet as it routes a call.

@@ -441,6 +441,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Stopping
         | core::Event::Parts { .. }
         | core::Event::PartsMarked { .. }
+        | core::Event::Waits { .. }
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::Read { .. }
@@ -479,6 +480,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(_)
         | core::Event::Fleet(_)
+        | core::Event::PartPayload { .. }
         | core::Event::TurnPayload { .. }
         | core::Event::AnswerPayload { .. }
         | core::Event::AcceptedTurn { .. }

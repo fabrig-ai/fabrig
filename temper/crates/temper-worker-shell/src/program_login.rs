@@ -1,15 +1,20 @@
-//! Terminal program login without deployment resources (protocol/credentials.md, 3; protocol/binaries.md, 5).
+//! Terminal program login without deployment resources (protocol/credentials-llm-accounts.md, 1; protocol/binaries.md, 5).
 //! The caller prefixes a pre-exec failure with its program-login command. Smith's checked
 //! configuration reader may first emit its own secret-free `smith:` diagnostics.
 use skein_io::kernel::{Error, Fd};
 use skein_shell::{Argument, Command, Reach, Set};
 use std::{
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     io::IsTerminal,
     os::unix::{ffi::OsStrExt, process::CommandExt},
+    path::{Path, PathBuf},
 };
+use temper_config_shell::Shape;
+use temper_service_shell::configuration::{self, Read};
 use temper_service_shell::jig_directories;
 use temper_shell::directories::{self, EnvironmentEntry};
+use temper_shell::lookup::is_executable;
+use temper_worker_service::startup::WorkerPart;
 
 pub const PROGRAM_LOGIN: Command = Command {
     reach: Reach::Words(&["program-login"]),
@@ -35,12 +40,35 @@ fn source_name(name: &OsStr) -> Result<&str, String> {
 pub fn command(
     directories: &directories::Directories,
     name: &OsStr,
-    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+    environment: impl IntoIterator<Item = (OsString, OsString)>,
+) -> Result<std::process::Command, String> {
+    command_with(
+        directories,
+        name,
+        environment,
+        |shape| {
+            let read = configuration::read(directories, shape)?;
+            let programs = read.programs()?;
+            Ok((read, programs))
+        },
+        |part, name, environment| {
+            let executable = std::env::current_exe().map_err(|why| why.to_string())?;
+            let agent = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
+            from_machine(part, directories, name, environment, &agent)
+        },
+    )
+}
+
+pub(crate) fn command_with(
+    directories: &directories::Directories,
+    name: &OsStr,
+    environment: impl IntoIterator<Item = (OsString, OsString)>,
+    read_configuration: impl FnOnce(Shape) -> Result<(Read, temper_config_shell::Programs), String>,
+    from_part: impl FnOnce(&WorkerPart, &str, Vec<(OsString, OsString)>) -> Result<std::process::Command, String>,
 ) -> Result<std::process::Command, String> {
     let name = source_name(name)?;
     let environment: Vec<_> = environment.into_iter().collect();
-    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::WorkerAlone)?;
-    let programs = read.programs()?;
+    let (read, programs) = read_configuration(Shape::WorkerAlone)?;
     read.prepare(|bytes| {
         let own: Vec<EnvironmentEntry> =
             environment.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())).collect();
@@ -51,46 +79,96 @@ pub fn command(
         if let Some(claude) = &programs.claude {
             part.claude = Some(claude.as_os_str().as_bytes().into());
         }
-        let executable = std::env::current_exe().map_err(|why| why.to_string())?;
-        let agent = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
-        from_machine(&part, directories, name, environment, &agent)
+        from_part(&part, name, environment)
     })
 }
 
 /// A box and a worker alone use their worker entry, never a retained agent document.
 pub fn from_machine(
-    part: &temper_worker_service::startup::WorkerPart,
+    part: &WorkerPart,
     directories: &directories::Directories,
     name: &str,
-    environment: Vec<(std::ffi::OsString, std::ffi::OsString)>,
-    agent: &std::path::Path,
+    environment: Vec<(OsString, OsString)>,
+    agent: &Path,
+) -> Result<std::process::Command, String> {
+    from_machine_with(part, directories, name, environment, is_executable, |programs, program, name| {
+        place_launcher_with(
+            programs,
+            program,
+            super::path(&directories.cache),
+            agent,
+            is_executable,
+            temper_launcher::place,
+        )?;
+        smith_agent_document::program::prepare(programs, name)
+            .map_err(|why| super::agent::program_directory_refusal(&why))
+    })
+}
+
+fn place_launcher_with(
+    programs: &Path,
+    program: &Path,
+    cache: &Path,
+    agent: &Path,
+    is_executable: impl FnOnce(&Path) -> bool,
+    place: impl FnOnce(&Path, &Path, &Path) -> Result<(), String>,
+) -> Result<(), String> {
+    if super::agent::launcher(programs).as_deref() == Some(program) {
+        super::worker::executable_file(agent, "the derived agent program", is_executable)?;
+        place(program.parent().expect("launcher parent"), cache, agent)
+            .map_err(|why| format!("programs.claude_code: {why}"))?;
+    }
+    Ok(())
+}
+
+/// Build a sign-in command with supplied executable lookups and source preparation.
+pub fn from_machine_with(
+    part: &WorkerPart,
+    directories: &directories::Directories,
+    name: &str,
+    environment: Vec<(OsString, OsString)>,
+    is_executable: impl Fn(&Path) -> bool,
+    prepare_source: impl FnOnce(&Path, &Path, &str) -> Result<PathBuf, String>,
 ) -> Result<std::process::Command, String> {
     let name = source_name(OsStr::new(name))?;
     let captured: Vec<_> =
         environment.iter().map(|(name, value)| (Box::from(name.as_bytes()), Box::from(value.as_bytes()))).collect();
     let program = match part.claude.as_deref() {
         Some(program) => {
-            super::worker::executable_file(super::path(program), "application.workers[0].claude")?;
+            super::worker::executable_file(super::path(program), "application.workers[0].claude", &is_executable)?;
             super::path(program).to_path_buf()
         }
-        None => super::worker::find_claude(&captured).unwrap_or_else(|| {
+        None => super::worker::find_claude_with(&captured, is_executable).unwrap_or_else(|| {
             super::agent::launcher(&super::path(&directories.data).join("programs")).expect("programs launcher")
         }),
     };
     let programs = super::path(&directories.data).join("programs");
-    if super::agent::launcher(&programs).as_ref() == Some(&program) {
-        super::worker::executable_file(agent, "the derived agent program")?;
-        temper_launcher::place(program.parent().expect("launcher parent"), super::path(&directories.cache), agent)
-            .map_err(|why| format!("programs.claude_code: {why}"))?;
-    }
-    let source = smith_agent_document::program::prepare(&programs, name)
-        .map_err(|why| super::agent::program_directory_refusal(&why))?;
+    let source = prepare_source(&programs, &program, name)?;
     Ok(smith_agent_document::program::sign_in(&program, &source, environment))
 }
 /// Take the terminal immediately before replacing the caller with its prepared command.
-pub fn run_command(mut command: std::process::Command) -> Result<u8, String> {
-    take_terminal(std::io::stdin().is_terminal(), skein_shell::take_foreground)?;
-    Err(format!("exec: {}", command.exec()))
+pub fn run_command(command: std::process::Command) -> Result<u8, String> {
+    run_command_with(command, std::io::stdin().is_terminal(), skein_shell::take_foreground, |command| {
+        exec_with(command, |mut command| command.exec())
+    })
+}
+
+/// Attempt the replacement and render the error if it returns.
+pub fn exec_with(
+    command: std::process::Command,
+    exec: impl FnOnce(std::process::Command) -> std::io::Error,
+) -> Result<u8, String> {
+    Err(format!("exec: {}", exec(command)))
+}
+
+fn run_command_with(
+    command: std::process::Command,
+    terminal: bool,
+    take: impl FnOnce(Fd) -> Result<(), Error>,
+    exec: impl FnOnce(std::process::Command) -> Result<u8, String>,
+) -> Result<u8, String> {
+    take_terminal(terminal, take)?;
+    exec(command)
 }
 
 fn take_terminal(terminal: bool, take: impl FnOnce(Fd) -> Result<(), Error>) -> Result<(), String> {

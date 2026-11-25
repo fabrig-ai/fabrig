@@ -1,7 +1,7 @@
 //! Queries and acts translated without executing script in the page.
 use skein_browser::boundary::{Event, Go, Key, Match, Query, Read, Refusal, Request, Seen};
 use skein_fake_person::{Doing, Face, Find, Found, Target};
-use skein_lib::{Time, Token};
+use skein_lib::{Duration, Time, Token};
 use skein_ui::{Act, NodeId, Role};
 use skein_ui_web::mapping::accessible;
 use std::{os::unix::ffi::OsStrExt, path::PathBuf};
@@ -54,6 +54,11 @@ enum CommandState {
     Done,
 }
 type KeptValue = (Box<[u8]>, Box<[u8]>);
+struct FaceFailure {
+    why: String,
+    bound: Option<Duration>,
+}
+
 mod look;
 use look::Capture;
 
@@ -74,9 +79,10 @@ pub struct BrowserFace<'a> {
     now: Time,
     last_find: Option<(NodeId, Find)>,
     look_again: Option<(Find, Time)>,
+    look_wake: Option<Time>,
     press: Option<Press>,
     expected_path: Option<Box<[u8]>>,
-    failure: Option<String>,
+    failure: Option<FaceFailure>,
     refusal: Option<Refusal>,
     read_address: Option<Box<[u8]>>,
     read_tabs: Option<(skein_lib::List<skein_browser::boundary::Tab>, u32)>,
@@ -122,6 +128,7 @@ impl<'a> BrowserFace<'a> {
             now: Time::ZERO,
             last_find: None,
             look_again: None,
+            look_wake: None,
             press: None,
             expected_path: None,
             failure: None,
@@ -151,7 +158,7 @@ impl<'a> BrowserFace<'a> {
             return answer;
         }
         let find = Find::exactly_named(Role::Page, words);
-        if !self.look_due(&find) {
+        if self.failed() || !self.look_due(&find) {
             return Found::Pending;
         }
         if self.search.is_none() {
@@ -196,7 +203,10 @@ impl<'a> BrowserFace<'a> {
             self.press = None;
             self.search = None;
             self.acting = None;
-            self.fail("browser refused act: Gone (press deadline passed)".into());
+            self.expire(
+                skein_browser::Limits::default().answer,
+                "browser refused act: Gone (press deadline passed)".into(),
+            );
         } else if press.again.is_some_and(|again| now >= again) {
             let find = press.find.clone();
             self.press.as_mut().expect("pending press").again = None;
@@ -220,8 +230,25 @@ impl<'a> BrowserFace<'a> {
             self.answer = Some(Found::Absent);
         }
     }
-    fn look_due(&self, find: &Find) -> bool {
-        self.look_again.as_ref().is_none_or(|(looked, again)| looked != find || self.now >= *again)
+    fn look_due(&mut self, find: &Find) -> bool {
+        // Taking an answer does not start another find. Keep an overdue wake
+        // so the script can take another turn instead of waiting for its bound.
+        self.look_wake = self.look_again_at(find);
+        self.look_wake.is_none_or(|again| self.now >= again)
+    }
+    /// The earliest another semantic look for this same query can start.
+    #[must_use]
+    pub fn look_again_at(&self, find: &Find) -> Option<Time> {
+        self.look_again.as_ref().and_then(|(looked, again)| (looked == find).then_some(*again))
+    }
+    pub(crate) fn clear_look_wake(&mut self) {
+        self.look_wake = None;
+    }
+    pub(crate) fn look_wake(&self) -> Option<Time> {
+        self.look_wake
+    }
+    pub(crate) fn press_wake(&self) -> Option<Time> {
+        self.press.as_ref().map(|press| press.again.map_or(press.until, |again| again.min(press.until)))
     }
     pub(crate) fn command(&mut self, action: crate::harness::CommandAction) {
         self.command = Some(action);
@@ -265,17 +292,32 @@ impl<'a> BrowserFace<'a> {
     pub(crate) fn kept_done(&mut self) -> bool {
         std::mem::take(&mut self.keep_done)
     }
-    fn keep_failed(&mut self, why: &str) {
+    fn keep_failed(&mut self, detail: &str, bound: Option<Duration>) {
         let Keeping { selector, attribute, .. } = self.keep.take().expect("pending keep");
-        self.fail(format!(
-            "keep selector {} attribute {}: {why}",
+        let why = format!(
+            "keep selector {} attribute {}: {detail}",
             String::from_utf8_lossy(&selector),
             String::from_utf8_lossy(&attribute)
-        ));
+        );
+        self.record_failure(FaceFailure { why, bound });
         self.keep_done = true;
     }
     pub(crate) fn fail(&mut self, why: String) {
-        self.failure = Some(why);
+        self.record_failure(FaceFailure { why, bound: None });
+    }
+    /// Report an unanswered wait whose bound has passed.
+    pub fn expire(&mut self, bound: Duration, why: String) {
+        self.record_failure(FaceFailure { why, bound: Some(bound) });
+    }
+    /// The bound of the pending expiry. Read this before taking the failure.
+    #[must_use]
+    pub fn expired(&self) -> Option<Duration> {
+        self.failure.as_ref().and_then(|failure| failure.bound)
+    }
+    fn record_failure(&mut self, failure: FaceFailure) {
+        if self.failure.is_none() || (self.expired().is_some() && failure.bound.is_none()) {
+            self.failure = Some(failure);
+        }
     }
     /// The last allocated operation number, for the next face's continuation.
     #[must_use]
@@ -293,7 +335,7 @@ impl<'a> BrowserFace<'a> {
         self.seen.get(usize::try_from(node.0).expect("node fits")).map(|(seen, _)| seen)
     }
     pub fn failure(&mut self) -> Option<String> {
-        self.failure.take()
+        self.failure.take().map(|failure| failure.why)
     }
     pub(crate) fn text(&mut self, node: NodeId, words: Box<[u8]>, compose: bool) -> Result<(), String> {
         let seen = &self.seen.get(usize::try_from(node.0).expect("node fits")).ok_or("unknown field")?.0;
@@ -516,6 +558,11 @@ impl<'a> BrowserFace<'a> {
             self.absent(search.find);
         }
     }
+    /// Use the reply's receipt time without firing timers ahead of it.
+    pub(crate) fn event_at(&mut self, event: &Event, now: Time) {
+        self.now = now;
+        self.event(event);
+    }
     /// Deliver operation events and downloads routed by the harness to this person.
     pub fn event(&mut self, event: &Event) {
         if self.look_event(event) {
@@ -576,7 +623,7 @@ impl<'a> BrowserFace<'a> {
             if let Some(path) = self.expected_path.take()
                 && url_path(url) != &*path
             {
-                self.failure = Some(format!(
+                self.fail(format!(
                     "the page's address was {}, expected the path {}",
                     String::from_utf8_lossy(url),
                     String::from_utf8_lossy(&path)
@@ -587,8 +634,8 @@ impl<'a> BrowserFace<'a> {
     fn attribute_reported(&mut self, op: Token, read: &Read) {
         if self.keep.as_ref().map(|keep| keep.op) == Some(op) {
             match read {
-                Read::NoElement => self.keep_failed("no element"),
-                Read::NoAttribute => self.keep_failed("no attribute"),
+                Read::NoElement => self.keep_failed("no element", None),
+                Read::NoAttribute => self.keep_failed("no attribute", None),
                 Read::Value(value) => {
                     let Keeping { name, .. } = self.keep.take().expect("pending keep");
                     self.kept = Some((name, value.clone()));
@@ -764,9 +811,10 @@ impl<'a> BrowserFace<'a> {
 impl Face for BrowserFace<'_> {
     fn find(&mut self, find: &Find) -> Found {
         if let Some(answer) = self.answer.take() {
+            self.look_due(find);
             return answer;
         }
-        if !self.look_due(find) {
+        if self.failed() || !self.look_due(find) {
             return Found::Pending;
         }
         if self.search.is_none() {
@@ -794,6 +842,7 @@ fn target_role(target: &Target) -> Option<Role> {
         Target::Role { role, .. } | Target::ExactRole { role, .. } => Some(*role),
         Target::TextBox { .. } => Some(Role::TextField),
         Target::Text { .. } => None,
+        Target::ParagraphText { .. } => Some(Role::Paragraph),
     }
 }
 fn query_parts(target: &Target) -> (&'static [&'static [u8]], &[u8], Match) {
@@ -802,6 +851,7 @@ fn query_parts(target: &Target) -> (&'static [&'static [u8]], &[u8], Match) {
         Target::ExactRole { role, name } => (accessible(*role), name, Match::Exact),
         Target::TextBox { name } => (accessible(Role::TextField), name, Match::Exact),
         Target::Text { text } => (&[b"StaticText"], text, Match::Words),
+        Target::ParagraphText { text } => (accessible(Role::Paragraph), text, Match::ParagraphText),
     }
 }
 
@@ -812,21 +862,27 @@ fn url_path(url: &[u8]) -> &[u8] {
     rest.iter().position(|byte| *byte == b'/').map_or(&[], |at| rest.get(at..).unwrap_or_default())
 }
 
+fn answer_bound(why: Refusal) -> Option<Duration> {
+    (why == Refusal::Timeout).then(|| skein_browser::Limits::default().answer)
+}
+
 impl BrowserFace<'_> {
     fn refused(&mut self, op: Token, why: Refusal, detail: &[u8]) {
         let detail = if detail.is_empty() { String::new() } else { format!(" ({})", String::from_utf8_lossy(detail)) };
+        let bound = answer_bound(why);
         if self.keep.as_ref().map(|keep| keep.op) == Some(op) {
-            self.keep_failed(&format!("browser refused read: {why:?}{detail}"));
+            self.keep_failed(&format!("browser refused read: {why:?}{detail}"), bound);
         }
         if self.search.as_ref().map(|s| s.op) == Some(op) {
             let search = self.search.take().expect("matching search");
-            if self.press.is_some() && why != Refusal::Gone {
-                self.press = None;
+            if self.press.is_some() && why == Refusal::Gone {
+                self.absent(search.find);
+            } else {
+                let action = if self.press.take().is_some() { "act" } else { "find" };
                 self.refusal = Some(why);
-                self.fail(format!("browser refused act: {why:?}{detail}"));
-                return;
+                self.record_failure(FaceFailure { why: format!("browser refused {action}: {why:?}{detail}"), bound });
             }
-            self.absent(search.find);
+            return;
         }
         if self.acting != Some(op) {
             return;
@@ -839,7 +895,7 @@ impl BrowserFace<'_> {
             press.again = Some(self.now.saturating_add(skein_browser::Limits::default().poll));
         } else {
             self.press = None;
-            self.failure = Some(format!("browser refused act: {why:?}{detail}"));
+            self.record_failure(FaceFailure { why: format!("browser refused act: {why:?}{detail}"), bound });
         }
     }
 }

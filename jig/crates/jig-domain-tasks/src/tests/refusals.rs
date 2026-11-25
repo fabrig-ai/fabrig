@@ -86,6 +86,7 @@ fn procedure() -> Harness {
 
 fn admission(h: &mut Harness, creator: Party, member: crate::New) -> Option<crate::Refusal> {
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: super::revisions::to(),
@@ -293,6 +294,7 @@ fn a_job_refuses_parks_followups_and_exceeded_without_changing_its_attempt() {
     ] {
         for cause in [crate::Cause::Unpriced, crate::Cause::Priced { cumulative: 0 }] {
             let out = h.send(Event::Activation {
+                reads_project: false,
                 reply_to: super::revisions::to(),
                 task: 2,
                 attempt: 1,
@@ -364,11 +366,12 @@ fn a_job_result_is_bounded_bytes_or_a_failure() {
     );
 }
 
-/// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks/lifecycle.md, 3.1 and 6).
+/// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks/lifecycle.md, 3.1, and jig/docs/design/domain/tasks/lifecycle-holds.md, 1).
 #[test]
 fn a_job_refusal_pauses_without_a_try() {
     let mut h = running_job();
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: super::revisions::to(),
         task: 2,
         attempt: 1,
@@ -407,7 +410,7 @@ fn a_job_refuses_an_llm_choice_and_recurrence() {
     assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Spec));
 }
 
-/// jig/docs/design/domain/tasks/lifecycle.md, 6: a job's cause survives retry exhaustion and storage.
+/// jig/docs/design/domain/tasks/lifecycle-holds.md, 1: a job's cause survives retry exhaustion and storage.
 #[test]
 fn a_jobs_failure_reason_reaches_its_retry_notice_and_hold() {
     let mut h = running_job();
@@ -417,6 +420,7 @@ fn a_jobs_failure_reason_reaches_its_retry_notice_and_hold() {
         row.attempt = attempt;
         row.phase = crate::Phase::Active(crate::Active::Claimed { attempt });
         h.send(Event::Activation {
+            reads_project: false,
             reply_to: super::revisions::to(),
             task: 2,
             attempt,
@@ -453,6 +457,7 @@ fn a_job_recheck_releases_its_attempt_due_without_spending_a_try() {
         let tries = crate::Tries { lost: 1, ..crate::Tries::NONE };
         crate::domain::task_mut(&mut h.domain, 2).unwrap().record.tries = tries;
         h.send(Event::Activation {
+            reads_project: false,
             reply_to: super::revisions::to(),
             task: 2,
             attempt: 1,
@@ -479,6 +484,7 @@ fn a_suspended_job_records_its_worker_without_spending_a_try() {
         crate::domain::task_mut(&mut h.domain, 2).unwrap().record.tries = tries;
         let end = crate::EndKind::Suspended { worker: 2, why: crate::SuspendWhy::Stopped };
         let out = h.send(Event::Activation {
+            reads_project: false,
             reply_to: super::revisions::to(),
             task: 2,
             attempt: 1,
@@ -528,6 +534,7 @@ fn a_suspension_survives_preparation_and_closes_at_the_next_claim_or_hold() {
         let mut h = running_job();
         h.env.wall = Wall::from_nanos(100_000_000_000);
         h.send(Event::Activation {
+            reads_project: false,
             reply_to: super::revisions::to(),
             task: 2,
             attempt: 1,
@@ -598,6 +605,7 @@ fn consecutive_restarted_ends_spend_a_lost_try_but_other_ends_clear_the_mark() {
             row.attempt = attempt;
             crate::domain::publish(&mut h.domain, &h.env, 2, &mut skein_lib::Queue::uncapped());
             h.send(Event::Activation {
+                reads_project: false,
                 reply_to: super::revisions::to(),
                 task: 2,
                 attempt,
@@ -630,7 +638,7 @@ fn consecutive_restarted_ends_spend_a_lost_try_but_other_ends_clear_the_mark() {
     }
 }
 
-/// Infrastructure owns its allowance, delay and reason (domain/tasks/lifecycle.md, 6).
+/// Infrastructure owns its allowance, delay and reason (domain/tasks/lifecycle-holds.md, 1).
 #[test]
 fn infrastructure_backs_off_twelve_times_then_holds_with_its_reason() {
     let mut h = running_job();
@@ -646,6 +654,7 @@ fn infrastructure_backs_off_twelve_times_then_holds_with_its_reason() {
         row.attempt = attempt;
         row.phase = crate::Phase::Active(crate::Active::Claimed { attempt });
         h.send(Event::Activation {
+            reads_project: false,
             reply_to: super::revisions::to(),
             task: 2,
             attempt,
@@ -690,6 +699,7 @@ fn a_version_refusal_keeps_tries_and_its_reason_without_a_retry_bound() {
         row.tries = tries;
         row.phase = crate::Phase::Active(crate::Active::Claimed { attempt });
         h.send(Event::Activation {
+            reads_project: false,
             reply_to: super::revisions::to(),
             task: 2,
             attempt,

@@ -4,8 +4,8 @@ A person pushes a branch and opens a change from it with one act, and
 temper lands it as it lands a change an agent produced, under the same
 rules: the act's request, the root's expansion of it into the person's
 own change task, the change's first state, taking, and what the change
-keeps and serves. Written from `../../../draft/mechanical-changes.md`,
-sections 1 to 10; what that draft leaves for later is section 8's.
+keeps and serves. Written from `../../../draft/archive/mechanical-changes.md`, sections 1 to 10
+; what that draft leaves for later is `opened.md`, section 8's.
 
 ## 1. In one page
 
@@ -20,7 +20,7 @@ sections 1 to 10; what that draft leaves for later is section 8's.
   once, keeps it and makes the change's own branch at it; then it goes
   on as a change whose producer pushed that head.
 - **Then any change** (5): its way, its gates, its trouble and its end
-  are `README.md`, 2 to 4's.
+  are `README.md`, 2, and `drift.md`, 1, and `README.md`, 4's.
 - **The pushed branch stays the person's:** nothing writes, holds or
   deletes it, and pushing it again changes nothing of the change.
 - **Kept and served** (6): the change's row keeps its source and its
@@ -39,7 +39,7 @@ are `../../../client/forge/records.md`'s:
   person means, as 40 or 64 lowercase hexadecimal digits, none for its
   head when the change takes it;
 - `into`, the landing branch, none for the repository's landing branch
-  (`../adoption.md`, 8);
+  (`../adoption.md`, 12);
 - `title`; `body`, none or more words;
 - `budget`: an amount, or as allowed.
 
@@ -53,13 +53,13 @@ The root resolves it before anything is made. Each refusal is
   at all, refused (`no_repository`, a case the draft leaves unsaid); a
   named one not among them, refused (`not_a_repository`).
 - **The landing branch:** `into`, or the repository's landing branch,
-  the one its adoption names (`../adoption.md`, 8). A
+  the one its adoption names (`../adoption.md`, 12). A
   branch under the repository's prefix, temper's own (`../branches.md`),
   is refused naming the repository and the prefix (`under_prefix`): a
   goal's branch as the target is section 8's. A branch the repository
   lacks is not refused here: the change is held at its opening, the
   forge refusing its pull request, as a run's call naming one is
-  (`../../agent/tools.md`, 1).
+  (`../../agent/tools-change.md`, 1).
 - **Their names:** a source or landing branch past the deployment's
   forge name bound, which the client cannot know before sending, is
   refused naming the bound (`name_past`).
@@ -68,11 +68,11 @@ Its outcomes: `opened`, the change's task; `open_refused`, one of the
 above; the family's `core_refused`, jig's refusal facts whole (3); or
 unknown, no longer held. A replay under the same key answers the first,
 as every keyed request is answered (jig's `domain/people/acts.md`, 1),
-while the forge keeps it (`../adoption.md`, 9).
+while the forge keeps it (`../adoption.md`, 13).
 
 - **Never refused for the answers kept:** an open takes a place in the
   forge's table of kept answers, where the oldest answered makes room
-  for it (`../adoption.md`, 9), so any number of opens within a day are
+  for it (`../adoption.md`, 13), so any number of opens within a day are
   decided. It is answered busy only while `forge.adoptions` requests
   are pending, which passes as they are answered.
 - **Sent again once its answer made room:** jig's people child keeps the
@@ -103,7 +103,7 @@ while the forge keeps it (`../adoption.md`, 9).
   offer allows, which the core resolves at admission as for a goal the
   person starts, the builder checking the amount it reads from the
   offer. Either is reserved from the person's role's pool at admission
-  (jig's `domain/authority.md`, section 7). Its reviews, resolutions and
+  (jig's `domain/authority-budgets.md`, section 1). Its reviews, resolutions and
   repairs spend it; the change itself spends nothing.
 - **Its parameters:** 1, the repository; 2, the landing branch as
   resolved; 10, the title; 19, the source (3.1); and 14 only where the
@@ -188,7 +188,7 @@ A change with parameter 19 has no producing task. Its own branch is
   read again. A restart before the head is kept reads it, nothing having
   been kept; a restart after makes the branch again at the kept head,
   one found there counting as made, and one found at another head holds
-  the change as its branch moved (`README.md`, 3).
+  the change as its branch moved (`drift.md`, 1).
 - **A read or a make that errors** is retried as the change's effects
   are, the wait counted against the change's stall bound from its
   entering taking, as its producing's would be (`repairs.md`). Past the
@@ -203,7 +203,7 @@ A change with parameter 19 has no producing task. Its own branch is
 - **temper's move, then temper's moves:** temper's identity made the
   branch, so its repairs', resolutions' and updates' pushes are the
   change's own, and a push to it by another identity is drift
-  (`README.md`, 3), as for any change. Drift reads heads and writers,
+  (`drift.md`, 1), as for any change. Drift reads heads and writers,
   not who authored the commits.
 - **The pushed branch is never written, held or deleted.** Pushed again
   or deleted after the change kept its head, nothing of the change
@@ -243,21 +243,21 @@ A change with parameter 19 has no producing task. Its own branch is
   `kept`, the head taking selected, none before; and the state `taking`.
   Each defaults to none, so a stored change reads as before: temper's
   store is a registered family, its version stays and nothing is
-  patched (`../../../protocol/store.md`, section 4).
+  patched (`../../../protocol/store-versions.md`, section 1).
 - **Its panel** (`../../../client/forge/served.md`, 2): its step
   `taking` while it takes, and its source, the branch, the `at` named
   and the kept head, while it takes and after; none for a change with
   no source.
-- **The client's wire** moves its version for the new request and the
-  panel's source and step, with no bridge
-  (`../../../draft/redeploys.md`, section 8): a client of the new
-  version meeting an engine of the previous one is refused, `version not
-  served`, before any task is made. Engine and workers: nothing moves,
+- **The client's wire** changes its layout for the new request and the
+  panel's source and step, its version frozen
+  (`../../../protocol/wires.md`, section 9): a client of the new
+  layout meeting an engine of the previous one is refused by name at
+  the hello, before any task is made. Engine and workers: nothing moves,
   no job runs and no worker is asked.
 
 ## 7. Testing
 
-Focused and fuzzy suites alone (`../../../draft/mechanical-changes.md`,
+Focused and fuzzy suites alone (`../../../draft/archive/mechanical-changes.md`,
 section 10, whose items are the stories):
 
 - **The connector's world** (`temper/tests/engine/forge`), with a change
@@ -282,7 +282,7 @@ section 10, whose items are the stories):
 ## 8. Open questions
 
 The draft's later steps, each drafted with the user
-(`../../../draft/mechanical-changes.md`, section 11): trouble back to
+(`../../../draft/archive/mechanical-changes.md`, section 11): trouble back to
 the opener rather than to a resolution or a repair; what may be opened,
 by path set and role; a goal's branch as the target; out-of-band fixes
 through the act; opening from the web's Changes page; and moving an

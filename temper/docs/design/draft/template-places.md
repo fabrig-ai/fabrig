@@ -5,7 +5,7 @@ it to keep the idea, not to carry it out: nothing here is adopted, no
 plan takes it up until the user does, once the ways to start work are
 clearer, and nothing here is a part of v0.1.0 (`v0.1.0.md`). A
 project's ways to start work are its templates (jig's
-`protocol/configuration.md`, 3.1), as How work runs names them
+`protocol/configuration-templates.md`, 1), as How work runs names them
 (`../client/pages/settings.md`, 2): jig's chat and goal and temper's
 configuring chat in the stock (`../protocol/configuration/stock.md`),
 and perhaps many more. Today the client chooses by number which it
@@ -63,8 +63,8 @@ The look requests `new-menu` and `configure-chat-in-settings`
 - **Later, a context's places:** a goal's page, a change's, a draft's:
   "Review this change", "Start a goal from this draft". A start there
   carries its context into the task, which jig's templates name no
-  input for (jig's `protocol/configuration.md`, 3.1), so these wait on
-  jig (section 9).
+  input for (jig's `protocol/configuration-templates.md`, 1), so these wait on
+  jig (`template-places.md`, section 9).
 
 ## 4. The settings
 
@@ -74,8 +74,8 @@ The look requests `new-menu` and `configure-chat-in-settings`
   templates'; value an offer, which replaces kind 7's for its template
   in that project, an offer with no places taking it out of every
   place there; decided by that project's owners.
-- **Judged and kept as temper's other kinds** (`../protocol/configuration/settings.md`,
-  2), by the connector that owns them (`template-places.md`, section 9): an item is
+- **Judged and kept as temper's other kinds** (`../protocol/configuration/settings-kinds.md`,
+  1), by the connector that owns them (`template-places.md`, section 9): an item is
   refused that does not decode, names a place this draft does not
   have, carries a line past its bound, or names a template the
   settings do not define; a template removed takes its offers with it,
@@ -111,7 +111,7 @@ until its owners change them.
 - **Offered whatever the role:** a template the person's role may not
   start is offered all the same; the engine judges the start, and its
   refusal says why, since the client never computes what a party may do
-  (`../client/view.md`, 3).
+  (`../client/view-navigation.md`, 1).
 - **Live:** a change of the offers reaches an open page as `me` and the
   forge's reads deliver it; an open menu closes when its items change.
 
@@ -142,7 +142,7 @@ until its owners change them.
 - **Who owns kinds 7 and 8:** the forge's connector, which owns
   temper's other kinds, or a child of temper's root of its own for the
   client's settings: jig lets the root route a kind to any child (jig's
-  `domain/engine/settings.md`, 5), and an offer is no concern of the forge's.
+  `domain/engine/settings-application.md`, 1), and an offer is no concern of the forge's.
 - **A context's places** need a template's input (section 3), a jig
   change.
 - **A person's own:** recent ways first, or a person's order, kept by

@@ -1,5 +1,5 @@
 //! A decision can commit before the turn carrying its entry's first read fence
-//! (domain/engine/executors.md, 2; domain/hosts/README.md, section 7).
+//! (domain/engine/executors-transcripts.md, 1; domain/hosts/README.md, section 7).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -34,6 +34,7 @@ fn running_holder() -> Harness {
     child.numbers.budget = CHILD_BUDGET;
     child.authority.budget.spend = CHILD_BUDGET;
     h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -336,7 +337,9 @@ fn a_run_refuses_an_offered_escalation_and_it_stays_pending() {
     let pending = h.domain.task(CHILD).unwrap().escalation.clone();
     let offers = crate::escalation::waiting_for(&h.domain, HOLDER);
     assert_eq!(offers.iter().map(|word| word.number).collect::<Vec<_>>(), [ENTRY]);
-    assert_eq!(h.domain.next_waiting(HOLDER, None).unwrap().number, ENTRY);
+    let expected = crate::hold_words(Some(&h.domain), h.domain.task(CHILD).unwrap()).unwrap();
+    assert_eq!(offers[0].words, expected.bytes);
+    assert_eq!(h.domain.next_waiting(HOLDER, None).unwrap(), offers[0]);
 
     assert_eq!(turn(&mut h, READING_TURN, Some(ENTRY), TURN_SPEND, &offers, &[ENTRY]), Ok(Accepted::New));
     assert_eq!(h.domain.task(CHILD).unwrap().escalation, pending);

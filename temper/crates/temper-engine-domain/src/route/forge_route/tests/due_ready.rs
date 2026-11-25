@@ -1,4 +1,4 @@
-//! Due ready changes join in queue order and never hold forming (domain/landing.md, 9).
+//! Due ready changes join in queue order and never hold forming (domain/landing-turn.md, 2).
 use super::super::{Domain, Limits, Work, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue};
@@ -67,6 +67,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: super::super::super::internal(u64::MAX),
@@ -88,11 +89,8 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
         },
         &mut Queue::uncapped(),
     );
-    for event in [
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        forge::Event::ReadAfresh,
-        forge::Event::SettleOutbox,
-    ] {
+    for event in [forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, forge::Event::CatchUp]
+    {
         forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut Queue::uncapped());
     }
     super::turn_project(&mut domain);
@@ -107,6 +105,7 @@ pub(super) fn settle(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Procedure {
+            reads_project: false,
             reply_to: super::super::super::internal(u64::MAX),
             task,
             step,

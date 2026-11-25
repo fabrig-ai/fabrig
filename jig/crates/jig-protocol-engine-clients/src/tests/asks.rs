@@ -5,12 +5,14 @@ use crate::{
 };
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
+use skein_lib::{ReplyTo, Token};
 #[test]
 fn a_message_record_becomes_the_cores_say() {
     let limits = f::wire();
     assert_eq!(
-        ask(f::start(&limits), &f::models(), &limits),
+        ask(f::start(), &f::models(), &limits),
         Ok(p::Ask::Say { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
     );
 }
@@ -73,7 +75,7 @@ fn an_ask_that_does_not_translate_reaches_no_core() {
     );
     let mut exchange = Exchange::new();
     for bytes in [f::encode_ask(&value), f::encode_ask(&f::malformed_piece()), Box::new([255]), {
-        let bytes = f::encode_ask(&f::start(&f::wire()));
+        let bytes = f::encode_ask(&f::start());
         let mut out = skein_lib::Writer::new(bytes.len().checked_add(1).expect("tail size"));
         out.put(&bytes).expect("ask");
         out.put(&[0]).expect("tail");
@@ -109,7 +111,7 @@ fn an_application_record_is_routed_with_its_digest() {
 #[test]
 fn a_third_exchange_past_the_client_s_bound_is_busy() {
     let mut exchange = Exchange::new();
-    let body = f::keyed(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&f::start(&f::wire())));
+    let body = f::keyed(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&f::start()));
     for _ in 0..2_u32 {
         exchange.send(crate::Message::Request(body.clone()));
         exchange.authenticate();
@@ -121,6 +123,95 @@ fn a_third_exchange_past_the_client_s_bound_is_busy() {
     exchange.authenticate();
     assert!(exchange.out.is_empty());
     assert_eq!(exchange.response(owner), (200, b"\x02".as_slice()));
+}
+
+fn cut(exchange: &mut Exchange, owner: Token) {
+    exchange.component.down(
+        &exchange.env,
+        crate::Event::Transport(crate::FromTransport::ExchangeGone { exchange: owner }),
+        &mut exchange.out,
+    );
+    assert!(exchange.out.is_empty(), "cutting a caller does not cancel the act");
+}
+
+fn send_ask(exchange: &mut Exchange, key: [u8; 16]) -> Token {
+    let body =
+        w::Keyed { key, owner: w::Owner::Jig, version: w::VERSION, request: f::encode_ask(&f::start()), value: None }
+            .encode(&exchange.env.limits.wire)
+            .expect("keyed ask");
+    let owner = exchange.send(crate::Message::Request(body));
+    exchange.authenticate();
+    owner
+}
+
+fn take_ask(exchange: &mut Exchange, expected_key: [u8; 16]) -> ReplyTo {
+    let Some(Request::Core(event)) = exchange.out.pop() else { panic!("ask reaches the core") };
+    let core::Event::People(p::Event::Ask { reply_to, sign_in, key, .. }) = *event else { panic!("core ask") };
+    assert_eq!((sign_in, key), (f::NUMBER, expected_key));
+    reply_to
+}
+
+#[test]
+fn cutting_a_pending_ask_frees_its_sign_ins_exchange_at_once() {
+    let mut exchange = Exchange::new();
+    let (owner, _) = exchange.ask();
+    assert_eq!(exchange.component.active(f::NUMBER), 1);
+    cut(&mut exchange, owner);
+    assert_eq!(exchange.component.active(f::NUMBER), 0);
+}
+
+#[test]
+fn a_resend_takes_one_exchange_and_receives_the_parked_asks_answer() {
+    let mut exchange = Exchange::new();
+    let original = send_ask(&mut exchange, [5; 16]);
+    let parked_reply = take_ask(&mut exchange, [5; 16]);
+    cut(&mut exchange, original);
+
+    let resend = send_ask(&mut exchange, [5; 16]);
+    let resend_reply = take_ask(&mut exchange, [5; 16]);
+    assert_ne!(parked_reply, resend_reply);
+    assert_eq!(exchange.component.active(f::NUMBER), 1);
+    let other = send_ask(&mut exchange, [6; 16]);
+    let other_reply = take_ask(&mut exchange, [6; 16]);
+
+    let answer = p::Reply::Outcome(p::Outcome::Said { task: 8, message: 9 });
+    exchange.reply(parked_reply, answer.clone());
+    assert!(exchange.out.is_empty());
+    exchange.reply(resend_reply, answer);
+    assert_eq!(exchange.final_answer(resend), f::started());
+
+    let answer = p::Reply::Outcome(p::Outcome::Said { task: 8, message: 10 });
+    let expected = f::translated(&answer, &exchange.env.limits.wire);
+    exchange.reply(other_reply, answer);
+    assert_eq!(exchange.final_answer(other), expected);
+}
+
+#[test]
+fn a_parked_ask_still_counts_toward_the_global_exchange_bound() {
+    let mut env = f::env();
+    env.limits.exchanges = 1;
+    let mut exchange = Exchange::with_env(env);
+    let (owner, _) = exchange.ask();
+    cut(&mut exchange, owner);
+    let other = send_ask(&mut exchange, [6; 16]);
+    assert!(exchange.out.is_empty(), "global limit keeps a new ask out of the core");
+    assert_eq!(exchange.answer(other), w::KeyedAnswer::Busy);
+}
+
+#[test]
+fn a_parked_asks_answer_without_a_resend_is_dropped_and_frees_global_room() {
+    let mut env = f::env();
+    env.limits.exchanges = 1;
+    let mut exchange = Exchange::with_env(env);
+    let (owner, reply) = exchange.ask();
+    cut(&mut exchange, owner);
+    exchange.reply(reply, p::Reply::Outcome(p::Outcome::Said { task: 8, message: 9 }));
+    assert!(!exchange.component.up(&exchange.env, &mut exchange.out));
+    assert!(exchange.out.is_empty(), "a parked caller takes no answer");
+    let other = send_ask(&mut exchange, [6; 16]);
+    let other_reply = take_ask(&mut exchange, [6; 16]);
+    exchange.reply(other_reply, p::Reply::Outcome(p::Outcome::Said { task: 8, message: 9 }));
+    assert_eq!(exchange.final_answer(other), f::started());
 }
 
 #[test]

@@ -1,5 +1,11 @@
 # The TUI
 
+- `directory.md`: the TUI's directory and the engine's local link.
+- `host.md`: the TUI's host and seam.
+- `box.md`: the TUI in front of a box.
+- `box-startup.md`: its stages and startup screens.
+- `box-lending.md`: lending its terminal.
+- `box-web.md`: opening the browser.
 - `pages/README.md`: the TUI's state, shared words, foot and commands.
 - `pages/sign-in.md`: signing in and renewing from the engine's link.
 - `pages/refused.md`: the screen for a build the engine refuses.
@@ -14,7 +20,7 @@ temper's client root, a view of its own and skein's full-screen shell
 (skein's `ui/screen.md`), over the native transport `temper-box open` uses.
 Its first pass (`../../draft/tui.md`, section 4) signs in from the local
 engine's link file, with a pasted link or the browser's approval as
-fallback (`../README.md`, 4.1), and, at a deployment by name, over
+fallback (`../sign-in.md`, 1.1), and, at a deployment by name, over
 HTTPS, by the browser's approval alone (`../../draft/tui-remote.md`;
 `pages/sign-in.md`, 3); once signed in it draws, live, a launchpad, the commands
 of the browser's chat terminal and a chat read as that terminal reads
@@ -38,7 +44,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   (`../../draft/tui-remote.md`, 3):
   - `http://HOST:PORT`, HOST an IP address on loopback, read as
     `temper-box open` reads an address (`../line.md`, 1), so that a
-    bearer never crosses a network in plaintext (`../README.md`, 4). A
+    bearer never crosses a network in plaintext (`../sign-in.md`, 1). A
     box whose port fell back to another is named by its address.
   - `https://NAME[:PORT]`, a deployment's public origin, the one the
     person's browser opens (`../../protocol/sign-in.md`, 2.2): NAME a
@@ -84,7 +90,7 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   takes it, as skein's shells resolve their configured peers (skein's
   `runtime/io/README.md`, section 3), and gives every address found, in
   the resolver's order, to the native shell, which tries them in order
-  at each connection (jig's `protocol/client/README.md`, section 9). It
+  at each connection (jig's `protocol/client/shells.md`, section 1). It
   reads the machine's roots then, skein-shell's `read_trust_roots` with
   `Trust::Machine`, `SSL_CERT_FILE` from the environment it captured,
   else the distribution's bundle, and gives them as the native shell's
@@ -92,9 +98,9 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   addresses change while the TUI runs needs it started again
   (`../../draft/tui-remote.md`, 10).
 - **The link is never an argument,** as `temper ctl`'s isn't
-  (`../ctl/README.md`, 6.1): the TUI takes it pasted on its sign-in screen
+  (`../ctl/command-line.md`, 1.1): the TUI takes it pasted on its sign-in screen
   (`pages/README.md`), and refuses it as ADDRESS, in either of its forms
-  (`../README.md`, section 4).
+  (`../sign-in.md`, section 1).
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
@@ -134,435 +140,11 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
 
 ## 2. Its directory
 
-- **Where:** `$XDG_STATE_HOME/temper/tui` where `XDG_STATE_HOME` is an
-  absolute path, else `$HOME/.local/state/temper/tui` (skein-shell's
-  `Base::State` for the tool `temper`, then `tui`); with neither, the
-  start is refused. It is the TUI's alone, never `temper-box open`'s or
-  `temper ctl`'s, and no argument names it.
-- **Private,** as `temper-box open`'s (`../line.md`, 1): the binary makes it and its
-  missing parents `0o700` and refuses it unless it is a directory of
-  this user's with no group or other bits (skein's `runtime/io/files.md`, 3), then
-  makes the origin's own directory beneath it the same way (*One
-  directory per deployment*, below) and gives that directory alone to
-  `jig-client-shell-native`, as `temper-box open` gives DIRECTORY.
-- **What it holds:**
-  - `address`, the origin the TUI last signed in to, as `Origin::print`
-    prints it (1), `https://NAME[:PORT]` or `http://HOST:PORT`, and
-    nothing else, `0o600`. The binary reads it once at start, at
-    most 300 bytes; one absent, empty, unreadable or not an origin
-    reads as none, and the default holds. Once the TUI has closed, if it
-    signed in at an origin the file did not hold, the binary writes
-    the file whole through skein's io (skein-shell's `store_file`, a
-    synced temporary replacing it).
-  - `at/HOST/PORT`, each origin's own directory (below).
-  - `recording-TIME`, a run's recording, while `TEMPER_INTERNAL_RECORD`
-    is set, each run's its own and the last ten kept (`journeys.md`,
-    3.1), `0o600`.
-- **One directory per deployment** (`../../draft/tui-remote.md`, 6):
-  `at/HOST/PORT`, HOST and PORT `Origin::authority`'s two parts, the
-  origin's name or its IP address as Rust prints it (`127.0.0.1`,
-  `::1`), and its port in decimal, 443 included. Each component stays
-  within a file name's 255 bytes, and names and IP addresses never
-  meet, so neither do the two schemes. The binary makes it and its
-  missing parents `0o700` and refuses it as the TUI's own (above). It
-  holds that deployment's:
-  - `token`, the bearer credential, and `store`, the small store, both
-    the native shell's files, kept as `../README.md`, section 4 says;
-  - `sign-in`, the note of how the TUI's last sign-in at the origin
-    stands, one line, `0o600`: `AUTHORITY until NANOS`, signed in there
-    until that wall time in nanoseconds, as the sign-in's answer said
-    (jig's `client/domain/client/watches.md`, 2); or `AUTHORITY signed-out`,
-    its sign-in there ended before that time, so that only a person's act
-    signs it in there again (`pages/sign-in.md`, 2, *Expired is not signed out*);
-    AUTHORITY `Origin::authority`'s, `127.0.0.1:8367` or
-    `dev.fabrig.ai:443`. It is
-    `temper-client-tui`'s `Note`, printed by `Note::print` and read by
-    `Note::read`, at most 300 bytes, `Note::MOST`, room for a 253-byte
-    name with its port. The binary reads it once at start: a
-    line for another origin than the TUI's, or one absent, unreadable
-    or past its bound, reads as none. The run writes it whole at each
-    duty `note` (3), through skein-io's file layer on its own io, as
-    the recorder saves (`journeys.md`, 3.1): a synced temporary
-    replacing it. A write that fails says nothing, and the next note is
-    written whole again.
-- **No credential is offered to another engine:** the native shell has
-  the origin's directory alone, so a credential and the requests kept
-  meet only the engine they were made at; a token is never offered at
-  another address, where it would hand one deployment's bearer to
-  whatever listens at another's.
-- **Switching signs nobody out:** a box and a deployment by name each
-  keep their own sign-in, so going from one to the other and back asks
-  nothing again while each sign-in lives.
-- **The theme stays the person's:** it is a record of the small store
-  (3, `Start.kept`; `theme.md`), so an origin's store, at its first
-  start, when the binary makes its directory, takes the `theme` record
-  of the store of the origin `address` names, the one used last, and
-  nothing else of that store; the run saves it into the new store as a
-  theme taken is saved. A store with no `theme` there, or none to read,
-  starts at Auto.
-- **Nothing new in a versioned format:** `address` and `sign-in` are
-  lines of text, `token` the credential's bytes, and `store`
-  `jig-client`'s, as before, so an upgrade of the laptop's build reads
-  them as it did.
-- **From the directory before it:** a build before this one reached an
-  engine on loopback alone and kept `token`, `store` and `sign-in` in
-  the TUI's directory itself, writing the token during its run but
-  `address` only once it closed, so neither file alone says whose the
-  token is. At its first start, a build with this moves the three into
-  the directory of the address `sign-in` names, only where `address`
-  names that same address (`http://HOST:PORT` and `HOST:PORT`);
-  otherwise it removes them, and the TUI signs in afresh, which on a
-  box takes nothing (`pages/sign-in.md`, 2). The move goes through
-  `at/HOST/PORT.new`, made private, the three renamed into it, then it
-  renamed whole into place; a start that finds a `.new` finishes that
-  move, and one whose destination exists already removes the old
-  files. The move runs before the origin's directory is opened, whatever
-  the origin the TUI starts at, and a failure in it refuses the start
-  as the directory's does (1).
-- **The engine's link, kept at rest.** While the printed link is
-  enabled (`../README.md`, section 4), the running engine, `temper-box serve` alone or under
-  `temper box`, keeps its live local link, a one-time secret of its own
-  beside the printed link's (jig's `protocol/client/sign-in.md`, *The
-  local link*), with the address, in a private file, so that a TUI on
-  the same machine signs in with nothing to paste (`pages/README.md`). The file never
-  holds the printed link's secret: a TUI's sign-in spends the file's
-  link alone, and the printed link stays live for the person's browser,
-  never touched, printed again or spent by a TUI. The file's secret is
-  otherwise held only in jig's memory: never on serve's stdout or
-  stderr, nor in a log; the file is never in the configuration
-  directory, which holds no secret.
-  - *Where:* on Linux, `$XDG_RUNTIME_DIR/temper/printed-link-KEY`, where
-    `XDG_RUNTIME_DIR` is an absolute path (a tmpfs, never backed up);
-    with none, no file is kept and the TUI reads none. On macOS,
-    `DATA/printed-link`, in the deployment's data directory. KEY is the
-    first 8 bytes of the SHA-256 of the data directory's absolute path,
-    as 16 lowercase hex digits. One function, `temper-shell`'s
-    `link_file::path`, makes it for the engine and for the TUI.
-  - *Its deployment:* the engine keys it by the data directory it runs
-    on, however it was named; the TUI by the deployment its environment
-    names, resolved as `temper box` with no flag resolves it
-    (`../../protocol/configuration/directories.md`): `TEMPER_DATA`, else the
-    XDG default. No flag names another: the command line's flags are
-    designed with the user later.
-  - *Written* whole, `0o600`, a synced temporary replacing it, in a
-    directory the engine makes `0o700` with its missing parents and
-    refuses unless it is this user's with no group or other bits, as the
-    TUI's own (above): the local link's URL, made as serve makes the
-    printed link's, then a line feed. Serve writes it at each `LocalLink`
-    its startup hears, once its clients' listener is up, and prints none
-    of it: at its start, and each time the component draws the next,
-    after a TUI spent the last or a sign-in found it expired. A `Link` is
-    printed alone and never written, and `temper box`'s first secret,
-    the printed link's (`../../protocol/setup/box.md`, 2), is never written
-    either. A write that fails is one line on stderr, `temper-box serve: link
-    file PATH: WHY`, naming no secret, and serve goes on.
-  - *Removed* when serve exits, by any way out it has. An engine killed
-    outright leaves it, and its link then grants nothing (below).
-  - *Read* as a private file of this user's, at most 4,096 bytes
-    (skein-shell's `read_private_file`): absent, unreadable, too large or
-    not private reads as none. The binary reads it once at start, for
-    bare `temper`'s address (1) and, whatever the `http://` address, for
-    whether the TUI is on a box; the run reads it at each duty `local`
-    (3), for the sign-in (`pages/README.md`). It names an engine of this
-    machine, so at an `https://` origin the binary reads none and the
-    TUI is never on a box: `Start.local` and `Start.boxed` are false.
-  - *On a box:* the file read at start holds a link, as
-    `jig-client-protocol-http`'s `printed` reads it, whose `HOST:PORT`
-    is the TUI's address: the engine there is this machine's temper box,
-    and the TUI names its place "box" (`pages/chat.md`, 1, *The rule above the box*).
-    The binary keeps the answer alone, `run::Settings.boxed`, and drops
-    the secret. `temper-box serve` run alone writes the same file and reads
-    as a box too: the file does not tell them apart. With no file, or a
-    link for another address, the TUI is not on a box. The binary opens a separate root for
-    the link's parent; the run resolves only its filename beneath that
-    root and closes the descriptor on shutdown. A parent that cannot be
-    opened reads as no link, without refusing the TUI's state directory.
-  - *A stale file grants nothing.* Its address and its secret come from
-    one file, written by the engine that holds the listener. A restart
-    forgets links, and a spent link is dead (jig's `protocol/client/sign-in.md`
-    ): a link that another engine answers, or that none
-    answers, signs nothing in, and the TUI falls back (`pages/README.md`).
-  - *The risk, accepted by the user, 2026-11-07:* a live owner link,
-    one-time and live at most 2 hours, at rest and readable by any
-    process running as the person, the box's own agents among them.
-    Those can already read the TUI's credential (`token`, above), so this
-    adds little. The file's link is its own, the user's pick of
-    2026-11-08, so it adds nothing to the printed link's exposure, and a
-    `temper` started before the person opens the printed link leaves that
-    link to the browser. *The way back:* the file holds the address
-    alone, and the sign-in takes one step, the paste or the browser's
-    approval.
+Moved to [`directory.md`](directory.md), section 1.
 
 ## 3. Its host and the seam
 
-- **One seam,** shaped as the browser's host's (`../web/journeys.md`, section
-  2): `temper-client-shell-tui`'s `host::Host`. What reaches it is a
-  report, what it asks back is its duties, and it lays the frame. The
-  loop (4), the client's joint world (`../testing.md`) and the TUI's
-  recorder and replay (`../../draft/tui.md`, section 5) all call it, and
-  nothing else of it.
-- **It holds** temper's client root, `temper-client-domain`'s `Domain`,
-  linked, as `temper-box open`'s native client holds it (`../line.md`, 2); the TUI's
-  state and view (`pages/README.md`); the focus; and the frame. It holds no io, no
-  file, no clock and no randomness of its own: what it does is a
-  function of its reports, its clocks and its seed.
-
-  ```rust
-  pub struct Start {
-      pub size: skein_ui_screen::Size,
-      pub scheme: Option<temper_client_tui::Scheme>,  // the terminal's word, or none (6.15)
-      pub background: Option<skein_ui_screen::Rgb>,  // the terminal's answer to OSC 11 (6.15)
-      pub address: temper_client_tui::Origin,         // the origin (1)
-      pub local: bool,                                // an engine's link file to read (6.12)
-      pub boxed: bool,                                // on a box (6.12)
-      pub kept: Vec<jig_client::Record>,              // the small store's records, `theme` among them (6.15)
-      pub credential: Option<skein_lib::Secret>,      // DIRECTORY/token's
-      pub note: Option<temper_client_tui::Note>,      // DIRECTORY/sign-in's, for this address
-      pub plain: bool,                                // a terminal that draws no mark (`pages/README.md`, 3)
-      pub version: Box<[u8]>,                         // the build, as `temper --version` prints it after "temper "
-  }
-  pub enum Report { Start(Start), Due, Key(skein_ui_screen_terminal::Key), Resize(skein_ui_screen::Size),
-      Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool },
-      Local { link: Option<skein_lib::Secret> },      // the engine's link file, read
-      Handshake { failed: Option<temper_client_tui::Handshake> }, // the native shell's last TLS failure
-      Listening { port: Option<u16> },                // the loopback listener's port, or none (`pages/sign-in.md`, 4)
-      Returned(loopback::Returned) }                  // one request the loopback listener read
-  pub enum Handshake { Untrusted, Expired, NotYetValid, OtherName, Failed } // temper_client_tui's
-  pub struct Duties {
-      pub asked: Vec<jig_client::Request>,            // to the native shell, in order, the TUI's `theme` record among them
-      pub keep: Option<Option<skein_lib::Secret>>,    // the credential to write; Some(None) erases it
-      pub note: Option<temper_client_tui::Note>,      // the origin's sign-in to write (6.12)
-      pub address: Option<temper_client_tui::Origin>, // the origin signed in to (6.12)
-      pub local: bool,                                // the engine's link file to read (6.12)
-      pub open: Option<Box<[u8]>>,                    // an address for a browser
-      pub listen: bool,                               // the loopback listener to open
-      pub unlisten: bool,                             // the loopback listener to close
-      pub answer: Option<loopback::Answer>,           // the answer to this report's `Returned`
-      pub close: bool,
-  }
-  // temper-client-shell-tui's `loopback` (`pages/sign-in.md`, 4)
-  pub struct Returned { pub get: bool, pub target: Box<[u8]>, pub host: Option<Box<[u8]>> }
-  pub enum Answer { Redirect { to: Box<[u8]> }, NotFound }
-  pub fn grant(returned: &Returned, port: u16) -> Option<skein_lib::Secret>; // the one path's grant, or none
-  impl Host {
-      pub fn new(settings: &Settings, seed: u64, now: Time, wall: Wall) -> Host;
-      pub fn clocks(&mut self, now: Time, wall: Wall);
-      pub fn report(&mut self, report: Report) -> Duties;
-      pub fn frame(&mut self) -> &skein_ui_screen::Frame;
-      pub fn tree(&self) -> &skein_ui::Tree;
-      pub fn event_of(&self, key: &skein_ui_screen_terminal::Key) -> Option<temper_client_tui::Event>;
-      pub fn deadline(&self) -> Option<Time>;
-  }
-  ```
-
-- **The reports:** `Start`, once and first, with the window's size, the
-  scheme the terminal says, or none where it says none, the terminal's
-  background where it answered (`theme.md`), the
-  address, whether the TUI has an engine's link file to read
-  (on Linux, `XDG_RUNTIME_DIR` absolute; on macOS, always), whether it
-  is on a box (2, *On a box*), the small
-  store's records and the credential as the native shell loaded them,
-  the note as the binary read it for this address (2), whether the
-  terminal draws the header's mark, `plain` where `TERM_PROGRAM` is
-  `Apple_Terminal`, and the build the header names, `temper-version`'s
-  version and commit as `temper --version` prints them after "temper ",
-  "0.0.0 (b948f40d6df1)", which the binary hands down, since no library
-  links `temper-version` (`pages/README.md`, 3); `Local`,
-  the engine's link file read for the duty `local`, its bytes or none;
-  `Due`, the root's
-  deadline reached; `Key`, one key as skein's decoder made it (skein's
-  `ui/screen.md`, 6.1); `Resize`, the window's new size; `Heard`, one of
-  the transport's or the small store's events, as the native shell gives
-  them; `Kept`, the credential's write ended, written or not; `Opened`,
-  the browser's opener ended, done or not (`../README.md`, 4.1);
-  `Handshake`, the native shell's last TLS failure changed (*The
-  handshake*, below); `Listening`, the loopback listener the duty
-  `listen` asked for listening at its port, or none where the run has
-  no opener or couldn't listen; `Returned`, one request that listener
-  read, its method `GET` or not, its target and its `Host` as sent, at
-  most `limits::RETURN_HEAD` (`pages/sign-in.md`, 4). Any report before
-  `Start` is the host's defect.
-- **The handshake** (`../../draft/tui-remote.md`, 4): at an `https://`
-  origin, the run reads the native shell's `Shell::refused` after each
-  iteration (jig's `protocol/client/README.md`, section 9) and, when it
-  changed, reports it as the TUI words it, `temper-client-tui`'s
-  `Handshake`: skein-tls's `Certificate::Issuer` or `Invalid`,
-  `Untrusted`; `Expired`; `NotYetValid`; `Name`, `OtherName`; any other
-  TLS error, `Failed`; none once a handshake succeeded. The host keeps
-  it in the TUI's state, and while it holds a failure the link's state
-  says why (`pages/README.md`, *The link's state*). A connection that
-  fails below TLS is no handshake's, and says "Offline" alone, as on
-  loopback. At an `http://` origin the run reports none.
-- **The duties** of each report: the root's requests for the native
-  shell, in order, each routed as `temper-box open` routes them (`../line.md`, 2), and
-  after them the TUI's `theme` record to save, when the person took a
-  theme (`theme.md`, *The theme chosen*); the
-  credential to keep, or none to erase it; the note to write, when the
-  sign-in's standing changes (`pages/README.md`); the address signed in to, once, the
-  first time the link is live with a party; the engine's link file to
-  read, each time the TUI signs in from it (`pages/README.md`); an address for a
-  browser to open, once for each approval asked (`../README.md`, 4.1); the
-  loopback listener to open, for each one-click ask, and to close, once
-  its ask ends (`pages/sign-in.md`, 4); the answer to a `Returned`
-  report's request, in that report's duties, which the run writes to
-  that request's connection; and closing, once.
-  After closing, every report but `Heard` and `Kept` does nothing, so
-  the native shell's last write still lands.
-- **The note:** after each report, once the link is live with a party,
-  an expiry it names (`link().expires`, jig's `client/domain/client/watches.md`,
-  2) that differs from the note's `Until` is a duty to note `Until`
-  it. A sign-in judged ended (`pages/README.md`) is a duty to note `SignedOut`, once.
-- **The credential:** after each report the host reads it from
-  `jig-client`'s `link()`, through the root. One that differs from the
-  one kept is a duty to keep it, before the launchpad is drawn on it;
-  none, while the link is signed out by any means (a sign-out
-  elsewhere, a sign-in ended, a held credential the engine does not
-  know), is a duty to erase it. A sign-in kept by the engine leaves the
-  credential as it was, and writes nothing (`../README.md`, section 4).
-- **A key** goes through skein's key reader (skein's `ui/screen.md`,
-  6.2) on the tree and the focus the last frame laid, so that a key
-  acts on what the person saw: an act on a node becomes the TUI's event
-  through its view, if the view names one (`pages/README.md`); the focus moved draws
-  again; Ctrl+C closes. Escape, which no node of the TUI's names, makes
-  the event the view says while it draws a list, `Dismiss` on a
-  command's list and `Aside` on the chat's question or a talk's proposal,
-  or while it draws a
-  left-off chat selected, `LeftOff { task: None }`, or on a talk with its
-  box empty, `Leave`, and nothing
-  otherwise (`temper_client_tui::escape`). Up and Down go first to the
-  view (`temper_client_tui::arrow`, with `Arrow::Up` or `Arrow::Down`):
-  while it draws the launchpad's left-off chats with the box empty and
-  no list under it, they make its `LeftOff` event and skein's key reader
-  is not asked (`pages/launchpad.md`, 4); otherwise they go to the
-  key reader as any key. `Host::event_of` gives the event a key
-  would make, without giving it.
-- **The frame:** `Host::frame` lays the view's tree with skein's
-  renderer at the window's size, in the theme of the scheme the root's
-  look names and the start's background, `temper_client_tui::theme(scheme,
-  background)` (*The look*, below; `theme.md`), with the host's focus (skein's
-  `ui/screen.md`, section 5). After each report the host has already
-  built its view from the root and the TUI's state, so `Host::tree` is
-  the tree the next key reads.
-- **Its pages:** the root starts at `Inbox { filter: ALL }`, as `temper-box
-  open`'s does, and the host moves it:
-  - *to the launchpad,* `Went(Home { project })`, the first of `me`'s
-    projects in `me`'s order, after the report in which the link is live
-    with `me` read and naming a project while the root is still at its
-    start's address; until then, and while `me` names none, the root
-    stays there and the TUI draws the launchpad with no project (`pages/launchpad.md`, 7),
-    or in front of a box the welcome (`box.md`);
-  - *where the root asks:* a `Request::Show` or a replacing one, a chat
-    started, a chat chosen from `/chats`, a role's talk chosen by `/talk`
-    (`Talk { project, task }`, `pages/talk.md`), is followed at once as `Went`
-    to that address, as the browser's host follows it, within the same
-    report; an address the TUI draws no page for, `Ask { project }` after
-    Start over among them, is followed to `Home` of its project, or of
-    the root's;
-  - *from a talk:* Esc on its empty box with no list standing, or `/exit`
-    sent whole there, `Went(Home { project })`, the talk's project, which
-    leaves the talk, with the notice of a talk left (`pages/talk.md`,
-    section 1, *Leaving*);
-  - *by `/new`:* `Went(Home { project })`, the root's project;
-  - *not for a place not yet started* (`pages/README.md`, 2, *Not yet
-    started*): it is the TUI's state over the root's page, which stays
-    where it was until the place's first words are sent; the root's
-    going to any other page ends it, but the `NewChat` or `Home` its own
-    start passes through;
-  - *back to the start's address,* `Went(Inbox { filter: ALL })`, after
-    the report in which `me` no longer names the root's project, the
-    playground's reset among them (`box.md`), so that the next project `me`
-    names is gone to as at the start.
-  Every other duty of the root's but its requests to the native shell,
-  `KeepLook` and `Screen` among them, is the browser's and is dropped,
-  as `temper-box open` drops them.
-- **The look:** right after `Start` the host gives the root `Event::LookKept
-  { look: Look { terminal: true, theme, font: Font::DejaVu } }`, `theme`
-  the scheme of the theme kept (`theme.md`, *The theme chosen*), and again
-  with the scheme of each theme the person takes, so that the root's terminal machinery is the TUI's
-  as a browser's chat terminal's is (`../pages/chat/terminal.md`, 1): commands
-  sent whole, the lists they open, the notes, a confirmation as a list,
-  a chat's question read while it waits on the person. After each
-  report, a theme of the root's look other than the one drawn is the
-  theme drawn from then on (`theme.md`).
-- **The launchpad's reads:** right after that first `LookKept` the host
-  gives the root `Event::Launchpad`, once, so that the root's Home
-  reads across the person's projects (`pages/launchpad.md`, 2). No other shell
-  gives it.
-- **The TUI's events** and what the host does with each, by screen (`pages/README.md`; `pages/launchpad.md`):
-
-  | Event | Does |
-  |---|---|
-  | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages/README.md`, 1, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat or a talk `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
-  | `SignIn` | signing in's Enter, as before; at a name, the sign-in screen's "Ask again" button pressed (`pages/sign-in.md`, 3), which asks the one click again where there is an opener |
-  | `TypeCode` | at a name, the sign-in screen's "Type a code instead" pressed while a one-click ask waits (`pages/sign-in.md`, 3): the duty `unlisten`, and a typed code's ask, `Event::AskApproval { port: None }`, for which no tab opens |
-  | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`, or on a talk as `Leave`; the name of `/draft`, `/change`, `/ask` or `/tell`, where the screen offers it, followed by white space alone, as that name pressed, `Own { command }`; in a place not yet started, words that begin no command as that place's `NAME WORDS` on the screen under it, and empty words or white space alone nothing (`pages/README.md`, 2, *Not yet started*); words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat or a talk |
-  | `Command { command }` | `Exit`, the TUI's `/quit`, closes (4); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
-  | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; `Act::Confirm` taken on a chat's `/close` keeps the chat as closed by the person, and the root's answer done to that close goes to the launchpad, `Went(Home { project })`, with the chat closed's notice (`pages/chat.md`, 1, *Closing*); and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/launchpad.md`, 4) |
-  | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (`pages/README.md`); "Not now", Esc or words typed on a talk's proposal: the TUI sets that card aside (`pages/talk.md`) |
-  | `Accept { object, revision }` | "Accept it" on a talk's proposal: the root's `Act::Decide { object, revision, act: Accept }`, then `Act::Confirm` (`pages/talk.md`, 1, *A proposal in place*) |
-  | `Leave` | Esc on a talk's empty box with no list, or `/exit` sent whole on a talk: the notice of a talk left while the person's talk is open, then `Went(Home { project })`, the talk's project (`pages/talk.md`, 1, *Leaving*) |
-  | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
-  | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages/launchpad.md`, 4) |
-  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Draft`, `Change`, `Ask` or `Tell` going to its place not yet started, the box's words cleared, the left-off selection cleared and a walk ended (`pages/README.md`, 2, *Not yet started*), `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Web`, in front, the box's printed link opened while live, else the web's Home (`box.md`, *`/web`, temper in the browser*), `Talk` its list opened, a choice there `Act::Go` to the role's `Talk`, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
-  | `Back` | Esc on a place not yet started's empty box with no list standing: the place ends, starting nothing, and a root its refused start left at `NewChat` goes to `Home { project }` (`pages/README.md`, 2, *Not yet started*) |
-  | `Theme { choice }` | on the theme's list, `Some(choice)` taken: the host draws in it, keeps it (`theme.md`, *The theme chosen*) and gives its notice; `None`, Esc there: the list lowered |
-  | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages/launchpad.md`, 4 and 6) |
-  | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 6): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
-  | `EndWalk` | Esc on the walk's prompt: the walk ends |
-
-  `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS`,
-  `/talk WORDS` and
-  `/chats N` before the root's commands (`pages/README.md`, 2, *The TUI's own
-  commands*), and, with the walk's question set aside, answers it in
-  the box's words as a chat's question's are, then marks it shown. On
-  the launchpad, a chat and a talk it takes `/tell WORDS` before them
-  too, and on a talk it sends the box's other words as the talk's
-  (`pages/talk.md`).
-  `Duties.open`, which opens the approval's tab, carries a page's
-  address the same way, and in front `/web`'s printed link, the one
-  secret it ever carries (`box.md`, *`/web`, temper in the browser*).
-  Every address the TUI opens is its origin's,
-  `Origin::print` and then the page's path: the approval's tab
-  (`../README.md`, 4.1), `/open` and the walk's "Open it on the web" (a
-  sign-off's "Review on FORGE ↗" keeps the forge's own address), so
-  that at a name a page opens on the deployment the TUI reads, `https://dev.fabrig.ai/chats/T2` (`../../draft/tui-remote.md`, 3).
-
-  A key that makes `Act`, `Command`, `Aside`, `Accept`, `Dismiss`, `Leave`, `LeftOff`,
-  `Own`, `Back`, `Open`, `Walk`, `EndWalk` or `Theme` marks the frame it acts on
-  in a recording, and typing marks none
-  (`journeys.md`, 3.3). Words typed on the launchpad, and leaving
-  it, clear the selection.
-- **The notice's time:** the TUI's notice (`pages/README.md`, 1, *The notice*) stands
-  `limits::NOTICE`, 6 seconds, from the report that gave it, a newer
-  one replacing it and its time. The host keeps its end, which
-  `Host::deadline` counts among the times it gives, the soonest first;
-  a `Due` at or past the end lowers the notice. So a recording keeps it as any turn's deadline
-  (`journeys.md`, 3.2), and a replay lowers it at the same turn.
-- **The seam's shape:** `Start` carries the start's facts, the
-  terminal's background, whether the TUI is on a box and whether it is
-  in front of one among them (`box.md`; the user's requests of 2026-11-08);
-  `Start.address` is the origin and `Report` gains `Handshake`
-  (`../../draft/tui-remote.md`, 3 and 4); `Report` gains `Listening`
-  and `Returned`, and `Duties` gains `listen`, `unlisten` and `answer`,
-  the loopback return's (`../../draft/tui-remote.md`, 5.1;
-  `pages/sign-in.md`, 4);
-  `Report` gains `Front` (`box.md`) and, in front, `Lent`, and `Duties`
-  gains `lend` and `unlend`, its one lent terminal's (`box.md`, *Lending
-  its terminal*); the root is given `Event::Lends` once in front. Following a
-  `Show`, the look, `/theme`'s list and the theme taken, `/new`, `/quit`
-  and the notice's time are
-  the host's own steps on the root and the TUI's state, and closing is
-  the duty `close` it has; the `theme` record crosses to the run as a
-  `Save` among `asked` (`theme.md`, *The theme chosen*), the root is given
-  `Event::Launchpad` once (*The launchpad's reads*), and nothing else new
-  crosses.
-- **Shaped for the recording now:** a recording is the start's facts,
-  then turn by turn the clocks, each report with its duties, each key
-  with its event, and a mark for each frame the person saw; a replay
-  gives the same reports to a fresh host and finds the same duties and
-  frames. The browser to open is a duty now, so that the browser's
-  approval (`../../draft/tui.md`, 4.2) and the recording add no field to
-  the seam.
+Moved to [`host.md`](host.md), section 1.
 
 ## 4. Its loop and closing
 
@@ -587,8 +169,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   20 ms; the terminal's background, asked at every start, waited for at
   most 200 ms, `limits::BACKGROUND` (`theme.md`).
 - **Its run's settings** (`run::Settings`), the binary's: beside the
-  engine, the native shell's `Engine` (jig's `protocol/client/README.md`,
-  section 9: `Plain` at an `http://` origin, `Tls` at a name, with the
+  engine, the native shell's `Engine` (jig's `protocol/client/shells.md`,
+  section 1: `Plain` at an `http://` origin, `Tls` at a name, with the
   addresses resolved and the machine's roots, 1), the origin's
   directory (2), the origin, the depth, the size, the limits
   and the opener, the scheme where `COLORFGBG` decided it, or none for
@@ -653,7 +235,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
 
 ## 5. Open questions
 
-- **The TUI's later passes** (`README.md`, 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, 4 and `../README.md`, 4.1): beyond the
+- **The TUI's later passes** (`README.md`, 1, and `directory.md`, 1, and `host.md`, 1 and `pages/README.md` and `theme.md` and `README.md`, 4 and `../sign-in.md`, 1.1): beyond the
   launchpad as drawn, its commands, the walk of what needs the person
   and a chat, a design session among them (`pages/README.md`): talking with a role, `/talk`, `/tell` and the launchpad's team
   lines, T3's (`../../draft/surfaces.md`, 11.1, 11.3 and 11.4); a need
@@ -673,16 +255,11 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
 - **The TUI's command-line flags** (1 and 2): choosing another
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.
-- **On a box, told by the box** (2, *On a box*; `pages/chat.md`, 1, *The rule
-  above the box*): in front, the box tells the TUI it is one (`box.md`, *The
-  place*); bare `temper` reads the engine's link file, which names an
-  engine of this machine, so `temper-box serve` run alone reads as a box
-  too, where the user's request of 2026-11-08 names "box" for a temper
-  box. Default: the file, for bare `temper`. Owner: temper/tui.
-- **The TUI's design location:** `README.md`, sections 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, section 4 and `../README.md`, section 4.1 stay
+
+- **The TUI's design location:** `README.md`, section 1, and `directory.md`, section 1, and `host.md`, section 1 and `pages/README.md` and `theme.md` and `README.md`, section 4 and `../sign-in.md`, section 1.1 stay
   here; moving them under `client/tui/`, as `../../README.md`, section 6
   assigns them, is a later cleanup that must preserve their citations.
-- **The TUI after landing** (`README.md`, 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, 4): on a fresh box, start bare
+- **The TUI after landing** (`README.md`, 1, and `directory.md`, 1, and `host.md`, 1 and `pages/README.md` and `theme.md` and `README.md`, 4): on a fresh box, start bare
   `temper` in another terminal before opening the printed link and read
   the launchpad with nothing pasted, then open the printed link in the
   browser and see it sign in, with no fresh link printed (2); check
@@ -747,10 +324,7 @@ Its tests are `../testing.md`'s; its later passes, `../README.md`, section 5's.
   own (jig's `protocol/client/sign-in.md`, the asked links) for a
   browser with no sign-in, waits for the user's word. Owner:
   temper/tui.
-- **The TUI's address kept at closing** (2): the binary writes it once
-  the loop has ended, so a TUI killed outright keeps the address it
-  read. Default: so, though the run now writes the note at once with
-  file io of its own; moving the address there waits for a need.
+
 - **The TUI's focus in reverse video** (`theme.md`): the mark and the accent
   show the focus. Default: so; reverse video is the fallback if the
   frames show they can't, a look request's to ask.

@@ -242,7 +242,7 @@ fn night(document: &web_sys::Document, on: bool) {
 #[cfg(target_arch = "wasm32")]
 impl<P: ShellPlatform> Shell<P> {
     /// Builds the shared loop from the page's started host and browser parts
-    /// (temper/docs/design/client/web/README.md, 2.1).
+    /// (temper/docs/design/client/web/shell.md, 1).
     #[expect(
         clippy::too_many_arguments,
         reason = "the page supplies the host, DOM and platform parts of the shared loop"
@@ -338,6 +338,22 @@ impl<P: ShellPlatform> Shell<P> {
         let shown = self.carry(inbox, duties, read_on, read_exchange);
         navigates.then_some(shown)
     }
+    /// The worker page draws only when this view or its time words need a build.
+    pub fn needs_draw(&self) -> bool {
+        self.host.needs_draw()
+    }
+    /// Keep the non-drawing duties of a turn that carried reports for an unchanged view.
+    pub fn finish_unchanged(&mut self, new_page: bool, now: skein_lib::Time) {
+        if !reload::page(&self.host) {
+            // A navigation can fold disclosures even when it needs no patches.
+            self.dom.apply(&[]);
+            self.finish(&[], new_page, now);
+        }
+    }
+    /// Keep the deadline on frame-only turns, which carry no shell reports.
+    pub fn retime(&mut self, now: skein_lib::Time) {
+        self.platform.timer(&mut self.timer, self.host.deadline(), now);
+    }
     pub fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
         if reload::page(&self.host) {
             return;
@@ -400,7 +416,7 @@ impl<P: ShellPlatform> Shell<P> {
             push::carry(Rc::clone(&self.push_inbox), *duty);
         }
         // Keep the person's gesture: tabs precede transport in this turn
-        // (skein/docs/design/ui/web/README.md, section 9).
+        // (skein/docs/design/ui/web/effects.md, section 2).
         for tab in &duties.tab {
             match tab {
                 host::TabAct::Open { words } => {
@@ -419,7 +435,7 @@ impl<P: ShellPlatform> Shell<P> {
                 self.screen.leave();
             }
         }
-        // Keep the person's gesture (skein/docs/design/ui/web/README.md, section 9).
+        // Keep the person's gesture (skein/docs/design/ui/web/effects.md, section 2).
         if let Some((token, words)) = &duties.copy {
             self.clipboard.write(*token, words);
         }

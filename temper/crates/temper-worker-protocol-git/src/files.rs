@@ -1,38 +1,48 @@
-//! Kernel steps beneath the worker's root, with one submission per machine (protocol/git.md, 4.1).
+//! Kernel steps beneath the worker's root, with one submission per machine (protocol/git-operations.md, 1.1).
 use crate::{Limits, Settings, invocation, output::Markers, sequence::Next};
 use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use skein_lib::{Decimal, List, Token, bytes};
 use temper_worker_domain_checkout::git;
 mod index;
+mod kept;
 mod objects;
 mod reds;
 mod results;
+mod sweep;
 mod view;
 use objects::{Alternates, Look, Make, Store};
+pub(crate) use sweep::SetAside;
+use sweep::Sweep;
 
 #[derive(Debug)]
 pub(crate) struct Directories {
     pub keep: bool,
+    pub kept: Option<Fd>,
+    pub scanning: Option<Fd>,
+    pub mark_file: Option<Fd>,
+    pub marks: List<git::Kept>,
     pub trash: Option<Fd>,
     pub workspaces: Option<Fd>,
     pub gitdirs: Option<Fd>,
     pub stores: Option<Fd>,
     pub making: Option<Fd>,
     pub serial: u64,
-    pub failures: u64,
 }
 impl Directories {
     pub fn new(serial: u64) -> Directories {
         Directories {
             keep: false,
+            kept: None,
+            scanning: None,
+            mark_file: None,
+            marks: List::uncapped(),
             trash: None,
             workspaces: None,
             gitdirs: None,
             stores: None,
             making: None,
             serial,
-            failures: 0,
         }
     }
     fn rename(&mut self, from_dir: Fd, from: Box<[u8]>) -> Op {
@@ -52,7 +62,9 @@ pub(crate) struct Task {
 pub(crate) enum Phase {
     Reds(reds::Files),
     Results(results::File),
-    Layout(Layout),
+    Layout(Layout, Option<kept::Layout>),
+    KeptLayout(kept::Layout),
+    Keep(kept::File),
     Make(Make),
     Look(Look),
     Store(Store),
@@ -67,8 +79,6 @@ pub(crate) enum Phase {
 pub(crate) enum Layout {
     Trash,
     OpenTrash,
-    Workspaces,
-    Gitdirs,
     NewGitdirs,
     OpenGitdirs,
     Home,
@@ -95,35 +105,12 @@ pub(crate) struct Scan {
     next: invocation::Command,
 }
 #[derive(Debug)]
-pub(crate) struct Sweep {
-    phase: SweepPhase,
-    fd: Option<Fd>,
-    parent: Box<[u8]>,
-    child: Box<[u8]>,
-    failed: bool,
-}
-#[derive(Clone, Copy, Debug)]
-enum SweepPhase {
-    OpenTrash,
-    ListTrash,
-    CloseTrash,
-    Remove,
-    OpenParent,
-    ListParent,
-    CloseParent,
-    Child,
-    Move,
-    Directory,
-    Restart,
-    End,
-}
-#[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "bounded domain terminal is passed inline")]
-pub(crate) enum Action {
+pub enum Action {
     Run(Op),
     Layout(Result<(), Error>),
     Operation(Next),
-    Swept(bool),
+    Swept { changed: bool, set_aside: bool, refused_removal: bool },
     Closed,
 }
 fn open(root: Fd, path: Box<[u8]>, how: OpenHow) -> Op {
@@ -160,8 +147,15 @@ impl Task {
     pub fn results(directory: Box<[u8]>) -> Task {
         Task { word: Some(b"results"), pending: Token::new(0), phase: Phase::Results(results::File::new(directory)) }
     }
-    pub fn layout() -> Task {
-        Task { word: None, pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
+    pub fn layout(limits: temper_worker_domain_checkout::Limits) -> Task {
+        Task {
+            word: None,
+            pending: Token::new(0),
+            phase: Phase::Layout(Layout::Trash, Some(kept::Layout::new(limits))),
+        }
+    }
+    pub fn keep(workspace: Token, mark: Option<&git::Kept>) -> Task {
+        Task { word: Some(b"keep"), pending: Token::new(0), phase: Phase::Keep(kept::File::new(workspace, mark)) }
     }
     pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
         Task { word: None, pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
@@ -229,16 +223,25 @@ impl Task {
         Task { word, pending: Token::new(0), phase: Phase::Index(index::File::remove(directory, next)) }
     }
     pub fn sweep() -> Task {
-        Task {
-            word: None,
-            pending: Token::new(0),
-            phase: Phase::Sweep(Sweep {
-                phase: SweepPhase::OpenTrash,
-                fd: None,
-                parent: Box::from(&b""[..]),
-                child: Box::from(&b""[..]),
-                failed: false,
-            }),
+        Task { word: None, pending: Token::new(0), phase: Phase::Sweep(Sweep::new()) }
+    }
+    /// Each sweep completion can set at most one path aside.
+    pub fn take_set_aside(&mut self) -> Option<SetAside> {
+        match &mut self.phase {
+            Phase::Sweep(sweep) => sweep.take_set_aside(),
+            Phase::Reds(_)
+            | Phase::Results(_)
+            | Phase::Layout(_, _)
+            | Phase::KeptLayout(_)
+            | Phase::Keep(_)
+            | Phase::Make(_)
+            | Phase::Look(_)
+            | Phase::Store(_)
+            | Phase::Alternates(_)
+            | Phase::View(_)
+            | Phase::Scan(_)
+            | Phase::Index(_)
+            | Phase::Closing => None,
         }
     }
     pub fn closing() -> Task {
@@ -248,7 +251,9 @@ impl Task {
         match &mut self.phase {
             Phase::Reds(files) => files.first(settings),
             Phase::Results(file) => file.first(settings),
-            Phase::Layout(_) => Action::Run(mkdir(settings.root, b"trash")),
+            Phase::Layout(_, _) => Action::Run(mkdir(settings.root, b"trash")),
+            Phase::KeptLayout(layout) => layout.first(dirs, settings),
+            Phase::Keep(file) => file.first(dirs),
             Phase::Make(make) => make.first(dirs),
             Phase::Look(look) => look.first(settings),
             Phase::Store(store) => store.first(dirs),
@@ -310,10 +315,29 @@ impl Task {
         match &mut self.phase {
             Phase::Reds(files) => files.complete(complete.result, settings, stop),
             Phase::Results(file) => file.complete(complete, settings, stop),
-            Phase::Layout(stage) => {
+            Phase::Layout(stage, kept) => {
                 let action = layout(stage, complete.result, dirs, settings);
+                if stop {
+                    return Action::Layout(Err(Error::Cancelled));
+                }
+                match action {
+                    Action::Layout(Ok(())) => {
+                        let kept = kept.take().expect("layout continuation");
+                        self.phase = Phase::KeptLayout(kept);
+                        self.first(dirs, settings, limits)
+                    }
+                    other @ (Action::Run(_)
+                    | Action::Layout(Err(_))
+                    | Action::Operation(_)
+                    | Action::Swept { .. }
+                    | Action::Closed) => other,
+                }
+            }
+            Phase::KeptLayout(layout) => {
+                let action = layout.complete(complete, dirs, settings);
                 if stop { Action::Layout(Err(Error::Cancelled)) } else { action }
             }
+            Phase::Keep(file) => file.complete(complete.result, dirs, stop),
             Phase::Make(make) => make.complete(complete.result, dirs, settings, stop),
             Phase::Look(look) => look.complete(complete.result, stop),
             Phase::Store(store) => store.complete(complete.result, dirs, stop),
@@ -327,6 +351,15 @@ impl Task {
     }
 }
 fn closing(dirs: &mut Directories) -> Action {
+    if let Some(fd) = dirs.mark_file.take() {
+        return close(fd);
+    }
+    if let Some(fd) = dirs.scanning.take() {
+        return close(fd);
+    }
+    if let Some(fd) = dirs.kept.take() {
+        return close(fd);
+    }
     if let Some(fd) = dirs.making.take() {
         return close(fd);
     }
@@ -351,9 +384,8 @@ fn layout(
     settings: &Settings,
 ) -> Action {
     let allowed = match stage {
-        Layout::Trash | Layout::NewStores => result == Err(Error::Exists),
-        Layout::Workspaces | Layout::Gitdirs | Layout::Making | Layout::Home => result == Err(Error::NotFound),
-        Layout::NewWorkspaces | Layout::NewGitdirs => dirs.keep && result == Err(Error::Exists),
+        Layout::Trash | Layout::NewStores | Layout::NewWorkspaces | Layout::NewGitdirs => result == Err(Error::Exists),
+        Layout::Making | Layout::Home => result == Err(Error::NotFound),
         Layout::OpenTrash
         | Layout::NewMaking
         | Layout::OpenMaking
@@ -371,14 +403,8 @@ fn layout(
         Layout::Trash => (Layout::OpenTrash, open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow)),
         Layout::OpenTrash => {
             dirs.trash = Some(fd(result).expect("successful open"));
-            if dirs.keep {
-                (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..])))
-            } else {
-                (Layout::Workspaces, dirs.rename(settings.root, Box::from(&b"workspaces"[..])))
-            }
+            (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..])))
         }
-        Layout::Workspaces => (Layout::Gitdirs, dirs.rename(settings.root, Box::from(&b"gitdirs"[..]))),
-        Layout::Gitdirs => (Layout::Making, dirs.rename(settings.root, Box::from(&b"making"[..]))),
         Layout::Making => (Layout::Home, dirs.rename(settings.root, Box::from(&b"home"[..]))),
         Layout::Home => (Layout::NewWorkspaces, mkdir(settings.root, b"workspaces")),
         Layout::NewWorkspaces => (Layout::NewGitdirs, mkdir(settings.root, b"gitdirs")),
@@ -518,6 +544,7 @@ fn read_buffer(op: Op) -> Box<[u8]> {
         | Op::Cancel { .. } => unreachable!("results read completion"),
     }
 }
+
 fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {
     let n = count(complete.result)?;
     if n == 0 {
@@ -557,157 +584,5 @@ fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {
         | Op::PipeRead { .. }
         | Op::PipeWrite { .. }
         | Op::Cancel { .. } => unreachable!("sweep listing"),
-    }
-}
-impl Sweep {
-    fn list(&self, limits: &Limits) -> Action {
-        let mut entries = List::with_capacity(limits.sweep_entries);
-        for _ in 0..limits.sweep_entries {
-            entries.push(kernel::Entry::BLANK).expect("page capacity");
-        }
-        let entries = entries.into_boxed();
-        Action::Run(Op::List {
-            fd: self.fd.expect("directory open"),
-            entries,
-            names: bytes::zeroed(usize::try_from(limits.sweep_bytes).expect("page size fits")),
-        })
-    }
-    fn end(&mut self, failed: bool) -> Action {
-        self.failed = self.failed || failed;
-        if let Some(fd) = self.fd.take() {
-            self.phase = SweepPhase::End;
-            return close(fd);
-        }
-        Action::Swept(self.failed)
-    }
-    fn complete(
-        &mut self,
-        complete: kernel::Complete,
-        dirs: &mut Directories,
-        settings: &Settings,
-        limits: &Limits,
-        stop: bool,
-    ) -> Action {
-        match self.phase {
-            SweepPhase::OpenTrash => self.opened(complete.result, limits, stop, false),
-            SweepPhase::OpenParent => self.opened(complete.result, limits, stop, true),
-            SweepPhase::ListTrash => self.listed(complete, false),
-            SweepPhase::ListParent => self.listed(complete, true),
-            SweepPhase::CloseTrash => {
-                if complete.result.is_err() {
-                    return self.end(true);
-                }
-                if stop || self.parent.is_empty() {
-                    return self.end(false);
-                }
-                self.phase = SweepPhase::Remove;
-                Action::Run(Op::Remove {
-                    dir: dirs.trash.expect("layout"),
-                    name: self.parent.clone(),
-                    directory: false,
-                })
-            }
-            SweepPhase::CloseParent => {
-                if complete.result.is_err() {
-                    return self.end(true);
-                }
-                if stop {
-                    return self.end(false);
-                }
-                if self.child.is_empty() {
-                    self.phase = SweepPhase::Directory;
-                    Action::Run(Op::Remove {
-                        dir: dirs.trash.expect("layout"),
-                        name: self.parent.clone(),
-                        directory: true,
-                    })
-                } else {
-                    self.phase = SweepPhase::OpenParent;
-                    Action::Run(open(
-                        settings.root,
-                        invocation::joined(&[b"trash/", &self.parent]),
-                        OpenHow::DirectoryNoFollow,
-                    ))
-                }
-            }
-            SweepPhase::Remove => {
-                if stop {
-                    return self.end(complete.result.is_err());
-                }
-                if complete.result == Err(Error::IsADirectory) {
-                    self.phase = SweepPhase::OpenParent;
-                    self.child = Box::from(&b""[..]);
-                    return Action::Run(open(
-                        settings.root,
-                        invocation::joined(&[b"trash/", &self.parent]),
-                        OpenHow::DirectoryNoFollow,
-                    ));
-                }
-                self.restart(complete.result, settings)
-            }
-            SweepPhase::Child => {
-                if complete.result == Err(Error::IsADirectory) && !stop {
-                    self.phase = SweepPhase::Move;
-                    return Action::Run(dirs.rename(self.fd.expect("parent open"), self.child.clone()));
-                }
-                self.after_child(complete.result, stop)
-            }
-            SweepPhase::Move => self.after_child(complete.result, stop),
-            SweepPhase::Directory | SweepPhase::Restart => {
-                if stop {
-                    self.end(complete.result.is_err())
-                } else {
-                    self.restart(complete.result, settings)
-                }
-            }
-            SweepPhase::End => self.end(complete.result.is_err()),
-        }
-    }
-    fn opened(&mut self, result: Result<kernel::Done, Error>, limits: &Limits, stop: bool, parent: bool) -> Action {
-        match fd(result) {
-            Ok(fd) => self.fd = Some(fd),
-            Err(_) => return self.end(true),
-        }
-        if stop {
-            return self.end(false);
-        }
-        if parent && !self.child.is_empty() {
-            self.phase = SweepPhase::Child;
-            return Action::Run(Op::Remove {
-                dir: self.fd.expect("parent open"),
-                name: self.child.clone(),
-                directory: false,
-            });
-        }
-        self.phase = if parent { SweepPhase::ListParent } else { SweepPhase::ListTrash };
-        self.list(limits)
-    }
-    fn listed(&mut self, complete: kernel::Complete, parent: bool) -> Action {
-        match page(complete) {
-            Ok(name) => {
-                if parent {
-                    self.child = name;
-                } else {
-                    self.parent = name;
-                }
-            }
-            Err(_) => return self.end(true),
-        }
-        self.phase = if parent { SweepPhase::CloseParent } else { SweepPhase::CloseTrash };
-        close(self.fd.take().expect("listed directory"))
-    }
-    fn after_child(&mut self, result: Result<kernel::Done, Error>, stop: bool) -> Action {
-        if result.is_err() || stop {
-            return self.end(result.is_err());
-        }
-        self.phase = SweepPhase::Restart;
-        close(self.fd.take().expect("parent open"))
-    }
-    fn restart(&mut self, result: Result<kernel::Done, Error>, settings: &Settings) -> Action {
-        if result.is_err() {
-            return self.end(true);
-        }
-        self.phase = SweepPhase::OpenTrash;
-        Action::Run(open(settings.root, Box::from(&b"trash"[..]), OpenHow::DirectoryNoFollow))
     }
 }

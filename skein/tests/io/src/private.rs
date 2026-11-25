@@ -1,4 +1,4 @@
-//! Private-root owners over the shared world (runtime/io/files.md, section 3).
+//! Private-root owners over the shared world (runtime/io/files.md, section 11).
 //! The scenario observes metadata, reads and terminals; it never interprets secrets.
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
@@ -17,6 +17,7 @@ const LOAD: Token = Token::new(3);
 const CLOSE_PRIVATE: Token = Token::new(4);
 const CLOSE_ROOT: Token = Token::new(5);
 const BYTES: &[u8] = b"opaque";
+const OLD: &[u8] = b"old";
 
 /// The planted metadata or whole replacement this owner exercises.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,6 +31,7 @@ pub enum Story {
     FileMode,
     FileOwner,
     FileLink,
+    FileDanglingLink,
     FileKind,
     FileLinks,
     RootDeniedSafe,
@@ -138,7 +140,7 @@ impl Owner {
             Story::RootOwner | Story::FileOwner => {
                 Some(Unsafe::Owner { found: effective_user + 1, expected: effective_user })
             }
-            Story::RootLink | Story::FileLink => Some(Unsafe::Link),
+            Story::RootLink | Story::FileLink | Story::FileDanglingLink => Some(Unsafe::Link),
             Story::RootKind => Some(Unsafe::Kind(Kind::File)),
             Story::FileMode => Some(Unsafe::Mode(0o044)),
             Story::FileKind => Some(Unsafe::Kind(Kind::Directory)),
@@ -259,7 +261,10 @@ impl FileSystem {
             Story::RootOwner => vec![Item::directory(b"secret").mode(0o700).owner(effective_user + 1)],
             Story::RootLink => vec![Item::directory(b"target").mode(0o700), Item::link(b"secret", b"target")],
             Story::RootKind => vec![Item::file(b"secret", BYTES).mode(0o600)],
-            Story::Replace | Story::FileMode => {
+            Story::Replace => {
+                vec![Item::directory(b"secret").mode(0o700), Item::file(b"secret/record", OLD)]
+            }
+            Story::FileMode => {
                 vec![Item::directory(b"secret").mode(0o700), Item::file(b"secret/record", BYTES)]
             }
             Story::FileOwner => vec![
@@ -271,6 +276,9 @@ impl FileSystem {
                 Item::file(b"secret/target", BYTES).mode(0o600),
                 Item::link(b"secret/record", b"target"),
             ],
+            Story::FileDanglingLink => {
+                vec![Item::directory(b"secret").mode(0o700), Item::link(b"secret/record", b"missing")]
+            }
             Story::FileKind => {
                 vec![Item::directory(b"secret").mode(0o700), Item::directory(b"secret/record").mode(0o700)]
             }

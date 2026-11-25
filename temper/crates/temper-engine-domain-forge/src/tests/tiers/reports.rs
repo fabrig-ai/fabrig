@@ -1,4 +1,4 @@
-//! Failed reports and partial workflows (temper/docs/design/domain/after-landing.md, 4–5.2).
+//! Failed reports and partial workflows (temper/docs/design/domain/after-landing-runs.md, 3, and temper/docs/design/domain/after-landing.md, 5.2).
 use super::*;
 const FAILURES: &[u8] = b"suite.first\nsuite.second\n";
 const PROBE_OPEN: u64 = 301;
@@ -99,7 +99,10 @@ fn failed_rerun() -> Domain {
     d
 }
 fn report_error(d: &mut Domain, error: api::Error) -> Box<[Request]> {
-    d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
+    d.tier_ops
+        .reads
+        .insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false, job_state: false })
+        .unwrap();
     let mut out = Queue::uncapped();
     crate::tiers::answered(d, &env(), READ, Err(error), &mut out);
     collect(out)
@@ -155,7 +158,8 @@ fn a_missing_rerun_report_records_why_before_retrying() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
+    fresh_reads(&mut cold, BASE);
     let words = cold.tier_execution_words(TIER_TASK).unwrap();
     assert!(skein_lib::bytes::find(&words, reason).is_some());
     send(&mut cold, DISPATCH + 2);
@@ -414,7 +418,8 @@ fn whole_names_survive_a_probe_and_restart() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(row(&d).clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
+    fresh_reads(&mut cold, BASE);
     assert_eq!(row(&cold).many, names);
     send(&mut cold, PROBE_OPEN);
     send(&mut cold, PROBE_DISPATCH);
@@ -464,7 +469,8 @@ fn a_failed_part_reads_its_report_after_restart() {
     let mut cold = restoring(None);
     outputs(&mut cold, Event::Restore { record: Stored::Tier(row(&d).clone()) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut cold, Event::ReadAfresh);
+    outputs(&mut cold, Event::CatchUp);
+    fresh_reads(&mut cold, BASE);
     report(&mut cold, FAILURES, false);
     assert_eq!(row(&cold).record.run.as_ref().unwrap().part, p::Part::Rerun { failed: tests() });
 }
@@ -483,7 +489,8 @@ fn selected_rerun_and_probe_flights_survive_restart() {
         let mut cold = restoring(None);
         outputs(&mut cold, Event::Restore { record: Stored::Tier(saved.clone()) });
         outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut cold, Event::ReadAfresh);
+        outputs(&mut cold, Event::CatchUp);
+        fresh_reads(&mut cold, BASE);
         let follow = cold.tier_ops.follows.get(&(REPO, TIER.into())).unwrap();
         assert_eq!(follow.commit, if probe { NEXT_TIP } else { LAST_TIP });
         assert_eq!(follow.inputs[2].value.as_ref(), FAILURES);

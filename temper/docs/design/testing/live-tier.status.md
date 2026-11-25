@@ -1,12 +1,10 @@
 # live-tier: status
 
-2026-11-14. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+2026-11-23. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
 
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
-  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
   the whole document: the ladder's live stories but B0's: `scripts/proof-live.sh` takes
   `rung-b0` alone, on ChatGPT with an owned Forgejo, and
@@ -38,7 +36,7 @@
   launcher's return on a live store, and whether a live store's box,
   with its owned Forgejo, answers it within its 240 s is unknown.
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
-- **Departs:**  the extra template-work golden row remains `checks.status.md`, 5.1.
+- **Departs:**  the extra template-work golden row remains `checks-stage-one.status.md`, 1.1.
   the whole document: `scripts/proof-live.sh`'s `TEMPER_TEST_LIVE_STORE` and
   `TEMPER_TEST_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
   `proof-live-github-managed.sh`'s target and evidence default under
@@ -75,7 +73,7 @@
   was lost still owes the record; the launcher returns it once the test
   process has ended, starting a box of its own where none is up, where
   the draft has a guard's `Drop` run with the box still up, because
-  nothing catches a panic (`../draft/panics.md`, 5) and a panic through
+  nothing catches a panic (`../draft/archive/panics.md`, 5) and a panic through
   a sitting can end its box; and a `stat` of the record's path settles
   it, where the draft has an explicit export, because a record back at
   its path owes nothing whichever return brought it.
@@ -99,3 +97,9 @@
   teardown's, its Musts and secrets scan panic, and
   `scripts/proof-live-github.sh` stops no runner on a signal.
   [in flight: change 2875]
+  the whole document: the key landing story removes `anthropic`'s `keep`
+  and `drop` from `providers.setting` by hand, which a start overwrites
+  with the store's provider 2, so its key's account may read Anthropic's
+  list; its fresh sitting's model item was refused out of shape, and no
+  focused test builds the kit's settings files from the stock and has the
+  settings admit them. [in flight: change 15450]

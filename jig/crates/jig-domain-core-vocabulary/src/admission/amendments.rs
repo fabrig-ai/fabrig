@@ -1,4 +1,4 @@
-//! Task amendment admission outcomes (jig/docs/design/domain/engine/README.md, 4.4).
+//! Task amendment admission outcomes (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;

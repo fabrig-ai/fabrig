@@ -1033,7 +1033,7 @@ fn diagnostic_answer(
     })
 }
 
-/// temper/docs/design/domain/worker/README.md, 4.3: a failed answer reaches the operator once.
+/// temper/docs/design/domain/worker/hosted-runs.md, 1.3: a failed answer reaches the operator once.
 #[test]
 fn failed_answer_detail_reaches_operator_once() {
     for full in [false, true] {
@@ -1050,7 +1050,7 @@ fn failed_answer_detail_reaches_operator_once() {
     }
 }
 
-/// temper/docs/design/domain/worker/README.md, 4.3: refusal evidence survives pressure, once.
+/// temper/docs/design/domain/worker/hosted-runs.md, 1.3: refusal evidence survives pressure, once.
 #[test]
 fn refused_answer_reason_reaches_operator_once() {
     for reason in [
@@ -1277,25 +1277,31 @@ fn check_answer_diagnostic(ending: host::Ending, spent: u64, full: bool) {
 }
 
 #[test]
-fn opening_agreements_and_each_refusals_text_reach_shell_notes() {
+fn opening_layouts_and_each_refusals_text_reach_shell_notes() {
     use jig_protocol_engine_workers::host::Output;
     let mut service = fixtures::started();
     let workers = &mut service.engine.as_mut().unwrap().workers;
     let worker: Box<[u8]> = b"worker-a".as_slice().into();
-    let wires =
-        skein_lib::List::from_boxed(Box::new([jig_protocol_worker_wire::Agreed { name: "example-wire", version: 7 }]));
+    let converted = skein_lib::List::from_boxed(Box::new([Box::from("smith-charter")]));
     let mut events = skein_lib::Queue::uncapped();
     let statement = jig_protocol_engine_workers::Statement {
-        wires: skein_lib::List::from_boxed(Box::new([jig_protocol_engine_workers::Stated {
-            name: "example-wire".into(),
-            lowest: 7,
-            layouts: skein_lib::List::from_boxed(Box::new([[5; 32]])),
-        }])),
+        wires: skein_lib::List::from_boxed(Box::new([
+            jig_protocol_engine_workers::Stated {
+                name: "example-wire".into(),
+                layout: [4; 32],
+                text: b"extra".as_slice().into(),
+            },
+            jig_protocol_engine_workers::Stated {
+                name: "smith-charter".into(),
+                layout: [5; 32],
+                text: b"peer text".as_slice().into(),
+            },
+        ])),
         output: 4096,
         terms: skein_lib::List::from_boxed(Box::new([skein_channel::Term { kind: 12, largest: 34 }])),
     };
-    workers.route(Output::Opened { worker: worker.clone(), wires: wires.clone(), statement }, &mut events);
-    assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), wires }));
+    workers.route(Output::Opened { worker: worker.clone(), converted: converted.clone(), statement }, &mut events);
+    assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), converted }));
     let Some(root::Event::Worker(root::WorkerInput::Opened { worker: name, statement })) = events.pop() else {
         panic!("accepted opening reaches the root");
     };
@@ -1303,11 +1309,14 @@ fn opening_agreements_and_each_refusals_text_reach_shell_notes() {
     assert_eq!(
         statement,
         root::WorkerStatement {
-            wires: Box::new([root::OpenedWire {
-                name: "example-wire".into(),
-                lowest: 7,
-                layouts: Box::new([[5; 32]])
-            }]),
+            wires: Box::new([
+                root::OpenedWire { name: "example-wire".into(), layout: [4; 32], text: b"extra".as_slice().into() },
+                root::OpenedWire {
+                    name: "smith-charter".into(),
+                    layout: [5; 32],
+                    text: b"peer text".as_slice().into()
+                },
+            ]),
             output: 4096,
             terms: Box::new([root::OpenedTerm { kind: 12, largest: 34 }]),
         }
@@ -1369,18 +1378,40 @@ fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
 #[test]
 fn each_unsent_record_reaches_the_operator_once() {
     use jig_protocol_engine_workers::{Bound, Unsent, host::Output};
+    use jig_protocol_worker_wire::{
+        Kind,
+        layouts::{Cause, Unconverted},
+    };
     let mut service = fixtures::started();
     let workers = &mut service.engine.as_mut().unwrap().workers;
     let mut events = skein_lib::Queue::uncapped();
     let worker: Box<[u8]> = b"worker-a".as_slice().into();
     let channel = Token::new(7);
-    let unsent =
-        Unsent { kind: jig_protocol_worker_wire::Kind::Assignment, bytes: 1_300_000, bound: Bound::Room(1_048_576) };
-    workers.route(Output::Unsent { worker: worker.clone(), channel, unsent }, &mut events);
-    assert_eq!(workers.notes.len(), 1, "one unsent record produces one operator note");
-    assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerUnsent { worker, channel, unsent }));
-    assert!(workers.notes.is_empty());
-    assert!(events.is_empty(), "an operator note is outside the domain");
+    let problem = Unconverted {
+        wire: "temper-worker-wire".into(),
+        declaration: "Identity".into(),
+        part: "email".into(),
+        cause: Cause::Field,
+    };
+    for (kind, bound, mismatch) in [
+        (Kind::Assignment, Bound::Room(1_048_576), false),
+        (Kind::Assignment, Bound::Translation(problem.clone()), false),
+        (Kind::Grant, Bound::Translation(problem), true),
+    ] {
+        let unsent = Unsent { kind, bytes: 1_300_000, bound };
+        workers.route(Output::Unsent { worker: worker.clone(), channel, unsent: unsent.clone() }, &mut events);
+        assert_eq!(workers.notes.len(), 1, "one unsent record produces one operator note");
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerUnsent { worker: worker.clone(), channel, unsent }));
+        if mismatch {
+            let Some(root::Event::Worker(root::WorkerInput::Link { channel: found, link: root::Link::Mismatch })) =
+                events.pop()
+            else {
+                panic!("running refusal mismatches the channel")
+            };
+            assert_eq!(found, channel);
+        }
+        assert_eq!(events.len(), 0, "only a running record's layout refusal mismatches the channel");
+    }
 }
 
 fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Output {

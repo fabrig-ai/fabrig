@@ -1,4 +1,4 @@
-//! Tests local watermark admission and backlog accounting (protocol/limits.md, section 3.8).
+//! Tests local watermark admission and backlog accounting (protocol/limits-derivation.md, section 1.8).
 
 use skein_lib::{Time, Wall};
 use smith_local_domain as local;

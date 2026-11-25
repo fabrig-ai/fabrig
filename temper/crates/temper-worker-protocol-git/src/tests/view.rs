@@ -1,4 +1,4 @@
-//! Scripted file steps of the disposable view (protocol/git.md, 4.13).
+//! Scripted file steps of the disposable view (protocol/git-operations.md, 1.13).
 use super::fixtures::{self, Started};
 use crate::{Request, invocation};
 use alloc::boxed::Box;
@@ -126,7 +126,7 @@ fn checkout_copies_in_chunks_by_rename_and_removes_absent_merge_state() {
     invocation(&mut s, b"", 0);
     assert_eq!(s.done(), None, "the terminal waits for its view");
     let head = [b'h'; 150];
-    let ops = copy(&mut s, &[(b"HEAD", &head)], true);
+    let ops = copy(&mut s, &[(b"HEAD", &head), (b"refs/temper/counts", b"counts\n")], true);
     assert_eq!(
         *ops.get(0).expect("first step"),
         Op::Open {
@@ -163,6 +163,17 @@ fn checkout_copies_in_chunks_by_rename_and_removes_absent_merge_state() {
     contains(&ops, Op::Remove { dir: RUN, name: b"MERGE_HEAD".as_slice().into(), directory: false });
     contains(&ops, Op::MakeDirectory { dir: RUN, name: b"refs".as_slice().into(), mode: 0o700 });
     contains(&ops, Op::MakeDirectory { dir: PARENT, name: b"temper".as_slice().into(), mode: 0o700 });
+    contains(&ops, Op::Write { fd: TARGET, bytes: b"counts\n".as_slice().into(), from: 0, at: 0 });
+    contains(
+        &ops,
+        Op::Rename {
+            from_dir: DIRECTORY,
+            from: b"temper-view.tmp".as_slice().into(),
+            to_dir: DIRECTORY,
+            to: b"counts".as_slice().into(),
+            no_replace: false,
+        },
+    );
     contains(&ops, Op::MakeDirectory { dir: PARENT, name: b"info".as_slice().into(), mode: 0o700 });
     contains(
         &ops,
@@ -191,6 +202,7 @@ fn a_conflicted_merge_copies_its_unmerged_index_and_merge_files() {
     let mut s = Started::new();
     request(&mut s, git::Op::Merge { at: at(), theirs: fixtures::COMMIT, identity: 1, account: None });
     invocation(&mut s, b"", 1);
+    invocation(&mut s, b"", 0);
     invocation(&mut s, b"conflict\0", 0);
     let ops = copy(
         &mut s,

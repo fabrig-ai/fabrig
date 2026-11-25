@@ -1,4 +1,4 @@
-//! A change's room and task-owned accounts (domain/forge/change/README.md, 7).
+//! A change's room and task-owned accounts (domain/forge/change/records.md, 1).
 #[cfg(test)]
 mod tests;
 use super::{ChangeRow, Domain, Env, Key, Limits, List, Queue, Request, change, connection_wait, emit};
@@ -90,7 +90,7 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     drop_erased(d, task, out);
 }
 
-// Task erasure needs no full table (domain/forge/change/README.md, 7).
+// Task erasure needs no full table (domain/forge/change/records.md, 1).
 pub(super) fn drop_erased(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     if !d.droppable(task) && !d.droppable_last(task) {
         return;
@@ -98,7 +98,7 @@ pub(super) fn drop_erased(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     drop_released(d, task, true, out);
 }
 
-/// Repository release drops live and ended changes alike (adoption.md, 1).
+/// Repository release drops live and ended changes alike (domain/forge/adoption-connection.md, 1).
 pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Queue<Request>) {
     let Some(row) = d.changes.remove(&task) else { return };
     super::reds::erase_passes(d, task, out);
@@ -110,6 +110,7 @@ pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Qu
     }
     d.forming_holds.remove(&task);
     d.stall_words.remove(&task);
+    d.merge_withheld.remove(&task);
     d.panel_ci.remove(&task);
     d.settling.remove(&task);
     d.read_sessions.remove(&task);

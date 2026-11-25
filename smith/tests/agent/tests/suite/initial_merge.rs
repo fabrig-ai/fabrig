@@ -1,7 +1,7 @@
 //! A shared fake-git merge precedes Start. The parent refuses the
 //! unresolved tree, then commits the LLM's checked resolution with both
 //! original parents. No marker fixture or anticipated outcome stands in for git.
-//! Contract: smith/docs/design/domain/run.md, sections 3.2 and 8.1–8.4 and 12; skein/docs/foundation/testing-strategy.md, section 4.3.
+//! Contract: smith/docs/design/domain/run-start.md, section 1.2, and smith/docs/design/domain/run-delivery.md, sections 1.1–1.4, and smith/docs/design/domain/run.md, section 12; skein/docs/foundation/testing-strategy.md, section 4.3.
 
 use std::collections::BTreeMap;
 
@@ -189,6 +189,7 @@ fn setup() -> Fixture {
     let workspace = run::Workspace {
         directories: Box::new([
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: roots[0],
@@ -197,6 +198,7 @@ fn setup() -> Fixture {
                 conflicts: seen_conflicts.iter().map(|path| path.as_slice().into()).collect(),
             },
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"archive".as_slice().into(),
                 root: roots[1],
@@ -205,6 +207,7 @@ fn setup() -> Fixture {
                 conflicts: Box::new([b"other-conflict.txt".as_slice().into()]),
             },
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"notes".as_slice().into(),
                 root: roots[2],
@@ -213,6 +216,7 @@ fn setup() -> Fixture {
                 conflicts: Box::new([]),
             },
             run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"reference".as_slice().into(),
                 root: roots[3],

@@ -1,31 +1,51 @@
-//! Generated records and pinned constructs follow skein/docs/design/data/codec/README.md, section 6.
+//! Generated records follow skein/docs/design/data/codec/golden.md, section 1.
 
 use std::{fs, path::Path};
 
-use skein_codegen::{generate, unpinned, values};
+use skein_codec::bounds::Declaration;
+use skein_codegen::{bounds_text, generate, translate, values};
+use smith_channel::v14 as channel;
+use smith_charter::v5 as charter;
+use smith_local_protocol::local_store_v1 as local_store;
+use smith_transcript::v8 as transcript;
 
 const REGENERATE: &str =
     "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";
 
 #[test]
-fn charter_schema_matches_generated_code_and_pinned_constructs() {
+fn charter_schema_matches_generated_code() {
     assert_family("charter", 5, smith_charter::SCHEMA);
+    check_bounds("charter", charter::DECLARATIONS, charter::CEILINGS.values().as_slice());
 }
 
 #[test]
-fn transcript_schema_matches_generated_code_and_pinned_constructs() {
-    assert_family("transcript", 7, smith_transcript::SCHEMA);
+fn transcript_schema_matches_generated_code() {
+    assert_family("transcript", 8, smith_transcript::SCHEMA);
+    check_bounds("transcript", transcript::DECLARATIONS, transcript::CEILINGS.values().as_slice());
 }
 
 #[test]
-fn channel_schema_matches_generated_code_and_pinned_constructs() {
+fn channel_schema_matches_generated_code() {
     assert_family("channel", smith_channel::wire::VERSION, smith_channel::CHANNEL_SCHEMA);
+    check_bounds("channel", channel::DECLARATIONS, channel::CEILINGS.values().as_slice());
+}
+
+#[test]
+fn channel_translations_match_their_maps() {
+    let schema = &values(smith_channel::CHANNEL_SCHEMA).schema;
+    let crates = skein_scratch::paths::tree().join("crates");
+    for name in ["smith-host-protocol", "smith-protocol-translate", "smith-protocol-channel", "smith-agent-shell"] {
+        let root = crates.join(name);
+        let maps = fs::read_to_string(root.join("schema/channel.maps")).expect("read channel maps");
+        let output = translate(schema, &maps).unwrap_or_else(|error| panic!("{name}: {error:?}"));
+        check_artifact(&root.join("src/generated/channel.rs"), output.as_bytes());
+    }
 }
 
 fn assert_family(family: &str, version: u16, source: &'static str) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
     assert_eq!(values(source).schema.version, version, "current family version");
-    check_records(&root, family, family, source);
+    check_records(&root, family, source);
 }
 
 use crate::support::events;
@@ -66,18 +86,41 @@ fn check_event_goldens(
 }
 
 #[test]
-fn local_store_schema_matches_generated_code_and_pinned_constructs() {
+fn local_store_schema_matches_generated_code() {
     let crates = skein_scratch::paths::tree().join("crates");
     let source = smith_local_protocol::SCHEMA;
-    check_records(&crates.join("smith-local-protocol-codec"), "local_store", "local-store", source);
+    check_records(&crates.join("smith-local-protocol-codec"), "local_store", source);
+    check_bounds("local_store", local_store::DECLARATIONS, local_store::CEILINGS.values().as_slice());
 }
 
-fn check_records(root: &Path, file: &str, family: &str, source: &'static str) {
-    let missing = unpinned(source).expect("valid family schema");
-    assert!(missing.is_empty(), "{family} uses unpinned constructs: {missing:?}");
+#[test]
+fn charter_translation_matches_generated_code() {
+    check_translation("charter", smith_charter::SCHEMA);
+}
+
+#[test]
+fn transcript_translation_matches_generated_code() {
+    check_translation("transcript", smith_transcript::SCHEMA);
+}
+
+fn check_translation(file: &str, source: &'static str) {
+    let root = skein_scratch::paths::tree().join("crates/smith-protocol-translate");
+    let maps_path = root.join(format!("schema/{file}.maps"));
+    let maps = fs::read_to_string(&maps_path).expect("translation maps");
+    let code =
+        translate(&values(source).schema, &maps).unwrap_or_else(|error| panic!("{}: {error}", maps_path.display()));
+    check_artifact(&root.join(format!("src/generated/{file}.rs")), code.as_bytes());
+}
+
+fn check_records(root: &Path, file: &str, source: &'static str) {
     let schema = &values(source).schema;
     let output = generate(schema);
     check_artifact(&root.join(format!("src/generated/{file}.rs")), output.records.as_bytes());
+}
+
+fn check_bounds(stem: &str, declarations: &[Declaration], ceilings: &[u32]) {
+    let path = skein_scratch::paths::package().join(format!("bounds/{stem}.bounds"));
+    check_artifact(&path, bounds_text(declarations, ceilings).as_bytes());
 }
 
 fn check_artifact(path: &Path, expected: &[u8]) {

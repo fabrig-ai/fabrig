@@ -6,19 +6,28 @@ use skein_io::{
 };
 use skein_lib::{
     Queue, Token,
-    sha256::Sha256,
     stream::{Down, Read, Up},
 };
 use skein_shell::{Clock, Config, Kernel, Trust, Wait};
 use skein_tls::client as tls;
 use std::fs;
-use std::io::{self, Read as _, Write as _};
+use std::io;
 use std::net::ToSocketAddrs;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
+use std::os::unix::{
+    ffi::OsStrExt,
+    fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+};
+use std::path::Path;
 use temper_fetch::{
     Origin,
     fetch::{self, Event, Failure, Fetch, Request},
 };
+
+mod cache;
+use cache::{Download, NativeCache, WireRequest};
+
+#[cfg(test)]
+mod tests;
 
 const CHUNK: u32 = 16_384;
 const HTTP: http::Limits = http::Limits { request: 16_384, head: 16_384, headers: 64, read: CHUNK, send: CHUNK };
@@ -54,61 +63,58 @@ impl Failed {
 fn file_error(file: &[u8], why: &io::Error) -> Failed {
     Failed::File { file: file.into(), why: why.kind() }
 }
-fn hash(file: &[u8]) -> Result<Option<[u8; 32]>, Failed> {
-    let mut input = match fs::File::open(path(file)) {
-        Ok(file) => file,
-        Err(why) if why.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(why) => return Err(file_error(file, &why)),
-    };
-    let mut hash = Sha256::new();
-    let mut buffer = [0; CHUNK as usize];
-    loop {
-        let count = input.read(&mut buffer).map_err(|why| file_error(file, &why))?;
-        if count == 0 {
-            return Ok(Some(hash.finish()));
-        }
-        hash.update(&buffer[..count]);
-    }
-}
-fn open(part: &[u8]) -> Result<fs::File, Failed> {
-    let path = path(part);
-    let parent = path.parent().expect("cache path has a parent");
-    fs::DirBuilder::new().recursive(true).mode(0o700).create(parent).map_err(|why| file_error(part, &why))?;
-    let file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(0o600)
-        .open(path)
-        .map_err(|why| file_error(part, &why))?;
-    file.set_permissions(fs::Permissions::from_mode(0o600)).map_err(|why| file_error(part, &why))?;
-    Ok(file)
-}
-fn finish(handle: &fs::File, part: &[u8], file: &[u8]) -> Result<(), Failed> {
-    handle.set_permissions(fs::Permissions::from_mode(0o755)).map_err(|why| file_error(part, &why))?;
-    handle.sync_all().map_err(|why| file_error(part, &why))?;
-    fs::rename(path(part), path(file)).map_err(|why| file_error(file, &why))?;
-    fs::File::open(path(file).parent().expect("cache parent"))
-        .and_then(|dir| dir.sync_all())
-        .map_err(|why| file_error(file, &why))
-}
+
 /// Finds Claude Code by size, serializing a missing build's fetch (protocol/setup/owned.md, 6).
 pub fn claude_code(
     limits: &skein_io::Limits,
     trust: &Trust,
-    file: &std::path::Path,
+    file: &Path,
     pin: fetch::Pin,
     bytes: u64,
     out: &mut dyn io::Write,
 ) -> Result<(), Failed> {
-    use std::os::unix::ffi::OsStrExt;
-    let name = file.as_os_str().as_bytes();
-    if claude_present(file, bytes)? {
+    claude_code_with(
+        file,
+        bytes,
+        |file| fs::metadata(file).map(|metadata| (metadata.is_file(), metadata.len())),
+        prepare_claude_cache,
+        lock_claude_cache,
+        |out| run(limits, trust, Fetch::new(Box::new([pin]), bytes), no_extraction, out),
+        out,
+    )
+}
+
+fn claude_code_with<L>(
+    file: &Path,
+    bytes: u64,
+    mut metadata: impl FnMut(&Path) -> io::Result<(bool, u64)>,
+    prepare: impl FnOnce(&Path) -> Result<(), Failed>,
+    lock: impl FnOnce(&Path) -> Result<L, Failed>,
+    download: impl FnOnce(&mut dyn io::Write) -> Result<(), Failed>,
+    out: &mut dyn io::Write,
+) -> Result<(), Failed> {
+    if claude_present(file.as_os_str().as_bytes(), bytes, metadata(file))? {
         return Ok(());
     }
+    prepare(file)?;
+    let _held = lock(file)?;
+    if claude_present(file.as_os_str().as_bytes(), bytes, metadata(file))? {
+        return Ok(());
+    }
+    match out.write_all(b"fetching Claude Code\n") {
+        Ok(()) | Err(_) => {}
+    }
+    download(out)
+}
+
+fn prepare_claude_cache(file: &Path) -> Result<(), Failed> {
+    let name = file.as_os_str().as_bytes();
     let parent = file.parent().expect("cache path has a parent");
     fs::DirBuilder::new().recursive(true).mode(0o700).create(parent).map_err(|why| file_error(name, &why))?;
-    fs::set_permissions(parent, fs::Permissions::from_mode(0o700)).map_err(|why| file_error(name, &why))?;
+    fs::set_permissions(parent, fs::Permissions::from_mode(0o700)).map_err(|why| file_error(name, &why))
+}
+
+fn lock_claude_cache(file: &Path) -> Result<fs::File, Failed> {
     let mut lock_name = file.as_os_str().to_os_string();
     lock_name.push(".lock");
     let lock = fs::OpenOptions::new()
@@ -119,23 +125,18 @@ pub fn claude_code(
         .open(&lock_name)
         .map_err(|why| file_error(lock_name.as_bytes(), &why))?;
     lock.lock().map_err(|why| file_error(lock_name.as_bytes(), &why))?;
-    if claude_present(file, bytes)? {
-        return Ok(());
-    }
-    match out.write_all(b"fetching Claude Code\n") {
-        Ok(()) | Err(_) => {}
-    }
-    run(limits, trust, Fetch::new(Box::new([pin]), bytes), no_extraction, out)
+    Ok(lock)
 }
-fn claude_present(file: &std::path::Path, bytes: u64) -> Result<bool, Failed> {
-    use std::os::unix::ffi::OsStrExt;
-    match fs::metadata(file) {
-        Ok(metadata) if metadata.is_file() && metadata.len() == bytes => Ok(true),
-        Ok(_) => Err(Failed::Refused(Failure::Present { file: file.as_os_str().as_bytes().into() })),
+
+fn claude_present(file: &[u8], bytes: u64, metadata: io::Result<(bool, u64)>) -> Result<bool, Failed> {
+    match metadata {
+        Ok((true, length)) if length == bytes => Ok(true),
+        Ok(_) => Err(Failed::Refused(Failure::Present { file: file.into() })),
         Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(false),
-        Err(why) => Err(file_error(file.as_os_str().as_bytes(), &why)),
+        Err(why) => Err(file_error(file, &why)),
     }
 }
+
 /// The caller's bounded archive extraction (protocol/setup/owned.md, 6).
 pub type Extract = fn(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> fetch::Extraction;
 
@@ -143,100 +144,136 @@ fn no_extraction(_: &[u8], _: &[u8], _: &mut fs::File, _: u64) -> fetch::Extract
     fetch::Extraction::Failed
 }
 
-fn path(bytes: &[u8]) -> &std::path::Path {
-    use std::os::unix::ffi::OsStrExt;
-    std::path::Path::new(std::ffi::OsStr::from_bytes(bytes))
+fn path(bytes: &[u8]) -> &Path {
+    Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 
 /// Runs the machine; an interrupted body leaves its part to be truncated next time.
 pub fn run(
     limits: &skein_io::Limits,
     trust: &Trust,
-    mut machine: Fetch,
+    machine: Fetch,
     extract: Extract,
     out: &mut dyn io::Write,
 ) -> Result<(), Failed> {
+    let mut files = Download::new(NativeCache { extract });
+    let mut wire: Option<Connection> = None;
+    let result = run_with(
+        machine,
+        || tls_config(trust),
+        |config, request| {
+            files.answer(request, |request| match request {
+                WireRequest::Get { origin, path, authorization } => {
+                    if let Some(mut old) = wire.take() {
+                        old.close();
+                    }
+                    wire = Some(Connection::new(limits, config, &origin, &path, authorization)?);
+                    wire.as_mut().expect("new connection").answer()
+                }
+                WireRequest::Read => {
+                    let connection = wire.as_mut().expect("body follows Get");
+                    connection.demand();
+                    connection.answer()
+                }
+            })
+        },
+        out,
+    );
+    if let Some(mut connection) = wire {
+        connection.close();
+    }
+    files.close_part();
+    result
+}
+
+fn tls_config(trust: &Trust) -> Result<skein_tls::Config, Failed> {
     let roots = skein_shell::read_trust_roots(
         trust,
         &skein_shell::RootBounds { bundle_bytes: 1 << 20, certificates: 1024, certificate_bytes: 65_536 },
     )
     .map_err(Failed::Roots)?;
     let (config, _) = skein_tls::Config::from_der(&roots.certificates, &[b"http/1.1"]).map_err(Failed::Trust)?;
-    let mut connection: Option<Connection> = None;
-    let mut part_file: Option<fs::File> = None;
-    let mut part_path: Box<[u8]> = Box::new([]);
+    Ok(config)
+}
+
+/// Drives fetch over supplied roots and answers to its cache and download requests.
+pub fn run_with<R>(
+    mut machine: Fetch,
+    roots: impl FnOnce() -> Result<R, Failed>,
+    mut answer: impl FnMut(&R, Request) -> Result<Event, Failed>,
+    out: &mut dyn io::Write,
+) -> Result<(), Failed> {
+    let roots = roots()?;
     let mut event = Event::Begin;
     let mut requests = Queue::uncapped();
-    let result = loop {
+    loop {
         fetch::step(&mut machine, event, &mut requests);
         assert_eq!(requests.len(), 1, "one fetch request per event");
-        let answer = match requests.pop().expect("one fetch request") {
-            Request::Hash { file } => hash(&file).map(Event::Hashed),
-            Request::Get { origin, path, authorization } => {
-                if let Some(mut old) = connection.take() {
-                    old.close();
-                }
-                match Connection::new(limits, &config, &origin, &path, authorization) {
-                    Ok(next) => {
-                        connection = Some(next);
-                        connection.as_mut().expect("new connection").answer()
-                    }
-                    Err(why) => Err(why),
-                }
-            }
-            Request::Open { part } => open(&part).map(|file| {
-                part_file = Some(file);
-                part_path = part;
-                Event::Done
-            }),
+        event = match requests.pop().expect("one fetch request") {
             Request::Say(fetched) => {
                 match out.write_all(&fetched.line()) {
                     Ok(()) | Err(_) => {}
                 }
-                Ok(Event::Done)
+                Event::Done
             }
-            Request::Read => {
-                let connection = connection.as_mut().expect("body follows Get");
-                connection.demand();
-                connection.answer()
-            }
-            Request::Write { offset, bytes } => {
-                use std::io::{Seek, SeekFrom};
-                let file = part_file.as_mut().expect("write follows Open");
-                file.seek(SeekFrom::Start(offset))
-                    .and_then(|_| file.write_all(&bytes))
-                    .map(|()| Event::Done)
-                    .map_err(|why| file_error(&part_path, &why))
-            }
-            Request::Extract { archive, member, part, bound } => {
-                part_file = None;
-                open(&part).map(|mut file| {
-                    let extraction = extract(&archive, &member, &mut file, bound);
-                    part_file = Some(file);
-                    part_path = part;
-                    Event::Extracted(extraction)
-                })
-            }
-            Request::Finish { part, file } => {
-                let handle = part_file.take().expect("finish follows Open");
-                finish(&handle, &part, &file).map(|()| Event::Done)
-            }
-            Request::Remove { part } => {
-                part_file = None;
-                fs::remove_file(path(&part)).map(|()| Event::Done).map_err(|why| file_error(&part, &why))
-            }
-            Request::End(result) => break result.map_err(Failed::Refused),
+            Request::End(result) => return result.map_err(Failed::Refused),
+            request @ (Request::Hash { .. }
+            | Request::Get { .. }
+            | Request::Open { .. }
+            | Request::Read
+            | Request::Write { .. }
+            | Request::Extract { .. }
+            | Request::Finish { .. }
+            | Request::Remove { .. }) => answer(&roots, request)?,
         };
-        match answer {
-            Ok(next) => event = next,
-            Err(why) => break Err(why),
-        }
-    };
-    if let Some(mut connection) = connection {
-        connection.close();
     }
-    result
 }
+
+fn request_head(origin: &Origin, path: &[u8], authorization: Option<Box<[u8]>>) -> http::Call {
+    let mut authority = origin.host.to_vec();
+    if origin.port != 443 {
+        authority.extend_from_slice(format!(":{}", origin.port).as_bytes());
+    }
+    let mut headers = vec![
+        skein_http::Header { name: b"Host".as_slice().into(), value: authority.into_boxed_slice() },
+        skein_http::Header { name: b"User-Agent".as_slice().into(), value: b"temper".as_slice().into() },
+    ];
+    if let Some(value) = authorization {
+        headers.push(skein_http::Header { name: b"Authorization".as_slice().into(), value });
+    }
+    http::Call {
+        method: skein_http::Method::Get,
+        target: path.into(),
+        headers: headers.into_boxed_slice(),
+        body: http::Body::None,
+        close: true,
+    }
+}
+
+fn body_demand() -> http::Request {
+    http::Request::Body(Down::Demand { read: Read::Arrived { max: CHUNK }, room: 0 })
+}
+
+fn http_answer(event: http::Event) -> Option<Result<Event, String>> {
+    match event {
+        http::Event::Response(response) => Some(Ok(Event::Answered {
+            status: response.status,
+            location: response.header(b"location").map(Into::into),
+            length: match response.framing {
+                http::Framing::Length(n) => Some(n),
+                http::Framing::Empty => Some(0),
+                http::Framing::Chunked | http::Framing::UntilEnd => None,
+            },
+        })),
+        http::Event::Body(Up::Bytes(bytes)) => Some(Ok(Event::Chunk(bytes))),
+        http::Event::Done(_) => Some(Ok(Event::Ended)),
+        http::Event::Body(Up::End) | http::Event::Closed => None,
+        http::Event::Failed(why) => Some(Err(format!("HTTP: {why:?}"))),
+        http::Event::Body(Up::Failed(why)) => Some(Err(format!("HTTP body: {why:?}"))),
+        http::Event::Upload(_) | http::Event::Body(Up::Room) => unreachable!("GET has no upload"),
+    }
+}
+
 pub(crate) struct Connection {
     io: Io,
     limits: skein_io::Limits,
@@ -280,17 +317,6 @@ impl Connection {
             .ok_or_else(|| fail("connect: no address".into()))?;
         let operations = skein_io::operations(limits).expect("usable io limits");
         let kernel = Kernel::open(Config { operations }).map_err(|why| fail(format!("connect kernel: {why:?}")))?;
-        let mut authority = origin.host.to_vec();
-        if origin.port != 443 {
-            authority.extend_from_slice(format!(":{}", origin.port).as_bytes());
-        }
-        let mut headers = vec![
-            skein_http::Header { name: b"Host".as_slice().into(), value: authority.into_boxed_slice() },
-            skein_http::Header { name: b"User-Agent".as_slice().into(), value: b"temper".as_slice().into() },
-        ];
-        if let Some(value) = authorization {
-            headers.push(skein_http::Header { name: b"Authorization".as_slice().into(), value });
-        }
         let mut connection = Self {
             io: Io::new(limits),
             limits: *limits,
@@ -307,13 +333,7 @@ impl Connection {
             events: Queue::uncapped(),
             complete: Queue::with_capacity(operations),
             subs: Queue::with_capacity(operations),
-            call: Some(http::Call {
-                method: skein_http::Method::Get,
-                target: path.into(),
-                headers: headers.into_boxed_slice(),
-                body: http::Body::None,
-                close: true,
-            }),
+            call: Some(request_head(origin, path, authorization)),
             result: None,
             url,
         };
@@ -326,13 +346,7 @@ impl Connection {
     }
     pub(crate) fn demand(&mut self) {
         let now = self.clock.now();
-        http::down(
-            &mut self.http,
-            &now.with(HTTP),
-            http::Request::Body(Down::Demand { read: Read::Arrived { max: CHUNK }, room: 0 }),
-            &mut self.http_up,
-            &mut self.plain,
-        );
+        http::down(&mut self.http, &now.with(HTTP), body_demand(), &mut self.http_up, &mut self.plain);
     }
     pub(crate) fn answer(&mut self) -> Result<Event, Failed> {
         loop {
@@ -406,25 +420,7 @@ impl Connection {
         let http_env = now.with(HTTP);
         let tls_env = now.with(TLS);
         if let Some(event) = self.http_up.pop() {
-            match event {
-                http::Event::Response(response) => {
-                    self.result = Some(Ok(Event::Answered {
-                        status: response.status,
-                        location: response.header(b"location").map(Into::into),
-                        length: match response.framing {
-                            http::Framing::Length(n) => Some(n),
-                            http::Framing::Empty => Some(0),
-                            http::Framing::Chunked | http::Framing::UntilEnd => None,
-                        },
-                    }));
-                }
-                http::Event::Body(Up::Bytes(bytes)) => self.result = Some(Ok(Event::Chunk(bytes))),
-                http::Event::Done(_) => self.result = Some(Ok(Event::Ended)),
-                http::Event::Body(Up::End) | http::Event::Closed => {}
-                http::Event::Failed(why) => self.result = Some(Err(format!("HTTP: {why:?}"))),
-                http::Event::Body(Up::Failed(why)) => self.result = Some(Err(format!("HTTP body: {why:?}"))),
-                http::Event::Upload(_) | http::Event::Body(Up::Room) => unreachable!("GET has no upload"),
-            }
+            self.result = http_answer(event);
         } else if let Some(event) = self.tls_up.pop() {
             match event {
                 tls::Event::Ready(_) => {

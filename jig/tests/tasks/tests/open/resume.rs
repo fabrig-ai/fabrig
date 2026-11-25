@@ -1,4 +1,4 @@
-//! Open resumes as Finite; only the next finish differs (domain/tasks/lifecycle.md, 6–9 and domain/tasks/holds.md, 7 and domain/tasks/changes.md and domain/tasks/messages.md and domain/tasks/proposals.md).
+//! Open resumes as Finite; only the next finish differs (domain/tasks/lifecycle-holds.md, 1, and domain/tasks/lifecycle.md, 7, and domain/tasks/lifecycle-endings.md, 1–2 and domain/tasks/holds.md, 7 and domain/tasks/changes.md and domain/tasks/messages.md and domain/tasks/proposals.md).
 use super::*;
 use jig_domain_tasks::{self as tasks, Class, EscalationDecision, EscalationHolder, Operation, Release, ReplyHint};
 use skein_lib::{List, ReplyTo};
@@ -59,6 +59,7 @@ fn twins(resume: impl Fn(&mut World), expected: Resume, wake: fn(&mut World)) {
         if flags == FINITE {
             let reply_to = w.to();
             w.send(Event::Subscribe {
+                reads_project: false,
                 reply_to,
                 task: CHAT,
                 subscription: jig_domain_tasks::Subscription {
@@ -236,6 +237,7 @@ fn amend(w: &mut World, task: u64, dependencies: &[u64]) {
     let call = reply_to.into_token();
     let message = w.record(task).last_message + 1;
     w.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task,

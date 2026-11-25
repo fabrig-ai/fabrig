@@ -1,14 +1,30 @@
 use super::*;
 use crate::credentials::tests::Files;
-use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 
 pub(super) fn configured(files: &Files, source_name: &str, program: bool) -> super::super::Settings {
-    let certificate = crate::fixture::trust();
+    let mut settings = configured_in(files.path(), &crate::fixture::trust(), source_name, program);
+    settings.paths.path = std::env::var_os("PATH");
+    settings
+}
+
+pub(super) fn configured_in(
+    path: &Path,
+    certificate: &Path,
+    source_name: &str,
+    program: bool,
+) -> super::super::Settings {
     let program = if program { "program='claude_code'" } else { "" };
-    settings(&[source(Layer::User, &format!(
-        "model='openai/gpt-6-luna'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n[accounts.openai]\nprovider='openai'\nsource='{source_name}'\n[endpoints.openai]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n{program}\n",
-        files.path().display(), certificate.display()
-    ))]).expect("settings")
+    let declaration = source(
+        Layer::User,
+        &format!(
+            "model='openai/gpt-6-luna'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n[accounts.openai]\nprovider='openai'\nsource='{source_name}'\n[endpoints.openai]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n{program}\n",
+            path.display(),
+            certificate.display()
+        ),
+    );
+    crate::settings::from_sources(&crate::command::Shared::default(), "/workspace".into(), &[declaration])
+        .expect("settings")
 }
 
 fn resolved(settings: &super::super::Settings) -> resolve::Resolved {
@@ -60,21 +76,38 @@ fn a_document_without_a_program_endpoint_holds_no_programs() {
 
 #[test]
 fn locating_a_program_searches_the_given_path() {
-    let files = Files::new("smith-credentials");
-    let executable = files.path().join("claude");
-    std::fs::write(&executable, b"#!/bin/sh\nexit 0\n").expect("scratch executable");
-    std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
-    assert_eq!(resolve::programs::locate(None, Some(files.path().as_os_str())), Ok(executable), "given PATH");
+    let path = Path::new("/fixture/bin");
+    let executable = path.join("claude");
+    assert_eq!(
+        resolve::programs::locate_with(None, Some(path.as_os_str()), |path| {
+            (path == executable).then_some(resolve::programs::FileFacts { is_file: true, mode: 0o700 })
+        }),
+        Ok(executable),
+        "given PATH"
+    );
 }
 
 #[test]
 fn a_missing_or_non_executable_program_is_refused() {
-    let files = Files::new("smith-credentials");
-    assert!(resolve::programs::locate(None, Some(files.path().as_os_str())).is_err(), "absent executable");
-    std::fs::write(files.path().join("claude"), b"script").expect("scratch non-executable");
-    std::fs::set_permissions(files.path().join("claude"), std::fs::Permissions::from_mode(0o600)).expect("file mode");
-    assert!(resolve::programs::locate(None, Some(files.path().as_os_str())).is_err(), "non-executable");
-    assert!(resolve::programs::locate(None, None).is_err(), "absent PATH");
+    use resolve::programs::{FileFacts, locate_with};
+
+    let directory = Path::new("/fixture/bin");
+    let candidate = directory.join("claude");
+    for (path, facts, why) in [
+        (Some(directory.as_os_str()), None, "absent executable"),
+        (Some(directory.as_os_str()), Some(FileFacts { is_file: true, mode: 0o600 }), "non-executable"),
+        (None, None, "absent PATH"),
+    ] {
+        let mut checked = Vec::new();
+        let result = locate_with(None, path, |file| {
+            checked.push(file.to_path_buf());
+            assert_eq!(file, candidate, "only claude on the supplied PATH can be checked");
+            facts
+        });
+        assert_eq!(result, Err(()), "{why}");
+        let expected = path.map_or(&[][..], |_| std::slice::from_ref(&candidate));
+        assert_eq!(checked, expected, "lookup follows the supplied PATH only");
+    }
 }
 
 #[test]

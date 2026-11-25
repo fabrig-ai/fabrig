@@ -8,6 +8,9 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-workload.workspace = true
+jig-core-kit.workspace = true
+skein-checks.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-landing-fixtures.workspace = true
 temper-engine-domain-forge-landing.workspace = true
@@ -27,6 +30,7 @@ skein-forge.workspace = true
 jig-test-domain.workspace = true
 jig-conformance.workspace = true
 skein-world.workspace = true
+temper-faults.workspace = true
 jig-test-store-files.workspace = true
 jig-protocol-store.workspace = true
 jig-protocol-config.workspace = true
@@ -37,6 +41,8 @@ temper-engine-service-stock.workspace = true
 temper-service-core.workspace = true
 skein-lib.workspace = true
 temper-engine-domain.workspace = true
+temper-engine-inspect.workspace = true
+jig-inspect.workspace = true
 temper-engine-domain-trials.workspace = true
 jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
@@ -61,6 +67,7 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+jig-protocol-store-kit.workspace = true
 temper-config-shell.workspace = true
 skein-fork.workspace = true
 smith-protocol-channel.workspace = true
@@ -74,6 +81,7 @@ jig-tasks-kit.workspace = true
 skein-fake-llm-domain.workspace = true
 smith-agent-world.workspace = true
 temper-fake-checkout.workspace = true
+temper-fake-git.workspace = true
 temper-fake.workspace = true
 temper-worker-checkout-world.workspace = true
 temper-worker-domain-checkout.workspace = true

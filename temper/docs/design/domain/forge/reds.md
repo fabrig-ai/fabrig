@@ -1,14 +1,14 @@
 # A goal's reds
 
-Provisional, 2026-11-14. Written from `../../draft/branch-reds.md`,
-sections 3 to 7, 9 and 10, its milestones B1 and B2. What temper keeps
+Provisional, 2026-11-14. Written from `../../draft/archive/branch-reds.md`, sections 3 to 7 and 9 to 10
+, its milestones B1 and B2. What temper keeps
 of the failures a goal's branch carries, how a goal's run records and
 ends them, how a delivery's check reads them at its start, and what the
 check reports at its end: the reds it passed, which end when its change
 lands, and the tests that failed only under load, filed as flakes. The
 reference project's check reads and writes them as
 `tools/pre-pr/design.md`, 4 to 7 says. What is open is listed in
-section 9.
+`reds.md`, section 9.
 
 ## 1. In one page
 
@@ -62,7 +62,7 @@ section 9.
 - **Each key once in a goal.** A record of a key the goal already holds
   replaces that red whole: its head, why, recorder and time, under a new
   generation. So a later record of a key is told from an earlier one by
-  its generation (`../../draft/branch-reds.md`, 6, which ends by it).
+  its generation (`../../draft/archive/branch-reds.md`, 6, which ends by it).
 - **Bounded:** a goal holds at most `forge.branch_reds` reds
   (`../../protocol/configuration/limits.md`).
 - **It applies where its cause is:** a check counts a red only where its
@@ -138,7 +138,7 @@ section 9.
   destination, its `Change` row's `base` branch, as a goal branch
   (`branches.md`); for a goal's own run, its own. A repair of a goal's
   landing into main, whose destination no goal holds, has none: main's
-  reds are no goal's (`../../draft/branch-reds.md`, 12).
+  reds are no goal's (`../../draft/archive/branch-reds.md`, 12).
 - **The answer:** that goal's reds as pairs of key and head, every one,
   in key order, at most `forge.branch_reds`. A task that is not live, an
   attempt that is not its current one, or a run with no such goal is
@@ -151,7 +151,7 @@ section 9.
   the worker finds the check's base as the check does before stepping
   past unchecked saves (`../../../../../tools/pre-pr/design.md`, 2), in its
   own git directory, whose HEAD and pin the run's holds too
-  (`../../protocol/git.md`, 4.13):
+  (`../../protocol/git-operations.md`, 1.13):
   `git merge-base refs/temper/landing HEAD`, with `MERGE_HEAD` as a third
   where a merge is in progress, the first it prints. It keeps each red
   whose head is an ancestor of that base or is that base
@@ -180,7 +180,7 @@ section 9.
   `temper/check-results`, and writes `temper/reds-wait` and
   `temper/rerun`.
 - **At each check's start,** when the run tells its host its checks are
-  starting (smith's `domain/run.md`, 8.1, the `long` of a check): the
+  starting (smith's `domain/run-delivery.md`, 1.1, the `long` of a check): the
   worker removes `temper/reds` and `temper/check-results`, asks (5.4),
   and, with an answer within
   `checkout.reds_read_ms`, writes the file in each repository (5.2).
@@ -195,7 +195,7 @@ section 9.
   `temper/check-results` (5.6). An answer that comes after its check
   ended, or after another check started, is dropped.
 - **Why the check waits:** smith starts the check before it tells its
-  host, and waits for nothing from it (smith's `domain/run.md`, 8.1), so
+  host, and waits for nothing from it (smith's `domain/run-delivery.md`, 1.1), so
   the worker's file can only follow the check's start. The check, finding
   the marker, waits for the file (`../../../../../tools/pre-pr/design.md`, 5),
   and the file it reads is the one written for it.
@@ -217,14 +217,12 @@ section 9.
   `forge.red_key_bytes` and the head 20 or 32 bytes, in key order. An
   ask the engine refuses, or answers with bytes that don't decode, is a
   read that failed (5.3).
-- **Its versions:** `jig-worker-wire` and `temper-worker-wire` each move
-  by one, with their kept texts and bridges (jig's
-  `protocol/channel/bridges.md`). A worker of the previous versions
-  never asks, so its checks have no reds file, and judge every lint or
-  test failure as the delivery's (`../../draft/branch-reds.md`, 10). A worker of these
-  versions meeting an engine of the previous ones can't send `ask` down,
-  so it closes its channel at the statement and the engine goes first
-  (jig's `protocol/channel/bridges.md`, 6.3).
+- **Across layouts:** `ask` and `asked` are kinds of `jig-worker-wire`
+  and the ask's bytes temper's, converted by the engine between its
+  layouts and a worker's (jig's `protocol/channel/layouts.md`, 2.1). A
+  worker whose engine's terms lack `ask` never asks, so its checks have
+  no reds file, and judge every lint or test failure as the delivery's
+  (`../../draft/archive/branch-reds.md`, 10).
 - **The worker's figures:** an ask of reds is a few bytes; an answer at
   most `forge.branch_reds` reds of `forge.red_key_bytes`, which temper
   gives jig as the application's largest answer (jig's
@@ -254,7 +252,7 @@ with the check. The reference's check writes it as
   - `failed KEY`: an entry of `temper/reds` its run selected that failed,
     inherited as it was;
   - `flake KEY`: a test that failed in its run and passed when its
-    process ran again (`../../draft/branch-reds.md`, 7; the reference's,
+    process ran again (`../../draft/archive/branch-reds.md`, 7; the reference's,
     `../../../../../tools/pre-pr/design.md`, 4), then its log under load,
     each line of it as `| TEXT`, an empty one as `|`, at most 1,536 bytes
     of text.
@@ -306,13 +304,10 @@ with the check. The reference's check writes it as
   Nothing is kept for the ask itself (jig's `domain/hosts/hub.md`, 10):
   a report lost with an engine's restart is lost. A worker sends each
   check's report once, so the engine decides on each identity once.
-- **Its versions:** `temper-worker-wire` moves by one, with its kept
-  text and bridge. A worker of the previous version reports nothing:
-  its checks write files no one reads. A worker of this version meeting
-  an engine of the previous one can't send `results` down, so it closes
-  at the statement, `Ask` counted among the parts a worker sends whole
-  (jig's `protocol/channel/bridges.md`, 6.3), and the engine goes first,
-  as for B1.
+- **Across layouts:** the report is temper's bytes in an ask, converted
+  by the engine from a worker's layout to its own (jig's
+  `protocol/channel/layouts.md`, 2.1); one its layout cannot read is a
+  part that does not decode (5.3 there), and the engine goes first.
 - **The worker's figures:** the application's largest ask is a report's
   worst case at the schema's ceilings, on both sides, within jig's
   ceiling for an ask's bytes (`../../protocol/channel.md`, 8): the
@@ -330,7 +325,7 @@ with the check. The reference's check writes it as
   not current, or where `tag` names a repository other than the
   change's.
 - **A passed check's alone:** checked is delivered (smith's
-  `domain/run.md`, 8.1), so a refused check's tree is never the
+  `domain/run-delivery.md`, 1.1), so a refused check's tree is never the
   change's, and its `passed` and `failed` lines change nothing. Its
   flakes are filed (5.8).
 - **Each key's latest observation:** for each `passed KEY` the goal holds
@@ -409,7 +404,7 @@ with the check. The reference's check writes it as
   restore refuses a store past either, as other families' bounds are
   checked.
 - **Restored** at the forge's restart step, as every family is
-  (`../../protocol/store.md`, 5).
+  (`../../protocol/store-restart.md`, 1).
 
 ## 7. The limits
 
@@ -431,7 +426,7 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   replacements, ends and goal releases over a few goals and keys keep each
   goal within `forge.branch_reds`, each key once, its generations
   increasing, and every answer naming only the live records of its goal.
-- **The store:** the families' records drift, pinned constructs, built-value
+- **The store:** the families' records drift, built-value
   round trips and registered value types, with no patch
   (`../../protocol/floor.md`, 6).
 - **The tool:** each act decoded, each refusal, each answer rendered,
@@ -439,7 +434,8 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   hold past the bound.
 - **The ask:** the engine's answer to a producer's ask, to one of an
   attempt that isn't live (refused), and to bytes that don't decode;
-  both wires' patches and bridges, by their crates' tests.
+  both wires' conversion between layouts, by their crates' tests and
+  jig's (`../../protocol/wires.md`, 11).
 - **The worker:** the file written fresh at each check's start, a check
   run again included, and removed at its end and at prepare; reds whose
   head the base doesn't contain left out; a slow or failed ask writing
@@ -465,8 +461,8 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   refusing a filing without refusing the report.
 - **The report's way:** the engine answering `kept` and deciding on a
   report, a report of an attempt not live refused, bytes that don't
-  decode refused; `temper-worker-wire`'s patch and bridge by its crate's
-  tests.
+  decode refused; `temper-worker-wire`'s conversion between layouts by
+  its crate's tests (`../../protocol/wires.md`, 11).
 - **The worker's report:** `temper/rerun` written at prepare;
   `temper/check-results` removed at prepare and at each check's start,
   read at each check's end, a refused check's included, and sent with

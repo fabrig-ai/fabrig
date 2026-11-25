@@ -1,10 +1,11 @@
-//! Root translations preserve the party's core refusal facts (domain/connectors.md, 5.5).
+//! Root translations preserve the party's core refusal facts (domain/connectors-facts.md, 1.5).
 use jig_domain_people as people;
 use jig_test_connector::application_core as application;
 
 pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
     match value {
-        people::Refusal::Unlinked { .. }
+        people::Refusal::QuestionAnswered { .. }
+        | people::Refusal::Unlinked { .. }
         | people::Refusal::Concluded { .. }
         | people::Refusal::Forgotten { .. }
         | people::Refusal::Judged { .. }
@@ -196,6 +197,7 @@ pub(super) fn hold_reason(value: people::HoldReason) -> application::HoldReason 
         people::HoldReason::PoolLost { pool } => application::HoldReason::PoolLost { pool },
         people::HoldReason::Procedure => application::HoldReason::Procedure,
         people::HoldReason::Circle => application::HoldReason::Circle,
+        people::HoldReason::Waited => application::HoldReason::Waited,
     }
 }
 

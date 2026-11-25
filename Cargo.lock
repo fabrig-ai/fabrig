@@ -24,22 +24,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
-name = "autocfg"
-version = "1.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
-
-[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
-
-[[package]]
-name = "base64ct"
-version = "1.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "bitflags"
@@ -77,12 +65,6 @@ name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
-
-[[package]]
-name = "const-oid"
-version = "0.9.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "cpufeatures"
@@ -138,17 +120,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "der"
-version = "0.7.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7c1832837b905bbfb5101e07cc24c8deddf52f93225eee6ead5f4d63d53ddcb"
-dependencies = [
- "const-oid",
- "pem-rfc7468",
- "zeroize",
-]
-
-[[package]]
 name = "deranged"
 version = "0.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -161,7 +132,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer",
- "const-oid",
  "crypto-common",
 ]
 
@@ -330,6 +300,7 @@ dependencies = [
  "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-github",
+ "skein-fake-machine",
  "skein-fake-peers",
  "skein-forge",
  "skein-forge-conformance",
@@ -338,7 +309,6 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
- "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-tls",
@@ -406,6 +376,7 @@ dependencies = [
  "hearth-test-mirror",
  "hearth-test-render",
  "hearth-test-repository",
+ "skein-checks",
  "skein-heap",
  "skein-io",
  "skein-lib",
@@ -540,6 +511,7 @@ dependencies = [
  "hearth-protocol-git",
  "hearth-recordings",
  "hearth-test-git",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
 ]
@@ -559,6 +531,7 @@ dependencies = [
  "hearth-protocol-mmdebstrap",
  "hearth-recordings",
  "hearth-test-mirror",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
  "skein-scratch",
@@ -649,6 +622,7 @@ dependencies = [
  "hearth-test-fixtures",
  "hearth-test-render",
  "minijinja",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
  "skein-scratch",
@@ -671,6 +645,7 @@ version = "0.0.0"
 dependencies = [
  "hearth-protocol-template",
  "hearth-test-fixtures",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
  "skein-scratch",
@@ -680,6 +655,7 @@ dependencies = [
 name = "hearth-test-fixtures"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-lib",
  "skein-scratch",
 ]
@@ -711,6 +687,7 @@ dependencies = [
  "hearth-protocol-config",
  "hearth-protocol-template",
  "hearth-test-fixtures",
+ "skein-checks",
  "skein-lib",
  "skein-scratch",
  "skein-world",
@@ -737,6 +714,7 @@ dependencies = [
  "hearth-domain-tree",
  "hearth-lib",
  "hearth-protocol-tree",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
 ]
@@ -803,7 +781,7 @@ dependencies = [
 name = "jig-boundary"
 version = "0.0.0"
 dependencies = [
- "serde_json",
+ "toml",
 ]
 
 [[package]]
@@ -857,6 +835,7 @@ dependencies = [
  "skein-sim",
  "skein-world",
  "smith-agent-process-world",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-charter",
@@ -885,11 +864,15 @@ dependencies = [
  "jig-domain-tasks",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
+ "jig-protocol-store",
  "jig-protocol-worker-wire",
  "jig-test-domain",
  "jig-test-profile",
  "serde_json",
+ "skein-channel",
  "skein-fake-llm-domain",
+ "skein-fake-peers",
+ "skein-io",
  "skein-lib",
  "skein-llm",
  "skein-sim",
@@ -1073,6 +1056,7 @@ dependencies = [
  "skein-codegen",
  "skein-lib",
  "skein-rows",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -1088,6 +1072,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-client-test-domain",
+ "jig-client-test-records",
  "jig-client-view",
  "jig-domain-core",
  "jig-domain-notes",
@@ -1101,6 +1086,7 @@ dependencies = [
  "jig-test-connector",
  "jig-test-domain",
  "jig-test-service",
+ "skein-checks",
  "skein-fake-machine",
  "skein-fake-person",
  "skein-http",
@@ -1353,6 +1339,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-fake-store",
  "jig-protocol-tools",
+ "skein-checks",
  "skein-fork",
  "skein-lib",
  "skein-world",
@@ -1417,6 +1404,7 @@ dependencies = [
  "jig-domain-views",
  "jig-fake-parties",
  "jig-fake-workers",
+ "jig-inspect",
  "jig-protocol-charter",
  "jig-protocol-store",
  "jig-protocol-tools",
@@ -1454,9 +1442,11 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-engine-clients-kit",
  "jig-fake-parties",
  "jig-fake-store",
  "jig-fake-workers",
+ "jig-inspect",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-clients",
@@ -1465,13 +1455,15 @@ dependencies = [
  "jig-test-connector",
  "jig-test-connector-kit",
  "jig-test-domain",
- "jig-test-patches-smith",
+ "jig-test-layouts",
  "jig-test-profile",
  "jig-test-store",
  "jig-test-store-files",
  "jig-test-system",
+ "skein-checks",
  "skein-codec",
  "skein-lib",
+ "skein-scratch",
  "skein-world",
  "smith-channel",
 ]
@@ -1610,6 +1602,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-inspect",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-clients",
@@ -1652,7 +1645,6 @@ dependencies = [
  "skein-scratch",
  "skein-tls",
  "skein-world",
- "tempfile",
 ]
 
 [[package]]
@@ -1664,6 +1656,7 @@ dependencies = [
  "jig-protocol-engine-workers",
  "jig-protocol-worker-wire",
  "skein-channel",
+ "skein-codec",
  "skein-fake-channel",
  "skein-io",
  "skein-lib",
@@ -1707,6 +1700,18 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "skein-lib",
+ "skein-world",
+]
+
+[[package]]
+name = "jig-inspect"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-protocol-engine-clients",
  "skein-lib",
  "skein-world",
 ]
@@ -1828,6 +1833,7 @@ dependencies = [
  "jig-ops-domain-observability",
  "jig-ops-protocol-observability",
  "jig-protocol-charter",
+ "jig-protocol-config",
  "jig-protocol-tools",
  "jig-test-domain",
  "jig-test-profile",
@@ -1906,6 +1912,7 @@ dependencies = [
  "jig-ops-domain-observability",
  "jig-ops-fake-production",
  "jig-protocol-charter",
+ "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
  "jig-protocol-tools",
@@ -1959,14 +1966,12 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-store",
  "skein-codec",
- "skein-codegen",
  "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
- "skein-scratch",
  "skein-tls",
 ]
 
@@ -2037,6 +2042,7 @@ dependencies = [
  "jig-domain-link",
  "jig-domain-tasks",
  "jig-protocol-tools",
+ "skein-codec",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -2178,6 +2184,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core-vocabulary",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -2189,8 +2196,6 @@ dependencies = [
  "jig-protocol-store-settings",
  "jig-protocol-store-tasks",
  "jig-test-layouts",
- "jig-test-patches-jig",
- "jig-test-patches-smith",
  "skein-codec",
  "skein-codegen",
  "skein-fake-machine",
@@ -2316,14 +2321,18 @@ dependencies = [
  "skein-codec",
  "skein-io",
  "skein-lib",
+ "smith-agent-profile",
+ "smith-agent-profile-fixtures",
  "smith-channel",
  "smith-charter",
  "smith-domain-run",
+ "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -2345,9 +2354,8 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
- "skein-codegen",
+ "skein-heap",
  "skein-lib",
- "skein-scratch",
  "smith-channel",
  "smith-charter",
  "smith-transcript",
@@ -2400,8 +2408,6 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-store",
  "jig-test-layouts",
- "jig-test-patches-jig",
- "jig-test-patches-smith",
  "jig-test-profile",
  "skein-codec",
  "skein-fake-machine",
@@ -2502,6 +2508,8 @@ dependencies = [
 name = "jig-test-connector-world"
 version = "0.0.0"
 dependencies = [
+ "jig-core-kit",
+ "jig-domain-core",
  "jig-test-connector",
  "jig-test-connector-kit",
  "jig-test-store",
@@ -2571,27 +2579,10 @@ name = "jig-test-layouts"
 version = "0.0.0"
 
 [[package]]
-name = "jig-test-patches-jig"
-version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-scratch",
-]
-
-[[package]]
-name = "jig-test-patches-smith"
-version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-scratch",
-]
-
-[[package]]
 name = "jig-test-profile"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-authority",
@@ -2651,6 +2642,7 @@ dependencies = [
  "skein-world",
  "smith-channel",
  "smith-charter",
+ "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
@@ -2672,7 +2664,6 @@ dependencies = [
  "jig-test-connector-kit",
  "jig-test-domain",
  "jig-test-store-codec",
- "skein-codec",
  "skein-kv",
  "skein-lib",
 ]
@@ -2765,10 +2756,13 @@ name = "jig-worker-wire-world"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-worker-wire",
+ "skein-codec",
  "skein-codegen",
  "skein-heap",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
+ "smith-charter",
 ]
 
 [[package]]
@@ -2780,15 +2774,6 @@ dependencies = [
  "cfg-if",
  "futures-util",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "lazy_static"
-version = "1.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
-dependencies = [
- "spin",
 ]
 
 [[package]]
@@ -2808,12 +2793,6 @@ name = "libc"
 version = "0.2.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
-
-[[package]]
-name = "libm"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "linux-raw-sys"
@@ -2861,55 +2840,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "num-bigint-dig"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e661dda6640fad38e827a6d4a310ff4763082116fe217f279885c97f511bb0b7"
-dependencies = [
- "lazy_static",
- "libm",
- "num-integer",
- "num-iter",
- "num-traits",
- "rand",
- "smallvec",
- "zeroize",
-]
-
-[[package]]
 name = "num-conv"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "521739c6d2bac4aa25192232afe6841231376b2b26d4d9fae5ecf8ca5772e441"
-
-[[package]]
-name = "num-integer"
-version = "0.1.47"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "num-iter"
-version = "0.1.46"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c92800bd69a1eac91786bcfe9da64a897eb72911b8dc3095decbd07429e8048b"
-dependencies = [
- "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "num-traits"
-version = "0.2.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
-dependencies = [
- "autocfg",
- "libm",
-]
 
 [[package]]
 name = "once_cell"
@@ -2918,55 +2852,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "pem-rfc7468"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88b39c9bfcfc231068454382784bb460aae594343fb030d46e9f50a645418412"
-dependencies = [
- "base64ct",
-]
-
-[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
-name = "pkcs1"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8ffb9f10fa047879315e6625af03c164b16962a5368d724ed16323b68ace47f"
-dependencies = [
- "der",
- "pkcs8",
- "spki",
-]
-
-[[package]]
-name = "pkcs8"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f950b2377845cebe5cf8b5165cb3cc1a5e0fa5cfa3e1f7f55707d8fd82e0a7b7"
-dependencies = [
- "der",
- "spki",
-]
-
-[[package]]
 name = "powerfmt"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a6394b9e965e73d0a289ee54f589087e2c676aedf60885baf52c76b771e4958"
-
-[[package]]
-name = "ppv-lite86"
-version = "0.2.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
-dependencies = [
- "zerocopy",
-]
 
 [[package]]
 name = "proc-macro2"
@@ -2991,32 +2886,6 @@ name = "r-efi"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
-
-[[package]]
-name = "rand"
-version = "0.8.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
-dependencies = [
- "rand_chacha",
- "rand_core",
-]
-
-[[package]]
-name = "rand_chacha"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
-dependencies = [
- "ppv-lite86",
- "rand_core",
-]
-
-[[package]]
-name = "rand_core"
-version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 
 [[package]]
 name = "rayon"
@@ -3079,26 +2948,6 @@ dependencies = [
  "libc",
  "untrusted",
  "windows-sys",
-]
-
-[[package]]
-name = "rsa"
-version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8573f03f5883dcaebdfcf4725caa1ecb9c15b2ef50c43a07b816e06799bb12d"
-dependencies = [
- "const-oid",
- "digest",
- "num-bigint-dig",
- "num-integer",
- "num-traits",
- "pkcs1",
- "pkcs8",
- "rand_core",
- "signature",
- "spki",
- "subtle",
- "zeroize",
 ]
 
 [[package]]
@@ -3259,16 +3108,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
-name = "signature"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
-dependencies = [
- "digest",
- "rand_core",
-]
-
-[[package]]
 name = "simd-adler32"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3328,21 +3167,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-checks"
+version = "0.0.0"
+
+[[package]]
 name = "skein-codec"
 version = "0.0.0"
 dependencies = [
  "skein-heap",
  "skein-lib",
  "skein-rows",
-]
-
-[[package]]
-name = "skein-codec-patches"
-version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-scratch",
 ]
 
 [[package]]
@@ -3395,6 +3229,7 @@ dependencies = [
 name = "skein-conformance-sim"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-conformance",
  "skein-fake-machine",
  "skein-io",
@@ -3476,13 +3311,15 @@ dependencies = [
 [[package]]
 name = "skein-fail-stop"
 version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
 
 [[package]]
 name = "skein-fail-stop-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
- "skein-lib",
 ]
 
 [[package]]
@@ -3785,6 +3622,7 @@ dependencies = [
 name = "skein-forge-dialect-tests"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-forge",
  "skein-json",
  "skein-lib",
@@ -3814,6 +3652,7 @@ dependencies = [
 name = "skein-forge-machine-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
@@ -3919,6 +3758,7 @@ dependencies = [
 name = "skein-http-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-heap",
  "skein-http",
  "skein-http-kit",
@@ -3963,6 +3803,7 @@ dependencies = [
 name = "skein-json-kit"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-json",
  "skein-lib",
 ]
@@ -4093,6 +3934,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-llm",
+ "skein-world",
 ]
 
 [[package]]
@@ -4117,12 +3959,10 @@ name = "skein-oauth"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-json",
  "skein-lib",
  "skein-oauth-codec",
  "skein-rows",
- "skein-scratch",
  "skein-tls",
 ]
 
@@ -4422,10 +4262,12 @@ name = "skein-ui-example-server"
 version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
+ "skein-fake-person",
  "skein-http",
  "skein-io",
  "skein-lib",
  "skein-shell",
+ "skein-ui",
  "skein-ui-example-view",
 ]
 
@@ -4544,28 +4386,28 @@ dependencies = [
  "flate2",
  "skein-browser",
  "skein-fail-stop",
- "skein-fake-peers",
  "skein-fake-person",
  "skein-fake-person-browser",
  "skein-http",
- "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-ui",
  "skein-ui-bundle",
  "skein-ui-example-server",
+ "skein-ui-example-shell-web",
  "skein-ui-example-view",
  "skein-ui-web",
- "skein-world",
 ]
 
 [[package]]
 name = "skein-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-sim-world",
@@ -4577,13 +4419,17 @@ version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
  "skein-fake-machine",
+ "skein-fake-peers",
+ "skein-fake-person-browser",
  "skein-heap",
+ "skein-http",
  "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-sim-world",
+ "skein-ui",
  "skein-world",
 ]
 
@@ -4592,12 +4438,6 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
-
-[[package]]
-name = "smallvec"
-version = "1.16.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3244542535d5de959d90ec55d1b5ff0fd2bb7b1310223907d5f11932847f7b59"
 
 [[package]]
 name = "smith"
@@ -4637,6 +4477,7 @@ dependencies = [
  "serde_json",
  "skein-channel",
  "skein-http",
+ "skein-io",
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
@@ -4686,6 +4527,7 @@ dependencies = [
  "skein-sim",
  "skein-tls-kit",
  "skein-world",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-agent-world",
@@ -4696,6 +4538,8 @@ dependencies = [
  "smith-domain-run",
  "smith-events",
  "smith-fake-claude",
+ "smith-faults",
+ "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-llm",
@@ -4787,6 +4631,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -4827,8 +4672,12 @@ dependencies = [
  "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-events",
+ "smith-faults",
  "smith-host-domain",
  "smith-host-world",
+ "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-session-world",
@@ -4846,6 +4695,8 @@ dependencies = [
  "serde_path_to_error",
  "sha2",
  "skein-fail-stop",
+ "skein-fake-checkout",
+ "skein-fake-machine",
  "skein-io",
  "skein-lib",
  "skein-llm",
@@ -4866,8 +4717,10 @@ dependencies = [
 name = "smith-bench-fixtures"
 version = "0.0.0"
 dependencies = [
+ "libc",
  "serde_json",
  "sha2",
+ "skein-fake-machine",
  "skein-lib",
  "skein-scratch",
  "smith-bench",
@@ -4881,9 +4734,7 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -4919,9 +4770,7 @@ name = "smith-charter"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -4937,11 +4786,14 @@ dependencies = [
  "skein-scratch",
  "smith-channel",
  "smith-charter",
+ "smith-domain-session",
+ "smith-domain-tools",
  "smith-events",
  "smith-events-fixtures",
  "smith-local-protocol",
+ "smith-protocol-llm",
+ "smith-protocol-translate",
  "smith-transcript",
- "smith-transcript-patches",
 ]
 
 [[package]]
@@ -5081,6 +4933,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-faults"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-llm-kit",
+ "skein-world",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain-run",
+ "smith-protocol-translate",
+]
+
+[[package]]
 name = "smith-host-domain"
 version = "0.0.0"
 dependencies = [
@@ -5101,6 +4966,7 @@ name = "smith-host-protocol"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-io",
  "skein-json",
  "skein-lib",
@@ -5144,6 +5010,7 @@ dependencies = [
  "smith-inline-agent",
  "smith-inline-agent-fixtures",
  "smith-machine-world",
+ "smith-protocol-llm-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
 ]
@@ -5229,6 +5096,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-checks",
  "skein-fake-checkout",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
@@ -5256,6 +5124,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-session-fixtures",
  "smith-events",
+ "smith-fake-claude",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-host-world",
@@ -5271,6 +5140,7 @@ dependencies = [
  "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
+ "smith-protocol-program",
  "smith-protocol-translate",
  "smith-transcript",
 ]
@@ -5397,6 +5267,7 @@ dependencies = [
  "smith-local-protocol",
  "smith-local-service",
  "smith-protocol-events",
+ "smith-protocol-llm",
  "smith-protocol-program",
  "smith-protocol-translate",
  "smith-real-world",
@@ -5445,6 +5316,7 @@ name = "smith-protocol-channel"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-lib",
  "smith-channel",
  "smith-charter",
@@ -5551,6 +5423,7 @@ dependencies = [
  "smith-domain-tools",
  "smith-events",
  "smith-events-fixtures",
+ "smith-faults",
  "smith-protocol-events",
  "smith-protocol-events-fixtures",
  "smith-protocol-llm",
@@ -5611,6 +5484,7 @@ name = "smith-protocol-translate"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-codec",
  "skein-codegen",
  "skein-lib",
  "smith-channel",
@@ -5630,6 +5504,7 @@ dependencies = [
  "skein-fake-peers",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-tls-kit",
  "skein-world",
@@ -5654,6 +5529,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-run",
  "smith-domain-run-fixtures",
+ "smith-faults",
  "smith-machine-world",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
@@ -5697,34 +5573,7 @@ name = "smith-transcript"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
-]
-
-[[package]]
-name = "smith-transcript-patches"
-version = "0.0.0"
-dependencies = [
- "skein-codec",
- "skein-codegen",
- "skein-scratch",
-]
-
-[[package]]
-name = "spin"
-version = "0.9.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3763264f6b73151db08c50ff20d7d8a0b8796e021cdea7ceedad07b80155fa0e"
-
-[[package]]
-name = "spki"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
-dependencies = [
- "base64ct",
- "der",
 ]
 
 [[package]]
@@ -5768,7 +5617,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-client-shell",
- "temper-shell",
  "temper-version",
 ]
 
@@ -5779,11 +5627,9 @@ dependencies = [
  "skein-fail-stop",
  "skein-forge",
  "skein-scratch",
- "skein-shell",
  "smith-protocol-program",
  "temper-agent-shell",
  "temper-fetch",
- "temper-shell",
  "temper-version",
 ]
 
@@ -5816,6 +5662,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-blame"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-world",
+ "temper-faults",
+]
+
+[[package]]
 name = "temper-box"
 version = "0.0.0"
 dependencies = [
@@ -5826,9 +5681,11 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
+ "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
@@ -5898,11 +5755,11 @@ dependencies = [
  "temper-service",
  "temper-service-core",
  "temper-service-shell",
+ "temper-settings-form",
  "temper-shell",
  "temper-test-env",
  "temper-version",
  "temper-worker-domain",
- "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-service",
  "temper-worker-shell",
@@ -5914,7 +5771,6 @@ version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
  "jig-client",
- "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
@@ -5958,6 +5814,7 @@ dependencies = [
  "temper-box-shell",
  "temper-client-domain",
  "temper-client-journeys-tool",
+ "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-config-shell",
@@ -6022,6 +5879,7 @@ dependencies = [
  "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
+ "skein-fake-machine",
  "skein-fake-peers",
  "skein-forge",
  "skein-forge-client",
@@ -6034,15 +5892,19 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
+ "skein-sim",
+ "skein-sim-world",
  "skein-tls",
  "skein-tls-kit",
  "skein-world",
+ "smith-agent-document",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-host-domain",
  "smith-local-domain",
  "temper-agent-fixtures",
  "temper-agent-shell",
+ "temper-box-kit",
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-protocol-wire",
@@ -6075,6 +5937,8 @@ dependencies = [
  "temper-shell",
  "temper-test-env",
  "temper-worker-domain",
+ "temper-worker-protocol-git",
+ "temper-worker-service",
  "temper-worker-shell",
 ]
 
@@ -6095,8 +5959,10 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
+ "jig-protocol-engine-clients",
  "serde_json",
  "skein-browser",
  "skein-fake-forge-domain",
@@ -6113,6 +5979,7 @@ dependencies = [
  "skein-oauth",
  "skein-playground",
  "skein-scratch",
+ "skein-shell",
  "skein-sim",
  "skein-tls-kit",
  "skein-ui",
@@ -6126,6 +5993,7 @@ dependencies = [
  "temper-config-shell",
  "temper-engine-domain",
  "temper-engine-service",
+ "temper-engine-service-stock",
  "temper-fake",
  "temper-fixtures",
  "temper-init",
@@ -6171,6 +6039,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-records",
+ "skein-codec",
  "skein-lib",
  "skein-ui",
  "temper-client-protocol-wire",
@@ -6230,18 +6099,12 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
- "jig-client",
- "jig-client-protocol-wire",
+ "serde_json",
  "skein-fail-stop",
- "skein-lib",
  "skein-scratch",
- "skein-ui-screen",
- "skein-ui-web",
  "temper-client-journeys-kit",
  "temper-client-journeys-tool",
- "temper-client-shell-tui",
  "temper-client-shell-web",
- "temper-client-tui",
  "temper-version",
 ]
 
@@ -6275,6 +6138,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "skein-browser",
+ "skein-fake-machine",
  "skein-fake-person",
  "skein-fake-person-browser",
  "skein-forge",
@@ -6352,6 +6216,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-shell",
+ "smith-transcript",
  "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-tools",
@@ -6436,6 +6301,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-redaction",
  "temper-client-view",
+ "temper-client-view-kit",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -6642,7 +6508,6 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-config-shell",
- "tempfile",
 ]
 
 [[package]]
@@ -6665,8 +6530,6 @@ dependencies = [
  "jig-client-shell-native",
  "jig-client-shell-web",
  "jig-protocol-config",
- "rand_chacha",
- "rsa",
  "serde_json",
  "skein-fake-machine",
  "skein-fake-person",
@@ -6706,6 +6569,7 @@ dependencies = [
  "jig-boundary",
  "jig-client",
  "jig-client-kit",
+ "jig-client-protocol-http",
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-test-domain",
@@ -6733,6 +6597,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-shell",
+ "skein-sim",
  "skein-ui",
  "skein-ui-screen",
  "skein-ui-screen-terminal",
@@ -6769,9 +6634,10 @@ name = "temper-codecs-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
- "jig-client-view-codec",
  "jig-protocol-config",
  "jig-protocol-store",
+ "sha2",
+ "skein-checks",
  "skein-codec",
  "skein-codegen",
  "skein-fake-forge-github",
@@ -6783,6 +6649,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-scratch",
+ "smith-channel",
  "temper-client-protocol-wire",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
@@ -6872,7 +6739,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
- "skein-shell",
  "temper-agent-fixtures",
  "temper-config-shell",
  "temper-deployment-fixtures",
@@ -6882,7 +6748,6 @@ dependencies = [
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-github-app",
- "temper-protocol-store",
  "temper-service-core",
  "temper-service-shell",
  "temper-shell",
@@ -6929,6 +6794,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-limits",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
  "temper-engine-domain-translate",
@@ -6954,6 +6820,8 @@ dependencies = [
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-tasks-kit",
+ "skein-codec",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",
@@ -7036,6 +6904,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine-domain-limits"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-store",
+]
+
+[[package]]
 name = "temper-engine-domain-room"
 version = "0.0.0"
 dependencies = [
@@ -7105,6 +6991,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -7117,16 +7004,19 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-engine-clients-kit",
+ "jig-inspect",
  "jig-people-kit",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
+ "jig-protocol-store-kit",
  "jig-tasks-kit",
  "jig-test-domain",
  "jig-test-profile",
  "jig-test-store-files",
  "serde_json",
+ "skein-checks",
  "skein-fake-forge-domain",
  "skein-fake-llm-domain",
  "skein-forge",
@@ -7153,12 +7043,15 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
  "temper-engine-forge-world",
+ "temper-engine-inspect",
  "temper-engine-service-startup",
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
+ "temper-fake-git",
+ "temper-faults",
  "temper-landing-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-reaches",
@@ -7167,25 +7060,49 @@ dependencies = [
  "temper-service-core",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",
+ "temper-workload",
 ]
 
 [[package]]
 name = "temper-engine-forge-world"
 version = "0.0.0"
 dependencies = [
+ "jig-conformance",
  "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-tasks-kit",
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
  "skein-lib",
  "skein-world",
+ "temper-blame",
  "temper-client-protocol-wire",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-inspect",
+ "temper-faults",
  "temper-protocol-reaches",
+ "temper-workload",
+]
+
+[[package]]
+name = "temper-engine-inspect"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-lib",
+ "skein-world",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-forge-world",
 ]
 
 [[package]]
@@ -7332,8 +7249,10 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-worker-wire",
  "serde_json",
+ "skein-checks",
  "skein-codec",
  "skein-forge",
+ "skein-forge-client",
  "skein-forge-connection",
  "skein-io",
  "skein-json",
@@ -7366,6 +7285,9 @@ dependencies = [
  "temper-service-core",
  "temper-service-shell",
  "temper-settings-form",
+ "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
+ "temper-worker-service",
  "temper-worker-service-fixtures",
 ]
 
@@ -7377,6 +7299,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
@@ -7452,6 +7375,7 @@ dependencies = [
  "smith-channel",
  "smith-charter",
  "smith-domain-run",
+ "smith-domain-session",
  "smith-protocol-channel",
  "smith-protocol-translate",
  "smith-transcript",
@@ -7462,6 +7386,8 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-limits",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-engine-service-startup",
@@ -7488,11 +7414,14 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
+ "jig-protocol-config-fixtures",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-channel",
+ "skein-codec",
+ "skein-fake-machine",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-connection",
@@ -7504,7 +7433,9 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
+ "skein-sim",
  "skein-tls",
+ "skein-tls-kit",
  "temper-agent-fixtures",
  "temper-box-machine",
  "temper-client-bundle",
@@ -7523,9 +7454,11 @@ dependencies = [
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",
+ "temper-worker-shell",
 ]
 
 [[package]]
@@ -7624,6 +7557,7 @@ name = "temper-fake-checkout"
 version = "0.0.0"
 dependencies = [
  "skein-fake-checkout",
+ "skein-lib",
 ]
 
 [[package]]
@@ -7650,6 +7584,7 @@ dependencies = [
 name = "temper-fake-git-hosted"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "skein-fake-checkout",
  "skein-fake-forge-domain",
  "skein-fake-machine",
@@ -7657,12 +7592,22 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-shell",
+ "skein-sim",
  "skein-sim-world",
+ "temper-box-shell",
+ "temper-fake",
  "temper-fake-git",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-protocol-git-world",
+]
+
+[[package]]
+name = "temper-faults"
+version = "0.0.0"
+dependencies = [
+ "skein-world",
 ]
 
 [[package]]
@@ -7678,6 +7623,7 @@ name = "temper-fetch-shell"
 version = "0.0.0"
 dependencies = [
  "flate2",
+ "skein-fake-machine",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -7718,6 +7664,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "rustls",
+ "skein-fake-machine",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -7812,11 +7759,11 @@ name = "temper-launcher"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "skein-fake-machine",
  "skein-forge",
  "skein-io",
  "skein-json",
  "skein-lib",
- "skein-scratch",
  "skein-shell",
  "smith-agent-document",
  "temper-fetch",
@@ -7885,11 +7832,14 @@ dependencies = [
  "skein-fake-person",
  "skein-fake-push",
  "skein-forge",
+ "skein-forge-connection",
+ "skein-forge-setup",
  "skein-heap",
  "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
+ "skein-llm",
  "skein-oauth-accounts",
  "skein-playground",
  "skein-push",
@@ -7909,10 +7859,13 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "temper-agent-fixtures",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
+ "temper-client-tools",
+ "temper-config-shell",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
@@ -7920,11 +7873,14 @@ dependencies = [
  "temper-engine-shell",
  "temper-fake",
  "temper-fake-git-hosted",
+ "temper-faults",
  "temper-fixtures",
  "temper-forge-setup",
  "temper-github-app",
  "temper-limits-fixtures",
  "temper-playground",
+ "temper-protocol-records",
+ "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service",
@@ -7932,6 +7888,7 @@ dependencies = [
  "temper-shell",
  "temper-test-env",
  "temper-worker-checkout-world",
+ "temper-worker-service",
 ]
 
 [[package]]
@@ -7952,6 +7909,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-codec",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-http",
@@ -7989,6 +7947,7 @@ dependencies = [
  "smith-protocol-translate",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
@@ -8087,6 +8046,7 @@ dependencies = [
 name = "temper-protocol-reaches"
 version = "0.0.0"
 dependencies = [
+ "skein-codec",
  "skein-lib",
  "temper-client-protocol-wire",
 ]
@@ -8096,9 +8056,7 @@ name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -8164,9 +8122,7 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-worker-wire",
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -8201,7 +8157,6 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
- "jig-domain-host",
  "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -8238,10 +8193,8 @@ dependencies = [
  "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-shell",
- "smith-fake-claude",
  "temper-agent-fixtures",
  "temper-box-shell",
- "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
@@ -8252,7 +8205,6 @@ dependencies = [
  "temper-engine-service",
  "temper-engine-shell",
  "temper-fake",
- "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-fixtures",
  "temper-forge-setup",
@@ -8268,39 +8220,8 @@ dependencies = [
  "temper-test-env",
  "temper-worker-checkout-world",
  "temper-worker-domain",
- "temper-worker-protocol-git",
  "temper-worker-service",
  "temper-worker-shell",
-]
-
-[[package]]
-name = "temper-redeploy"
-version = "0.0.0"
-dependencies = [
- "serde_json",
- "skein-fail-stop",
- "skein-scratch",
- "skein-shell",
- "temper-redeploy-tool",
- "temper-version",
-]
-
-[[package]]
-name = "temper-redeploy-tool"
-version = "0.0.0"
-dependencies = [
- "jig-protocol-store",
- "jig-protocol-worker-wire",
- "serde",
- "serde_json",
- "skein-lib",
- "skein-scratch",
- "skein-shell",
- "temper-config-shell",
- "temper-engine-service",
- "temper-engine-shell",
- "temper-service-core",
- "temper-test-env",
 ]
 
 [[package]]
@@ -8451,6 +8372,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-service",
+ "temper-engine-smith",
  "temper-limits-fixtures",
  "temper-protocol-worker-wire",
  "temper-worker-domain",
@@ -8464,6 +8386,8 @@ name = "temper-service-shell"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
+ "rustix",
+ "skein-fake-machine",
  "skein-io",
  "skein-json",
  "skein-lib",
@@ -8491,9 +8415,9 @@ dependencies = [
 name = "temper-shell"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-machine",
  "skein-io",
  "skein-lib",
- "skein-scratch",
  "skein-shell",
  "temper-docs",
 ]
@@ -8514,6 +8438,7 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
+ "skein-fake-machine",
  "skein-scratch",
  "skein-shell",
  "temper-settings-form",
@@ -8524,6 +8449,7 @@ dependencies = [
 name = "temper-system-world"
 version = "0.0.0"
 dependencies = [
+ "jig-conformance",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -8535,6 +8461,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-parties",
+ "jig-inspect",
  "jig-protocol-charter",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
@@ -8548,35 +8475,50 @@ dependencies = [
  "skein-forge-client",
  "skein-lib",
  "skein-llm",
+ "skein-llm-kit",
+ "skein-world",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-agent-world",
  "smith-channel",
+ "smith-channel-world",
  "smith-charter",
  "smith-domain",
  "smith-domain-run",
  "smith-domain-session",
+ "smith-faults",
  "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
+ "smith-protocol-llm-world",
  "smith-transcript",
  "temper-agent-fixtures",
+ "temper-blame",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
  "temper-engine-domain-world",
  "temper-engine-forge-world",
+ "temper-engine-inspect",
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
+ "temper-fake",
  "temper-fake-checkout",
+ "temper-faults",
+ "temper-landing-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-worker-wire",
  "temper-service-core",
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-domain-world",
+ "temper-worker-inspect",
  "temper-worker-service",
+ "temper-workload",
 ]
 
 [[package]]
@@ -8629,7 +8571,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-config-shell",
- "temper-shell",
  "temper-version",
  "temper-worker-shell",
 ]
@@ -8651,6 +8592,7 @@ dependencies = [
  "temper-fake-git",
  "temper-test-env",
  "temper-worker-domain-checkout",
+ "temper-worker-inspect",
  "temper-worker-protocol-git",
 ]
 
@@ -8698,10 +8640,26 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-session",
  "smith-protocol-channel",
+ "smith-protocol-translate",
  "smith-transcript",
  "temper-fake-checkout",
+ "temper-faults",
  "temper-worker-checkout-world",
  "temper-worker-domain",
+ "temper-worker-inspect",
+]
+
+[[package]]
+name = "temper-worker-inspect"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-checkout",
+ "skein-lib",
+ "skein-world",
+ "temper-fake-checkout",
+ "temper-worker-domain",
+ "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
 ]
 
 [[package]]
@@ -8718,11 +8676,13 @@ dependencies = [
 name = "temper-worker-protocol-git-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-world",
  "temper-worker-domain-checkout",
+ "temper-worker-inspect",
  "temper-worker-protocol-git",
 ]
 
@@ -8809,6 +8769,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-worker-wire",
  "serde_json",
+ "skein-fake-machine",
  "skein-io",
  "skein-lib",
  "skein-scratch",
@@ -8818,6 +8779,7 @@ dependencies = [
  "smith-host-domain",
  "smith-host-protocol",
  "temper-agent-fixtures",
+ "temper-client-protocol-wire",
  "temper-config-shell",
  "temper-engine-service-vocabulary",
  "temper-launcher",
@@ -8829,6 +8791,14 @@ dependencies = [
  "temper-shell",
  "temper-worker-domain",
  "temper-worker-service",
+]
+
+[[package]]
+name = "temper-workload"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-world",
 ]
 
 [[package]]
@@ -9162,26 +9132,6 @@ name = "winnow"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
-
-[[package]]
-name = "zerocopy"
-version = "0.8.63"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5fe1f8f1b06191a00962174c61aa5005e0bb391a6d80d07e24d115c01a92ed8"
-dependencies = [
- "zerocopy-derive",
-]
-
-[[package]]
-name = "zerocopy-derive"
-version = "0.8.63"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "863ad3ac83293fb4d740aedbfdc9240dd8d1a50c1099acd76ce80ce7c7230c7f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
 
 [[package]]
 name = "zeroize"

@@ -2,8 +2,11 @@
 # Live pairs have no entry yet: the user has not set their CPU budgets here.
 # Gate tables: tools/tiers/budgets.md, 6; the CI builder's 11-16 gate runs' median by tree, suite and layer, plus the larger of a tenth and a second, rounded up, by the user's word of 11-16; references and ideals from temper/docs/design/draft/test-budgets.md, 6 and 9.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
+# A suite's [[gate.PROFILE.check_reasons]] explains measured checks lost (tools/tiers/budgets.md, 13).
 
 # Suite paths are quoted keys, e.g. [tools."tools/tiers/test_run.py"].
+# Accepted levels (accepted_instructions): the user's weekly growth allowance for the cheap layers, step, machine, protocol, io and
+# domain, at main's count plus 5%, renewed each week by temper/draft/store (the user, 11-23); simulated, system and slower layers get none.
 [tools]
 
 [gate.default]
@@ -118,21 +121,31 @@ ideal_s = 40
 
 [gate.default.skein.step]
 cpu_s = 7
+instructions = 42_000_000_000
+accepted_instructions = 46_900_000_000
 
 [gate.default.skein.domain]
 cpu_s = 2
+instructions = 9_600_000_000
 
 [gate.default.skein.machine]
 cpu_s = 5
+instructions = 37_500_000_000
+accepted_instructions = 27_600_000_000
 
 [gate.default.skein.protocol]
 cpu_s = 7
+instructions = 45_800_000_000
+accepted_instructions = 34_900_000_000
 
 [gate.default.skein.io]
 cpu_s = 2
+instructions = 10_600_000_000
 
 [gate.default.skein.simulated]
 cpu_s = 3
+instructions = 48_100_000_000
+accepted_instructions = 39_800_000_000
 
 [gate.default.skein.real-loop]
 cpu_s = 7
@@ -146,23 +159,36 @@ to = "skein.simulated"
 cpu_s = 3.7
 why = "skein-echo-world, skein-fake-peers-tests, skein-kv-tests, skein-oauth-accounts-world and skein-world-tests' replaying tests left their real-loop suites for simulated binaries (tools/tiers/layers.md, 6.1)."
 
+[[gate.default.moves]]
+from = "skein.real-loop"
+to = "skein.simulated"
+cpu_s = 2.0
+why = "github-conformance's suite, 44 cases, left the real loop to replay on the fake machine (temper/docs/design/draft/slow-tests-down.md, 5.2); the user's figure of 2026-11-23."
+
 [gate.default.smith]
 ideal_s = 30
 
 [gate.default.smith.step]
 cpu_s = 7
+instructions = 62_500_000_000
+accepted_instructions = 98_600_000_000
 
 [gate.default.smith.domain]
 cpu_s = 3
+instructions = 17_200_000_000
 
 [gate.default.smith.system]
 cpu_s = 2
+instructions = 7_100_000_000
 
 [gate.default.smith.protocol]
 cpu_s = 3
+instructions = 22_200_000_000
 
 [gate.default.smith.simulated]
 cpu_s = 11
+instructions = 73_200_000_000
+accepted_instructions = 88_700_000_000
 
 [gate.default.smith.real-loop]
 cpu_s = 2
@@ -183,33 +209,59 @@ cpu_s = 2.1
 why = "smith-fake-claude's encodings and hosted fake left their end-to-end binary for a simulated binary (tools/tiers/layers.md, 6.1)."
 
 [[gate.default.moves]]
+from = "smith.end-to-end"
+to = "smith.simulated"
+cpu_s = 1.5
+why = "smith's command-line tests, 63 cases, left smith::end_to_end for the simulated local- and agent-process worlds (temper/docs/design/draft/slow-tests-down.md, 5.3); the user's figure of 2026-11-24."
+
+[[gate.default.moves]]
 from = "smith.real-loop"
 to = "smith.simulated"
 cpu_s = 0.1
 why = "smith-machine-world's machine seams and fake-kernel stories left their real-loop binary for a simulated binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "smith.real-loop"
+to = "smith.simulated"
+cpu_s = 1.0
+why = "smith's store cases, 14, left smith-local-protocol::suite for the simulated local-process world (temper/docs/design/draft/slow-tests-down.md, 5.2); the user's figure by their standing approval of 2026-11-24."
 
 [gate.default.jig]
 ideal_s = 30
 
 [gate.default.jig.step]
 cpu_s = 47
+instructions = 343_100_000_000
+accepted_instructions = 491_600_000_000
 ideal_s = 1
+ideal_instructions = 7_200_000_000
 
 [gate.default.jig.domain]
 cpu_s = 4
+instructions = 301_600_000_000
+accepted_instructions = 254_100_000_000
 ideal_s = 17
+ideal_instructions = 84_600_000_000
 
 [gate.default.jig.machine]
 cpu_s = 2
+instructions = 17_900_000_000
+accepted_instructions = 28_200_000_000
 ideal_s = 1
+ideal_instructions = 8_900_000_000
 
 [gate.default.jig.protocol]
 cpu_s = 13
+instructions = 49_700_000_000
+accepted_instructions = 60_500_000_000
 ideal_s = 8
+ideal_instructions = 51_600_000_000
 
 [gate.default.jig.simulated]
 cpu_s = 110
+instructions = 275_900_000_000
 ideal_s = 3
+ideal_instructions = 13_900_000_000
 
 [gate.default.jig.real-loop]
 cpu_s = 2
@@ -234,28 +286,44 @@ ideal_s = 100
 
 [gate.default.temper.step]
 cpu_s = 253
+instructions = 1_932_500_000_000
+accepted_instructions = 1_554_300_000_000
 ideal_s = 25
+ideal_instructions = 189_800_000_000
 
 [gate.default.temper.domain]
 cpu_s = 136
+instructions = 641_400_000_000
+accepted_instructions = 813_600_000_000
 ideal_s = 20
+ideal_instructions = 89_800_000_000
 
 [gate.default.temper.system]
 cpu_s = 111
+instructions = 633_000_000_000
 ideal_s = 25
+ideal_instructions = 142_600_000_000
 
 [gate.default.temper.machine]
 cpu_s = 4
+instructions = 29_400_000_000
 ideal_s = 1
+ideal_instructions = 7_300_000_000
 
 [gate.default.temper.protocol]
 cpu_s = 9
+instructions = 50_400_000_000
+accepted_instructions = 70_000_000_000
 ideal_s = 1
+ideal_instructions = 5_600_000_000
 reference_s = 1
 
 [gate.default.temper.simulated]
 cpu_s = 470
+instructions = 2_321_400_000_000
+accepted_instructions = 896_000_000_000
 ideal_s = 15
+ideal_instructions = 74_100_000_000
 reference_s = 2
 
 [gate.default.temper.real-loop]
@@ -286,17 +354,33 @@ to = "temper.domain"
 cpu_s = 3.2
 why = "The redeploy's replaying value checks and fake-host orchestration have their own domain binary (tools/tiers/layers.md, 6.1)."
 
+[[gate.default.moves]]
+from = "temper.simulated"
+to = "temper.step"
+cpu_s = 0.1
+why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): default simulated fell 0.77 s as the two supplied-value referee controls left the simulated world for step binaries (the user, 2026-11-22)."
+
+[[gate.default.moves]]
+from = "temper.real-loop"
+to = "temper.simulated"
+cpu_s = 20.5
+why = "The lower-tier stories in temper-real-loop-world's suite and live_text left the real loop, most for temper-one-process-world::suite (temper/docs/design/draft/slow-tests-down.md, 5.4; temper/docs/design/testing/real-loop.md, Moved below). The user's rule of 2026-11-24 for the goal's own move down sizes it at 67.39e9 instructions past the allowance, divided by main's 4.3794242372e9 instructions per CPU s, x1.33."
+
 [gate.default.hearth]
 ideal_s = 30
 
 [gate.default.hearth.step]
 cpu_s = 2
+instructions = 8_700_000_000
 
 [gate.default.hearth.domain]
 cpu_s = 4
+instructions = 27_200_000_000
 
 [gate.default.hearth.machine]
 cpu_s = 13
+instructions = 119_200_000_000
+accepted_instructions = 110_300_000_000
 
 [gate.default.hearth.real-loop]
 cpu_s = 11
@@ -304,17 +388,28 @@ cpu_s = 11
 [gate.default.hearth.end-to-end]
 cpu_s = 2
 
+[gate.default.hearth.simulated]
+instructions = 25_300_000_000
+accepted_instructions = 44_000_000_000
+
 [[gate.default.moves]]
 from = "hearth.real-loop"
 to = "hearth.simulated"
 cpu_s = 3.9
 why = "hearth-builder-world's tests that replay left its real-loop binary for a binary of their own (tools/tiers/layers.md, 6.1)."
 
+[[gate.default.moves]]
+from = "hearth.real-loop"
+to = "hearth.simulated"
+cpu_s = 3.0
+why = "hearth's builder render, diff, outcome, repository and store cases, 220, left its real and suite binaries for the simulated world (temper/docs/design/draft/slow-tests-down.md, 5.2); the user's figure of 2026-11-24."
+
 [gate.default.repository]
 ideal_s = 30
 
 [gate.default.repository.checks]
 cpu_s = 72
+instructions = 633_400_000_000
 
 [[gate.default.moves]]
 from = "jig.simulated"
@@ -349,6 +444,13 @@ why = "The core step binary drives referee and store controls, direct Core steps
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
 
+[[gate.fuzzy.check_reasons]]
+binary = "smith-codecs-world::suite"
+checks = { seed = 1 }
+kind = "removed"
+why = "The Smith worker wire patch histories are gone, so the codec suite no longer draws a seed to exercise the retired transcript patch path."
+by = "Change 16307"
+
 [[gate.fuzzy.moves]]
 from = "temper.real-loop"
 to = "temper.domain"
@@ -366,21 +468,31 @@ ideal_s = 120
 
 [gate.fuzzy.skein.step]
 cpu_s = 32
+instructions = 215_700_000_000
+accepted_instructions = 268_100_000_000
 
 [gate.fuzzy.skein.domain]
 cpu_s = 2
+instructions = 11_500_000_000
 
 [gate.fuzzy.skein.machine]
 cpu_s = 43
+instructions = 345_400_000_000
+accepted_instructions = 318_000_000_000
 
 [gate.fuzzy.skein.protocol]
 cpu_s = 23
+instructions = 149_000_000_000
+accepted_instructions = 136_600_000_000
 
 [gate.fuzzy.skein.io]
 cpu_s = 21
+instructions = 115_000_000_000
+accepted_instructions = 105_300_000_000
 
 [gate.fuzzy.skein.simulated]
 cpu_s = 2
+instructions = 123_300_000_000
 
 [gate.fuzzy.skein.real-loop]
 cpu_s = 20
@@ -399,18 +511,25 @@ ideal_s = 120
 
 [gate.fuzzy.smith.step]
 cpu_s = 3
+instructions = 35_700_000_000
+accepted_instructions = 26_600_000_000
 
 [gate.fuzzy.smith.domain]
 cpu_s = 16
+instructions = 100_100_000_000
+accepted_instructions = 89_100_000_000
 
 [gate.fuzzy.smith.system]
 cpu_s = 2
+instructions = 9_600_000_000
 
 [gate.fuzzy.smith.protocol]
 cpu_s = 3
+instructions = 22_500_000_000
 
 [gate.fuzzy.smith.simulated]
 cpu_s = 13
+instructions = 77_900_000_000
 
 [gate.fuzzy.smith.real-loop]
 cpu_s = 2
@@ -435,18 +554,25 @@ ideal_s = 120
 
 [gate.fuzzy.jig.step]
 cpu_s = 4
+instructions = 21_600_000_000
 
 [gate.fuzzy.jig.domain]
 cpu_s = 9
+instructions = 354_200_000_000
+accepted_instructions = 307_600_000_000
 
 [gate.fuzzy.jig.machine]
 cpu_s = 2
+instructions = 16_700_000_000
 
 [gate.fuzzy.jig.protocol]
 cpu_s = 55
+instructions = 206_100_000_000
+accepted_instructions = 187_900_000_000
 
 [gate.fuzzy.jig.simulated]
 cpu_s = 72
+instructions = 181_900_000_000
 
 [gate.fuzzy.jig.real-loop]
 cpu_s = 2
@@ -465,21 +591,30 @@ ideal_s = 180
 
 [gate.fuzzy.temper.step]
 cpu_s = 13
+instructions = 175_700_000_000
+accepted_instructions = 268_000_000_000
 
 [gate.fuzzy.temper.domain]
 cpu_s = 78
+instructions = 366_600_000_000
+accepted_instructions = 458_200_000_000
 
 [gate.fuzzy.temper.system]
 cpu_s = 13
+instructions = 71_700_000_000
+accepted_instructions = 149_500_000_000
 
 [gate.fuzzy.temper.machine]
 cpu_s = 2
+instructions = 9_700_000_000
 
 [gate.fuzzy.temper.protocol]
 cpu_s = 2
+instructions = 7_800_000_000
 
 [gate.fuzzy.temper.simulated]
 cpu_s = 196
+instructions = 966_800_000_000
 
 [gate.fuzzy.temper.real-loop]
 cpu_s = 198
@@ -499,6 +634,24 @@ to = "temper.domain"
 cpu_s = 4.6
 why = "The redeploy's seeded fake-host and parser cases replay in their own domain binary (tools/tiers/layers.md, 6.1)."
 
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 20
+why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): fuzzy real-loop fell 33.18 s as its stories were cut to their seams and their assertions held in domain worlds (the user, 2026-11-22)."
+
+[[gate.fuzzy.moves]]
+from = "temper.simulated"
+to = "temper.system"
+cpu_s = 2
+why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): fuzzy simulated fell 12.70 s as the four fixed-cut upgrade wrappers and two chat/merge wrappers were retired for composed-system holders (the user, 2026-11-22)."
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.simulated"
+cpu_s = 2.4
+why = "The lower-tier stories in temper-real-loop-world's suite and live_text left the real loop, most for temper-one-process-world::suite (temper/docs/design/draft/slow-tests-down.md, 5.4; temper/docs/design/testing/real-loop.md, Moved below). The user's rule of 2026-11-24 for the goal's own move down sizes it at 7.98e9 instructions past the allowance, divided by 4.478e9 instructions per CPU s (main's counts at 362c345f74), x1.33."
+
 [gate.fuzzy.hearth]
 ideal_s = 120
 
@@ -507,15 +660,22 @@ cpu_s = 1
 
 [gate.fuzzy.hearth.domain]
 cpu_s = 32
+instructions = 221_800_000_000
+accepted_instructions = 201_200_000_000
 
 [gate.fuzzy.hearth.machine]
 cpu_s = 50
+instructions = 427_000_000_000
+accepted_instructions = 394_000_000_000
 
 [gate.fuzzy.hearth.real-loop]
 cpu_s = 9
 
 [gate.fuzzy.hearth.end-to-end]
 cpu_s = 1
+
+[gate.fuzzy.hearth.simulated]
+instructions = 59_800_000_000
 
 [[gate.fuzzy.moves]]
 from = "hearth.real-loop"

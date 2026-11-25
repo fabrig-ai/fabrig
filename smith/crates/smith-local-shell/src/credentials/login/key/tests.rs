@@ -1,18 +1,31 @@
 use super::*;
-use crate::credentials::{key, logout, tests::Files};
-use std::os::unix::fs::PermissionsExt;
+use crate::credentials::{logout::remove_key_with, tests::Files};
 
 #[test]
 fn piped_keys_replace_privately() {
-    let files = Files::new("smith-credentials");
-    let path = files.path().join("keys/work");
-    keep(&path, &mut b"key-for-work\n".as_slice(), false).unwrap();
-    assert!(key::read(&path).unwrap().as_ref() == b"key-for-work", "trailing newline removed");
-    assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
-    keep(&path, &mut b"key-for-next".as_slice(), false).unwrap();
-    assert!(key::read(&path).unwrap().as_ref() == b"key-for-next", "key replaced");
-    logout::remove_key(&path).unwrap();
-    assert!(!path.exists());
+    let path = Path::new("/fixture/installation/keys/work");
+    let mut stored = None;
+    for (mut input, key) in
+        [(b"key-for-work\n".as_slice(), b"key-for-work".as_slice()), (b"key-for-next", b"key-for-next")]
+    {
+        keep_with(path, &mut input, false, |file, bytes, expected| {
+            assert_eq!(file, path);
+            assert_eq!(expected, Expect::Any, "login may replace a saved key");
+            stored = Some(bytes);
+            Ok(())
+        })
+        .expect("keep piped key");
+        assert_eq!(stored.as_deref(), Some(key), "publish stripped bytes, replacing any previous key");
+    }
+    for present in [true, false] {
+        remove_key_with(path, |file| {
+            assert_eq!(file, path);
+            assert_eq!(stored.is_some(), present);
+            if stored.take().is_some() { Ok(()) } else { Err(std::io::ErrorKind::NotFound.into()) }
+        })
+        .expect("logout succeeds even if the key is already absent");
+        assert!(stored.is_none(), "logout unlinks the key");
+    }
 }
 
 #[test]

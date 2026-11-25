@@ -33,6 +33,7 @@ pub(super) fn encode_hold_reason(value: &p::HoldReason, l: &w::Limits) -> w::Hol
             w::HoldReason::Failures(w::HoldReasonFailures { class: encode_failure_class(*class, l) })
         }
         p::HoldReason::Circle => w::HoldReason::Circle,
+        p::HoldReason::Waited => w::HoldReason::Waited,
         p::HoldReason::Stalled => w::HoldReason::Stalled,
         p::HoldReason::Dependency { task } => w::HoldReason::Dependency(w::HoldReasonDependency { task: *task }),
         p::HoldReason::Stopped => w::HoldReason::Stopped,
@@ -57,6 +58,7 @@ pub(super) fn decode_hold_reason(value: w::HoldReason) -> p::HoldReason {
         }
         w::HoldReason::Failures(value) => p::HoldReason::Failures { class: decode_failure_class(value.class) },
         w::HoldReason::Circle => p::HoldReason::Circle,
+        w::HoldReason::Waited => p::HoldReason::Waited,
         w::HoldReason::Stalled => p::HoldReason::Stalled,
         w::HoldReason::Dependency(value) => p::HoldReason::Dependency { task: value.task },
         w::HoldReason::Stopped => p::HoldReason::Stopped,
@@ -130,10 +132,10 @@ pub(super) fn decode_ending(value: w::Ending) -> p::Ending {
         w::Ending::Deleted => p::Ending::Deleted,
     }
 }
-pub(super) fn encode_lack(value: &p::Lack, l: &w::Limits) -> w::Lack {
+pub(super) fn encode_lack(value: &p::Lack) -> w::Lack {
     match value {
         p::Lack::Ceiling { holder, dimension, value, asked } => w::Lack::Ceiling(w::LackCeiling {
-            holder: encode_ceiling_holder(*holder, l),
+            holder: encode_ceiling_holder(*holder),
             dimension: encode_ceiling_dimension(*dimension),
             value: *value,
             asked: *asked,
@@ -151,7 +153,7 @@ pub(super) fn encode_lack(value: &p::Lack, l: &w::Limits) -> w::Lack {
         p::Lack::Funding => w::Lack::Funding,
         p::Lack::TaskKind { executor } => w::Lack::TaskKind(w::LackTaskKind {
             executor: match executor {
-                Some(executor) => Some(encode_executor(*executor, l)),
+                Some(executor) => Some(encode_executor(*executor)),
                 None => None,
             },
         }),
@@ -328,6 +330,13 @@ pub(super) fn decode_limit_kind(value: w::LimitKind) -> p::LimitKind {
 )]
 pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::QuestionAnswered { question, by } => w::Refusal::QuestionAnswered(w::RefusalQuestionAnswered {
+            question: *question,
+            by: match *by {
+                p::QuestionAnswerer::Task(value) => w::QuestionAnswerer::Task(w::Number64 { value }),
+                p::QuestionAnswerer::Person(value) => w::QuestionAnswerer::Person(w::Number64 { value }),
+            },
+        }),
         p::Refusal::Unlinked { worker } => w::Refusal::Unlinked(w::RefusalUnlinked { worker: *worker }),
         p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
         p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-store"),
@@ -388,7 +397,7 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
                 },
             }),
         p::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority {
-                lacking: encode_lack(lacking, l),
+                lacking: encode_lack(lacking),
                 proposable: match proposable {
                     None => None,
                     Some(p::Accepter::Nobody) => Some(w::Accepter::Nobody),
@@ -442,9 +451,18 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
             }),
     })
 }
+fn decode_question_refusal(value: w::RefusalQuestionAnswered) -> p::Refusal {
+    let by = match value.by {
+        w::QuestionAnswerer::Task(n) => p::QuestionAnswerer::Task(n.value),
+        w::QuestionAnswerer::Person(n) => p::QuestionAnswerer::Person(n.value),
+    };
+    p::Refusal::QuestionAnswered { question: value.question, by }
+}
+
 pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
     match value {
         // Forge application records cannot contain a settings decision's stale revision.
+        w::Refusal::QuestionAnswered(v) => decode_question_refusal(v),
         w::Refusal::Unlinked(v) => p::Refusal::Unlinked { worker: v.worker },
         w::Refusal::Concluded(v) => p::Refusal::Concluded { at: Wall::from_nanos(v.at) },
         w::Refusal::Stale(_) => unreachable!("forge applications cannot store a stale settings refusal"),
@@ -566,14 +584,14 @@ fn decode_role(v: w::Role) -> p::Role {
     }
 }
 
-fn encode_executor(value: p::TaskExecutor, limits: &w::Limits) -> w::TaskExecutor {
+fn encode_executor(value: p::TaskExecutor) -> w::TaskExecutor {
     match value {
         p::TaskExecutor::Agent { charter } => w::TaskExecutor::Agent(w::TaskExecutorAgent { charter }),
         p::TaskExecutor::Procedure { connector, code } => {
             w::TaskExecutor::Procedure(w::TaskExecutorProcedure { connector, code })
         }
         p::TaskExecutor::Person(address) => {
-            w::TaskExecutor::Person(w::TaskExecutorPerson { address: encode_person_address(&address, limits) })
+            w::TaskExecutor::Person(w::TaskExecutorPerson { address: encode_person_address(&address) })
         }
     }
 }
@@ -588,7 +606,7 @@ fn decode_executor(value: w::TaskExecutor) -> p::TaskExecutor {
     }
 }
 
-fn encode_person_address(value: &p::PersonAddress, _limits: &w::Limits) -> w::PersonAddress {
+fn encode_person_address(value: &p::PersonAddress) -> w::PersonAddress {
     match value {
         p::PersonAddress::Person(value) => w::PersonAddress::Person(w::PersonAddressPerson { value: *value }),
         p::PersonAddress::Role(value) => w::PersonAddress::Role(w::PersonAddressRole { value: *value }),
@@ -669,7 +687,7 @@ const fn decode_bound(value: w::Bound) -> p::Bound {
     }
 }
 
-fn encode_ceiling_holder(value: p::CeilingHolder, _limits: &w::Limits) -> w::CeilingHolder {
+fn encode_ceiling_holder(value: p::CeilingHolder) -> w::CeilingHolder {
     match value {
         p::CeilingHolder::Rules => w::CeilingHolder::Rules,
         p::CeilingHolder::Policy => w::CeilingHolder::Policy,

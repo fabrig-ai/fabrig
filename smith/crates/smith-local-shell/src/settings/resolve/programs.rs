@@ -4,14 +4,35 @@ use super::super::{Refusal, Settings};
 use super::input;
 use crate::credentials::Directory;
 use serde_json::{Value, json};
-use std::{ffi::OsStr, os::unix::fs::PermissionsExt, path::PathBuf};
+use std::{
+    ffi::OsStr,
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+};
 
 pub(crate) fn locate(configured: Option<&str>, path: Option<&OsStr>) -> Result<PathBuf, ()> {
-    let executable = |path: &PathBuf| {
-        path.is_absolute()
-            && std::fs::metadata(path)
-                .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-    };
+    locate_with(configured, path, file_facts)
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::settings) struct FileFacts {
+    pub(in crate::settings) is_file: bool,
+    pub(in crate::settings) mode: u32,
+}
+
+pub(super) fn file_facts(path: &Path) -> Option<FileFacts> {
+    std::fs::metadata(path)
+        .ok()
+        .map(|metadata| FileFacts { is_file: metadata.is_file(), mode: metadata.permissions().mode() })
+}
+
+pub(in crate::settings) fn locate_with(
+    configured: Option<&str>,
+    path: Option<&OsStr>,
+    mut facts: impl FnMut(&Path) -> Option<FileFacts>,
+) -> Result<PathBuf, ()> {
+    let mut executable =
+        |path: &PathBuf| path.is_absolute() && facts(path).is_some_and(|file| file.is_file && file.mode & 0o111 != 0);
     match configured {
         Some(value) => {
             let path = PathBuf::from(value);
@@ -23,7 +44,7 @@ pub(crate) fn locate(configured: Option<&str>, path: Option<&OsStr>) -> Result<P
 
 pub(super) fn check_sources(settings: &Settings) -> Result<(), Refusal> {
     if let Some(value) = settings.values.get("credentials")
-        && !std::path::Path::new(value.value.as_str().expect("schema path")).is_absolute()
+        && !Path::new(value.value.as_str().expect("schema path")).is_absolute()
     {
         return Err(input::refuse(settings, "credentials", "expected an absolute credentials directory"));
     }
@@ -51,7 +72,11 @@ pub(super) fn check_sources(settings: &Settings) -> Result<(), Refusal> {
     Ok(())
 }
 
-pub(super) fn document(settings: &Settings, endpoints: &[Value]) -> Result<Option<Value>, Refusal> {
+pub(super) fn document(
+    settings: &Settings,
+    endpoints: &[Value],
+    facts: impl FnMut(&Path) -> Option<FileFacts>,
+) -> Result<Option<Value>, Refusal> {
     if !endpoints.iter().any(|endpoint| endpoint.get("program").is_some()) {
         return Ok(None);
     }
@@ -59,7 +84,7 @@ pub(super) fn document(settings: &Settings, endpoints: &[Value]) -> Result<Optio
         input::refuse(settings, "credentials", "a program requires an absolute credentials directory")
     })?;
     let configured = settings.values.get("programs.claude_code").and_then(|field| field.value.as_str());
-    let program = locate(configured, settings.paths.path.as_deref()).map_err(|()| {
+    let program = locate_with(configured, settings.paths.path.as_deref(), facts).map_err(|()| {
         input::refuse(settings, "programs.claude_code", "expected an absolute executable file, or claude on PATH")
     })?;
     let path =

@@ -1,8 +1,10 @@
 # Checkpoints
 
-2026-11-16, revised 2026-11-17. temper's part of taking a checkpoint
-and restoring one (`draft/checkpoints.md`, sections 3.4, 4, 5.1 and
-5.3; milestones C1 and C2 of `draft/checkpoints.execution.md`): the
+2026-11-16, revised 2026-11-17 and 2026-11-22 (going back past a new
+build's first commit, 2.5, once the redeploy tool left the repository).
+temper's part of taking a checkpoint
+and restoring one (`../draft/archive/checkpoints.md`, sections 3.4, 4, 5.1 and
+5.3; milestones C1 and C2 of `../draft/archive/checkpoints.execution.md`): the
 deployment's binaries' commands, the owner's act through `temper ctl`,
 and the setting. What a checkpoint is and how the store takes it are
 jig's `protocol/store/checkpoints.md`, and how it restores one is jig's
@@ -22,14 +24,12 @@ jig's `protocol/store/checkpoints.md`, and how it restores one is jig's
   takes a safety checkpoint first, then makes NAME's state the
   deployment's, crash-safe (2.5).
 - **The setting:** `store.checkpoints.keep`, default 2 (4).
-- **The redeploy** (`../redeploy.md`, 4.1, 4.2 and 4.6) takes one
+- **A redeploy,** its operator's (`../draft/archive/redeploys.md`, 7), takes one
   through the act while the old build serves, for the new build's
-  check; one at each settled stop with the installed build, as its
-  backup; and goes back after the new generation's first commit by the
-  new build's `restore` of the stop's checkpoint, then starts the
-  previous build. The new build restores, since the safety checkpoint's
-  open refuses a store ahead of the build that opens it (jig's
-  `protocol/store/restoring.md`, 4.3).
+  `upgrade --check` (3; `binaries.md`, 2); one at the engine's settled
+  stop with the installed build, as its backup (2.1); and goes back
+  after the new generation's first commit by the new build's `restore`
+  of the stop's checkpoint, then starts the previous build (2.5).
 
 ## 2. The commands
 
@@ -77,7 +77,7 @@ does: no worker, no listener, no root.
 - **The child** is io's (skein's `runtime/io/processes.md`), spawned
   from the step code with descriptors 0, 1 and 2 inherited
   (`Way::Inherit`), as a front end lends its terminal to a child
-  (skein's `runtime/shell.md`, 6.3). Its program is COMMAND as a path
+  (skein's `runtime/shell-startup.md`, 1.3). Its program is COMMAND as a path
   when it holds a `/`, made absolute against the working directory.
   Otherwise it is the first regular executable file found in the
   entries of the invocation's `PATH`. A termination signal while the
@@ -132,16 +132,38 @@ does: no worker, no listener, no root.
   build at later levels upgrades it as it upgrades any. `upgrade --back`
   refuses with no previous generation (`binaries.md`, 2), since undoing
   a restore is restoring SAFETY.
+- **Going back past a new build's first commit:** the new build's
+  `restore` of a checkpoint taken before it started, then the previous
+  build started over the restored generation. Before that commit, the
+  new build's `upgrade --back` does it (`binaries.md`, 2). The new
+  build restores, since the safety checkpoint's open reads the store as
+  the new build left it: no binary moves a level (jig's
+  `protocol/store/records.md`, 3), but the new build registered its
+  layouts and ran its jobs there, and the previous build would have to
+  register its own over that registry, which a checkpoint's open
+  refuses (`Unready::Upgrade`, jig's `protocol/store/checkpoints.md`,
+  5), or meet a layout only the new build registered that it has no
+  plan for (jig's `protocol/store/layouts.md`, 5.3). The generation
+  restored holds the checkpoint's format row and registry, those the
+  previous build left, which it opens in place with nothing to register
+  or run (jig's `protocol/store/restoring.md`, 4.3). Where the new build
+  registered nothing the previous build lacks, the previous build also
+  opens the store as it stands, with no restore. Where the previous
+  build reads the store's order of layouts (jig's
+  `protocol/store/layouts.md`, 5.6), it opens the store as it stands
+  whatever the new build registered, keeping every value the new build
+  committed, or refuses naming the value type and how many it can't
+  keep, changing nothing; this restore is then the way back.
 
 ## 3. The act
 
 `temper ctl DIR deployment checkpoint [--timeout DURATION]`, a row of
-`../client/ctl/tools.md`, 3.
+`../client/ctl/tools-acts.md`, 1.
 
 - **Its request** is temper's client family's (`../client/forge/records.md`):
   `Checkpoint`, with no field, keyed as an act is, the key optional. It
-  moves `CLIENT_VERSION` by one, unbridged, as a client's wire moves
-  (`draft/redeploys.md`, 8).
+  changes the client wire's layout, `CLIENT_VERSION` frozen
+  (`wires.md`, 9).
 - **Its outcome:**
 
 ```
@@ -201,6 +223,10 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   store limits carry it as each other field
   (`configuration/README.md`, section 2), and so do the commands of 2,
   which read the same configuration.
+- **A redeploy's backup** outlives the next checkpoint at the default:
+  a redeploy that takes one for its check while the engine serves and
+  one at the settled stop as its backup keeps the backup until the next
+  redeploy's stop.
 
 ## 5. Tests
 
@@ -214,12 +240,16 @@ enum CheckpointWhy { NotOwner, InProgress, Unavailable, Files, Unrecognized { pa
   default, an override of 3, and 0 and 65 refused.
 - **The engine's world:** the act through the root over its store, an
   owner's answered from the store's terminal, a non-owner's refused.
-- **The process tier,** written and compiled, run after landing: a
-  checkpoint over a stopped deployment, then `--hold` with a command
-  that lists it, then `--remove`; the act while the engine serves; a
-  checkpoint, a start that commits past it, a stop, `restore` of the
-  checkpoint and a start that finds its state, then `restore` of the
-  safety checkpoint and a start that finds the later state.
+- **The process tier,** written and compiled, run after landing, the
+  shipped commands' dispatch and one start on a restored generation: a
+  checkpoint over a stopped deployment, `--hold` with a command that
+  lists it, a start that commits past it, a stop, `restore` of the
+  checkpoint and a start that finds its state, then `--remove`, in
+  `a_stopped_checkpoint_is_held_restored_and_removed`; the act while
+  the engine serves. The safety checkpoint's
+  restore is the store's world's and the engine shell's real-loop
+  tests' (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`,
+  4).
 
 ## 6. Open questions
 

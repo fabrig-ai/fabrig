@@ -1,4 +1,4 @@
-//! The checked copy serves restores before its explicit switch (protocol/store/opening.md, 2 and protocol/store/records.md and protocol/store/README.md, 5 and protocol/store/loads.md and protocol/store/transcripts.md).
+//! The checked copy serves restores before its explicit switch (protocol/store/opening.md, 2 and protocol/store/records.md and protocol/store/commits.md, 1 and protocol/store/loads.md and protocol/store/transcripts.md).
 use super::admission::{self, Levels};
 use crate::codec::component::Count;
 use crate::directory::Opening;
@@ -56,9 +56,6 @@ pub(crate) fn opened(store: &mut Store) {
 }
 
 pub(crate) fn ask(store: &mut Store, env: &Env<Limits>, owner: Token, above: &mut Queue<Event>, below: &mut Below) {
-    if store.rehearsal.is_some() {
-        return open::refuse(store, owner, OpenRefusal::Failed, above);
-    }
     let through = match store.phase {
         Phase::Ready { next, .. } => next.checked_sub(1).expect("ready has a next commit"),
         Phase::Closed | Phase::Stopped => return open::refuse(store, owner, OpenRefusal::Failed, above),

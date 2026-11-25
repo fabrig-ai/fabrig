@@ -1,5 +1,5 @@
 //! Opening, admission, loss and redial transitions
-//! (jig/docs/design/protocol/channel/README.md, 4 and 9.1).
+//! (jig/docs/design/protocol/channel/README.md, 4, and jig/docs/design/protocol/channel/worker-link.md, 1.1).
 use crate::{
     Event, Limits, Loss, REFUSED_FRAMING, REFUSED_LIMITS, Request,
     backoff::Backoff,
@@ -46,8 +46,6 @@ pub struct Component {
     credential: Secret,
     opening: wire::Opening,
     schema: channel::Schema,
-    wires: List<wire::Spoken>,
-    translation: Box<wire::translation::Translation>,
     phase: Phase,
     backoff: Backoff,
     events: Queue<channel::Event>,
@@ -56,6 +54,7 @@ pub struct Component {
     dropped: u64,
     relays: Relays,
     busy: Busy,
+    part_busy: Busy,
     grace: Grace,
     life: Life,
     facts: u64,
@@ -70,7 +69,7 @@ impl Component {
     }
 
     /// Reads the full channel table prepared for this service
-    /// (jig/docs/design/protocol/channel/bridges.md, 4).
+    /// (jig/docs/design/protocol/channel/wires.md, 4).
     pub fn with_schema(
         limits: &Limits,
         jig: List<wire::Spoken>,
@@ -81,34 +80,26 @@ impl Component {
         if !limits::valid_with_schema(limits, &full_schema) {
             return Err(Unusable::Limits);
         }
-        let schema = wire::schema_for_prepared(&full_schema, &jig).ok_or(Unusable::Limits)?;
         let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
-        let mut spoken_wires = List::uncapped();
-        for spoken in &jig {
-            spoken_wires.push(spoken.clone()).expect("uncapped wires");
+        let mut spoken = List::with_capacity(bodies.credential_wires);
+        for wire in jig.into_boxed() {
+            spoken.push(wire).or(Err(Unusable::Credential))?;
         }
-        for spoken in &credential.application.spoken {
-            spoken_wires.push(spoken.clone()).or(Err(Unusable::Credential))?;
+        for wire in credential.application.spoken.into_boxed() {
+            spoken.push(wire).or(Err(Unusable::Credential))?;
+        }
+        if !crate::wires::roots_present(&spoken, &credential.application.roots) {
+            return Err(Unusable::Application);
         }
         let mut wires = List::with_capacity(bodies.credential_wires);
-        for spoken in &jig {
+        for spoken in &spoken {
             let wire = wire::Wire {
                 name: bytes::copy_of(spoken.name.as_bytes()),
-                lowest: spoken.lowest,
-                layouts: spoken.layouts.clone(),
+                layout: spoken.layout,
+                text: bytes::copy_of(spoken.text.as_bytes()),
             };
             wires.push(wire).or(Err(Unusable::Credential))?;
         }
-        for spoken in &credential.application.spoken {
-            let wire = wire::Wire {
-                name: bytes::copy_of(spoken.name.as_bytes()),
-                lowest: spoken.lowest,
-                layouts: spoken.layouts.clone(),
-            };
-            wires.push(wire).or(Err(Unusable::Credential))?;
-        }
-        let translation =
-            Box::new(wire::translation::Translation::new(credential.application).or(Err(Unusable::Application))?);
         let credential = wire::Credential {
             name: credential.name,
             secret: credential.secret,
@@ -123,9 +114,7 @@ impl Component {
             limits: *limits,
             credential,
             opening,
-            schema,
-            wires: spoken_wires,
-            translation,
+            schema: full_schema,
             phase: Phase::Idle { at: Time::ZERO },
             backoff,
             events: Queue::uncapped(),
@@ -134,6 +123,7 @@ impl Component {
             dropped: 0,
             relays: Relays::new(limits),
             busy: Busy::new(limits, seed),
+            part_busy: Busy::new(limits, seed.wrapping_add(1)),
             grace: Grace::new(),
             life: Life::Active,
             facts: 0,
@@ -160,6 +150,7 @@ impl Component {
         self.limits = limits;
         self.backoff.retime(timers.backoff, timers.ceiling);
         self.busy.retime(timers.busy);
+        self.part_busy.retime(timers.busy);
         true
     }
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
@@ -234,6 +225,9 @@ impl Component {
         if let Some((run, attempt, turn)) = self.busy.expire(now) {
             out.push(Request::Resend { run, attempt, turn });
         }
+        if let Some((run, attempt, part)) = self.part_busy.expire(now) {
+            out.push(Request::ResendPart { run, attempt, part });
+        }
         match self.phase {
             Phase::Idle { at } => {
                 if now >= at {
@@ -303,7 +297,10 @@ impl Component {
             Phase::Open { proved, ref connection, .. } => crate::connection::earlier(proved, connection.next()),
             Phase::Connecting => None,
         };
-        crate::connection::earlier(crate::connection::earlier(phase, self.busy.next()), self.grace.next())
+        crate::connection::earlier(
+            crate::connection::earlier(phase, crate::connection::earlier(self.busy.next(), self.part_busy.next())),
+            self.grace.next(),
+        )
     }
     #[must_use]
     pub fn dropped_facts(&self) -> u64 {
@@ -334,9 +331,7 @@ impl Component {
                 ping: None,
                 silence: None,
                 stall: None,
-                wires: None,
-                stated: false,
-                version: wire::VERSION,
+                terms: List::with_capacity(0),
                 restart_wait: None,
             },
             until: now.saturating_add(self.limits.handshake),
@@ -363,6 +358,7 @@ impl Component {
             Phase::Closing { retry, .. } => retry,
             Phase::Open { connection, .. } => {
                 self.busy.clear();
+                self.part_busy.clear();
                 self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 out.push(Request::Lost);
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
@@ -396,7 +392,6 @@ impl Component {
                     return;
                 };
                 *hello = true;
-                let Some(frame) = self.translated(frame, &limits, out) else { return };
                 self.command(channel::Request::Send { token: Token::new(0), frame });
                 // Queue replay without polling lower demands: one hello step stays bounded.
                 let mut index = 0_u32;
@@ -406,13 +401,8 @@ impl Component {
                         Phase::Open { .. } => {}
                         Phase::Idle { .. } | Phase::Connecting | Phase::Opening { .. } | Phase::Closing { .. } => break,
                     }
-                    let Some(frame) = self.translated(replay.frame, &limits, out) else {
-                        self.relays.end(replay.run, replay.attempt, &replay.call);
-                        self.refuse_call(replay.run, replay.attempt, replay.call, b"call refused", out);
-                        continue;
-                    };
                     index = index.checked_add(1).expect("within relay capacity");
-                    self.command(channel::Request::Send { token: Token::new(1), frame });
+                    self.command(channel::Request::Send { token: Token::new(1), frame: replay });
                     for _ in 0..channel::MAX_UP {
                         let Some(event) = self.events.pop() else { break };
                         self.received(now, event, out);
@@ -425,20 +415,22 @@ impl Component {
     fn up(&mut self, up: host::LinkUp, parts: &[wire::Part], out: &mut Queue<Request>) {
         let limits = sizes::limits(&self.limits.sizes).expect("checked sizes");
         let up = match up {
-            host::LinkUp::Paused { state } => {
-                // Notices go only where the agreed version holds the kind (protocol/channel/pause.md, 4).
-                let Some(connection) = self.phase.connection() else { return };
-                let held = self
-                    .schema
-                    .version(connection.version)
-                    .expect("agreed version")
-                    .kind(wire::Kind::Paused.number())
-                    .is_some();
-                if !held {
+            host::LinkUp::Part { run, attempt, part } => {
+                let connection = match &self.phase {
+                    Phase::Open { connection, .. } => connection,
+                    Phase::Idle { .. } | Phase::Connecting | Phase::Opening { .. } | Phase::Closing { .. } => return,
+                };
+                if !connection.accepts(wire::Kind::Part.number()) {
+                    // A rehello on an older link cannot carry the retained part.
+                    out.push(Request::Down {
+                        down: host::LinkDown::PartKept { run, attempt, part: part.number },
+                        parts: Box::new([]),
+                    });
                     return;
                 }
-                host::LinkUp::Paused { state }
+                host::LinkUp::Part { run, attempt, part }
             }
+            host::LinkUp::Paused { state } => host::LinkUp::Paused { state },
             host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
                 if input.len() > skein_lib::length::usize_of(limits.call_input) {
                     self.refuse_call(run, attempt, call, b"call too large", out);
@@ -459,11 +451,6 @@ impl Component {
                     return;
                 }
                 if let Phase::Open { hello: true, .. } = self.phase {
-                    let Some(frame) = self.translated(frame, &limits, out) else {
-                        self.relays.end(run, attempt, &name);
-                        self.refuse_call(run, attempt, name, b"call refused", out);
-                        return;
-                    };
                     self.command(channel::Request::Send { token: Token::new(1), frame });
                 }
                 return;
@@ -484,13 +471,15 @@ impl Component {
             | host::LinkUp::JobAnswer { .. }
             | host::LinkUp::Answer { .. }) => up,
         };
-        match self.phase {
-            Phase::Open { hello: true, .. } => {
+        match &self.phase {
+            Phase::Open { connection, hello: true, .. } => {
                 let Some(frame) = translate::up(up, parts, &limits) else {
                     self.dropped = self.dropped.saturating_add(1);
                     return;
                 };
-                let Some(frame) = self.translated(frame, &limits, out) else { return };
+                if crate::wires::optional(frame.kind()) && !connection.accepts(frame.kind()) {
+                    return;
+                }
                 if frame.kind() == wire::Kind::Logins.number() {
                     self.pending_logins = Some(frame);
                     return;
@@ -607,7 +596,7 @@ impl Component {
             | channel::Event::Sent { .. } => {}
         }
         match event {
-            channel::Event::Ready { version, terms } => self.ready(now, version, &terms, out),
+            channel::Event::Ready { version, terms } => self.ready(now, version, terms, out),
             channel::Event::Refused { reason, text } => {
                 out.push(Request::Refused { reason, text });
                 self.lose(now, Loss::Closed(Closed::RefusedPeer(reason)), out);
@@ -659,9 +648,10 @@ impl Component {
             channel::Event::Sent { .. } => {}
         }
     }
-    fn ready(&mut self, now: Time, version: u16, terms: &List<channel::Term>, out: &mut Queue<Request>) {
+    fn ready(&mut self, now: Time, version: u16, terms: List<channel::Term>, out: &mut Queue<Request>) {
+        let table = self.schema.version(version).expect("the channel chose its own version");
         if self.opening == wire::Opening::Link
-            && let Some(kind) = wire::terms_gap(&self.schema, version, Role::Initiator, terms)
+            && let Some(kind) = crate::wires::terms_gap(table, &terms)
         {
             self.command(channel::Request::Refuse {
                 reason: REFUSED_LIMITS,
@@ -669,102 +659,28 @@ impl Component {
             });
             let started = self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_LIMITS)), out);
             assert!(started, "terms are checked during opening");
-        } else {
-            let singleton = crate::wires::singletons(&self.wires);
-            let statement =
-                self.schema.version(version).expect("agreed version").kind(wire::Kind::Wires.number()).is_some();
-            if !statement && singleton.is_none() {
-                self.lose(now, Loss::EngineStatesNoWires, out);
-                return;
-            }
-            let ready = singleton.is_some();
-            if let Some(connection) = self.phase.connection() {
-                connection.wires = singleton;
-                connection.version = version;
-            }
-            let phase = mem::replace(&mut self.phase, Phase::Connecting);
-            self.phase = match phase {
-                Phase::Opening { connection, .. } => Phase::Open { connection, proved: None, hello: false },
-                other @ (Phase::Idle { .. } | Phase::Connecting | Phase::Open { .. } | Phase::Closing { .. }) => other,
-            };
-            if let Some(connection) = self.phase.connection() {
-                connection.live(now, &self.limits);
-            }
-            if ready && self.opening == wire::Opening::Link {
-                out.push(Request::Ready);
-            }
-            self.command(channel::Request::Read);
+            return;
         }
+        let phase = mem::replace(&mut self.phase, Phase::Connecting);
+        self.phase = match phase {
+            Phase::Opening { mut connection, .. } => {
+                connection.terms = terms;
+                connection.live(now, &self.limits);
+                Phase::Open { connection, proved: None, hello: false }
+            }
+            other @ (Phase::Idle { .. } | Phase::Connecting | Phase::Open { .. } | Phase::Closing { .. }) => other,
+        };
+        if self.opening == wire::Opening::Link {
+            out.push(Request::Ready);
+        }
+        self.command(channel::Request::Read);
     }
-    #[expect(clippy::too_many_lines, reason = "translate before dispatching statement and current records")]
+    #[expect(clippy::too_many_lines, reason = "dispatches the current records and keeps their lifecycle together")]
     fn body(&mut self, now: Time, kind: u16, body: &[u8], out: &mut Queue<Request>) {
         let limits = sizes::limits(&self.limits.sizes).expect("checked sizes");
-        let Some(connection) = self.phase.connection() else { return };
-        let agreed = match &connection.wires {
-            Some(wires) => wires.as_slice(),
-            None => &[],
-        };
-        let Ok(frame) = translate::receive(&mut self.translation, kind, body, connection.version, agreed, &limits)
-        else {
-            if kind == wire::Kind::Wires.number() {
-                self.lose(now, Loss::Fault, out);
-            } else {
-                self.command(channel::Request::Refuse { reason: REFUSED_FRAMING, text: Box::new([]) });
-                self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_FRAMING)), out);
-            }
-            return;
-        };
-        let kind = frame.kind();
-        let body = frame.bytes().get(8..).expect("validated frame header");
-        if kind == wire::Kind::Wires.number() {
-            let record = wire::v21::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
-            let agreed = match record {
-                Ok(record) => crate::wires::statement(&self.wires, &record),
-                Err(_) => None,
-            };
-            let Some(agreed) = agreed else {
-                self.lose(now, Loss::Fault, out);
-                return;
-            };
-            if self.opening == wire::Opening::Link && crate::wires::singletons(&self.wires).is_none() {
-                let incomplete = self.translation.incomplete(agreed.as_slice());
-                if !incomplete.is_empty() {
-                    for wire in &incomplete {
-                        out.push(Request::CannotSendWhole { wire: wire.name, version: wire.version });
-                    }
-                    self.lose(now, Loss::Fault, out);
-                    return;
-                }
-            }
-            let Some(connection) = self.phase.connection() else { return };
-            if connection.stated {
-                self.lose(now, Loss::Fault, out);
-                return;
-            }
-            let ready = connection.wires.is_none();
-            connection.wires = Some(agreed);
-            connection.stated = true;
-            if ready && self.opening == wire::Opening::Link {
-                out.push(Request::Ready);
-            }
-            self.command(channel::Request::Read);
-            return;
-        }
-        if let Some(connection) = self.phase.connection()
-            && connection.wires.is_none()
-        {
-            self.lose(now, Loss::Fault, out);
-            return;
-        }
         if kind == wire::Kind::Figures.number() {
-            let stated = match self.phase.connection() {
-                Some(connection) => connection.stated,
-                None => false,
-            };
             let record = wire::Figures::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(body));
-            if let Ok(figures) = record
-                && stated
-            {
+            if let Ok(figures) = record {
                 out.push(Request::Figures { figures });
                 if self.opening == wire::Opening::Figures {
                     self.end(now, false, out);
@@ -779,7 +695,7 @@ impl Component {
         if kind == wire::Kind::Restarting.number() {
             match wire::Restarting::decode(&limits, &mut skein_lib::Reader::new(body)) {
                 Ok(record) => {
-                    let wait = Duration::from_millis(record.wait_ms);
+                    let wait = translate::wait_ms_to_domain(record.wait_ms);
                     let Some(connection) = self.phase.connection() else { return };
                     connection.restart_wait = Some(wait);
                     self.admitted();
@@ -793,12 +709,21 @@ impl Component {
             }
             return;
         }
-        if kind == 0x0184 {
-            let record = wire::TurnBusy::decode(&limits, &mut skein_lib::Reader::new(body));
+        if kind == 0x0184 || kind == wire::Kind::PartBusy.number() {
+            let is_part = kind == wire::Kind::PartBusy.number();
+            let record = if is_part {
+                match wire::PartBusy::decode(&limits, &mut skein_lib::Reader::new(body)) {
+                    Ok(part) => Ok(wire::TurnBusy { task: part.task, attempt: part.attempt, number: part.number }),
+                    Err(error) => Err(error),
+                }
+            } else {
+                wire::TurnBusy::decode(&limits, &mut skein_lib::Reader::new(body))
+            };
             match record {
                 Ok(record) => {
                     self.admitted();
-                    if self.busy.add(now, Token::new(record.task), Token::new(record.attempt), record.number) {
+                    let busy = if is_part { &mut self.part_busy } else { &mut self.busy };
+                    if busy.add(now, Token::new(record.task), Token::new(record.attempt), record.number) {
                         self.command(channel::Request::Read);
                     } else {
                         self.lose(now, Loss::Busy, out);
@@ -813,16 +738,26 @@ impl Component {
         }
         let mut parts = Queue::uncapped();
         match translate::down(kind, body, &limits, now, &mut parts, &mut self.next_part, out) {
-            Some(down) => {
+            Some(mut down) => {
                 self.admitted();
-                let forward = match &down {
+                let forward = match &mut down {
+                    host::LinkDown::Assign { assignment } => {
+                        let connection = self.phase.connection().expect("received on a channel");
+                        assignment.tell_parts = connection.accepts(wire::Kind::Part.number());
+                        true
+                    }
                     host::LinkDown::Relayed { run, attempt, call, .. } => self.relays.end(*run, *attempt, call),
+                    host::LinkDown::PartKept { run, attempt, part } => {
+                        self.part_busy.kept_through(*run, *attempt, *part);
+                        true
+                    }
                     host::LinkDown::TurnKept { run, attempt, turn } => {
                         self.busy.kept(*run, *attempt, *turn);
                         true
                     }
                     host::LinkDown::Acknowledge { run, attempt } => {
                         self.busy.acknowledged(*run, *attempt);
+                        self.part_busy.acknowledged(*run, *attempt);
                         true
                     }
                     host::LinkDown::Sources { .. } => {
@@ -835,7 +770,6 @@ impl Component {
                     | host::LinkDown::Check { .. }
                     | host::LinkDown::SignOut { .. }
                     | host::LinkDown::AssignJob { .. }
-                    | host::LinkDown::Assign { .. }
                     | host::LinkDown::Message { .. }
                     | host::LinkDown::Cancel { .. }
                     | host::LinkDown::Asked { .. }
@@ -902,6 +836,7 @@ impl Component {
         }
         self.life = if abort { Life::Aborting } else { Life::Stopping };
         self.busy.clear();
+        self.part_busy.clear();
         self.grace.clear();
         if let Some(connection) = self.phase.connection() {
             connection.quiet();
@@ -933,6 +868,7 @@ impl Component {
         self.life = Life::Closed;
         self.grace.clear();
         self.busy.clear();
+        self.part_busy.clear();
         out.push(Request::Closed);
     }
     fn lose(&mut self, now: Time, why: Loss, out: &mut Queue<Request>) {
@@ -952,6 +888,7 @@ impl Component {
         self.phase = match phase {
             Phase::Open { mut connection, .. } => {
                 self.busy.clear();
+                self.part_busy.clear();
                 self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 connection.quiet();
                 connection.stall = None;
@@ -988,30 +925,6 @@ fn expired(at: Option<Time>, now: Time) -> bool {
     }
 }
 
-impl Component {
-    fn translated(
-        &mut self,
-        frame: channel::Frame,
-        limits: &wire::v21::Limits,
-        out: &mut Queue<Request>,
-    ) -> Option<channel::Frame> {
-        let kind = frame.kind();
-        let connection = self.phase.connection()?;
-        let agreed = match &connection.wires {
-            Some(wires) => wires.as_slice(),
-            None => &[],
-        };
-        match translate::send(&mut self.translation, frame, connection.version, agreed, limits) {
-            Ok(frame) => Some(frame),
-            Err(error) => {
-                self.dropped = self.dropped.saturating_add(1);
-                out.push(Request::Untranslated { kind, halt: error.halt });
-                None
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1020,11 +933,9 @@ mod tests {
     fn open(component: &mut Component) {
         component.phase = Phase::Connecting;
         component.dialled(Time::ZERO, Token::new(1), &mut Queue::uncapped());
-        let Phase::Opening { mut connection, .. } = mem::replace(&mut component.phase, Phase::Connecting) else {
+        let Phase::Opening { connection, .. } = mem::replace(&mut component.phase, Phase::Connecting) else {
             panic!("opening fixture")
         };
-        connection.version = wire::VERSION;
-        connection.wires = Some(List::uncapped());
         component.phase = Phase::Open { connection, proved: None, hello: true };
     }
 

@@ -1,5 +1,5 @@
-#[path = "../suite/diff.rs"]
-mod diff;
+extern crate alloc;
+
 #[path = "../suite/largest.rs"]
 mod largest;
 #[path = "../suite/parse.rs"]
@@ -7,4 +7,7 @@ mod parse;
 #[path = "../suite/values.rs"]
 mod values;
 
-mod patch_run;
+#[cfg(test)]
+mod layout;
+#[cfg(test)]
+mod maps;

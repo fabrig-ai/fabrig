@@ -4,16 +4,16 @@
 that carry its order (section 9) into the design and the code, until
 its acceptance passes (section 8). It designs nothing: each phase
 executes a part of the draft and writes its own design as it goes. It
-runs beside `reference-case.execution.md`, whose milestones it names as
+runs beside `archive/reference-case.execution.md`, whose milestones it names as
 the reference's M1 to M10.
 
 ## 1. In one page
 
 - **Five phases,** P1 to P5 (section 3), set with the user on
   2026-11-02 so that no two designers write one section at once: the
-  reference's M1 and M3 write jig's `domain/engine/settings.md`, 5 to 7
-  , temper's `../protocol/configuration/settings.md`, 2 to 3 and `../protocol/configuration/stock.md`
-  and the section M1 adds after 13.8, and `../domain/agent/tools.md`, 1,
+  reference's M1 and M3 write jig's `domain/engine/settings-application.md`, 1, and `domain/engine/settings-proposals.md`, 1, and `domain/engine/settings-store.md`, 1
+  , temper's `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3 and `../protocol/configuration/stock.md`
+  and the section M1 adds after 13.8, and `../domain/agent/tools-change.md`, 1,
   and P2 and P3 follow M3 beside them.
 - **P1 first,** landed 2026-11-03: what was designed and touched
   nothing in flight: a charter's documents, charters read at their
@@ -30,7 +30,7 @@ the reference's M1 to M10.
 
 ## 2. How a phase runs
 
-As a milestone of the reference runs (`reference-case.execution.md`,
+As a milestone of the reference runs (`archive/reference-case.execution.md`,
 section 2): its entry here its input, this file and `configuring.md` its
 sources; its design and its build together; landed whole; its walk,
 where there is one, a pass of QA through `temper ctl` that blocks
@@ -53,7 +53,7 @@ nothing.
   revision it was made in), and its 5.4's first row.
 - **Design:** none new. jig's `domain/engine/settings.md`, 3 and 9;
   temper's `../protocol/configuration/settings.md`, 6; `../domain/agent/charter.md`,
-  1 and 5; `../client/ctl/tools.md`, 3 (`chat start`'s `--template`).
+  1 and 5; `../client/ctl/tools-acts.md`, 1 (`chat start`'s `--template`).
   A designer finding a section incomplete writes its part, and no
   more.
 - **Builds:** jig's charter documents, planned with the brief; temper's
@@ -75,9 +75,9 @@ nothing.
   for, in their own words (`configuring.status.md`'s first entry; those
   `../domain/agent/agents.md`, 1 cites are P3's); a change of settings
   touching a project's own policy, decided by one person holding both
-  roles (jig's `domain/engine/settings.md`, 2 and 6, jig's
+  roles (jig's `domain/engine/settings.md`, 2, and `domain/engine/settings-proposals.md`, 1, jig's
   `domain/people/acts.md`, 2, temper's `../protocol/configuration/settings.md`,
-  1, `../client/ctl/tools.md`, 3); restore and temper's kinds (jig's
+  1, `../client/ctl/tools-acts.md`, 1); restore and temper's kinds (jig's
   `domain/engine/settings.md`, 10), the status's entry closed one way or
   recorded as a departure the user decides; what that asks of 17.5,
   M3's, written after M3 lands.

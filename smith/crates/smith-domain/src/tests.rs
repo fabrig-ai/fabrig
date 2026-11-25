@@ -137,6 +137,7 @@ struct Harness {
     out: Queue<Request>,
     turns: List<crate::Turn>,
     long: List<Option<crate::Operation>>,
+    long_until: Option<Time>,
     checking: bool,
 }
 
@@ -191,6 +192,7 @@ impl Harness {
             out: Queue::uncapped(),
             turns: List::with_capacity(CEILING.turns),
             long: List::with_capacity(4096),
+            long_until: None,
             checking: false,
         }
     }
@@ -229,6 +231,7 @@ impl Harness {
         let mut requests = Queue::uncapped();
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Part { .. } => unreachable!("the run tells no parts yet"),
                 Request::Turn { turn, number, .. } => {
                     assert_eq!(
                         number,
@@ -250,6 +253,7 @@ impl Harness {
                 }
                 Request::Long { host_run, operation, until } => {
                     self.long.push(Some(operation)).expect("bounded issued operation history");
+                    self.long_until = Some(until);
                     match operation {
                         crate::Operation::Checks => {
                             self.checking = true;
@@ -275,7 +279,8 @@ impl Harness {
                 | Request::Usage { .. }
                 | Request::Limited { .. }
                 | Request::Lower(
-                    crate::Lower::Complete { .. }
+                    crate::Lower::Classify { .. }
+                    | crate::Lower::Complete { .. }
                     | crate::Lower::Cancel { .. }
                     | crate::Lower::Yield { .. }
                     | crate::Lower::Close { .. }
@@ -362,6 +367,7 @@ fn bytes(text: &[u8]) -> Box<[u8]> {
 fn workspace() -> Workspace {
     Workspace {
         directories: Box::new([Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"temper"),
             root: Token::new(900),
@@ -488,6 +494,32 @@ fn root_refuses_incompatible_conversation_limits_before_admission() {
     }));
     let [Request::Answer { answer, .. }] = &*emitted else { panic!("expected admission refusal: {emitted:?}") };
     assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Conversation)));
+}
+
+#[test]
+fn an_empty_transcript_with_an_unknown_version_is_not_a_fresh_start() {
+    let mut h = Harness::new();
+    let emitted = h.step(Event::Start(crate::Start {
+        grants: account_grants(),
+        transcript: Some(session::record::Transcript {
+            version: session::record::VERSION.checked_add(1).expect("next version fits"),
+            endpoint: Some(session::llm::Endpoint(1)),
+            dialect: 1,
+            turns: Box::new([]),
+        }),
+        ..crate::fixture::start(Token::new(7), Charter { resume: true, ..charter() })
+    }));
+    let [Request::Admitted { .. }, Request::Answer { answer, .. }] = emitted.as_ref() else {
+        panic!("unknown transcript version must be refused before a provider request: {emitted:?}");
+    };
+    assert_eq!(
+        answer,
+        &run::Answer::Failed {
+            failure: run::RunFailure::Transcript(run::TranscriptRefusal::Version),
+            spent: run::Spend::ZERO,
+            turns: 0,
+        }
+    );
 }
 
 #[test]
@@ -807,6 +839,7 @@ fn an_unsafe_workspace_mount_refuses_start_before_discovery() {
     let mut h = Harness::new();
     let checkout = Workspace {
         directories: Box::new([Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: bytes(b"ai/temper"),
             root: Token::new(900),
@@ -919,6 +952,21 @@ fn an_accepted_finish_closes_main_and_the_run_answers_the_worker() {
     assert_eq!((spent.turns, spent.input), (1, USAGE.input_tokens));
     h.domain.reclaim();
     assert_eq!((h.domain.peers(), h.domain.tickets(), h.domain.flights()), (0, 0, 0), "main's tickets went with it");
+}
+
+#[test]
+fn a_turn_kept_after_the_answer_before_reclaim_does_not_retire_the_start_twice() {
+    let mut h = Harness::new();
+    let (run, main, _) = h.admit(7, charter());
+    assert!(h.answer(main, Box::new([served(b"f1", verdict(b"approve"))])).is_empty());
+    let emitted = h.next();
+    let [Request::Answer { answer: run::Answer::Accepted { .. }, .. }] = emitted.as_ref() else {
+        panic!("the run answered before its turn was kept: {emitted:?}");
+    };
+    assert_eq!(h.turns.len(), 1);
+    assert!(h.step(Event::Acknowledge { run, turn: 1 }).is_empty());
+    h.domain.reclaim();
+    assert_eq!(h.domain.starts.len(), 0);
 }
 
 #[test]
@@ -1044,7 +1092,8 @@ fn filler(len: u32) -> Box<[u8]> {
 fn assert_no_provider_completion(emitted: &[Request]) {
     for request in emitted {
         match request {
-            Request::Lower(crate::Lower::Complete { .. }) => {
+            Request::Part { .. } => unreachable!("the run tells no parts yet"),
+            Request::Lower(crate::Lower::Classify { .. } | crate::Lower::Complete { .. }) => {
                 panic!("no room for another provider receiving reserve after the exact result edge")
             }
             Request::MessageRefused { .. }
@@ -1357,6 +1406,7 @@ fn convention_workspace() -> Workspace {
     Workspace {
         directories: Box::new([
             Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"work"),
                 root: Token::new(900),
@@ -1365,6 +1415,7 @@ fn convention_workspace() -> Workspace {
                 conflicts: Box::new([]),
             },
             Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: bytes(b"reference"),
                 root: Token::new(901),
@@ -1495,7 +1546,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
             Box::new([served(b"finish-convention", Ask::Finish { outcome: Declared::Change(change.clone()) })]),
         );
         let [
-            Request::Lower(crate::Lower::Check { owner, program, bound, cap, tail }),
+            Request::Lower(crate::Lower::Check { owner, program, results: _, bound, cap, tail }),
             Request::Long { host_run, operation: crate::Operation::Checks, until: said },
         ] = emitted.as_ref()
         else {
@@ -1683,6 +1734,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
             workspace: Some(Workspace {
                 directories: Box::new([
                     Directory {
+                        results: None,
                         host: Box::from(b"/host".as_slice()),
                         name: bytes(b"work"),
                         root: Token::new(900),
@@ -1691,6 +1743,7 @@ fn maximum_custom_guide_headings_obey_the_session_receiving_limit_after_discover
                         conflicts: Box::new([]),
                     },
                     Directory {
+                        results: None,
                         host: Box::from(b"/host".as_slice()),
                         name: bytes(b"reference"),
                         root: Token::new(901),

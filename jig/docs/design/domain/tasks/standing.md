@@ -7,11 +7,11 @@ each starting fresh from the few lines it keeps, its Now. It is the
 middle kind of agent task, between a run that finishes once and a
 conversation a person is in: an application's agent that owns some work
 for a project's life, works in short sessions and answers to a person.
-It revises `README.md`, sections 3, 5 and 6, `lifecycle.md`, sections 2,
-6 and 9, `messages.md`, section 6, `../engine/executors.md`, section 4,
-`../engine/briefs.md`, sections 1 and 2, `../authority.md`, section 7,
-`../people/acts.md`, section 1, and `../../protocol/configuration.md`,
-section 3, which say where it differs. It takes up `../../draft/notes-memory.md`, section 4, for a
+It revises `README.md`, sections 3, 5 and 6, `lifecycle.md`, section 2, and `lifecycle-holds.md`, section 1, and `lifecycle-endings.md`, section 2
+, `messages.md`, section 6, `../engine/executors.md`, section 4,
+`../engine/briefs.md`, sections 1 and 2, `../authority-budgets.md`, section 1,
+`../people/acts.md`, section 1, and `../../protocol/configuration-engine.md`,
+section 1, which say where it differs. It takes up `../../draft/notes-memory.md`, section 4, for a
 standing task's Now alone.
 
 ## 1. In one page
@@ -41,15 +41,15 @@ standing task's Now alone.
 
 ## 2. A task that stands
 
-- **Made standing.** A task's `ended_by` (`lifecycle.md`, 9) may be
+- **Made standing.** A task's `ended_by` (`lifecycle-endings.md`, 2) may be
   `standing`, fixed at its making as every ending is. Its shape: an agent
   executor; its requester a person, not the deployment and not a task; not
   a conversation; untracked. Any other shape is refused as its ending's
   malformation, as a requester's or a closer's is, at a batch, a
   template's start and a restart alike. A run's tools take no
-  `ended_by` (`../../protocol/configuration.md`, 3.2), so only a party's
+  `ended_by` (`../../protocol/configuration-templates.md`, 2), so only a party's
   batch, or a template a party starts, makes one.
-- **It runs Open** (`../hosts/charters.md`, 1): granted the wait and never
+- **It runs Open** (`../hosts/charters.md`, 4): granted the wait and never
   delivery, as a task its requester ends.
 - **Never told that nothing is awaited.** `lifecycle.md`, 2's rule passes
   it by, as it passes a task its requester ends: idle with nothing
@@ -58,7 +58,7 @@ standing task's Now alone.
 - **A finish parks it.** A run that answers finished, done or failed,
   with follow-ups or none, is committed as parked: its turns first, then
   its saved state, with no try spent, and its result and follow-ups
-  discarded, as a task its requester ends (`lifecycle.md`, 9). The fences
+  discarded, as a task its requester ends (`lifecycle-endings.md`, 2). The fences
   of saved work, of charge and of messages are checked first, as for any
   finish. Its activity takes a line, `Stood`, naming the attempt and
   holding the result's words, cut to 512 bytes at a character's edge, so
@@ -74,8 +74,8 @@ standing task's Now alone.
   live; a standing task has no such bound, since a goal it started may
   run for days.
 - **Its tries count per session.** Its tries per class of failure
-  (`lifecycle.md`, 6) start again as each of its sessions begins
-  (section 5.1), as a release starts them again, so that a failure in one
+  (`lifecycle-holds.md`, 1) start again as each of its sessions begins
+  (`standing.md`, section 5.1), as a release starts them again, so that a failure in one
   week's work does not count against the next. Past them within a
   session, it is held as any task is.
 
@@ -94,7 +94,7 @@ standing task's Now alone.
   the deployment, when its person leaves the project: the application's
   root names the person, and the move's checks and effects are
   `changes.md`'s, its open questions carried, the task funded anew from
-  that person's pool for the open period (`../authority.md`, section 7).
+  that person's pool for the open period (`../authority-budgets.md`, section 1).
   Where its application's inbox holds its people's answers, it asks its
   person by a person task addressed to them (`messages.md`, 5), so the
   application's root makes the move and addresses those person tasks to
@@ -105,7 +105,7 @@ standing task's Now alone.
 ## 4. Its budget per period
 
 - **Carved again each period,** as a standing procedure's is
-  (`../authority.md`, section 7, *Standing work renews by period*;
+  (`../authority-budgets.md`, section 1, *Standing work renews by period*;
   `README.md`, section 5): at a period's start, what it spent and holds
   reserved is kept in the old period's ledger, its delegates keep their
   reservations in the period that funded them, the fresh period reserves
@@ -119,12 +119,12 @@ standing task's Now alone.
   too little left, leaves it as it is, judged again at its next run's
   end and the next period's start.
 - **Past its budget,** with too little left for its next run's reserve
-  (`lifecycle.md`, 6), it is held for its budget, and the hold's
+  (`lifecycle-holds.md`, 1), it is held for its budget, and the hold's
   escalation reaches its person, as money always waits for a person. A
   renewal lifts that hold in the decision that renews it, its cause
   passed, and withdraws its escalation. Its person may release or widen
-  it before then, funding it as any widening is (`../authority.md`,
-  section 7).
+  it before then, funding it as any widening is (`../authority-budgets.md`,
+  section 1).
 
 ## 5. Sessions
 
@@ -132,7 +132,7 @@ standing task's Now alone.
 
 - **A stretch of its runs,** from the wake that begins it to the end code
   judges (5.2). Within it each run resumes the session's transcript
-  (`../engine/executors.md`, 2 and 4); across sessions each starts fresh
+  (`../engine/executors-transcripts.md`, 1, and `../engine/executors.md`, 4); across sessions each starts fresh
   from a brief (5.4). A standing task whose charter starts fresh has a
   session of one wake.
 - **Its record,** kept with the task (`README.md`, section 3) and saved
@@ -150,7 +150,7 @@ standing task's Now alone.
 - **Judged at a wake.** A session's ends at a wake (5.2) are judged when
   a wake makes the task due and its run is prepared: a message, an entry
   waiting for its decision, or a timer. A retry, the continuation of a run
-  parked kept (`lifecycle.md`, 8), and an attempt interrupted or lost and
+  parked kept (`lifecycle-endings.md`, 1), and an attempt interrupted or lost and
   due again go on within their session, unjudged.
 - **The open activation tells them apart.** The task's record keeps
   `activation_open`, set at the claim that begins an activation and
@@ -177,7 +177,7 @@ that woke it and its talk (5.6). At a wake, the first of:
 - **Fresh:** its run cannot resume: its charter starts fresh, or its
   transcript's window cannot be resumed, closed, cut, past
   `resume_bytes`, or run on another endpoint or backend than the one
-  this run's source runs on (`../engine/executors.md`, 2, *Resumed only
+  this run's source runs on (`../engine/executors-transcripts.md`, 1, *Resumed only
   where it ran*). The run that follows reads its Now whole and its
   notes' index as any session's first (5.4), and nothing it keeps
   outside its transcript is lost.
@@ -206,7 +206,7 @@ the session by its `first` and saying which end it was.
 - **The session's model** is its task's main model, from its LLM choice,
   or else its charter's first (`README.md`, section 3).
 - **The quiet span** is nine tenths of the model's prompt-cache life, its
-  `cache_life_ms` (`../../protocol/configuration.md`, 3): a little under
+  `cache_life_ms` (`../../protocol/configuration-engine.md`, 1): a little under
   it, so that a wake within the span finds the cache warm. A model that
   declares none, or 0, keeps no prompt cache: its span is zero, and each
   wake of its task starts a session.
@@ -252,7 +252,7 @@ the session by its `first` and saying which end it was.
 
 A person talking with a standing task, in the terminal or on the web:
 their words wake it, its runs answer in their ordinary text, as an Open
-run's reply is (`../hosts/charters.md`, 1), and the session stays warm
+run's reply is (`../hosts/charters.md`, 4), and the session stays warm
 while they are there.
 
 - **Opened by their words.** A party's `Talk` (`../people/acts.md`, 1)
@@ -291,7 +291,7 @@ while they are there.
 - **Its lines:** `TalkOpened { party }` as it opens, and
   `TalkEnded { party, lapsed }` as it ends, left or lapsed, each in the
   task's activity, so that a client reads a talk as the activity between
-  them (`../engine/executors.md`, 2), its words and the runs' turns,
+  them (`../engine/executors-transcripts.md`, 1), its words and the runs' turns,
   never resumed once ended.
 - **Restored with the task** (5.5): its times are wall times, so a
   restart neither ends nor lapses it.
@@ -311,12 +311,12 @@ while they are there.
   its Now, a required section of the core's after the task's, titled
   with the note's name, its revision and when it was written, or saying
   that none is written yet. It is placed whole within its own budget,
-  `brief_core_budgets.now` (`../../protocol/configuration.md`, 3); a
+  `brief_core_budgets.now` (`../../protocol/configuration-engine.md`, 1); a
   Now past it is cut there, the section saying its bytes and the bound
   so that the run shortens it, and it never fails the brief.
 - **Its period beside it:** the section says, under its title, what the
   task has spent in the period that funds it and its budget there, as
-  `../authority.md`, section 7 keeps them: "This period: spent S of B."
+  `../authority-budgets.md`, section 1 keeps them: "This period: spent S of B."
   in the deployment's unit, so that a run reports what it spent and
   knows what is left before it starts work.
 - **Each write leaves a line.** When a standing task's run writes its
@@ -333,8 +333,8 @@ while they are there.
   the last; its session's end is a line in its activity all the same
   (5.2).
 - **Read by people** with the notes read of its scope, by the
-  description `now` (`../../client/domain/contract/README.md`, section
-  4), as any
+  description `now` (`../../client/domain/contract/reads.md`, section
+  1), as any
   note is read.
 
 ## 7. Its forms

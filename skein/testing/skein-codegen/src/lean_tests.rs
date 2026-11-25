@@ -19,12 +19,32 @@ record Nested {
 fn lean_helper_fixture_has_no_drift() {
     let schema = parse(FIXTURE).expect("helper schema");
     let output = generate(&schema);
+    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let path = skein_scratch::paths::tree().join("crates/skein-codec/src/tests/lean_fixture.rs");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
-        std::fs::write(&path, &output.records).expect("write helper fixture");
+    check(&path, &output.records, write);
+}
+
+fn check(path: &std::path::Path, text: &str, write: bool) {
+    if write {
+        std::fs::create_dir_all(path.parent().expect("output has a parent")).expect("output directory");
+        std::fs::write(path, text).expect("write generated output");
+    } else {
+        assert!(
+            std::fs::read_to_string(path).ok().as_deref() == Some(text),
+            "{} drifted: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codegen --lib -E 'test(=lean_tests::lean_helper_fixture_has_no_drift)'",
+            path.display()
+        );
     }
-    let committed = std::fs::read_to_string(path).expect("helper fixture committed");
-    assert!(committed == output.records, "helper fixture drifted: run this test with SKEIN_CODEGEN_WRITE=1");
+}
+
+#[test]
+fn tombstones_and_droppable_marks_do_not_change_generated_rust() {
+    let plain = parse("family f 1\nrecord R { hint: text 8 b: u8 }\nrecord Next { value: R }").expect("plain schema");
+    let annotated = parse(
+        "family f 1\nrecord R { droppable hint: text 8 dropped old: text 32 = \"\" b: u8 }\nrecord Next { value: R }",
+    )
+    .expect("annotated schema");
+    assert_eq!(generate(&annotated), generate(&plain));
 }
 
 #[test]
@@ -36,27 +56,33 @@ fn lean_secret_fields_need_no_box_import() {
 }
 
 #[test]
-fn lean_roots_have_a_concrete_debug_decode_entry() {
+fn lean_declarations_have_a_concrete_debug_decode_entry() {
     let schema = parse("family roots 1\nrecord Item { byte: u8 }\nrecord Root { item: Item }\n").expect("root schema");
     let output = generate(&schema).records;
     let (nested, root) = output.split_once("// Record: Root.").expect("root implementation");
-    assert!(!nested.contains("fn decode("), "nested reads use the family's read entry");
-    assert!(root.contains("#[cfg(debug_assertions)]\n    fn decode("), "only debug builds override the default entry");
+    let entry = "#[cfg(debug_assertions)]\n    fn decode(";
+    assert!(nested.contains(entry), "nested types keep the entry even when used by another declaration");
+    assert!(root.contains(entry), "only debug builds override the default entry");
 }
 
 #[test]
 fn lean_surface_is_public() {
     let schema = parse(FIXTURE).expect("helper schema");
     let output = generate(&schema).records;
+    assert_eq!(output.matches("pub const ENCODED_AT_ZERO: u64").count(), schema.declarations.len());
     for required in [
         "pub words: Box<[u8]>",
         "impl Record for Words",
         "pub use skein_codec::Record;",
         "pub type Path = skein_codec::Path<Limits>;",
         "pub type Problem = skein_codec::Problem<Limits>;",
-        "pub const WORDS_WORDS: Path = Path::new(1, 0);",
-        "const TABLE: &[skein_codec::bounds::Node]",
-        "pub fn name(path: Path) -> Option<&'static str>",
+        "pub const WORDS_WORDS: Path = Path::new(\"Words.words\");",
+        "pub static DECLARATIONS: &[skein_codec::bounds::Declaration]",
+        "static CEILING_VALUES: &[u32]",
+        "pub fn at_most(&self, most: u32) -> Limits",
+        "#[repr(C)]",
+        "core::mem::offset_of!(Limits, nested_records)",
+        "Node::Named(\"Words\")",
         "Node::List",
         "size_of::<Words>()",
     ] {
@@ -64,4 +90,29 @@ fn lean_surface_is_public() {
     }
     assert!(!output.contains("WordsParts"));
     assert!(!output.contains("pub fn new"));
+    assert!(!output.contains("PATH_NAMES"));
+    assert!(!output.contains("pub fn name(path:"));
+    // Every bound names the tables: as constants, each mention is its own copy in the binary.
+    assert!(!output.contains("const DECLARATIONS:"));
+    assert!(!output.contains("const CEILING_VALUES:"));
+}
+
+#[test]
+fn lean_shapes_have_one_entry_per_declaration_in_name_order() {
+    let schema = parse(FIXTURE).expect("helper schema");
+    let output = generate(&schema).records;
+    let (_, table) = output
+        .split_once("pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[\n")
+        .expect("public shapes table");
+    let (rows, _) = table.split_once("];\n").expect("end of shapes table");
+    let names: Vec<_> = rows
+        .lines()
+        .map(|line| {
+            let (_, name) = line.split_once("name: \"").expect("named shape");
+            name.split_once('"').expect("quoted name").0
+        })
+        .collect();
+    assert_eq!(names.len(), schema.declarations.len());
+    assert!(names.is_sorted_by(|left, right| left < right), "strictly ascending, got {names:?}");
+    assert_eq!(names, ["Choice", "Empty", "Nested", "Row", "Words"]);
 }

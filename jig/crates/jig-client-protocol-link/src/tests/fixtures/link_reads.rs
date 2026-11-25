@@ -53,12 +53,12 @@ impl Harness {
         }
     }
     pub fn reading() -> (Self, Token) {
-        let mut harness = Self::new(&limits());
+        let mut harness = Self::with_hello(&limits());
         let exchange = harness.read(Readable::Jig(history_read()));
         (harness, exchange)
     }
     pub fn reading_family() -> (Self, Token) {
-        let mut harness = Self::new(&limits());
+        let mut harness = Self::with_hello(&limits());
         let exchange = harness.read(Readable::Family {
             scope: jig_client_domain::contract::Scope::Project(1),
             window: jig_client_domain::contract::Window { rows: 3, after: None },
@@ -275,7 +275,7 @@ fn read_value_cases_last(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue
 }
 
 fn whole_call_turn_case() -> (w::ReadValue, c::ReadValue) {
-    use smith_transcript::v7 as smith;
+    use smith_transcript::v8 as smith;
     const INPUT: &[u8] = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefEND-OF-INPUT";
     let mut source = smith_transcript::decode_archived(&smith::CEILINGS, &full_turn()).unwrap();
     let mut blocks = skein_lib::List::with_capacity(1);

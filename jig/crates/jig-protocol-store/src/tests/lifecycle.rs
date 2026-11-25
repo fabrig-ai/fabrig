@@ -1,7 +1,8 @@
-//! Attempt and hold values and the absent open-attempt default (domain/tasks/lifecycle.md, 12).
+//! Attempt, hold and deployment defaults (domain/tasks/lifecycle.md, 12; jig/docs/design/domain/engine/waits.md, 7).
 use super::fixtures;
 use crate::tasks_v13::Record as _;
-use crate::{codec::tasks, tasks_v13 as wire};
+use crate::{codec::core as core_codec, codec::tasks, tasks_v13 as wire};
+use jig_domain_core_vocabulary::{CoreRecord, Counters, waits::WaitKind};
 use jig_domain_tasks as d;
 use skein_lib::{Buffer, Reader, Wall};
 
@@ -83,6 +84,47 @@ fn task_runs_written_without_open_attempt_read_with_none() {
 }
 
 #[test]
+fn deployments_written_without_wait_floors_read_with_none() {
+    let old = skein_codec::schema::parse(super::dev_store::CORE_SCHEMA.as_bytes()).unwrap();
+    let current = crate::STORE_FAMILIES.get(3).expect("core family").current;
+    let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"Row", Some(b"deployment")).unwrap(),
+        &[],
+        &new,
+        new.root(b"Row", Some(b"deployment")).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let limits = fixtures::codec_limits();
+    let mut deployment = Counters::bootstrap([1; 16]).deployment();
+    deployment.commits = 9;
+    deployment.restart_wait_ms = Some(100);
+    let record = CoreRecord::Deployment(deployment);
+    let bytes = core_codec::encode(&record, &limits).unwrap();
+    // The previous layout ends after the restart word, without the appended absent option.
+    let old_bytes = bytes.get(..bytes.len() - 1).unwrap();
+    let mut out = Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    plan.convert(old_bytes, &mut out, &mut work).unwrap();
+    assert_eq!(core_codec::decode(out.as_slice(), &limits), Ok(record));
+}
+
+#[test]
+fn deployment_keeps_distinct_wait_floors() {
+    let limits = fixtures::codec_limits();
+    let mut deployment = Counters::bootstrap([1; 16]).deployment();
+    assert!(deployment.set_wait_floor(WaitKind::Party, Wall::EPOCH));
+    assert!(deployment.set_wait_floor(WaitKind::Question, Wall::from_nanos(17)));
+    assert!(deployment.set_wait_floor(WaitKind::SignOff, Wall::from_nanos(u64::MAX)));
+    let record = CoreRecord::Deployment(deployment);
+    let bytes = core_codec::encode(&record, &limits).unwrap();
+    assert_eq!(core_codec::decode(&bytes, &limits), Ok(record));
+}
+
+#[test]
 fn change_contracts_written_without_choices_read_with_an_empty_list() {
     let mut text = None;
     for family in crate::JIG_STORE_SET.families {
@@ -134,4 +176,16 @@ fn saved_tasks(row: &jig_domain_tasks::Stored) -> Result<jig_domain_tasks::Store
         return tasks::decode_live(&bytes, &cold, &limits, &names);
     }
     tasks::decode(&bytes, &limits, &names)
+}
+
+#[test]
+fn a_task_held_at_a_wait_bound_round_trips() {
+    let mut record = fixtures::task_record();
+    record.phase = d::Phase::Held {
+        was: d::Was::Active(d::Active::Idle),
+        why: d::Hold::Waited,
+        source: Some(Box::new(d::HoldSource::Wait { words: b"Waited 24 h for news".as_slice().into() })),
+    };
+    let row = d::Stored::Live(Box::new(record));
+    assert_eq!(saved_tasks(&row), Ok(row));
 }

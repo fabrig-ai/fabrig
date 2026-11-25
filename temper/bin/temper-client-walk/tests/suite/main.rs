@@ -7,7 +7,7 @@ fn help(text: &str) -> bool {
     opening(text) == "temper-client-walk: journeys walked in a world, their marks printed as pages."
         && !text.contains("print [") && !text.contains("  pages")
         && text.contains("-h, --help") && text.contains("--version")
-        && text.split_whitespace().collect::<Vec<_>>().join(" ").ends_with("temper-client-walk COMMAND --help prints a command; read temper/docs/design/client/journey-walks.md, sections 4 and 5.")
+        && text.split_whitespace().collect::<Vec<_>>().join(" ").ends_with("temper-client-walk COMMAND --help prints a command; read temper/docs/design/client/journey-walks-world.md, section 1, and temper/docs/design/client/journey-walks.md, section 5.")
 }
 fn version(text: &str) -> bool {
     let prefix = format!("temper-client-walk {} (", env!("CARGO_PKG_VERSION"));

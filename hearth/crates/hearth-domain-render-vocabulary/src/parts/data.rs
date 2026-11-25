@@ -34,7 +34,7 @@ impl DataClass {
 pub struct DataChange {
     pub entries: Box<[DataKeyed]>,
 }
-/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
+/// Keyed changes (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum DataKeyed {
     Added { key: Box<[u8]>, value: DataValue },

@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const SCHEMA: &str = include_str!("../schema/worker-wire-v1.schema");
 
@@ -204,28 +204,29 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = crate::v1::VERSION;
 
-    /// The oldest version this build speaks.
-    pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;
-
-    #[cfg(test)]
-    const TEXT: &str = crate::SCHEMA;
+    /// The embedded current schema text.
+    pub const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]
     pub fn layout() -> [u8; 32] {
-        *crate::patches::kept::temper_worker_wire::LAYOUTS.last().expect("the kept wire has its current layout")
+        skein_codec::schema::parse(TEXT.as_bytes())
+            .expect("the embedded current schema is valid")
+            .fingerprints()
+            .family()
+            .digest()
     }
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
+        use super::{FAMILY, TEXT, VERSION, layout};
 
         #[test]
         fn identity_tracks_schema() {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
-            assert_eq!(FLOOR, crate::patches::kept::temper_worker_wire::FLOOR);
+            assert_eq!(VERSION, 12);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("tag: u64", "tag: u32", 1);
@@ -235,6 +236,3 @@ pub mod wire {
         }
     }
 }
-
-#[path = "../patches/mod.rs"]
-pub mod patches;

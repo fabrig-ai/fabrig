@@ -155,6 +155,10 @@ impl Service {
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
     }
+    /// Supply optional parsed binary texts before open; admission still checks the sets.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.engine.as_mut().expect("engine store schemas").prepared_schemas(schemas);
+    }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
     pub fn rehearse_store(
         &mut self,
@@ -404,7 +408,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
 }
 pub use temper_service_core::{STAGES, Stage};
 
-/// Run one stage with the pass's times (protocol/README.md, 6.1).
+/// Run one stage with the pass's times (protocol/service-process.md, 1.1).
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
     match stage {
         Stage::Io => {

@@ -1,4 +1,4 @@
-// Codec owners' largest-root memory checks (data/codec/README.md, section 6).
+// Codec owners' largest-root memory checks (skein/docs/design/data/codec/golden.md, section 1).
 // Included by each world's test binary, with its counting allocator installed.
 
 /// Find the largest common clamp that fits, bisecting the remaining interval.
@@ -8,23 +8,18 @@ pub(crate) fn select<L>(
     cap: u64,
     ceilings: L,
     lower: impl Fn(u32) -> L,
-    bounds: impl Fn(&L) -> (u64, u64),
-    pin: Option<(u64, u64)>,
+    encoded_bound: impl Fn(&L) -> u64,
 ) -> (L, Option<u32>) {
-    let ceiling_bounds = bounds(&ceilings);
-    if ceiling_bounds.0 <= cap {
-        assert_eq!(pin, None, "{family}/{root}: a ceiling-sized root needs no pin");
+    if encoded_bound(&ceilings) <= cap {
         return (ceilings, None);
     }
-    // Decoded pins describe the generated types on a 64-bit target.
-    assert_eq!(Some(ceiling_bounds), pin, "{family}/{root}: ceiling bounds (64-bit sizes)");
-    assert!(bounds(&lower(0)).0 <= cap, "{family}/{root}: even zero limits exceed cap {cap}");
+    assert!(encoded_bound(&lower(0)) <= cap, "{family}/{root}: even zero limits exceed cap {cap}");
     let mut low = 0;
     let mut high = u32::MAX;
     while low < high {
         let middle =
             low.checked_add(high.checked_sub(low).expect("ordered interval").div_ceil(2)).expect("midpoint fits");
-        if bounds(&lower(middle)).0 <= cap {
+        if encoded_bound(&lower(middle)) <= cap {
             low = middle;
         } else {
             high = middle.checked_sub(1).expect("middle is above low");
@@ -42,14 +37,13 @@ macro_rules! round_trip {
     }};
 }
 
-/// The type list dispatches every schema root through its generated decoder;
-/// the exhaustive Limits literal makes a newly added limit a compile error.
+/// The type list dispatches every schema root through its generated decoder.
+/// The family's drift test pins the ceiling bounds.
 macro_rules! family {
-    ($cap:expr, $text:expr, $module:path,
-     limits [$($field:ident),* $(,)?], roots [$($root:ident $(=> $pin:expr)?),+ $(,)?]) => {{
+    ($cap:expr, $text:expr, $module:path, roots [$($root:ident),+ $(,)?]) => {{
         use $module as codec;
         let schema = &skein_codegen::values($text).schema;
-        let lower = |k| codec::Limits { $($field: codec::CEILINGS.$field.min(k)),* };
+        let lower = |k| codec::CEILINGS.at_most(k);
         let roots = skein_codegen::roots(schema);
         let expected = [$(stringify!($root)),+];
         assert_eq!(roots, expected, "{}: generated decoder coverage", schema.family);
@@ -60,11 +54,7 @@ macro_rules! family {
                     let (limits, k) = super::codec_memory::select(
                         &schema.family, &root, $cap, codec::CEILINGS,
                         lower,
-                        |limits| (
-                            codec::$root::encoded_bound(limits).expect("valid encoded limits"),
-                            codec::$root::decoded_bound(limits).expect("valid decoded limits"),
-                        ),
-                        super::codec_memory::family!(@pin $($pin)?),
+                        |limits| codec::$root::encoded_bound(limits).expect("valid encoded limits"),
                     );
                     let values = limits.values();
                     let variants = skein_codegen::largest_variants(schema, &root, values.as_slice())
@@ -102,8 +92,6 @@ macro_rules! family {
             }
         }
     }};
-    (@pin $pin:expr) => { Some($pin) };
-    (@pin) => { None };
 }
 
 pub(crate) use {family, round_trip};

@@ -20,6 +20,7 @@ pub struct Invocation {
     input: Vec<u8>,
     terminate: bool,
     stream: bool,
+    first_input_after: &'static str,
     no_input: bool,
     signal: Option<(skein_io::kernel::ServiceSignal, String)>,
     control_after: Option<String>,
@@ -33,6 +34,7 @@ impl Invocation {
             input: Vec::new(),
             terminate: false,
             stream: false,
+            first_input_after: "init",
             no_input: false,
             signal: None,
             control_after: None,
@@ -41,6 +43,18 @@ impl Invocation {
 
     pub fn input(mut self, bytes: &[u8]) -> Self {
         self.input = bytes.into();
+        self
+    }
+
+    /// For result-paced input, wait for this subtype before writing the first user record.
+    pub fn first_input_after(mut self, subtype: &'static str) -> Self {
+        self.first_input_after = subtype;
+        self
+    }
+
+    /// Send the scripted input without waiting for each result record.
+    pub fn unpaced(mut self) -> Self {
+        self.stream = false;
         self
     }
 
@@ -246,9 +260,11 @@ impl Parent {
                                 {
                                     self.send_control();
                                 }
-                                if self.invocations.front().expect("invocation").stream
+                                let invocation = self.invocations.front().expect("invocation");
+                                if invocation.stream
                                     && !self.input_closed
-                                    && (kind == "init" || value["type"] == "result")
+                                    && ((self.input_from == 0 && kind == invocation.first_input_after)
+                                        || value["type"] == "result")
                                 {
                                     self.state = State::Input;
                                 }

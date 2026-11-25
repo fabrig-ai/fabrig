@@ -1,10 +1,11 @@
 //! Preparation, grading and archival around a fake prepared agent invocation.
+#![cfg(target_os = "linux")]
+
 use std::fs;
 use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
 use smith_bench::End;
-#[cfg(target_os = "linux")]
 use smith_bench::Measure;
 use smith_bench::guard::Guard;
 use smith_bench::isolate::Machine;
@@ -74,7 +75,7 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
     let process = smith_bench::process::execute(
         &clock,
         skein_world::end_to_end::Command {
-            program: PathBuf::from(env!("CARGO_BIN_EXE_smith-bench")),
+            program: skein_scratch::paths::binary("smith-bench"),
             arguments: vec!["attempt".into(), request.into_os_string()],
             environment: vec![
                 ("HOME".into(), root.join("user-home").into_os_string()),
@@ -186,24 +187,6 @@ fn login_shells_keep_machine_path_in_setup_agent_and_grading() {
     assert_eq!(recorded.result.outcome.end, End::Completed, "{:?}", recorded.result.outcome);
     assert_eq!(recorded.result.outcome.grade, Some(Measure::Observed { value: true }));
     assert!(!scratch_root(&root.join("state"), &prepared).expect("scratch").exists());
-}
-
-#[test]
-fn an_existing_scratch_root_is_refused_and_never_deleted() {
-    let (guard, machine, scratch_directory, prepared) = fixture("existing");
-    let root = scratch_directory.path().join("root");
-    let scratch = scratch_root(&root.join("state"), &prepared).expect("scratch");
-    fs::create_dir_all(&scratch).expect("existing directory");
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(scratch.parent().expect("parent"), fs::Permissions::from_mode(0o700))
-            .expect("private parent");
-    }
-    fs::write(scratch.join("sentinel"), "keep").expect("sentinel");
-    let recorded = attempt(&guard, &machine, &root.join("state"), &prepared).expect("record setup refusal");
-    assert!(matches!(recorded.result.outcome.end, End::Refused { .. }));
-    assert_eq!(recorded.incomplete, smith_bench::run::Incomplete::Setup(smith_bench::isolate::SetupStep::Scratch));
-    assert_eq!(fs::read_to_string(scratch.join("sentinel")).expect("retained original"), "keep");
 }
 
 #[cfg(target_os = "linux")]

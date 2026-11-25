@@ -1,5 +1,4 @@
 //! Byte-summed pieces retain the domain's byte sum (skein/docs/design/data/codec/README.md, 3; protocol/store/records.md, 1).
-use super::Context;
 use super::{Box, Reader, domain, wire};
 use crate::generated::tasks as mapped;
 use skein_lib::List;
@@ -29,7 +28,7 @@ pub(super) fn fields(
     for field in values {
         let domain::ResultField { name, value } = field;
         admit(&mut used, name, value.len(), limits.result_field_value, path)?;
-        let field = mapped::result_field_to_record(field, &Context::new(limits, None))?;
+        let field = mapped::result_field_to_record(field);
         let item = field.encode(limits)?;
         items.push(item).expect("same field count");
     }
@@ -51,7 +50,7 @@ pub(super) fn read_fields(
     while let Some(bytes) = split(&mut reader, path)? {
         let wire::ResultField { name, value } = wire::ResultField::decode(limits, &mut Reader::new(&bytes))?;
         admit(&mut used, &name, value.len(), limits.result_field_value, path)?;
-        let value = mapped::result_field_to_domain(wire::ResultField { name, value }, &Context::new(limits, None))?;
+        let value = mapped::result_field_to_domain(wire::ResultField { name, value });
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -63,7 +62,7 @@ pub(super) fn rules(values: &[domain::FieldRule], limits: &wire::Limits) -> Resu
     for field in values {
         let domain::FieldRule { name, max } = field;
         admit(&mut used, name, skein_lib::length::usize_of(*max), limits.field_rule_name, wire::paths::VERDICT_FIELDS)?;
-        let field = mapped::field_rule_to_record(field, &Context::new(limits, None))?;
+        let field = mapped::field_rule_to_record(field);
         let item = field.encode(limits)?;
         items.push(item).expect("same field count");
     }
@@ -81,7 +80,7 @@ pub(super) fn read_rules(bytes: Box<[u8]>, limits: &wire::Limits) -> Result<Box<
     while let Some(bytes) = split(&mut reader, wire::paths::VERDICT_FIELDS)? {
         let wire::FieldRule { name, max } = wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?;
         admit(&mut used, &name, skein_lib::length::usize_of(max), limits.field_rule_name, wire::paths::VERDICT_FIELDS)?;
-        let value = mapped::field_rule_to_domain(wire::FieldRule { name, max }, &Context::new(limits, None))?;
+        let value = mapped::field_rule_to_domain(wire::FieldRule { name, max });
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -98,7 +97,7 @@ pub(super) fn parameters(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = mapped::parameter_to_record(value, &Context::new(limits, None))?;
+        let value = mapped::parameter_to_record(value);
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -118,7 +117,7 @@ pub(super) fn read_parameters(
     );
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::Parameter::decode(limits, &mut Reader::new(&bytes))?;
-        let value = mapped::parameter_to_domain(value, &Context::new(limits, None))?;
+        let value = mapped::parameter_to_domain(value);
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -246,7 +245,7 @@ pub(super) fn grants(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = mapped::grant_to_record(value, &Context::new(limits, None))?;
+        let value = mapped::grant_to_record(value)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -266,7 +265,7 @@ pub(super) fn read_grants(
     );
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::Grant::decode(limits, &mut Reader::new(&bytes))?;
-        let value = mapped::grant_to_domain(value, &Context::new(limits, None))?;
+        let value = mapped::grant_to_domain(value);
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())
@@ -283,7 +282,7 @@ pub(super) fn scopes(
     };
     let mut items = List::with_capacity(count);
     for value in values {
-        let value = mapped::resource_scope_to_record(value, &Context::new(limits, None))?;
+        let value = mapped::resource_scope_to_record(value)?;
         let item = value.encode(limits)?;
         items.push(item).expect("same item count");
     }
@@ -303,7 +302,7 @@ pub(super) fn read_scopes(
     );
     while let Some(bytes) = split(&mut reader, path)? {
         let value = wire::ResourceScope::decode(limits, &mut Reader::new(&bytes))?;
-        let value = mapped::resource_scope_to_domain(value, &Context::new(limits, None))?;
+        let value = mapped::resource_scope_to_domain(value);
         values.push(value).expect("piece bounds item count");
     }
     Ok(values.into_boxed())

@@ -1,4 +1,4 @@
-//! Store readers, an exclusive Pack and FIFO waiters (protocol/git.md, 4.13).
+//! Store readers, an exclusive Pack and FIFO waiters (protocol/git-operations.md, 1.14).
 use super::fixtures::{self, Started};
 use crate::{Component, Request, invocation};
 use alloc::boxed::Box;
@@ -19,16 +19,13 @@ fn started() -> Started {
     let mut limits = fixtures::limits();
     limits.operations = 4;
     let settings =
-        crate::Settings { serial: fixtures::SERIAL.checked_sub(4).expect("layout names"), ..fixtures::settings() };
+        crate::Settings { serial: fixtures::SERIAL.checked_sub(2).expect("layout names"), ..fixtures::settings() };
     s.component = Component::new(&limits, &fixtures::checkout(), settings).expect("four operations");
     s.component.start(s.now, &mut s.below.out);
     let version = spawn(&mut s, b"", b"version");
     finish(&mut s, &version, b"git version 2.47.3\n", 0);
     s.component.reclaim();
-    for _ in 0_u8..15 {
-        s.file_operation();
-        s.complete_ok();
-    }
+    s.finish_layout();
     assert_eq!(s.below.out.events.pop(), Some(crate::Event::Started));
     s.empty_sweep();
     s
@@ -203,11 +200,17 @@ fn a_second_pack_waits_and_a_repository_only_pack_takes_no_store_lock() {
 }
 
 #[test]
-fn store_fetches_share_the_lock_and_another_store_is_never_held() {
+fn fetch_and_counts_share_the_lock_and_another_store_is_never_held() {
     let mut s = started();
     fetch(&mut s, FIRST, Token::new(7));
     let first = spawn(&mut s, b"stores/7", b"fetch");
-    fetch(&mut s, SECOND, Token::new(7));
+    let git::Op::Counts { at, remote, identity, account, .. } = fixtures::counts_op() else { panic!("counts") };
+    s.down(Request::Io {
+        owner: SECOND,
+        op: git::Op::Counts { at, remote, identity, account, store: Token::new(7) },
+        deadline: LATER,
+        identity: Some(fixtures::identity()),
+    });
     let second = spawn(&mut s, b"stores/7", b"fetch");
     pack(&mut s, THIRD, Some(Token::new(7)), LATER);
     assert!(directories(&s).is_empty());
@@ -216,9 +219,14 @@ fn store_fetches_share_the_lock_and_another_store_is_never_held() {
     finish(&mut s, &first, FETCHED, 0);
     update(&mut s, FIRST);
     assert!(directories(&s).is_empty(), "Pack still waits for the second reader");
-    finish(&mut s, &second, FETCHED, 0);
-    update(&mut s, SECOND);
+    let fetched =
+        b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/counts\n";
+    finish(&mut s, &second, fetched, 0);
+    let local = spawn(&mut s, b"gitdirs/7/app", b"update-ref");
     let count = spawn(&mut s, b"stores/7", b"count-objects");
+    finish(&mut s, &local, b"", 0);
+    super::view::empty(&mut s);
+    done(&mut s, SECOND, git::Done::Fetched { commit: fixtures::COMMIT });
     finish(&mut s, &count, b"packs: 51\n", 0);
     let repack = spawn(&mut s, b"stores/7", b"repack");
     finish(&mut s, &other, FETCHED, 0);
@@ -381,7 +389,7 @@ fn shutdown_closes_its_directories_when_the_last_store_waiter_expires() {
     );
     done(&mut s, SECOND, git::Done::Failed { fault: git::Fault::TimedOut });
     assert!(!s.below.out.kernel.is_empty(), "shutdown must close directories after its last waiter ends");
-    for _ in 0_u8..5 {
+    for _ in 0_u8..6 {
         s.file_operation();
         s.complete_ok();
     }

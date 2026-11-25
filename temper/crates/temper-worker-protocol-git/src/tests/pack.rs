@@ -1,4 +1,4 @@
-//! Pack's local maintenance sequence (protocol/git.md, 4.13).
+//! Pack's local maintenance sequence (protocol/git-operations.md, 1.14).
 use super::fixtures::{self, Started};
 use crate::Request;
 use alloc::boxed::Box;

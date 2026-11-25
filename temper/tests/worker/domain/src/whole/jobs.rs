@@ -39,6 +39,9 @@ pub struct Report {
 }
 
 pub(super) struct World {
+    seed: u64,
+    iteration: u64,
+    builder: crate::builder::Builder,
     kind: tooling::Kind,
     pub(super) repository: Box<[u8]>,
     pub(super) request: Box<[u8]>,
@@ -78,6 +81,9 @@ impl World {
         );
         forge.create_branch(REMOTE, b"topic", first).expect("delivery branch");
         Self {
+            seed,
+            iteration: 0,
+            builder: crate::builder::Builder::new(1),
             domain: Domain::new(&limits, Box::new([kind.clone()])),
             title: format!("job {}", kind.bound.kind.0).into_bytes().into(),
             request: b"request".as_slice().into(),
@@ -103,7 +109,7 @@ impl World {
         }
     }
 
-    pub(super) fn event(&mut self, event: Event) {
+    pub(super) fn event(&mut self, event: Event) -> Result<(), String> {
         self.owed.push_back(event);
         for _ in 0..128 {
             while let Some(request) = self.out.pop() {
@@ -116,11 +122,20 @@ impl World {
                 temper_worker_domain::resume(&mut self.domain, &self.env, &mut self.out);
                 continue;
             }
-            let Some(event) = self.owed.pop_front() else { return };
+            let Some(event) = self.owed.pop_front() else {
+                return crate::inspection::check(
+                    self.seed,
+                    &self.env,
+                    &mut self.iteration,
+                    &self.domain,
+                    Some(&self.disk),
+                    &self.builder,
+                );
+            };
             self.report.trace.push(format!("-> {event:?}"));
             temper_worker_domain::step(&mut self.domain, &self.env, event, &mut self.out);
         }
-        panic!("the job story settles");
+        Err("the job story did not settle".into())
     }
 
     fn take(&mut self, request: Request) {
@@ -153,13 +168,14 @@ impl World {
                         assert!(self.held_push.replace((owner, op)).is_none());
                         return;
                     }
-                    git::Op::Store { .. }
+                    git::Op::Keep { .. } | git::Op::Store { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
                     | git::Op::Reset { .. }
                     | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
+                    | git::Op::Counts { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
@@ -200,7 +216,7 @@ impl World {
         }
     }
 
-    fn assign(&mut self, decoded: bool, delivers: bool) {
+    fn assign(&mut self, decoded: bool, delivers: bool) -> Result<(), String> {
         let repositories = [b"home".as_slice(), b"work".as_slice()]
             .into_iter()
             .enumerate()
@@ -243,10 +259,11 @@ impl World {
             },
             items: Ok(wire::Workspace { repositories }),
             spec,
-        });
+        })?;
+        Ok(())
     }
 
-    pub(super) fn start(&mut self, command: &[u8]) -> Token {
+    pub(super) fn start(&mut self, command: &[u8]) -> Result<Token, String> {
         let (owner, op) = self.operations.pop_front().expect("write request");
         let tooling::Request::Write { owner: inner, path, bytes } = op else { panic!("write before spawn") };
         assert_eq!(owner, inner);
@@ -255,7 +272,7 @@ impl World {
         assert_eq!(path.as_ref(), [directory.as_slice(), b"/request.json"].concat());
         assert_eq!(bytes, self.request);
         self.disk.write(&[translate::dir(workspace).as_slice(), b"/request.json"].concat(), &bytes);
-        self.event(Event::Job { owner, event: tooling::Event::Written { owner, written: true } });
+        self.event(Event::Job { owner, event: tooling::Event::Written { owner, written: true } })?;
         let (spawn_owner, op) = self.operations.pop_front().expect("spawn after write");
         assert_eq!(spawn_owner, owner);
         let tooling::Request::Spawn { owner: inner, program, args, env, dir, deadline } = op else { panic!("spawn") };
@@ -274,11 +291,11 @@ impl World {
         );
         assert_eq!(deadline, self.env.now.saturating_add(Duration::from_secs(5)));
         assert!(self.disk.exists(&[translate::dir(workspace).as_slice(), b"/", command].concat()));
-        self.event(Event::Job { owner, event: tooling::Event::Spawned { owner } });
-        owner
+        self.event(Event::Job { owner, event: tooling::Event::Spawned { owner } })?;
+        Ok(owner)
     }
 
-    fn finish(&mut self, owner: Token, gone_first: bool) {
+    fn finish(&mut self, owner: Token, gone_first: bool) -> Result<(), String> {
         let workspace = self.workspace.expect("prepared checkout");
         let fake_dir = translate::dir(workspace);
         // The command leaves its edit uncommitted: the checkout commits it.
@@ -287,42 +304,43 @@ impl World {
         self.event(Event::Job {
             owner,
             event: tooling::Event::Exited { owner, exit: tooling::Exit::Code(0), tail: Box::new([]) },
-        });
+        })?;
         let (read_owner, op) = self.operations.pop_front().expect("result read after exit");
         assert_eq!(read_owner, owner);
         let tooling::Request::Read { path, most, .. } = op else { panic!("read result") };
         assert_eq!(path.as_ref(), format!("workspaces/{}/result.json", workspace.raw()).as_bytes());
         assert_eq!(most, 128);
         if gone_first {
-            self.event(Event::Job { owner, event: tooling::Event::Gone { owner } });
+            self.event(Event::Job { owner, event: tooling::Event::Gone { owner } })?;
             assert!(self.report.answer.is_none(), "the read still owns the workspace");
         }
-        self.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(RESULT.into()) } });
+        self.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(RESULT.into()) } })?;
+        Ok(())
     }
 
-    pub(super) fn pushed(&mut self, stale: bool) {
+    pub(super) fn pushed(&mut self, stale: bool) -> Result<(), String> {
         let (owner, op) = self.held_push.take().expect("job delivery began");
         if stale {
             self.forge.advance(REMOTE, b"topic", b"code", b"another writer\n");
         }
         let done = translate::perform(&mut self.forge, &mut self.disk, op);
-        self.event(Event::Done { owner, done });
+        self.event(Event::Done { owner, done })?;
+        Ok(())
     }
 }
 
 /// Drives a complete job through its checkout and process terminals.
-#[must_use]
-pub fn run(seed: u64, case: Case) -> Report {
+pub fn run(seed: u64, case: Case) -> Result<Report, String> {
     let delivers = matches!(case, Case::Delivered | Case::Stale | Case::Cancelled);
     let mut world = World::new(seed, kind(delivers), crate::limits());
-    world.event(Event::Ready);
+    world.event(Event::Ready)?;
     assert_eq!(world.report.kinds.as_ref(), [kind(delivers).bound]);
     if case != Case::Hello {
-        world.assign(case != Case::Undecodable, delivers);
+        world.assign(case != Case::Undecodable, delivers)?;
         if case != Case::Undecodable {
-            let owner = world.start(b"home/tools/check");
+            let owner = world.start(b"home/tools/check")?;
             if case == Case::Cancelled {
-                world.event(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: ATTEMPT }));
+                world.event(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: ATTEMPT }))?;
                 let (kill_owner, op) = world.operations.pop_front().expect("kill on cancel");
                 assert_eq!(kill_owner, owner);
                 assert_eq!(op, tooling::Request::Kill { owner });
@@ -330,21 +348,21 @@ pub fn run(seed: u64, case: Case) -> Report {
                 world.event(Event::Job {
                     owner,
                     event: tooling::Event::Exited { owner, exit: tooling::Exit::Signal, tail: Box::new([]) },
-                });
+                })?;
             } else {
-                world.finish(owner, case == Case::GoneBeforeRead);
+                world.finish(owner, case == Case::GoneBeforeRead)?;
                 if delivers {
                     assert!(world.report.answer.is_none(), "wait for the push");
-                    world.pushed(case == Case::Stale);
+                    world.pushed(case == Case::Stale)?;
                 }
             }
             if case != Case::GoneBeforeRead {
                 assert!(world.report.answer.is_none(), "wait for Gone");
                 assert_eq!(world.domain.workspaces(), 1);
-                world.event(Event::Job { owner, event: tooling::Event::Gone { owner } });
+                world.event(Event::Job { owner, event: tooling::Event::Gone { owner } })?;
             }
             assert!(world.operations.is_empty());
-            world.event(Event::Job { owner, event: tooling::Event::Gone { owner } });
+            world.event(Event::Job { owner, event: tooling::Event::Gone { owner } })?;
         }
         assert_eq!(world.domain.workspaces(), 0);
         assert_eq!(world.domain.agent().agents(), 0);
@@ -372,12 +390,12 @@ pub fn run(seed: u64, case: Case) -> Report {
             )),
             Case::Hello => unreachable!("hello only has no job"),
         }
-        world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+        world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }))?;
     }
     let commit = world.forge.branch(REMOTE, b"topic").expect("delivery branch");
     world.report.tree = world.forge.tree(commit);
-    world.event(Event::Shutdown { drain: true });
+    world.event(Event::Shutdown { drain: true })?;
     assert_eq!(world.stops, 1);
     assert_eq!(world.domain.kept_answers(), 0);
-    world.report
+    Ok(world.report)
 }

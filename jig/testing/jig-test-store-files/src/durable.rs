@@ -1,4 +1,4 @@
-//! The real store under the conformance harness (protocol/store/README.md 9).
+//! The real store under the conformance harness (protocol/store/testing.md 1).
 use crate::Store;
 impl jig_conformance::Durable for Store {
     type Write = jig_test_domain::Write;

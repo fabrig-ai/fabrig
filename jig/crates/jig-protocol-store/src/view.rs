@@ -193,7 +193,6 @@ pub(crate) fn events(store: &mut Store, events: &mut Queue<Event>, above: &mut Q
             | Event::Erased { .. }
             | Event::Secret { .. }
             | Event::SecretsLoaded { .. }
-            | Event::Site { .. }
             | Event::Job { .. }
             | Event::Ran { .. } => None,
         };

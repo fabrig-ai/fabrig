@@ -62,9 +62,9 @@ fn an_idle_channel_sends_a_ping_after_the_interval() {
     let mut world = world();
     let (connection, _) = reporting(&mut world);
     world.advance(Duration::from_millis(4_999));
-    assert_eq!((world.observed(connection)).len(), 1);
+    assert_eq!(world.observed_with_accept(connection).iter().map(|r| r.kind).collect::<Vec<_>>(), [2]);
     world.advance(Duration::from_millis(1));
-    assert_eq!(observed(&world, connection), [0x018d, 5]);
+    assert_eq!(observed(&world, connection), [5]);
     assert_eq!(world.root().len(), 1);
 }
 
@@ -73,7 +73,7 @@ fn a_link_that_fills_its_cap_is_lost() {
     let mut world = world();
     let (connection, channel) = reporting(&mut world);
     world.withhold_write_room(connection);
-    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES).expect("cap");
+    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES, fixtures::limits().room).expect("cap");
     for _ in 0..cap.frames {
         busy(&mut world, channel);
     }
@@ -118,9 +118,9 @@ fn a_drained_record_restarts_the_ping_interval() {
     busy(&mut world, channel);
     world.run();
     world.advance(Duration::from_millis(4_999));
-    assert_eq!(observed(&world, connection), [0x018d, 0x0184]);
+    assert_eq!(observed(&world, connection), [0x0184]);
     world.advance(Duration::from_millis(1));
-    assert_eq!(observed(&world, connection), [0x018d, 0x0184, 5]);
+    assert_eq!(observed(&world, connection), [0x0184, 5]);
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn a_start_past_the_room_is_answered_and_the_link_lives() {
             .iter()
             .filter_map(|r| {
                 if let Request::Unsent { worker, channel, unsent } = r {
-                    Some((*worker, *channel, *unsent))
+                    Some((*worker, *channel, unsent.clone()))
                 } else {
                     None
                 }
@@ -327,7 +327,7 @@ fn a_start_past_the_room_is_answered_and_the_link_lives() {
 }
 
 // The resumed start keeps every call across the engine's stream's room
-// (jig/docs/design/protocol/channel/README.md, 8, 10 and 11).
+// (jig/docs/design/protocol/channel/liveness.md, 1, and jig/docs/design/protocol/channel/README.md, 10, and jig/docs/design/protocol/channel/testing.md, 1).
 #[test]
 fn a_resumed_start_fits_the_room() {
     use jig_domain_host as host;
@@ -392,8 +392,8 @@ fn a_resumed_start_fits_the_room() {
 fn the_room_holds_the_smallest_resumed_start() {
     use jig_protocol_engine_workers::{Component, Limits, valid};
     use jig_protocol_worker_wire::sizes;
-    // Header8 + fixed57 + five calls (fields14 + name16 + tool16 + words66).
-    const FLOOR: u32 = 625;
+    // Header8 + fixed61 + five calls (fields14 + name16 + tool16 + words66).
+    const FLOOR: u32 = 629;
     let sizes = sizes::Sizes { answered: 5, ..fixtures::SIZES };
     for (room, accepted) in [(FLOOR, true), (FLOOR - 1, false)] {
         let limits = Limits { sizes, room, ..fixtures::LIMITS };

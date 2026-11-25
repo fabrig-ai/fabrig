@@ -287,7 +287,7 @@ pub fn settings_text(
     let value = match answer {
         SettingsAnswer::Inventory(value) => c::ReadValue::Settings(Box::new(
             client::restore_settings_document(
-                &wire::document(value, &limits.settings).or(Err(Problem::Range(b"items")))?,
+                &wire::document(value).or(Err(Problem::Range(b"items")))?,
                 &limits,
             )
             .or(Err(Problem::Range(b"items")))?,
@@ -306,13 +306,9 @@ pub fn settings_text(
             )
             .or(Err(Problem::Range(b"items")))?,
         )),
-        SettingsAnswer::Revisions(value) => c::ReadValue::Revisions(Box::new(
-            client::restore_revisions_page(
-                &wire::revisions(value, &limits.settings).or(Err(Problem::Range(b"items")))?,
-                &limits,
-            )
-            .or(Err(Problem::Range(b"items")))?,
-        )),
+        SettingsAnswer::Revisions(value) => {
+            c::ReadValue::Revisions(Box::new(client::restore_revisions_page(&wire::revisions(value))))
+        }
         SettingsAnswer::Unknown => return Ok(Box::from(b"not read: no such setting at that revision. This says nothing about the settings: read the inventory; project-ways, project-questions, project-classes, project-words: project, no number; charter-words, template-goal: number, no project.\n".as_slice())),
     };
     Ok(settings_form::settings_text(&value, requested, &limits))
@@ -616,6 +612,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         | Refusal::KeyConflict
         | Refusal::NoEscalationHolder
         | Refusal::Unlinked { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Concluded { .. }
         | Refusal::Llm { .. } => {}
     }

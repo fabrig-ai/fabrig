@@ -84,6 +84,7 @@ fn change_row() -> top::ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        close_at: None,
         report: Box::new([]),
         repairs: None,
         follows: None,
@@ -133,6 +134,7 @@ fn change_step_task(
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -315,7 +317,7 @@ fn a_merge_with_its_answer_lost_is_found_after_restart_without_merging_twice() {
     assert!(world.stored().get(&top::Key::Entry(1)).is_none());
 }
 
-// The story's reads resolve every check's job (skein/docs/design/forge/forgejo.md, 1.2).
+// The story's reads resolve every check's job (skein/docs/design/forge/forgejo-operations.md, 1).
 const CI_REPAIR_REQUEST_ALLOWANCE: u32 = 128;
 
 #[test]
@@ -509,6 +511,7 @@ fn step_change(world: &mut Protocol, entry: u64, delegate: change::Status, relea
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -562,11 +565,13 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::SetUp { .. }
                 | top::Request::ChoosePlace { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::CloseDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
                 | top::Request::MarkedForges
+                | top::Request::Waits { .. }
                 | top::Request::MilestoneMarked { .. }
                 | top::Request::Marked { .. }
                 | top::Request::Erase { .. }
@@ -617,9 +622,12 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LandingUnmade { .. }
+                | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
@@ -967,6 +975,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                     no_test: false,
                     delegate_live: false,
                     review_request: None,
+                    closer_waiting: false,
                     start_conflict: None,
                     lacking: None,
                     spend: None,

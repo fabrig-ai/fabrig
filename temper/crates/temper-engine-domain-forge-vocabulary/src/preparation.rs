@@ -1,4 +1,4 @@
-//! The worker's per-member prepare outcomes (domain/landing.md, 5.2).
+//! The worker's per-member prepare outcomes (domain/landing-prepare.md, 1.2).
 use alloc::boxed::Box;
 use temper_engine_domain_forge_landing::Outcome;
 

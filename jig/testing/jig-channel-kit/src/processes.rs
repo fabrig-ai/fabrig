@@ -15,7 +15,7 @@ pub(crate) enum Proc {
     Client(Box<jig_client_protocol_kit::native::NativeClient>),
     Engine(Box<ServiceHost>),
     Worker(Box<ServiceHost>),
-    Agent { host: Box<PipeHost<smith_agent_shell::Agent>>, errors: agent_fixture::AgentErrors },
+    Agent { host: Box<PipeHost<smith_agent_shell::Agent>>, errors: agent_fixture::AgentErrors, output: kernel::Fd },
     Peer(Box<skein_fake_peers::llm::Peer>),
     Probe(Box<crate::relay::Peer>),
 }
@@ -52,8 +52,7 @@ impl ServiceHost {
             submitted: 0,
             worker,
             files: Capture::default(),
-            codec: jig_protocol_store::codec::limits(&fixtures::store_limits().root.core)
-                .expect("admitted fixture codec"),
+            codec: fixtures::store_codec(),
             store_limits: fixtures::store_limits(),
             holding: false,
             corrupt_transcript: false,
@@ -77,7 +76,6 @@ impl Host for ServiceHost {
         if let Some(probe) = &mut self.order_probe {
             probe.receive(now, self.service.completions(), &self.wire);
         }
-        self.failed_starts.receive(self.service.completions());
         for complete in self.service.completions().iter() {
             self.wire.complete(complete, self.worker, now);
             self.files.complete(complete);
@@ -102,7 +100,9 @@ impl Host for ServiceHost {
                     }
                 }
             }
-            if self.failed_starts.cut_record(&submit) {
+            if self.worker {
+                self.failed_starts.corrupt_open(&mut submit);
+            } else if self.failed_starts.cut_record(&submit) {
                 self.service.completions().push(kernel::Complete {
                     op: submit.op,
                     kind: submit.kind,
@@ -281,12 +281,13 @@ fn worker_configured(root: kernel::Fd, bad_charter: bool, message: bool, provide
     )
 }
 #[derive(Clone, Copy)]
-enum Backend {
+pub(crate) enum Backend {
     Direct,
     List,
     Calls,
     Program,
     BothWays,
+    Resume,
 }
 pub(crate) fn worker_calls(root: kernel::Fd) -> Proc {
     static PREPARED: OnceLock<Prepared> = OnceLock::new();
@@ -299,7 +300,7 @@ pub(crate) fn worker_calls(root: kernel::Fd) -> Proc {
     });
     worker_document(root, false, false, false, Backend::Calls, prepared)
 }
-fn worker_document(
+pub(crate) fn worker_document(
     root: kernel::Fd,
     bad_charter: bool,
     message: bool,
@@ -311,6 +312,9 @@ fn worker_document(
     roots.push(root).expect("one worker root");
     let programs = matches!(backend, Backend::Program | Backend::BothWays);
     let mut agent = if programs { crate::program_runs::worker_agent() } else { fixtures::agent() };
+    if matches!(backend, Backend::Resume) {
+        agent.bounds.checks = skein_lib::Duration::from_secs(4);
+    }
     if programs {
         agent.bounds.endpoints[0].window = 272_000;
     }
@@ -373,7 +377,11 @@ fn agent_configured(inherited: &Inherited, mut configuration: smith_agent_servic
     }
 
     let agent = agent_fixture::configured(configuration, fixtures::SEED, inherited, errors.clone());
-    Proc::Agent { host: Box::new(capture.host(agent)), errors }
+    Proc::Agent {
+        host: Box::new(capture.host(agent)),
+        errors,
+        output: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
+    }
 }
 
 /// Decode exactly the bytes the kernel accepted or received, once per completed operation.
@@ -417,6 +425,24 @@ impl Wire {
         self.completed.clear();
         self.streams.clear();
         self.channel = None;
+    }
+
+    /// A killed process loses its decoder; the world's observations survive it.
+    pub(crate) fn preceded_by(&mut self, mut previous: Self) {
+        previous.frames.append(&mut self.frames);
+        self.frames = previous.frames;
+        previous.acknowledgements.append(&mut self.acknowledgements);
+        self.acknowledgements = previous.acknowledgements;
+        previous.grants.append(&mut self.grants);
+        self.grants = previous.grants;
+        previous.granted.append(&mut self.granted);
+        self.granted = previous.granted;
+        self.calls_answered += previous.calls_answered;
+        self.hellos += previous.hellos;
+        self.admitted_hellos += previous.admitted_hellos;
+        self.adopting_hellos += previous.adopting_hellos;
+        self.start_messages += previous.start_messages;
+        self.waited |= previous.waited;
     }
 
     pub(crate) fn hello_sent(&self) -> bool {
@@ -574,12 +600,29 @@ impl Wire {
     }
 }
 
-pub(crate) struct Machine(pub(crate) skein_fake_machine::Machine);
+pub(crate) struct Machine(
+    pub(crate) skein_fake_machine::Machine,
+    pub(crate) Option<std::rc::Rc<std::cell::RefCell<crate::world::Views>>>,
+);
 impl skein_world::Machine for Machine {
     fn open_root(&mut self, path: &[u8]) -> Result<skein_sim::Handle, kernel::Error> {
         let root = match path {
             b"state" => 0,
             b"worker" => 2,
+            crate::restarts::PATH => 3,
+            b"restart-check" => {
+                let root = self.0.reopen_root(3);
+                crate::restarts::check_opened(
+                    &mut self.1.as_ref().expect("restart observation").borrow_mut().restart,
+                    &mut self.0,
+                    root,
+                );
+                return Ok(skein_sim::Handle::new(root.raw()));
+            }
+            b"restart-command" => {
+                self.1.as_ref().expect("restart observation").borrow_mut().restart.evidence.commands += 1;
+                3
+            }
             _ => panic!("channel story root"),
         };
         Ok(skein_sim::Handle::new(self.0.reopen_root(root).raw()))
@@ -598,7 +641,13 @@ impl skein_world::Machine for Machine {
         }
     }
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        // Only the restart check writes this one-byte marker. Wait for that
+        // write before killing it, so its next start can read the same tree.
+        let marker = matches!(&call.ask, skein_sim::Ask::Write { bytes, .. } if bytes.as_ref() == b"1");
         skein_fake_machine::step(&mut self.0, call, answers);
+        if marker && let Some(views) = &self.1 {
+            views.borrow_mut().restart.check_marked = true;
+        }
     }
 }
 
@@ -670,7 +719,7 @@ fn worker_programs_with(inherited: &skein_world::Inherited, backend: Backend) ->
     let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     let parent = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"parent").expect("programs parent").1;
     let cache = match backend {
-        Backend::Direct | Backend::List => &DIRECT,
+        Backend::Direct | Backend::List | Backend::Resume => &DIRECT,
         Backend::Program => &PROGRAM,
         Backend::BothWays => &BOTH_WAYS,
         Backend::Calls => unreachable!("calls do not use program sources"),

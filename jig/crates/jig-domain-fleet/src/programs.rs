@@ -1,4 +1,4 @@
-//! Fan-out belongs to current channels, never replayed onto replacements (accounts.md, 3.4).
+//! Fan-out belongs to current channels, never replayed onto replacements (domain/accounts-sources.md, 1).
 use crate::sources::{Pending, Reply, Sources};
 use crate::{Domain, HostKind, Request, SourceName};
 use skein_lib::{List, Queue, Token};

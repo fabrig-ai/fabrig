@@ -14,3 +14,6 @@ versioned record Text { text: bytes 262144 }
 
 # A job done: the commit that ended it.
 versioned record Job { ended: u64 }
+
+# A value type's layouts, oldest first, by fingerprint.
+versioned record Order { layouts: list 64 fixed 32 }

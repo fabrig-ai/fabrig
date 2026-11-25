@@ -1,4 +1,4 @@
-//! The scripted project requests (client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3 and 5.5).
+//! The scripted project requests (client/domain/contract/requests.md, 2, and client/domain/contract/answers.md, 1, and client/domain/contract/watches.md, 1.5).
 use crate::{Application, Change, Engine, Invalid};
 use jig_client_domain::contract::{
     AdmissionLimit, Answer, Ask, DocumentOutcome, DocumentText, HeldRole, Limit, Malformed, MeProject, NameRule,
@@ -46,6 +46,7 @@ impl<A: Application> Engine<A> {
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
             | Ask::MakeService { .. }
+            | Ask::ReissueService { .. }
             | Ask::SetPool { .. }
             | Ask::SignIn { .. }
             | Ask::AccountChange { .. }

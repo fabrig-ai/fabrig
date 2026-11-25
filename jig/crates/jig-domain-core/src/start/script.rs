@@ -39,6 +39,11 @@ impl Core {
                     return Action::Refused(self.start_failure().expect("named project policy failure"));
                 }
                 self.counters.finish_restore();
+                // The first start commit (Wires at the latest) saves the header.
+                // Do not dirty it here: a loaded header is not a first-start seed.
+                for kind in crate::runs::waits::STARTUP_KINDS {
+                    let _kept = self.counters.deployment.set_wait_floor(kind, self.start.at);
+                }
                 if self.counters.dirty() && self.kinds.is_empty() {
                     super::first::start_seed(self, env, out);
                     self.start_collect_failure();
@@ -66,7 +71,7 @@ impl Core {
                 if let Some(failure) = self.start_application_seed(env, out) {
                     return Action::Refused(failure);
                 }
-                self.start_projections_link();
+                self.start_projections_link(out);
                 if self.start_failure().is_none() {
                     self.start_projections_repair(out);
                 }
@@ -114,28 +119,23 @@ impl Core {
                 for _ in 0..child.len() {
                     out.push(child.pop().expect("bounded fleet outputs"));
                 }
-                match self.connectors.first() {
-                    Some(&connector) => Phase::ReadAfresh { connector },
-                    None => Phase::Open,
-                }
+                Phase::Open
             }
-            Phase::ReadAfresh { connector } => match self.next_connector(connector) {
-                Some(connector) => Phase::ReadAfresh { connector },
-                None => match self.connectors.first() {
-                    Some(&connector) => Phase::SettleOutbox { connector },
-                    None => Phase::Open,
-                },
-            },
-            Phase::SettleOutbox { connector } => match self.next_connector(connector) {
-                Some(connector) => Phase::SettleOutbox { connector },
-                None => Phase::Open,
-            },
             Phase::Open => {
+                self.opened = true;
+                self.run_wall = env.wall;
+                self.run_now = env.now;
+                crate::runs::waits::alarm::restore(self, env);
                 for project in self.projects.to_boxed() {
                     crate::public::publish(self, env.limits.public, project);
                 }
-                self.opened = true;
                 self.start.phase = None;
+                for &connector in &self.connectors {
+                    out.push(Request::Ask {
+                        connector,
+                        ask: crate::Ask::Effect(crate::effects::connector::Ask::CatchUp),
+                    });
+                }
                 return Action::Idle;
             }
         };
@@ -242,8 +242,6 @@ impl Core {
             | Phase::Link
             | Phase::Switch
             | Phase::Wires
-            | Phase::ReadAfresh { .. }
-            | Phase::SettleOutbox { .. }
             | Phase::Open => {
                 unreachable!("phase has no durable continuation")
             }

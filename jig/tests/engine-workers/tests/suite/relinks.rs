@@ -1,4 +1,4 @@
-//! Repeated losses release the connection's room (protocol/channel/README.md, 9.2 and 11).
+//! Repeated losses release the connection's room (protocol/channel/worker-link.md, 1.2, and protocol/channel/testing.md, 1).
 use jig_engine_workers_world::{
     World,
     fixtures::{self, SECRET_A, WORKER_A},
@@ -17,7 +17,7 @@ enum Cut {
     Replaced,
     Framing,
 }
-// protocol/channel/README.md, 11: fifty losses, each way a link is lost.
+// protocol/channel/testing.md, 1: fifty losses, each way a link is lost.
 const LOSSES: usize = 50;
 const CUTS: [Cut; 8] =
     [Cut::Silence, Cut::Stall, Cut::Held, Cut::Failed, Cut::Ended, Cut::NotAdmitted, Cut::Replaced, Cut::Framing];
@@ -148,7 +148,8 @@ fn end(world: &mut World, mode: End) -> (Token, Option<u32>, Option<Token>) {
                 }
                 End::Full => {
                     world.withhold_write_room(connection);
-                    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES).expect("cap");
+                    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES, fixtures::limits().room)
+                        .expect("cap");
                     for _ in 0..=cap.frames {
                         busy(world, channel);
                     }

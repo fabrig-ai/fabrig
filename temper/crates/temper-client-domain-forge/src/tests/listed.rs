@@ -1,4 +1,4 @@
-//! Switcher repositories (temper/docs/design/client/view.md, 3).
+//! Switcher repositories (temper/docs/design/client/view-navigation.md, 1).
 use super::{Held, held};
 use crate::forge::{
     Playground, PlaygroundState,
@@ -16,6 +16,7 @@ fn repository(project: u32, name: &[u8]) -> Adoption {
 }
 fn row(number: u16, repositories: Box<[Adoption]>) -> Row {
     Row {
+        catching_up: None,
         starts_with: crate::forge::forges::StartsWith::Repository,
         number,
         host: b"git.example:3000".as_slice().into(),

@@ -38,8 +38,27 @@ pub fn configuration(directory: &Path) -> codec::View {
 
 #[expect(clippy::must_use_candidate, reason = "configuration checks use the written files without the store limits")]
 pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec::View {
-    let mut value = support::configuration_value(directory);
-    let path = directory.join("config.json");
+    support::write_configuration_fixtures(directory);
+    let documents =
+        configuration_documents(directory, address, peers, &skein_scratch::paths::built("jig-test", "jig-test"));
+    support::private(&directory.join("config.json"), &documents.deployment);
+    let limits = store_limits(&documents.deployment);
+    support::private(&directory.join("agent.json"), &documents.agent);
+    support::private(&directory.join("charters/chat.txt"), INSTRUCTIONS.as_bytes());
+    peers.describe(address);
+    limits
+}
+
+/// The live story's deployment and agent configuration documents, before they are written.
+pub struct Documents {
+    pub deployment: Vec<u8>,
+    pub agent: Vec<u8>,
+}
+
+/// Build the live story's documents in memory using the supplied path to the agent binary.
+#[must_use]
+pub fn configuration_documents(directory: &Path, address: &str, peers: Peers, program: &Path) -> Documents {
+    let mut value = support::deployment_value(directory, program);
     let engine = &mut value["engine"];
     engine["llm"]["providers"][0] = serde_json::json!({
         "name":"ChatGPT", "number":PROVIDER, "models":[MODEL],
@@ -62,10 +81,7 @@ pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec:
     engine["charters"][0]["turns"] = 5.into();
     engine["charters"][0]["time_ms"] = 240_000.into();
     engine["charters"][0]["waiting_ms"] = 10_000.into();
-    let bytes = serde_json::to_vec(&value).expect("live config JSON");
-    support::private(&path, &bytes);
-    let limits = store_limits(&bytes);
-    let path = directory.join("agent.json");
+    let deployment = serde_json::to_vec(&value).expect("live config JSON");
     let mut agent = support::agent_value(directory);
     // The 64 KiB reasoning item and complete trace exceed standard's memory ceiling.
     agent["profile"]["declared"]["memory"] = (3_u64 << 30).into();
@@ -84,10 +100,7 @@ pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec:
     endpoint["limits"]["window"] = WINDOW.into();
     endpoint["limits"]["idle"] = 300_000.into();
     agent["trace"] = support::trace::settings(directory);
-    support::private(&path, &serde_json::to_vec(&agent).expect("live agent JSON"));
-    support::private(&directory.join("charters/chat.txt"), INSTRUCTIONS.as_bytes());
-    peers.describe(address);
-    limits
+    Documents { deployment, agent: serde_json::to_vec(&agent).expect("live agent JSON") }
 }
 
 #[derive(Debug)]

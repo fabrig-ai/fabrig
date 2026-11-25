@@ -1,4 +1,4 @@
-//! Ordered intervals for domain loads (protocol/store/README.md, 4.3, and protocol/store/loads.md, 1 and 2).
+//! Ordered intervals for domain loads (protocol/store/keys.md, 1.3, and protocol/store/loads.md, 1 and 2).
 use crate::keys;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{self as core, RestoreRange};
@@ -8,10 +8,31 @@ use skein_lib::List;
 
 /// Concatenate a restart request's intervals in the order walked (protocol/store/loads.md, 2).
 #[must_use]
+#[expect(clippy::panic, reason = "the public builder requires bounded census cardinalities")]
 pub fn intervals(ranges: &[RestoreRange]) -> Option<Box<[Range]>> {
+    match collect(ranges) {
+        Ok(intervals) => Some(intervals),
+        Err(CountFailure::Total) => None,
+        Err(CountFailure::Census) => panic!("bounded census intervals"),
+    }
+}
+
+pub(crate) enum CountFailure {
+    Census,
+    Total,
+}
+
+/// Size the walk without allocating the intervals it will traverse.
+pub(crate) fn collect(ranges: &[RestoreRange]) -> Result<Box<[Range]>, CountFailure> {
     let mut count = 0_u32;
     for range in ranges {
-        count = count.checked_add(u32::try_from(restore(range).len()).ok()?)?;
+        let size = match range {
+            RestoreRange::Accounts => 3,
+            RestoreRange::People | RestoreRange::Tasks | RestoreRange::Core => 2,
+            RestoreRange::Deployment | RestoreRange::Settings => 1,
+            RestoreRange::Census(census) => census_size(census).ok_or(CountFailure::Census)?,
+        };
+        count = count.checked_add(size).ok_or(CountFailure::Total)?;
     }
     let mut all = List::with_capacity(count);
     for range in ranges {
@@ -19,7 +40,7 @@ pub fn intervals(ranges: &[RestoreRange]) -> Option<Box<[Range]>> {
             all.push(interval).expect("counted restart intervals");
         }
     }
-    Some(all.into_boxed())
+    Ok(all.into_boxed())
 }
 
 /// A key's place in the restart walk, from the walk's own intervals (protocol/store/loads.md, 2).
@@ -68,7 +89,12 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
                 Range::prefix(&[keys::JIG, 1, 21]),
             ]);
         }
-        RestoreRange::Core => Range { start: Box::new([keys::JIG, 0, 1]), end: Some(Box::new([keys::JIG, 0, 4])) },
+        RestoreRange::Core => {
+            return Box::new([
+                Range { start: Box::new([keys::JIG, 0, 1]), end: Some(Box::new([keys::JIG, 0, 4])) },
+                Range::prefix(&[keys::JIG, 0, 10]),
+            ]);
+        }
         RestoreRange::Census(census) => return census_ranges(census),
     }])
 }
@@ -78,13 +104,14 @@ pub(crate) fn ended_reads() -> Range {
     Range::prefix(&[keys::JIG, 2, 7])
 }
 
+fn census_size(census: &core::Census) -> Option<u32> {
+    let parties = u32::try_from(census.results.len()).ok()?;
+    let questions = u32::try_from(census.questions.len()).ok()?;
+    parties.checked_add(1)?.checked_add(questions)
+}
+
 fn census_ranges(census: &core::Census) -> Box<[Range]> {
-    let capacity = u32::try_from(census.results.len())
-        .expect("bounded census parties")
-        .checked_add(1)
-        .expect("bounded census parties")
-        .checked_add(u32::try_from(census.questions.len()).expect("bounded census questions"))
-        .expect("bounded census parties, questions and conversation family");
+    let capacity = census_size(census).expect("bounded census parties, questions and conversation family");
     let mut ranges = List::with_capacity(capacity);
     ranges.push(ended_reads()).expect("one conversation family");
     for read in &census.results {

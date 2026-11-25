@@ -5,7 +5,9 @@ pub mod harness;
 mod keys;
 pub mod origins;
 pub use face::{BrowserFace, Download};
-pub use harness::{Command, Harness, Kept, Lent, Opens, Outcome, Play, Script, Sent, Setup, Stdin, Step, TabSeen};
+pub use harness::{
+    Command, Harness, Kept, Lent, NestedHas, Opens, Outcome, Play, Script, Sent, Setup, Stdin, Step, TabSeen,
+};
 pub use skein_fake_person as person;
 #[cfg(test)]
 mod tests;
@@ -14,3 +16,8 @@ mod tests;
 mod press_tests;
 
 pub mod stories;
+
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::harness::peer_fixture::{FIRST, Peer, Peers, ready_and_drained};
+}

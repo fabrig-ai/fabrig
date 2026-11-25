@@ -302,7 +302,7 @@ enum LandingCombine { merge, squash }
 record LandingMember { round: option u16 change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 left: option LandingLeave unit: u16 branch: bytes 4096 combined: option LandingCombine recorded: bool told: bool judging: bool leave_told: bool }
 enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
-enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
+enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn, read }
 record FailingTest { test_id: bytes 1024 }
 record ShownTest { test_id: bytes 1024 }
 record ManyTests { tests: list 64 ShownTest more: u32 cut: bool }
@@ -332,7 +332,9 @@ record LandingFlakeRerun { key: ReceiptKey run: u64 findings: list 64 u32 pendin
 record LandingWaitMember { member: u16 }
 record LandingWaitGate { member: u16 gate: u16 }
 enum LandingAwaited { release, ready: LandingWaitMember, turn, prepare, prefixes, open, close, delete: LandingWaitMember, post: LandingWaitGate, run: LandingWaitGate, receipt: LandingWaitGate, judgement: LandingWaitMember, merge, record: LandingWaitMember, ancestry: LandingWaitMember, read }
-record LandingRow { last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] }
+record LandingFollow { entry: LandingEntry dispatch: option DispatchWrite start: option u64 since: option u64 wall: option u64 try_number: u16 failed: bool reruns: list 65536 JobAttempt }
+record LandingFollows { items: bytes 2097152 pieces LandingFollow }
+record LandingRow { read_hold: option bytes 256 = none last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] follows: option LandingFollows = none }
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 # Families 28 and 29 (temper/docs/design/protocol/store.md, 2).
 record FailedTests { tests: list 1024 FailingTest }
@@ -353,13 +355,13 @@ record TierGroup { low: u32 high: u32 tests: list 1024 u16 }
 record TierProbe { landing: u32 low: u32 high: u32 tests: TierSelection waiting: list 1537 TierGroup finding: TierFinding }
 enum TierPart { whole, rerun: TierTests, probe: TierProbe }
 record TierRun { number: u64 tip: fixed 32 key: fixed 32 landings: list 1537 TierLanding part: TierPart faults: u32 }
-record TierRecord { sequence: u64 judged: option TierJudged failing: Failures flakes: list 1024 TierFlake run: option TierRun }
+record TierRecord { sequence: u64 judged: option TierJudged failing: Failures flakes: list 1024 TierFlake run: option TierRun last_run: option u64 = none }
 record TierPending { commit: fixed 32 key: option fixed 32 }
 record TierBranchEntry { entry: u64 }
 enum TierBranch { absent, pending: TierBranchEntry, made }
 enum TierFault { setup, completion, no_step, cancelled, other_commit, lost, missing_workflow, unreported }
 record TierProbeBranch { landing: u32 branch: TierBranch }
-record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
+record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun clock: option ExecutionClock = none }
 record ReceiptJob { job: u64 attempt: u32 name: bytes 256 }
 record ReceiptTest { key: bytes 4096 fuzzy: bool }
 record ReceiptTests { tests: list 1024 ReceiptTest }
@@ -488,8 +490,9 @@ enum ClosingStands { taken, asked: ClosingAsked }
 record ClosingQuestion { asker: u64 number: u64 step: ClosingStep words: bytes 1048576 stands: ClosingStands }
 enum ClosingForm { words, question, answer: Number }
 record ClosingMessage { target: u64 form: ClosingForm words: bytes 1048576 }
-record ClosingRelay { open: option ClosingQuestion replies: list 1024 ClosingMessage }
-record Closer { task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay }
+record ClosingRelay { open: option ClosingQuestion replies: list 1024 ClosingMessage waiting: list 1024 ClosingQuestion = [] }
+enum ClosingReportCheck { unread, held, released }
+record Closer { report_check: ClosingReportCheck = unread goal_left: option bytes 1048576 = none task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool relay: option ClosingRelay superseded: list 1024 u64 = [] }
 
 record LandedDraft { repository: Repository path: bytes 1024 project: u32 branch: bytes 1024 commit: fixed 32 title: bytes 200 writer: u64 at: u64 chat: option u64 goal: option u64 ready: bool }
 
@@ -567,7 +570,8 @@ enum Topic { landings: LandingsTopic, ci: CiTopic, pull: NumberTopic, participat
 record ChangeSource { branch: bytes 4096 at: option fixed 32 }
 record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none milestone: option u64 = none source: option ChangeSource = none goal: option u64 task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 base_repair: bool producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice report: bytes 1048576 repairs: option fixed 32 follows: option ChangeFollows catch_up: option fixed 32 close: option bytes 16384 }
 record Regate { receipt: ReceiptKey run: u64 }
-record ChangeHot { room: option u64 = none delegate_head: option fixed 32 = none delegate_flake: bool = false delegate_no_test: bool = false regate: option Regate = none kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus spec_revision: u64 = 0 gate_revision: u64 = 0 verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory }
+record CloseAt { branch: fixed 32 landing: fixed 32 }
+record ChangeHot { close_at: option CloseAt = none room: option u64 = none delegate_head: option fixed 32 = none delegate_flake: bool = false delegate_no_test: bool = false regate: option Regate = none kept: option fixed 32 = none task_release: option TaskRelease job: option HistoryJobRecord signed: list 8 SignOff ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus spec_revision: u64 = 0 gate_revision: u64 = 0 verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold queue_repair: option u64 queue_repairs: u32 effect_account: option EffectAccount producer_failure: option bytes 512 questions: Questions follow_check: option FollowCheckProgress merge_result: option bytes 512 history: option ChangeHistory }
 
 record Subscriber { task: u64 number: u64 topic: Topic own_change: option u64 goal_tasks: option list 65536 u64 paths: list 1024 bytes 4096 }
 
@@ -585,9 +589,9 @@ enum FindingRefusal { no_area: FindingAreas, full: FindingCount, not_yours: Find
 
 record FindingRefused { why: FindingRefusal }
 
-enum FindingResult { filed: FindingHeld, handed: FindingHeld, routed: Number, backlog, dropped, refused: FindingRefused }
+enum FindingResult { filed: FindingHeld, handed: FindingHeld, routed: Number, backlog, dropped, refused: FindingRefused, repaired: Number, blamed }
 
-record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult }
+record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult more: list 15 u32 = [] landing: option fixed 32 = none }
 record CallFollow { follow: u32 refusal: option bytes 8192 }
 # A goal's reds (domain/forge/reds.md, 2 and 6), families 44 and 45.
 enum Recorder { task: Number, party: Number }
@@ -641,15 +645,20 @@ enum FindingState { new, routed, backlog, dropped }
 
 enum Filer { task: Number, party: Number }
 
-enum BlameStrength { owned, suspected, none }
+enum BlameStrength { owned, suspected, none, moved }
 record BlamedGoal { goal: u64 milestone: option u64 person: option u64 }
 record BlamedLanding { commit: fixed 32 goals: list 64 BlamedGoal }
-record FindingBlame { strength: BlameStrength landings: list 256 BlamedLanding }
+record BlameMove { by: Filer why: bytes 200 }
+record FindingBlame { strength: BlameStrength landings: list 256 BlamedLanding moved: option BlameMove = none }
 record FindingCleared { run: u64 at: u64 }
+record RepairLanding { commit: fixed 32 }
+record RepairAfter { goal: u64 }
+enum RepairJudging { landing: RepairLanding, after: RepairAfter, release }
+record FindingRepair { goal: u64 made: bool attempts: u8 cancelled: bool failing: list 64 bytes 512 until: option u64 judging: option RepairJudging }
 record FindingSignature { repository: Repository source: bytes 64 ids: list 64 bytes 512 first: bytes 512 many: bool = false }
 record VerdictFiling { project: u32 kind: FindingKind severity: Severity title: bytes 200 body: bytes 4096 signature: FindingSignature blame: option FindingBlame follow: option u32 }
-record TierRow { waiting: list 8 VerdictFiling = [] unkept: u32 = 0 many: option ManyTests observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 1537 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault hold: option TierHold result: option Receipt posting: option TierPosting received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
-record Finding { project: u32 number: u32 kind: FindingKind severity: Severity area: option bytes 32 state: FindingState title: bytes 200 body: bytes 4096 filer: Filer at: u64 why: option bytes 200 hander: option Filer goal: option u64 reason: option bytes 400 signature: option FindingSignature seen: option u32 blame: option FindingBlame = none cleared: option FindingCleared = none }
+record TierRow { waiting: list 8 VerdictFiling = [] unkept: u32 = 0 many: option ManyTests observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 1537 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault runner_wait: bool = false hold: option TierHold result: option Receipt posting: option TierPosting received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
+record Finding { project: u32 number: u32 kind: FindingKind severity: Severity area: option bytes 32 state: FindingState title: bytes 200 body: bytes 4096 filer: Filer at: u64 why: option bytes 200 hander: option Filer goal: option u64 reason: option bytes 400 signature: option FindingSignature seen: option u32 blame: option FindingBlame = none cleared: option FindingCleared = none repair: option FindingRepair = none }
 record Device { party: u64 number: u32 endpoint: bytes 1024 p256dh: fixed 65 auth: fixed 16 label: bytes 60 at: u64 }
 enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: boxed LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast, red: Red, red_number: RedNumber, red_pass: RedPass, change_cold: boxed ChangeCold, change_hot: boxed ChangeHot, milestone: MilestoneRow, person_brief: PersonBrief, limit_hold: LimitHold }
 

@@ -5,22 +5,13 @@ use temper_protocol_records::{self as records, Item};
 use temper_protocol_records_forge as forge_records;
 
 /// Seed the bootstrap's fixture rows in one store life, in forge/settings/agent order.
-pub(crate) fn seed(
-    path: &Path,
-    address: SocketAddr,
-    github: Option<crate::github::Fixture>,
-    mut agent_writes: Vec<jig_protocol_store::Write>,
-) {
+pub(crate) fn seed(path: &Path, address: SocketAddr, github: bool, mut agent_writes: Vec<jig_protocol_store::Write>) {
     let mut record = forgejo_record(address);
-    let secrets = if let Some(fixture) = github {
+    let secrets = if github {
         record.kind = forge::Kind::GitHub;
         record.place.web = Some(format!("http://{address}").into_bytes().into());
         record.bot.login = b"x-access-token".as_slice().into();
-        if fixture.connected {
-            temper_github_app::records(&temper_github_app::APP, 1, &[crate::github::INSTALLATION], address).into_vec()
-        } else {
-            Vec::new()
-        }
+        temper_github_app::records(&temper_github_app::APP, 1, &[crate::github::INSTALLATION], address).into_vec()
     } else {
         forgejo_secrets(&record, 1, temper_worker_checkout_world::hosted::TOKEN, crate::forge::HOOK_SECRET, None)
     };
@@ -146,8 +137,16 @@ pub fn forgejo_record(address: SocketAddr) -> forge::ForgeRecord {
 /// Seed typed application values beside their core metadata after the fixture's first start.
 /// This is bootstrap data, before any work or owner changes (domain/landing-settings.md, 1.1).
 pub fn seed_settings_file(path: &Path, bytes: &[u8]) {
-    temper_github_app::seed_with(path, &[], settings_writes(bytes)).expect("durable settings fixture");
+    seed_settings_file_with(path, bytes, |path, writes| {
+        temper_github_app::seed_with(path, &[], writes).expect("durable settings fixture");
+    });
 }
+
+/// Compose the same setting metadata and application rows through a supplied store sink.
+pub fn seed_settings_file_with(path: &Path, bytes: &[u8], seed: impl FnOnce(&Path, Vec<jig_protocol_store::Write>)) {
+    seed(path, settings_writes(bytes));
+}
+
 fn settings_writes(bytes: &[u8]) -> Vec<jig_protocol_store::Write> {
     use jig_domain_core::settings as s;
     let mut writes = Vec::new();

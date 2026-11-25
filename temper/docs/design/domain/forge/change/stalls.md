@@ -24,19 +24,19 @@ is never held just for waiting, yet tells the person of a check that
 never reports within the same sitting.
 
 - **A wait for access is not one:** while its forge is not connected,
-  or its repository not reachable (`../adoption.md`, 1, 3), the stall
+  or its repository not reachable (`../adoption-connection.md`, 1, `../adoption.md`, 7), the stall
   does not count.
 - **Nor is a wait for its agent:** while the change's producer, repair,
   resolution or merge job is a live task, running, between its tries or
   waiting for a host, the stall does not count. An agent working for an
   hour is working, and jig bounds what it does (its tries, its
-  executor's stall, its budget: jig's `domain/tasks/lifecycle.md`, 6).
+  executor's stall, its budget: jig's `domain/tasks/lifecycle-holds.md`, 1).
   The stall counts from that delegate's end, as it does while a
   question of that agent's is open (`questions.md`, 1), from the step
   that relays its last answer down.
 - **Nor is a wait for its dependencies:** while the change is at
   producing and its task has a dependency that has not ended (jig's
-  `domain/tasks/lifecycle.md`, 8), the stall does not count, whatever
+  `domain/tasks/lifecycle-endings.md`, 1), the stall does not count, whatever
   the change waits on there: a producer not yet started (`questions.md`,
   1, *Early starts*), an early producer that ended giving nothing, a
   read of the forge. It counts from the last dependency's end, as it
@@ -73,7 +73,7 @@ never reports within the same sitting.
 
 ## 2. Checking counts CI's running
 
-(2026-11-16, `../../../draft/ci-runner-wait.md`, 1.) A change at
+(2026-11-16, `../../../draft/archive/ci-runner-wait.md`, 1.) A change at
 checking whose CI at its head is pending or unknown may be waiting for
 a runner, not for its CI: on one shared runner a run can wait longer
 than the stall before it starts. Commit statuses say only `pending`,
@@ -171,7 +171,7 @@ hold passes the turn on, as every hold does.
 ### 2.5 The contract
 
 `temper-engine-domain-forge-change`'s boundary owns the clock, and a
-landing's gate counts the same one (`../../landing.md`, 7.1):
+landing's gate counts the same one (`../../landing-proof.md`, 2.1):
 
 ```rust
 /// What a reading saw of the pending CI at a head (2.1).
@@ -267,7 +267,7 @@ holds with the stall's words alone.
 
 The change and its task are held together, never one without the
 other: its escalation waits for its holder, which it wakes (jig's
-`domain/tasks/lifecycle.md`, 6 and
+`domain/tasks/lifecycle-holds.md`, 1 and
 `jig/docs/design/domain/tasks/proposals.md`): the goal above it where
 that goal may decide, otherwise its person or the role the project's
 policy names. A decision to hold reaches the task whatever step the
@@ -290,7 +290,7 @@ its dependency's end are `repairs.md`'s.
   producer gave nothing, with no step between, can be held at the step
   the amendment brings. Default: so; its requester amended it, and
   releases it.
-- **An authoritative start time** (`../../../draft/ci-runner-wait.md`,
+- **An authoritative start time** (`../../../draft/archive/ci-runner-wait.md`,
   3): the clock counts from readings a poll apart, since skein's reads
   give no job's start time. Reading one would need skein's reads
   extended. Default: the clock, within a poll.

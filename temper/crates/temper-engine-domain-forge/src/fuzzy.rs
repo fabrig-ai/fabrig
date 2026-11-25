@@ -5,6 +5,14 @@ use skein_forge::api::Verdict;
 use skein_lib::{List, Rng, Wall};
 
 #[test]
+fn forge_read_waiters_keep_their_turn_under_interleaving() {
+    const SEEDS: u64 = 64;
+    for seed in 0..SEEDS {
+        tests::read_line::check_interleaving(seed);
+    }
+}
+
+#[test]
 fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
     use crate::{BranchHead, Hold, Name, Request, What, domain::heads};
     use skein_lib::Queue;
@@ -258,7 +266,7 @@ fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_rele
         let mut rng = Rng::new(seed);
         let mut env = tests::env();
         env.limits = Limits { branch_reds: 2, ..env.limits };
-        let mut d = tests::domain_with_limits(&env.limits);
+        let mut d = tests::active_domain_with_limits(&env.limits);
         tests::outputs(&mut d, Event::Restore { record: Stored::Repository(tests::adopted()) });
         let mut live = Set::with_capacity(3);
         let mut model: Map<(u64, Box<[u8]>), Red> = Map::with_capacity(6);
@@ -453,5 +461,47 @@ fn judged_runs_keep_red_ids_unique_and_uncleared_findings_unevictable() {
             tests::tiers::filing::runs::random_runs(seed),
             "seed {seed}"
         );
+    }
+}
+
+#[test]
+fn red_repairs_replay_with_unique_ids_bounded_attempts_and_judged_ends() {
+    use crate::ReleaseEnding;
+    use tests::tiers::filing::runs::repairs::{Move, random_repairs};
+    let mut seen = List::uncapped();
+    for seed in 0..16 {
+        let first = random_repairs(seed);
+        assert_eq!(first, random_repairs(seed), "seed {seed}");
+        for (action, _) in first {
+            if let Some(action) = action
+                && !seen.as_slice().contains(&action)
+            {
+                seen.push(action).expect("coverage of seeded moves");
+            }
+        }
+    }
+    for action in [
+        Move::Run { many: false },
+        Move::Run { many: true },
+        Move::Repair,
+        Move::Route,
+        Move::Backlog,
+        Move::Drop,
+        Move::Blame { landing: true },
+        Move::Blame { landing: false },
+        Move::Land,
+        Move::Hold,
+        Move::Release { judging: true },
+        Move::Restart,
+    ] {
+        assert!(seen.as_slice().contains(&action), "seeds did not exercise {action:?}");
+    }
+    for ending in [ReleaseEnding::Done, ReleaseEnding::Failed, ReleaseEnding::Cancelled] {
+        for landed in [true, false] {
+            assert!(
+                seen.as_slice().contains(&Move::End { ending, landed }),
+                "missing ending {ending:?}, landed {landed}"
+            );
+        }
     }
 }

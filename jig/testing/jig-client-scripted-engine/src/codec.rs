@@ -26,12 +26,23 @@ fn encoded<T: w::Record<Limits = w::Limits>>(value: &T, limits: &w::Limits) -> R
 }
 
 fn pieces<T: w::Record<Limits = w::Limits>>(
+    rows: impl Iterator<Item = T>,
+    limits: &w::Limits,
+) -> Result<Box<[u8]>, w::Problem> {
+    framed(rows.map(|row| row.encode(limits)))
+}
+
+fn try_pieces<T: w::Record<Limits = w::Limits>>(
     rows: impl Iterator<Item = Result<T, w::Problem>>,
     limits: &w::Limits,
 ) -> Result<Box<[u8]>, w::Problem> {
+    framed(rows.map(|row| row.and_then(|row| row.encode(limits))))
+}
+
+fn framed(rows: impl Iterator<Item = Result<Box<[u8]>, w::Problem>>) -> Result<Box<[u8]>, w::Problem> {
     let mut bytes = Vec::new();
     for row in rows {
-        let record = row?.encode(limits)?;
+        let record = row?;
         let length = u32::try_from(record.len()).map_err(|_| problem())?;
         bytes.extend_from_slice(&length.to_be_bytes());
         bytes.extend_from_slice(&record);
@@ -39,7 +50,11 @@ fn pieces<T: w::Record<Limits = w::Limits>>(
     Ok(bytes.into_boxed_slice())
 }
 
-fn list<T>(rows: impl Iterator<Item = Result<T, w::Problem>>) -> Result<List<T>, w::Problem> {
+fn list<T>(rows: impl Iterator<Item = T>) -> List<T> {
+    List::from_boxed(rows.collect::<Vec<_>>().into_boxed_slice())
+}
+
+fn try_list<T>(rows: impl Iterator<Item = Result<T, w::Problem>>) -> Result<List<T>, w::Problem> {
     let rows: Vec<_> = rows.collect::<Result<_, _>>()?;
     Ok(List::from_boxed(rows.into_boxed_slice()))
 }

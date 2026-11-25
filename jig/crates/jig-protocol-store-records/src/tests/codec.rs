@@ -420,7 +420,7 @@ fn each_party_kind_reads_back() {
         jig_domain_tasks::Party::Person(13),
         jig_domain_tasks::Party::Deployment { project: u32::MAX },
     ] {
-        let encoded = translate::party(&value, &tasks_limits()).expect("within bounds");
+        let encoded = translate::party(&value);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_party(encoded), value);
     }
@@ -434,7 +434,7 @@ fn each_executor_kind_reads_back() {
         jig_domain_tasks::Executor::Person(PersonAddress::Person(u64::MAX)),
         jig_domain_tasks::Executor::Person(PersonAddress::Role(u32::MAX)),
     ] {
-        let encoded = translate::executor(value, &tasks_limits()).expect("within bounds");
+        let encoded = translate::executor(value);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_executor(encoded), value);
     }
@@ -469,7 +469,7 @@ fn each_activation_cause_reads_back() {
         Domain::Narrowed,
         Domain::Changed,
     ] {
-        let encoded = translate::why(value, &tasks_limits()).expect("within bounds");
+        let encoded = translate::why(value);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_why(encoded), value);
     }
@@ -1051,7 +1051,11 @@ mod cases;
 #[test]
 fn a_moved_call_part_round_trips_through_the_core_family() {
     use jig_domain_people::{HoldReason, Moved};
-    for now in [Moved::Spec { revision: 2 }, Moved::Hold { revision: 3, reason: HoldReason::Budget }] {
+    for now in [
+        Moved::Spec { revision: 2 },
+        Moved::Hold { revision: 3, reason: HoldReason::Budget },
+        Moved::Hold { revision: 3, reason: HoldReason::Waited },
+    ] {
         core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::Moved { task: 1, now }));
     }
 }
@@ -1526,7 +1530,7 @@ fn retained_people_answers_keep_dependency_refusal_facts() {
 fn a_stored_project_name_is_bounded_and_utf8() {
     use crate::people_v17 as wire;
     use skein_lib::{Reader, Writer};
-    // protocol/store/README.md, 4.4: the name is UTF-8 text, at most 64 bytes.
+    // protocol/store/keys.md, 1.4: the name is UTF-8 text, at most 64 bytes.
     const NAME_BOUND: usize = 64;
     let limits = people_limits();
     let at = "a".repeat(NAME_BOUND);
@@ -1705,11 +1709,11 @@ fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
     let limits = tasks_limits();
     for kind in [0, u32::MAX] {
         let executor = t::Executor::Job { kind };
-        let encoded = translate::executor(executor, &limits).unwrap();
+        let encoded = translate::executor(executor);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_executor(encoded), executor);
         let delegation = t::AuthorityExecutor::Job(kind);
-        let encoded = translate::authority_executor(&delegation, &limits).unwrap();
+        let encoded = translate::authority_executor(&delegation);
         let encoded = saved_wire(encoded);
         assert_eq!(translate::read_authority_executor(encoded), delegation);
     }
@@ -1965,4 +1969,22 @@ fn lent_login_requests_answers_and_refusals_read_back() {
     ] {
         people_round_trip(fixtures::people_outcomes::answered(outcome));
     }
+}
+
+#[test]
+fn a_stored_leave_has_no_reason_but_a_stored_stop_keeps_its_words() {
+    use jig_domain_people as people;
+    let stop = people::Ask::Stop { project: 3, task: 8, reason: b"Paused".as_slice().into() };
+    let mut operations = skein_lib::List::with_capacity(1);
+    operations.push(people::Operation::Stop { task: 8, reason: b"Paused".as_slice().into() }).unwrap();
+    ask_round_trip(stop);
+    ask_round_trip(people::Ask::Compound { project: 3, operations });
+
+    let leave = people::Ask::Leave { project: 3, task: 8 };
+    let limits = people_limits();
+    let Ok(crate::people_v17::Ask::Leave(value)) = crate::codec::people::encode_ask(&leave, &limits) else {
+        panic!("stored Leave");
+    };
+    assert!(value.reason.is_empty());
+    ask_round_trip(leave);
 }

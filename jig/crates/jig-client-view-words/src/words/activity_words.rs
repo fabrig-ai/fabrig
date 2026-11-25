@@ -108,6 +108,7 @@ pub enum ActivityPhrase {
     Done,
     NoticeFailed,
     NoticeCancelled,
+    NoticeUnreadable,
     Timer,
     News,
     Wakes,
@@ -139,7 +140,7 @@ pub enum ActivityPhrase {
     SuspendedRestarted,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 128] = [
+pub const ALL: [ActivityPhrase; 129] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -239,6 +240,7 @@ pub const ALL: [ActivityPhrase; 128] = [
     ActivityPhrase::Done,
     ActivityPhrase::NoticeFailed,
     ActivityPhrase::NoticeCancelled,
+    ActivityPhrase::NoticeUnreadable,
     ActivityPhrase::Timer,
     ActivityPhrase::News,
     ActivityPhrase::Wakes,
@@ -376,6 +378,7 @@ impl ActivityPhrase {
             Self::Done => 7280,
             Self::NoticeFailed => 7281,
             Self::NoticeCancelled => 7282,
+            Self::NoticeUnreadable => 7329,
             Self::Timer => 7283,
             Self::News => 7284,
             Self::Wakes => 7285,
@@ -482,6 +485,7 @@ impl ActivityPhrase {
             | Self::Done
             | Self::NoticeFailed
             | Self::NoticeCancelled
+            | Self::NoticeUnreadable
             | Self::Timer
             | Self::News
             | Self::Wakes
@@ -646,6 +650,7 @@ impl ActivityPhrase {
             Self::Done => b"Notice: done",
             Self::NoticeFailed => b"Notice: failed",
             Self::NoticeCancelled => b"Notice: cancelled",
+            Self::NoticeUnreadable => b"Notice: unreadable",
             Self::Timer => b"Kind: timer",
             Self::News => b"Kind: news",
             Self::Wakes => b"News: wakes",

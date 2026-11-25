@@ -146,12 +146,8 @@ impl Driver {
     /// # Errors
     /// Returns the existing store's failed transaction number.
     pub fn withhold_completion(&mut self) -> Result<Option<u64>, u64> {
-        let result = self.world.store.tick(true);
+        let result = self.world.withhold_store_completion();
         let now = self.world.clocks().0;
-        self.world
-            .observer
-            .durable(now.as_nanos(), &self.world.store)
-            .unwrap_or_else(|finding| panic!("{}", self.world.diagnostic(&finding)));
         self.world.store_peer.as_mut().expect("actual durable store peer").capture(now, &self.world.store);
         result
     }
@@ -214,6 +210,9 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::Result { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }
@@ -276,6 +275,7 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::EndedEscalation { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => return None,
     })
 }
@@ -455,7 +455,13 @@ mod tests {
             1,
             Box::new([
                 Act::SignIn { provider: 0, subject },
-                Act::Request { key: [91; 16], ask: parties::Ask::Stop { task: parties::Task::Number(u64::MAX) } },
+                Act::Request {
+                    key: [91; 16],
+                    ask: parties::Ask::Stop {
+                        task: parties::Task::Number(u64::MAX),
+                        reason: Box::from(b"Parking the task".as_slice()),
+                    },
+                },
             ]),
         ));
         assert!(driver.poll(now, wall).is_empty(), "both foreign replies resume the scripted ledger");

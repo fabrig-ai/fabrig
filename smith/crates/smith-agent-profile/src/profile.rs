@@ -29,7 +29,7 @@ const FRAME_HEADER_BYTES: u32 = 8;
 mod bounds;
 mod quantities;
 
-pub use bounds::{silence_bound, teardown_bound};
+pub use bounds::{orphan_exit, silence_bound, teardown_bound};
 
 mod path;
 
@@ -151,6 +151,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         routes,
         memory,
         events: None,
+        link: crate::Link::Policy { cancel_grace: policy.cancel_grace },
     };
     validate::machine(&limits.machine, &limits.domain)?;
     validate::resume_holds_window(u64::from(domain.session.history_messages), u64::from(limits.channel.resume_turns))?;
@@ -180,7 +181,7 @@ pub fn endpoint_allowance(profile: &Profile, endpoint: &Endpoint, tools: &tools:
 fn transcript(
     domain: &domain::Limits,
     client: &shared::client::Limits,
-) -> Result<smith_transcript::v7::Limits, Refusal> {
+) -> Result<smith_transcript::v8::Limits, Refusal> {
     let session = domain.session;
     let tools = session.tools;
     let run = domain.run;
@@ -195,7 +196,7 @@ fn transcript(
     limits.turn_system_some = host;
     limits.text_text = client.answer.max(host).max(run.offer_bytes).max(run.answer_bytes);
     // Consecutive reasoning items share one block, which can hold the
-    // completion's whole reasoning share (smith/docs/design/protocol/limits.md, section 3.3).
+    // completion's whole reasoning share (smith/docs/design/protocol/limits-derivation.md, section 1.3).
     limits.opaque_bytes = client
         .output_items
         .checked_mul(client.reasoning)
@@ -221,6 +222,8 @@ fn transcript(
     limits.command_end_last = tools.shell_tail;
     limits.command_running_head = tools.shell_head;
     limits.command_running_last = tools.shell_tail;
+    limits.interrupted_head = tools.shell_head;
+    limits.interrupted_last = tools.shell_tail;
     limits.job_read_head = tools.shell_head;
     limits.job_read_last = tools.shell_tail;
     limits.ambiguous_lines = tools.match_lines;
@@ -294,6 +297,7 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let mut bodies = smith_channel::CEILINGS;
     bodies.directory_name = run.directory_name_bytes;
     bodies.directory_path = run.host_path_bytes;
+    bodies.directory_results_some = 4096;
     bodies.directory_conflicts = run.conflicts;
     bodies.directory_conflicts_item = run.conflict_path_bytes;
     bodies.workspace_directories = run.directories;
@@ -319,6 +323,9 @@ fn channel_bodies(domain: &domain::Limits, policy: &Policy) -> Result<smith_chan
     let piece = history.checked_add(lengths).ok_or(derived(Layer::Channel, "start_transcript"))?;
     validate::turn_in_channel(piece, u64::from(bodies.start_transcript))?;
     bodies.start_transcript = u32::try_from(piece).or(Err(derived(Layer::Channel, "start_transcript")))?;
+    bodies.start_parts = bodies.start_transcript;
+    bodies.part_body = bodies.turn_body;
+    bodies.kept_part_body = bodies.turn_body;
     validate::turn_in_channel(turn, u64::from(smith_channel::CEILINGS.turn_body))?;
     validate::turn_in_channel(charter, u64::from(smith_channel::CEILINGS.start_charter))?;
     validate::turn_in_channel(u64::from(run.message_bytes), u64::from(smith_channel::CEILINGS.message_text))?;
@@ -341,7 +348,7 @@ fn channel_limits(
     policy: &Policy,
     bodies: smith_channel::Limits,
     charter: smith_charter::v5::Limits,
-    transcript: smith_transcript::v7::Limits,
+    transcript: smith_transcript::v8::Limits,
     io: &io::Limits,
 ) -> Result<channel::Limits, Refusal> {
     let refusal = derived(Layer::Channel, "output_frames");
@@ -389,7 +396,7 @@ fn channel_limits(
             skip: channel_start_bytes(&bodies)?.max(output_bytes),
             output_bytes,
             output_frames,
-            kinds: u32::try_from(smith_channel::V13.len()).or(Err(derived(Layer::Channel, "kinds")))?,
+            kinds: u32::try_from(smith_channel::V14.len()).or(Err(derived(Layer::Channel, "kinds")))?,
         },
         endpoints: ENDPOINTS,
         calls: domain.run.calls,
@@ -521,7 +528,7 @@ fn derive_domain(
     };
     validate::host_part_holds_the_role(profile, configuration, &run)?;
     // The entrance splits what the rendered charter leaves among the start's
-    // own directories (smith/docs/design/protocol/limits.md, section 3.9); this is only the cap.
+    // own directories (smith/docs/design/protocol/limits-derivation.md, section 1.9); this is only the cap.
     run.guide_bytes =
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
     let delegated = domain::feedback_bound(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
@@ -626,7 +633,7 @@ fn derived(layer: Layer, field: &'static str) -> Refusal {
     Refusal::Derived { limit: LimitName::deployment(layer, field) }
 }
 
-// smith/docs/design/protocol/limits.md, section 3.5: each conversation's batch and jobs
+// smith/docs/design/protocol/limits-derivation.md, section 1.5: each conversation's batch and jobs
 // coexist with one check per directory.
 fn machine_processes(domain: &domain::Limits) -> Option<u32> {
     let tools = domain.session.tools;
@@ -660,7 +667,7 @@ fn derive_machine(
     }
 }
 
-fn transcript_bounds(limits: smith_transcript::v7::Limits) -> Result<smith_transcript::v7::Limits, Refusal> {
+fn transcript_bounds(limits: smith_transcript::v8::Limits) -> Result<smith_transcript::v8::Limits, Refusal> {
     let ceiling = smith_transcript::CEILINGS;
     for (field, required, available) in [
         ("replay_bytes", limits.replay_bytes, ceiling.replay_bytes),

@@ -1,4 +1,4 @@
-//! Owed program results (smith/docs/design/protocol/programs.md, sections 5.4–5.5; smith/docs/design/domain/tools.md, section 10).
+//! Owed program results (smith/docs/design/protocol/programs-claude-code.md, sections 1.4–1.5; smith/docs/design/domain/tools.md, section 10).
 //! A bounded table retains provider identity, result credit and its current place.
 //! It knows no paths or program policy. Preparation makes stand-ins immediately;
 //! result patches consume their credit, and forgetting settles the remaining stand-ins.
@@ -101,6 +101,9 @@ pub(super) fn prepare(
     let mut builtins = 0_u32;
     let mut others = 0_u32;
     for part in &message.content {
+        if super::restore::result(conversation, part).is_some() {
+            continue;
+        }
         let Some(call) = part.tool_call() else { continue };
         match &call.call {
             Decoded::Builtin { .. } => builtins = builtins.checked_add(1).expect("bounded calls"),
@@ -125,6 +128,10 @@ pub(super) fn prepare(
         super::delegated_credit(limits).min(available.checked_div(u64::from(builtins)).expect("positive calls"))
     };
     for (position, block) in message.content.iter().enumerate() {
+        if super::restore::result(conversation, block).is_some() {
+            tools.slots.push(Slot::Unstarted).expect("one slot per resumed call");
+            continue;
+        }
         let Some(call) = block.tool_call() else { continue };
         match &call.call {
             Decoded::Builtin { effect } => {
@@ -172,7 +179,7 @@ pub(super) fn prepare(
     }
 }
 
-/// Prepare late built-ins through the same credit and observation path as live calls.
+/// A late answer schedules no calls; builtins retain their observed stand-ins.
 pub(super) fn late(
     conversation: &mut Conversation,
     session: Id<Session>,
@@ -323,6 +330,8 @@ pub(crate) fn result(
             unreachable!("owed result place")
         }
     }
+    let recorded = block.clone();
+    super::tell::result(conversation, &recorded, out);
     let mut metadata = claim.metadata;
     metadata.id = id;
     domain.facts.push_call(env.now, FactKind::BuiltinAnswered { opener: conversation.opener, bytes, error }, &metadata);

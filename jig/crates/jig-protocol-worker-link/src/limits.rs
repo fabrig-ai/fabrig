@@ -12,7 +12,7 @@ pub struct Limits {
     pub sizes: Sizes,
     pub chunk: u32,
     /// The most bytes the stream below grants at once: io's
-    /// `largest_room` (protocol/channel/README.md, 8 and 10).
+    /// `largest_room` (protocol/channel/liveness.md, 1, and protocol/channel/README.md, 10).
     pub room: u32,
     pub handshake: Duration,
     pub ping: Duration,
@@ -66,7 +66,8 @@ pub fn valid(limits: &Limits) -> bool {
 /// Checks bounds using the full channel table prepared by the caller.
 #[must_use]
 pub fn valid_with_schema(limits: &Limits, schema: &channel::Schema) -> bool {
-    if limits.room < 270
+    if schema.range() != Some((wire::VERSION, wire::VERSION))
+        || limits.room < 270
         || limits.ping == Duration::ZERO
         || limits.silence < limits.ping.saturating_mul(3)
         || limits.stall == Duration::ZERO
@@ -113,6 +114,6 @@ pub fn valid_with_schema(limits: &Limits, schema: &channel::Schema) -> bool {
         && inventory_bound(&bodies).is_some()
 }
 
-fn inventory_bound(bodies: &wire::v21::Limits) -> Option<u64> {
+fn inventory_bound(bodies: &wire::v22::Limits) -> Option<u64> {
     wire::Logins::encoded_bound(bodies)?.checked_add(8)
 }

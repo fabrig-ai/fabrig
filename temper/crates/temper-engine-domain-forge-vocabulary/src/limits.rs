@@ -37,7 +37,7 @@ pub struct Limits {
     pub output: u32,
     pub facts: u32,
     pub adoptions: u32,
-    /// Repositories being made or failed (temper/docs/design/domain/forge/adoption.md, 5).
+    /// Repositories being made or failed (temper/docs/design/domain/forge/adoption.md, 9).
     pub makings: u32,
     pub applications: u32,
     /// Durable member address bindings (protocol/sign-in.md, 5).
@@ -46,9 +46,9 @@ pub struct Limits {
     /// Live landing procedure rows (domain/landing.md, 12).
     pub landings: u32,
     pub landing_members: u32,
-    /// Judged landings retained per repository (domain/after-landing.md, 10).
+    /// Judged landings retained per repository (domain/after-landing-storage.md, 1).
     pub landings_kept: u32,
-    /// Landings retained until every following tier judges them (domain/after-landing.md, 10).
+    /// Landings retained until every following tier judges them (domain/after-landing-storage.md, 1).
     pub landings_pending: u32,
     /// Queued rows and recent landed changes in the changes document (client/forge/records.md).
     pub changes_rows: u32,
@@ -71,7 +71,7 @@ pub struct Limits {
     pub history_events: u64,
     /// Criteria in each deployment or project judge table.
     pub judge_criteria: u32,
-    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration/settings.md, 2).
+    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration/settings-kinds.md, 1).
     pub landing_rules: u32,
     /// A project's follows and their bounded work (temper/docs/design/domain/forge/follows.md, 10).
     pub follows: u32,
@@ -125,7 +125,7 @@ impl Limits {
     }
 }
 
-/// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing.md, 10).
+/// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing-storage.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierLimits {
     pub tiers: u32,
@@ -136,7 +136,7 @@ pub struct TierLimits {
 /// Whether entrance limits are coherent and retained row counts fit their types.
 /// Names and gates fit the panel; client admissions cover the top's rows.
 /// Reconciliation and landing capacities must be representable
-/// (temper/docs/design/domain/forge/adoption.md and temper/docs/design/domain/forge/change/README.md and temper/docs/design/domain/forge/README.md, section 9).
+/// (temper/docs/design/domain/forge/adoption.md and temper/docs/design/domain/forge/change/README.md and temper/docs/design/domain/forge/effects.md, section 2).
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
 pub fn valid(l: &Limits) -> bool {

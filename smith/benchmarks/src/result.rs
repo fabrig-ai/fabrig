@@ -1,6 +1,6 @@
 //! Versioned attempt evidence, retaining observations and explicit gaps only.
 //! `read_result` refuses other versions; `classify_smith_exit` reconciles the
-//! observed answer, deadline and exit (../../docs/design/benchmarks/README.md, sections 8.1 and 8.3;
+//! observed answer, deadline and exit (../../docs/design/benchmarks/results.md, sections 1.1 and 1.3;
 //! shell/commands.md, section 3). No measurement is borrowed from another scope.
 
 use std::collections::BTreeMap;
@@ -121,7 +121,7 @@ pub struct Timing {
     pub record: TimeRecord,
 }
 
-/// Main-conversation durations reported by the adapter (../../docs/design/benchmarks/README.md, section 8.1).
+/// Main-conversation durations reported by the adapter (../../docs/design/benchmarks/results.md, section 1.1).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct TimeRecord {
@@ -169,7 +169,7 @@ pub struct Counts {
     pub message_terminals: BTreeMap<String, Measure<u64>>,
 }
 
-/// Exact delegation supplied by an agent adapter (../../docs/design/benchmarks/README.md, section 8.1).
+/// Exact delegation supplied by an agent adapter (../../docs/design/benchmarks/results.md, section 1.1).
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Delegation {
@@ -545,7 +545,12 @@ pub struct AttemptResult {
 
 /// Read a result with strict fields and the one supported format version.
 pub fn read_result(file: &Path) -> Result<AttemptResult, Fault> {
-    let text = std::fs::read_to_string(file).map_err(|error| Fault::from(error).document(file, "document"))?;
+    read_result_with(&crate::files::Native, file)
+}
+
+/// Read a strict result document on the supplied filesystem.
+pub fn read_result_with(files: &dyn crate::files::Files, file: &Path) -> Result<AttemptResult, Fault> {
+    let text = files.read_to_string(file).map_err(|error| Fault::from(error).document(file, "document"))?;
     parse_result(file, &text).map_err(|error| format(error.to_string()))
 }
 

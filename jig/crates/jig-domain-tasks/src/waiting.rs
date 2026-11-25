@@ -23,6 +23,11 @@ pub(crate) fn next(domain: &Domain, task: u64, after: Option<u64>) -> Option<Wor
             consider(&mut next, &word, after);
         }
     }
+    for word in crate::questions::waiting_for(domain, task) {
+        if !task_record.refused.contains(&word.number) {
+            consider(&mut next, &word, after);
+        }
+    }
     next
 }
 

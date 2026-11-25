@@ -101,7 +101,7 @@ text.
 
 - **A build environment is a target,** with tasks, packages and a pinned
   Debian snapshot like any other. Its placement's kind is `container`
-  with no host (no `on`, hearth/docs/design/protocol/format/README.md, 3.4): it has no kernel and no
+  with no host (no `on`, hearth/docs/design/protocol/format/targets.md, 1.4): it has no kernel and no
   bootloader, takes the containers' bootstrap variant, and is never
   prepared into a slot. Its output is used only as a sandbox's root
   (5.2), never run by nspawn as a host's containers are (hearth/docs/design/domain/slots/containers.md
@@ -109,7 +109,7 @@ text.
   ever activates it.
 - **It is named by target,** in the recipe's repository at the recipe's
   commit by default: stoa's is `stoa-build-lab`, base `stoa-build` in
-  environment `lab` (hearth/docs/design/protocol/format/README.md, 3.1), which every plane builds. Another
+  environment `lab` (hearth/docs/design/protocol/format/targets.md, 1.1), which every plane builds. Another
   repository's is `{ "repository", "commit", "target" }`.
 - **What enters the key is its identity,** what was asked for: its
   resolution key and its three output parts' digests (hearth/docs/design/domain/render/spec.md, 1.5).
@@ -184,7 +184,7 @@ outputs digest           = H("outputs", each output sorted by path: path, from)
 artifact key             = H("artifact", E, S, command digest, inputs digest, outputs digest)
 ```
 
-H is SHA-256 over the canonical encoding hearth/docs/design/domain/store/README.md (section 3) fixes,
+H is SHA-256 over the canonical encoding hearth/docs/design/domain/store/digests.md (section 1) fixes,
 the same as for layer keys.
 
 - **The environment's identity** brings the architecture, the snapshot
@@ -198,7 +198,7 @@ the same as for layer keys.
 
 ### 3.2 The sources' digest
 
-- **A tree digest, as a layer's** (hearth/docs/design/domain/store/README.md, section 3): paths, types,
+- **A tree digest, as a layer's** (hearth/docs/design/domain/store/digests.md, section 1): paths, types,
   modes, owners, contents and link targets, as seen inside the builder's
   namespace, mtimes left out.
 - **The export is made from the commit's objects, not by `git
@@ -340,15 +340,15 @@ any state ─→ failed (typed, 5.5)          any state ─→ cancelled (the or
   renders the environment for its identity, finds S (the memo, or an
   export) and computes the key, which must equal the pin's (7.1).
 - **Two orders for one key join one build** (a keyed effect,
-  `jig/docs/design/domain/connectors.md`, 4.3): the steward holds the orders, and gives its
+  `jig/docs/design/domain/connectors-effects.md`, 1.3): the steward holds the orders, and gives its
   builder one job per key (hearth/docs/design/domain/steward.md, 3.3). **Preparing** builds the
   environment's output if it is missing (hearth/docs/design/domain/build/README.md, section 4) and
   patches the sources for the cache (6.3).
 - **After a restart,** a builder's loss included (hearth/docs/design/domain/steward.md, 5.1), a
   build that had not written its record never happened: its `/out` and
   sandbox are removed, its cache is emptied (6.4), and an order still
-  standing starts it again. The filesystem is the only state (hearth/docs/design/domain/store/README.md,
-  section 6).
+  standing starts it again. The filesystem is the only state (hearth/docs/design/domain/store/state.md,
+  section 1).
 
 `hearth-domain-artifacts` steps this machine: a child of
 `hearth-domain-builder` sharing no types with its siblings, whose
@@ -597,8 +597,8 @@ section 8, shows the entry's shape):
   builder computes the same key from the same pin.
 - **Bumped by a change, as a snapshot bump is.** An agent or a bot
   updates commit and key together; the client prints the pin for a
-  commit (5.7). The change carries its rendered diff (hearth/docs/design/domain/render/README.md,
-  section 4): "software of stoa-1-prod: stoa 9f2c… → 31ab… (commit
+  commit (5.7). The change carries its rendered diff (hearth/docs/design/domain/render/diff.md,
+  section 1): "software of stoa-1-prod: stoa 9f2c… → 31ab… (commit
   4e1d… → 77c0…)", and lands through the usual gates.
 
 ### 7.2 Built from this head
@@ -617,7 +617,7 @@ section 8, shows the entry's shape):
   -z` over its selection (3.2), both read from the revision. Render
   stays a pure function of the revision and the target.
 - **The resolved key enters the software layer's key,** as a closure's
-  digest enters the packages key (hearth/docs/design/domain/render/spec.md, 1.5; hearth/docs/design/domain/store/README.md, 3.3). The
+  digest enters the packages key (hearth/docs/design/domain/render/spec.md, 1.5; hearth/docs/design/domain/store/digests.md, 1.3). The
   plan resolves each head entry before the software layer (5.1): the
   recipe, the listing's S, the environment's identity at the same
   revision.

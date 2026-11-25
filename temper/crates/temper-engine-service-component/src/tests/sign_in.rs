@@ -79,7 +79,7 @@ pub(crate) fn world_settings(
     clients.configure_google(&settings, limits, &fixtures::seeds(), &config.jig);
     clients.google.as_mut().unwrap().scripted = true;
     clients.starting = None;
-    service.engine.as_mut().unwrap().clients = clients;
+    *service.engine.as_mut().unwrap().clients = clients;
     fixtures::listening(&mut service);
     let document = oauth_limits();
     let issuer = fake::Issuer::new(

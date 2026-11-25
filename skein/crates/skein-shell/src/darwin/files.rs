@@ -1,4 +1,4 @@
-//! Darwin files and startup reads (runtime/readiness.md, 5; runtime/kernel.md, 6.1).
+//! Darwin files and startup reads (runtime/readiness.md, 5; runtime/kernel-files.md, 1).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -12,7 +12,7 @@
 
 use super::{close, count, last_errno, retry, status, status_flags};
 pub(crate) use crate::posix::files::kind_of;
-use crate::posix::files::{kernel_error, private_error, read_opened};
+use crate::posix::files::{check_private, kernel_error, private_error, read_opened};
 use crate::posix::links::pass_links;
 use crate::{
     calls::file_error,
@@ -20,7 +20,7 @@ use crate::{
 };
 use skein_io::kernel::{Done, Error, Fd, Kind, Op, OpenHow, PERMISSIONS, Stat};
 use std::{
-    ffi::{CString, OsString},
+    ffi::{CStr, CString, OsString},
     mem,
     os::unix::ffi::{OsStrExt, OsStringExt},
     path::{Path, PathBuf},
@@ -240,10 +240,7 @@ pub fn prepare_output(descriptor: Fd) -> Result<OutputKind, Error> {
     status(unsafe { libc::fcntl(descriptor.raw(), libc::F_SETFL, flags | libc::O_APPEND) }).map_err(Error::Other)?;
     Ok(OutputKind::Append)
 }
-pub fn directory_access(path: &Path) -> DirectoryAccess {
-    let Ok(path) = path_name(path) else {
-        return DirectoryAccess::Denied(libc::EINVAL);
-    };
+pub(crate) fn directory_access(path: &CStr) -> DirectoryAccess {
     // SAFETY: stat is a C integer record valid at zero.
     let mut raw: libc::stat = unsafe { mem::zeroed() };
     // SAFETY: path is terminated and raw is exclusive local storage.
@@ -269,7 +266,6 @@ pub fn process_id() -> u32 {
 }
 
 use crate::startup::Unread;
-use skein_io::file::Unsafe;
 use skein_lib::Secret;
 pub(crate) fn read_private_file(path: &Path, max: u32, user: u32) -> Result<Secret, Unread> {
     let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| Unread::Kernel(Error::InvalidArgument))?;
@@ -297,7 +293,7 @@ fn open_private(path: &CString, flags: i32) -> Result<i32, i32> {
 }
 
 /// Passes only the system's own parent links for a caller's own checks
-/// (runtime/shell.md, 6.1). The answer still needs those checks.
+/// (runtime/shell-startup.md, 1.1). The answer still needs those checks.
 #[must_use]
 pub fn resolve_system_links(path: &Path) -> PathBuf {
     match pass_links(libc::AT_FDCWD, path.as_os_str().as_bytes(), 0) {
@@ -323,33 +319,6 @@ fn denied_private(path: &CString, user: u32) -> Unread {
     }
 }
 
-fn check_private(fd: i32, user: u32) -> Result<(), Unread> {
-    // SAFETY: zero is valid stat storage; fstat initializes this exclusive
-    // local during the call and retains no pointer.
-    let mut stat: libc::stat = unsafe { mem::zeroed() };
-    // SAFETY: stat remains exclusive and live across fstat.
-    if unsafe { libc::fstat(fd, ptr::from_mut(&mut stat)) } < 0 {
-        return Err(Unread::Kernel(kernel_error(last_errno())));
-    }
-    let found = if stat.st_uid != user {
-        Some(Unsafe::Owner { found: stat.st_uid, expected: user })
-    } else if kind_of(stat.st_mode) == Kind::Symlink {
-        Some(Unsafe::Link)
-    } else if kind_of(stat.st_mode) != Kind::File {
-        Some(Unsafe::Kind(kind_of(stat.st_mode)))
-    } else if stat.st_mode & 0o077 != 0 {
-        Some(Unsafe::Mode(u32::from(stat.st_mode & 0o077)))
-    } else if stat.st_nlink != 1 {
-        Some(Unsafe::Links(u32::from(stat.st_nlink)))
-    } else {
-        None
-    };
-    match found {
-        Some(found) => Err(Unread::Unsafe(found)),
-        None => Ok(()),
-    }
-}
-
 pub(crate) fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| Unread::Kernel(Error::InvalidArgument))?;
     // SAFETY: the NUL-terminated path remains live across open.
@@ -363,88 +332,10 @@ pub(crate) fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     result
 }
 
-/// Makes absent directories along `path` durable, then opens it as a root
-/// (runtime/shell.md, 6). Existing directories keep their modes; errors are errno.
-pub fn make_root(path: &Path, mode: u32) -> Result<Fd, i32> {
-    if mode & !PERMISSIONS != 0 {
-        return Err(libc::EINVAL);
-    }
-    if path.as_os_str().is_empty() {
-        return Err(libc::ENOENT);
-    }
-    let mut absent = Vec::new();
-    let mut parent = None;
-    for ancestor in path.ancestors() {
-        let ancestor = if ancestor.as_os_str().is_empty() { Path::new(".") } else { ancestor };
-        match open_root(ancestor) {
-            Ok(fd) => {
-                parent = Some(fd);
-                break;
-            }
-            Err(libc::ENOENT) => absent.push(ancestor),
-            Err(error) => return Err(error),
-        }
-    }
-    let mut parent = parent.ok_or(libc::ENOENT)?;
-    for directory in absent.into_iter().rev() {
-        let result = make_directory_root(parent, directory, mode);
-        let _closed = close(parent);
-        parent = result?;
-    }
-    Ok(parent)
-}
+pub(crate) mod testing {
+    use std::{ffi::CString, path::Path};
 
-fn make_directory_root(parent: Fd, path: &Path, mode: u32) -> Result<Fd, i32> {
-    let component = path.components().next_back().ok_or(libc::EINVAL)?;
-    let path_c = CString::new(component.as_os_str().as_bytes()).map_err(|_| libc::EINVAL)?;
-    // SAFETY: parent is held open, the leaf name is terminated and live,
-    // and mode holds permission bits.
-    let created = unsafe {
-        libc::mkdirat(parent.raw(), path_c.as_ptr(), libc::mode_t::try_from(mode).expect("permission bits fit mode_t"))
-    };
-    if created < 0 {
-        let error = last_errno();
-        if error != libc::EEXIST {
-            return Err(error);
-        }
-    } else {
-        // SAFETY: parent is an open directory owned by this startup call.
-        let synced = unsafe { libc::fcntl(parent.raw(), libc::F_FULLFSYNC) };
-        if synced < 0 {
-            return Err(last_errno());
-        }
-    }
-    // SAFETY: parent remains open and the terminated leaf name is live;
-    // these are open_root's directory and close-on-exec flags.
-    let fd =
-        unsafe { libc::openat(parent.raw(), path_c.as_ptr(), libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC) };
-    if fd < 0 { Err(last_errno()) } else { Ok(Fd::new(fd)) }
-}
-#[cfg(test)]
-mod tests {
-    use super::{close, open_root, path_name, remove, retry, status};
-    use skein_scratch::Scratch;
-
-    // A directory's unlink answers EPERM on Darwin, as does a refusal that is
-    // not a directory's: an immutable file's (chflags), and so a sticky
-    // directory's other users' entries, which one user cannot make.
-    #[test]
-    fn only_a_directory_turns_an_unlinks_eperm_into_eisdir() {
-        let scratch = Scratch::new("darwin-remove");
-        std::fs::create_dir(scratch.path().join("dir")).expect("make the directory");
-        std::fs::write(scratch.path().join("fixed"), b"x").expect("make the file");
-        let fixed = path_name(&scratch.path().join("fixed")).expect("a path");
-        let change = |flags: u32| {
-            // SAFETY: fixed is terminated and lives across chflags.
-            retry(|| status(unsafe { libc::chflags(fixed.as_ptr(), flags) })).expect("chflags the file");
-        };
-        change(libc::UF_IMMUTABLE);
-        let parent = open_root(scratch.path()).expect("open the scratch directory");
-        assert_eq!(remove(parent, b"dir", false), Err(libc::EISDIR), "a directory's unlink is EISDIR");
-        assert_eq!(remove(parent, b"fixed", false), Err(libc::EPERM), "an immutable file stays EPERM");
-        change(0);
-        assert_eq!(remove(parent, b"fixed", false), Ok(()), "the file goes once it may");
-        assert_eq!(remove(parent, b"dir", true), Ok(()), "the directory goes as a directory");
-        assert_eq!(close(parent), Ok(()), "close the scratch directory");
+    pub fn path_name(path: &Path) -> Result<CString, i32> {
+        super::path_name(path)
     }
 }

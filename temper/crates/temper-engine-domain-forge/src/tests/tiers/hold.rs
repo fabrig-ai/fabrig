@@ -1,4 +1,4 @@
-//! A person's hold and the independent task hold (after-landing.md, 3).
+//! A person's hold and the independent task hold (domain/after-landing-runs.md, 2).
 use super::*;
 const PARTY: u64 = 19;
 const TOKEN: Token = Token::new(91);
@@ -23,7 +23,7 @@ fn a_persons_hold_blocks_a_baseline_until_release() {
     held(&mut d);
     assert!(d.tier_ops.reads.is_empty(), "no baseline read while held");
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     assert!(d.tier_ops.reads.is_empty());
     seen(&mut d, Some(BASE), NEXT_TIP);
     assert!(row(&d).record.run.is_none());
@@ -111,7 +111,7 @@ fn pending_and_judged_landings_have_separate_bounds() {
     let limits = Limits { landings_kept: 2, landings_pending: 3, ..LIMITS };
     let mut d = restoring_in(domain_with_limits(&limits), Follows::Landing);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     baseline(&mut d);
     attach(&mut d, 1, TIER_TASK);
     settled_step(&mut d, OPEN, false);

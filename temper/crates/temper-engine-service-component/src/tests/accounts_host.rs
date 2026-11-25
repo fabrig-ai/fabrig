@@ -18,7 +18,7 @@ use skein_lib::{Duration, List, Secret, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as driver;
 
-// temper/docs/design/protocol/credentials.md, 3; skein/docs/design/oauth/accounts.md, 5.
+// temper/docs/design/protocol/credentials-llm-accounts.md, 1; skein/docs/design/oauth/accounts.md, 5.
 // The host runs over scripted streams; the independent issuer checks OAuth.
 struct SignInWorld {
     store: crate::store::Store,
@@ -784,6 +784,28 @@ fn upgrade_preparation_aborts_unopened_accounts_for_check_and_back() {
 }
 
 #[test]
+fn rehearsal_calls_are_unavailable_even_after_the_connection_closed() {
+    let mut service = crate::Service::engine(fixtures::engine(), &fixtures::seeds(), None, fixtures::forge_runtime())
+        .expect("engine");
+    let engine = service.engine.as_mut().expect("engine");
+    crate::upgrade::prepare(engine, true);
+    assert!(engine.forge.closed);
+    let call = Token::new(99);
+    engine.forge.down(skein_forge_connection::Request::Call {
+        call,
+        repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+        op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings),
+    });
+    let answer = engine.forge.above.pop().expect("every call has an immediate answer");
+    let skein_forge_connection::Event::Answered(answer) = answer else { panic!("call answer") };
+    assert_eq!(answer.call, call);
+    assert_eq!((answer.cost, answer.free, answer.rate), (0, 0, None));
+    assert_eq!(answer.result, Err(skein_forge::api::Error::Unavailable));
+    assert!(engine.forge.above.is_empty());
+    assert!(engine.forge.io.is_empty(), "no socket operation");
+}
+
+#[test]
 fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
     let (config, runtime) = registered();
     let mut service = fixtures::ready();
@@ -970,7 +992,7 @@ fn a_move_out_answers_with_its_record_once_and_a_move_in_is_adopted() {
     let mut service = fixtures::ready();
     let link = service.links().pop().expect("sign-in link");
     let engine = service.engine.as_mut().expect("engine");
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut login = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     login.pump(engine, true);
     let w::SignInAnswer::SignedIn(answer) = login.sign_in_answer(engine) else { panic!("signed in") };

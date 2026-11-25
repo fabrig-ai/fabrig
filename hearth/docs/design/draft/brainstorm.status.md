@@ -6,8 +6,8 @@ Section 13's settled questions are carried by the design: a layer includes `/var
 and prepare splits off the slot's writable copy, with persistent data declared
 separately (`hearth/docs/design/domain/store/README.md`, section 4;
 `hearth/docs/design/domain/slots/prepare.md`, 3); hearth's state is the filesystem alone
-(`hearth/docs/design/domain/store/README.md`, section 6;
-`hearth/docs/design/domain/activator/README.md`, section 6). EFI uses direct stub entries,
+(`hearth/docs/design/domain/store/state.md`, section 1;
+`hearth/docs/design/domain/activator/state.md`, section 1). EFI uses direct stub entries,
 BIOS uses GRUB with its environment pair on FAT, and tiny-initramfs stays
 (`hearth/docs/design/domain/machine/boot.md`, sections 1, 2 and 4). Secure Boot and
 firmware that forgets its variables remain that document's open questions
@@ -118,7 +118,7 @@ question unsettled.
     keeps their identity, secrets and per-slot `/var`; container parameters
     are placement fields in their `boot` part, so changing them prepares a
     new slot of the same output (`hearth/docs/design/domain/slots/bless.md`, 1.1 and 1.2 and `hearth/docs/design/domain/slots/containers.md`
-    ; `hearth/docs/design/protocol/format/README.md`, 3.5, and `hearth/docs/design/protocol/format/tasks.md`, 12).
+    ; `hearth/docs/design/protocol/format/targets.md`, 1.5, and `hearth/docs/design/protocol/format/tasks-hearth.md`, 1).
     This keeps privileged ownership on the host and avoids an activator with
     nothing to own inside a container. The design's own decisions
     (`hearth/docs/design/decisions.md`); whether a container should
@@ -170,7 +170,7 @@ question unsettled.
     decisions (`hearth/docs/design/decisions.md`).
   - 7.7: a container names its host in placement; a host's container map is
     derived, with no second list in its configuration. This gives placement
-    one source of truth (`hearth/docs/design/protocol/format/README.md`, 3.5).
+    one source of truth (`hearth/docs/design/protocol/format/targets.md`, 1.5).
     The design's own decision (`hearth/docs/design/decisions.md`).
   - 7.8: "built from this head" names a recipe in the revision being
     rendered. The spec holds that recipe and its sources' listing digest;
@@ -183,7 +183,7 @@ question unsettled.
     hearth's binary is `/usr/local/bin/hearth`, its units and generated files
     are in `/etc`. Render refuses other task paths in `/usr`, and build checks
     scripts too, keeping Debian's `/usr` apart from live overlays
-    (`hearth/docs/design/protocol/format/tasks.md`, 5 and 12;
+    (`hearth/docs/design/protocol/format/tasks.md`, 5, and `hearth/docs/design/protocol/format/tasks-hearth.md`, 1;
     `hearth/docs/design/domain/build/README.md`, 7.3). Decided with the user's input,
     2026-10-16 (`hearth/docs/design/decisions.md`).
   - 7.9: package-created users and groups are declared too, and every owner
@@ -199,7 +199,7 @@ question unsettled.
     The format therefore has a reserved task and paths despite replacing
     os's magic task names with settings: every host output must carry hearth,
     and IaC cannot replace the privileged side's files or redirect its writes
-    (`hearth/docs/design/protocol/format/tasks.md`, 11 and 12;
+    (`hearth/docs/design/protocol/format/tasks-reserved.md`, 1, and `hearth/docs/design/protocol/format/tasks-hearth.md`, 1;
     `hearth/docs/design/domain/activator/README.md`, 2.3 and section 5). The design's
     own decisions (`hearth/docs/design/decisions.md`).
   - 8 and 9: eligible config and software changes run live, through the
@@ -249,8 +249,8 @@ question unsettled.
     `data` and `cache` class subvolumes, bound at declared paths; snapshots
     and backups apply by class, never to `cache`. A class snapshot is atomic
     across its services; an entry restore copies its directory, a class
-    restore swaps its subvolume (`hearth/docs/design/protocol/format/tasks.md`,
-    7 and 12; `hearth/docs/design/domain/operating.md`, section 7).
+    restore swaps its subvolume (`hearth/docs/design/protocol/format/tasks.md`, 7, and `hearth/docs/design/protocol/format/tasks-hearth.md`, 1
+    ; `hearth/docs/design/domain/operating.md`, section 7).
     This retains the fleet's layout and gives policies a class as their unit,
     rather than one subvolume per entry. Decided with the user's input,
     2026-10-09 (`hearth/docs/design/decisions.md`). An entry is seeded
@@ -294,8 +294,8 @@ question unsettled.
     (`hearth/docs/design/domain/render/README.md`, 2.2); whether an engine issues it
     later is also open (`hearth/docs/design/protocol/wire.md`, section 10).
   - 7.1 and 13: who posts the rendered diff and how a many-target change is
-    presented remain open (`hearth/docs/design/domain/render/README.md`, 4.4 and
-    section 7).
+    presented remain open (`hearth/docs/design/domain/render/diff.md`, 1.4, and `hearth/docs/design/domain/render/README.md`, 7
+    ).
   - 10.1 and 13: checks have a format and remote probes select their source
     targets by task role (`hearth/docs/design/domain/operating.md`, 2.1, 2.2
     and 2.6). What production checks may write or send still awaits policy;

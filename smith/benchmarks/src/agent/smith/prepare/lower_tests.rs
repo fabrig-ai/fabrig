@@ -5,6 +5,7 @@ use crate::agent::PinnedConfiguration;
 use crate::arm::{ArmRef, Build, BuiltArm};
 use crate::guard::Guard;
 use crate::isolate::Private;
+use crate::process::lower_tests::{check_receipt, exec_prompt_receipt};
 use crate::{ModelChoice, Provider, Task};
 use std::os::unix::fs::DirBuilderExt;
 
@@ -59,8 +60,21 @@ impl Fixture {
     }
 
     fn prepared(&self, serial: Option<fs::File>) -> Prepared {
+        let context = self.context();
+        let ArmRef::Built(build) = context.arm else { unreachable!("supplied build") };
+        let base: toml::Value = toml::from_str(include_str!("../../../../agents/smith/standard.toml")).expect("layer");
+        let registry = FaceSince {
+            commit: build.arm.commit.clone(),
+            shape: super::super::events::Shape::Exec,
+            receiving: super::super::Receiving { string: 128, content: 1024, items: 16, encoded_line: 16384 },
+        };
+        render(&context, &serde_json::to_value(base).expect("layer"), build.directory.join("smith"), registry, serial)
+            .expect("render admitted inputs")
+    }
+
+    fn context(&self) -> Context<'_> {
         let ArmRef::Built(build) = &self.arm else { unreachable!("supplied build") };
-        let context = Context {
+        Context {
             guard: &self.guard,
             private: &self.private,
             pin: &self.pin,
@@ -74,15 +88,7 @@ impl Fixture {
             wall: skein_lib::Wall::EPOCH,
             lifetime: skein_lib::Duration::from_secs(20),
             environment: &[],
-        };
-        let base: toml::Value = toml::from_str(include_str!("../../../../agents/smith/standard.toml")).expect("layer");
-        let registry = FaceSince {
-            commit: build.arm.commit.clone(),
-            shape: super::super::events::Shape::Exec,
-            receiving: super::super::Receiving { string: 128, content: 1024, items: 16, encoded_line: 16384 },
-        };
-        render(&context, &serde_json::to_value(base).expect("layer"), build.directory.join("smith"), registry, serial)
-            .expect("render admitted inputs")
+        }
     }
 }
 
@@ -98,6 +104,42 @@ fn admitted_sign_in_keeps_shared_credentials_and_private_state() {
     assert!(prepared.settings.starts_with(&fixture.private.config));
     assert!(!fixture.private.root.join("smith/tokens").exists());
     assert!(!prepared.program.exists(), "identity is an input, no executable fixture");
+}
+
+const CHECK_V1: &[u8] = br#"{"version":1,"limits":[{"name":"service.teardown","value":12345,"unit":"ms"}]}"#;
+
+#[test]
+fn an_exec_arm_reads_its_prompt_to_eof_without_a_trace_file() {
+    let fixture = Fixture::new("exec-eof", Provider::Codex, "gpt-6-luna");
+    let context = fixture.context();
+    let checked = checked(&context, fixture.prepared(None), check_receipt(CHECK_BOUNDS, 0, CHECK_V1, b""));
+    let prepared = require_success(checked.expect("settled check")).expect("checked Exec");
+    assert!(prepared.trace.is_none());
+    assert_eq!(prepared.command().teardown, skein_lib::Duration::from_millis(12_345));
+    let capture = crate::process::Capture::Agent(Box::new(
+        crate::agent::PreparedAgent::Smith(prepared).observe().expect("Exec observer"),
+    ));
+    let result = exec_prompt_receipt(capture, b"read this prompt to EOF\n");
+    assert_eq!(result.exit, crate::Exit::Code(0));
+    assert_eq!(result.forced, crate::Forced::No);
+    assert!(result.error.is_none() && result.tree.live_pids.is_empty());
+}
+
+#[test]
+fn an_exec_arm_refused_by_check_is_a_setup_refusal() {
+    let fixture = Fixture::new("exec-check-refused", Provider::Codex, "gpt-6-luna");
+    let context = fixture.context();
+    let stderr = b"configuration refused\n";
+    let check = check_receipt(CHECK_BOUNDS, 2, CHECK_V1, stderr);
+    assert!(check.error.is_none() && check.tree.live_pids.is_empty());
+    let checked = checked(&context, fixture.prepared(None), check).expect("settled check");
+    let directory = checked.0.settings.parent().expect("check logs");
+    assert_eq!(fs::read(directory.join("check.json")).expect("bounded stdout"), CHECK_V1);
+    assert_eq!(fs::read(directory.join("check-stderr.log")).expect("bounded stderr"), stderr);
+    let refusal = require_success(checked).expect_err("check refuses");
+    assert_eq!(refusal.kind, crate::FaultKind::Setup(SetupStep::Configuration));
+    assert!(refusal.detail.contains("Code(2)"));
+    assert!(!fixture.private.root.join("smith/tokens").exists());
 }
 
 #[test]

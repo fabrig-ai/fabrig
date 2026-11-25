@@ -1,23 +1,23 @@
-//! The client contract's records for both ends (protocol/client/wire.md, section 1, and protocol/client/README.md, section 6).
+//! The client contract's records for both ends (protocol/client/wire.md, section 1, and protocol/client/versions.md, section 1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
-pub const CLIENT_SCHEMA: &str =
-    concat!(include_str!("../schema/client-v42.schema"), include_str!("../schema/client-v42-part1.schema"));
-
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
-pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v1.schema");
+pub const CLIENT_SCHEMA: &str = include_str!("../schema/client-v45.schema");
+
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v2.schema");
 
 mod approval;
 pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 
 #[rustfmt::skip]
 #[path = "generated/client.rs"]
-pub mod v42;
-pub use v42::*;
+pub mod v44;
+pub use v44::*;
 
 #[rustfmt::skip]
 #[path = "generated/public.rs"]
@@ -27,6 +27,8 @@ pub use public::{PublicIndexBounds, public_bounds, public_limits};
 
 /// The independently versioned public wire (client/domain/contract/README.md, section 10).
 pub const PUBLIC_VERSION: u16 = public_v1::VERSION;
+/// The public wire's family fingerprint.
+pub use public_v1::LAYOUT as PUBLIC_LAYOUT;
 /// The public projects answer kind.
 pub const PUBLIC_PROJECTS: u16 = 1;
 /// The public board answer kind.
@@ -36,9 +38,11 @@ pub const PUBLIC_CARD: u16 = 3;
 
 /// The client wire version this release reads and writes.
 pub const VERSION: u32 = {
-    let [high, low] = v42::VERSION.to_be_bytes();
+    let [high, low] = v44::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
+/// The client wire's family fingerprint.
+pub use v44::LAYOUT;
 
 #[cfg(test)]
 mod tests;

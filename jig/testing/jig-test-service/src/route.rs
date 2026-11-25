@@ -53,15 +53,8 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
         root::Delivery::ProjectMade { .. } => {}
 
         root::Delivery::System { connector: number, call } => {
-            let read = match &call {
-                connector::SystemRequest::ReadFact { .. } => true,
-                connector::SystemRequest::Apply { .. } | connector::SystemRequest::Look { .. } => false,
-            };
             let event = system(engine, number).answer(call);
             engine.events.push(root::Event::Connector { number, event: connector::Event::System(event) });
-            if read {
-                restart_read(engine, number);
-            }
         }
         root::Delivery::LostRead { connector, resource, call, .. } => {
             let event = system(engine, connector).answer(call);
@@ -153,59 +146,11 @@ fn restart(engine: &mut Engine, phase: core::start::Phase, census: Option<core::
                 engine.events.push(root::Event::StartDone(phase));
             }
         }
-        Phase::ReadAfresh { connector: number } => {
-            let paths = system(engine, number).paths();
-            if paths.is_empty() {
-                engine.events.push(root::Event::StartDone(phase));
-            }
-            for resource in paths {
-                engine.events.push(root::Event::Connector {
-                    number,
-                    event: connector::Event::Restart(connector::RestartStep::FreshRead { resource }),
-                });
-            }
-        }
         Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep => {
             crate::store::request(engine, jig_test_store::StoreOut::Start { phase, census });
         }
-        Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::SettleOutbox { .. } | Phase::Open => {
+        Phase::Link | Phase::Wires | Phase::AdoptRuns | Phase::Open => {
             unreachable!("the root serves this start phase");
-        }
-    }
-}
-
-// The root emits a phase's fresh reads in one decision. Count the released
-// calls before answering any, including reads the root drove itself.
-pub(super) fn count_restart_reads(engine: &mut Engine) {
-    let Some(core::start::Phase::ReadAfresh { connector }) = engine.domain.core_mut().start_phase() else {
-        return;
-    };
-    for request in &engine.requests {
-        if let root::Request::Deliver(root::Delivery::System {
-            connector: number,
-            call: connector::SystemRequest::ReadFact { .. },
-        }) = request
-            && *number == connector
-        {
-            let count = match engine.restart_reads {
-                Some((owner, count)) => {
-                    assert_eq!(owner, connector, "one connector reads afresh at a time");
-                    count
-                }
-                None => 0,
-            };
-            engine.restart_reads = Some((connector, count.checked_add(1).expect("bounded fresh reads")));
-        }
-    }
-}
-fn restart_read(engine: &mut Engine, number: u16) {
-    if let Some((owner, left)) = engine.restart_reads
-        && owner == number
-    {
-        let left = left.checked_sub(1).expect("one answer per restart read");
-        engine.restart_reads = if left == 0 { None } else { Some((owner, left)) };
-        if left == 0 {
-            engine.events.push(root::Event::StartDone(core::start::Phase::ReadAfresh { connector: number }));
         }
     }
 }
@@ -285,6 +230,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         core::Now::Link(
             core::LinkNow::Asked { .. }
             | core::LinkNow::DropPayload { .. }
+            | core::LinkNow::PartPayload { .. }
             | core::LinkNow::TurnPayload { .. }
             | core::LinkNow::AnswerPayload { .. }
             | core::LinkNow::AcceptedTurn { .. }
@@ -299,6 +245,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => stop::invalid_restore(engine),
     }
 }
@@ -342,6 +289,15 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         core::Held::MakeEffect { connector: number, entry } => {
             engine.events.push(root::Event::Connector { number, event: connector::Event::Make { entry } });
         }
+        core::Held::PartBusy { channel, run, attempt, part } => {
+            if let Some(workers) = &mut engine.workers {
+                workers.down(
+                    engine.env.now,
+                    jig_protocol_engine_workers::Event::PartBusy { channel, run, attempt, part },
+                    &mut engine.events,
+                );
+            }
+        }
         core::Held::TurnBusy { channel, run, attempt, turn } => {
             if let Some(workers) = &mut engine.workers {
                 workers.down(
@@ -375,6 +331,8 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         | core::Held::Relay { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }

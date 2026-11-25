@@ -75,8 +75,11 @@ pub fn restart() {
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
     let engine = description.dir("engine").join("config").join(temper_config_shell::FILE);
-    std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), description.dir("w1").join("git"))
-        .expect("worker's fake git");
+    std::os::unix::fs::symlink(
+        skein_scratch::paths::built("temper-box", "temper-box"),
+        description.dir("w1").join("git"),
+    )
+    .expect("worker's fake git");
     let (mut members, hosts) = description.members();
     members.up(&["forge", "llm"]);
     let mut world = real::World::new(Judge {
@@ -987,11 +990,62 @@ pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path)
 }
 
 pub(crate) fn secrets(engine: &Path) -> Result<PathBuf, String> {
+    secrets_in(engine, &NativeTree)
+}
+
+fn secrets_in(engine: &Path, tree: &impl ScanTree) -> Result<PathBuf, String> {
     let path = engine.join("data/state/generations/1/secrets");
-    if !path.is_dir() {
+    require_secrets(&path, tree)?;
+    Ok(path)
+}
+
+fn require_secrets(path: &Path, tree: &impl ScanTree) -> Result<(), String> {
+    if !tree.is_dir(path) {
         return Err("excluded directory is jig's secrets store".into());
     }
-    Ok(path)
+    Ok(())
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Kind {
+    Directory,
+    File,
+    Other,
+}
+
+trait ScanTree {
+    fn is_dir(&self, path: &Path) -> bool;
+    fn kind(&self, path: &Path) -> Result<Kind, String>;
+    fn entries(&self, path: &Path) -> Result<impl Iterator<Item = Result<PathBuf, String>>, String>;
+    fn read(&self, path: &Path) -> Result<Vec<u8>, String>;
+}
+
+struct NativeTree;
+
+impl ScanTree for NativeTree {
+    fn is_dir(&self, path: &Path) -> bool {
+        path.is_dir()
+    }
+
+    fn kind(&self, path: &Path) -> Result<Kind, String> {
+        let metadata = fs::symlink_metadata(path).map_err(|_| format!("scratch metadata: {}", path.display()))?;
+        Ok(if metadata.is_dir() {
+            Kind::Directory
+        } else if metadata.is_file() {
+            Kind::File
+        } else {
+            Kind::Other
+        })
+    }
+
+    fn entries(&self, path: &Path) -> Result<impl Iterator<Item = Result<PathBuf, String>>, String> {
+        let entries = fs::read_dir(path).map_err(|_| format!("scratch directory: {}", path.display()))?;
+        Ok(entries.map(|entry| entry.map(|entry| entry.path()).map_err(|_| "scratch entry".to_owned())))
+    }
+
+    fn read(&self, path: &Path) -> Result<Vec<u8>, String> {
+        fs::read(path).map_err(|_| format!("scratch file: {}", path.display()))
+    }
 }
 
 pub(crate) struct Scan {
@@ -1024,53 +1078,106 @@ impl Scan {
         Ok(())
     }
     pub(crate) fn files(&self, root: &Path, secrets: &Path, downloaded: &Path) -> Result<(), String> {
-        if !secrets.is_dir() {
-            return Err("excluded directory is jig's secrets store".into());
-        }
+        self.files_in(root, secrets, downloaded, &NativeTree)
+    }
+
+    fn files_in(&self, root: &Path, secrets: &Path, downloaded: &Path, tree: &impl ScanTree) -> Result<(), String> {
+        require_secrets(secrets, tree)?;
         let mut pending = vec![root.to_path_buf()];
         while let Some(path) = pending.pop() {
             if path == secrets || path == downloaded {
                 continue;
             }
-            let metadata = fs::symlink_metadata(&path).map_err(|_| format!("scratch metadata: {}", path.display()))?;
-            if metadata.is_dir() {
-                for entry in fs::read_dir(&path).map_err(|_| format!("scratch directory: {}", path.display()))? {
-                    pending.push(entry.map_err(|_| "scratch entry")?.path());
+            match tree.kind(&path)? {
+                Kind::Directory => {
+                    for entry in tree.entries(&path)? {
+                        pending.push(entry?);
+                    }
                 }
-            } else if metadata.is_file() {
-                let bytes = fs::read(&path).map_err(|_| format!("scratch file: {}", path.display()))?;
-                self.clean(&bytes).map_err(|why| format!("{}: {why}", path.display()))?;
+                Kind::File => {
+                    let bytes = tree.read(&path)?;
+                    self.clean(&bytes).map_err(|why| format!("{}: {why}", path.display()))?;
+                }
+                Kind::Other => {}
             }
         }
         Ok(())
     }
 }
 
-pub fn file_scan_excludes_only_jigs_generation_secrets_store() {
-    let scratch = Scratch::new(&format!("github_file_scan-{}", std::process::id()));
-    let engine = scratch.path().join("engine");
-    let store = engine.join("data/state/generations/1/secrets");
-    assert_eq!(secrets(&engine), Err("excluded directory is jig's secrets store".into()));
-    fs::create_dir_all(&store).expect("generation secrets store");
-    let pem = b"-----BEGIN PRIVATE KEY-----\nZmFrZS1hcHAta2V5LWJ5dGVz\n-----END PRIVATE KEY-----\n";
-    let scan = Scan::new(pem).expect("synthetic PEM");
-    fs::write(store.join("log-1"), &scan.der).expect("key in secrets store");
-    let downloaded = scratch.path().join("github-app.pem");
-    fs::write(&downloaded, pem).expect("downloaded PEM");
-    let excluded = secrets(&engine).expect("generation secrets store");
-    assert_eq!(scan.files(scratch.path(), &excluded, &downloaded), Ok(()));
+pub mod file_scan_tests {
+    use super::{Kind, Scan, ScanTree, secrets_in};
+    use std::{
+        collections::BTreeMap,
+        path::{Path, PathBuf},
+    };
 
-    fs::write(engine.join("ordinary"), &scan.der).expect("key outside secrets store");
-    let finding = scan.files(scratch.path(), &excluded, &downloaded).expect_err("ordinary file leaks DER");
-    assert_eq!(
-        finding,
-        format!(
-            "{}: Must: no App DER outside jig's secrets store and downloaded PEM",
-            engine.join("ordinary").display()
-        )
-    );
-    assert!(!finding.contains("fake-app-key-bytes"), "finding never includes matched bytes");
-    scratch.remove();
+    #[derive(Default)]
+    struct Tree<'a>(BTreeMap<PathBuf, Option<&'a [u8]>>);
+
+    impl<'a> Tree<'a> {
+        fn file(&mut self, path: PathBuf, bytes: &'a [u8]) {
+            for parent in path.ancestors().skip(1) {
+                self.0.entry(parent.to_path_buf()).or_insert(None);
+            }
+            self.0.insert(path, Some(bytes));
+        }
+    }
+
+    impl ScanTree for Tree<'_> {
+        fn is_dir(&self, path: &Path) -> bool {
+            self.kind(path) == Ok(Kind::Directory)
+        }
+
+        fn kind(&self, path: &Path) -> Result<Kind, String> {
+            match self.0.get(path) {
+                Some(None) => Ok(Kind::Directory),
+                Some(Some(_)) => Ok(Kind::File),
+                None => Err(format!("missing fixture path: {}", path.display())),
+            }
+        }
+
+        fn entries(&self, path: &Path) -> Result<impl Iterator<Item = Result<PathBuf, String>>, String> {
+            assert!(self.is_dir(path));
+            Ok(self.0.keys().filter(move |child| child.parent() == Some(path)).cloned().map(Ok))
+        }
+
+        fn read(&self, path: &Path) -> Result<Vec<u8>, String> {
+            Ok(self.0[path].expect("fixture file").to_vec())
+        }
+    }
+
+    pub fn file_scan_excludes_only_jigs_generation_secrets_store() {
+        let mut tree = Tree::default();
+        let root = Path::new("fixture");
+        let engine = root.join("engine");
+        let store = engine.join("data/state/generations/1/secrets");
+        let downloaded = root.join("github-app.pem");
+        let pem = b"-----BEGIN PRIVATE KEY-----\nZmFrZS1hcHAta2V5LWJ5dGVz\n-----END PRIVATE KEY-----\n";
+        let scan = Scan::new(pem).expect("synthetic PEM");
+        let missing = Err("excluded directory is jig's secrets store".into());
+        assert_eq!(secrets_in(&engine, &tree), missing);
+        assert_eq!(
+            scan.files_in(root, &store, &downloaded, &tree),
+            Err("excluded directory is jig's secrets store".into())
+        );
+
+        tree.file(store.join("log-1"), &scan.der);
+        tree.file(downloaded.clone(), pem);
+        let excluded = secrets_in(&engine, &tree).expect("generation secrets store");
+        assert_eq!(scan.files_in(root, &excluded, &downloaded, &tree), Ok(()));
+
+        tree.file(engine.join("ordinary"), &scan.der);
+        let finding = scan.files_in(root, &excluded, &downloaded, &tree).expect_err("ordinary file leaks DER");
+        assert_eq!(
+            finding,
+            format!(
+                "{}: Must: no App DER outside jig's secrets store and downloaded PEM",
+                engine.join("ordinary").display()
+            )
+        );
+        assert!(!finding.contains("fake-app-key-bytes"), "finding never includes matched bytes");
+    }
 }
 
 fn client_landing_items(file: &Path) -> Vec<Value> {

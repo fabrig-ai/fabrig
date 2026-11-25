@@ -1,15 +1,15 @@
-//! Generator regressions for data/codec/README.md, sections 3 and 6.
+//! Generator regressions for data/codec/README.md, section 3, and data/codec/golden.md, section 1.
 
-use crate::{Golden, generate, goldens, parse};
+use crate::{FixedValue, fixed_values, generate, parse};
 
 #[test]
 fn fixed_rule_values_keep_names_order_and_bytes() {
     let schema = parse("family f 1 record Note { title: text 8 }").expect("valid note");
     assert_eq!(
-        goldens(&schema),
+        fixed_values(&schema),
         [
-            Golden { name: "record_note_smallest.bin".into(), bytes: vec![0, 0, 0, 0] },
-            Golden { name: "record_note_full.bin".into(), bytes: vec![0, 0, 0, 3, b'a', b'b', b'c'] },
+            FixedValue { name: "record_note_smallest.bin".into(), bytes: vec![0, 0, 0, 0] },
+            FixedValue { name: "record_note_full.bin".into(), bytes: vec![0, 0, 0, 3, b'a', b'b', b'c'] },
         ]
     );
 }
@@ -42,12 +42,16 @@ fn limit_names_and_values_follow_field_order() {
             .map(|line| line.trim().trim_end_matches(',').trim_matches('"'))
             .collect::<Vec<_>>();
         assert_eq!(names, fields);
-        assert!(output.records.contains("pub fn values(&self) -> List<u32>"));
         let values = output
             .records
+            .split_once("pub fn values(&self) -> List<u32> {\n        List::from_boxed([\n")
+            .expect("values accessor")
+            .1
+            .split_once("        ].into())\n")
+            .expect("values end")
+            .0
             .lines()
-            .filter_map(|line| line.trim().strip_prefix("values.push(self."))
-            .map(|line| line.split_once(')').expect("pushed field").0)
+            .map(|line| line.trim().strip_prefix("self.").expect("limit value").trim_end_matches(','))
             .collect::<Vec<_>>();
         assert_eq!(values, fields);
         if !fields.is_empty() {

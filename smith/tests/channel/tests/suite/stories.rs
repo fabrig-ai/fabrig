@@ -904,6 +904,8 @@ fn a_host_tool_answered_as_the_channel_is_lost_is_asked_again_under_its_name() {
     second.settle();
     second.send_domain_start(
         smith_host_domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             live: None,
             messages: Box::default(),
             logical_run: skein_lib::Token::new(1),
@@ -1056,8 +1058,8 @@ mod charter_round_trip {
     #[test]
     fn complete_charter_policy_round_trips_without_local_contract_assumptions() {
         let bytes = &crate::values::charter("full");
-        let wire =
-            smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(bytes)).expect("full golden");
+        let wire = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(bytes))
+            .expect("full fixed-rule value");
         let mut names = List::with_capacity(16);
         names
             .push(smith_protocol_translate::Endpoint { name: wire.main.endpoint.clone(), number: 0, dialect: 0 })
@@ -1341,6 +1343,8 @@ fn resumed_activation(
     two.settle();
     two.send_domain_start(
         smith_host_domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             live: None,
             messages: Box::default(),
             logical_run: skein_lib::Token::new(1),

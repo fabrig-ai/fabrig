@@ -5,10 +5,12 @@ use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
-use std::fmt;
+use std::{fmt, rc::Rc};
 
 mod faults;
+mod image;
 mod readback;
+pub use image::StoreImage;
 pub use readback::ReadbackFinding;
 #[cfg(test)]
 mod tests;
@@ -17,7 +19,7 @@ mod tests;
 /// and a reopened one answers the one it kept (configuration.md, 7).
 const INSTALLATION: [u8; 16] = [0; 16];
 
-/// Store transport and disk faults (jig/docs/design/protocol/store/README.md, 9).
+/// Store transport and disk faults (jig/docs/design/protocol/store/testing.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
     Hold { commits: u32 },
@@ -65,16 +67,18 @@ pub struct Store {
     pub pending: VecDeque<Pending>,
     pub held: VecDeque<u64>,
     component: Option<protocol::Store>,
+    keep_reads: bool,
     sets: protocol::OwnerSets,
     turn_text: Option<TurnText>,
     files: Files,
     disk: Option<crate::disk::Disk>,
     routes: route::Routes,
     limits: root::Limits,
-    component_limits: Limits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
-    models: Box<[jig_domain_core::Model]>,
+    models: Rc<[jig_domain_core::Model]>,
+    mirror_writes: bool,
     inflight: BTreeMap<u64, Box<[root::Write]>>,
     replies: Vec<Up>,
     delayed: VecDeque<Delayed>,
@@ -108,7 +112,7 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::starting_with_read_reuse(limits, models, sets, true)
     }
     /// Open the real store with typed start pages (protocol/store/loads.md, 1).
     #[must_use]
@@ -122,18 +126,29 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::with_owner_sets(limits, models, sets)
     }
     /// Use the directory-backed component even without patch sets.
     #[must_use]
     pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::build(limits, models, protocol::OwnerSets::NONE, true)
+        Self::build(limits, models, protocol::OwnerSets::NONE, true, true)
+    }
+    /// Select whether memory stores reuse checked payload records. Directory stores never keep reads.
+    #[must_use]
+    pub fn starting_with_read_reuse(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::OwnerSets,
+        keep_reads: bool,
+    ) -> Store {
+        Self::build(limits, models, sets, false, keep_reads)
     }
     fn build(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
         on_disk: bool,
+        keep_reads: bool,
     ) -> Store {
         Self::prepared(
             limits,
@@ -142,9 +157,10 @@ impl Store {
             on_disk,
             &component_limits(limits),
             jig_test_store::application(&limits.connector),
+            keep_reads,
         )
     }
-    // Forks keep these checked sizes: the source's configuration is immutable.
+    // A fresh store checks its bounds; forks keep the checked result.
     fn prepared(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
@@ -152,40 +168,59 @@ impl Store {
         on_disk: bool,
         component_limits: &Limits,
         application: protocol::sizes::Application,
+        keep_reads: bool,
     ) -> Store {
+        let checked = protocol::check(component_limits).expect("world store limits");
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
         let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(component_limits, application, models, disk.seeded())
+            protocol::Store::on_directory(&checked, application, models, disk.seeded())
         } else {
             let stores = Stores {
-                store: skein_kv::Store::memory(&component_limits.store),
-                secrets: skein_kv::Store::memory(&component_limits.secrets),
+                store: Self::memory_store(&component_limits.store, keep_reads),
+                secrets: Self::memory_store(&component_limits.secrets, keep_reads),
             };
-            protocol::Store::over(component_limits, application, models, stores)
+            protocol::Store::over(&checked, application, models, stores)
         };
-        let mut store =
-            Self::over_storage(limits, models, sets, component, Files::new(), disk, component_limits, application);
+        let mut routes = route::Routes::new(limits.routes);
+        routes.configure(limits);
+        routes.configure_restore(component_limits).expect("restart page bounds fit");
+        let mut store = Self::over_storage(
+            limits,
+            models.into(),
+            sets,
+            component,
+            Files::new(),
+            disk,
+            application,
+            routes,
+            keep_reads,
+        );
+        store.prefixes.insert(0, BTreeMap::new());
         store.open();
+        store
+    }
+    fn memory_store(limits: &skein_kv::Limits, keep_reads: bool) -> skein_kv::Store {
+        let mut store = skein_kv::Store::memory(limits);
+        store.keep_reads(keep_reads);
         store
     }
     #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
     fn over_storage(
         limits: &root::Limits,
-        models: &[jig_domain_core::Model],
+        models: Rc<[jig_domain_core::Model]>,
         sets: protocol::OwnerSets,
         mut component: protocol::Store,
         files: Files,
         disk: Option<crate::disk::Disk>,
-        component_limits: &Limits,
         application: protocol::sizes::Application,
+        routes: route::Routes,
+        keep_reads: bool,
     ) -> Store {
+        let checked = component.checked();
         component.owner_sets(component_sets(sets));
-        let mut routes = route::Routes::new(limits.routes);
-        routes.configure(limits);
-        routes.configure_restore(component_limits).expect("restart page bounds fit");
         Store {
             applied: 0,
-            prefixes: BTreeMap::from([(0, BTreeMap::new())]),
+            prefixes: BTreeMap::new(),
             acknowledged: 0,
             submissions: BTreeMap::new(),
             kill: None,
@@ -196,16 +231,18 @@ impl Store {
             rows: BTreeMap::new(),
             pending: VecDeque::new(),
             held: VecDeque::new(),
+            checked,
             component: Some(component),
+            keep_reads,
             sets,
             turn_text: None,
             files,
             disk,
             routes,
             limits: *limits,
-            component_limits: *component_limits,
             application,
-            models: models.into(),
+            models,
+            mirror_writes: true,
             inflight: BTreeMap::new(),
             replies: Vec::new(),
             delayed: VecDeque::new(),
@@ -233,7 +270,7 @@ impl Store {
     #[must_use]
     pub fn into_wires(mut self) -> Box<[u8]> {
         let mut stores = self.component.take().expect("component").into_stores();
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits.store };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.checked.limits().store };
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
         let key = protocol::keys::encode_own(&protocol::keys::Own::Wires, env.limits.key).expect("wires key");
@@ -282,7 +319,7 @@ impl Store {
         assert!(!self.failed, "a failed world must restart before writing");
         let previous = self.pending.back().map_or(self.applied, |pending| pending.number);
         assert_eq!(number, previous.checked_add(1).expect("bounded commit number"));
-        if self.disk.is_some() && self.sets.sets.is_empty() {
+        if self.mirror_writes && self.disk.is_some() && self.sets.sets.is_empty() {
             let mut rows = self.prefixes.get(&(number - 1)).unwrap_or(&self.rows).clone();
             apply(&mut rows, &writes);
             self.prefixes.insert(number, rows);
@@ -314,7 +351,9 @@ impl Store {
         }
         self.holding = hold || self.hold_next != 0 || !self.held.is_empty();
         self.hold_next = self.hold_next.saturating_sub(1);
-        self.inflight.insert(pending.number, pending.writes.clone());
+        if self.mirror_writes {
+            self.inflight.insert(pending.number, pending.writes.clone());
+        }
         if let Some(disk) = &mut self.disk
             && disk.sweep.iter().any(|(from, _)| *from == KillFrom::Commit(pending.number))
         {
@@ -374,18 +413,16 @@ impl Store {
         let application = self.application;
         self.component = Some(if let Some(disk) = &mut self.disk {
             drop(component);
-            disk.crash(&self.component_limits, seed);
-            protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
+            disk.crash(self.checked.limits(), seed);
+            protocol::Store::on_directory(&self.checked, application, &self.models, disk.seeded())
         } else {
             let stores = component.into_stores();
             self.files.crash(seed);
-            protocol::Store::over(&self.component_limits, application, &self.models, stores)
+            protocol::Store::over(&self.checked, application, &self.models, stores)
         });
         self.component.as_mut().expect("rebuilt component").owner_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
-        self.routes = route::Routes::new(self.limits.routes);
-        self.routes.configure(&self.limits);
-        self.routes.configure_restore(&self.component_limits).expect("restart page bounds fit");
+        self.routes = self.routes.fresh();
         self.pending.clear();
         self.held.clear();
         self.inflight.clear();
@@ -464,25 +501,7 @@ impl Store {
     }
     /// Copy the durable image, then cold-open it without resubmitting history.
     pub fn fork(&self) -> Result<Store, ReadbackFinding> {
-        let disk = self.disk.as_ref().map(|disk| disk.fork(&self.component_limits));
-        let application = self.application;
-        let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
-        } else {
-            let stores = self.component.as_ref().expect("component").fork_memory().expect("memory store");
-            protocol::Store::over(&self.component_limits, application, &self.models, stores)
-        };
-        let mut fresh = Self::over_storage(
-            &self.limits,
-            &self.models,
-            self.sets,
-            component,
-            self.files.fork(),
-            disk,
-            &self.component_limits,
-            self.application,
-        );
-        fresh.wires(self.wires);
+        let mut fresh = self.image().shell();
         fresh.rows.clone_from(&self.rows);
         fresh.prefixes.clone_from(&self.prefixes);
         fresh.submissions.clone_from(&self.submissions);
@@ -610,7 +629,7 @@ impl Store {
         assert!(!self.failed, "patched mirror rows read back through the component");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.checked.limits() }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {
@@ -665,7 +684,7 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
-            // This world does not consume the census (protocol/store/README.md, 6.3).
+            // This world does not consume the census (protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
@@ -676,8 +695,10 @@ impl Store {
                 self.route(event, requests);
             }
             Event::Committed { number, .. } => {
-                let writes = self.inflight.remove(&number).expect("commit belongs to the root");
-                apply(&mut self.rows, &writes);
+                if self.mirror_writes {
+                    let writes = self.inflight.remove(&number).expect("commit belongs to the root");
+                    apply(&mut self.rows, &writes);
+                }
                 self.applied = number;
                 if self.holding {
                     self.held.push_back(number);
@@ -723,7 +744,6 @@ impl Store {
                 let answer = protocol::jobs::page(&job, &page, self.component.as_mut().expect("component exists"));
                 requests.push_back(Request::Job { owner, answer });
             }
-            // These worlds supply sets without written sites; routing answers NoSite.
             event @ (Event::Checkpointed { .. }
             | Event::CheckpointRefused { .. }
             | Event::Restored { .. }
@@ -735,7 +755,6 @@ impl Store {
                 ..
             }
             | Event::Ran { .. }
-            | Event::Site { .. }
             | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
@@ -802,27 +821,9 @@ const HISTORY_SETS: protocol::OwnerSets = protocol::OwnerSets {
 };
 // Only immutable schemas from the fixture's constant texts outlive a test.
 fn binary_schemas() -> &'static [skein_codec::schema::Schema] {
-    static SCHEMAS: std::sync::OnceLock<Vec<skein_codec::schema::Schema>> = std::sync::OnceLock::new();
+    static SCHEMAS: std::sync::OnceLock<Box<[skein_codec::schema::Schema]>> = std::sync::OnceLock::new();
     SCHEMAS.get_or_init(|| {
-        let mut schemas = Vec::new();
-        for set in [protocol::SKEIN_SET, protocol::SMITH_SET, protocol::JIG_STORE_SET] {
-            for family in set.families {
-                if !schemas
-                    .iter()
-                    .any(|schema: &skein_codec::schema::Schema| schema.text() == family.current.as_bytes())
-                {
-                    schemas.push(skein_codec::schema::parse(family.current.as_bytes()).expect("fixture schema"));
-                }
-                if let Some(frames) = &family.frames {
-                    for text in frames.texts {
-                        if !schemas.iter().any(|schema| schema.text() == text.as_bytes()) {
-                            schemas.push(skein_codec::schema::parse(text.as_bytes()).expect("fixture frame schema"));
-                        }
-                    }
-                }
-            }
-        }
-        schemas
+        protocol::OwnerSets { sets: &[protocol::SKEIN_SET, protocol::SMITH_SET, protocol::JIG_STORE_SET] }.prepare()
     })
 }
 

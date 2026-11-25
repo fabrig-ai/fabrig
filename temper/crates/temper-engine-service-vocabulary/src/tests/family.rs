@@ -1113,6 +1113,7 @@ fn forge_row(
     offer: forge::Offer,
 ) -> forge::Row {
     forge::Row {
+        catching_up: None,
         starts_with: forge::StartsWith::Repository,
         makings: Box::new([]),
         host: b"git.example:3000".as_slice().into(),
@@ -1140,6 +1141,7 @@ fn configured_forge_rows() -> forge::Forges {
         full: Box::new([]),
         rows: Box::new([
             forge::Row {
+                catching_up: None,
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
@@ -1262,6 +1264,7 @@ fn expected_forge_row(
     offer: w::Offer,
 ) -> w::ForgeRow {
     w::ForgeRow {
+        catching_up: None,
         starts_with: w::StartsWith::Repository,
         makings: List::with_capacity(0),
         host: b"git.example:3000".as_slice().into(),
@@ -1585,6 +1588,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
         forge::Forges {
             full: Box::new([]),
             rows: Box::new([forge::Row {
+                catching_up: None,
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
@@ -1660,6 +1664,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
         let value = forge::Forges {
             full: Box::new([]),
             rows: Box::new([forge::Row {
+                catching_up: None,
                 starts_with: forge::StartsWith::Repository,
                 makings: Box::new([]),
                 host: b"git.example:3000".as_slice().into(),
@@ -1776,6 +1781,7 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
+        read_hold: None,
         waits: Some(forge::LandingWait {
             on: forge::LandingWaitFor::Run,
             change: Some(51),
@@ -1996,6 +2002,17 @@ fn a_search_by_test_encodes_selections_passes_and_the_probe_kind() {
         let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(&got.round.as_ref().unwrap().search.as_ref().unwrap().tests, &expected);
     }
+}
+
+#[test]
+fn a_landing_view_carries_the_read_hold_reason() {
+    let mut view = landing_view();
+    view.phase = forge::LandingPhase::Held { was: Box::new(view.phase), why: forge::LandingHold::Read };
+    let reason: Box<[u8]> = b"read: branch main: no answer".as_slice().into();
+    view.read_hold = Some(reason.clone());
+    let bytes = family::document(forge::Document::Landing(view), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!((got.phase, got.hold), (w::LandingPhase::Held, Some(w::LandingHold::Read(w::HeldRead { reason }))));
 }
 
 #[test]
@@ -2835,11 +2852,55 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 }
 
 #[test]
+fn catching_up_translates_all_counts_and_its_end_on_both_documents() {
+    let progress = forge::CatchingUp {
+        fresh: 3,
+        gathers: 4,
+        ci: 5,
+        goal_files: 6,
+        lost_writers: 7,
+        goal_branches: 8,
+        uncertain: 2,
+    };
+    let expected =
+        w::CatchingUp { fresh: 3, gathers: 4, ci: 5, goal_files: 6, lost_writers: 7, goal_branches: 8, uncertain: 2 };
+    for (catching_up, expected) in [(Some(progress), Some(expected)), (None, None)] {
+        let mut row = forge_row(
+            1,
+            forge::Kind::Forgejo,
+            forge::Mode::Connected,
+            forge::Connection::NotConnected,
+            forge::Offer::NotOffered,
+        );
+        row.catching_up = catching_up;
+        let bytes =
+            family::forges(forge::Forges { rows: Box::new([row]), full: Box::new([]) }, false, &w::CEILINGS).unwrap();
+        let decoded = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(decoded.forges.get(0).unwrap().catching_up, expected);
+        let view = forge::ChangesView {
+            catching_up,
+            project: 1,
+            landing: b"main".as_slice().into(),
+            queues: Box::new([]),
+            more: 0,
+            landed: Box::new([]),
+            landed_more: 0,
+            landed_default: Box::new([]),
+            landed_default_more: 0,
+        };
+        let bytes =
+            family::document(forge::Document::Changes(view), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+        assert_eq!(wire::decode_changes_panel(&bytes, &w::CEILINGS).unwrap().catching_up, expected);
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one whole document pins queue, flight and history fields")]
 fn changes_document_encodes_and_decodes() {
     let from = Some(forge::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
     let expected = Some(w::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
     let mut value = forge::ChangesView {
+        catching_up: None,
         landed_default: Box::new([forge::ChangesLanded {
             goal: None,
             chat: None,
@@ -3560,6 +3621,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
             .unwrap();
     }
     let document = forge::Document::Changes(forge::ChangesView {
+        catching_up: None,
         landed_default: landed.clone().into_boxed(),
         landed_default_more: 0,
         project: 1,
@@ -4297,6 +4359,67 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
     }
 }
 
+#[test]
+fn repair_and_blame_requests_keep_their_fields_and_pad_sha1_for_the_forge() {
+    let more = List::from_boxed(Box::new([5, u32::MAX]));
+    assert_eq!(
+        away_request(w::Request::TriageFinding(w::TriageFinding {
+            project: 2,
+            number: 3,
+            act: w::Triage::Repair(w::FindingRepair { more, words: b"repair together".as_slice().into() }),
+        })),
+        root::Application::TriageFinding(forge::TriageFinding {
+            project: 2,
+            number: 3,
+            act: forge::Triage::Repair(forge::RepairAct {
+                more: Box::new([5, u32::MAX]),
+                words: b"repair together".as_slice().into()
+            }),
+        })
+    );
+    let mut sha1 = [0; 32];
+    sha1.get_mut(..20).unwrap().fill(0x42);
+    for (landing, expected) in
+        [(None, None), (Some(repeated(0x42, 20)), Some(sha1)), (Some(repeated(0x43, 32)), Some([0x43; 32]))]
+    {
+        assert_eq!(
+            away_request(w::Request::TriageFinding(w::TriageFinding {
+                project: 2,
+                number: 3,
+                act: w::Triage::Blame(w::FindingBlameAct { landing, why: b"this landing".as_slice().into() }),
+            })),
+            root::Application::TriageFinding(forge::TriageFinding {
+                project: 2,
+                number: 3,
+                act: forge::Triage::Blame(forge::BlameAct {
+                    landing: expected,
+                    why: b"this landing".as_slice().into()
+                }),
+            })
+        );
+    }
+}
+
+#[test]
+fn triage_answers_keep_the_repair_goal_and_long_refusal_words() {
+    assert_eq!(
+        away_answer(Some(root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Repaired(u64::MAX)))),
+        w::Outcome::Triaged(w::Triaged { goal: Some(u64::MAX) })
+    );
+    assert_eq!(
+        away_answer(Some(root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged))),
+        w::Outcome::Triaged(w::Triaged { goal: None })
+    );
+    assert_eq!(
+        away_answer(Some(root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Refused(
+            forge::FindingRefusal::Words(repeated(b'x', 1024))
+        )))),
+        w::Outcome::FindingRefused(w::FindingRefused {
+            reason: w::FindingRefusal::Words(w::FindingWords { field: repeated(b'x', 1024) })
+        })
+    );
+}
+
 fn finding_holders() -> [(forge::Holder, w::Holder); 3] {
     [
         (forge::Holder::Task(u64::MAX), w::Holder::Task(w::HolderTask { number: u64::MAX })),
@@ -4312,7 +4435,10 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
             w::Outcome::Filed(w::Filed { number: 27 }),
         ),
         (root::ApplicationAnswer::HandFinding(forge::HandFindingAnswer::Handed), w::Outcome::Handed),
-        (root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged), w::Outcome::Triaged),
+        (
+            root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged),
+            w::Outcome::Triaged(w::Triaged { goal: None }),
+        ),
     ] {
         assert_eq!(away_answer(Some(answer)), expected);
     }
@@ -4511,6 +4637,7 @@ fn finding_blame_pair(
         forge::BlameStrength::Owned => w::BlameStrength::Owned,
         forge::BlameStrength::Suspected => w::BlameStrength::Suspected,
         forge::BlameStrength::Unblamed => w::BlameStrength::Unblamed,
+        forge::BlameStrength::Moved => w::BlameStrength::Moved,
     };
     let mut landings = List::with_capacity(2);
     let mut expected_landings = List::with_capacity(2);
@@ -4523,7 +4650,7 @@ fn finding_blame_pair(
         expected_landings.push(w::BlamedLanding { commit, goals }).unwrap();
     }
     (
-        Some(forge::FindingBlame { strength, landings: landings.into_boxed() }),
+        Some(forge::FindingBlame { strength, landings: landings.into_boxed(), moved: None }),
         Some(w::FindingBlame { strength: expected_strength, landings: expected_landings }),
     )
 }
@@ -4557,16 +4684,17 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
             Some(forge::BlameStrength::Owned),
             Some(forge::BlameStrength::Suspected),
             Some(forge::BlameStrength::Unblamed),
+            Some(forge::BlameStrength::Moved),
         ] {
             let (row, expected_row) = finding_row_pair();
             let (blame, expected_blame) = finding_blame_pair(strength);
             let bytes = family::forge_read(
-                root::ForgeReadAnswer::Finding(Some(forge::FindingAnswer {
+                root::ForgeReadAnswer::Finding(Some(Box::new(forge::FindingAnswer {
                     row,
                     body: repeated(b'b', 4096),
                     filer,
                     blame,
-                })),
+                }))),
                 b"",
                 &w::CEILINGS,
             )
@@ -4631,6 +4759,7 @@ fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
         default_branch: true,
     };
     let document = forge::Document::Changes(forge::ChangesView {
+        catching_up: None,
         project: 7,
         landing: b"main".as_slice().into(),
         queues: Box::new([]),

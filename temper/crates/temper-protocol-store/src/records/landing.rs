@@ -1,7 +1,8 @@
 //! Landing and receipt records (protocol/store.md, families 23 and 24).
 use super::{FITS, names, w};
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_codec::Record;
+use skein_lib::{List, Reader, Wall, Writer};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as d;
 use temper_engine_domain_forge_vocabulary as top;
@@ -36,7 +37,7 @@ fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
         }
         d::Phase::Held {
             was,
-            why: d::Hold::Prepare | d::Hold::Record { .. } | d::Hold::Timeout { .. } | d::Hold::Turn,
+            why: d::Hold::Prepare | d::Hold::Read | d::Hold::Record { .. } | d::Hold::Timeout { .. } | d::Hold::Turn,
         } => (encode_place(was), None),
         d::Phase::Waiting
         | d::Phase::Preparing
@@ -60,11 +61,10 @@ fn decode_phase(phase: w::LandingPhase) -> d::Phase {
     }
 }
 fn encode_proof(proof: &d::GateProof) -> w::GateProof {
-    crate::generated::store::gate_proof_to_record(proof, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::gate_proof_to_record(proof)
 }
 fn decode_proof(proof: w::GateProof) -> d::GateProof {
-    crate::generated::store::gate_proof_to_domain(proof, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::gate_proof_to_domain(proof)
 }
 fn encode_member(member: &d::Member) -> w::LandingMember {
     let mut gates = List::with_capacity(u32::try_from(member.gates.len()).expect(FITS));
@@ -149,32 +149,72 @@ fn decode_member(member: w::LandingMember) -> d::Member {
     }
 }
 pub(super) fn encode_ask(ask: change::Ask) -> w::LandingAsk {
-    crate::generated::store::landing_ask_to_record(&ask, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::landing_ask_to_record(&ask)
 }
 pub(super) fn decode_ask(ask: w::LandingAsk) -> change::Ask {
-    crate::generated::store::landing_ask_to_domain(ask, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::landing_ask_to_domain(ask)
 }
 fn encode_round(round: &d::Round) -> w::LandingRound {
-    crate::generated::store::landing_round_to_record(round, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::landing_round_to_record(round)
 }
 fn decode_round(round: w::LandingRound) -> d::Round {
-    crate::generated::store::landing_round_to_domain(round, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::landing_round_to_domain(round)
 }
 pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
-    crate::generated::store::landing_row_to_record(row, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::landing_row_to_record(row).expect(FITS)
 }
 pub(super) fn decode_receipt_key(key: w::ReceiptKey) -> top::ReceiptKey {
-    crate::generated::store::receipt_key_to_domain(key, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::receipt_key_to_domain(key)
 }
-pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
-    crate::generated::store::landing_row_to_domain(row, &super::Context::UNBOUNDED)
+pub(super) fn decode(row: w::LandingRow, bounds: &crate::Bounds) -> Result<top::LandingRow, super::Undecodable> {
+    crate::generated::store::landing_row_to_domain(row, &super::Context::bounded(bounds))
         .or(Err(super::Undecodable::Malformed))
 }
+/// Byte-bounded pieces let this row reuse `DispatchWrite` without multiplying
+/// that record's independent input ceilings by the number of followed runs.
+pub fn landing_follows_to_record(value: &[top::LandingFollow]) -> Result<w::LandingFollows, w::Problem> {
+    let bound = w::paths::LANDING_FOLLOWS_ITEMS.problem(skein_codec::Reason::Bound);
+    let slots = u32::try_from(value.len()).or(Err(bound))?;
+    let mut pieces = List::with_capacity(slots);
+    let mut bytes = 0_usize;
+    for follow in value {
+        let record = crate::generated::store::landing_follow_to_record(follow)?;
+        let piece = record.encode(&w::CEILINGS)?;
+        bytes = bytes.checked_add(piece_length(piece.len()).ok_or(bound)?).ok_or(bound)?;
+        pieces.push(piece).expect("measured follow count");
+    }
+    if bytes > skein_lib::usize_of(w::CEILINGS.landing_follows_items) {
+        return Err(bound);
+    }
+    let mut writer = Writer::new(bytes);
+    for piece in &pieces {
+        skein_codec::piece::write(&mut writer, piece).or(Err(bound))?;
+    }
+    Ok(w::LandingFollows { items: writer.finish() })
+}
+fn piece_length(bytes: usize) -> Option<usize> {
+    bytes.checked_add(4)
+}
+pub fn landing_follows_to_domain(
+    value: w::LandingFollows,
+    context: &super::Context,
+) -> Result<Box<[top::LandingFollow]>, w::Problem> {
+    let bounds = context.bounds();
+    let slots = top::landing::follow_slots(bounds.forge()).expect("checked follow bound");
+    let path = w::paths::LANDING_FOLLOWS_ITEMS;
+    let mut followed = List::with_capacity(slots);
+    let mut pieces = Reader::new(&value.items);
+    while let Some(piece) =
+        skein_codec::piece::split(&mut pieces).or(Err(path.problem(skein_codec::Reason::Malformed)))?
+    {
+        let row = w::LandingFollow::decode(bounds.limits(), &mut Reader::new(&piece))?;
+        let row = crate::generated::store::landing_follow_to_domain(row);
+        followed.push(row).or(Err(path.problem(skein_codec::Reason::Bound)))?;
+    }
+    Ok(followed.into_boxed())
+}
 pub(super) fn encode_receipt_key(key: &top::ReceiptKey) -> w::ReceiptKey {
-    crate::generated::store::receipt_key_to_record(key, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::receipt_key_to_record(key)
 }
 pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
     w::ReceiptRow {
@@ -191,10 +231,7 @@ fn encode_report(report: &top::ReceiptReport) -> w::ReceiptReport {
         top::ReceiptReport::Tests(tests) => {
             let mut kept = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
             for test in tests {
-                kept.push(
-                    crate::generated::store::receipt_test_to_record(test, &super::Context::UNBOUNDED).expect(FITS),
-                )
-                .expect(FITS);
+                kept.push(crate::generated::store::receipt_test_to_record(test)).expect(FITS);
             }
             w::ReceiptReport::Tests(w::ReceiptTests { tests: kept })
         }
@@ -209,10 +246,7 @@ fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
             let tests = tests.tests;
             let mut kept = List::with_capacity(tests.len());
             for test in tests.into_boxed() {
-                kept.push(
-                    crate::generated::store::receipt_test_to_domain(test, &super::Context::UNBOUNDED).expect(FITS),
-                )
-                .expect(FITS);
+                kept.push(crate::generated::store::receipt_test_to_domain(test)).expect(FITS);
             }
             top::ReceiptReport::Tests(kept.into_boxed())
         }
@@ -221,10 +255,10 @@ fn decode_report(report: w::ReceiptReport) -> top::ReceiptReport {
 
 // Gate reports belong to ReceiptRow, not the value a tier result embeds.
 pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
-    let run = crate::generated::store::receipt_run_to_record(&receipt.run, &super::Context::UNBOUNDED).expect(FITS);
+    let run = crate::generated::store::receipt_run_to_record(&receipt.run);
     let mut jobs = List::with_capacity(16);
     for job in &receipt.jobs {
-        let job = crate::generated::store::receipt_job_to_record(job, &super::Context::UNBOUNDED).expect(FITS);
+        let job = crate::generated::store::receipt_job_to_record(job);
         jobs.push(job).expect(FITS);
     }
     w::Receipt {
@@ -253,8 +287,7 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
     let w::ReceiptRun { id, number, url } = run;
     let mut kept = List::with_capacity(16);
     for job in jobs.into_boxed() {
-        kept.push(crate::generated::store::receipt_job_to_domain(job, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        kept.push(crate::generated::store::receipt_job_to_domain(job)).expect(FITS);
     }
     Ok(top::Receipt {
         report: top::ReceiptReport::Unset,
@@ -307,14 +340,11 @@ pub(super) fn decode_leave(why: w::LandingLeave) -> d::Leave {
 
 fn encode_combine(combined: Option<d::Combine>) -> Option<w::LandingCombine> {
     let combined = combined?;
-    Some(crate::generated::store::landing_combine_to_record(&combined, &super::Context::UNBOUNDED).expect(FITS))
+    Some(crate::generated::store::landing_combine_to_record(&combined))
 }
 fn decode_combine(combined: Option<w::LandingCombine>) -> Option<d::Combine> {
     let combined = combined?;
-    Some(
-        crate::generated::store::landing_combine_to_domain(combined, &super::Context::UNBOUNDED)
-            .expect("infallible store translation"),
-    )
+    Some(crate::generated::store::landing_combine_to_domain(combined))
 }
 
 pub(super) fn encode_search_tests(search: &d::SearchTests) -> w::LandingSearchTests {
@@ -338,12 +368,7 @@ pub(super) fn encode_search_tests(search: &d::SearchTests) -> w::LandingSearchTe
             }
             let mut outcomes = List::with_capacity(u32::try_from(probed.len()).expect(FITS));
             for outcome in probed {
-                outcomes
-                    .push(
-                        crate::generated::store::landing_probed_to_record(outcome, &super::Context::UNBOUNDED)
-                            .expect(FITS),
-                    )
-                    .expect(FITS);
+                outcomes.push(crate::generated::store::landing_probed_to_record(outcome)).expect(FITS);
             }
             w::LandingSearchTests::ByTest(w::LandingByTest { gates: selected, probed: outcomes })
         }
@@ -370,12 +395,7 @@ pub(super) fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTes
             }
             let mut probed = List::with_capacity(value.probed.len());
             for outcome in value.probed.into_boxed() {
-                probed
-                    .push(
-                        crate::generated::store::landing_probed_to_domain(outcome, &super::Context::UNBOUNDED)
-                            .expect(FITS),
-                    )
-                    .expect(FITS);
+                probed.push(crate::generated::store::landing_probed_to_domain(outcome)).expect(FITS);
             }
             d::SearchTests::ByTest { gates: gates.into_boxed(), probed: probed.into_boxed() }
         }
@@ -383,28 +403,22 @@ pub(super) fn decode_search_tests(search: w::LandingSearchTests) -> d::SearchTes
 }
 fn encode_searched(searched: Option<&d::Searched>) -> Option<w::LandingSearched> {
     let searched = searched?;
-    Some(crate::generated::store::landing_searched_to_record(searched, &super::Context::UNBOUNDED).expect(FITS))
+    Some(crate::generated::store::landing_searched_to_record(searched).expect(FITS))
 }
 
 fn decode_searched(searched: Option<w::LandingSearched>) -> Option<d::Searched> {
     let searched = searched?;
-    Some(
-        crate::generated::store::landing_searched_to_domain(searched, &super::Context::UNBOUNDED)
-            .expect("infallible store translation"),
-    )
+    Some(crate::generated::store::landing_searched_to_domain(searched))
 }
 
 fn encode_last_prepare(last: Option<&d::LastPrepare>) -> Option<w::LandingLastPrepare> {
     let last = last?;
-    Some(crate::generated::store::landing_last_prepare_to_record(last, &super::Context::UNBOUNDED).expect(FITS))
+    Some(crate::generated::store::landing_last_prepare_to_record(last).expect(FITS))
 }
 
 fn decode_last_prepare(last: Option<w::LandingLastPrepare>) -> Option<d::LastPrepare> {
     let last = last?;
-    Some(
-        crate::generated::store::landing_last_prepare_to_domain(last, &super::Context::UNBOUNDED)
-            .expect("infallible store translation"),
-    )
+    Some(crate::generated::store::landing_last_prepare_to_domain(last))
 }
 
 pub(super) fn encode_landing_state(landing: &d::Landing) -> w::LandingState {
@@ -426,6 +440,7 @@ pub(super) fn encode_landing_state(landing: &d::Landing) -> w::LandingState {
         round: if landing.round.branch.is_empty() { None } else { Some(encode_round(&landing.round)) },
         own_hold: match landing.phase {
             d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
+            d::Phase::Held { why: d::Hold::Read, .. } => Some(w::LandingOwnHold::Read),
             d::Phase::Held { why: d::Hold::Record { member }, .. } => {
                 Some(w::LandingOwnHold::Record(w::LandingRecordHold { member }))
             }
@@ -473,6 +488,7 @@ pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landin
         task,
         project,
         phase: match own_hold {
+            Some(w::LandingOwnHold::Read) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Read },
             Some(w::LandingOwnHold::Turn) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn },
             Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {
                 was: Box::new(decode_phase(phase)),
@@ -498,32 +514,31 @@ pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landin
     })
 }
 
-pub fn landing_leave_to_record(value: &d::Leave, _context: &super::Context) -> Result<w::LandingLeave, w::Problem> {
-    Ok(encode_leave(*value))
+#[must_use]
+pub fn landing_leave_to_record(value: &d::Leave) -> w::LandingLeave {
+    encode_leave(*value)
 }
 
-pub fn landing_leave_to_domain(value: w::LandingLeave, _context: &super::Context) -> Result<d::Leave, w::Problem> {
-    Ok(decode_leave(value))
+#[must_use]
+pub fn landing_leave_to_domain(value: w::LandingLeave) -> d::Leave {
+    decode_leave(value)
 }
 
-pub fn landing_search_tests_to_record(
-    value: &d::SearchTests,
-    _context: &super::Context,
-) -> Result<w::LandingSearchTests, w::Problem> {
-    Ok(encode_search_tests(value))
+#[must_use]
+pub fn landing_search_tests_to_record(value: &d::SearchTests) -> w::LandingSearchTests {
+    encode_search_tests(value)
 }
 
-pub fn landing_search_tests_to_domain(
-    value: w::LandingSearchTests,
-    _context: &super::Context,
-) -> Result<d::SearchTests, w::Problem> {
-    Ok(decode_search_tests(value))
+#[must_use]
+pub fn landing_search_tests_to_domain(value: w::LandingSearchTests) -> d::SearchTests {
+    decode_search_tests(value)
 }
 
-pub fn landing_state_to_record(value: &d::Landing, _context: &super::Context) -> Result<w::LandingState, w::Problem> {
-    Ok(encode_landing_state(value))
+#[must_use]
+pub fn landing_state_to_record(value: &d::Landing) -> w::LandingState {
+    encode_landing_state(value)
 }
 
-pub fn landing_state_to_domain(value: w::LandingState, _context: &super::Context) -> Result<d::Landing, w::Problem> {
+pub fn landing_state_to_domain(value: w::LandingState) -> Result<d::Landing, w::Problem> {
     decode_landing_state(value).or(Err(w::paths::LANDING_STATE_OWN_HOLD.problem(skein_codec::Reason::Malformed)))
 }

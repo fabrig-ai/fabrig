@@ -804,6 +804,7 @@ pub fn overturn_answer(outcome: w::Outcome, message: Option<c::Answer>) -> d::Do
             event: jig_client::Event::Up {
                 up: jig_client::Up::FamilyServed {
                     family: wire::FORGE,
+                    served: true,
                     versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
                 },
             },

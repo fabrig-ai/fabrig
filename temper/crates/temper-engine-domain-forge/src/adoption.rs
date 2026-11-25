@@ -168,7 +168,7 @@ pub(crate) fn start(
     }
 }
 
-/// Access precedes the bot's first read (temper/docs/design/domain/forge/adoption.md, 2).
+/// Access precedes the bot's first read (temper/docs/design/domain/forge/adoption.md, 6).
 pub(crate) fn accessed(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -215,7 +215,7 @@ pub(crate) fn adopted(d: &mut Domain, out: &mut Queue<Request>, reply_to: Token,
         });
     }
     // An act has no pending party application. Its caller hears this result
-    // under jig's request token and later tells MakingActed (domain/forge/adoption.md, 5).
+    // under jig's request token and later tells MakingActed (domain/forge/adoption.md, 9).
     out.push(Request::Adopted { reply_to, result });
 }
 
@@ -702,7 +702,7 @@ fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: Adopti
 }
 
 /// Release adoptions after the core has erased the project's tasks
-/// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
+/// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
 pub(crate) fn release(d: &mut Domain, env: &Env<Limits>, project: u32, request: Token, out: &mut Queue<Request>) {
     let mut repositories = List::with_capacity(d.repositories.capacity());
     for (provider, row) in &d.repositories {
@@ -759,7 +759,7 @@ pub(crate) fn release(d: &mut Domain, env: &Env<Limits>, project: u32, request: 
     crate::domain::release::project(d, project, request, writes, out);
 }
 
-/// An act already names the made repository (domain/forge/adoption.md, 5).
+/// An act already names the made repository (domain/forge/adoption.md, 9).
 pub(crate) fn making_asked(
     d: &mut Domain,
     env: &Env<Limits>,

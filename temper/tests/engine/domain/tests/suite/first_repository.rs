@@ -75,7 +75,7 @@ fn setup_intent(
 }
 #[test]
 fn setup_refused_without_the_box() {
-    // domain/forge/adoption.md, 1: without the box, setup is refused before routing.
+    // domain/forge/adoption-connection.md, 1: without the box, setup is refused before routing.
     let mut driver = driver(false);
     let answer = setup(&mut driver, 51, b"work", b"hello");
     assert_eq!(
@@ -86,7 +86,7 @@ fn setup_refused_without_the_box() {
 
 #[test]
 fn invalid_names_are_refused_before_any_box_request() {
-    // client/forge/records.md; protocol/setup/owned.md, 7: both grammars checked at admission.
+    // client/forge/records.md; protocol/setup/owned-repositories.md, 1: both grammars checked at admission.
     let cases: &[(&[u8], &[u8])] = &[
         (b"", b"hello"),
         (b"work", b""),
@@ -139,7 +139,7 @@ fn exact_grammar_limits_and_repository_punctuation_are_admitted() {
 
 #[test]
 fn a_second_setup_is_busy_and_cannot_replace_the_first_intent() {
-    // domain/forge/adoption.md, 1; protocol/setup/owned.md, 7: one setup at a time, intent only replaced on admission.
+    // domain/forge/adoption-connection.md, 1; protocol/setup/owned-repositories.md, 1: one setup at a time, intent only replaced on admission.
     let mut driver = driver(true);
     assert_eq!(setup(&mut driver, 55, b"work", b"hello"), None);
     event(&mut driver, forge::Event::Connection { forge: 1, state: forge::Connection::SettingUp { step: None } });
@@ -158,7 +158,7 @@ fn a_second_setup_is_busy_and_cannot_replace_the_first_intent() {
 
 #[test]
 fn connected_forge_does_not_offer_setup() {
-    // domain/forge/adoption.md, 1: a forge already connected does not offer SetUp.
+    // domain/forge/adoption-connection.md, 1: a forge already connected does not offer SetUp.
     let mut driver = driver(true);
     event(
         &mut driver,
@@ -204,7 +204,7 @@ fn forges(driver: &mut Driver) -> forge::Forges {
 
 #[test]
 fn first_repository_row_is_volatile_across_restart() {
-    // protocol/setup/owned.md, 7: even made(id) is volatile, never recovered as an adoption.
+    // protocol/setup/owned-repositories.md, 1: even made(id) is volatile, never recovered as an adoption.
     let mut driver = driver(true);
     let _ = setup(&mut driver, 58, b"work", b"hello");
     event(&mut driver, forge::Event::FirstMade { forge: 1, id: 2 });
@@ -245,7 +245,7 @@ fn first_repository_row_is_volatile_across_restart() {
 
 #[test]
 fn every_create_failure_names_its_step_and_allows_a_fresh_setup() {
-    // protocol/setup/owned.md, 7: admin/org/repository/file failures are named and offered again.
+    // protocol/setup/owned-repositories.md, 1: admin/org/repository/file failures are named and offered again.
     for step in
         [forge::CreateStep::Admin, forge::CreateStep::Org, forge::CreateStep::Repository, forge::CreateStep::File]
     {
@@ -277,7 +277,7 @@ fn every_create_failure_names_its_step_and_allows_a_fresh_setup() {
 
 #[test]
 fn replay_of_an_answered_setup_does_not_start_the_box_twice() {
-    // domain/forge/adoption.md, 1; client/forge/records.md: SetUp is keyed like adoption.
+    // domain/forge/adoption-connection.md, 1; client/forge/records.md: SetUp is keyed like adoption.
     let mut driver = driver(true);
     let _ = setup(&mut driver, 62, b"work", b"hello");
     let request = driver
@@ -300,7 +300,7 @@ fn replay_of_an_answered_setup_does_not_start_the_box_twice() {
 
 #[test]
 fn first_row_moves_from_none_to_making_to_the_created_id() {
-    // protocol/setup/owned.md, 7; client/forge/records.md: row transitions preserve the created id.
+    // protocol/setup/owned-repositories.md, 1; client/forge/records.md: row transitions preserve the created id.
     let mut driver = driver(true);
     assert!(forges(&mut driver).rows[0].first.is_none());
     let _ = setup(&mut driver, 63, b"work", b"hello");
@@ -344,6 +344,61 @@ fn owned_config() -> engine::Config {
     config.machine = Some(forge::Machine { github: place, github_git_program: None });
     config
 }
+#[test]
+fn a_forge_whose_start_was_never_heard_stays_unfinished_across_a_restart() {
+    // protocol/setup/owned-repositories.md, 1: admission keeps the forge and its intent, not a made repository.
+    let limits = fixtures::forge_limits();
+    let mut driver = Driver::configured(Store::new(), std::array::from_fn(|_| owned_config()), &limits);
+    driver.hello(Token::new(7));
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    let first = forge::SetUpFirst::Empty {
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        playground: false,
+        sample: false,
+    };
+    assert_eq!(setup_intent(&mut driver, 71, forge::Making::New(forge::ForgeAsk::Owned), first.clone()), None);
+    let request = driver
+        .immediate
+        .iter()
+        .find_map(|effect| {
+            if let engine::Request::SetUp { forge: 1, request, first: intent, .. } = effect {
+                assert_eq!(*intent, first);
+                Some(*request)
+            } else {
+                None
+            }
+        })
+        .expect("admitted setup reaches the box");
+    event(&mut driver, forge::Event::SetUpAnswered { forge: 1, request, answer: forge::SetUpAnswer::SettingUp });
+    event(&mut driver, forge::Event::Connection { forge: 1, state: forge::Connection::SettingUp { step: None } });
+    assert_eq!(forges(&mut driver).rows[0].connection, forge::Connection::SettingUp { step: None });
+    let mut store = driver.take_store();
+    store.crash(71);
+    let mut restarted = Driver::cold(store, owned_config(), &limits);
+    restarted.hello(Token::new(7));
+    restarted.settle();
+    assert!(restarted.root.ready(), "the engine restored its store");
+    restarted.sign_in();
+    restarted.settle();
+    let rows = forges(&mut restarted);
+    assert_eq!(rows.rows.len(), 1);
+    let row = &rows.rows[0];
+    assert_eq!(row.number, 1);
+    assert_eq!(row.mode, forge::Mode::Owned);
+    assert_eq!(row.connection, forge::Connection::NotConnected, "the cut lost the connection progress");
+    let repository = row.first.as_ref().expect("the intent survives with the unfinished forge");
+    assert_eq!(repository.org.as_ref(), b"work");
+    assert_eq!(repository.repository.as_ref(), b"hello");
+    assert_eq!(repository.state, forge::FirstState::Making);
+    assert!(
+        !restarted.immediate.iter().any(|request| matches!(request, engine::Request::SetUp { .. })),
+        "cold restore does not replay the owner's setup"
+    );
+}
+
 #[test]
 fn deferred_owned_rows_keep_their_choice_across_engine_restart() {
     let address: Box<[u8]> = Box::from(b"https://source.example/owner/repo".as_slice());

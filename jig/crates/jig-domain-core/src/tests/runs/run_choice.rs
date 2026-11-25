@@ -132,6 +132,19 @@ fn ready(none: bool) -> (Core, Limits) {
     (core, limits)
 }
 
+#[test]
+fn a_precomputed_policy_keeps_its_model_and_matching_host() {
+    let (mut core, limits) = ready(false);
+    granted(&mut core, &limits, 2);
+    let mut policy = core.chosen_policy(TASK);
+    let main = policy.alternatives[1].clone();
+    policy.alternatives = Box::new([policy.model.clone(), policy.alternatives[0].clone()]);
+    policy.model = main;
+    let choice = core.run_choice_for_policy(TASK, Some(policy.clone())).expect("precomputed policy is usable");
+    assert_eq!(choice.policy, policy, "the account and host probe keeps the supplied policy");
+    assert_eq!(choice.placement.channel, SECOND, "only the second host serves its main model");
+}
+
 const RESUME_UNTIL: Wall = Wall::from_nanos(100);
 
 fn suspended_on_second(core: &mut Core, limits: &Limits) {
@@ -583,6 +596,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
             &mut core.fleet,
             &environment,
             fleet::Event::Adopt {
+                kept_part: 0,
                 worker: None,
                 reply_to: ReplyTo::new(Token::new(1)),
                 run: Token::new(TASK),
@@ -1870,6 +1884,7 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
         stall: Duration::from_secs(1),
         deadline: Wall::from_nanos(1_000_000_000),
         notice: None,
+        offer: None,
     });
     for executor in
         [tasks::Executor::Procedure { connector: 1, code: 1 }, tasks::Executor::Person(tasks::PersonAddress::Person(1))]
@@ -2513,6 +2528,7 @@ fn chat_stopped_for_its_next_choice() -> (Core, Env<Limits>) {
         &mut core,
         &env.limits,
         tasks::Event::Amend {
+            reads_project: false,
             reply_to: ReplyTo::new(FIRST),
             by: tasks::Party::Person(1),
             places: Box::new([]),
@@ -2633,6 +2649,72 @@ fn a_version_refusal_pauses_without_closing_the_window_or_counting_a_try() {
         core.proofs.get(&OPEN_TASK).unwrap().window,
         Some(CurrentWindow { attempt: OPEN_ATTEMPT, turn: 1, closed: false })
     );
+}
+
+#[test]
+fn an_untranslated_run_claims_again_without_a_try_on_another_channel() {
+    let (mut core, limits) = ready(false);
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    let run = Token::new(OPEN_TASK);
+    let attempt = Token::new(OPEN_ATTEMPT);
+    let version = core.charter_version(OPEN_TASK).unwrap();
+    let payload = Token::new(99);
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let start = |attempt, placement| fleet::Event::Start {
+        placement,
+        version,
+        grants: Box::new([]),
+        reply_to: ReplyTo::new(FIRST),
+        run,
+        attempt,
+        workstream: OPEN_TASK,
+        kinds: fleet::Kinds::Workers,
+        assignment: fleet::Assignment { turns: FIRST, answered: SECOND },
+    };
+    let mut out = Queue::uncapped();
+    fleet::step(
+        &mut core.fleet,
+        &env.with(limits.fleet),
+        start(attempt, Some(fleet::PlacementConstraint { channel: FIRST, kind: fleet::HostKind::Worker })),
+        &mut out,
+    );
+    fleet::resume(&mut core.fleet, &env.with(limits.fleet), true, &mut out);
+    let Some(fleet::Request::Assign { channel, .. }) = out.pop() else { panic!("first placement") };
+    assert_eq!(channel, FIRST);
+    drop(out.pop()); // Placed
+    fleet::step(
+        &mut core.fleet,
+        &env.with(limits.fleet),
+        fleet::Event::Answer { channel: FIRST, run, attempt, answer: fleet::Answer::Untranslated, payload },
+        &mut out,
+    );
+    let Some(fleet::Request::Answered { answer, .. }) = out.pop() else { panic!("fleet's answer") };
+    assert_eq!(answer, fleet::Answer::Untranslated);
+    // The hub link delivers this payload for the fleet's Answered request.
+    let reason: Box<[u8]> =
+        b"the worker's layout cannot keep smith-charter Charter.check_timeout: field".as_slice().into();
+    let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+    let Event::AnswerPayload { end, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::RefusedWithReason { reason: reason.clone() };
+    drop(step(&mut core, &env, answer));
+    let task = core.tasks.task(OPEN_TASK).unwrap();
+    assert_eq!(task.tries, tasks::Tries::NONE);
+    assert_eq!(task.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason) }));
+    let tasks::Phase::Active(tasks::Active::BackingOff { until }) = task.phase else { panic!("pause before claiming") };
+    env.now = core.tasks.next_deadline().unwrap();
+    env.wall = until;
+    drop(fire(&mut core, &env, Timer::Tasks));
+    let retry = core.run_choice(OPEN_TASK).expect("another host may take the task");
+    assert_eq!(retry.placement.channel, SECOND);
+    assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "other tasks can still use the first channel");
+    let next = OPEN_ATTEMPT + 1;
+    claim_existing_open(&mut core, &limits, next);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().attempt, next);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries, tasks::Tries::NONE);
+    fleet::step(&mut core.fleet, &env.with(limits.fleet), start(Token::new(next), None), &mut out);
+    fleet::resume(&mut core.fleet, &env.with(limits.fleet), true, &mut out);
+    let Some(fleet::Request::Assign { channel, .. }) = out.pop() else { panic!("retry placement") };
+    assert_eq!(channel, SECOND, "the fleet places the retry elsewhere");
 }
 
 fn untooled_fixture() -> (Core, Limits) {
@@ -2759,6 +2841,7 @@ fn an_untooled_answer_names_the_current_claim_channel_after_adoption() {
         &mut core.fleet,
         &env.with(limits.fleet),
         fleet::Event::Adopt {
+            kept_part: 0,
             worker: None,
             reply_to: ReplyTo::new(Token::new(OPEN_ATTEMPT)),
             run: Token::new(OPEN_TASK),
@@ -2987,4 +3070,112 @@ fn a_settling_core_leaves_a_waiting_attempt_unplaced_after_a_slot_frees() {
         out.iter()
             .any(|request| { if let fleet::Request::Assign { run, .. } = request { run.raw() == 2 } else { false } })
     );
+}
+
+#[test]
+fn account_wait_counts_from_the_later_source_reset_or_retry() {
+    use crate::{AtBound, Bound, Wait, WaitKind, WaitObject};
+    use tasks::EscalationHolder;
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    let mut row = core.tasks.task(TASK).unwrap().clone();
+    row.phase_since = Wall::from_nanos(10);
+    let reset = Wall::from_nanos(100);
+    let mut expected = Wait {
+        task: TASK,
+        kind: WaitKind::Account,
+        since: row.phase_since,
+        object: WaitObject::Run(TaskRunWait::Account {
+            account: Some(0),
+            source: Some(1),
+            why: TaskWaitWhy::Source(TaskSourceState::Limited { until: None }),
+        }),
+        bound: Bound::At { at: plus(row.phase_since, limits.waits.account), then: AtBound::Hold },
+        hears: Some(EscalationHolder::Person(1)),
+    };
+    account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
+    let projection = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(projection.waits.first, Some(expected.clone()));
+    assert_eq!(projection.on, WaitsOn::Nothing);
+    // An indefinite hold deliberately outlasts a later reset, so use a fresh source.
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    account(
+        &mut core,
+        &limits,
+        accounts::Event::Limited { account: 1, reset: Some(Time::from_nanos(reset.as_nanos())) },
+    );
+    expected.object = WaitObject::Run(TaskRunWait::Account {
+        account: Some(0),
+        source: Some(1),
+        why: TaskWaitWhy::Source(TaskSourceState::Limited { until: Some(reset) }),
+    });
+    expected.bound = Bound::At { at: plus(reset, limits.waits.account), then: AtBound::Hold };
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected.clone()));
+    row.phase = tasks::Phase::Active(tasks::Active::BackingOff { until: reset });
+    row.kept_account = Some(0);
+    expected.object = WaitObject::Run(TaskRunWait::Account {
+        account: Some(0),
+        source: None,
+        why: TaskWaitWhy::Source(TaskSourceState::Later { until: Some(reset) }),
+    });
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
+}
+
+#[test]
+fn the_bound_alarm_counts_two_hours_from_an_unmoved_account_reset() {
+    let (mut core, limits) = ready(false);
+    core.opened = true;
+    suspended_on_second(&mut core, &limits);
+    let reset = Duration::from_secs(3_600).as_nanos();
+    let start = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    crate::runs::waits::alarm::restore(&mut core, &start);
+    drop(step(
+        &mut core,
+        &start,
+        Event::Account(accounts::Event::Limited { account: 1, reset: Some(Time::from_nanos(reset)) }),
+    ));
+    let at = reset + Duration::from_secs(2 * 3_600).as_nanos();
+    assert_eq!(core.wait_alarms.at(TASK), Some(Time::from_nanos(at)));
+    // The account owner may make the wait move when it checks that reset.
+    // Keep its input unchanged here and step only the bound alarm.
+    for nanos in [at - 1, at] {
+        let env = Env { now: Time::from_nanos(nanos), wall: Wall::from_nanos(nanos), limits };
+        let _out = fire(&mut core, &env, Timer::WaitBounds);
+        let row = core.tasks.task(TASK).unwrap();
+        if nanos == at {
+            let tasks::Phase::Held { why: tasks::Hold::Waited, source: Some(source), .. } = &row.phase else {
+                panic!("{:?}", row.phase)
+            };
+            let tasks::HoldSource::Wait { words } = source.as_ref() else { panic!("{source:?}") };
+            assert!(core::str::from_utf8(words).unwrap().contains("account 0 source 1: limited until"));
+        } else {
+            assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Due));
+        }
+    }
+}
+
+#[test]
+fn host_wait_counts_from_the_end_of_the_workers_suspension() {
+    use crate::{AtBound, Bound, Wait, WaitKind, WaitObject};
+    use tasks::EscalationHolder;
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel: SECOND });
+    core.fleet.reclaim();
+    let row = core.tasks.task(TASK).unwrap();
+    let expected = Wait {
+        task: TASK,
+        kind: WaitKind::Host,
+        since: row.phase_since,
+        object: WaitObject::Run(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }),
+        bound: Bound::At { at: plus(RESUME_UNTIL, limits.waits.host), then: AtBound::Hold },
+        hears: Some(EscalationHolder::Person(1)),
+    };
+    assert_eq!(core.waits(TASK).first, Some(expected));
+    assert_eq!(core.waits_on(&limits, TASK), WaitsOn::Nothing);
+}
+
+fn plus(wall: Wall, duration: Duration) -> Wall {
+    Wall::from_nanos(wall.as_nanos().checked_add(duration.as_nanos()).unwrap())
 }

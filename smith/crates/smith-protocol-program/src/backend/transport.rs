@@ -1,4 +1,4 @@
-//! Native child and pipe progress (smith/docs/design/protocol/programs.md, 5.5–5.7).
+//! Native child and pipe progress (smith/docs/design/protocol/programs-claude-code.md, 1.5–1.7).
 //! Keeps transport cursors and bounded stderr; the startup and conversation
 //! handlers own admission and completion. IO reports all child and pipe ends.
 

@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain::{Key, Record, Write};
 
 /// One independently expected successful roster replacement, including the
-/// exact task rows permitted to change (jig's domain/engine/README.md, section 5.1).
+/// exact task rows permitted to change (jig's domain/engine/decisions.md, section 1.1).
 #[derive(Clone, Hash, Debug)]
 pub struct Replacement {
     /// Complete project roster supplied by the outside owner (jig's
@@ -72,14 +72,14 @@ impl Referee {
     /// # Errors
     /// Names missing cohort members, unauthorized changes, duplicate writes,
     /// altered funding, or a task field differing from the scripted expectation
-    /// (jig's domain/engine/README.md, section 5.1).
+    /// (jig's domain/engine/decisions.md, section 1.1).
     #[expect(
         clippy::too_many_lines,
         reason = "one independent atomic-cohort check names each specific violated contract"
     )]
     pub fn commit(&mut self, writes: &[Write]) -> Result<(), &'static str> {
         if writes.contains(&Write::Wires) {
-            // domain/root.md 8.1: exactly the deployment header and Wires.
+            // domain/root-restart.md 1.1: exactly the deployment header and Wires.
             if writes.len() != 2 {
                 return Err("startup mark contains other writes");
             }
@@ -135,6 +135,7 @@ impl Referee {
                         | jig_domain_core::Record::Core(
                             jig_domain_core::CoreRecord::Settings(_)
                             | jig_domain_core::CoreRecord::Projection(_)
+                            | jig_domain_core::CoreRecord::Part(_)
                             | jig_domain_core::CoreRecord::Call(_)
                             | jig_domain_core::CoreRecord::Deployment(_)
                             | jig_domain_core::CoreRecord::Turn(_)
@@ -190,6 +191,7 @@ impl Referee {
                         | jig_domain_core::Record::Core(
                             jig_domain_core::CoreRecord::Settings(_)
                             | jig_domain_core::CoreRecord::Projection(_)
+                            | jig_domain_core::CoreRecord::Part(_)
                             | jig_domain_core::CoreRecord::Call(_)
                             | jig_domain_core::CoreRecord::Deployment(_)
                             | jig_domain_core::CoreRecord::Turn(_)
@@ -271,6 +273,7 @@ impl Referee {
                             | jig_domain_core::Record::Core(
                                 jig_domain_core::CoreRecord::Settings(_)
                                 | jig_domain_core::CoreRecord::Projection(_)
+                                | jig_domain_core::CoreRecord::Part(_)
                                 | jig_domain_core::CoreRecord::Call(_)
                                 | jig_domain_core::CoreRecord::Deployment(_)
                                 | jig_domain_core::CoreRecord::Turn(_)
@@ -348,6 +351,7 @@ impl Referee {
                     | jig_domain_core::Record::Core(
                         jig_domain_core::CoreRecord::Settings(_)
                         | jig_domain_core::CoreRecord::Projection(_)
+                        | jig_domain_core::CoreRecord::Part(_)
                         | jig_domain_core::CoreRecord::Call(_)
                         | jig_domain_core::CoreRecord::RunProof(_)
                         | jig_domain_core::CoreRecord::Terminal(_)
@@ -361,6 +365,7 @@ impl Referee {
                     jig_domain_core::Key::Core(
                         jig_domain_core::CoreKey::Settings(_)
                         | jig_domain_core::CoreKey::Projection(_)
+                        | jig_domain_core::CoreKey::Part(_)
                         | jig_domain_core::CoreKey::Call(_)
                         | jig_domain_core::CoreKey::RunProof(..)
                         | jig_domain_core::CoreKey::Terminal { .. }
@@ -416,7 +421,7 @@ impl Referee {
     /// # Errors
     /// Rejects unsolicited/duplicate replies, wrong wrappers/outcomes, replies
     /// before durability, or admission refusals that replaced an existing key
-    /// (jig's domain/people/acts.md, section 1; jig's domain/engine/README.md, section 5.2).
+    /// (jig's domain/people/acts.md, section 1; jig's domain/engine/decisions.md, section 1.2).
     pub fn replied(
         &mut self,
         rows: &BTreeMap<Key, Record>,

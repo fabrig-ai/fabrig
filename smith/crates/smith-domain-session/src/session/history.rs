@@ -1,4 +1,4 @@
-//! History admission and bounded result batches (smith/docs/design/domain/session.md, section 8.1).
+//! History admission and bounded result batches (smith/docs/design/domain/session-context.md, section 1.1).
 //! This retains no state: it forecasts space before provider work and shares
 //! remaining payload room before tool work. Window replacement owns held text.
 
@@ -152,6 +152,10 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
     let mut ended = false;
     let mut blocked = failed;
     for block in message.content.iter().skip(usize::try_from(next).expect("u32 fits")) {
+        if let Some(result) = super::restore::result(conversation, block) {
+            blocked |= super::batching::failed(block, &result);
+            continue;
+        }
         if !super::chosen(&conversation.choice, block) || !super::batching::scheduled(block, &mut blocked) {
             continue;
         }
@@ -196,6 +200,10 @@ pub(super) fn reserve_batch(conversation: &mut Conversation, next: u32, failed: 
     let mut reached = 0_u32;
     let mut blocked = failed;
     for block in message.content.iter().skip(usize::try_from(next).expect("u32 fits")) {
+        if let Some(result) = super::restore::result(conversation, block) {
+            blocked |= super::batching::failed(block, &result);
+            continue;
+        }
         if reached == count
             || !super::chosen(&conversation.choice, block)
             || !super::batching::scheduled(block, &mut blocked)

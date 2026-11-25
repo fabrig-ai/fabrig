@@ -10,12 +10,13 @@
   - Drafts the design carries in full stay in `draft/`.
 - **`STATUS.md` becomes a fixed page** (section 3): a few lines saying where the status files are and how to roll them up. A script beside the citation checker prints both the page and the roll-up. The gate refuses any page other than the one the script prints, so no goal writes it.
 - **Documents split before they fill** (section 4): a document past a mark at 48 KB is due a split, and its pieces come out under 40 KB. Text is never cut just to pass the limit. The roll-up lists the documents that are due, and a goal splits them one area at a time.
-- **Finished drafts go** (section 5): the roll-up lists each draft whose status records no gap, and the same goal archives or deletes it.
+- **Finished drafts go** (section 5): the roll-up lists each draft whose status records no lag and no open decision, and the same goal archives or deletes it.
 - **Unchanged:**
   - The status file beside each document, and what its entries say (`DESIGN.md`, 2).
   - The 64 KB limit, its gate, and the trees `tools/citations/sized.txt` lists.
   - `tools/citations/move.py`.
   - `temper/docs/design/client/web/mockups/STATUS.md`, the mockups' own list of gaps, kept under their README's rules.
+- **After the first passes** (2.5): a draft with only **Design departs** left is done and goes to the archive with them (3.2, section 5). A document keeps its text in numbered sections, and one whose opening passes 8 KB is due to be numbered (4.1, 4.2).
 
 ## 2. What happened
 
@@ -54,6 +55,16 @@ At `b2fdead79c`, 13 of temper's drafts outside `draft/archive/` have a status th
 
 The status file beside each document held. temper's design documents' status files went from 673 KB in 116 files on 11-11 to 518 KB in 195 files at `1815554c04`. A file whose gaps belong to its own document, in a shape the rule fixes, stays small.
 
+### 2.5 What the first passes showed
+
+Read at `d50c06b8e3` (2026-11-24 18:27Z), against the first pass's landing, `0359224cd6` (2026-11-22 22:53Z), and `42e1e8fcdf` (2026-11-21 19:00Z).
+
+- **The page held:** all five trees' `STATUS.md` stayed the fixed page, 830 to 839 bytes, through the 142 landings since it was fixed, and none of them edited one.
+- **The splits held:** 85 files across the five trees were over the mark on 11-21, 46 of them over 60 KB. At `d50c06b8e3`, 2 are over it, temper's `domain/worker/checkouts.md` at 54,743 bytes and smith's `testing.md` at 51,305, and none is over 56 KB. No file came near the limit, so no goal had to cut one.
+- **Goals write as before:** the 60 landings that touched design documents before the rules made 23 documents and added 452 KB, and the 60 after the first pass made 20 and added 466 KB. Documents climb back to the mark within days, as 4.3 expects: temper's documents over 40 KB went from 19 to 21, and `checkouts.md` grew 5.6 KB in 12 hours.
+- **No draft went:** a draft's status counted as done only when every label read none. But a **Design departs** entry never closes, since goals leave a draft's text as it is. Since the first pass the roll-up has listed no draft as done, and none was archived, while 51 of temper's 122 drafts outside `draft/archive/` had only departures left: 751 KB of `draft/`'s 2.4 MB.
+- **Openings that hold the document:** 34 documents' text before their first numbered section is over 8 KB (19 of them temper's, 11 jig's, 3 skein's and 1 hearth's), 20 of them over 16 KB. `checkouts.md` is a 43.7 KB opening list and two sections, and the three goals that grew it since the pass each added an item to that list. `move.py` moves numbered sections, so a split can't take such an opening apart as it stands.
+
 ## 3. STATUS.md, a fixed page
 
 ### 3.1 The page
@@ -78,12 +89,12 @@ The status file beside each document held. temper's design documents' status fil
 - **How it reads a status file,** in `DESIGN.md`, 2's form:
   - **Labels:** a design document's are **Not yet** and **Departs**; a draft's are **Design lags**, **Design departs** and **Open**. Each label's text runs from the label to the next label or to the end of the file, its bullets included.
   - **Entries:** each section label (`3.2:`) in that text counts as one entry. Text with no section label counts as one. A text that reads "none" counts none. A **Not yet** entry ending in `[in flight: change N]` is in flight.
-  - **Done:** every label in the file reads none, or the file's only text after its opening line is "No gap."
+  - **Done:** every label in the file reads none, or the file's only text after its opening line is "No gap." A draft's status is also done when its **Design lags** and **Open** read none, whatever its **Design departs** hold: they record what the design does instead, and nothing closes them (2.5).
   - **Unread:** a file in neither form, with prose and no label for instance. The roll-up lists it as unread, never as done.
 - **What it prints, for each tree:**
-  - The open entries counted by label, with how many **Not yet** entries are in flight.
+  - The open entries counted by label, with how many **Not yet** entries are in flight. A status file under `draft/archive/` counts none: its draft has gone.
   - A line for each status file with an open entry, giving its date and counts.
-  - What's due: the files over the mark (4.1), largest first; the drafts that are done, outside `draft/archive/` (section 5); and the unread status files.
+  - What's due: the files over the mark (4.1), largest first; the documents whose opening is past 8 KB (4.1), largest opening first; the drafts that are done, outside `draft/archive/` (section 5); and the unread status files.
 - **Only a read:** it writes nothing, and no gate runs the roll-up. Its tests sit beside it, as the checker's do.
 
 ### 3.3 The check
@@ -104,6 +115,7 @@ The status file beside each document held. temper's design documents' status fil
 ### 4.1 The mark
 
 - **48 KB** (49,152 bytes), below the 64 KB limit, for every file the limit covers. A document or draft over the mark is due a split, and the roll-up lists it.
+- **The opening:** a document's or a draft's text before its first numbered section, all of it where there is none. Past 8 KB, it is due to be numbered, and the roll-up lists it among what's due (3.2). Status, notes and execution files aren't read for it.
 - **A status file over the mark** follows its document: its entries go with their sections when the document splits.
 - **No refusal at the mark:** the limit stays the gate's only refusal. Whatever line the gate refuses at, goals pass it by the smallest cut (2.2), so a refusal at the mark would only bring the same cut sooner. What's missing is a split made before a goal runs into the limit.
 
@@ -112,6 +124,7 @@ The status file beside each document held. temper's design documents' status fil
 - **Along the document's concepts** (`DESIGN.md`, 5), with `tools/citations/move.py` and its map. Each piece comes out under 40 KB. A concept that can't be brought under 40 KB stays under the mark. One that can't be brought under the mark stays whole, and the change says why.
 - **Text moves unchanged:** a split only moves text. No text is cut just to pass the limit. Text that is wrong, out of date, or not the design's to say (`design-economy.md`, 4.2) is removed for that reason, in a change of its own, so that each change is reviewed as what it is.
 - **What stays keeps its numbers:** the map names no `renumber` for the document left behind. Where a section left, one line names where it went, so a spec or a branch that still cites the old place can find it. The next pass removes those lines.
+- **A long opening first:** before a document is split, an opening past 8 KB goes into numbered sections under headings of its own, its text unchanged, and a `renumber` entry of the map numbers them with the sections after them, so that every citation follows. Its pieces then move as any section does. A document under the mark with such an opening is numbered and not split.
 - **At the limit too:** a goal that meets the limit splits the same way, and the checker's refusal says so: "over the 65,536-byte limit: split it along its concepts, each piece under 40 KB (DESIGN.md, 5); don't cut text to fit".
 - **`draft/notes.md`:** this one file holds every draft's reasons. It splits into a notes file beside each draft, `<draft>.notes.md`, and `DESIGN.md`, 4, then puts a draft's reasons there and nowhere else. No shared notes file is left to fill up.
 
@@ -120,14 +133,16 @@ The status file beside each document held. temper's design documents' status fil
 - **A goal** that splits temper's files over the mark as 4.2 says, and removes the drafts section 5 lists.
 - **One area at a time:** `move.py` rewrites citations across the whole repository. So the goal's changes run one after another, each splitting one area's files: for example the domain, the protocol, the clients, and then the rest. Each change takes its batch from the files over the mark at the commit it starts from, and writes its maps alone. It's accepted when every file of its batch is under the mark.
 - **The first pass:** the 45 documents and drafts over the mark at `b2fdead79c` (27 of them over 56 KB), `draft/notes.md` among them; `client/pages/README.status.md` with its document; and the 13 drafts of 2.3.
-- **Later passes:** once the roll-up lists a temper document over 56 KB, another pass is proposed to the user, who approves it as any other goal (7.1).
+- **Later passes, by hand for now:** when the user checks in, the drafter brings the roll-up's due list for each tree, a document over 56 KB above all, and they decide together whether to run a pass. A pass they decide on starts as a goal on the user's word. Once a few passes have given experience, the passes are automated (7.1).
 - **Goals in flight:** a split moves text that a goal in flight may cite or edit. A citation to a moved section finds its line (4.2). A goal whose branch edited a moved section meets a conflict at its merge. The goal's designer or coordinator resolves it with the map, since a repair may not edit design documents.
-- **Other trees:** the roll-up lists jig's, skein's, smith's and hearth's files over the mark for their areas. This draft runs no pass on them (7.2).
+- **The third pass,** 2026-11-24 (2.5): temper's `checkouts.md`, its opening numbered first, then smith's `testing.md`, a goal each. Then a goal that brings the roll-up to 3.2's and 4.1's new readings and acts on what they list: temper's drafts with only departures left archived, and every tree's long openings numbered, one tree a change.
+- **Other trees:** jig's, skein's, smith's and hearth's files over the mark get passes of their own, decided as temper's are. A tree's pass is one goal, and the trees' goals run one after another, since each rewrites citations across the whole repository (7.2).
 
 ## 5. Finished drafts go
 
 - **Due:** a draft in `draft/`, outside `draft/archive/`, whose status is done (3.2). The roll-up lists it.
-- **How it goes:** the split pass moves it to `draft/archive/` with `move.py`, or deletes it where nothing cites it (`DESIGN.md`, 4). Its execution file and its notes file go with it.
+- **A milestone left:** the pass reads each listed draft's execution file. A draft whose execution file still has a milestone to run stays, and the pass's change names it: its status is missing a **Design lags** entry, and only a reader can tell.
+- **How it goes:** the split pass moves it to `draft/archive/` with `move.py`, or deletes it where nothing cites it (`DESIGN.md`, 4). Its execution file and its notes file go with it. A draft with **Design departs** entries is archived, not deleted, and they go with it: they say why the design reads otherwise.
 - **Unread first:** a draft whose status is unread, as `cli-c8-tools`' is today, is brought to the form before it counts as done.
 
 ## 6. Order
@@ -135,13 +150,14 @@ The status file beside each document held. temper's design documents' status fil
 - **The words before the check:** goals stop being asked to write the page before the gate refuses a page other than the fixed one.
 - **On dev.fabrig.ai,** fabrig's goal charter reaches the goals once its charter set is applied there and the live goals are moved to the new revision. A run already going keeps the revision it started with until it ends.
 - **The split pass after the roll-up,** since the pass works from the roll-up's list of what's due.
+- **The new readings after the third pass** (4.3): archiving drafts and numbering openings rewrite citations across the repository, as the passes' splits do, so they run after them.
 
 ## 7. Open questions
 
 ### 7.1 How often split passes run
 
-How often the roll-up is read for a pass, weekly for instance, and whether later passes carry the user's standing approval, as the fixes for temper's own bugs do, or each one waits for the user's word.
+Decided by the user, 2026-11-21: by hand at first, with no cadence and no standing approval. At the user's check-ins the drafter reminds them of the roll-up's due list, and they decide whether to run a pass (4.3). Once a few passes have given experience, the passes are automated, and their cadence and approval are decided then.
 
 ### 7.2 The other trees
 
-Whether jig's, skein's, smith's and hearth's files over the mark get split passes of their own, and who proposes them.
+Decided by the user, 2026-11-23: jig's, skein's, smith's and hearth's files over the mark get split passes of their own. The drafter proposes them with temper's, from each tree's due list at the user's check-ins (7.1), and a pass the user decides on starts as a goal on their word. Their first passes follow temper's second, one goal per tree (4.3).

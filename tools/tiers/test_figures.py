@@ -1,10 +1,12 @@
 """Committed-tree checks of the figures rule (tools/tiers/budgets.md, 10.1)."""
 
 from pathlib import Path
+import json
 import runpy
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 
 SCRIPT = Path(__file__).with_name('figures.py').resolve()
@@ -39,6 +41,11 @@ to = "temper.domain"
 cpu_s = 1.5
 why = "place the mechanics lower"
 '''
+INSTRUCTION_BASE = (BASE.replace('ideal_s = 25\n', 'ideal_s = 25\ninstructions = 9007199254740992\n'
+                                 'ideal_instructions = 250000000000\n')
+                    .replace('ideal_s = 30\n', 'ideal_s = 30\ninstructions = 1500000000000\n'))
+INSTRUCTION_MOVE = MOVE + 'instructions = 15000000000\n'
+MOVE_PLACE = "default move temper.simulated to temper.domain instructions ('place the mechanics lower')"
 REASON = '''\n[[gate.default.reasons]]
 binary = "temper-system::suite"
 test = "suite::chat::a_whole_chat_lands"
@@ -46,6 +53,13 @@ cpu_s = 3
 why = "a whole chat"
 '''
 REASON_PLACE = 'default reason temper-system::suite suite::chat::a_whole_chat_lands'
+CHECK_REASON = '''\n[[gate.default.check_reasons]]
+binary = "temper-system::suite"
+checks = {seed = 1}
+kind = "budget"
+by = "the user"
+why = "Approved."
+'''
 
 
 class Figures(unittest.TestCase):
@@ -107,10 +121,75 @@ class Figures(unittest.TestCase):
                          (0, f'figures: {BUDGETS} unchanged since {self.base}\n', ''))
 
     def test_budgets_alone_are_the_users_figures(self):
-        self.head(BASE.replace('cpu_s = 136', 'cpu_s = 140') + REASON, other=False)
+        self.head(INSTRUCTION_BASE.replace('cpu_s = 136', 'cpu_s = 140') + INSTRUCTION_MOVE + REASON + CHECK_REASON,
+                  other=False)
         result = self.run_check('--base', self.base)
         self.assertEqual((result.returncode, result.stdout, result.stderr),
                          (0, f"figures: {BUDGETS} alone changed since {self.base}: the user's figures\n", ''))
+
+    def member_head(self, content=None, *, other=False):
+        self.git('checkout', '-q', '--detach', self.base)
+        if content is not None:
+            self.write(BUDGETS, content)
+        if other:
+            self.write('other', 'member change\n')
+        return self.commit('member')
+
+    def stack_members(self, *members):
+        self.git('checkout', '-q', '--detach', self.base)
+        prefixes = []
+        for member in members:
+            self.git('merge', '--no-ff', '-qm', 'land member', member)
+            prefixes.append(self.git('rev-parse', 'HEAD'))
+        return prefixes
+
+    def test_batch_passes_the_users_figures_in_either_order(self):
+        accepted = INSTRUCTION_BASE.replace('ideal_instructions = 250000000000\n',
+                                            'ideal_instructions = 250000000000\naccepted_instructions = 300000000000\n')
+        self.set_base(accepted)
+        budget = self.member_head(accepted.replace('300000000000', '300000000001'))
+        other = self.member_head(other=True)
+        for lowest, highest in ((other, budget), (budget, other)):
+            with self.subTest(budget_on_top=highest == budget):
+                prefix, _ = self.stack_members(lowest, highest)
+                before_budget, before_other = (prefix, self.base) if highest == budget else (self.base, prefix)
+                alone = f"figures: {BUDGETS} alone changed since {before_budget}: the user's figures"
+                unchanged = f'figures: {BUDGETS} unchanged since {before_other}'
+                lines = [unchanged, alone] if highest == budget else [alone, unchanged]
+                result = self.run_check('--base', self.base)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(result.stdout.splitlines(),
+                                 [f'figures: HEAD stacks 2 members on {self.base}: each judged by its own change',
+                                  *lines, f'figures: 0 raised or added since {self.base}'])
+                self.assertEqual(result.stderr, '')
+
+    def test_batch_refuses_a_raise_with_other_paths(self):
+        content = BASE + MOVE
+        self.set_base(content)
+        budget = self.member_head(content.replace('wall_hard_s = 300', 'wall_hard_s = 301'))
+        mixed = self.member_head(content.replace('cpu_s = 136', 'cpu_s = 140'), other=True)
+        prefix, _ = self.stack_members(budget, mixed)
+        result = self.run_check('--base', self.base)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.splitlines(),
+                         [f'figures: HEAD stacks 2 members on {self.base}: each judged by its own change',
+                          f"figures: {BUDGETS} alone changed since {self.base}: the user's figures",
+                          'figure raised: default temper domain ceiling: 137.5 to 141.5',
+                          f'figures: 1 raised or added since {prefix}',
+                          f'figures: 1 raised or added since {self.base}', REPAIR_LINE])
+        self.assertEqual(result.stderr, '')
+
+    def test_single_merge_compares_whole(self):
+        mixed = self.member_head(BASE.replace('cpu_s = 136', 'cpu_s = 140'), other=True)
+        self.stack_members(mixed)
+        self.check(['figure raised: default temper domain ceiling: 136 to 140'])
+
+    def test_commit_on_top_of_merge_compares_whole(self):
+        budget = self.member_head(BASE.replace('cpu_s = 136', 'cpu_s = 140'))
+        self.stack_members(budget)
+        self.write('other', 'squashed change\n')
+        self.commit('land squashed member')
+        self.check(['figure raised: default temper domain ceiling: 136 to 140'])
 
     def merge_head(self, content, resolution=None):
         self.git('checkout', '-q', '--detach', self.base)
@@ -131,6 +210,18 @@ class Figures(unittest.TestCase):
                          (0, [f'figures: {BUDGETS} unchanged since {merged}',
                               f'figures: 0 raised or added since {self.base} and {merged}'], ''))
         self.check([f'figure added: {REASON_PLACE}: 3'], head=head)
+
+    def test_budget_check_reason_requires_a_budgets_only_change(self):
+        merged, head = self.merge_head(BASE + CHECK_REASON)
+        reason, = tomllib.loads(CHECK_REASON)['gate']['default']['check_reasons']
+        line = 'budget check reason added: default budget check reason temper-system::suite: '
+        result = self.run_check('--base', self.base, '--merged', merged, '--head', head)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn(line + json.dumps(reason, sort_keys=True), result.stdout.splitlines())
+
+        self.set_base(BASE + CHECK_REASON.replace('check_reasons', 'coverage_reasons'))
+        self.head(BASE + CHECK_REASON)
+        self.check()
 
     def test_merge_resolution_raise_is_named_once_by_place(self):
         merged, head = self.merge_head(BASE.replace('cpu_s = 136', 'cpu_s = 138') + REASON,
@@ -215,6 +306,90 @@ class Figures(unittest.TestCase):
             with self.subTest(move=move):
                 self.head(BASE + move)
                 self.check([f'figure raised: default temper simulated ceiling: 158.5 to {value}'])
+
+    def test_layer_instruction_figures_added(self):
+        self.head(INSTRUCTION_BASE)
+        self.check(['figure added: default temper domain instruction ceiling: 9007199254740992',
+                    'figure added: default temper domain instruction ideal: 250000000000',
+                    'figure added: default temper simulated instruction ceiling: 1500000000000'])
+
+    def test_layer_instruction_figures_raised_or_removed(self):
+        self.set_base(INSTRUCTION_BASE)
+        self.head(INSTRUCTION_BASE.replace('9007199254740992', '9007199254740993')
+                  .replace('250000000000', '250000000001'))
+        self.check(['figure raised: default temper domain instruction ceiling: 9007199254740992 to 9007199254740993',
+                    'figure raised: default temper domain instruction ideal: 250000000000 to 250000000001'])
+        self.head(BASE)
+        self.check(['figure raised: default temper domain instruction ceiling: 9007199254740992 to none',
+                    'figure raised: default temper domain instruction ideal: 250000000000 to none',
+                    'figure raised: default temper simulated instruction ceiling: 1500000000000 to none'])
+        start = INSTRUCTION_BASE.index('[gate.default.temper.domain]')
+        end = INSTRUCTION_BASE.index('[gate.default.temper.simulated]')
+        self.head(INSTRUCTION_BASE[:start] + INSTRUCTION_BASE[end:])
+        self.check(['figure raised: default temper domain instruction ceiling: 9007199254740992 to none',
+                    'figure raised: default temper domain instruction ideal: 250000000000 to none'])
+
+    def test_layer_instruction_figures_lowered(self):
+        self.set_base(INSTRUCTION_BASE)
+        self.head(INSTRUCTION_BASE.replace('9007199254740992', '9007199254740991')
+                  .replace('250000000000', '249999999999'))
+        self.check()
+
+    def test_accepted_level_added_or_raised_but_not_lowered(self):
+        accepted = INSTRUCTION_BASE.replace('ideal_instructions = 250000000000\n',
+                                            'ideal_instructions = 250000000000\naccepted_instructions = 300000000000\n')
+        self.set_base(INSTRUCTION_BASE)
+        self.head(accepted)
+        self.check(['figure added: default temper domain instruction accepted level: 300000000000'])
+        self.set_base(accepted)
+        self.head(accepted.replace('300000000000', '300000000001'))
+        self.check(['figure raised: default temper domain instruction accepted level: 300000000000 to 300000000001'])
+        self.head(accepted.replace('300000000000', '299999999999'))
+        self.check()
+        self.head(INSTRUCTION_BASE)
+        self.check()
+
+    def test_move_instructions_added_or_raised(self):
+        self.set_base(INSTRUCTION_BASE)
+        self.head(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        self.check([f'figure added: {MOVE_PLACE}: 15000000000'])
+        self.set_base(INSTRUCTION_BASE + MOVE)
+        self.head(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        self.check([f'figure added: {MOVE_PLACE}: 15000000000'])
+        self.set_base(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        self.head(INSTRUCTION_BASE + INSTRUCTION_MOVE.replace('15000000000', '15000000001').replace('1.5', '2.5'))
+        self.check([f'figure raised: {MOVE_PLACE}: 15000000000 to 15000000001'])
+
+    def test_move_instructions_lowered_or_removed(self):
+        self.set_base(INSTRUCTION_BASE + INSTRUCTION_MOVE)
+        for move in (INSTRUCTION_MOVE.replace('15000000000', '14999999999'), MOVE):
+            with self.subTest(move=move):
+                self.head(INSTRUCTION_BASE + move)
+                self.check()
+
+    def test_instruction_moves_with_same_endpoints_and_reason_match_unchanged_amounts(self):
+        smaller = INSTRUCTION_MOVE.replace('15000000000', '10000000000')
+        larger = INSTRUCTION_MOVE.replace('15000000000', '16000000000')
+        self.set_base(INSTRUCTION_BASE + INSTRUCTION_MOVE + smaller)
+        self.head(INSTRUCTION_BASE + smaller + INSTRUCTION_MOVE)
+        self.check()
+        self.head(INSTRUCTION_BASE + smaller + INSTRUCTION_MOVE + smaller)
+        self.check([f'figure added: {MOVE_PLACE} #3: 10000000000'])
+        self.head(INSTRUCTION_BASE + smaller + INSTRUCTION_MOVE + larger)
+        self.check([f'figure added: {MOVE_PLACE}: 16000000000'])
+
+    def test_instruction_figures_require_positive_integers(self):
+        for content, key, original in (
+                (INSTRUCTION_BASE, 'domain.instructions', '9007199254740992'),
+                (INSTRUCTION_BASE, 'domain.ideal_instructions', '250000000000'),
+                (INSTRUCTION_BASE + INSTRUCTION_MOVE, 'moves[0].instructions', '15000000000')):
+            for value in ('true', '1.0', '0', '-1'):
+                with self.subTest(key=key, value=value):
+                    self.head(content.replace(f' = {original}\n', f' = {value}\n'))
+                    result = self.run_check('--base', self.base)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertIn(f'{key} must be a positive integer', result.stderr)
+                    self.assertEqual(result.stdout, '')
 
     def test_only_downward_moves_are_excused_using_heads_order(self):
         self.head(BASE + MOVE)

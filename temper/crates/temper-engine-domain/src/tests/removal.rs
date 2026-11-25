@@ -1,5 +1,5 @@
 //! Removal cancels procedure tasks through their existing control path
-//! (temper/docs/design/domain/forge/adoption.md, 1).
+//! (temper/docs/design/domain/forge/adoption-connection.md, 1).
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 use temper_engine_domain_forge as forge;
@@ -13,6 +13,7 @@ fn procedure() -> (crate::Domain, Env<crate::Limits>, u64) {
         tasks::Event::Restored,
         tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(2)), project: 1, period: 1, budget: 100 },
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(3)),

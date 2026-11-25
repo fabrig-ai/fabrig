@@ -1,4 +1,4 @@
-//! Requests about this connector's own objects (domain/connectors.md, 5.5).
+//! Requests about this connector's own objects (domain/connectors-facts.md, 1.5).
 
 use crate::{Domain, Limits, Record, RecordKey, Request, application_core};
 use skein_lib::{Duration, Env, Map, Queue, Token, Wall};

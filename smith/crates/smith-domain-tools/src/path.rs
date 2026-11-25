@@ -72,7 +72,7 @@ impl Resolved {
 }
 
 /// How paths read in a conversation, fixed from its authority for its life.
-/// Contract: smith/docs/design/domain/run.md, section 3.3; smith/docs/design/domain/tools.md, section 2.
+/// Contract: smith/docs/design/domain/run-start.md, section 1.3; smith/docs/design/domain/tools.md, section 2.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Namespace {
     /// No directories are mounted, so no workspace paths are offered.

@@ -39,7 +39,7 @@ tab*).
   A browser that opens the tab and hides it is served by "Open it again".
 - **A mechanism of skein's:** the web platform opens a tab with a line of
   words, points it at an address under the navigation's own target rule
-  (`skein/docs/design/ui/web/README.md`, section 8), closes it, and reports a
+  (`skein/docs/design/ui/web/effects.md`, section 1), closes it, and reports a
   tab refused.
 - **The terminal** prints the address, as today.
 
@@ -57,8 +57,8 @@ tab*).
   `skein/docs/design/ui/web/README.md`), so a slow sign-in moves on when the
   person returns, its stream opened again. The page says nothing of this.
 - **A reload while it waits** draws the same page: the page's address
-  names the sign-in's source once it is answered (`../client/web/README.md`,
-  2.3), replacing its history entry.
+  names the sign-in's source once it is answered (`../client/web/addresses.md`,
+  1), replacing its history entry.
 
 ## 4. The new tab's end
 
@@ -82,9 +82,9 @@ tab*).
 - **`PasteHistory`:** "Go forward to that page ...". The page stays in its
   tab.
 - **A recording's end at a sign-in:** with no departure, a recording goes
-  on through the sign-in and its end (`../client/web/journeys.md`, 3.1). What
+  on through the sign-in and its end (`../client/web/journeys-recordings.md`, 1.1). What
   the shell did with the tab is among what the recording keeps and the
-  replay checks (`../client/web/journeys.md`, 4.2).
+  replay checks (`../client/web/journeys-recordings.md`, 2.2).
 
 ## 6. Open questions
 

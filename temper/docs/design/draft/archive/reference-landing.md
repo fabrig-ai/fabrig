@@ -3,9 +3,9 @@
 Draft, 2026-11-02. How the reference lands what code production made: a
 goal's branch into main as one change, the few small changes around it,
 and their verification after landing. Code production is
-`../reference-code-production.md`; `../reference-case.md` walks both;
-`../notes.md` holds the reasons, cited by number (N1 to N24), and where
-each item of the landing model it drops goes (`../notes.md`, section 6).
+`../reference-code-production.md`; `reference-case.md` walks both;
+`../reference-code-production.notes.md` holds the reasons, cited by number (N1 to N24), and where
+each item of the landing model it drops goes (`../reference-code-production.notes.md`, section 6).
 
 Unqualified, `../../domain/forge/README.md`, `../../domain/landing.md`, `../../domain/after-landing.md` and
 `../../domain/findings.md` are temper's `../domain/` documents; jig's are named as
@@ -20,7 +20,7 @@ jig's.
   fate) is written once L has landed, by the close-out, a change into
   main (N16, as `../goal-as-designer.md`, section 2, moves it). Nothing is
   batched.
-- **By queue, as temper has it** (`../../domain/forge/change/README.md`, 2 and `../../domain/forge/queues.md` and `../../domain/forge/README.md`, 6): checked at
+- **By queue, as temper has it** (`../../domain/forge/change/README.md`, 2 and `../../domain/forge/queues.md` and `../../domain/forge/updates.md`, 1): checked at
   its head, queued by its goal's priority, the first brought up to date
   with main if it lacks main's tip and checked again, merged at exactly
   that head. One change at a time owns main's queue.
@@ -87,7 +87,7 @@ The change procedure's way (`../../domain/forge/change/README.md`, 2), from open
    ready, aging bounding the wait (`../../domain/forge/queues.md`).
 6. **First,** it owns main's queue through what follows, so no change
    overtakes it and no CI run is wasted. If its head lacks main's tip it
-   is **updated** (`../../domain/forge/README.md`, section 6), the forge merging main into g
+   is **updated** (`../../domain/forge/updates.md`, section 1), the forge merging main into g
    with no LLM, under the goal's hold: cleanly, and the new head is
    checked again; or in conflict, and it leaves the queue to be
    **resolved**: the merge job settles what the project's tooling knows
@@ -106,7 +106,7 @@ resolution) and the forge's update it asked for, each taking g's writer
 slot as it writes; and the changes the coordinator makes into g, whose
 merges take it too. A move by the coordinator's other delegates is L's
 new head, checked again as after a repair, never drift (N3). A move by
-anyone else is drift (`../../domain/forge/change/README.md`, 3).
+anyone else is drift (`../../domain/forge/change/drift.md`, 1).
 
 **Bounds** (`../../domain/forge/change/repairs.md`): repairs (three in the reference),
 resolutions, updates, and each wait's stall. Past one, L is held, saying
@@ -156,7 +156,7 @@ branches it follows (N5), and main's follow main alone.
 - **Main's tiers** are the suites too slow for the gate (a browser suite,
   exhaustive profiles). Each runs on main's tip as it moves, one run per
   tier at a time, the next at the newest tip, so one run covers every
-  landing since the last (`../../domain/after-landing.md`, section 3).
+  landing since the last (`../../domain/after-landing-runs.md`, section 2).
 - **A verdict** (`../../domain/after-landing.md`, section 5): green clears every
   landing in the run's range. Red reruns the failed tests alone: those
   that pass are a flake. What failed in the tier's previous run too is

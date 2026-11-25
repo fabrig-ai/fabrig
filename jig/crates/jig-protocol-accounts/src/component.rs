@@ -806,7 +806,7 @@ impl Component {
                 let _unkept = self.moves.adopted(source, false);
                 events.push(domain::Event::Adopted { source, kept: false });
             }
-            // The map census belongs to the root, not secrets (protocol/store/README.md, 6.3).
+            // The map census belongs to the root, not secrets (protocol/store/growth.md, 1.3).
             store::Event::Census { .. }
             | store::Event::Checkpointed { .. }
             | store::Event::CheckpointRefused { .. }
@@ -819,7 +819,6 @@ impl Component {
             | store::Event::OpenRefused { .. }
             | store::Event::Job { .. }
             | store::Event::Ran { .. }
-            | store::Event::Site { .. }
             | store::Event::Decoded { .. }
             | store::Event::Undecodable { .. }
             | store::Event::Rehearsing { .. }
@@ -1081,7 +1080,7 @@ impl Component {
                 store::Event::Carried { .. } => {
                     unreachable!("the accounts only load and replace their records")
                 }
-                // The map census belongs to the root, not secrets (protocol/store/README.md, 6.3).
+                // The map census belongs to the root, not secrets (protocol/store/growth.md, 1.3).
                 store::Event::Census { .. }
                 | store::Event::Checkpointed { .. }
                 | store::Event::CheckpointRefused { .. }
@@ -1094,7 +1093,6 @@ impl Component {
                 | store::Event::OpenRefused { .. }
                 | store::Event::Job { .. }
                 | store::Event::Ran { .. }
-                | store::Event::Site { .. }
                 | store::Event::Decoded { .. }
                 | store::Event::Undecodable { .. }
                 | store::Event::Rehearsing { .. }

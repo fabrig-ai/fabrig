@@ -19,7 +19,7 @@
   tested at the base. A lint or test failure is inherited only when the
   goal's reds name it: temper's records of the failures the goal's branch
   carries, which its coordinator records and its worker writes for each
-  check (`../domain/forge/reds.md`, 3 and 5; `branch-reds.md`, 8), the
+  check (`../domain/forge/reds.md`, 3 and 5; `archive/branch-reds.md`, 8), the
   tree keeping no list of its own; a build failure is always the
   delivery's; exceeded counts, citations and design sizes are still
   compared with the base (`tools/pre-pr/design.md`, 5). Base runs were
@@ -32,6 +32,6 @@
   full check, and only a producer's checked finish is merged into the goal's
   branch. smith's charter (version 4) and channel (version 6) change in
   place, before v0.1.0; temper's store and the worker wires do not
-  (smith's `domain/run.md`, 8.5; jig's `domain/hosts/README.md`, section 6 and `domain/hosts/charters.md` and `domain/hosts/README.md`, section 7;
+  (smith's `domain/run-delivery.md`, 1.5; jig's `domain/hosts/README.md`, section 6 and `domain/hosts/charters.md` and `domain/hosts/README.md`, section 7;
   `../domain/agent/tools.md` and `../domain/agent/README.md`, 5; `../domain/worker/checkouts.md`
-  ; `../protocol/git.md`, 4.7).
+  ; `../protocol/git-operations.md`, 1.7).

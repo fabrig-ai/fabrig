@@ -1,23 +1,25 @@
 # Testing the client
 
-The tiers, the fakes and the budgets are `../testing/README.md`'s (`../testing/README.md`, section 2 and `../testing/fakes.md` and `../testing/checks.md`, section 1
+The tiers, the fakes and the budgets are `../testing/README.md`'s (`../testing/tiers.md`, section 1 and `../testing/fakes.md` and `../testing/checks.md`, section 1
 ); the client's joint world is its 2.1 and 6.3. The client's
 own tests:
+
+## 1. Settings, credentials and step tests
 
 - **How work runs and a proposal of settings** (`pages/settings.md`, 2): step tests of each control's request, refusal and stale; the rail and tab bar under each value;
   the card from jig's documents; a world test that accepts a proposal of kind 7 and sees `me`'s project show it; and the gallery's and goldens' pages
   (`../testing/checks.md`, 4).
 - **Credential-boundary consumption** is checked in the existing
   domain and composed-client fixtures, including the terminal shell's
-  startup `Held` sign-in after its children have asked reads (`README.md`, 3.4).
+  startup `Held` sign-in after its children have asked reads (`root.md`, 1.4).
   Every cancelled read is consumed visibly and its asker must ask again;
   no new retry policy is implied. The preview's existing view tests
   render jig's supplied `resolved_default`, with catalogue and charter
   orders opposed, explicit choice and no preview, preserving omitted
-  request intent (`pages/accounts.md`, 2).
+  request intent (`pages/accounts-words.md`, 1).
 - **Step tests:** the domain's pages (what each watches and reads as it
   opens and closes, each act as the operations it sends, the
-  confirmation's rule of `README.md`, 3.6, routing by asker; a chat's delegations,
+  confirmation's rule of `root.md`, 1.6, routing by asker; a chat's delegations,
   `view.md`, 5: a call's tasks by its objects and by its acknowledgement, a
   failed call's and another tool's none, the newest watched up to
   `reads`, each unwatched as it leaves, and a card's facts from a
@@ -78,7 +80,7 @@ own tests:
   goal's in the toast; the
   amendment's editor on a goal and on an agent's task, a cut spec read
   only, "No change", a moved draft with no "Send amendment", and its
-  request's revision named or not as `README.md`, 3.7 says; a procedure's task's
+  request's revision named or not as `root.md`, 1.7 says; a procedure's task's
   page, `pages/task.md`, 3: its goal's link when it serves another task and none
   when it serves itself or none, and "Its tasks" over its plan where a
   person task's says "Plan"; its header with its panel shown and its
@@ -94,11 +96,14 @@ own tests:
   path shape and every kind, the form and its picker in each state,
   every outcome, the forges' page with a forge in each state of
   `forge/deployment.md`);
-  `temper-client-protocol-wire` (records drift, pinned constructs, built-value
-  round trips, bounds and fuzz targets, as skein's `data/codec/README.md`, section 6 has them); and the engine's routing
+  `temper-client-protocol-wire` (records drift, built-value
+  round trips, bounds and fuzz targets, as skein's `data/codec/golden.md`, section 1 has them); and the engine's routing
   of the forge's family both ways, a change's panel's watch to the root
   with its scope, and its document encoded with the pull request's
   address on a GitHub forge, on a Forgejo and with no `web`.
+
+## 2. Welcome and account pages
+
 - **No welcome** (`pages/welcome.md`, 1), in the domain and the view: the
   deployment's read, its answer kept across a link's gap and a read
   that ends with no record; `Welcome` at each step moving on to the
@@ -137,7 +142,7 @@ own tests:
   and dropped as it leaves, each way as its request, a sign-in's start,
   its watched end and each of jig's endings, and the welcome's Model
   on the same state. In the view, the accounts page in each state of
-  `pages/accounts.md`, 2's table, folded and opened, with each act and its outcome under
+  `pages/accounts-words.md`, 1's table, folded and opened, with each act and its outcome under
   its row, the deployment's and the playground's sections, and none of
   the person's own; `ConnectModel` at each way, its completion line on
   Accounts, and each ending’s words and acts; the welcome’s Model
@@ -147,6 +152,9 @@ own tests:
   before the connection under way and failed, and the terminal's line
   in that order with no bar; the navigation's
   dot in each colour and none; the banners' ways.
+
+## 3. Text and terminal tests
+
 - **Golden text:** temper's pages as skein's text shell prints them,
   kept as files beside the tests and changed only by hand: the inbox
   with entries of each kind, the chats, a chat with its conversation and
@@ -159,7 +167,7 @@ own tests:
   and "Not listed", signed out, the accounts' banner, `ConnectModel`
   with a sign-in's address, as the terminal shows it, a key's field
   written, and an account in
-  each state of `pages/accounts.md`, 2, and the forges' page with a forge in each state of
+  each state of `pages/accounts-words.md`, 1, and the forges' page with a forge in each state of
   `forge/deployment.md`, a connect's link, and a pasted value's field written
   (`(hidden)`).
 - **The terminal's machine world,** in `temper-client-shell-terminal`'s
@@ -169,7 +177,7 @@ own tests:
   interrupt, `q` drained. And, in a unit test, the terminal made from
   `limits::native()`'s limits, as `temper-box open` makes it, so the gate
   meets a refusal of temper's own limits before the process tier does.
-- **The TUI** (`tui/README.md`, 1 to 3 and `tui/pages/README.md` and `tui/theme.md` and `tui/README.md`, 4): golden frames, `Frame::print`s laid by
+- **The TUI** (`tui/README.md`, 1, and `tui/directory.md`, 1, and `tui/host.md`, 1 and `tui/pages/README.md` and `tui/theme.md` and `tui/README.md`, 4): golden frames, `Frame::print`s laid by
   skein's renderer in the TUI's theme, kept beside `temper-client-tui`'s
   step tests and changed only by hand: signing in and its approval at 80
   by 24; the launchpad at 80 by 24, dark and light, and at 40 by 12, its
@@ -189,7 +197,7 @@ own tests:
   simulated machine (each way out writing the terminal's `LEAVE` last
   and exiting 0), and of the binary's parts as functions (the command's
   parse, the directory's resolution, the scheme and the depth). Nothing
-  opens a terminal or a browser. The engine's link and the note (`tui/README.md`, 2, `tui/pages/README.md`
+  opens a terminal or a browser. The engine's link and the note (`tui/directory.md`, 1, `tui/pages/README.md`
   ): `link_file::path` one function for the engine and the TUI, its
   table of environments and data directories; the file written `0o600`
   at each new link and removed at exit; `Note`'s lines read back and
@@ -199,6 +207,9 @@ own tests:
   asking no file; the run's rows on skein's simulated machine for the
   file read, the note written and the scheme from the terminal's answer
   or its wait; each a failing test first for a refusal.
+
+## 4. Terminal in the joint world
+
 - **The TUI in the joint world** (`../testing/checks.md`, 3): its
   shipped host, its root linked, its requests carried to the engine's
   clients' component as a native shell carries them, the component
@@ -214,8 +225,11 @@ own tests:
   the file; the file's secret in no frame; and signed in, the launchpad
   drawn for the person's project, a question asked from its box, the
   Ask temper chat it starts opened and its answer drawn.
+
+## 5. Browser client stories
+
 - **`tests/client`** (`temper-client-world`), the joint world
-  (`../testing/README.md`, 2.1, and `../testing/checks.md`, 3): temper's client root and view, with
+  (`../testing/tiers.md`, 1.1, and `../testing/checks.md`, 3): temper's client root and view, with
   skein's fake person acting on the tree, joined to temper's engine
   root through jig's clients' component, with no transport between,
   with jig's client worlds' faults and jig's check (jig's
@@ -332,14 +346,17 @@ own tests:
   pending, kept work), each request made once. jig's check holds in
   every story, said in temper's phrasebook, which temper's world gives
   jig's referee (jig's `client/domain/testing.md`, 6.2).
+
+## 6. Routes and tests through the service
+
 - **The routes** (`engine.md`; `forge/served.md`, 1), in temper's clients'
-  world (`../testing/README.md`, 2.1): requests to the service's
+  world (`../testing/tiers.md`, 1.1): requests to the service's
   routes against the fake forge's GitHub, each answer, its headers and
   its `302`; a state used, unknown or past its life refused; a query
   past `routes.query_bytes`, a method other than `GET` and a forge not
   GitHub refused; a path jig claims never reaching them. No test calls
   github.com or uses a real credential.
-- **The one-process world** (`../testing/README.md`, 2.5): skein's fake person
+- **The one-process world** (`../testing/tiers.md`, 1.5): skein's fake person
   in front of temper's terminal client (its client root, view and
   transport), joined through bytes to `temper-service` on skein's
   simulator: the same stories through jig's default HTTP mapping and

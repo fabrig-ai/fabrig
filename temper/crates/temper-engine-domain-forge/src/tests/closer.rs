@@ -1,13 +1,14 @@
 //! Closer reclamation (temper/docs/design/domain/forge/branches.md, 2).
 use super::*;
 
-fn closer(task: u64, goal: u64, done: bool) -> CloserRow {
+pub(super) fn closer(task: u64, goal: u64, done: bool) -> CloserRow {
     CloserRow {
         task,
         goal,
         closer: temper_engine_domain_forge_closer::Closer::new(),
         making: None,
         close_changes: Box::new([]),
+        superseded: Box::new([]),
         landing_changes: Box::new([]),
         done,
         relay: temper_engine_domain_forge_closer::relay::Relay::new(),
@@ -50,8 +51,8 @@ fn checking_domain() -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     outputs(&mut d, Event::Closer { row: closer(3, 7, false) });
     d
 }

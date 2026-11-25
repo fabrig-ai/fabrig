@@ -46,7 +46,7 @@ and a fake GitHub's is a test's.
     its own.
   - **Its person,** derived (`../../draft/config.md`, 6.4): the
     requester's login, and the address `LOGIN@localhost`, as
-    `temper-box init --box` derives them today (`init.md`, 2).
+    `temper-box init --box` derives them today (`init.md`, 5).
   - **Its binaries,** Forgejo's and the runner's, fetched at temper's
     pinned versions into the cache (`owned.md`, 6). A test that must not
     fetch puts the pinned binaries where the fetch finds them present.
@@ -65,7 +65,7 @@ and a fake GitHub's is a test's.
   port the same way. Its record's place is that port; its remotes' base
   `http://127.0.0.1:PORT`; its git program `demo/bin/git` in the data
   directory, the link to temper's own binary that `temper-box init
-  --box` makes, as today (`init.md`, 2).
+  --box` makes, as today (`init.md`, 5).
 - **A forge kept** keeps its place: a later start reads its record and
   its setup file, never chooses again. A forge set up again is a new
   forge, with a new number and a new port.
@@ -191,7 +191,7 @@ flags a person gives:
 - **A test gives a fake's,** in `application.test`'s `github`, with the
   members, forms and bounds `machine.github` had
   (`../configuration/engine.md`): the fake backends'
-  rewriter (`box.md`, 5), the live tier's relay
+  rewriter (`box-backends.md`, 1), the live tier's relay
   (`../../testing/live-tier.md`) and the process tier's fixtures write
   it. `application.test` holds nothing else, help lists none of it, and
   the TOML file's `[test]` takes it over (`../../draft/config.md`, 4.4).

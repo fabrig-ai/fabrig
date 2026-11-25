@@ -26,7 +26,7 @@ impl World {
     }
 
     /// An update's idempotent class rests on no lifetime: a copy may land
-    /// after another attempt (skein/docs/design/forge/client.md, 7.3).
+    /// after another attempt (skein/docs/design/forge/client-effects.md, 1.3).
     pub fn land_writes_past_lifetime(&mut self, after: Duration) {
         self.forge_env.limits.landing = 1000;
         self.forge_env.limits.land_min = after;
@@ -80,8 +80,6 @@ impl World {
         for resource in writers.into_boxed() {
             self.event(Event::Writer { resource, taken: true });
         }
-        self.outbox_paused = true;
-        self.event(Event::PauseOutbox);
         let mut entries = List::with_capacity(self.entries.len());
         for (_, entry) in &self.entries {
             entries.push(entry.clone()).expect("top outbox limit");
@@ -91,6 +89,7 @@ impl World {
             self.event(Event::Make { entry });
         }
         self.event(Event::ReadAfresh);
+        self.event(Event::SettleOutbox);
     }
 
     /// Record a durable branch claim and tell the client; ends on taken=false.

@@ -1,5 +1,9 @@
-//! Owner-set admission and binary levels (protocol/store/opening.md, 3).
-use super::sets::{Owner, OwnerSet, OwnerSets};
+//! Owner-set admission and binary levels (protocol/store/opening-owners.md, 1).
+use super::{
+    schemas,
+    sets::{Owner, OwnerSet, OwnerSets},
+};
+use skein_codec::schema::Schema;
 use skein_lib::List;
 
 pub(crate) use crate::codec::component::Levels;
@@ -35,20 +39,26 @@ pub(crate) fn set(sets: &OwnerSets, owner: Owner) -> Option<&OwnerSet> {
     }
     None
 }
-/// One check per open (protocol/store/opening.md, 3).
+/// One check per open (protocol/store/opening-owners.md, 1).
 pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
     if let Some(verdict) = store.directory.checked {
         return verdict;
     }
-    let verdict = bounds(&store.owner_sets, store.prepared_schemas);
+    let verdict = match bounds(&store.owner_sets, store.prepared_schemas) {
+        Ok(current) => {
+            store.directory.admitted_schemas = Some(current);
+            Ok(())
+        }
+        Err(owner) => Err(owner),
+    };
     store.directory.checked = Some(verdict);
     verdict
 }
 
-/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening.md, 3): the
+/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening-owners.md, 1): the
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused before a first start writes.
-pub(crate) fn bounds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<List<Schema>, Owner> {
     #[cfg(test)]
     counting::ran();
     let ceilings = &crate::component_v3::CEILINGS;
@@ -67,15 +77,16 @@ pub(crate) fn bounds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema])
             }
         }
     }
-    keys(sets, prepared)?;
-    super::types::check(sets, prepared)?;
+    let mut current = List::with_capacity(families);
+    keys(sets, prepared, &mut current)?;
+    super::types::check(sets, prepared, current.as_slice())?;
     crate::jobs::admission::check(sets)?;
-    frames(sets, prepared)?;
-    holds(sets, prepared)?;
-    Ok(())
+    check_frames(sets, prepared, current.as_slice())?;
+    holds(sets, prepared, current.as_slice())?;
+    Ok(current)
 }
 /// The two transcript roots are owners' data, checked even at equal levels.
-pub(crate) fn frames(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+fn check_frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
     let mut smith = None;
     for set in sets.sets {
         let refusal = set.owner;
@@ -96,69 +107,96 @@ pub(crate) fn frames(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema])
     for set in sets.sets {
         for family in set.families {
             let Some(frames) = &family.frames else { continue };
-            let name = frames.root;
-            if frames.texts.is_empty() {
-                continue;
-            }
             let refusal = set.owner;
-            // Metadata alone resolves a root's spelling back over renames.
-            let empty = crate::transcripts::patches::Room { bytes: 0, nodes: 0 };
-            let capacity = crate::transcripts::patches::frame_capacity(frames, empty).ok_or(refusal)?;
-            let machine = crate::transcripts::patches::kept_patcher(frames, capacity).ok_or(refusal)?;
-            let latest = frames.texts.last().expect("nonempty kept texts");
-            let mut parsed = None;
-            let Some(latest) = super::schemas::get(prepared, latest.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
-            let last = latest.version();
-            let mut parsed = None;
-            let Some(current) = super::schemas::get(prepared, family.current.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
-            if last != current.version() {
+            if family.map != crate::KeptMap::Store {
                 return Err(refusal);
             }
+            for ty in family.types {
+                if ty.number == frames.number {
+                    return Err(refusal);
+                }
+            }
+            for retired in family.retired {
+                if retired.number == frames.number {
+                    return Err(refusal);
+                }
+            }
+            let mut parsed = None;
+            let binary = schemas::frame(prepared, current, family.current.as_bytes(), &mut parsed).ok_or(refusal)?;
+            if binary.spelled(binary.family()) != family.name.as_bytes() {
+                return Err(refusal);
+            }
+            let root = binary.find(frames.root.as_bytes()).ok_or(refusal)?;
+            check_frame_root(binary, root, set.owner, smith)?;
+            let mut previous = None;
             for text in frames.texts {
                 let mut parsed = None;
-                let Some(schema) = super::schemas::get(prepared, text.as_bytes(), &mut parsed) else {
+                let schema = schemas::frame(prepared, current, text.as_bytes(), &mut parsed).ok_or(refusal)?;
+                let version = schema.version();
+                if let Some(before) = previous
+                    && Some(version) != u16::checked_add(before, 1)
+                {
                     return Err(refusal);
-                };
+                }
                 if schema.spelled(schema.family()) != family.name.as_bytes() {
                     return Err(refusal);
                 }
-                let Ok(root) =
-                    crate::transcripts::patches::held_root(&machine, schema.version(), last, name.as_bytes())
-                else {
-                    return Err(refusal);
-                };
-                let (first, count) = match schema.declaration(root).shape {
-                    skein_codec::schema::Shape::Record { versioned: true, first, count } => (first, count),
-                    skein_codec::schema::Shape::Record { versioned: false, .. }
-                    | skein_codec::schema::Shape::Enum { .. } => return Err(refusal),
-                };
-                if set.owner != Owner::Jig {
-                    continue;
-                }
-                let mut held = false;
-                for offset in 0..count {
-                    let field = skein_codec::schema::FieldIx::new(first.index().checked_add(offset).expect("field"));
-                    if let Some(other) = held_family(schema, schema.field(field).ty) {
-                        if smith != Some(other) || held {
-                            return Err(refusal);
-                        }
-                        held = true;
-                    }
-                }
-                if !held {
-                    return Err(refusal);
-                }
+                let root = seed_root(schema, binary, frames.root).ok_or(refusal)?;
+                check_frame_root(schema, root, set.owner, smith)?;
+                previous = Some(version);
+            }
+            if let Some(last) = previous
+                && last != binary.version()
+            {
+                return Err(refusal);
             }
         }
     }
     Ok(())
 }
 
-fn held_family(schema: &skein_codec::schema::Schema, mut ty: skein_codec::schema::TypeIx) -> Option<&[u8]> {
+/// Find the seed's declaration, including a former spelling of the binary's root.
+pub(crate) fn seed_root(schema: &Schema, binary: &Schema, name: &str) -> Option<skein_codec::schema::DeclIx> {
+    if let Some(root) = schema.find(name.as_bytes()) {
+        return Some(root);
+    }
+    let current = binary.find(name.as_bytes())?;
+    for former in binary.was(skein_codec::schema::Named::Declaration(current)) {
+        if let Some(root) = schema.find(binary.spelled(*former)) {
+            return Some(root);
+        }
+    }
+    None
+}
+
+fn check_frame_root(
+    schema: &Schema,
+    root: skein_codec::schema::DeclIx,
+    owner: Owner,
+    smith: Option<&[u8]>,
+) -> Result<(), Owner> {
+    use skein_codec::schema::{FieldIx, Shape};
+    let (first, count) = match schema.declaration(root).shape {
+        Shape::Record { versioned: true, first, count } => (first, count),
+        Shape::Record { versioned: false, .. } | Shape::Enum { .. } => return Err(owner),
+    };
+    if owner != Owner::Jig {
+        return Ok(());
+    }
+    let mut held = false;
+    for offset in 0..count {
+        let field = FieldIx::new(first.index().checked_add(offset).expect("field"));
+        if let Some(other) = held_family(schema, schema.field(field).ty) {
+            if smith != Some(other) || held {
+                return Err(owner);
+            }
+            held = true;
+        }
+    }
+    if held { Ok(()) } else { Err(owner) }
+}
+
+fn held_family(schema: &Schema, mut ty: skein_codec::schema::TypeIx) -> Option<&[u8]> {
     use skein_codec::schema::{Held, Type};
     for _ in 0..schema.text().len() {
         match schema.ty(ty) {
@@ -183,7 +221,7 @@ fn held_family(schema: &skein_codec::schema::Schema, mut ty: skein_codec::schema
 
 /// Incremental transitive closure. Adding i -> j closes a cycle exactly when
 /// j already reaches i; each row is a manifest-bounded, 64-family bit set.
-fn holds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+fn holds(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
     use skein_codec::schema::{DeclIx, FieldIx, Shape};
     let mut families = List::with_capacity(crate::component_v3::CEILINGS.manifest_counts);
     for set in sets.sets {
@@ -209,7 +247,7 @@ fn holds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(
             }
             for text in &texts {
                 let mut parsed = None;
-                let Some(schema) = super::schemas::get(prepared, text.as_bytes(), &mut parsed) else {
+                let Some(schema) = schemas::frame(prepared, current, text.as_bytes(), &mut parsed) else {
                     return Err(refusal);
                 };
                 for decl in 0..schema.declarations() {
@@ -251,15 +289,12 @@ fn holds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(
 pub(crate) mod counting;
 
 /// Each range belongs to a declaration in the binary's text, and no two
-/// families claim the same key (protocol/store/opening.md, 3).
-fn keys(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+/// families claim the same key (protocol/store/opening-owners.md, 1).
+fn keys(sets: &OwnerSets, prepared: &[Schema], current: &mut List<Schema>) -> Result<(), Owner> {
     for set in sets.sets {
         let refusal = set.owner;
         for family in set.families {
-            let mut parsed = None;
-            let Some(schema) = super::schemas::get(prepared, family.current.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
+            let schema = schemas::current(prepared, current, family.current.as_bytes()).ok_or(refusal)?;
             let mut through = None;
             for keys in family.keys {
                 if keys.from >= keys.to || schema.find(keys.root.as_bytes()).is_none() {

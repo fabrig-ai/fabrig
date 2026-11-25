@@ -26,6 +26,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         infrastructure: fixtures::infrastructure_limits(),
         observability: fixtures::limits(),
         host: host::Limits {
+            drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
             application_ask_bytes: 64,
             application_answer_bytes: 64,
             slots: 1,
@@ -371,10 +372,6 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
             Phase::Switch,
             Phase::Wires,
             Phase::AdoptRuns,
-            Phase::ReadAfresh { connector: 1 },
-            Phase::ReadAfresh { connector: 2 },
-            Phase::SettleOutbox { connector: 1 },
-            Phase::SettleOutbox { connector: 2 },
             Phase::Open,
         ]
     );
@@ -846,6 +843,7 @@ fn a_new_task_timer_stays_due_at_the_watermark() {
         &mut domain,
         &env,
         Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(SUBSCRIPTION)),
             task: CHAT,
             subscription: tasks::Subscription {

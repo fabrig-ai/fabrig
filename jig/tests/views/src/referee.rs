@@ -1,6 +1,6 @@
 //! Outside expectations for document freshness and provisional stream prefixes.
 //! Observations come from the scripted parent and watcher terminals, never the
-//! child's state (`domain/engine/views.md`; `client/domain/contract/README.md`, 5).
+//! child's state (`domain/engine/views.md`; `client/domain/contract/watches.md`, 1).
 use jig_domain_views::{Call, End, Event, Follow, Limits, Request, TurnName, Window};
 use skein_lib::{Time, Token, Wall};
 use skein_world::domain::{Expectations, Judge, Referee as Harness};

@@ -1,11 +1,11 @@
-//! Accepted streams and the workers' component (jig/docs/design/protocol/channel/README.md, 9.2).
-//! The owner's pull and listener lifecycle (jig/docs/design/protocol/service.md, 11.3).
-use crate::{Component, Event, Limits, Loss, Request};
+//! Accepted streams and the workers' component (jig/docs/design/protocol/channel/worker-link.md, 1.2).
+//! The owner's pull and listener lifecycle (jig/docs/design/protocol/service-parts.md, 1.3).
+use crate::{Component, Event, Limits, Loss, PreparedWires, Request};
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::Grant;
 use jig_protocol_config::{self as config, Path, Problems, What};
-use jig_protocol_worker_wire::{Agreed, Part};
+use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{Duration, List, Map, Queue, Time, Token, stream};
@@ -26,7 +26,7 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
-    /// A pause ask the channel's version cannot carry (protocol/channel/pause.md, 3).
+    /// A pause ask the worker's layout cannot carry (protocol/channel/pause.md, 3).
     Unpaused {
         worker: Box<[u8]>,
         version: u16,
@@ -43,7 +43,7 @@ pub enum Output {
     },
     Opened {
         worker: Box<[u8]>,
-        wires: List<Agreed>,
+        converted: List<Box<str>>,
         statement: crate::Statement,
     },
     Refused {
@@ -68,6 +68,11 @@ pub enum Output {
         worker: Box<[u8]>,
         channel: Token,
         unsent: crate::Unsent,
+    },
+    Unread {
+        worker: Box<[u8]>,
+        kind: jig_protocol_worker_wire::Kind,
+        problem: jig_protocol_worker_wire::layouts::Unconverted,
     },
     Ended {
         worker: Option<Box<[u8]>>,
@@ -144,6 +149,18 @@ impl Workers {
     ) -> Result<Self, Problems> {
         Self::build(config, tokens, application, limits, Some(schema))
     }
+    /// Constructs a fresh host without parsing its prepared wire texts again.
+    pub fn with_prepared_wires(
+        config: &config::Engine,
+        tokens: Tokens,
+        limits: &Limits,
+        schema: skein_channel::Schema,
+        wires: PreparedWires,
+    ) -> Result<Self, Problems> {
+        let component =
+            Component::with_prepared_wires(limits, Box::new([]), wires, schema).or(Err(invalid(What::Bound)))?;
+        Self::from_component(config, tokens, limits, component)
+    }
     fn build(
         config: &config::Engine,
         tokens: Tokens,
@@ -158,6 +175,14 @@ impl Workers {
         };
         let component =
             Component::with_schema(limits, Box::new([]), spoken, application, schema).or(Err(invalid(What::Bound)))?;
+        Self::from_component(config, tokens, limits, component)
+    }
+    fn from_component(
+        config: &config::Engine,
+        tokens: Tokens,
+        limits: &Limits,
+        component: Component,
+    ) -> Result<Self, Problems> {
         let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;
         if count == 0 || count > config.limits.io.sockets {
             return Err(invalid(What::Bound));
@@ -321,12 +346,12 @@ impl Workers {
                     });
                 }
             }
-            Request::Opened { worker, wires, statement } => {
+            Request::Opened { worker, converted, statement } => {
                 return Some(Output::Opened {
                     worker: skein_lib::bytes::copy_of(
                         self.component.worker_name(worker).expect("authenticated worker name"),
                     ),
-                    wires,
+                    converted,
                     statement,
                 });
             }
@@ -351,6 +376,11 @@ impl Workers {
                 let worker =
                     skein_lib::bytes::copy_of(self.component.worker_name(worker).expect("authenticated worker name"));
                 return Some(Output::Unsent { worker, channel, unsent });
+            }
+            Request::Unread { worker, kind, problem } => {
+                let worker =
+                    skein_lib::bytes::copy_of(self.component.worker_name(worker).expect("authenticated worker name"));
+                return Some(Output::Unread { worker, kind, problem });
             }
             Request::Ended { worker, channel, why, .. } => {
                 let worker = match worker {
@@ -445,6 +475,7 @@ pub fn grants(down: &hub::LinkDown) -> &[Grant] {
         | hub::LinkDown::Message { .. }
         | hub::LinkDown::Asked { .. }
         | hub::LinkDown::Relayed { .. }
+        | hub::LinkDown::PartKept { .. }
         | hub::LinkDown::TurnKept { .. }
         | hub::LinkDown::Acknowledge { .. }
         | hub::LinkDown::Cancel { .. } => &[],

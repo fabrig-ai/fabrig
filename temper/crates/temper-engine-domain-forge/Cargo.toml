@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-codec.workspace = true
 skein-json.workspace = true
 temper-engine-domain-forge-vocabulary.workspace = true
 skein-push.workspace = true
@@ -27,6 +28,7 @@ temper-engine-domain-forge-issues = { path = "../temper-engine-domain-forge-issu
 temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
 
 [dev-dependencies]
+jig-tasks-kit.workspace = true
 temper-engine-domain-trials.workspace = true
 temper-engine-domain-ways.workspace = true
 skein-rows.workspace = true

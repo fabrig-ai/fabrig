@@ -1,13 +1,14 @@
 //! General operation targets and project template overrides on the wire.
 use super::asks;
+use crate::generated::client;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, bytes};
 
-pub(super) fn answer(value: &c::AnswerOn, limits: &w::Limits) -> Result<w::AnswerOn, w::Problem> {
-    Ok(match value {
+pub(super) fn answer(value: &c::AnswerOn) -> w::AnswerOn {
+    match value {
         c::AnswerOn::Question { task, message, words } => w::AnswerOn::Question(w::AnswerQuestion {
             task: *task,
             message: *message,
@@ -15,135 +16,38 @@ pub(super) fn answer(value: &c::AnswerOn, limits: &w::Limits) -> Result<w::Answe
         }),
         c::AnswerOn::Person { task, revision, answer } => w::AnswerOn::Person(w::AnswerPerson {
             task: *task,
-            revision: asks::wire_revision(*revision, limits)?,
-            answer: asks::wire_person_answer(answer, limits)?,
+            revision: asks::wire_revision(*revision),
+            answer: asks::wire_person_answer(answer),
         }),
-    })
+    }
 }
-pub(super) fn decide(value: &c::DecideOn, limits: &w::Limits) -> Result<w::DecideOn, w::Problem> {
-    Ok(match value {
-        c::DecideOn::Proposal { proposal, decision, running } => w::DecideOn::Proposal(w::DecideProposal {
-            running: match running {
-                Some(value) => Some(super::settings::wire_running(value)?),
-                None => None,
-            },
-            proposal: asks::wire_proposal_key(proposal, limits)?,
-            decision: asks::wire_decision(decision, limits)?,
-        }),
-        c::DecideOn::Escalation { task, revision, decision } => w::DecideOn::Escalation(w::DecideEscalation {
-            task: *task,
-            revision: asks::wire_revision(*revision, limits)?,
-            decision: asks::wire_decision(decision, limits)?,
-        }),
-    })
+pub(super) fn decide(value: &c::DecideOn) -> w::DecideOn {
+    client::decide_on_to_record(value)
 }
-pub(super) fn templates(values: &List<c::TemplateOverride>, limits: &w::Limits) -> Result<w::PolicyEdit, w::Problem> {
+pub(super) fn templates(values: &List<c::TemplateOverride>) -> w::PolicyEdit {
     let mut overrides = List::with_capacity(values.len());
     for v in values {
-        overrides
-            .push(w::TemplateOverride {
-                template: v.template,
-                executor: match v.executor {
-                    Some(value) => Some(executor(value, limits)?),
-                    None => None,
-                },
-                budget: match v.budget {
-                    Some(value) => Some(budget(value, limits)?),
-                    None => None,
-                },
-                deadline: match v.deadline {
-                    Some(value) => Some(deadline(value, limits)?),
-                    None => None,
-                },
-                priority: v.priority,
-            })
-            .expect("same capacity");
+        overrides.push(client::template_override_to_record(v)).expect("same capacity");
     }
-    Ok(w::PolicyEdit::Templates(w::PolicyEditTemplates { overrides }))
+    w::PolicyEdit::Templates(w::PolicyEditTemplates { overrides })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(super) fn executor(value: c::TemplateExecutor, _limits: &w::Limits) -> Result<w::TemplateExecutor, w::Problem> {
-    Ok(match value {
-        c::TemplateExecutor::Charter(value) => w::TemplateExecutor::Charter(w::TemplateCharter { value }),
-        c::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
-    })
-}
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(super) fn budget(value: c::TemplateBudget, _limits: &w::Limits) -> Result<w::TemplateBudget, w::Problem> {
-    Ok(match value {
-        c::TemplateBudget::Amount(value) => w::TemplateBudget::Amount(w::TemplateAmount { value }),
-        c::TemplateBudget::AsAllowed { cap } => w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap }),
-        c::TemplateBudget::Given => w::TemplateBudget::Given,
-    })
-}
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(super) fn deadline(value: c::TemplateDeadline, _limits: &w::Limits) -> Result<w::TemplateDeadline, w::Problem> {
-    Ok(match value {
-        c::TemplateDeadline::None => w::TemplateDeadline::None,
-        c::TemplateDeadline::Span(value) => w::TemplateDeadline::Span(w::TemplateSpan { value }),
-        c::TemplateDeadline::Given => w::TemplateDeadline::Given,
-    })
-}
+
 pub(super) fn restore_templates(values: &List<w::TemplateOverride>) -> c::PolicyEdit {
     c::PolicyEdit::Templates { overrides: restore_template_overrides(values) }
 }
 pub(super) fn restore_template_overrides(values: &List<w::TemplateOverride>) -> List<c::TemplateOverride> {
     let mut overrides = List::with_capacity(values.len());
     for v in values {
-        overrides
-            .push(c::TemplateOverride {
-                template: v.template,
-                executor: match &v.executor {
-                    Some(value) => Some(restore_executor(value)),
-                    None => None,
-                },
-                budget: match &v.budget {
-                    Some(value) => Some(restore_budget(value)),
-                    None => None,
-                },
-                deadline: match &v.deadline {
-                    Some(value) => Some(restore_deadline(value)),
-                    None => None,
-                },
-                priority: v.priority,
-            })
-            .expect("same capacity");
+        overrides.push(client::template_override_to_domain(v.clone())).expect("same capacity");
     }
     overrides
 }
-pub(super) fn restore_executor(value: &w::TemplateExecutor) -> c::TemplateExecutor {
-    match value {
-        w::TemplateExecutor::Charter(v) => c::TemplateExecutor::Charter(v.value),
-        w::TemplateExecutor::Chosen => c::TemplateExecutor::Chosen,
-    }
-}
-pub(super) fn restore_budget(value: &w::TemplateBudget) -> c::TemplateBudget {
-    match value {
-        w::TemplateBudget::Amount(v) => c::TemplateBudget::Amount(v.value),
-        w::TemplateBudget::AsAllowed(v) => c::TemplateBudget::AsAllowed { cap: v.cap },
-        w::TemplateBudget::Given => c::TemplateBudget::Given,
-    }
-}
-pub(super) fn restore_deadline(value: &w::TemplateDeadline) -> c::TemplateDeadline {
-    match value {
-        w::TemplateDeadline::None => c::TemplateDeadline::None,
-        w::TemplateDeadline::Span(v) => c::TemplateDeadline::Span(v.value),
-        w::TemplateDeadline::Given => c::TemplateDeadline::Given,
-    }
-}
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(super) fn tracking(value: c::Tracking, _limits: &w::Limits) -> Result<w::Tracking, w::Problem> {
-    Ok(match value {
-        c::Tracking::Tracked { priority } => w::Tracking::Tracked(w::TrackingTracked { priority }),
-        c::Tracking::Untracked => w::Tracking::Untracked,
-    })
+pub(super) fn tracking(value: c::Tracking) -> w::Tracking {
+    client::tracking_to_record(&value)
 }
 pub(super) fn restore_tracking(value: &w::Tracking) -> c::Tracking {
-    match value {
-        w::Tracking::Tracked(v) => c::Tracking::Tracked { priority: v.priority },
-        w::Tracking::Untracked => c::Tracking::Untracked,
-    }
+    client::tracking_to_domain(value.clone())
 }
 
 pub(super) fn create(project: u32, tasks: &List<c::NewTask>, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
@@ -182,88 +86,31 @@ fn batch(tasks: &List<c::NewTask>, bound: u32, limits: &w::Limits) -> Result<Box
 fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem> {
     let mut dependencies = List::with_capacity(v.dependencies.len());
     for item in &v.dependencies {
-        dependencies
-            .push(match item {
-                c::TaskRef::Member(value) => w::TaskRef::Member(w::TaskRefMember { value: *value }),
-                c::TaskRef::Task(value) => w::TaskRef::Task(w::TaskRefTask { value: *value }),
-            })
-            .expect("same capacity");
+        dependencies.push(client::task_ref_to_record(item)).expect("same capacity");
     }
     let mut named = List::with_capacity(v.named.len());
     for grant in &v.named {
-        named.push(asks::wire_owner_grant(grant, limits)?).expect("same capacity");
+        named.push(asks::wire_owner_grant(grant)).expect("same capacity");
     }
-    let executor = match v.executor {
-        c::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob { kind }),
-        c::Executor::Agent { charter } => w::Executor::Agent(w::ExecutorAgent { charter }),
-        c::Executor::Procedure { connector, code } => w::Executor::Procedure(w::ExecutorProcedure { connector, code }),
-        c::Executor::Person(address) => {
-            w::Executor::Person(w::ExecutorPerson { value: asks::wire_person_address(&address, limits)? })
-        }
-    };
+    let executor = client::executor_to_record(&v.executor);
     Ok(w::NewTask {
-        symbols: super::documents::me::wire_symbols(&v.symbols, limits)?,
+        symbols: super::documents::me::wire_symbols(&v.symbols),
         executor,
-        spec: asks::wire_specification(&v.spec, limits)?,
-        contract: new_contract(&v.contract, limits)?,
+        spec: asks::wire_specification(&v.spec),
+        contract: client::new_contract_to_record(&v.contract),
         authority: asks::wire_owner_authority(&v.authority, limits)?,
-        deadline: match v.deadline {
-            c::NewDeadline::Named => w::NewDeadline::Named,
-            c::NewDeadline::Span(value) => w::NewDeadline::Span(w::DeadlineSpan { value }),
-        },
-        budget: match v.budget {
-            c::NewBudget::Named => w::NewBudget::Named,
-            c::NewBudget::AsAllowed { cap } => w::NewBudget::AsAllowed(w::BudgetAsAllowed { cap }),
-        },
+        deadline: client::new_deadline_to_record(&v.deadline),
+        budget: client::new_budget_to_record(&v.budget),
         wake: match &v.wake {
-            Some(wake) => Some(asks::wire_owner_wake_policy(wake, limits)?),
+            Some(wake) => Some(asks::wire_owner_wake_policy(wake)),
             None => None,
         },
         dependencies,
         named: asks::wire_owner_grant_piece(&named, limits)?,
         tracked: v.tracked,
         label: v.label,
-        flags: w::TaskFlags {
-            ended_by: match v.flags.ended_by {
-                c::EndedBy::Result => w::EndedBy::Result,
-                c::EndedBy::Requester => w::EndedBy::Requester,
-                c::EndedBy::Standing => w::EndedBy::Standing,
-                c::EndedBy::Closer(closer) => {
-                    w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code })
-                }
-            },
-            conversation: v.flags.conversation,
-            listed: v.flags.listed,
-            retention: match v.flags.retention {
-                c::Retention::Kept => w::Retention::Kept,
-                c::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
-            },
-        },
-        llm: super::llm::wire_choice(v.llm.as_ref(), limits)?,
-    })
-}
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn new_contract(value: &c::NewContract, _limits: &w::Limits) -> Result<w::NewContract, w::Problem> {
-    Ok(match value {
-        c::NewContract::Report { words } => w::NewContract::Report(w::ContractReport { words: *words }),
-        c::NewContract::Change { connector, kind, words } => {
-            w::NewContract::Change(w::ContractChange { connector: *connector, kind: *kind, words: *words })
-        }
-        c::NewContract::Verdict { choices } => {
-            let mut records = List::with_capacity(choices.len());
-            for v in choices {
-                let mut fields = List::with_capacity(v.fields.len());
-                for field in &v.fields {
-                    fields
-                        .push(w::FieldRule { name: bytes::copy_of(&field.name), max: field.max })
-                        .expect("same capacity");
-                }
-                records
-                    .push(w::VerdictChoice { code: v.code, words: v.words, followups: v.followups, fields })
-                    .expect("same capacity");
-            }
-            w::NewContract::Verdict(w::ContractVerdict { choices: records })
-        }
+        flags: client::task_flags_to_record(&v.flags),
+        llm: super::llm::wire_choice(v.llm.as_ref()),
     })
 }
 pub(super) fn restore_create(value: &w::Create, limits: &crate::Limits) -> Result<c::Ask, w::Problem> {
@@ -284,59 +131,30 @@ fn restore_batch(bytes: &[u8], limits: &crate::Limits) -> Result<List<c::NewTask
 fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w::Problem> {
     let mut dependencies = List::with_capacity(v.dependencies.len());
     for item in &v.dependencies {
-        dependencies
-            .push(match item {
-                w::TaskRef::Member(v) => c::TaskRef::Member(v.value),
-                w::TaskRef::Task(v) => c::TaskRef::Task(v.value),
-            })
-            .expect("same capacity");
+        dependencies.push(client::task_ref_to_domain(item.clone())).expect("same capacity");
     }
-    let contract = match &v.contract {
-        w::NewContract::Report(v) => c::NewContract::Report { words: v.words },
-        w::NewContract::Change(v) => c::NewContract::Change { connector: v.connector, kind: v.kind, words: v.words },
-        w::NewContract::Verdict(v) => {
-            let mut choices = List::with_capacity(v.choices.len());
-            for choice in &v.choices {
-                choices.push(super::documents::verdict_choice_fields(choice, limits)?).expect("same capacity");
+    match &v.contract {
+        w::NewContract::Verdict(verdict) => {
+            for choice in &verdict.choices {
+                super::documents::check_verdict_choice(choice, limits)?;
             }
-            c::NewContract::Verdict { choices }
         }
-    };
+        w::NewContract::Report(_) | w::NewContract::Change(_) => {}
+    }
     Ok(c::NewTask {
         symbols: super::documents::me::symbols(&v.symbols),
-        deadline: match &v.deadline {
-            w::NewDeadline::Named => c::NewDeadline::Named,
-            w::NewDeadline::Span(value) => c::NewDeadline::Span(value.value),
-        },
+        deadline: client::new_deadline_to_domain(v.deadline.clone()),
         executor: super::facts::executor(&v.executor),
         spec: super::pages::specification_fields(&v.spec, limits)?,
-        contract,
+        contract: client::new_contract_to_domain(v.contract.clone()),
         authority: super::documents::authority_fields(&v.authority, limits)?,
-        budget: match &v.budget {
-            w::NewBudget::Named => c::NewBudget::Named,
-            w::NewBudget::AsAllowed(v) => c::NewBudget::AsAllowed { cap: v.cap },
-        },
+        budget: client::new_budget_to_domain(v.budget.clone()),
         wake: restore_wake(v.wake.as_ref()),
         dependencies,
         named: super::documents::grant_piece(&v.named, limits, limits.client().authority)?,
         tracked: v.tracked,
         label: v.label,
-        flags: c::TaskFlags {
-            ended_by: match &v.flags.ended_by {
-                w::EndedBy::Result => c::EndedBy::Result,
-                w::EndedBy::Requester => c::EndedBy::Requester,
-                w::EndedBy::Standing => c::EndedBy::Standing,
-                w::EndedBy::Closer(closer) => {
-                    c::EndedBy::Closer(c::Closer { connector: closer.connector, code: closer.code })
-                }
-            },
-            conversation: v.flags.conversation,
-            listed: v.flags.listed,
-            retention: match &v.flags.retention {
-                w::Retention::Kept => c::Retention::Kept,
-                w::Retention::ForgottenOnceRead => c::Retention::ForgottenOnceRead,
-            },
-        },
+        flags: client::task_flags_to_domain(v.flags.clone()),
         llm: super::llm::choice(v.llm.as_ref(), limits)?,
     })
 }
@@ -357,7 +175,7 @@ pub(super) fn propose(
         c::ProposeAction::Amendment { task, revision, change } => {
             w::ProposeAction::Amendment(Box::new(w::ProposeAmendment {
                 task: *task,
-                revision: asks::wire_revision(*revision, limits)?,
+                revision: asks::wire_revision(*revision),
                 change: asks::wire_amendment(change, limits)?,
             }))
         }

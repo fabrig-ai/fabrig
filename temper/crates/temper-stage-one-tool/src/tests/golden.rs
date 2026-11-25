@@ -1,7 +1,17 @@
-//! Golden decoding and settings-form coverage: `temper/docs/design/testing/checks.md`, 5.4.
+//! Golden decoding and settings-form coverage: `temper/docs/design/testing/checks-stage-one.md`, 1.4.
 use crate::golden::{self, Edit, ObligationKind, Subject, Test};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+
+#[test]
+fn obligations_refuses_unknown_arguments() {
+    let args = ["--nope".into()];
+    assert_eq!(
+        golden::obligations_arguments(&args).expect_err("unknown flag"),
+        "temper-stage-one obligations: invalid arguments\nusage:\n  temper-stage-one obligations [--json]\n"
+    );
+    assert_eq!(golden::main(&args), std::process::ExitCode::from(2));
+}
 
 fn source() -> Value {
     serde_json::from_slice(include_bytes!("../../golden/reference.json")).expect("golden JSON")

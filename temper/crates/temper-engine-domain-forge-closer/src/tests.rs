@@ -4,7 +4,7 @@
 
 use crate::{
     LOG_START_BYTES, Landed, Landing, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX, Selection, Unlanded, Why,
-    first_line, left_section, selection_line, words,
+    first_line, goal_left, left_section, selection_line, words,
 };
 use alloc::boxed::Box;
 use skein_lib::Rng;
@@ -16,6 +16,7 @@ fn empty_report() -> Report {
         title: Box::from(b"TITLE".as_slice()),
         landed: Box::new([]),
         unlanded: Box::new([]),
+        goal_left: None,
         landing: Landing::NoBranch,
         selections: Box::new([]),
     }
@@ -52,6 +53,7 @@ fn a_report_lists_landed_and_unlanded_changes_the_landing_and_ci_selection() {
             why: Why::NoChange(Box::from(b"Already there.".as_slice())),
         },
     ]);
+    report.goal_left = Some(b"the switch, not yet cut.".as_slice().into());
     report.landing = Landing::Landed {
         pull: 50,
         base: Box::from(b"main".as_slice()),
@@ -63,7 +65,7 @@ fn a_report_lists_landed_and_unlanded_changes_the_landing_and_ci_selection() {
         Selection { pull: 50, line: selection_line(b"selection: full\nrest").map(Box::from) },
         Selection { pull: 51, line: None },
     ]);
-    assert_eq!(words(&report, 8192).as_ref(), b"Goal T7: Add OAuth login\nLanded:\n- T9 Parser: pull request #41 into temper/1/g7\n  Left: two items\n  - a flaky test in x\n- T12 Lexer: pull request #42 into temper/1/g7\n  Left: none given\nEnded without landing:\n- T10 Docs: cancelled\n- T11 Retry: failed: build broke\n- T13 Noop: no change: Already there.\nThe landing: pull request #50, merged into main as 0123abcd; repairs T20, T21; resolutions T22.\nCI selection:\n- pull request #50: selection: full\n- pull request #51: unknown\n");
+    assert_eq!(words(&report, 8192).as_ref(), b"Goal T7: Add OAuth login\nLanded:\n- T9 Parser: pull request #41 into temper/1/g7\n  Left: two items\n  - a flaky test in x\n- T12 Lexer: pull request #42 into temper/1/g7\n  Left: none given\nEnded without landing:\n- T10 Docs: cancelled\n- T11 Retry: failed: build broke\n- T13 Noop: no change: Already there.\nLeft by the goal: the switch, not yet cut.\nThe landing: pull request #50, merged into main as 0123abcd; repairs T20, T21; resolutions T22.\nCI selection:\n- pull request #50: selection: full\n- pull request #51: unknown\n");
 }
 
 #[test]
@@ -95,6 +97,17 @@ fn empty_parts_are_left_out() {
     ] {
         report.landing = landing;
         assert_eq!(words(&report, 8192).as_ref(), format!("Goal T7: TITLE\nThe landing: {expected}.\n").as_bytes());
+    }
+}
+
+#[test]
+fn a_goal_report_takes_its_last_left_field() {
+    for (body, expected) in [
+        (b"I wrote Left: not a field.\n# Left: also not a field.".as_slice(), None),
+        (b"Left: earlier\nRisk: x\n \tLeft:  the switch  \r\nA paragraph", Some(b"the switch".as_slice())),
+        (b"Left: earlier\nLeft: ", Some(b"".as_slice())),
+    ] {
+        assert_eq!(goal_left(body), expected, "{body:?}");
     }
 }
 
@@ -140,7 +153,8 @@ fn with_lefts() -> Report {
 
 #[test]
 fn left_sections_are_cut_first_from_the_last_change_back() {
-    let report = with_lefts();
+    let mut report = with_lefts();
+    report.goal_left = Some(b"the goal leaves these words whole".as_slice().into());
     let full = words(&report, 8192);
     let section = concat(&[b"  ## Left\n  ", "é".repeat(100).as_bytes(), b"\n"]);
     let replacement = format!("  Left: [{} bytes cut]\n", section.len());

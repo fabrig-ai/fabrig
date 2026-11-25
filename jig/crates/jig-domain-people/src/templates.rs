@@ -1,4 +1,4 @@
-//! Template defaults served to clients (protocol/configuration.md, 3.1).
+//! Template defaults served to clients (protocol/configuration-templates.md, 1).
 use skein_lib::Duration;
 /// Who executes work filled from a template.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

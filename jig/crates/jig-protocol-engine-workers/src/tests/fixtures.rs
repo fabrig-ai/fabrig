@@ -10,30 +10,23 @@ pub const SECRET_A: &[u8] = b"secret-a";
 pub const SECRET_B: &[u8] = b"secret-b";
 pub const APPLICATION_VERSION: u32 = 3;
 pub fn application() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
-    let mut wires = skein_lib::List::with_capacity(1);
-    wires
-        .push(jig_protocol_worker_wire::Spoken::current("test-worker-wire", 3, [3; 32]))
-        .expect("one application wire");
-    wires
+    use jig_protocol_worker_wire::Spoken;
+    let text = "family test-worker-wire 3\nrecord Test { value: u32 note: u8 = 0 }\n";
+    let layout = skein_codec::schema::parse(text.as_bytes()).expect("test wire").fingerprints().family().digest();
+    skein_lib::List::from_boxed(Box::new([Spoken { name: "test-worker-wire", version: 3, layout, text }]))
 }
+
 pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire> {
     use jig_protocol_worker_wire as wire;
-    let spoken = wire::spoken();
-    let mut wires = skein_lib::List::with_capacity(16);
-    // Jig's current wires precede the fixture application's.
-    for wire in &spoken {
-        wires
-            .push(wire::Wire {
-                name: Box::from(wire.name.as_bytes()),
-                lowest: wire.lowest,
-                layouts: wire.layouts.clone(),
-            })
-            .expect("uncapped");
+    let mut wires = skein_lib::List::with_capacity(wire::CEILINGS.credential_wires);
+    for spoken in wire::spoken().iter().chain(&application()) {
+        let (layout, text) = if spoken.name == "test-worker-wire" && version != APPLICATION_VERSION {
+            ([0; 32], b"not a schema".as_slice())
+        } else {
+            (spoken.layout, spoken.text.as_bytes())
+        };
+        wires.push(wire::Wire { name: spoken.name.as_bytes().into(), layout, text: text.into() }).expect("wire slot");
     }
-    let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
-    wires
-        .push(wire::Wire { name: Box::from(current.name.as_bytes()), lowest: current.lowest, layouts: current.layouts })
-        .expect("uncapped");
     wires
 }
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
@@ -300,6 +293,8 @@ pub fn assignment() -> jig_domain_host::Assignment {
     use jig_domain_host as host;
     use skein_lib::Token;
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         assignment: host::RunAssignment {
             run: Token::new(7),
             attempt: Token::new(2),

@@ -18,6 +18,7 @@ jig-domain-fleet.workspace = true
 jig-domain-link.workspace = true
 smith-channel.workspace = true
 skein-lib.workspace = true
+skein-checks.workspace = true
 
 jig-domain-authority.workspace = true
 
@@ -26,6 +27,8 @@ jig-domain-brief.workspace = true
 jig-protocol-store.workspace = true
 
 [dev-dependencies]
+jig-engine-clients-kit.workspace = true
+jig-inspect.workspace = true
 jig-client-domain.workspace = true
 jig-client-protocol-link.workspace = true
 jig-protocol-config-fixtures.workspace = true
@@ -44,8 +47,9 @@ jig-domain-notes.workspace = true
 jig-domain-views.workspace = true
 jig-protocol-tools.workspace = true
 skein-world.workspace = true
+skein-scratch.workspace = true
 jig-fake-store.workspace = true
-jig-test-patches-smith.workspace = true
+jig-test-layouts.workspace = true
 skein-codec.workspace = true
 jig-protocol-engine-clients.workspace = true
 jig-client-protocol-wire.workspace = true

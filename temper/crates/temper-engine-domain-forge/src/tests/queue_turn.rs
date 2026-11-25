@@ -64,6 +64,7 @@ fn pending(task: u64) -> PendingStep {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -81,6 +82,7 @@ fn pending(task: u64) -> PendingStep {
         branch_fresh: true,
         base_tip: Some(BASE),
         base_read: Some(BASE),
+        close_landing: None,
         pull: Some(fixtures::open_pull()),
         pull_ci: true,
         ci: change::Status::Passed,
@@ -149,6 +151,45 @@ fn a_drift_hold_carries_the_branch_read_that_decided_it() {
     }
     assert_eq!(carried.expect("the held step carries its deciding read").head, Some(observed));
     assert_eq!(d.change(OWNER).expect("held change").change.last_head, Some(HEAD));
+}
+
+#[test]
+fn a_withheld_merge_observation_follows_the_last_decision_and_the_rows_end() {
+    let mut d = changes_setup(first(), SINCE);
+    d.hold_landings(true);
+    assert!(!d.inspection_merge_withheld(OWNER));
+    let mut out = Queue::uncapped();
+    decide_step(&mut d, &env(), pending(OWNER), &mut out);
+    assert!(d.inspection_merge_withheld(OWNER));
+    assert_eq!(d.change(OWNER).unwrap().change.state, first());
+    let mut waits_for_restart = false;
+    for request in &out {
+        if let Request::ChangeDecision { task: OWNER, decision: change::Decision::Wait { until: None }, .. } = request {
+            waits_for_restart = true;
+        }
+    }
+    assert!(waits_for_restart);
+    assert!(d.entries.is_empty(), "the observation makes no write");
+
+    let mut unknown = pending(OWNER);
+    unknown.contains_base = change::Status::Unknown;
+    decide_step(&mut d, &env(), unknown, &mut Queue::uncapped());
+    assert!(!d.inspection_merge_withheld(OWNER), "a forge wait is not withheld by the operator");
+    assert_eq!(d.change(OWNER).unwrap().change.state, first());
+
+    decide_step(&mut d, &env(), pending(OWNER), &mut Queue::uncapped());
+    assert!(d.inspection_merge_withheld(OWNER));
+    end_change(&mut d, &env(), OWNER, &mut Queue::uncapped());
+    assert!(d.change(OWNER).unwrap().terminal());
+    assert!(!d.inspection_merge_withheld(OWNER), "an ended row keeps no observation");
+
+    let mut d = changes_setup(first(), SINCE);
+    d.hold_landings(true);
+    decide_step(&mut d, &env(), pending(OWNER), &mut Queue::uncapped());
+    assert!(d.inspection_merge_withheld(OWNER));
+    room::drop_released(&mut d, OWNER, false, &mut Queue::uncapped());
+    assert!(d.change(OWNER).is_none());
+    assert!(!d.inspection_merge_withheld(OWNER), "a removed row keeps no observation");
 }
 
 #[test]

@@ -1,4 +1,4 @@
-//! Git protocol worlds (temper/docs/design/testing/README.md, 2).
+//! Git protocol worlds (temper/docs/design/testing/tiers.md, 1).
 
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
@@ -12,4 +12,8 @@ mod fuzzy {
 
 mod git_identity;
 
+mod tests {
+    mod reds;
+}
+mod trash;
 mod view;

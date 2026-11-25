@@ -3,7 +3,7 @@
 //! task-derived bounded inbox references and each person's result and reply read position.
 //! Knows tasks only by number; the parent checks authority and makes tasks.
 //! `Save`/`Erase` join the parent's decision; the parent holds replies until
-//! durable (domain/engine/README.md, 5.6).
+//! durable (domain/engine/decisions.md, 1.6).
 //!
 //! The boundary admits adoption and other owner requests by key, checks their
 //! shape, routes its current project role to the parent, and retains committed
@@ -13,7 +13,7 @@
 //! The root supplies authenticated identities and authoritative role changes.
 //! It mints fresh deployment person candidates and sign-in numbers; the protocol
 //! keeps cookie secrets or their digests separately, named by the root-issued
-//! sign-in number (domain/people/README.md, section 3; domain/engine/README.md, sections 4 and 5.4).
+//! sign-in number (domain/people/README.md, section 3; domain/engine/vocabulary.md, section 1, and domain/engine/decisions.md, section 1.4).
 //!
 //! `Domain::new` starts restoring. `Domain::start_restore` begins load/fit/link before input, capturing one wall
 //! instant for both expiry walks. `start_link` leaves admission closed; the caller establishes all
@@ -118,7 +118,7 @@ pub use policy_value::{
 };
 pub use refusals::{
     Accepter, Again, CeilingDimension, CeilingHolder, DependencyStatus, Ending, HoldOwner, Lack, LimitKind, Malformed,
-    NAMED_TASKS, Party, Refusal,
+    NAMED_TASKS, Party, QuestionAnswerer, Refusal,
 };
 
 /// The deployment’s roster, not a project (domain/people/README.md, 3: the deployment’s roles).

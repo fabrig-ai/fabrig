@@ -1,7 +1,7 @@
 //! One prepared attempt, retaining scoped evidence and private archives only.
 //! Setup and grading run outside the measured invocation. The shared supervisor
 //! owns every process tree; no process discovery or resource formula lives here.
-//! Entry point `attempt` follows ../../docs/design/benchmarks/README.md, sections 6, 8 and 10.
+//! Entry point `attempt` follows ../../docs/design/benchmarks/agents.md, section 1, and ../../docs/design/benchmarks/results.md, section 1, and ../../docs/design/benchmarks/isolation.md, section 1.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -13,6 +13,7 @@ use skein_lib::{Duration, Time};
 use skein_shell::Clock;
 use skein_world::end_to_end::{Command, Method, PeakScope};
 
+use crate::files::{Files, Kind, Native};
 use crate::guard::Guard;
 use crate::isolate::SetupStep::{Configuration, Scratch, Seed, Space, Warm};
 use crate::isolate::{Machine, Private, SetupStep};
@@ -29,7 +30,7 @@ mod cache;
 
 mod passive;
 
-/// The directory the scope gate lists for every real run (../../docs/design/benchmarks/README.md, section 10).
+/// The directory the scope gate lists for every real run (../../docs/design/benchmarks/isolation.md, section 1).
 pub const MACHINE_TEMPORARY: &str = "/tmp";
 
 fn machine_temporary() -> PathBuf {
@@ -164,17 +165,24 @@ fn blank(identity: Identity) -> AttemptResult {
 }
 
 pub(crate) fn private_parent(guard: &Guard, directory: &Path) -> Result<(), Fault> {
-    use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
-    let directory = guard.write_path(directory)?;
-    if !directory.exists() {
-        fs::DirBuilder::new().recursive(true).mode(0o700).create(&directory)?;
+    private_parent_with(&Native, guard, directory)
+}
+
+fn private_parent_with(files: &dyn Files, guard: &Guard, directory: &Path) -> Result<(), Fault> {
+    let directory = guard.write_path_with(files, directory)?;
+    if !files.try_exists(&directory).unwrap_or(false) {
+        files.create_dir_all(&directory, 0o700)?;
     }
-    let metadata = fs::symlink_metadata(&directory)?;
-    if !metadata.is_dir() || metadata.is_symlink() || metadata.permissions().mode() & 0o077 != 0 {
+    let metadata = files.symlink_metadata(&directory)?;
+    if metadata.kind != Kind::Directory || metadata.mode & 0o077 != 0 {
         return Err(input("attempt parents must be private directories"));
     }
     for ancestor in directory.ancestors() {
-        refuse_if(ancestor.join(".git").exists(), Input, "attempt data must be outside repositories")?;
+        refuse_if(
+            files.try_exists(&ancestor.join(".git")).unwrap_or(false),
+            Input,
+            "attempt data must be outside repositories",
+        )?;
     }
     Ok(())
 }
@@ -319,7 +327,7 @@ fn archive(guard: &Guard, directory: &Path, result: &mut AttemptResult, name: &s
     Ok(())
 }
 
-/// The attempt's archive directory (../../docs/design/benchmarks/README.md, 10).
+/// The attempt's archive directory (../../docs/design/benchmarks/isolation.md, 1).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Archive<'a> {
     pub(crate) guard: &'a Guard,
@@ -835,24 +843,56 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
     private_parent(guard, &archive_root)?;
     let directory = crate::isolate::create_directory(guard, &archive_root.join(&prepared.identity.attempt))?;
     let clock = Clock::new();
-    let existed = root.exists();
     let mut result = blank(prepared.identity.clone());
-    let mut inference = false;
     let mut neutral = outcomes::Neutral::default();
-    let work = if existed {
-        Err(Fault::new(FaultKind::Setup(Scratch), "attempt scratch root already exists; setup refused"))
-    } else {
+    let incomplete = attempt_scratch_with(&Native, guard, &root, &mut result, |result, inference| {
         attempt_work(
             Archive { guard, directory: &directory },
             machine,
             (&clock, &root),
             prepared,
-            &mut result,
-            &mut inference,
+            result,
+            inference,
             &mut neutral,
         )
-    };
-    let incomplete = match work {
+    });
+    passive::temporary(
+        &mut result,
+        &prepared.shared_temporary,
+        crate::isolate::temporary_changes(temporary_before, &prepared.shared_temporary, &root),
+    );
+    neutral.finish(&mut result);
+    let bytes = crate::render_result(&result)?;
+    let _: Artifact = crate::grade::archive(guard, &directory, "result.json", bytes.as_bytes())?;
+    Ok(Recorded { result, directory, incomplete })
+}
+
+// Only a root absent before work belongs to this attempt. Both probes
+// follow links and suppress metadata errors, as Path::exists does.
+fn attempt_scratch_with(
+    files: &dyn Files,
+    guard: &Guard,
+    root: &Path,
+    result: &mut AttemptResult,
+    work: impl FnOnce(&mut AttemptResult, &mut bool) -> Result<(), Fault>,
+) -> Incomplete {
+    if files.try_exists(root).unwrap_or(false) {
+        let fault = Fault::new(FaultKind::Setup(Scratch), "attempt scratch root already exists; setup refused");
+        return record_work(result, Err(fault), false);
+    }
+    let mut inference = false;
+    let work = work(result, &mut inference);
+    let incomplete = record_work(result, work, inference);
+    if files.try_exists(root).unwrap_or(false)
+        && let Err(error) = crate::isolate::remove_owned_tree_with(files, guard, root)
+    {
+        result.outcome.end = End::HarnessError { what: format!("owned workspace deletion failed: {error}") };
+    }
+    incomplete
+}
+
+fn record_work(result: &mut AttemptResult, work: Result<(), Fault>, inference: bool) -> Incomplete {
+    match work {
         Ok(()) => Incomplete::No,
         Err(error) => {
             let incomplete = if inference {
@@ -867,22 +907,33 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
                 if inference { End::HarnessError { what: error.detail } } else { End::Refused { setup: error.detail } };
             incomplete
         }
-    };
-    if !existed && root.exists() {
-        let deletion = crate::isolate::remove_owned_tree(guard, &root);
-        if let Err(error) = deletion {
-            result.outcome.end = End::HarnessError { what: format!("owned workspace deletion failed: {error}") };
-        }
     }
-    passive::temporary(
-        &mut result,
-        &prepared.shared_temporary,
-        crate::isolate::temporary_changes(temporary_before, &prepared.shared_temporary, &root),
-    );
-    neutral.finish(&mut result);
-    let bytes = crate::render_result(&result)?;
-    let _: Artifact = crate::grade::archive(guard, &directory, "result.json", bytes.as_bytes())?;
-    Ok(Recorded { result, directory, incomplete })
+}
+
+pub(crate) mod testing {
+    use super::{End, Fault, Incomplete, Request, blank, record_work};
+
+    /// Drive the runner's scratch gate, substituting only the attempt work.
+    pub fn record_scratch_work_with(
+        files: &dyn super::Files,
+        guard: &super::Guard,
+        state: &std::path::Path,
+        prepared: &Request,
+        work: impl FnOnce(&mut super::AttemptResult, &mut bool) -> Result<(), Fault>,
+    ) -> Result<(Incomplete, End), Fault> {
+        let root = super::scratch_root(state, prepared)?;
+        super::private_parent_with(files, guard, root.parent().expect("scratch parent"))?;
+        let mut result = blank(prepared.identity.clone());
+        let incomplete = super::attempt_scratch_with(files, guard, &root, &mut result, work);
+        Ok((incomplete, result.outcome.end))
+    }
+
+    #[must_use]
+    pub fn record_preparation_refusal(prepared: &Request, fault: Fault) -> (Incomplete, End) {
+        let mut result = blank(prepared.identity.clone());
+        let incomplete = record_work(&mut result, Err(fault), false);
+        (incomplete, result.outcome.end)
+    }
 }
 
 fn archive_task(
@@ -953,20 +1004,18 @@ pub fn script(task: &Task, capture: &Capture) -> crate::agent::Script {
 
 /// Archive a dispatcher-observed failure without inventing agent measurements.
 pub(crate) fn recover(
-    guard: &Guard,
-    state: &Path,
     prepared: &Request,
     process: &ProcessResult,
     reason: String,
+    entries: crate::grade::Snapshot,
+    mut archive: impl FnMut(&str, &[u8]) -> Result<Artifact, Fault>,
 ) -> Result<AttemptResult, Fault> {
-    let directory = state.join("runs").join(&prepared.identity.run).join(&prepared.identity.attempt);
-    private_parent(guard, &directory)?;
     let mut result = blank(prepared.identity.clone());
     result.outcome.end = End::HarnessError { what: reason };
     result.outcome.forced = process.forced;
     // Keep the digest of any complete archive the interrupted child wrote.
     // The dispatcher still supplies no agent measurements from its own tree.
-    for (path, entry) in crate::grade::snapshot_all(&directory)? {
+    for (path, entry) in entries {
         match entry {
             crate::grade::Entry::File { sha256, .. } => result.artifacts.push(Artifact { path, sha256 }),
             crate::grade::Entry::Directory => {}
@@ -980,10 +1029,10 @@ pub(crate) fn recover(
         passed: Measure::Observed { value: true },
         evidence: vec![format!("{:?}", process.tree)],
     });
-    archive(guard, &directory, &mut result, "dispatcher-stdout.log", &process.stdout)?;
-    archive(guard, &directory, &mut result, "dispatcher-stderr.log", &process.stderr)?;
+    result.artifacts.push(archive("dispatcher-stdout.log", &process.stdout)?);
+    result.artifacts.push(archive("dispatcher-stderr.log", &process.stderr)?);
     let bytes = crate::render_result(&result)?;
-    crate::grade::archive(guard, &directory, "result.json", bytes.as_bytes())?;
+    archive("result.json", bytes.as_bytes())?;
     Ok(result)
 }
 

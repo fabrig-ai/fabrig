@@ -108,7 +108,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 | Event::MakingStopped { .. }
                 | Event::MakingAdopt { .. }) => engine.events.push(root::Event::Forge(Box::new(event))),
                 // skein's forge/connection.md, section 2: no returned-hint request; never offer it again.
-                // protocol/forge/engine.md: these views are not kept; restart publishes connections and skein's forge/connection.md, 4.4's baseline.
+                // protocol/forge/engine.md: these views are not kept; restart publishes connections and skein's forge/connection-calls.md, 1.4's baseline.
                 Event::AppRecorded { .. }
                 | Event::Hint { .. }
                 | Event::Connection { .. }
@@ -363,7 +363,7 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
             }
         }
         root::Delivery::Assigned { channel, assignment } => {
-            // Take the restored deployment id, as the forge binds it at restore (domain/root.md, 8.1).
+            // Take the restored deployment id, as the forge binds it at restore (domain/root-restart.md, 1.1).
             engine.workers.encoding.deployment = engine.domain.deployment().id;
             engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
         }
@@ -371,6 +371,16 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
             // Includes addressed retryable capacity refusals, without a retained call flight.
             engine.workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
         }
+        root::Delivery::PartBusy { channel, task, attempt, part } => engine.workers.down(
+            engine.env.now,
+            jig_protocol_engine_workers::Event::PartBusy {
+                channel,
+                run: skein_lib::Token::new(task),
+                attempt: skein_lib::Token::new(attempt),
+                part,
+            },
+            &mut engine.events,
+        ),
         root::Delivery::TurnBusy { channel, task, attempt, turn } => engine.workers.down(
             engine.env.now,
             jig_protocol_engine_workers::Event::TurnBusy {

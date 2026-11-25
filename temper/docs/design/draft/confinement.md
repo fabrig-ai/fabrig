@@ -67,7 +67,7 @@ and section 2.3 says it in general.
   `paths_that_lead_out_of_the_checkout_are_outside`).
 - **A program backend's built-in tools** pass the permission prompt,
   which checks each path by its names alone (smith's
-  `smith/docs/design/protocol/programs.md`, 5.4;
+  `smith/docs/design/protocol/programs-claude-code.md`, 1.4;
   `smith/crates/smith-protocol-program/src/backend/policy.rs`): a link
   within the workspace that leads out is allowed, as that section says,
   and `Bash` is allowed whole once the run has the shell family.
@@ -83,7 +83,7 @@ and section 2.3 says it in general.
   so (`smith/docs/design/domain/tools.md`, 5): without contained trees a
   command has the permissions of the agent's user.
 - **A program's `Bash`** is the program's child, unparsed and unwrapped
-  (`smith/docs/design/protocol/programs.md`, 5.4).
+  (`smith/docs/design/protocol/programs-claude-code.md`, 1.4).
 - **What runs on behalf of a run** is a command like any other: a
   delivery's check, `.temper/pre-pr` in this repository, runs Cargo, and
   Cargo runs every dependency's build script with the run's reach
@@ -150,9 +150,9 @@ lies on disk within the tree's reach (2.3), the program's login first.
   document*; skein-io's `Spawn` holds a program, its arguments, its
   environment, a root, a directory and its pipes, and nothing more
   (`skein/crates/skein-io/src/kernel.rs`), and the helper that would set
-  a tree up (`skein/docs/design/runtime/kernel.md`, 6.6) does not exist.
+  a tree up (`skein/docs/design/runtime/kernel-cgroups.md`, 1) does not exist.
 - **What waits on them:** jig's agent processes (jig's
-  `jig/docs/design/protocol/README.md`, section 10), smith's commands
+  `jig/docs/design/protocol/needs.md`, section 1), smith's commands
   (`smith/docs/design/domain/tools.md`, 5), hearth's build sandboxes
   (`hearth/docs/design/domain/build/sandboxes.md`), and temper, which
   leaves containment for shared hosts until after standalone
@@ -228,7 +228,7 @@ group that opens a privileged socket (a container daemon's, for one),
 since a socket named by a path stays reachable in the first steps (6.5).
 `NoNewPrivileges` covers the whole unit until the full view (5.6) needs
 the set-user-id `newuidmap` for a run's subordinate ids, which it
-defeats (`skein/docs/design/runtime/kernel.md`, 6.6); the helper then
+defeats (`skein/docs/design/runtime/kernel-cgroups.md`, 1); the helper then
 sets it on each run instead.
 
 - **Stops:** privilege, people's homes and keys, other services' state,
@@ -272,7 +272,7 @@ command that rewrites it. The ways, ranked by what they protect:
      agent's own among them, which the narrowing must leave working.
    - **File tools:** smith's own tools, which open beneath the root by
      `RESOLVE_BENEATH` (2.1), served on the agent's MCP server as
-     `remove` already is (`smith/docs/design/protocol/programs.md`, 5.3),
+     `remove` already is (`smith/docs/design/protocol/programs-claude-code.md`, 1.3),
      in place of the program's `Read`, `Write`, `Edit`, `Glob` and
      `Grep`.
 3. **Commands alone narrowed,** the built-in tools' links left to the
@@ -334,7 +334,7 @@ to what this draft does not defend against.
 
 The worker's spawn of the agent carries the run's reach, and skein
 applies it in the child before the agent's first instruction, through
-the helper `skein/docs/design/runtime/kernel.md`, 6.6 designs, built
+the helper `skein/docs/design/runtime/kernel-cgroups.md`, 1 designs, built
 first for Landlock and `no_new_privs` alone. So the fence is the host's,
 not something the run does to itself, and the same spawn serves smith's
 narrower domains for its commands (5.3) and hearth's sandboxes.
@@ -360,7 +360,7 @@ directories.
 | `/dev/null`, `/dev/zero`, `/dev/full`, `/dev/random`, `/dev/urandom` | reading and writing the file |
 | `/proc` | reading |
 | the agent's executable; its start document | reading and executing; reading |
-| on a program source: the source's configuration directory, and the run's own directory of the program's files, its instructions and MCP configuration among them (`smith/docs/design/protocol/programs.md`, 5.1), not its parent | full but executing, narrowed away for commands (5.3) |
+| on a program source: the source's configuration directory, and the run's own directory of the program's files, its instructions and MCP configuration among them (`smith/docs/design/protocol/programs-claude-code.md`, 1.1), not its parent | full but executing, narrowed away for commands (5.3) |
 
 - **The environment points tools at their places:** `HOME` and
   `TMPDIR` name the scratch, and each toolchain and cache the

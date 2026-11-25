@@ -225,7 +225,7 @@ impl Domain {
     }
 
     /// Entries this domain and its agent child hold for the service to
-    /// drain (protocol/limits.md 3.8): the child's `backlog()` and the
+    /// drain (protocol/limits-derivation.md 1.8): the child's `backlog()` and the
     /// child's output queue. The service counts them in its backlog.
     #[must_use]
     pub fn backlog(&self) -> u32 {
@@ -339,7 +339,8 @@ fn agent_terminal(domain: &mut Domain, env: &Env<Limits>, agent: Token, terminal
         smith_inline_agent::Below::Completed { .. }
         | smith_inline_agent::Below::Failed { .. }
         | smith_inline_agent::Below::Cancelled { .. } => true,
-        smith_inline_agent::Below::Done { .. }
+        smith_inline_agent::Below::Classified { .. }
+        | smith_inline_agent::Below::Done { .. }
         | smith_inline_agent::Below::Read { .. }
         | smith_inline_agent::Below::Probed { .. }
         | smith_inline_agent::Below::Checked { .. }
@@ -406,7 +407,8 @@ fn route_agent(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             }
             Some(Output::Lower { agent, request }) => match request {
                 smith_inline_agent::Lower::Cancel { owner } if held_completion(domain, owner) => {}
-                request @ (smith_inline_agent::Lower::Complete { .. }
+                request @ (smith_inline_agent::Lower::Classify { .. }
+                | smith_inline_agent::Lower::Complete { .. }
                 | smith_inline_agent::Lower::Cancel { .. }
                 | smith_inline_agent::Lower::Io { .. }
                 | smith_inline_agent::Lower::Job { .. }
@@ -475,6 +477,7 @@ fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request
         parent::Request::Admitted { .. } => {
             send_line(domain, env, out);
         }
+        parent::Request::Part { .. } => unreachable!("the local host asks for no parts"),
         parent::Request::Turn { turn, .. } => {
             domain.told.turns = turn.number;
             domain.told.spent = turn.spent;
@@ -645,7 +648,8 @@ fn held_completion(domain: &Domain, owner: Token) -> bool {
             smith_inline_agent::Below::Completed { owner, .. }
             | smith_inline_agent::Below::Failed { owner, .. }
             | smith_inline_agent::Below::Cancelled { owner } => *owner,
-            smith_inline_agent::Below::Done { .. }
+            smith_inline_agent::Below::Classified { .. }
+            | smith_inline_agent::Below::Done { .. }
             | smith_inline_agent::Below::Read { .. }
             | smith_inline_agent::Below::Probed { .. }
             | smith_inline_agent::Below::Checked { .. }

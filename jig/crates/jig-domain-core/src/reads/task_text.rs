@@ -1,4 +1,4 @@
-//! Bounded source text reads (jig/docs/design/client/domain/contract/README.md, 4).
+//! Bounded source text reads (jig/docs/design/client/domain/contract/reads.md, 1).
 
 use super::{Answer, Why};
 use crate::{Core, Limits};

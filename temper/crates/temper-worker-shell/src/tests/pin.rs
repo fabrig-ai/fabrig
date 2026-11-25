@@ -1,48 +1,15 @@
-use crate::{agent, worker};
+use super::machine::{Disk, ROOT};
+use crate::{agent, testing::launch, worker};
+use skein_fake_machine::Item;
 use std::{
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
     path::Path,
 };
 
-fn launch(program: &Path, configuration: &Path, words: &[&[u8]]) -> jig_protocol_config::Agent {
-    jig_protocol_config::Agent {
-        program: program.as_os_str().as_bytes().into(),
-        configuration: configuration.as_os_str().as_bytes().into(),
-        arguments: words.iter().map(|word| Box::from(*word)).collect(),
-    }
-}
-
-#[test]
-fn pin_replaces_the_previous_agent_with_private_byte_copies() {
-    let scratch = skein_scratch::Scratch::new("worker-pin");
-    let root = scratch.path().join("worker");
-    fs::create_dir_all(root.join("agent")).expect("pin fixture");
-    fs::write(root.join("agent/old"), b"stale").expect("pin fixture");
-    let program = scratch.path().join("temper-agent");
-    let configuration = scratch.path().join("agent.json");
-    fs::write(&program, b"a").expect("pin fixture");
-    let pinned = worker::pin(&root, &launch(&program, &configuration, &[]), b"checked").expect("pin fixture");
-    let mut names: Vec<_> = fs::read_dir(root.join("agent"))
-        .expect("pin fixture")
-        .map(|entry| entry.expect("pin fixture").file_name())
-        .collect();
-    names.sort();
-    assert_eq!(names, ["agent.json", "temper-agent"]);
-    for (path, bytes, mode) in [
-        (crate::path(&pinned.program), b"a".as_slice(), 0o700),
-        (crate::path(&pinned.configuration), b"checked".as_slice(), 0o600),
-    ] {
-        assert_eq!(fs::read(path).expect("pin fixture"), bytes);
-        assert_eq!(fs::metadata(path).expect("pin fixture").permissions().mode() & 0o777, mode);
-    }
-    assert_eq!(fs::metadata(root.join("agent")).expect("pin fixture").permissions().mode() & 0o777, 0o700);
-}
-
 #[test]
 fn pinned_launch_survives_edits_and_renames_of_its_sources() {
-    let scratch = skein_scratch::Scratch::new("worker-redeploy");
-    let root = scratch.path();
+    let root = Path::new(ROOT);
     let program = root.join("temper-agent");
     let configuration = root.join("agent.json");
     let configured = configuration.as_os_str().as_bytes();
@@ -51,10 +18,11 @@ fn pinned_launch_survives_edits_and_renames_of_its_sources() {
         vec![configured],
         vec![b"/other.json", configured, configured],
     ] {
-        fs::write(&program, b"program at start").expect("pin fixture");
-        fs::write(&configuration, b"configuration at start").expect("pin fixture");
-        let pinned = worker::pin(root, &launch(&program, &configuration, &words), b"configuration at start")
-            .expect("pin fixture");
+        let disk = Disk::new(&[
+            Item::file(b"temper-agent", b"program at start"),
+            Item::file(b"agent.json", b"configuration at start"),
+        ]);
+        let pinned = disk.pin(root, &launch(&program, &configuration, &words), b"configuration at start");
         assert_eq!(crate::path(&pinned.program), root.join("agent/temper-agent"));
         assert!(crate::path(&pinned.program).is_absolute());
         for (before, after) in words.iter().zip(&pinned.arguments) {
@@ -76,11 +44,11 @@ fn pinned_launch_survives_edits_and_renames_of_its_sources() {
                 &pinned.configuration,
             ),
         ] {
-            fs::write(path, changed).expect("pin fixture");
-            assert_eq!(fs::read(crate::path(copy)).expect("pin fixture"), original, "in-place overwrite");
-            fs::write(&replacement, changed).expect("pin fixture");
-            fs::rename(replacement, path).expect("pin fixture");
-            assert_eq!(fs::read(crate::path(copy)).expect("pin fixture"), original, "rename replacement");
+            disk.overwrite(path, changed);
+            assert_eq!(disk.read(crate::path(copy)), original, "in-place overwrite");
+            disk.create(&replacement, changed, 0o600);
+            disk.rename(&replacement, path);
+            assert_eq!(disk.read(crate::path(copy)), original, "rename replacement");
         }
     }
 }

@@ -95,7 +95,7 @@ pub enum Answer {
         step: build::Step,
         why: build::vocabulary::Why,
     },
-    /// The store at a limit render's errors do not name: its layers (hearth/docs/design/domain/store/README.md, 6.1).
+    /// The store at a limit render's errors do not name: its layers (hearth/docs/design/domain/store/state.md, 1.1).
     Full {
         limit: store::vocabulary::Limit,
         most: u32,

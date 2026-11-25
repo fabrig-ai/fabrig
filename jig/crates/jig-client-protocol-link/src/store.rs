@@ -1,4 +1,4 @@
-//! Durability before exchanges, and owner-versioned restoration (protocol/client/README.md, 7).
+//! Durability before exchanges, and layout-checked restoration (protocol/client/small-store.md, 1).
 use crate::component::Gathered;
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
@@ -29,14 +29,11 @@ pub(crate) fn valid(limits: &Limits) -> bool {
     w::Keyed::encoded_bound(limits.wire()).is_some()
 }
 
-pub(super) fn key(record: &Saved) -> Box<[u8]> {
-    bytes::copy_of(&record.record.key)
-}
 fn encoded(value: &Saved, limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
-    let table = translate::store::table(&value.record, limits)?;
+    let table = translate::store::table(value, limits)?;
     let mut writer = Writer::new(skein_lib::length::usize_of(table.measure(limits.wire())?));
     table.write(limits.wire(), &mut writer).expect("measured table record");
-    let record = w::Kept { store_version: value.version, record: writer.finish() };
+    let record = w::Kept { layout: w::LAYOUT, record: writer.finish() };
     if u64::from(record.measure(limits.wire())?) > limits.client().document_bytes {
         return Err(translate::too_large());
     }
@@ -48,7 +45,7 @@ fn restore(value: w::Kept, storage_key: &[u8], limits: &Limits) -> Result<Saved,
     if reader.remaining() != 0 || record.key.as_slice() != storage_key {
         return Err(translate::piece_problem(skein_codec::Reason::Malformed));
     }
-    Ok(Saved { version: value.store_version, record })
+    Ok(record)
 }
 impl Link {
     /// Keeps keyed exchanges behind writes the composing client has already given.
@@ -189,12 +186,12 @@ impl Link {
 
     pub(super) fn save(&mut self, record: Saved, out: &mut Queue<Request>) {
         self.gather(out);
-        let key = key(&record);
+        let key = bytes::copy_of(&record.key);
         match encoded(&record, &self.limits) {
             Ok(bytes) => out.push(Request::Save { record: Record { key, bytes } }),
             Err(_) => {
-                self.store.unwritten.insert(record.record.key, ()).expect("uncapped unwritten keys");
-                out.push(Request::NotWritten { key: record.record.key });
+                self.store.unwritten.insert(record.key, ()).expect("uncapped unwritten keys");
+                out.push(Request::NotWritten { key: record.key });
             }
         }
     }
@@ -221,9 +218,7 @@ impl Link {
         }
     }
     pub(super) fn save_stream(&mut self, stream: [u8; 16], out: &mut Queue<Request>) -> Result<(), crate::Undecodable> {
-        let Ok(value) = (w::Kept { store_version: jig_client_domain::TABLE_VERSION, record: Box::from(stream) })
-            .encode(self.limits.wire())
-        else {
+        let Ok(value) = (w::Kept { layout: w::LAYOUT, record: Box::from(stream) }).encode(self.limits.wire()) else {
             return Err(crate::Undecodable::TooLarge);
         };
         out.push(Request::Save { record: Record { key: bytes::copy_of(crate::STREAM_KEY), bytes: value } });
@@ -255,7 +250,7 @@ impl Link {
                 out.push(Request::Fact { fact: Fact::UndecodableStore });
                 continue;
             };
-            if reader.remaining() != 0 || value.store_version != jig_client_domain::TABLE_VERSION {
+            if reader.remaining() != 0 || value.layout != w::LAYOUT {
                 out.push(Request::Dropped);
                 continue;
             }

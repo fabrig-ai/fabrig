@@ -1,5 +1,5 @@
-//! The forge's held kinds (temper/docs/design/protocol/configuration/settings.md, 2;
-//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/README.md, 9).
+//! The forge's held kinds (temper/docs/design/protocol/configuration/settings-kinds.md, 1;
+//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/effects.md, 2).
 use super::fixtures::{CHANGE, opening_row};
 use super::*;
 use crate::settings::{
@@ -416,7 +416,7 @@ fn a_change_of_rules_wakes_the_live_changes_it_covers() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(opening_row())) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     d.offered_change(CHANGE);
     assert_eq!(d.next_wall_deadline(), None);
     let mut out = Queue::uncapped();

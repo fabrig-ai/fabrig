@@ -1,4 +1,4 @@
-//! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening.md, 3).
+//! Jig's store-owned families and jobs (jig/docs/design/protocol/store/opening-owners.md, 1).
 use crate::{Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, ValueType};
 
 /// The store's part of jig's owner set; accounts adds its kept family.
@@ -14,6 +14,8 @@ pub const JIG_STORE_SET: OwnerSet = OwnerSet {
     level: Some(6),
     families: &STORE_FAMILIES,
 };
+
+pub(crate) const CHANGED_SETTINGS: u16 = 1;
 
 /// Every store-owned family, in owner-set order.
 #[expect(
@@ -35,7 +37,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
     },
     KeptFamily {
         retired: &[],
-        current: include_str!("../schema/openings-v1.schema"),
+        current: include_str!("../schema/openings-v2.schema"),
         types: &[],
         name: "jig-store-openings",
         map: KeptMap::Store,
@@ -52,6 +54,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
             Keys { from: &[0, 6], to: &[0, 7], root: "Layout" },
             Keys { from: &[0, 7], to: &[0, 8], root: "Text" },
             Keys { from: &[0, 8], to: &[0, 9], root: "Job" },
+            Keys { from: &[0, 14], to: &[0, 15], root: "Order" },
         ],
         frames: None,
     },
@@ -109,11 +112,20 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                     variant: Some("escalation_decision"),
                     keys: &[KeyRange { from: &[1, 0, 7], to: &[1, 0, 8] }],
                 },
+                ValueType {
+                    number: 8,
+                    root: "Row",
+                    variant: Some("part"),
+                    keys: &[KeyRange { from: &[1, 0, 10], to: &[1, 0, 11] }],
+                },
             ],
             name: "jig-store-core",
             map: KeptMap::Store,
-            keys: &[Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" }],
-            frames: Some(crate::Frames { root: "TurnRecord", texts: &[core], patches: &[] }),
+            keys: &[
+                Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" },
+                Keys { from: &[1, 0, 10], to: &[1, 0, 11], root: "Row" },
+            ],
+            frames: Some(crate::Frames { root: "TurnRecord", number: 9, texts: &[core] }),
         }
     },
     KeptFamily {
@@ -415,7 +427,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 keys: &[KeyRange { from: &[1, 0, 8, 0], to: &[1, 0, 8, 1] }],
             },
             ValueType {
-                number: 1,
+                number: CHANGED_SETTINGS,
                 root: "Changed",
                 variant: None,
                 keys: &[

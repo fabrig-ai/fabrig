@@ -3,6 +3,7 @@
 2026-11-20. Where temper's code lags or departs from [root.md](root.md).
 
 
+
 - **Departs:** 9: the store's fill mark is jig's standard profile's, not small's,
   because standard's map budget is that mark and temper's boxes take standard: under
   small's mark, sign-ins would be refused once the map passed small's budget
@@ -14,19 +15,6 @@ Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
 the store's write edge and an exhausted commit counter.
 
-`routing.md`, section 7, and `root.md`, section 8.1 have no known core wait in the project-making
-reproduction. The one-process world's reduced and whole incident stories
-check the core calls and a fresh client before and after reopening the
-same disk. The reduced sequence makes a third project membership; the
-earlier goal, forget, settings change and refused declare are not needed
-for the reproduced client failure. A client limited to two memberships
-rejects the mandatory `me` while the root stays ready; the native and web
-presets now take nine, as ctl does (`../client/ctl/README.md`, section 9).
-The stored-state row reopens the disk made with that client limit under
-the fixed preset, without changing records. This proves no cause for the
-request's public read of a private project returning 503; that remains unexplained
-(`root.md`, section 12).
-
 `routing.md`, section 1 has no known gap in a run's read as its person: a `see`
 flight of a person's address asks the core `PersonRead` and takes
 `Now::PersonAnswer` back (`route/see/person.rs`, `route/now.rs`), and an
@@ -37,16 +25,8 @@ tests read each address's reads as a step function
 (`temper-engine-domain/src/tests/see.rs`) and the engine world's
 `configuring/asking_person.rs` reads them through jig and the forge. The
 run's proposal read that `see proposal` makes is jig's
-`domain/engine/executors.md`, 3, *A run's proposal read*, routed as `routing.md`, 2 routes
+`domain/engine/executors-tools.md`, 1, *A run's proposal read*, routed as `routing.md`, 2 routes
 jig's named actions (`route/see/proposal.rs`, `NamedAction::ReadProposal`).
-
-Section 6.1 has no known gap in assigning an asking charter no home,
-explicit, saved-work or context repository. Its run therefore has no
-workspace; the other charters keep their repository selection.
-
-Section 8.1's owner handoff is present: after both domains load, the root
-hands the forge `people.sole_owner()` before its restore decision. The
-connector's retained-link scope gap remains in `forge/adoption.status.md`, 6.
 
 `routing.md`, section 2 has no known implementation gap in sizing task reads by the
 live attempt's worker reply bound, else the local agent's, else
@@ -122,13 +102,6 @@ LINKED`, as for every link jig's start cannot make
 
 ## Gaps and departures
 
-- **Not yet:** 6.2: a goal's design writer's brief line: no brief says
-  that `deliver` pushes Markdown straight to the goal branch
-  (`temper-engine-domain/src/assemble.rs`, `plan_home_access`).
-- **Not yet:** 6.2: a section for each
-  document a charter names (the forge's brief sources are CI, reviews, the
-  pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
-  `BriefSource`), and a merge-queue ejection's reason.
 - **Not yet:** 9: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while

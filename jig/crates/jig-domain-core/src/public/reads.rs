@@ -33,7 +33,8 @@ enum State {
 }
 
 pub(crate) fn start(core: &mut Core, reply: ReplyTo, read: PublicRead) -> Queue<Request> {
-    if read.owner == 0 && read.kind == 1 && read.project.is_none() && read.task.is_none() && read.version == 1 {
+    // The client protocol admits versions before forwarding a typed read.
+    if read.owner == 0 && read.kind == 1 && read.project.is_none() && read.task.is_none() {
         let document = projects(core);
         return keep(core, reply, read, State::Waiting { document: Some(document), after: 0 });
     }
@@ -249,9 +250,6 @@ fn projects(core: &Core) -> PublicDocument {
 }
 
 fn jig(project: &Project, read: PublicRead) -> Option<PublicDocument> {
-    if read.version != 1 {
-        return None;
-    }
     match (read.kind, read.task) {
         (2, None) => {
             let mut live = List::with_capacity(u32::try_from(project.live().len()).expect("bounded goals"));

@@ -8,6 +8,8 @@ pub(crate) mod answers;
 pub(crate) mod asks;
 mod catalogue;
 pub mod chips;
+pub(crate) mod client;
+pub(crate) mod convert;
 pub(crate) mod cursor;
 pub mod deployment;
 pub mod history;
@@ -26,6 +28,7 @@ pub(crate) mod refusals;
 pub mod settings;
 pub mod task;
 pub mod task_wait;
+mod waits;
 pub(crate) mod watches;
 pub use objects::document;
 /// Translate a task line without application parts (domain/engine/views.md, 2).

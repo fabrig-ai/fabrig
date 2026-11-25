@@ -1,4 +1,4 @@
-//! Authenticated unkeyed reads (`client/domain/contract/README.md`, section 4).
+//! Authenticated unkeyed reads (`client/domain/contract/reads.md`, section 1).
 //! Live documents are copied at admission; past rows load in bounded owner
 //! ranges. The core keeps only each load's reply, sign-in and query. A terminal
 //! consumes it, checks current visibility and moves the answer to the journal.
@@ -690,7 +690,7 @@ pub(crate) fn loaded(
             let mut lines = List::with_capacity(env.limits.documents.rows);
             for row in page.rows.into_boxed() {
                 let PageRow::Line(line) = row else { unreachable!("task index supplies lines") };
-                lines.push(line).expect("bounded ended group");
+                lines.push(*line).expect("bounded ended group");
             }
             tasks.ended = EndedGroup::Rows { rows: lines, next: page.next, cut: page.cut };
             Answer::Tasks(tasks)

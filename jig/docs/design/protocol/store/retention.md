@@ -60,7 +60,7 @@ retention bounds both the map and the logs.
   retention class. A deferral (6.2) counts again from the time it
   deferred.
 - **A deleted project's tasks** go whole, with no horizon waited for
-  (`README.md`, 6.1).
+  (`growth.md`, 1.1).
 
 ## 3. The summary
 
@@ -96,7 +96,7 @@ tasks family's `Stored::Summary(Box<TaskSummary>)` at
   `TaskSummary::of(&TaskRecord)`. It is never rewritten.
 - **Erased** by the summary stage (6.3), by the forgotten stage (6.4),
   by the record stage for a task forgotten once read (6.2), and by a
-  deleted project's erasure of its tasks (`README.md`, 6.1).
+  deleted project's erasure of its tasks (`growth.md`, 1.1).
 - **Not a live family:** the restart does not load it (`loads.md`, 2).
 
 ## 4. The retention family
@@ -141,14 +141,14 @@ fields and nothing more.
   reads again until the stage has no due row. Then the pass ends and
   arms the next one.
 - **One task at a time,** in the core's serialized walk of ended tasks
-  (the erasure that a deleted project's tasks go by, `README.md`, 6.1).
+  (the erasure that a deleted project's tasks go by, `growth.md`, 1.1).
   A retention pass and a deletion queue behind each other, so no task is
   erased by both at once.
 - **In pages, behind the commits before them:** each read of a task's
   rows waits for the commits before it to be durable, as a deletion's
   does, and each decision erases at most what one page of rows brings,
-  each page within its load's bounds (`../../domain/engine/README.md`,
-  5.3).
+  each page within its load's bounds (`../../domain/engine/decisions.md`,
+  1.3).
 - **Its clock** is the wall time of the step that reads the page.
 
 ## 6. Stages
@@ -273,7 +273,7 @@ also puts a `Proposal` row, `since` the decision's time.
 
 No backfill job runs at open: every store at the floor keeps each
 ended task's summary and retention row and each decided proposal's row
-(temper's `draft/store-floor.md`, section 3). Retention's timers keep
+(temper's `draft/archive/store-floor.md`, section 3). Retention's timers keep
 running as section 6 says.
 
 ## 9. Connectors
@@ -283,7 +283,7 @@ running as section 6 says.
   forget, or a deleted project's erasure (`../../domain/connectors.md`,
   3.4). A summary may stay a year after; no connector reads one.
 - **temper** drops the task's change record then, where its room's rules
-  let it go (temper's `domain/forge/change/README.md`, 7), beside the
+  let it go (temper's `domain/forge/change/records.md`, 1), beside the
   names it erases today.
 
 ## 10. Tests

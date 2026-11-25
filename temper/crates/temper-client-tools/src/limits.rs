@@ -1,11 +1,11 @@
-//! The tools' preset and host bounds (client/ctl/README.md, 9).
+//! The tools' preset and host bounds (client/ctl/bounds.md, 1).
 pub use crate::jig::call::{KEY_BYTES, MOVED_BYTES};
 use skein_lib::{Duration, RequestLimits};
 use temper_client_domain_forge as client;
 pub const ROWS: u32 = 32;
 pub const TEXT: u32 = 81_920;
 /// The client's text and turn text; jig's wire caps these at 65,536 (`task_text_words`).
-/// `task text` joins the engine's chunks (client/ctl/README.md, 9).
+/// `task text` joins the engine's chunks (client/ctl/bounds.md, 1).
 pub const CLIENT_TEXT: u32 = 32_768;
 /// Whole document bodies and goal words (client/view.md, 4).
 pub const LONG_TEXT: u32 = 131_072;
@@ -24,7 +24,7 @@ pub const LOCK: Duration = Duration::from_secs(60);
 pub const LOCK_TRY: Duration = Duration::from_millis(100);
 pub const WAIT: Duration = Duration::from_secs(300);
 pub const WAIT_MOST: Duration = Duration::from_secs(3600);
-/// The tools' client preset, with their windows and retry spans (client/ctl/README.md, 9).
+/// The tools' client preset, with their windows and retry spans (client/ctl/bounds.md, 1).
 #[must_use]
 #[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
 pub fn client() -> client::Limits {
@@ -42,6 +42,7 @@ pub fn client() -> client::Limits {
             owners: &[jig_client::Spoken {
                 family: temper_client_protocol_wire::FORGE,
                 version: temper_client_protocol_wire::CLIENT_VERSION,
+                layout: temper_client_protocol_wire::CLIENT_LAYOUT,
             }],
             requests,
             // A jig ask reserves this much, so the table holds `requests` asks.

@@ -1,9 +1,16 @@
 //! Whole-engine proofs of follows.md, 3–7 and 11. All observations use durable rows or public reads.
 use super::*;
+use jig_protocol_engine_clients::translate::owner;
 use skein_forge::api::{self, Commit};
+use skein_lib::Wall;
 
 pub(crate) fn fixture() -> World {
     configured_follow(s::FollowStart::Owner, 1000, Gate::default(), true)
+}
+pub(crate) fn opening_fixture() -> World {
+    let mut world = unaccepted_follow_with_tables(1000, Gate::default(), true, true, true);
+    keep(&mut world, Some(s::FollowStart::Owner), 110);
+    world
 }
 pub(crate) fn follow(world: &World) -> &FollowRow {
     row(world)
@@ -219,7 +226,11 @@ fn cold_engine_restart_keeps_three_entries_live_work_and_reasks_the_inflight_rea
     owner(&mut world, 190, FollowAct::Start { after: first });
     let producer = delegate(&mut world, first_change, 0);
     let follow_task = row(&world).task.expect("standing follow");
-    party_task(&mut world, 191, people::Ask::Stop { project: 2, task: follow_task });
+    party_task(
+        &mut world,
+        191,
+        people::Ask::Stop { project: 2, task: follow_task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let second = landing(&mut world, b"src/a.c", b"second");
     heard(&mut world, second);
     let third = landing(&mut world, b"src/a.c", b"third");
@@ -403,8 +414,7 @@ fn ctl_list(world: &mut World) -> String {
         shown: None,
         picker: true,
     };
-    let frame = jig_protocol_engine_clients::translate::owner::frame(&frame, &[catalogue], link.wire())
-        .expect("owner's frame on wire");
+    let frame = owner::frame(&frame, Wall::EPOCH, &[catalogue], link.wire()).expect("owner's frame on wire");
     let me = jig_client_protocol_link::translate::documents::frame(frame, &link).expect("client frame");
     let event = client::Event::Up {
         up: client::Up::Watched {

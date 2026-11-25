@@ -323,7 +323,15 @@ fn stop_sends_one_stop_and_shows_it_pending_until_answered() {
     for _ in [false, true] {
         f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::Stop, &mut serial, &mut f.out);
     }
-    assert_eq!(fixtures::acts::sent(&mut f.out).as_ref(), [c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK }]);
+    assert_eq!(
+        fixtures::acts::sent(&mut f.out).as_ref(),
+        [c::Ask::Stop {
+            project: fixtures::PROJECT,
+            task: f::TASK,
+            reason: jig_client::contract::Text::new(Box::from(b"Paused from the web".as_slice()), u32::MAX)
+                .expect("fixture reason fits")
+        }]
+    );
     assert_eq!(
         f.chat.pending.as_slice(),
         [(jig_client::Key { asker: crate::owner::Owner::Pages.asker(), number: SERIAL + 1 }, Sending::Stop)]
@@ -2568,7 +2576,7 @@ fn paused_task() -> c::Task {
             owner: c::HoldOwner::Party { person: fixtures::PARTY },
             mode: c::HoldMode::Stop,
             scope: c::HoldScope::Subtree { task: f::TASK },
-            reason: Box::default(),
+            reason: Box::from(b"Paused from ctl".as_slice()),
             placed_at: skein_lib::Wall::EPOCH,
             revision: c::Revision { value: 2 },
             lifted: false,

@@ -1,15 +1,15 @@
 # A place's kinds
 
-Provisional, 2026-11-16, from `../../draft/landed-qa.md`, sections 2, 5
-and 10, milestone Q8 of `../../draft/landed-qa.execution.md`. One
-framework for a place's two kinds, a box (`../../protocol/setup/box.md`,
-5) and a deployment (`deployment.md`): what a place does is one set of
+Provisional, 2026-11-16, from `../../draft/archive/landed-qa.md`, sections 2, 5
+and 10, milestone Q8 of `../../draft/archive/landed-qa.execution.md`. One
+framework for a place's two kinds, a box (`../../protocol/setup/box-backends.md`,
+1) and a deployment (`deployment.md`): what a place does is one set of
 operations, install, start, stop, save, restore and the lines' values,
 each written once, in the drive session or the QA tool, for either
 kind; what differs between the kinds is a value of the kind, in one
-table (section 3). The box stays a kind of its own, for QA of the box
+table (`kinds.md`, section 3). The box stays a kind of its own, for QA of the box
 itself: its welcome, its playground and `temper box`
-(`../../draft/landed-qa.md`, 2 and 10).
+(`../../draft/archive/landed-qa.md`, 2 and 10).
 
 ## 1. In one page
 
@@ -79,7 +79,7 @@ holder and its socket.
 
 `qa.json`'s `ports` (`README.md`, 3.2), the drive session's `--ports`
 (`../../client/drive.md`, 2.1) and `TEMPER_INTERNAL_FAKE_BOX_PORTS`
-(`../../protocol/setup/box.md`, 5) keep one list of nine, in the box's
+(`../../protocol/setup/box-backends.md`, 1) keep one list of nine, in the box's
 order, so every place's configuration and every copy made at it stay as
 they are. Each position is named by what binds it:
 
@@ -170,7 +170,7 @@ them, and no format moves.
 - **One directory,** `temper/docs/development/qa/setups/`, holds every
   setup of either kind, its kind its chain's root's
   (`../../client/recipe.md`, 2); `setups.md` lists each with its kind.
-- **Each box setup weighed** (`../../draft/landed-qa.md`, 13): every
+- **Each box setup weighed** (`../../draft/archive/landed-qa.md`, 13): every
   box setup stays the box's, for QA of the box itself, and the one that
   needs nothing of a box, `ctl-hello`, is reached at a deployment's
   place too, by `stock-landing`: one setup in two places, the same lines
@@ -214,7 +214,7 @@ Focused, with no process, no box and no browser:
   setup.
 
 The walk after landing makes every setup again at a place of its kind
-and runs a pass at each kind (`../../draft/landed-qa.execution.md`, Q8).
+and runs a pass at each kind (`../../draft/archive/landed-qa.execution.md`, Q8).
 
 ## 10. Later
 

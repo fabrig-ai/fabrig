@@ -56,6 +56,14 @@ pub(crate) fn route_people(
             };
             people::Event::ConversationSeen { request, project, last_reply }
         }
+        people::Event::ReissueService { request } => {
+            let Some(crate::routing::flight::Flight::Party { request }) =
+                core.land_kind(request, crate::routing::flight::Kind::Party)
+            else {
+                return Queue::uncapped();
+            };
+            people::Event::ReissueService { request }
+        }
         people::Event::SignOut { reply_to, sign_in } => {
             if let Some(person) = core.people.person(sign_in, env.now, env.wall) {
                 crate::routing::run::results::clear_person(core, person);
@@ -218,6 +226,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::MarkedSeen { .. }
                     | people::Outcome::NoteEdited { .. }
                     | people::Outcome::ServiceMade { .. }
+                    | people::Outcome::ServiceReissued { .. }
                     | people::Outcome::Adopted { .. }
                     | people::Outcome::Created { .. }
                     | people::Outcome::Proposed { .. }
@@ -261,6 +270,10 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Refused(..),
                 )) => Request::Held(Box::new(Held::PeopleReply { to, reply })),
             },
+            people::Request::ReadingLost { project, parties } => {
+                routed.work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ReadingLost { project, parties })));
+                continue;
+            }
             people::Request::RolesApplied { .. } => continue,
             people::Request::RolesRefused { .. } | people::Request::RestoreRefused { .. } => {
                 core.start_collect_failure();
@@ -367,7 +380,7 @@ pub(crate) fn tag_people_part(
                             crate::admission::person_task::Action::Answer { task, revision, result },
                         );
                     }
-                    people::Ask::Stop { task, .. } => stop_request(core, env, &mut routed, party, task),
+                    people::Ask::Stop { task, reason, .. } => stop_request(core, env, &mut routed, party, task, reason),
                     people::Ask::Conclude { task, .. } => {
                         super::controls::conclude_request(core, env, &mut routed, party, task);
                     }
@@ -382,6 +395,9 @@ pub(crate) fn tag_people_part(
                     }
                     people::Ask::MakeService { role: service_role, .. } => {
                         make_service_request(core, env, party, &mut pending, service_role);
+                    }
+                    people::Ask::ReissueService { .. } => {
+                        routed.work.push(Work::Event(Event::People(people::Event::ReissueService { request })));
                     }
                     people::Ask::EditNote { name, scope, change, .. } => {
                         edit_note_request(core, &mut routed, party, name, scope, *change);

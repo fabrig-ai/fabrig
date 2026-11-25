@@ -1,4 +1,4 @@
-//! Proposal reads and the settings review supplied by wire 21 (client/ctl/tools.md, 2).
+//! Proposal reads and the settings review supplied by wire 21 (client/ctl/tools-reads.md, 1).
 use super::{Cut, Limits, Text, settings};
 use crate::jig::runner::{
     proposal::{INVENTORY, slot},
@@ -732,7 +732,7 @@ fn origin_text(origin: &c::SettingOrigin, out: &mut Text) {
         c::SettingOrigin::NotOffered => out.put(b"not offered"),
     }
 }
-// jig/docs/design/domain/engine/settings.md, 5 and 6: application state is separate from values.
+// jig/docs/design/domain/engine/settings-application.md, 1, and jig/docs/design/domain/engine/settings-proposals.md, 1: application state is separate from values.
 fn application_origin(reading: &Reading, setting: c::Setting) -> Option<&c::ApplicationFollows> {
     let (_, review) = crate::jig::runner::proposal::review(reading.pages.get(&1)?)?;
     for item in &review.items {

@@ -1,4 +1,4 @@
-//! A shared dependency's readiness settles before sealing a train (domain/landing.md, 9).
+//! A shared dependency's readiness settles before sealing a train (domain/landing-turn.md, 2).
 use super::super::{Domain, Limits, Work, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue};
@@ -21,6 +21,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     limits.forge.landing_members = 3;
     limits.tasks.holdings = limits.forge.landing_members;
     let (mut domain, env) = super::procedure_root_with_limits(limits);
+    super::fresh_procedure_forge(&mut domain, &env);
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap();
     let mut batch = List::with_capacity(4);
@@ -66,6 +67,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: super::super::super::internal(u64::MAX),
@@ -110,6 +112,7 @@ fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     super::turn_project(&mut domain);
     assert!(domain.forge.project_batch(1, 3));
     domain.work.push(Work::Tasks(tasks::Event::Procedure {
+        reads_project: false,
         reply_to: super::super::super::internal(u64::MAX),
         task: LATCH,
         step: 1,

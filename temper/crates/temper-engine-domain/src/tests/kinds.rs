@@ -1,5 +1,5 @@
 //! The root's typed settings routes (temper/docs/design/domain/routing.md, 6;
-//! temper/docs/design/protocol/configuration/settings.md, 2).
+//! temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 mod limit_reads;
 use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
@@ -1484,6 +1484,7 @@ fn make_follow_owner_task(
     for event in [
         tasks::Event::OpenPeriod { reply_to: READ_REPLY, project, period: 1, budget: 100 },
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: READ_REPLY,

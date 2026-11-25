@@ -1,4 +1,4 @@
-//! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
+//! Arbitrary and mutated client bytes (skein's data/codec/golden.md, section 1).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
 use jig_client_protocol_wire::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
@@ -35,6 +35,7 @@ fn records_1(bytes: &[u8]) {
     check!(Owner, bytes);
     check!(Keyed, bytes);
     check!(Owned, bytes);
+    check!(Layout, bytes);
     check!(Opened, bytes);
     check!(StreamEvent, bytes);
     check!(KeyedAnswer, bytes);
@@ -712,10 +713,17 @@ fn mutation_seed(name: &str) -> bool {
             "record_authorize_",
             "enum_authorize_",
             "record_hello_",
+            "record_layout_",
             "record_opened_",
             "enum_stream_event_",
             "record_run_state_",
             "record_task_",
+            "record_wait_",
+            "record_thing_",
+            "record_nearest_",
+            "enum_wait_",
+            "enum_at_bound_",
+            "enum_unbounded_",
         ]
         .iter()
         .any(|prefix| name.starts_with(prefix))
@@ -726,10 +734,10 @@ fn mutated(rng: &mut Rng) {
         if !mutation_seed(&value.name) {
             continue;
         }
-        let golden = &value.bytes;
-        decoders(golden);
+        let fixed_value = &value.bytes;
+        decoders(fixed_value);
         for _ in 0..1 {
-            let mut bytes = golden.clone();
+            let mut bytes = fixed_value.clone();
             if !bytes.is_empty() {
                 let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index fits");
                 *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");

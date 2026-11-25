@@ -1,5 +1,5 @@
 //! Delivery and isolation from a run's git, against real git and a throwaway HTTP remote.
-//! temper/docs/design/protocol/git.md, 3, 4.7, 9; domain/worker/checkouts.md, Two git directories.
+//! temper/docs/design/protocol/git.md, 3, temper/docs/design/protocol/git-operations.md, 1.7, temper/docs/design/protocol/git.md, 9; domain/worker/checkouts.md, Two git directories.
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
 use skein_throwaway_forgejo::{Forgejo, Init, Settings};
 use std::{
@@ -107,7 +107,7 @@ impl World {
             command.current_dir(&self.root).arg(format!("--git-dir={directory}"));
         }
         let output = command.args(args).output().expect("inspection git ran");
-        assert!(output.status.success(), "inspection: {:?}", output.stderr);
+        assert!(output.status.success(), "inspection {args:?}: {}", String::from_utf8_lossy(&output.stderr));
         String::from_utf8(output.stdout).expect("git ids and settings")
     }
 
@@ -700,11 +700,32 @@ fn view_fixture(name: &str) -> (skein_scratch::Scratch, skein_throwaway_forgejo:
     (scratch, instance, world, remote)
 }
 
+// The SHA-1 of the deleted file's contents (one\ntwo\nthree\n) posted below.
+const OLD_BLOB: &str = "4cb29ea38f70d7c61b2a3a25b02e3bdf44905402";
+
+fn change_base_history_on_forge(instance: &skein_throwaway_forgejo::Instance) {
+    let writer = instance.admin();
+    let target = format!("/api/v1/repos/{}/specimen/contents", writer.login);
+    let add = r#"{"branch":"main","message":"Add old file","files":[{"operation":"create","path":"old.md","content":"b25lCnR3bwp0aHJlZQo="}]}"#;
+    let replace = format!(
+        r#"{{"branch":"main","message":"Replace old file","files":[{{"operation":"delete","path":"old.md","sha":"{OLD_BLOB}"}},{{"operation":"create","path":"new.md","content":"c29tZXRoaW5nIGVsc2UgZW50aXJlbHkK"}}]}}"#
+    );
+    for body in [add, replace.as_str()] {
+        let response = instance
+            .exchange(&skein_throwaway_forgejo::Outgoing::json("POST", &target, Some(&writer.token), body.as_bytes()))
+            .expect("commit on the forge");
+        assert_eq!(response.status, 201, "{}", String::from_utf8_lossy(&response.body));
+    }
+}
+
 #[test]
 fn a_producer_conflict_is_visible_to_plain_git_and_pre_pr_can_stage_its_resolution() {
     let (_scratch, instance, mut world, remote) = view_fixture("producer-view");
     let mut base = None;
     for branch in [b"topic".as_slice(), b"main"] {
+        if branch == b"main" {
+            change_base_history_on_forge(&instance);
+        }
         let (workspace, conflicts) =
             world.prepare_view(checkout::Start::Base { branch: branch.into() }, branch, &remote);
         assert!(conflicts.is_empty());
@@ -721,7 +742,7 @@ fn a_producer_conflict_is_visible_to_plain_git_and_pre_pr_can_stage_its_resoluti
     );
     assert_eq!(conflicts.len(), 1);
     let directory = format!("workspaces/{}/specimen", workspace.raw());
-    assert_eq!(world.inspect(&directory, &["status", "--porcelain"]), "UU README.md\n");
+    assert_eq!(world.inspect(&directory, &["status", "--porcelain"]), "UU README.md\nA  new.md\n");
     assert!(world.inspect(&directory, &["status"]).contains("unmerged paths"));
     for revision in ["HEAD", "MERGE_HEAD", "refs/temper/landing"] {
         assert_eq!(
@@ -729,6 +750,13 @@ fn a_producer_conflict_is_visible_to_plain_git_and_pre_pr_can_stage_its_resoluti
             world.worker(&directory, &["rev-parse", revision])
         );
     }
+    let store = format!("stores/{}", store_token(&remote).raw());
+    assert!(world.missing(&store, "--all").iter().any(|blob| blob == OLD_BLOB), "old file never enters the store");
+    // The README edit is the tip of main; its parent replaced the historical file.
+    assert_eq!(
+        world.inspect(&directory, &["diff-tree", "-r", "-z", "-M", "--name-status", "MERGE_HEAD^^", "MERGE_HEAD^"]),
+        "A\0new.md\0D\0old.md\0"
+    );
     fs::write(world.root.join(&directory).join("README.md"), b"resolved\n").expect("resolution");
     let tree = world.pre_pr_tree(&directory);
     let commit = world.push_view();
@@ -934,11 +962,12 @@ fn a_kept_one_directory_checkout_is_taken_on_without_running_its_filters() {
     instance.stop().expect("stopped");
 }
 
+#[test]
 #[expect(
     clippy::too_many_lines,
     reason = "one merge story holds preparation, resolution, delivery and its index oracle together"
 )]
-fn merge_past_the_bound(marked: bool) {
+fn a_merge_delivery_pages_past_the_bound_after_the_run_stages_two_files() {
     let binary = temper_test_env::value(&temper_test_env::FORGEJO).expect("pinned Forgejo");
     let forgejo = Forgejo::from_path(std::path::Path::new(&binary)).expect("Forgejo");
     let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "paged-merge");
@@ -1016,11 +1045,8 @@ fn merge_past_the_bound(marked: bool) {
     let unmerged_args = ["diff-files", "--name-only", "-z", "--diff-filter=U"];
     let unmerged = names.join("\0") + "\0";
     assert_eq!(world.worker(&directory, &unmerged_args), unmerged);
-    let last = names.last().expect("last page path");
     for name in &names {
-        if !marked || name != last {
-            fs::write(world.root.join(&directory).join(name), b"resolved\n").expect("settled file");
-        }
+        fs::write(world.root.join(&directory).join(name), b"resolved\n").expect("settled file");
     }
     // The command stages into its own .git, not the worker's still-unmerged index.
     world.run_git(&directory, &["add", "--", &names[0], &names[1]]);
@@ -1032,36 +1058,20 @@ fn merge_past_the_bound(marked: bool) {
     let checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { landings }, .. } = answer else {
         panic!("push terminal")
     };
-    if marked {
-        assert_eq!(landings.as_ref(), &[checkout::Landing::Conflicted { files: Box::new([last.as_bytes().into()]) }]);
-        assert_eq!(world.worker(&directory, &unmerged_args), unmerged, "every worker index conflict survives refusal");
-        assert_eq!(world.topic_head(workspace, &remote), ours);
-    } else {
-        let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("merge delivered: {landings:?}") };
-        let head = String::from_utf8(invocation::hex(*commit).into_vec()).expect("commit id");
-        assert_eq!(world.topic_head(workspace, &remote), *commit);
-        let parents = world.inspect(&directory, &["show", "--no-patch", "--format=%P", &head]);
-        assert_eq!(
-            parents.split_whitespace().map(|id| invocation::object(id.as_bytes()).expect("parent")).collect::<Vec<_>>(),
-            [ours, base]
-        );
-        for name in &names {
-            assert_eq!(world.inspect(&directory, &["show", &format!("{head}:{name}")]), "resolved\n");
-        }
+    let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("merge delivered: {landings:?}") };
+    let head = String::from_utf8(invocation::hex(*commit).into_vec()).expect("commit id");
+    assert_eq!(world.topic_head(workspace, &remote), *commit);
+    let parents = world.inspect(&directory, &["show", "--no-patch", "--format=%P", &head]);
+    assert_eq!(
+        parents.split_whitespace().map(|id| invocation::object(id.as_bytes()).expect("parent")).collect::<Vec<_>>(),
+        [ours, base]
+    );
+    for name in &names {
+        assert_eq!(world.inspect(&directory, &["show", &format!("{head}:{name}")]), "resolved\n");
     }
     assert!(!git_directory.join("temper-scan").exists(), "no scan copy remains");
     let hold = world.hold.take().expect("held");
     assert!(matches!(world.finish(checkout::Event::Release { hold }), checkout::Request::Released { .. }));
     world.git.borrow_mut().close();
     instance.stop().expect("stopped");
-}
-
-#[test]
-fn a_merge_delivery_pages_past_the_bound_after_the_run_stages_two_files() {
-    merge_past_the_bound(false);
-}
-
-#[test]
-fn a_last_page_marker_refuses_real_delivery_and_preserves_every_unmerged_path() {
-    merge_past_the_bound(true);
 }

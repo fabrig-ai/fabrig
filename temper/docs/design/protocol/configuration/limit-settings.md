@@ -3,7 +3,7 @@
 Provisional, 2026-11-17, from `../../draft/config.md`, 5.3, 6.1 and 6.6
 (`../../draft/config.execution.md`, N2), and its store sized for 100 live
 goals, 2026-11-19, from 5.2 and 5.3 (N9), and its live figures,
-2026-11-20, from `../../draft/worker-restarts.md`, 8. The limits leave the
+2026-11-20, from `../../draft/archive/worker-restarts.md`, 8. The limits leave the
 documents and become two kinds of settings, one jig's and one temper's,
 changed by an owner by asking temper, with `temper ctl` or from Needs
 you. A raise of the figures 5.1 lists is taken at once, a change of the
@@ -96,11 +96,12 @@ this document says how settings lie over it.
   document's `limits.overrides` had, and its problems name the setting
   (section 3).
 - **On jig's client wire** a `SettingValue` of its own, so the wire
-  moves its version (jig's `protocol/client/README.md`).
+  changes its layout, its version frozen (jig's
+  `protocol/client/versions.md`, 1).
 
 ### 2.3 temper's kind, 22, `temper-limits`
 
-- **An application kind** of temper's (`settings.md`, section 2):
+- **An application kind** of temper's (`settings-kinds.md`, section 1):
   number 22, the deployment's scope, the forge connector's, one value,
   naming no charter. Its value is a list of overrides of temper's names,
   kept and judged by the forge child as every temper kind is; its judge
@@ -145,7 +146,7 @@ this document says how settings lie over it.
   The store's base is the stock resolved at those live goals
   (`derived.md`, 4 and 5.4), with the stock's `tool_payload` and the
   start's sources, and no setting; the store's records are laid out over
-  it (`../store.md`, 4) as they were over the stock. Its map value bound
+  it (`../store-versions.md`, 1) as they were over the stock. Its map value bound
   is the largest record's encoding there: a person's stored answer to a
   compound request of amendments (jig's `jig-store-people`), which grows
   with `people.operations` and so with `live_goals`, 100,881,496 bytes at
@@ -198,6 +199,16 @@ this document says how settings lie over it.
   3. it resolves the limits (below), checks them whole, and builds the
      engine with them, the store's codec ceilings among them;
   4. it restores, as today.
+- **The store is admitted once.** The store's admission, its sizing
+  above with its read and whole-file checks, ends with jig's check of
+  the store's limits and gives its result, jig's `Checked` (jig's
+  `protocol/store/README.md`, 8). The store opened at step 1 is made
+  over it, and the engine built at step 3 over the runtime check's;
+  neither evaluates a bound again. A limit jig's check refuses is
+  refused at admission, as the store's ceiling, before any store is
+  made, where it stopped the start at the store's making before. A
+  world that reopens its maps at the figures it admitted them at takes
+  that admission's `Checked`; at a changed figure it admits afresh.
 - **The order of the resolution,** over `derived.md`, section 4:
   1. the stock: jig's, with temper's figures over it;
   2. `live_goals` and `tool_payload` from temper's kind, or the stock's;
@@ -222,7 +233,7 @@ this document says how settings lie over it.
   goes on.
 - **What the store holds past a lowered figure** refuses the restore,
   naming the setting, its figure and what is held, as a lowered
-  document limit did (jig's `domain/engine/settings.md`, 7): a lowering
+  document limit did (jig's `domain/engine/settings-store.md`, 1): a lowering
   is the owner's to make when the work has drained. What is held is
   given in the setting's own units, so the owner can compare it with
   the figure: the least figure of that limit that admits the record.
@@ -282,7 +293,7 @@ this document says how settings lie over it.
   the same way, naming it.
 - **So the next start takes what an owner accepted.** A proposal is
   checked when it is made, against its revision; any newer revision
-  withdraws it (jig's `domain/engine/settings.md`, 6), so its acceptance
+  withdraws it (jig's `domain/engine/settings-proposals.md`, 1), so its acceptance
   needs no second check. A proposal a run sends in parts is checked part
   by part; the next start checks the whole, and `limits-held` covers a
   start it refuses.
@@ -345,8 +356,8 @@ this document says how settings lie over it.
   root the raised limits, which it takes into its own copy and its
   environment, and hands the forge child, which raises each table's
   ceiling and the forge client's. A ceiling is raised in place: skein's
-  containers take a raise without allocating (`skein/docs/design/runtime/lib.md`, 5).
-  Then the work held on a raised limit goes on (section 6).
+  containers take a raise without allocating (`skein/docs/design/runtime/lib-containers.md`, 1).
+  Then the work held on a raised limit goes on (`limit-settings.md`, section 6).
 
 ### 5.2 A live figure
 
@@ -398,7 +409,7 @@ this document says how settings lie over it.
   live figure.
 - **Not live, though a time bound:** `link.ping_ms` and
   `link.silence_ms`, which make the stop bound a worker's hello states
-  and the engine checks against its grace (`../../draft/redeploys.md`,
+  and the engine checks against its grace (`../../draft/archive/redeploys.md`,
   5.3), and which both sides of a link run; and the engine's own time
   bounds, which its children copy at construction (section 11).
 
@@ -456,7 +467,7 @@ this document says how settings lie over it.
   row's `applies`, section 5.3), and "at the next start" when the
   setting differs from the figure in force. A row's `applies` reaches
   the page as the client wire's `LimitApplies`, which gains `live`, so
-  `temper-client-wire` moves its version (`../wires.md`, 9). `transcript_memory`'s row shows the bytes
+  `temper-client-wire` changes its layout (`../wires.md`, 9). `transcript_memory`'s row shows the bytes
   the root holds against it. The settings page links to it. Its rows come
   from one read, `limits`, which the service answers from its names
   tables, the stock it resolved and the settings in force, a page of rows

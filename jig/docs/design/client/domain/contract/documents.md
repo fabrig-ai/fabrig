@@ -8,6 +8,11 @@
 - **jig's documents:**
   - *`me`:* the signed-in party's own document, always about whoever the
     credential belongs to: the party (number, kind, login and name);
+    when the sign-in reading it expires, `sign_in_expires: Wall`, its
+    saved wall expiry, by which it ends unless signed out sooner, set by
+    the clients' component for each exchange from the sign-in it checked
+    (the wire's `Me`, `sign_in_expires: u64`, from jig's client wire 43,
+    as `SignedIn`'s `expires`), so that a party sees its end coming;
     their projects, each with its number and its name, which every
     project has and no other project of the deployment shares
     (`../../../domain/model.md`, 6.1), its public identifier while it is
@@ -20,7 +25,7 @@
     beside them (`defaults`, by the template's number), separate from its
     configured LLM intent. The preview is what a run's check of a task
     given none and keeping no account would take now
-    (`../../../domain/accounts.md`, 4.3): the first model in charter order with
+    (`../../../domain/accounts-uses.md`, 1.3): the first model in charter order with
     an account usable now, at its default
     effort, under the effective creating authority and the current receiving
     party as payer (`../../../domain/engine/views.md`, 1), so that it is one of
@@ -30,7 +35,7 @@
     nothing. Shapes retain configured intent, never the preview, and
     a clipped catalogue gives no order from which to guess it. Relevant
     account/source, policy, membership and effective-executor changes
-    invalidate it (`README.md`, 5.2). The document also gives what they may create
+    invalidate it (`watches.md`, 1.2). The document also gives what they may create
     in each project, as the bounds a draft is compared with (3);
     their role in the deployment, if
     any; the **offer** in each project, what they can pick there now, one
@@ -39,14 +44,14 @@
     (`../../../domain/engine/briefs.md`, section 1), in the catalogue's order, that
     their authority there allows and an account can run, an account of the
     model's provider being usable now and serving them
-    (`../../../domain/accounts.md`, 4.3). A provider with no such account gives
+    (`../../../domain/accounts-uses.md`, 1.3). A provider with no such account gives
     no model, whatever configuration declares of it. Each model has its LLM
     provider, window and output, the efforts it takes, low to high, the
     default among them that a task given none takes (`effort`), its prices
     (amounts per `unit` tokens in the deployment's spend unit; cache writes
     are priced at input when no separate price is given), its optional
     description and shown name, its setting's `number`
-    (`../../../domain/engine/settings.md`, 11), where it came from (`source`: the
+    (`../../../domain/engine/settings-catalogue.md`, 1), where it came from (`source`: the
     binary's, a provider's list or a person's), whether its prices are
     `estimated`, the wall time until which it is new (`new_until`, a week past
     when a list first gave it, none for one no list brought; the client compares
@@ -54,7 +59,7 @@
     take first first, and whether a picker shows it (`picker`), so that a
     task's LLM choice (`requests.md`, 2) is drafted from it; how many models the
     catalogue holds past the bounds of the charter a project's chats run
-    under (`left_out`, `../../../domain/engine/settings.md`, 11); the most bytes a key may have,
+    under (`left_out`, `../../../domain/engine/settings-catalogue.md`, 1); the most bytes a key may have,
     which bounds a request carrying one (`requests.md`, 1), and the most a pasted
     sign-in address may have, the driver's redirect bound; the most bytes
     a party's words may have (a task's spec, a message, an answer) and an
@@ -65,14 +70,14 @@
     delegation's tasks have left, `tasks_left: u32`: its authority's
     tasks less the tasks its subtree has made over its life, itself not
     counted, never below zero, the number a delegate's tasks and one more
-    must fit at admission (`../../../domain/authority.md`, 5 and 8.1), as
+    must fit at admission (`../../../domain/authority.md`, 5, and `../../../domain/authority-checks.md`, 1.1), as
     its budget's `left` is what its spend has left, so that a client
     narrows a delegate it makes beneath the task, a party's `Delegate`
     (`requests.md`, 2), to what fits; its fields
     (`requests.md`, 2): tracked and priority, label, flags, when it was made
-    (`made`, its record's `created_at`), last activity, and what it
-    waits on; the LLM choice its next run takes, what it was given or, given
-    none, what its check would take now (`../../../domain/accounts.md`, 4.3):
+    (`made`, its record's `created_at`), last activity, what it
+    waits on, and its waits with their count; the LLM choice its next run takes, what it was given or, given
+    none, what its check would take now (`../../../domain/accounts-uses.md`, 1.3):
     its `later`, when present, as the choice's main and sub-agents with
     `later` none, once the task's reasons hold no `first` and its charter's
     runs do not resume; otherwise the first choice with its `later`
@@ -106,7 +111,7 @@
     `Message`, `Inbox` and `Unacknowledged` are the deployment's, with
     none. An Open task runs
     on a program source as any task does, so no run waits for its program
-    (`../../../domain/hosts/charters.md`, 1). The client uses its own `HostKind` and
+    (`../../../domain/hosts/charters.md`, 4). The client uses its own `HostKind` and
     `HelloRefusal` vocabulary; the canonical deployment translation keeps
     the shortfall context limits. These are derived document facts, never
     a new hold or stored state. A task line carries no run wait. Its hold
@@ -116,7 +121,7 @@
     dependencies, each a task's number
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
-    (`../../../domain/tasks/lifecycle.md`, 8); for a gathering, who
+    (`../../../domain/tasks/lifecycle-endings.md`, 1); for a gathering, who
     concluded it and when, `concluded: Option<Concluded>`, none while
     delegates may join (`../../../domain/tasks/gatherings.md`, section
     3); the proposals waiting in its subtree; its unread words,
@@ -139,10 +144,11 @@
     (`../../../domain/engine/settings.md`, 3 and 4); none for a procedure's or
     a person's task; and the acts the party may make on it, with what
     each would do (3, 4);
-  - *a task line:* one record for every list of tasks (`README.md`, 4.1): the task's
+  - *a task line:* one record for every list of tasks (`reads.md`, 1.1): the task's
     chip; its project and its requester; tracked and priority, label
     and flags; when it last changed, its last activity, and when it
-    ended, if it has; its deadline; what it waits on; its budget spent
+    ended, if it has; its deadline; what it waits on, its first wait and
+    its nearest bound; its budget spent
     and left; its live subtree counted by phase class, with how many are
     held below; its direct delegates counted, those done and all of them,
     cancelled ones left out, true however many they are and whichever
@@ -166,21 +172,21 @@
     entry's `projects` is empty but on a pending proposal of settings: there, its
     proposal's `projects`, or, for one of the deployment's, each project the
     party owns, at most 32, the lowest numbers first
-    (`../../../domain/engine/settings.md`, 6). `shows_in(project)` holds where `project` or
+    (`../../../domain/engine/settings-proposals.md`, 1). `shows_in(project)` holds where `project` or
     `projects` names it; the `inbox` read's project filter is the same rule;
   - *a proposal, an escalation, a question, a person task, a result:* each
     object whole, a proposal of settings naming its `projects`, empty for one of
-    the deployment's (`../../../domain/engine/settings.md`, 6), with the acts the party may make on it and what each
+    the deployment's (`../../../domain/engine/settings-proposals.md`, 1), with the acts the party may make on it and what each
     would do; a question's words within the document's text bound, cut
     at a character's boundary and saying so (3), their whole in the
     asking task's activity, where the turn that asked has it all, so a
     question is never refused, nor answered busy, for its length; a pending proposal of settings with its review
-    (`../../../domain/engine/settings.md`, 6): the revision it was made against,
+    (`../../../domain/engine/settings-proposals.md`, 1): the revision it was made against,
     the newest, and for each item the setting, what becomes of it, what
     it is now (its value, following its default or the change of which
     revision, or not offered) and what it would be, each value within
     the document's bound or with its size, as a revision's items are
-    (`README.md`, section 4), an item of an application's kinds with its size alone,
+    (`reads.md`, section 1), an item of an application's kinds with its size alone,
     the application serving its values, and an item of a project's own
     policy with that project's policy now and as it would be, each whole
     within the document's bound or with its size (`../../../domain/engine/settings.md`,
@@ -197,8 +203,8 @@
     any state, a withdrawn one or a batch of more goals, is a retained
     proposal (`ProposalHistory`) under the party's key, as a party's
     proposal of settings is, its proposer the party's number, its action
-    and state a task-origin one's. Neither form moves the client wire's
-    version;
+    and state a task-origin one's. Neither form changes the client
+    wire's layout;
   - *an activity line:* one of a task's words, run boundaries, turns,
     results heard, news heard, decisions, in commit order; a line of a change
     to a proposal of the task's names that proposal's number and says whether
@@ -215,7 +221,7 @@
     tasks' lines, each saying when it next runs: when the next period
     begins, where the period's source said so; otherwise at the next
     period, with the current period and when it began
-    (`../../../domain/authority.md`, section 7);
+    (`../../../domain/authority-budgets.md`, section 1);
   - *the deployment:* hosts, each with its program sources' logins;
     the workers' settings, withdrawn ones included, each linked or not
     and since when (`worker_settings`,
@@ -223,7 +229,7 @@
     the deployment's LLM accounts, as the party's own are (below), with
     the runs using each and the tasks waiting on each; capacity; the
     store's fill against its mark, and its census (`census`), the last
-    the store reported (`../../../protocol/store/README.md`, 6.3), or none
+    the store reported (`../../../protocol/store/growth.md`, 1.3), or none
     before its first: the commit it counts to (`commit`) and the one its
     writes count from (`since`), and a row per keyspace in prefix order,
     each its prefix (`prefix`, at most 8 bytes, empty for the keyspaces
@@ -249,7 +255,7 @@
     program's login under way in it, and how the last ended
     (`../../../domain/terminal-login.md`, 5); and two facts a client waits on: *usable*, that an
     account which serves the party's work (their own, those whose uses
-    name them, and the deployment's: `../../../domain/accounts.md`, 4.3)
+    name them, and the deployment's: `../../../domain/accounts-uses.md`, 1.3)
     has a source usable on a host, and *settled*, that no sign-in or
     check the party asked is in progress
     (`../../../domain/accounts.md`, sections 3 and 5). It holds no value,
@@ -262,7 +268,7 @@
     came from, and how many live tasks hold it; the pending proposals of
     settings, by number (`../../../domain/engine/settings.md`). It
     carries no value: one setting is read whole on its own, from the
-    newest or a held revision (`README.md`, section 4), and one of an application's
+    newest or a held revision (`reads.md`, section 1), and one of an application's
     kinds from the application, whose connector keeps its value (17.5),
     jig's read giving its state and size alone. Seen by a party with a
     deployment role, and a project's items by a party with a role there.
@@ -281,6 +287,17 @@ result and the desired cleanup state. Bounded diagnostics say when cut.
   task: the pending ones, the oldest first, and how many; its
   delegates; news; or nothing (`../../../domain/tasks/README.md`,
   section 3; `../../../domain/engine/views.md`, 3).
+- **Its waits** are the engine's records, carried as it computes them
+  (`../../../domain/engine/waits.md`, 2 to 5): each the task it waits at,
+  its kind, its object, its *since*, its bound with what happens at it or
+  the reason it has none, and who hears. A line carries its first wait,
+  which may be a task's in its subtree, and its nearest bound with that
+  wait's kind; a task's document carries the same two, then every wait of
+  its own, in order, within its lines, and how many it has; a tree's rows
+  are chips and carry none (`../../../domain/engine/waits.md`, 4). What a task
+  waits on is their summary, as the engine computes it. A party's entry
+  names its kind and its number: the question's, the proposal's, the
+  escalation's revision or the person task's own.
 - **Its last activity** is when it last heard words, replied, or had a
   delegate end: a wall time, kept on every task, by which lists order.
 
@@ -300,16 +317,16 @@ subject, source, key or digest payloads, and includes the accounts',
 holder's accounts', sources' and sign-ins' room limits under the same
 keyed retention and bounded entrance-history rules as other actions.
 
-An account row with a list (`../../../domain/accounts.md`, 3.7) also carries it
+An account row with a list (`../../../domain/accounts-lists.md`, 1) also carries it
 (`list`): when its last good read was (`read`), when its last attempt ended
 (`tried`), why that failed (`failure`), and how many names took no number
 (`left_out`). None says it has no list, so the client offers no reading.
 Reads move these and not `me`, unless they move the offer
-(`../../../domain/engine/settings.md`, 12). `left_out` in `me` also counts the largest of
+(`../../../domain/engine/settings-catalogue.md`, 2). `left_out` in `me` also counts the largest of
 the accounts' `left_out` its party may see, so that the page's one count holds both.
 
 An account row in either document also carries its facts
-(`../../../domain/accounts.md`, 3.7), at most 24, each with its kind, label,
+(`../../../domain/accounts-lists.md`, 1), at most 24, each with its kind, label,
 value, when it was said, the source it came through and its origin. A row
 carries only those whose kind, origin and window state this build registers, and
 applies each kind's audience to its reader: a holder's kinds to the account's
@@ -323,8 +340,8 @@ The wire and the client's contract carry the registry's numbers, and the
 contract names those a client reads. The client link refuses a share past 10000.
 A window's value also carries its rate (`AccountWindow.rate`, `Option<u32>`),
 its share per hour in basis points, or none: the core's memory beside the fact
-(`../../../domain/accounts.md`, 3.7), never stored. It moved the client wire's
-version, unbridged; the wire's layouts ledger names which.
+(`../../../domain/accounts-lists.md`, 1), never stored. It changed the client
+wire's layout, its version frozen (`../../../protocol/client/versions.md`, 1).
 
 The public provider catalogue in `me` carries the configured provider number,
 cut-aware name, sign-in and key offers, whole program names (at most 32 bytes
@@ -412,8 +429,8 @@ usable and settled fields beside the rows.
     party may give alone (their role's, its budget no more than their
     role's spend nor than what they can fund: their pool's left, plus
     the task's budget where their pool funds it already, or plus what
-    the task has spent where it doesn't, `../../../domain/authority.md`,
-    8.4; its tasks no more than the task has left), the budget they may
+    the task has spent where it doesn't, `../../../domain/authority-checks.md`,
+    1.4; its tasks no more than the task has left), the budget they may
     add to the task (that budget less the task's), and the grants they
     hold, listed; and, past that, the policy's ceiling, its budget not
     bounded by their pool, since a proposal's accepter funds it;
@@ -431,7 +448,7 @@ usable and settled fields beside the rows.
   `AsAllowed` is within it, and its answer says what it gave; a
   deadline given as a span (`requests.md`, 2) is within both bounds, since no
   presentation reads a clock: the engine judges it at the decision,
-  as the wall it then makes (`../../../domain/authority.md`, section 7),
+  as the wall it then makes (`../../../domain/authority-budgets.md`, section 1),
   and answers a `Create` it puts past the first bound as beyond
   authority, saying whether a proposal of it could be accepted. Past the
   second bound, or with an executor not listed, it is refused as not
@@ -470,8 +487,8 @@ usable and settled fields beside the rows.
   own documents.
 - **Times are wall times,** which the store keeps, so a document means the
   same after a restart. Accounts' source limits and retries carry the
-  wall fact retained when they were created (`../../../domain/accounts.md`,
-  3.5): a task's wait, the account's and the deployment's projections
+  wall fact retained when they were created (`../../../domain/accounts-sources.md`,
+  2): a task's wait, the account's and the deployment's projections
   all use that exact fact, as the store does, never convert again at
   read time. Their timers remain monotonic.
 - **Bounded:** each document within its limits, in bytes and windows,
@@ -574,11 +591,11 @@ usable and settled fields beside the rows.
 
 - **Release keeps its authority.** The hold is lifted by an authorized
   `Release`, not by words. The task's immediate hold and release rules
-  are `../../../domain/tasks/lifecycle.md`, 6 and `../../../domain/tasks/holds.md`.
+  are `../../../domain/tasks/lifecycle-holds.md`, 1 and `../../../domain/tasks/holds.md`.
 
 ## 6. Placed holds
 
-Placed holds are `../../../domain/tasks/lifecycle.md`, 10's.
+Placed holds are `../../../domain/tasks/lifecycle-holds.md`, 2's.
 
 - **A task held by a placed hold** shows `HoldCategory::Placed { hold
   }`, and its document names the hold: its owner (a party or a task),

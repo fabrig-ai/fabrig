@@ -1,4 +1,4 @@
-//! Kept forge removal (temper/docs/design/domain/forge/adoption.md, 1).
+//! Kept forge removal (temper/docs/design/domain/forge/adoption-connection.md, 1).
 #![expect(
     clippy::disallowed_methods,
     clippy::match_like_matches_macro,
@@ -31,8 +31,8 @@ fn kept(mode: Mode) -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Forge(record(1, mode)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d
 }
 
@@ -345,7 +345,7 @@ fn a_restart_resends_only_the_unanswered_steps() {
             let live = record(2, Mode::Fake);
             outputs(&mut d, Event::Restore { record: Stored::Forge(live.clone()) });
             let sent = outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-            let mut expected = skein_lib::List::with_capacity(4);
+            let mut expected = skein_lib::List::with_capacity(6);
             expected.push(Request::ForgeKept(live)).unwrap();
             if !secrets_erased {
                 expected.push(Request::ForgeGone { forge: 1 }).unwrap();
@@ -357,6 +357,10 @@ fn a_restart_resends_only_the_unanswered_steps() {
             if secrets_erased && box_removed {
                 expected.push(Request::Erase { key: Key::Forge(1) }).unwrap();
             }
+            if !secrets_erased || !box_removed {
+                expected.push(Request::MarkedForges).unwrap();
+            }
+            expected.push(Request::MarkedForges).unwrap();
             assert_eq!(sent.as_ref(), expected.as_slice());
             assert!(d.forge_ended(1));
         }
@@ -384,8 +388,8 @@ fn removal_retires_waiting_reads_and_keeps_watches_from_returning() {
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     fixtures::answer_next(&mut d, Err(skein_forge::api::Error::NotConnected));
     remove(&mut d, 1, Some(PartyRole::Owner));
     outputs(&mut d, Event::Names { task: 7, resources: Box::new([name.clone()]) });

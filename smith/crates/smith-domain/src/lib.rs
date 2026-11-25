@@ -1,4 +1,4 @@
-//! The agent root (smith/docs/design/domain/run.md, sections 2, 3 and 9;
+//! The agent root (smith/docs/design/domain/run.md, section 2, and smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run.md, section 9;
 //! skein/docs/foundation/programming-model.md, sections 4.4 and 4.5). It owns the run and session
 //! children, opaque credential names and validity, conversation bindings,
 //! tool tickets, deferred handoffs, uncapped facts and bounded content.
@@ -35,6 +35,7 @@ mod boundary;
 mod config;
 mod domain;
 mod facts;
+mod flow;
 
 mod feedback;
 #[cfg(test)]
@@ -43,6 +44,7 @@ mod limits;
 pub mod llm;
 mod operation;
 mod peer;
+mod resuming;
 mod route;
 #[cfg(test)]
 mod tests;

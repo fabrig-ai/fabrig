@@ -41,8 +41,11 @@ pub fn restart() {
     let key = description.dir("llm").join("llm.key");
     let observations = description.dir("forge").join("observations");
     let engine = description.dir("engine").join("config").join(temper_config_shell::FILE);
-    std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), description.dir("w1").join("git"))
-        .expect("worker's fake git");
+    std::os::unix::fs::symlink(
+        skein_scratch::paths::built("temper-box", "temper-box"),
+        description.dir("w1").join("git"),
+    )
+    .expect("worker's fake git");
     let (mut members, hosts) = description.members();
     members.up(&["forge"]);
     let mut world = real::World::new(Judge {
@@ -1116,8 +1119,13 @@ fn decode(value: &Value) -> Result<Box<[u8]>, String> {
     .map_err(|_| "file bytes".to_owned())
 }
 pub fn configure_llm(path: &Path) {
-    use serde_json::json;
     let mut value: Value = serde_json::from_slice(&fs::read(path).expect("LLM fixture")).expect("LLM JSON");
+    overlay_llm(&mut value);
+    super::write_private(path, &serde_json::to_vec(&value).expect("LLM JSON"));
+}
+
+pub fn overlay_llm(value: &mut Value) {
+    use serde_json::json;
     value["asked"][0]["turns"][0]["lines"] =
         json!([{"call":"change","arguments":{"words":"@coding Fix","repository":"acme/app"}}]);
     // This fixture's chat is Open, as in forge_land: text replies, then Close ends it.
@@ -1126,7 +1134,6 @@ pub fn configure_llm(path: &Path) {
         json!({"lines":[{"text":"The change chat is closed."}],"finish":"stop","tokens":20}),
     ]);
     value["cued"].as_array_mut().expect("scripts").push(json!({"cue":"Review this change at the named head","turns":[{"lines":[{"call":"finish","arguments":{"form":"verdict","label":"1","text":"Checked","fields":{},"items":[]}}],"finish":"tool_calls","tokens":20}]}));
-    super::write_private(path, &serde_json::to_vec(&value).expect("LLM JSON"));
 }
 fn configure_engine(value: &mut temper_playground::documents::Configuration) {
     // This fixture seeds its own project on stock policy 1, with no story-specific tool grants.

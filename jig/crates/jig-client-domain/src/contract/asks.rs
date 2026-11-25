@@ -1,4 +1,4 @@
-//! Each visible act is one ask; client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3.
+//! Each visible act is one ask; client/domain/contract/requests.md, 2, and client/domain/contract/answers.md, 1.
 //! Requests carry jig facts alone and their outcomes are durable.
 //! Adoption uses the connector's application request (client/domain/pages.md, 6.5).
 use super::{Decision, HeldRole, NoteScope, ProposalKey, Refusal, Revision, Text};
@@ -186,6 +186,7 @@ pub enum Ask {
     Stop {
         project: u32,
         task: u64,
+        reason: Text,
     },
     /// Cancel a task and its subtree.
     Cancel {
@@ -247,7 +248,7 @@ pub enum Ask {
         project: u32,
         grace: Option<Duration>,
     },
-    /// Make a project in the deployment scope (client/domain/contract/README.md, 5.5).
+    /// Make a project in the deployment scope (client/domain/contract/watches.md, 1.5).
     MakeProject {
         name: Text,
         policy: u32,
@@ -277,6 +278,10 @@ pub enum Ask {
     SetVisibility {
         project: u32,
         public: bool,
+    },
+    /// End a service’s sign-ins and replace its credential.
+    ReissueService {
+        party: u64,
     },
 }
 
@@ -323,6 +328,8 @@ pub enum Made {
     Note { note: u64, scope: NoteScope },
     /// An account record delivered once (client/domain/client/requests.md).
     MovingOut { account: u32, number: u32, record: skein_lib::Secret },
+    /// A service whose credential was replaced.
+    Reissued { party: u64 },
 }
 
 /// The one terminal the request table hands to this domain.

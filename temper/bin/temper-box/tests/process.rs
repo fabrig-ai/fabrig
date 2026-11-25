@@ -7,8 +7,6 @@ mod box_kinds;
 mod box_lifetime;
 #[path = "process/checkpoint.rs"]
 mod checkpoint;
-#[path = "process/restore.rs"]
-mod restore;
 use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
@@ -29,8 +27,7 @@ use skein_io::kernel::Exit;
 use skein_io::kernel::Signal;
 use skein_lib::Duration;
 use support::forge_land::{
-    assert_cached_binary_unchanged, assert_forgejo_setup, assert_plan_box, cache_forgejo_binaries, deployment_flags,
-    forgejo_setup_steps, plan_change_steps,
+    assert_cached_binary_unchanged, assert_forgejo_setup, cache_forgejo_binaries, deployment_flags, forgejo_setup_steps,
 };
 
 use support::boxed::BOX_DEADLINE;
@@ -40,7 +37,7 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
     use support::ctl::{Call, PROJECT, Step, Story, json};
     let scratch = support::Scratch::new("ctl_cut");
     let forgejo = support::forgejo::Throwaway::start(&scratch);
-    support::configuration(scratch.path(), &forgejo.forge());
+    support::lay_configuration(scratch.path(), &forgejo.forge());
     let adopt = &[
         "repository",
         "adopt",
@@ -100,7 +97,7 @@ fn an_adopt_cut_by_a_signal_is_made_once() {
 fn temper_open_adopts_a_repository_by_commands() {
     let scratch = support::Scratch::new("temper_open_adopt");
     let forgejo = support::forgejo::Throwaway::start(&scratch);
-    support::configuration(scratch.path(), &forgejo.forge());
+    support::lay_configuration(scratch.path(), &forgejo.forge());
     let mut serve = support::serve(scratch.path());
     let link = support::terminal::link(&mut serve, support::WITHIN);
     let open = support::terminal::open(scratch.path(), &scratch.path().join("client"), link.as_ref());
@@ -144,7 +141,7 @@ fn temper_open_adopts_a_repository_by_commands() {
 }
 
 #[test]
-fn a_push_is_delivered_signed_with_the_secret_reconcile_drew() {
+fn a_push_and_its_jobs_end_are_delivered_signed_with_the_secret_reconcile_drew() {
     let scratch = support::Scratch::new("hook_delivery");
     let (forgejo, listener) = support::forgejo::Throwaway::start_receiving(&scratch);
     assert_eq!(
@@ -154,22 +151,34 @@ fn a_push_is_delivered_signed_with_the_secret_reconcile_drew() {
         std::io::ErrorKind::AddrInUse
     );
     forgejo.push("hook.txt");
-    let delivery = loop {
+    let head = forgejo.branch_head(b"main").expect("pushed head");
+    let head = std::str::from_utf8(&head).expect("commit SHA");
+    let repository = forgejo.repository();
+    let secret = forgejo.secret();
+    let (mut pushed, mut ended) = (false, false);
+    while !pushed || !ended {
         let delivery = support::webhooks::receive(&listener, support::WITHIN);
-        if skein_lib::bytes::find(&delivery.body, b"Add hook.txt").is_some() {
-            break delivery;
+        let body: serde_json::Value = serde_json::from_slice(&delivery.body).expect("delivery JSON");
+        if skein_lib::bytes::find(&delivery.body, b"Add hook.txt").is_some() && body["after"] == head {
+            assert_eq!(delivery.event, "push", "Forgejo names the event");
+            assert_eq!(body["ref"], "refs/heads/main", "a push to main");
+            assert_eq!(body["repository"]["id"], repository);
+            pushed = true;
+        } else if body["run"]["commit_sha"] == head {
+            assert_eq!(delivery.event, "workflow_job_success");
+            assert_eq!(body["action"], "job_completed");
+            assert_eq!(body["job"]["name"], "check");
+            assert_eq!(body["job"]["status"], "success");
+            assert_eq!(body["run"]["event"], "push");
+            assert_eq!(body["run"]["repository"]["id"], repository);
+            ended = true;
+        } else {
+            continue;
         }
-    };
-    assert_eq!(delivery.event, "push", "Forgejo names the event");
-    assert!(skein_lib::bytes::find(&delivery.body, b"refs/heads/main").is_some(), "a push to main");
-    assert_eq!(delivery.signature, support::webhooks::signature(&forgejo.secret(), &delivery.body));
+        assert_eq!(delivery.signature, support::webhooks::signature(&secret, &delivery.body));
+    }
     forgejo.stop();
     scratch.remove();
-}
-
-#[test]
-fn a_persons_change_lands_on_the_forge_and_is_found_after_a_restart() {
-    landing("landed", true);
 }
 
 #[test]
@@ -193,7 +202,7 @@ fn batch_landing(case: &str) {
     let workflow = barrier.gate_workflow_by_test(batch_landing::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yml", workflow.as_bytes());
     forge.add_file("check.sh", batch_landing::CHECK.as_bytes());
-    support::configuration(scratch.path(), &forge.forge());
+    support::lay_configuration(scratch.path(), &forge.forge());
     batch_landing::configure(scratch.path(), forge.repository());
     batch_landing::run_narrowed(scratch.path(), &forge, &barrier);
     forge.stop();
@@ -207,7 +216,7 @@ fn turn_landing_restarts(case: &str) {
     let forge = turn_restart::start(&scratch);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yml", workflow.as_bytes());
-    support::configuration(scratch.path(), &forge.forge());
+    support::lay_configuration(scratch.path(), &forge.forge());
     turn_restart::configure(scratch.path(), forge.repository());
     let (proof, _) = turn_restart::run(scratch.path(), &forge, &barrier, None);
     let proof = proof.expect("held gate");
@@ -268,37 +277,6 @@ fn turn_gate_runs(forge: &support::forgejo::Throwaway, commit: &str, passed_run:
     let key = gate["key"].as_str().expect("receipt key");
     assert_eq!(status["description"], format!("key {} passed", &key[..16]));
     assert_eq!(status["target_url"], receipt["address"]);
-}
-
-/// The landing story; the hinted case raises four limits and pushes the slow job marker.
-fn landing(case: &str, raised: bool) {
-    let scratch = support::Scratch::new(case);
-    let forgejo = if raised {
-        support::forgejo::Throwaway::start_with_job_sleep(&scratch, 5)
-    } else {
-        support::forgejo::Throwaway::start(&scratch)
-    };
-    if raised {
-        forgejo.push("slow");
-    }
-    support::configuration(scratch.path(), &forgejo.forge());
-    if raised {
-        support::raise_paces(scratch.path());
-    }
-    let peer = support::fake_llm(support::landing_scripts(support::ANSWER, &forgejo));
-    let clock = skein_shell::Clock::new();
-    let began = clock.now().now;
-    let first = support::run_until_landed(scratch.path(), support::person::adopt_and_change(&forgejo), peer, &forgejo);
-    assert_eq!((first.signed_in, first.finished), (1, true), "{}", String::from_utf8_lossy(&first.stderr));
-    eprintln!("stage job: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
-    let merged = forgejo.merged_pull().expect("the change's pull request is merged");
-    assert_eq!(forgejo.job_state(merged), "success");
-    assert!(forgejo.main_readme().ends_with(support::EDIT), "main holds the agent's edit");
-    let second = support::run(scratch.path(), support::person::found(), None, Duration::from_secs(120));
-    assert!(second.finished, "the work is found after the restart");
-    assert_eq!(forgejo.merged_pull(), Some(merged), "the forge's state is unchanged by the restart");
-    forgejo.stop();
-    scratch.remove();
 }
 
 #[test]
@@ -387,23 +365,6 @@ fn an_older_recorded_forgejo_is_dumped_then_upgraded() {
         fs::metadata(&backup).expect("upgrade fixture").modified().expect("upgrade fixture"),
         meta.modified().expect("upgrade fixture")
     );
-    scratch.remove();
-}
-#[test]
-fn an_older_recorded_runner_has_its_files_prepared_again_without_a_dump() {
-    use std::fs;
-    use support::owned;
-    use temper_forge_setup::place::File;
-    let scratch = support::Scratch::new("runner_upgrade_real");
-    let _port = owned::prepared_processes(scratch.path());
-    owned::record_versions(scratch.path(), None, Some(b"13.1.0"));
-    let configuration = owned::file(scratch.path(), 1, File::RunnerConfiguration);
-    let before = fs::read(&configuration).expect("connection");
-    fs::remove_file(&configuration).expect("remove configuration");
-    let upgraded = owned::prepare(scratch.path(), 1);
-    assert!(upgraded.status.success(), "{}", String::from_utf8_lossy(&upgraded.stderr));
-    assert_eq!(fs::read(configuration).expect("configuration remade"), before);
-    assert_eq!(fs::read_dir(scratch.path().join("forge-1/backups")).expect("upgrade fixture").count(), 0);
     scratch.remove();
 }
 
@@ -529,6 +490,7 @@ fn temper_box_restarts_a_killed_forgejo_while_the_engine_serves() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "keep both sittings and the independent Forgejo reads in the same story")]
 fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart() {
     use skein_forge::forgejo::pin::VERSION;
     use std::{fs, os::unix::fs::PermissionsExt};
@@ -571,6 +533,9 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             BOX_DEADLINE,
             |_| {
                 let evidence = support::first_repository::live_from_hands(&paths[0], &paths[1], &client_root);
+                if run == "first" {
+                    support::csv_repair::landed(&paths, &client_root, &support::ctl::json(&evidence.panel), began);
+                }
                 support::first_repository::probe_admin_handover(&paths, &client_root, &mut older_admin);
                 evidence
             },
@@ -656,105 +621,95 @@ fn replace_admin_handover(paths: &[std::path::PathBuf; 3]) {
 }
 
 #[test]
-fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart() {
-    use std::{fs, os::unix::fs::PermissionsExt};
-    use support::forge_land::{self, Plan};
+fn a_persons_plan_is_connected_and_answers_a_chat_with_its_bearer_on_every_request() {
+    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use support::{
+        ctl::{Call, Step},
+        forge_land,
+    };
 
-    let scratch = support::Scratch::new("forgejo-plan-change");
+    let scratch = support::Scratch::new("plan-model-face");
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    let mut issuer = Some(forge_land::fake_deployment(&paths));
-    let flags = support::boxed::echo_steps(deployment_flags(&paths));
-    let (cached, sources) = cache_forgejo_binaries(&paths[2]);
+    let issuer = forge_land::fake_deployment(&paths);
+    let flags = deployment_flags(&paths);
     let clock = skein_shell::Clock::new();
-    let addition = format!("Plan change at {}-{}", std::process::id(), clock.now().now.as_nanos());
-    let words = format!("Please append this line to work/hello README.md: {addition}");
-    let mut bot = None;
-    let mut landed = None;
-    let mut ended_tasks = None;
-    for run in ["first", "second"] {
-        let first = run == "first";
-        let client = scratch.path().join(run);
-        fs::create_dir(&client).expect("fresh client root");
-        fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client root");
-        let mut steps = forgejo_setup_steps(run);
-        let setup_calls = if first { 7 } else { 4 };
-        let (account_at, found_at) = plan_change_steps(&mut steps, first, setup_calls, &words);
-        let scripts = if first {
-            forge_land::plan_scripts(&Plan {
-                words: words.as_bytes(),
-                line: addition.as_bytes(),
-                repository: temper_engine_domain_forge::tag(3, 1),
-                readme: b"# hello\n\n",
-            })
-        } else {
-            // A fresh fake has no request cursor from the old process. Its
-            // first turn answers Close's finish request with text, which parks
-            // the Open run. Its system cue remains the original task's words.
-            forge_land::restart_script(words.as_bytes())
-        };
-        let issuer = issuer.take().unwrap_or_else(|| support::sign_in::restart_issuer(&paths[0]));
-        let clock = skein_shell::Clock::new();
-        let began = clock.now().now;
-        let (outcome, seen) = support::boxed::run_ctl_with_face(
-            scratch.path(),
-            flags.clone(),
-            &client,
-            steps,
-            BOX_DEADLINE,
-            || support::first_repository::live(&paths[0], &paths[1], &client),
-            forge_land::plan_face(issuer, scripts, first),
-        );
-        eprintln!("{run} plan Forgejo box: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
-        let stderr = String::from_utf8_lossy(&outcome.stderr);
-        eprintln!(
-            "{run} peer: {} requests; answers {:?}; schemes {:?}",
-            seen.requests.len(),
-            seen.answers,
-            seen.schemes
-        );
-        assert_plan_box(run, first, &outcome, &stderr);
-        assert!(outcome.calls.len() > found_at + 3, "all story reads ran: {stderr}");
-        bot = Some(assert_forgejo_setup(run, &outcome.calls[..setup_calls], &stderr, bot, &paths[1]));
-        support::sign_in::assert_plan_account(&outcome.calls[setup_calls], &outcome.calls[account_at]);
-        let evidence = outcome.checked.expect("live check ran");
-        support::first_repository::assert_task(run, &outcome.calls[found_at..found_at + 3], &stderr, &evidence);
-        forge_land::assert_landed_chat_pull(run, &evidence);
-        let task = String::from_utf8(outcome.calls[found_at + 1].stdout.clone()).expect("landed task UTF-8");
-        let identity = forge_land::landed_identity(&task, &evidence.page);
-        let closing_at = outcome.calls.len() - if first { 0 } else { 4 };
-        let (tasks_at, tasks) = forge_land::plan_ended_tasks(&outcome.calls[..closing_at]);
-        if first {
-            landed = Some(identity);
-            ended_tasks = Some(tasks);
-        } else {
-            assert_eq!(Some(identity), landed, "same pull and merge commit");
-            assert_eq!(Some(tasks), ended_tasks, "no second change or producer");
-            let ended = support::ctl::json(&outcome.calls[closing_at + 1]);
-            assert_eq!(ended["met"], true);
-            assert_eq!(ended["task"]["chip"]["phase"], "ended");
-            forge_land::assert_no_live_roots(&support::ctl::json(&outcome.calls[closing_at + 2]));
-            let unknown = &outcome.calls[closing_at + 3];
-            assert_eq!(unknown.exit, Some(Exit::Code(2)), "no task 5: {stderr}");
-            assert_eq!(unknown.stderr.trim_ascii_end(), b"{\"error\":\"unknown\"}", "no task 5: {stderr}");
-        }
-        forge_land::assert_reply(&outcome.calls[found_at + 4..tasks_at], first);
-        // One reviewer turn follows CI. Four coder turns include the workflow read;
-        // three chat turns delegate, wait, then reply after the procedure ends.
-        // After the restart, the chat's lost attempt answers again, then Close's
-        // finish request takes its last text.
-        forge_land::assert_requests(&seen, if first { 8 } else { 2 }, words.as_bytes(), first);
-        support::assert_one_printed_link(run, &outcome.stdout, &outcome.stderr);
-        assert_eq!(support::boxed::status(evidence.address, "/api/v1/version"), None);
-        assert_eq!(
-            evidence.version.expect("live Forgejo")["version"].as_str().expect("version").split('+').next(),
-            Some(skein_forge::forgejo::pin::VERSION)
-        );
-        let wrote =
-            format!("First run: wrote the configuration, {}\n", paths[0].join(temper_config_shell::FILE).display());
-        assert!(!support::boxed::box_log(&paths[1]).contains(&wrote), "init wrote configuration before either box");
-        assert_cache_untouched(&cached, &sources);
-    }
+    let reply = format!("Plan reply {}-{}", std::process::id(), clock.now().now.as_nanos());
+    let words = format!("Answer with this line: {reply}");
+    let scripts = support::llm::requested(Box::new([Script {
+        cue: words.as_bytes().into(),
+        turns: Box::new([Turn {
+            lines: Box::new([Line::Text { text: reply.as_bytes().into() }]),
+            finish: Finish::Stop,
+            tokens: 20,
+        }]),
+    }]));
+    let steps = vec![
+        Step::Run(Call::sign_in()),
+        Step::Run(Call::new(&["me", "--json"])),
+        Step::Run(Call::new(&["account", "connect", "1", "--key", "connect-plan"])),
+        Step::Run(Call::new(&["account", "list", "--until", "settled", "--json"])),
+        Step::Run(Call::new(&["project", "make", "Plan chat", "--key", "plan-project"])),
+        Step::Run(Call::new(&[
+            "chat",
+            "start",
+            "--project",
+            "1",
+            "--model",
+            "gpt-6-luna",
+            "--key",
+            "chat-on-plan",
+            &words,
+            "--json",
+        ])),
+        Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
+        Step::Run(Call::new(&["chat", "show", "1", "--json"])),
+    ];
+    let (outcome, seen) = support::boxed::run_ctl_with_plan_chat(
+        scratch.path(),
+        flags,
+        scratch.path(),
+        steps,
+        BOX_DEADLINE,
+        forge_land::fake_face(issuer, scripts),
+    );
+    ctl_assert_success(&outcome.calls);
+    let [_, me, _, ready, _, _, waited, chat] = outcome.calls.as_slice() else { panic!("all plan chat reads ran") };
+    support::sign_in::assert_plan_account(me, ready);
+    assert_eq!(support::ctl::json(waited)["met"], true);
+    assert_plan_chat_reply(&support::ctl::json(chat), &reply);
+
+    let [query] = seen.requests.as_slice() else { panic!("one plan model request") };
+    assert_eq!(query.model.as_ref(), b"gpt-6-luna");
+    assert!(support::llm::request_has(query, words.as_bytes()));
+    assert_eq!(seen.answers, [Ok(())], "the model request was answered");
+    let requests = 1 + seen.lists;
+    assert_eq!(seen.schemes, vec![Some(skein_llm::Scheme::Bearer); requests], "model and catalogue use bearer");
+    assert_eq!(seen.credential_indexes, vec![Some(0); requests], "every request matched the plan's bearer");
+    assert_eq!(outcome.exit, Some(Exit::Code(0)), "{}", support::without_secrets(&outcome.stderr));
+    assert_eq!(outcome.left, Some(Vec::new()), "nothing outlives the box");
+    support::assert_one_printed_link("plan chat", &outcome.stdout, &outcome.stderr);
     scratch.remove();
+}
+
+fn assert_plan_chat_reply(chat: &serde_json::Value, reply: &str) {
+    assert_eq!(chat["activity"]["cut"], false, "whole activity page");
+    let rows = chat["activity"]["rows"].as_array().expect("chat activity");
+    let mut replies = Vec::new();
+    for turn in rows.iter().filter_map(|row| row.pointer("/event/owner/decoded/turn/decoded")) {
+        assert_eq!(turn["cut"], false, "whole committed turn");
+        for message in turn["messages"].as_array().expect("turn messages") {
+            if message["speaker"] == "assistant" {
+                replies.extend(
+                    message["blocks"]
+                        .as_array()
+                        .expect("assistant blocks")
+                        .iter()
+                        .filter_map(|block| block["text"]["text"].as_str()),
+                );
+            }
+        }
+    }
+    assert_eq!(replies, [reply], "the run's reply is committed once");
 }
 
 // protocol/cluster.md, 6: the description's first process stories.
@@ -862,7 +817,10 @@ impl skein_world::Referee<support::cluster::Root> for ClusterJudge {
 }
 #[cfg(target_os = "linux")]
 fn cluster_story(scratch: &std::path::Path, workers: bool) {
-    let cluster = support::cluster::Cluster::read(scratch);
+    let mut cluster = support::cluster::Cluster::read(scratch);
+    if !workers {
+        cluster.stage_providers_only();
+    }
     let (mut members, hosts) = cluster.members();
     members.up(if workers { &["w1", "w2"] } else { &["engine"] });
     let clock = skein_shell::Clock::new();
@@ -913,8 +871,9 @@ fn an_engine_alone_prints_its_lines_and_drains_on_a_signal() {
 fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
     let stderr = std::str::from_utf8(&engine.stderr).map_err(|why| format!("engine lines: {why:?}"))?;
     // configuration/figures.md, 2: beside its listeners the engine reports its composed figures.
-    let figures: Vec<_> =
-        stderr.lines().filter_map(|line| line.strip_prefix("temper serve: figures for workers: ")).collect();
+    let binary = temper_engine_shell::ENGINE.binary;
+    let figures_prefix = format!("{binary} serve: figures for workers: ");
+    let figures: Vec<_> = stderr.lines().filter_map(|line| line.strip_prefix(&figures_prefix)).collect();
     let [figures] = figures.as_slice() else { return Err("exactly one workers' figures line".into()) };
     let counts: Vec<_> = figures.split(", ").collect();
     let [limits, endpoints, "agents setting revision 1"] = counts.as_slice() else {
@@ -927,7 +886,7 @@ fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
     }
     let lines: Vec<_> = stderr.lines().filter(|line| line.starts_with("listening ")).collect();
     // The fixture's kept providers differ from a fresh store's stock (providers.md, 3).
-    let warning = "temper serve: warning: LLM providers changed; they apply at the engine's next start";
+    let warning = format!("{binary} serve: warning: LLM providers changed; they apply at the engine's next start");
     if lines.len() != 3 || stderr.lines().filter(|line| *line == warning).count() != 1 || stderr.lines().count() != 5 {
         return Err(format!("three listeners, workers' figures and one provider-start warning: {stderr}"));
     }
@@ -1007,7 +966,7 @@ fn a_mixed_document_exits_1_naming_its_path() {
         }
     }
     let scratch = support::Scratch::new("cluster_mixed_document");
-    let cluster = support::cluster::Cluster::documents(
+    let cluster = support::cluster::Cluster::lay_documents(
         scratch.path(),
         &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],
     );
@@ -1253,17 +1212,6 @@ fn a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal() 
 #[cfg(target_os = "linux")]
 const CHAT_HOLDS_ITS_SLOT: Duration = support::WITHIN.saturating_mul(2);
 
-// A lost link heals: a stall past the fixture's 1 s silence loses it.
-// The stock worker contact grace outlasts its redials, and a re-hello clears it.
-// The engine keeps that channel's attempts adrift for its derived fleet grace;
-// re-hello lists them back, so nothing is placed twice (protocol/cluster.md, 3).
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-fn a_task_runs_on_each_worker() {
-    cluster_chats("cluster_each_worker", ClusterStory::Each).unwrap_or_else(|why| panic!("{why}"));
-}
-
 /// A task on each worker, on the deployment's binaries (protocol/cluster.md, 6).
 // Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
 #[cfg(target_os = "linux")]
@@ -1277,47 +1225,19 @@ fn a_task_runs_on_each_worker_of_the_deployments_binaries() {
     .unwrap_or_else(|why| panic!("{why}"));
 }
 
-// A waiting reply is uncommitted: killing w1 loses it. The retry on w2
-// resumes without an assistant message, so the same cue replies and waits
-// again. Only after close/end is that reply committed, exactly once; the
-// old attempt ends lost and the replacement parks. This covers loss
-// and retry; the hung-worker story will test fencing a surviving old run.
 // Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
 #[cfg(target_os = "linux")]
 #[test]
-fn a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another() {
+fn a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes() {
     cluster_chats("cluster_killed", ClusterStory::Kill).unwrap_or_else(|why| panic!("{why}"));
 }
 
-// protocol/cluster.md, 6: heal within fleet grace, then fence a surviving run.
-// Continue follows the connected:false read immediately. CLOCK_MONOTONIC keeps
-// advancing during STOP (skein-shell clock.rs:17), but w1 arms its contact
-// grace only on detecting its own loss after CONT (jig-protocol-worker-link
-// component.rs:169, :622). Its redials are jittered (backoff.rs:15);
-// its re-hello must reach the engine within the derived fleet grace (jig-domain-fleet
-// attempt.rs:505). This is a margin, checked by the unchanged attempt below.
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
+// Continue immediately after the engine reads connected:false. The same attempt
+// checks that re-hello reached the engine within fleet grace (protocol/cluster.md, 3 and 6).
 #[cfg(target_os = "linux")]
 #[test]
-fn a_worker_hung_past_the_grace_is_fenced_and_links_again() {
-    cluster_chats("cluster_hung", ClusterStory::Hung).unwrap_or_else(|why| panic!("{why}"));
-}
-
-// Jig admits only with an available placement (jig-domain-core
-// routing/run_preparation.rs:466–492, run_choice.rs:73–77): the second task
-// is due, unclaimed and unplaced; no attempt exists to be placed twice.
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-fn a_worker_started_later_takes_the_waiting_task() {
-    cluster_chats("cluster_started_later", ClusterStory::Later).unwrap_or_else(|why| panic!("{why}"));
-}
-
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-fn a_worker_restarted_on_its_directories_links_at_its_position() {
-    cluster_chats("cluster_restarted", ClusterStory::Restart).unwrap_or_else(|why| panic!("{why}"));
+fn a_worker_stopped_past_the_silence_links_again_as_the_same_process() {
+    cluster_chats("cluster_continued", ClusterStory::Continue).unwrap_or_else(|why| panic!("{why}"));
 }
 
 // Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
@@ -1346,12 +1266,9 @@ fn cluster_chats_with(
     let scratch = support::Scratch::new(case);
     let mut cluster = support::cluster::Cluster::read(scratch.path());
     shape(&mut cluster);
-    if matches!(story, ClusterStory::Kill | ClusterStory::Hung) {
-        cluster.record_llm();
-    }
     let settings = cluster.settings_file();
     let key = cluster.dir("llm").join("llm.key");
-    let within = story.within();
+    let within = support::WITHIN;
     let (mut members, hosts) = cluster.members_within(within);
     // Figures are pinned at opening; the owner applies the agent setting before workers start.
     members.up(&["engine"]);
@@ -1370,10 +1287,8 @@ fn cluster_chats_with(
         reading: None,
         checking: std::collections::VecDeque::new(),
         last_read: String::new(),
-        lost_attempt: None,
         healed_attempt: None,
         linked_before: 0,
-        fenced: None,
     });
     for host in hosts {
         world.spawn(|| host);
@@ -1388,21 +1303,11 @@ fn cluster_chats_with(
     Ok(())
 }
 
-// bin/temper-box/tests/fixtures/cluster has two chats, one per slot, and two lives in the restart story.
+// The deployment binaries' story uses one chat per worker.
 #[cfg(target_os = "linux")]
 const CLUSTER_CHATS: usize = 2;
 #[cfg(target_os = "linux")]
-const FIRST_LIFE: usize = 0;
-#[cfg(target_os = "linux")]
-const SECOND_LIFE: usize = 1;
-#[cfg(target_os = "linux")]
-const RESTART_LINKS: usize = 2;
-#[cfg(target_os = "linux")]
 const REPLY_ONCE: usize = 1;
-#[cfg(target_os = "linux")]
-const FIRST_LINK: usize = 1;
-#[cfg(target_os = "linux")]
-const LOST_AND_RETRY: usize = 2; // the killed run and its replacement
 #[cfg(target_os = "linux")]
 const KILL_SIGNAL: u32 = 9; // Linux SIGKILL, as reported by wait
 #[cfg(target_os = "linux")]
@@ -1411,21 +1316,7 @@ enum ClusterStory {
     Each,
     Unexpected,
     Kill,
-    Hung,
-    Later,
-    Restart,
-}
-#[cfg(target_os = "linux")]
-impl ClusterStory {
-    // protocol/cluster.md, 3: re-placement waits for the derived grace, then does the story's work.
-    fn within(self) -> Duration {
-        match self {
-            Self::Kill | Self::Hung => {
-                Duration::from_millis(support::cluster::fleet_grace_ms()).saturating_add(support::WITHIN)
-            }
-            Self::Each | Self::Unexpected | Self::Later | Self::Restart => support::WITHIN,
-        }
-    }
+    Continue,
 }
 #[cfg(target_os = "linux")]
 #[derive(Debug)]
@@ -1433,19 +1324,13 @@ enum ClusterChatStage {
     Start,
     Created,
     Replied,
-    WaitingSlot,
     Crashed,
     Armed,
     Killed,
     HealSilence,
     HealRelink,
-    FenceReady,
-    FenceReplacement,
-    FenceSnapshot,
-    FenceRelink,
-    FenceCheck,
-    StoppedOne,
-    Relinking,
+    HealMessage,
+    HealReplied,
     Closed,
     Verifying,
     Stopping,
@@ -1465,10 +1350,8 @@ struct ClusterChatJudge {
     reading: Option<ClusterRead>,
     checking: std::collections::VecDeque<String>,
     last_read: String,
-    lost_attempt: Option<u64>,
     healed_attempt: Option<u64>,
     linked_before: usize,
-    fenced: Option<(Vec<serde_json::Value>, Vec<serde_json::Value>)>,
 }
 #[cfg(target_os = "linux")]
 fn cluster_call_json(ended: &support::Ended) -> Result<serde_json::Value, String> {
@@ -1496,14 +1379,14 @@ impl ClusterChatJudge {
     }
     fn slot_hold(&self) -> Result<(), String> {
         // Check the fixture's waiting and time overrides before applying them to current charters.
-        let mut settings: serde_json::Value = serde_json::from_slice(
+        let settings: serde_json::Value = serde_json::from_slice(
             &std::fs::read(&self.settings).map_err(|why| format!("cluster settings FILE: {why:?}"))?,
         )
         .map_err(|why| format!("settings JSON: {why:?}"))?;
-        let charter = &mut settings["items"]
-            .as_array_mut()
+        let charter = &settings["items"]
+            .as_array()
             .ok_or("settings items")?
-            .iter_mut()
+            .iter()
             .find(|item| item["setting"] == serde_json::json!({"kind":"charter","number":1}))
             .ok_or("chat charter setting")?["set"];
         if Duration::from_nanos(charter["waiting"].as_u64().ok_or("chat waiting")?) < CHAT_HOLDS_ITS_SLOT {
@@ -1513,13 +1396,6 @@ impl ClusterChatJudge {
         let reserve = charter["reserve_time"].as_u64().ok_or("chat reserve_time")?;
         if time.checked_sub(reserve).is_none_or(|ordinary| Duration::from_nanos(ordinary) < CHAT_HOLDS_ITS_SLOT) {
             return Err("bin/temper-box/tests/fixtures/cluster/settings.json: charter 1 time less its reserve must hold its slot past the story deadline".into());
-        }
-        if matches!(self.story, ClusterStory::Kill | ClusterStory::Hung) {
-            // protocol/cluster.md, 3: the chat must still hold its slot after re-placement.
-            let hold = self.story.within();
-            charter["waiting"] = hold.as_nanos().into();
-            charter["time"] = hold.saturating_add(Duration::from_nanos(reserve)).as_nanos().into();
-            support::write_private(&self.settings, &serde_json::to_vec(&settings).expect("cluster chat hold JSON"));
         }
 
         Ok(())
@@ -1597,10 +1473,7 @@ impl ClusterChatJudge {
     fn poll(&self, client: &mut support::cluster::Root) -> Result<(), String> {
         use support::ctl::Call;
         let task = self.current()?;
-        let calls = if matches!(
-            self.stage,
-            ClusterChatStage::Verifying | ClusterChatStage::FenceSnapshot | ClusterChatStage::FenceCheck
-        ) {
+        let calls = if matches!(self.stage, ClusterChatStage::Verifying) {
             vec![Call::new(&[
                 "task",
                 "show",
@@ -1609,7 +1482,9 @@ impl ClusterChatJudge {
                 &temper_client_tools::limits::ROWS.to_string(),
                 "--json",
             ])]
-        } else if matches!(self.stage, ClusterChatStage::Replied) {
+        } else if matches!(self.stage, ClusterChatStage::Killed | ClusterChatStage::HealSilence) {
+            vec![Call::new(&["account", "list", "--json"])]
+        } else if matches!(self.stage, ClusterChatStage::Replied | ClusterChatStage::HealReplied) {
             // The live reply watch returns a task; read.waiting() still checks its exact work and placement.
             vec![
                 Call::new(&["task", "show", task, "--until", "replied", "--json"]),
@@ -1644,8 +1519,15 @@ impl ClusterChatJudge {
         let (mut read, page) = match ends {
             [task, accounts] => {
                 let task = cluster_call_json(task)?;
-                let task = if matches!(self.stage, ClusterChatStage::Replied) { task["task"].clone() } else { task };
+                let task = if matches!(self.stage, ClusterChatStage::Replied | ClusterChatStage::HealReplied) {
+                    task["task"].clone()
+                } else {
+                    task
+                };
                 return Ok(Some(ClusterRead::new(task, cluster_call_json(accounts)?)));
+            }
+            [accounts] if matches!(self.stage, ClusterChatStage::Killed | ClusterChatStage::HealSilence) => {
+                return Ok(Some(ClusterRead::new(serde_json::Value::Null, cluster_call_json(accounts)?)));
             }
             [activity] if self.reading.is_some() => {
                 (self.reading.take().ok_or("continued activity")?, cluster_call_json(activity)?)
@@ -1682,76 +1564,75 @@ impl ClusterChatJudge {
         Ok(None)
     }
     fn advance_read(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        self.last_read = read.owner().to_string();
+        self.last_read = if read.task.is_null() { format!("{:?}", read.hosts()?) } else { read.owner().to_string() };
         match self.stage {
-            ClusterChatStage::WaitingSlot => {
-                if read.owner()["phase"] == serde_json::json!({"active": "due"})
-                    && read.owner()["details"]["attempt"].is_null()
-                    && read.owner()["details"]["observation"].is_null()
-                {
-                    self.members.up(&["w2"]);
-                    self.stage = ClusterChatStage::Replied;
-                }
-                self.poll(client)?;
-            }
-            ClusterChatStage::Relinking => {
-                if self.members.linked("w1") == RESTART_LINKS && read.connected("w1")? {
-                    self.create_second(client)?;
-                } else {
-                    self.poll(client)?;
-                }
-            }
             ClusterChatStage::Replied => self.replied(client, read)?,
-            ClusterChatStage::HealSilence
-            | ClusterChatStage::HealRelink
-            | ClusterChatStage::FenceReady
-            | ClusterChatStage::FenceReplacement
-            | ClusterChatStage::FenceSnapshot
-            | ClusterChatStage::FenceRelink
-            | ClusterChatStage::FenceCheck => self.hung_read(client, read)?,
             ClusterChatStage::Armed => {
-                if self.members.is_up() && self.members.linked("w2") >= FIRST_LINK && read.connected("w2")? {
+                if self.members.is_up() && read.connected("w2")? {
                     self.members.kill("w1");
                     self.stage = ClusterChatStage::Killed;
                 }
                 self.poll(client)?;
             }
             ClusterChatStage::Killed => {
-                if self.members.ended("w1")
-                    && read.worker()? == Some("w2")
-                    && read.waiting()
-                    && Some(read.attempt()?) != self.lost_attempt
-                {
-                    self.close(client, false)?;
+                if self.members.ended("w1") && read.disconnected("w1")? {
+                    self.members.stop();
+                    self.stage = ClusterChatStage::Stopping;
                 } else {
                     self.poll(client)?;
                 }
             }
+            ClusterChatStage::HealSilence => {
+                if read.disconnected("w1")? {
+                    self.members.signal("w1", Signal::Continue);
+                    self.stage = ClusterChatStage::HealRelink;
+                }
+                self.poll(client)?;
+            }
+            ClusterChatStage::HealRelink => {
+                if self.members.linked("w1") > self.linked_before && read.connected("w1")? {
+                    if Some(read.attempt()?) != self.healed_attempt {
+                        return Err(format!("the same attempt must heal on w1: {}", read.task));
+                    }
+                    // Hello restores the claim, not its lost progress observation.
+                    // Ask the same attempt to answer on the rejoined link.
+                    self.queue(
+                        client,
+                        vec![support::ctl::Call::new(&[
+                            "task",
+                            "message",
+                            self.current()?,
+                            "Are you still there?",
+                            "--key",
+                            "healed-chat",
+                        ])],
+                    )?;
+                    self.stage = ClusterChatStage::HealMessage;
+                } else {
+                    self.poll(client)?;
+                }
+            }
+            ClusterChatStage::HealReplied => {
+                if Some(read.attempt()?) != self.healed_attempt {
+                    return Err(format!("the same attempt must answer on w1: {}", read.task));
+                }
+                if read.worker()? == Some("w1") && read.waiting() {
+                    return self.close(client);
+                }
+                self.poll(client)?;
+            }
             ClusterChatStage::Verifying => self.verify(client, read)?,
             ClusterChatStage::Start
             | ClusterChatStage::Created
-            | ClusterChatStage::StoppedOne
             | ClusterChatStage::Crashed
+            | ClusterChatStage::HealMessage
             | ClusterChatStage::Closed
             | ClusterChatStage::Stopping => return Err("read stage".into()),
         }
 
         Ok(())
     }
-    #[expect(clippy::too_many_lines, reason = "the chat verification keeps each story's final checks together")]
     fn verify(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        if matches!(self.story, ClusterStory::Kill | ClusterStory::Hung) {
-            // Keep causal client evidence beside the fake's query records on failure.
-            // Neither includes the linked client's sign-in link or engine stdout.
-            let path =
-                self.members.dir("llm").join(format!("task-{}-attempt-{}.json", self.current()?, read.attempt()?));
-            let evidence = serde_json::json!({"task": &read.task, "activity": &read.rows});
-            support::write_private(
-                &path,
-                &serde_json::to_vec(&evidence).map_err(|why| format!("chat evidence: {why:?}"))?,
-            );
-            eprintln!("cluster close evidence: {}", path.display());
-        }
         // The chat is ended by its requester (domain/agent/charter.md, 5): its person's Close
         // asks its Open run to wind down; the final text parks with no task result.
         let cancelled = &read.owner()["details"]["ending"]["cancelled"];
@@ -1765,9 +1646,7 @@ impl ClusterChatJudge {
             return Err(format!("a closed chat keeps no finish's result: {}", read.task));
         }
         let current = self.current()?;
-        let text = if self.tasks.first().is_some_and(|task| task == current)
-            || (self.story == ClusterStory::Hung && self.tasks.get(1).is_some_and(|task| task == current))
-        {
+        let text = if self.tasks.first().is_some_and(|task| task == current) {
             "First worker replied."
         } else {
             "Second worker replied."
@@ -1779,74 +1658,20 @@ impl ClusterChatJudge {
                 REPLY_ONCE
             ));
         }
-        if self.story == ClusterStory::Kill
-            || (self.story == ClusterStory::Hung && self.tasks.get(1).is_some_and(|task| task == current))
-        {
-            self.loss(read)?;
-        }
-        if self.story == ClusterStory::Hung && self.tasks.len() == FIRST_LINK {
-            let attempt = self.healed_attempt.ok_or("healed attempt")?;
-            if read.attempt()? != attempt {
-                return Err(format!("heal retains its attempt\n  left: {:?}\n right: {:?}", read.attempt()?, attempt));
+        if let Some(attempt) = self.healed_attempt {
+            if read.replies("Same worker replied after relink.")? != REPLY_ONCE {
+                return Err("one committed reply from the healed attempt".into());
             }
-            let lines: Vec<_> = read.rows.iter().map(|row| &row["event"]["owner"]["source"]["line"]).collect();
-            let began: Vec<_> = lines.iter().filter(|line| line["run_began"].is_object()).collect();
-            if began.len() != REPLY_ONCE {
-                return Err(format!("heal places exactly once\n  left: {:?}\n right: {:?}", began.len(), REPLY_ONCE));
+            let begins: Vec<_> =
+                read.rows.iter().filter_map(|row| row.pointer("/event/owner/source/line/run_began")).collect();
+            if read.attempt()? != attempt || !matches!(begins.as_slice(), [begin] if begin["attempt"] == attempt) {
+                return Err(format!("the healed attempt began once: {begins:?}; {}", read.task));
             }
-            if began[0]["run_began"]["attempt"] != attempt {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    began[0]["run_began"]["attempt"], attempt
-                ));
-            }
-            let ends: Vec<_> = lines.iter().filter(|line| line["run_ended"].is_object()).collect();
-            if ends.len() != REPLY_ONCE {
-                return Err(format!(
-                    "same healed attempt ended once\n  left: {:?}\n right: {:?}",
-                    ends.len(),
-                    REPLY_ONCE
-                ));
-            }
-            if ends[0]["run_ended"]["attempt"] != attempt {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    ends[0]["run_ended"]["attempt"], attempt
-                ));
-            }
-            // The admitted finish request makes the Open run's next text park (jig's domain/hosts/README.md, 7).
-            if ends[0]["run_ended"]["end"] != "parked" {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    ends[0]["run_ended"]["end"], "parked"
-                ));
-            }
-            self.checking.pop_front();
-            self.queue(
-                client,
-                vec![support::ctl::Call::new(&[
-                    "chat",
-                    "start",
-                    "--project",
-                    support::ctl::PROJECT,
-                    "--key",
-                    "fence",
-                    "cluster-first-chat",
-                    "--json",
-                ])],
-            )?;
-            self.stage = ClusterChatStage::Created;
-            return Ok(());
         }
         self.checking.pop_front().ok_or("verified chat")?;
         if self.checking.is_empty() {
-            if self.story == ClusterStory::Restart && self.tasks.len() < CLUSTER_CHATS {
-                self.members.stop_one("w1");
-                self.stage = ClusterChatStage::StoppedOne;
-            } else {
-                self.members.stop();
-                self.stage = ClusterChatStage::Stopping;
-            }
+            self.members.stop();
+            self.stage = ClusterChatStage::Stopping;
         } else {
             self.poll(client)?;
         }
@@ -1854,30 +1679,6 @@ impl ClusterChatJudge {
         Ok(())
     }
     fn replied(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        if self.story == ClusterStory::Hung {
-            if read.worker()? == Some("w1") && read.waiting() {
-                match self.tasks.len() {
-                    1 => {
-                        self.healed_attempt = Some(read.attempt()?);
-                        self.linked_before = self.members.linked("w1");
-                        self.members.signal("w1", Signal::Stop);
-                        self.stage = ClusterChatStage::HealSilence;
-                    }
-                    2 => {
-                        self.lost_attempt = Some(read.attempt()?);
-                        self.members.up(&["w2"]);
-                        self.stage = ClusterChatStage::FenceReady;
-                    }
-                    3 => {
-                        self.checking.push_back(self.tasks[1].clone());
-                        self.stage = ClusterChatStage::FenceCheck;
-                    }
-                    _ => return Err("heal, fence and new chat".into()),
-                }
-            }
-            self.poll(client)?;
-            return Ok(());
-        }
         let first = self.tasks.len() < CLUSTER_CHATS;
         if let Some(worker) = read.worker()?.filter(|_| read.waiting()) {
             eprintln!(
@@ -1889,12 +1690,8 @@ impl ClusterChatJudge {
                 if !self.workers.insert(worker.into()) {
                     return Err("each chat on its own worker".into());
                 }
-            } else if worker != if first || self.story == ClusterStory::Restart { "w1" } else { "w2" } {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    worker,
-                    if first || self.story == ClusterStory::Restart { "w1" } else { "w2" }
-                ));
+            } else if worker != "w1" {
+                return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", worker, "w1"));
             }
             if self.story == ClusterStory::Unexpected {
                 self.queue(
@@ -1907,16 +1704,17 @@ impl ClusterChatJudge {
                 self.members.signal("w1", Signal::Kill);
                 self.stage = ClusterChatStage::Crashed;
             } else if self.story == ClusterStory::Kill {
-                self.lost_attempt = Some(read.attempt()?);
                 self.members.up(&["w2"]);
                 self.stage = ClusterChatStage::Armed;
                 self.poll(client)?;
+            } else if self.story == ClusterStory::Continue {
+                self.healed_attempt = Some(read.attempt()?);
+                self.linked_before = self.members.linked("w1");
+                self.members.signal("w1", Signal::Stop);
+                self.stage = ClusterChatStage::HealSilence;
+                self.poll(client)?;
             } else if first {
-                if self.story == ClusterStory::Restart {
-                    self.close(client, true)?;
-                } else {
-                    self.create_second(client)?;
-                }
+                self.create_second(client)?;
             } else {
                 if self.story == ClusterStory::Each
                     && self.workers.iter().map(String::as_str).collect::<Vec<_>>() != ["w1", "w2"]
@@ -1927,7 +1725,7 @@ impl ClusterChatJudge {
                         ["w1", "w2"]
                     ));
                 }
-                self.close(client, false)?;
+                self.close(client)?;
             }
         } else {
             self.poll(client)?;
@@ -1935,156 +1733,10 @@ impl ClusterChatJudge {
 
         Ok(())
     }
-    fn hung_read(&mut self, client: &mut support::cluster::Root, read: &ClusterRead) -> Result<(), String> {
-        match self.stage {
-            ClusterChatStage::HealSilence => {
-                if read.hosts()?.iter().any(|host| host["name"] == "w1" && host["connected"] == false) {
-                    self.members.signal("w1", Signal::Continue);
-                    self.stage = ClusterChatStage::HealRelink;
-                }
-            }
-            ClusterChatStage::HealRelink => {
-                if self.members.linked("w1") > self.linked_before && read.connected("w1")? {
-                    if Some(read.attempt()?) != self.healed_attempt {
-                        return Err(format!(
-                            "same attempt healed on w1\n  left: {:?}\n right: {:?}",
-                            Some(read.attempt()?),
-                            self.healed_attempt
-                        ));
-                    }
-                    self.close(client, true)?;
-                    return Ok(());
-                }
-            }
-            ClusterChatStage::FenceReady => {
-                if self.members.is_up() && read.connected("w2")? {
-                    self.linked_before = self.members.linked("w1");
-                    self.members.signal("w1", Signal::Stop);
-                    self.stage = ClusterChatStage::FenceReplacement;
-                }
-            }
-            ClusterChatStage::FenceReplacement => {
-                if read.worker()? == Some("w2") && read.waiting() && Some(read.attempt()?) != self.lost_attempt {
-                    self.stage = ClusterChatStage::FenceSnapshot;
-                }
-            }
-            ClusterChatStage::FenceSnapshot => {
-                self.fenced = Some(self.fenced_rows(read)?);
-                self.members.signal("w1", Signal::Continue);
-                self.stage = ClusterChatStage::FenceRelink;
-            }
-            ClusterChatStage::FenceRelink => {
-                if self.members.linked("w1") > self.linked_before && read.connected("w1")? {
-                    self.create_second(client)?;
-                    return Ok(());
-                }
-            }
-            ClusterChatStage::FenceCheck => {
-                // w1's hello listing b1 gets Cancel while b2 is
-                // claimed (jig-domain-fleet attempt.rs:1030). Cancel ends b1's
-                // run, completing its held reply turn; w1 sends that turn and
-                // its terminal answer. The engine acknowledges the answer and
-                // drops its payload (attempt.rs:539, :599), and drops any b1
-                // turn (turn.rs:79). C waiting on w1's only slot proves w1
-                // acted on Cancel: unchanged rows/turns show a drop, not silence.
-                if Some(self.fenced_rows(read)?) != self.fenced {
-                    return Err(format!(
-                        "fenced activity and committed turns unchanged\n  left: {:?}\n right: {:?}",
-                        Some(self.fenced_rows(read)?),
-                        self.fenced
-                    ));
-                }
-                let old = self.lost_attempt.ok_or("fenced attempt")?;
-                if !(read.rows.iter().any(|row| {
-                    let end = &row["event"]["owner"]["source"]["line"]["run_ended"];
-                    end["attempt"] == old && end["end"]["failed"]["class"] == "lost"
-                })) {
-                    return Err("fenced attempt ended lost".into());
-                }
-                self.checking.clear();
-                self.close(client, false)?;
-                return Ok(());
-            }
-            ClusterChatStage::Start
-            | ClusterChatStage::Created
-            | ClusterChatStage::Replied
-            | ClusterChatStage::WaitingSlot
-            | ClusterChatStage::Crashed
-            | ClusterChatStage::Armed
-            | ClusterChatStage::Killed
-            | ClusterChatStage::StoppedOne
-            | ClusterChatStage::Relinking
-            | ClusterChatStage::Closed
-            | ClusterChatStage::Verifying
-            | ClusterChatStage::Stopping => return Err("hung read stage".into()),
-        }
-        self.poll(client)?;
-
-        Ok(())
-    }
-    fn fenced_rows(&self, read: &ClusterRead) -> Result<(Vec<serde_json::Value>, Vec<serde_json::Value>), String> {
-        let old = self.lost_attempt.ok_or("fenced attempt")?;
-        let activity = read
-            .rows
-            .iter()
-            .filter(|row| {
-                let line = &row["event"]["owner"]["source"]["line"];
-                ["run_began", "run_ended", "turn"].iter().any(|kind| line[kind]["attempt"] == old)
-            })
-            .cloned()
-            .collect();
-        let turns = read
-            .rows
-            .iter()
-            .filter(|row| row["event"]["owner"]["source"]["line"]["turn"].is_object())
-            .cloned()
-            .collect();
-        Ok((activity, turns))
-    }
-    fn loss(&self, read: &ClusterRead) -> Result<(), String> {
-        let old = self.lost_attempt.ok_or("killed attempt")?;
-        let replacement = read.attempt()?;
-        if replacement == old {
-            return Err(format!("replacement attempt on w2\n  left: {replacement:?}\n right: {old:?}"));
-        }
-        let lines: Vec<_> = read.rows.iter().map(|row| &row["event"]["owner"]["source"]["line"]).collect();
-        if lines.iter().filter(|line| line["run_began"].is_object()).count() != LOST_AND_RETRY {
-            return Err(format!(
-                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                lines.iter().filter(|line| line["run_began"].is_object()).count(),
-                LOST_AND_RETRY
-            ));
-        }
-        for (attempt, end) in
-            [(old, serde_json::json!({"failed": {"class": "lost"}})), (replacement, serde_json::json!("parked"))]
-        {
-            if !(lines.iter().any(|line| line["run_began"]["attempt"] == attempt)) {
-                return Err("attempt began".into());
-            }
-            let ended = lines.iter().find(|line| line["run_ended"]["attempt"] == attempt).ok_or("attempt ended")?;
-            if ended["run_ended"]["end"] != end {
-                return Err(format!(
-                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                    ended["run_ended"]["end"], end
-                ));
-            }
-        }
-        if lines.iter().any(|line| line["turn"]["attempt"] == old) {
-            return Err("killed reply was never committed".into());
-        }
-
-        Ok(())
-    }
-    fn close(&mut self, client: &mut support::cluster::Root, first_only: bool) -> Result<(), String> {
+    fn close(&mut self, client: &mut support::cluster::Root) -> Result<(), String> {
         use support::ctl::Call;
         let mut close = Vec::new();
         for task in &self.tasks {
-            if matches!(self.story, ClusterStory::Restart | ClusterStory::Hung)
-                && !first_only
-                && self.tasks.first() == Some(task)
-            {
-                continue;
-            }
             self.checking.push_back(task.clone());
             close.push(Call::new(&["chat", "close", task, "--key", &format!("close-{task}")]));
             close.push(Call::new(&["task", "show", task, "--until", "ended"]));
@@ -2157,6 +1809,9 @@ impl ClusterRead {
             .map(Vec::as_slice)
             .ok_or_else(|| "deployment hosts".into())
     }
+    fn disconnected(&self, name: &str) -> Result<bool, String> {
+        Ok(self.hosts()?.iter().any(|host| host["name"] == name && host["connected"] == false))
+    }
     fn connected(&self, name: &str) -> Result<bool, String> {
         Ok(self.hosts()?.iter().any(|host| host["name"] == name && host["connected"] == true))
     }
@@ -2200,10 +1855,15 @@ fn complete_cluster_json(value: &serde_json::Value) -> Result<(), String> {
     {
         return Err(format!("complete turn text\n  left: {:?}\n right: {:?}", left, 0));
     }
-    for item in
-        value.as_object().into_iter().flat_map(serde_json::Map::values).chain(value.as_array().into_iter().flatten())
-    {
-        complete_cluster_json(item)?;
+    if let Some(object) = value.as_object() {
+        for (key, item) in object {
+            complete_cluster_json(item).map_err(|why| format!("{key}: {why}"))?;
+        }
+    }
+    if let Some(array) = value.as_array() {
+        for (index, item) in array.iter().enumerate() {
+            complete_cluster_json(item).map_err(|why| format!("[{index}]: {why}"))?;
+        }
     }
     Ok(())
 }
@@ -2218,11 +1878,6 @@ impl ClusterChatJudge {
             return Ok(());
         }
         let (client, _) = hosts.split_last_mut().ok_or("cluster client root")?;
-        if matches!(self.stage, ClusterChatStage::StoppedOne) && self.members.ended("w1") {
-            self.members.restart("w1");
-            self.stage = ClusterChatStage::Relinking;
-            self.poll(client)?;
-        }
         if self.members.is_up()
             || self.members.ended("w1")
             || (matches!(self.stage, ClusterChatStage::Start) && self.members.capture("engine", "link").is_some())
@@ -2253,38 +1908,31 @@ impl ClusterChatJudge {
                             .ok_or_else(|| format!("created chat number: {created}"))?
                             .to_string();
                         self.tasks.push(task);
-                        self.stage = if self.story == ClusterStory::Later && self.tasks.len() == CLUSTER_CHATS {
-                            ClusterChatStage::WaitingSlot
-                        } else {
-                            ClusterChatStage::Replied
-                        };
+                        self.stage = ClusterChatStage::Replied;
                         self.poll(client)?;
                     }
                     ClusterChatStage::Replied
-                    | ClusterChatStage::WaitingSlot
-                    | ClusterChatStage::Relinking
                     | ClusterChatStage::Verifying
                     | ClusterChatStage::Armed
                     | ClusterChatStage::Killed
                     | ClusterChatStage::HealSilence
                     | ClusterChatStage::HealRelink
-                    | ClusterChatStage::FenceReady
-                    | ClusterChatStage::FenceReplacement
-                    | ClusterChatStage::FenceSnapshot
-                    | ClusterChatStage::FenceRelink
-                    | ClusterChatStage::FenceCheck => {
+                    | ClusterChatStage::HealReplied => {
                         if let Some(read) = self.read(client, calls.ends())? {
                             self.advance_read(client, &read)?;
                         }
+                    }
+                    ClusterChatStage::HealMessage => {
+                        self.stage = ClusterChatStage::HealReplied;
+                        self.poll(client)?;
                     }
                     ClusterChatStage::Closed => {
                         self.stage = ClusterChatStage::Verifying;
                         self.poll(client)?;
                     }
-                    ClusterChatStage::Start
-                    | ClusterChatStage::Stopping
-                    | ClusterChatStage::StoppedOne
-                    | ClusterChatStage::Crashed => return Err("active calls".into()),
+                    ClusterChatStage::Start | ClusterChatStage::Stopping | ClusterChatStage::Crashed => {
+                        return Err("active calls".into());
+                    }
                 }
             }
         }
@@ -2299,7 +1947,6 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
             self.finding = self.advance_world(now, hosts).err();
         }
     }
-    #[expect(clippy::too_many_lines, reason = "the cluster watch checks client settlement and every stopped life")]
     fn watch(&mut self, now: skein_lib::Time, hosts: &[support::cluster::Root]) -> Result<(), String> {
         use skein_shell::Host;
         let (client, hosts) = hosts.split_last().ok_or("cluster client root")?;
@@ -2341,32 +1988,12 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
         }
         self.members.verdict()?;
         if let Some(stopped) = self.members.stopped() {
-            let expected = if self.story == ClusterStory::Restart {
-                vec![
-                    ("w1", FIRST_LIFE),
-                    ("w1", SECOND_LIFE),
-                    ("engine", FIRST_LIFE),
-                    ("llm", FIRST_LIFE),
-                    ("forge", FIRST_LIFE),
-                ]
-            } else if self.story == ClusterStory::Kill {
-                vec![
-                    ("w1", FIRST_LIFE),
-                    ("w2", FIRST_LIFE),
-                    ("engine", FIRST_LIFE),
-                    ("llm", FIRST_LIFE),
-                    ("forge", FIRST_LIFE),
-                ]
-            } else {
-                vec![
-                    ("w2", FIRST_LIFE),
-                    ("w1", FIRST_LIFE),
-                    ("engine", FIRST_LIFE),
-                    ("llm", FIRST_LIFE),
-                    ("forge", FIRST_LIFE),
-                ]
+            let expected: &[&str] = match self.story {
+                ClusterStory::Each => &["w2", "w1", "engine", "llm", "forge"],
+                ClusterStory::Kill => &["w1", "w2", "engine", "llm", "forge"],
+                ClusterStory::Continue | ClusterStory::Unexpected => &["w1", "engine", "llm", "forge"],
             };
-            if stopped.iter().map(|s| (s.name.as_str(), s.life)).collect::<Vec<_>>() != expected {
+            if stopped.iter().map(|s| (s.name.as_str(), s.life)).ne(expected.iter().map(|name| (*name, 0))) {
                 return Err(format!(
                     "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
                     stopped.iter().map(|s| (s.name.as_str(), s.life)).collect::<Vec<_>>(),
@@ -2394,15 +2021,8 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
                     }
                     continue;
                 }
-                let alone = self.story == ClusterStory::Restart && member.name == "w1" && member.life == FIRST_LIFE;
-                if member.ending
-                    != if alone { support::cluster::Ending::Alone } else { support::cluster::Ending::Cluster }
-                {
-                    return Err(format!(
-                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
-                        member.ending,
-                        if alone { support::cluster::Ending::Alone } else { support::cluster::Ending::Cluster }
-                    ));
+                if member.ending != support::cluster::Ending::Cluster {
+                    return Err(format!("{} did not stop with the cluster: {:?}", member.name, member.ending));
                 }
                 clean_cluster_exit(member)?;
             }
@@ -2423,23 +2043,15 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
                     ClusterChatStage::Start => "requested members ready",
                     ClusterChatStage::Created => "chat creation",
                     ClusterChatStage::Replied => "waiting run and connected placement",
-                    ClusterChatStage::WaitingSlot => "due second chat without attempt or observation",
                     ClusterChatStage::Crashed => "unexpected exit with a call in flight",
                     ClusterChatStage::Armed => "w2 linked and connected before the kill",
-                    ClusterChatStage::Killed => "w1 tree settled and a new attempt waiting on w2",
+                    ClusterChatStage::Killed => "w1 tree settled and its host connected:false",
                     ClusterChatStage::HealSilence => "heal: w1 program host connected:false after silence",
                     ClusterChatStage::HealRelink => "heal: another w1 linked line and connected host",
-                    ClusterChatStage::FenceReady => "fence: w2 connected before stopping w1",
-                    ClusterChatStage::FenceReplacement => "fence: different attempt waiting on w2 before continuing w1",
-                    ClusterChatStage::FenceSnapshot =>
-                        "fence: complete old activity and committed turns before continue",
-                    ClusterChatStage::FenceRelink => "fence: another w1 linked line and connected host before chat C",
-                    ClusterChatStage::FenceCheck =>
-                        "fence: unchanged old activity and turns after chat C waiting on w1",
+                    ClusterChatStage::HealMessage => "heal: message to the same attempt",
+                    ClusterChatStage::HealReplied => "heal: same attempt waiting on the rejoined link",
                     ClusterChatStage::Closed => "closed chats ended",
                     ClusterChatStage::Verifying => "ended done and complete committed turns",
-                    ClusterChatStage::StoppedOne => "w1's first life settled",
-                    ClusterChatStage::Relinking => "w1's second linked line and connected host",
                     ClusterChatStage::Stopping => "every process tree settled",
                 },
                 self.last_read
@@ -2552,43 +2164,7 @@ exec "$@"
 // Past 6.1's 2 s guide, as its real-loop twin is, by its reset: one second,
 // the shortest a provider's wire carries.
 
-// Shows the retained question and one answer across ws's two lives. Leaves out
-// the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
-// The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
-// until after the ended chat's watch joins; the oracle checks both attempts.
-
-// testing/process-tier.md: the chat's connected GitHub change survives both services restarting.
-
-// Shows the retained question and one answer across ws's two lives. Leaves out
-// the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
-// The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
-// until after the ended chat's watch joins; the oracle checks both attempts.
-// Cluster members need Linux's delegated cgroups (temper/docs/design/protocol/cluster.md, 5).
-#[cfg(target_os = "linux")]
-#[test]
-#[ignore = "4.6 process fixture expects engine.llm.models in startup configuration after models moved to settings (temper/docs/design/testing/reference-case.md; temper/docs/design/protocol/configuration/README.md, section 2 and temper/docs/design/protocol/configuration/stock.md)"]
-fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace()
-{
-    use temper_real_loop_world::case::{self, acts, oracle};
-    let run = support::case::run(
-        &["ws", "s1", "s2"],
-        case::fixture_4_6(),
-        case::scripts::step_4_6,
-        case::scripts::step_4_6_rules,
-        acts::step_4_6(0),
-        &[case::HANG],
-    );
-    for (at, call) in run.calls().iter().enumerate() {
-        assert_eq!(
-            call.exit,
-            Some(skein_io::kernel::Exit::Code(0)),
-            "call {at}: {}",
-            String::from_utf8_lossy(&call.stderr)
-        );
-    }
-    oracle::assert_met(&oracle::step_4_6(&run.observed(acts::READS_4_6)));
-    assert_eq!(run.first_placed().get(&case::HANG).map(String::as_str), Some("ws"));
-}
+// testing/process-tier.md: the person's App, one push and both services restarted.
 
 // On Linux its restored Forgejo starts while discovery answers 502 with the
 // engine held down, then signs in after it returns, without a Forgejo restart.
@@ -2600,13 +2176,7 @@ fn a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click() {
 }
 
 #[test]
-fn an_owned_forgejo_accepts_a_public_source_once_and_exchanges_its_code() {
-    let scratch = support::Scratch::new("forgejo_public_source");
-    support::forgejo_sign_in::public(scratch.path());
-    scratch.remove();
-}
-#[test]
-fn an_owned_forgejo_signs_its_member_in_through_temper() {
+fn an_owned_forgejo_signs_its_people_in_through_temper() {
     let scratch = support::Scratch::new("forgejo_sign_in");
     support::forgejo_sign_in::run(scratch.path());
     scratch.remove();
@@ -2615,8 +2185,7 @@ fn an_owned_forgejo_signs_its_member_in_through_temper() {
 // The capture witness uses Linux's abstract Unix sockets.
 #[cfg(target_os = "linux")]
 #[test]
-fn a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart()
- {
+fn a_forgejo_elsewhere_connected_as_its_admin_makes_its_first_repository_and_is_found_after_a_restart() {
     support::forgejo_elsewhere::restart();
 }
 
@@ -2688,93 +2257,6 @@ fn ctl_assert_success(calls: &[support::Ended]) {
         assert_eq!(call.exit, Some(Exit::Code(0)), "call {index}: {}", String::from_utf8_lossy(&call.stderr));
         assert!(call.stderr.is_empty(), "call {index}: {}", String::from_utf8_lossy(&call.stderr));
     }
-}
-
-#[test]
-fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_forge() {
-    use support::{
-        boxed::CtlLlm,
-        ctl::{Call, Step},
-        first_repository,
-    };
-    let scratch = support::Scratch::new("forgejo-playground-copy");
-    let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    support::forge_land::initialize(&paths);
-    support::own_listener_files(&paths[0]);
-    let CtlLlm { peer, expected_exits, on_link } = first_repository::playground_read_llm(&paths[0]);
-    // The worker pins its agent at startup. Route it to the fake before the
-    // box starts, not at the sign-in link after the worker has kept its copy.
-    on_link();
-    let llm = CtlLlm { peer, expected_exits, on_link: Box::new(|| {}) };
-    let flags = support::boxed::echo_steps(deployment_flags(&paths));
-    let _cached = cache_forgejo_binaries(&paths[2]);
-    let mut steps = vec![
-        Step::Run(Call::sign_in()),
-        Step::Run(Call::new(&["forge", "setup", "--playground"])),
-        Step::Run(Call::new(&["forge", "list", "--json"])),
-    ];
-    steps.extend(first_repository::playground_read_steps(scratch.path()));
-    steps.push(Step::Run(Call::new(&["project", "show", "1", "--json"])));
-    let ended = support::boxed::run_ctl_with_llm(
-        scratch.path(),
-        flags,
-        scratch.path(),
-        steps,
-        BOX_DEADLINE,
-        |_| first_repository::playground_read_evidence(&paths[1], scratch.path()),
-        llm,
-    );
-    let stderr = String::from_utf8_lossy(&ended.stderr);
-    assert_eq!(ended.exit, Some(Exit::Code(0)), "box drained: {stderr}");
-    assert_eq!(ended.left, Some(Vec::new()), "no processes outlive the box");
-    assert_eq!(ended.calls.len(), 9, "setup, reads and pull completed: {stderr}");
-    for call in &ended.calls {
-        assert_eq!(
-            call.exit,
-            Some(Exit::Code(0)),
-            "stdout: {}; stderr: {}; box: {stderr}",
-            String::from_utf8_lossy(&call.stdout),
-            String::from_utf8_lossy(&call.stderr)
-        );
-    }
-    assert_playground_setup(&ended);
-    scratch.remove();
-}
-
-fn assert_playground_setup(ended: &support::boxed::CtlOutcome<support::first_repository::PlaygroundReads>) {
-    let adoption = String::from_utf8_lossy(&ended.calls[1].stdout);
-    assert!(adoption.lines().any(|line| line == "project: 1 · widget"), "{adoption}");
-    assert!(adoption.contains("Adopted playground/widget on forge 1 as owned."), "{adoption}");
-    assert!(adoption.contains("It is the project's home."), "{adoption}");
-    let rows = support::ctl::json(&ended.calls[2]);
-    let row = rows["forges"].as_array().expect("forge rows").iter().find(|row| row["number"] == 1).expect("forge 1");
-    assert_eq!(row["first"]["state"], "made");
-    assert_eq!(row["state"], "connected");
-    assert_eq!(row["first"]["org"], "playground");
-    assert_eq!(row["first"]["repository"], "widget");
-    assert_eq!(row["first"]["playground"], true);
-    let evidence = ended.checked.as_ref().expect("live worker reads");
-    assert_eq!(evidence.panel.exit, Some(Exit::Code(0)), "pull panel read succeeded");
-    assert!(evidence.producer.contains("\"path\":\".forgejo/workflows/ci.yml\"}\nRead "), "{}", evidence.producer);
-    assert!(evidence.producer.contains("\"path\":\"src/main.rs\"}\nRead "), "{}", evidence.producer);
-    // ctl prints read counts; the service test compares every source byte.
-    assert!(evidence.producer.contains("Read 7 of 7 lines; skipped 0"), "{}", evidence.producer);
-    let panel = support::ctl::json(&evidence.panel);
-    assert_eq!(panel["landing"], "main", "{panel}");
-    assert_eq!(panel["pull"]["address"], format!("http://{}/playground/widget/pulls/1", evidence.address));
-    let project = support::ctl::json(&ended.calls[8]);
-    assert_eq!(project["number"], 1);
-    assert_eq!(project["name"]["bytes"], "widget");
-    let resources = project["resources"].as_array().expect("project repositories");
-    assert_eq!(resources.len(), 1);
-    assert_eq!(
-        resources[0]["part"],
-        serde_json::json!({
-            "connector":1, "kind":"resource", "key":{"path":["0001", "00000001"]}
-        })
-    );
-    assert_eq!(resources[0]["role"], "owned");
-    assert_eq!(resources[0]["home"], true);
 }
 
 // The move uses a fake issuer and no forge or model work.

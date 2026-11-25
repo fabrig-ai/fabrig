@@ -2,7 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [remembered.md](remembered.md).
 
-The document, with `README.md`'s `Remembered` row and *Sign out* row and `../view.md`, 3's
+The document, with `README.md`'s `Remembered` row and *Sign out* row and `../view-navigation.md`, 1's
 person's menu, is present by plan `ui-ask-m4` but for the gaps below:
 `Address::Remembered` at `/remembered`, of no project, in Deployment's
 column under its own heading and lede; `pages::remembered` reads the
@@ -38,7 +38,7 @@ phone's, and its walk follow landing (`../README.md`, section 5).
 - **Not yet:** *A refusal* and *Full*: the bounds are the
   client's constants, not jig's. jig answers a party's correction past
   `notes.party_bytes` as an admission limit on words, naming no bound
-  (`jig/docs/design/client/domain/contract/README.status.md`, 4), so the page
+  (`jig/docs/design/client/domain/contract/reads.status.md`, 1), so the page
   says "A line is at most 120 bytes." from `refusal_for`'s 120, and says
   it of a correction past jig's other word bounds too; no client document
   carries `notes.party_entries`, so the view's `PARTY_ENTRIES`, 12, draws

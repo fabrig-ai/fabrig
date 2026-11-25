@@ -81,9 +81,9 @@ offset  size  field
     direction: from the initiator, or from the responder.
 - **Bodies** are the application's records, encoded by its codecs. The
   channel reads a body as bytes and hands it up whole.
-- **A frame prints its lengths** (../runtime/lib.md, 6). A `Frame`'s `Debug` shows its
+- **A frame prints its lengths** (../runtime/lib-bytes.md, 1). A `Frame`'s `Debug` shows its
   kind and its body's length, and `Event::Body`'s the same. A body the machine
-  is still reading (section 6) shows its length and how much is filled. None
+  is still reading (`channel.md`, section 6) shows its length and how much is filled. None
   shows a byte: a body may hold an application's credential.
 
 ## 4. The schema
@@ -93,10 +93,12 @@ is made:
 
 - **its magic:** four bytes naming the application's protocol;
 - **its versions:** the contiguous range this side speaks. A channel's
-  bodies are a wire, whose version moves with its layout
-  (../data/codec/README.md, 5). An application that speaks one version at
-  a time has that one as its range, a peer of another is refused with
-  *version* (5.2), and nothing is translated;
+  bodies are a wire, whose version is frozen and whose layouts are named
+  by fingerprint (../data/codec/README.md, 5). An application that
+  speaks one version has that one as its range, and a peer of another is
+  refused with *version* (5.2); a peer at another layout of the bodies
+  is its owner's to judge and convert (5.2, accepting with the peer's
+  table);
 - **for each version, its kinds:** for each kind, its direction and the
   largest body this side takes or may send of it, from the owner's limits;
 - **the role:** initiator or responder, for this machine;
@@ -173,6 +175,18 @@ Terms                                           ───►
   normally the highest, or refuses with a reason of its own: the
   credential is unknown, or it is busy. For an agent's pipes, the owner
   accepts at once.
+- **Accepting with the peer's table.** A responder's owner may accept
+  with a kinds' table of its own making for the version it accepts, in
+  place of its schema's: the table of a peer whose layout of the
+  application's bodies differs, so that frames cross at the peer's
+  layout and the owner converts them (jig's
+  `protocol/channel/wires.md`, 4). The machine checks it as section 4
+  checks a schema's version, for this role and these limits, and keeps
+  it for the channel's life: its terms, its sends' and receipts' checks
+  and their bounds are that table's. A table that fails the check is a
+  fault of the owner's: the machine refuses the opening with *limits*,
+  its text `the responder's table: WHY`, and the owner hears the
+  terminal.
 - **Terms list the kinds a side receives:** the largest body it takes of
   each, at most its schema's. The responder sends its terms right after
   `Accept`, and the initiator answers with its own.
@@ -259,7 +273,7 @@ Terms                                           ───►
     dropped. A ping has no token and no answer.
   - A `Refuse` displaces everything queued (8.1).
 - **Writing never waits for reading.** The machine moves output down with
-  ../runtime/lib.md, section 7.1's independent output, which io's sockets and write
+  ../runtime/lib-streams.md, section 1.1's independent output, which io's sockets and write
   pipes provide, as does TLS's native face. It reads with read-only demands.
   On one socket both happen at once; with a pipe each way, each happens on
   its own pipe.
@@ -289,7 +303,7 @@ the output stream is finished once what is queued has gone.
 - **With a stream each way,** reading goes on until the peer ends or the
   owner closes.
 - **Over one stream,** ../runtime/lib.md's contract allows finishing only with no read
-  outstanding (../runtime/lib.md, section 7). The machine finishes once the read in
+  outstanding (../runtime/lib-streams.md, section 1). The machine finishes once the read in
   flight is answered, or has crossed the end, and reads nothing after it.
   An owner that must read until the peer's end finishes after it hears
   ended.
@@ -319,7 +333,7 @@ the output stream is finished once what is queued has gone.
 | From the owner | What it does |
 |---|---|
 | open | the initiator's `Open`, with its credential |
-| accept, refuse | the responder's owner's answer to an opening; refuse also at any later time |
+| accept, refuse | the responder's owner's answer to an opening, accept with a version or with a table for one (5.2); refuse also at any later time |
 | read | read one more frame |
 | send | queue one frame, named by the owner's token |
 | ping | queue a `Ping` |
@@ -337,7 +351,7 @@ the output stream is finished once what is queued has gone.
 | closed | the terminal, with why |
 
 - **Below,** the machine speaks ../runtime/lib.md's stream: read-only demands to the
-  stream it reads, and `../runtime/lib.md`, section 7.1's output to the stream it writes.
+  stream it reads, and `../runtime/lib-streams.md`, section 1.1's output to the stream it writes.
 - **Bounds.** Each entry point has a most-outputs bound, which the owner
   reserves first.
 - **Queries.** The owner can ask, at any time:
@@ -371,6 +385,9 @@ credential, skip and output caps remain admission checks.
   - owners that read slowly, send at awkward moments, refuse and close in
     every state;
   - every refusal of the opening;
+  - a responder accepting with a table of its own (5.2): its terms,
+    sends and receipts held to that table, not its schema's, and a table
+    that fails section 4's checks refused with *limits*;
   - golden frames for the channel's own messages;
   - a fuzz target over the header, the opening and terms.
 - **A protocol world** (../../foundation/testing-strategy.md, 2.5): two machines joined by

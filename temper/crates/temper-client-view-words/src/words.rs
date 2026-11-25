@@ -2253,8 +2253,8 @@ pub enum Word {
 // The Accounts navigation's two state words (5.3).
 // ConnectForge's and the welcome's forge words (client/forge/deployment.md).
 // The Forges page, navigation dot and setup strip, with owned Runs and password (27 phrases).
-// Thirty-one model-flow phrases (client/pages/accounts.md, 2).
-// The account rows' nineteen literal and two shaped phrases (client/pages/accounts.md, 2).
+// Thirty-one model-flow phrases (client/pages/accounts-words.md, 1).
+// The account rows' nineteen literal and two shaped phrases (client/pages/accounts-words.md, 1).
 // The setup fields and first repository add eleven phrases.
 // Seven playground start status, failure and retry phrases (5.6).
 // The Model step adds four forge phrases and twenty-two segments.
@@ -2285,7 +2285,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The chats page with no welcome and no project adds one literal phrase (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
 // Home and Settings add two phrases, each with one hole and three segments (3.5).
-// The rail adds four literals and one counted entry (client/view.md, 3).
+// The rail adds four literals and one counted entry (client/view-navigation.md, 1).
 // Five switcher phrases describe repository rows in both shells.
 // Home adds 35 phrases for its steps, intro and connected lines (3.5).
 // Everyday Home adds twenty-one phrases (3.5).
@@ -2298,7 +2298,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/pages/README.md).
 // The Ask temper opening replaces one phrase with nineteen (client/pages/README.md).
 // Settings, Needs you and the chat document include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
-// The rail names its navigation, new box and switcher (client/view.md, 3).
+// The rail names its navigation, new box and switcher (client/view-navigation.md, 1).
 // Last landing adds two phrases (client/pages/README.md).
 // The waiting page removes five phrases across its words and accounts (client/pages/README.md).
 // The try adds thirteen phrases and removes the host-check note (client/pages/README.md).
@@ -2307,7 +2307,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2868;
+const PHRASES: u32 = 2871;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2327,16 +2327,16 @@ const PHRASES: u32 = 2868;
 // The Ask temper opening adds twenty literal and hole segments (3.5).
 // Settings, Needs you and the chat document include their literal segments (client/pages/README.md, client/pages/settings.md, 2).
 // The agent check refusal names its charter, adding two segments.
-// The rail menu adds six literal segments (client/view.md, 3).
+// The rail menu adds six literal segments (client/view-navigation.md, 1).
 // The unsent answer toast adds one literal phrase and segment (3.5).
 // Last landing adds four segments (client/pages/README.md).
 // The waiting page removes eleven literal and hole segments (client/pages/README.md).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5344;
+const SEGMENTS: u32 = 5353;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 67290;
+const ENGLISH_BYTES: u32 = 67377;
 const ALL: [Word; 2132] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
@@ -4473,8 +4473,8 @@ const ALL: [Word; 2132] = [
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
-    fn id(self, connector: u16) -> PhraseId {
-        let number = match self {
+    const fn number(self) -> u16 {
+        match self {
             Self::ViewAsking => 4250,
             Self::ViewFailed => 4251,
             Self::ViewNow => 4252,
@@ -6646,13 +6646,17 @@ impl Word {
             Self::NeedsTab => 4477,
             Self::NeedsTabCount => 4478,
             Self::NeedsTabCountCut => 4479,
-        };
-        let owner =
-            if number >= 100 { crate::look::owner() } else { temper_client_domain::forge::words::owner(connector) };
-        PhraseId { owner, number }
+        }
+    }
+    fn id(self, connector: u16) -> PhraseId {
+        phrase_id(self.number(), connector)
     }
 }
-/// The shell whose words the view says (client/web/README.md, 2.4).
+fn phrase_id(number: u16, connector: u16) -> PhraseId {
+    let owner = if number >= 100 { crate::look::owner() } else { temper_client_domain::forge::words::owner(connector) };
+    PhraseId { owner, number }
+}
+/// The shell whose words the view says (client/web/sign-in.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shell {
     Terminal,
@@ -6681,7 +6685,7 @@ pub struct Words {
 // clock: 256 bytes holds its longest three-sentence explanation whole.
 const REFUSAL_BYTES: u32 = 256;
 const SET_UP_FAILURE_BYTES: u32 = temper_client_domain::forge::forges::FAILURE_BYTES;
-// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/view.md, 3).
+// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/view-navigation.md, 1).
 fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(13).ok_or(Invalid::Overflow)
 }
@@ -6971,6 +6975,57 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
 }
+// The closed words, number and segment kinds do not depend on the client's
+// connector or text limit. Only the owned forms and their hole bounds do.
+#[derive(Clone, Copy)]
+struct Declaration {
+    word: Word,
+    number: u16,
+    literals: &'static [&'static [u8]],
+    kinds: &'static [HoleKind],
+}
+
+#[expect(clippy::indexing_slicing, reason = "const traversal uses the same array length for the input and output")]
+#[expect(clippy::large_stack_arrays, reason = "this function builds the static tables at compile time")]
+const fn declarations(shell: Shell) -> [Declaration; ALL.len()] {
+    let mut table = [Declaration { word: Word::ViewAsking, number: 0, literals: &[], kinds: &[] }; ALL.len()];
+    let mut index = 0_usize;
+    while index < ALL.len() {
+        let word = ALL[index];
+        let (literals, kinds) = english(word, shell);
+        table[index] = Declaration { word, number: word.number(), literals, kinds };
+        index = index.checked_add(1).expect("the declaration index is in bounds");
+    }
+    table
+}
+
+static BROWSER: [Declaration; ALL.len()] = declarations(Shell::Browser);
+static TERMINAL: [Declaration; ALL.len()] = declarations(Shell::Terminal);
+
+const fn declaration_table(shell: Shell) -> &'static [Declaration; ALL.len()] {
+    match shell {
+        Shell::Browser => &BROWSER,
+        Shell::Terminal => &TERMINAL,
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn english_declarations_are_shared_for_each_shell() {
+    for (shell, stock) in [(Shell::Browser, b"Stock ways".as_slice()), (Shell::Terminal, b"Stock ways:")] {
+        let table = declaration_table(shell);
+        assert!(core::ptr::eq(table, declaration_table(shell)), "the shell reuses its declaration table");
+        let mut ways = None;
+        for row in table {
+            if row.word == Word::WayStock {
+                ways = Some(row.literals);
+                break;
+            }
+        }
+        assert_eq!(ways, Some([stock].as_slice()), "the cached declaration has this shell's wording");
+    }
+}
+
 fn english_language(
     connector: u16,
     text: u32,
@@ -6985,10 +7040,11 @@ fn english_language(
     let capacity = PHRASES;
     let mut shapes = List::with_capacity(capacity);
     let mut phrases = List::with_capacity(capacity);
-    for word in ALL {
-        let (literals, kinds) = english(word, shell);
-        let mut holes = List::with_capacity(4);
-        let mut segments = List::with_capacity(9);
+    for &Declaration { word, number, literals, kinds } in declaration_table(shell) {
+        let kinds_len = u32::try_from(kinds.len()).expect("closed English holes");
+        let literals_len = u32::try_from(literals.len()).expect("closed English literals");
+        let mut holes = List::with_capacity(kinds_len);
+        let mut segments = List::with_capacity(literals_len.checked_add(kinds_len).expect("closed English segments"));
         for (index, literal) in literals.iter().enumerate() {
             segments.push(Segment::Text(copy_of(literal))).expect("closed English segments fit");
             if let Some(kind) = kinds.get(index) {
@@ -7003,7 +7059,7 @@ fn english_language(
                     .expect("closed segments fit");
             }
         }
-        let id = word.id(connector);
+        let id = phrase_id(number, connector);
         let plural = if word == Word::WaitingForDelegates || word == Word::ChatDelegates { Some(0) } else { None };
         shapes.push(PhraseShape { id, holes: holes.into_boxed(), plural }).expect("closed shapes fit");
         let other = Form { class: PluralClass::Other, segments: segments.into_boxed() };
@@ -7237,7 +7293,7 @@ impl Words {
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of the client's English words")]
 #[expect(clippy::match_same_arms, reason = "welcome phrases stay independent of the other pages in translations")]
-fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
+const fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
         Word::ViewAsking => (&[b"Drawing ", b"\xe2\x80\xa6"], &[Name]),
@@ -9780,7 +9836,7 @@ fn next_tick(
     Some(skein_lib::Wall::from_nanos(nanos))
 }
 
-/// Grouped counts and spend (temper/docs/design/client/pages/accounts.md, 2).
+/// Grouped counts and spend (temper/docs/design/client/pages/accounts-words.md, 1).
 #[must_use]
 pub fn grouped(value: u64) -> Box<[u8]> {
     let digits = skein_lib::Decimal::of(value);

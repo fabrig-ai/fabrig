@@ -343,7 +343,7 @@ fn chat_with_a_turn_in_flight() -> (World<Temper, Joint>, u64) {
     (world, task)
 }
 
-// temper/docs/design/client/ctl/README.md, 4; client/pages/README.md and client/README.md, 3.6.
+// temper/docs/design/client/ctl/README.md, 4; client/pages/README.md and client/root.md, 1.6.
 #[test]
 fn closing_during_a_turn_keeps_the_cancelled_conversation_readable() {
     use jig_domain_tasks as tasks;

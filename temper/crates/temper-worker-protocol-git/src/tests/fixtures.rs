@@ -1,33 +1,14 @@
-use crate::{Identity, Limits};
+use crate::Identity;
 use alloc::boxed::Box;
-use skein_lib::{Duration, Secret};
-use temper_worker_domain_checkout::{self as checkout, git};
-pub const HOME: &[u8] = b"/srv/worker/home";
+use skein_lib::Secret;
+use temper_worker_domain_checkout::git;
 pub const REMOTE: &[u8] = b"https://forge.example.test/acme/app.git";
 pub const COMMIT: git::Commit = git::Commit::new([
     0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab, 0xab,
     0xab, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ]);
 pub const COMMIT_256: git::Commit = git::Commit::new([0xcd; 32]);
-pub fn checkout() -> checkout::Limits {
-    checkout::Limits {
-        workspaces: 2,
-        preparations: 2,
-        repositories: 2,
-        name_bytes: 64,
-        message_bytes: 256,
-        conflicts: 4,
-        path_bytes: 64,
-        remote_timeout: Duration::from_secs(30),
-        reds_read_ms: 5_000,
-        rerun_processes: 4,
-        local_timeout: Duration::from_secs(5),
-        facts: 8,
-    }
-}
-pub fn limits() -> Limits {
-    Limits { operations: 2, stdout_bytes: 512, stderr_bytes: 512, read_bytes: 64, sweep_entries: 4, sweep_bytes: 255 }
-}
+pub use crate::testing::fixtures::{HOME, SERIAL, checkout, limits, settings};
 pub fn identity() -> Identity {
     Identity {
         token: Secret::new(Box::from(&b"tok-1"[..])),
@@ -42,12 +23,13 @@ pub const WORKSPACE: skein_lib::Token = skein_lib::Token::new(7);
 pub const DEADLINE: skein_lib::Time = skein_lib::Time::from_nanos(1000);
 pub const PARENT: git::Commit = COMMIT_256;
 pub const EXPECTED: git::Commit = COMMIT_256;
+pub const SWEEP_CURSOR: skein_io::kernel::Fd = skein_io::kernel::Fd::new(30);
 pub const TRASH: skein_io::kernel::Fd = skein_io::kernel::Fd::new(4);
 pub const MAKING: skein_io::kernel::Fd = skein_io::kernel::Fd::new(7);
 pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
 pub const GITDIRS: skein_io::kernel::Fd = skein_io::kernel::Fd::new(9);
 pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
-pub const SERIAL: u64 = 1000;
+pub const KEPT: skein_io::kernel::Fd = skein_io::kernel::Fd::new(10);
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
     crate::Request::Io {
         owner,
@@ -96,17 +78,6 @@ pub fn push_op(expected: Option<git::Commit>) -> git::Op {
         expected,
         identity: 1,
         account: None,
-    }
-}
-pub fn settings() -> crate::Settings {
-    crate::Settings {
-        git: Some(Box::from(&b"/bin/git"[..])),
-        home: Box::from(HOME),
-        root: skein_io::kernel::Fd::new(3),
-        prefix: 6_u64 << 60_u32,
-        serial: SERIAL,
-        largest_read: 64,
-        largest_room: 16,
     }
 }
 #[derive(Debug)]
@@ -219,21 +190,32 @@ impl Started {
         started.component.reclaim();
     }
     pub fn laid_out() -> Started {
+        let mut started = Self::sweep_pending();
+        started.empty_sweep();
+        started
+    }
+    pub fn sweep_pending() -> Started {
         let mut started = Self::unstarted();
         started.component = crate::Component::new(
             &limits(),
             &checkout(),
-            crate::Settings { serial: SERIAL.checked_sub(4).expect("layout names"), ..settings() },
+            crate::Settings { serial: SERIAL.checked_sub(2).expect("layout names"), ..settings() },
         )
         .expect("valid");
         started.version();
-        for _ in 0_u8..15 {
-            started.file_operation();
-            started.complete_ok();
-        }
+        started.finish_layout();
         assert_eq!(started.below.out.events.pop(), Some(crate::Event::Started));
-        started.empty_sweep();
         started
+    }
+    pub fn finish_layout(&mut self) {
+        for _ in 0_u8..40 {
+            if !self.below.out.events.is_empty() {
+                return;
+            }
+            self.file_operation();
+            self.complete_ok();
+        }
+        panic!("layout settles");
     }
     pub fn file_operation(&mut self) -> skein_io::kernel::Op {
         assert!(self.file.is_none(), "previous file operation completed");
@@ -261,6 +243,8 @@ impl Started {
                 GITDIRS
             } else if &**path == b"making" {
                 MAKING
+            } else if &**path == b"kept" {
+                KEPT
             } else {
                 WORKSPACES
             }),
@@ -271,6 +255,7 @@ impl Started {
             skein_io::kernel::Op::Rename { .. }
             | skein_io::kernel::Op::MakeDirectory { .. }
             | skein_io::kernel::Op::Remove { .. }
+            | skein_io::kernel::Op::Sync { .. }
             | skein_io::kernel::Op::Close { .. } => skein_io::kernel::Done::Nothing,
             skein_io::kernel::Op::HardLink { .. }
             | skein_io::kernel::Op::Lock { .. }
@@ -284,7 +269,6 @@ impl Started {
             | skein_io::kernel::Op::Shutdown { .. }
             | skein_io::kernel::Op::Append { .. }
             | skein_io::kernel::Op::Truncate { .. }
-            | skein_io::kernel::Op::Sync { .. }
             | skein_io::kernel::Op::Stat { .. }
             | skein_io::kernel::Op::Spawn { .. }
             | skein_io::kernel::Op::Wait { .. }
@@ -392,15 +376,41 @@ impl Started {
         }
         self.complete(Ok(skein_io::kernel::Done::Count(u32::try_from(values.len()).expect("test page"))));
     }
+    pub fn open_sweep(&mut self) {
+        use skein_io::kernel::{Done, Op, OpenHow};
+        assert_eq!(
+            self.file_operation(),
+            Op::Open {
+                root: skein_io::kernel::Fd::new(3),
+                path: Box::from(b"trash".as_slice()),
+                how: OpenHow::DirectoryNoFollow,
+            }
+        );
+        self.complete(Ok(Done::Fd(SWEEP_CURSOR)));
+    }
+    pub fn sweep_page(&mut self, fd: skein_io::kernel::Fd, values: &[(&[u8], skein_io::kernel::Kind)]) {
+        let skein_io::kernel::Op::List { fd: listed, entries, names } = self.file_operation() else {
+            panic!("expected List")
+        };
+        let limits = self.component.limits();
+        let size = if fd == SWEEP_CURSOR { 1 } else { limits.sweep_entries };
+        assert_eq!(listed, fd);
+        assert_eq!(entries.len(), usize::try_from(size).expect("test page size"));
+        assert_eq!(names.len(), usize::try_from(limits.sweep_bytes).expect("test name bytes"));
+        self.listing(values);
+    }
+    pub fn end_sweep(&mut self) {
+        self.sweep_page(SWEEP_CURSOR, &[]);
+        assert_eq!(self.file_operation(), skein_io::kernel::Op::Close { fd: SWEEP_CURSOR });
+        self.complete_ok();
+    }
     pub fn empty_sweep(&mut self) {
-        for _ in 0_u8..3 {
-            self.file_operation();
-            self.complete_ok();
-        }
+        self.open_sweep();
+        self.end_sweep();
     }
     pub fn shutdown(&mut self) {
         self.down(crate::Request::Shutdown);
-        for _ in 0_u8..5 {
+        for _ in 0_u8..6 {
             self.file_operation();
             self.complete_ok();
         }
@@ -467,11 +477,14 @@ impl Started {
         values.into_boxed()
     }
     pub fn done(&mut self) -> Option<(skein_lib::Token, git::Done)> {
-        match self.below.out.events.pop() {
-            Some(crate::Event::Done { owner, done }) => Some((owner, done)),
-            None => None,
-            Some(crate::Event::Started | crate::Event::Unusable { .. }) => panic!("unexpected start terminal"),
+        while let Some(event) = self.below.out.events.pop() {
+            match event {
+                crate::Event::Done { owner, done } => return Some((owner, done)),
+                crate::Event::Unswept { .. } => {}
+                crate::Event::Started | crate::Event::Unusable { .. } => panic!("unexpected start terminal"),
+            }
         }
+        None
     }
 }
 fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {
@@ -515,4 +528,8 @@ fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {
         | Op::PipeWrite { .. }
         | Op::Cancel { .. } => panic!("unexpected file operation"),
     }
+}
+
+pub(super) fn counts_op() -> git::Op {
+    git::Op::Counts { at: at(), store: skein_lib::Token::new(9), remote: REMOTE.into(), identity: 1, account: None }
 }

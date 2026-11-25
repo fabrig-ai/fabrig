@@ -1,5 +1,5 @@
-//! Command machines for sign-in (smith/docs/design/protocol/programs.md, sections 3, 4.1, 5 and
-//! 8; smith/docs/design/testing.md, section 4). Effects are driven by the shared fake host.
+//! Command machines for sign-in (smith/docs/design/protocol/programs.md, sections 3 and 4.1, and smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8
+//! ; smith/docs/design/testing.md, section 4). Effects are driven by the shared fake host.
 
 use skein_io::{file, kernel};
 use skein_lib::Token;
@@ -18,6 +18,7 @@ pub(crate) enum Effect {
     ReadCode,
     DelayedInit { after_ms: u64, bytes: Vec<u8> },
     Seen(crate::Seen),
+    Fault(crate::Fault),
     Received(serde_json::Value),
     McpStart { configuration: serde_json::Value, directory: String },
     McpCall { id: String, tool: String, input: serde_json::Value },

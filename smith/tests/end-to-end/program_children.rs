@@ -1,5 +1,5 @@
-//! Program-account sub-agents through the shipped product (smith/docs/design/protocol/programs.md,
-//! section 5.10; smith/docs/design/shell/settings.md, section 1.2). Each scratch keeps the fake's whole
+//! Program-account sub-agents through the shipped product (smith/docs/design/protocol/programs-claude-code.md,
+//! section 1.10; smith/docs/design/shell/settings.md, section 1.2). Each scratch keeps the fake's whole
 //! story and account observations; these tests use no person's login or real endpoint.
 
 use super::support;
@@ -91,33 +91,4 @@ fn exec_on_claude_asks_two_sub_agents_side_by_side() {
         assert_eq!(argument(child, "--tools"), Some("Read,Glob,Grep"));
         assert!(!child.iter().any(|argument| argument == "--json-schema"));
     }
-}
-
-#[test]
-fn exec_on_claude_refuses_a_writing_sub_agent() {
-    let report = "Writing sub-agent refused";
-    let scratch = signed_in(&Story {
-        turns: vec![
-            Turn::new(vec![Step::CallChecked {
-                tool: "sub_agent".into(),
-                input: json!({"brief":"CUE-ALPHA Inspect and run a command.","tools":["inspect","shell"],"llm":CHILD_MODEL}),
-                contains: "tools".into(),
-            }]),
-            outcome(report),
-        ],
-        cued: vec![Script { cue: "CUE-ALPHA".into(), turns: vec![Turn::new(vec![Step::Text(ALPHA.into())])] }],
-        ..Story::default()
-    });
-    // A program run, so the program story's budget: the refusal is the subject, not its speed.
-    let ran = support::run_product_scripted(
-        &scratch,
-        &["exec", "Ask a writing inspector for a report"],
-        vec![smith_local_process_world::terminal::Action::Eof],
-    );
-    assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert_eq!(ran.stdout, report.as_bytes());
-    let calls = invocations(&scratch);
-    let print: Vec<_> = calls.iter().filter(|arguments| arguments.first().is_some_and(|arg| arg == "-p")).collect();
-    assert_eq!(print.len(), 1, "a writing request opens no child program");
-    assert_eq!(argument(print[0], "--model"), Some("claude-opus-5-5"));
 }

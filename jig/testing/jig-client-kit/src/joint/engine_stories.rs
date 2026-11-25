@@ -1,5 +1,5 @@
 //! Genuine engine acts feed the root; the person's corrections use the view
-//! (domain/engine/README.md, 9; client/domain/testing.md, 5).
+//! (domain/engine/world.md, 1; client/domain/testing.md, 5).
 use super::*;
 
 // Standard's note body fits in one DocumentText, and its goal words fit one specification
@@ -43,7 +43,7 @@ impl LongTextStory {
         receiving.client.domain.turn_bytes = 1_048_576;
         receiving.client.domain.accounts = jig_client::AccountCounts { accounts: 16, sources: 8, sign_ins: 4 };
         let codec = jig_protocol_transcript::Limits {
-            smith: smith_transcript::v7::CEILINGS,
+            smith: smith_transcript::v8::CEILINGS,
             bytes: 1_048_576,
             turn: client::TurnLimits { messages: 2, blocks: 2, text: 2048, outcome: 2048 },
         };

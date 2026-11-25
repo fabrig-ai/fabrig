@@ -194,7 +194,7 @@ pub(crate) fn configured_agent(
         Box::new(errors.clone()),
     )
     .expect("program-capable agent");
-    Proc::Agent { host: Box::new(capture.host(agent)), errors }
+    Proc::Agent { host: Box::new(capture.host(agent)), errors, output: pipe(1) }
 }
 pub(crate) fn relay(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).map(|(_, fd)| *fd);
@@ -710,19 +710,8 @@ impl Judge {
                 }
             }
         }
-        let turns = world::turns(&self.store).into_iter().cloned().collect();
-        let terminals: Vec<_> = self
-            .store
-            .rows
-            .values()
-            .filter_map(|row| {
-                if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row {
-                    Some(answer.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let turns = self.store.turns().cloned().collect();
+        let terminals: Vec<_> = self.store.terminals().cloned().collect();
         let parked = terminals.iter().any(|answer| answer.end == jig_domain_tasks::End::Parked);
         if self.case == Case::Open {
             self.prepare_open(procs)?;

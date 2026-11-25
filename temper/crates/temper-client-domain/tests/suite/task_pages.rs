@@ -30,6 +30,7 @@ mod tests {
                     owners: &[jig_client::Spoken {
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
+                        layout: temper_client_protocol_wire::CLIENT_LAYOUT,
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
@@ -90,6 +91,7 @@ mod tests {
             key_bytes: 256,
             redirect_bytes: 256,
             words_bytes: 8192,
+            sign_in_expires: Wall::from_nanos(86_400_000_000_000),
             party: MeParty {
                 number: 73,
                 kind: PartyKind::Person,
@@ -162,7 +164,7 @@ mod tests {
             Event::Start { address: domain::Address::Task { task: TASK }, kept: List::with_capacity(0), with: None },
         );
         // Successful sign-in ends the pre-sign-in read; its owner asks anew
-        // before the first me (client/README.md, 3.4). Keep that output too.
+        // before the first me (client/root.md, 1.4). Keep that output too.
         let before_sign_in = requests.len();
         for event in [
             jig_client::Event::StartUnlinked { kept: List::with_capacity(0) },
@@ -294,7 +296,7 @@ mod tests {
     }
 
     // client/pages/goal.md 2: "reads an ended goal's document once more when its watch ends";
-    // jig's client/domain/contract/README.md 5.2: an ended subject is read for its end.
+    // jig's client/domain/contract/watches.md 1.2: an ended subject is read for its end.
     #[test]
     fn goal_watch_end_reads_and_keeps_the_final_document() {
         let (mut root, watch, _, mut opening) = opened(goal());

@@ -3,7 +3,7 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
-fn read() -> Box<[u8]> {
+pub(super) fn read() -> Box<[u8]> {
     read_at_version(w::VERSION)
 }
 fn read_at_version(version: u32) -> Box<[u8]> {
@@ -90,9 +90,10 @@ fn a_family_read_hands_its_scope_and_window_to_the_application() {
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("jig");
-    settings.served.push(Served { family: Some(1), first: 1, last: 1 }).expect("family");
+    settings.served.push(Served { family: Some(1), first: 1, last: 1, layout: [1; 32] }).expect("family");
     let mut peer = Peer::started(&settings);
     let bearer = fixtures::signed_in(&mut peer);
     let record = fixtures::family_read(w::Scope::Own, fixtures::window(3));
@@ -112,7 +113,8 @@ fn client_37_is_refused_by_name_without_reading_the_core() {
     let socket = peer.post(b"/jig/v1/read", read_at_version(37), Some(&bearer));
     assert!(peer.take_core().is_none());
     let w::ReadAnswer::NotServed(why) =
-        w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(socket).expect("version refusal"))).unwrap()
+        w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(socket).expect("version refusal")))
+            .expect("read answer")
     else {
         panic!("not served")
     };

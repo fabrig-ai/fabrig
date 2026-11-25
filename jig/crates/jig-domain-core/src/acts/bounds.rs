@@ -1,4 +1,4 @@
-//! Factual direct bounds and the policy holder for supported widening drafts (domain/authority.md, 8).
+//! Factual direct bounds and the policy holder for supported widening drafts (domain/authority-checks.md, 1).
 use crate::{
     Core, Limits,
     acts::{Admission, Beyond, Bounds, Recipient, standing},
@@ -11,14 +11,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Wall};
 
 pub(crate) fn recipient(core: &Core, project: u32, kind: authority::ProposalKind) -> Option<Recipient> {
-    let policy = core.authority.policy(project)?;
-    let mut roles = List::with_capacity(core.authority.limits().roles);
-    for role in &policy.roles {
-        if role.decides.allows(kind) {
-            roles.push(role.number).expect("policy roles fit the admitted authority bound");
-        }
-    }
-    if roles.is_empty() { None } else { Some(Recipient::Roles { project, roles }) }
+    super::policy_recipient(&core.authority, project, kind)
 }
 
 pub(crate) fn creating(
@@ -459,7 +452,7 @@ pub(crate) fn amendment_admit_places_in(
     }
 }
 
-/// What a widening already holds, under the funding rule (domain/authority.md, 7).
+/// What a widening already holds, under the funding rule (domain/authority-budgets.md, 1).
 fn amendment_credit(source: tasks::Funder, funder: tasks::Funder, numbers: tasks::Numbers) -> u64 {
     if source == funder { numbers.budget } else { numbers.spent.saturating_add(numbers.spent_below) }
 }

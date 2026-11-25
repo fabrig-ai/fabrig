@@ -1,5 +1,5 @@
 //! A store fetch shares its lock; Pack's store part holds it alone
-//! (temper/docs/design/protocol/git.md, 4.13, A store's lock).
+//! (temper/docs/design/protocol/git-operations.md, 1.14, A store's lock).
 use crate::invocation::Command;
 use skein_lib::Token;
 use temper_worker_domain_checkout::git;
@@ -19,11 +19,14 @@ impl Access {
             Command::CountObjects { store: Some(store) } | Command::Repack { store: Some(store) } => {
                 Some(Access { store: *store, shared: false })
             }
-            Command::Fetch { .. } => match op {
-                git::Op::Fetch { store, .. } => Some(Access { store: *store, shared: true }),
+            Command::Fetch { .. } | Command::FetchCounts { .. } => match op {
+                git::Op::Fetch { store, .. } | git::Op::Counts { store, .. } => {
+                    Some(Access { store: *store, shared: true })
+                }
                 git::Op::Pack { .. }
                 | git::Op::Reset { .. }
                 | git::Op::Reds { .. }
+                | git::Op::Keep { .. }
                 | git::Op::Make { .. }
                 | git::Op::Store { .. }
                 | git::Op::Look { .. }
@@ -36,7 +39,7 @@ impl Access {
                 | git::Op::DiffPaths { .. }
                 | git::Op::Merge { .. }
                 | git::Op::Commit { .. }
-                | git::Op::Push { .. } => unreachable!("store fetch belongs to Fetch"),
+                | git::Op::Push { .. } => unreachable!("store fetch belongs to Fetch or Counts"),
             },
             Command::CountObjects { store: None }
             | Command::Repack { store: None }
@@ -53,10 +56,13 @@ impl Access {
             | Command::Remote { .. }
             | Command::Store { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::UpdateIndex { .. }
             | Command::Add

@@ -116,9 +116,11 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
 
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
+        follows: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -680,6 +682,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
 fn changes_owned_bytes_charges_every_field() {
     const STRINGS: usize = 4 + 4 + 4 + TITLE.len() * 2;
     let view = ChangesView {
+        catching_up: None,
         landed_default: Box::new([ChangesLanded {
             goal: None,
             chat: None,

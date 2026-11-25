@@ -25,15 +25,15 @@ skein-io socket
   vocabulary; `skein-forge-connection` depends on the crates below it in
   the diagram. `skein-forge-setup` is the setup's: its host component
   runs in the engine beside the forge component (6). temper runs the
-  plans there alone: no command of temper's drives one (../setup/reconcile.md and ../setup/README.md, section 7
+  plans there alone: no command of temper's drives one (../setup/reconcile.md and ../setup/crate-layout.md, section 1
   ).
 - **The forge component,** `skein-forge-connection`, is a child of the
   engine's protocol layer, beside jig's components, with its own limits,
   deadlines and kernel submission edges; the routing
   carries what passes between it, io and the root, and decides nothing
-  (../components.md and ../README.md, section 4; jig's `protocol/service.md`, section 2).
+  (../components.md and ../service-routing.md, section 1; jig's `protocol/service.md`, section 2).
   One component serves every kept forge. What it holds is skein's
-  (`forge/connection.md`, sections 3 to 7): the calls in flight, the
+  (`forge/connection.md`, section 3, and `forge/connection-calls.md`, section 1, and `forge/connection.md`, section 5, and `forge/connection-webhooks.md`, section 1, and `forge/connection-machines.md`, section 1): the calls in flight, the
   forges' connections, each forge's start, the repositories' paths and
   the users, a GitHub App's installations and tokens, the translation
   between the forge client's vocabulary and the documents, the webhooks'
@@ -80,24 +80,24 @@ skein-io socket
 - **Room, and the drain,** as the component keeps them (skein's
   `forge/connection.md`, section 2) and as jig's components keep them
   (jig's `protocol/service.md`, section 2; jig's `domain/engine/restart.md`,
-  1): an answer or a hint the root cannot take yet is held and offered
+  5): an answer or a hint the root cannot take yet is held and offered
   again, at most one per call and one per webhook connection, and
   nothing more is read off its connection meanwhile. One the root
   returns during its drain (its `Request::Busy`) is never offered
   again: it goes when the component closes, and the next process reads
-  afresh and settles its outbox (`../../domain/forge/README.md`, section 9). The
+  afresh and settles its outbox (`../../domain/forge/effects.md`, section 2). The
   routing's own news of a connection or an installation that the root
   returns during its drain is dropped. The root's view of them is not
   kept, so the next process's root starts from what a fresh start
   publishes: each connection afresh, and the installations by the
-  baseline listing (skein's `forge/connection.md`, section 4.4). The
+  baseline listing (skein's `forge/connection-calls.md`, section 1.4). The
   routing closes the component after the root's drain (jig's
   `protocol/service.md`, section 5); calls in flight end with their
   connections, and no answer goes up once the root has stopped.
 - **A start that fails for good stops that forge only** (3): a user
   other than the forge's own, a credential refused, or a `4xx` that
-  asking again would not mend (skein's `forge/connection.md`, sections 3
-  and 8). The engine and every other forge run on.
+  asking again would not mend (skein's `forge/connection.md`, section 3, and `forge/connection-machines.md`, section 2
+  ). The engine and every other forge run on.
 
 ## 1. A forge's records, and its access at start
 
@@ -111,7 +111,7 @@ skein-io socket
     `web`: GitHub's, and a Forgejo's where a connect gives them apart
     from `git` (`../openid-provider.md`, 7);
   - its git program, the executable workers run for its repositories,
-    or none for their own (../configuration/README.md, section 3): a Forgejo's as
+    or none for their own (../configuration/worker.md, section 1): a Forgejo's as
     its admin's `Connect` gives it, GitHub's none but a test's
     (../setup/place.md, 7); a fake forge runs `demo/bin/git` in the
     data directory (../setup/place.md, 2);
@@ -122,15 +122,15 @@ skein-io socket
     its tokens answer as, written over the one the record was made with
     at each `Check` done (2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (5);
-  - for a first set up, its intent, and no project (../setup/owned.md, 7):
+  - for a first set up, its intent, and no project (../setup/owned-repositories.md, 1):
     `Empty`'s organization, name, runner label and whether it is the
-    playground's copy or the sample (../setup/owned.md, 7), kept so that a restart
+    playground's copy or the sample (../setup/owned-repositories.md, 1), kept so that a restart
     before the repository is made makes it at the next connect; `Copies`'
     addresses, kept for the client to ask them at Ready and after a restart;
     or `Nothing`;
   - its link to a box's person, or none: the forge's user who is the box's
     one person, and that person's party, `{ user, person }`, each never 0
-    (`../../domain/forge/adoption.md`, 6);
+    (`../../domain/forge/adoption-person.md`, 1);
   - its state: kept, or ended, with whether its secrets are erased and
     its box group removed (3).
 
@@ -143,14 +143,14 @@ skein-io socket
   row (../store.md, section 2), and never gives a number twice, since the
   number keys every record of the forge: its rows in jig's secrets'
   store, its repositories, its writer and its git identity
-  (../credentials.md, 2.1 and section 4). A removed forge's number stays
+  (../credentials.md, 2.1, and ../credentials-git-identities.md, 1). A removed forge's number stays
   spent; a forge set up again is a new forge.
 - **Its users among jig's parties.** A party adoption knows from a forge
   is keyed by that forge's number and the user's (../store.md, section 2;
   `../../domain/forge/adoption.md`). As a number is never given twice, such
   a key stays that forge's user's, even after the forge is removed.
 - **Restored, then handed over.** The forge's restart step restores
-  each `Forge` row (../store.md, section 5), and the connector hands each
+  each `Forge` row (../store-restart.md, section 1), and the connector hands each
   kept one to the routing, as it hands a new one (2), which adds its
   forge to the component, its identity to the identities' table and an
   owned or fake one to the setup host. An ended one's removal resumes
@@ -240,7 +240,7 @@ skein-io socket
   - `SetUp` of a new owned Forgejo, under the box alone and while no
     owned forge is kept, chooses its place, a free port on loopback
     (../setup/place.md, 2), and keeps its intent, its row saying
-    it (../setup/owned.md, 7);
+    it (../setup/owned-repositories.md, 1);
   - `Connect` of a new GitHub forge takes github.com's place, or a
     test's fake's (../setup/place.md, 7);
   - `Connect` as a Forgejo's admin (../setup/reconcile.md, 5) takes the address,
@@ -274,7 +274,7 @@ skein-io socket
   deployment's page says as whom (../../client/forge/README.md, the deployment's
   page). The connector then gives the forge client its writer, which the
   forge client keeps as its own record and restores at start (skein's
-  `forge/client.md`, 7.1; `../../domain/forge/adoption.md`, 1). A GitHub forge's
+  `forge/client-effects.md`, 1.1; `../../domain/forge/adoption-connection.md`, 1). A GitHub forge's
   `Reconcile { forge }` runs next, once the forge's writing run is free
   (6); it ends in no connect.
 - **The box's pipe** (../setup/box.md, 1), under the box alone, through the
@@ -308,7 +308,7 @@ skein-io socket
   user its tokens answer as with the kept `User`, on a forge connected
   again as on a `Replace`: tokens of another user stop the run
   `OtherUser`, nothing kept and the forge as it was. A forge's writer is
-  its user (skein's `forge/client.md`, 7.1; ../credentials.md, 2.1), so
+  its user (skein's `forge/client-effects.md`, 1.1; ../credentials.md, 2.1), so
   another user's tokens connect a new forge, once this one is removed.
 - **`Replace`** runs `Check` on a connected Forgejo, its pasted tokens
   read before the forge's rows, so that a token not pasted is the kept
@@ -334,7 +334,7 @@ skein-io socket
   the engine (`README.md`, section 4).
 - **A forge removed** is ended in one decision of the forge
   connector's, by its owners' `RemoveForge { forge }` or the
-  playground's reset (`../../domain/forge/adoption.md`, 1; ../setup/playground.md): its
+  playground's reset (`../../domain/forge/adoption-connection.md`, 1; ../setup/playground.md): its
   record reads ended, and the root asks the routing for the service's
   side at once:
   - **no call served:** the component drops the forge (`Remove {
@@ -342,7 +342,7 @@ skein-io socket
     none, and one the routing meets is answered `NotConnected` (`README.md`, 7.1);
   - **its access dropped:** its endpoint and any access built for it,
     its git identity's values in the identities' table, its grant
-    withdrawn (../credentials.md, section 4), and its place in the setup
+    withdrawn (../credentials-git-identities.md, section 1), and its place in the setup
     host, whose run for it ends;
   - **its secrets erased at once:** each of its family-1 rows,
     `AdminToken` through `Origin` (../credentials.md, 2.1), one `Erase`
@@ -353,7 +353,7 @@ skein-io socket
     once the start's store mark is durable;
   - **its writer and its flights** go in the decision itself: the
     writer's row erased, and its writes in flight withdrawn
-    (`../../domain/forge/adoption.md`, 1);
+    (`../../domain/forge/adoption-connection.md`, 1);
   - **its box group removed:** an owned or fake forge's, by `remove
     FORGE` on the box's link (8), the step done at `removed FORGE`; a
     connected or managed forge has none, and the step reads done in the
@@ -363,7 +363,7 @@ skein-io socket
   until whole:** at each start the connector asks again for each step
   its ended record has not heard done; once both are, and no kept task
   names its repositories, the record is erased, its number spent (1;
-  `../../domain/forge/adoption.md`, 1).
+  `../../domain/forge/adoption-connection.md`, 1).
 
 ## 4. GitHub's installations
 
@@ -376,7 +376,7 @@ skein-io socket
   The routing hands the list over with `Request::Installations { forge,
   accepted }` at start, after an `Accept`'s `Done` and after a deletion;
   the component reads the installations and mints a token for each one
-  accepted (skein's `forge/connection.md`, 4.4 and 5.1).
+  accepted (skein's `forge/connection-calls.md`, 1.4, and `forge/connection.md`, 5.1).
 - **`Event::Installation { forge, installation, account, change }`,**
   an `account` being its id and login:
   - `Created`: nothing, unless accepted, at the setup URL or by the
@@ -387,11 +387,11 @@ skein-io socket
   - `Deleted`: the `Accepted` row is rewritten without it and kept, then
     `Request::Installations`. The git identity's value loses that
     account's token (5). Every adoption on the account is marked
-    (`../../domain/forge/adoption.md`, 3).
+    (`../../domain/forge/adoption.md`, 7).
   - `Repositories` and `Renamed`: to the root. No names come with them:
     the connector lists that installation again, through the setup's
     host's `Reachable` plan (6), and marks each adoption whose
-    repository left the installation (`../../domain/forge/adoption.md`, 3). Each
+    repository left the installation (`../../domain/forge/adoption.md`, 7). Each
     `Connected` lists again every accepted installation that holds an
     adoption, so a change made while temper was away is found. The marks
     are held in memory, never stored.
@@ -478,8 +478,8 @@ entrance limits and settings before it builds it, with room for
 |---|---|---|
 | `Reconcile { forge, adopted }` | each start of a managed or owned Forgejo; a managed connect; the box's `started`, after its `TakeOver` (2) | converges the forge on what the deployment needs (../setup/reconcile.md), then the forge connects |
 | `TakeOver { forge, admin_token }` | an owned or fake forge's start, or the box's `started`, whenever the handover file is present, even with a kept `AdminToken` (../setup/owned.md, 5) | keeps the handover's admin token; only after its `Done` and the record kept is the file removed, before reconcile |
-| `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../../domain/forge/adoption.md`, 2) |
-| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (../setup/owned.md, 7) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge/setup/forgejo.md`, 1.9) |
+| `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../../domain/forge/adoption.md`, 6) |
+| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (../setup/owned-repositories.md, 1) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge/setup/forgejo.md`, 1.9) |
 | `Check { forge }` | a connected Forgejo's `Connect` with its pasted tokens, and each `Replace` of them | both tokens answer as one user, not a site admin, and as the kept `User` when there is one, else it writes `User`; it ends `Done(Identity { id, login })`, the login kept as the record's bot's (2) |
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (../setup/github.md, 2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (../../client/forge/served.md, 1) |
 | `Convert { forge, code, state }` | GitHub's redirect back | the code exchanged for the App's id, slug and key, the conversion's webhook secret and OAuth pair never kept; the bot user found; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
@@ -487,7 +487,7 @@ entrance limits and settings before it builds it, with room for
 | `Accept { forge, installation, state? }` | the setup URL's visit, with its state; the owner's accept of a stray, with none (`../setup/github.md`, 4) | the installation checked, and added to `Accepted` |
 | `Paste { forge, app }` | a pasted App's Connect; Replace on GitHub, with the kept id | the pasted key (skein's `Pasted`, read once, never written) decoded to DER, `GET /app` matching the id, the bot user found, the App's hook set to `https://<slug>.invalid/`, the permissions and events checked as reconcile checks them; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
 | `Reconcile { forge }` | after each GitHub `Connected` | the App's permissions, events, installations and key checked; it repairs only its hook's address (`README.md`, 4.1) |
-| `Reachable { forge, installation?, page }` | the picker, on every kind | the repositories the picker lists, paged by number from 1, at most `reachable` rows (temper's `picker.page`), `more` set when the page is full: on GitHub one accepted installation's, `installation` its id; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the admin's token sees, by id ascending, refused `Missing` or `NotAdmin` as reconcile's first step; an `installation` not in `Accepted` stops `Installation` (`Missing`), and one given for a Forgejo stops `Installation` (`Unexpected`); it ends `Done(Reachable { rows, more })`, each row the repository's id, its owner's `{ id, login }`, its name and whether it is private; it writes nothing (`../../domain/forge/adoption.md`, 3) |
+| `Reachable { forge, installation?, page }` | the picker, on every kind | the repositories the picker lists, paged by number from 1, at most `reachable` rows (temper's `picker.page`), `more` set when the page is full: on GitHub one accepted installation's, `installation` its id; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the admin's token sees, by id ascending, refused `Missing` or `NotAdmin` as reconcile's first step; an `installation` not in `Accepted` stops `Installation` (`Missing`), and one given for a Forgejo stops `Installation` (`Unexpected`); it ends `Done(Reachable { rows, more })`, each row the repository's id, its owner's `{ id, login }`, its name and whether it is private; it writes nothing (`../../domain/forge/adoption.md`, 7) |
 
 - **`Reachable`** is skein's (`forge/setup/forgejo.md`, 1.8). On a managed or
   owned Forgejo it runs on the admin's token, which stays the setup
@@ -560,7 +560,7 @@ entrance limits and settings before it builds it, with room for
 
 ## 7. What the vocabulary adds
 
-skein's (`forge/README.md`, section 3; `skein/docs/design/forge/connection.md`, 4.1), as the
+skein's (`forge/vocabulary.md`, section 1; `skein/docs/design/forge/connection-calls.md`, 1.1), as the
 routing carries it to the root, and the domain reads it
 (`../../domain/forge/adoption.md` and `../../domain/forge/keeping-up.md`):
 
@@ -600,11 +600,11 @@ service's io.
   a line at most `box.line_bytes` (../configuration/limits.md), its
   line feed included, as the box counts it. Without `--box` there is no
   pipe and no link; the engine's forge domain, told so at its construction,
-  refuses every ask "not under the box" (`../../domain/forge/adoption.md`, 1).
+  refuses every ask "not under the box" (`../../domain/forge/adoption-connection.md`, 1).
   The link decides nothing: it carries the domain's asks out and the
   box's lines in.
 - **An ask** is the forge domain's, once it has decided the `SetUp {
-  forge }` by the forge's offer (`../../domain/forge/adoption.md`, 1), which
+  forge }` by the forge's offer (`../../domain/forge/adoption-connection.md`, 1), which
   refuses "not offered", "not under the box" and "busy" itself, or the
   playground's start for its fake forge (../setup/playground.md). The routing
   writes the group's file, `<data>/box/groups/FORGE`, with the forge's
@@ -644,7 +644,7 @@ service's io.
     with `WHY` as the box wrote it, which holds no secret (../setup/box.md,
     1).
 - **The failed step** is the forge domain's, from the connection it
-  held when told set up failed (`../../domain/forge/adoption.md`, 1), including
+  held when told set up failed (`../../domain/forge/adoption-connection.md`, 1), including
   `BoxClosed` during setup. The producers keep their existing events;
   the FORGE row's `SetUpFailed` carries `why` and `at: option
   FailedStep` (fetch, prepare, run or connect). The schema and generated
@@ -673,8 +673,8 @@ service's io.
   pipe failing, ends the link, named in the log once, and the link
   tells the root `BoxClosed`: the forge domain fails an ask in flight,
   "the box closed the pipe", and offers no set up after it
-  (`../../domain/forge/adoption.md`, 1). serve's own end is
-  the box's to make (../setup/box.md, 2).
+  (`../../domain/forge/adoption-connection.md`, 1). serve's own end is
+  the box's to make (../setup/box-supervision.md, 1).
 - **Nothing kept.** The link's ask and the states it tells are in
   memory alone (`README.md`, 7.1): a restart makes a pipe and a link afresh, with no
   ask, and a group the box still runs answers the next ask by its own

@@ -1,15 +1,15 @@
 # fakes: status
 
-2026-11-16. Where the tree's code lags or departs from [fakes.md](fakes.md).
+2026-11-21. Where the tree's code lags or departs from [fakes.md](fakes.md).
 
 Unlisted sections have no known gap.
 
+
 - **Not yet:** 6: a fake mail sink, as mail itself (`../domain/forge/attention.md`, 7.4).
 
+
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
-  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
    the later live ladder rungs remain `live-tier.status.md` (Not yet).
    the live GitHub pull-read proof remains `live-tier.status.md` (Not yet).

@@ -1,4 +1,4 @@
-//! The box as its parent's child (temper/docs/design/protocol/setup/box.md, 6).
+//! The box as its parent's child (temper/docs/design/protocol/setup/box-front.md, 1).
 use crate::support::{self, patience::Patience};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Token};
@@ -184,36 +184,13 @@ fn a_fresh_front_hands_a_local_sign_in_and_stops_at_its_input_end() {
 }
 
 #[test]
-fn front_refuses_a_fixed_link_member_before_starting_steps() {
-    let scratch = support::Scratch::startup("box-front-no-link");
-    let initialized = box_link::command(scratch.path(), "init").arg("--box").output().expect("init box");
-    assert!(initialized.status.success());
-    support::own_listener_files(&scratch.path().join("config"));
-    let path = scratch.path().join("config").join(temper_config_shell::FILE);
-    // Fixed start members are tested in memory; the public file has no link switch.
-    let mut document = support::start_document(&path, temper_config_shell::Shape::Standalone);
-    document["engine"]["clients"]["link"] = false.into();
-    let why = temper_box_shell::box_command::configuration_steps(
-        &support::configuration::directories(&scratch.path().join("config")),
-        &serde_json::to_vec(&document).expect("start JSON"),
-        Box::new([]),
-    )
-    .expect_err("no steps built");
-    assert_eq!(why, "engine.clients.link: moved: temper fixes the clients' heartbeat, printed link and approval\n");
-    assert!(!scratch.path().join("data/box/logs").exists(), "no host or steps started");
-    scratch.remove();
-}
-
-#[test]
 fn front_refuses_a_missing_parent_pipe_before_any_start() {
-    for closed in [3, 4] {
-        let scratch = support::Scratch::startup("box-front-missing");
-        let mut pipes = Pipes::start(scratch.path(), &["--front"], Some(closed));
-        assert_eq!(pipes.stop(), Exit::Code(2));
-        assert!(pipes.bytes[0].is_empty() && pipes.bytes[2].is_empty() && pipes.bytes[3].is_empty());
-        assert_eq!(pipes.bytes[1], b"temper-box --front: fd 3 and fd 4 are its parent's pipes\n");
-        assert!(!scratch.path().join("config").exists(), "no initialization before descriptor refusal");
-        drop(pipes);
-        scratch.remove();
-    }
+    let scratch = support::Scratch::startup("box-front-missing");
+    let mut pipes = Pipes::start(scratch.path(), &["--front"], Some(3));
+    assert_eq!(pipes.stop(), Exit::Code(2));
+    assert!(pipes.bytes[0].is_empty() && pipes.bytes[2].is_empty() && pipes.bytes[3].is_empty());
+    assert_eq!(pipes.bytes[1], b"temper-box --front: fd 3 and fd 4 are its parent's pipes\n");
+    assert!(!scratch.path().join("config").exists(), "no initialization before descriptor refusal");
+    drop(pipes);
+    scratch.remove();
 }

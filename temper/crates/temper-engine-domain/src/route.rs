@@ -461,6 +461,9 @@ fn route_core_with_job(
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                if let core::Record::Core(core::CoreRecord::Part(part)) = &record {
+                    domain.hold_bytes(skein_lib::len_u64(part.body.len()));
+                }
                 parts::saved(domain, &record);
                 forge_route::milestone_saved(domain, &record);
                 forge_route::follow_route::saved(domain, &record);
@@ -470,7 +473,6 @@ fn route_core_with_job(
                 limit_settings::saved(domain, env, decision, &record);
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
-                forge_route::close_saved(domain, &record);
                 forge_route::job_history::saved(domain, &record, job_answer);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
@@ -555,7 +557,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
-                    forge_route::limit_holds::restart(domain);
+                    if domain.rehearsal.is_some() {
+                        domain.rehearsal = Some(true);
+                    }
                     // Open admits task control; a later resume takes the first due task.
                     trials::restarted(domain);
                 }
@@ -579,6 +583,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_with_job(domain, env, decision, routed, job_answer);
                 if let Some(project) = period {
                     standing::move_roles(domain, project, None);
+                }
+            }
+            Work::RepairFindings { goal, writes } => {
+                assert!(domain.core.tasks.task(goal).is_some(), "a preflighted repair goal was made");
+                for write in writes {
+                    findings::commit(domain, env, decision, write, false).expect("prepared repair finding");
                 }
             }
             Work::Tasks(event) => {
@@ -605,21 +615,20 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
-                if let Some(key) = domain.forge.unjoined_change() {
-                    domain.stop_start(crate::StartStop::ForgeRow(key));
-                    return;
-                }
-                domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
-                domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
                 let mut output = Queue::uncapped();
-                domain.forge.link_landings(&domain.core.tasks, &environment_forge(env), &mut output);
+                let links = domain.forge.start_links(&domain.core.tasks, &environment_forge(env), &mut output);
                 forge_route::outputs(domain, env, decision, &mut output);
-                if domain.forge.fit_restored(&env.limits.forge).is_err() {
-                    refuse_forge_fit(domain);
-                    return;
-                }
-                if let Some(link) = domain.forge.missing_link(&domain.core.tasks) {
-                    domain.stop_start(crate::StartStop::ForgeLink { phase: domain.start_phase(), link });
+                if let Err(failure) = links {
+                    let stop = match failure {
+                        forge::StartLink::Row(key) => crate::StartStop::ForgeRow(key),
+                        forge::StartLink::Fit(failure) => {
+                            crate::StartStop::ForgeFit { phase: domain.start_phase(), failure }
+                        }
+                        forge::StartLink::Link(link) => {
+                            crate::StartStop::ForgeLink { phase: domain.start_phase(), link }
+                        }
+                    };
+                    domain.stop_start(stop);
                     return;
                 }
                 kinds::restored_figures(domain, env, decision);
@@ -652,6 +661,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::ProposalLoaded { waiter, rows } => proposals::historical_loaded(domain, waiter, rows),
             Work::ProposalFailed { waiter } => proposals::historical_failed(domain, waiter),
             Work::TaskProposalLoaded { waiter, rows } => proposals::task_loaded(domain, waiter, rows),
+            Work::CloserReportReady { task } => forge_route::resume_closer_step(domain, env, decision, task),
             Work::EndedLoad { waiter, task } => emit(
                 decision,
                 &env.limits,
@@ -881,7 +891,7 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
     // Task saves keep the projection current during a gather and at merge
     // judgement. Refresh restored projections before reads start, and the
     // subject at each change step (gates.md, 1, Valid at a spec revision).
-    if let forge::Event::ReadAfresh = &event {
+    if let forge::Event::CatchUp = &event {
         for task in domain.forge.change_tasks() {
             if let Some(row) = domain.core.tasks.task(task) {
                 domain.forge.refresh_spec_revision(task, row.revisions.spec, &mut out);

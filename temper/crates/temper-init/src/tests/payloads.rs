@@ -1,4 +1,4 @@
-//! Design edits through the shipped profile (temper/docs/design/protocol/configuration/settings.md, 7).
+//! Design edits through the shipped profile (temper/docs/design/protocol/configuration/settings-output.md, 1).
 #![expect(clippy::disallowed_methods, reason = "ordinary test code inspects the fake checkout's tree")]
 
 use super::fixtures::{self, call, parse};
@@ -23,6 +23,7 @@ fn edit_world(document: serde_json::Value, replacement: &str) -> World {
     disk.write(b"work/docs/design.md", BEFORE.as_bytes());
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

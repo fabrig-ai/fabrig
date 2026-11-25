@@ -1,4 +1,4 @@
-//! The fake's SHA-1 spelling (skein/docs/design/testing/fakes/forge.md, 4, and skein/docs/design/testing/fakes/github.md, 3), shared by its faces and queue.
+//! The fake's SHA-1 spelling (skein/docs/design/testing/fakes/forgejo.md, 1, and skein/docs/design/testing/fakes/github.md, 3), shared by its faces and queue.
 
 #[cfg(test)]
 #[path = "tests/object.rs"]

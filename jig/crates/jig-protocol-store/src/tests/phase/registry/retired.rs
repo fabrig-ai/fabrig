@@ -9,11 +9,7 @@ fn base_family(owner: Owner) -> KeptFamily {
     KeptFamily {
         current: CURRENT,
         keys: &[
-            Keys {
-                from: jig_test_patches_jig::keys::NOTES_FROM,
-                to: jig_test_patches_jig::keys::NOTES_TO,
-                root: "Growing",
-            },
+            Keys { from: jig_test_layouts::keys::NOTES_FROM, to: jig_test_layouts::keys::NOTES_TO, root: "Growing" },
             Keys { from: b"\x02s", to: b"\x02t", root: "Stable" },
         ],
         types: &[

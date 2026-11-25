@@ -57,7 +57,14 @@ impl World {
     #[must_use]
     pub fn with_wires(limits: &Limits, seed: u64, wires: skein_lib::List<jig_protocol_worker_wire::Spoken>) -> Self {
         Self {
-            component: Component::new(limits, wires, fixtures::credential(), seed).expect("world limits"),
+            component: Component::with_schema(
+                limits,
+                wires,
+                fixtures::credential(),
+                seed,
+                fixtures::schema_for_sizes(&limits.sizes),
+            )
+            .expect("world limits"),
             limits: *limits,
             now: Time::ZERO,
             out: Queue::uncapped(),
@@ -185,7 +192,7 @@ impl World {
     )]
     fn route(&mut self, request: Request) {
         match request {
-            request @ (Request::Restarting { .. } | Request::CannotSendWhole { .. } | Request::Untranslated { .. }) => {
+            request @ Request::Restarting { .. } => {
                 self.root.push(request);
             }
             Request::Dial => {
@@ -234,7 +241,7 @@ impl World {
                     );
                 }
             }
-            Request::Figures { .. } => self.root.push(request),
+            Request::ResendPart { .. } | Request::Figures { .. } => self.root.push(request),
             Request::Ready => {
                 self.trace.push(Trace::Ready);
                 self.root.push(Request::Ready);
@@ -268,6 +275,7 @@ impl World {
                     }
                     // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
                     jig_domain_host::LinkDown::Pause { .. }
+                    | jig_domain_host::LinkDown::PartKept { .. }
                     | jig_domain_host::LinkDown::AssignJob { .. }
                     | jig_domain_host::LinkDown::Assign { .. }
                     | jig_domain_host::LinkDown::Message { .. }

@@ -10,7 +10,7 @@ use skein_lib::{Queue, Time, Wall};
 /// completions into [`Host::completions`], calls [`Host::iterate`], and
 /// submits [`Host::submissions`], as its shell would.
 pub trait Host {
-    /// A digest of held state for replay (runtime/lib.md, 5.1); only worlds read it.
+    /// A digest of held state for replay (runtime/lib-containers.md, 1.1); only worlds read it.
     fn state_digest(&self) -> Option<[u8; 32]> {
         None
     }
@@ -126,20 +126,74 @@ impl<D: Delegate> Host for D {
     }
 }
 
+/// The kernel and clock operations one turn of the shell needs (skein/docs/design/runtime/shell.md, 11).
+#[cfg(unix)]
+pub trait Turns {
+    /// Move ready completions into the host's queue.
+    fn reap(&mut self, out: &mut Queue<Complete>);
+
+    /// Read the monotonic and wall times for this turn.
+    fn now(&self) -> crate::Now;
+
+    /// Translate a step deadline to a kernel wait deadline.
+    fn until(&self, deadline: Option<Time>) -> Option<Time>;
+
+    /// Count operations still in flight, including unreaped completions.
+    fn in_flight(&self) -> u32;
+
+    /// Take submissions while there is room, then wait as requested.
+    fn submit(&mut self, records: &mut Queue<Submit>, wait: crate::Wait);
+}
+
 /// Runs a service until its entities and kernel operations have settled.
 /// Its exit belongs to the host, after its final drain (runtime/shell.md, 12).
 #[cfg(unix)]
 pub fn drive(kernel: &mut crate::Kernel, clock: &crate::Clock, host: &mut impl Host) -> Exit {
+    drive_with(&mut NativeTurns { kernel, clock }, host)
+}
+
+#[cfg(unix)]
+struct NativeTurns<'a> {
+    kernel: &'a mut crate::Kernel,
+    clock: &'a crate::Clock,
+}
+
+#[cfg(unix)]
+impl Turns for NativeTurns<'_> {
+    fn reap(&mut self, out: &mut Queue<Complete>) {
+        self.kernel.reap(out);
+    }
+
+    fn now(&self) -> crate::Now {
+        self.clock.now()
+    }
+
+    fn until(&self, deadline: Option<Time>) -> Option<Time> {
+        self.clock.until(deadline)
+    }
+
+    fn in_flight(&self) -> u32 {
+        self.kernel.in_flight()
+    }
+
+    fn submit(&mut self, records: &mut Queue<Submit>, wait: crate::Wait) {
+        self.kernel.submit(records, wait);
+    }
+}
+
+/// Run the service loop over the supplied kernel and clock face.
+#[cfg(unix)]
+pub fn drive_with(turns: &mut impl Turns, host: &mut impl Host) -> Exit {
     loop {
-        kernel.reap(host.completions());
-        let crate::Now { now, wall } = clock.now();
+        turns.reap(host.completions());
+        let crate::Now { now, wall } = turns.now();
         host.iterate(now, wall);
         host.drain();
-        let deadline = clock.until(host.next_deadline());
+        let deadline = turns.until(host.next_deadline());
         if host.is_empty() {
             assert!(host.completions().is_empty(), "an empty host has no completions");
             assert!(host.submissions().is_empty(), "an empty host has no submissions");
-            assert_eq!(kernel.in_flight(), 0, "an empty host has no kernel operation in flight");
+            assert_eq!(turns.in_flight(), 0, "an empty host has no kernel operation in flight");
             return host.exit().expect("an empty host has a terminal exit");
         }
         let wait = if host.work_pending(now) {
@@ -147,6 +201,6 @@ pub fn drive(kernel: &mut crate::Kernel, clock: &crate::Clock, host: &mut impl H
         } else {
             deadline.map_or(crate::Wait::Forever, crate::Wait::Until)
         };
-        kernel.submit(host.submissions(), wait);
+        turns.submit(host.submissions(), wait);
     }
 }

@@ -48,7 +48,9 @@ fn start(
     Ok((git, kernel))
 }
 
-fn invocation(
+/// Build the invocation from the process facts, beneath the supplied root.
+#[must_use]
+pub fn invocation(
     arguments: &[Box<[u8]>],
     program: &[u8],
     environment: &[EnvironmentEntry],
@@ -62,6 +64,7 @@ fn invocation(
     Spawn {
         reach: None,
         program: program.into(),
+        // The shared fake resolves the paths once, after admitting git's argv.
         args: arguments.into(),
         env: environment.iter().map(|(key, value)| [key.as_ref(), b"=", value.as_ref()].concat().into()).collect(),
         root,
@@ -73,6 +76,18 @@ fn invocation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn invocation_resolves_explicit_git_paths_beneath_the_working_directory() {
+        use temper_worker_protocol_git::invocation::{Command, arguments_at, environment};
+        let arguments = arguments_at(&Command::Format, Some(b"gitdirs/0/widget"), Some(b"workspaces/0/widget"));
+        let mut given = invocation(&arguments, b"/fixture/git", &[], b"/fixture/worker", Fd::new(7));
+        given.env = environment(b"/fixture/home", None, None);
+        let checked = temper_fake_git::check(&given).expect("native invocation admitted");
+        assert!(matches!(checked.command, Command::Format));
+        assert_eq!(checked.git_dir.as_deref(), Some(b"fixture/worker/gitdirs/0/widget".as_slice()));
+        assert_eq!(checked.at.as_ref(), b"fixture/worker/workspaces/0/widget");
+    }
+
     #[test]
     fn invocation_uses_the_given_process_facts() {
         let environment = [(Box::from(b"PATH".as_slice()), Box::from(b"/fixture/bin".as_slice()))];

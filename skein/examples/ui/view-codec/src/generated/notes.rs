@@ -8,8 +8,13 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 1;
+pub const LAYOUT: [u8; 32] = [
+    0xb8, 0xd2, 0xf2, 0x16, 0x8c, 0x6f, 0x28, 0x98, 0xfa, 0xaf, 0x13, 0xb5, 0xf8, 0xb5, 0xc6, 0xd7, 0x29, 0xa2, 0xa8,
+    0x9b, 0xb0, 0xca, 0x5c, 0xbe, 0xc8, 0xe9, 0x16, 0x09, 0xab, 0xe5, 0xd8, 0x15,
+];
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub note_title: u32,
@@ -44,15 +49,29 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.note_title).expect("room for every named limit");
-        values.push(self.note_body).expect("room for every named limit");
-        values.push(self.note_due).expect("room for every named limit");
-        values.push(self.add_title).expect("room for every named limit");
-        values.push(self.add_body).expect("room for every named limit");
-        values.push(self.add_due).expect("room for every named limit");
-        values.push(self.notes_notes).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.note_title,
+            self.note_body,
+            self.note_due,
+            self.add_title,
+            self.add_body,
+            self.add_due,
+            self.notes_notes,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            note_title: self.note_title.min(most),
+            note_body: self.note_body.min(most),
+            note_due: self.note_due.min(most),
+            add_title: self.add_title.min(most),
+            add_body: self.add_body.min(most),
+            add_due: self.add_due.min(most),
+            notes_notes: self.notes_notes.min(most),
+        }
     }
 }
 
@@ -75,109 +94,26 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const LABEL_TAG: Path = Path::new(0, 0);
-    pub const NOTE_NUMBER: Path = Path::new(1, 0);
-    pub const NOTE_TITLE: Path = Path::new(1, 1);
-    pub const NOTE_BODY: Path = Path::new(1, 2);
-    pub const NOTE_DUE: Path = Path::new(1, 3);
-    pub const NOTE_MINUTES: Path = Path::new(1, 4);
-    pub const NOTE_LABEL: Path = Path::new(1, 5);
-    pub const NOTE_TAIL: Path = Path::new(1, 6);
-    pub const ADD_KEY: Path = Path::new(2, 0);
-    pub const ADD_TITLE: Path = Path::new(2, 1);
-    pub const ADD_BODY: Path = Path::new(2, 2);
-    pub const ADD_DUE: Path = Path::new(2, 3);
-    pub const ADD_MINUTES: Path = Path::new(2, 4);
-    pub const ADD_LABEL: Path = Path::new(2, 5);
-    pub const ADD_TAIL: Path = Path::new(2, 6);
-    pub const NOTES_NOTES: Path = Path::new(3, 0);
-    pub const NOTES_TAIL: Path = Path::new(3, 1);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Label (tag)",
-    ],
-    &[
-        "Note.number",
-        "Note.title",
-        "Note.body",
-        "Note.due",
-        "Note.minutes",
-        "Note.label",
-        "Note (tail)",
-    ],
-    &[
-        "Add.key",
-        "Add.title",
-        "Add.body",
-        "Add.due",
-        "Add.minutes",
-        "Add.label",
-        "Add (tail)",
-    ],
-    &[
-        "Notes.notes",
-        "Notes (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-const TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[4, 5, 6, 7, 8, 3] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 3 },
-    skein_codec::bounds::Node::Bytes { limit: 4 },
-    skein_codec::bounds::Node::Bytes { limit: 5 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[10, 11, 12, 13, 14, 3] },
-    skein_codec::bounds::Node::List { limit: 6, item: 9, size: size_of::<Note>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[16] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    3,
-    9,
-    15,
-    17,
-];
-
-const CEILING_VALUES: &[u32] = &[
-    256,
-    4_096,
-    32,
-    256,
-    4_096,
-    32,
-    64,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const LABEL_TAG: Path = Path::new("Label (tag)");
+    pub const NOTE_NUMBER: Path = Path::new("Note.number");
+    pub const NOTE_TITLE: Path = Path::new("Note.title");
+    pub const NOTE_BODY: Path = Path::new("Note.body");
+    pub const NOTE_DUE: Path = Path::new("Note.due");
+    pub const NOTE_MINUTES: Path = Path::new("Note.minutes");
+    pub const NOTE_LABEL: Path = Path::new("Note.label");
+    pub const NOTE_TAIL: Path = Path::new("Note (tail)");
+    pub const ADD_KEY: Path = Path::new("Add.key");
+    pub const ADD_TITLE: Path = Path::new("Add.title");
+    pub const ADD_BODY: Path = Path::new("Add.body");
+    pub const ADD_DUE: Path = Path::new("Add.due");
+    pub const ADD_MINUTES: Path = Path::new("Add.minutes");
+    pub const ADD_LABEL: Path = Path::new("Add.label");
+    pub const ADD_TAIL: Path = Path::new("Add (tail)");
+    pub const NOTES_NOTES: Path = Path::new("Notes.notes");
+    pub const NOTES_TAIL: Path = Path::new("Notes (tail)");
 }
 
 // Type: Label.
@@ -189,16 +125,37 @@ pub enum Label {
 }
 
 // Record: Label.
+impl Label {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 1;
+}
+
 impl Record for Label {
     type Limits = Limits;
     const TAIL: Path = paths::LABEL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Label")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Label")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -232,16 +189,40 @@ pub struct Note {
 }
 
 // Record: Note.
+impl Note {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, note_title) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, note_body) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, note_due) },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("Label"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Note {
     type Limits = Limits;
     const TAIL: Path = paths::NOTE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 9)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Note")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 9)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Note")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -278,16 +259,31 @@ pub struct Add {
 }
 
 // Record: Add.
+impl Add {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, add_title) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, add_body) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, add_due) },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("Label"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 25;
+}
+
 impl Record for Add {
     type Limits = Limits;
     const TAIL: Path = paths::ADD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 15)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Add")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 15)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Add")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -328,16 +324,27 @@ pub struct Notes {
 }
 
 // Record: Notes.
+impl Notes {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Note"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, notes_notes), item: 0, size: size_of::<Note>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
 impl Record for Notes {
     type Limits = Limits;
     const TAIL: Path = paths::NOTES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Notes")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Notes")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -361,3 +368,30 @@ impl Record for Notes {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Add", nodes: Add::SHAPE },
+    skein_codec::bounds::Declaration { name: "Label", nodes: Label::SHAPE },
+    skein_codec::bounds::Declaration { name: "Note", nodes: Note::SHAPE },
+    skein_codec::bounds::Declaration { name: "Notes", nodes: Notes::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.note_title,
+    CEILINGS.note_body,
+    CEILINGS.note_due,
+    CEILINGS.add_title,
+    CEILINGS.add_body,
+    CEILINGS.add_due,
+    CEILINGS.notes_notes,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

@@ -1,10 +1,10 @@
-//! Sized builders for protocol/git.md, sections 3 to 5.
+//! Sized builders for protocol/git.md, section 3, and protocol/git-operations.md, section 1, and protocol/git.md, section 5.
 use crate::Identity;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Token, Writer, base64};
 use temper_worker_domain_checkout::git;
 
-// protocol/git.md, 4.7: a hidden log at any depth is never staged.
+// protocol/git-operations.md, 1.7: a hidden log at any depth is never staged.
 const HIDDEN_LOG_EXCLUSION: &[u8] = b":(exclude,glob)**/.*.log";
 
 /// Settings precede every command, in this order, each with `-c`.
@@ -28,7 +28,7 @@ pub const SETTINGS: [&[u8]; 13] = [
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Command {
     Reds(crate::reds::CheckCommand),
-    /// A place in Pack (protocol/git.md, 4.13); None is the repository.
+    /// A place in Pack (protocol/git-operations.md, 1.14); None is the repository.
     CountObjects {
         store: Option<Token>,
     },
@@ -82,6 +82,14 @@ pub enum Command {
         into: git::Into,
         workspace: Token,
     },
+    FetchCounts {
+        remote: Box<[u8]>,
+        workspace: Token,
+    },
+    UpdateCounts {
+        commit: git::Commit,
+    },
+    DeleteCounts,
     Create {
         remote: Box<[u8]>,
         branch: Box<[u8]>,
@@ -92,6 +100,9 @@ pub enum Command {
     },
     Clean,
     Merge {
+        theirs: git::Commit,
+    },
+    MergeHistory {
         theirs: git::Commit,
     },
     Unmerged,
@@ -135,7 +146,7 @@ pub enum Command {
 /// The item's program is carried by every operation except Make.
 pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
     match op {
-        git::Op::Make { .. } => None,
+        git::Op::Keep { .. } | git::Op::Make { .. } => None,
         git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
         | git::Op::Reds { at, .. }
@@ -143,6 +154,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         | git::Op::Pack { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::Fetch { at, .. }
+        | git::Op::Counts { at, .. }
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::Look { at, .. }
@@ -162,6 +174,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Remote { remote, .. }
         | Command::Store { remote, .. }
         | Command::Fetch { remote, .. }
+        | Command::FetchCounts { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote.as_ref()),
         Command::IsAncestor { .. } => match op {
@@ -170,6 +183,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
                 None
             }
             git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -177,6 +191,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
+            | git::Op::Counts { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Merge { .. }
@@ -193,10 +208,13 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Format
         | Command::Clone { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::Version
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add
@@ -244,6 +262,25 @@ pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     }
     out.finish()
 }
+fn fetch(out: &mut List<Box<[u8]>>, remote: &[u8], filter: &[u8], source: &[u8], target: &[u8]) {
+    let spec = joined(&[b"+", source, b":", target]);
+    words(
+        out,
+        &[
+            b"fetch",
+            b"--porcelain",
+            b"--verbose",
+            filter,
+            b"--no-tags",
+            b"--no-write-fetch-head",
+            b"--no-recurse-submodules",
+            b"--",
+            remote,
+            &spec,
+        ],
+    );
+}
+
 fn push(out: &mut List<Box<[u8]>>, bytes: &[u8]) {
     out.push(Box::from(bytes)).expect("fixed vector fits its capacity");
 }
@@ -260,9 +297,9 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
             crate::reds::CheckCommand::Pin | crate::reds::CheckCommand::Merge => b"rev-parse",
             crate::reds::CheckCommand::Base { .. } | crate::reds::CheckCommand::Ancestor { .. } => b"merge-base",
         },
-        Command::SnapshotHead => b"log",
+        Command::SnapshotHead | Command::MergeHistory { .. } => b"log",
         Command::SnapshotMerge { .. } | Command::Format => b"rev-parse",
-        Command::SnapshotFetch { .. } | Command::Fetch { .. } => b"fetch",
+        Command::SnapshotFetch { .. } | Command::Fetch { .. } | Command::FetchCounts { .. } => b"fetch",
         Command::SnapshotReachable { .. } => b"for-each-ref",
         Command::SnapshotReset { .. } => b"reset",
         Command::CountObjects { .. } => b"count-objects",
@@ -272,7 +309,7 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
         Command::Clone { .. } => b"init",
         Command::Remote { .. } => b"remote",
         Command::Store { .. } => b"clone",
-        Command::UpdateRef { .. } => b"update-ref",
+        Command::UpdateRef { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts => b"update-ref",
         Command::Create { .. } | Command::Push { .. } => b"push",
         Command::CheckOut { .. } => b"checkout",
         Command::Clean => b"clean",
@@ -313,14 +350,14 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
             }
             at
         }
-        git::Op::Fetch { at, store, .. } => {
-            if let Command::Fetch { .. } = command {
+        git::Op::Fetch { at, store, .. } | git::Op::Counts { at, store, .. } => {
+            if let Command::Fetch { .. } | Command::FetchCounts { .. } = command {
                 let store = joined(&[b"stores/", Decimal::of(store.raw()).as_bytes()]);
                 return arguments_at(command, Some(&store), None);
             }
             at
         }
-        git::Op::Store { .. } | git::Op::Make { .. } => return arguments(command),
+        git::Op::Store { .. } | git::Op::Keep { .. } | git::Op::Make { .. } => return arguments(command),
         git::Op::Reds { at, .. }
         | git::Op::Reset { at, .. }
         | git::Op::Pack { at, .. }
@@ -357,11 +394,15 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         | Command::Remote { .. }
         | Command::Store { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::Fetch { .. }
+        | Command::FetchCounts { .. }
         | Command::Create { .. }
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add
@@ -377,7 +418,9 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
     for setting in SETTINGS {
         words(&mut out, &[b"-c", setting]);
     }
-    if let Command::CheckOut { .. } | Command::Merge { .. } | Command::Repack { .. } = command {
+    if let Command::CheckOut { .. } | Command::Merge { .. } | Command::MergeHistory { .. } | Command::Repack { .. } =
+        command
+    {
         words(&mut out, &[b"-c", b"remote.origin.promisor=true"]);
     }
     if let Some(directory) = git_dir {
@@ -458,23 +501,13 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
                 Source::Commit(commit) => hex(*commit),
                 Source::Default => Box::from(&b"HEAD"[..]),
             };
-            let spec = joined(&[b"+", &from, b":", &store_reference(*workspace, *into)]);
-            words(
-                &mut out,
-                &[
-                    b"fetch",
-                    b"--porcelain",
-                    b"--verbose",
-                    b"--filter=blob:none",
-                    b"--no-tags",
-                    b"--no-write-fetch-head",
-                    b"--no-recurse-submodules",
-                    b"--",
-                    remote,
-                    &spec,
-                ],
-            );
+            fetch(&mut out, remote, b"--filter=blob:none", &from, &store_reference(*workspace, *into));
         }
+        Command::FetchCounts { remote, workspace } => {
+            fetch(&mut out, remote, b"--no-filter", COUNTS_REF, &counts_store_reference(*workspace));
+        }
+        Command::UpdateCounts { commit } => words(&mut out, &[b"update-ref", COUNTS_REF, &hex(*commit)]),
+        Command::DeleteCounts => words(&mut out, &[b"update-ref", b"-d", COUNTS_REF]),
         Command::Create { remote, branch, commit } => {
             let lease = joined(&[b"--force-with-lease=refs/heads/", branch, b":"]);
             let spec = joined(&[&hex(*commit), b":refs/heads/", branch]);
@@ -483,6 +516,18 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         Command::CheckOut { commit } => words(&mut out, &[b"checkout", b"--force", b"--detach", &hex(*commit)]),
         Command::Clean => words(&mut out, &[b"clean", b"-ffdxq"]),
         Command::Merge { theirs } => words(&mut out, &[b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)]),
+        Command::MergeHistory { theirs } => words(
+            &mut out,
+            &[
+                b"log",
+                b"--no-merges",
+                b"-M",
+                b"--diff-filter=R",
+                b"--format=%H",
+                &joined(&[b"HEAD...", &hex(*theirs)]),
+                b"--",
+            ],
+        ),
         Command::DiffPaths { before, after } => words(
             &mut out,
             &[
@@ -553,6 +598,7 @@ pub(crate) fn environment_for(
         Some(
             git::Kind::Store
             | git::Kind::Fetch
+            | git::Kind::Counts
             | git::Kind::Create
             | git::Kind::Commit
             | git::Kind::Push
@@ -570,6 +616,7 @@ pub(crate) fn environment_for(
             | git::Kind::DiffPaths
             | git::Kind::Brings
             | git::Kind::IsAncestor
+            | git::Kind::Keep
             | git::Kind::Make,
         ) => None,
     };
@@ -607,6 +654,7 @@ pub(crate) fn environment_for(
         Some(
             git::Kind::Store
             | git::Kind::Fetch
+            | git::Kind::Counts
             | git::Kind::Create
             | git::Kind::Push
             | git::Kind::CheckOut
@@ -636,6 +684,7 @@ pub(crate) fn environment_for(
             | git::Kind::DiffPaths
             | git::Kind::Brings
             | git::Kind::IsAncestor
+            | git::Kind::Keep
             | git::Kind::Make,
         ) => {}
     }
@@ -706,7 +755,7 @@ pub fn git_dir(at: &git::Place) -> Box<[u8]> {
     joined(&[b"gitdirs/", Decimal::of(at.workspace.raw()).as_bytes(), b"/", &at.repository])
 }
 
-/// The local destination of a fetch (temper/docs/design/protocol/git.md, 4.3).
+/// The local destination of a fetch (temper/docs/design/protocol/git-operations.md, 1.3).
 pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
     match into {
         git::Into::Fetched => b"refs/temper/fetched",
@@ -714,14 +763,24 @@ pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
     }
 }
 
-/// Workspace references in a shared store (protocol/git.md, 4.3).
+pub(crate) const COUNTS_REF: &[u8] = b"refs/temper/counts";
+
+pub(crate) fn counts_store_reference(workspace: Token) -> Box<[u8]> {
+    workspace_reference(workspace, COUNTS_REF)
+}
+
+/// Workspace references in a shared store (protocol/git-operations.md, 1.3).
 #[must_use]
 pub fn store_reference(workspace: Token, into: git::Into) -> Box<[u8]> {
-    let name = reference(into).strip_prefix(b"refs/temper/").expect("fixed reference prefix");
+    workspace_reference(workspace, reference(into))
+}
+
+fn workspace_reference(workspace: Token, reference: &[u8]) -> Box<[u8]> {
+    let name = reference.strip_prefix(b"refs/temper/").expect("fixed reference prefix");
     joined(&[b"refs/temper/", Decimal::of(workspace.raw()).as_bytes(), b"/", name])
 }
 
-/// The store and its borrowing repository have one object format (protocol/git.md, 4.2).
+/// The store and its borrowing repository have one object format (protocol/git-operations.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Format {
     Sha1,

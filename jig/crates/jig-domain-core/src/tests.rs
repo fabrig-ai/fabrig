@@ -19,6 +19,7 @@ mod reports;
 mod routing;
 mod run_policy_tools;
 mod runs;
+mod seeded_goals;
 mod settings;
 mod start;
 mod translate;
@@ -26,7 +27,7 @@ mod translate;
 use crate::{
     Settings,
     admission::{amendments, compound, person_task},
-    documents::{Document, *},
+    documents::{Document, PartKey, *},
     effects::{connector, projections},
     routing::Work,
     settings::revisions,
@@ -177,6 +178,16 @@ pub(crate) fn limits() -> Limits {
             turns: Duration::from_secs(14 * 86_400),
             records: Duration::from_secs(30 * 86_400),
             summaries: Duration::from_secs(365 * 86_400),
+        },
+        waits: Figures {
+            question: Duration::from_secs(2 * 3600),
+            party: Duration::from_secs(8 * 3600),
+            news: Duration::from_secs(24 * 3600),
+            host: Duration::from_secs(2 * 3600),
+            account: Duration::from_secs(2 * 3600),
+            step: Duration::from_secs(30 * 60),
+            room: Duration::from_secs(30 * 60),
+            sign_off: Duration::from_secs(24 * 3600),
         },
         public: PublicIndexLimits::OFF,
         routes: 20_783,
@@ -694,6 +705,7 @@ fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: t
         &mut core.tasks,
         &env,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -814,6 +826,7 @@ fn documents_run_has_only_the_live_proofs_committed_progress() {
         .insert(
             1,
             RunProof {
+                kept_part: 0,
                 worker: None,
                 accounts: Box::new([]),
                 placement: None,
@@ -977,6 +990,7 @@ pub(crate) fn make_tree() -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -993,6 +1007,7 @@ pub(crate) fn make_tree() -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -1067,6 +1082,7 @@ fn delegate_tree_row(core: &mut Core, limits: &Limits, parent: u64, number: u64)
         core,
         limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(number)),
@@ -1192,6 +1208,7 @@ fn documents_part_keys_are_preserved_or_refused_whole() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -1278,6 +1295,7 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -1291,6 +1309,7 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(2)),
@@ -1358,6 +1377,7 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Amend {
+            reads_project: false,
             operation: tasks::Amend { funder: None, task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(5)),
@@ -1694,6 +1714,7 @@ fn documents_person_task_has_the_current_revision_holder_and_answer_form() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(70)),
@@ -2070,6 +2091,7 @@ fn documents_inbox_keeps_two_projects_groups_order_and_exact_cursor() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(102)),
@@ -2322,6 +2344,7 @@ fn watch_core() -> (Core, Limits) {
         .insert(
             1,
             RunProof {
+                kept_part: 0,
                 worker: None,
                 accounts: Box::new([]),
                 placement: None,
@@ -2575,6 +2598,7 @@ fn a_watch_whose_task_has_an_oversized_whole_value_is_refused_unknown() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -3424,6 +3448,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
                 | people::Request::Erase { .. }
                 | people::Request::Reply { .. }
                 | people::Request::ServiceMade { .. }
+                | people::Request::ReadingLost { .. }
                 | people::Request::RolesApplied { .. }
                 | people::Request::RolesRefused { .. }
                 | people::Request::NeedArrived { .. }
@@ -3539,6 +3564,7 @@ fn deployment_capacity_carries_direct_batch_refusals_and_task_history_cut() {
             &mut core,
             &Env { now: Time::ZERO, wall: Wall::from_nanos(number), limits },
             Event::Tasks(tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(Token::new(number)),
@@ -3574,6 +3600,7 @@ fn approval_documents_keep_opaque_state_whole_and_refuse_a_smaller_bound() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(450)),
@@ -3614,6 +3641,7 @@ fn verdict_documents_preserve_machine_field_rules_and_values_whole() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(461)),
@@ -3890,6 +3918,7 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
         &mut core,
         &limits,
         tasks::Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task: 1,
@@ -3962,7 +3991,7 @@ fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
             owner: tasks::Owner::Party { person },
             mode: tasks::Mode::Stop,
             scope: tasks::Scope::Subtree { task },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),

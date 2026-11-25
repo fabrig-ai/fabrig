@@ -114,7 +114,7 @@ fn script() -> Script {
     Script { turns, results, lines }
 }
 
-fn pane(world: &mut World, revision: u32, body: &str) {
+fn pane(world: &mut World, title: &str, revision: u32, body: &str) {
     let answer = world.notes_read(reads::Read::ScopedNotes {
         scope: jig_domain_notes::Scope::Goal { project: 1, goal: 1 },
         description: None,
@@ -126,11 +126,17 @@ fn pane(world: &mut World, revision: u32, body: &str) {
     let [reads::PageRow::Note(note)] = page.rows.as_slice() else { panic!("one chat document") };
     assert_eq!(note.number, 1);
     assert_eq!(note.revision, revision);
-    assert_eq!(note.description.bytes.as_ref(), TITLE.as_bytes());
+    assert_eq!(note.description.bytes.as_ref(), title.as_bytes());
     assert!(!note.cut, "the pane reads the whole document");
     assert!(!note.body.cut);
     assert_eq!(note.body.bytes.as_ref(), body.as_bytes(), "pane body, byte for byte");
-    assert!(note.body.bytes.len() >= 30_000);
+}
+
+fn project(world: &mut World) {
+    let answer = world.notes_read(reads::Read::Project { project: 1 });
+    let reads::Answer::Document(document) = answer else { panic!("project read") };
+    let documents::Document::Project(project) = *document else { panic!("project document") };
+    assert_eq!(project.number, 1);
 }
 
 fn task(world: &mut World) -> Box<documents::Task> {
@@ -207,7 +213,10 @@ fn reply(record: &TurnRecord, expected: &str) {
 }
 
 fn follow_up(world: &mut World) {
-    let stopped = world.notes_act(people::Ask::Stop { project: 1, task: 1 }, [70; 16]);
+    let stopped = world.notes_act(
+        people::Ask::Stop { project: 1, task: 1, reason: Box::from(b"Parking the task".as_slice()) },
+        [70; 16],
+    );
     assert_eq!(stopped, people::Reply::Outcome(people::Outcome::Stopped { task: 1 }));
     world.run();
     let held = task(world);
@@ -258,13 +267,11 @@ fn a_long_document_is_built_in_parts_and_revised_by_a_fresh_run() {
     let mut revised = script.lines.clone();
     revised[39] = REPLACEMENT.into();
     let revised_body = revised.join("\n");
+    assert!(revised_body.len() >= 30_000);
     let mut world =
         World::notes_chat(941, CUE.as_bytes(), api::Script { cue: CUE.as_bytes().into(), turns: script.turns.into() });
     world.run();
-    let answer = world.notes_read(reads::Read::Project { project: 1 });
-    let reads::Answer::Document(document) = answer else { panic!("project read") };
-    let documents::Document::Project(project) = *document else { panic!("project document") };
-    assert_eq!(project.number, 1);
+    project(&mut world);
     task(&mut world);
     let activity = activity_turns(&mut world);
     assert_eq!(activity.len(), 8);
@@ -274,7 +281,7 @@ fn a_long_document_is_built_in_parts_and_revised_by_a_fresh_run() {
         assert_eq!(activity[index], turn, "activity carries the same whole turn");
         result(&activity[index], expected);
     }
-    pane(&mut world, 5, &body);
+    pane(&mut world, TITLE, 5, &body);
     assert_eq!(activity[7], turn(&mut world, 1, 8));
     reply(&activity[7], BUILT);
     follow_up(&mut world);
@@ -298,9 +305,148 @@ fn a_long_document_is_built_in_parts_and_revised_by_a_fresh_run() {
     result(&activity[8], FRESH_RESULT);
     assert_eq!(activity[9], turn(&mut world, 2, 2));
     reply(&activity[9], REVISED);
-    pane(&mut world, 6, &revised_body);
+    pane(&mut world, TITLE, 6, &revised_body);
     eprintln!("note body: {} bytes; fresh revision: {} bytes", body.len(), revised_body.len());
-    let stopped = world.notes_act(people::Ask::Stop { project: 1, task: 1 }, [73; 16]);
+    let stopped = world.notes_act(
+        people::Ask::Stop { project: 1, task: 1, reason: Box::from(b"Parking the task".as_slice()) },
+        [73; 16],
+    );
     assert_eq!(stopped, people::Reply::Outcome(people::Outcome::Stopped { task: 1 }));
     world.run();
+}
+
+const DOCUMENT_CUE: &str = "Please write this up. Write this up as a draft beside us.";
+const FOLLOW_UP: &str = "Add what happens to a running goal.";
+const DRAFT_REPLY: &str = "I wrote an Away mode draft with its purpose, return flow and open questions.";
+const FOLLOW_UP_REPLY: &str = "I added how a running goal continues and waits for your decisions.";
+const DRAFT_RESULT: &str = "Note 1 revision 1 written · 29 lines";
+const FOLLOW_UP_RESULT: &str = "Note 1 revision 2 written · +7 −0 · line 14 · 36 lines";
+
+// The two whole-note arguments from the template's cued Away mode scripts.
+fn document_draft() -> Value {
+    let body = r"# Away mode
+
+Draft, 2026-11-05, with the user.
+
+## Purpose
+
+Away mode lets the person step away from ongoing work.
+Agents keep working within the authority already granted.
+They leave a clear account of progress for the person's return.
+
+The person chooses when to leave and when to return.
+Away mode does not grant extra authority.
+
+## When the person returns
+
+Show the work completed while the person was away.
+Keep the decisions that need the person in one place.
+Make each question name the goal and the choice it needs.
+
+The person can answer questions before starting more work.
+The conversation and its document remain available.
+
+## Open questions
+
+- Where should the person switch away mode on?
+- Should it apply to one project or every project?
+- How should urgent questions be shown on return?
+
+These choices remain for the person to settle.
+";
+    json!({
+        "scope": {"kind": "goal", "project": 1, "goal": 1},
+        "description": "Away mode",
+        "body": body
+    })
+}
+
+fn document_revision() -> Value {
+    let body = r"# Away mode
+
+Draft, 2026-11-05, with the user.
+
+## Purpose
+
+Away mode lets the person step away from ongoing work.
+Agents keep working within the authority already granted.
+They leave a clear account of progress for the person's return.
+
+The person chooses when to leave and when to return.
+Away mode does not grant extra authority.
+
+## A running goal
+
+A running goal continues within its existing authority and budget.
+When it needs the person's decision, it waits with a clear question.
+Other work that can proceed independently keeps moving.
+Away mode never supplies an answer on the person's behalf.
+
+## When the person returns
+
+Show the work completed while the person was away.
+Keep the decisions that need the person in one place.
+Make each question name the goal and the choice it needs.
+
+The person can answer questions before starting more work.
+The conversation and its document remain available.
+
+## Open questions
+
+- Where should the person switch away mode on?
+- Should it apply to one project or every project?
+- How should urgent questions be shown on return?
+
+These choices remain for the person to settle.
+";
+    json!({
+        "scope": {"kind": "goal", "project": 1, "goal": 1},
+        "description": "Away mode",
+        "body": body,
+        "name": 1,
+        "recalled": 1
+    })
+}
+
+#[test]
+fn a_persons_message_wakes_a_chat_to_replace_its_whole_note() {
+    let mut world = World::notes_chat(
+        941,
+        DOCUMENT_CUE.as_bytes(),
+        api::Script {
+            cue: DOCUMENT_CUE.as_bytes().into(),
+            turns: Box::new([call("note", &document_draft()), sentence(DRAFT_REPLY)]),
+        },
+    );
+    world.run();
+    project(&mut world);
+    let chat = task(&mut world);
+    assert!(chat.flags.conversation);
+    assert_eq!(chat.flags.ended_by, jig_domain_tasks::EndedBy::Requester);
+    assert_eq!(chat.chip.phase, documents::PhaseLine::Active(jig_domain_tasks::Active::Idle));
+    assert_eq!(world.assignment().attempt, 1);
+    assert!(matches!(world.agent().answer(), smith_domain_run::Answer::Parked { .. }));
+    result(&turn(&mut world, 1, 1), DRAFT_RESULT);
+    let activity = activity_turns(&mut world);
+    assert_eq!(activity.len(), 2);
+    assert_eq!(activity[1], turn(&mut world, 1, 2));
+    reply(&activity[1], DRAFT_REPLY);
+
+    let revision = document_revision();
+    world.resume(
+        FOLLOW_UP.as_bytes(),
+        api::Script {
+            cue: FOLLOW_UP.as_bytes().into(),
+            turns: Box::new([call("note", &revision), sentence(FOLLOW_UP_REPLY)]),
+        },
+    );
+    world.run();
+    assert_eq!(world.assignment().attempt, 2);
+    result(&turn(&mut world, 2, 1), FOLLOW_UP_RESULT);
+    let revised_activity = activity_turns(&mut world);
+    assert_eq!(revised_activity.len(), 4);
+    assert_eq!(&revised_activity[..2], &activity);
+    assert_eq!(revised_activity[3], turn(&mut world, 2, 2));
+    reply(&revised_activity[3], FOLLOW_UP_REPLY);
+    pane(&mut world, "Away mode", 2, revision["body"].as_str().expect("revision body"));
 }

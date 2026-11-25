@@ -40,6 +40,7 @@ mod first_start;
 mod forgetting;
 mod funding;
 mod host_tools;
+mod inspection;
 mod instructions;
 mod jobs;
 mod joint_clock;
@@ -48,6 +49,7 @@ mod memory;
 mod model_act;
 mod models;
 mod named_people;
+mod open_problems;
 mod operations;
 mod oracle;
 mod orders;
@@ -58,9 +60,13 @@ mod person_reads;
 mod person_task;
 mod placed_holds;
 mod procedure_steps;
+mod procedure_waits;
 mod projections;
 mod projects;
+mod provider_accounts_open;
+mod provider_funding_open;
 mod read_filters;
+mod readable_waits;
 mod reads;
 mod record_words;
 mod refusals;
@@ -87,12 +93,14 @@ mod start_links;
 mod start_settings;
 mod stopping;
 mod store;
+mod store_checks;
 mod store_peer;
 mod stories;
 mod switch_step;
 mod task_queries;
 mod templates;
 mod topics;
+mod wait_bounds;
 
 mod fuzzy {
     mod amendment_funding;
@@ -107,6 +115,7 @@ mod fuzzy {
     mod settings;
     mod stories;
     mod watches;
+    mod workload;
 }
 
 #[path = "../support/reads.rs"]

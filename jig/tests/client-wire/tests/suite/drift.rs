@@ -1,41 +1,11 @@
-//! The client records' drift and pinned constructs (skein's data/codec/README.md, 6).
+//! The client records' drift (skein's data/codec/golden.md, 1).
 use jig_client_protocol_wire::Record as _;
 #[path = "../../../codec-families.rs"]
 mod families;
 
 #[test]
-fn codec_families_match_their_schemas_and_are_pinned() {
+fn codec_families_match_their_schemas() {
     families::check();
-    current_client_layout();
-}
-
-#[expect(clippy::disallowed_methods, reason = "jig's drift write mode refreshes the current layout")]
-fn current_client_layout() {
-    use std::{fmt::Write, fs};
-    let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/schema");
-    let text = fs::read_to_string(root.join("client-v42.schema")).expect("schema")
-        + &fs::read_to_string(root.join("client-v42-part1.schema")).expect("schema fragment");
-    let schema = skein_codec::schema::parse(text.as_bytes()).expect("schema valid");
-    let mut line = format!("{} ", schema.version());
-    for byte in schema.fingerprints().family().digest() {
-        write!(&mut line, "{byte:02x}").expect("string write");
-    }
-    line.push('\n');
-    let path = root.join("jig-client-wire.layouts");
-    let current = fs::read_to_string(&path).expect("layouts");
-    let version = format!("{} ", schema.version());
-    let mut prefix = String::new();
-    for row in current.lines() {
-        if !row.starts_with(&version) {
-            writeln!(&mut prefix, "{row}").expect("string write");
-        }
-    }
-    let expected = prefix + &line;
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
-        fs::write(path, expected).expect("write current layout");
-    } else {
-        assert_eq!(current, expected, "run the drift in write mode");
-    }
 }
 
 #[test]
@@ -46,11 +16,11 @@ fn the_hello_alone_keeps_version_27_bytes() {
         0, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 0, 0, 1, 0, 255, 255,
         255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     ];
-    for (expected, golden) in [
-        (full, super::client_values::value("enum_stream_event_hello_full.bin")),
-        ([0_u8; 29].as_slice(), super::client_values::value("enum_stream_event_hello_smallest.bin")),
+    for (expected, fixed_value) in [
+        (full, super::client_values::fixed_value("enum_stream_event_hello_full.bin")),
+        ([0_u8; 29].as_slice(), super::client_values::fixed_value("enum_stream_event_hello_smallest.bin")),
     ] {
-        assert_eq!(golden, expected);
+        assert_eq!(fixed_value, expected);
         let value = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(expected)).expect("version 27 hello");
         assert!(matches!(value, w::StreamEvent::Hello(_)));
         let mut writer = Writer::new(
@@ -63,4 +33,48 @@ fn the_hello_alone_keeps_version_27_bytes() {
         value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("hello fits");
         assert_eq!(writer.finish().as_ref(), expected);
     }
+}
+
+#[test]
+fn opened_keeps_its_tag_and_layout_head_bytes() {
+    use jig_client_protocol_wire as w;
+    use skein_lib::{Duration, List, Reader};
+    // Tag, hello (two served owners and a heartbeat), and two layouts, ahead of me.
+    #[rustfmt::skip]
+    let head: &[u8] = &[
+        4,
+        165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
+        0, 0, 0, 2,
+        0, 0, 0, 0, 43, 0, 0, 0, 43,
+        1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1,
+        0, 0, 0, 0, 0, 0, 0, 5,
+        0, 0, 0, 2,
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+           1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+                 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    ];
+    let me = w::Owned { owner: w::Owner::Jig, version: 43, record: Box::from([0xca]) };
+    let bytes = [head, &me.encode(&w::CEILINGS).expect("fixture me envelope")].concat();
+    let event = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("fixed Opened");
+    let family = w::Owner::Family(w::Family { number: 1 });
+    assert_eq!(
+        event,
+        w::StreamEvent::Opened(w::Opened {
+            hello: w::Hello {
+                stream: [165; 16],
+                served: List::from_boxed(Box::new([
+                    w::Served { owner: w::Owner::Jig, first: 43, last: 43 },
+                    w::Served { owner: family.clone(), first: 1, last: 1 },
+                ])),
+                heartbeat: Duration::from_nanos(5),
+            },
+            layouts: List::from_boxed(Box::new([
+                w::Layout { owner: w::Owner::Jig, layout: [1; 32] },
+                w::Layout { owner: family, layout: [2; 32] },
+            ])),
+            me,
+        })
+    );
+    assert_eq!(event.encode(&w::CEILINGS).expect("Opened fits").as_ref(), bytes);
 }

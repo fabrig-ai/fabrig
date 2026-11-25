@@ -9,8 +9,50 @@ use o = temper_engine_domain_forge_closer
 use p = temper_engine_domain_forge_tiers
 use s = skein_codec::convert
 use own = crate::converters
-by hand crate::records::by_hand
+use hnd = crate::records::by_hand
+by hand hnd
 context crate::records::Context
+refuses hnd::core_refused_to_domain
+refuses hnd::failures_to_domain
+refuses hnd::finding_areas_to_domain
+refuses hnd::finding_result_to_domain
+refuses hnd::finding_result_to_record
+refuses hnd::finding_signature_to_domain
+refuses hnd::follow_files_to_domain
+refuses hnd::forge_link_to_domain
+refuses hnd::landing_follows_to_domain
+refuses hnd::landing_follows_to_record
+refuses hnd::landing_state_to_domain
+refuses hnd::logged_landing_to_domain
+refuses hnd::logged_verdict_to_domain
+refuses hnd::pending_release_to_domain
+refuses hnd::protection_to_domain
+refuses hnd::reach_to_domain
+refuses hnd::read_result_to_domain
+refuses hnd::read_result_to_record
+refuses hnd::red_reply_to_domain
+refuses hnd::route_to_domain
+refuses hnd::rule_pattern_to_domain
+refuses hnd::segments_to_domain
+refuses hnd::setting_value_to_domain
+refuses hnd::several_repositories_to_domain
+refuses hnd::stands_to_domain
+refuses hnd::summary_to_domain
+refuses hnd::tier_posted_blame_to_domain
+refuses s::text_to_domain
+with context hnd::follow_files_to_domain
+with context hnd::landing_follows_to_domain
+with context hnd::logged_landing_to_domain
+with context hnd::pending_release_to_domain
+with context hnd::protection_to_domain
+with context hnd::read_result_to_domain
+with context hnd::red_reply_to_domain
+with context hnd::rule_pattern_to_domain
+with context hnd::segments_to_domain
+with context hnd::setting_value_to_domain
+with context hnd::summary_to_domain
+with context hnd::tier_posted_blame_to_domain
+with context hnd::tier_posted_blame_to_record
 
 record Repository = a::Repository
 record Number stands for number
@@ -66,7 +108,7 @@ enum UpdateStyle = a::UpdateStyle
 record MergeWrite
 record UpdateWrite
 record DispatchInput = a::Input
-record DispatchWrite { inputs slice }
+record DispatchWrite = d::LandingDispatch { inputs slice }
 record SetStatus { status = check }
 record CreateBranch
 record DeleteBranch
@@ -306,7 +348,9 @@ record LandingFlakeRerun = d::FlakeRerun { findings slice, pending slice }
 record LandingWaitMember
 record LandingWaitGate
 enum LandingAwaited = l::Awaited
-record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks slice, entries slice, flake_reruns slice }
+record LandingFollow = d::LandingFollow { start via s::time, since via s::time, wall via s::wall, reruns slice }
+record LandingFollows by hand
+record LandingRow = d::LandingRow { last_event via s::wall, turn_since via s::wall, asks slice, entries slice, flake_reruns slice, follows }
 record ReceiptRun = d::ReceiptRun
 record FailedTests
 enum Failures by hand
@@ -448,7 +492,8 @@ enum ClosingStands = o::relay::Stands
 record ClosingQuestion = o::relay::Question
 enum ClosingForm = o::relay::Form { answer { number = question } }
 record ClosingMessage = o::relay::Message
-record ClosingRelay = o::relay::Relay { replies slice }
+record ClosingRelay = o::relay::Relay { replies slice, waiting slice }
+enum ClosingReportCheck = o::ReportCheck
 record Closer by hand
 record LandedDraft by hand
 record FollowCommit = d::FollowCommit
@@ -522,6 +567,7 @@ enum Topic = d::Topic
 record ChangeSource = d::ChangeSource
 record ChangeCold = d::ChangeCold
 record Regate = d::Regate
+record CloseAt = c::CloseAt
 record ChangeHot = d::ChangeHot { signed slice, repair_tasks slice, resolution_tasks slice, priority via own::signed, verdicts slice, gate_remarks slice }
 record Subscriber = d::Subscriber { goal_tasks slice, paths slice }
 record FindingCount stands for number
@@ -532,7 +578,7 @@ record FindingWords stands for words
 enum FindingRefusal = d::FindingRefusal { no_area tuple, full tuple, not_yours tuple, words tuple }
 record FindingRefused stands for why
 enum FindingResult by hand
-record FindingReply = d::FindingReply
+record FindingReply = d::FindingReply { more slice }
 record CallFollow
 enum Recorder = d::Recorder { task tuple, party tuple }
 record Red by hand
@@ -573,6 +619,7 @@ enum Filer = d::Filer { task tuple, party tuple }
 enum BlameStrength = d::BlameStrength { none = Unblamed }
 record BlamedGoal = d::BlamedGoal
 record BlamedLanding = d::BlamedLanding { goals slice }
+record BlameMove = d::BlameMove
 record FindingBlame = d::FindingBlame { landings slice }
 record FindingCleared = d::FindingCleared { at via s::wall }
 record FindingSignature by hand

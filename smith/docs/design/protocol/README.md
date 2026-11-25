@@ -93,11 +93,13 @@ What is still open is listed in section 11.
 8. **limits.md:** declared quantities, the limits derived from them, the
    relationships checked at startup, memory, and what a limit does to one
    call.
-9. **host.md:** the host's side of a channel, whether the host spawns the
-   agent or connects to it, and the local host's protocol layer.
-10. **programs.md:** programs as backends: a run on Claude Code, signed in
+9. **limits-derivation.md:** how each layer's limits and a window's room are derived.
+10. **host.md:** the host's side of a channel, whether the host spawns the
+    agent or connects to it, and the local host's protocol layer.
+11. **programs.md:** programs as backends: a run on Claude Code, signed in
     by the program's own flow, its tools under smith's policy, its stream
     told as smith's.
+12. **programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.
 
 ## 3. Names
 
@@ -323,20 +325,25 @@ to an older reader or writer. Each has one version at a time.
 
 - **One version per format.** The channel, the charter with its result,
   turns and transcripts, the event stream, and what a host keeps in files
-  each carry a version of their own. Any change a reader would notice is
-  a new version. Nothing is translated, and no older version is read.
-  Until its baseline, the charter changed in place, its version unmoved,
-  since a writer and its agents are built together
-  (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5);
-  from it, it moves with its layout, as the next bullet says.
-- **The channel, the charter and turns are wires,** whose versions move
-  with their layouts (`temper/docs/design/protocol/wires.md`, 3.1):
-  `smith-channel`, `smith-charter` and `smith-transcript` are patch
-  owners, each marked a wire in its crate's `schema/wires` (skein's
-  `data/codec/command.md`, 2), with its floor (skein's
-  `data/codec/bridges.md`, 4): `smith-channel` per-build, the others
-  bridged by their reverses, which a host that speaks several versions
-  runs, never the agent (jig's `protocol/channel/bridges.md`, 5.3).
+  each carry a version of their own. A format of a schema keeps its
+  version, its layout named by its fingerprint (skein's
+  `data/codec/README.md`, section 5); smith reads and writes its own
+  layouts alone, and what converts between builds is its host's (next
+  bullet). Any other format has one version at a time, and no older
+  version is read.
+- **The charter and turns cross builds by layout:** a host that speaks
+  to agents of several builds (jig's engine) converts a charter down and
+  its result up, and turns both ways, between its layouts and its
+  agent's, by plans derived from both texts (jig's
+  `protocol/channel/layouts.md`, 2.1), never the agent. Every one of
+  smith's wires has its version frozen at its header, `smith-charter` at
+  5, `smith-transcript` at 8, `smith-channel` at 14 and `smith-pieces`
+  at 1, its layout its text's fingerprint, and its crate keeps no old
+  text and no patch (`temper/docs/design/protocol/wires.md`, 3.1). A
+  host's store reads the turns it keeps by their layout (jig's
+  `protocol/store/transcripts.md`, 6), from the texts its registry
+  holds; `smith-transcript` keeps the one older text a store registers
+  for turns written before its registry (transcript.md, section 12).
 - **The pieces a host keeps are a wire of their own,** `smith-pieces`:
   a call's name (`CallName`) and a delivery's evidence (`DeliveryReply`
   and what it reaches), declared in `smith-channel`'s crate as a second
@@ -346,33 +353,33 @@ to an older reader or writer. Each has one version at a time.
   `smith-pieces` at its workers' opening in place of `smith-channel`,
   so a change of the channel's other records leaves its workers
   speaking to it. The engine keeps a delivery's evidence as bytes
-  without its version, so `smith-pieces` has no bridge: its floor is
-  its current, and every move of it is breaking (skein's
-  `data/codec/bridges.md`, 3), raising the floor. Its version starts at
-  1, its module `smith_channel::pieces::wire` saying what it speaks. A landing that changes one's layout in
-  anything but names, comments, `boxed` and the text's layout moves its
-  version by one, keeps the old text and brings its forward patch;
-  `fabrig-boundary`'s `patches` test refuses one changed in place. Each
-  crate says what it speaks in a module `wire`: `FAMILY`, `VERSION` and
-  `layout()`, its current text's family fingerprint. Every writer and
-  reader that names a version names `wire::VERSION`:
+  without its layout, so `smith-pieces` is never converted: the engine
+  refuses a worker whose layout of it is not its own (jig's
+  `protocol/channel/wires.md`, 3), so a change of its layout is met by
+  draining the workers of the build before (temper's
+  `draft/archive/redeploys.md`, 6.1). Its module
+  `smith_channel::pieces::wire` says what it speaks. A landing that
+  changes the layout of any of smith's wires makes the change in its
+  current text alone and moves no version. Each crate says what it
+  speaks in a module `wire`: `FAMILY`,
+  `VERSION` and `layout()`, its current text's family fingerprint. Every
+  writer and reader that names a version names `wire::VERSION`:
   `Charter::FORMAT_VERSION`, `Turn::FORMAT_VERSION`,
   `smith_domain_session::record::VERSION` and the prefixes
   `decode_charter` and `decode_transcript` check are it or derived from
-  it, so a version moves in its schema's header and its constant alone.
-  Kept texts and forward patches stay for good: stored turns keep the
-  versions they were written in.
+  it, so the version is its schema's header and its constant alone.
+  Stored turns keep the layouts they were written at, converted as they
+  are read.
 - **A reader refuses any other version,** each in its own terms:
   - **the channel** is versioned whole: its frames, its kinds and its
     records. Each side's opening says the version it speaks; with none
     in common, the channel ends before a run starts (channel.md, section
     2). This wire is per-build: a spawning host pins its agent's program
     and configuration for its lifetime and adopts no older agents, so
-    both halves move together. Every layout change moves the version
-    and keeps the previous schema text; no bridge or previous
-    spoken version is needed. temper records this exemption in its wire
-    bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
-    4.4). A consumer permitting independently upgraded agents needs a
+    both halves move together and share one layout. Its version is
+    frozen like the others', and no bridge, plan or previous text is
+    needed (`temper/docs/design/draft/archive/redeploys.md`, 4.4). A consumer
+    permitting independently upgraded agents needs a
     compatibility contract before using that shape (section 11).
   - **the charter** carries its own version, since the party that writes
     it may not be the host: jig's engine writes charters that its
@@ -382,17 +389,17 @@ to an older reader or writer. Each has one version at a time.
   - **turns and transcripts** carry their own version, since a host keeps
     them and a later agent resumes from them (domain/session.md, section
     3). A transcript in another version fails the run as transient, and
-    its host starts afresh (domain/run.md, section 6). From the
+    its host starts afresh (../domain/run-messages.md, section 1). From the
     baseline, turns are kept for a later release, and so is the local
-    host's store: a host that keeps turns patches an older turn to the
-    current version as it reads it, by smith's patches (transcript.md,
-    section 12), so a reader is still handed one version.
+    host's store: a host that keeps turns converts an older layout's turn
+    to the current one as it reads it, by plans from the texts it keeps
+    (transcript.md, section 12), so a reader is still handed one layout.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel speaks version 8 (channel.md, section
+- **Where each is.** The channel speaks version 14 (channel.md, section
   2); the pieces a host keeps, `smith-pieces`, version 1 (above); the
   charter and its result, version 5 (charter.md, section 5); turns
-  and transcripts, version 7 (transcript.md, section 6); the event
+  and transcripts, version 8 (transcript.md, section 6); the event
   stream, version 4 (events.md, section 6); and the local host's store,
   version 1 (host.md, section 5.3).
 - **A build says which it speaks.** `smith check` prints each format's
@@ -424,9 +431,9 @@ it.
   - each record's encoded and decoded bounds;
   - fixed-rule values built from schema text, without stored golden bytes.
 
-  Smith's family drift checks compare the records' module alone and refuse
-  unpinned constructs; the generator's own pin holds its bytes and tests
-  (skein's `data/codec/README.md`, section 6).
+  Smith's family drift checks compare the records' module alone;
+  the generator's own pin holds its bytes and tests
+  (skein's `data/codec/golden.md`, section 1).
 
   Designed in skein's `data/codec/README.md`.
 - **Owners that close, and a process that ends** (programming-model.md,
@@ -465,7 +472,7 @@ it.
   - `Usage` with each count optional, cache writes and reasoning tokens
     included;
   - `ToolChoice`: `Auto`, `None` or `Only`;
-  - the public OpenAI Responses dialect (skein's `llm/README.md`, 4.8) and
+  - the public OpenAI Responses dialect (skein's `llm/wire.md`, 1.8) and
     Anthropic's Messages with a key (4.7); a credential's scheme, a
     bearer or a key (2.6); and the failure classes exhausted, with its
     reset only where the provider gives one, refused and unsupported,
@@ -475,21 +482,21 @@ it.
     output limit marked;
   - typed `Limit` kinds, and HTTP statuses in failures;
   - `Limits::derive` from declared quantities, with a reasoning bound
-    apart from replay's metadata (limits.md, section 3.1).
+    apart from replay's metadata (limits-derivation.md, section 1.1).
 - **JSON and HTTP:** provider events decoded as they stream and
   selectively, by a general collector, and tokens kept compactly
   (skein's `data/json.md` and `http.md`).
 - **io and the shell** (skein's `runtime/io/README.md` and `../shell/README.md`):
   - an append stream on a file, and standard output adopted as a stream,
-    for the event stream (`skein/docs/design/runtime/io/files.md`, 1);
+    for the event stream (`skein/docs/design/runtime/io/files.md`, 9);
   - durable replacement of a whole file, and private files for secrets
-    (`skein/docs/design/runtime/io/files.md`, 2 and 3);
+    (`skein/docs/design/runtime/io/files.md`, 10 and 11);
   - a lock on a directory, taken without waiting, for the credentials
     directory's records (`skein/docs/design/runtime/io/files.md`);
   - the loop's host interface and its drive, out of the testing crates
     (skein's `runtime/shell.md`, section 11);
-  - trust roots loaded from the machine or a file (skein's `runtime/shell.md`,
-    6.2);
+  - trust roots loaded from the machine or a file (skein's `runtime/shell-startup.md`,
+    1.2);
   - the kernel's resource usage of the process and its children.
 - **Sockets and TLS** for a connected agent.
 - **OAuth** for the local host's sign-in (skein's `oauth/accounts.md`

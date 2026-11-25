@@ -1,5 +1,5 @@
 //! Stock starts either reach the worker root or fail with their numbers;
-//! the socket stays live (temper/docs/design/domain/worker/README.md, 4.1 and 4.3;
+//! the socket stays live (temper/docs/design/domain/worker/hosted-runs.md, 1.1 and 1.3;
 //! temper/docs/design/protocol/channel.md, 7 and 8).
 use super::{fixtures, fixtures::worker_peers::LinkPeer};
 use crate::{limits, settings, values::Values, workers::Workers};
@@ -143,6 +143,7 @@ impl Joint {
                     | kit::Request::Lost { .. }
                     | kit::Request::Unpaused { .. }
                     | kit::Request::Told { .. }
+                    | kit::Request::Unread { .. }
                     | kit::Request::Opened { .. }
                     | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }
@@ -172,6 +173,7 @@ impl Joint {
                     | temper_worker_domain::Event::Ready
                     | temper_worker_domain::Event::Lost
                     | temper_worker_domain::Event::GracePassed
+                    | temper_worker_domain::Event::ResendPart { .. }
                     | temper_worker_domain::Event::Resend { .. }
                     | temper_worker_domain::Event::RelayCancelled { .. }
                     | temper_worker_domain::Event::Process(_)
@@ -315,7 +317,7 @@ fn check_start(
             assert!(joint.assignments.is_empty());
             assert_eq!(bytes, 0, "a past-the-room frame is never sent");
             assert_eq!(joint.unsent.len(), 1, "{profile:?} {part:?}+{extra}: one unsent");
-            let unsent = *joint.unsent.get(0).unwrap();
+            let unsent = joint.unsent.get(0).unwrap();
             assert_eq!(unsent.kind, Kind::Assignment);
             assert_eq!(unsent.bound, kit::Bound::Room(room));
             assert!(unsent.bytes > room);
@@ -359,7 +361,7 @@ fn cannot_encode_words(
             reason: None,
             figure: Some(settings.jig.limits.hub.transcript_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()),
             bound: Some(settings.jig.limits.hub.transcript_bytes),
-            ceiling: Some(u64::from(wire::v21::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(wire::v22::CEILINGS.assignment_transcript)),
         }
         .words(b"assignment"),
         Part::Inbox => Box::from(b"assignment cannot encode: Message.words too large".as_slice()),
@@ -386,7 +388,7 @@ fn cannot_encode_words(
                 reason: None,
                 figure: Some(figure),
                 bound: Some(bound),
-                ceiling: Some(u64::from(wire::v21::CEILINGS.assignment_charter)),
+                ceiling: Some(u64::from(wire::v22::CEILINGS.assignment_charter)),
             }
             .words(b"assignment")
         }
@@ -416,15 +418,16 @@ fn assert_assignment(
     if let Some(workspace) = &mut expected.assignment.workspace {
         workspace.items = actual.assignment.workspace.as_ref().unwrap().items;
     }
+    expected.tell_parts = true;
     assert_eq!(*actual, expected, "every call reaches the worker root in order, newest answers whole");
 }
 
-// The frame's fixed fields and list counts take 65 bytes with its header;
+// The frame's fixed fields and list counts take 69 bytes with its header;
 // workspace, turn, message and host-call overheads follow the wire schema
 // (jig/docs/design/protocol/channel/records.md, 2, and jig/docs/design/protocol/channel/README.md, 10).
 fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &settings::Engine) -> (usize, usize) {
     assert!(assignment.assignment.grants.is_empty(), "these stock starts carry no grants");
-    let mut bytes = 65_usize.checked_add(assignment.assignment.charter.len()).unwrap();
+    let mut bytes = 69_usize.checked_add(assignment.assignment.charter.len()).unwrap();
     if let Some(workspace) = &assignment.assignment.workspace {
         assert_eq!(parts.len(), 1, "the workspace is the start's only part");
         let items = parts.first().unwrap();
@@ -460,7 +463,7 @@ fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &s
     }
     // All these answers have the same size: the remaining room admits this
     // many whole answers, kept as a suffix in commit order
-    // (jig/docs/design/protocol/channel/README.md, 8).
+    // (jig/docs/design/protocol/channel/liveness.md, 1).
     let saving = usize::try_from(answer).unwrap().checked_sub(words.len()).unwrap();
     let room = usize::try_from(settings.jig.limits.io.output).unwrap();
     let whole = room.saturating_sub(bytes).checked_div(saving).unwrap().min(assignment.answered.len());

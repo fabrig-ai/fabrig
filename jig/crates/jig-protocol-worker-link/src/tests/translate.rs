@@ -4,7 +4,7 @@ use jig_domain_link::{CountKind, Form, Grant, Hello, PROGRAM_ENDPOINTS, Scheme, 
 use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{self as wire, Part};
 use skein_lib::{List, Queue, Reader, Time, Token};
-fn translated(kind: u16, bytes: &[u8], limits: &wire::v21::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
+fn translated(kind: u16, bytes: &[u8], limits: &wire::v22::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
     let mut parts = Queue::uncapped();
     let mut values = Queue::with_capacity(4);
     let down =
@@ -424,7 +424,7 @@ fn a_refused_later_program_grant_leaves_no_value_queued() {
 
 #[test]
 fn the_hosts_endpoint_cap_is_the_worker_wires_ceiling() {
-    assert_eq!(PROGRAM_ENDPOINTS, wire::v21::CEILINGS.bounds_program_endpoints);
+    assert_eq!(PROGRAM_ENDPOINTS, wire::v22::CEILINGS.bounds_program_endpoints);
 }
 
 fn hello_with_program_endpoints(count: u32) -> Hello {
@@ -439,7 +439,7 @@ fn hello_with_program_endpoints(count: u32) -> Hello {
 
 #[test]
 fn the_hello_admits_the_endpoint_cap_and_refuses_past_it_or_a_duplicate() {
-    // domain/hosts/charters.md, 1: 64 distinct endpoint identities per hello.
+    // domain/hosts/charters.md, 4: 64 distinct endpoint identities per hello.
     const ENDPOINT_CAP: u32 = 64;
     let mut duplicate = hello_with_program_endpoints(ENDPOINT_CAP);
     *duplicate.bounds.program_endpoints.last_mut().expect("nonempty endpoint list") = 0;

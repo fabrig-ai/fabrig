@@ -57,7 +57,7 @@ reference drafts execute.
   number keys its records (`../../protocol/credentials.md`, the records).
 - **The intent is kept,** so a restart before the first repository
   makes it at the next connect, instead of losing it
-  (`../../protocol/setup/owned.md`, 7).
+  (`../../protocol/setup/owned-repositories.md`, 1).
 - **The document keeps the machine's:** the clients' and webhooks'
   listeners, a box's owned Forgejo's port and the fakes' ports, which
   `temper init` chooses and the box holds from its start
@@ -84,7 +84,7 @@ reference drafts execute.
   act, and the deployment's own when granted by `engine.acts` (jig's
   `domain/people/acts.md`, 3). In one
   decision the forge is ended (below); the rest follows as kept acts.
-- **Ended at once,** as `../../domain/forge/adoption.md` 1 ends the playground's
+- **Ended at once,** as `../../domain/forge/adoption-connection.md` 1 ends the playground's
   forge today, for any forge: no list shows it, no call is served, its
   hints are dropped, the setup host sets it up no more, and its
   repositories leave their projects.
@@ -125,11 +125,11 @@ reference drafts execute.
   `domain/tasks/README.md`, the compound request); once each has ended, it is
   erased whole at once, as its retention would erase it at the horizon
   (jig's `domain/tasks/README.md`, its retention class; jig's
-  `protocol/store/README.md`, 6.1), its transcript's file with it.
+  `protocol/store/growth.md`, 1.1), its transcript's file with it.
 - **Then its own rows:** its policy's copy, its roles and parties, its
   pools in the current period, the settings of its scope (the connector
   owning each kind told, temper erasing its kinds 2, 4 and 5:
-  `../../protocol/configuration/settings.md`, 2), and its adoptions released,
+  `../../protocol/configuration/settings-kinds.md`, 1), and its adoptions released,
   each connector told (temper's repository rows for it, `playground-reset.md`, section 4's
   rule). Its name is free again; its number is never reused.
 - **What outlives it:** spend, in the deployment's and the parties'
@@ -155,7 +155,7 @@ reference drafts execute.
   what it makes; the fake forge's record, its setup entry the
   playground's; the box asked for its group (`playground-reset.md`, section 3); the scripted
   account, the deployment's, its uses naming the playground's project
-  alone (jig's `domain/accounts.md`, 4.2); and, once the fake forge
+  alone (jig's `domain/accounts-uses.md`, 1.2); and, once the fake forge
   connects, `playground/widget` adopted into the playground's project.
 - **The scripted model, the playground's alone:** the playground's
   project allows only the scripted model, and no other project allows
@@ -240,7 +240,7 @@ reference drafts execute.
   killed during a reset, which ends whole at the next start; a set up
   killed at each step, found unfinished and started over, Forgejo's
   binaries taken from the cache; GitHub gone on after a restart, on
-  `temper box --fake-backends`' fake GitHub (`../../protocol/setup/box.md`, 5).
+  `temper box --fake-backends`' fake GitHub (`../../protocol/setup/box-backends.md`, 1).
 - **The engine's world:** a removal and a deletion cut by a crash after
   each kept act, resumed to the same end; nothing of the forge or the
   project read afterwards but what 4 and 5 keep.
@@ -271,7 +271,7 @@ reference drafts execute.
 `../../protocol/configuration/README.md` (the forges' members leave the
 document), `../../protocol/setup/box.md` 1 (the pipe's `remove` and the
 groups' files), 8.3 (the default document names no forge) and 8.4 (the
-demo's start and end, replaced by 6.1 and 6.2); `../../domain/forge/adoption.md`,
+demo's start and end, replaced by 6.1 and 6.2); `../../domain/forge/adoption-connection.md`,
 1 (any forge ended, then removed); `../../client/pages/README.md` (the
 welcome's states) and 4.8 (the demo's halves); `../../client/forge/README.md`
 (Remove); `../configuring.md`, section 10 (forges' addresses no longer

@@ -75,7 +75,7 @@ steps between.
   that need it, and answers `204`. Forgejo refuses a job that has not
   completed (`400`).
 - **Its effect:** a transition, conditional (jig's
-  `domain/connectors.md`, 4.3): the job's next attempt, made by the
+  `domain/connectors-effects.md`, 1.3): the job's next attempt, made by the
   forge. Found again after an uncertain failure by reading the job: an
   `attempt` past the one named says it was made; the same attempt,
   completed, says it was not, and the write may be sent again, within
@@ -140,7 +140,7 @@ failed step's end, as the brief does. It grows:
   read of its own); 3.4, the re-run's `400` as `Refused`; `../protocol/forge/README.md`, section 8, the
   fake forge's re-runs through the API as new attempts, `waiting` and
   `blocked` jobs, and searches; `../protocol/forge/README.md`, section 11, the facts of `ci-on-forgejo-17.md`, section 6 here.
-- **`../domain/forge/README.md`:** `../domain/forge/README.md`, section 4, the re-run's effect and how it is
+- **`../domain/forge/README.md`:** `../domain/forge/effects.md`, section 1, the re-run's effect and how it is
   found again; 8.1, `reruns` among the bounds; 8.2, step 3, the runner's
   failures re-run before a repair; 8.4, a stall's reasons; `../domain/forge/README.md`, section 10,
   the world's stories: a set-up failure re-run and passing; one re-run

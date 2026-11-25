@@ -1,5 +1,5 @@
 //! Root store translation for held-chat decisions that left live memory.
-//! Reading a held chat is the core's (jig's `client/domain/contract/README.md`, 4).
+//! Reading a held chat is the core's (jig's `client/domain/contract/reads.md`, 1).
 
 use super::{Decision, Delivery, Domain, Env, Id, Limits, Read, Token, Work, emit, people};
 use crate::Record;
@@ -60,6 +60,7 @@ pub(crate) fn loaded(domain: &mut Domain, _env: &Env<Limits>, waiter: Token, row
             Record::Core(
                 jig_domain_core::Record::Core(
                     jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Part(_)
                     | jig_domain_core::CoreRecord::Call(_)
                     | jig_domain_core::CoreRecord::Deployment(_)
                     | jig_domain_core::CoreRecord::Turn(_)
@@ -114,6 +115,7 @@ fn query(read: Read) -> Query {
         | Read::Transcript { .. }
         | Read::GoalWords(_)
         | Read::InputCheck(_)
+        | Read::CloserReport(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }

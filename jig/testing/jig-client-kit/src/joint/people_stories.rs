@@ -1,5 +1,5 @@
 //! People act on the view; the engine and workers decide the outcomes
-//! (domain/people/README.md, 10; domain/engine/README.md, 9).
+//! (domain/people/README.md, 10; domain/engine/world.md, 1).
 use super::*;
 
 #[test]
@@ -304,7 +304,15 @@ fn a_person_signs_out_and_a_later_request_is_answered_signed_out() {
                     down: jig_client::Down::Send {
                         attempt,
                         key,
-                        request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                        request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                            project: 1,
+                            task: u64::MAX,
+                            reason: jig_client::contract::Text::new(
+                                Box::from(b"Stopped from the task card".as_slice()),
+                                u32::MAX,
+                            )
+                            .expect("fixture reason fits"),
+                        })),
                         value: None,
                     },
                 },

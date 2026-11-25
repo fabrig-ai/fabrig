@@ -64,7 +64,11 @@ fn the_out_of_date_form_uses_its_shells_words_and_disables_adoption() {
         &mut root,
         temper_client_domain::Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None },
+                up: jig_client::Up::FamilyServed {
+                    family: temper_client_protocol_wire::FORGE,
+                    versions: None,
+                    served: false,
+                },
             },
         },
     );
@@ -266,6 +270,7 @@ fn forges(modes: &[(wire::Kind, wire::Mode)]) -> Domain {
     let mut rows = skein_lib::List::with_capacity(u32::try_from(modes.len()).unwrap());
     for (index, (kind, mode)) in modes.iter().enumerate() {
         rows.push(wire::ForgeRow {
+            catching_up: None,
             number: u16::try_from(index.checked_add(1).unwrap()).unwrap(),
             kind: kind.clone(),
             mode: mode.clone(),

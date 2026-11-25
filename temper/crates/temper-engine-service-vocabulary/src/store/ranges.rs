@@ -35,7 +35,7 @@ pub(super) fn window(range: &Range) -> bool {
 }
 
 /// Startup selects stored families; writer rules are proved by store oracles
-/// (temper/docs/design/domain/root.md, 8.1).
+/// (temper/docs/design/domain/root-restart.md, 1.1).
 pub(super) fn starting(range: &Range) -> bool {
     match range {
         Range::Core(
@@ -69,7 +69,7 @@ pub(super) fn keeps(range: &Range, key: &Key) -> bool {
     match range {
         Range::Census(_) => true,
         Range::Core(CoreRange::Calls) => {
-            let Key::Core(core::Key::Core(core::CoreKey::Call(_))) = key else { return false };
+            let Key::Core(core::Key::Core(core::CoreKey::Call(_) | core::CoreKey::Part(_))) = key else { return false };
             true
         }
         Range::Core(CoreRange::RunProofs) => {

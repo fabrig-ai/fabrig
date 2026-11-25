@@ -11,21 +11,25 @@ pub(super) fn apply(
 ) -> (bool, bool) {
     let record = domain.core.tasks.task(row.task).expect("live closer");
     let offered = domain.core.tasks.procedure_offered(row.task).unwrap_or(0);
-    let live = match domain.forge.closer(row.task) {
-        Some(previous) => previous.closer.running,
-        None => row.closer.running,
+    let closer = match domain.forge.closer(row.task) {
+        Some(previous) => &previous.closer,
+        None => &row.closer,
     };
-    let live = match live {
-        Some(running) if !ended(domain, running.change) => Some(running),
-        Some(_) | None => None,
-    };
+    let candidates = c::relay::steps(closer);
+    let mut open = List::with_capacity(2);
+    for candidate in &candidates {
+        match candidate {
+            Some(step) if !ended(domain, step.change) => open.push(*step).expect("at most two open steps"),
+            Some(_) | None => {}
+        }
+    }
     for word in &record.inbox {
         if word.number > offered {
             continue;
         }
         let tasks::Party::Task(from) = word.from else { continue };
         let Some(form) = form(&word.kind) else { continue };
-        c::relay::take(&mut row.relay, live, row.goal, from, word.number, &form, &word.words);
+        c::relay::take(&mut row.relay, open.as_slice(), row.goal, from, word.number, &form, &word.words);
     }
     let done = match &row.relay.open {
         Some(open) => ended(domain, open.asker),
@@ -49,7 +53,7 @@ pub(super) fn apply(
     row.relay = relayed.relay;
     decision.messages = messages.into_boxed();
     // Reporting waits until the durable question and its last notice have settled.
-    if row.done && (row.relay.open.is_some() || !row.relay.replies.is_empty()) {
+    if row.done && (row.relay.open.is_some() || !row.relay.waiting.is_empty() || !row.relay.replies.is_empty()) {
         row.done = false;
         decision.end = StepEnd::Wait;
     }
@@ -58,8 +62,12 @@ pub(super) fn apply(
 fn ended(domain: &Domain, task: u64) -> bool {
     match domain.core.tasks.task(task) {
         Some(row) => match row.phase {
-            tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
-            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => false,
+            tasks::Phase::Closing(_)
+            | tasks::Phase::Held { was: tasks::Was::Closing(_), .. }
+            | tasks::Phase::Ended(_) => true,
+            tasks::Phase::Waiting
+            | tasks::Phase::Active(_)
+            | tasks::Phase::Held { was: tasks::Was::Waiting | tasks::Was::Active(_), .. } => false,
         },
         None => true,
     }
@@ -78,6 +86,8 @@ fn form(kind: &tasks::MessageKind) -> Option<Form> {
         | tasks::MessageKind::Amendment { .. }
         | tasks::MessageKind::Met { .. }
         | tasks::MessageKind::Notice { .. }
+        | tasks::MessageKind::PassedQuestion { .. }
+        | tasks::MessageKind::PassedAnswer { .. }
         | tasks::MessageKind::QuestionAnswered { .. }
         | tasks::MessageKind::QuestionOwed
         | tasks::MessageKind::NothingAwaited

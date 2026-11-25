@@ -20,6 +20,8 @@ pub use w::{FullKind, FullTable};
 pub type Document = (Box<[Row]>, bool, Box<[FullTable]>);
 pub const ROWS: u32 = wire::FORGES;
 pub const INSTALLATIONS: u32 = wire::INSTALLATIONS;
+/// The client twin of the forge's restart state (domain/forge/catching-up.md, 5).
+pub use w::CatchingUp;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Forgejo,
@@ -140,6 +142,7 @@ pub struct Owned {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Row {
+    pub catching_up: Option<CatchingUp>,
     pub makings: Box<[Making]>,
     pub read_only: bool,
     pub number: u16,
@@ -162,7 +165,7 @@ pub struct Row {
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
 }
-/// What the forge starts with (temper/docs/design/protocol/setup/owned.md, 7).
+/// What the forge starts with (temper/docs/design/protocol/setup/owned-repositories.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StartsWith {
     Repository,
@@ -1190,7 +1193,7 @@ pub fn pasted_tokens(api: Option<&[u8]>, git: Option<&[u8]>, secret: Option<&[u8
     temper_protocol_records::encode_pasted(items.as_slice()).ok()
 }
 
-/// The census and log use the same age words (protocol/README.md, 6.3).
+/// The census and log use the same age words (protocol/service-process.md, 1.3).
 #[must_use]
 pub fn full_line(full: &FullTable, now: skein_lib::Wall, view: bool) -> Box<[u8]> {
     let seconds = now.as_nanos().saturating_sub(full.since).div_euclid(1_000_000_000);

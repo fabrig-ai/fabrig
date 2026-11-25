@@ -3,7 +3,9 @@ use super::*;
 fn compound(count: u32) -> Ask {
     let mut operations = List::with_capacity(count);
     for task in 1..=count {
-        operations.push(Operation::Stop { task: u64::from(task) }).expect("test operation room");
+        operations
+            .push(Operation::Stop { task: u64::from(task), reason: Box::from(b"Paused".as_slice()) })
+            .expect("test operation room");
     }
     Ask::Compound { project: 1, operations }
 }
@@ -59,4 +61,30 @@ fn a_compounds_invalid_operation_keeps_its_standalone_refusal() {
         let rows = test.request(10, 1, Ask::Compound { project: 1, operations });
         assert_eq!(reply(&rows), Reply::Refused(refusal.clone()), "task {task}, words {words:?}");
     }
+}
+
+#[test]
+fn stops_require_nonempty_bounded_utf8_reasons_before_routing() {
+    let mut test = Test::new(LIMITS);
+    test.signin(1, 10, identity(0, 1));
+    test.send(Event::Roles { project: 1, holdings: Box::new([]) });
+    for (reason, which) in [
+        (b"".as_slice(), LimitKind::Empty),
+        (b"Too many words".as_slice(), LimitKind::Words),
+        (b"\xff".as_slice(), LimitKind::Words),
+    ] {
+        let expected = Reply::Refused(Refusal::Limit { which });
+        let stop = Ask::Stop { project: 1, task: 8, reason: reason.into() };
+        let rows = test.request(10, 1, stop);
+        let [Request::Reply { .. }] = rows.as_slice() else { panic!("only a refusal: {rows:?}") };
+        assert_eq!(reply(&rows), expected);
+
+        let mut operations = List::with_capacity(2);
+        operations.push(Operation::Stop { task: 7, reason: b"Paused".as_slice().into() }).unwrap();
+        operations.push(Operation::Stop { task: 8, reason: reason.into() }).unwrap();
+        let rows = test.request(10, 1, Ask::Compound { project: 1, operations });
+        let [Request::Reply { .. }] = rows.as_slice() else { panic!("only a refusal: {rows:?}") };
+        assert_eq!(reply(&rows), expected);
+    }
+    route(&test.request(10, 1, Ask::Stop { project: 1, task: 8, reason: b"Paused".as_slice().into() }));
 }

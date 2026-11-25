@@ -56,6 +56,7 @@ fn delegate_with_person_word(kind: crate::MessageKind) -> Harness {
     let mut source = Harness::new();
     source.make(vec![task(PARENT, &[])]);
     source.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: super::revisions::to(),

@@ -1,5 +1,5 @@
 //! A goal's dependent changes land under its branch's rules and keep their reports
-//! (temper/docs/design/domain/agent/tools.md, 1; temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/change/gates.md, 2, and temper/docs/design/domain/forge/branches.md, 1).
+//! (temper/docs/design/domain/agent/tools-change.md, 1; temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/change/gates.md, 2, and temper/docs/design/domain/forge/branches.md, 1).
 use super::goal_branch::{branch_tip, forge_hold, goal_request};
 use super::*;
 
@@ -194,7 +194,7 @@ fn assert_landed(world: &mut World, goal: u64, change: u64, base: u64, head: u64
     assert_eq!(
         commit.parents.as_ref(),
         &[base],
-        "skein/docs/design/testing/fakes/forge.md, 2.2; temper/docs/design/domain/forge/adoption.md, 4: the repository's style squashes onto the base's tip"
+        "skein/docs/design/testing/fakes/forge.md, 2.2; temper/docs/design/domain/forge/adoption.md, 8: the repository's style squashes onto the base's tip"
     );
     let Ok(raw::Answer::Tree(landed_tree)) =
         world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Tree { commit: merge })

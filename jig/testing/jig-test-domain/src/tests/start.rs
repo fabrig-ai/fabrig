@@ -23,7 +23,7 @@ struct Host {
     commits: Vec<(u64, bool)>,
     cut_wires: bool,
     wires: Option<Continuation>,
-    reads: Vec<(u16, u32)>,
+    reads: Vec<u16>,
     stopped: bool,
 }
 
@@ -120,6 +120,7 @@ impl Host {
                         connector,
                         call: crate::connector::SystemRequest::ReadFact { resource, .. },
                     }) => {
+                        self.reads.push(connector);
                         crate::step(
                             &mut self.domain,
                             &self.env,
@@ -136,22 +137,6 @@ impl Host {
                                 }),
                             },
                         );
-                        let seen = match self.reads.iter_mut().find(|(number, _)| *number == connector) {
-                            Some((_, count)) => {
-                                *count = count.checked_add(1).expect("configured read count");
-                                *count
-                            }
-                            None => {
-                                self.reads.push((connector, 1));
-                                1
-                            }
-                        };
-                        if crate::numbered(&mut self.domain, connector)
-                            .specification_resource(u64::from(seen) + 1)
-                            .is_none()
-                        {
-                            crate::step(&mut self.domain, &self.env, Event::StartDone(Phase::ReadAfresh { connector }));
-                        }
                     }
                     Request::Stop => {
                         self.stopped = true;
@@ -167,7 +152,7 @@ impl Host {
                     }
                 }
             }
-            if self.domain.ready() {
+            if self.domain.ready() || self.domain.rehearsed() {
                 return;
             }
         }
@@ -263,6 +248,27 @@ fn empty_store_opens_after_the_wires_continuation() {
     assert!(host.commits.iter().any(|(_, wires)| *wires));
 }
 
+#[test]
+fn rehearsal_stops_at_switch_without_wires_or_system_reads() {
+    let mut host = Host::new(populated_rows());
+    host.domain.rehearse();
+    assert!(!host.domain.rehearsed());
+    host.begin();
+    host.drive();
+    assert!(host.domain.rehearsed());
+    assert_eq!(host.domain.start_phase(), Some(Phase::Switch));
+    assert_eq!(host.domain.start_failure(), None);
+    assert_eq!(host.phases.last(), Some(&Phase::Sweep));
+    assert!(host.domain.core.tasks.task(1).is_some(), "the live fixture was restored and linked");
+    assert!(!host.domain.ready());
+    assert!(host.reads.is_empty(), "no connector reached its system");
+    assert!(host.wires.is_none());
+    assert!(host.commits.iter().all(|(_, wires)| !wires));
+    let mut out = Queue::uncapped();
+    crate::release(&mut host.domain, &host.env, &mut out);
+    assert!(out.is_empty(), "the switch has no request or later work");
+}
+
 fn policy() -> people::PolicyValue {
     people::PolicyValue {
         ceiling: people::Authority {
@@ -322,6 +328,7 @@ fn populated_rows() -> Vec<Record> {
         tasks::Event::Restored,
         tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(1)), project: 1, period: 1, budget: 100 },
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(2)),
@@ -488,7 +495,7 @@ fn wires_commit_holds_its_continuation_before_any_connector_read() {
     let Some(Delivery::Start(continuation)) = held.pop() else { panic!("Wires holds its own continuation") };
     assert!(held.is_empty());
     crate::decide(&mut host.domain, &host.env, Work::Start(StartInput::Resume(continuation)));
-    assert_eq!(host.domain.core.start_phase(), Some(Phase::ReadAfresh { connector: 1 }));
+    assert_eq!(host.domain.core.start_phase(), None);
     let mut released = Queue::uncapped();
     crate::release(&mut host.domain, &host.env, &mut released);
     let mut read = false;

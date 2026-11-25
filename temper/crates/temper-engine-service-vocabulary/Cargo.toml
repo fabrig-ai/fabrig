@@ -47,6 +47,8 @@ temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-forge-issues.workspace = true
+temper-engine-domain-forge-tiers.workspace = true
+temper-engine-domain-limits.workspace = true
 temper-engine-domain-trials.workspace = true
 temper-engine-domain-ways.workspace = true
 temper-engine-smith.workspace = true
@@ -58,6 +60,7 @@ temper-protocol-worker-wire.workspace = true
 temper-service-core.workspace = true
 
 [dev-dependencies]
+smith-domain-session.workspace = true
 temper-worker-service-fixtures.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true

@@ -1,4 +1,4 @@
-//! Startup resource counts for the local shell (protocol/limits.md, sections 3–4).
+//! Startup resource counts for the local shell (protocol/limits-derivation.md, section 1, and protocol/limits.md, section 4).
 //! Keeps the selected sources and fronts until construction, knows no resource
 //! descriptors, and derives kernel operation counts before resource adoption.
 use super::{Local, configuration_failure, derivation_refusal};
@@ -10,7 +10,6 @@ pub(crate) struct Admission {
     pub handed: Option<crate::credentials::Prepared>,
     pub front: Option<crate::front::Front>,
     pub producer: Option<agent::Config>,
-    pub programs: Option<smith_protocol_program::Programs>,
 }
 
 /// Startup resource needs without any credential file locations.

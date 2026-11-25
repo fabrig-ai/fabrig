@@ -227,7 +227,7 @@ fn the_public_route_takes_the_head_floor() {
 #[test]
 fn synthetic_public_decoder_constants_match_the_responses_measurements() {
     let constants = &super::OPENAI;
-    // llm/README.md, sections 4.2 and 7: measured Responses projection and policy floors.
+    // llm/wire.md, section 1.2, and llm/README.md, section 7: measured Responses projection and policy floors.
     assert_eq!(constants.response_head, 16_384);
     assert_eq!(constants.response_fields, 128);
     assert_eq!(constants.error_bytes, 16_384);

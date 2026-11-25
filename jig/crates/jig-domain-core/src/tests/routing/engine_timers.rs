@@ -31,7 +31,11 @@ pub(in crate::tests) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
             rows.push(people::Stored::Answer {
                 models: Box::new([]),
                 key: people::RequestKey { person: 1, key: [id; 16] },
-                ask: Box::new(people::Ask::Stop { project: 1, task: 1 }),
+                ask: Box::new(people::Ask::Stop {
+                    project: 1,
+                    task: 1,
+                    reason: Box::from(b"Parking the task".as_slice()),
+                }),
                 outcome: people::Outcome::Stopped { task: 1 },
                 at: Wall::EPOCH,
             });
@@ -95,7 +99,7 @@ fn people_timer_expires_signins_durably_and_later_replies_wait_for_that_commit()
             reply_to: ReplyTo::new(Token::new(50)),
             sign_in: 10,
             key: [5; 16],
-            ask: people::Ask::Stop { project: 1, task: 1 },
+            ask: people::Ask::Stop { project: 1, task: 1, reason: Box::from(b"Parking the task".as_slice()) },
         }),
     );
     assert_eq!(accept(&mut journal, reply), 0);

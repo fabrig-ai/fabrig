@@ -1,5 +1,5 @@
-//! Retained landing verdicts (temper/docs/design/domain/after-landing.md, 5.3, 6 and 10).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Retained landing verdicts (temper/docs/design/domain/after-landing.md, 5.3 and 6, and temper/docs/design/domain/after-landing-storage.md, 1).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Domain, Verification};
 use crate::{Key, Request, Stored, TierVerdict, TierVerification};
 use alloc::boxed::Box;

@@ -378,7 +378,7 @@ fn core_fit(failure: &core::start::Failure) -> Option<(&'static [u8], u64, u64)>
             match set {
                 LiveSet::Projects => Some(b"authority.projects".as_slice()),
                 LiveSet::RunProofs | LiveSet::Census => Some(b"tasks.tasks".as_slice()),
-                LiveSet::Calls => Some(b"core.call_records".as_slice()),
+                LiveSet::Parts | LiveSet::Calls => Some(b"core.call_records".as_slice()),
                 LiveSet::Projections => Some(b"tasks.project_goals".as_slice()),
                 LiveSet::ReadResults | LiveSet::Conversations => None,
                 LiveSet::WorkerClaims => Some(b"fleet.attempts".as_slice()),
@@ -404,10 +404,12 @@ fn task_bound(bound: &jig_domain_tasks::RestoreBound) -> Option<&'static [u8]> {
     match bound {
         B::Stubs
         | B::Writers
+        | B::Timers
         | B::PersonProposals
         | B::ResultFields
         | B::HoldPathCapacity
         | B::AccountOriginBytes
+        | B::WaitOriginBytes
         | B::PreparationReasonBytes
         | B::Subagents
         | B::SettingsItems
@@ -446,7 +448,6 @@ fn task_bound(bound: &jig_domain_tasks::RestoreBound) -> Option<&'static [u8]> {
         B::Exemptions => Some(b"tasks.exemptions".as_slice()),
         B::Delegates => Some(b"tasks.delegates".as_slice()),
         B::References => Some(b"tasks.references".as_slice()),
-        B::Subscriptions => Some(b"tasks.subscriptions".as_slice()),
         B::InboxMessages => Some(b"tasks.inbox_messages".as_slice()),
         B::SavedResources => Some(b"tasks.saved_resources".as_slice()),
     }
@@ -547,6 +548,8 @@ fn forge_fit(failure: &forge::RestoreFit) -> Option<&'static [u8]> {
         | S::LandingGates
         | S::LandingAsks
         | S::LandingEntries
+        | S::LandingFollows
+        | S::LandingReruns
         | S::LandingFlakeReruns
         | S::LandingFlakeFindings
         | S::LandingFlakeJobs
@@ -590,6 +593,7 @@ fn jig_list(row: Option<jig_protocol_store::Row>) -> Option<Box<[Override]>> {
         core::CoreRecord::Settings(row) => row,
         core::CoreRecord::Projection(_)
         | core::CoreRecord::Deployment(_)
+        | core::CoreRecord::Part(_)
         | core::CoreRecord::Call(_)
         | core::CoreRecord::RunProof(_)
         | core::CoreRecord::Turn(_)

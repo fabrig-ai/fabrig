@@ -61,6 +61,16 @@ impl harness::Play for TabStory {
         next
     }
 
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        match self.parts.front() {
+            Some(Part::Script(script)) => script.next_wake(face, now, runnable),
+            Some(Part::Find(name)) if runnable => {
+                Some(face.look_again_at(&Find::exactly_named(Role::Button, name)).unwrap_or(now))
+            }
+            _ => runnable.then_some(now),
+        }
+    }
+
     fn at(&self) -> u32 {
         self.at
     }

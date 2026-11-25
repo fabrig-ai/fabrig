@@ -1,5 +1,5 @@
 //! The translations between the run's vocabulary and the session's (skein/docs/foundation/programming-model.md, section 4.5;
-//! smith/docs/design/domain/run.md, sections 5 and 6 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 12; smith/docs/design/domain/session.md, sections 3–6):
+//! smith/docs/design/domain/run.md, section 5, and smith/docs/design/domain/run-messages.md, section 1 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 12; smith/docs/design/domain/session.md, sections 3–6):
 //! siblings share no types, so the run's conversations and the sessions meet
 //! here, through small total functions, each an exhaustive match, so that a
 //! variant added on either side breaks the build in one place.
@@ -68,6 +68,7 @@ pub(crate) fn spec(
     program: Option<&crate::Program>,
 ) -> Option<(Spec, Offered)> {
     let Opening {
+        tell_parts,
         final_turn,
         host_tools,
         generated_schema_bytes,
@@ -126,6 +127,7 @@ pub(crate) fn spec(
     }
     let run::Budget { turns, spend: _, time } = budget;
     let spec = Spec {
+        tell_parts,
         backend: match program {
             Some(program) => session::record::Backend::Program { name: program.name.clone() },
             None => session::record::Backend::Direct,
@@ -169,7 +171,7 @@ fn authority(workspace: Option<Workspace>, tools: Tools) -> Option<Authority> {
     };
     let count = u32::try_from(mounted.len()).ok()?;
     let mut repos = List::with_capacity(count);
-    for Directory { name, host, root, writable, git: _, conflicts: _ } in mounted {
+    for Directory { name, host, root, writable, git: _, conflicts: _, results: _ } in mounted {
         let name = Name::new(name)?;
         let repo = ToolDirectory { host: host_names(&host)?, mount: name, root, writable };
         repos.push(repo).expect("room for every repository");
@@ -245,7 +247,9 @@ pub(crate) fn end(
         session::End::Busy => run::End::Busy,
         session::End::Invalid => run::End::Invalid,
         session::End::Closed => run::End::Closed,
-        session::End::Failed { failure: llm::Failure::Exhausted { .. }, .. } if account.is_some() => {
+        session::End::Failed { failure: llm::Failure::Exhausted { .. } | llm::Failure::RateLimited { .. }, .. }
+            if account.is_some() =>
+        {
             run::End::Fault(run::Fault::Limited { account: account.expect("guarded account"), reset_at: retry_at })
         }
         session::End::Failed { failure: llm::Failure::Refused, .. } if account.is_some() => {

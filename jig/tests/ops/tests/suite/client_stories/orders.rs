@@ -168,7 +168,9 @@ impl World {
                 }
                 Request::Client { .. } => order.push("transport"),
                 Request::Unlinked { .. } => {
-                    unreachable!("a linked root asks no unlinked request (jig's client/domain/client/README.md, 4.4)")
+                    unreachable!(
+                        "a linked root asks no unlinked request (jig's client/domain/client/vocabulary.md, 1.4)"
+                    )
                 }
                 Request::Show { .. } => order.push("show"),
                 Request::SignIn { .. }
@@ -184,16 +186,18 @@ impl World {
 
 fn hello() -> w::StreamEvent {
     let mut served = List::with_capacity(OWNERS);
-    for (owner, version) in [
-        (w::Owner::Jig, jig_client_protocol_wire::VERSION),
-        (family(OBSERVABILITY), jig_ops_client_protocol_wire::VERSION),
-        (family(INFRASTRUCTURE), jig_ops_client_protocol_wire::VERSION),
+    let mut layouts = List::with_capacity(OWNERS);
+    for (owner, version, layout) in [
+        (w::Owner::Jig, w::VERSION, w::LAYOUT),
+        (family(OBSERVABILITY), jig_ops_client_protocol_wire::VERSION, jig_ops_client_protocol_wire::LAYOUT),
+        (family(INFRASTRUCTURE), jig_ops_client_protocol_wire::VERSION, jig_ops_client_protocol_wire::LAYOUT),
     ] {
-        served.push(w::Served { owner, first: version, last: version }).expect("three owners");
+        served.push(w::Served { owner: owner.clone(), first: version, last: version }).expect("three owners");
+        layouts.push(w::Layout { owner, layout }).expect("three layouts");
     }
     let hello = w::Hello { stream: STREAM, served, heartbeat: HEARTBEAT };
     let w::StreamEvent::Delivery(delivery) = frame(0) else { unreachable!("me fixture") };
-    w::StreamEvent::Opened(w::Opened { hello, me: delivery.document })
+    w::StreamEvent::Opened(w::Opened { hello, layouts, me: delivery.document })
 }
 
 fn family(number: u16) -> w::Owner {
@@ -249,6 +253,7 @@ fn frame(watch: u64) -> w::StreamEvent {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: 86_400_000_000_000,
     };
     let value = w::DeliveryValue::Me(frame);
     let mut bytes = Writer::new(skein_lib::length::usize_of(

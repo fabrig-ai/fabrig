@@ -10,7 +10,7 @@ use skein_world::{
     real,
 };
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, btree_map::Entry},
     fs,
     os::unix::fs::DirBuilderExt,
     path::{Component, Path, PathBuf},
@@ -20,6 +20,7 @@ use std::{
 const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
+const DEPLOYMENT_BINARIES: [&str; 3] = ["temper-engine", "temper-worker", "temper-agent"];
 // The stock worker stop bound and the engine's derived fleet grace (configuration/moved.md, 2).
 #[must_use]
 pub fn fleet_grace_ms() -> u64 {
@@ -33,7 +34,46 @@ pub struct Cluster {
     specs: Vec<Value>,
     bindings: BTreeMap<String, String>,
     prepared: BTreeSet<String>,
+    bootstrap_providers: BootstrapProviders,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BootstrapProviders {
+    Commit,
+    Stage,
+}
+
+/// A member's rendered files, with any typed data beside its deployment document.
+pub struct Rendered {
+    pub files: Vec<(PathBuf, Vec<u8>)>,
+    pub start: Option<temper_config_shell::Read>,
+    providers: Option<(PathBuf, Box<[jig_protocol_config::ProviderSetting]>)>,
+    limits: Option<(PathBuf, temper_playground::documents::Configuration)>,
+}
+impl Rendered {
+    /// The engine's typed figures and provider inputs as its fixture writer would retain them.
+    #[must_use]
+    pub fn engine_configuration(&self) -> temper_playground::documents::Configuration {
+        let mut value = self.limits.as_ref().expect("engine figures").1.clone();
+        let providers = &self.providers.as_ref().expect("engine providers").1;
+        value["world_providers"] = temper_agent_fixtures::providers::flat(providers);
+        value
+    }
+
+    pub fn lay(&self) {
+        for (path, bytes) in &self.files {
+            private_directory(path.parent().expect("file parent"));
+            super::write_private(path, bytes);
+        }
+        if let Some((path, providers)) = &self.providers {
+            temper_agent_fixtures::providers::remember(path, providers);
+        }
+        if let Some((path, limits)) = &self.limits {
+            super::limit_settings::remember(path, limits);
+        }
+    }
+}
+
 /// Compose the engine fixture as the running engine does, without opening it.
 #[must_use]
 pub fn figures(document: &Value) -> jig_protocol_worker_wire::Figures {
@@ -95,8 +135,13 @@ fn private_directory(path: &Path) {
 /// Worker settings from a description, applied by its owner after sign-in.
 #[must_use]
 pub fn worker_settings(file: &Path) -> Vec<Value> {
-    let document: Value =
-        serde_json::from_slice(&fs::read(file).expect("description settings")).expect("settings JSON");
+    worker_settings_from(&fs::read(file).expect("description settings"))
+}
+
+/// Worker settings from the description's rendered settings file, before laying it.
+#[must_use]
+pub fn worker_settings_from(bytes: &[u8]) -> Vec<Value> {
+    let document: Value = serde_json::from_slice(bytes).expect("settings JSON");
     document["items"]
         .as_array()
         .expect("settings items")
@@ -157,13 +202,13 @@ impl Cluster {
     #[must_use]
     pub fn read(scratch: &Path) -> Self {
         probe(scratch);
-        Self::description(scratch)
+        Self::lay_description_from(scratch, &Self::fixture())
     }
     /// Read a story's own fixture-format description, with the same cgroup preflight.
     #[must_use]
     pub fn read_from(scratch: &Path, directory: &Path) -> Self {
         probe(scratch);
-        Self::description_from(scratch, directory)
+        Self::lay_description_from(scratch, directory)
     }
     /// Reuse the GitHub story's templates with a relay in place of its forge process.
     #[must_use]
@@ -179,15 +224,29 @@ impl Cluster {
         cluster.bind("proc.forge.ready.address", &git.to_string());
         cluster
     }
-    fn description(scratch: &Path) -> Self {
-        Self::description_from(scratch, &skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster"))
+    fn fixture() -> PathBuf {
+        skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster")
     }
-    // Cluster authority.executors has twenty-two stock places including the standing charters, closer procedure and close job.
-    // Cluster tasks.executor_kinds has twenty-two places for the same delegation.
-    // GitHub authority.executors has twenty-two stock places including the standing charters, closer procedure and close job.
-    // GitHub tasks.executor_kinds has twenty-two places for the same delegation.
-    #[expect(clippy::must_use_candidate, reason = "the fixture callers assert on the returned observations")]
+
+    /// Compose a cluster description from its template with unopened artifact paths.
+    #[must_use]
     pub fn description_from(scratch: &Path, directory: &Path) -> Self {
+        Self::description_with_binary(scratch, directory, Path::new("/fixture/temper-box"))
+    }
+
+    /// Lay the native description's process directories and fake git link, without a cgroup probe.
+    #[must_use]
+    pub fn lay_description_from(scratch: &Path, directory: &Path) -> Self {
+        let binary = skein_scratch::paths::built("temper-box", "temper-box");
+        let cluster = Self::description_with_binary(scratch, directory, &binary);
+        std::os::unix::fs::symlink(binary, scratch.join("git")).expect("fake git link");
+        for spec in &cluster.specs {
+            private_directory(&cluster.dir(string(&spec["name"])));
+        }
+        cluster
+    }
+
+    fn description_with_binary(scratch: &Path, directory: &Path, binary: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");
         let value: Value =
             serde_json::from_slice(&fs::read(experiment.join("experiment.json")).expect("cluster description"))
@@ -197,24 +256,16 @@ impl Cluster {
         assert!(list(&value["dirs"]).is_empty(), "cluster has no run directories");
         let specs = list(&value["processes"]).to_vec();
         let git = scratch.join("git");
-        std::os::unix::fs::symlink(skein_scratch::paths::binary("temper-box"), &git).expect("fake git link");
         let mut bindings = BTreeMap::from([
             ("artifact.git".into(), git.to_str().expect("git path").into()),
-            ("artifact.temper".into(), skein_scratch::paths::binary("temper-box").display().to_string()),
+            ("artifact.temper".into(), binary.display().to_string()),
             ("experiment".into(), experiment.to_str().expect("experiment path").into()),
-            (
-                "artifact.temper-engine".into(),
-                skein_scratch::paths::binary("temper-box").with_file_name("temper-engine").display().to_string(),
-            ),
-            (
-                "artifact.temper-worker".into(),
-                skein_scratch::paths::binary("temper-box").with_file_name("temper-worker").display().to_string(),
-            ),
+            ("artifact.temper-engine".into(), binary.with_file_name("temper-engine").display().to_string()),
+            ("artifact.temper-worker".into(), binary.with_file_name("temper-worker").display().to_string()),
         ]);
         for spec in &specs {
             let name = string(&spec["name"]);
             let dir = contained(scratch, name);
-            private_directory(&dir);
             assert!(
                 bindings.insert(format!("proc.{name}.dir"), dir.to_str().expect("process path").into()).is_none(),
                 "duplicate process {name}"
@@ -224,7 +275,13 @@ impl Cluster {
                 "{name}'s memory bound"
             );
         }
-        let mut cluster = Self { experiment, specs, bindings, prepared: BTreeSet::new() };
+        let mut cluster = Self {
+            experiment,
+            specs,
+            bindings,
+            prepared: BTreeSet::new(),
+            bootstrap_providers: BootstrapProviders::Commit,
+        };
         for index in 0..cluster.specs.len() {
             if list(&cluster.specs[index]["ready"])
                 .iter()
@@ -236,14 +293,31 @@ impl Cluster {
         }
         cluster
     }
+    /// Start with the fixture's kept copy but leave the store's providers unchanged.
+    /// The engine-only startup story checks the warning about the difference.
+    pub fn stage_providers_only(&mut self) {
+        self.bootstrap_providers = BootstrapProviders::Stage;
+    }
+
     /// The deployment's binaries in place of the box's for the engine and the workers,
     /// and temper-agent as each worker's agent (protocol/cluster.md, 5 and 6).
     pub fn deployment_binaries(&mut self) {
-        let temper = skein_scratch::paths::binary("temper-box");
-        for name in ["temper-engine", "temper-worker", "temper-agent"] {
-            let binary = temper.with_file_name(name);
-            assert!(binary.is_file(), "build the deployment's binary: cargo build -p {name} --bin {name}");
-            self.bind(&format!("artifact.{name}"), binary.to_str().expect("deployment binary path"));
+        let temper = skein_scratch::paths::built("temper-box", "temper-box");
+        let directory = temper.parent().expect("box binary directory");
+        for name in DEPLOYMENT_BINARIES {
+            assert!(
+                directory.join(name).is_file(),
+                "build the deployment's binary: cargo build -p {name} --bin {name}"
+            );
+        }
+        self.deployment_binaries_from(directory);
+    }
+
+    /// Place the deployment's binaries from supplied paths, without opening them.
+    pub fn deployment_binaries_from(&mut self, directory: &Path) {
+        for name in DEPLOYMENT_BINARIES {
+            let binary = directory.join(name);
+            self.replace_artifact(name, binary.to_str().expect("deployment binary path"));
         }
         for spec in &mut self.specs {
             if spec["name"] == "engine" {
@@ -261,66 +335,10 @@ impl Cluster {
         let index = self.index(process);
         self.specs[index]["env"]["PATH"] = format!("{}:/usr/bin:/bin", directory.display()).into();
     }
-    /// Rename one member and its template bindings before any files are rendered.
-    pub fn rename(&mut self, member: &str, name: &str) {
-        let index = self.index(member);
-        let old = self.dir(member);
-        let new = old.parent().expect("scratch").join(name);
-        fs::rename(&old, &new).expect("rename member directory");
-        self.bindings.remove(&format!("proc.{member}.dir"));
-        self.bindings.insert(format!("proc.{name}.dir"), new.to_str().expect("member path").into());
-        for spec in &mut self.specs {
-            if spec["name"] == member {
-                spec["name"] = name.into();
-                for ready in spec["ready"].as_array_mut().expect("ready captures") {
-                    if let Some(prefix) = ready["prefix"].as_str() {
-                        ready["prefix"] =
-                            prefix.replace(&format!("linked {member} "), &format!("linked {name} ")).into();
-                    }
-                }
-            }
-            if let Some(after) = spec.get_mut("after").and_then(Value::as_array_mut) {
-                for predecessor in after {
-                    if predecessor == member {
-                        *predecessor = name.into();
-                    }
-                }
-            }
-            // The template sources remain the fixture's files; argv/env bindings use the new member.
-            for arg in spec["argv"].as_array_mut().expect("argv") {
-                *arg = string(arg).replace(&format!("proc.{member}."), &format!("proc.{name}.")).into();
-            }
-        }
-        // The fixture's source templates keep their old member placeholders.
-        self.bindings.insert(format!("proc.{member}.dir"), new.to_str().expect("member path").into());
-        assert_eq!(self.specs[index]["name"], name);
-    }
-    /// Copy one member's description under a new name before reserving world roots.
-    /// Source templates stay the same; the story shapes the copied documents after preparation.
-    pub fn copy(&mut self, member: &str, name: &str) {
-        assert!(!self.specs.iter().any(|spec| spec["name"] == name), "duplicate process {name}");
-        let mut spec = self.specs[self.index(member)].clone();
-        let directory = self.dir(member).parent().expect("scratch").join(name);
-        private_directory(&directory);
-        assert!(
-            self.bindings.insert(format!("proc.{name}.dir"), directory.to_str().expect("member path").into()).is_none(),
-            "duplicate binding {name}"
-        );
-        spec["name"] = name.into();
-        for arg in spec["argv"].as_array_mut().expect("argv") {
-            *arg = string(arg).replace(&format!("proc.{member}."), &format!("proc.{name}.")).into();
-        }
-        for ready in spec["ready"].as_array_mut().expect("ready captures") {
-            if let Some(prefix) = ready["prefix"].as_str() {
-                ready["prefix"] = prefix.replace(&format!("linked {member} "), &format!("linked {name} ")).into();
-            }
-        }
-        self.specs.push(spec);
-    }
     /// Prepare files once; starting this member retains the story's edits.
     pub fn prepare(&mut self, process: &str) -> PathBuf {
         assert!(!self.prepared.contains(process), "prepare once");
-        self.render_files(process);
+        self.lay_files(process);
         self.prepared.insert(process.into());
         self.dir(process)
     }
@@ -334,8 +352,32 @@ impl Cluster {
     }
     /// A story-owned template binding, fixed before rendering any document.
     pub fn bind(&mut self, name: &str, value: &str) {
-        assert!(self.bindings.insert(name.into(), value.into()).is_none(), "duplicate binding {name}");
+        if let Err(error) = self.try_bind(name, value) {
+            panic!("{error}");
+        }
     }
+    /// Bind an unused name, or return an error without changing the existing binding.
+    pub fn try_bind(&mut self, name: &str, value: &str) -> Result<(), String> {
+        match self.bindings.entry(name.into()) {
+            Entry::Vacant(entry) => {
+                entry.insert(value.into());
+                Ok(())
+            }
+            Entry::Occupied(_) => Err(format!("duplicate binding {name}")),
+        }
+    }
+    // Deployment selection may replace a default artifact; story bindings are still single-assignment.
+    fn replace_artifact(&mut self, name: &str, value: &str) {
+        self.bindings.insert(format!("artifact.{name}"), value.into());
+    }
+    /// The worker subprocesses the description renders.
+    pub fn worker_names(&self) -> impl Iterator<Item = &str> {
+        self.specs
+            .iter()
+            .filter(|spec| list(&spec["argv"]).first().and_then(Value::as_str) == Some("{artifact.temper-worker}"))
+            .map(|spec| string(&spec["name"]))
+    }
+
     /// The study's settings FILE; the native client applies it after owner sign-in.
     #[must_use]
     pub fn settings_file(&self) -> PathBuf {
@@ -349,7 +391,9 @@ impl Cluster {
     fn index(&self, name: &str) -> usize {
         self.specs.iter().position(|s| s["name"] == name).unwrap_or_else(|| panic!("unknown cluster process {name}"))
     }
-    fn render(&self, text: &str) -> String {
+    /// Render text against the description's bindings, without laying any files.
+    #[must_use]
+    pub fn render(&self, text: &str) -> String {
         let mut chars = text.chars().peekable();
         let mut out = String::new();
         while let Some(c) = chars.next() {
@@ -383,15 +427,20 @@ impl Cluster {
         }
         out
     }
-    /// Render just the named files, also used by the cheap configuration check.
-    pub fn render_files(&self, process: &str) {
+    /// The member's files and start document, with no provider key and no scratch writes.
+    #[must_use]
+    pub fn render_files(&self, process: &str) -> Rendered {
+        self.render_files_with_key(process, false)
+    }
+
+    fn render_files_with_key(&self, process: &str, provider_key: bool) -> Rendered {
         let spec = &self.specs[self.index(process)];
+        let mut rendered = Rendered { files: Vec::new(), start: None, providers: None, limits: None };
         for file in spec.get("files").map_or(&[][..], list) {
             let source = contained(&self.experiment, string(&file["from"]));
             let target = contained(&self.dir(process), string(&file["path"]));
-            private_directory(target.parent().expect("file parent"));
-            let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
-            if target.file_name().is_some_and(|name| name == temper_config_shell::FILE) {
+            let bytes = self.render(&fs::read_to_string(&source).expect("cluster template")).into_bytes();
+            let bytes = if target.file_name().is_some_and(|name| name == temper_config_shell::FILE) {
                 let shape = if process == "engine" {
                     temper_config_shell::Shape::EngineAlone
                 } else {
@@ -399,61 +448,97 @@ impl Cluster {
                 };
                 let facts =
                     temper_config_shell::Facts { login: "ada".into(), hostname: process.into(), provider_key: false };
-                let mut file =
-                    temper_config_shell::parse(bytes.as_bytes(), shape, &facts).expect("cluster configuration").file;
+                let mut file = temper_config_shell::parse(&bytes, shape, &facts).expect("cluster configuration").file;
                 if shape == temper_config_shell::Shape::WorkerAlone {
                     file.name = Some(process.into());
                 }
-                super::write_file(&target, &file, shape);
+                let bytes = temper_config_shell::render(&file, shape);
+                rendered.start = Some(super::configuration::parse_with_key(&bytes, shape, provider_key));
+                bytes.into_vec()
             } else {
-                super::write_private(&target, bytes.as_bytes());
-            }
+                bytes
+            };
             if file["path"] == "data/providers.setting" {
-                temper_agent_fixtures::providers::remember(
-                    target.parent().expect("provider data directory"),
-                    &temper_agent_fixtures::providers::parse(bytes.as_bytes()),
-                );
+                rendered.providers = Some((
+                    target.parent().expect("provider data directory").into(),
+                    temper_agent_fixtures::providers::parse(&bytes),
+                ));
             }
+            rendered.files.push((target, bytes));
         }
         if process == "engine" {
             let config = self.dir(process).join("config");
-            let mut value = temper_playground::documents::Configuration::from_jig(super::start_document(
-                &config.join(temper_config_shell::FILE),
-                temper_config_shell::Shape::EngineAlone,
-            ));
+            let start = rendered.start.as_ref().expect("engine start");
+            let mut value = temper_playground::documents::Configuration::from_jig(
+                serde_json::from_slice(&start.document).expect("engine start document"),
+            );
             super::configuration::cluster_limits(
                 &mut value,
                 self.experiment.ends_with("cluster-turn"),
                 self.experiment.ends_with("github"),
             );
-            super::limit_settings::remember(&config, &value);
-        }
-        let settings = self.experiment.join("settings.json");
-        if process == "engine" && settings.exists() {
-            let mut value: Value =
-                serde_json::from_slice(&fs::read(settings).expect("cluster settings")).expect("settings JSON");
-            let address = self.bindings.get("proc.forge.ready.address").expect("forge ready address");
-            let mut hex = String::new();
-            for byte in address.bytes() {
-                use std::fmt::Write as _;
-                write!(&mut hex, "{byte:02x}").expect("forge address hex");
+            rendered.limits = Some((config, value));
+            if let Some(settings) = self.render_settings() {
+                rendered.files.push((self.settings_file(), settings));
             }
-            for item in value["items"].as_array_mut().expect("cluster settings items") {
-                if item["setting"]["kind"] == "landing-rule" {
-                    item["set"]["pattern"]["segments"][1] = hex.clone().into();
-                }
-            }
-            super::write_private(&self.settings_file(), &serde_json::to_vec(&value).expect("bound settings JSON"));
         }
+        rendered
     }
+
+    fn render_settings(&self) -> Option<Vec<u8>> {
+        let settings = self.experiment.join("settings.json");
+        if !settings.exists() {
+            return None;
+        }
+        let mut value: Value =
+            serde_json::from_slice(&fs::read(settings).expect("cluster settings")).expect("settings JSON");
+        let address = self.bindings.get("proc.forge.ready.address").expect("forge ready address");
+        let mut hex = String::new();
+        for byte in address.bytes() {
+            use std::fmt::Write as _;
+            write!(&mut hex, "{byte:02x}").expect("forge address hex");
+        }
+        for item in value["items"].as_array_mut().expect("cluster settings items") {
+            if item["setting"]["kind"] == "landing-rule" {
+                item["set"]["pattern"]["segments"][1] = hex.clone().into();
+            }
+        }
+        Some(serde_json::to_vec(&value).expect("bound settings JSON"))
+    }
+
+    fn lay_files(&self, process: &str) {
+        let root = self.dir(process);
+        let provider_key = root.join("data/provider.key").is_file() || root.join("config/provider.key").is_file();
+        self.render_files_with_key(process, provider_key).lay();
+    }
+
     fn command(&self, process: &str) -> Command {
         if !self.prepared.contains(process) {
-            self.render_files(process);
+            self.lay_files(process);
         }
-        if process == "engine" && !self.dir(process).join("data/fixture-limits-applied.json").exists() {
+        if process == "engine" {
             let root = self.dir(process);
-            super::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
+            bootstrap_engine_with(
+                &root,
+                root.join("data/fixture-limits-applied.json").exists(),
+                self.bootstrap_providers,
+                |paths, providers| match providers {
+                    BootstrapProviders::Commit => {
+                        // The store restores its routes and agent profile before tasks can run.
+                        let steps = super::provider_setup::steps(paths[0].join("fixture-providers.json"), &paths[1]);
+                        super::limit_settings::install_paths_with(paths, steps.into());
+                    }
+                    BootstrapProviders::Stage => super::limit_settings::install_paths(paths),
+                },
+                temper_agent_fixtures::providers::restore,
+            );
         }
+        self.render_command(process)
+    }
+
+    /// Render the member's command without laying files or installing settings.
+    #[must_use]
+    pub fn render_command(&self, process: &str) -> Command {
         let spec = &self.specs[self.index(process)];
         let argv: Vec<_> = list(&spec["argv"]).iter().map(|v| self.render(string(v))).collect();
         let (program, arguments) = argv.split_first().expect("cluster argv");
@@ -473,25 +558,37 @@ impl Cluster {
     /// Render the engine alone for a client story, without starting its peers or rendering workers.
     #[must_use]
     pub fn engine_alone(scratch: &Path) -> PathBuf {
-        let mut cluster = Self::description(scratch);
+        let mut cluster = Self::lay_description_from(scratch, &Self::fixture());
         // These peers are unused by sign-in and me; the engine still reads its LLM trust file.
         cluster.bind("proc.forge.ready.address", "127.0.0.1:3");
         cluster.bind("proc.llm.ready.address", "127.0.0.1:1");
         super::write_private(&cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT);
-        cluster.render_files("engine");
+        cluster.lay_files("engine");
         cluster.dir("engine")
     }
-    /// Render the documents without a process or cgroup probe, with explicit ready captures.
+    /// Compose the cluster with explicit ready captures, without laying files or probing cgroups.
     #[must_use]
     pub fn documents(scratch: &Path, captures: &[(&str, &str, &str)]) -> Self {
-        let mut cluster = Self::description(scratch);
-        for (process, capture, value) in captures {
-            cluster.bindings.insert(format!("proc.{process}.ready.{capture}"), (*value).into());
-        }
+        let mut cluster = Self::description_from(scratch, &Self::fixture());
+        cluster.ready_captures(captures);
+        cluster
+    }
+
+    /// Lay the same cluster's engine and workers for a story that needs their files on disk.
+    #[must_use]
+    pub fn lay_documents(scratch: &Path, captures: &[(&str, &str, &str)]) -> Self {
+        let mut cluster = Self::lay_description_from(scratch, &Self::fixture());
+        cluster.ready_captures(captures);
         for process in ["engine", "w1", "w2"] {
-            cluster.render_files(process);
+            cluster.lay_files(process);
         }
         cluster
+    }
+
+    fn ready_captures(&mut self, captures: &[(&str, &str, &str)]) {
+        for (process, capture, value) in captures {
+            self.bind(&format!("proc.{process}.ready.{capture}"), value);
+        }
     }
     /// Reserve a world root for each member before running the world.
     #[must_use]
@@ -725,7 +822,10 @@ enum MemberWait {
 }
 impl MemberWait {
     fn arm(what: &'static str, now: Time, within: Duration, world: Duration) -> Self {
-        if world > within { Self::World(Patience::arm(what, within)) } else { Self::Bound(now.saturating_add(within)) }
+        Self::arm_with(now, within, world, || Patience::arm(what, within))
+    }
+    fn arm_with(now: Time, within: Duration, world: Duration, arm: impl FnOnce() -> Patience) -> Self {
+        if world > within { Self::World(arm()) } else { Self::Bound(now.saturating_add(within)) }
     }
     fn watching(what: &'static str, now: Time, within: Duration, world: Duration, binary: &Binary) -> Self {
         let mut wait = Self::arm(what, now, within, world);
@@ -1213,6 +1313,23 @@ impl Referee<Binary> for Probe {
         self.settled
     }
 }
+fn bootstrap_engine_with(
+    root: &Path,
+    applied: bool,
+    providers: BootstrapProviders,
+    install: impl FnOnce(&[PathBuf; 3], BootstrapProviders),
+    restore: impl FnOnce(&Path),
+) {
+    if !applied {
+        let paths = [root.join("config"), root.join("data"), root.join("cache")];
+        install(&paths, providers);
+        if providers == BootstrapProviders::Stage {
+            // The sitting keeps the store's providers; this start needs the staged copy instead.
+            restore(&paths[1]);
+        }
+    }
+}
+
 fn probe(scratch: &Path) {
     let clock = Clock::new();
     let binary = Binary::start_with_tree(
@@ -1236,6 +1353,52 @@ fn probe(scratch: &Path) {
     assert_eq!(binary.counts().expect("probe settled").method, Method::Cgroup, "{CGROUPS}");
 }
 
+pub mod bootstrap_tests {
+    use super::{BootstrapProviders, Path, bootstrap_engine_with};
+    use std::cell::Cell;
+
+    pub fn the_engine_stages_fixture_providers_after_bootstrap() {
+        let root = Path::new("/fixture/engine");
+        let kept = Cell::new("fixture providers");
+        bootstrap_engine_with(
+            root,
+            false,
+            BootstrapProviders::Stage,
+            |paths, providers| {
+                assert_eq!(paths, &[root.join("config"), root.join("data"), root.join("cache")]);
+                assert_eq!(providers, BootstrapProviders::Stage);
+                kept.set("store providers");
+            },
+            |data| {
+                assert_eq!(data, root.join("data"));
+                assert_eq!(kept.get(), "store providers", "the sitting has drained before providers are staged");
+                kept.set("fixture providers");
+            },
+        );
+        assert_eq!(kept.get(), "fixture providers", "the fixture copy survives the sitting");
+
+        bootstrap_engine_with(
+            root,
+            true,
+            BootstrapProviders::Stage,
+            |_, _| panic!("do not reinstall applied settings"),
+            |_| panic!("do not restage providers when skipping the bootstrap"),
+        );
+    }
+
+    pub fn the_engine_keeps_committed_providers_after_bootstrap() {
+        let kept = Cell::new(None);
+        bootstrap_engine_with(
+            Path::new("/fixture/engine"),
+            false,
+            BootstrapProviders::Commit,
+            |_, providers| kept.set(Some(providers)),
+            |_| kept.set(None),
+        );
+        assert_eq!(kept.get(), Some(BootstrapProviders::Commit), "the sitting's committed providers are kept");
+    }
+}
+
 pub mod verdict_tests {
     use super::Cluster;
     use std::{
@@ -1249,6 +1412,7 @@ pub mod verdict_tests {
             specs: Vec::new(),
             bindings: BTreeMap::new(),
             prepared: BTreeSet::new(),
+            bootstrap_providers: super::BootstrapProviders::Commit,
         };
         let (mut members, _) = cluster.members();
         members.failure = Some("worker ended unexpectedly".to_owned());
@@ -1264,8 +1428,9 @@ pub mod verdict_tests {
 }
 
 pub mod deadline_tests {
-    use super::{MemberWait, stop_bounds};
+    use super::{MemberWait, Patience, stop_bounds};
     use skein_lib::{Duration, Time};
+    use skein_world::testing::deadline::at;
 
     pub fn stop_bounds_read_the_printed_seconds_and_need_a_complete_line() {
         assert_eq!(
@@ -1278,9 +1443,13 @@ pub mod deadline_tests {
     pub fn a_member_wait_can_defer_only_to_a_longer_world() {
         let within = Duration::from_secs(20);
         for (world, can_defer) in [(19, false), (20, false), (21, true)] {
-            let wait = MemberWait::arm("the member's answer", Time::ZERO, within, Duration::from_secs(world));
+            let wait = MemberWait::arm_with(Time::ZERO, within, Duration::from_secs(world), || {
+                assert!(can_defer, "a bounded row does not arm a world deadline");
+                Patience::from_deadline(at("the member's answer", within, Time::ZERO))
+            });
             assert_eq!(matches!(wait, MemberWait::World(_)), can_defer, "world={world}");
-            if let MemberWait::Bound(until) = wait {
+            if !can_defer {
+                let MemberWait::Bound(until) = wait else { panic!("a bounded member wait") };
                 assert_eq!(until, Time::ZERO.saturating_add(within));
             }
         }

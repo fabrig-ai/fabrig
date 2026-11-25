@@ -14,7 +14,7 @@ pub struct Limits {
     pub opening: u32,
     pub chunk: u32,
     /// The most bytes the stream below grants at once: io's
-    /// `largest_room` (protocol/channel/README.md, 8 and 10).
+    /// `largest_room` (protocol/channel/liveness.md, 1, and protocol/channel/README.md, 10).
     pub room: u32,
     pub handshake: Duration,
     pub hello: Duration,
@@ -32,14 +32,14 @@ pub struct Timers {
 pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
     let codec = sizes::limits(&limits.sizes)?;
     let credential = u32::try_from(wire::Credential::encoded_bound(&codec)?).ok()?;
-    let cap = sizes::engine_cap(&limits.sizes)?;
+    let cap = sizes::engine_cap(&limits.sizes, limits.room)?;
     Some(skein_channel::Limits {
         chunk: limits.chunk,
         credential,
         skip: limits.chunk,
         output_bytes: cap.bytes,
         output_frames: cap.frames,
-        kinds: u32::try_from(wire::KINDS.len()).ok()?,
+        kinds: 384, // FromWorker starts at 0x0100, FromEngine at 0x0180; each has u8 tags.
     })
 }
 /// The opening's kinds and bounds, derived from the engine's limits.
@@ -58,31 +58,30 @@ pub fn valid(limits: &Limits) -> bool {
 /// Checks these bounds against the full schema prepared for this construction.
 #[must_use]
 pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
-    if limits.room < 270
+    checked_channel(limits, schema).is_some()
+}
+
+pub(crate) fn checked_channel(limits: &Limits, schema: &Schema) -> Option<skein_channel::Limits> {
+    if schema.range() != Some((wire::VERSION, wire::VERSION))
+        || limits.room < 270
         || limits.handshake == Duration::ZERO
         || limits.hello == Duration::ZERO
         || limits.stall == Duration::ZERO
         || limits.ping == Duration::ZERO
         || limits.silence < limits.ping.saturating_mul(3)
     {
-        return false;
+        return None;
     }
-    let Some(channel) = channel(limits) else {
-        return false;
-    };
-    let Some(codec) = sizes::limits(&limits.sizes) else {
-        return false;
-    };
-    let Some(smallest) = sizes::smallest_resumed(
+    let channel = channel(limits)?;
+    let codec = sizes::limits(&limits.sizes)?;
+    let smallest = sizes::smallest_resumed(
         limits.sizes.answered,
         limits.sizes.call_name,
         limits.sizes.tool_name,
         limits.sizes.answer,
-    ) else {
-        return false;
-    };
+    )?;
     if smallest > limits.room {
-        return false;
+        return None;
     }
     // Starts and whole owner figures are checked against the stream room when sent.
     for rule in wire::KINDS {
@@ -91,14 +90,14 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
             && rule.body != wire::Kind::Job
             && rule.body != wire::Kind::Figures;
         if required {
-            let Some(body) = sizes::largest_body(&limits.sizes, rule.body) else { return false };
-            let Some(bytes) = body.checked_add(8) else { return false };
-            if bytes > limits.room {
-                return false;
+            let body = sizes::largest_body(&limits.sizes, rule.body)?;
+            if body.checked_add(8)? > limits.room {
+                return None;
             }
         }
     }
-    limits.workers.checked_add(limits.opening).is_some()
+    (limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(schema, Role::Responder, &channel)
-        && wire::v21::decoded_bound(&codec).is_some()
+        && wire::v22::decoded_bound(&codec).is_some())
+    .then_some(channel)
 }

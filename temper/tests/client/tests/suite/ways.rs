@@ -1,5 +1,5 @@
 //! The stock ways' acts cross the client and engine's commit boundary
-//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/settings.md, 2; temper/docs/design/testing/README.md, 2.1).
+//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/settings.md, 2; temper/docs/design/testing/tiers.md, 1.1).
 use jig_client::contract as c;
 use jig_client_kit::harness::{App, ClientId, Settings, Until, World};
 use skein_ui::{Node, Role, Style};
@@ -141,7 +141,7 @@ fn roles_fixture() -> Joint {
 }
 
 // The request's figures, with main's verify
-// (temper/docs/design/draft/stock-ways.status.md, Design departs).
+// (temper/docs/design/draft/archive/stock-ways.status.md, Design departs).
 const PATHS: [[&str; 3]; 2] = [
     [
         "you ask, a person\nproduce, an agent\ncheck, code\nrepair, an agent, when needed (tests)\ncheck, code\nyou approve, a person\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nverify, code\nmain, a branch",

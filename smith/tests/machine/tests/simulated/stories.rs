@@ -96,6 +96,7 @@ fn checks_that_pass_fail_and_time_out() {
         (22, &b"check-hang"[..], run::Exit::TimedOut),
     ] {
         let done = world.request(FromDomain::Check {
+            results: None,
             owner: Token::new(number),
             program: run::Place { root: world.root(), path: Box::from(name) },
             bound: skein_lib::Duration::from_nanos(10_000_000),
@@ -240,6 +241,7 @@ fn full_kernel_trace_and_file_terminal_replay_through_the_shared_kit() {
 fn successive_harness_runs_preserve_the_absolute_deadline_clock() {
     let mut world = World::new(42, &[]);
     let first = world.request(FromDomain::Check {
+        results: None,
         owner: Token::new(50),
         program: run::Place { root: world.root(), path: b"check-hang".as_slice().into() },
         bound: skein_lib::Duration::from_nanos(10_000_000),
@@ -250,6 +252,7 @@ fn successive_harness_runs_preserve_the_absolute_deadline_clock() {
     let before = world.now();
     assert!(before >= Time::from_nanos(10_000_000), "the first deadline elapsed");
     let second = world.request(FromDomain::Check {
+        results: None,
         owner: Token::new(51),
         program: run::Place { root: world.root(), path: b"check-hang".as_slice().into() },
         bound: skein_lib::Duration::from_nanos(1_000_000),
@@ -311,6 +314,7 @@ fn the_configured_environment_is_seen_by_commands_and_checks_and_none_by_searche
         ));
     }
     let checked = world.request(FromDomain::Check {
+        results: None,
         owner: Token::new(52),
         program: run::Place { root: world.root(), path: b"check-ok".as_slice().into() },
         bound: skein_lib::Duration::from_secs(1),
@@ -386,7 +390,13 @@ fn a_stop_reaches_the_group_and_settles_both_output_pipes_before_cancelled() {
         },
         deadline: far(),
     });
-    assert_eq!(done, ToDomain::Done { owner: Token::new(81), done: tools::Done::Cancelled });
+    assert_eq!(
+        done,
+        ToDomain::Done {
+            owner: Token::new(81),
+            done: tools::Done::CommandCancelled { head: Box::new([]), tail: Box::new([]), dropped: 0 },
+        }
+    );
     assert!(world.trace().iter().any(|entry| entry.contains("to: Group")), "cancel targets the group");
 }
 
@@ -454,6 +464,8 @@ fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
             Item::directory(b"src"),
             Item::file(b"src/a", b"old"),
             Item::directory(b"empty"),
+            Item::directory(b".GiT"),
+            Item::file(b".GiT/config", b"protected"),
             Item::link(b"alias", b"src"),
             Item::link(b"link", b"src/a"),
         ],
@@ -471,47 +483,54 @@ fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
         | ToDomain::Checked { .. }
         | ToDomain::Aborted { .. }) => panic!("read before removal: {terminal:?}"),
     };
-    for (number, path, expect, done) in [
-        (51, b"src/a".as_slice(), tools::Expect::Absent, tools::Done::Conflict { now: Some(old) }),
-        (52, b"src", tools::Expect::Absent, tools::Done::NotEmpty),
-        (53, b"alias/a", tools::Expect::Is { version: old }, tools::Done::Linked),
-        (54, b"link", tools::Expect::Is { version: old }, tools::Done::Linked),
-        (55, b".GiT/config", tools::Expect::Absent, tools::Done::Failed { fault: tools::Fault::Denied }),
-        (56, b"", tools::Expect::Absent, tools::Done::Failed { fault: tools::Fault::Denied }),
-        (57, b"empty", tools::Expect::Absent, tools::Done::Removed),
+    let assert_preserved = |world: &mut World, source: &[u8]| {
+        assert_eq!(world.content(b"src/a"), source);
+        assert_eq!(world.content(b".GiT/config"), b"protected");
+        assert!(world.is_directory(b"empty"));
+    };
+    let absent = tools::Expect::Absent;
+    let expect_old = tools::Expect::Is { version: old };
+    let denied = tools::Done::Failed { fault: tools::Fault::Denied };
+    for (number, at, expect, done) in [
+        (51, place(root, b"src/a"), absent, tools::Done::Conflict { now: Some(old) }),
+        (52, place(root, b"src"), absent, tools::Done::NotEmpty),
+        (53, place(root, b"alias/a"), expect_old, tools::Done::Linked),
+        (54, place(root, b"link"), expect_old, tools::Done::Linked),
+        (55, place(root, b".GiT/config"), absent, denied.clone()),
+        (56, place(root, b""), absent, denied),
+        (57, place(root, b"../outside"), absent, tools::Done::Escapes),
+        (58, place(Token::new(999), b"src/a"), expect_old, tools::Done::Escapes),
     ] {
         let owner = Token::new(number);
         assert_eq!(
-            world.request(FromDomain::Op {
-                owner,
-                op: tools::Op::Remove { at: place(root, path), expect },
-                deadline: far(),
-            }),
+            world.request(FromDomain::Op { owner, op: tools::Op::Remove { at, expect }, deadline: far() }),
             ToDomain::Done { owner, done }
         );
-        assert_eq!(world.content(b"src/a"), b"old");
+        assert_preserved(&mut world, b"old");
     }
-    let owner = Token::new(58);
+    world.change_behind_session(b"src/a", b"new");
+    let current = tools::Version::new(skein_io::digest::digest(b"new").0);
+    let owner = Token::new(59);
     assert_eq!(
         world.request(FromDomain::Op {
             owner,
-            op: tools::Op::Remove { at: place(Token::new(999), b"src/a"), expect: tools::Expect::Is { version: old } },
+            op: tools::Op::Remove { at: place(root, b"src/a"), expect: expect_old },
             deadline: far(),
         }),
-        ToDomain::Done { owner, done: tools::Done::Escapes }
+        ToDomain::Done { owner, done: tools::Done::Conflict { now: Some(current) } }
     );
-    world.change_behind_session(b"src/a", b"new");
-    assert!(matches!(
+    assert_preserved(&mut world, b"new");
+    let owner = Token::new(60);
+    assert_eq!(
         world.request(FromDomain::Op {
-            owner: Token::new(59),
-            op: tools::Op::Remove { at: place(root, b"src/a"), expect: tools::Expect::Is { version: old } },
+            owner,
+            op: tools::Op::Remove { at: place(root, b"empty"), expect: absent },
             deadline: far(),
         }),
-        ToDomain::Done { done: tools::Done::Conflict { .. }, .. }
-    ));
+        ToDomain::Done { owner, done: tools::Done::Removed }
+    );
     assert_eq!(world.content(b"src/a"), b"new");
-    let current = tools::Version::new(skein_io::digest::digest(b"new").0);
-    let owner = Token::new(60);
+    let owner = Token::new(61);
     assert_eq!(
         world.request(FromDomain::Op {
             owner,
@@ -520,7 +539,7 @@ fn removal_checks_versions_and_confines_one_file_or_empty_directory() {
         }),
         ToDomain::Done { owner, done: tools::Done::Removed }
     );
-    for (number, path) in [(61, b"src/a".as_slice()), (62, b"empty")] {
+    for (number, path) in [(62, b"src/a".as_slice()), (63, b"empty")] {
         let owner = Token::new(number);
         assert_eq!(
             world.request(FromDomain::Op {

@@ -3,7 +3,7 @@
 //! Full Debug payloads are bounded test encodings, not production codecs.
 //! The EOF control stops driving the simulated root after process exit:
 //! it proves retained parent ownership, never a post-EOF receipt or root Turn.
-//! Contract: smith/docs/design/domain/run.md, sections 8.2, 9 and 12; smith/docs/design/domain/host.md, sections 2,
+//! Contract: smith/docs/design/domain/run-delivery.md, section 1.2, and smith/docs/design/domain/run.md, sections 9 and 12; smith/docs/design/domain/host.md, sections 2,
 //! 4, 6 and 9; skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_lib::{Duration, Token};
@@ -65,6 +65,7 @@ fn setup() -> (Agent, Host) {
     start.answered = Box::new([]);
     start.workspace = Some(Token::new(1));
     start.directories = Box::new([host::Directory {
+        results: None,
         host: Box::from(b"/host".as_slice()),
         root: Token::new(1),
         name: b"work".as_slice().into(),

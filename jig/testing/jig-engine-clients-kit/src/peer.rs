@@ -139,7 +139,10 @@ impl Exchange {
                     self.read();
                 }
                 http::Event::Body(Up::End) | http::Event::Closed => {}
-                http::Event::Done(_) => self.done = true,
+                http::Event::Done(_) => {
+                    assert!(!self.done, "an exchange is answered only once");
+                    self.done = true;
+                }
                 http::Event::Failed(error) => panic!("client failed: {error:?}"),
                 http::Event::Upload(Up::Failed(_) | Up::End | Up::Bytes(_))
                 | http::Event::Body(Up::Failed(_) | Up::Room) => panic!("unexpected body event"),
@@ -181,6 +184,9 @@ pub struct Peer {
     mount_out: Queue<mapping::Request>,
     component: Component,
     env: Env<Limits>,
+    seed: u64,
+    pump_passes: u64,
+    pub(crate) workload_ledger: Option<skein_world::faults::FaultLedger>,
     out: Queue<Request>,
     sockets: BTreeMap<Token, Exchange>,
     next_socket: u64,
@@ -251,6 +257,9 @@ impl Peer {
             refused: skein_lib::Map::with_capacity(server_limits.connections),
             mount_out: Queue::with_capacity(64),
             env,
+            seed: 1,
+            pump_passes: 0,
+            workload_ledger: None,
             out,
             sockets: BTreeMap::new(),
             next_socket: 100,
@@ -388,6 +397,7 @@ impl Peer {
         // Every packet is tiny; this bound includes the seeded wire's harmless delays.
         let mut quiet = 0;
         for _ in 0..512 {
+            self.pump_passes = self.pump_passes.checked_add(1).expect("pump passes do not exhaust");
             let mut active = false;
             active |= self.server_step();
             if self.closed == 0 {
@@ -506,10 +516,40 @@ impl Peer {
             }
             quiet = if active { 0 } else { quiet + 1 };
             if quiet == 16 {
+                self.check_inspection().unwrap_or_else(|finding| panic!("{finding}"));
+                if let Some(mut ledger) = self.workload_ledger.take() {
+                    let inspection = self.inspection();
+                    ledger
+                        .saturation(&[crate::bounds::PENDING_EXCHANGES], &[&inspection], self.env.now)
+                        .unwrap_or_else(|finding| panic!("{finding}"));
+                    self.workload_ledger = Some(ledger);
+                }
                 break;
             }
         }
     }
+    /// Snapshot at this time without stepping the component or firing its timers.
+    #[must_use]
+    pub fn inspection(&self) -> skein_world::inspect::Inspection {
+        let mut inspection =
+            skein_world::inspect::Inspection::new("jig engine clients", jig_inspect::ENGINE_CLIENTS_KINDS);
+        jig_inspect::engine_clients(&self.component, &mut inspection);
+        inspection
+    }
+
+    #[must_use]
+    pub const fn inspection_moment(&self) -> skein_world::inspect::Moment {
+        skein_world::inspect::Moment { seed: self.seed, at: self.env.now, iteration: self.pump_passes }
+    }
+
+    /// The same checks the pump runs at its quiet point, without pumping.
+    pub fn check_inspection(&self) -> Result<(), String> {
+        let inspection = self.inspection();
+        let moment = self.inspection_moment();
+        skein_world::inspect::check_waits(&[&inspection], moment)?;
+        skein_world::inspect::check_tables(&[&inspection], moment)
+    }
+
     fn io(&mut self, request: skein_io::Request) {
         match request {
             skein_io::Request::Listen { owner, addr } => self
@@ -814,6 +854,15 @@ impl Peer {
         record.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("encoded link");
         out.finish()
     }
+    pub(crate) fn start_workload(&mut self, seed: u64) {
+        self.seed = seed;
+        self.workload_ledger = Some(skein_world::faults::FaultLedger::new());
+    }
+
+    pub(crate) fn use_bearer(&mut self, bearer: Box<[u8]>) {
+        self.bearer = Some(bearer);
+    }
+
     pub fn post_signed(&mut self, target: &[u8], body: Box<[u8]>) -> Token {
         let bearer = self.bearer.clone().expect("signed in");
         self.post(target, body, Some(&bearer))
@@ -898,10 +947,16 @@ impl Peer {
         self.event(Event::SignInRefused { to });
     }
     pub fn answer_kept(&mut self, sign_in: u64) {
+        self.answer_digest_kept(SecretOwner::SignIn(sign_in));
+    }
+    pub fn answer_service_kept(&mut self, party: u64) {
+        self.answer_digest_kept(SecretOwner::Service(party));
+    }
+    fn answer_digest_kept(&mut self, owner: SecretOwner) {
         let (number, value) = self.keep.take().expect("digest keep requested");
-        assert_eq!(number, SecretOwner::SignIn(sign_in));
-        self.digests.insert(number, value);
-        self.event(Event::Secrets(SecretsAnswer::Kept { owner: SecretOwner::SignIn(sign_in) }));
+        assert_eq!(number, owner);
+        self.digests.insert(owner, value);
+        self.event(Event::Secrets(SecretsAnswer::Kept { owner }));
     }
     pub fn fail_keep(&mut self) {
         self.keep = None;

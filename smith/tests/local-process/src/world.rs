@@ -1,29 +1,31 @@
 //! The shared harness owns every loop, hosted admission and descriptor lifecycle.
 //! This module supplies scenario configuration and the fake machine's filesystem
-//! and git face, never process routing (testing.md, sections 2.1, 3.2 and 5).
+//! and git face, never process routing (testing-tiers.md, section 1, and testing.md, sections 3.2 and 5).
 use crate::credential_fixture;
 use crate::{
-    process::{self, Launch, Proc},
+    process::{self, Finalizer, Launch, Proc},
     referee::{CheckoutRead, Ending, Run},
     terminal::{Action, Terminal},
 };
 use skein_fake_checkout::git::{Remote, Tree};
 use skein_fake_checkout::{Checkout, git};
 use skein_fake_llm_domain::api;
-use skein_fake_machine::{How, Machine as Filesystem, Opened};
+use skein_fake_machine::{How, Is, Machine as Filesystem, Opened};
 use skein_io::kernel;
 use skein_lib::{Duration, Queue, Wall};
 use skein_world::{HostedProgram, Memory, Outcome};
 use smith_local_domain as local;
 use smith_local_shell::credentials::token_limits;
 use smith_local_world::git::History;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+mod checked;
 mod composition;
 mod key;
 mod lending;
+mod program;
 pub use key::provider as key_provider;
 pub(crate) use lending::login_token;
 pub use lending::{Lending, login_at};
@@ -49,12 +51,13 @@ pub enum Authentication {
 /// Files surviving separate invocations of the shared shell.
 pub struct Files {
     scratch: skein_scratch::Scratch,
+    programs: Rc<RefCell<program::Files>>,
 }
 
 impl Files {
     #[must_use]
     pub fn new() -> Self {
-        Self { scratch: skein_scratch::Scratch::new("smith-local-process") }
+        Self { scratch: skein_scratch::Scratch::new("smith-local-process"), programs: Rc::default() }
     }
     #[must_use]
     pub fn path(&self) -> &Path {
@@ -154,6 +157,17 @@ fn waiting_scripts() -> Box<[api::Script]> {
     }])
 }
 
+fn filtered_scripts() -> Box<[api::Script]> {
+    Box::new([api::Script {
+        cue: b"@local-shell".as_slice().into(),
+        turns: Box::new([api::Turn {
+            lines: Box::new([api::Line::Text { text: b"Filtered".as_slice().into() }]),
+            finish: api::Finish::ContentFilter,
+            tokens: 1,
+        }]),
+    }])
+}
+
 fn change_scripts() -> Box<[api::Script]> {
     let turns = [
         ("write", "{\"path\":\"result.txt\",\"content\":\"new\\n\"}"),
@@ -243,6 +257,9 @@ pub struct Machine {
     checkout: CheckoutView,
     commands: Vec<Box<[Box<[u8]>]>>,
     chat_path: PathBuf,
+    foreign_on_turn: Option<(PathBuf, Box<[u8]>)>,
+    head_unreadable: bool,
+    checked_change: bool,
 }
 impl Machine {
     fn current_tree(&mut self) -> Tree {
@@ -274,6 +291,9 @@ impl Machine {
     }
 
     fn git_reply(&mut self, args: &[Box<[u8]>]) -> (Box<[u8]>, u8) {
+        if self.head_unreadable && args.iter().map(AsRef::as_ref).eq([b"rev-parse".as_slice(), b"HEAD"]) {
+            return (Box::new([]), 128);
+        }
         let tree = self.current_tree();
         let mut shared = self.checkout.0.borrow_mut();
         let (checkout, history, head) = shared.as_mut().expect("git fixture");
@@ -351,7 +371,11 @@ impl skein_world::Machine for Machine {
             self.files.close(file);
             Ok(skein_sim::Handle::new(root.raw()))
         } else {
-            let path = if path == self.chat_path.as_os_str().as_encoded_bytes() { b"chat" } else { path };
+            let path = if path == self.chat_path.as_os_str().as_encoded_bytes() {
+                b"chat"
+            } else {
+                path.strip_prefix(b"/").unwrap_or(path)
+            };
             self.files
                 .open(self.master, path, How::Directory)
                 .map(|root| skein_sim::Handle::new(root.raw()))
@@ -365,7 +389,7 @@ impl skein_world::Machine for Machine {
         mode: u32,
     ) -> Result<skein_sim::Handle, kernel::Error> {
         self.files
-            .open(Opened::new(root.raw()), path, How::Create { mode })
+            .open(Opened::new(root.raw()), path, How::Append { mode })
             .map(|file| skein_sim::Handle::new(file.raw()))
             .map_err(|_| kernel::Error::NotFound)
     }
@@ -381,6 +405,20 @@ impl skein_world::Machine for Machine {
             }
         }
         self.files.close(root);
+        // The first saved turn is a live store operation, after initial layout admission.
+        if matches!(&call.ask, skein_sim::Ask::Rename { to, .. } if to.as_ref() == b"0000000001.turn")
+            && let Some((path, bytes)) = self.foreign_on_turn.take()
+        {
+            let file = self
+                .files
+                .open(self.master, path.as_os_str().as_encoded_bytes(), How::Create { mode: 0o600 })
+                .expect("foreign file in live private store");
+            self.files.write(file, 0, &bytes).expect("foreign bytes");
+            self.files.close(file);
+        }
+        if self.checked_change && checked::command(&mut self.files, &call, answers) {
+            return;
+        }
         skein_fake_machine::step(&mut self.files, call, answers);
         if let Ok(root) = self.files.open(self.master, b"tokens", How::Directory) {
             if let Ok(file) = self.files.open(root, b"0.json", How::Read) {
@@ -403,6 +441,15 @@ struct Behaviour {
     interrupt_on_query: bool,
     discard_facts: bool,
     change: bool,
+    checked: bool,
+}
+
+/// The provider's answer in a headless product story.
+#[derive(Clone, Copy)]
+pub enum HeadlessReply {
+    Accept,
+    Wait,
+    Filter,
 }
 
 /// A reusable story and its immutable hosted-launch settings.
@@ -415,6 +462,7 @@ pub struct Scenario {
     /// Keep the answered spawned process alive until its host sends a signal.
     pub linger_agent: bool,
     pub authentication: Option<Authentication>,
+    first_query_grant: Option<(&'static [u8], u64)>,
     pub scripts: Option<Box<[api::Script]>>,
     /// Kernel faults are independent of the seed and story text.
     pub faults: skein_sim::Faults,
@@ -430,7 +478,10 @@ pub struct World {
     outcome: Option<Outcome<Proc, Machine>>,
     commit_message: Vec<u8>,
     first_post: Option<Wall>,
-    saved_before_query: bool,
+    saved_before_query: Rc<Cell<bool>>,
+    programs: Rc<RefCell<program::Files>>,
+    program_story: Option<smith_fake_claude::Story>,
+    program_interrupt: Option<program::InterruptOnStatus>,
 }
 impl World {
     /// Check the ending using the invocation's retained seed.
@@ -467,6 +518,82 @@ impl World {
             Ending::Report(answer.to_vec()),
             Behaviour::default(),
         )
+    }
+
+    /// Run one headless product invocation over preopened fake-machine directories.
+    #[must_use]
+    pub fn headless(seed: u64, files: &Files, destinations: Finalizer, reply: HeadlessReply, exit: u8) -> Self {
+        let mut world = Self::configured(
+            seed,
+            files,
+            Placement::InProcess,
+            vec![Action::Eof],
+            Ending::Headless { exit },
+            Behaviour::default(),
+        );
+        if let Some(path) = &destinations.private {
+            let machine = world.machine.as_mut().expect("before invocation");
+            let base = path.parent().expect("runtime base").as_os_str().as_encoded_bytes();
+            machine.files.make_directory(machine.master, base, 0o700).expect("runtime base");
+            let parent = machine.files.open(machine.master, base, How::Directory).expect("runtime parent");
+            let name = path.file_name().expect("private leaf").as_encoded_bytes();
+            machine.files.make_directory(parent, name, 0o700).expect("private startup directory");
+            machine.files.close(parent);
+        }
+        world.scenario.launch.headless = true;
+        world.scenario.launch.finalizer = Some(destinations);
+        world.scenario.scripts = Some(match reply {
+            HeadlessReply::Accept => scripts(),
+            HeadlessReply::Wait => waiting_scripts(),
+            HeadlessReply::Filter => filtered_scripts(),
+        });
+        world
+    }
+
+    /// Put a foreign file into the private store at its first saved turn.
+    pub fn foreign_on_turn(&mut self, name: &str, bytes: &[u8]) {
+        let path = self
+            .scenario
+            .launch
+            .finalizer
+            .as_ref()
+            .and_then(|files| files.private.as_ref())
+            .expect("private chat configured")
+            .join(name);
+        self.machine.as_mut().expect("before invocation").foreign_on_turn = Some((path, bytes.into()));
+    }
+
+    /// Seed a directory at a result file's destination before the invocation.
+    pub fn make_directory(&mut self, path: &[u8]) {
+        let machine = self.machine.as_mut().expect("before invocation");
+        machine.files.make_directory(machine.master, path, 0o700).expect("fixture directory");
+    }
+
+    /// Seed the bytes of a result before the invocation.
+    pub fn write_file(&mut self, path: &[u8], bytes: &[u8]) {
+        let machine = self.machine.as_mut().expect("before invocation");
+        let file = machine.files.open(machine.master, path, How::Create { mode: 0o600 }).expect("fixture file");
+        machine.files.write(file, 0, bytes).expect("fixture bytes");
+        machine.files.close(file);
+    }
+
+    /// Observe the entries and their kinds from the settled fake disk.
+    pub fn directory_entries(&mut self, path: &[u8]) -> Vec<(Is, Box<[u8]>)> {
+        let machine = &mut self.outcome.as_mut().expect("settled world").machine;
+        let directory = machine.files.open(machine.master, path, How::Directory).expect("observed directory");
+        let entries = machine.files.list(directory, 16384, 1 << 20).expect("directory entries");
+        machine.files.close(directory);
+        entries
+    }
+
+    /// Observe a file's complete contents from the settled fake disk.
+    pub fn file_bytes(&mut self, path: &[u8]) -> Vec<u8> {
+        let machine = &mut self.outcome.as_mut().expect("settled world").machine;
+        let file = machine.files.open(machine.master, path, How::Read).expect("observed file");
+        let size = u32::try_from(machine.files.stat(file).size).expect("finite fixture file size");
+        let bytes = machine.files.read(file, 0, size).expect("file contents");
+        machine.files.close(file);
+        bytes
     }
 
     /// Keep provider reasoning before the opening report's finish call for replay.
@@ -523,23 +650,13 @@ impl World {
     }
 
     fn trace_records(&mut self, path: &[u8]) -> Vec<smith_events::Record> {
-        let machine = &mut self.outcome.as_mut().expect("settled world").machine;
-        let trace = machine.files.open(machine.master, path, How::Read).expect("trace file");
-        let size = u32::try_from(machine.files.stat(trace).size).expect("finite trace size");
-        let bytes = machine.files.read(trace, 0, size).expect("trace bytes");
-        machine.files.close(trace);
-        let lower = process::lower_configuration();
-        let mut events = smith_agent_service::event_limits(
-            &lower.limits,
-            smith_protocol_events::sinks::Capture::Everything,
-            1,
-            0,
-            &[],
-            Duration::from_secs(1),
-        )
-        .expect("trace limits");
-        events.sinks.records.items = events.sinks.records.items.max(size);
-        smith_agent_process_world::events::read(&bytes, &events)
+        decode_records(&self.file_bytes(path))
+    }
+
+    /// Decode the headless product's JSON stdout independently of the local service.
+    #[must_use]
+    pub fn output_records(&self) -> Vec<smith_events::Record> {
+        decode_records(self.shown())
     }
 
     #[must_use]
@@ -634,6 +751,10 @@ impl World {
     }
     #[must_use]
     pub fn changed(seed: u64, files: &Files, placement: Placement) -> Self {
+        Self::changing(seed, files, placement, false)
+    }
+
+    fn changing(seed: u64, files: &Files, placement: Placement, checked: bool) -> Self {
         let mut world = Self::configured(
             seed,
             files,
@@ -644,7 +765,7 @@ impl World {
                 Action::Eof,
             ],
             Ending::Change { before: format!("{:040x}", 1).into_bytes() },
-            Behaviour { change: true, ..Behaviour::default() },
+            Behaviour { change: true, checked, ..Behaviour::default() },
         );
         let local::Event::Loaded { transcript, .. } =
             load_chat(&world.scenario.launch.state_directory, &process::lower_configuration().channel_endpoints)
@@ -678,7 +799,7 @@ impl World {
         ending: Ending,
         behaviour: Behaviour,
     ) -> Self {
-        let Behaviour { interrupt_on_query, discard_facts, change } = behaviour;
+        let Behaviour { interrupt_on_query, discard_facts, change, checked } = behaviour;
         let keep_facts = !discard_facts;
         let mut disk = Filesystem::for_user(skein_shell::effective_user());
         std::fs::create_dir_all(files.path().join("chat")).expect("chat fixture");
@@ -697,10 +818,17 @@ impl World {
             items.push(skein_fake_machine::Item::directory(b"repo"));
             items.push(skein_fake_machine::Item::file(b"repo/original.txt", b"original\n"));
         }
+        if checked {
+            items.extend(checked::files());
+        }
         let master = disk.lay(&items);
         let checkout = CheckoutView(
             Rc::new(RefCell::new(if change {
-                let mut history = History::new(Tree::from([(b"original.txt".to_vec(), b"original\n".to_vec())]));
+                let mut tree = Tree::from([(b"original.txt".to_vec(), b"original\n".to_vec())]);
+                if checked {
+                    tree.insert(checked::CHECK.to_vec(), checked::CHECK_FILE.to_vec());
+                }
+                let mut history = History::new(tree);
                 let mut checkout = Checkout::new();
                 git::clone_repository(&mut history, &mut checkout, b"repo", b"work").expect("clone fixture");
                 git::check_out(&history, &mut checkout, b"work", 1).expect("checkout fixture");
@@ -740,13 +868,19 @@ impl World {
                     commands_path: None,
                     trust_der: None,
                     change,
-                    tools: false,
+                    tools: checked,
+                    standard_profile: false,
+                    repository_name: None,
+                    refresh_lead_ms: None,
                     read_report: false,
                     headless: false,
+                    finalizer: None,
                     interactive: false,
                     choices: false,
                     budget_failure: false,
                     plain: None,
+                    program: None,
+                    headless_prompt: None,
                     placement,
                     keep_facts,
                     traced: false,
@@ -762,6 +896,7 @@ impl World {
                 terminate_on_output_end: false,
                 linger_agent: false,
                 authentication: None,
+                first_query_grant: None,
                 scripts: None,
                 faults: skein_sim::Faults::NONE,
                 line_on_wait: None,
@@ -772,13 +907,19 @@ impl World {
                 checkout: checkout.clone(),
                 commands: Vec::new(),
                 chat_path: files.path().join("chat"),
+                foreign_on_turn: None,
+                head_unreadable: false,
+                checked_change: checked,
             }),
             checkout,
             memory: Memory::Unchecked,
             outcome: None,
             commit_message: Vec::new(),
             first_post: None,
-            saved_before_query: false,
+            saved_before_query: Rc::new(Cell::new(false)),
+            programs: files.programs.clone(),
+            program_story: None,
+            program_interrupt: None,
         }
     }
     #[must_use]
@@ -789,15 +930,20 @@ impl World {
             placement,
             if mode == Authentication::Refused { b"not delivered" } else { b"First answer" },
         );
-        world.scenario.launch.authenticated = true;
-        world.scenario.authentication = Some(mode);
+        world.with_authentication(mode);
+        world
+    }
+
+    fn with_authentication(&mut self, mode: Authentication) {
+        self.scenario.launch.authenticated = true;
+        self.scenario.authentication = Some(mode);
         if mode == Authentication::Refused {
-            world.scenario.ending = Ending::Unavailable;
+            self.scenario.ending = Ending::Unavailable;
         }
-        let tokens = credential_fixture::Tokens::new(&world.scenario.launch.token_directory, token_limits())
+        let tokens = credential_fixture::Tokens::new(&self.scenario.launch.token_directory, token_limits())
             .expect("private store");
         if mode == Authentication::SignIn {
-            std::fs::remove_file(world.scenario.launch.token_directory.join("0.json")).expect("no saved token");
+            std::fs::remove_file(self.scenario.launch.token_directory.join("0.json")).expect("no saved token");
         } else {
             let saved = skein_oauth::SavedToken {
                 issued_client_id: None,
@@ -831,8 +977,84 @@ impl World {
                 .save(0, &skein_oauth::encode_record(&saved, &token_limits()).expect("prior token"))
                 .expect("expired grant");
         }
+    }
+
+    /// Run a checked repository change using the grant obtained from a browser sign-in.
+    #[must_use]
+    pub fn signed_in_change(seed: u64, files: &Files) -> Self {
+        let mut world = Self::changing(seed, files, Placement::InProcess, true);
+        world.scenario.scripts = Some(checked::scripts(false));
+        world.with_authentication(Authentication::SignIn);
         world
     }
+
+    /// Run the large coding write and deliver its checked change under the shipped profile.
+    #[must_use]
+    pub fn standard_coding_change(seed: u64, files: &Files) -> Self {
+        let mut world = Self::changing(seed, files, Placement::InProcess, true);
+        world.scenario.launch.standard_profile = true;
+        world.scenario.scripts = Some(checked::scripts(true));
+        world
+    }
+
+    /// Start a headless run in a writable repository whose HEAD lookup fails.
+    #[must_use]
+    pub fn without_head(seed: u64, files: &Files) -> Self {
+        let mut world = Self::changed(seed, files, Placement::InProcess);
+        world.scenario.launch.repository_name = Some("workspace".into());
+        world.scenario.launch.headless = true;
+        world.scenario.commands = vec![Action::Eof];
+        world.scenario.ending = Ending::UnreadableHead;
+        world.machine.as_mut().expect("unstarted world").head_unreadable = true;
+        world
+    }
+
+    /// Start a headless run with a timed record and the grant expected on its first query.
+    #[must_use]
+    pub fn with_refresh_window(
+        seed: u64,
+        files: &Files,
+        lead: Duration,
+        expires_at: Wall,
+        earliest_refresh_at: Option<Wall>,
+        held: &'static [u8],
+        expected: (&'static [u8], u64),
+    ) -> Self {
+        let mut world = Self::authenticated(
+            seed,
+            files,
+            Placement::InProcess,
+            if expected.1 == 1 { Authentication::Current } else { Authentication::Refresh },
+        );
+        world.scenario.launch.headless = true;
+        world.scenario.commands = vec![Action::Eof];
+        world.scenario.launch.refresh_lead_ms = Some(lead.as_millis());
+        world.scenario.first_query_grant = Some(expected);
+        let tokens = credential_fixture::Tokens::new(&world.scenario.launch.token_directory, token_limits())
+            .expect("private store");
+        let mut record = tokens.load(0).expect("fixture record").expect("held grant");
+        record.expires_at = expires_at;
+        record.earliest_refresh_at = earliest_refresh_at;
+        record.access_token = skein_lib::Secret::new(held.into());
+        tokens
+            .save(0, &skein_oauth::encode_record(&record, &token_limits()).expect("timed record"))
+            .expect("timed record kept");
+        world
+    }
+
+    /// The statuses sent by the fake issuer for this account's token exchanges.
+    #[must_use]
+    pub fn oauth_statuses(&self) -> Vec<u16> {
+        self.issuer()
+            .into_iter()
+            .flat_map(|issuer| issuer.peer().observations())
+            .filter_map(|event| match event {
+                skein_fake_peers::oauth::Observation::Answered { status, .. } => Some(*status),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Use the shared per-process construction, iteration and drop meter.
     pub fn check_memory(&mut self) {
         self.memory = Memory::Checked;
@@ -854,6 +1076,9 @@ impl World {
                 machine.files.close(file);
             }
         }
+        if let Some(story) = &self.program_story {
+            self.programs.borrow().plant(&mut machine, story);
+        }
         let opened = machine.files.open_handles();
         assert_eq!(opened, 1);
         let terminal_root = machine.files.open(machine.master, b".", How::Directory).expect("terminal root");
@@ -866,13 +1091,19 @@ impl World {
             launch.keep_facts,
             self.scenario.expected_token_posts(),
         );
+        referee.observe_grant(self.scenario.expected_query_grant());
+        self.saved_before_query = referee.saved_before_query();
         if let Some(line) = &self.scenario.line_on_wait {
             referee.line_on_wait(line.clone());
         }
         if matches!(self.scenario.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
             referee.fail_turn_at_query(launch.state_directory.clone(), 2);
         }
+        let mut signal_controls = None;
         let mut world = skein_world::World::new_controlled(launch.seed, config, self.memory, |controls| {
+            if self.program_interrupt.is_some() {
+                signal_controls = Some(controls.clone());
+            }
             referee.controlled(controls)
         })
         .with_machine(machine);
@@ -893,6 +1124,8 @@ impl World {
             process::local_roots,
             process::local_appends,
         );
+        let agent_routes =
+            if launch.program.is_some() { program::host_children(&mut world, launch) } else { lower.limits.routes };
         if matches!(self.scenario.ending, Ending::AgentEnded) {
             world.host(HostedProgram {
                 program: b"smith-agent".as_slice().into(),
@@ -907,7 +1140,7 @@ impl World {
                     make: if self.scenario.linger_agent { process::make_lingering_agent } else { process::make_agent },
                     instances: 8,
                     // Workspace root, stderr and its capture, plus the extra plain root's close when present.
-                    operations: process::lower_configuration().limits.routes + 3 + u32::from(launch.plain.is_some()),
+                    operations: agent_routes + 3 + u32::from(launch.plain.is_some()),
                 },
                 process::agent_roots,
                 process::agent_appends,
@@ -962,8 +1195,17 @@ impl World {
             });
             world.spawn(|| Proc::Browser(Box::default()));
         }
-        self.outcome = Some(world.run());
+        self.outcome = Some(if let Some(interrupt) = &mut self.program_interrupt {
+            let controls = signal_controls.expect("the world's signal controls");
+            world.run_with_inputs(|sim, pids, procs| interrupt.observe(sim, pids, procs, &controls))
+        } else {
+            world.run()
+        });
         let machine = &mut self.outcome.as_mut().expect("settled").machine;
+        if launch.program.is_some() {
+            self.programs.borrow_mut().remember(machine);
+            assert_eq!(machine.files.open_handles(), 1, "only the machine's master root remains");
+        }
         let (path, outside) = if launch.interactive {
             (b"chat/main".as_slice(), machine.chat_path.join("main"))
         } else {
@@ -990,7 +1232,6 @@ impl World {
         self.commit_message = head.as_ref().map_or_else(Vec::new, |head| self.checkout.message(head));
         // The shared referee's observed values are retained by the peers.
         self.first_post = self.issuer().and_then(process::IssuerProcess::first_post);
-        self.saved_before_query = self.scenario.launch.authenticated && !self.queries().is_empty();
     }
     fn procs(&self) -> &[Proc] {
         &self.outcome.as_ref().expect("settled world").procs
@@ -1046,7 +1287,7 @@ impl World {
     }
     #[must_use]
     pub fn saved_before_query(&self) -> bool {
-        self.saved_before_query
+        self.saved_before_query.get()
     }
     #[must_use]
     pub fn shown(&self) -> &[u8] {
@@ -1081,7 +1322,7 @@ impl World {
     pub fn seen(&self) -> crate::referee::Seen {
         crate::referee::seen(
             self.procs(),
-            self.saved_before_query,
+            self.saved_before_query(),
             self.git_commands().iter().any(|args| args[0].as_ref() == b"push"),
         )
     }
@@ -1112,6 +1353,22 @@ impl CheckoutRead for World {
         self.checkout.files(commit)
     }
 }
+fn decode_records(bytes: &[u8]) -> Vec<smith_events::Record> {
+    let lower = process::lower_configuration();
+    let mut events = smith_agent_service::event_limits(
+        &lower.limits,
+        smith_protocol_events::sinks::Capture::Everything,
+        1,
+        0,
+        &[],
+        Duration::from_secs(1),
+    )
+    .expect("trace limits");
+    let size = u32::try_from(bytes.len()).expect("finite event stream size");
+    events.sinks.records.items = events.sinks.records.items.max(size);
+    smith_agent_process_world::events::read(bytes, &events)
+}
+
 impl Scenario {
     /// Token requests this scenario expects its issuer to observe.
     #[must_use]
@@ -1125,6 +1382,15 @@ impl Scenario {
         }
     }
 
+    /// Synthetic bearer and optional generation the referee should find at first use.
+    #[must_use]
+    pub fn expected_query_grant(&self) -> Option<(&'static [u8], Option<u64>)> {
+        self.launch.authenticated.then(|| {
+            self.first_query_grant
+                .map_or((b"access-new".as_slice(), None), |(bearer, generation)| (bearer, Some(generation)))
+        })
+    }
+
     /// Provider scripts and credentials are scenario data, shared across tiers.
     #[must_use]
     pub fn provider(&self) -> crate::llm::Peer {
@@ -1133,8 +1399,8 @@ impl Scenario {
         }
         let token = if self.launch.lending.is_some() {
             login_token(false)
-        } else if self.launch.authenticated {
-            b"access-new".as_slice().into()
+        } else if let Some((bearer, _)) = self.expected_query_grant() {
+            bearer.into()
         } else {
             b"token".as_slice().into()
         };
@@ -1235,16 +1501,6 @@ pub fn load_chat(path: &Path, endpoints: &smith_protocol_translate::Endpoints) -
 pub fn headless_provider(wait: bool, credential: skein_llm::Credential) -> crate::llm::Peer {
     smith_agent_process_world::fake::configured_openai(
         if wait { waiting_scripts() } else { scripts() },
-        credential,
-        Duration::ZERO,
-        skein_fake_peers::Transport::Tls,
-    )
-}
-
-/// The existing checked change script with the product story's synthetic grant.
-pub fn change_provider(credential: skein_llm::Credential) -> crate::llm::Peer {
-    smith_agent_process_world::fake::configured_openai(
-        tool_scripts(),
         credential,
         Duration::ZERO,
         skein_fake_peers::Transport::Tls,

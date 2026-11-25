@@ -1,5 +1,5 @@
 //! Task records, their projections, and the people entries they update
-//! (jig/docs/design/domain/engine/README.md, 4.4).
+//! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use crate::{
     Ask, Core, CoreRecord, Limits, Record, Request, Write,
@@ -23,6 +23,11 @@ pub(crate) fn save(
         let _retained = core.remember_question(line);
     }
     if let tasks::Stored::Live(task) | tasks::Stored::Ended(task) = &record {
+        if let tasks::Phase::Ended(_) = task.phase {
+            core.wait_alarms.forget(task.number);
+        } else {
+            core.wait_alarms.changed(task.number);
+        }
         core.prune_questions(task.number);
     }
     if let Some(archive) = crate::admission::proposals::decision_record(&record, env.wall) {

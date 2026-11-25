@@ -5,9 +5,12 @@
   and reads, ../contract/README.md) and from the client's public surface, as an
   application's own code is. A helper an application ignores costs it
   nothing, and any application may write its own instead.
+
+## 1. `shapes`
+
 - **`shapes`:** functions composing plumbing requests from templates,
   the application's data that `me` serves (../contract/requests.md, 6;
-  `../../../protocol/configuration.md`, 3.1):
+  `../../../protocol/configuration-templates.md`, 1):
   - `shapes::chat(me, project, words)` fills the chat template into a
     `Create`, and `shapes::chat_from(me, project, template, words)`
     fills a chat's template named by its number the same way, for an
@@ -52,7 +55,7 @@
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
     by configured names (../contract/requests.md, 2), none being the charter's default
-    taken at each run's check (`../../../domain/accounts.md`, 4.3). Shapes copy
+    taken at each run's check (`../../../domain/accounts-uses.md`, 1.3). Shapes copy
     configured intent, never `resolved_default`, the separate preview served
     in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
@@ -62,6 +65,9 @@
     whose choices its document cut), a value its helper takes no input
     for (a chat's executor, budget or deadline the creator's to give),
     or a `shallower` of 0, which no task's authority may be.
+
+## 2. `facts`
+
 - **`facts`:** pure functions over the documents the client holds, the
   same for an application's own presentation as for the reference UI:
   - *a chat's status,* from its chip's phase and its host's last report,
@@ -102,7 +108,7 @@
     refused; ../contract/documents.md, 3), and what a decision will do, where the
     act is offered with it (../contract/documents.md, 4); read, never inferred;
   - *a refusal and why:* an offer's refusal, with its facts
-    (../contract/README.md, section 3); a request's comes with them in its answer
+    (../contract/answers.md, section 1); a request's comes with them in its answer
     (`requests.md`);
   - *whether an act is dangerous:* a cancel, a proposal's rejection and
     a note's deletion are, and no other act. A presentation that
@@ -114,7 +120,13 @@
     proposal, what it needs and who funds it, with what the funder has
     left and will have after (../contract/documents.md, 4). jig's check holds a
     tree a person decided on to them (../testing.md, 6.2).
+
+## 3. `thread`
+
 - **`thread`:** a conversation's thread (`conversations.md`).
+
+## 4. `words`
+
 - **`words`:** jig's English for its enums (phases, holds, refusals, what
   a task waits on) and for a decision's facts, as phrases with holes an
   application overrides phrase by phrase, built with skein-ui's
@@ -129,6 +141,9 @@
   run and it awaits nothing else: `WaitsOn` names no run wait either, so a
   client that reads the task's `run_wait` chooses the word, and no
   `WaitsOn` maps to it.
+
+## 5. What jig adopts
+
 - **What jig adopts.** Sugar starts in an application. jig adopts it
   when a second consumer uses it, or early when it is hard to interpret
   consistently (what "waiting for you" means, how committed turns and
@@ -136,7 +151,7 @@
   Correctness (revisions, once, atomicity) is never sugar: it is
   plumbing.
 
-## 1. Refused starts
+## 6. Refused starts
 
 `chat_status` also reads the task document's optional `run_wait`: a
 chat due or preparing whose run wait is `Refused` is refused by its

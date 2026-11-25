@@ -1,4 +1,4 @@
-//! Streams belong to the layer; the dial policy belongs here (protocol/channel/README.md, 9.1).
+//! Streams belong to the layer; the dial policy belongs here (protocol/channel/worker-link.md, 1.1).
 use alloc::boxed::Box;
 use jig_domain_host as host;
 pub use jig_protocol_worker_wire::Loss;
@@ -37,14 +37,6 @@ pub enum Request {
     Figures {
         figures: jig_protocol_worker_wire::Figures,
     },
-    CannotSendWhole {
-        wire: &'static str,
-        version: u16,
-    },
-    Untranslated {
-        kind: u16,
-        halt: skein_codec::patch::Halt,
-    },
     Ready,
     /// A peer's refusal, before loss and redial.
     Refused {
@@ -55,6 +47,11 @@ pub enum Request {
         run: Token,
         attempt: Token,
         call: Box<[u8]>,
+    },
+    ResendPart {
+        run: Token,
+        attempt: Token,
+        part: u32,
     },
     Resend {
         run: Token,

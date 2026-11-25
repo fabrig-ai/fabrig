@@ -1,4 +1,4 @@
-//! Synthetic provider errors exercise llm/README.md, sections 4.7 and 4.8's code-first classes.
+//! Synthetic provider errors exercise llm/wire.md, sections 1.7 and 1.8's code-first classes.
 use skein_lib::{Duration, Wall};
 use skein_llm::{Call, Failure, Report, client};
 use skein_llm_world::{World, anthropic_call, call, limits_for, response};
@@ -53,6 +53,16 @@ fn anthropic_failures_are_classed_by_type_first() {
             "{kind} {status}"
         );
     }
+}
+
+#[test]
+fn anthropic_rate_limit_reads_its_tokens_per_minute_window() {
+    const KIND: &str = "rate_limit_error";
+    let body = format!(
+        r#"{{"type":"error","error":{{"type":"{KIND}","message":"Your account is limited to 20000 tokens per minute."}}}}"#
+    );
+    let class = Failure::RateLimited { retry_after: Duration::from_secs(60) };
+    assert_eq!(failed(anthropic_call(1), 429, "", body.as_bytes()), expected(class, KIND));
 }
 
 #[test]

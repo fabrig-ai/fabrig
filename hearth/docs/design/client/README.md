@@ -39,7 +39,7 @@ A crate that exists for the client is named
 
 | Crate | What it is | Milestone | Designed in |
 |---|---|---|---|
-| `hearth-client-protocol-records` | the printer, and the client's own records: render's values for `render` and `diff` from M1; the socket's requests and answers, and the other commands' records, from M3; tables and JSON lines | M1, M3 | 3.2, 3.3; hearth/docs/design/domain/render/README.md, 5.1 |
+| `hearth-client-protocol-records` | the printer, and the client's own records: render's values for `render` and `diff` from M1; the socket's requests and answers, and the other commands' records, from M3; tables and JSON lines | M1, M3 | 3.2, 3.3; hearth/docs/design/domain/render/crates.md, 1.1 |
 | `hearth-client-domain-dev` | the development loop's domain root: machines by handle, keyed effects, suggestions | M3 | hearth/docs/design/domain/development.md, 8.2 |
 | `hearth-client-protocol-incus` | incus's argument vectors and JSON output | M3b | hearth/docs/design/domain/development.md, 8.3 |
 | `hearth-client-fake-incus` | incus's fake, on the fake machine | M3b | hearth/docs/design/testing/tool-fakes.md |
@@ -62,7 +62,7 @@ A crate that exists for the client is named
 | Command | What it does | Served by | Who may | With an engine |
 |---|---|---|---|---|
 | `hearth render [<target>…] [--at <rev>] [--repo <path>] [--store <path>] [--resolve]` | renders each target named, or every target of the revision, at a revision; prints the spec's parts with their digests (hearth/docs/design/domain/render/spec.md, section 1); with `--resolve`, resolves the keys the store lacks first (hearth/docs/design/domain/render/spec.md, 2.7) | the steward, by a builder's job on the builder's clone (hearth/docs/design/domain/steward.md, 3.3) [M3]; in-process with `--repo`, or the repository around the current directory (3.5) | anyone | yes |
-| `hearth diff <from> <to> [--target <t>]… [--repo <path>] [--store <path>] [--resolve]` | the rendered diff: per target and part, what changed (hearth/docs/design/domain/render/README.md, section 4) | as `render` | anyone | yes |
+| `hearth diff <from> <to> [--target <t>]… [--repo <path>] [--store <path>] [--resolve]` | the rendered diff: per target and part, what changed (hearth/docs/design/domain/render/diff.md, section 1) | as `render` | anyone | yes |
 | `hearth diff --running [--target <t>] [--suggest]` | the running slot against its record: packages, files (with contents on a mutable machine), units, users; `--suggest` drafts task fragments (hearth/docs/design/domain/development.md, section 5) | the steward, from the activator's capture; the drafts in-process | operators | yes |
 | `hearth build <target> [--at <rev>]` | builds the output; prints each layer's key, whether it was found or built, and its costs | the steward, by a builder's job; or in-process with a store of one's own | operators; anyone with their own store | yes |
 | `hearth status [--check]` | each target's slots, the four facts, the last trial, drift, how a prepared slot would be activated and why not live, the desired revision, the pass and the hold | the steward, which reads the activator's facts afresh | anyone | yes |
@@ -81,7 +81,7 @@ A crate that exists for the client is named
 | `hearth bootstrap …` | partitions, formats and makes the first slot from a live system (hearth/docs/design/domain/machine/bootstrap.md); its arguments are 3.8's | in-process, as root | root | yes, before the daemon exists |
 | `hearth retarget <target> --revision <commit> [--bundle <file>] [--secrets <dir>] [--containers <c>,… \| --no-containers]` [M3b] | a development machine cloned from a base image takes its target: its first slot built, placed and blessed as bootstrap's are, and from M5 its container selection written (hearth/docs/design/domain/development.md, 3.2 and 3.4) | in-process, as root | root | refused |
 | `hearth secrets import <path>…` | imports secrets into the secret store (hearth/docs/design/domain/activator/operations.md, 8), then asks the steward to read its facts afresh | in-process, as root | root | refused but at bootstrap |
-| `hearth identity` | the public halves of the machine's identity, to record as data (hearth/docs/design/protocol/format/README.md, section 6) | the steward, from the activator's facts | anyone | yes |
+| `hearth identity` | the public halves of the machine's identity, to record as data (hearth/docs/design/protocol/format/exports.md, section 1) | the steward, from the activator's facts | anyone | yes |
 | `hearth logs [--unit <u>] [--since <d>] [-n <lines>]` | a bounded window of the journal, read locally (hearth/docs/design/protocol/wire.md, section 6); M3 | the steward, in `systemd-journal` | operators | yes |
 | `hearth shell [a\|b \| --snapshot <class>@<seq>] [-- <argv>]` | a read-only view of a slot, or of a class's snapshot [M5] (3.7) | in-process, started as root | root | yes, locally |
 | `hearth snapshots [--target <t>]` [M5] | each class's snapshots: sequence, age, the buckets that keep it, and from M6 whether the peer holds it (hearth/docs/design/domain/operating.md, 7.1) | the steward, from the activator's facts | anyone | yes |
@@ -159,7 +159,7 @@ A crate that exists for the client is named
   never formats. The client's protocol layer prints them.
 - **One owner for each record's values.** A spec's parts, a diff's
   changes and render's errors are render's values, from its vocabulary
-  (hearth/docs/design/domain/render/README.md, 5.1), and
+  (hearth/docs/design/domain/render/crates.md, 1.1), and
   `hearth-client-protocol-records` prints them with free functions of
   its own. It keeps a type of its own only where it adds something
   render doesn't have: the stream's records (startup, progress, a
@@ -194,7 +194,7 @@ A crate that exists for the client is named
     a part's fields nested under its name (`{"record":"part",
     "target":…,"name":"packages","digest":…,"packages":{…}}`); a
     variant as an object with its `kind`, as the canonical encoding has
-    it (hearth/docs/design/domain/store/README.md, 3.1), a config tree's node as `{"kind":"file",…}`. A
+    it (hearth/docs/design/domain/store/digests.md, 1.1), a config tree's node as `{"kind":"file",…}`. A
     diff prints its `change` lines, then one `outcome` line, which
     carries `from`, `to`, the counts and `left_out`, the errors past the
     bound (hearth/docs/design/domain/render/errors.md, 3): there is no `diff` record.
@@ -207,7 +207,7 @@ A crate that exists for the client is named
     does.
 - **Progress goes to standard error,** as records too: a build's steps
   as they start and end, a resolution as it starts and ends, the store's
-  wait for its lock and its strays (hearth/docs/design/domain/store/README.md, 6.2). With `--json`,
+  wait for its lock and its strays (hearth/docs/design/domain/store/state.md, 1.2). With `--json`,
   standard error is JSON lines as well, and starts with its own version
   line. Standard output holds only the answer.
 - **A command's errors are part of its answer.** `render`'s and `diff`'s
@@ -247,8 +247,8 @@ A crate that exists for the client is named
   the revision's (not while a refused `hosts/` document hides it:
   hearth/docs/design/domain/render/README.md, 3.1), an error of the answer after the targets that did
   render; else 2 if any error is a configuration error, else 75 if any
-  is operational, else, for `diff`, 1 if anything differs, else 0. A diff with a failed target (hearth/docs/design/domain/render/README.md,
-  4.1, `failed`) is then 2 or 75, never 1: what it answers is
+  is operational, else, for `diff`, 1 if anything differs, else 0. A diff with a failed target (hearth/docs/design/domain/render/diff.md,
+  1.1, `failed`) is then 2 or 75, never 1: what it answers is
   incomplete.
 
 ### 3.4 The socket and peer credentials
@@ -307,7 +307,7 @@ A crate that exists for the client is named
   7.4).
 - **Nothing else configures it in M1.** The in-process builder runs on
   built-in defaults: render's limits (hearth/docs/design/domain/render/README.md, 2.3), the store's
-  bounds (hearth/docs/design/domain/store/records.md, 1, and hearth/docs/design/domain/store/README.md, 6.1), no proxy, and its tools at fixed
+  bounds (hearth/docs/design/domain/store/records.md, 1, and hearth/docs/design/domain/store/state.md, 1.1), no proxy, and its tools at fixed
   paths, `/usr/bin/git` and `/usr/bin/mmdebstrap` (hearth/docs/design/domain/render/README.md, 2.2, and hearth/docs/design/domain/render/spec.md, 2.2
   ). It reads no configuration file, and of its environment only
   `XDG_CACHE_HOME` and `HOME`, for the store's default. The builder's
@@ -321,7 +321,7 @@ A crate that exists for the client is named
   stay the defaults: larger bounds are the daemon's (M3), and a file
   beside the store waits for a need.
 - **A second command over the same store waits** for the first to
-  release the store's lock (hearth/docs/design/domain/store/README.md, 6.2, step 1), and says once, on
+  release the store's lock (hearth/docs/design/domain/store/state.md, 1.2, step 1), and says once, on
   standard error, that it waits (3.2). The person may interrupt it.
 - **Its `main` is shell code:** it reads its arguments and those two
   variables with the standard library, opens the store as a root at
@@ -334,7 +334,7 @@ A crate that exists for the client is named
 - **M1's client never tries a socket.** There is no daemon before M3,
   so `render` and `diff` always run in-process.
 - **Uses:** a developer's machine (M1, M2); CI posting the rendered diff
-  of a change (hearth/docs/design/domain/render/README.md, section 4); the factory's builders when they
+  of a change (hearth/docs/design/domain/render/diff.md, section 1); the factory's builders when they
   run without an activator (hearth/docs/design/README.md, 4.1).
 
 ### 3.6 Root-only commands

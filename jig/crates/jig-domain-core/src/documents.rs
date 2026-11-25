@@ -1,5 +1,5 @@
 //! Typed live documents, made on demand from the core's committed vocabulary
-//! (`client/domain/contract/documents.md` and `client/domain/contract/README.md`, section 5; `domain/engine/views.md`).
+//! (`client/domain/contract/documents.md` and `client/domain/contract/watches.md`, section 1; `domain/engine/views.md`).
 //! No document is retained here, and this module neither delivers nor decides.
 //! `make` authenticates visibility from a supplied party number and copies only
 //! bounded text and lists. Its caller holds the answer until durable.
@@ -67,7 +67,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
 
 /// Make the current visible document without changing state or emitting effects.
-/// Clamp its window to the engine's rows (`client/domain/contract/README.md`, 5.2).
+/// Clamp its window to the engine's rows (`client/domain/contract/watches.md`, 1.2).
 pub fn make(
     core: &Core,
     limits: &Limits,

@@ -164,7 +164,7 @@ pub(super) fn begin_wind_down(run: &mut Run, ready: &mut crate::wind_down::Ready
     }
 }
 
-/// The completion's spend bound, supplied by the root (smith/docs/design/protocol/programs.md 5.7).
+/// The completion's spend bound, supplied by the root (smith/docs/design/protocol/programs-claude-code.md 1.7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Most {
     /// The direct backend's priced worst case, released at settlement.
@@ -208,8 +208,13 @@ pub fn completion_permit(domain: &mut Domain, conversation: Token, now: Time, mo
         | State::Stopping { .. }
         | State::Closed => return CompletionPermit::Closing,
     }
-    if !child && run.draining {
-        return CompletionPermit::Closing;
+    if run.draining {
+        if run.grace.is_some() {
+            return CompletionPermit::Held;
+        }
+        if !child {
+            return CompletionPermit::Closing;
+        }
     }
     let changed = match gate(run, now, Some(most)) {
         Some(exhausted) => begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(exhausted)),
@@ -277,7 +282,7 @@ fn working_permit(run: &mut Run, child: bool, now: Time) -> CompletionPermit {
     if let Some(exhausted) = run.charter.budget.exhausted(run.spent) {
         return CompletionPermit::Denied(exhausted);
     }
-    if !child && completion_held(run) {
+    if completion_needs_credit(run, child) {
         return CompletionPermit::Held;
     }
     if let Some(reason) = final_turn_failure(run) {
@@ -319,8 +324,40 @@ pub(super) fn final_remaining(run: &Run, now: Time) -> Result<(), Exhausted> {
     }
 }
 
-fn completion_held(run: &Run) -> bool {
-    let pending = run.turns.checked_sub(run.acknowledged).expect("acknowledged prefix never exceeds turns");
+/// Whether a held completion's admission is waiting for durable host credit.
+#[must_use]
+pub fn completion_waits_for_host(domain: &Domain, conversation: Token) -> bool {
+    let Some(conversation) = domain.conversations.get(Id::from_token(conversation)) else { return false };
+    match conversation.phase {
+        Phase::Running { .. } => {}
+        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closing | Phase::Closed => return false,
+    }
+    let run = domain.runs.get(conversation.run).expect("conversation retains run");
+    let child = conversation.asker.is_some();
+    if run.draining && (run.grace.is_some() || !child) || child && run.wind_down.is_some() {
+        return false;
+    }
+    match run.state {
+        State::Working { .. } => completion_needs_credit(run, child),
+        State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Winding { .. }
+        | State::Awaiting { .. }
+        | State::Preparing { .. }
+        | State::Stopping { .. }
+        | State::Closed => false,
+    }
+}
+
+fn completion_needs_credit(run: &Run, child: bool) -> bool {
+    if child && !run.tell_parts {
+        return false;
+    }
+    let pending = run
+        .turns
+        .checked_sub(run.acknowledged)
+        .expect("acknowledged prefix never exceeds turns")
+        .saturating_add(run.parts.checked_sub(run.kept_parts).expect("kept prefix never exceeds parts"));
     let next_bytes = match u64::from(pending).checked_add(1) {
         Some(count) => count.checked_mul(run.window.largest_turn),
         None => None,

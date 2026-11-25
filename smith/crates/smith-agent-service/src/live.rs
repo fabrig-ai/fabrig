@@ -1,7 +1,7 @@
 //! Holds admitted runs of main-conversation text and tool input until a piece or interval ends.
 //! Never chooses a completion or retains provider bytes past the held-byte bound.
 //! `act` advances the buffer through a concrete host connection; `deadline` names its oldest hold.
-//! Contracts: smith/docs/design/protocol/channel.md, 7; smith/docs/design/protocol/limits.md, 3.6.
+//! Contracts: smith/docs/design/protocol/channel.md, 7; smith/docs/design/protocol/limits-derivation.md, 1.6.
 use crate::service::link::HostLink;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Map, Queue, Time, Token, Writer};
@@ -9,7 +9,7 @@ use smith_channel::Record;
 use smith_domain::llm;
 use smith_protocol_channel::{self as channel, Piece};
 
-/// Held payload bound, independent of provider delta size (smith/docs/design/protocol/limits.md 3.6).
+/// Held payload bound, independent of provider delta size (smith/docs/design/protocol/limits-derivation.md 1.6).
 const HELD: u32 = 16_384;
 const PIECE: u32 = smith_channel::CEILINGS.live_bytes;
 
@@ -319,7 +319,17 @@ impl Live {
 
     fn end(&mut self, room: &mut HostLink<'_>) {
         self.pump(Time::from_nanos(u64::MAX), room);
-        room.lose(u64::from(self.held_bytes));
+        room.lose(self.release());
+    }
+
+    /// A gone host cannot take any of the held live pieces.
+    pub(crate) fn abandon(&mut self) -> u64 {
+        self.ask = None;
+        self.release()
+    }
+
+    fn release(&mut self) -> u64 {
+        let bytes = u64::from(self.held_bytes);
         self.first = None;
         self.held.clear();
         self.held_bytes = 0;
@@ -334,6 +344,7 @@ impl Live {
         if let Some(stream) = &mut self.stream {
             stream.ended = true;
         }
+        bytes
     }
 }
 

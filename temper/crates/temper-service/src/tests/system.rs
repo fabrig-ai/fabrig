@@ -168,7 +168,10 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
     assert!(stand.service.worker.as_ref().unwrap().git_ready(), "git completions reached the worker");
-    assert_eq!(stand.kernel.files, 11, "layout opens both checkout trees and making while keeping stores");
+    assert_eq!(
+        stand.kernel.files, 17,
+        "layout reads kept marks and scans the shared stores for a killed fetch's ref locks"
+    );
     stand.service.process.told().push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
     assert_eq!(
@@ -451,7 +454,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
     use fixtures::http as peer;
     let link = stand.service.links().pop().expect("sign-in link");
     let engine = stand.service.engine.as_mut().unwrap();
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {
@@ -564,6 +567,84 @@ fn clients_claim_a_listener_adopted_before_the_first_down() {
         }
     }
     assert_eq!(closed, 1);
+}
+
+fn providerless_init() -> crate::Service {
+    const AGENT_OUTPUT: u32 = 48_000; // The stock agent fixture's endpoint output.
+    let document = fixtures::stock_document();
+    let agent = fixtures::parsed_agent(
+        fixtures::stock_configuration(temper_service_core::derived::STOCK.payload, AGENT_OUTPUT).expect("stock agent"),
+    );
+    // The scripted stand has no LLM accounts shell. The demo endpoint is a
+    // separate fact from the absent clients sign-in provider.
+    let mut providers = crate::stock::providers();
+    for provider in &mut providers {
+        provider.provider.sign_in = None;
+    }
+    let demo = crate::stock::scripted(([127, 0, 0, 1], 8370).into());
+    let given = crate::stock::Given::Stock.with_providers(providers, Box::new([demo]));
+    let files = fixtures::stock_files();
+    let seeds = fixtures::seeds();
+    let checked = crate::startup::checked_start_with(
+        &document,
+        &jig_protocol_config::Directories::working(),
+        &files,
+        Some(&agent),
+        &seeds,
+        skein_lib::List::with_capacity(0),
+        None,
+        &given,
+        None,
+    )
+    .expect("providerless init is admitted");
+    let store_profile = checked.engine.jig.limits.store;
+    let models = jig_protocol_config::core(&checked.engine.jig, seeds.deployment, seeds.seed).settings.models;
+    let mut service = crate::startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
+        None,
+        Some(fixtures::worker_runtime()),
+        None,
+        None,
+        Box::new([]),
+    )
+    .expect("providerless init starts");
+    let engine = service.engine_component();
+    engine.replace_store(fixtures::memory_store_for(engine.limits(), &store_profile, &models));
+    service
+}
+
+#[test]
+fn providerless_init_reaches_clients_listening() {
+    // Bound startup and drain as in the adopted listener's scripted stand.
+    const TURNS: u16 = 256;
+    let mut stand = fixtures::system::SystemStand { service: providerless_init(), kernel: fixtures::Kernel::new() };
+    let expected = crate::Note::Engine(crate::EngineNote::Listening {
+        listener: crate::Listening::Clients,
+        addr: ([127, 0, 0, 1], 8367).into(),
+    });
+    let mut listening = false;
+    for _ in 0..TURNS {
+        stand.turn();
+        assert_eq!(stand.service.end(), None, "serve must stay up");
+        while let Some(note) = stand.service.listening().pop() {
+            listening |= note == expected;
+        }
+        if listening {
+            break;
+        }
+    }
+    assert!(listening, "the clients listener of the init profile came up");
+    stand.service.shutdown();
+    for _ in 0..TURNS {
+        stand.turn();
+        if stand.service.is_empty() {
+            break;
+        }
+    }
+    assert!(stand.service.is_empty(), "serve drains when stopped");
 }
 
 #[test]

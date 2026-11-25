@@ -3,7 +3,7 @@
 //! a no-progress deadline above its silence, tool and endpoint bounds.
 //! Watchdog contract: smith/docs/design/domain/host.md, section 4.
 //! Contracts: smith/docs/design/shell/README.md, sections 2.1 and 2.6;
-//! smith/docs/design/protocol/limits.md, sections 3.6 and 3.8.
+//! smith/docs/design/protocol/limits-derivation.md, sections 1.6 and 1.8.
 
 use crate::profile::{Check, Layer, LimitName, Refusal, Value};
 use skein_lib::Duration;
@@ -11,6 +11,30 @@ use smith_channel::Record;
 use smith_host_domain as host;
 
 const HOST_FACTS: u32 = 1024;
+
+impl crate::Limits {
+    /// Resolve the agent's link once the configuration has chosen its event destinations.
+    pub fn resolve_link(
+        &mut self,
+        profile: &crate::profile::Profile,
+        endpoints: &[smith_domain::EndpointLimits],
+    ) -> Result<(), Refusal> {
+        match self.link {
+            crate::Link::Policy { .. } => {
+                let host = host_limits(profile, self, endpoints)?;
+                let orphan_exit = crate::orphan_exit(&host)
+                    .ok_or(Refusal::Derived { limit: LimitName::deployment(Layer::Service, "orphan_exit") })?;
+                self.link = crate::Link::Derived {
+                    cancel_grace: host.cancel_grace,
+                    no_progress: host.no_progress,
+                    orphan_exit,
+                };
+                Ok(())
+            }
+            crate::Link::Derived { .. } => Ok(()),
+        }
+    }
+}
 
 /// Build the host's window and watchdog from its agent and endpoint bounds.
 pub fn host_limits(

@@ -1,4 +1,4 @@
-//! Machine output and failure tails (protocol/git.md, sections 4 and 6).
+//! Machine output and failure tails (protocol/git-operations.md, section 1, and protocol/git.md, section 6).
 use crate::{Version, invocation};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
@@ -22,7 +22,7 @@ fn split(input: &[u8], delimiter: u8) -> Option<(&[u8], &[u8])> {
     Some((input.get(..at)?, input.get(at.checked_add(1)?..)?))
 }
 
-/// The one decimal packs line from bounded count-objects stdout (protocol/git.md, 4.13).
+/// The one decimal packs line from bounded count-objects stdout (protocol/git-operations.md, 1.14).
 #[must_use]
 pub fn packs(stdout: &[u8]) -> Option<u32> {
     let mut found = None;
@@ -175,7 +175,7 @@ pub(crate) fn design_paths(stdout: &[u8], checkout: &checkout::Limits, markdown:
     paths.finish()
 }
 
-/// The first checkout-bounded paths, dropping a last incomplete path (git.md, 4.6).
+/// The first checkout-bounded paths, dropping a last incomplete path (protocol/git-operations.md, 1.6).
 #[must_use]
 pub(crate) fn conflict_paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]>]>> {
     listed_paths(stdout, checkout, true)
@@ -261,6 +261,14 @@ pub fn version(stdout: &[u8]) -> Option<Version> {
 /// Last matching fatal/error line wins; local failures always are Broken.
 #[must_use]
 pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
+    classify_failure(tail, 0, kind).err().unwrap_or(git::Fault::Broken)
+}
+
+pub(crate) fn counts_failure(tail: &[u8], cut: u64) -> Result<(), git::Fault> {
+    classify_failure(tail, cut, git::Kind::Counts)
+}
+
+fn classify_failure(tail: &[u8], cut: u64, kind: git::Kind) -> Result<(), git::Fault> {
     match kind {
         git::Kind::Reds
         | git::Kind::Reset
@@ -271,12 +279,14 @@ pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
         | git::Kind::DiffPaths
         | git::Kind::Brings
         | git::Kind::IsAncestor
+        | git::Kind::Keep
         | git::Kind::Make
         | git::Kind::Commit => {
-            return git::Fault::Broken;
+            return Err(git::Fault::Broken);
         }
         git::Kind::Store
         | git::Kind::Fetch
+        | git::Kind::Counts
         | git::Kind::Create
         | git::Kind::Push
         | git::Kind::CheckOut
@@ -286,46 +296,49 @@ pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
     for (at, byte) in tail.iter().enumerate().rev() {
         if *byte == b'\n' {
             let start = at.checked_add(1).expect("index within tail");
-            if let Some(fault) = line_fault(tail.get(start..end).expect("line within tail"), kind) {
+            if let Some(fault) = line_fault(tail.get(start..end).expect("line within tail"), kind, true) {
                 return fault;
             }
             end = at;
         }
     }
-    line_fault(tail.get(..end).expect("first line within tail"), kind).unwrap_or(git::Fault::Broken)
+    line_fault(tail.get(..end).expect("first line within tail"), kind, cut == 0).unwrap_or(Err(git::Fault::Broken))
 }
-fn line_fault(line: &[u8], kind: git::Kind) -> Option<git::Fault> {
-    if line.starts_with(b"fatal: repository '") && line.ends_with(b"' not found") {
-        return Some(git::Fault::Missing { missing: git::Missing::Repository });
+fn line_fault(line: &[u8], kind: git::Kind, whole: bool) -> Option<Result<(), git::Fault>> {
+    if whole && kind == git::Kind::Counts && line == b"fatal: couldn't find remote ref refs/temper/counts" {
+        return Some(Ok(()));
     }
-    if kind == git::Kind::Fetch {
+    if line.starts_with(b"fatal: repository '") && line.ends_with(b"' not found") {
+        return Some(Err(git::Fault::Missing { missing: git::Missing::Repository }));
+    }
+    if kind == git::Kind::Fetch || kind == git::Kind::Counts {
         if line.starts_with(b"fatal: couldn't find remote ref ") {
-            return Some(git::Fault::Missing { missing: git::Missing::Branch });
+            return Some(Err(git::Fault::Missing { missing: git::Missing::Branch }));
         }
         if line.starts_with(b"fatal: remote error: upload-pack: not our ref ") {
-            return Some(git::Fault::Missing { missing: git::Missing::Commit });
+            return Some(Err(git::Fault::Missing { missing: git::Missing::Commit }));
         }
     }
     if line.starts_with(b"fatal: could not read Username for ")
         || line.starts_with(b"fatal: Authentication failed for ")
     {
-        return Some(git::Fault::Refused);
+        return Some(Err(git::Fault::Refused));
     }
     if let Some(rest) = line.strip_prefix(b"fatal: unable to access '")
         && let Some(at) = bytes::find(rest, b"': ")
     {
         let reason = rest.get(at.checked_add(3)?..)?;
-        return Some(match reason {
+        return Some(Err(match reason {
             b"The requested URL returned error: 401" | b"The requested URL returned error: 403" => git::Fault::Refused,
             b"The requested URL returned error: 404" => git::Fault::Missing { missing: git::Missing::Repository },
             _ => git::Fault::Unreachable,
-        });
+        }));
     }
     if line.starts_with(b"fatal: the remote end hung up unexpectedly")
         || line.starts_with(b"fatal: early EOF")
         || line.starts_with(b"error: RPC failed")
     {
-        return Some(git::Fault::Unreachable);
+        return Some(Err(git::Fault::Unreachable));
     }
     None
 }

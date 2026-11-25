@@ -41,6 +41,7 @@ pub(crate) fn prepare_start(
             let mut directories = List::with_capacity(count);
             for directory in workspace.directories {
                 let item = channel::Directory {
+                    results: None,
                     host: directory.host,
                     root: directory.root,
                     name: directory.name,
@@ -78,6 +79,8 @@ pub(crate) fn prepare_start(
         }
     }
     Ok(host::Start {
+        tell_parts: false,
+        parts: Box::default(),
         live: if source.live_text {
             Some(channel::LiveAsk { text: true, reasoning: false, input: false })
         } else {
@@ -154,7 +157,7 @@ impl Agent {
         }
     }
 
-    /// Child facts and unrouted output counted by the local service (protocol/limits.md 3.8).
+    /// Child facts and unrouted output counted by the local service (protocol/limits-derivation.md 1.8).
     pub(crate) fn backlog(&self) -> u32 {
         match self {
             Self::Inline { domain, out, .. } => {

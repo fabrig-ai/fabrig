@@ -1368,6 +1368,7 @@ fn forges(world: World) -> Box<[u8]> {
     let mut rows = List::with_capacity(3);
     if has_playground(world) && world != (FirstRun { step: 7 }) {
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -1395,6 +1396,7 @@ fn forges(world: World) -> Box<[u8]> {
             .push(w::Installation { id: 1, account: None, suspended: false, stray: false })
             .expect("installation room");
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -1456,6 +1458,7 @@ fn forges(world: World) -> Box<[u8]> {
             _ => w::Connection::NotSetUp,
         };
         rows.push(w::ForgeRow {
+            catching_up: None,
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -1500,7 +1503,6 @@ fn forges(world: World) -> Box<[u8]> {
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;
-    let l = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let (branch, head_prefix, pull_number, pull_address, step) = match (w, task) {
         (Reference, 28) => {
             let mut ahead = List::with_capacity(1);
@@ -1540,7 +1542,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         branch: Box::from(branch),
         landing: Box::from(b"main".as_slice()),
         head: Some(head),
-        pull: Some(gallery_pull(&l, pull_number, pull_address)),
+        pull: Some(gallery_pull(pull_number, pull_address)),
         step,
         hold: None,
         runs: None,
@@ -1559,11 +1561,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
         },
     })
 }
-fn gallery_pull(
-    _limits: &temper_client_protocol_wire::v1::Limits,
-    number: u64,
-    address: &[u8],
-) -> temper_client_protocol_wire::v1::Pull {
+fn gallery_pull(number: u64, address: &[u8]) -> temper_client_protocol_wire::v1::Pull {
     use temper_client_protocol_wire::v1 as w;
     w::Pull { number, address: Box::from(address) }
 }
@@ -1711,6 +1709,8 @@ fn task_line(t: c::Task) -> c::TaskLine {
         last_activity: t.last_activity,
         budget: t.budget,
         waits_on: t.waits_on,
+        wait: None,
+        nearest: None,
         phases: c::PhaseCounts::ZERO,
         delegates_done: 0,
         delegates_total: 0,
@@ -3805,7 +3805,7 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     }
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
-/// Held facts for the usage gallery; no account read is simulated (client/pages/accounts.md, 2, Usage).
+/// Held facts for the usage gallery; no account read is simulated (client/pages/accounts-words.md, 1, Usage).
 #[expect(
     clippy::type_complexity,
     reason = "literal gallery windows keep their served rate beside the held fact fields"
@@ -4254,6 +4254,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
         key_bytes: 4096,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: Wall::from_nanos(86_400_000_000_000),
     }
 }
 #[expect(clippy::too_many_lines, reason = "the gallery's base task spells out every specification field")]
@@ -4316,6 +4317,10 @@ fn base_task(number: u64, title: &str) -> c::Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         goal: None,
         priority: None,
         lineage_chips: List::with_capacity(0),
@@ -5148,6 +5153,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
             .expect("one landing");
     }
     v::ChangesPanel {
+        catching_up: None,
         landed_default: List::with_capacity(0),
         landed_default_more: 0,
         project: PROJECT,

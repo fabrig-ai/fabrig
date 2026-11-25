@@ -1,7 +1,7 @@
 # The outbox's room
 
-Provisional, 2026-11-16, from `../../draft/outbox-room-wait.md`. How the
-forge's outbox, bounded by `forge.entries` (`README.md`, section 4),
+Provisional, 2026-11-16, from `../../draft/archive/outbox-room-wait.md`. How the
+forge's outbox, bounded by `forge.entries` (`effects.md`, section 1),
 gives its room to the writes that ask for it: a write that finds no room
 waits for it in one line, first come first served, and a hold stays only
 for a write that can never fit. Goal branches' makings waited so first
@@ -13,6 +13,9 @@ cleanup wait the same way, in the same line.
 - **Room is the bound less what holds it:** the entries in the outbox
   and the reservations, each room promised to a write a check admitted
   whose entry is not yet kept (section 2).
+- **An entry leaves with its write's outcome,** though its writer still
+  follows what it made, and an ended landing's writes leave as they
+  settle (section 2).
 - **One line, by place:** a write that finds no room takes the line's
   last place and waits, holding no entry number and polling nothing.
   Room that frees goes to the first waiter by place, and a newcomer
@@ -51,6 +54,15 @@ cleanup wait the same way, in the same line.
 - **Room frees** as an entry leaves the outbox, by its write's outcome,
   its withdrawal or its settling as not made, and as a reservation ends
   without an entry.
+- **An entry lives as long as its write, no longer:** it leaves at its
+  write's outcome even where its writer goes on following what the
+  write made, as a landing follows its gate's run; the writer keeps what
+  following needs on its own row (`../landing-proof.md`, 2.1). A landing that
+  ends, landed or cancelled, withdraws each of its entries not yet sent,
+  and each in flight leaves at its outcome, settled as that outcome
+  says, though its landing has ended (`../landing.md`, 4.2). So an
+  ended landing holds no room once its writes settle, and its row
+  yields its place among the landings (`../landing-forming.md`, 2.3).
 
 ### 2.1 A full outbox names its holders
 
@@ -62,12 +74,12 @@ outbox whose eight places cancelled landings held, and no line said so.
 - **Its holders, oldest first:** its entries by number, which follow
   commit order, then its reservations in the order they were made; each
   named by its entry and task or by whom its room is promised to, in the
-  words of `../../protocol/README.md`, 6.3, with the room line's waiters
-  counted (section 3).
+  words of `../../protocol/service-process.md`, 1.3, with the room line's waiters
+  counted (`room.md`, section 3).
 - **Past the report bound,** and again at each doubling of how long it
   has been full, the forge reports them, the root's fact the service
   writes; after such a report, one more when a place frees
-  (`../../protocol/README.md`, 6.3). The forges' document carries it
+  (`../../protocol/service-process.md`, 1.3). The forges' document carries it
   while it lasts, past the bound (`../../client/forge/deployment.md`,
   *Its load*).
 - **Read admission** is reported the same way, from the client's calls
@@ -80,9 +92,9 @@ outbox whose eight places cancelled landings held, and no line said so.
 
 - **Its waiters:** a change's effect (`change/README.md`, 2), a
   landing's write (`../landing.md`, section 11), release cleanup's
-  comment, close and branch deletion (`README.md`, section 4), and a
+  comment, close and branch deletion (`effects.md`, section 1), and a
   goal branch's making (`branches.md`, 1). Each joins the line only once
-  what refuses it for good has passed (section 6).
+  what refuses it for good has passed (`room.md`, section 6).
 - **A place:** a write that finds no room takes the place one past the
   greatest in the line, 1 in an empty line, and keeps it while it waits;
   one that meets no room again waits again in the same place. A change,
@@ -105,7 +117,7 @@ outbox whose eight places cancelled landings held, and no line said so.
 - **Asked, it decides again:** the waiter asked reads its facts afresh,
   decides again, and its effect is admitted by the core's authority
   again; the entry it then keeps is journalled before it is sent, as
-  every entry is (`README.md`, section 4). Its decision may differ from
+  every entry is (`effects.md`, section 1). Its decision may differ from
   the one that waited: a change that now needs an update rather than its
   merge sends the update. A turn that keeps an entry leaves the line, its
   reservation taken by the entry; a turn that decides no write leaves
@@ -129,16 +141,17 @@ outbox whose eight places cancelled landings held, and no line said so.
   `Stalled` for the time it waits.
 - **Restart:** the places restored with their records are the line, a
   place on the record of a task that has ended dropped; makings rejoin
-  it behind them as they meet no room. No ask survives a restart: once
-  the restored outbox has settled (`README.md`, section 9), the forge
-  asks again from the first place as room allows. A restored change
+  it behind them as they meet no room. No ask survives a restart: from
+  the beginning of the forge's catching up, at the engine's opening
+  (`catching-up.md`, 3), the forge asks again from the first place as
+  room allows, the restored entries counting against the room. A restored change
   steps as every restored change does, and waits again in its place
   where the room is not its.
 - **Cancel:** a cancelled change or landing leaves the line as it ends,
   an ask's reservation given back. Release cleanup keeps its place
   through a cancel that replaces a closing's ending, since its write is
   still to be made. A forge removed takes its waiters out of the line
-  (`adoption.md`, 1).
+  (`adoption-connection.md`, 1).
 
 ## 5. Agent calls answer at once
 
@@ -171,17 +184,17 @@ Decided by the user, 2026-11-16.
   repository not adopted, adopted to be read, or whose adoption does not
   take the write's kind; an entry number already in the outbox; and a
   write over `forge.client.op_bytes`, measured as the client measures a
-  new entry (skein's `forge/client.md`, 7.2). Each ends as its writer
+  new entry (skein's `forge/client-effects.md`, 1.2). Each ends as its writer
   ends such a write now.
 - **A full outbox refuses no one:** the limit's refusal for
   `forge.entries`, and the hold its words named (raise the limit,
   restart, release), are no longer reached by a write. The figure stays
-  the user's (`../../draft/outbox-room-wait.md`, 2).
+  the user's (`../../draft/archive/outbox-room-wait.md`, 2).
 
 ## 7. A waiting change's panel
 
 - **Its wait is typed:** while a change holds a place, its panel carries
-  the wait `OutboxRoom` (`change/README.md`, 5), and the client says
+  the wait `OutboxRoom` (`change/panel.md`, 1), and the client says
   `Waiting for room in the forge outbox.` beneath its step
   (`../../client/forge/README.md`, 2.1). Admitted, or leaving the line,
   its next save clears it. A held change shows its hold alone. The

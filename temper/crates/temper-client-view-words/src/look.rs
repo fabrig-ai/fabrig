@@ -44,7 +44,7 @@ pub const MS_GOAL: Style = Style { owner: owner(), token: 810 };
 /// A milestone in a need's from line (client/pages/needs-you.md, 1).
 pub const MS_FROM: Style = Style { owner: owner(), token: 830 };
 
-/// Account rows' quiet lines and moves (client/pages/accounts.md, 2).
+/// Account rows' quiet lines and moves (client/pages/accounts-words.md, 1).
 pub const ACCOUNT_CHECK: Style = Style { owner: owner(), token: 831 };
 pub const ACCOUNT_PAYS: Style = Style { owner: owner(), token: 832 };
 pub const ACCOUNT_ACTS: Style = Style { owner: owner(), token: 833 };
@@ -52,7 +52,7 @@ pub const ACCOUNT_REMOVE: Style = Style { owner: owner(), token: 834 };
 pub const ACCOUNT_MOVE: Style = Style { owner: owner(), token: 835 };
 pub const ACCOUNT_UP: Style = Style { owner: owner(), token: 836 };
 pub const ACCOUNT_DOWN: Style = Style { owner: owner(), token: 837 };
-/// Held usage windows (client/pages/accounts.md, 2, Usage).
+/// Held usage windows (client/pages/accounts-words.md, 1, Usage).
 pub const USAGE: Style = Style { owner: owner(), token: 846 };
 pub const USAGE_WINDOW: Style = Style { owner: owner(), token: 847 };
 pub const USAGE_NAME: Style = Style { owner: owner(), token: 848 };
@@ -321,7 +321,7 @@ pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
 pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
 /// The rail switcher's actions.
 pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
-/// The switcher's phone-only links (client/view.md, 3).
+/// The switcher's phone-only links (client/view-navigation.md, 1).
 pub const PROJECTS_PHONE: Style = Style { owner: owner(), token: 196 };
 /// A switcher row's repository words.
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
@@ -693,11 +693,11 @@ pub const WELCOME_TAGLINE: Style = Style { owner: owner(), token: 157 };
 pub const PROJECTS: Style = Style { owner: owner(), token: 159 };
 /// The banner's way out of the playground (temper/docs/design/client/pages/welcome.md, 2).
 pub const LEAVE_PLAYGROUND: Style = Style { owner: owner(), token: 160 };
-/// The switcher's Rename, at the end of the open project's row (temper/docs/design/client/view.md, 3).
+/// The switcher's Rename, at the end of the open project's row (temper/docs/design/client/view-navigation.md, 1).
 pub const PROJECT_RENAME: Style = Style { owner: owner(), token: 161 };
-/// The switcher's new project, its list's last row (temper/docs/design/client/view.md, 3).
+/// The switcher's new project, its list's last row (temper/docs/design/client/view-navigation.md, 1).
 pub const PROJECT_NEW: Style = Style { owner: owner(), token: 162 };
-/// The open project's row while it is renamed (temper/docs/design/client/view.md, 3).
+/// The open project's row while it is renamed (temper/docs/design/client/view-navigation.md, 1).
 pub const PROJECT_RENAME_FORM: Style = Style { owner: owner(), token: 163 };
 /// The Welcome step's temper box paragraph under its cards (client/pages/welcome.md, 1).
 pub const WELCOME_BOX_NOTE: Style = Style { owner: owner(), token: 766 };
@@ -721,7 +721,7 @@ pub const WELCOME_SHEET_FOOT: Style = Style { owner: owner(), token: 171 };
 pub const WELCOME_PROJECT: Style = Style { owner: owner(), token: 172 };
 /// The welcome forge's indeterminate setup bar (temper/docs/design/client/pages/README.md).
 pub const FLOW_BUSY: Style = Style { owner: owner(), token: 173 };
-/// The welcome forge's fetch meter (temper/docs/design/draft/fetch-progress.md, 5 and 6).
+/// The welcome forge's fetch meter (temper/docs/design/draft/archive/fetch-progress.md, 5 and 6).
 /// No node carries it yet.
 pub const FLOW_METER: Style = Style { owner: owner(), token: 174 };
 /// The project settings (temper/docs/design/client/pages/README.md).
@@ -748,21 +748,21 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Description, MODEL_FACT, "dd"),
     (owner(), skein_ui::Role::Heading { level: 3 }, ADMIN_LEGEND, "legend"),
 ];
-/// The project's navigation frame (client/view.md, 3).
+/// The project's navigation frame (client/view-navigation.md, 1).
 pub const RAIL: Style = Style { owner: owner(), token: 175 };
 /// The rail's navigation entries.
 pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
-/// The unnamed hairline before How work runs (client/view.md, 3).
+/// The unnamed hairline before How work runs (client/view-navigation.md, 1).
 pub const RAIL_SEP: Style = Style { owner: owner(), token: 646 };
 /// The rail's new box.
 pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
 /// The rail's Away switch, status, Deployment and person.
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
-/// The browser’s night switch (temper/docs/design/client/view.md, 3).
+/// The browser’s night switch (temper/docs/design/client/view-navigation.md, 1).
 pub const NIGHT_SWITCH: Style = Style { owner: owner(), token: 608 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
-/// To begin's tab bar stays below a phone's Ask composer (client/view.md, 3).
+/// To begin's tab bar stays below a phone's Ask composer (client/view-navigation.md, 1).
 pub const TABBAR_BEGINNING: Style = Style { owner: owner(), token: 647 };
 /// Forge status in the welcome's column (client/pages/README.md).
 pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 373 };
@@ -1814,17 +1814,17 @@ pub const DECISION_ALLOWED: Style = Style { owner: owner(), token: 688 };
 
 /// The last word of a turn being written (client/pages/README.md).
 pub const WRITING_END: Style = Style { owner: owner(), token: 469 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
+/// A confirmation sheet (client/root.md, 1.6, The sheet).
 pub const CONFIRM: Style = Style { owner: owner(), token: 464 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
+/// A confirmation sheet (client/root.md, 1.6, The sheet).
 pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 465 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
+/// A confirmation sheet (client/root.md, 1.6, The sheet).
 pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 466 };
-/// A confirmation sheet (client/README.md, 3.6, The sheet).
+/// A confirmation sheet (client/root.md, 1.6, The sheet).
 pub const CONFIRM_DO: Style = Style { owner: owner(), token: 467 };
-/// An uncertain release's choices (client/README.md, 3.6, The sheet).
+/// An uncertain release's choices (client/root.md, 1.6, The sheet).
 pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 468 };
-/// The browser's person menu (client/view.md, 3).
+/// The browser's person menu (client/view-navigation.md, 1).
 pub const RAIL_PERSON: Style = Style { owner: owner(), token: 462 };
 /// The Accounts tab's sign-out row (client/pages/README.md).
 pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 463 };
@@ -2147,7 +2147,7 @@ pub const NEEDS_BAR: Style = Style { owner: owner(), token: 721 };
 /// Its place in the open cards (temper/docs/design/client/pages/README.md).
 pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 722 };
 
-/// The phone's Ask tab (temper/docs/design/client/view.md, 3).
+/// The phone's Ask tab (temper/docs/design/client/view-navigation.md, 1).
 pub const TABBAR_ASK: Style = Style { owner: owner(), token: 723 };
 
 /// Only you's region (temper/docs/design/client/pages/README.md, Only you).

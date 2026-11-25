@@ -15,6 +15,37 @@ pub const MOTD_KIND_SHA256: Digest = Digest([
 /// The plan's sixty-four-seed sweep covers every fault repeatedly.
 pub const FUZZY_PROTOCOL_SEEDS: core::ops::Range<u64> = 0..64;
 pub const PROTOCOL_LOCK_RELEASE: skein_lib::Time = skein_lib::Time::from_nanos(2_500_000_000);
+const THIN_SNAPSHOT: &[u8] = b"20261001T030405Z";
+const PINNED_SNAPSHOT: &[u8] = b"20261017T143929Z";
+const RECORDED_PROXY_PORT: u16 = 3142;
+const MMDEBSTRAP_VERSION: &str = "1.5.7-apt3.0.4";
+
+#[derive(Clone, Copy, Debug)]
+pub enum RecordedFailure {
+    UnknownPackage,
+    UnreachableMirror,
+}
+impl RecordedFailure {
+    #[must_use]
+    pub fn output(self) -> hearth_fake_mmdebstrap::face::Printed {
+        let case = match self {
+            Self::UnknownPackage => "unknown-package",
+            Self::UnreachableMirror => "unreachable-mirror",
+        };
+        let recording = hearth_recordings::read("mmdebstrap", MMDEBSTRAP_VERSION, case);
+        hearth_fake_mmdebstrap::face::Printed {
+            stdout: recording.stdout.into(),
+            stderr: recording.stderr.into(),
+            exit: recording.exit.parse().expect("recorded failure exit status"),
+        }
+    }
+}
+
+#[must_use]
+pub fn recorded_proxy(limits: &hearth_protocol_builder::limits::Limits) -> hearth_protocol_builder::Proxy {
+    let url = format!("http://127.0.0.1:{RECORDED_PROXY_PORT}/");
+    hearth_protocol_builder::Proxy::new(url.as_bytes(), &limits.mmdebstrap).expect("fixture proxy URI")
+}
 
 #[must_use]
 pub fn diff_motd(form: hearth::Form) -> Scenario<'static> {
@@ -42,13 +73,40 @@ pub fn many_blobs() -> Vec<File> {
 }
 
 pub fn serve(shared: &Shared) {
+    serve_at(shared, THIN_SNAPSHOT, None);
+}
+
+pub fn serve_for_protocol(shared: &Shared, fault: Option<Fault>) {
+    match fault {
+        Some(Fault::Resolution(RecordedFailure::UnknownPackage)) => {
+            serve_at(shared, PINNED_SNAPSHOT, Some(RECORDED_PROXY_PORT));
+        }
+        Some(Fault::Resolution(RecordedFailure::UnreachableMirror)) => {}
+        _ => serve(shared),
+    }
+}
+
+fn serve_at(shared: &Shared, snapshot: &[u8], port: Option<u16>) {
     let universe = shared.borrow().universe.clone();
     let mut mirror = Mirror::new();
     mirror.add(
-        Timestamp::new(b"20261001T030405Z").expect("fixture timestamp"),
+        Timestamp::new(snapshot).expect("fixture timestamp"),
         Suite::new(Release::debian(b"forky", b"forky"), b"amd64", Box::new([(b"main".as_slice().into(), universe)])),
     );
-    shared.borrow_mut().behind.machine_mut().serve(mirror, None);
+    shared.borrow_mut().behind.machine_mut().serve(mirror, port);
+}
+
+#[must_use]
+pub fn recorded_resolution_failure(files: &[File], failure: RecordedFailure) -> Scenario<'_> {
+    let mut scenario = super::resolving(files);
+    scenario.fault = Some(Fault::Resolution(failure));
+    scenario.call = Call::Render {
+        resolve: true,
+        repository: GIT_DIR.into(),
+        revision: b"HEAD".as_slice().into(),
+        targets: Box::new([b"test-min".as_slice().into()]),
+    };
+    scenario
 }
 
 #[must_use]
@@ -59,6 +117,7 @@ pub fn faulty(fault: Fault) -> Scenario<'static> {
 pub fn each_protocol(scenario: &Scenario<'_>, mut test: impl FnMut(crate::protocol::Run, u64)) {
     for seed in super::WORLD_SEEDS {
         test(crate::protocol::run(scenario, seed), seed);
+        skein_checks::count("seed", 1);
     }
 }
 

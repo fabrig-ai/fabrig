@@ -1,5 +1,5 @@
 //! Core-owned held-recipient selection and restore validation
-//! (domain/engine/README.md, sections 3 and 4.4).
+//! (domain/engine/README.md, section 3, and domain/engine/vocabulary.md, section 1.4).
 
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -14,15 +14,9 @@ fn fallback(core: &Core, project: u32) -> Option<tasks::EscalationHolder> {
     Some(tasks::EscalationHolder::Role { project, role })
 }
 
-fn covers(
-    core: &Core,
-    limits: &Limits,
-    context: &tasks::EscalationContext,
-    person: u64,
-    role: Option<people::Role>,
-) -> bool {
+fn covers(core: &Core, limits: &Limits, project: u32, person: u64, role: Option<people::Role>) -> bool {
     let Some(role) = role else { return false };
-    let pool = tasks::Funder::Pool { project: context.project, person, period: core.period(context.project) };
+    let pool = tasks::Funder::Pool { project, person, period: core.period(project) };
     let numbers = match core.tasks.funding(pool) {
         Some(record) => record.numbers,
         None => tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
@@ -32,7 +26,7 @@ fn covers(
         &core.authority,
         &needed,
         &authority::Holder::Person {
-            project: context.project,
+            project,
             role: role.number(),
             proposal: authority::ProposalKind::Escalation,
             pool: translate::authority_numbers(numbers),
@@ -77,16 +71,15 @@ fn recipient(
 
 /// A job's requesting procedure hears its hold through its next step
 /// (jig/docs/design/domain/engine/executors.md, 5).
-fn job_requester(core: &Core, context: &tasks::EscalationContext, parent: u64) -> bool {
-    let Some(job) = core.tasks.task(context.task) else { return false };
+fn job_requester(core: &Core, task: u64, requester: &tasks::TaskRecord) -> bool {
+    let Some(job) = core.tasks.task(task) else { return false };
     match job.executor {
-        tasks::Executor::Job { .. } if job.requester == tasks::Party::Task(parent) => {}
+        tasks::Executor::Job { .. } if job.requester == tasks::Party::Task(requester.number) => {}
         tasks::Executor::Job { .. }
         | tasks::Executor::Agent { .. }
         | tasks::Executor::Procedure { .. }
         | tasks::Executor::Person(_) => return false,
     }
-    let Some(requester) = core.tasks.task(parent) else { return false };
     match requester.executor {
         tasks::Executor::Procedure { .. } => {}
         tasks::Executor::Agent { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return false,
@@ -98,8 +91,7 @@ fn job_requester(core: &Core, context: &tasks::EscalationContext, parent: u64) -
 }
 
 /// A standing agent's requester ends it, but it still decides its delegates' holds.
-fn standing_requester(core: &Core, task: u64) -> bool {
-    let Some(row) = core.tasks.task(task) else { return false };
+fn standing_requester(row: &tasks::TaskRecord) -> bool {
     if row.flags.ended_by != tasks::EndedBy::Standing || !row.waiting_on.is_empty() {
         return false;
     }
@@ -132,56 +124,137 @@ fn recipient_after(
     requester_role: Option<people::Role>,
     after: Option<tasks::EscalationHolder>,
 ) -> Option<tasks::EscalationHolder> {
-    match context.escalation {
-        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Role { .. }, .. } => {
-            fallback(core, context.project)
+    if let tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Role { .. }, .. } = context.escalation {
+        return fallback(core, context.project);
+    }
+    route(
+        core,
+        limits,
+        &Route {
+            task: context.task,
+            project: context.project,
+            requester: context.requester,
+            immediate: context.immediate,
+        },
+        requester_role,
+        after,
+    )
+}
+
+struct Route {
+    task: u64,
+    project: u32,
+    requester: u64,
+    immediate: tasks::Party,
+}
+
+fn route(
+    core: &Core,
+    limits: &Limits,
+    context: &Route,
+    requester_role: Option<people::Role>,
+    after: Option<tasks::EscalationHolder>,
+) -> Option<tasks::EscalationHolder> {
+    let needed = authority::needs(&authority::Action::Escalate { release: None })?;
+    let mut above = context.immediate;
+    let mut distance = 1_u32;
+    let mut passed = after.is_none();
+    for _ in 0..limits.tasks.depth.saturating_add(1) {
+        let parent = match above {
+            tasks::Party::Task(parent) => parent,
+            tasks::Party::Person(_) | tasks::Party::Deployment { .. } => break,
+        };
+        let Some((holder, deciding, tasks_left)) = core.tasks.delegation_row(parent) else {
+            return fallback(core, context.project);
+        };
+        if passed
+            && (deciding || standing_requester(holder) || job_requester(core, context.task, holder))
+            && holder.project == context.project
+            && translate::task_holder_covers(&core.authority, &needed, holder, tasks_left, distance)
+        {
+            return Some(tasks::EscalationHolder::Task(parent));
         }
-        tasks::Escalation::Unheld { .. }
-        | tasks::Escalation::Routing { .. }
-        | tasks::Escalation::Waiting { .. }
-        | tasks::Escalation::Rejected { .. } => {
-            let needed = authority::needs(&authority::Action::Escalate { release: None })?;
-            let mut above = context.immediate;
-            let mut distance = 1_u32;
-            let mut passed = after.is_none();
-            for _ in 0..limits.tasks.depth.saturating_add(1) {
-                let parent = match above {
-                    tasks::Party::Task(parent) => parent,
-                    tasks::Party::Person(_) | tasks::Party::Deployment { .. } => break,
-                };
-                let Some(holder) = core.tasks.delegation(parent) else {
-                    return fallback(core, context.project);
-                };
-                if passed
-                    && (holder.deciding || standing_requester(core, parent) || job_requester(core, context, parent))
-                    && holder.project == context.project
-                    && authority::covers(
-                        &core.authority,
-                        &needed,
-                        &authority::Holder::Task {
-                            project: context.project,
-                            authority: translate::tasks_authority(&holder.authority),
-                            numbers: translate::authority_numbers(holder.numbers),
-                            tasks_left: holder.tasks_left,
-                        },
-                        distance,
-                    )
-                {
-                    return Some(tasks::EscalationHolder::Task(parent));
-                }
-                if after == Some(tasks::EscalationHolder::Task(parent)) {
-                    passed = true;
-                }
-                above = holder.requester;
-                distance = distance.checked_add(1)?;
-            }
-            if passed && context.requester != 0 && covers(core, limits, context, context.requester, requester_role) {
-                Some(tasks::EscalationHolder::Person(context.requester))
-            } else {
-                fallback(core, context.project)
-            }
+        if after == Some(tasks::EscalationHolder::Task(parent)) {
+            passed = true;
+        }
+        above = holder.requester;
+        distance = distance.checked_add(1)?;
+    }
+    if passed && context.requester != 0 && covers(core, limits, context.project, context.requester, requester_role) {
+        Some(tasks::EscalationHolder::Person(context.requester))
+    } else {
+        fallback(core, context.project)
+    }
+}
+
+/// Read the route a hold on this row would use, even before it has a hold.
+pub(crate) fn wait_holder(
+    core: &Core,
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+    after: Option<tasks::EscalationHolder>,
+) -> Option<tasks::EscalationHolder> {
+    if let tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Role { .. }, .. } = row.escalation {
+        return fallback(core, row.project);
+    }
+    let root = if row.root == row.number { row } else { core.tasks.task(row.root)? };
+    let requester = match root.requester {
+        tasks::Party::Person(person) => person,
+        tasks::Party::Deployment { .. } => 0,
+        tasks::Party::Task(_) => return None,
+    };
+    let context = Route { task: row.number, project: row.project, requester, immediate: row.requester };
+    route(core, limits, &context, core.people.role(requester, row.project), after)
+}
+
+/// Questions do not travel past the project's final role.
+pub(crate) fn next_question_holder(
+    core: &Core,
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+    at: tasks::EscalationHolder,
+) -> Option<tasks::EscalationHolder> {
+    match at {
+        tasks::EscalationHolder::Role { .. } => None,
+        tasks::EscalationHolder::Task(_) | tasks::EscalationHolder::Person(_) => {
+            let next = wait_holder(core, limits, row, Some(at))?;
+            if next == at { None } else { Some(next) }
         }
     }
+}
+
+/// A person task passes the task holders and uses only the party end of the escalation route.
+pub(crate) fn next_person_holder(
+    core: &Core,
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+) -> Option<tasks::PersonAddress> {
+    use tasks::PersonAddress;
+    let tasks::Executor::Person(first) = row.executor else { return None };
+    let last = match fallback(core, row.project) {
+        Some(tasks::EscalationHolder::Role { role, .. }) => Some(PersonAddress::Role(role)),
+        Some(tasks::EscalationHolder::Person(_) | tasks::EscalationHolder::Task(_)) | None => None,
+    };
+    if last == Some(first) {
+        return None;
+    }
+    if let Some(wait) = row.person_wait
+        && let Some(offer) = wait.offer
+    {
+        return match offer.holder {
+            PersonAddress::Person(_) => last,
+            PersonAddress::Role(_) => None,
+        };
+    }
+    let root = if row.root == row.number { row } else { core.tasks.task(row.root)? };
+    if let tasks::Party::Person(person) = root.requester {
+        let role = core.people.role(person, row.project);
+        let already_addressed = super::person_task::address_matches(first, person, role);
+        if !already_addressed && covers(core, limits, row.project, person, role) {
+            return Some(PersonAddress::Person(person));
+        }
+    }
+    last
 }
 
 impl Core {
@@ -270,7 +343,7 @@ impl Core {
         person: u64,
         role: Option<people::Role>,
     ) -> bool {
-        covers(self, limits, context, person, role)
+        covers(self, limits, context.project, person, role)
     }
 
     /// Validate one restored task's held-recipient shape.

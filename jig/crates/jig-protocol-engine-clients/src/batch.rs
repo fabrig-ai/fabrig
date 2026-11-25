@@ -2,7 +2,7 @@
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, routes, w};
 use crate::{Reply, ToTransport};
 use jig_client_protocol_wire::Record as _;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader, Wall, Writer};
 #[derive(Debug)]
 pub(super) struct Batch {
     members: List<w::Member>,
@@ -50,16 +50,18 @@ impl Component {
             .exchanges
             .insert(
                 exchange,
-                Waiting::Checked {
-                    sign_in: 0,
-                    expires: skein_lib::Wall::EPOCH,
-                    body: Box::new([]),
-                    route: routes::Route::Batch,
-                },
+                Waiting::Checked { sign_in: 0, expires: Wall::EPOCH, body: Box::new([]), route: routes::Route::Batch },
             )
             .expect("same credential slot");
     }
-    pub(super) fn batch_start(&mut self, env: &Env<Limits>, exchange: Token, sign_in: u64, out: &mut Queue<Request>) {
+    pub(super) fn batch_start(
+        &mut self,
+        env: &Env<Limits>,
+        exchange: Token,
+        sign_in: u64,
+        expires: Wall,
+        out: &mut Queue<Request>,
+    ) {
         if self.owner(exchange).is_none() {
             return;
         }
@@ -100,10 +102,10 @@ impl Component {
                 }
             };
             if sign_in == 0 {
-                self.respond(name, routes::unauthenticated(route, &env.limits.wire));
+                self.respond(name, routes::unauthenticated(route));
             } else {
                 match route {
-                    routes::Route::Read => self.read(env, name, sign_in, &body, out),
+                    routes::Route::Read => self.read(env, name, sign_in, expires, &body, out),
                     routes::Route::Watch | routes::Route::Unwatch => {
                         self.watch_route(env, name, sign_in, route, &body, out);
                     }
@@ -209,6 +211,7 @@ impl Component {
                 | Waiting::Get { .. }
                 | Waiting::Moving { .. }
                 | Waiting::Made { .. }
+                | Waiting::Reissue { .. }
                 | Waiting::Checked { .. }
                 | Waiting::Ask { .. }
                 | Waiting::Carry { .. }

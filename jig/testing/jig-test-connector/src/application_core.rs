@@ -1,4 +1,4 @@
-//! Facts returned for a connector's party part (domain/connectors.md, 5.5).
+//! Facts returned for a connector's party part (domain/connectors-facts.md, 1.5).
 use skein_lib::Wall;
 
 /// A final reason a keyed request was refused.
@@ -209,16 +209,23 @@ pub enum HoldReason {
     Exceeded(Exceeded),
     /// A queue join would close a circle of waits.
     Circle,
+    Waited,
     /// Its retry allowance was exhausted.
-    Failures { class: FailureClass },
+    Failures {
+        class: FailureClass,
+    },
     /// Its executor stopped progressing.
     Stalled,
     /// An input failed or was cancelled.
-    Dependency { task: u64 },
+    Dependency {
+        task: u64,
+    },
     /// An authorized stop has no named party.
     Stopped,
     /// A separately numbered placed hold keeps the task held.
-    Placed { hold: u64 },
+    Placed {
+        hold: u64,
+    },
     /// A resource drifted away from what the task needs.
     Drift,
     /// Its effects need a decision.
@@ -226,7 +233,9 @@ pub enum HoldReason {
     /// An effect failed permanently.
     EffectFailed,
     /// An effect's result is uncertain.
-    Uncertain { entry: u64 },
+    Uncertain {
+        entry: u64,
+    },
     /// It lacks budget for its next activation.
     Budget,
     /// Its deadline has passed.
@@ -238,7 +247,9 @@ pub enum HoldReason {
     /// Adoption no longer permits its workspace writes.
     ResourceAccess,
     /// Its allocation in a pool disappeared.
-    PoolLost { pool: u64 },
+    PoolLost {
+        pool: u64,
+    },
     /// Its procedure asked for a decision.
     Procedure,
 }

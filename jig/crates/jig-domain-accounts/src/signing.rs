@@ -218,7 +218,7 @@ pub(crate) fn failed(domain: &mut Domain, source: u32, failure: Failure, out: &m
     domain.end(Ended { request: under_way.request, source, by: under_way.by, end: End::Failed { failure } });
 }
 
-/// A renewal's source position (jig/docs/design/domain/accounts.md, 3.4 and section 6).
+/// A renewal's source position (jig/docs/design/domain/accounts-sources.md, 1, and jig/docs/design/domain/accounts.md, 6).
 /// Appending is resolved only when the live renewal is kept.
 #[derive(Clone, Copy, Debug)]
 enum Place {

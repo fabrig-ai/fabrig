@@ -1,16 +1,37 @@
-//! The committed records and pinned constructs against their schemas (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, values};
+//! The committed records and bounds (skein/docs/design/data/codec/golden.md, 1).
+use skein_codec::bounds::Declaration;
+use skein_codegen::{Schema, bounds_text, generate, values};
 use std::fs;
 use std::path::Path;
 
-fn schema_matches(codec_crate: &str, family: &str, module: &str, source: &'static str) {
+fn schema_matches(
+    codec_crate: &str,
+    module: &str,
+    source: &'static str,
+    declarations: &[Declaration],
+    ceilings: &[u32],
+) {
     let crates = skein_scratch::paths::tree().join("crates");
-    let unpinned = skein_codegen::unpinned(source).expect("schema valid");
-    assert!(unpinned.is_empty(), "{family}: unpinned constructs: {unpinned:?}");
+    let write = temper_test_env::rewrite();
+
     let schema = &values(source).schema;
     let output = generate(schema);
     let code = crates.join(codec_crate).join("src/generated").join(format!("{module}.rs"));
-    check_text(&code, &output.records, temper_test_env::rewrite());
+    check_text(&code, &output.records, write);
+
+    let path = skein_scratch::paths::package().join("bounds").join(format!("{module}.bounds"));
+    check_text(&path, &bounds_text(declarations, ceilings), write);
+}
+
+fn translation_matches(schema: &Schema, maps: &str, codec_crate: &str, module: &str) {
+    let translation = skein_codegen::translate(schema, maps)
+        .unwrap_or_else(|problem| panic!("{codec_crate}/{module}.maps: {problem}"));
+    let path = skein_scratch::paths::tree()
+        .join("crates")
+        .join(codec_crate)
+        .join("src/generated")
+        .join(format!("{module}.rs"));
+    check_text(&path, &translation, temper_test_env::rewrite());
 }
 
 const AGAIN: &str =
@@ -21,87 +42,116 @@ fn check_text(path: &Path, text: &str, write: bool) {
         fs::create_dir_all(path.parent().expect("generated file has a parent")).expect("create generated directory");
         fs::write(path, text).expect("write generated text");
     } else {
-        let committed = fs::read_to_string(path).expect("generated text committed");
+        let committed = fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}; {AGAIN}", path.display()));
         assert_eq!(committed, text, "{}: {AGAIN}", path.display());
     }
 }
 
 #[test]
-fn worker_wire_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-worker-wire", "worker-wire", "worker_wire", temper_protocol_worker_wire::SCHEMA);
-}
-
-#[test]
-fn client_wire_schema_matches_generated_code_and_pinned_constructs() {
-    client_layout(temper_client_protocol_wire::CLIENT_SCHEMA, "temper-client-wire");
+fn worker_wire_schema_matches_generated_code() {
+    use temper_protocol_worker_wire::{SCHEMA, v1 as codec};
     schema_matches(
-        "temper-client-protocol-wire",
-        "client-wire",
-        "client_wire",
-        temper_client_protocol_wire::CLIENT_SCHEMA,
+        "temper-protocol-worker-wire",
+        "worker_wire",
+        SCHEMA,
+        codec::DECLARATIONS,
+        codec::CEILINGS.values().as_slice(),
     );
 }
 
-// Client layouts have no bridge; preserve every older line and append kept
-// cumulative versions before the current fingerprint (protocol/wires.md, 9).
-fn client_layout(source: &str, family: &str) {
-    use std::{collections::BTreeMap, fmt::Write};
-    let root = skein_scratch::paths::tree().join("crates/temper-client-protocol-wire/schema");
-    let source = source.as_bytes().to_vec();
-    let schema = skein_codec::schema::parse(&source).expect("client schema valid");
-    let current = schema.version();
-    let mut texts = BTreeMap::new();
-    let kept = root.join("kept");
-    if kept.exists() {
-        for entry in fs::read_dir(kept).expect("kept client schemas") {
-            let path = entry.expect("kept client schema").path();
-            if path.extension().is_some_and(|extension| extension == "schema") {
-                let text = fs::read(&path).expect("kept client schema text");
-                let held = skein_codec::schema::parse(&text).expect("kept client schema valid");
-                if held.spelled(held.family()) == family.as_bytes() && held.version() <= current {
-                    texts.insert(held.version(), text);
-                }
-            }
-        }
-    }
-    texts.insert(current, source);
-    let path = root.join(format!("{family}.layouts"));
-    let mut layouts = fs::read_to_string(&path).expect("client layouts");
-    let write = temper_test_env::rewrite();
-    for (version, text) in texts {
-        let schema = skein_codec::schema::parse(&text).expect("client schema valid");
-        let mut line = format!("{version} ");
-        for byte in schema.fingerprints().family().digest() {
-            write!(&mut line, "{byte:02x}").expect("fingerprint text");
-        }
-        line.push('\n');
-        let prefix = format!("{version} ");
-        if let Some(held) = layouts.lines().find(|held| held.starts_with(&prefix)) {
-            assert_eq!(held, line.trim_end(), "a committed layout is immutable");
-        } else if write {
-            let previous = layouts
-                .lines()
-                .last()
-                .and_then(|held| held.split_once(' '))
-                .map(|(version, _)| version.parse::<u16>().expect("layout version"));
-            assert_eq!(previous.and_then(|version| version.checked_add(1)), Some(version), "contiguous client layouts");
-            layouts.push_str(&line);
-        } else {
-            panic!("missing client layout {version}: {AGAIN}");
-        }
-        if version == current {
-            assert!(layouts.ends_with(&line), "current client layout: {AGAIN}");
-        }
-    }
-    if write {
-        fs::write(&path, layouts).expect("append client layouts");
+#[test]
+fn channel_translation_matches_its_maps() {
+    let schema = &values(smith_channel::CHANNEL_SCHEMA).schema;
+    let root = skein_scratch::paths::tree().join("crates/temper-worker-service");
+    let maps = fs::read_to_string(root.join("schema/channel.maps")).expect("read channel maps");
+    let output = skein_codegen::translate(schema, &maps).expect("channel maps valid");
+    check_text(&root.join("src/generated/channel.rs"), &output, temper_test_env::rewrite());
+}
+
+#[test]
+fn worker_wire_translations_match_generated_code() {
+    let schema = &values(temper_protocol_worker_wire::SCHEMA).schema;
+    let crates = skein_scratch::paths::tree().join("crates");
+    for (owner, maps) in [
+        (
+            "temper-engine-service-vocabulary",
+            include_str!("../../../../crates/temper-engine-service-vocabulary/schema/worker_wire.maps"),
+        ),
+        ("temper-worker-service", include_str!("../../../../crates/temper-worker-service/schema/worker_wire.maps")),
+    ] {
+        let translation = skein_codegen::translate(schema, maps).unwrap_or_else(|error| panic!("{owner}: {error:?}"));
+        let path = crates.join(owner).join("src/generated/worker_wire.rs");
+        check_text(&path, &translation, temper_test_env::rewrite());
     }
 }
 
 #[test]
-fn store_schema_matches_generated_code_and_pinned_constructs() {
-    let source = temper_protocol_store::OWNER_SET.families.first().expect("store family").current;
-    schema_matches("temper-protocol-store-codec", "store", "store", source);
+fn client_wire_schema_matches_generated_code() {
+    use temper_client_protocol_wire::{CLIENT_SCHEMA, v1 as codec};
+    schema_matches(
+        "temper-client-protocol-wire",
+        "client_wire",
+        CLIENT_SCHEMA,
+        codec::DECLARATIONS,
+        codec::CEILINGS.values().as_slice(),
+    );
+    let schema = &values(CLIENT_SCHEMA).schema;
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-domain-forge-vocabulary/schema/client_wire.maps"),
+        "temper-engine-domain-forge-vocabulary",
+        "client_wire",
+    );
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-service-component/schema/client_wire.maps"),
+        "temper-engine-service-component",
+        "client_wire",
+    );
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-smith/schema/client_wire.maps"),
+        "temper-engine-smith",
+        "client_wire",
+    );
+    for (owner, maps) in [
+        (
+            "temper-client-domain-forge",
+            include_str!("../../../../crates/temper-client-domain-forge/schema/client_wire.maps"),
+        ),
+        (
+            "temper-client-domain-pages",
+            include_str!("../../../../crates/temper-client-domain-pages/schema/client_wire.maps"),
+        ),
+        ("temper-client-tools", include_str!("../../../../crates/temper-client-tools/schema/client_wire.maps")),
+        ("temper-protocol-reaches", include_str!("../../../../crates/temper-protocol-reaches/schema/client_wire.maps")),
+        ("temper-settings-form", include_str!("../../../../crates/temper-settings-form/schema/client_wire.maps")),
+    ] {
+        translation_matches(schema, maps, owner, "client_wire");
+    }
+}
+
+#[test]
+fn client_wire_maps_match_generated_engine_translation() {
+    let schema = &values(temper_client_protocol_wire::CLIENT_SCHEMA).schema;
+    let maps = include_str!("../../../../crates/temper-engine-service-vocabulary/schema/client_wire.maps");
+    let translation = skein_codegen::translate(schema, maps).expect("engine client wire maps valid");
+    let path =
+        skein_scratch::paths::tree().join("crates/temper-engine-service-vocabulary/src/generated/client_wire.rs");
+    check_text(&path, &translation, temper_test_env::rewrite());
+}
+
+#[test]
+fn store_schema_matches_generated_code() {
+    use temper_protocol_store::{OWNER_SET, v25 as codec};
+    let source = OWNER_SET.families.first().expect("store family").current;
+    schema_matches(
+        "temper-protocol-store-codec",
+        "store",
+        source,
+        codec::DECLARATIONS,
+        codec::CEILINGS.values().as_slice(),
+    );
     let maps = include_str!("../../../../crates/temper-protocol-store/schema/store.maps");
     let translation = skein_codegen::translate(&values(source).schema, maps).expect("store maps valid");
     let path = skein_scratch::paths::tree().join("crates/temper-protocol-store/src/generated/store.rs");
@@ -109,12 +159,32 @@ fn store_schema_matches_generated_code_and_pinned_constructs() {
 }
 
 #[test]
-fn secrets_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-records", "secrets", "secrets", temper_protocol_records::SCHEMA);
+fn secrets_schema_matches_generated_code() {
+    use temper_protocol_records::{SCHEMA, v1 as codec};
+    schema_matches(
+        "temper-protocol-records",
+        "secrets",
+        SCHEMA,
+        codec::DECLARATIONS,
+        codec::CEILINGS.values().as_slice(),
+    );
 }
 
 #[test]
-fn public_wire_schema_matches_generated_code_and_pinned_constructs() {
-    client_layout(temper_client_protocol_wire::PUBLIC_SCHEMA, "temper-public-wire");
-    schema_matches("temper-client-protocol-wire", "public", "public", temper_client_protocol_wire::PUBLIC_SCHEMA);
+fn public_wire_schema_matches_generated_code() {
+    use temper_client_protocol_wire::{PUBLIC_SCHEMA, public_v1 as codec};
+    schema_matches(
+        "temper-client-protocol-wire",
+        "public",
+        PUBLIC_SCHEMA,
+        codec::DECLARATIONS,
+        codec::CEILINGS.values().as_slice(),
+    );
+    let schema = &values(PUBLIC_SCHEMA).schema;
+    translation_matches(
+        schema,
+        include_str!("../../../../crates/temper-engine-domain-forge/schema/public.maps"),
+        "temper-engine-domain-forge",
+        "public",
+    );
 }

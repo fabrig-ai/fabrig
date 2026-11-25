@@ -167,3 +167,50 @@ fn a_piped_person_shows_whole_output_in_at_most_sixteen_reads_then_closes() {
     sim.assert_quiescent(process);
     sim.assert_no_open_fds(process);
 }
+
+#[test]
+fn a_program_chat_completes_its_live_view() {
+    use smith_fake_claude::{Step, Story, Turn};
+    use smith_local_process_world::{Files, Placement, World};
+
+    let files = Files::new();
+    const REPORT: &str = "Program answer";
+    let text = "Live settled text";
+    let mut world = World::reading(23, &files, Placement::Spawned);
+    world.interactive();
+    world.scenario.ending = smith_local_process_world::referee::Ending::ReadReport(REPORT.as_bytes().to_vec());
+    world.on_program(Story {
+        turns: vec![Turn::new(vec![
+            Step::Text(text.into()),
+            Step::Builtin {
+                tool: "Read".into(),
+                input: serde_json::json!({"file_path":"original.txt"}),
+                result: "original\n".into(),
+            },
+            Step::Outcome { input: serde_json::json!({"outcome":{"form":"report","text":REPORT,"fields":{}}}) },
+        ])],
+        ..Story::default()
+    });
+    world.scenario.launch.program.as_mut().expect("program account").live_view = true;
+    world.scenario.commands = vec![
+        Action::Wait(b"> ".as_slice().into()),
+        Action::Send(b"Ask first\n".as_slice().into()),
+        Action::Wait(REPORT.as_bytes().into()),
+        Action::Eof,
+    ];
+    world.settle();
+    assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
+    let shown = std::str::from_utf8(world.shown()).expect("UTF-8 live view");
+    assert_eq!(shown.matches(text).count(), 1, "{shown}");
+    assert!(shown.lines().any(|line| line == "tool Read: result"), "Read terminal: {shown}");
+    assert!(!shown.contains(" ms)"), "no invented tool duration");
+    let status = shown
+        .lines()
+        .find_map(|line| line.split_once("anthropic/claude-opus-5-5; through Claude Code: ").map(|(_, status)| status))
+        .expect("live model and account label");
+    assert!(status.starts_with("in 10, cached 0, out 5; "), "reported fake usage: {status}");
+    assert!(
+        status.contains(" turns, ") && status.contains(" notional, ") && status.ends_with(" ms left"),
+        "budget: {status}"
+    );
+}

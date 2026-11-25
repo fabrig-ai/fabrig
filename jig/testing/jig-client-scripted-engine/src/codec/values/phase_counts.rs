@@ -1,10 +1,7 @@
 //! Wire projections of owner phase counts facts (client/domain/testing.md, 4).
 use super::super::{c, w};
-pub(in crate::codec) fn wire_phase_counts(
-    value: &c::PhaseCounts,
-    _limits: &w::Limits,
-) -> Result<w::PhaseCounts, w::Problem> {
-    Ok(w::PhaseCounts {
+pub(in crate::codec) fn wire_phase_counts(value: &c::PhaseCounts) -> w::PhaseCounts {
+    w::PhaseCounts {
         waiting: value.waiting,
         idle: value.idle,
         starting: value.starting,
@@ -15,5 +12,5 @@ pub(in crate::codec) fn wire_phase_counts(
         done: value.done,
         failed: value.failed,
         cancelled: value.cancelled,
-    })
+    }
 }

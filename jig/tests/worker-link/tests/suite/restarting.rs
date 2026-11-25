@@ -6,7 +6,7 @@ use skein_lib::{Duration, List, Time};
 
 pub(super) fn word(wait_ms: u64) -> skein_channel::Frame {
     let record = wire::Restarting { wait_ms };
-    fixtures::frame(0x018f, &fixtures::encoded(&record))
+    fixtures::frame(wire::Kind::Restarting.number(), &fixtures::encoded(&record))
 }
 pub(super) fn sources() -> skein_channel::Frame {
     let record = wire::Sources { sources: List::with_capacity(0) };

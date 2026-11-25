@@ -4,7 +4,7 @@
 //! Five peers are behind it, and each record names which by its variant:
 //!
 //! - The engine, over jig's worker link (jig's `domain/hosts/hub.md`, 1;
-//!   jig's `protocol/channel/README.md`, section 9), which dials, redials, keeps the
+//!   jig's `protocol/channel/worker-link.md`, section 1), which dials, redials, keeps the
 //!   grace and the relays across channels, and tells the domain what it
 //!   notices: a channel [`Event::Ready`], [`Event::Lost`], the grace passed
 //!   ([`Event::GracePassed`]), a turn to send again ([`Event::Resend`]), a
@@ -90,8 +90,8 @@ pub enum Event {
         outcome: jig_domain_link::ListOutcome,
     },
     /// From the engine: an assignment, jig's record, with temper's workspace
-    /// items with their per-repository saved-work branches (jig's `protocol/channel/README.md`,
-    /// 5.2). The record's workspace, if it has one, names the workstream the
+    /// items with their per-repository saved-work branches (jig's `protocol/channel/owners.md`,
+    /// 1.2). The record's workspace, if it has one, names the workstream the
     /// checkout is keyed by; the root names the items to the hub itself.
     Assign {
         assignment: host::Assignment,
@@ -123,6 +123,12 @@ pub enum Event {
         run: Token,
         attempt: Token,
         turn: u32,
+    },
+    /// The engine answered a part busy, and its backoff passed.
+    ResendPart {
+        run: Token,
+        attempt: Token,
+        part: u32,
     },
     /// Terminal for `CancelRelay`.
     RelayCancelled {
@@ -167,10 +173,11 @@ pub enum Event {
     },
 }
 
-/// The checkout operations with operator lines (domain/worker/README.md, 4.3).
+/// The checkout operations with operator lines (domain/worker/hosted-runs.md, 1.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Git {
     Fetch { want: git::Want, into: git::Into },
+    Counts,
     CheckOut { commit: git::Commit },
 }
 
@@ -181,7 +188,7 @@ pub enum Request {
     Paused {
         state: jig_domain_link::PauseState,
     },
-    /// Each fetch and check out as the checkout asks it (domain/worker/README.md, 4.3).
+    /// Each fetch, counts fetch and check out as the checkout asks it (domain/worker/hosted-runs.md, 1.3).
     Git {
         run: Token,
         attempt: Token,
@@ -196,13 +203,13 @@ pub enum Request {
         signal: smith_host_domain::parent::Signal,
         from: Option<u32>,
     },
-    /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
+    /// The first agent fault of an attempt, before its answer (domain/worker/hosted-runs.md, 1.3).
     AgentStopped {
         run: Token,
         attempt: Token,
         failure: host::AgentFailure,
     },
-    /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).
+    /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts-prepare.md, 12.3).
     Unprepared {
         run: Token,
         attempt: Token,
@@ -325,6 +332,7 @@ pub enum Request {
 /// One of smith's payloads, handed out to be encoded.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Encodable {
+    Part(agent::channel::ToldPart),
     Turn(agent::Turn),
     CallName(agent::CallName),
     Result(agent::RunResult),
@@ -333,6 +341,7 @@ pub enum Encodable {
 /// One of smith's payloads, encoded, or what could not be.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Encoded {
+    Part(jig_domain_link::Part),
     Turn(host::Turn),
     CallName(Box<[u8]>),
     Result(Box<[u8]>),

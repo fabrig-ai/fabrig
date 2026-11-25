@@ -1,4 +1,4 @@
-//! The repository's implicit hearth task (hearth/docs/design/protocol/format/tasks.md, 12).
+//! The repository's implicit hearth task (hearth/docs/design/protocol/format/tasks-hearth.md, 1).
 use super::{Layer, Target, layers, placement};
 use crate::errors::{self, Rule};
 use crate::revision::{self, Documents, Kind, Position};

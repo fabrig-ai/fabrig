@@ -1,44 +1,13 @@
 # testing: status
 
-2026-11-17. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-23. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
-present. Section 7's core row names retain typed keys until a failure
-prints them; shared setup avoids the repeated parse, unused view and
-whole-image copy, duplicate server limits, rebuilt rules domain and second
-restart-configuration copy. Section 9's seven store sweeps run in fuzzy,
-sharing their checks with the chosen focused cuts. Complete snapshots,
-startup and cold readback remain the contract; section 10 holds further
-observation and world-cost work.
+present. Section 9's seven store sweeps run in fuzzy, sharing their
+checks with the chosen focused cuts. Complete snapshots, startup and
+cold readback remain the contract; section 10 holds further observation
+and world-cost work.
 
-- **Not yet:** 7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
-  7: the `debt-24` request of 2026-11-05 has each world name its parties,
-  projects, tasks and connectors once, a bare number left only where it's the
-  point, at most ten by the search in
-  `jig/docs/development/debt/D035-bare-numbers-in-worlds.md`: it reads 2, both
-  explained there, but four files name a fixture of their world or kit again,
-  `jig/tests/core/tests/suite/stories.rs`'s `PROJECT`,
-  `jig/tests/accounts/tests/suite/terms.rs`'s `PARTY`,
-  `jig-client-kit`'s `stories/shared/b_held.rs`'s `OWNER` and
-  `jig/tests/engine-clients/tests/requests/full.rs`'s `PARTY`, so the item stays
-  open, where the `debt-25` plan has it go, because they span more than the one
-  file its last task could correct. `ask` is one constructor in `jig-core-kit`,
-  where the `debt-24` plan's story has one definition per world: two core files
-  keep a wrapper that returns the reply, and the conformance world two, a queue
-  and a drain, because the `debt-25` plan keeps different verbs under one name.
-  7: the `debt-25` request has its three jig items end with fewer test lines,
-  and together they fell 181, but D035's own tasks rose 34, where that plan's
-  story has about 200 down: the client's sweep rose 158 and the people's 61, and
-  the core's fell 139; no reason is recorded.
-  9: the focused suite's CPU budgets are by layer (`tools/tiers/budgets.toml`),
-  the CI builder's gate figures of 11-16 plus a tenth, by the user's word
-  of 11-16, against an ideal of 30 s (`tools/tiers/budgets.md`, 6). The
-  `jig-world-cost` and `jig-world-cost-2` requests leave further cost repairs;
-  their whole-suite effect, and fuzzy's fit with the moved core and store
-  sweeps and `Standard` drive, await the queue's after-landing record. The
-  per-test shares in the latter request do not establish a saving or a
-  whole-suite total. No budget or build setting changes are part of those
-  repairs.
 - **Departs:** 9: the focused stray-cleanup story selects its first cut
   with `Change::Make`, not the first `Change::Remove` the design names
   (`jig/tests/store/tests/suite/generations.rs`,
@@ -65,33 +34,6 @@ observation and world-cost work.
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle.
-
-- **Not yet:**
-  7: the step crates' case tables and the two named-people tables run
-  each case under `catch_unwind` and collect the failing ones.
-  [in flight: change 2853]
-  7: the fuzzy sweeps, the core's scenarios and bundle of cases, the
-  tasks kit's story and the host world catch a panic to add the seed,
-  the choices or the trace's tail. [in flight: change 2854]
-  7: the conformance observer panics on its referee's error and asserts
-  in its own checks, and the conformance harness and world catch to add
-  context. [in flight: change 2855]
-  7: the views' referee asserts in its expectations, and the client's
-  model panics on a patch that breaks it. [in flight: change 2856]
-  7: jig's world referees implement `observe`, not `watch`.
-  [in flight: change 2857]
-  7: `jig-client-wire-world`'s and `jig-client-protocol-world`'s public
-  sweeps write each case's whole input before they run it, not the case
-  and its length. [in flight: change 3078]
-- **Not yet:**
-  7: the client's world asserts its referee's findings at once, with no
-  returning entry points. [in flight: change 3115]
-  7: the restart oracle asserts its comparisons, and the store files'
-  readback panics on what it finds. [in flight: change 3114]
-  7: the host's refusal referee and turn engine, and the notes' referee,
-  assert. [in flight: change 3116]
-  7: jig's domain step tests trigger assertions of start order, routing
-  and their constructors' limits. [in flight: change 3110]
 
 - **Not yet:**
   4: the core world's crash sweeps hold their prefix once, forking at each
@@ -134,3 +76,13 @@ observation and world-cost work.
   `protocol` layer while main holds it over its budget is a change's red
   (`tools/tiers/budgets.md`, 8), so they move once main's figure is within
   it.
+
+- **Not yet:** 9: the focused suite's CPU budgets are by layer (`tools/tiers/budgets.toml`),
+  the CI builder's gate figures of 11-16 plus a tenth, by the user's word
+  of 11-16, against an ideal of 30 s (`tools/tiers/budgets.md`, 6). The
+  `jig-world-cost` and `jig-world-cost-2` requests leave further cost repairs;
+  their whole-suite effect, and fuzzy's fit with the moved core and store
+  sweeps and `Standard` drive, await the queue's after-landing record. The
+  per-test shares in the latter request do not establish a saving or a
+  whole-suite total. No budget or build setting changes are part of those
+  repairs.

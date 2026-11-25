@@ -5,6 +5,7 @@ use crate::Served;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
 use std::io::{self, Write};
+use std::os::unix::ffi::OsStrExt;
 use temper_service_core::long_pass::{LONG_PASS, LongPass, Part, Watch};
 use temper_shell::directories::Directories;
 use temper_shell::directories::EnvironmentEntry;
@@ -23,6 +24,7 @@ pub struct Host<S> {
     output_failed: bool,
     wait_check: bool,
     cut_at_listen: Option<std::path::PathBuf>,
+    pub(super) disk: Option<super::disk::Budget>,
     now: Time,
     watch: Watch,
     clock: skein_shell::Clock,
@@ -55,6 +57,7 @@ impl<S> Host<S> {
             // always check; release programs can opt in with the same flag.
             wait_check: wait_check(environment, cfg!(debug_assertions)),
             cut_at_listen: super::restart_fault::marker(environment),
+            disk: None,
             now: Time::ZERO,
             watch: Watch::new(),
             clock: skein_shell::Clock::new(),
@@ -97,6 +100,12 @@ pub(crate) fn wait_check(environment: &[EnvironmentEntry], debug: bool) -> bool 
 impl<S> skein_shell::Host for Host<S> {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
+        if let (Some(disk), Some(apply)) = (&mut self.disk, self.served.set_local_places)
+            && now >= disk.next
+        {
+            let places = disk.sample(std::path::Path::new(std::ffi::OsStr::from_bytes(&self.directories.data)), now);
+            apply(&mut self.service, places);
+        }
         self.watch.begin(self.clock.now().now);
         for &stage in self.served.stages {
             (self.served.iterate_stage)(&mut self.service, stage, now, wall);
@@ -118,7 +127,7 @@ impl<S> skein_shell::Host for Host<S> {
         (self.served.next_mechanism_deadline)(&self.service)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        (self.served.next_policy_deadline)(&self.service)
+        skein_lib::earliest((self.served.next_policy_deadline)(&self.service), self.disk.as_ref().map(|disk| disk.next))
     }
     fn is_empty(&self) -> bool {
         (self.served.is_empty)(&self.service)
@@ -127,29 +136,33 @@ impl<S> skein_shell::Host for Host<S> {
         (self.served.operations)(&self.service)
     }
     fn exit(&self) -> Option<Exit> {
+        self.exit_with(|lines| print!("{lines}"), |lines| eprint!("{lines}"))
+    }
+    fn drain(&mut self) {
+        self.drain_with(&mut io::stderr(), Self::keep_link);
+    }
+}
+
+impl<S> Host<S> {
+    fn exit_with(&self, stdout: impl FnOnce(&str), mut stderr: impl FnMut(&str)) -> Option<Exit> {
         if !(self.served.is_empty)(&self.service) {
             return None;
         }
         if let Some((lines, code)) =
             self.upgrade.and_then(|report| report(&self.service, &self.binary, &self.directories, &self.store))
         {
-            print!("{lines}");
+            stdout(&lines);
             return Some(Exit::Code(code));
         }
         if let Some(long) = self.watch.held() {
-            eprint!("{}", long_pass_line(&self.binary, long));
+            stderr(&long_pass_line(&self.binary, long));
         }
         let (lines, code) = self.ending();
-        eprint!("{lines}");
+        stderr(&lines);
         Some(Exit::Code(code))
     }
-    fn drain(&mut self) {
-        self.drain_with(&mut io::stderr());
-    }
-}
 
-impl<S> Host<S> {
-    fn drain_with(&mut self, diagnostics: &mut dyn Write) {
+    fn drain_with(&mut self, diagnostics: &mut dyn Write, mut keep: impl FnMut(&Self, &[u8])) {
         (self.served.handover)(&mut self.service);
         while let Some((lines, clients)) = (self.served.listening)(&mut self.service, &self.binary) {
             diagnostics.write_all(lines.as_bytes()).expect("printing to stderr failed");
@@ -179,7 +192,7 @@ impl<S> Host<S> {
             }
         }
         while let Some(link) = (self.served.local_link)(&mut self.service) {
-            self.keep_link(&link);
+            keep(self, &link);
         }
         if self.wait_check {
             (self.served.check_wait_boundary)(&self.service, self.now);
@@ -245,6 +258,7 @@ pub(super) mod adapter_tests {
         completions: Queue<Complete>,
         submissions: Queue<Submit>,
         links: Queue<Box<[u8]>>,
+        local_links: Queue<Box<[u8]>>,
         notes: Queue<&'static str>,
     }
     impl OneStage {
@@ -256,11 +270,13 @@ pub(super) mod adapter_tests {
                 completions: Queue::uncapped(),
                 submissions: Queue::uncapped(),
                 links: Queue::uncapped(),
+                local_links: Queue::uncapped(),
                 notes: Queue::uncapped(),
             }
         }
     }
     pub(crate) const SERVED: Served<OneStage> = Served {
+        set_local_places: None,
         stages: &[temper_service_core::Stage::Route],
         iterate_stage: |service, stage, now, wall| {
             assert_eq!(stage, temper_service_core::Stage::Route);
@@ -287,15 +303,36 @@ pub(super) mod adapter_tests {
         listening: |_, _| None,
         note: |service, binary| service.notes.pop().map(|note| format!("{binary} serve: {note}\n")),
         link: |service| service.links.pop(),
-        local_link: |_| None,
+        local_link: |service| service.local_links.pop(),
         check_wait_boundary: |service, _| assert_eq!(service.stages, 1),
         adopt_listener: |_, _, _| Ok(()),
         adopt_signals: |_, _| Ok(()),
     };
-    fn host() -> Host<OneStage> {
+    fn directories() -> Directories {
         let arguments = ["--config", "/c", "--data", "/d", "--cache", "/k"].map(|word| Box::from(word.as_bytes()));
-        let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
-        Host::with_binary("own-service", OneStage::new(), SERVED, directories, &[])
+        temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories").0
+    }
+    fn host() -> Host<OneStage> {
+        Host::with_binary("own-service", OneStage::new(), SERVED, directories(), &[])
+    }
+
+    #[test]
+    fn an_upgrade_report_exits_with_only_stdout() {
+        const REPORT: &str = "temper-box upgrade: the deployment could not be read\n";
+        let service = OneStage { stages: 1, ..OneStage::new() };
+        let host = Host::for_upgrade(
+            "temper-box",
+            service,
+            SERVED,
+            directories(),
+            b"/state".as_slice().into(),
+            |_, _, _, _| Some((REPORT.into(), 1)),
+        );
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        assert_eq!(host.exit_with(|lines| stdout.push_str(lines), |lines| stderr.push_str(lines)), Some(Exit::Code(1)));
+        assert_eq!(stdout, REPORT);
+        assert!(stderr.is_empty(), "unexpected stderr: {stderr:?}");
     }
     #[test]
     fn supplied_service_stage_and_ending_drive_the_host() {
@@ -336,9 +373,40 @@ pub(super) mod adapter_tests {
         let now = host.clock.now().now;
         host.iterate(now, Wall::EPOCH);
         let mut diagnostics = Vec::new();
-        host.drain_with(&mut diagnostics);
+        host.drain_with(&mut diagnostics, Host::keep_link);
         assert_eq!(diagnostics, b"own-service serve: first fixed line\nown-service serve: second fixed line\n");
         assert!(host.service.notes.is_empty());
+    }
+
+    #[derive(Clone, Default)]
+    struct RecordedOutput(std::rc::Rc<std::cell::RefCell<Vec<u8>>>);
+    impl Write for RecordedOutput {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.borrow_mut().write(bytes)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn only_a_local_link_event_rewrites_the_kept_link() {
+        const LOCAL: &[u8] = b"http://local/kept";
+        const FRESH: &[u8] = b"http://local/fresh";
+        let mut host = host();
+        let stdout = RecordedOutput::default();
+        host.output = Box::new(stdout.clone());
+        host.iterate(Time::ZERO, Wall::EPOCH);
+        let mut kept = Vec::new();
+        host.service.local_links.push(LOCAL.into());
+        host.drain_with(&mut io::sink(), |_, link| kept.push(Box::<[u8]>::from(link)));
+        let expected = [Box::<[u8]>::from(LOCAL)];
+        assert_eq!(kept, expected);
+
+        host.service.links.push(FRESH.into());
+        host.drain_with(&mut io::sink(), |_, link| kept.push(Box::<[u8]>::from(link)));
+        assert_eq!(stdout.0.borrow().as_slice(), b"http://local/fresh\n");
+        assert_eq!(kept, expected, "the printed refresh never reaches the local writer");
     }
 
     struct BrokenOutput;

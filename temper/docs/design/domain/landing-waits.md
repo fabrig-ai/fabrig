@@ -1,11 +1,12 @@
 # A landing's waits
 
-Provisional, 2026-11-18. What each step of a landing waits for, the
-rule that no step waits on what nothing will answer, and how a person
-sees a landing that stopped: `temper ctl landing list` and `landing
-show`. It details `landing.md`, 4.2 (*No silent wait*), 5.1 (*A round
-ends*) and 14. What each step does stays `landing.md`'s; a step's
-events stay `landing-history.md`'s.
+Provisional, 2026-11-24. What each step of a landing waits for, the
+rule that no step waits on what nothing will answer, the bound on its
+waits for a fresh read, and how a person sees a landing that stopped:
+`temper ctl landing list`, `landing show` and the engine's log. It
+details `landing.md`, 4.2 (*No silent wait*), 5.1 (*A round ends*) and
+14. What each step does stays `landing.md`'s; a step's events stay
+`landing-history.md`'s.
 
 ## 1. In one page
 
@@ -17,6 +18,10 @@ events stay `landing-history.md`'s.
   it, on a member's change taking its own step, or, held, on its
   release. Any other wait has a deadline, at which the landing reads
   afresh and decides again.
+- **A wait for a fresh read is bounded** (section 3): reads the forge
+  keeps answering while the landing stays where it was hold it past the
+  deployment's stall, naming the read; the engine logs a line as such
+  a wait starts, as it ends with the read taken, and as it holds.
 - **No decision is lost.** A decision the root cannot carry out as it
   is made leaves the landing as it was and is decided again in the
   landing's next due step; nothing keeps a write's result pending that
@@ -40,19 +45,19 @@ RUN the run's number where the top knows it, L a landing's task.
 | `release` | held (`landing.md`, 4.2) | a person's release | `its release` |
 | `ready` | a member's change not ready: judging at its head, repairing, held | the change's step | `change C to be ready` |
 | `turn` | a single landing proved while another holds the turn (`landing.md`, 12) | that turn's end | `the turn, held by landing L` |
-| `prepare` | the round's prepare lives (`landing.md`, 5.2) | its answer | `the round's prepare job` |
+| `prepare` | the round's prepare lives (`landing-prepare.md`, 1.2) | its answer | `the round's prepare job` |
 | `prefixes` | the prepare ended, the prefixes it pushed not yet read, or the round's prepare ended with no answer it keeps, before the same prepare is asked once again (`landing-preparing.md`, 5) | a deadline: its members' branches read again | `the prepared prefixes on the members' branches` |
 | `open` | the round's pull request opening (`landing.md`, 10) | its result | `the round's pull request to open` |
-| `close` | the round's pull request closing (`landing.md`, 5.1) | its result | `the round's pull request to close` |
-| `delete` | a member's branch in the landing deleted (`landing.md`, 5.1) | its result | `change C's branch in the landing to be deleted` |
+| `close` | the round's pull request closing (`landing-prepare.md`, 1.1) | its result | `the round's pull request to close` |
+| `delete` | a member's branch in the landing deleted (`landing-prepare.md`, 1.1) | its result | `change C's branch in the landing to be deleted` |
 | `post` | a gate's status posted (`landing.md`, 10) | its result | `gate NAME's status at change C's prefix` |
-| `run` | the landing's own run of a gate (`landing.md`, 7.1) | its end, read at a deadline | `gate NAME's run RUN at change C's prefix` |
+| `run` | the landing's own run of a gate (`landing-proof.md`, 2.1) | its end, read at a deadline | `gate NAME's run RUN at change C's prefix` |
 | `receipt` | a run of the same key in another landing, or a run whose receipt is not yet read | that receipt, read at a deadline | `gate NAME's receipt for change C's prefix` |
 | `judgement` | a member's judgement gates at its prefix (`landing.md`, 3) | the change's verdict | `change C's judgement at its prefix` |
-| `merge` | the turn's merge and its readback (`landing.md`, 8) | its result; the readback at a deadline | `the turn's merge` |
-| `record` | a squashed member's pull request recorded merged (`landing.md`, 8) | its result | `the record of change C's pull request as merged` |
+| `merge` | the turn's merge and its readback (`landing-turn.md`, 1) | its result; the readback at a deadline | `the turn's merge` |
+| `record` | a squashed member's pull request recorded merged (`landing-turn.md`, 1) | its result | `the record of change C's pull request as merged` |
 | `ancestry` | a single landing's read of whether the branch holds its member's head | a deadline | `whether the branch holds change C's head` |
-| `read` | the top's read of the landing's facts (`landing.md`, 2) failed or found one not there yet: a member's pull request, a branch, a pull request, commits, a tree, the cleanup's reads; the top's | a deadline: its facts read again | `a fresh read of its facts from the forge` |
+| `read` | the top's read of the landing's facts (`landing.md`, 2) failed or found one not there yet: a member's pull request, a branch, a pull request, commits, a tree, the cleanup's reads; the top's | a deadline: its facts read again; past the stall, held (section 3) | `a fresh read of its facts from the forge` |
 | room | a write waiting in the outbox's line (`landing.md`, 11), the top's | room (`forge/room.md`, 3) | `room in the forge's outbox` |
 
 `run` names RUN where the landing knows it, and drops `RUN ` where it
@@ -64,16 +69,60 @@ it. A step that acts keeps no wait: `nothing; it steps next`.
 - **Every wait names its wake.** A wait with no deadline is one of the
   table's whose wake is an effect's result, a change's step or a
   release; every other wait carries a deadline, the forge's `poll`
-  (`landing.md`, 7.1), after which the landing reads its facts afresh.
+  (`landing-proof.md`, 2.1), after which the landing reads its facts afresh.
   A fact that no write in flight will answer is read again at a
   deadline, never awaited.
+- **A wait for a fresh read is bounded** (2026-11-24). A read the
+  forge answers the same way at each deadline (a page it keeps
+  refusing, a head that never shows) would keep a landing at `read`
+  for good: on dev.fabrig.ai on 2026-11-24 a round waited four hours
+  on a refused page of commits, the forge answering every poll. So:
+  - **A run of read waits** starts at a step that waits `read` while
+    the landing is in none, and lasts while each of its steps waits
+    `read` again. Any other decision ends it, a hold among them, and so
+    do a release, the landing's end and a restart: the running engine
+    keeps the run, unstored, as it keeps a change's one-step hold
+    (`landing-turn.md`, 2), so a restart, which reads every fact afresh
+    (`landing.md`, 15), counts again from its first read wait.
+  - **Its clock** counts from the run's first read wait. It stands
+    still while the landing's forge is not connected or a read of it
+    is retried for an outage, as a change's stall does
+    (`forge/change/stalls.md`, 1, *A wait for access is not one*), and
+    counts afresh from that cause's end.
+  - **Past the deployment's stall,** `forge.change_policy.stall_ms`,
+    the bound every wait of a change on the forge has
+    (`forge/change/stalls.md`, 1), the landing holds (`landing.md`,
+    4.2), `read: READ, for change C: WHY`, instead of waiting `read`
+    again. It is woken at the bound, so a read that never answers (one
+    the forge client keeps in its line for room) holds there too. The
+    stall, not a count of reads, since a deadline's length is the
+    forge's `poll`, which moves; the stall is the time a person is
+    owed word of a wait, as a change's is. A release, as any landing
+    hold's, prepares again in a new round, keeping its receipts.
+  - **READ** names the read the run last waited on, in skein's terms,
+    commits in hexadecimal at the forge's length: `commits after
+    BEFORE up to AFTER, page P` (`Read::Commits`); `branch BRANCH`;
+    `pull request #N`; `pull request #N's reviews, page P`; `the
+    comparison of BEFORE and AFTER` (`Read::Compare`); `tree OBJECT,
+    page P`; any other read, its name in skein's `forge/vocabulary.md`,
+    1.2, in lower case (`run`, `runs`, `checks`). `, for change C`
+    follows where the read is of a member (its branch, its pull
+    request, its prefix's commits), C its change task, and is dropped
+    for the landing's own reads (the train's tip, the round's pull
+    request).
+  - **WHY** is the last answer: a refusal in the forge's effect words
+    (`temper-engine-domain-forge-vocabulary`'s `error_words`, such as
+    `past ` and the bound), `not there yet` for an answer the step can't
+    take yet, or `no answer` where none came. The hold's words are cut
+    to the history's reason bound as any hold's are
+    (`landing-history.md`, 2.2, `held`).
 - **No decision is lost.** A decision the root cannot carry out, its
   procedure step not due or its write refused before it is kept,
   commits nothing: the landing's state stays as it was, nothing is
   kept for the write, and the landing is woken to decide again in its
   next due step. A write waiting for room is the one wait whose wake is
   room alone.
-- **After a round ends** (`landing.md`, 5.1), once its cleanup's close
+- **After a round ends** (`landing-prepare.md`, 1.1), once its cleanup's close
   and deletions are answered, the next step is due at once and is one
   of: a prepare for the members above the last kept prefix, the opening
   of the round's pull request from its top, the top's proof and turn,
@@ -112,11 +161,32 @@ time ahead of the engine's reads `0s`.
   Its JSON adds `waits`: null once ended, otherwise `{"for": WAIT,
   "change": C, "gate": NAME, "run": RUN, "landing": L}`, WAIT the
   table's first column (`room` for the top's) or `nothing`, each other
-  field null where its words name none.
+  field null where its words name none. A landing held past a read's
+  bound (section 3) says `held: read: READ, for change C: WHY` above it,
+  as each other hold names its cause; the hold's kind is `read`, its
+  words kept with it, a kind the client's wire carries as it carries
+  the others, its layout changed for it (`../protocol/wires.md`, 9).
 - **Kept by the top:** the time of its last event, written with each
   event; the time its turn began; its latest wait. Each is a field of
   the landing's row with a default (`landing.md`, 12): a row kept
-  before has none.
+  before has none. A run of read waits (section 3) is not kept.
+- **The engine's log** (2026-11-24) has a line as a run of read waits
+  starts, as it ends with the landing deciding anything but `read` or
+  its hold, and as it holds, so that an operator sees a landing waiting
+  on the forge without asking for it. L is the landing's task, N its
+  round (`Landing.preparation`), READ, C and WHY as section 3 names
+  them, the second line's READ the run's last, AGE the run's clock as
+  this section prints ages:
+
+  ```
+  BINARY serve: landing L round N waits for a fresh read: READ, for change C: WHY
+  BINARY serve: landing L round N has its fresh read after AGE: READ, for change C
+  BINARY serve: warning: landing L round N held after AGE waiting for a fresh read: READ, for change C: WHY
+  ```
+
+  `, for change C` is dropped where section 3 drops it. A run logs each
+  line once at most: its deadlines' reads log nothing more. A run a
+  release, the landing's end or a restart ends logs no second line.
 
 ## 5. Open questions
 

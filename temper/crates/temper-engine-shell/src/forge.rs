@@ -1,170 +1,43 @@
 //! Forge commands and slot removal (temper/docs/design/protocol/setup/box.md, 1).
 mod flags;
+use skein_forge::forgejo::pin::Platform;
 use std::{
     ffi::OsString,
     fs,
-    io::Write,
+    io::{self, Write},
     os::unix::{
         ffi::OsStrExt,
         fs::{DirBuilderExt, OpenOptionsExt},
     },
+    path::Path,
 };
 use temper_forge_setup::{
-    place::{File, Place},
-    prepare::{Exit, Failure, Prepare},
-    run::{self, Refusal},
-    setup::Mode,
+    fetch::Fetch,
+    machine::BoxKind,
+    place::Place,
+    prepare::Prepare,
+    run,
+    setup::{Mode, Owned},
     spec::Which,
-    upgrade::Course,
 };
-use temper_forge_setup_shell::{command, prepare, run as host};
+pub use temper_forge_setup_shell::words::Refused;
+pub(crate) use temper_forge_setup_shell::words::command_error;
+use temper_forge_setup_shell::{prepare, run as host, words};
 use temper_service_shell::jig_directories;
 use temper_shell::{
     commands::{Argument, DIRECTORIES, Row, Who},
     directories::{self, EnvironmentEntry},
 };
-/// A command's diagnostic, without any credential contents.
-#[derive(Debug)]
-pub struct Refused {
-    verb: &'static str,
-    number: Option<u16>,
-    why: String,
-}
-impl Refused {
-    #[must_use]
-    pub fn line(&self) -> String {
-        self.line_with_binary("temper")
-    }
-    #[must_use]
-    pub fn line_with_binary(&self, binary: &str) -> String {
-        let forge = self.number.map_or_else(String::new, |n| format!("forge {n}: "));
-        super::prefixed(&format!("{binary} forge {}", self.verb), &format!("{forge}{}", self.why))
-    }
-}
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
-fn status(exit: Exit) -> String {
-    match exit {
-        Exit::Code(n) => n.to_string(),
-        Exit::Signal(n) => format!("signal {n}"),
-    }
-}
-pub(crate) fn command_error(why: command::Error) -> String {
-    match why {
-        command::Error::Interrupted => "interrupted".into(),
-        command::Error::Kernel(why) => format!("command kernel: {why}"),
-        command::Error::Spawn(why) => format!("command could not start: {why:?}"),
-    }
-}
-fn failure(binary: &str, why: prepare::Failed, place: &Place) -> String {
-    match why {
-        prepare::Failed::Held(file) => format!(
-            "{} is running or being prepared already",
-            if file == File::RunnerLock { "runner" } else { "forgejo" }
-        ),
-        prepare::Failed::Io(file, why) => format!("{}: {file}: {why}", text(&place.directory)),
-        prepare::Failed::Command(why) => command_error(why),
-        prepare::Failed::Refused(why) => match why {
-            Failure::Binary { program, printed, .. } => {
-                format!("{} printed {printed:?}, not the pinned release", text(&program))
-            }
-            Failure::Command { command, exit, tail } => {
-                format!("{command:?} ended with status {}: {}", status(exit), text(&tail))
-            }
-            Failure::Token { exit, tail } => {
-                format!("no token for temper-admin: ended with status {}: {}", status(exit), text(&tail))
-            }
-            Failure::PersonToken { file, exit, tail } => {
-                format!(
-                    "{}: no person token: ended with status {}: {}",
-                    text(&place.path(file)),
-                    status(exit),
-                    text(&tail)
-                )
-            }
-            Failure::Unread { command } => format!("{command:?} printed no required value"),
-            Failure::State(why) => format!("{}: state cannot be decoded: {why:?}", text(&place.directory)),
-            Failure::Unrecorded => format!("{}: Forgejo files have no preparation state", text(&place.directory)),
-            Failure::Newer { which, recorded } => {
-                let (name, pin) = pinned(which);
-                format!(
-                    "{name} is prepared at {}, newer than this {binary}'s pin {pin}: its migrations only go forward",
-                    text(&recorded)
-                )
-            }
-            Failure::Unreadable { which } => {
-                format!("{} is prepared at a version this {binary} cannot read", pinned(which).0)
-            }
-        },
-    }
-}
-fn pinned(which: Which) -> (&'static str, &'static str) {
-    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
-    match which {
-        Which::Forgejo => ("forgejo", VERSION),
-        Which::Runner => ("runner", RUNNER_VERSION),
-    }
-}
-fn prepare_hint(binary: &str, why: &str, number: u16, directories: &super::Directories) -> String {
-    let flags = directories.flags().iter().map(|arg| text(arg)).collect::<Vec<_>>().join(" ");
-    format!("{why}: run {binary} forge prepare {flags} {number}")
-}
-fn run_refusal(
-    binary: &str,
-    why: Refusal,
-    launch: &run::Launch,
-    number: u16,
-    directories: &super::Directories,
-) -> String {
-    let prepare = |why: String| prepare_hint(binary, &why, number, directories);
-    match why {
-        Refusal::NoRunner => "the setup has no runner".into(),
-        Refusal::NotPrepared => prepare("not prepared".into()),
-        Refusal::Unfinished => prepare("its preparation did not end".into()),
-        Refusal::Runner { recorded } => prepare(if recorded {
-            "prepared with a runner, and the setup has none".into()
-        } else {
-            "prepared without a runner, and the setup has one".into()
-        }),
-        Refusal::Versions { course: Course::Unreadable, .. } => {
-            format!("prepared at a version this {binary} cannot read: no command of this {binary} runs it")
-        }
-        Refusal::Versions { forgejo, runner, course } => {
-            use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
-            let recorded =
-                runner.map_or_else(|| text(&forgejo), |runner| format!("{} / {}", text(&forgejo), text(&runner)));
-            let pinned = if launch.runner { format!("{VERSION} / {RUNNER_VERSION}") } else { VERSION.into() };
-            let reason = format!("prepared at {recorded}, this {binary} pins {pinned}");
-            if course == Course::Newer {
-                format!("{reason}: no command of this {binary} runs it")
-            } else {
-                prepare(reason)
-            }
-        }
-        Refusal::Binary { printed } => format!("{} printed {printed:?}, not the pinned release", text(&launch.program)),
-    }
-}
-fn run_failure(
-    binary: &str,
-    why: host::Failed,
-    launch: &run::Launch,
-    number: u16,
-    directories: &super::Directories,
-) -> String {
-    match why {
-        host::Failed::Refused(why) => run_refusal(binary, why, launch, number, directories),
-        host::Failed::Locked => format!(
-            "{} is running or being prepared already",
-            if launch.which == Which::Forgejo { "forgejo" } else { "runner" }
-        ),
-        host::Failed::Lock(why) => format!("{}: lock: {why}", text(&launch.lock)),
-        host::Failed::State(why) => format!("{}: state {why}", text(&launch.state)),
-        host::Failed::Version(why) => command_error(why),
-        host::Failed::Exec(why) => format!("{}: {why}", text(&launch.program)),
-    }
-}
-fn inherited_listener(which: Which, environment: &[EnvironmentEntry]) -> Result<Option<std::net::SocketAddr>, String> {
+type ListenerAt = fn(skein_io::kernel::Fd) -> Result<std::net::SocketAddr, skein_shell::ListenersRefusal>;
+
+fn inherited_listener(
+    which: Which,
+    environment: &[EnvironmentEntry],
+    listener_at: ListenerAt,
+) -> Result<Option<std::net::SocketAddr>, String> {
     let Some(count) = temper_shell::environment::LISTEN_FDS.value(environment) else { return Ok(None) };
     if which == Which::Runner {
         return Err("LISTEN_FDS: runner takes no listeners (fd 3)".into());
@@ -172,11 +45,46 @@ fn inherited_listener(which: Which, environment: &[EnvironmentEntry]) -> Result<
     if count != b"1" {
         return Err("LISTEN_FDS: forgejo requires exactly 1 listener at fd 3".into());
     }
-    // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
-    skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(temper_service_shell::listeners_refusal)
+    listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(temper_service_shell::listeners_refusal)
 }
 /// A binary shell supplies the checked document shape it serves (protocol/services.md, 7).
 pub type Reader = fn(&[u8], &jig_protocol_config::Directories) -> Result<super::setup::Deployment, String>;
+
+type SetupFile = temper_forge_setup::setup_file::SetupFile;
+type Configuration = temper_service_shell::configuration::Read;
+type Named = temper_engine_service::startup::Named;
+type ReadSetup<'a> = dyn Fn(&super::Directories, u16, &str, &[OsString]) -> Result<SetupFile, String> + 'a;
+type ReadConfiguration<'a> =
+    dyn Fn(&super::Directories, temper_config_shell::Shape) -> Result<Configuration, String> + 'a;
+type FetchCommand<'a> = dyn Fn(&Owned, u64, Option<std::path::PathBuf>) -> Result<u8, String> + 'a;
+type Source<'a> = dyn Fn(&[u8], &Named, &Owned, &Place, skein_lib::Duration, Option<&[u8]>) -> Result<u8, String> + 'a;
+type SignIn<'a> = dyn Fn(&super::Directories, &[u8], &Named, u16, &[EnvironmentEntry]) -> Result<u8, String> + 'a;
+
+pub(super) struct Inputs<'a> {
+    pub(super) reader: Reader,
+    pub(super) listener_at: ListenerAt,
+    pub(super) setup: &'a ReadSetup<'a>,
+    pub(super) configuration: &'a ReadConfiguration<'a>,
+    pub(super) sign_in: &'a SignIn<'a>,
+}
+
+type PrepareDirectory<'a> = dyn Fn(&std::path::Path, bool) -> Result<u32, String> + 'a;
+type PrepareFake<'a> = dyn Fn(&std::path::Path) -> Result<(), String> + 'a;
+
+pub(super) struct Preparation<'a> {
+    pub(super) directory: &'a PrepareDirectory<'a>,
+    pub(super) fake: &'a PrepareFake<'a>,
+}
+
+type PrepareOwned<'a> = dyn Fn(&skein_io::Limits, &Place, Prepare) -> Result<(), prepare::Failed> + 'a;
+type RunOwned<'a> = dyn Fn(&skein_io::Limits, &run::Launch) -> host::Failed + 'a;
+type Login<'a> = dyn Fn(u32) -> Result<Box<[u8]>, String> + 'a;
+
+struct OwnedCommands<'a> {
+    login: &'a Login<'a>,
+    prepare: &'a PrepareOwned<'a>,
+    run: &'a RunOwned<'a>,
+}
 
 pub fn start(
     directories: &super::Directories,
@@ -215,10 +123,6 @@ fn start_with_binary(
     )
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
-)]
 fn start_with_binary_reader(
     binary: &str,
     shape: temper_config_shell::Shape,
@@ -228,12 +132,110 @@ fn start_with_binary_reader(
     environment: &[EnvironmentEntry],
     reader: Reader,
 ) -> Result<u8, Refused> {
-    let usage = || Refused {
-        verb: "prepare",
-        number: None,
-        why: format!(
-            "usage: {binary} forge fetch [DIRECTORIES] FORGE | {binary} forge prepare [DIRECTORIES] FORGE | {binary} forge run [DIRECTORIES] FORGE forgejo|runner | {binary} forge sign-in [DIRECTORIES] FORGE | {binary} forge remove [DIRECTORIES] FORGE"
-        ),
+    start_with_inputs(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        &Inputs {
+            reader,
+            // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
+            listener_at: skein_shell::listener_at,
+            setup: &setup_file,
+            configuration: &temper_service_shell::configuration::read,
+            sign_in: &super::forge_sign_in::run,
+        },
+    )
+}
+
+pub(super) fn start_with_inputs(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    inputs: &Inputs<'_>,
+) -> Result<u8, Refused> {
+    start_with_preparation(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        (inputs, &Preparation { directory: &prepare_directory, fake: &prepare_fake }),
+    )
+}
+
+pub(super) fn start_with_preparation(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    (inputs, preparation): (&Inputs<'_>, &Preparation<'_>),
+) -> Result<u8, Refused> {
+    start_with_effects(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        (inputs, preparation, &OwnedCommands { login: &super::login, prepare: &prepare::run, run: &host::run }),
+    )
+}
+
+fn start_with_effects(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    (inputs, preparation, commands): (&Inputs<'_>, &Preparation<'_>, &OwnedCommands<'_>),
+) -> Result<u8, Refused> {
+    start_with_routes(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        (inputs, preparation, commands, &Routes { fetch: &fetch, source: &super::forge_sign_in::source }),
+    )
+}
+
+struct Routes<'a> {
+    fetch: &'a FetchCommand<'a>,
+    source: &'a Source<'a>,
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
+)]
+fn start_with_routes(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    (inputs, preparation, commands, routes): (&Inputs<'_>, &Preparation<'_>, &OwnedCommands<'_>, &Routes<'_>),
+) -> Result<u8, Refused> {
+    let usage = || {
+        Refused::new(
+            "prepare",
+            None,
+            format!(
+                "usage: {binary} forge fetch [DIRECTORIES] FORGE | {binary} forge prepare [DIRECTORIES] FORGE | {binary} forge run [DIRECTORIES] FORGE forgejo|runner | {binary} forge sign-in [DIRECTORIES] FORGE | {binary} forge remove [DIRECTORIES] FORGE"
+            ),
+        )
     };
     let mut setup_flags = &[][..];
     let (verb, number, which) = match arguments {
@@ -256,12 +258,16 @@ fn start_with_binary_reader(
         _ => return Err(usage()),
     };
     let number = number.to_str().and_then(|n| n.parse::<u16>().ok()).ok_or_else(usage)?;
-    let refused = |why| Refused { verb, number: Some(number), why };
+    let refused = |why| Refused::new(verb, Some(number), why);
 
     // Inspect before reading the document or opening the lock: neither may occupy fd 3.
-    let listener = which.map(|which| inherited_listener(which, environment)).transpose().map_err(refused)?.flatten();
+    let listener = which
+        .map(|which| inherited_listener(which, environment, inputs.listener_at))
+        .transpose()
+        .map_err(refused)?
+        .flatten();
     let dirs = jig_directories(directories);
-    let setup = setup_file(directories, number, verb, setup_flags).map_err(refused)?;
+    let setup = (inputs.setup)(directories, number, verb, setup_flags).map_err(refused)?;
     let entry = setup.entry(number, &dirs).ok_or_else(|| refused("invalid setup directory".into()))?;
     if verb == "remove" {
         return remove_directory(
@@ -272,13 +278,13 @@ fn start_with_binary_reader(
         .map(|()| 0)
         .map_err(refused);
     }
-    let read = temper_service_shell::configuration::read(directories, shape).map_err(refused)?;
+    let read = (inputs.configuration)(directories, shape).map_err(refused)?;
     let bytes = &read.document;
     let refused = |why: String| refused(read.problems(&why));
     let super::setup::Deployment { named, checked, .. } =
-        reader(bytes, &jig_directories(directories)).map_err(refused)?;
+        (inputs.reader)(bytes, &jig_directories(directories)).map_err(refused)?;
     if verb == "sign-in" {
-        return super::forge_sign_in::run(directories, bytes, &named, number, environment).map_err(refused);
+        return (inputs.sign_in)(directories, bytes, &named, number, environment).map_err(refused);
     }
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
@@ -289,40 +295,31 @@ fn start_with_binary_reader(
         Mode::Fake(_) => None,
     };
     if verb == "fetch" {
-        return fetch(owned.expect("fetch requires owned"), checked.fetch_bytes, ssl_cert_file).map_err(refused);
+        return (routes.fetch)(owned.expect("fetch requires owned"), checked.fetch_bytes, ssl_cert_file)
+            .map_err(refused);
     }
     let directory = super::path(&entry.directory);
-    if which.is_none() && !directory.exists() {
-        fs::DirBuilder::new()
-            .recursive(true)
-            .mode(0o700)
-            .create(directory)
-            .map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-    }
-    let user = skein_shell::effective_user();
-    if directory.exists() {
-        super::private_root(directory, user).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
-    }
+    let user = (preparation.directory)(directory, which.is_none()).map_err(refused)?;
     let Some(owned) = owned else {
-        prepare_fake(&directory.join("admin_token")).map_err(refused)?;
+        (preparation.fake)(&directory.join("admin_token")).map_err(refused)?;
         return Ok(0);
     };
     let place =
-        Place { directory: directory.as_os_str().as_bytes().into(), user: super::login(user).map_err(refused)? };
+        Place { directory: directory.as_os_str().as_bytes().into(), user: (commands.login)(user).map_err(refused)? };
     let limits = jig_protocol_config::stock().io;
     if let Some(which) = which {
-        return run_process(binary, owned, &place, which, listener, (number, directories), &limits).map_err(refused);
+        return run_process(binary, owned, &place, which, listener, (number, directories), (&limits, commands.run))
+            .map_err(refused);
     }
     let client = match &setup {
         temper_forge_setup::setup_file::SetupFile::Owned(o) => o.sign_in.as_deref(),
         temper_forge_setup::setup_file::SetupFile::Fake(_) => None,
     };
     if verb == "source" {
-        return super::forge_sign_in::source(bytes, &named, owned, &place, checked.limits.deadline, client)
-            .map_err(refused);
+        return (routes.source)(bytes, &named, owned, &place, checked.limits.deadline, client).map_err(refused);
     }
     let owned_sign_in = client.is_some();
-    prepare::run(
+    (commands.prepare)(
         &limits,
         &place,
         Prepare::new(
@@ -347,7 +344,7 @@ fn start_with_binary_reader(
             checked.limits.deadline,
         ),
     )
-    .map_err(|why| refused(failure(binary, why, &place)))?;
+    .map_err(|why| refused(words::prepare_failure(binary, why, &place)))?;
     Ok(0)
 }
 fn setup_file(
@@ -356,50 +353,92 @@ fn setup_file(
     verb: &str,
     arguments: &[OsString],
 ) -> Result<temper_forge_setup::setup_file::SetupFile, String> {
+    setup_file_with(
+        directories,
+        number,
+        verb,
+        arguments,
+        &SetupFacts {
+            group_read: &skein_shell::read_file,
+            group_stat: &|path| path.symlink_metadata().map(|_| ()),
+            setup_present: &Path::try_exists,
+            setup_read: &temper_forge_setup_shell::setup_file::read,
+            setup_write: &temper_forge_setup_shell::setup_file::write,
+        },
+    )
+}
+
+type GroupRead<'a> = dyn Fn(&Path, u32) -> Result<Box<[u8]>, skein_shell::Unread> + 'a;
+type GroupStat<'a> = dyn Fn(&Path) -> io::Result<()> + 'a;
+type SetupPresent<'a> = dyn Fn(&Path) -> io::Result<bool> + 'a;
+type SetupRead<'a> = dyn Fn(&jig_protocol_config::Directories, u16, BoxKind) -> Result<SetupFile, String> + 'a;
+type SetupWrite<'a> = dyn Fn(&jig_protocol_config::Directories, u16, &SetupFile) -> Result<(), String> + 'a;
+
+struct SetupFacts<'a> {
+    group_read: &'a GroupRead<'a>,
+    group_stat: &'a GroupStat<'a>,
+    setup_present: &'a SetupPresent<'a>,
+    setup_read: &'a SetupRead<'a>,
+    setup_write: &'a SetupWrite<'a>,
+}
+
+fn setup_file_with(
+    directories: &super::Directories,
+    number: u16,
+    verb: &str,
+    arguments: &[OsString],
+    facts: &SetupFacts<'_>,
+) -> Result<SetupFile, String> {
     let flags = flags::Flags::parse(arguments)?;
     let dirs = jig_directories(directories);
-    let kind = read_group_kind(
-        &super::path(&directories.data).join(super::path(&temper_forge_setup::machine::group_path(number))),
-    )?
-    .unwrap_or(temper_forge_setup::machine::BoxKind::Owned);
+    let kind = read_group_kind_with(&group_path(directories, number), facts.group_read, facts.group_stat)?
+        .unwrap_or(BoxKind::Owned);
     let path = temper_forge_setup_shell::setup_file::path(&dirs, number, kind);
-    if verb == "prepare" && !path.try_exists().map_err(|why| format!("{}: {why}", path.display()))? {
+    if verb == "prepare" && !(facts.setup_present)(&path).map_err(|why| format!("{}: {why}", path.display()))? {
         let setup = flags.make(&dirs)?;
-        temper_forge_setup_shell::setup_file::write(&dirs, number, &setup)?;
+        (facts.setup_write)(&dirs, number, &setup)?;
         Ok(setup)
     } else {
-        let setup = temper_forge_setup_shell::setup_file::read(&dirs, number, kind)?;
+        let setup = (facts.setup_read)(&dirs, number, kind)?;
         flags.compare(&setup, &dirs)?;
         Ok(setup)
     }
 }
-fn fetch(
-    owned: &temper_forge_setup::setup::Owned,
+
+pub(crate) mod testing {
+    pub fn setup_file(
+        directories: &super::super::Directories,
+        number: u16,
+        verb: &str,
+        flags: &[std::ffi::OsString],
+    ) -> Result<temper_forge_setup::setup_file::SetupFile, String> {
+        super::setup_file(directories, number, verb, flags)
+    }
+}
+fn fetch(owned: &Owned, fetch_bytes: u64, ssl_cert_file: Option<std::path::PathBuf>) -> Result<u8, String> {
+    let platform = if cfg!(target_os = "macos") { Platform::Macos } else { Platform::Linux };
+    fetch_with(owned, fetch_bytes, platform, std::env::consts::ARCH, |machine| {
+        temper_forge_setup_shell::fetch::run(
+            &jig_protocol_config::stock().io,
+            &skein_shell::Trust::Machine { ssl_cert_file },
+            machine,
+            &mut std::io::stdout(),
+        )
+    })
+}
+
+fn fetch_with(
+    owned: &Owned,
     fetch_bytes: u64,
-    ssl_cert_file: Option<std::path::PathBuf>,
+    platform: Platform,
+    arch: &str,
+    run: impl FnOnce(Fetch) -> Result<(), temper_forge_setup_shell::fetch::Failed>,
 ) -> Result<u8, String> {
     if !owned.fetch.forgejo && !owned.fetch.runner {
         return Err("neither of its binaries is \"fetched\"".into());
     }
-    let pins = temper_forge_setup::fetch::pins(
-        owned,
-        if cfg!(target_os = "macos") {
-            skein_forge::forgejo::pin::Platform::Macos
-        } else {
-            skein_forge::forgejo::pin::Platform::Linux
-        },
-        std::env::consts::ARCH,
-    )
-    .map_err(|why| text(&why.words()))?;
-    let machine = temper_forge_setup::fetch::Fetch::new(pins, fetch_bytes);
-    temper_forge_setup_shell::fetch::run(
-        &jig_protocol_config::stock().io,
-        &skein_shell::Trust::Machine { ssl_cert_file },
-        machine,
-        &mut std::io::stdout(),
-    )
-    .map(|()| 0)
-    .map_err(|why| why.words())
+    let pins = temper_forge_setup::fetch::pins(owned, platform, arch).map_err(|why| text(&why.words()))?;
+    run(Fetch::new(pins, fetch_bytes)).map(|()| 0).map_err(|why| why.words())
 }
 /// Admits fd 3 and runs the process, returning its exit or why it did not start.
 fn run_process(
@@ -409,7 +448,7 @@ fn run_process(
     which: Which,
     listener: Option<std::net::SocketAddr>,
     (number, directories): (u16, &super::Directories),
-    limits: &skein_io::Limits,
+    (limits, run_owned): (&skein_io::Limits, &RunOwned<'_>),
 ) -> Result<u8, String> {
     if let Err(why) = run::admit_listener(owned, listener) {
         return Err(text(&why.words()));
@@ -420,28 +459,72 @@ fn run_process(
     }
     if let Some(address) = listener {
         return temper_forge_setup_shell::parent::run(limits, &launch, address)
-            .map_err(|why| run_failure(binary, why, &launch, number, directories));
+            .map_err(|why| words::run_failure(binary, why, &launch, number, directories));
     }
-    Err(run_failure(binary, host::run(limits, &launch), &launch, number, directories))
+    Err(words::run_failure(binary, run_owned(limits, &launch), &launch, number, directories))
 }
+fn prepare_directory(directory: &Path, create: bool) -> Result<u32, String> {
+    prepare_directory_with(
+        directory,
+        create,
+        Path::exists,
+        |path, mode| fs::DirBuilder::new().recursive(true).mode(mode).create(path),
+        skein_shell::effective_user,
+        skein_shell::symlink_stat,
+    )
+}
+
+fn prepare_directory_with(
+    directory: &Path,
+    create: bool,
+    mut present: impl FnMut(&Path) -> bool,
+    mkdir: impl FnOnce(&Path, u32) -> io::Result<()>,
+    effective_user: impl FnOnce() -> u32,
+    stat: impl FnOnce(&Path) -> io::Result<skein_io::kernel::Stat>,
+) -> Result<u32, String> {
+    let named = |why: &str| format!("{}: {why}", directory.display());
+    if create && !present(directory) {
+        mkdir(directory, 0o700).map_err(|why| named(&why.to_string()))?;
+    }
+    let user = effective_user();
+    if present(directory) {
+        directories::private_root_with(user, stat(directory)).map_err(|why| named(&why))?;
+    }
+    Ok(user)
+}
+
 /// The fake shares only the private directory and token with an owned forge (protocol/setup/playground.md).
-fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
-    match fs::symlink_metadata(path) {
-        Ok(_) => return Ok(()),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+fn prepare_fake(path: &Path) -> Result<(), String> {
+    prepare_fake_with(
+        path,
+        |path| fs::symlink_metadata(path).map(|_| ()),
+        skein_shell::crypto_seed,
+        |path, mode, token| match fs::OpenOptions::new().write(true).create_new(true).mode(mode).open(path) {
+            Ok(mut file) => file.write_all(token).map_err(|why| format!("{}: {why}", path.display())),
+            Err(why) if why.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+            Err(why) => Err(format!("{}: {why}", path.display())),
+        },
+    )
+}
+
+fn prepare_fake_with(
+    path: &Path,
+    stat: impl FnOnce(&Path) -> io::Result<()>,
+    draw: impl FnOnce() -> Result<skein_lib::Secret, i32>,
+    write: impl FnOnce(&Path, u32, &[u8]) -> Result<(), String>,
+) -> Result<(), String> {
+    match stat(path) {
+        Ok(()) => return Ok(()),
+        Err(why) if why.kind() == io::ErrorKind::NotFound => {}
         Err(why) => return Err(format!("{}: {why}", path.display())),
     }
-    let seed = skein_shell::crypto_seed().map_err(|errno| format!("random token: errno {errno}"))?;
+    let seed = draw().map_err(|errno| format!("random token: errno {errno}"))?;
     let mut token = [0; 40];
     for (byte, digits) in seed.expose().iter().take(20).zip(token.as_chunks_mut::<2>().0) {
         digits[0] = b"0123456789abcdef"[usize::from(byte / 16)];
         digits[1] = b"0123456789abcdef"[usize::from(byte % 16)];
     }
-    match fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path) {
-        Ok(mut file) => file.write_all(&token).map_err(|why| format!("{}: {why}", path.display())),
-        Err(why) if why.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-        Err(why) => Err(format!("{}: {why}", path.display())),
-    }
+    write(path, 0o600, &token)
 }
 #[must_use]
 pub fn run(
@@ -472,24 +555,18 @@ pub fn run_with_shape_reader(
     environment: &[EnvironmentEntry],
     reader: Reader,
 ) -> u8 {
-    match start_with_binary_reader(binary, shape, directories, arguments, ssl_cert_file, environment, reader) {
-        Ok(code) => code,
-        Err(why) => {
-            if arguments.first().is_some_and(|verb| verb == "source") {
-                let reason: String = why
-                    .why
-                    .bytes()
-                    .take(1024)
-                    .map(|c| if c.is_ascii_graphic() || c == b' ' { char::from(c) } else { ' ' })
-                    .collect();
-                println!("source failed {reason}");
-                0
-            } else {
-                eprint!("{}", why.line_with_binary(binary));
-                1
-            }
-        }
-    }
+    let result = start_with_binary_reader(binary, shape, directories, arguments, ssl_cert_file, environment, reader);
+    report_exit(binary, arguments, result, |line| println!("{line}"), |line| eprint!("{line}"))
+}
+
+pub(super) fn report_exit(
+    binary: &str,
+    arguments: &[OsString],
+    result: Result<u8, Refused>,
+    stdout: impl FnOnce(String),
+    stderr: impl FnOnce(String),
+) -> u8 {
+    words::report(binary, result, arguments.first().is_some_and(|verb| verb == "source"), stdout, stderr)
 }
 fn webhook_listener(named: &temper_engine_service::startup::Named) -> Result<Option<core::net::SocketAddr>, String> {
     named.webhooks.as_ref().map(|hooks| super::address(&hooks.listener)).transpose()
@@ -498,22 +575,29 @@ fn webhook_listener(named: &temper_engine_service::startup::Named) -> Result<Opt
 /// Composes a forge's setup entry: its group's kind, or the machine's `owned` part with none
 /// (temper/docs/design/protocol/setup/box.md, 1 and 4).
 pub fn entry(directories: &super::Directories, number: u16) -> Result<temper_forge_setup::setup::Entry, String> {
-    use temper_forge_setup::machine;
-    let path = super::path(&directories.data).join(super::path(&machine::group_path(number)));
-    let kind = read_group_kind(&path)?.unwrap_or(machine::BoxKind::Owned);
+    let kind = read_group_kind_with(&group_path(directories, number), &skein_shell::read_file, &|path| {
+        path.symlink_metadata().map(|_| ())
+    })?
+    .unwrap_or(BoxKind::Owned);
     let dirs = jig_directories(directories);
     temper_forge_setup_shell::setup_file::read(&dirs, number, kind)?
         .entry(number, &dirs)
         .ok_or("invalid setup directory".into())
 }
 
-fn read_group_kind(path: &std::path::Path) -> Result<Option<temper_forge_setup::machine::BoxKind>, String> {
-    let bytes = match skein_shell::read_file(path, 16) {
+fn group_path(directories: &super::Directories, number: u16) -> std::path::PathBuf {
+    super::path(&directories.data).join(super::path(&temper_forge_setup::machine::group_path(number)))
+}
+
+fn read_group_kind_with(
+    path: &Path,
+    read: &GroupRead<'_>,
+    no_follow: &GroupStat<'_>,
+) -> Result<Option<BoxKind>, String> {
+    let bytes = match read(path, 16) {
         Ok(bytes) => bytes,
         // A dangling link is an existing group path, and keeps its read refusal.
-        Err(skein_shell::Unread::Absent)
-            if path.symlink_metadata().is_err_and(|why| why.kind() == std::io::ErrorKind::NotFound) =>
-        {
+        Err(skein_shell::Unread::Absent) if no_follow(path).is_err_and(|why| why.kind() == io::ErrorKind::NotFound) => {
             return Ok(None);
         }
         Err(why) => return Err(format!("{}: {}", path.display(), super::unread(why))),
@@ -726,3 +810,13 @@ pub fn command_with_reader(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod owned_tests;
+
+#[cfg(test)]
+pub(crate) mod command_tests;
+
+#[cfg(test)]
+#[path = "../../../testing/forge_setup.rs"]
+pub(crate) mod test_fixtures;

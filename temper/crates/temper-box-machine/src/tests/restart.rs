@@ -1,4 +1,5 @@
-//! Deliver the abort's real simulator completions in every endpoint order.
+//! Box restarts and cuts, on the simulated host (temper/docs/design/protocol/setup/testing.md, 1).
+mod owned;
 use super::fixtures::{Harness, call, long, socket};
 use crate::host::pressure::restart_gate;
 use skein_io::kernel::{Done, Exit, Fd, Op};

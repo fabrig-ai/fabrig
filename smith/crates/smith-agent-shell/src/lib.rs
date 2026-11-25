@@ -4,6 +4,19 @@
 //! The hosted face takes all resources from its caller; native startup is Unix-only.
 //! Contract: smith/docs/design/shell/README.md, sections 2.2 and 2.5; smith/docs/design/protocol/agent.md, sections 4–6.
 
+extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "generated to-domain functions uniformly take ownership (skein/docs/design/data/codec/maps.md, 4.1)"
+    )]
+    pub mod channel {
+        include!("generated/channel.rs");
+    }
+}
+
 mod agent_shell;
 
 pub use smith_agent_document::{config, trace};
@@ -17,7 +30,7 @@ pub mod program_child;
 #[cfg(unix)]
 pub mod relay;
 
-pub use agent_shell::{Agent, ProgramResources, Resources, given_up_line, identity};
+pub use agent_shell::{Agent, ProgramResources, Resources, command_exit, given_up_line, identity};
 
 #[cfg(unix)]
 pub use agent_shell::{run, run_decoded, run_dumping};

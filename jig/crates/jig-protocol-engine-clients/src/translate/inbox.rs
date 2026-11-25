@@ -1,56 +1,20 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
-use super::{live, pieces, task, w};
+use super::{live, pieces, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
-pub fn object(value: d::InboxObject, _limits: &w::Limits) -> Result<w::InboxObject, w::Problem> {
-    Ok(match value {
-        d::InboxObject::Question { message } => w::InboxObject::Question(w::InboxObjectQuestion { message }),
-        d::InboxObject::Proposal { proposer, number } => w::InboxObject::Proposal(w::InboxObjectProposal {
-            proposer: match proposer {
-                jig_domain_people::Proposer::Task(value) => w::Proposer::Task(w::ProposerTask { value }),
-                jig_domain_people::Proposer::Party(value) => w::Proposer::Party(w::ProposerParty { value }),
-            },
-            number,
-        }),
-        d::InboxObject::Escalation { revision } => w::InboxObject::Escalation(w::InboxObjectEscalation { revision }),
-        d::InboxObject::PersonTask => w::InboxObject::PersonTask,
-        d::InboxObject::Reply { message } => w::InboxObject::Turn(w::InboxObjectTurn { message }),
-        d::InboxObject::Result { position } => w::InboxObject::Result(w::InboxObjectResult { position }),
-    })
+#[must_use]
+pub fn object(value: d::InboxObject) -> w::InboxObject {
+    mapped::inbox_object_to_record(&value)
 }
-pub fn cursor(value: d::Cursor, limits: &w::Limits) -> Result<w::InboxCursor, w::Problem> {
-    Ok(match value {
-        d::Cursor::Number { number } => w::InboxCursor::Number(w::InboxCursorNumber { number }),
-        d::Cursor::Inbox { task, object: value, at } => w::InboxCursor::Inbox(w::InboxCursorInbox {
-            task,
-            object: object(value, limits)?,
-            at: match at {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-        }),
-    })
+#[must_use]
+pub fn cursor(value: d::Cursor) -> w::InboxCursor {
+    mapped::inbox_cursor_to_record(&value)
 }
 pub fn entry(value: &d::InboxEntry, limits: &w::Limits) -> Result<w::InboxEntry, w::Problem> {
-    Ok(w::InboxEntry {
-        projects: value.projects.clone(),
-        reply: match &value.reply {
-            Some(item) => Some(super::queries::line(item, limits)?),
-            None => None,
-        },
-        task: task::link(&value.task, limits)?,
-        project: value.project,
-        object: object(value.object, limits)?,
-        activity: value.activity,
-        at: match value.at {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-        unread: value.unread,
-        cursor: cursor(value.cursor, limits)?,
-    })
+    mapped::inbox_entry_to_record(value, &(&[], limits))
 }
 pub fn selection(
     value: Option<&List<d::InboxSelection>>,
@@ -61,11 +25,7 @@ pub fn selection(
     let Some(value) = value else { return Ok(None) };
     let mut rows = List::with_capacity(value.len());
     for row in value {
-        let mut goals = List::with_capacity(row.goals.len());
-        for number in &row.goals {
-            goals.push(*number).expect("supplied roots fit");
-        }
-        rows.push(w::InboxSelection { cursor: cursor(row.cursor, limits)?, goals }).expect("supplied selections fit");
+        rows.push(mapped::inbox_selection_to_record(row)).expect("supplied selections fit");
     }
     Ok(Some(selection_pieces(&rows, bound, path, limits)?))
 }
@@ -86,11 +46,11 @@ pub fn document(value: &d::Inbox, limits: &w::Limits) -> Result<w::Inbox, w::Pro
         needs,
         updates,
         next: match value.next {
-            Some(item) => Some(cursor(item, limits)?),
+            Some(item) => Some(cursor(item)),
             None => None,
         },
         cached_needs: value.cached_needs,
-        cached_updates: live::count(value.cached_updates, limits)?,
+        cached_updates: live::count(value.cached_updates),
         results_seen: value.results_seen,
         updates_time_complete: value.updates_time_complete,
         selection: selection(value.selection.as_ref(), limits, limits.inbox_selection_some, w::paths::INBOX_SELECTION)?,

@@ -119,7 +119,7 @@ pub enum Part {
         cut: bool,
     },
 }
-/// Decoded events over this dialect's `Part` (skein/docs/design/llm/README.md, 2).
+/// Decoded events over this dialect's `Part` (skein/docs/design/llm/vocabulary.md, 1).
 pub type Output = crate::wire::Output<Part>;
 #[derive(Debug)]
 pub struct StreamDecoder {

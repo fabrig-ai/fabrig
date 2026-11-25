@@ -17,6 +17,8 @@ pub const ONE: git::Commit =
     git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 pub const TWO: git::Commit =
     git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+const FIVE: git::Commit =
+    git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 pub const SIX: git::Commit =
     git::Commit::new([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 pub const SEVEN: git::Commit =
@@ -72,20 +74,9 @@ fn remote() -> Box<[u8]> {
 #[must_use]
 pub fn copy_script(script: &Script) -> Script {
     Script {
-        invocations: script
-            .invocations
-            .iter()
-            .map(|invocation| Invocation {
-                transcript: crate::transcripts::Transcript {
-                    argv: invocation.transcript.argv.clone(),
-                    exit: invocation.transcript.exit,
-                    stdout: invocation.transcript.stdout.clone(),
-                    stderr: invocation.transcript.stderr.clone(),
-                },
-                fault: invocation.fault,
-            })
-            .collect(),
+        invocations: script.invocations.clone(),
         exit_first: script.exit_first,
+        read_stdin_to_end: script.read_stdin_to_end,
         file_failure: script.file_failure,
         view_failure: script.view_failure,
     }
@@ -95,6 +86,7 @@ fn scenario(op: git::Op, cases: &[&str], expected: Expected) -> Scenario {
     let at = match &op {
         git::Op::Clone { at, .. }
         | git::Op::Fetch { at, .. }
+        | git::Op::Counts { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::Merge { at, .. }
@@ -148,6 +140,8 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             ),
         ),
         ("fetch", fetch()),
+        ("counts-present", counts(true)),
+        ("counts-absent", counts(false)),
         ("point", point()),
         (
             "store",
@@ -203,17 +197,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
                 Expected::done(git::Done::Merged),
             ),
         ),
-        (
-            "merge conflict",
-            scenario(
-                git::Op::Merge { at: at(), theirs: TWO, identity: 1, account: None },
-                &["merge-conflict", "merge-conflict-2"],
-                Expected::done(git::Done::Conflicted {
-                    files: Box::new([Box::from(&b"conflict.txt"[..])]),
-                    cut: false,
-                }),
-            ),
-        ),
+        ("merge conflict", merge_conflict()),
         ("commit", commit(false)),
         ("merging commit", commit(true)),
         ("push", push(false)),
@@ -240,6 +224,15 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
         }),
     ]
 }
+fn merge_conflict() -> Scenario {
+    let mut scenario = scenario(
+        git::Op::Merge { at: at(), theirs: TWO, identity: 1, account: None },
+        &["merge-conflict", "merge-conflict-2"],
+        Expected::done(git::Done::Conflicted { files: Box::new([Box::from(&b"conflict.txt"[..])]), cut: false }),
+    );
+    scenario.script.invocations.insert(1, Invocation::scripted(b"log", 0, b"", b""));
+    scenario
+}
 #[must_use]
 pub fn view() -> Scenario {
     let mut scenario = point();
@@ -251,10 +244,32 @@ pub fn view() -> Scenario {
         (b"MERGE_MODE", b""),
         (b"refs/temper/fetched", b"fetched\n"),
         (b"refs/temper/landing", b"landing\n"),
+        (b"refs/temper/counts", b"counts\n"),
     ] {
         scenario.files.insert([b"gitdirs/7/specimen/".as_slice(), name].concat(), Node::File(bytes.into()));
     }
     scenario
+}
+#[must_use]
+pub fn counts(present: bool) -> Scenario {
+    let op = git::Op::Counts {
+        at: git::Place { workspace: Token::new(1), ..at() },
+        store: Token::new(9),
+        remote: remote(),
+        identity: 1,
+        account: None,
+    };
+    if present {
+        let mut scenario =
+            scenario(op, &["counts-present", "counts-update"], Expected::done(git::Done::Fetched { commit: FIVE }));
+        scenario.files.insert(
+            b"gitdirs/1/specimen/refs/temper/counts".to_vec(),
+            Node::File(Box::from(b"0000000000000000000000000000000000000005\n".as_slice())),
+        );
+        scenario
+    } else {
+        scenario(op, &["counts-absent", "counts-delete"], Expected::done(git::Done::Succeeded))
+    }
 }
 #[must_use]
 pub fn point() -> Scenario {
@@ -352,6 +367,17 @@ pub fn sweep() -> Scenario {
     scenario.files.insert(b"trash/wide/link".to_vec(), Node::Link);
     scenario
 }
+/// Make sets these files aside before the world's fault stream marks one stuck.
+#[must_use]
+pub fn trash_make() -> Scenario {
+    let mut scenario = operations().remove(0).1;
+    scenario.files.insert(b"workspaces/7".to_vec(), Node::Directory);
+    for name in [b"alpha".as_slice(), b"omega"] {
+        scenario.files.insert([b"workspaces/7/", name].concat(), Node::File(Box::from(&b"payload"[..])));
+    }
+    scenario
+}
+
 #[must_use]
 pub fn drawn(seed: u64) -> Scenario {
     let mut choices = operations();
@@ -417,8 +443,8 @@ pub fn memory_peak() -> u64 {
     let mut script = Script::default();
     for _ in 0..limits().operations {
         let mut invocation = Invocation::captured("fetch-default");
-        invocation.transcript.stdout = vec![b'x'; 512].into_boxed_slice();
-        invocation.transcript.stderr = vec![b'y'; 512].into_boxed_slice();
+        invocation.stdout = vec![b'x'; 512].into_boxed_slice();
+        invocation.stderr = vec![b'y'; 512].into_boxed_slice();
         script.invocations.push_back(invocation);
     }
     below.reset(script);

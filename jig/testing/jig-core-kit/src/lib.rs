@@ -1,10 +1,28 @@
-//! The core's driver, peers and referee (jig/docs/design/domain/testing.md, 7).
+//! The core's driver, peers and referee (jig/docs/design/domain/testing-fakes.md, 1).
 
 #![forbid(unsafe_code)]
 
+pub mod bounds;
 mod charters;
 pub mod lists;
+pub mod open;
+pub mod parks;
+pub mod people;
+pub mod workload;
+
+#[cfg(test)]
+mod tests;
 pub mod world;
+
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::world::testing::fork_cut;
+
+    #[must_use]
+    pub fn oracle_closed(world: &crate::world::World) -> bool {
+        world.oracle_closed
+    }
+}
 
 mod application_observations;
 pub mod client_peer;

@@ -24,6 +24,7 @@ fn frame() -> c::Me {
         key_bytes: 256,
         redirect_bytes: 4096,
         words_bytes: 8192,
+        sign_in_expires: skein_lib::Wall::from_nanos(86_400_000_000_000),
     }
 }
 
@@ -181,7 +182,7 @@ fn a_job_chip_round_trips_wire_to_domain_to_wire() {
 /// jig/docs/design/protocol/channel/README.md, 4.3: scripted engines carry the fleet's reason.
 #[test]
 fn job_kinds_hello_refusal_round_trips() {
-    let record = values::wire_hello_refusal(&c::HelloRefusal::JobKinds, &w::CEILINGS).expect("unit refusal");
+    let record = values::wire_hello_refusal(&c::HelloRefusal::JobKinds);
     let bytes = encoded(&record, &w::CEILINGS).expect("encoded refusal");
     let decoded = w::HelloRefusal::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("decoded refusal");
     assert_eq!(decoded, record);
@@ -191,8 +192,8 @@ fn job_kinds_hello_refusal_round_trips() {
 fn worker_settings_linked_faults_and_deployment_rows_survive_the_scripted_codec() {
     let limits = front::limits(&Bounds::default()).expect("valid limits");
     let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
-    let wire = values::wire_setting(&setting, limits.wire()).unwrap();
-    assert_eq!(translate::settings::restore_setting(&wire).unwrap(), setting);
+    let wire = values::wire_setting(&setting);
+    assert_eq!(translate::settings::restore_setting(&wire), setting);
     let source = c::SettingValue::Worker(Box::new(c::WorkerSetting {
         number: 2,
         name: b"w1".as_slice().into(),
@@ -202,9 +203,9 @@ fn worker_settings_linked_faults_and_deployment_rows_survive_the_scripted_codec(
     }));
     let wire = values::wire_setting_value(&source, limits.wire()).unwrap();
     assert_eq!(translate::settings::restore_setting_value(&wire, &limits).unwrap(), source);
-    assert_eq!(values::wire_setting_fault(&c::SettingFault::Linked, limits.wire()), Ok(w::SettingFault::Linked));
-    assert_eq!(values::wire_setting_fault(&c::SettingFault::Range, limits.wire()), Ok(w::SettingFault::Range));
-    assert_eq!(translate::settings::restore_setting_fault(&w::SettingFault::Range), Ok(c::SettingFault::Range));
+    assert_eq!(values::wire_setting_fault(&c::SettingFault::Linked), w::SettingFault::Linked);
+    assert_eq!(values::wire_setting_fault(&c::SettingFault::Range), w::SettingFault::Range);
+    assert_eq!(translate::settings::restore_setting_fault(&w::SettingFault::Range), c::SettingFault::Range);
     let mut source = crate::tests::deployment::empty();
     source.worker_settings = List::from_boxed(Box::new([c::WorkerState {
         pause: c::WorkerPause::Taking,
@@ -228,7 +229,7 @@ fn scripted_suspensions_and_worker_waits_keep_their_wire_facts() {
     {
         let end = c::RunEnd::Suspended { worker: 2, why };
         let value = c::Activity::RunEnded { attempt: 4, end, spent: 19 };
-        let record = values::wire_activity(&value, &w::CEILINGS).unwrap();
+        let record = values::wire_activity(&value);
         let bytes = record.encode(&w::CEILINGS).unwrap();
         let decoded = w::Activity::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
         assert_eq!(
@@ -256,6 +257,6 @@ fn scripted_suspensions_and_worker_waits_keep_their_wire_facts() {
         assert_eq!(read(&value, &Bounds::default()), Ok(value));
     }
     let wait = c::TaskRunWait::Worker { worker: 2, until: Wall::from_nanos(63_600_000_000_001) };
-    let record = values::wire_task_run_wait(&wait, &w::CEILINGS).unwrap();
+    let record = values::wire_task_run_wait(&wait);
     assert_eq!(record, w::TaskRunWait::Worker(w::TaskWaitWorker { worker: 2, until: 63_600_000_000_001 }));
 }

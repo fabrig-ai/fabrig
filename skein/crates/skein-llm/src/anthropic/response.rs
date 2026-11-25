@@ -70,7 +70,7 @@ pub enum Part {
     ToolCall { id: Box<[u8]>, name: Box<[u8]>, input: Box<[u8]>, too_large: bool, bytes: u64, cut: bool },
     Opaque { bytes: Box<[u8]> },
 }
-/// Decoded events over this dialect's `Part` (skein/docs/design/llm/README.md, 2).
+/// Decoded events over this dialect's `Part` (skein/docs/design/llm/vocabulary.md, 1).
 pub type Output = crate::wire::Output<Part>;
 
 #[derive(Debug)]
@@ -438,8 +438,8 @@ impl StreamDecoder {
             },
             Delta::Arguments { text: fragment } => match active {
                 Active::ToolCall { input, fragmented, too_large, bytes, .. } => {
-                    if !*fragmented {
-                        // The start's `{}` is a placeholder, replaced by partial_json.
+                    if !*fragmented && (!fragment.is_empty() || long.is_some()) {
+                        // Replace the start object when the first argument bytes arrive.
                         input.clear();
                         *bytes = 0;
                         *too_large = false;

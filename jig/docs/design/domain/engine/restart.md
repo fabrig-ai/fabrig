@@ -5,8 +5,10 @@ the store and the connectors, and makes nothing twice. The core runs it
 as a script: it asks the root for one step at a time, and asks for the
 next only once the root says this one is done (../root.md, section 8).
 
+## 1. The restart script
+
 1. **The core's records:** the deployment's numbers; the settings,
-   checked whole (`settings.md`, 7), before every other record; projects, their
+   checked whole (`settings-store.md`, 1), before every other record; projects, their
    policies and parties' roles; parties with a live sign-in or a role,
    and their requests' keys within the retention; parties' read
    positions over live conversations, never ended ones' (`views.md`, 4); live
@@ -21,12 +23,12 @@ next only once the root says this one is done (../root.md, section 8).
    revision, which is held (`settings.md`, 3).
 2. **Each connector's records,** connector by connector: it is given
    the application's defaults of its kinds and says which differ from
-   those it stored (`settings.md`, 5); then the root loads that connector's live
+   those it stored (`settings-application.md`, 1); then the root loads that connector's live
    ranges and restores them into it (../connectors.md, section 14). Once
    every connector has, new defaults, jig's and the connectors', make
    the release's revision in one decision, with the connectors' new
    defaults saved in it, checked against the limits with the live
-   tasks' revisions held (`settings.md`, 7).
+   tasks' revisions held (`settings-store.md`, 1).
 3. **The runs adopted.** Every task claimed or running names its attempt
    and the kind of host it was placed on. Claims placed in the engine
    died with it, and are settled at once as lost, or as not started if
@@ -40,7 +42,7 @@ next only once the root says this one is done (../root.md, section 8).
    keeps waiting for one within its grace, or its hold after a stop
    that said it restarts (1, *Held across starts*), and cancels any it
    does not name (`fleet.md`). A claim whose stored run proof is
-   `crossed` is never adopted (`executors.md`, 2): one in the engine or
+   `crossed` is never adopted (`executors-transcripts.md`, 1): one in the engine or
    on in-process workers is settled at once, as above; one on another worker ends lost as a
    claim lost with its worker does, its run stopped when its worker
    lists it, and the claim lost once that run has stopped or once the
@@ -50,21 +52,39 @@ next only once the root says this one is done (../root.md, section 8).
    attempt `Fenced`), and one no worker listed that committed nothing
    ends not started, as an engine claim does (../tasks/lifecycle.md, 2). Nothing new is assigned before every claim loaded has
    reached the fleet.
-4. **Read afresh.** Each connector reads, for the live tasks that name
-   them, the resources its system owns.
-5. **Settle the outboxes.** Each connector resolves every entry not
-   committed as made, as its recovery class says (../connectors.md, 4.3):
-   looked for by its key or the state it leads to, written again if it
-   is a set; one not found waits for the retry deadline committed with
-   its last attempt, which the restart keeps; one of a kind that cannot
-   be recovered holds its task for a person.
-6. **Decide afresh.** Every procedure steps once on the facts read;
-   every agent task due gets a run; every inbox's messages are relayed or
-   wake as their policy says.
+4. **Open.** Once the runs are adopted, decisions open: the engine's
+   own records are in, and nothing it serves waits for a connector.
+   People sign in and out, chats, settings, task and census reads,
+   worker links and adopted runs go on; every agent task due gets a
+   run; every inbox's messages are relayed or wake as their policy
+   says.
+5. **Each connector catches up** from the opening, while the engine
+   serves (../connectors.md, 14), its two halves together:
+   - **it reads afresh,** for the live tasks that name them, the
+     resources its system owns;
+   - **it settles its outbox,** each entry not committed as made
+     resolved as its recovery class says (../connectors-effects.md, 1.3): looked
+     for by its key or the state it leads to, written again if it is a
+     set; one not found waits for the retry deadline committed with its
+     last attempt, which the restart keeps; one of a kind that cannot be
+     recovered holds its task for a person.
+
+   It reports each half, and has caught up once both have ended.
+   Nothing bounds it, and nothing of the engine's waits on it but what
+   step 6 names.
+6. **Decide afresh, a resource at a time.** Every procedure steps from
+   the opening as its wakes come; a decision on a fact a connector owns
+   waits for that fact's first fresh read, or for the connector's fresh
+   reads (../connectors-facts.md, 1.1), and never judges a resource from what
+   the store held alone; a write waits for the uncertain entries before
+   it on its lane (../connectors-effects.md, 1.2). A run's call that needs a
+   connector waits in that call, within the run's own deadlines.
 
 Workers keep the answers and turns they were not acknowledged for, and
 send them again after their hello; the core commits any it does not
 have, and acknowledges each.
+
+## 2. After an upgrade
 
 **After an upgrade.** At or above the floor and at the build's owner
 levels, jig's store registers the build's layouts and runs declared
@@ -84,7 +104,7 @@ active the root commits the start's wires (`../../protocol/store/records.md`, 3)
 the start's mark, and only once it is durable are secrets served, runs
 adopted and connectors let reach their systems. Before it the restores may commit, as they do at any start
 (people's expired rows erased, the accounts' wants saved, the release's
-settings revision, `settings.md`, 7), and their commits land in the copy alone; but
+settings revision, `settings-store.md`, 1), and their commits land in the copy alone; but
 nothing leaves the engine's process: no secret is served, no run
 adopted or placed, no connector reads or writes its system
 (`../../protocol/store/opening.md`, 2, step 7). So the restores load and link
@@ -97,6 +117,8 @@ store opens its secrets' gate on it. The fleet's checks of a host's
 programs, which read what a worker reports and start nothing, may go
 before it. Over a generation with nothing pending, the step switches
 nothing and commits the wires alone.
+
+## 3. Load, then link
 
 **Load, then link** (the user, 10-27; temper's `draft/upgrades.md`,
 6.4). A start, over the active generation or an upgraded copy alike,
@@ -119,7 +141,7 @@ one rule for every child and the store:
   bound); a live set past the limits; a saved value past its byte
   budget or that cannot be accounted (`ProjectPolicy`, below); the
   current settings failing their check whole against the document
-  they are read with (`settings.md`, 7); a retained LLM choice the configuration's
+  they are read with (`settings-store.md`, 1); a retained LLM choice the configuration's
   executors no longer admit (`../../client/domain/contract/README.md`, section
   7, item 7). Each is the store against the configuration, not a
   record judged.
@@ -139,7 +161,7 @@ one rule for every child and the store:
 - **An expired row,** one whose time has passed at the start's time
   (people's expiries among them), is decoded, never counted against the live
   set's limits, never linked and never held past its page, and the sweep
-  erases it; its links are the tests' to check (`README.md`, section 9), so a store
+  erases it; its links are the tests' to check (`world.md`, section 1), so a store
   that fits once cleaned is never refused for what it held before.
 - **The start's time** is the wall time observed once, when the start
   begins; both walks judge expiry against it and nothing else in the
@@ -149,8 +171,8 @@ one rule for every child and the store:
 - **It refuses a link it cannot make:** a record naming one the start
   did not load (a task's party, project, placed hold or task, a claim's
   proof), a task or a claim naming a revision not held or a charter
-  that revision lacks (`settings.md`, 7), a name reserved by another source
-  (../accounts.md, 3.4), an ended read position whose task is missing
+  that revision lacks (`settings-store.md`, 1), a name reserved by another source
+  (../accounts-sources.md, 1), an ended read position whose task is missing
   or whose task's record is not that party's conversation (the census's
   pair, `../../protocol/store/loads.md`, 2), a projection header or part
   naming what it lacks after the derived plan repair, a connector's row
@@ -174,11 +196,11 @@ one rule for every child and the store:
   open question (`README.md`, section 10). Every link is made before any sweep runs
   (`../../protocol/store/secrets.md`), so the refusal erases no value,
   and a release that repairs the writer, or the store, starts it.
-- **The checks are tests** (`README.md`, section 9): every world story ends with a
+- **The checks are tests** (`world.md`, section 1): every world story ends with a
   cold restart that restores and reads back what it wrote, and a record
   left out fails a test build; registry changes and declared jobs are
   proved over stores at the floor
-  (`../../protocol/store/opening.md`, 2, and `../../protocol/store/README.md`, 9).
+  (`../../protocol/store/opening.md`, 2, and `../../protocol/store/testing.md`, 1).
 
 A restart refused before the switch leaves the source generation
 active and unchanged (`../../protocol/store/opening.md`, 2, step 7);
@@ -187,16 +209,24 @@ active and the one before it as `active` − 1, for the operator to go
 back to before its first commit of its own (temper's
 `draft/upgrades.md`, 3.2). The restart restores a stored closed window
 as closed and adopts no claim whose proof is crossed (step 3); the
-next attempt starts fresh (`executors.md`, 2). Registration and the
+next attempt starts fresh (`executors-transcripts.md`, 1). Registration and the
 jobs' runner do not infer those marks or close windows.
+
+## 4. The start's interface
 
 **The start's interface** (`jig_domain_core::start`). The root drives
 the start; the core owns its order. `Core::start_begin(pending, at)`
 takes the store's pending flag and the start's time; the core then
 answers `Action::Step(phase)` for each `Phase` in turn: `LoadCore`,
 `LoadInbox`, `RestoreConnector { connector }` for each connector,
-`Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, then `ReadAfresh` and
-`SettleOutbox` for each connector, and `Open`. The root serves the
+`Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, and `Open`. As `Open`
+is done the core asks each connector to catch up, `Ask::CatchUp` (step
+5), and the root passes each connector's report of a half back with
+`catch_up_done(connector, stage)`, `stage` its
+`effects::connector::RestartStage`, `ReadAfresh` or `Settled`;
+`caught_up(connector)` says whether both have come since the opening.
+No phase follows `Open`, so nothing the start gates waits for a
+connector. The root serves the
 phase and reports it with `start_done(env, phase, out)`, and gives the
 sweep its people rows with `start_sweep(env, SweepInput, out)`; it never
 picks a successor. `Action::Commit(continuation)` asks the root to put
@@ -223,7 +253,7 @@ its open, then typed pages, `Event::Page` and `Event::PageRefused`
 connector's own fit, is the application's cause and is never turned
 into a `start::Failure`.
 
-## 1. Stopping
+## 5. Stopping
 
 The engine stops when its service is told to (a signal, an operator), and
 the core hears it from its root before anything closes
@@ -248,8 +278,9 @@ would make a commit:
   nothing, and whatever the run sends after is for an attempt the core no
   longer holds, and dropped. Its writer slots are released: the run may
   still write until its process ends, but nothing is placed while the
-  engine stops, and the next start reads every resource afresh before it
-  places anything (`restart.md`, steps 4 and 6). A job's claim is left as it stands, for the
+  engine stops, and the next start places no run that writes a
+  resource before its connector has read it afresh (`restart.md`, steps 5
+  and 6; `../tasks/holds.md`, 3). A job's claim is left as it stands, for the
   next start to settle as a crash leaves it, since its one effect may
   have happened. A crash, or a second signal before that decision
   commits, leaves every such claim to the next start, which settles it
@@ -260,12 +291,12 @@ would make a commit:
 - **no run is placed, and no procedure stepped.**
 
 It ends every watch saying the engine is stopping
-(`../../client/domain/contract/README.md`, 5.2), and says once when nothing it holds
+(`../../client/domain/contract/watches.md`, 1.2), and says once when nothing it holds
 waits for a commit, so the service can close its components. A restart
 then starts from the store as `restart.md` says.
 
 **Settling before the stop.** A root that settles its effects before
-it stops (temper's `domain/root.md`, 8.2; temper's `draft/redeploys.md`,
+it stops (temper's `domain/root-restart.md`, 1.2; temper's `draft/archive/redeploys.md`,
 5.2) first tells the core so, `Event::Settling`, at once on hearing the
 stop, and its stop, `Event::Stopping`, once settled. From `Settling` on,
 the core makes no new work and takes every commit:
@@ -314,7 +345,7 @@ A stopped start is no refused start: it names no `start::Failure`,
 `start_phase()` still names where it stopped, and the next start begins
 again from the store.
 
-**Saying it restarts** (temper's `draft/redeploys.md`, 5.2). A settled
+**Saying it restarts** (temper's `draft/archive/redeploys.md`, 5.2). A settled
 stop tells the workers that the engine restarts, so that each keeps its
 runs through the restart wait rather than its grace
 (`../../protocol/channel/restart.md`):
@@ -328,9 +359,10 @@ runs through the restart wait rather than its grace
 - **Then said.** Once that decision is durable, the core asks its root
   to tell the workers, `Held::Restarting { wait }`, `wait` the
   configured restart wait, a `Duration`. The root has its workers'
-  component send it on each channel whose version has it, and closes
+  component send it on each channel whose worker's layout has it
+  (`../../protocol/channel/layouts.md`, 4.1), and closes
   the workers' part only at `Held::Drained`, which the journal releases
-  after it (temper's `domain/root.md`, 8.2).
+  after it (temper's `domain/root-restart.md`, 1.2).
 - **Kept as** the deployment's numbers record's `restart_wait_ms`, the
   wait in milliseconds, `option u64 = none` in `jig-store-core`: a
   registered family's field with its default, so no version moves and
@@ -341,7 +373,7 @@ runs through the restart wait rather than its grace
   nothing; nor does a stop whose configuration says its workers are in
   its process (step 3), or whose restart wait is zero.
 
-**Held across starts** (temper's `draft/redeploys.md`, 5.3):
+**Held across starts** (temper's `draft/archive/redeploys.md`, 5.3):
 
 - **Read with the core's records** (step 1): a word kept is the start's
   hold.
@@ -364,7 +396,7 @@ runs through the restart wait rather than its grace
   between them or a shorter wait on the second, shorten no hold.
 - **A build that doesn't know the word** holds for its grace alone, so
   going back past the build that brings it is every part together, each
-  worker drained first (temper's `draft/redeploys.md`, 7.3).
+  worker drained first (temper's `draft/archive/redeploys.md`, 7.3).
 
 Finishing continues while stopping. After routing previously accepted work,
 a Resume at which the core owes finishing closes without taking a new input,

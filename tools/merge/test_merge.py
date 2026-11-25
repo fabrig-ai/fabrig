@@ -36,7 +36,7 @@ class Merge(unittest.TestCase):
         self.repository.mkdir()
         self.env = {'PATH': '/usr/bin:/bin', 'HOME': str(self.job),
                     'LANG': 'C.UTF-8', 'TEMPER_JOB': str(self.job)}
-        self.git('init', '-q', '-b', 'head')
+        self.git('init', '-q', '-b', 'head', '--object-format=sha1')
         self.git('config', 'user.name', 'Merge test')
         self.git('config', 'user.email', 'merge@example.test')
         self.git('config', 'commit.gpgsign', 'false')
@@ -106,6 +106,10 @@ class Merge(unittest.TestCase):
         (self.job / 'request.json').write_text(json.dumps(
             {'version': 1, 'head': head, 'base': base}), encoding='utf-8')
 
+    def execute_merge(self):
+        return subprocess.run(['fabrig/.temper/merge', 'merge', 'request.json'],
+                              cwd=self.job, env=self.env, capture_output=True)
+
     def run_merge(self, settled, left, truncated=False):
         left = [{'path': item, 'kind': 'modified'} if isinstance(item, str) else item
                 for item in left]
@@ -117,8 +121,7 @@ class Merge(unittest.TestCase):
                                        '--', path).stdout) for path in paths}
         head = self.git('rev-parse', 'HEAD').stdout
         base = self.git('rev-parse', 'MERGE_HEAD').stdout
-        execution = subprocess.run(['fabrig/.temper/merge', 'merge', 'request.json'],
-                                   cwd=self.job, env=self.env, capture_output=True)
+        execution = self.execute_merge()
         self.assertEqual(execution.returncode, 3 if left else 0, execution.stderr.decode())
         encoded = (self.job / 'result.json').read_bytes()
         self.assertLessEqual(len(encoded), 512)
@@ -204,8 +207,9 @@ class Merge(unittest.TestCase):
                          self.git('show', f'{base}:{path}').stdout)
         entry = self.git('ls-tree', base, '--', path).stdout.split()[0]
         self.assertEqual(self.git('ls-files', '--stage', '--', path).stdout.split()[0], entry)
-        self.assertEqual((self.repository / path).stat().st_mode & 0o111,
-                         0o111 if entry == b'100755' else 0)
+        # The owner's bit alone: git leaves the rest to the umask, 022 or 077.
+        self.assertEqual((self.repository / path).stat().st_mode & 0o100,
+                         0o100 if entry == b'100755' else 0)
 
     def test_journey_written_conflicts_take_base_bytes_and_mode_without_generation(self):
         paths = (JOURNEYS + 'x/01.html',
@@ -783,6 +787,32 @@ class Merge(unittest.TestCase):
                 self.assert_stages({source: {1, 2} if by == 'base' else {1, 3}})
                 self.run_merge([], [{'path': source, 'kind': 'renamed', 'by': by,
                                      'to': target, 'commit': rename[:12]}])
+
+    def test_history_diff_failure_names_commit_and_missing_blob(self):
+        old, new = 'old.md', 'new.md'
+        self.write(old, 'common file\n' * 10)
+        self.commit('common')
+        self.git('branch', 'base')
+        self.write(old, 'head version\n' * 10)
+        head = self.commit('head modifies old file')
+        self.git('checkout', '-q', 'base')
+        self.write(old, 'base version\n' * 10)
+        parent = self.commit('base modifies old file')
+        self.git('rm', old)
+        self.write(new, 'unrelated txt\n' * 10)
+        base = self.commit('base deletes old file and adds unrelated one')
+        self.merge_conflict(head, base)
+        self.assert_stages({old: {1, 2}})
+        blob = self.git('rev-parse', f'{parent}:{old}').stdout.decode().strip()
+        (self.repository / '.git/objects' / blob[:2] / blob[2:]).unlink()
+
+        execution = self.execute_merge()
+        self.assertEqual(execution.returncode, 1, execution.stderr)
+        self.assertFalse((self.job / 'result.json').exists())
+        last = execution.stderr.splitlines()[-1]
+        self.assertEqual(last, (f'merge: git diff-tree {base[:12]}^1 {base[:12]}: '
+                                f'fatal: unable to read {blob}').encode())
+        self.assertLessEqual(len(last), 128)
 
     def test_rename_into_an_added_path_names_its_source(self):
         source = 'old\n"\\é[*].txt'

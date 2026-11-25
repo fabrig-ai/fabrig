@@ -1,5 +1,5 @@
 //! Concrete Smith turn and terminal metadata become the root's opaque turn
-//! and typed task ending (jig's domain/engine/executors.md, 2 and 4; jig's
+//! and typed task ending (jig's domain/engine/executors-transcripts.md, 1, and domain/engine/executors.md, 4; jig's
 //! domain/tasks/lifecycle.md, 7). The boundary caller supplies encoded turn bytes and
 //! the worker's settled pushed resource evidence; this crate does not encode
 //! history or inspect git.
@@ -42,7 +42,8 @@ pub fn turn(request: smith::Request, transcript: Box<[u8]>) -> Result<host::Turn
             read,
             body: transcript,
         }),
-        smith::Request::Waiting { .. }
+        smith::Request::Part { .. }
+        | smith::Request::Waiting { .. }
         | smith::Request::HostCall { .. }
         | smith::Request::WithdrawHost { .. }
         | smith::Request::Admitted { .. }

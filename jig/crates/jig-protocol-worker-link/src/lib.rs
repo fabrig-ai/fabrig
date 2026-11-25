@@ -1,4 +1,4 @@
-//! The worker's channel owner (protocol/channel/README.md, 4 and 9.1).
+//! The worker's channel owner (protocol/channel/README.md, 4, and protocol/channel/worker-link.md, 1.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -7,6 +7,11 @@ mod boundary;
 mod busy;
 mod component;
 mod connection;
+#[rustfmt::skip]
+mod generated {
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "skein-codegen borrows every domain value on the way to the record")]
+    pub(crate) mod worker_wire;
+}
 mod grace;
 mod limits;
 mod relays;

@@ -267,6 +267,7 @@ pub fn tool_verdict(result: &session::llm::Returned) -> ToolVerdict {
             | tools::Outcome::EditFailed { .. }
             | tools::Outcome::Failed { .. }
             | tools::Outcome::TimedOut
+            | tools::Outcome::Interrupted { .. }
             | tools::Outcome::Cancelled
             | tools::Outcome::Busy
             | tools::Outcome::NulByte => ToolVerdict::Failed,

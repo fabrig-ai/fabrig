@@ -1,5 +1,5 @@
 //! Result-paced print parent and private configuration fixtures, per
-//! smith/docs/design/protocol/programs.md, sections 5 and 8.
+//! smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8.
 
 use super::{Invocation, Run};
 use skein_fake_machine::Item;
@@ -61,9 +61,7 @@ pub fn normal(story: Story, count: usize) -> Run {
 }
 
 pub fn unpaced(bytes: &[u8]) -> Invocation {
-    let mut invocation = invocation(0).input(bytes);
-    invocation.stream = false;
-    invocation
+    invocation(0).input(bytes).unpaced()
 }
 
 pub fn without_input() -> Invocation {

@@ -17,14 +17,30 @@ mechanics are those of skein's `programming-model.md`.
    batches, lifecycle, holds, inboxes and wake policies, proposals and
    escalations; a task that stands, and a gathering parties fill
    (`tasks/gatherings.md`).
+   - **tasks/lifecycle-holds.md:** failures and placed holds.
+   - **tasks/lifecycle-endings.md:** added dependencies and ending a task.
 3. **authority.md:** what a task may do: authority as a value, budgets
    and spend, checks, proposals, requirements and their verdicts.
+   - **authority-budgets.md:** budgets and spend.
+   - **authority-checks.md:** checks on batches, effects, runs, requests and tools.
 4. **connectors.md:** the contract every connector meets, and what
    crosses between it and the core: jig's API toward applications.
+   - **connectors-effects.md:** effects, the outbox and recovery.
+   - **connectors-facts.md:** facts, events, topics and what clients see.
+   - **connectors-procedures.md:** when a procedure steps and what it decides.
 5. **engine/README.md:** the core as a whole: its children, its vocabulary
    toward the root, commits and the store, the restart script, agents'
    runs and the engine's tools, the fleet, briefs, notes, views,
    accounts.
+   - **engine/vocabulary.md:** what crosses between the core and the root.
+   - **engine/decisions.md:** decisions, commits and the store.
+   - **engine/world.md:** the core's domain world and its stories.
+   - **engine/executors-transcripts.md:** turns, transcripts and resumption.
+   - **engine/executors-tools.md:** the tools the engine offers a run.
+   - **engine/settings-application.md:** an application's settings.
+   - **engine/settings-proposals.md:** proposing settings and deciding a proposal.
+   - **engine/settings-store.md:** how settings are kept and loaded at startup.
+   - **engine/settings-catalogue.md:** the model catalogue and a provider's list.
 6. **root.md:** what an application's root does: the one shape, the
    journal, routing, translation, putting outputs together, and what it
    never does.
@@ -36,10 +52,15 @@ mechanics are those of skein's `programming-model.md`.
    their agents run, smith's payloads it carries, workspaces, and what
    the core takes from smith.
 9. **testing.md:** the worlds, the conformance world and its referee.
+   - **testing-fakes.md:** fakes, kits, the inspection adapter and shared checks.
+   - **testing-workloads.md:** workloads drawn from the seed, people's acts, parks and bounds at any step, and their sweeps.
 10. **accounts.md:** LLM accounts: each application its own client,
     accounts and their holders, sources and states, whose work an
     account pays for, which account a run gets, what people do with
     their accounts, and moving one.
+    - **accounts-sources.md:** sources and their states.
+    - **accounts-lists.md:** an account's list and what a provider says.
+    - **accounts-uses.md:** whose work an account pays for and how a run chooses it.
 11. **providers.md:** the LLM providers' terms, OpenAI's and
     Anthropic's, as accounts.md and smith's programs apply them.
 12. **terminal-login.md:** a program's login in a terminal the person's
@@ -57,14 +78,14 @@ an application's engine
 ├── jig-domain-core             the core (engine.md)
 │   ├── jig-domain-core-vocabulary  what crosses the core's edge (engine/README.md, 3)
 │   ├── jig-domain-tasks        every live task, the center of the core (tasks.md)
-│   ├── jig-domain-authority    policy (authority.md)
+│   ├── jig-domain-authority    policy (authority.md, authority-budgets.md, authority-checks.md)
 │   ├── jig-domain-people       parties (people.md)
 │   ├── jig-domain-fleet        hosts, placement, attempts
-│   ├── jig-domain-accounts     LLM accounts and an application's credentials (accounts.md)
+│   ├── jig-domain-accounts     LLM accounts and an application's credentials (accounts.md, accounts-sources.md, accounts-lists.md, accounts-uses.md)
 │   ├── jig-domain-brief        briefs
 │   ├── jig-domain-notes        notes
 │   └── jig-domain-views        parties' watches
-├── <connector>…                the application's (connectors.md)
+├── <connector>…                the application's (connectors.md, connectors-effects.md, connectors-facts.md, connectors-procedures.md)
 ├── jig-domain-host             hosted runs on the engine's slots, if it runs agents (hosts.md)
 ├── jig-domain-hub-link         the link between the core's fleet and that hub (hosts/hub.md, 1)
 ├── smith-inline-agent          their agent, smith's: its domains in this process
@@ -86,6 +107,8 @@ value crate jig-domain-link alone (root.md, section 2); the hub depends
 on the same two, and carries smith's payloads as bytes; the agent capabilities are smith's crates, and jig ships none.
 Which crates link smith is hosts/hub.md, 8. Nothing in jig names a
 system.
+
+The domain's worlds and their kits are in `testing.md` and `testing-fakes.md`.
 
 ## 3. Conventions
 
@@ -118,7 +141,7 @@ system.
 | journal | skein-lib's container that numbers commits and holds outputs until durable (root.md, section 4) |
 | decision | what one event changes and asks for, gathered into one commit |
 | hand-off | a question the core asks a connector within one decision, through the root |
-| the door | the journal's way out for outputs that decide nothing and show nothing durable (engine/README.md, 4.2) |
+| the door | the journal's way out for outputs that decide nothing and show nothing durable (engine/vocabulary.md, 1.2) |
 | project | a number, a name unique in the deployment, resources with roles, homes, a policy, parties' roles, notes (model.md, 6.1) |
 | task | a unit of work someone asked for (model.md, 3.1) |
 | goal | a tracked task: a priority, projections, goals' topics, a notes scope (model.md, 6.2); jig's goal template gives its defaults |
@@ -130,18 +153,18 @@ system.
 | charter | how an agent executor is set up, and which hosts may run it |
 | result contract | what counts as done: a report, a verdict, a connector's result (made as a delivery when a run's workspace delivers, hosts/charters.md), a choice, an approval (tasks/README.md, section 3) |
 | chat | jig's default template for a conversation with an agent: an agent task flagged conversation and kept, whose requester is a party (people/README.md, section 6) |
-| template | an application's recipe for creating a task of one shape, numbered in its configuration and overridden by a project's policy; the client fills it into a `Create` or a `Propose`; the engine keeps the configuration's templates and each policy's overrides, serves them merged in `me`, and never expands or checks one (model.md, 7.3; `../protocol/configuration.md`, 3.1) |
+| template | an application's recipe for creating a task of one shape, numbered in its configuration and overridden by a project's policy; the client fills it into a `Create` or a `Propose`; the engine keeps the configuration's templates and each policy's overrides, serves them merged in `me`, and never expands or checks one (model.md, 7.3; `../protocol/configuration-templates.md`, 1) |
 | recurring batch | the batch a recurring task was given when it was made, which it makes again at each period; not a template (tasks/README.md, section 5) |
 | gathering, concluded | a core procedure's task that parties fill with delegates by `Delegate`; its requester's word, `Conclude`, after which none joins and it ends once they have ended (tasks/gatherings.md) |
 | label | an opaque number the application gives a task, through a template or by hand, which lists filter on and no engine rule reads (tasks/README.md, section 3) |
 | conversation, listed, retention class | a task's flags: its turns are entries for its requester, with a read position; once ended, it is indexed by its project; kept, or forgotten once read (tasks/README.md, section 3; people/README.md, section 5) |
 | last activity, waiting on | when a task last heard words, committed a turn or had a delegate end; what it waits for, computed by the engine: a party, its delegates, news, or nothing (tasks/README.md, section 3) |
 | coordinator | an agent whose charter is to delegate and supervise |
-| standing procedure | a procedure subscribed to topics that makes tasks as news arrives (connectors.md, 6.6) |
+| standing procedure | a procedure subscribed to topics that makes tasks as news arrives (connectors-procedures.md, 1.6) |
 | run, attempt | one activation of an agent task on a host; one try at it, fenced by a number that only grows |
 | tries | the failed attempts counted per class, which a release resets |
 | transcript, turn | an agent task's conversation, kept turn by turn; one LLM turn, committed as it ends |
-| window | smith's: the turns from the last that opens a window (a window turn, or a conversation's first) are the current window, all a resumed run is given (engine/executors.md, 2) |
+| window | smith's: the turns from the last that opens a window (a window turn, or a conversation's first) are the current window, all a resumed run is given (engine/executors-transcripts.md, 1) |
 | a completion's retry | a turn's completion asked for again within one run, counted from zero by smith; a later retry's live text replaces an earlier one's (hosts/hub.md, 5). Not one of a task's tries |
 | call | a run's tool call, named by the run, decided once |
 | brief | the context a run is given for why it runs |
@@ -157,8 +180,8 @@ system.
 | operation | one of jig's primitives as a request: `Create`, `Propose`, `Withdraw`, `Message`, `Amend`, `Cancel`, `Release`, `Stop`, `Move`, `Decide`, `Answer`, `Take`, `HandBack`, `Seen`, and the project's own (people/acts.md, 1) |
 | compound request | one keyed request holding several operations, admitted in order and committed in one decision, all or none, within operations per request (people/acts.md, 1) |
 | grace | how long a task cancelled with one has to finish before it is cancelled (tasks/changes.md) |
-| `AsAllowed` | a budget given as much as fits under its creator at admission, capped; the answer says what was given (authority.md, section 7) |
-| deadline as a span | a deadline given as how long after the task is made, which the engine makes a wall when it makes it (authority.md, section 7) |
+| `AsAllowed` | a budget given as much as fits under its creator at admission, capped; the answer says what was given (authority-budgets.md, section 1) |
+| deadline as a span | a deadline given as how long after the task is made, which the engine makes a wall when it makes it (authority-budgets.md, section 1) |
 | escalation role | the role a project's policy names to hold escalations past every holder in a tree (authority.md, section 6) |
 | a party's role | what a party may do in a project: owner, maintainer, member, observer, or the policy's own |
 | a resource's role | owned, fork, or context, in a project |
@@ -177,7 +200,7 @@ system.
 | hold, pool slot | a resource a task writes alone; one of a pool's counted slots (tasks/holds.md) |
 | writer slot | the one run that may write a held resource at a time |
 | effect, outbox, key | what the application does on a system; its entries waiting to be made; what finds them again |
-| recovery class | how an effect of a kind whose outcome is uncertain is resolved: keyed, conditional, idempotent, unrecoverable (connectors.md, 4.3) |
+| recovery class | how an effect of a kind whose outcome is uncertain is resolved: keyed, conditional, idempotent, unrecoverable (connectors-effects.md, 1.3) |
 | retry deadline | when an uncertain attempt may be tried again, committed with the attempt |
 | procedure | engine code as an executor, a connector's or the core's |
 | projection, home | what a connector writes of a goal for people to read; where, per project |
@@ -197,16 +220,16 @@ system.
 | session | an agent's conversation with an LLM: smith's |
 | LLM provider | OpenAI, Anthropic, a local model's server: an entry of configuration, with its endpoints, models and the sources it offers, numbered apart from identity providers (accounts.md, 3.1; providers.md) |
 | LLM account, holder | what pays for runs' LLMs: a holder, an LLM provider, the provider's subject where a sign-in gives one, its sources in order and its uses; the person, or the deployment, it belongs to (accounts.md, section 3) |
-| plan, a plan's account | a subscription a person pays for, such as ChatGPT's or Claude's; an account with one among its sources, which pays for its holder's work only (accounts.md, 3.2 and 4.2) |
-| source | how a run may use an account: signed in (`sign_in`), with the application's own registration; a key (`key`); a program's own login on a host (`program`); none (`none`), for a local model (accounts.md, 3.4) |
-| record | a signed-in source's OAuth record: its tokens, the issued client id, the granted scopes, the subject (accounts.md, 3.4) |
+| plan, a plan's account | a subscription a person pays for, such as ChatGPT's or Claude's; an account with one among its sources, which pays for its holder's work only (accounts.md, 3.2, and accounts-uses.md, 1.2) |
+| source | how a run may use an account: signed in (`sign_in`), with the application's own registration; a key (`key`); a program's own login on a host (`program`); none (`none`), for a local model (accounts-sources.md, 1) |
+| record | a signed-in source's OAuth record: its tokens, the issued client id, the granted scopes, the subject (accounts-sources.md, 1) |
 | subject (an LLM account's) | the LLM provider's validated identifier of the account a sign-in is to, an ID token's `sub`; told apart from the subject of an identity (people/README.md, section 3), and it opens no session (accounts.md, 3.1) |
-| usable, limited, refused, needs sign-in, misconfigured, unloaded | a source's states, kept by the accounts child (accounts.md, 3.5) |
-| uses, payer | whose work an account pays for; the party or project at the end of a run's chain of funders (accounts.md, section 4) |
+| usable, limited, refused, needs sign-in, misconfigured, unloaded | a source's states, kept by the accounts child (accounts-sources.md, 2) |
+| uses, payer | whose work an account pays for; the party or project at the end of a run's chain of funders (accounts-uses.md, section 1) |
 | LLM choice | a task's main model and effort, its sub-agents' models and efforts, and optionally its account (tasks/README.md, section 3) |
-| grant (a run's) | what a host lends a run: a credential, a bearer or a key, by generation; or a program source's name (accounts.md, 3.4; engine/executors.md, 1) |
+| grant (a run's) | what a host lends a run: a credential, a bearer or a key, by generation; or a program source's name (accounts-sources.md, 1; engine/executors.md, 1) |
 | program, program backend | an LLM program, Claude Code (`claude_code`) first, that smith's agent runs as its child in place of its own loop, the direct backend (smith's `protocol/programs.md`; hosts/README.md, 5.1) |
-| configuration directory, programs directory | where a program source's login lives on a worker, one per source, named by it; their parent, the worker's (accounts.md, 3.4; hosts/README.md, 5.1) |
+| configuration directory, programs directory | where a program source's login lives on a worker, one per source, named by it; their parent, the worker's (accounts-sources.md, 1; hosts/README.md, 5.1) |
 
 ## 5. Decisions this design takes
 
@@ -239,18 +262,18 @@ where each is answered:
 - **The worker:** jig ships the hub; the worker's root and its
   workspaces are the application's (hosts/README.md, sections 4 and 6).
 - **Costs beyond LLMs:** a connector may price kinds of effect, charged
-  at the decision (authority.md, section 7).
+  at the decision (authority-budgets.md, section 1).
 - **An effect waiting for a verdict:** never committed; the asker asks
-  again (connectors.md, 4.5).
+  again (connectors-effects.md, 1.5).
 - **Restart:** a script the core runs, step by step, through the root
   (engine/restart.md; root.md, section 8).
 - **Once, by recovery class:** each kind of effect is keyed, conditional,
   idempotent or unrecoverable, as its system allows, and the promise of
   once is stated per class; an uncertain unrecoverable effect holds its
-  task for a person (connectors.md, 4.3; model.md, section 11).
+  task for a person (connectors-effects.md, 1.3; model.md, section 11).
 - **Retry deadlines are absolute,** committed with each attempt before it
   is sent, so restarts never postpone an uncertain effect for ever
-  (connectors.md, 4.3).
+  (connectors-effects.md, 1.3).
 - **Guarded and observed requirements:** a guarded one holds when its
   effect is applied, an observed one when it is decided, within a
   freshness; a policy may require a guard (authority.md, section 10;
@@ -263,12 +286,12 @@ where each is answered:
   more of its main model's most costly completions, which the one
   completion it may pass takes; a priced effect is charged its maximum;
   only turns lost with a worker escape it, within a stated bound
-  (authority.md, section 7; hosts/charters.md).
+  (authority-budgets.md, section 1; hosts/charters.md).
 - **Standing work renews by period:** a standing task's allotment of
-  tasks and spend is carved again each period (authority.md, section 7).
+  tasks and spend is carved again each period (authority-budgets.md, section 1).
 - **Periods are the application's to say:** the engine keeps no
   calendar; a period reaches it from the root, saying when the next
-  begins if its source knows (authority.md, section 7; engine/README.md, 4.1).
+  begins if its source knows (authority-budgets.md, section 1; engine/vocabulary.md, 1.1).
 - **Pools that shrink** keep their holders and admit nobody until they
   drain; the promise is about admission (tasks/holds.md, 6).
 - **Effective authority:** a narrowing of rules, policy or access reaches
@@ -313,7 +336,7 @@ where each is answered:
   asks for it, a conversation's, from agent processes over smith's
   channel as from a host whose agent runs in its process; a tool begun
   with its call comes only from the second (hosts/hub.md, 5;
-  `../protocol/README.md`, section 11).
+  `../protocol/needs.md`, section 2).
 - **Level-triggered views:** a watch delivers its subject's current
   document, one delivery in flight, changes coalesced, never queued; only
   a run's text as it is written is a stream, from an offset; an
@@ -321,7 +344,7 @@ where each is answered:
   ). This and what follows are what the domain owes the
   client (`../client/domain/contract/README.md`, section 7).
 - **What a party reads is durable:** a read's answer and a watch's
-  delivery wait for the last commit made before them (engine/README.md, 5.2).
+  delivery wait for the last commit made before them (engine/decisions.md, 1.2).
   What marks a watch changed is named by each commit (engine/views.md
   ).
 - **The inbox across projects,** its read positions (one over results,
@@ -344,7 +367,7 @@ where each is answered:
   (people/acts.md, 1; tasks/proposals.md).
 - **A party's requests are jig's plumbing:** its primitives as
   operations, the same an agent's tools reach, through the same check,
-  only the source differing (people/acts.md, 1; authority.md, 8.1 and 8.4).
+  only the source differing (people/acts.md, 1; authority-checks.md, 1.1 and 1.4).
   Shapes of work are templates and helpers above them, never the
   engine's.
 - **Compound requests:** several operations under one key, admitted in
@@ -356,57 +379,57 @@ where each is answered:
 - **Proposing is explicit,** for parties as for tasks: an act beyond
   authority is refused, naming what it lacked and whether a proposal
   could be accepted, and becomes a proposal when its maker proposes it
-  (tasks/proposals.md; authority.md, 8.1 and section 9; people/acts.md,
+  (tasks/proposals.md; authority-checks.md, 1.1, and authority.md, 9; people/acts.md,
   1).
 - **A party's root has someone to escalate to:** a party becomes a
   root's requester only while its escalations have a holder: their role
   decides escalations, or the project's policy names an escalation role
-  (people/acts.md, 1; authority.md, 8.4).
+  (people/acts.md, 1; authority-checks.md, 1.4).
 - **Templates are the application's, never the engine's:** numbered in
   its configuration, their defaults overridden per project by its
   policy, never their flags, label or tracking, served in `me`, and
   filled in by the client; the engine never expands or checks one, and
-  permissions stay primitive (`../protocol/configuration.md`, 3.1;
+  permissions stay primitive (`../protocol/configuration-templates.md`, 1;
   authority.md, section 6).
 - **`AsAllowed` and a deadline as a span,** the plumbing templates need:
   resolved by the engine as it makes the task, the answer saying what
-  `AsAllowed` gave (authority.md, section 7).
+  `AsAllowed` gave (authority-budgets.md, section 1).
 - **Refusals with facts,** and **acts offered** in each object's
   document, so a client never computes authority; creating and amending
   are offered with bounds, made, proposable and to whom, or refused, and
-  judged again when they come (`../client/domain/contract/README.md`, section 3, and `../client/domain/contract/documents.md`, section 3
+  judged again when they come (`../client/domain/contract/answers.md`, section 1, and `../client/domain/contract/documents.md`, section 3
   ).
 - **An application's keyed requests** kept by the people child as jig's
   are, their outcomes by their connector (people/acts.md, 1;
-  connectors.md, 5.5).
+  connectors-facts.md, 1.5).
 - **An application's subjects, reads and requests name their scope,** a
   project, the deployment, or the party's own: the core admits on the
   party's role there, the party's own on the credential alone, and the
   connector judges what the party may see (engine/views.md;
-  connectors.md, 5.5; people/acts.md, 1).
+  connectors-facts.md, 1.5; people/acts.md, 1).
 - **A procedure hears what its step made:** the task its step's batch
   was given, within the same decision, for its connector to record
-  durably (connectors.md, 6.3).
+  durably (connectors-procedures.md, 1.3).
 - **A task's activity kept** in commit order, the words parties wrote
-  among it (engine/executors.md, 2).
+  among it (engine/executors-transcripts.md, 1).
 - **LLM accounts are runtime state, never configuration:** each
   application is its own client, with its own registration, records and
   refreshes; an account is a holder's, a person's or the deployment's,
   with its sources in the holder's order and its uses; a plan pays for
   its holder's work only; configuration names LLM providers and their
-  models, never an account (accounts.md, sections 2 to 4; providers.md).
+  models, never an account (accounts.md, sections 2 to 3, and accounts-uses.md, section 1; providers.md).
 - **A task chooses its models, its run's check its account:** a task's
   LLM choice, within its authority, or, given none, the first of its
   charter's models it can use, at each run's check; the
   account taken with the run's check and kept by the task, a limited one
   waited for, never left for another of its holder's (tasks/README.md, section
-  3; accounts.md, 4.3).
+  3; accounts-uses.md, 1.3).
 - **A program as the agent's backend:** Claude Code runs as the agent's
   child on a worker, signed in by its holder in a configuration
   directory of the worker's, its tools' calls asked of smith's policy;
   a worker that keeps a person's program logins takes only runs that
   person's accounts pay for, until a run's tree is contained from them
-  (accounts.md, 3.4; hosts/README.md, 5.1; smith's `protocol/programs.md`).
+  (accounts-sources.md, 1; hosts/README.md, 5.1; smith's `protocol/programs.md`).
 
 ## 6. What is open
 

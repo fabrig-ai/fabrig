@@ -1,5 +1,5 @@
 //! One serialized walk for deletion and retention
-//! (jig/docs/design/protocol/store/README.md, 6.1; retention.md, 5–6).
+//! (jig/docs/design/protocol/store/growth.md, 1.1; retention.md, 5–6).
 mod retention;
 use crate::{Core, Key, Limits, Request, Write, reads};
 use alloc::boxed::Box;
@@ -373,6 +373,7 @@ fn forget_party(core: &mut Core, env: &Env<Limits>, record: &tasks::TaskSummary,
             people::Request::Act { .. }
             | people::Request::Acted { .. }
             | people::Request::ServiceMade { .. }
+            | people::Request::ReadingLost { .. }
             | people::Request::RolesApplied { .. }
             | people::Request::Route { .. }
             | people::Request::Reply { .. }

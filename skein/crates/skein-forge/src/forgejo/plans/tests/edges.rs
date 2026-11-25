@@ -258,7 +258,7 @@ fn unexpected_open_pull_read_status_is_unavailable() {
 }
 
 const RETRY: Duration = Duration::from_secs(5);
-// Merge sends one POST before reading the result (forge/forgejo.md 1.2).
+// Merge sends one POST before reading the result (forge/forgejo-operations.md 1).
 const MERGE_POST_REQUESTS: usize = 1;
 const MERGE_SENDS: [&str; 2] =
     ["POST /api/v1/repos/fixture/specimen/pulls/1/merge", "GET /api/v1/repos/fixture/specimen/pulls/1"];

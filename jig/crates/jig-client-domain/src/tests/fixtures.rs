@@ -20,7 +20,10 @@ pub(crate) const FULL_HELD: u32 = 4;
 pub(crate) const FULL_ROOM: Wall = Wall::from_nanos(120_000_000_000);
 pub(crate) fn limits() -> Limits {
     Limits {
-        owners: &[Spoken { family: 19, version: 1 }, Spoken { family: 1, version: 1 }],
+        owners: &[
+            Spoken { family: 19, version: 1, layout: [1; 32] },
+            Spoken { family: 1, version: 1, layout: [1; 32] },
+        ],
         // tests/client/src/test.rs:70-77, the concrete world's table profile.
         requests: skein_lib::RequestLimits {
             requests: 4,
@@ -176,13 +179,11 @@ fn document(number: u64) -> contract::Task {
         last_activity: Wall::from_nanos(0),
         made: Wall::from_nanos(0),
         waits_on: contract::WaitsOn::Nothing,
-        chip: contract::Chip {
-            task: number,
-            title: contract::DocumentText::complete(text()),
-            executor: contract::ChipExecutor::Agent { charter: 1 },
-            phase: contract::Phase::Waiting,
-            details: Box::new(chip_details(number)),
-        },
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
+        chip: document_chip(number),
         goal: None,
         priority: None,
         lineage_chips: List::with_capacity(0),
@@ -256,6 +257,16 @@ fn document(number: u64) -> contract::Task {
     }
 }
 
+fn document_chip(number: u64) -> contract::Chip {
+    contract::Chip {
+        task: number,
+        title: contract::DocumentText::complete(text()),
+        executor: contract::ChipExecutor::Agent { charter: 1 },
+        phase: contract::Phase::Waiting,
+        details: Box::new(chip_details(number)),
+    }
+}
+
 pub(crate) const KEY: Key = Key { asker: Asker::JIG, number: 1 };
 pub(crate) const OTHER_KEY: Key = Key { asker: Asker(1), number: 2 };
 pub(crate) const PARTY: u64 = 1;
@@ -266,7 +277,11 @@ pub(crate) const OTHER_ENGINE_KEY: skein_lib::RequestKey = [2; 16];
 pub(crate) const NAME: skein_lib::RequestKey = [3; 16];
 pub(crate) const ME_WATCH: Token = Token::new(0);
 pub(crate) fn stop() -> Ask {
-    Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: SUBJECT_TASK }))
+    Ask::Jig(Box::new(contract::Ask::Stop {
+        project: 1,
+        task: SUBJECT_TASK,
+        reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX).expect("fixture reason fits"),
+    }))
 }
 pub(crate) fn seen() -> Ask {
     Ask::Jig(Box::new(contract::Ask::Seen {
@@ -282,6 +297,7 @@ pub(crate) fn me(party: u64, retention: Duration) -> Up {
             key_bytes: 256,
             redirect_bytes: 4096,
             words_bytes: 8192,
+            sign_in_expires: Wall::from_nanos(86_400_000_000_000),
             party: contract::MeParty {
                 number: party,
                 kind: contract::PartyKind::Person,

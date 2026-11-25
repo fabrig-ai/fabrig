@@ -1,7 +1,7 @@
 //! The engine core composes the task hub, policy, parties, fleet, accounts,
 //! briefs, notes and views. It keeps work in jig's vocabulary and asks its
 //! application's root to route the store, hosts, parties and connectors.
-//! See `domain/engine/README.md`, sections 3 to 5.
+//! See `domain/engine/README.md`, section 3, and `domain/engine/vocabulary.md`, section 1, and `domain/engine/decisions.md`, section 1.
 //!
 //! The core never holds a connector's value or a store encoding.
 
@@ -107,7 +107,8 @@ pub use crate::{
     start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
-        Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
+        Made, PartKey, PartRecord, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof,
+        TurnRecord,
     },
     translate::{
         authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
@@ -121,8 +122,9 @@ pub use crate::{
 };
 
 pub use jig_domain_core_vocabulary::{
-    Config, ConfiguredPolicy, EndpointFacts, GATHERING, MadePart, PartAsk, PartFailure, PartInputs, PartsAsk,
-    RECURRING, RowPart, SeedProject, Settings, ToolFamilies,
+    AtBound, Bound, Config, ConfiguredPolicy, EndpointFacts, Figures, GATHERING, MadePart, Nearest, PartAsk,
+    PartFailure, PartInputs, PartsAsk, RECURRING, ReportRefusal, Reported, ReportedBound, RowPart, SeedProject,
+    Settings, Thing, ToolFamilies, Unbounded, Wait, WaitKind, WaitObject, Waits,
 };
 
 /// The engine's children, routing and durable live state (domain/engine/README.md,
@@ -143,9 +145,16 @@ pub struct Core {
     person_answers: bool,
     routes: u32,
     run_inbox: u32,
+    /// Configured task depth and tree size used by proposal-holder inspection.
+    proposal_bounds: (u32, u32),
+    /// The next-start limits used by the standalone wait read.
+    wait_limits: Limits,
+    /// One memory-only wait report per live procedure task.
+    reported_waits: Map<u64, Box<[Reported]>>,
+    pub(crate) wait_alarms: runs::waits::alarm::Alarms,
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
-    /// Last reported store map bytes (protocol/store/README.md, 6.2).
+    /// Last reported store map bytes (protocol/store/growth.md, 1.2).
     pub fill: u64,
     pub census: Option<Box<documents::StoreCensus>>,
     pub(crate) workers_in_process: bool,
@@ -217,6 +226,7 @@ pub struct Core {
     /// Durable live named-call decisions, with connector payloads retained by
     /// their owner and represented here only by connector number.
     pub call_parts: Map<CallKey, CallPart>,
+    pub(crate) kept_parts: Map<PartKey, PartRecord>,
     /// Settled host answers and opaque delivery evidence under the same retained names.
     pub call_settled: Map<CallKey, SettledCall>,
     /// Live reply rights waiting for a committed effect or its answer deadline.
@@ -281,6 +291,8 @@ fn assert_connector_registry(connectors: &[u16]) {
         assert_eq!(count, 1, "connector numbers are unique");
     }
 }
+
+mod inspect;
 
 impl Core {
     /// The kept project name for a root's read context (domain/model.md, 6.1).
@@ -397,6 +409,10 @@ impl Core {
             deletions: deletion::Deletions::new(limits.people.projects),
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
+            proposal_bounds: (limits.tasks.depth, limits.tasks.tree_tasks),
+            wait_limits: *limits,
+            reported_waits: Map::with_capacity(limits.tasks.tasks),
+            wait_alarms: runs::waits::alarm::Alarms::new(limits.tasks.tasks),
             fill: 0,
             census: None,
             person_answers: false,
@@ -462,6 +478,7 @@ impl Core {
             jobs: config.jobs,
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
+            kept_parts: Map::with_capacity(limits.call_records),
             call_settled: Map::with_capacity(limits.call_records),
             effect_replies: Map::with_capacity(limits.call_records),
             closing_connectors: Map::with_capacity(

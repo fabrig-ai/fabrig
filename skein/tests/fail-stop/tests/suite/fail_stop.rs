@@ -39,29 +39,6 @@ fn a_restoration_runs_once_before_the_report() {
     assert_report(&output, "restored\n", "<unnamed>", "the fixture's thread panics");
 }
 
-#[test]
-fn a_supervisors_tail_keeps_the_panic_line_and_message() {
-    // The fixture models a supervisor keeping the last 1,024 stderr bytes.
-    const DETAIL_BYTES: u32 = 1024;
-    let output = panic_report(None, "str", Some("fixture-worker"));
-    assert!(
-        output.stderr.len() > usize::try_from(DETAIL_BYTES).expect("the bound fits usize"),
-        "the report must exceed the supervisor's tail: {} bytes",
-        output.stderr.len()
-    );
-    let report = core::str::from_utf8(&output.stderr).expect("the report is UTF-8");
-    let header = report.lines().nth(1).expect("the report has a thread line");
-    let mut tail = skein_lib::Tail::with_capacity(DETAIL_BYTES);
-    tail.put(&output.stderr);
-    let kept = tail.into_boxed();
-    let kept = core::str::from_utf8(&kept).expect("the fixture's tail is UTF-8");
-    assert!(
-        kept.ends_with(&format!("{header}\nthe fixture's thread panics\n")),
-        "the supervisor keeps the panic's line and message at the end: {kept}"
-    );
-    assert_report(&output, "", "fixture-worker", "the fixture's thread panics");
-}
-
 #[expect(
     clippy::disallowed_methods,
     reason = "skein's round: reads the fixture binary path supplied by Cargo and nextest"

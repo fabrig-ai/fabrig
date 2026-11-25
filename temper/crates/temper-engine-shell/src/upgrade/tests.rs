@@ -1,11 +1,13 @@
 //! The upgrade command on a deployment copy (protocol/binaries.md, 1, 2).
 #![expect(clippy::disallowed_types, reason = "scratch fixtures set filesystem modification times without waiting")]
 use super::{Request, run};
-use std::os::unix::ffi::OsStrExt;
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::path::Path;
+use skein_fake_machine::{How, Is, Item, Machine, Opened, Refusal};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::fs::PermissionsExt;
 use std::time::{Duration, SystemTime};
 use temper_deployment_fixtures::deployment;
+
+use crate::testing::modified;
 
 #[test]
 fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
@@ -39,6 +41,21 @@ fn workers_arguments_are_distinct_and_modes_exclude_each_other() {
     assert_eq!(super::configure("--back", &[], &environment, b"/work").unwrap().1, Request::Back);
     for invalid in [words(&[b"one"]), words(&[b"--workers", b"one"]), words(&[b"--check", b"one"])] {
         assert!(super::configure("--back", &invalid, &environment, b"/work").is_err());
+    }
+    for (mode, arguments, form) in [
+        ("--check", &["upgrade", "--check"][..], "[DIRECTORIES] DIRECTORY"),
+        ("--workers", &["upgrade", "--workers"], "[DIRECTORIES] DIRECTORY"),
+        ("--back", &["upgrade", "--back", "extra"], "[DIRECTORIES]"),
+    ] {
+        assert_eq!(
+            crate::binary::refusal(arguments),
+            (
+                2,
+                format!(
+                    "temper-engine upgrade {mode}: invalid arguments\nusage: temper-engine upgrade {mode} {form}\n"
+                )
+            )
+        );
     }
     let arguments = words(&[b"upgrade", b"--workers", b"backup"]);
     let skein_shell::Reached::Command(row, rest) = crate::ENGINE.reach(b"temper-engine", &arguments) else {
@@ -77,79 +94,6 @@ fn agent_fixture_round_trip_keeps_the_engine_file_and_installs_figures() {
 }
 
 #[test]
-fn deployment_rehearsal_with_accounts_workers_and_forge_reaches_its_report() {
-    let (_scratch, directories) = deployment();
-    let cache = crate::path(&directories.cache);
-    let stale = cache.join("upgrade-00000000000000aa");
-    std::fs::create_dir_all(stale.join("nested")).expect("stale scratch");
-    std::fs::write(stale.join("file"), b"stale").expect("stale file");
-    let outside = crate::path(&directories.data).join("outside");
-    std::fs::write(&outside, b"checkpoint bytes").expect("outside file");
-    std::fs::hard_link(&outside, stale.join("nested/linked")).expect("scratch link");
-    assert_eq!(std::fs::metadata(&outside).expect("linked file").nlink(), 2);
-    modified(&stale, SystemTime::now() - Duration::from_secs(7200));
-    let busy = cache.join("upgrade-00000000000000bb");
-    std::fs::create_dir_all(&busy).expect("in-use scratch");
-    let held = std::fs::File::open(&busy).expect("in-use directory opens");
-    held.try_lock().expect("exclusive scratch lock");
-    std::fs::write(busy.join("file"), b"in use").expect("in-use file");
-    modified(&busy, SystemTime::now() - Duration::from_secs(7200));
-    for name in ["upgrade-x", "other", "upgrade-00000000000000aA", "upgrade-00000000000000aaa"] {
-        std::fs::create_dir(cache.join(name)).expect("unrelated directory");
-    }
-    let regular = cache.join("upgrade-00000000000000cc");
-    std::fs::write(&regular, b"regular file").expect("not a directory");
-    let link = cache.join("upgrade-00000000000000dd");
-    std::os::unix::fs::symlink(crate::path(&directories.data), &link).expect("not a directory entry");
-    let before = std::fs::read_dir(cache).expect("cache").count();
-    let active_path = Path::new(std::ffi::OsStr::from_bytes(&directories.data)).join("state/active");
-    let active = std::fs::read(&active_path).expect("floor active generation");
-    let code = run(
-        "temper-engine",
-        &directories,
-        &Request::Check([directories.data.as_ref(), b"/state"].concat().into()),
-        "test-build",
-    )
-    .expect("upgrade reaches its report");
-    assert_eq!(code, 0, "the floor rehearses through restores");
-    assert_eq!(std::fs::read(active_path).expect("active after rehearsal"), active);
-    assert!(!stale.exists(), "the stale scratch is removed whole");
-    assert_eq!(std::fs::metadata(&outside).expect("outside file remains").nlink(), 1);
-    assert_eq!(std::fs::read(busy.join("file")).expect("busy contents remain"), b"in use");
-    drop(held);
-    for name in ["upgrade-x", "other", "upgrade-00000000000000aA", "upgrade-00000000000000aaa"] {
-        assert!(cache.join(name).is_dir(), "other name stays: {name}");
-    }
-    assert_eq!(std::fs::read(regular).expect("regular file stays"), b"regular file");
-    assert!(link.is_symlink(), "the sweep does not follow symbolic links");
-    assert_eq!(std::fs::read_dir(cache).expect("cache after rehearsal").count(), before - 1, "own scratch gone");
-}
-
-#[test]
-fn a_rehearsals_own_scratch_is_swept_only_after_its_lock_is_released() {
-    let cache = skein_scratch::Scratch::new("rehearsal-scratch");
-    let (path, held) = super::scratch::make(cache.path()).expect("rehearsal makes and locks its scratch");
-    let name = path.file_name().expect("scratch name");
-    let seed = name.as_bytes().strip_prefix(b"upgrade-").expect("scratch prefix");
-    assert_eq!(seed.len(), 16);
-    assert!(seed.iter().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte)));
-    let entries: Vec<_> = std::fs::read_dir(cache.path())
-        .expect("cache entries")
-        .map(|entry| entry.expect("cache entry").file_name())
-        .collect();
-    assert_eq!(entries, [name], "only the renamed scratch is visible");
-    let second = std::fs::File::open(&path).expect("second scratch open");
-    let Err(std::fs::TryLockError::WouldBlock) = second.try_lock() else { panic!("scratch must already be locked") };
-    std::fs::write(path.join("file"), b"in use").expect("own scratch file");
-    modified(&path, SystemTime::now() - Duration::from_secs(7200));
-    assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-    assert_eq!(std::fs::read(path.join("file")).expect("held scratch remains"), b"in use");
-    drop(held);
-    assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-    assert!(!path.exists(), "the released scratch is stale");
-}
-
-#[test]
 fn an_unremovable_scratch_is_named_and_the_rehearsal_goes_on() {
     let (_scratch, directories) = deployment();
     let stale = crate::path(&directories.cache).join("upgrade-00000000000000aa");
@@ -170,93 +114,285 @@ fn an_unremovable_scratch_is_named_and_the_rehearsal_goes_on() {
     assert_eq!(std::fs::read(stale.join("file")).expect("unremoved file remains"), b"left behind");
 }
 
-fn modified(path: &Path, time: SystemTime) {
-    std::fs::File::open(path).expect("directory opens for time").set_modified(time).expect("directory time");
+const LEFTOVER: &[u8] = b"upgrade-00000000000000aa";
+const STAGING: &[u8] = b"upgrade-00000000000000aa.new";
+const FILE: &[u8] = b"upgrade-00000000000000aa/file";
+const BUSY: &[u8] = b"upgrade-00000000000000bb";
+const REGULAR: &[u8] = b"upgrade-00000000000000cc";
+const LINK: &[u8] = b"upgrade-00000000000000dd";
+const OTHER: [&[u8]; 4] = [b"upgrade-x", b"other", b"upgrade-00000000000000aA", b"upgrade-00000000000000aaa"];
+const OUTSIDE: &[u8] = b"outside";
+const BYTES: &[u8] = b"checkpoint bytes";
+const OLD: Duration = Duration::from_secs(7200);
+
+#[derive(Debug, PartialEq, Eq)]
+enum Effect {
+    Metadata(Vec<u8>),
+    Open(Vec<u8>),
+    Lock(Vec<u8>, Result<(), Refusal>),
+    Remove(Vec<u8>),
+    Release(Opened),
 }
 
-fn leftover(name: &str) -> (skein_scratch::Scratch, std::path::PathBuf) {
-    let cache = skein_scratch::Scratch::new("rehearsal-leftover");
-    let path = cache.path().join(name);
-    std::fs::create_dir(&path).expect("leftover directory");
-    (cache, path)
+struct Cache {
+    machine: Machine,
+    root: Opened,
+    effects: Vec<Effect>,
 }
 
-#[test]
-fn an_unlocked_staging_directory_is_never_swept() {
-    let (cache, staging) = leftover("upgrade-00000000000000aa.new");
-    modified(&staging, SystemTime::now() - Duration::from_secs(7200));
-    assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-    assert!(staging.is_dir(), "the staging name is never swept");
-}
-
-#[test]
-fn recent_and_future_unlocked_leftovers_are_not_swept() {
-    let (cache, leftover) = leftover("upgrade-00000000000000aa");
-    std::fs::write(leftover.join("file"), b"copying").expect("leftover file");
-    let now = SystemTime::now();
-    for time in [now, now + Duration::from_secs(7200)] {
-        modified(&leftover, time);
-        assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-        assert_eq!(std::fs::read(leftover.join("file")).expect("recent leftover remains"), b"copying");
+impl Cache {
+    fn new(items: &[Item]) -> Self {
+        let mut machine = Machine::for_user(1000);
+        let root = machine.lay(items);
+        Self { machine, root, effects: Vec::new() }
     }
-    modified(&leftover, now - Duration::from_secs(7200));
-    assert_eq!(super::scratch::sweep("temper-engine", cache.path()), Vec::<String>::new());
-    assert!(!leftover.exists(), "the same leftover is removed whole once old");
+
+    fn names(&mut self) -> Vec<Box<[u8]>> {
+        let listing = self.machine.open(self.root, b".", How::Directory).unwrap();
+        let entries = self.machine.list(listing, 16, 512).unwrap();
+        self.machine.close(listing);
+        entries.into_iter().map(|(_, name)| name).collect()
+    }
+
+    fn sweep(&mut self, now: SystemTime, modified: SystemTime) -> Vec<String> {
+        let entries = self.names();
+        super::scratch::sweep_with(
+            "temper-engine",
+            entries.into_iter().map(|name| (std::ffi::OsString::from_vec(name.to_vec()), name)),
+            now,
+            self,
+            |cache, name| {
+                cache.effects.push(Effect::Metadata(name.to_vec()));
+                Ok((cache.kind(name) == Some(Is::Directory)).then_some(modified))
+            },
+            |cache, name| {
+                cache.effects.push(Effect::Open(name.to_vec()));
+                let held = cache.open(name, How::Directory).map_err(cache_error)?;
+                let result = cache.machine.lock(held);
+                cache.effects.push(Effect::Lock(name.to_vec(), result));
+                match result {
+                    Ok(()) => Ok(Some(held)),
+                    Err(why) => {
+                        cache.machine.close(held);
+                        if why == Refusal::Held { Ok(None) } else { Err(cache_error(why)) }
+                    }
+                }
+            },
+            |cache, name, held| {
+                cache.effects.push(Effect::Remove(name.to_vec()));
+                let result = cache.remove_contents(name, held);
+                cache.machine.close(held);
+                result
+            },
+        )
+    }
+
+    fn open(&mut self, name: &[u8], how: How) -> Result<Opened, Refusal> {
+        self.machine.open(self.root, name, how)
+    }
+
+    fn kind(&mut self, name: &[u8]) -> Option<Is> {
+        match self.open(name, How::PathNoFollow) {
+            Ok(opened) => {
+                let kind = self.machine.stat(opened).is;
+                self.machine.close(opened);
+                Some(kind)
+            }
+            Err(Refusal::NotFound) => None,
+            Err(why) => panic!("unexpected cache refusal: {why:?}"),
+        }
+    }
+
+    fn remove_contents(&mut self, name: &[u8], held: Opened) -> std::io::Result<()> {
+        self.remove_tree(self.root, name, held)
+    }
+
+    fn remove_tree(&mut self, parent: Opened, name: &[u8], dir: Opened) -> std::io::Result<()> {
+        for (kind, child) in self.machine.list(dir, 16, 512).map_err(cache_error)? {
+            if kind == Is::Directory {
+                let nested = self.machine.open(dir, &child, How::Directory).map_err(cache_error)?;
+                let result = self.remove_tree(dir, &child, nested);
+                self.machine.close(nested);
+                result?;
+            } else {
+                self.machine.remove(dir, &child, false).map_err(cache_error)?;
+            }
+        }
+        self.machine.remove(parent, name, true).map_err(cache_error)
+    }
+
+    fn own_scratch(&mut self, name: &[u8], held: Opened) -> Option<String> {
+        super::scratch::remove_with(
+            "temper-engine",
+            crate::path(name),
+            held,
+            self,
+            |cache, path| {
+                let name = path.as_os_str().as_bytes();
+                cache.effects.push(Effect::Remove(name.to_vec()));
+                let dir = cache.open(name, How::Directory).map_err(cache_error)?;
+                let result = cache.remove_contents(name, dir);
+                cache.machine.close(dir);
+                result
+            },
+            |cache, held| {
+                cache.effects.push(Effect::Release(held));
+                cache.machine.close(held);
+            },
+        )
+    }
+
+    fn bytes(&mut self, name: &[u8]) -> (Vec<u8>, u32) {
+        let file = self.open(name, How::Read).expect("kept file");
+        let facts = self.machine.stat(file);
+        let bytes = self.machine.read(file, 0, u32::try_from(facts.size).expect("fixture bytes")).unwrap();
+        self.machine.close(file);
+        (bytes, facts.links)
+    }
+}
+
+fn cache_error(why: Refusal) -> std::io::Error {
+    assert_eq!(why, Refusal::Permission, "the fixture scripts permission failures");
+    std::io::Error::from_raw_os_error(13)
+}
+
+fn scratch_with_outside_link() -> [Item; 5] {
+    [
+        Item::file(OUTSIDE, BYTES),
+        Item::directory(LEFTOVER),
+        Item::directory(b"upgrade-00000000000000aa/nested"),
+        Item::file(FILE, b"stale"),
+        Item::hard_link(b"upgrade-00000000000000aa/nested/linked", OUTSIDE),
+    ]
 }
 
 #[test]
-fn an_unopenable_leftover_is_named_instead_of_silently_skipped() {
-    let (cache, leftover) = leftover("upgrade-00000000000000aa");
-    modified(&leftover, SystemTime::now() - Duration::from_secs(7200));
-    std::fs::set_permissions(&leftover, std::fs::Permissions::from_mode(0o000)).expect("open denied");
-    let lines = super::scratch::sweep("temper-engine", cache.path());
-    std::fs::set_permissions(&leftover, std::fs::Permissions::from_mode(0o700)).expect("restore cleanup permission");
-    assert_eq!(lines, ["temper-engine upgrade: scratch left behind not removed: upgrade-00000000000000aa: errno 13"]);
-    assert!(leftover.is_dir(), "unopenable leftover remains");
+fn a_rehearsals_sweep_takes_only_stale_unlocked_scratch() {
+    const BUSY_FILE: &[u8] = b"upgrade-00000000000000bb/file";
+    let mut items = Vec::from(scratch_with_outside_link());
+    items.extend([
+        Item::directory(BUSY),
+        Item::file(BUSY_FILE, b"in use"),
+        Item::file(REGULAR, b"regular file"),
+        Item::link(LINK, BUSY),
+    ]);
+    items.extend(OTHER.map(Item::directory));
+    let mut cache = Cache::new(&items);
+    let mut remaining = cache.names();
+    remaining.retain(|name| name.as_ref() != LEFTOVER);
+    let held = cache.open(BUSY, How::Directory).expect("busy scratch");
+    cache.machine.lock(held).expect("hold busy scratch");
+    assert_eq!(cache.bytes(OUTSIDE), (BYTES.to_vec(), 2));
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    assert_eq!(cache.sweep(now, now - OLD), Vec::<String>::new());
+    assert_eq!(
+        cache.effects,
+        [
+            Effect::Metadata(LEFTOVER.to_vec()),
+            Effect::Open(LEFTOVER.to_vec()),
+            Effect::Lock(LEFTOVER.to_vec(), Ok(())),
+            Effect::Remove(LEFTOVER.to_vec()),
+            Effect::Metadata(BUSY.to_vec()),
+            Effect::Open(BUSY.to_vec()),
+            Effect::Lock(BUSY.to_vec(), Err(Refusal::Held)),
+            Effect::Metadata(REGULAR.to_vec()),
+            Effect::Metadata(LINK.to_vec()),
+        ]
+    );
+    assert_eq!(cache.names(), remaining, "only the stale scratch is gone");
+    assert_eq!(cache.bytes(OUTSIDE), (BYTES.to_vec(), 1));
+    assert_eq!(cache.bytes(BUSY_FILE).0, b"in use");
+    assert_eq!(cache.bytes(REGULAR).0, b"regular file");
+    assert_eq!(cache.kind(LINK), Some(Is::Link), "the sweep does not follow the link");
+    for name in OTHER {
+        assert_eq!(cache.kind(name), Some(Is::Directory));
+    }
+    cache.machine.close(held);
+}
+
+#[test]
+fn a_rehearsals_end_removes_its_own_scratch() {
+    use std::cell::RefCell;
+    const SOURCE: &[u8] = b"/state";
+    let report_error = Err("drive: kernel unavailable".to_owned());
+    for (open, report, expected, actions) in [
+        (Ok(()), Ok(0), Ok(0), &["open", "make", "report", "remove"][..]),
+        (Ok(()), Ok(1), Ok(1), &["open", "make", "report", "remove"][..]),
+        (Ok(()), report_error.clone(), report_error, &["open", "make", "error", "remove"][..]),
+        (Err(2), Ok(0), Err("/state: no readable deployment directory: errno 2".into()), &["open"][..]),
+    ] {
+        let effects = RefCell::new(Vec::new());
+        let result = super::finish_with(
+            |made| {
+                super::source_with(SOURCE, |path| {
+                    assert_eq!(path, crate::path(SOURCE));
+                    effects.borrow_mut().push("open");
+                    open
+                })?;
+                *made = Some(LEFTOVER);
+                effects.borrow_mut().push("make");
+                effects.borrow_mut().push(if report.is_ok() { "report" } else { "error" });
+                report
+            },
+            |scratch| {
+                assert_eq!(scratch, LEFTOVER, "remove only this run's scratch");
+                effects.borrow_mut().push("remove");
+            },
+        );
+        assert_eq!(result, expected);
+        assert_eq!(effects.into_inner(), actions);
+    }
 }
 
 #[test]
 fn own_scratch_removal_releases_all_contents_and_outside_links() {
-    let cache = skein_scratch::Scratch::new("rehearsal-remove");
-    let outside = cache.path().join("outside");
-    std::fs::write(&outside, b"checkpoint bytes").expect("outside file");
-    let (path, held) = super::scratch::make(cache.path()).expect("own scratch");
-    std::fs::write(path.join("file"), b"left behind").expect("own file");
-    std::fs::create_dir(path.join("nested")).expect("own directory");
-    std::fs::hard_link(&outside, path.join("nested/linked")).expect("scratch link");
-    assert_eq!(super::scratch::remove("temper-engine", &path, held), None);
-    assert!(!path.exists(), "own scratch is removed whole");
-    assert_eq!(std::fs::read(&outside).expect("outside file remains"), b"checkpoint bytes");
-    assert_eq!(std::fs::metadata(&outside).expect("outside file").nlink(), 1);
+    let mut cache = Cache::new(&scratch_with_outside_link());
+    let held = cache.open(LEFTOVER, How::Directory).expect("own scratch");
+    cache.machine.lock(held).expect("own lock");
+    assert_eq!(cache.own_scratch(LEFTOVER, held), None);
+    assert_eq!(cache.effects, [Effect::Remove(LEFTOVER.to_vec()), Effect::Release(held)]);
+    assert_eq!(cache.kind(LEFTOVER), None, "own scratch is removed whole");
+    assert_eq!(cache.bytes(OUTSIDE), (BYTES.to_vec(), 1));
+}
+
+#[test]
+fn an_unlocked_staging_directory_is_never_swept() {
+    let mut cache = Cache::new(&[Item::directory(STAGING)]);
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    assert_eq!(cache.sweep(now, now - OLD), Vec::<String>::new());
+    assert_eq!(cache.kind(STAGING), Some(Is::Directory), "the staging name is never swept");
+}
+
+#[test]
+fn recent_and_future_unlocked_leftovers_are_not_swept() {
+    let mut cache = Cache::new(&[Item::directory(LEFTOVER), Item::file(FILE, b"copying")]);
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    for time in [now, now + OLD] {
+        assert_eq!(cache.sweep(now, time), Vec::<String>::new());
+        let file = cache.open(FILE, How::Read).expect("recent leftover remains");
+        assert_eq!(cache.machine.read(file, 0, 7).unwrap(), b"copying");
+        cache.machine.close(file);
+    }
+    assert_eq!(cache.sweep(now, now - OLD), Vec::<String>::new());
+    assert_eq!(cache.kind(LEFTOVER), None, "the same leftover is removed whole once old");
+}
+
+#[test]
+fn an_unopenable_leftover_is_named_instead_of_silently_skipped() {
+    let mut cache = Cache::new(&[Item::directory(LEFTOVER).mode(0o000)]);
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    let lines = cache.sweep(now, now - OLD);
+    assert_eq!(lines, ["temper-engine upgrade: scratch left behind not removed: upgrade-00000000000000aa: errno 13"]);
+    assert_eq!(cache.kind(LEFTOVER), Some(Is::Directory), "unopenable leftover remains");
 }
 
 #[test]
 fn own_scratch_removal_failure_names_the_path_and_cause() {
-    let (_cache, path) = leftover("upgrade-00000000000000aa");
-    std::fs::write(path.join("file"), b"left behind").expect("own file");
-    let held = std::fs::File::open(&path).expect("own directory");
-    held.try_lock().expect("own lock");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o500)).expect("removal denied");
-    let line = super::scratch::remove("temper-engine", &path, held);
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).expect("restore cleanup permission");
+    let mut cache = Cache::new(&[Item::directory(LEFTOVER).mode(0o500), Item::file(FILE, b"left behind")]);
+    let held = cache.open(LEFTOVER, How::Directory).expect("own directory");
+    cache.machine.lock(held).expect("own lock");
+    let line = cache.own_scratch(LEFTOVER, held);
     assert_eq!(line.as_deref(), Some("temper-engine upgrade: scratch not removed: upgrade-00000000000000aa: errno 13"));
-}
-
-#[test]
-fn a_refused_rehearsal_leaves_no_own_scratch_in_the_cache() {
-    let (_scratch, directories) = deployment();
-    let source = crate::path(&directories.data).join("state");
-    let held = std::fs::File::open(&source).expect("source directory");
-    held.try_lock().expect("source held by another run");
-    let code = run("temper-engine", &directories, &Request::Check(source.as_os_str().as_bytes().into()), "test-build")
-        .expect("rehearsal reaches its refusal");
-    assert_eq!(code, 1, "the source lock refuses the rehearsal after scratch creation");
-    let leftovers: Vec<_> = std::fs::read_dir(crate::path(&directories.cache))
-        .expect("cache entries")
-        .map(|entry| entry.expect("cache entry").file_name())
-        .filter(|name| name.as_bytes().starts_with(b"upgrade-"))
-        .collect();
-    assert_eq!(leftovers, Vec::<std::ffi::OsString>::new());
 }
 
 #[test]
@@ -267,11 +403,4 @@ fn scratch_failures_name_errno_or_error_kind_without_panicking() {
     ] {
         assert_eq!(super::scratch::failure(&why), expected);
     }
-}
-
-#[test]
-fn deployment_back_with_accounts_workers_and_forge_reports_no_previous_generation() {
-    let (_scratch, directories) = deployment();
-    let code = run("temper-engine", &directories, &Request::Back, "test-build").expect("back reaches its report");
-    assert_eq!(code, 1, "floor has no previous generation");
 }

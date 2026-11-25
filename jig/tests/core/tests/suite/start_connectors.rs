@@ -28,6 +28,7 @@ struct Harness {
     outcome: Option<core::effects::connector::OutboxOutcome>,
     arrivals: Vec<(u64, u32, u64, u32)>,
     complete: bool,
+    catch_up: Vec<u16>,
     wires: bool,
 }
 
@@ -198,6 +199,7 @@ impl Harness {
             outcome: None,
             arrivals: Vec::new(),
             complete: false,
+            catch_up: Vec::new(),
             wires: false,
         }
     }
@@ -225,6 +227,10 @@ impl Harness {
                     };
                     assert!(self.wires, "a recovery decision follows durable Wires");
                     self.arrivals.push((party, project, task, needs));
+                }
+                core::Request::Ask { connector, ask: core::Ask::Effect(core::effects::connector::Ask::CatchUp) } => {
+                    assert!(self.core.start_opened() && self.core.ready());
+                    self.catch_up.push(connector);
                 }
                 core::Request::Ask { .. } | core::Request::ProjectMade { .. } => {
                     panic!("idle restored task needs no connector ask or external delivery")
@@ -316,7 +322,7 @@ impl Harness {
     }
 
     fn read_afresh(&mut self) {
-        assert!(self.wires);
+        assert!(self.wires && self.core.start_opened());
         self.connector_event(connector::Event::Restart(connector::RestartStep::FreshRead {
             resource: jig_test_connector_kit::path(1, 1),
         }));
@@ -331,10 +337,7 @@ impl Harness {
     fn settle(&mut self) {
         self.connector_event(connector::Event::Restart(connector::RestartStep::SettleOutbox));
         assert!(self.complete, "the root advances only after the connector reports settled");
-        // The core ignores completion; its root translates it to the matching phase completion.
-        self.route_core(core::Event::EffectConnector(core::effects::connector::Event::RestartDone {
-            stage: core::effects::connector::RestartStage::Settled,
-        }));
+        self.core.catch_up_done(1, core::effects::connector::RestartStage::Settled);
     }
 
     fn started(&mut self) {
@@ -366,26 +369,18 @@ impl Harness {
         self.wires = true;
         phase(&self.core.start_resume(&self.env, wires, &mut out), Phase::AdoptRuns);
         self.outputs(&mut out);
-        phase(&self.core.start_done(&self.env, Phase::AdoptRuns, &mut out), Phase::ReadAfresh { connector: 1 });
-        self.read_afresh();
-        phase(
-            &self.core.start_done(&self.env, Phase::ReadAfresh { connector: 1 }, &mut out),
-            Phase::ReadAfresh { connector: 2 },
-        );
-        phase(
-            &self.core.start_done(&self.env, Phase::ReadAfresh { connector: 2 }, &mut out),
-            Phase::SettleOutbox { connector: 1 },
-        );
-        self.settle();
-        assert_eq!(self.core.start_phase(), Some(Phase::SettleOutbox { connector: 1 }));
-        phase(
-            &self.core.start_done(&self.env, Phase::SettleOutbox { connector: 1 }, &mut out),
-            Phase::SettleOutbox { connector: 2 },
-        );
-        phase(&self.core.start_done(&self.env, Phase::SettleOutbox { connector: 2 }, &mut out), Phase::Open);
+        phase(&self.core.start_done(&self.env, Phase::AdoptRuns, &mut out), Phase::Open);
         assert!(matches!(self.core.start_done(&self.env, Phase::Open, &mut out), Action::Idle));
         self.outputs(&mut out);
+        assert_eq!(self.catch_up, [1, 2]);
         assert_eq!(self.core.start_phase(), None);
+        assert!(self.core.ready() && self.core.start_opened());
+        assert!(!self.core.caught_up(1));
+        self.read_afresh();
+        self.core.catch_up_done(1, core::effects::connector::RestartStage::ReadAfresh);
+        assert!(!self.core.caught_up(1));
+        self.settle();
+        assert!(self.core.caught_up(1));
         assert_eq!(self.core.start_failure(), None);
     }
 }
@@ -570,6 +565,7 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
             &mut h.core.tasks,
             &env,
             tasks::Event::Make {
+                reads_project: false,
                 maker: None,
                 places: Box::new([]),
                 reply_to: ReplyTo::new(Token::new(4)),

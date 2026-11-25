@@ -11,9 +11,11 @@ mod dialling;
 mod grace;
 mod jobs;
 mod joined;
+mod layouts;
 mod link;
 mod liveness;
 mod memory;
+mod parts;
 mod pause;
 mod prepared;
 mod records;
@@ -21,12 +23,10 @@ mod relays;
 mod restarting;
 mod retime;
 mod sources;
-mod statement;
-mod translation;
 
 mod fuzzy {
+    mod layouts;
     mod restarting;
-    mod translation;
     mod worker_side;
 }
 

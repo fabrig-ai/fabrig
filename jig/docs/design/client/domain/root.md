@@ -96,7 +96,7 @@ orders. What is still open is listed in section 14.
 
 ```
 step(root, event):
-    an event of the transport's or the store's     → client.step(now, event, out)           (client/README.md, 4.1)
+    an event of the transport's or the store's     → client.step(now, event, out)           (client/vocabulary.md, 1.1)
     any other event                                → its child, by its owner                 (section 5)
     a child's ask (watch, read, send, sign in)     → client.step(now, ask, out)
     for each request the client gives, in order:
@@ -119,7 +119,7 @@ settle(root, now):
   then calls `settle` once, then carries the requests out: so whatever
   one iteration's events bring (the hello, `me`, a list's answer, the
   frame's and the page's demands that follow) leaves together, in one
-  batch (client/README.md, 4.1). An iteration is at least one report of
+  batch (client/vocabulary.md, 1.1). An iteration is at least one report of
   the shell's platform with every event the root takes from it (a piece
   of the stream or of a batch's answer, a timer, a person's act); a shell
   whose loop takes several reports before carrying anything settles once
@@ -131,8 +131,8 @@ settle(root, now):
   leaves only through the client's request table. A root cannot send a
   keyed request unsaved without writing code to get around the client.
 - **Order is the client's.** The client gives a request's record before
-  its exchange, and sends it only once the record is stored (client/README.md,
-  section 8); the root passes the client's requests out in the order
+  its exchange, and sends it only once the record is stored (client/small-store.md,
+  section 1); the root passes the client's requests out in the order
   the client gives them, and never reorders them.
 - **Child records precede transport within a step.**
   `child_records_dispatched` requires the children's records, facts and
@@ -169,11 +169,11 @@ request's progress and answer by its key's asker (`root.md`, section 5).
 - **By asker.** Each handle and each key a child gives the client
   carries its asker, the child's owner number (section 15), which the
   client hands back with everything it says of that handle or key and
-  never reads (client/README.md, section 4). The root matches the asker to its
+  never reads (client/vocabulary.md, section 1). The root matches the asker to its
   child, exhaustively, and keeps no map from handles or keys to
   children.
 - **Kept work by asker too.** A kept request comes back after a restart
-  under its key, with the asker that sent it (client/README.md, section 8), and
+  under its key, with the asker that sent it (client/small-store.md, section 1), and
   the root routes its `Kept`, its progress and its answer to that child.
   An asker that names no owner of the build is a fact, never a guess:
   its kept requests are sent and answered as any, and what the client
@@ -220,7 +220,7 @@ How jig's documents name an application's values.
   hands each part it names to the part's owner, the client side of its
   connector, with the scope it shows in: a project, or the deployment.
   The owner reads or watches the part's value through the application's
-  own subjects, naming that scope (contract/README.md, 5.5), and holds it while
+  own subjects, naming that scope (contract/watches.md, 1.5), and holds it while
   it is shown. A connector, a resource or a kind needs no document: its
   words are its owner's, from its number or its path.
 - **A slot** is where the reference UI shows a part: its pages and cards
@@ -261,8 +261,8 @@ How jig's documents name an application's values.
   - its reads and watches, of the application's own subjects, as bytes
     under the owner's number, each naming its scope (a project, the
     deployment, or the party's own, admitted on the credential alone),
-    in which the connector judges what the party may see (contract/README.md,
-    5.5);
+    in which the connector judges what the party may see (contract/watches.md,
+    1.5);
   - its records, in the application's wire crate,
     `<application>-client-protocol-wire`, which encodes what the owner
     asks and decodes what the client hands back
@@ -270,7 +270,7 @@ How jig's documents name an application's values.
 - **The client never reads a family's bytes.** It reads their owner,
   their version and their size, keeps a family's requests in its table
   as it keeps jig's, and hands back its documents, pages and outcomes as
-  bytes, to the asker that asked (client/README.md, section 4).
+  bytes, to the asker that asked (client/vocabulary.md, section 1).
 - **An application's page shows jig's objects** from jig's documents,
   which its child watches by handles of its own: an incident's page
   shows its lead task's chip and the proposals waiting in its subtree.
@@ -286,14 +286,14 @@ How jig's documents name an application's values.
   section 6).
 - **An application's streams** (its data followed from an offset,
   provisional, never committed state) are designed in the pattern of a
-  run's text (contract/README.md, 5.4; client/watches.md, 3).
+  run's text (contract/watches.md, 1.4; client/watches.md, 3).
 
 ## 8. The small store, composed
 
 - **The client's records are the client's:** its `Save` and `Erase`
   carry the request table's records, jig's requests and the families'
-  alike, which the root passes to the host as they come (client/README.md,
-  section 8). The root neither wraps nor reads them.
+  alike, which the root passes to the host as they come (client/small-store.md,
+  section 1). The root neither wraps nor reads them.
 - **Each child's own records,** a presentation's (the reference UI's
   drafts and its place) and a family's, are the child's, keyed by its
   own keys and wrapped by the root with the child's variant, as the
@@ -311,8 +311,8 @@ How jig's documents name an application's values.
   section 8); the root passes on what the client kept, and decides
   nothing.
 - **Kept work dropped.** The records the client could not restore are
-  told only by how many, `Dropped { count }`, under no asker (client/README.md,
-  section 8). The root gives the count to one child, which says so:
+  told only by how many, `Dropped { count }`, under no asker (client/small-store.md,
+  section 1). The root gives the count to one child, which says so:
   the reference UI, where the application has it (view-state.md, 7);
   otherwise the presentation the application chooses, or none, in a
   service (`root.md`, section 11).
@@ -385,9 +385,9 @@ to fill. The host around them, which steps the root for every shell and
 carries the client's messages over jig's default HTTP mapping through
 `jig-client-protocol-http` (`../../protocol/client/default-http.md`), is
 copied from jig's test application's, as
-its binary and its service are (`../../protocol/browser/README.md`, 3.2;
+its binary and its service are (`../../protocol/browser/application.md`, 1.2;
 `../../protocol/service.md`, section 7); so is its browser shell, from
-`jig-client-test-shell-web` (`../../protocol/browser/README.md`, 3.1). `ops`'s
+`jig-client-test-shell-web` (`../../protocol/browser/application.md`, 1.1). `ops`'s
 client root, `jig-ops-client-domain`, and its view root,
 `jig-ops-client-view`, are such copies (`../../examples.md`, section 8).
 
@@ -404,7 +404,7 @@ what the engine made durable.
 ## 14. Open questions
 
 - **A root's two modes:** an application root chooses its mode at run
-  time, so it holds both modes' requests under one type (client/README.md, 4.4), and a
+  time, so it holds both modes' requests under one type (client/vocabulary.md, 1.4), and a
   host that only ever runs a linked root still matches the unlinked
   variant, as a cell it never reaches. Whether each root splits by mode,
   so that such a host is never handed that variant, is a change to every
@@ -445,12 +445,12 @@ what the engine made durable.
   (contract/documents.md, 3); the owner of a view's key, style token, region
   name, binding, slot, drawing, picture and phrase
   (`jig_client_view::Owner::Application { number }`, view.md, section
-  3); an application's keyed requests, reads and subjects (contract/requests.md, 3, and contract/README.md, 5.1 and 4
+  3); an application's keyed requests, reads and subjects (contract/requests.md, 3, and contract/watches.md, 1.1, and contract/reads.md, 1
   ), which the client carries as bytes under that
   number and the wire tags with it (`../../protocol/client/README.md`, section
   8); and the asker of each handle and key the owner gives the client
-  (client/README.md, section 4), which the client's small store keeps with each
-  request (client/README.md, section 8).
+  (client/vocabulary.md, section 1), which the client's small store keeps with each
+  request (client/small-store.md, section 1).
 - **Never reused.** A number given to an owner is never given to
   another, since the client's small store keeps the requests asked under
   it across the client's updates, and a request sent under it may be
@@ -461,8 +461,8 @@ what the engine made durable.
   fact, never a guess.
 - **Onto skein-ui's owner, and the client's asker.** skein-ui's owner,
   `skein_ui::Owner { number: u32 }`, and the client's asker are opaque
-  numbers, compared and never interpreted (skein's `ui/README.md`, 3.3;
-  client/README.md, section 4). jig's typed owner (`jig_client_view::Owner`,
+  numbers, compared and never interpreted (skein's `ui/tree.md`, 1.3;
+  client/vocabulary.md, section 1). jig's typed owner (`jig_client_view::Owner`,
   view.md, section 3) maps onto both by one total function:
   `Application { number }` to the same number, and `Jig` to 65536, one
   past every `u16`, so jig's and an application's never meet; and back

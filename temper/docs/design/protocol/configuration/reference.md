@@ -9,8 +9,10 @@ text (`../../draft/stock-charters.md`, 6), so that its runs read the
 stock's words and a release's new stock reaches it with the overlays in
 place (jig's `domain/engine/overlays.md`).
 
+## 1. Applying the reference settings
+
 - **A settings file,** `docs/examples/reference/settings.json`, in the
-  form `temper ctl settings apply` reads (`../../client/ctl/tools.md`, 3;
+  form `temper ctl settings apply` reads (`../../client/ctl/tools-acts.md`, 1;
   `../../client/ctl/overlays.md`, 1). An owner applies it once, after the
   deployment's first start, as a walk on fabrig's box does
   (`../../draft/v0.1.0.md`, 2.1); a later edition is applied the same
@@ -27,7 +29,7 @@ place (jig's `domain/engine/overlays.md`).
     instructions and no parts: its runs read the stock's charter 5, the
     designer at its first run and the coordinator at each later wake, in
     parts, under the stock's wake policy (`stock.md`;
-    `../../draft/stock-charters.md`, 2 and 9);
+    `../../draft/stock-charters.md`, 2, and `../../draft/archive/stock-charters-texts.md`, 1);
   - *charter 2's overlay, the implementer's:* gpt-6.1-sol as the document
     configures it, with no alternatives; the same run, reserve and
     spend; smith's shell family (`shell` and `job`: smith's
@@ -35,7 +37,7 @@ place (jig's `domain/engine/overlays.md`).
     which says what a run does with a shell (`stock.md`);
   - *template 4, the goal template for drafts:* charter 5; ended by
     temper's goal closer, `ended_by` `{"closer": {"connector": 1,
-    "code": 6}}` (jig's `protocol/configuration.md`, 3.2;
+    "code": 6}}` (jig's `protocol/configuration-templates.md`, 2;
     `../../domain/forge/branches.md`, 2);
     `../../draft/reference-code-production.md`, section 4's LLM choice,
     Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, and a later
@@ -44,8 +46,8 @@ place (jig's `domain/engine/overlays.md`).
     activation takes, so that nobody amends the goal after its cut
     (`../../draft/goal-as-designer.md`, section 8);
     tracked at priority 1; a report; the creator's budget; *its own
-    goal branch* among its resources (jig's `protocol/configuration.md`,
-    3.3; `../../client/ctl/tools.md`, 3).
+    goal branch* among its resources (jig's `protocol/configuration-templates.md`,
+    3; `../../client/ctl/tools-acts.md`, 1).
 
   It sets no template 4's work, kind 11: the stock's, no design and no
   close-out (`stock.md`), holds, since the stock's charter 5 delivers
@@ -53,6 +55,9 @@ place (jig's `domain/engine/overlays.md`).
   for the path to draw. The reference's own value, design and no
   close-out, was its own charter 5's, which delivered the shared design
   as a designer's change, and went with it.
+
+## 2. Policy, charters and landing rules
+
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (`stock.md`): read with
   `temper ctl settings show --json`, charter 5, the merge kind, job 3,
@@ -62,7 +67,7 @@ place (jig's `domain/engine/overlays.md`).
   goals close, run their merges and ask their person through a person
   task (jig's `domain/people/README.md`, section 7), and jig's control
   family to their tools and role 0's, so the goal's agent may name
-  `change`'s plan members (`../../domain/agent/tools.md`, 1), and jig's
+  `change`'s plan members (`../../domain/agent/tools-change.md`, 1), and jig's
   notes family beside it, in the goal's and the project's scopes, so
   that it notes what it learns: in all, tools 1,983 with the decide,
   propose, subscribe and recall families its row names and no effect
@@ -95,16 +100,19 @@ place (jig's `domain/engine/overlays.md`).
   rule on every branch, since rules add (`../../domain/forge/change/gates.md`, 2) and
   such a rule's CI would hold every merge into a goal's branch. So the
   case's project sets its own rule 1 in `project.json`, main's rule
-  naming a branch (`branch`, exactly `main`, as above: `settings.md`, 2), in place
+  naming a branch (`branch`, exactly `main`, as above: `settings-kinds.md`, 1), in place
   of the stock's rule 1 over every branch, whose CI and review would
   hold every merge into a goal's branch (`stock.md`).
   `docs/examples/reference/landing.json` is the document's
   `application.landing` (`engine.md`), which the walk's document carries:
   project 1's `merge_job`, `.temper/merge`, and its tiers (below).
+
+## 3. Tiers and the limit profile
+
 - **The tiers,** in the same member, project 1's `gates` entry for its
   repository (`forge` and `repository` filled in as the rules' host and
-  name are), with no gate and two tiers (`../../domain/after-landing.md`,
-  section 2): main's, `slow`, the slow suites, workflow
+  name are), with no gate and two tiers (`../../domain/after-landing-runs.md`,
+  section 1): main's, `slow`, the slow suites, workflow
   `tier-slow.yml`, following main; and g's tier, `goal`, the gate
   without its slowest suites, workflow `tier-goal.yml`, `branch`
   `goal`, `span_ms` 1,200,000 (20 minutes); each uploading its failing
@@ -114,14 +122,14 @@ place (jig's `domain/engine/overlays.md`).
   `tier_retries` and `verification_bound_ms` are left to their
   defaults.
 - **The profile, whole** (`../../draft/reference-code-production.md`,
-  section 14; `../../draft/notes.md`, N21): a box is set up for the
+  section 14; `../../draft/reference-code-production.notes.md`, N21): a box is set up for the
   reference from `docs/examples/reference/` and the repository's own
   files:
   - the reference's figures as `limits` and `temper-limits` settings over
     the stock (`limit-settings.md`, 2), confirmed through ctl, never merged
     into the deployment document. In-process checks give these figures to
     the start typed, through `temper-limits-fixtures::reference_over`;
-  - `room.json`, a call's room (`settings.md`, 7): its `agent` member,
+  - `room.json`, a call's room (`settings-output.md`, 1): its `agent` member,
     `tool_payload` and `output`, which `jq` sets on the box's `agent.json`,
     the output on every endpoint; its `worker` member, merged over each
     worker of the document's array. The stock derives the engine's and
@@ -152,7 +160,7 @@ place (jig's `domain/engine/overlays.md`).
   |---|---|---|---|
   | `tasks.tree_tasks` | 384 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
   | `forge.change_policy.questions` | 80 | 4 | questions per change (`../../draft/reference-code-production.md`, sections 8 and 14) |
-  | the agent's `tool_payload`, its endpoints' and charters' `output`, and what moves with them | 10,662, 8,192 | 63,740, 48,000 | a call's room, a whole spec (`settings.md`, 7) |
+  | the agent's `tool_payload`, its endpoints' and charters' `output`, and what moves with them | 10,662, 8,192 | 63,740, 48,000 | a call's room, a whole spec (`settings-output.md`, 1) |
 
   Every other limit the case needs the box's `standard` profiles hold
   (`stock.md`): G's live delegates (80) with the operations and the inbox
@@ -162,7 +170,7 @@ place (jig's `domain/engine/overlays.md`).
   the forge follows (128), a change's twelve tasks with four foremen
   (80), the executors and charters (16 and 12), and the agent's turns
   (800). The limit settings hold `tasks.tree_tasks` and the engine's and
-  application's share of `settings.md`, 7's room; `room.json` holds the
+  application's share of `settings-output.md`, 1's room; `room.json` holds the
   agent's and workers' figures. `forge.change_policy.questions` at 4 is
   a separate box prerequisite.
 
@@ -176,9 +184,9 @@ place (jig's `domain/engine/overlays.md`).
   template 4's report takes the reference's `tasks.result_bytes`, 63,738;
   charter 5's overlay names two documents, `tasks.charter_documents`,
   which jig's settings schema holds; template 4 names the forge's *its
-  own goal branch* (`../../client/ctl/tools.md`, 3). Charter 5 makes its
+  own goal branch* (`../../client/ctl/tools-acts.md`, 1). Charter 5 makes its
   changes in `change` calls each within one call's payload,
-  which its model's output bounds (`settings.md`, 7), a later call naming an
+  which its model's output bounds (`settings-output.md`, 1), a later call naming an
   earlier one's changes in `after` by the task numbers its answer gave,
   and fewer changes to a call where a call is refused for its size.
   A batch reserves one task per change and shares descendant capacity
@@ -193,11 +201,14 @@ place (jig's `domain/engine/overlays.md`).
   as `tasks.tree_tasks`, 32 deep as the stock's. A limit the start's
   checks ask to move with these moves with them, sized, and
   the reference's limit settings hold it.
+
+## 4. Repository files and checks
+
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../../domain/forge/adoption.md`), set where the repository is made;
   the project's checks are its `.temper/pre-pr` (smith's
-  `domain/run.md`, 8.1; `tools/pre-pr/design.md`): the format check and
+  `domain/run-delivery.md`, 1.1; `tools/pre-pr/design.md`): the format check and
   the counted baselines on everything, then, against the base the worker
   pins (`../../domain/worker/checkouts.md`), the lints of the packages the
   delivery changed and the focused tests of those packages and their
@@ -214,10 +225,10 @@ place (jig's `domain/engine/overlays.md`).
   the only checks a change meets before it lands there; the landing's CI
   into main, the project's full gate, is the guard. An agent can change
   what a check runs: it is no security boundary (smith's
-  `domain/run.md`, 8.1). Its tiers' workflows are
+  `domain/run-delivery.md`, 1.1). Its tiers' workflows are
   `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
   ids in its `temper_tests` input alone when given them
-  (`../../domain/after-landing.md`, section 2). Its merge command is its
+  (`../../domain/after-landing-runs.md`, section 1). Its merge command is its
   `.temper/merge` (`../tooling.md`, 4.1), which recounts a counted
   baseline left in conflict (each tree's `scripts/old-forms.txt`, by
   its `scripts/old_forms.py --write`) and leaves every other conflict.
@@ -235,7 +246,7 @@ place (jig's `domain/engine/overlays.md`).
   a walk meets it; and a test merges `room.json`'s worker figures over
   `temper-box init`'s document and gives the reference's limits to the
   start typed, running its checks with init's
-  agent configuration as `room.json` sets it, holds its figures to `settings.md`, 7's
+  agent configuration as `room.json` sets it, holds its figures to `settings-output.md`, 1's
   relations from that agent, and holds the settings file to them,
   applied over the stock at the reference's room: the charters its
   overlays make within `tasks.charters`, their documents within
@@ -252,7 +263,7 @@ place (jig's `domain/engine/overlays.md`).
   under the reference's fields, never an item's text
   (`../../draft/stock-charters.md`, 8).
 
-## 1. Open questions
+## 5. Open questions
 
 - **The reference's later runs** (`reference.md`; `../../draft/per-wake.md`,
   sections 10 and 11): compare high with medium after observing runs

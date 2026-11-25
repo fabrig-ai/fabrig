@@ -371,7 +371,7 @@ pub enum Id {
     Uid,
     Gid,
 }
-/// Reference roots restricted to literal names (hearth/docs/design/protocol/format/README.md, 5.4).
+/// Reference roots restricted to literal names (hearth/docs/design/protocol/format/schema.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Root {
     Debian,

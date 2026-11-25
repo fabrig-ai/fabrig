@@ -30,7 +30,6 @@ pub fn one_process_under_box(under_box: bool) -> SystemStand {
         &limits,
         &super::worker_files(),
         WorkerRuntime {
-            wires: None,
             root: Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: super::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),
@@ -156,7 +155,8 @@ impl Kernel {
                             || path.as_ref() == b"workspaces"
                             || path.as_ref() == b"gitdirs"
                             || path.as_ref() == b"stores"
-                            || path.as_ref() == b"making",
+                            || path.as_ref() == b"making"
+                            || path.as_ref() == b"kept",
                         "layout opens {path:?}"
                     );
                     self.files = self.files.checked_add(1).unwrap();

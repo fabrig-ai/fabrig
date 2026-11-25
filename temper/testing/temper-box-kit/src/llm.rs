@@ -18,7 +18,7 @@ pub fn requested(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> skein_fa
     }
 }
 
-/// A fresh Open brief is text in the first user message (smith/docs/design/domain/run.md, 3.4).
+/// A fresh Open brief is text in the first user message (smith/docs/design/domain/run-start.md, 1.4).
 #[must_use]
 pub fn request_has(query: &skein_fake_llm_domain::api::Query, cue: &[u8]) -> bool {
     use skein_fake_llm_domain::api::{Part, Role};
@@ -101,11 +101,13 @@ impl Listening {
 
     /// Both consumers dial the same held listener, before either starts.
     pub fn configure(&self, directory: &Path) {
-        let address = self.address().to_string();
-        let data = temper_agent_fixtures::data(directory);
-        let mut providers = temper_agent_fixtures::providers::read(&data);
-        providers["endpoints"][0]["address"] = serde_json::json!({"socket":address});
-        temper_agent_fixtures::providers::write(&data, &providers);
+        configure_with(
+            directory,
+            self.address(),
+            Path::is_dir,
+            temper_agent_fixtures::providers::read,
+            temper_service_shell::providers::write,
+        );
     }
 
     /// The world takes ownership of the still-open descriptor and the peer's queued accepts.
@@ -115,4 +117,28 @@ impl Listening {
     ) -> usize {
         world.spawn_with_fds(vec![self.listener], || super::Process::Peer(Box::new(self.peer)))
     }
+}
+
+/// Find the provider copy in a shared or split fixture and rebind it through its keeper.
+pub fn configure_with(
+    config: &Path,
+    address: SocketAddr,
+    is_directory: impl FnOnce(&Path) -> bool,
+    read: impl FnOnce(&Path) -> serde_json::Value,
+    write: impl FnMut(&Path, &[jig_protocol_config::ProviderSetting]) -> std::io::Result<bool>,
+) {
+    let data = temper_agent_fixtures::data_with(config, is_directory);
+    let _ = rebind_with(&data, read(&data), address, write);
+}
+
+/// Rebind only the fake endpoint. Keep the whole provider copy in the supplied data directory.
+pub fn rebind_with(
+    data: &Path,
+    mut providers: serde_json::Value,
+    address: SocketAddr,
+    write: impl FnMut(&Path, &[jig_protocol_config::ProviderSetting]) -> std::io::Result<bool>,
+) -> Box<[jig_protocol_config::ProviderSetting]> {
+    use temper_agent_fixtures::providers as fixture;
+    providers["endpoints"][0]["address"] = serde_json::json!({"socket":address.to_string()});
+    fixture::remember_with(data, &fixture::values(&providers), write)
 }

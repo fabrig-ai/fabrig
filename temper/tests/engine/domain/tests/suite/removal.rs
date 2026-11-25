@@ -1,4 +1,4 @@
-//! Crash cuts through forge removal (temper/docs/design/domain/forge/adoption.md, 1, and temper/docs/design/domain/forge/README.md, 10).
+//! Crash cuts through forge removal (temper/docs/design/domain/forge/adoption-connection.md, 1, and temper/docs/design/domain/forge/README.md, 10).
 use jig_domain_core as core;
 use jig_domain_core::documents::{Watched, Window};
 use jig_domain_people as people;
@@ -143,6 +143,7 @@ fn fixture() -> (Driver, u64, u64) {
     let mut d = Driver::cold(world.store, walking::config(71), &world.env.limits);
     d.env = world.env;
     d.root = world.root;
+    d.ends = world.ends;
     d.protocol = world.protocol;
     d.period_sent = true;
     d.forge = Some(ForgeStand::new());
@@ -411,7 +412,7 @@ fn a_removed_forges_number_is_never_given_again() {
     removed(&mut d, forge::Event::SecretsErased { forge: number });
     assert!(!d.store.rows.contains_key(&Key::Forge(forge::Key::Forge(number))));
     d.store.crash(91);
-    d.root = engine::Domain::new(walking::config(71), &d.env.limits).expect("number fixture");
+    d.replace_root(walking::config(71));
     d.events.clear();
     d.send(engine::Event::Restart { pending: false });
     d.pump();

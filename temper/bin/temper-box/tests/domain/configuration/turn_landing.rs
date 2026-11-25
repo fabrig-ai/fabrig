@@ -1,6 +1,6 @@
 //! Turn-landing documents as committed bytes and rendered values.
-use std::path::PathBuf;
-use temper_box_kit::turn_landing_fixture::{engine, figures, json, place, rendered, root};
+use std::path::{Path, PathBuf};
+use temper_box_kit::turn_landing_fixture::{agent, engine, figures, json, place, rendered, root};
 use temper_service::startup::{self, Shape};
 
 #[test]
@@ -180,4 +180,50 @@ fn the_turn_landing_scripts_are_the_real_loops_bytes_in_scripts_form() {
     assert!(scripts == fixture, "one source, byte for byte");
     temper_fake::llm::Document::decode_with_scripts(&rendered("model.json"), Some(&scripts))
         .expect("fake model --scripts form");
+}
+
+#[test]
+fn the_turn_landing_engine_passes_every_startup_check() {
+    use skein_lib::{List, Secret};
+    use temper_service::settings::Seeds;
+
+    let bytes = rendered("engine.toml");
+    let directories = jig_protocol_config::Directories::working();
+    let named = startup::named(&bytes, &directories).expect("named setup files");
+    let files = admission_files(&named.files);
+    let agent = agent(Path::new("/turn/data"), &figures()).agent;
+    let seeds = Seeds {
+        link_secret: None,
+        local_secret: None,
+        deployment: [7; 16],
+        installation: [8; 16],
+        seed: 7,
+        crypto: Secret::new(Box::new([9; 32])),
+    };
+    startup::check(&bytes, &directories, &files, &agent, &seeds, None, List::with_capacity(0), None)
+        .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&startup::lines(&why))));
+}
+
+#[test]
+fn the_turn_landing_worker_passes_every_startup_check() {
+    let bytes = rendered("worker.toml");
+    let directories = jig_protocol_config::Directories::working();
+    let git = Some(b"/turn/data/bin/git".as_slice());
+    let mut part = startup::worker_part(&bytes, &directories, git, &[]).expect("setup worker part");
+    let files = admission_files(&part.files);
+    let figures = figures();
+    let agent = agent(Path::new("/turn/data"), &figures).agent;
+    temper_worker_service::figures::apply(&mut part, figures).expect("engine's figures applied");
+    temper_worker_service::startup::worker::check_worker_part(&mut part, &files, &agent)
+        .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_worker_service::startup::lines(&why))));
+}
+
+fn admission_files(files: &[jig_protocol_config::File]) -> temper_service::settings::Files {
+    use skein_lib::{List, Secret};
+
+    let mut entries = List::with_capacity(u32::try_from(files.len()).expect("file count"));
+    for file in files {
+        entries.push((file.path.clone(), Secret::new(Box::new([b'7'; 64])))).expect("named file count");
+    }
+    temper_service::settings::Files { entries }
 }

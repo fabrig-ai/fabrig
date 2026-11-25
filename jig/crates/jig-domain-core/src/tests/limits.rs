@@ -13,6 +13,28 @@ fn equal_child_limits_are_valid() {
 }
 
 #[test]
+fn each_wait_figure_must_be_positive() {
+    use crate::Figures;
+    use skein_lib::Duration;
+
+    let limits = composite();
+    let stock = limits.waits;
+    let zero = Duration::ZERO;
+    for (name, waits) in [
+        ("question", Figures { question: zero, ..stock }),
+        ("party", Figures { party: zero, ..stock }),
+        ("news", Figures { news: zero, ..stock }),
+        ("host", Figures { host: zero, ..stock }),
+        ("account", Figures { account: zero, ..stock }),
+        ("step", Figures { step: zero, ..stock }),
+        ("room", Figures { room: zero, ..stock }),
+        ("sign_off", Figures { sign_off: zero, ..stock }),
+    ] {
+        assert!(!crate::valid(&crate::Limits { waits, ..limits }), "{name}");
+    }
+}
+
+#[test]
 fn document_roles_cover_authority_roles() {
     let mut limits = composite();
     limits.authority.roles = 2;

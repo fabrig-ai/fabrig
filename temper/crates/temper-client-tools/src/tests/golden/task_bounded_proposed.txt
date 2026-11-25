@@ -2,8 +2,8 @@ task 41 · goal · Running · shop · priority 2
 asked: Add a /health endpoint that reports the store's state
 requester: you · spent 1.20 of 5.00 · no deadline
 settings: revision 1
-waiting on: you: question of task 42 · 1 waiting
+waiting on: you: question 3 of task 44 · 1 waiting · since 2026-10-24 15:02 UTC · passes up at 2026-10-24 23:02 UTC
 acts:
-  task stop 41 --key KEY within authority { tools 5; grants; delegation { kinds; tasks 3; depth 1 }; spend 0.17; deadline none; notes 2; note resources }; budget left 0.19; held grants 4/2:src*; implications ; ceiling authority { tools 5; grants; delegation { kinds; tasks 3; depth 1 }; spend 0.17; deadline none; notes 2; note resources } (proposed to you)
+  task stop 41 REASON --key KEY within authority { tools 5; grants; delegation { kinds; tasks 3; depth 1 }; spend 0.17; deadline none; notes 2; note resources }; budget left 0.19; held grants 4/2:src*; implications ; ceiling authority { tools 5; grants; delegation { kinds; tasks 3; depth 1 }; spend 0.17; deadline none; notes 2; note resources } (proposed to you)
   task cancel 41 REASON --key KEY
-digest: task 58a18e7be6529d74
+digest: task 63f0a63dba71c707

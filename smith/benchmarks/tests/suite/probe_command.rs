@@ -24,7 +24,7 @@ fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     std::fs::write(login.join("config/smith/config.toml"), []).expect("setup marker");
     std::fs::write(login.join("host-id"), []).expect("host marker");
     std::fs::write(login.join("tokens/chatgpt"), []).expect("record marker");
-    let output = Command::new(env!("CARGO_BIN_EXE_smith-bench"))
+    let output = Command::new(skein_scratch::paths::binary("smith-bench"))
         .args(["probe", "probes/smoke-tools", "--arm"])
         .arg(&arm)
         .arg("--shared-temporary")
@@ -61,7 +61,7 @@ fn replay_arm(directory: &Path) -> PathBuf {
     let mut build = common::unexecuted_arm(directory, repository);
     let settings = build.directory.join("recording.jsonl");
     std::fs::write(&settings, common::events::bytes(&common::events::balanced())).expect("wire recording");
-    let executable = std::fs::read(env!("CARGO_BIN_EXE_test-peer")).expect("Rust replay peer");
+    let executable = std::fs::read(skein_scratch::paths::binary("test-peer")).expect("Rust replay peer");
     let program = build.directory.join("smith");
     std::fs::write(&program, &executable).expect("replay executable");
     std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).expect("execute");
@@ -75,60 +75,12 @@ fn replay_arm(directory: &Path) -> PathBuf {
     arm
 }
 
-fn calibration_files(name: &str) -> (skein_scratch::Scratch, PathBuf, PathBuf) {
-    let scratch = root(name);
-    let directory = scratch.path().join("root");
-    let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
-    std::fs::create_dir_all(&directory).expect("calibration directory");
-
-    let file = directory.join("task.toml");
-    std::fs::copy(repository.join("tasks/probes/smoke-tools/task.toml"), &file).expect("task");
-    (scratch, directory, file)
-}
-
-#[test]
-fn a_calibration_block_names_its_summary_and_failing_control() {
-    let (_scratch, directory, file) = calibration_files("block");
-    let task = smith_bench::read_task(&file).expect("task");
-    let block = common::calibration(&task);
-    smith_bench::probe::record_calibration(&directory, &file, "probes/smoke-tools", &block, &recorded_passes(), 7)
-        .expect("record calibration");
-    let task = smith_bench::read_task(&file).expect("persisted task");
-    assert_eq!(task.calibration, Some(block.clone()));
-    assert_eq!(block.failed_before, ["control-run/01"]);
-    assert_eq!(block.control, "c".repeat(40));
-    let summary = smith_bench::read_summary(&directory.join("benchmarks").join(&block.summary)).expect("summary");
-    assert_eq!(summary.groups[0].attempts.len(), 10);
-    assert!(task.calibrated().expect("current inputs"));
-}
-
-#[test]
-fn a_variant_carries_its_own_calibration() {
-    let (_scratch, directory, file) = calibration_files("variant");
-    let task = smith_bench::read_task(&file).expect("task").with_variant("child").expect("child");
-    let block = common::calibration(&task);
-    smith_bench::probe::record_calibration(
-        &directory,
-        &file,
-        "probes/smoke-tools/child",
-        &block,
-        &recorded_passes(),
-        7,
-    )
-    .expect("variant calibration");
-    let task = smith_bench::read_task(&file).expect("persisted task");
-    assert_eq!(task.calibration, None);
-    let variant = task.with_variant("child").expect("child");
-    assert_eq!(variant.calibration, Some(block));
-    assert!(variant.calibrated().expect("current inputs"));
-}
-
 #[test]
 fn a_missing_smoke_login_refuses_before_calibration() {
     let scratch = root("missing-smoke-login");
     let directory = scratch.path().join("root");
     std::fs::DirBuilder::new().mode(0o700).create(&directory).expect("private root");
-    let output = Command::new(env!("CARGO_BIN_EXE_smith-bench"))
+    let output = Command::new(skein_scratch::paths::binary("smith-bench"))
         .args(["suite", "smoke"])
         .env_clear()
         .env("PATH", "/usr/bin:/bin")
@@ -146,5 +98,3 @@ fn a_missing_smoke_login_refuses_before_calibration() {
         )
     );
 }
-
-use crate::common::recorded_passes;

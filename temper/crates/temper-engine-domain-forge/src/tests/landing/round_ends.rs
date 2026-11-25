@@ -8,6 +8,20 @@ const GREEN: api::Commit = [11; 32];
 const RED: api::Commit = [12; 32];
 const FRESH: api::Commit = [20; 32];
 const TEST: &[u8] = b"test bin broken";
+const SOURCE_ABOVE: &[u8] = b"temper/c1";
+const MOVED: api::Commit = [21; 32];
+const INCIDENT_PAGES: u32 = 3;
+const LONG_PAGES: u32 = CLIENT.rows + 1;
+const ROWS: u64 = 8; // CLIENT.rows
+const POLLS_TO_STALL: u32 = 3; // STALL divided by CLIENT.poll
+const STALL: Duration = Duration::from_secs(15);
+
+#[derive(Clone, Copy)]
+enum PrefixHistory {
+    Unscripted,
+    Refused,
+    Complete(u32),
+}
 
 fn member_at(row: &LandingRow, branch: &[u8]) -> usize {
     for (i, m) in row.landing.members.iter().enumerate() {
@@ -50,6 +64,11 @@ struct World {
     entry: u64,
     by_test: bool,
     main_move: Option<MainMove>,
+    moved: bool,
+    history: PrefixHistory,
+    prefix_pages: List<u32>,
+    read_log: List<LandingReadNote>,
+    held_news: List<u16>,
 }
 impl World {
     fn new(round: u16, goal: bool, by_test: bool) -> Self {
@@ -69,6 +88,11 @@ impl World {
             entry: 90,
             by_test,
             main_move: None,
+            moved: false,
+            history: PrefixHistory::Unscripted,
+            prefix_pages: List::uncapped(),
+            read_log: List::uncapped(),
+            held_news: List::uncapped(),
         };
         w.send(Event::Restore { record: Stored::Repository(adopted()) });
         let mut members = List::uncapped();
@@ -142,8 +166,8 @@ impl World {
         w.send(Event::Landing { row });
         w.send(Event::Connection { forge: 1, state: Connection::Connected { id: 7, login: b"bot".as_slice().into() } });
         w.send(Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        w.send(Event::ReadAfresh);
-        w.send(Event::SettleOutbox);
+        w.send(Event::CatchUp);
+
         w
     }
     fn move_main(&mut self, at: MainMove) {
@@ -173,7 +197,7 @@ impl World {
                         };
                     }
                 }
-                Ok(Answer::Commit(fixtures::HEAD))
+                Ok(Answer::Commit(if self.moved && branch.as_ref() == SOURCE_ABOVE { MOVED } else { fixtures::HEAD }))
             }
             Read::Pull { number, .. } => {
                 if let Some(pull) = &self.pull
@@ -199,11 +223,24 @@ impl World {
                 Err(Error::Missing)
             }
             Read::Reviews { .. } => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
+            Read::Commits { before, after: GREEN, page } if before == self.main => match self.history {
+                PrefixHistory::Unscripted => Ok(Answer::Commits {
+                    commits: if self.main == [19; 32] {
+                        Box::new([api::CommitMessage { id: GREEN, parents: Box::new([]), message: Box::new([]) }])
+                    } else {
+                        Box::new([])
+                    },
+                    more: false,
+                }),
+                PrefixHistory::Refused if page == 2 => {
+                    Err(Error::TooLarge(api::Excess::at_least(api::Bound::Rows, ROWS, ROWS + 1)))
+                }
+                PrefixHistory::Refused => Ok(history_page(page, INCIDENT_PAGES)),
+                PrefixHistory::Complete(pages) => Ok(history_page(page, pages)),
+            },
             Read::Commits { before, after, .. } => Ok(Answer::Commits {
                 // The outside tip contains neither the source head nor the prepared prefix.
-                commits: if before == self.main
-                    && (after == fixtures::HEAD || (self.main == [19; 32] && after == GREEN))
-                {
+                commits: if before == self.main && (after == fixtures::HEAD || after == MOVED) {
                     Box::new([api::CommitMessage { id: after, parents: Box::new([]), message: Box::new([]) }])
                 } else {
                     Box::new([])
@@ -229,32 +266,46 @@ impl World {
             seed_receipt(self, &gate, prefix, passed);
         }
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture retains only the landing decision and client call")]
     fn decide(&mut self, expected: policy::Decision) {
-        self.env.now = self.env.now.saturating_add(Duration::from_secs(10));
-        self.env.wall =
-            Wall::from_nanos(self.env.wall.as_nanos().checked_add(Duration::from_secs(10).as_nanos()).unwrap());
+        assert_eq!(
+            self.decide_after(Duration::from_secs(10)),
+            expected,
+            "round {} phase {:?}",
+            self.d.landing(TASK).unwrap().landing.preparation,
+            self.d.landing(TASK).unwrap().landing.phase
+        );
+    }
+    fn clock(&mut self, by: Duration) {
+        self.env.now = self.env.now.saturating_add(by);
+        self.env.wall = Wall::from_nanos(self.env.wall.as_nanos().checked_add(by.as_nanos()).unwrap());
+    }
+    fn decide_after(&mut self, by: Duration) -> policy::Decision {
+        self.clock(by);
+        self.decide_heard(preparing_heard(Some(policy::Preparation::Absent)))
+    }
+    fn offer(&mut self, heard: LandingHeard) -> Queue<Request> {
         self.entry = self.entry.checked_add(1).unwrap();
         let entry = self.entry;
-        let mut out = self.send(Event::StepLanding {
-            task: TASK,
-            entry,
-            heard: preparing_heard(Some(policy::Preparation::Absent)),
-        });
+        self.send(Event::StepLanding { task: TASK, entry, heard })
+    }
+    fn decide_heard(&mut self, heard: LandingHeard) -> policy::Decision {
+        let out = self.offer(heard);
+        self.drive(out)
+    }
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture retains only the landing decision and client call")]
+    fn drive(&mut self, mut out: Queue<Request>) -> policy::Decision {
         for _ in 0_u32..128 {
             while let Some(request) = out.pop() {
                 if let Request::LandingDecision { decision, entry: writing, .. } = request {
-                    assert_eq!(
-                        decision,
-                        expected,
-                        "round {} phase {:?}",
-                        self.d.landing(TASK).unwrap().landing.preparation,
-                        self.d.landing(TASK).unwrap().landing.phase
-                    );
                     if let Some(entry) = writing {
                         self.effect(entry);
                     }
-                    return;
+                    return decision;
+                }
+                if let Request::LandingRead(note) = request {
+                    self.read_log.push(note).unwrap();
+                } else if let Request::LandingNews { member, step: LandingNews::Held, .. } = request {
+                    self.held_news.push(member).unwrap();
                 }
             }
             resume(&mut self.d, &self.env, &mut out);
@@ -266,11 +317,14 @@ impl World {
                         call = Some((token, op));
                     }
                     Request::LandingDecision { decision, entry: writing, .. } => {
-                        assert_eq!(decision, expected);
                         if let Some(entry) = writing {
                             self.effect(entry);
                         }
-                        return;
+                        return decision;
+                    }
+                    Request::LandingRead(note) => self.read_log.push(note).unwrap(),
+                    Request::LandingNews { member, step: LandingNews::Held, .. } => {
+                        self.held_news.push(member).unwrap();
                     }
                     other => {
                         assert!(
@@ -280,8 +334,18 @@ impl World {
                     }
                 }
             }
-            let (call, op) = call.expect("landing read");
+            let Some((call, op)) = call else {
+                // Admission from the read line gives the call its own pass.
+                self.d.reclaim();
+                assert!(self.d.is_ready(), "landing has a read to send");
+                continue;
+            };
             let Op::Read(read) = op else { panic!("uncommitted write") };
+            if let Read::Commits { before, after: GREEN, page } = read
+                && before == self.main
+            {
+                self.prefix_pages.push(page).unwrap();
+            }
             let result = self.read(read);
             out = self.send(Event::Client(skein_forge_client::Event::Answered {
                 call,
@@ -384,6 +448,240 @@ impl World {
         };
         self.d.landing.rows.get_mut(&TASK).unwrap().landing.round.failure = report.into();
     }
+}
+
+fn history_id(number: u32, tip: u32) -> api::Commit {
+    if number == tip {
+        GREEN
+    } else if number.checked_add(1) == Some(tip) {
+        fixtures::HEAD
+    } else {
+        [u8::try_from(number.checked_add(32).unwrap()).unwrap(); 32]
+    }
+}
+
+fn history_page(page: u32, pages: u32) -> Answer {
+    let first = page.checked_sub(1).unwrap().checked_mul(CLIENT.rows).unwrap();
+    let last = first.checked_add(CLIENT.rows).unwrap().checked_sub(1).unwrap();
+    let tip = pages.checked_mul(CLIENT.rows).unwrap().checked_sub(1).unwrap();
+    let mut commits = List::with_capacity(CLIENT.rows);
+    for number in first..=last {
+        let parents: Box<[api::Commit]> = if number == tip {
+            Box::new([fixtures::BASE, fixtures::HEAD])
+        } else if let Some(prior) = number.checked_sub(1) {
+            Box::new([history_id(prior, tip)])
+        } else {
+            Box::new([fixtures::BASE])
+        };
+        commits.push(api::CommitMessage { id: history_id(number, tip), parents, message: Box::new([]) }).unwrap();
+    }
+    Answer::Commits { commits: commits.into_boxed(), more: last < tip }
+}
+
+fn kept_lower_prefix(history: PrefixHistory) -> World {
+    use policy::Decision as D;
+    let mut w = World::with_members(1, false, false, 2);
+    w.env.limits.change_policy.stall = STALL;
+    w.decide(D::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE });
+    w.prefixes = [Some(GREEN), Some(RED), None, None];
+    let report = br#"{"combined":[{"member":1,"by":"merge"},{"member":2,"by":"merge"}]}"#;
+    w.d.landing.rows.get_mut(&TASK).unwrap().landing.round.failure = report.as_slice().into();
+    w.decide(D::Open);
+    w.decide(D::None);
+    w.moved = true;
+    w.decide(D::Leave { member: 1, why: policy::Leave::HeadMoved { head: MOVED } });
+    w.decide(D::Close);
+    w.decide(D::Delete { member: 1 });
+    w.decide(D::None);
+    w.history = history;
+    w
+}
+
+#[test]
+fn a_kept_prefixs_refused_second_page_holds_the_round() {
+    let mut w = kept_lower_prefix(PrefixHistory::Refused);
+    let poll = w.env.limits.client.poll;
+    for _ in 0..POLLS_TO_STALL {
+        assert!(matches!(w.decide_after(poll), policy::Decision::Wait { on: policy::Awaited::Read, .. }));
+    }
+    assert_eq!(w.decide_after(poll), policy::Decision::Hold(policy::Hold::Read));
+    let reason = skein_lib::bytes::concat(&[b"read: ", &incident_reading(), b": ", REFUSAL.as_bytes()]);
+    assert_eq!(w.d.landing_hold_words(TASK), Some(reason));
+    assert_eq!(w.held_news.as_slice(), &[0, 1]);
+    assert_eq!(
+        w.read_log.as_slice(),
+        &[
+            read_note(LandingReadNoteKind::Started { why: REFUSAL.as_bytes().into() }),
+            read_note(LandingReadNoteKind::Held { elapsed: STALL, why: REFUSAL.as_bytes().into() }),
+        ]
+    );
+}
+
+const REFUSAL: &str = "past forge.client.rows (8): at least 9 rows";
+
+fn incident_reading() -> Box<[u8]> {
+    alloc::format!(
+        "commits after {} up to {}, page 2, for change {}",
+        "04".repeat(fixtures::BASE.len()),
+        "0b".repeat(GREEN.len()),
+        fixtures::CHANGE
+    )
+    .into_bytes()
+    .into_boxed_slice()
+}
+
+fn read_note(kind: LandingReadNoteKind) -> LandingReadNote {
+    LandingReadNote { task: TASK, round: 2, reading: incident_reading(), kind }
+}
+
+fn read_decision(at: Wall) -> policy::Decision {
+    policy::Decision::Wait { until: Some(at), on: policy::Awaited::Read }
+}
+
+fn wall_after(w: &World, by: Duration) -> Wall {
+    Wall::from_nanos(w.env.wall.as_nanos().checked_add(by.as_nanos()).unwrap())
+}
+
+#[test]
+fn two_short_read_runs_log_each_start_and_end_once() {
+    let mut w = kept_lower_prefix(PrefixHistory::Refused);
+    let poll = w.env.limits.client.poll;
+    for next in [policy::Decision::Open, policy::Decision::None] {
+        w.history = PrefixHistory::Refused;
+        w.decide_after(poll);
+        w.decide_after(poll);
+        w.history = PrefixHistory::Complete(INCIDENT_PAGES);
+        assert_eq!(w.decide_after(poll), next);
+    }
+    let start = read_note(LandingReadNoteKind::Started { why: REFUSAL.as_bytes().into() });
+    let end = read_note(LandingReadNoteKind::Read { elapsed: poll.saturating_add(poll) });
+    assert_eq!(w.read_log.as_slice(), &[start.clone(), end.clone(), start, end]);
+}
+
+#[test]
+fn a_read_run_wakes_at_the_stall_before_the_poll() {
+    let mut w = kept_lower_prefix(PrefixHistory::Refused);
+    let slow_poll = STALL.saturating_add(STALL);
+    w.env.limits.client.poll = slow_poll;
+    let decision = w.decide_after(slow_poll);
+    let deadline = wall_after(&w, STALL);
+    assert_eq!(decision, read_decision(deadline));
+    w.d.wait_landing(&w.env, TASK, Some(deadline));
+    let out = fixtures::advance(&mut w.d, &mut w.env, STALL);
+    assert!(has_wake(out));
+}
+
+fn has_wake(out: Queue<Request>) -> bool {
+    let mut out = out;
+    while let Some(request) = out.pop() {
+        if request == (Request::WakeProcedure { task: TASK }) {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn reconnecting_restarts_a_landings_read_stall_clock() {
+    let mut w = kept_lower_prefix(PrefixHistory::Refused);
+    let poll = w.env.limits.client.poll;
+    w.decide_after(poll);
+    w.clock(poll);
+    w.send(Event::Connection { forge: REPO.forge, state: Connection::NotConnected });
+    w.clock(STALL);
+    assert!(matches!(w.decide_after(poll), policy::Decision::Wait { on: policy::Awaited::Read, .. }));
+    w.send(Event::Connection {
+        forge: REPO.forge,
+        state: Connection::Connected { id: 7, login: b"bot".as_slice().into() },
+    });
+    assert!(matches!(w.decide_after(poll), policy::Decision::Wait { on: policy::Awaited::Read, .. }));
+    assert_eq!(w.decide_after(STALL), policy::Decision::Hold(policy::Hold::Read));
+}
+
+#[test]
+fn a_read_queued_for_room_holds_without_an_answer() {
+    let mut w = kept_lower_prefix(PrefixHistory::Refused);
+    w.offer(preparing_heard(None));
+    let owner = *w.d.landing.pending.iter().next().unwrap().0;
+    // Busy is a terminal from client admission, not the answer to the read.
+    landing::answered(&mut w.d, &w.env, owner, Err(Error::Busy), &mut Queue::uncapped());
+    let out = fixtures::advance(&mut w.d, &mut w.env, STALL);
+    let out = accepted(&mut w.d, &w.env, out);
+    let decision = w.drive(out);
+    assert_eq!(decision, policy::Decision::Hold(policy::Hold::Read));
+    assert_eq!(
+        w.d.landing_hold_words(TASK).as_deref(),
+        Some(b"read: branch temper/c0, for change 51: no answer".as_slice())
+    );
+    assert!(w.d.landing.pending.is_empty());
+}
+
+fn accepted(d: &mut Domain, env: &Env<Limits>, mut out: Queue<Request>) -> Queue<Request> {
+    accept_landings(d, env, &mut out);
+    out
+}
+
+#[test]
+fn an_outage_retry_restarts_the_read_stall_clock() {
+    let mut w = kept_lower_prefix(PrefixHistory::Refused);
+    w.env.limits.client.read_attempts = 1;
+    let poll = w.env.limits.client.poll;
+    w.decide_after(poll);
+    w.clock(poll);
+    w.offer(preparing_heard(None));
+    let (call, _) = fixtures::next_at(&mut w.d, &w.env);
+    fixtures::answer_at(&mut w.d, &w.env, call, Err(Error::Unavailable));
+    let out = fixtures::advance(&mut w.d, &mut w.env, STALL);
+    let out = accepted(&mut w.d, &w.env, out);
+    assert_eq!(w.drive(out), read_decision(wall_after(&w, poll)));
+    assert_eq!(w.decide_after(poll), read_decision(wall_after(&w, poll)));
+    assert_eq!(w.decide_after(STALL), policy::Decision::Hold(policy::Hold::Read));
+}
+
+#[test]
+fn a_read_hold_releases_into_a_new_round_with_receipts() {
+    let mut w = kept_lower_prefix(PrefixHistory::Refused);
+    w.seed_receipts();
+    let poll = w.env.limits.client.poll;
+    w.decide_after(poll);
+    assert_eq!(w.decide_after(STALL), policy::Decision::Hold(policy::Hold::Read));
+    w.read_log = List::uncapped();
+    let mut heard = preparing_heard(None);
+    heard.released = true;
+    assert_eq!(w.decide_heard(heard), policy::Decision::None);
+    w.history = PrefixHistory::Complete(INCIDENT_PAGES);
+    w.decide(policy::Decision::Delete { member: 0 });
+    w.decide(policy::Decision::Stale);
+    w.decide(policy::Decision::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE });
+    assert_eq!(w.d.landing(TASK).unwrap().landing.preparation, 3);
+    assert_eq!(w.d.landing(TASK).unwrap().read_hold, None);
+    assert_eq!(w.d.landing.receipts.len(), 2);
+    assert!(w.read_log.is_empty());
+}
+
+#[test]
+fn a_kept_prefix_opens_after_its_last_history_page() {
+    skein_rows::check(
+        [("incident range", INCIDENT_PAGES), ("past the row limit in pages", LONG_PAGES)],
+        kept_history_reaches_the_tip,
+    );
+}
+
+fn kept_history_reaches_the_tip(pages: u32) {
+    use policy::Decision as D;
+    let mut w = kept_lower_prefix(PrefixHistory::Complete(pages));
+    w.decide(D::Open);
+    let mut expected = List::with_capacity(pages);
+    for page in 1..=pages {
+        expected.push(page).unwrap();
+    }
+    assert_eq!(w.prefix_pages, expected);
+    let row = w.d.landing(TASK).unwrap();
+    assert_eq!(row.landing.preparation, 2);
+    assert_eq!(row.landing.members[0].combined, Some(policy::Combine::Merge));
+    assert_eq!(row.landing.members[0].candidate, Some(GREEN));
+    w.decide(D::None);
+    w.decide(D::Key { member: 0, gate: 0, candidate: GREEN });
 }
 
 fn cut_to_kept_prefix(round: u16, by_test: bool) {

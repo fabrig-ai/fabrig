@@ -291,19 +291,23 @@ impl std::ops::DerefMut for Engine {
     }
 }
 
+/// Configuration-derived settings for each fresh set of neighbours.
+pub struct PeerSetup {
+    observer: Observer,
+    creating: jig_test_profile::fixtures::Creating,
+    script: Box<[Script]>,
+}
+
 impl Application for Testing {
     type Domain = Engine;
     type Store = Store;
     type Config = Config;
+    type PeerSetup = PeerSetup;
     type Systems = [System; 2];
     type Peers = Neighbours;
     type Event = root::Event;
     type Delivery = Delivery;
 
-    fn store(config: &Config) -> Store {
-        let (configuration, _) = config.root();
-        Store::starting(&config.limits, &configuration.core.settings.models)
-    }
     fn build(config: &Config) -> Engine {
         let (configuration, limits) = config.root();
         let fixture = jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers);
@@ -320,6 +324,26 @@ impl Application for Testing {
         Engine { root: domain, fixture: Some(fixture), journal: Box::new([]) }
     }
 
+    fn rehearse(domain: &mut Engine) {
+        domain.root.rehearse();
+    }
+
+    fn rehearsed(domain: &Engine) -> bool {
+        domain.root.rehearsed()
+    }
+
+    fn refused(domain: &Engine) -> Option<String> {
+        domain
+            .root
+            .start_failure()
+            .map(|(_, failure)| format!("{failure:?}"))
+            .or_else(|| domain.root.start_page_failure().map(|(_, failure)| format!("{failure:?}")))
+    }
+
+    fn start_phase(domain: &Engine) -> String {
+        format!("{:?}", domain.root.start_phase())
+    }
+
     fn systems(config: &Config, _: u64) -> [System; 2] {
         let mut systems = [System::new(), System::new()];
         if matches!(config.scenario, Some(Scenario::ChangedJudge | Scenario::NarrowingPolicy)) {
@@ -328,8 +352,8 @@ impl Application for Testing {
         systems
     }
 
-    fn peers(config: &Config, _: u64) -> Neighbours {
-        let script = || match config.scenario {
+    fn bootstrap(config: &Config) -> (Store, PeerSetup) {
+        let script = match config.scenario {
             Some(Scenario::QueryWatchedWhileTasksEnd) => {
                 Box::new([Script::Wait, Script::Finish { report: b"query task done".as_slice().into() }])
                     as Box<[Script]>
@@ -366,13 +390,8 @@ impl Application for Testing {
                 Script::Park,
             ]),
         };
-        let mut workers: Vec<_> = (0..config.workers)
-            .map(|index| Worker::new(7 + u64::from(index), 1, (0..8).map(|_| script()).collect()))
-            .collect();
-        if config.engine {
-            workers.insert(0, Worker::new(0, 1, (0..8).map(|_| script()).collect()));
-        }
-        let mut observer = Observer::recording(&config.root().0);
+        let (configuration, limits) = config.root();
+        let mut observer = Observer::recording(&configuration);
         if config.scenario == Some(Scenario::OtherHand) {
             observer
                 .referee
@@ -380,7 +399,22 @@ impl Application for Testing {
                 .participating
                 .insert(jig_conformance::referee::Name { connector: 1, path: vec![vec![1], vec![1]] });
         }
-        let (configuration, limits) = config.root();
+        let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
+        let store = Store::starting(&config.limits, &configuration.core.settings.models);
+        (store, PeerSetup { observer, creating, script })
+    }
+
+    fn open_rehearsal(_: &mut Store, _: u64) -> Result<(), String> {
+        // The memory fork is already cold-opened with no in-flight work.
+        Ok(())
+    }
+
+    fn peers(config: &Config, _: u64, setup: &PeerSetup) -> Neighbours {
+        let worker = |number| Worker::new(number, 1, (0..8).map(|_| setup.script.clone()).collect());
+        let mut workers: Vec<_> = (0..config.workers).map(|index| worker(7 + u64::from(index))).collect();
+        if config.engine {
+            workers.insert(0, worker(0));
+        }
         let mut peers = Peers::new(
             workers,
             vec![Party::new(
@@ -393,11 +427,10 @@ impl Application for Testing {
                 ]),
             )],
         );
-        peers.creating =
-            Some(jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks));
+        peers.creating = Some(setup.creating.clone());
         Neighbours {
             peers,
-            observer,
+            observer: setup.observer.clone(),
             account_ready: false,
             assignments: Vec::new(),
             answers: 0,
@@ -478,7 +511,6 @@ impl Application for Testing {
         let mut queue = Queue::with_capacity(128);
         root::release(domain, &env(config, clock), &mut queue);
         let mut outputs = Vec::new();
-        let mut read_afresh = None;
         while let Some(request) = queue.pop() {
             outputs.push(match request {
                 root::Request::Workers(_)
@@ -494,30 +526,12 @@ impl Application for Testing {
                 }
                 root::Request::Start { phase, census } => Output::Deliver(Delivery::Start { phase, census }),
 
-                root::Request::Deliver(delivery) => {
-                    if !domain.ready()
-                        && let root::Delivery::System { connector, call: connector::SystemRequest::ReadFact { .. } } =
-                            &delivery
-                    {
-                        assert!(
-                            read_afresh.is_none_or(|number| number == *connector),
-                            "one connector reads afresh at a time"
-                        );
-                        read_afresh = Some(*connector);
-                    }
-                    Output::Deliver(Delivery::Held(delivery))
-                }
+                root::Request::Deliver(delivery) => Output::Deliver(Delivery::Held(delivery)),
                 root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
                 root::Request::Now(now) => Output::Deliver(Delivery::Now(now)),
                 root::Request::Busy { event } => Output::Deliver(Delivery::Busy(event)),
                 root::Request::Stop => Output::Stop,
             });
-        }
-        if let Some(connector) = read_afresh {
-            outputs.push(Output::Deliver(Delivery::Start {
-                phase: core::start::Phase::ReadAfresh { connector },
-                census: None,
-            }));
         }
         negative::released(domain, config, clock, outputs)
     }

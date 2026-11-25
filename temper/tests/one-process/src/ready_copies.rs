@@ -1,5 +1,5 @@
-//! Ready's copies on the service (temper/docs/design/testing/README.md, 2.5 and temper/docs/design/testing/process-tier.md;
-//! temper/docs/design/domain/forge/adoption.md, 5; temper/docs/design/protocol/setup/box.md, 1).
+//! Ready's copies on the service (temper/docs/design/testing/tiers.md, 1.5 and temper/docs/design/testing/process-tier.md;
+//! temper/docs/design/domain/forge/adoption.md, 9; temper/docs/design/protocol/setup/box.md, 1).
 use crate::{
     copy::{self, Source},
     ctl::{Caller, Command},
@@ -265,7 +265,6 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
         &seeds,
         None,
         Some(temper_service::WorkerRuntime {
-            wires: None,
             root: worker,
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),
@@ -282,8 +281,15 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
     Proc::Service(Box::new(ServiceHost::new(service, ServiceObserver::started(root, inherited), parameters)))
 }
 
+pub(crate) fn see(role: Role, name: &[u8]) -> Step<Address> {
+    Step::See { find: Find::exactly_named(role, name), within: fixtures::PERSON_WAIT }
+}
+
+pub(crate) fn ready_heading() -> Step<Address> {
+    see(Role::Heading { level: 1 }, b"Ready")
+}
+
 fn steps() -> Box<[Step<Address>]> {
-    let see = |role, name: &[u8]| Step::See { find: Find::exactly_named(role, name), within: fixtures::PERSON_WAIT };
     let press = |role, name: &[u8]| Step::Press { find: Find::exactly_named(role, name) };
     Box::new([
         Step::Go { address: Address::Welcome { step: Welcome::Forge { forge: Some(Choice::Owned) } } },
@@ -295,7 +301,7 @@ fn steps() -> Box<[Step<Address>]> {
         },
         press(Role::Button, b"Run on this machine"),
         Step::Go { address: Address::Welcome { step: Welcome::Ready } },
-        see(Role::Heading { level: 1 }, b"Ready"),
+        ready_heading(),
         Step::See { find: Find::text(b"connected as temper"), within: fixtures::PERSON_WAIT },
         see(Role::Button, b"Create your project"),
         press(Role::Button, b"Create your project"),

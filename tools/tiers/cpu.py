@@ -2,6 +2,7 @@
 
 from collections import Counter
 import contextlib
+from fractions import Fraction
 import io
 import json
 import math
@@ -34,6 +35,12 @@ GRACE_S = 15.0
 ONE_PROCESS = Path(__file__).with_name('one_process.py')
 # A binary's last counted landings (tools/tiers/budgets.md, 7).
 COUNTS_KEPT = 100
+INSTRUCTION_ALLOWANCE = 10_000_000_000
+INSTRUCTION_GROWTH_FLOOR = 1_000_000_000
+SUITE_PROCESS_KINDS = ('tests', 'fresh')
+CHECK_KIND = re.compile(r'[a-z][a-z0-9-]{0,31}')
+CHECK_REASON_LINE = ('checks repair: add a [[gate.{profile}.check_reasons]] line to '
+                        'tools/tiers/budgets.toml (tools/tiers/budgets.md, 13).')
 
 
 def timed_out(directory):
@@ -86,15 +93,17 @@ def stop(process, deadline):
     process.wait()
 
 
-def gate_ceilings(profile):
+def gate_ceilings(profile, field='cpu_s'):
     """Map (tree, layer) to its ceiling (tools/tiers/budgets.md, 10)."""
-    ceilings = {(tree, layer): row['cpu_s']
+    ceilings = {(tree, layer): row[field]
                 for tree in GROUPS for layer, row in profile.get(tree, {}).items()
-                if layer != 'ideal_s'}
+                if layer != 'ideal_s' and field in row}
     for move in profile.get('moves', []):
+        if field not in move:
+            continue
         source, target = tuple(move['from'].split('.')), tuple(move['to'].split('.'))
-        ceilings[source] = ceilings.get(source, 0) - move['cpu_s']
-        ceilings[target] = ceilings.get(target, 0) + move['cpu_s']
+        ceilings[source] = ceilings.get(source, 0) - move[field]
+        ceilings[target] = ceilings.get(target, 0) + move[field]
     return ceilings
 
 
@@ -132,7 +141,8 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 raise ValueError("gate budgets must be a table keyed by default or fuzzy")
             for profile, groups in values.items():
                 name = f'gate.{profile}'
-                if not isinstance(groups, dict) or groups.keys() - {*GROUPS, 'references', 'moves', 'reasons'}:
+                if not isinstance(groups, dict) or groups.keys() - {
+                        *GROUPS, 'references', 'moves', 'reasons', 'check_reasons'}:
                     raise ValueError(f'invalid budget groups for {name}')
                 references = groups.get('references')
                 if not isinstance(references, dict) or references.keys() - (layer_names | {'checks'}):
@@ -140,7 +150,7 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 for layer, value in references.items():
                     seconds(f'{name}.references.{layer}', value)
                 for group, table in groups.items():
-                    if group in ('references', 'moves', 'reasons'):
+                    if group in ('references', 'moves', 'reasons', 'check_reasons'):
                         continue
                     allowed = {'checks'} if group == 'repository' else layer_names
                     if (not isinstance(table, dict) or 'ideal_s' not in table
@@ -150,11 +160,15 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     for layer, row in table.items():
                         if layer == 'ideal_s':
                             continue
-                        if (not isinstance(row, dict) or 'cpu_s' not in row
-                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s'}):
+                        # A layer whose CPU ceiling is its moves' alone may still hold its instruction ceiling.
+                        if (not isinstance(row, dict) or not row.keys() & {'cpu_s', 'instructions'}
+                                or row.keys() - {'cpu_s', 'ideal_s', 'reference_s', 'instructions',
+                                                 'ideal_instructions', 'accepted_instructions'}
+                                or 'accepted_instructions' in row and 'instructions' not in row):
                             raise ValueError(f'invalid budget keys for {name}.{group}.{layer}')
                         for key, value in row.items():
-                            seconds(f'{name}.{group}.{layer}.{key}', value)
+                            validate_figure = positive_instructions if key.endswith('instructions') else seconds
+                            validate_figure(f'{name}.{group}.{layer}.{key}', value)
                         if 'reference_s' not in row and layer not in references:
                             raise ValueError(f'no reference for {name}.{group}.{layer}')
                 reasons = groups.get('reasons', [])
@@ -173,12 +187,14 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     if key in seen:
                         raise ValueError(f'duplicate reason for {key}')
                     seen.add(key)
+                validate_check_reasons(name, groups.get('check_reasons', []))
                 moves = groups.get('moves', [])
                 if not isinstance(moves, list):
                     raise ValueError(f'{name}.moves must be an array of tables')
                 for index, move in enumerate(moves):
                     label = f'{name}.moves[{index}]'
-                    if not isinstance(move, dict) or move.keys() != {'from', 'to', 'cpu_s', 'why'}:
+                    required = {'from', 'to', 'cpu_s', 'why'}
+                    if not isinstance(move, dict) or move.keys() - {'instructions'} != required:
                         raise ValueError(f'invalid move keys for {label}')
                     endpoints = {}
                     for key in ('from', 'to'):
@@ -190,6 +206,8 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     if layer_order.index(endpoints['to'][1]) >= layer_order.index(endpoints['from'][1]):
                         raise ValueError(f'{label}.to must be below from in the layers list')
                     seconds(f'{label}.cpu_s', move['cpu_s'])
+                    if 'instructions' in move:
+                        positive_instructions(f'{label}.instructions', move['instructions'])
                     if not isinstance(move['why'], str) or not move['why']:
                         raise ValueError(f'{label}.why must be a nonempty string')
                     if endpoints['to'][0] not in groups:
@@ -197,6 +215,9 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 for (tree, layer), ceiling in gate_ceilings(groups).items():
                     if ceiling < 0:
                         raise ValueError(f'{name}.{tree}.{layer} ceiling below 0 after moves')
+                for (tree, layer), ceiling in gate_ceilings(groups, 'instructions').items():
+                    if ceiling < 0:
+                        raise ValueError(f'{name}.{tree}.{layer} instruction ceiling below 0 after moves')
         else:
             if pairs is not None and pair not in pairs:
                 raise ValueError(f"unknown budget pair {pair}")
@@ -208,6 +229,43 @@ def check_instructions(value):
     """A count is a nonnegative integer, or uncounted (design.md, 11.8)."""
     if value is not None and (type(value) is not int or value < 0):
         raise ValueError('instructions must be a nonnegative integer or null')
+
+
+def positive_instructions(name, value):
+    if type(value) is not int or value <= 0:
+        raise ValueError(f'{name} must be a positive integer')
+
+
+def validate_checks(checks, label):
+    """Counts by kind (tools/tiers/budgets.md, 13)."""
+    if not isinstance(checks, dict):
+        raise ValueError(f'{label} must be an object of check counts')
+    for kind, count in checks.items():
+        if CHECK_KIND.fullmatch(kind) is None:
+            raise ValueError(f'{label}: invalid check kind {kind!r}')
+        if type(count) is not int or count < 1:
+            raise ValueError(f'{label}.{kind} must be a positive integer')
+
+
+def validate_check_reasons(profile, reasons):
+    """Check the form of each check reason (tools/tiers/budgets.md, 13)."""
+    if not isinstance(reasons, list):
+        raise ValueError(f'{profile}.check_reasons must be an array of tables')
+    for index, reason in enumerate(reasons):
+        label = f'{profile}.check_reasons[{index}]'
+        if not isinstance(reason, dict) or reason.keys() != {'binary', 'kind', 'why', 'by', 'checks'}:
+            raise ValueError(f'invalid check reason keys for {label}')
+        kind = reason['kind']
+        if kind not in ('removed', 'duplicate', 'moved', 'budget'):
+            raise ValueError(f'{label}.kind must be removed, duplicate, moved or budget')
+        for key in ('binary', 'why', 'by'):
+            if not isinstance(reason[key], str) or not reason[key].strip():
+                raise ValueError(f'{label}.{key} must be a nonempty string')
+        validate_checks(reason['checks'], f'{label}.checks')
+        if not reason['checks']:
+            raise ValueError(f'{label}.checks must name at least one kind')
+        if kind == 'budget' and not reason['by'].startswith('the user'):
+            raise ValueError(f'{label}.by must start with "the user" for a budget check reason')
 
 
 def check_commit(value):
@@ -249,23 +307,51 @@ def ledger(path):
         if not isinstance(value, dict) or value.keys() - set(GROUPS):
             raise ValueError(f'invalid ledger groups for {label}')
 
-    keys(data, {'ledger', 'profile', 'binaries', 'budgets', 'moves'}, 'ledger')
-    if type(data['ledger']) is not int or data['ledger'] not in (1, 2, 3, 4):
-        raise ValueError('ledger version must be 1, 2, 3 or 4')
+    expected = {'ledger', 'profile', 'binaries', 'budgets', 'moves'}
+    version = data.get('ledger') if isinstance(data, dict) else None
+    if version == 6:
+        expected |= data.keys() & {'coverage_reasons', 'spent_coverage_reasons'}
+    elif version == 7:
+        expected |= data.keys() & {'check_reasons', 'spent_check_reasons'}
+    keys(data, expected, 'ledger')
+    if type(version) is not int or not 1 <= version <= 7:
+        raise ValueError('ledger version must be 1 to 7')
     if data['profile'] not in ('default', 'fuzzy'):
         raise ValueError('ledger profile must be default or fuzzy')
+    if version == 6:
+        data['ledger'] = 7
+        for prefix in ('', 'spent_'):
+            old_key = f'{prefix}coverage_reasons'
+            if old_key in data:
+                reasons = data.pop(old_key)
+                if isinstance(reasons, list):
+                    reasons = [reason for reason in reasons if not (
+                        isinstance(reason, dict) and 'tests' in reason and 'checks' not in reason)]
+                data[f'{prefix}check_reasons'] = reasons
+    if 'check_reasons' in data:
+        validate_check_reasons('ledger', data['check_reasons'])
+    if 'spent_check_reasons' in data:
+        spent = data['spent_check_reasons']
+        validate_check_reasons('ledger spent', spent)
+        if any(reason['kind'] != 'budget' for reason in spent):
+            raise ValueError('only budget check reasons may be spent')
     if not isinstance(data['binaries'], dict):
         raise ValueError('ledger binaries must be an object')
     for binary, entry in data['binaries'].items():
         name(binary, 'binary id')
-        cpu_key = 'cpu' if data['ledger'] >= 3 else 'cpu_s'
+        cpu_key = 'cpu' if version >= 3 else 'cpu_s'
         keys(entry, {'tree', 'layer', cpu_key, 'tests'}
-             | ({'alone'} if data['ledger'] != 1 else set())
-             | ({'counts'} if data['ledger'] == 4 else set()), binary)
+             | ({'alone'} if version != 1 else set())
+             | ({'counts'} if version >= 4 else set())
+             | ({'checks'} if version >= 6 else set()), binary)
+        if version >= 6:
+            validate_checks(entry['checks'], f'{binary}.checks')
+        else:
+            entry['checks'] = {}
         if entry['tree'] not in GROUPS:
             raise ValueError(f'invalid ledger group for {binary}')
         name(entry['layer'], f'{binary}.layer', nullable=True)
-        if data['ledger'] < 3:
+        if version < 3:
             figure(entry['cpu_s'], f'{binary}.cpu_s')
             entry['cpu'] = [entry.pop('cpu_s')]
         if not isinstance(entry['cpu'], list) or not 1 <= len(entry['cpu']) <= 3:
@@ -280,7 +366,7 @@ def ledger(path):
                 raise ValueError(f'{binary} {test} must have one to three walls')
             for wall in walls:
                 figure(wall, f'{binary} {test} wall')
-        if data['ledger'] == 1:
+        if version == 1:
             entry['alone'] = {}
         if not isinstance(entry['alone'], dict):
             raise ValueError(f'{binary}.alone must be an object')
@@ -291,7 +377,7 @@ def ledger(path):
                 raise ValueError(f'{binary} {test} must have one to three alone figures')
             for cpu in figures:
                 figure(cpu, f'{binary} {test} alone')
-        if data['ledger'] < 4:
+        if version < 4:
             entry['counts'] = []
         if not isinstance(entry['counts'], list) or len(entry['counts']) > COUNTS_KEPT:
             raise ValueError(f'{binary}.counts must have at most {COUNTS_KEPT} entries')
@@ -307,18 +393,33 @@ def ledger(path):
             raise ValueError(f'ledger budgets for {tree} must be an object')
         for layer, entry in layers.items():
             name(layer, f'{tree} layer')
-            keys(entry, {'ceiling_s', 'lowest_s'}, f'{tree}.{layer}')
-            for key, value in entry.items():
-                figure(value, f'{tree}.{layer}.{key}')
+            expected = {'ceiling_s', 'lowest_s'}
+            if (version >= 5 and isinstance(entry, dict)
+                    and entry.keys() & {'instructions_ceiling', 'instructions_lowest'}):
+                expected |= {'instructions_ceiling', 'instructions_lowest'}
+            keys(entry, expected, f'{tree}.{layer}')
+            for key in ('ceiling_s', 'lowest_s'):
+                figure(entry[key], f'{tree}.{layer}.{key}')
+            if 'instructions_ceiling' in entry:
+                ceiling = entry['instructions_ceiling']
+                check_instructions(ceiling)
+                if ceiling is None:
+                    raise ValueError('ledger instructions_ceiling must not be null')
+                check_instructions(entry['instructions_lowest'])
     if not isinstance(data['moves'], list):
         raise ValueError('ledger moves must be an array')
     for move in data['moves']:
-        keys(move, {'from', 'to', 'cpu_s', 'why'}, 'move')
+        expected = {'from', 'to', 'cpu_s', 'why'}
+        if version >= 5 and isinstance(move, dict) and 'instructions' in move:
+            expected.add('instructions')
+        keys(move, expected, 'move')
         for key in ('from', 'to'):
             parts = move[key].split('.') if isinstance(move[key], str) else []
             if len(parts) != 2 or parts[0] not in GROUPS[:-1] or not parts[1]:
                 raise ValueError(f'ledger move {key} must be TREE.LAYER')
         figure(move['cpu_s'], 'move cpu_s', positive=True)
+        if 'instructions' in move:
+            positive_instructions('move instructions', move['instructions'])
         name(move['why'], 'move why')
     return data
 
@@ -473,7 +574,38 @@ def junit(directory, profile):
     return expected, timeouts, failed, passed, aborts
 
 
-def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None):
+def real_layers(items, tree, limits, layers):
+    """Report a real pair against both suites' ceilings, never red (budgets.md, 4.2)."""
+    try:
+        with Path(layers).open('rb') as source:
+            table = tomllib.load(source)
+    except FileNotFoundError:
+        table = {}
+    order = {layer: index for index, layer in enumerate(table.get('layers', []))}
+    ceilings = [gate_ceilings((limits or {}).get('gate', {}).get(profile, {}))
+                for profile in ('default', 'fuzzy')]
+    totals, unplaced = {}, set()
+    for item in items:
+        layer = table.get(tree, {}).get(item['binary_id'])
+        totals[layer] = totals.get(layer, 0.0) + (item['user_s'] + item['system_s'])
+        if layer is None:
+            unplaced.add(item['binary_id'])
+    rows = []
+    warnings = [f'unplaced: {binary} has no layer (tools/tiers/layers.md)' for binary in sorted(unplaced)]
+    for layer in sorted(totals, key=lambda layer: order.get(layer, len(order))):
+        figures = [values[tree, layer] for values in ceilings if (tree, layer) in values]
+        ceiling = sum(figures) if figures else None
+        cpu = totals[layer]
+        over = ceiling is not None and cpu > ceiling
+        rows.append(dict(tree=tree, layer=layer, cpu_s=cpu, ceiling_s=ceiling, budget_s=ceiling,
+                         ideal_s=None, reference_s=None, instructions=None, over=over))
+        if over:
+            warnings.append(f'layer over budget: {tree} real {layer}: {cpu:.2f} CPU s, budget {ceiling} s')
+    return rows, warnings
+
+
+def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger=None, base=None,
+            layers=Path('tools/tiers/layers.toml')):
     directory = Path(directory)
     if pair == "tools":
         if base is not None:
@@ -558,6 +690,10 @@ def summary(directory, limits=None, pair=None, expected=None, gate=False, ledger
             unresolved[test] = f"{test[0]} {test[1]}"
     failures = sorted((set(failures) - superseded_junit) | set(unresolved.values()))
     result = summarize_records(items, pair, limits, run, timeouts, failures)
+    tier, _, tree = pair.rpartition('-')
+    if tier == 'real':
+        result['layers'], warnings = real_layers(items, tree, limits, layers)
+        result['warnings'].extend(warnings)
     result['unobserved'] = [dict(binary_id=binary, test_name=name, attempt=attempt)
                             for _, binary, name, attempt in sorted(unobserved)]
     result['suite']['unobserved'] = len(unobserved)
@@ -574,6 +710,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     if 'cpu_test_s' in limits:
         raise ValueError('one-process runs cannot measure cpu_test_s')
     data = json.loads((directory / 'results.json').read_text())
+    fail_fast = data.get('fail_fast', False)
     if ledger is not None:
         if ledger['profile'] != run['profile']:
             raise ValueError('ledger profile does not match run')
@@ -591,7 +728,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         raise ValueError('results profile does not match run')
     if (type(data['selected']) is not int or data['selected'] < 0
             or data['no_tests'] not in ('fail', 'warn', 'pass')
-            or data['cancelled'] not in (None, 'global-timeout', 'wall-hard')):
+            or data['cancelled'] not in (None, 'global-timeout', 'wall-hard')
+            or type(fail_fast) is not bool):
         raise ValueError('invalid selection or cancellation')
 
     def figure(value, field):
@@ -603,13 +741,16 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         return isinstance(value, list) and all(isinstance(name, str) and name for name in value)
 
     def identity(item):
-        key = item['binary_id'], item['test_name']
-        if any(not isinstance(value, str) or not value for value in key):
+        binary, name = item['binary_id'], item['test_name']
+        if not isinstance(binary, str) or not binary or not isinstance(name, str) or not name:
             raise ValueError('invalid test identity')
-        return key
+        return binary, name
 
     if any(not isinstance(data[key], list) for key in ('processes', 'tests', 'unobserved')):
         raise ValueError('invalid one-process result lists')
+    if (type(data.get('test_filtered', False)) is not bool
+            or ('selected_packages' in data and not names(data['selected_packages']))):
+        raise ValueError('invalid checks selection in one-process results')
     processes = []
     for item in data['processes']:
         if (not isinstance(item['binary_id'], str) or not item['binary_id']
@@ -627,11 +768,14 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                    'wall_s', 'exit_code', 'signal', 'kind', 'leaked')}
         process.update(tree=item.get('tree'), layer=item.get('layer'), instructions=item.get('instructions'))
         check_instructions(process['instructions'])
+        process['checks'] = item.get('checks', {})
+        if 'checks' in item:
+            validate_checks(process['checks'], 'process checks')
         process['cpu_s'] = figure(item['user_s'] + item['system_s'], 'cpu_s')
         processes.append(process)
     tests, failures, warnings, seen = [], [], [], set()
     for item in sorted(data['tests'], key=identity):
-        key = identity(item)
+        key = item['binary_id'], item['test_name']
         if key in seen:
             raise ValueError('duplicate selected test')
         seen.add(key)
@@ -642,7 +786,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             if data['cancelled'] is None or outcome not in ('passed', 'failed', 'starved'):
                 raise ValueError('invalid test process index')
         elif (type(index) is not int or not 0 <= index < len(processes)
-                or processes[index]['kind'] not in ('tests', 'fresh')
+                or processes[index]['kind'] not in SUITE_PROCESS_KINDS
                 or processes[index]['binary_id'] != key[0]):
             raise ValueError('invalid test process index')
         if outcome == 'cancelled' and data['cancelled'] is None:
@@ -664,16 +808,18 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     unobserved = []
     single_process = False
     crashed_binaries = {t['binary_id'] for t in data['tests'] if t['outcome'] == 'crashed'}
-    if data['unobserved'] and data['cancelled'] is None:
+    if data['unobserved'] and data['cancelled'] is None and not fail_fast:
         path = directory / 'plan.json'
         single_process = path.is_file() and json.loads(path.read_text()).get('single_process', False)
     for item in sorted(data['unobserved'], key=identity):
-        key = identity(item)
+        key = item['binary_id'], item['test_name']
         if key in seen:
             raise ValueError('duplicate selected test')
         seen.add(key)
         reason = 'the run was cancelled before it'
-        if data['cancelled'] is None:
+        if fail_fast and data['cancelled'] is None:
+            reason = 'the run stopped after a failure'
+        elif data['cancelled'] is None:
             # Again runs promise one process, so a crash leaves later names
             # unobserved instead of starting the ordinary fresh process (11.9).
             if not single_process or key[0] not in crashed_binaries:
@@ -688,14 +834,20 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                  starved=sum(test['starved'] for test in tests),
                  starved_run=run['starved'] or ('wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s']),
                  unobserved=len(unobserved), leaked=None, incomplete=None, cpu_by='process')
-    suite_processes = [p for p in processes if p['kind'] in ('tests', 'fresh', 'alone')]
+    suite_processes = [p for p in processes if p['kind'] in SUITE_PROCESS_KINDS]
     for field in ('cpu_s', 'user_s', 'system_s'):
         suite[field] = figure(sum(process[field] for process in suite_processes), field)
+    if fail_fast:
+        return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
+                    layers=[], trees=[], counting=counting, references=[], swings=[],
+                    unobserved=unobserved, warnings=warnings, over_budget=[], fail_fast=True,
+                    verdict='stopped after a failure, no budget judged')
     over = []
     if 'cpu_suite_s' in limits and suite['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {suite['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
     # The layer comparison and ordering are tools/tiers/budgets.md, 4 and 8.
-    head = head_binaries(processes, data.get('workspace', []), ledger)
+    selected_layers = data.get('selected_layers')
+    head = head_binaries(processes, data.get('workspace', []), ledger, selected_layers)
     measured, main = {}, {}
     for process in suite_processes:
         key = process['tree'], process['layer']
@@ -707,7 +859,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             key = entry['tree'], entry['layer']
             grouped[key] = grouped.get(key, 0.0) + entry['cpu_s']
     if ledger is not None:
-        main = ledger_figures(ledger['binaries'])
+        main = ledger_figures({binary: entry for binary, entry in ledger['binaries'].items()
+                               if layer_selected(entry['layer'], selected_layers)})
     layer_order = {name: index for index, name in enumerate(data.get('layers', []))}
 
     def row_order(key):
@@ -722,10 +875,24 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         return tree_index, tree or '', order, layer or ''
 
     ceilings = gate_ceilings(gate_limits)
-    binaries = fold_binaries(data, head, tests, unobserved, ledger)
-    held = held_budgets(gate_limits, ledger, ledger_figures(binaries))
+    partial = partial_binaries(data)
+    binaries = fold_binaries(data, head, tests, ledger, partial)
+    held = held_budgets(gate_limits, ledger, ledger_figures(binaries), selected_layers)
+    instruction_binaries = instruction_head(data, head, ledger, partial)
+    head_counts = layer_counts(instruction_binaries, lambda entry: entry['instructions'])
+    main_counts = layer_counts((ledger or {}).get('binaries', {}), binary_count)
+    counted = counting is not None and counting['counted']
+    instruction_held = instruction_budgets(gate_limits, ledger, head_counts, main_counts,
+                                           layer_counts(binaries, binary_count), selected_layers, counted)
+    move_credits = instruction_move_credits(gate_limits, ledger, main_counts, main) if counted else {}
+    keys = {key for key in grouped.keys() | main.keys() if layer_selected(key[1], selected_layers)}
+    instruction_layers = {(tree, layer) for tree, layer in keys
+                          if 'instructions' in gate_limits.get(tree, {}).get(layer, {})}
+    if not counted and instruction_layers:
+        why = counting['why'] if counting is not None else 'the run has no counting report'
+        warnings.append(f'instruction budget enforcement off: {why}; CPU comparisons warn')
     layers, trees, layer_over = [], {}, []
-    for tree, layer in sorted(grouped.keys() | main.keys(), key=row_order):
+    for tree, layer in sorted(keys, key=row_order):
         key = tree, layer
         table = gate_limits.get(tree)
         budget = (table or {}).get(layer, {})
@@ -736,26 +903,61 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         cpu = grouped.get(key, 0.0)
         main_cpu = main.get(key, 0.0) if ledger is not None else None
         main_over = main_limit is not None and main_cpu > main_limit
-        is_over = layer is not None and (cpu > limit if limit is not None else table is not None)
-        if main_over and is_over and cpu - main_cpu <= max(main_cpu / 20, 1):
-            is_over = False
-            warnings.append(f'layer over budget at main: {tree} {pair} {layer}: '
-                            f'{main_cpu:.2f} CPU s at main, budget {main_limit} s; {cpu:.2f} CPU s at the head')
-        grew = growing_binaries(key, head, tests, ledger) if is_over and ledger is not None else []
+        count = head_counts.get(key, 0)
+        main_count = None if ledger is None else main_counts.get(key, 0)
+        count_state = instruction_held.get(key, {})
+        growth = ((count - main_count) / main_count * 100
+                  if count_state and count is not None and main_count else None)
+        instruction_layer = key in instruction_layers
+        use_instructions = instruction_layer and counted and count is not None and (
+            ledger is None or main_count is not None)
+        label = f'{tree} {pair} {layer}'
+        line, grew = None, []
+        if use_instructions:
+            line = instruction_verdict(label, count, main_count, growth, count_state, warnings,
+                                       move_credit=move_credits.get(key, 0),
+                                       accepted=budget.get('accepted_instructions'))
+            if line is not None and ledger is not None:
+                grew = growing_binaries(key, instruction_binaries, tests, ledger, instructions=True)
+        else:
+            if instruction_layer and counted:
+                missing = [place for place, value in [('the head', count), ('main', main_count)]
+                           if value is None and (place != 'main' or ledger is not None)]
+                where = ' and '.join(missing)
+                warnings.append(f'instruction budget enforcement off: {label}: '
+                                f'missing binary counts at {where}; CPU comparison warns')
+            cpu_over = layer is not None and (cpu > limit if limit is not None else table is not None)
+            if main_over and cpu_over and cpu - main_cpu <= max(main_cpu / 20, 1):
+                warnings.append(f'layer over budget at main: {label}: '
+                                f'{main_cpu:.2f} CPU s at main, budget {main_limit} s; {cpu:.2f} CPU s at the head')
+            elif cpu_over:
+                bound = 'no budget' if limit is None else f'budget {limit} s'
+                line = f'layer over budget: {label}: {cpu:.2f} CPU s, {bound}'
+                if ledger is not None:
+                    if ceiling is not None:
+                        line += f', ceiling {ceiling} s'
+                    line += f', at main {main_cpu:.2f} CPU s'
+                    grew = growing_binaries(key, head, tests, ledger)
+        if line is not None:
+            destination = layer_over if use_instructions or not instruction_layer else warnings
+            destination.append(line + growth_lines(grew))
         layers.append(dict(tree=tree, layer=layer, cpu_s=cpu, measured_s=measured.get(key, 0.0),
-                           instructions=sum_counts(entry['instructions'] for entry in head.values()
-                                                   if (entry['tree'], entry['layer']) == key),
-                           main_instructions=None if ledger is None else sum_counts(
-                               binary_count(entry) for entry in ledger['binaries'].values()
-                               if (entry['tree'], entry['layer']) == key),
+                           instructions=count, main_instructions=main_count,
+                           instructions_ceiling=count_state.get('instructions_ceiling'),
+                           instructions_budget=count_state.get('instructions_budget'),
+                           instructions_lowest=count_state.get('instructions_lowest'),
+                           main_instructions_budget=count_state.get('main_instructions_budget'),
+                           main_instructions_lowest=count_state.get('main_instructions_lowest'),
+                           ideal_instructions=budget.get('ideal_instructions'), instructions_growth=growth,
                            main_s=main_cpu, ceiling_s=ceiling, budget_s=limit, main_budget_s=main_limit,
                            lowest_s=state.get('lowest_s'), main_over=main_over, grew=grew,
                            ideal_s=budget.get('ideal_s'),
                            reference_s=budget.get('reference_s', gate_limits.get('references', {}).get(layer)),
-                           over=is_over))
+                           over=line is not None))
         if tree not in trees:
             total = None if table is None else sum(
-                value for (group, _), value in ceilings.items() if group == tree)
+                value for (group, name), value in ceilings.items()
+                if group == tree and layer_selected(name, selected_layers))
             held_total = None if table is None else sum(
                 value['budget_s'] for (group, _), value in held.items() if group == tree)
             trees[tree] = dict(tree=tree, cpu_s=0.0, main_s=None if ledger is None else 0.0,
@@ -766,30 +968,36 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         trees[tree]['cpu_s'] += cpu
         if ledger is not None:
             trees[tree]['main_s'] += main_cpu
-        if is_over:
-            label = 'no budget' if limit is None else f'budget {limit} s'
-            line = f'layer over budget: {tree} {pair} {layer}: {cpu:.2f} CPU s, {label}'
-            if ledger is not None:
-                if ceiling is not None:
-                    line += f', ceiling {ceiling} s'
-                line += f', at main {main_cpu:.2f} CPU s'
-                line += growth_lines(grew)
-            layer_over.append(line)
     warnings.extend(f'unplaced: {binary} has no layer (tools/tiers/layers.md)'
                     for binary in sorted({p['binary_id'] for p in processes if p['layer'] is None}))
     (over if gate else warnings).extend(layer_over)
     references = reference_rows(data, gate_limits, ledger, base, warnings, over if gate else warnings)
-    swings = swinging_tests(ledger) if ledger is not None else []
+    swings = [row for row in swinging_tests(ledger) if layer_selected(row['layer'], selected_layers)] if ledger is not None else []
     for row in swings:
         a, b, c = row['alone']
         warnings.append(f"test swings alone at main: {row['binary_id']} {row['test_name']}: "
                         f'{a:.3f}, {b:.3f}, {c:.3f} CPU s alone')
     over = [line + '\n' + REPAIR_LINE for line in over]
+    check_reasons, check_moves, used_budget_reasons = [], [], []
+    if ledger is not None:
+        if data.get('test_filtered', False):
+            warnings.append('checks comparison skipped: the run used a caller test filter')
+        else:
+            main_reasons = ledger.get('check_reasons', [])
+            spent = ledger.get('spent_check_reasons', [])
+            reasons = [reason for reason in gate_limits.get('check_reasons', [])
+                       if ((reason in main_reasons and reason not in spent) if reason['kind'] == 'budget'
+                           else reason not in main_reasons)]
+            check_reasons, check_moves, used_budget_reasons = checks_done_verdict(
+                data, head, suite_processes, ledger['binaries'], partial, reasons, over, warnings)
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
                else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
                 layers=layers, trees=list(trees.values()), counting=counting, references=references, swings=swings,
-                unobserved=unobserved, warnings=warnings, over_budget=over, verdict=verdict)
+                checks={binary: entry['checks'] for binary, entry in head.items() if 'checks' in entry},
+                check_reasons=check_reasons, check_moves=check_moves,
+                used_budget_check_reasons=used_budget_reasons, unobserved=unobserved, warnings=warnings,
+                over_budget=over, verdict=verdict)
 
 
 def reference_values(profile, tree, layer, binary, name):
@@ -923,25 +1131,210 @@ def ledger_figures(binaries):
     return figures
 
 
-def head_binaries(processes, workspace, ledger):
+def layer_selected(layer, selected_layers):
+    """Unplaced binaries and older runs remain included (budgets.md, 4.1)."""
+    return selected_layers is None or layer is None or layer in selected_layers
+
+
+def head_binaries(processes, workspace, ledger, selected_layers=None):
     """The head's whole figures, including unlisted targets (budgets.md, 8)."""
     head = {}
     for process in processes:
-        if process['kind'] not in ('tests', 'fresh', 'alone'):
+        if (process['kind'] not in SUITE_PROCESS_KINDS
+                or not layer_selected(process['layer'], selected_layers)):
             continue
         binary = process['binary_id']
         if binary not in head:
-            head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0, instructions=0)
+            head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0,
+                                instructions=0, checks={})
         head[binary]['cpu_s'] += process['cpu_s']
         head[binary]['instructions'] = sum_counts((head[binary]['instructions'], process['instructions']))
+        checks = head[binary]['checks']
+        for kind, count in process['checks'].items():
+            checks[kind] = checks.get(kind, 0) + count
     if ledger is not None:
         for entry in workspace:
             binary = entry['binary_id']
-            if binary not in head and not entry['listed'] and binary in ledger['binaries']:
+            if (binary not in head and not entry['listed'] and binary in ledger['binaries']
+                    and layer_selected(entry['layer'], selected_layers)):
                 head[binary] = dict(tree=entry['tree'], layer=entry['layer'],
                                     cpu_s=binary_median(ledger['binaries'][binary]),
                                     instructions=binary_count(ledger['binaries'][binary]))
     return head
+
+
+def new_test_names(observed, main_binaries):
+    for binary, names in observed.items():
+        at_main = main_binaries.get(binary, {}).get('tests', {})
+        for name in names - at_main.keys() if at_main else names:
+            yield name, binary
+
+
+def test_move(binary, name, target):
+    moved_name, moved_binary = target
+    return {'from': dict(binary_id=binary, test_name=name),
+            'to': dict(binary_id=moved_binary, test_name=moved_name)}
+
+
+def match_test_moves(lost_by_binary, observed, main_binaries, moved_out):
+    """Pair tests within a binary or into a new binary (tools/tiers/budgets.md, 13)."""
+    lost = sorted((name, binary) for binary, names in lost_by_binary.items()
+                  if binary not in moved_out for name in names)
+    if not lost:
+        return []
+    segments = {name.rsplit('::', 1)[-1] for name, _ in lost}
+    targets = {}
+    for name, binary in new_test_names(observed, main_binaries):
+        segment = name.rsplit('::', 1)[-1]
+        if segment in segments:
+            key = (binary, segment) if binary in main_binaries else (None, segment)
+            targets.setdefault(key, []).append((name, binary))
+    for candidates in targets.values():
+        candidates.sort(reverse=True)
+    moves, unmatched = [], []
+    for name, binary in lost:
+        segment = name.rsplit('::', 1)[-1]
+        candidates = targets.get((binary, segment))
+        if candidates:
+            moves.append(test_move(binary, name, candidates.pop()))
+            lost_by_binary[binary].remove(name)
+        else:
+            unmatched.append((name, binary, segment))
+    for name, binary, segment in unmatched:
+        candidates = targets.get((None, segment))
+        if candidates:
+            moves.append(test_move(binary, name, candidates.pop()))
+            lost_by_binary[binary].remove(name)
+    return moves
+
+
+def check_count_groups(binaries, automatic_moves, partial):
+    """Group whole binaries by automatic moves (tools/tiers/budgets.md, 13)."""
+    neighbors = {}
+    for move in automatic_moves:
+        source, target = move['from']['binary_id'], move['to']['binary_id']
+        if source != target:
+            neighbors.setdefault(source, set()).add(target)
+            neighbors.setdefault(target, set()).add(source)
+    seen = set()
+    for binary in binaries:
+        if binary in seen or binary in partial:
+            continue
+        if binary not in neighbors:
+            yield binary, [binary]
+            continue
+        group = [binary]
+        seen.add(binary)
+        for member in group:
+            for neighbor in neighbors[member] - seen:
+                seen.add(neighbor)
+                group.append(neighbor)
+        if partial.isdisjoint(group):
+            yield binary, sorted(group)
+        else:
+            for member in sorted(group):
+                if member in binaries and member not in partial:
+                    yield member, [member]
+
+
+def check_count_losses(head, main_binaries, lost_by_binary, automatic_moves, partial):
+    """Compare each whole group's counts with main (tools/tiers/budgets.md, 13)."""
+    for binary, group in check_count_groups(lost_by_binary, automatic_moves, partial):
+        if len(group) == 1:
+            before = main_binaries[binary].get('checks', {})
+            after = head.get(binary, {}).get('checks', {})
+        else:
+            before, after = Counter(), Counter()
+            for member in group:
+                before.update(main_binaries.get(member, {}).get('checks', {}))
+                after.update(head.get(member, {}).get('checks', {}))
+        fewer = {kind: (count, after.get(kind, 0)) for kind, count in before.items() if after.get(kind, 0) < count}
+        if fewer:
+            yield binary, group, fewer
+
+
+def checks_done_verdict(data, head, processes, main_binaries, partial, reasons, over, warnings):
+    """Report tests and checks done against main (tools/tiers/budgets.md, 13)."""
+    selected = data.get('selected_layers')
+    packages = set(data.get('selected_packages', []))
+    workspace = {entry['binary_id']: entry for entry in data['workspace']}
+    observed = {}
+    for process in processes:
+        if process['tests'] and layer_selected(process['layer'], selected):
+            observed.setdefault(process['binary_id'], set()).update(process['tests'])
+    if data['cancelled'] is not None:
+        for test in data['tests']:
+            if test['process'] is None:
+                observed.setdefault(test['binary_id'], set()).add(test['test_name'])
+    planned = partial_test_names(data, partial) if partial else {}
+
+    lost_by_binary, moved_out = {}, set()
+    for binary, main in main_binaries.items():
+        if not layer_selected(main['layer'], selected):
+            continue
+        current = workspace.get(binary)
+        if current is not None:
+            if not layer_selected(current['layer'], selected):
+                moved_out.add(binary)
+            elif not current['listed'] and binary.partition('::')[0] not in packages:
+                continue
+        names = planned.get(binary, ()) if binary in partial else observed.get(binary, ())
+        lost_by_binary[binary] = main['tests'].keys() - (() if binary in moved_out else names)
+
+    moves = match_test_moves(lost_by_binary, observed, main_binaries, moved_out)
+    applied_checks, red_by_binary = {}, {}
+    check_reasons = {}
+    for index, reason in enumerate(reasons):
+        check_reasons.setdefault(reason['binary'], []).append((index, reason))
+    for binary, group, fewer in check_count_losses(head, main_binaries, lost_by_binary, moves, partial):
+        covered = set()
+        for member in group:
+            for index, reason in check_reasons.get(member, ()):
+                if member in moved_out and reason['kind'] != 'moved':
+                    continue
+                kinds = {kind for kind, count in reason['checks'].items()
+                         if kind in fewer and fewer[kind][0] - fewer[kind][1] == count}
+                if kinds:
+                    covered.update(kinds)
+                    applied_checks[index] = kinds
+        kinds = sorted(fewer.keys() - covered)
+        if kinds:
+            main = main_binaries[binary]
+            placement = main if binary in moved_out else workspace.get(binary, main)
+            lines = [f"layer checks lost: {placement['tree']} {data['profile']} {placement['layer']}: {binary}"]
+            if binary in moved_out:
+                lines.append(f"  moved to unselected layer: {workspace[binary]['layer']}")
+            if len(group) > 1:
+                lines.append('  checks across: ' + ', '.join(group))
+            lines.extend(f'  {kind}: {fewer[kind][0]} at main, {fewer[kind][1]} at the head' for kind in kinds)
+            red_by_binary[binary] = '\n'.join([*lines, REPAIR_LINE, CHECK_REASON_LINE.format(profile=data['profile'])])
+
+    for binary, lost in lost_by_binary.items():
+        if binary in red_by_binary:
+            over.append(red_by_binary[binary])
+        if lost:
+            names = ', '.join(sorted(lost)[:10])
+            if len(lost) > 10:
+                names += f', ... ({len(lost) - 10} more)'
+            warnings.append(f"checks note: {binary}: {len(lost)} tests main ran didn't run at the head: {names}")
+
+    applied, used_budget = [], []
+    for index, reason in enumerate(reasons):
+        kinds = applied_checks.get(index, ())
+        if kinds:
+            applied.append(check_reason(reason, kinds))
+            if reason['kind'] == 'budget':
+                used_budget.append(reason)
+        elif reason['kind'] != 'budget':
+            warnings.append('stale check reason: ' + check_reason(reason))
+    return applied, moves, used_budget
+
+
+def check_reason(reason, kinds=()):
+    detail = f"{reason['binary']}: {reason['kind']} {reason['checks']!r}: {reason['why']} (by {reason['by']})"
+    if kinds:
+        detail += f" (matched {', '.join(sorted(kinds))})"
+    return detail
 
 
 def main_budget(ledger, key):
@@ -952,20 +1345,51 @@ def main_budget(ledger, key):
     return min(entry['ceiling_s'], math.ceil(round(lowest + max(lowest / 10, 1), 3)))
 
 
-def held_budgets(profile, ledger, figures):
-    """Held ceilings and their next low figures (tools/tiers/budgets.md, 9)."""
+def new_moves(profile, ledger, *fields):
+    """Moves absent from main's ledger, counted with multiplicity (budgets.md, 8 and 9)."""
     def moves(items):
-        return Counter((m['from'], m['to'], m['cpu_s'], m['why']) for m in items)
+        return Counter((m['from'], m['to'], m['why'], *(m.get(field) for field in fields)) for m in items)
 
+    if ledger is None:
+        return Counter()
+    return moves(profile.get('moves', [])) - moves(ledger['moves'])
+
+
+def move_net(profile, ledger, field):
+    """Net of new moves in this measure (budgets.md, 9)."""
     net = {}
-    if ledger is not None:
-        new = moves(profile.get('moves', [])) - moves(ledger['moves'])
-        for (source, target, seconds, _), count in new.items():
-            for endpoint, sign in ((source, -1), (target, 1)):
-                key = tuple(endpoint.split('.'))
-                net[key] = net.get(key, 0) + sign * seconds * count
+    for (source, target, _, amount), count in new_moves(profile, ledger, field).items():
+        if amount is None:
+            continue
+        for endpoint, sign in ((source, -1), (target, 1)):
+            key = tuple(endpoint.split('.'))
+            net[key] = net.get(key, 0) + sign * amount * count
+    return net
+
+
+def instruction_move_credits(profile, ledger, main_counts, main_cpu):
+    """Growth allowance from new moves into each layer (budgets.md, 8)."""
+    credits, seconds = {}, {}
+    for (_, target, _, cpu, instructions), copies in new_moves(profile, ledger, 'cpu_s', 'instructions').items():
+        key = tuple(target.split('.'))
+        if instructions is not None:
+            credits[key] = credits.get(key, 0) + instructions * copies
+        else:
+            seconds[key] = seconds.get(key, 0) + Fraction(str(cpu)) * copies
+    for key, cpu in seconds.items():
+        count, main = main_counts.get(key), main_cpu.get(key)
+        if count and main:
+            credits[key] = credits.get(key, 0) + math.floor(cpu * count / Fraction(str(main)))
+    return credits
+
+
+def held_budgets(profile, ledger, figures, selected_layers=None):
+    """Held ceilings and their next low figures (tools/tiers/budgets.md, 9)."""
+    net = move_net(profile, ledger, 'cpu_s')
     held = {}
     for key, ceiling in gate_ceilings(profile).items():
+        if not layer_selected(key[1], selected_layers):
+            continue
         entry = (ledger or {}).get('budgets', {}).get(key[0], {}).get(key[1])
         shift = net.get(key, 0)
         cpu = figures.get(key, 0.0)
@@ -978,8 +1402,102 @@ def held_budgets(profile, ledger, figures):
     return held
 
 
-def growing_binaries(key, head, tests, ledger):
-    """Uncut causes, ordered by CPU growth then wall growth (budgets.md, 8)."""
+def instruction_budget(ceiling, lowest):
+    if lowest is None:
+        return ceiling
+    return min(ceiling, lowest + max((lowest + 9) // 10, INSTRUCTION_ALLOWANCE))
+
+
+def instruction_verdict(label, count, main, growth, state, warnings, *, move_credit=0, accepted=None):
+    """The change's instruction verdict and main's warnings (budgets.md, 8 and 9)."""
+    budget = state['instructions_budget']
+    ceiling = state['instructions_ceiling']
+    main_budget = state['main_instructions_budget']
+    lowest = state['main_instructions_lowest']
+    main_over = main is not None and main > main_budget
+    if main is not None and lowest is not None and lowest < main <= main_budget and 100 * main >= 108 * lowest:
+        warnings.append(f'layer instruction drift: {label}: {main} instructions at main, '
+                        f'lowest {lowest} instructions, budget {main_budget} instructions')
+    increase = count - main if main is not None else 0
+    percentage = main // 50 if main is not None else 0
+    allowance = max(percentage, INSTRUCTION_GROWTH_FLOOR) + move_credit
+    level = accepted is not None and main is not None and accepted - main > allowance
+    if level:
+        allowance = accepted - main
+    grew = increase > allowance
+    detail = ''
+    if increase > percentage:
+        adjustments = []
+        if level:
+            adjustments.append(f'the user\'s accepted level of {accepted} instructions')
+        elif percentage < INSTRUCTION_GROWTH_FLOOR:
+            adjustments.append(f'{INSTRUCTION_GROWTH_FLOOR} instruction growth floor')
+        if move_credit and not level:
+            adjustments.append(f'{move_credit} instructions of credit from new moves into the layer')
+        if adjustments:
+            detail = f', growth allowance {allowance} instructions ({", ".join(adjustments)})'
+    if count > budget and main_over and not grew:
+        warnings.append(f'layer over budget at main: {label}: {main} instructions at main, '
+                        f'budget {main_budget} instructions; {count} instructions at the head{detail}')
+    if grew or (count > budget and not main_over):
+        reason = 'layer over budget' if count > budget else 'layer instruction growth'
+        at_main = 'none' if main is None else str(main)
+        growth_text = 'n/a' if growth is None else f'{growth:.2f}%'
+        return (f'{reason}: {label}: {count} instructions, budget {budget} instructions, '
+                f'ceiling {ceiling} instructions, at main {at_main} instructions, growth {growth_text}{detail}')
+    if detail and count <= budget:
+        warnings.append(f'layer instruction growth within allowance: {label}: {increase} instructions of growth{detail}')
+    return None
+
+
+def layer_counts(binaries, count):
+    figures = {}
+    for entry in binaries.values():
+        key = entry['tree'], entry['layer']
+        figures[key] = sum_counts((figures.get(key, 0), count(entry)))
+    return figures
+
+
+def instruction_budgets(profile, ledger, head_counts, main_counts, folded_counts, selected_layers, counted):
+    """Held instruction budgets and their next low counts (budgets.md, 9)."""
+    net = move_net(profile, ledger, 'instructions')
+    held = {}
+    for key, ceiling in gate_ceilings(profile, 'instructions').items():
+        tree, layer = key
+        if not layer_selected(layer, selected_layers):
+            continue
+        entry = (ledger or {}).get('budgets', {}).get(tree, {}).get(layer, {})
+        shift = net.get(key, 0)
+        main_ceiling = entry.get('instructions_ceiling')
+        main_lowest = entry.get('instructions_lowest')
+        if main_ceiling is None and ledger is not None:
+            main_ceiling = ceiling - shift
+            main_lowest = main_counts.get(key)
+        elif main_lowest is None:
+            main_lowest = main_counts.get(key)
+        main_limit = None if main_ceiling is None else instruction_budget(main_ceiling, main_lowest)
+        limit, lowest = ceiling, None
+        if main_limit is not None and ceiling - shift == main_ceiling:
+            limit = min(ceiling, max(0, main_limit + shift))
+            if main_lowest is not None:
+                lowest = max(0, main_lowest + shift)
+        if counted and head_counts.get(key, 0) is not None:
+            folded = folded_counts.get(key, 0)
+            if folded is not None:
+                lowest = folded if lowest is None else min(lowest, folded)
+        accepted = profile.get(tree, {}).get(layer, {}).get('accepted_instructions')
+        if accepted is not None:
+            limit = max(limit, accepted)
+            if main_limit is not None:
+                main_limit = max(main_limit, accepted)
+        held[key] = dict(instructions_ceiling=ceiling, instructions_budget=limit,
+                         instructions_lowest=lowest, main_instructions_budget=main_limit,
+                         main_instructions_lowest=main_lowest)
+    return held
+
+
+def growing_binaries(key, head, tests, ledger, *, instructions=False):
+    """Uncut causes, ordered by layer measure growth then wall growth (budgets.md, 8)."""
     by_binary = {}
     for test in tests:
         by_binary.setdefault(test['binary_id'], []).append(test)
@@ -988,8 +1506,11 @@ def growing_binaries(key, head, tests, ledger):
         if (entry['tree'], entry['layer']) != key:
             continue
         old = ledger['binaries'].get(binary)
-        main = binary_median(old) if old is not None and (old['tree'], old['layer']) == key else None
-        if entry['cpu_s'] <= (main or 0):
+        same_layer = old is not None and (old['tree'], old['layer']) == key
+        main = binary_median(old) if same_layer else None
+        count = binary_count(old) if same_layer else None
+        growth = entry['instructions'] - (count or 0) if instructions else entry['cpu_s'] - (main or 0)
+        if growth <= 0:
             continue
         walls = (old or {}).get('tests', {})
         grown_tests = []
@@ -999,17 +1520,26 @@ def growing_binaries(key, head, tests, ledger):
             if test['wall_s'] > (median or 0):
                 grown_tests.append(dict(test_name=name, wall_s=test['wall_s'], main_wall_s=median))
         grown_tests.sort(key=lambda test: (-(test['wall_s'] - (test['main_wall_s'] or 0)), test['test_name']))
-        grew.append(dict(binary_id=binary, cpu_s=entry['cpu_s'], main_s=main, tests=grown_tests))
-    grew.sort(key=lambda entry: (-(entry['cpu_s'] - (entry['main_s'] or 0)), entry['binary_id']))
-    return grew
+        row = dict(binary_id=binary, cpu_s=entry['cpu_s'], main_s=main, tests=grown_tests)
+        if instructions:
+            row.update(instructions=entry['instructions'], main_instructions=count)
+        grew.append((growth, row))
+    grew.sort(key=lambda item: (-item[0], item[1]['binary_id']))
+    return [row for _, row in grew]
 
 
 def growth_lines(grew):
     lines = []
     for binary in grew[:10]:
-        main = binary['main_s']
-        detail = 'new' if main is None else f"+{binary['cpu_s'] - main:.2f} CPU s, at main {main:.2f} CPU s"
-        lines.append(f"  {binary['binary_id']}: {binary['cpu_s']:.2f} CPU s, {detail}")
+        if 'instructions' in binary:
+            count, main = binary['instructions'], binary['main_instructions']
+            figure = f'{count} instructions'
+            detail = 'new' if main is None else f'+{count - main} instructions, at main {main} instructions'
+        else:
+            cpu, main = binary['cpu_s'], binary['main_s']
+            figure = f'{cpu:.2f} CPU s'
+            detail = 'new' if main is None else f'+{cpu - main:.2f} CPU s, at main {main:.2f} CPU s'
+        lines.append(f"  {binary['binary_id']}: {figure}, {detail}")
         for test in binary['tests'][:5]:
             median = test['main_wall_s']
             detail = 'new' if median is None else f'main median {median:.6f} wall s'
@@ -1021,7 +1551,37 @@ def growth_lines(grew):
     return ''.join('\n' + line for line in lines)
 
 
-def fold_binaries(data, head, tests, unobserved, ledger):
+def partial_binaries(data):
+    return ({t['binary_id'] for t in data['unobserved']}
+            | {t['binary_id'] for t in data['tests'] if t['process'] is None
+               or t['outcome'] in ('starved', 'cancelled')})
+
+
+def partial_test_names(data, partial):
+    names = {}
+    for field in ('tests', 'unobserved'):
+        for test in data[field]:
+            binary = test['binary_id']
+            if binary in partial:
+                names.setdefault(binary, set()).add(test['test_name'])
+    return names
+
+
+def instruction_head(data, head, ledger, partial):
+    """Use last whole counts for binaries the run cut short (budgets.md, 8)."""
+    old = (ledger or {}).get('binaries', {})
+    counted = dict(head)
+    for entry in data.get('workspace', []):
+        binary = entry['binary_id']
+        if (binary in partial and binary not in counted
+                and layer_selected(entry['layer'], data.get('selected_layers'))):
+            counted[binary] = dict(entry, cpu_s=0.0)
+    for binary in partial & counted.keys():
+        counted[binary] = dict(counted[binary], instructions=binary_count(old[binary]) if binary in old else None)
+    return counted
+
+
+def fold_binaries(data, head, tests, ledger, partial):
     """Keep whole measurements and their histories (tools/tiers/budgets.md, 7)."""
     old = (ledger or {}).get('binaries', {})
     alone = {(entry['binary_id'], entry['test_name']): entry['cpu_s']
@@ -1029,12 +1589,13 @@ def fold_binaries(data, head, tests, unobserved, ledger):
     by_binary = {}
     for test in tests:
         by_binary.setdefault(test['binary_id'], []).append(test)
-    partial = {t['binary_id'] for t in unobserved}
-    partial.update(t['binary_id'] for t in data['tests'] if t['process'] is None)
+    counted = (data.get('counting') or {}).get('counted', True)
     binaries = {}
     for binary, entry in head.items():
+        if not layer_selected(entry['layer'], data.get('selected_layers')):
+            continue
         ran = by_binary.get(binary, [])
-        if ran and binary not in partial and not any(t['starved'] for t in ran):
+        if ran and binary not in partial:
             history = old.get(binary, {}).get('tests', {})
             walls = {t['test_name']: [*history.get(t['test_name'], [])[-2:], t['wall_s']] for t in ran}
             history = old.get(binary, {}).get('alone', {})
@@ -1047,36 +1608,70 @@ def fold_binaries(data, head, tests, unobserved, ledger):
                     figures[name] = history[name]
             cpu = [*old.get(binary, {}).get('cpu', [])[-2:], entry['cpu_s']]
             counts = old.get(binary, {}).get('counts', [])
-            if entry['instructions'] is not None:
+            if counted and entry['instructions'] is not None:
                 counts = [*counts[-(COUNTS_KEPT - 1):],
                           dict(commit=data.get('commit'), instructions=entry['instructions'])]
             binaries[binary] = dict(tree=entry['tree'], layer=entry['layer'], cpu=cpu,
-                                    tests=walls, alone=figures, counts=counts)
+                                    tests=walls, alone=figures, counts=counts, checks=entry['checks'])
         elif binary in old:
             binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
-                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []))
+                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []),
+                                    checks=old[binary].get('checks', {}))
     # An unobserved binary may have no process and still keeps its last whole CPU.
     workspace = {entry['binary_id']: entry for entry in data.get('workspace', [])}
     for binary in partial - head.keys():
         if binary in old and binary in workspace:
             entry = workspace[binary]
+            if not layer_selected(entry['layer'], data.get('selected_layers')):
+                continue
             binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
-                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []))
+                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []),
+                                    checks=old[binary].get('checks', {}))
     return binaries
 
 
 def fold_ledger(directory, result, limits, ledger=None):
     """The ledger should this candidate land (tools/tiers/budgets.md, 7 and 9)."""
     data = json.loads((Path(directory) / 'results.json').read_text())
-    head = head_binaries(result['processes'], data.get('workspace', []), ledger)
-    binaries = fold_binaries(data, head, result['tests'], result['unobserved'], ledger)
+    selected_layers = data.get('selected_layers')
+    head = head_binaries(result['processes'], data.get('workspace', []), ledger, selected_layers)
+    partial = partial_binaries(data)
+    binaries = fold_binaries(data, head, result['tests'], ledger, partial)
+    if not data.get('test_filtered', False):
+        selected_packages = set(data.get('selected_packages', []))
+        for entry in data.get('workspace', ()):
+            binary = entry['binary_id']
+            if (binary in binaries and binary not in partial and not entry['listed']
+                    and binary.partition('::')[0] in selected_packages):
+                binaries[binary].update(tests={}, alone={}, checks={})
+        if partial:
+            for binary, names in partial_test_names(data, partial).items():
+                if binary in binaries:
+                    for field in ('tests', 'alone'):
+                        binaries[binary][field] = {name: values for name, values in binaries[binary][field].items()
+                                                   if name in names}
     figures = ledger_figures(binaries)
     profile = (limits or {}).get('gate', {}).get(result['pair'], {})
     folded_budgets = {}
-    for (tree, layer), state in held_budgets(profile, ledger, figures).items():
+    for (tree, layer), state in held_budgets(profile, ledger, figures, selected_layers).items():
         folded_budgets.setdefault(tree, {})[layer] = {key: state[key] for key in ('ceiling_s', 'lowest_s')}
-    return dict(ledger=4, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
-                moves=profile.get('moves', []))
+    head_counts = layer_counts(instruction_head(data, head, ledger, partial), lambda entry: entry['instructions'])
+    main_counts = layer_counts((ledger or {}).get('binaries', {}), binary_count)
+    counted = (data.get('counting') or {}).get('counted', False)
+    for (tree, layer), state in instruction_budgets(
+            profile, ledger, head_counts, main_counts, layer_counts(binaries, binary_count),
+            selected_layers, counted).items():
+        folded_budgets[tree][layer].update(
+            instructions_ceiling=state['instructions_ceiling'], instructions_lowest=state['instructions_lowest'])
+    folded = dict(ledger=7, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
+                  moves=profile.get('moves', []), check_reasons=profile.get('check_reasons', []))
+    spent = list((ledger or {}).get('spent_check_reasons', []))
+    for reason in result.get('used_budget_check_reasons', []):
+        if reason not in spent:
+            spent.append(reason)
+    if spent:
+        folded['spent_check_reasons'] = spent
+    return folded
 
 
 def tools_summary(directory, limits, expected):
@@ -1173,30 +1768,62 @@ def print_summary(result, as_json=False):
     for kind, rows in (('layer', result['layers']), ('tree', result['trees'])):
         for row in rows:
             label = f"{row['tree']} {row['layer']}" if kind == 'layer' else row['tree']
+            if suite['cpu_by'] == 'test':
+                figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
+                                    for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', 'reference_s'))
+                print(f'{kind} {label}: {figures}, instructions none')
+                continue
             figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
                                 for key in ('cpu_s', 'ceiling_s', 'budget_s', 'ideal_s', *(['reference_s'] if kind == 'layer' else []),
                                             *(['main_s'] if row['main_s'] is not None else [])))
             figures += f", instructions {row['instructions'] if row['instructions'] is not None else 'none'}"
             if row['main_s'] is not None:
                 figures += f", main instructions {row['main_instructions'] if row['main_instructions'] is not None else 'none'}"
+            if kind == 'layer' and (row['instructions_ceiling'] is not None or row['ideal_instructions'] is not None):
+                for title, field in (('ceiling', 'instructions_ceiling'), ('budget', 'instructions_budget'),
+                                     ('lowest', 'instructions_lowest'), ('main budget', 'main_instructions_budget'),
+                                     ('main lowest', 'main_instructions_lowest'), ('ideal', 'ideal_instructions')):
+                    value = row[field]
+                    figures += f", {title} instructions {value if value is not None else 'none'}"
+                growth = row['instructions_growth']
+                figures += ', instruction growth ' + ('none' if growth is None else f'{growth:.2f}%')
             print(f'{kind} {label}: {figures}')
     for row in result['references']:
         figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
                             for key in ('cpu_s', 'reference_s', 'line_s', 'main_cpu_s', 'limit_s'))
         print(f"reference {row['binary_id']} {row['test_name']} ({row['why']}): {figures}; over {row['over']}")
+    for binary, checks in result.get('checks', {}).items():
+        if checks:
+            print(f"{binary} checks: " + ', '.join(f'{kind} {count}' for kind, count in sorted(checks.items())))
+    for reason in result.get('check_reasons', []):
+        print(f'check reason applied: {reason}')
+    moves = {}
+    for move in result.get('check_moves', []):
+        moves.setdefault(move['from']['binary_id'], []).append(move)
+    for binary, pairs in sorted(moves.items()):
+        print(f'check moves: {binary}: {len(pairs)}')
+        for move in pairs[:10]:
+            target = move['to']
+            print(f"  moved test: {move['from']['test_name']} to {target['binary_id']} {target['test_name']}")
+        if len(pairs) > 10:
+            print(f'  {len(pairs) - 10} more moved tests')
     for message in result['warnings']:
         print(f'warning: {message}')
     for message in result['over_budget']:
         print(message)
 
 
-def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None):
+def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'),
+                        walls=None, gate=False, ledger=None, selected_layers=None, *, fail_fast=False):
     """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
     if 'cpu_test_s' in limits.get(profile, {}):
         raise ValueError('one-process runs cannot measure cpu_test_s')
-    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls, ledger=ledger)
+    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config,
+                                          walls=walls, ledger=ledger, selected_layers=selected_layers,
+                                          **({'fail_fast': True} if fail_fast else {}))
     result = summary(directory, limits, profile, gate=gate, ledger=ledger)
-    save(Path(directory) / 'ledger.json', fold_ledger(directory, result, limits, ledger))
+    if not result.get('fail_fast'):
+        save(Path(directory) / 'ledger.json', fold_ledger(directory, result, limits, ledger))
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         print_summary(result)
@@ -1206,7 +1833,7 @@ def execute_one_process(command, env, directory, profile, limits, config=Path('.
         log.write(text)
     if result['over_budget']:
         return 1
-    if result['failures']:
+    if result['failures'] or result.get('fail_fast'):
         return 100
     if result['suite']['starved_run'] or result['suite']['starved']:
         return 0

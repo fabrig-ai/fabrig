@@ -54,6 +54,11 @@ impl Core {
                 return Some((Key::Core(CoreKey::Call(*key)), Key::Core(CoreKey::RunProof(key.task))));
             }
         }
+        for (key, _) in &self.kept_parts {
+            if !self.proofs.contains_key(&key.task) {
+                return Some((Key::Core(CoreKey::Part(*key)), Key::Core(CoreKey::RunProof(key.task))));
+            }
+        }
         None
     }
 
@@ -121,6 +126,11 @@ impl Core {
             self.link_batch(&source, &recurring.template.batch)?;
         }
         if let Some(person) = row.taken_by {
+            self.link_person(&source, person)?;
+        }
+        if let Some(wait) = row.person_wait
+            && let Some(tasks::PersonOffer { holder: tasks::PersonAddress::Person(person), .. }) = wait.offer
+        {
             self.link_person(&source, person)?;
         }
         if let Some(answer) = row.person_answer {
@@ -330,6 +340,7 @@ impl Core {
                 | people::Outcome::SignedOut
                 | people::Outcome::NoteEdited { .. }
                 | people::Outcome::ServiceMade { .. }
+                | people::Outcome::ServiceReissued { .. }
                 | people::Outcome::Adopted { .. }
                 | people::Outcome::Proposed { .. }
                 | people::Outcome::Withdrawn { .. }

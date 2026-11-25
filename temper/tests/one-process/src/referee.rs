@@ -25,6 +25,7 @@ use std::{
 use temper_engine_domain as root;
 #[derive(Default)]
 pub(crate) struct Run {
+    pub(crate) restart_faults: Option<Rc<RefCell<crate::restarts::Injector>>>,
     pub(crate) forge: Option<temper_fake_git_hosted::Typed>,
     pub(crate) disk: Option<Rc<RefCell<skein_fake_machine::Machine>>>,
     rules: Option<Rc<RefCell<rules::Referee>>>,
@@ -49,6 +50,7 @@ pub(crate) struct Referee {
     pub(crate) store: Rc<RefCell<Store>>,
     rules: Rc<RefCell<rules::Referee>>,
     run: Rc<RefCell<Run>>,
+    restart_faults: Option<Rc<RefCell<crate::restarts::Injector>>>,
     phase: crate::world::Phase,
     attached: Option<()>,
     cold: Option<()>,
@@ -73,6 +75,7 @@ pub(crate) struct Referee {
     ended: bool,
     hold_released: bool,
     forge: Rc<RefCell<forge::Forge>>,
+    landing_at_cut: Option<client::Landing>,
     story: crate::world::Story,
 }
 impl Referee {
@@ -112,7 +115,7 @@ impl Referee {
             scope.tools = 3;
             scope.depth = 3;
             scope.executors.insert((1, 2));
-            for kind in [3, 11] {
+            for kind in crate::stories::grant_kinds() {
                 scope.grants.push(rules::Grant {
                     connector: 1,
                     kind,
@@ -157,12 +160,15 @@ impl Referee {
         let adopted = crate::stories::adopted(&store.borrow().rows);
         let acknowledged = restart::forge(&run.borrow().rows);
         run.borrow_mut().rules = Some(rules.clone());
+        // The injector is fixed for a phase; ordinary iterations need no Run borrow.
+        let restart_faults = run.borrow().restart_faults.clone();
         Self {
             finding: None,
             controls,
             store,
             rules,
             run,
+            restart_faults,
             phase,
             attached: None,
             cold: (applied > 0).then_some(()),
@@ -187,6 +193,7 @@ impl Referee {
             ended: false,
             hold_released: false,
             forge,
+            landing_at_cut: None,
             story: scenario,
         }
     }
@@ -228,7 +235,11 @@ impl Referee {
             if matches!(self.phase, crate::world::Phase::Drain) {
                 let mut run = self.run.borrow_mut();
                 if let Some(stopped) = run.stopped.as_mut() {
-                    stopped.interrupted = stopped::interrupted(stopped, &self.store.borrow())?;
+                    let store = self.store.borrow();
+                    stopped.interrupted = stopped::interrupted(stopped, &store)?;
+                    if matches!(self.story, crate::world::Story::CodingAtStop) {
+                        stopped::due_after_stop(stopped, &store)?;
+                    }
                 }
             }
         }
@@ -309,6 +320,13 @@ pub(crate) fn chat_waited(store: &Store) -> bool {
     }) && snapshot(&store.rows).receipts.contains(&rules::Receipt::Turn(1, 1, 2))
 }
 fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
+    let records = rows
+        .iter()
+        .filter_map(|(key, record)| match (key, record) {
+            (root::Key::Core(key), root::Record::Core(record)) => Some((key.clone(), record)),
+            _ => None,
+        })
+        .collect();
     let mut snapshot = rules::Snapshot::default();
     for row in rows.values() {
         match row {
@@ -321,7 +339,7 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
             root::Record::Core(core::Record::Tasks(
                 jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
             )) => {
-                snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
+                snapshot.tasks.insert(task.number, jig_conformance::core::task(task, &records));
                 snapshot.receipts.insert(rules::Receipt::Task(task.number));
                 if matches!(task.phase, jig_domain_tasks::Phase::Ended(_)) {
                     snapshot.receipts.insert(rules::Receipt::Ended(task.number));
@@ -363,13 +381,48 @@ impl Referee {
         self.held_at = Some((store.applied, held));
         held
     }
-    fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
+    fn landing_recovered(&mut self, other: &[Proc]) -> Result<bool, String> {
+        use crate::stories::recovery;
+        let Some(landing) = other.iter().find_map(|proc| match proc {
+            Proc::Other(HarnessProcess::Client(person)) if person.is_empty() => person.wire.landing().copied(),
+            _ => None,
+        }) else {
+            return Ok(false);
+        };
+        if let Some(before) = self.landing_at_cut {
+            if self.cold.is_some() || self.run.borrow().restarts == 0 {
+                return Ok(false);
+            }
+            if landing != before {
+                return Err(format!("the saved sign-in found a different landing: {landing:?}, was {before:?}"));
+            }
+            return Ok(true);
+        }
+        if !self.forge.borrow().complete() {
+            return Ok(false);
+        }
+        recovery::check_landing(landing, &self.forge.borrow_mut().take_ledger())?;
+        recovery::keep_forge(other)?;
+        self.landing_at_cut = Some(landing);
+        // The first watch after the cut precedes attachment of the new service.
+        self.agent_seen = 0;
+        self.controls.cut(0, skein_world::Cut::PowerLoss);
+        Ok(false)
+    }
+    fn phase_complete(&mut self, service: &crate::world::ServiceHost, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
+                #[cfg(test)]
+                crate::world::Phase::Committed => self.store.borrow().applied > 0,
                 crate::world::Phase::Refused => return Err(String::from("refused starts send no shutdown signal")),
                 crate::world::Phase::SignIn => other
                     .iter()
                     .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
+                crate::world::Phase::CtlAdopt => forge_caller(other).is_some_and(Host::is_empty),
+                crate::world::Phase::ForgeReceipt => {
+                    forge::Forge::hooks_complete(other) && service.observer.hook_answered()
+                }
+                crate::world::Phase::LandedRestart => self.landing_recovered(other)?,
                 crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other)?,
                 crate::world::Phase::Restart => {
                     self.cold.is_none()
@@ -404,6 +457,41 @@ impl Referee {
     }
 }
 impl Referee {
+    fn hand_link(&mut self, service: &mut crate::world::ServiceHost, other: &mut [Proc]) {
+        // The signed-in caller connects the forge before the person's repository story.
+        if !self.handed
+            && let Some(link) = service.service.links().pop()
+        {
+            crate::oracle::linked(&link);
+            for proc in other.iter_mut() {
+                match proc {
+                    Proc::Other(HarnessProcess::Client(person)) if person.signed_in == 0 => person.sign_in(&link),
+                    Proc::Other(HarnessProcess::Calls(caller))
+                        if matches!(self.phase, crate::world::Phase::CtlAdopt | crate::world::Phase::ForgeReceipt) =>
+                    {
+                        caller.setup_forge(&link, matches!(self.phase, crate::world::Phase::CtlAdopt));
+                    }
+                    _ => {}
+                }
+            }
+            self.handed = true;
+        }
+    }
+
+    fn drive_hook(&self, now: Time, service: &mut crate::world::ServiceHost, other: &[Proc]) -> Result<(), String> {
+        if matches!(self.phase, crate::world::Phase::ForgeReceipt)
+            && let Some(caller) = forge_caller(other)
+            && caller.is_empty()
+        {
+            if let Some(answer) = caller.answers.iter().find(|answer| answer.exit != skein_io::kernel::Exit::Code(0)) {
+                return Err(format!("ctl forge setup: {answer:?}"));
+            }
+            service.observer.record_hooks();
+            self.forge.borrow_mut().push_hook(now)?;
+        }
+        Ok(())
+    }
+
     fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (service, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut service[0] else { return Err(String::from("service first")) };
@@ -440,20 +528,7 @@ impl Referee {
             }
             self.attached = Some(());
         }
-        // The signed-in caller connects the forge before the person's repository story.
-        if !self.handed
-            && let Some(link) = service.service.links().pop()
-        {
-            crate::oracle::linked(&link);
-            for proc in other.iter_mut() {
-                if let Proc::Other(HarnessProcess::Client(person)) = proc
-                    && person.signed_in == 0
-                {
-                    person.sign_in(&link);
-                }
-            }
-            self.handed = true;
-        }
+        self.hand_link(service, other);
         let done = other.iter().all(|proc| match proc {
             Proc::Other(HarnessProcess::Client(person)) => person.is_empty(),
             Proc::Service(_)
@@ -469,6 +544,7 @@ impl Referee {
             | Proc::Other(
                 HarnessProcess::Ctl(_)
                 | HarnessProcess::Calls(_)
+                | HarnessProcess::Line(_)
                 | HarnessProcess::ProgramSource(_)
                 | HarnessProcess::Push(_),
             ) => true,
@@ -485,7 +561,19 @@ impl Referee {
             }
             return Ok(());
         }
-        let complete = self.phase_complete(other)?;
+        self.drive_hook(now, service, other)?;
+        if let Some(injector) = &self.restart_faults
+            && service.service.engine_domain().is_some_and(temper_engine_domain::Domain::ready)
+        {
+            injector.borrow_mut().opening(now);
+        }
+        let mut complete = self.phase_complete(service, other)?;
+        if complete
+            && matches!(self.phase, crate::world::Phase::Drain)
+            && let Some(injector) = &self.restart_faults
+        {
+            complete = injector.borrow_mut().ready();
+        }
         if self.done.is_none()
             && (done || !matches!(self.phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }))
             && complete
@@ -497,7 +585,9 @@ impl Referee {
                 }
             }
             self.stopping()?;
-            self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
+            if !matches!(self.phase, crate::world::Phase::Drain) || self.restart_faults.is_none() {
+                self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
+            }
             self.done = Some(());
         }
         self.stop_peers(other)?;
@@ -513,6 +603,7 @@ impl skein_world::Referee<Proc> for Referee {
     }
     #[expect(clippy::too_many_lines, reason = "durable commits and their outside receipts are observed in order")]
     fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        crate::store_check::check()?;
         if let Some(why) = &self.finding {
             return Err(why.clone());
         }
@@ -525,6 +616,9 @@ impl skein_world::Referee<Proc> for Referee {
         }
 
         self.forge.borrow_mut().observe(procs)?;
+        if self.landing_at_cut.is_some() {
+            crate::stories::recovery::no_writes(&self.forge.borrow_mut().take_ledger())?;
+        }
         let Proc::Service(service) = &procs[0] else { return Err(String::from("service first")) };
         self.adoption_window(service);
         // Each service incarnation owns its commit vector. Check every new
@@ -548,7 +642,7 @@ impl skein_world::Referee<Proc> for Referee {
                 )
                 .map_err(|why| format!("durable conformance: {why:?}"))?;
             // A result in its requester's durable inbox has reached that task
-            // (temper/docs/design/testing/README.md, 2.5).
+            // (temper/docs/design/testing/tiers.md, 1.5).
             for row in run.rows.values() {
                 if let root::Record::Core(core::Record::Tasks(
                     jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
@@ -643,7 +737,7 @@ impl skein_world::Referee<Proc> for Referee {
             }
         }
         // Serve's stop includes supervised agent cancellation. Only its recorded
-        // end leaves teardown waiting on IO alone (protocol/README.md, 6).
+        // end leaves teardown waiting on IO alone (protocol/service-process.md, 1).
         self.ended = service.service.end().is_some();
         self.observe_drain(now, service)?;
         self.say(now, rules::Observed::Tick)?;
@@ -651,6 +745,9 @@ impl skein_world::Referee<Proc> for Referee {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
+        if self.restart_faults.as_ref().is_some_and(|injector| injector.borrow().waiting()) {
+            return Some(Time::ZERO);
+        }
         if matches!(self.story, crate::world::Story::HeldChange) && matches!(self.phase, crate::world::Phase::SignIn) {
             return None;
         }
@@ -683,10 +780,19 @@ impl skein_world::Referee<Proc> for Referee {
         })
     }
     fn passed(&self) -> bool {
+        let no_client = match self.phase {
+            #[cfg(test)]
+            crate::world::Phase::Committed => true,
+            crate::world::Phase::Restart
+            | crate::world::Phase::Refused
+            | crate::world::Phase::ForgeReceipt
+            | crate::world::Phase::CtlAdopt => true,
+            _ => false,
+        };
         self.finding.is_none()
             && (self.done.is_some()
                 && self.ended
-                && (matches!(self.phase, crate::world::Phase::Restart | crate::world::Phase::Refused)
+                && (no_client
                     || self.signed_in
                         && (self.released
                             || !matches!(self.phase, crate::world::Phase::Story)
@@ -818,6 +924,13 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
     })
 }
 
+pub(crate) fn forge_caller(procs: &[Proc]) -> Option<&crate::ctl::Caller> {
+    procs.iter().find_map(|proc| match proc {
+        Proc::Other(HarnessProcess::Calls(caller)) => Some(caller.as_ref()),
+        _ => None,
+    })
+}
+
 pub(crate) fn shutdown_peer(proc: &mut Proc) {
     match proc {
         Proc::Peer(peer) => peer.shutdown(),
@@ -835,6 +948,7 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
             HarnessProcess::Client(_)
             | HarnessProcess::Ctl(_)
             | HarnessProcess::Calls(_)
+            | HarnessProcess::Line(_)
             | HarnessProcess::ProgramSource(_),
         ) => {}
     }

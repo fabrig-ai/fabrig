@@ -329,6 +329,7 @@ pub enum Ask {
     Stop {
         project: u32,
         task: u64,
+        reason: Box<[u8]>,
     },
     /// Cancel a task and its descendants with a bounded reason, at once or after a grace.
     Cancel {
@@ -344,7 +345,7 @@ pub enum Ask {
         revision: u64,
         again: Option<bool>,
     },
-    /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle.md, 10).
+    /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle-holds.md, 2).
     Lift {
         hold: u64,
         revision: u64,
@@ -455,7 +456,7 @@ pub enum Ask {
         decision: EscalationDecision,
     },
     /// Sign an LLM provider's account in for this holder; admitted from the holder alone, never by
-    /// a role (domain/authority.md, 8.4), and decided by the accounts child (domain/accounts.md, 3.3).
+    /// a role (domain/authority-checks.md, 1.4), and decided by the accounts child (domain/accounts.md, 3.3).
     AccountSignIn {
         holder: AccountHolder,
         provider: u32,
@@ -475,6 +476,10 @@ pub enum Ask {
         project: u32,
         public: bool,
     },
+    /// End all sign-ins of a service without changing its party.
+    ReissueService {
+        party: u64,
+    },
 }
 
 /// The scope and admission family of a keyed request (domain/people/acts.md, 1).
@@ -487,6 +492,7 @@ pub enum AskFamily {
     Account,
     Lift,
     Seen,
+    ReissueService,
 }
 
 impl AskFamily {
@@ -499,7 +505,8 @@ impl AskFamily {
             | Self::Deployment
             | Self::Account
             | Self::Lift
-            | Self::Seen => None,
+            | Self::Seen
+            | Self::ReissueService => None,
         }
     }
 }
@@ -547,6 +554,7 @@ impl Ask {
             Self::AccountSignIn { .. } | Self::AccountSignOut { .. } | Self::AccountChange { .. } => AskFamily::Account,
             Self::Lift { .. } => AskFamily::Lift,
             Self::MarkSeen { .. } => AskFamily::Seen,
+            Self::ReissueService { .. } => AskFamily::ReissueService,
         }
     }
 
@@ -560,6 +568,7 @@ impl Ask {
             | Self::MarkSeen { .. }
             | Self::Application { .. }
             | Self::MakeService { .. }
+            | Self::ReissueService { .. }
             | Self::EditNote { .. }
             | Self::Adopt { .. }
             | Self::ChangePolicy { .. }
@@ -683,6 +692,7 @@ pub enum OutcomeFamily {
     RolesSet(u32),
     ProjectMade(u32),
     Settled,
+    ServiceReissued,
 }
 
 /// Root's answer for one routed flight; people replies to each bounded waiter and saves
@@ -910,7 +920,11 @@ pub enum Outcome {
         failed_hosts: Box<[AccountHostFailure]>,
     },
     /// Final refusal, retained under the request key.
-    Refused(/** Final refusal facts, retained under the request key. */ Refusal),
+    Refused(/** Final refusal facts, retained for requests that keep an answer. */ Refusal),
+    /// A service’s sign-ins ended; no answer is kept.
+    ServiceReissued {
+        party: u64,
+    },
     /// The project is public or private from this decision (jig/docs/design/domain/people/public-reading.md, 2).
     VisibilitySet {
         project: u32,
@@ -1214,6 +1228,8 @@ pub enum Event {
     Forget { task: u64, project: u32, party: Option<u64>, last_reply: u64 },
     /// Apply an authorized owner request to make a service with a fresh party number.
     MakeService { request: Token, person: u64 },
+    /// Decide a live service reissue flight and answer its waiters.
+    ReissueService { request: Token },
     /// Add previously unknown collaborators and their first project role in one decision.
     Seed { project: u32, collaborators: Box<[Seed]> },
     /// Replace the volatile inbox projection of one durable task after its row changes.
@@ -1320,6 +1336,8 @@ pub enum Request {
         /// use `Limits::holdings`.
         result: Result<(), Outcome>,
     },
+    /// Parties omitted from a replaced project's roster, after its save.
+    ReadingLost { project: u32, parties: Box<[u64]> },
     /// New eligible keyed flight for the root's authority/task decision; duplicate callers share
     /// this route.
     Route {
@@ -1381,10 +1399,10 @@ pub struct ProjectRole {
     pub role: Role,
 }
 
-/// Maximum explicit account uses (domain/accounts.md, 4.2).
+/// Maximum explicit account uses (domain/accounts-uses.md, 1.2).
 pub const USES: u32 = 16;
 
-/// A payer an LLM account may serve (domain/accounts.md, 4.2).
+/// A payer an LLM account may serve (domain/accounts-uses.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Use {
     Party(u64),
@@ -1505,6 +1523,7 @@ impl Outcome {
             Self::Refused(_) => OutcomeFamily::Refused,
             Self::CompoundRefused { .. } => OutcomeFamily::CompoundRefused,
             Self::ServiceMade { person } => OutcomeFamily::ServiceMade(*person),
+            Self::ServiceReissued { .. } => OutcomeFamily::ServiceReissued,
             Self::RolesSet { project } => OutcomeFamily::RolesSet(*project),
             Self::ProjectMade { project } => OutcomeFamily::ProjectMade(*project),
             Self::Created { .. }
@@ -1561,6 +1580,7 @@ impl Outcome {
             | Self::SignedOut
             | Self::Compound { .. }
             | Self::ServiceMade { .. }
+            | Self::ServiceReissued { .. }
             | Self::RolesSet { .. }
             | Self::ProjectMade { .. }
             | Self::Created { .. }
@@ -1623,6 +1643,7 @@ impl Outcome {
             OutcomeFamily::SignedOut
             | OutcomeFamily::CompoundRefused
             | OutcomeFamily::ServiceMade(_)
+            | OutcomeFamily::ServiceReissued
             | OutcomeFamily::RolesSet(_)
             | OutcomeFamily::ProjectMade(_)
             | OutcomeFamily::Settled => ActStatus::Refused,

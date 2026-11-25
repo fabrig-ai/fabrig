@@ -1,4 +1,4 @@
-//! Goal trains through the root and worker requests (temper/docs/design/domain/landing.md, 5.2, 9, 15).
+//! Goal trains through the root and worker requests (temper/docs/design/domain/landing-prepare.md, 1.2, temper/docs/design/domain/landing-turn.md, 2, temper/docs/design/domain/landing.md, 15).
 use super::super::{goal_branch, goal_landing};
 use super::*;
 
@@ -120,12 +120,7 @@ fn main_producer(world: &mut World, goal: &engine::Assignment, call: u64, file: 
     (made[0].task, producer)
 }
 
-#[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "the dependency, two in-flight trains and restored ordering share one bounded world"
-)]
-fn drill_14_a_dependency_across_goal_and_main_trains_survives_restart() {
+pub(crate) fn dependency_across_trains() -> (World, u64, u64, u64) {
     let (mut world, goal, branch) = goal_world_with(&StoryLimits {
         turn: true,
         batch: Some(3),
@@ -179,6 +174,12 @@ fn drill_14_a_dependency_across_goal_and_main_trains_survives_restart() {
     assert_eq!(landing_rows(&world).len(), 2);
     assert_eq!(live_task(&world, dependent).waiting_on.as_ref(), [upstream]);
     assert_eq!(goal_landing::row(&world, dependent).change.landing, None);
+    (world, upstream, dependent, other)
+}
+
+#[test]
+fn drill_14_a_dependency_across_goal_and_main_trains_survives_restart() {
+    let (mut world, upstream, dependent, other) = dependency_across_trains();
     let before = landing_rows(&world).iter().map(|row| row.landing.task).collect::<Vec<_>>();
     world.drain_cut();
     world.restart_same();

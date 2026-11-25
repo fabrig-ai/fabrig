@@ -1,4 +1,4 @@
-//! Limits by name and kept-version bounds (data/codec/README.md, sections 4 and 7.3).
+//! Limits by name and a schema's encoded-size bounds (data/codec/README.md, 4; data/codec/run-time.md, 1.3).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Writer};
@@ -52,7 +52,7 @@ pub fn limit_child(parent: &[u8], level: LimitLevel) -> Box<[u8]> {
     out.finish()
 }
 
-fn bound(name: &[u8], ceiling: u32, limits: &Map<Box<[u8]>, u32>) -> u64 {
+fn bound(name: &[u8], ceiling: u32, limits: &Map<&[u8], u32>) -> u64 {
     match limits.get(name) {
         Some(value) if *value <= ceiling => u64::from(*value),
         Some(_) | None => u64::from(ceiling),
@@ -63,7 +63,7 @@ fn field_size(
     schema: &Schema,
     field: Field,
     record: &[u8],
-    limits: &Map<Box<[u8]>, u32>,
+    limits: &Map<&[u8], u32>,
     sizes: &List<u64>,
 ) -> Option<u64> {
     // Fixed-width fields and declaration references read no named limit.
@@ -145,7 +145,7 @@ fn fill(schema: &Schema, count: u32, names: &[&str], values: &[u32], sizes: &mut
     }
     let mut limits = Map::with_capacity(u32::try_from(names.len()).ok()?);
     for (name, value) in names.iter().zip(values) {
-        limits.insert(skein_lib::bytes::copy_of(name.as_bytes()), *value).expect("at most one entry per name");
+        limits.insert(name.as_bytes(), *value).expect("at most one entry per name");
     }
     for index in 0..count {
         let declaration = schema.declaration(DeclIx::new(index));

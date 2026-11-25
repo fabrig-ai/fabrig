@@ -36,21 +36,38 @@ fn a_task_records_label_flags_and_last_activity_read_back() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
-#[test]
-fn a_task_record_keeps_one_subscription_past_the_ordinary_bound() {
+// TaskInterests.subscriptions in tasks-v13.schema.
+const SUBSCRIPTIONS_CEILING: u32 = 64;
+
+fn record_with_subscriptions(count: u32) -> domain::Stored {
     let mut record = current_record();
-    let mut subscriptions = skein_lib::List::with_capacity(fixtures::TASKS_LIMITS.subscriptions + 1);
-    for number in 0..=fixtures::TASKS_LIMITS.subscriptions {
+    let mut subscriptions = skein_lib::List::with_capacity(count);
+    for number in 1..=u64::from(count) {
         subscriptions
             .push(domain::Subscription {
-                number: u64::from(number) + 1,
-                kind: domain::SubscriptionKind::Topic { connector: 1, topic: u64::from(number) },
+                number,
+                kind: domain::SubscriptionKind::Topic { connector: 1, topic: number },
             })
-            .expect("ordinary bound and one more");
+            .expect("fixture interest");
     }
     record.subscriptions = subscriptions.into_boxed();
-    let row = live_record(record);
+    live_record(record)
+}
+
+#[test]
+fn task_subscriptions_at_the_schema_ceiling_read_back() {
+    let row = record_with_subscriptions(SUBSCRIPTIONS_CEILING);
     assert_eq!(saved_tasks(&row), Ok(row));
+}
+
+#[test]
+fn task_subscriptions_past_the_schema_ceiling_are_refused() {
+    let row = record_with_subscriptions(SUBSCRIPTIONS_CEILING + 1);
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    assert_eq!(
+        tasks::encode(&row, &tasks_limits(), &names),
+        Err(bound_problem(wire::paths::TASK_INTERESTS_SUBSCRIPTIONS))
+    );
 }
 
 fn a_live_task_record_reads_back_whole() {
@@ -281,6 +298,7 @@ fn each_notice_state_reads_back() {
         domain::NoticeState::Done,
         domain::NoticeState::Failed,
         domain::NoticeState::Cancelled,
+        domain::NoticeState::Unreadable,
     ] {
         let row = message_row(domain::MessageKind::Notice { subscription: 109, target: 19, state });
         assert_eq!(saved_tasks(&row), Ok(row));
@@ -364,7 +382,7 @@ fn a_task_record_without_optional_values_reads_back() {
     record.hold_wait_since = None;
     record.last_answer = None;
     record.invalid_result = None;
-    record.question_lines = Box::new([domain::QuestionLine { message: 5, line: 7, answer: None }]);
+    record.question_lines = Box::new([domain::QuestionLine { message: 5, line: 7, answer: None, resolution: None }]);
     let row = live_record(record);
     assert_eq!(saved_tasks(&row), Ok(row));
 }
@@ -419,19 +437,32 @@ fn a_task_record_inbox_decoded_above_its_count_is_refused() {
 }
 #[test]
 fn record_count_limits_past_the_schema_ceilings_are_refused() {
-    for field in 0_u8..6 {
+    for field in 0_u8..5 {
         let mut limits = fixtures::TASKS_LIMITS;
         match field {
             0 => limits.inbox_messages = u32::MAX,
             1 => limits.delegates = u32::MAX,
             2 => limits.references = u32::MAX,
-            3 => limits.subscriptions = u32::MAX,
-            4 => limits.saved_resources = u32::MAX,
+            3 => limits.saved_resources = u32::MAX,
             _ => limits.authority_segments = u32::MAX,
         }
         assert_eq!(tasks::limits(&limits), None);
     }
 }
+
+#[test]
+fn the_configured_subscription_bound_leaves_the_stored_ceiling() {
+    for subscriptions in [0, u32::MAX] {
+        let limits = domain::Limits { subscriptions, ..fixtures::TASKS_LIMITS };
+        let stored = tasks::limits(&limits).expect("stored limits independent of subscription admission");
+        assert_eq!(
+            stored.task_interests_subscriptions,
+            wire::CEILINGS.task_interests_subscriptions,
+            "tasks.subscriptions = {subscriptions}"
+        );
+    }
+}
+
 fn a_result_word_uses_the_larger_shared_word_bound() {
     let mut record = fixtures::task_record();
     let mut word = fixtures::task_word(5);
@@ -728,19 +759,18 @@ fn now_written_round_trips_and_enforces_the_line_bound() {
 
 #[test]
 fn rejection_deciders_keep_their_stored_kind() {
-    let limits = tasks_limits();
     for (by, kind) in [
         (domain::EscalationDecider::Task(31), wire::DeciderKind::Task),
         (domain::EscalationDecider::Person(31), wire::DeciderKind::Person),
     ] {
         let rejection = domain::Escalation::Rejected { revision: 7, by, reason: Box::from(b"leave held".as_slice()) };
-        let stored = tasks::state::escalation(&rejection, &limits).expect("rejection fits");
+        let stored = tasks::state::escalation(&rejection);
         let wire::Escalation::Rejected(record) = &stored else {
             panic!("stored rejection");
         };
         assert_eq!(record.by, 31);
         assert_eq!(record.by_kind, kind);
-        assert_eq!(tasks::state::read_escalation(stored), Ok(rejection.clone()));
+        assert_eq!(tasks::state::read_escalation(stored), rejection.clone());
         let mut record = current_record();
         record.escalation = rejection;
         let row = live_record(record);

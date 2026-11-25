@@ -1,6 +1,6 @@
 //! Line-aware maps grammar (data/codec/maps.md, 2).
 
-use super::{Item, Mapping, Maps, Mode, Shape, error};
+use super::{Direction, Item, Mapping, Maps, Mode, Shape, error};
 use crate::{Error, Schema};
 
 #[derive(Clone)]
@@ -93,7 +93,21 @@ impl Parser<'_> {
         Ok(items)
     }
 
-    fn mapping(&mut self) -> Result<Mapping, Error> {
+    fn direction(&mut self) -> Result<Direction, Error> {
+        match self.peek() {
+            "record" => {
+                self.take()?;
+                Ok(Direction::ToRecord)
+            }
+            "domain" => {
+                self.take()?;
+                Ok(Direction::ToDomain)
+            }
+            _ => Err(self.fail("expected record or domain after to")),
+        }
+    }
+
+    fn mapping(&mut self, default: Option<Direction>) -> Result<Mapping, Error> {
         let start = self.take()?;
         let enumeration = start.text == "enum";
         let name = self.word()?;
@@ -103,7 +117,8 @@ impl Parser<'_> {
             self.expect("for")?;
             let field = self.word()?;
             let via = if self.eat("via") { Some(self.word()?) } else { None };
-            Mode::Stands { field, via }
+            let shape = if self.eat("slice") { Shape::Slice } else { Shape::Same };
+            Mode::Stands { field, via, shape }
         } else if self.eat("by") {
             self.expect("hand")?;
             Mode::Hand
@@ -112,7 +127,29 @@ impl Parser<'_> {
         } else {
             return Err(self.fail("expected enum mapping or by hand"));
         };
-        // The block may start on the declaration's next nonblank line.
+        let direction = if matches!(self.peek(), "to" | "both") {
+            if !matches!(mode, Mode::Mirror(_)) {
+                return Err(self.fail("only a mirrored declaration can name a direction"));
+            }
+            if self.eat("to") {
+                Some(self.direction()?)
+            } else {
+                self.expect("both")?;
+                self.expect("ways")?;
+                if default.is_none() {
+                    return Err(error(self.schema, start.line, "both ways requires a direction header"));
+                }
+                None
+            }
+        } else if matches!(mode, Mode::Mirror(_)) {
+            default
+        } else {
+            None
+        };
+        // A direction stays on the declaration line; its block may start on the next nonblank line.
+        if !matches!(self.peek(), "" | "\n" | "{") {
+            return Err(self.fail("expected block or end of line"));
+        }
         while self.eat("\n") {}
         let items = if self.peek() == "{" {
             if !matches!(mode, Mode::Mirror(_) | Mode::Payload) {
@@ -127,7 +164,7 @@ impl Parser<'_> {
             }
             Vec::new()
         };
-        Ok(Mapping { line: start.line, name, enumeration, mode, items })
+        Ok(Mapping { line: start.line, name, enumeration, mode, direction, items })
     }
 }
 
@@ -160,7 +197,8 @@ fn tokens(source: &str) -> Vec<Token> {
 pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
     let mut parser = Parser { schema, tokens: tokens(source), at: 0 };
     let mut maps = Maps::default();
-    let mut context_seen = false;
+    let mut direction = None;
+    let mut marks = Vec::new();
     parser.separators();
     while !matches!(parser.peek(), "" | "record" | "enum") {
         let token = parser.take()?;
@@ -178,7 +216,7 @@ pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
                 parser.expect("hand")?;
                 maps.hand = Some(parser.word()?);
             }
-            "context" if !context_seen => {
+            "context" if maps.context.is_none() => {
                 let mut words = Vec::new();
                 while !matches!(parser.peek(), "" | "\n") {
                     words.push(parser.take()?.text);
@@ -186,8 +224,18 @@ pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
                 if words.is_empty() {
                     return Err(error(schema, token.line, "expected context type"));
                 }
-                maps.context = words.join(" ");
-                context_seen = true;
+                maps.context = Some((token.line, words.join(" ")));
+            }
+            "direction" if direction.is_none() => {
+                parser.expect("to")?;
+                direction = Some(parser.direction()?);
+            }
+            "refuses" | "with" => {
+                let context = token.text == "with";
+                if context {
+                    parser.expect("context")?;
+                }
+                marks.push((context, token.line, parser.word()?));
             }
             _ => return Err(error(schema, token.line, "unknown or repeated header")),
         }
@@ -197,14 +245,30 @@ pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
     if maps.records.is_empty() {
         return Err(error(schema, parser.line(), "header requires records"));
     }
-    if !context_seen {
-        maps.context = "()".into();
+    for (context, line, path) in marks {
+        let path = maps.path(&path);
+        let marked = if context {
+            if maps.context.is_none() {
+                return Err(error(schema, line, "with context requires a context line"));
+            }
+            &mut maps.with_context
+        } else {
+            &mut maps.refuses
+        };
+        if marked.insert(path.clone(), line).is_some() {
+            return Err(error(schema, line, format!("{path} marked twice")));
+        }
+    }
+    if let Some((line, _)) = &maps.context
+        && maps.with_context.is_empty()
+    {
+        return Err(error(schema, *line, "context requires a function marked with context"));
     }
     while parser.peek() != "" {
         if !matches!(parser.peek(), "record" | "enum") {
             return Err(parser.fail("expected record or enum"));
         }
-        maps.declarations.push(parser.mapping()?);
+        maps.declarations.push(parser.mapping(direction)?);
         parser.separators();
     }
     Ok(maps)

@@ -6,7 +6,7 @@ known flakes, rerun before its receipt is published (section 2), and a
 failed receipt a change's repair found to be flakes alone, or caused by
 no test, superseded by a fresh run once a person releases the change
 (section 3). It
-carries `../draft/flake-regate.md` on the landing of `landing.md`,
+carries `../draft/archive/flake-regate.md` on the landing of `landing.md`,
 whose words it uses: keys and receipts (section 6), proof by dispatch
 (7.1), a real failure (7.3) and a fault of the runner (7.4); flake
 findings are `findings.md`'s, and a repair, its result and its release
@@ -46,9 +46,9 @@ findings are `findings.md`'s, and a repair, its result and its release
 ## 2. A flake rerun
 
 - **When:** a gate's run at a key ends failed (7.3), its failed jobs
-  and its report read (7.3, `after-landing.md`, 4), and before the
-  receipt is made: the report names its failed tests (`landing.md`,
-  6.2's report ids: not unset, unread or past its bound), at least one
+  and its report read (7.3, `after-landing-runs.md`, 3), and before the
+  receipt is made: the report names its failed tests (`landing-proof.md`,
+  1.2's report ids: not unset, unread or past its bound), at least one
   and at most 64 (a signature's own bound, `findings.md`, section 4),
   and each of them is named by an open flake finding; and this landing
   has not rerun this key for flakes before. Otherwise the receipt is
@@ -156,10 +156,10 @@ findings are `findings.md`'s, and a repair, its result and its release
   added field, false by default; and its hold, `ChangeHold`'s added
   arm `no_test` after `flake`, as `Hold::NoTest` in the change's
   policy. The hold reaches the client's wire and the public one as an
-  arm `no_test` of `Hold` and `PublicHold`: each moves its version,
-  unbridged (`../draft/redeploys.md`).
+  arm `no_test` of `Hold` and `PublicHold`: each changes its layout,
+  its version frozen (`../protocol/wires.md`, 9).
 - **No store version moves:** each is a registered family's added
-  field or arm (`../protocol/store.md`, section 4).
+  field or arm (`../protocol/store-versions.md`, section 1).
 
 ## 6. The world
 

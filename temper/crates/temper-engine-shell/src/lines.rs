@@ -1,17 +1,24 @@
 //! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7;
-//! jig/docs/design/domain/engine/settings.md, 7).
+//! jig/docs/design/domain/engine/settings-store.md, 1).
 use temper_engine_service::{CommitStop, End, RouteStop, Stop};
 use temper_shell::directories::Directories;
 
 pub fn read_handover(
     read: &temper_engine_service::HandoverRead,
 ) -> Result<Option<skein_lib::Secret>, temper_engine_service::HandoverUnread> {
+    read_handover_with(read, |path, max| skein_shell::read_private_file(path, max, skein_shell::effective_user()))
+}
+
+fn read_handover_with(
+    read: &temper_engine_service::HandoverRead,
+    read_private: impl FnOnce(&std::path::Path, u32) -> Result<skein_lib::Secret, skein_shell::Unread>,
+) -> Result<Option<skein_lib::Secret>, temper_engine_service::HandoverUnread> {
     use temper_engine_service::HandoverUnread;
     if read.forge == 0 {
         make_playground_key(super::path(&read.path))
             .map_err(|why| HandoverUnread::Kernel(why.raw_os_error().expect("key io returns an errno")))?;
     }
-    match skein_shell::read_private_file(super::path(&read.path), read.max, skein_shell::effective_user()) {
+    match read_private(super::path(&read.path), read.max) {
         Ok(value) => {
             let bytes = value.expose();
             let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
@@ -208,7 +215,7 @@ fn codec_restore(
     )
 }
 
-/// Bounded causes without record contents (temper/docs/design/protocol/store.md, 4).
+/// Bounded causes without record contents (temper/docs/design/protocol/store-versions.md, 1).
 fn commit_why(number: u64, why: CommitStop) -> String {
     use jig_protocol_store::{CommitCheck, CommitFailure};
     use skein_kv::{Exhausted, Large, Refusal};
@@ -486,6 +493,40 @@ fn history_failure(failure: jig_protocol_store::restore::HistoryFailure) -> &'st
     }
 }
 
+// A landing's waits, temper/docs/design/domain/landing-waits.md, 4.
+fn landing_read_line(binary: &str, note: temper_engine_domain_forge::LandingReadNote) -> String {
+    use temper_engine_domain_forge::LandingReadNoteKind;
+    let temper_engine_domain_forge::LandingReadNote { task, round, reading, kind } = note;
+    let reading = String::from_utf8_lossy(&reading);
+    match kind {
+        LandingReadNoteKind::Started { why } => format!(
+            "{binary} serve: landing {task} round {round} waits for a fresh read: {reading}: {}\n",
+            String::from_utf8_lossy(&why),
+        ),
+        LandingReadNoteKind::Read { elapsed } => format!(
+            "{binary} serve: landing {task} round {round} has its fresh read after {}: {reading}\n",
+            landing_read_age(elapsed),
+        ),
+        LandingReadNoteKind::Held { elapsed, why } => format!(
+            "{binary} serve: warning: landing {task} round {round} held after {} waiting for a fresh read: {reading}: {}\n",
+            landing_read_age(elapsed),
+            String::from_utf8_lossy(&why),
+        ),
+    }
+}
+
+fn landing_read_age(elapsed: skein_lib::Duration) -> String {
+    let seconds = elapsed.as_nanos() / 1_000_000_000;
+    for (unit, next, suffix, next_suffix) in [(86_400, 3600, 'd', 'h'), (3600, 60, 'h', 'm'), (60, 1, 'm', 's')] {
+        if seconds >= unit {
+            let count = seconds / unit;
+            let rest = seconds % unit / next;
+            return format!("{count}{suffix} {rest}{next_suffix}");
+        }
+    }
+    format!("{seconds}s")
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive note match keeps the engine vocabulary beside its words")]
 #[must_use]
 pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
@@ -499,6 +540,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::StartupWarning { line } => {
             format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
         }
+        temper_engine_service::Note::LandingRead(note) => landing_read_line(binary, note),
         temper_engine_service::Note::LandingUnmade { task, repository, branch, changes } => {
             let changes = changes.iter().map(u64::to_string).collect::<Vec<_>>().join(", ");
             format!(
@@ -663,7 +705,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::WorkerFiguresTaken { worker } => {
             format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
         }
-        temper_engine_service::Note::WorkerUnpaused { worker, version, mode } => {
+        temper_engine_service::Note::WorkerUnpaused { worker, version: _, mode } => {
             let worker = String::from_utf8_lossy(&worker);
             let mode = match mode {
                 jig_domain_link::PauseMode::Resume => "resume",
@@ -671,27 +713,32 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 jig_domain_link::PauseMode::Drain => "drain",
             };
             format!(
-                "{binary} serve: worker {worker} not told to {mode}: jig-worker-wire {version}; the engine's placement follows the ask\n"
+                "{binary} serve: worker {worker} not told to {mode}: its layout lacks the kind; the engine's placement follows the ask\n"
             )
         }
-        temper_engine_service::Note::WorkerTold { worker, version, wait } => {
+        temper_engine_service::Note::WorkerTold { worker, version: _, wait } => {
             let worker = String::from_utf8_lossy(&worker);
             match wait {
                 Some(wait) => {
                     format!("{binary} serve: worker {worker} told the engine restarts: wait {} ms\n", wait.as_millis())
                 }
                 None => format!(
-                    "{binary} serve: worker {worker} not told the engine restarts: jig-worker-wire {version}; it keeps its grace\n"
+                    "{binary} serve: worker {worker} not told the engine restarts: its layout lacks the word; it keeps its grace\n"
                 ),
             }
         }
-        temper_engine_service::Note::WorkerOpened { worker, wires } => {
-            use std::fmt::Write as _;
+        temper_engine_service::Note::WorkerOpened { worker, converted } => {
             let mut line = format!("{binary} serve: worker {} opened: ", String::from_utf8_lossy(&worker));
-            let mut separator = "";
-            for wire in &wires {
-                write!(line, "{separator}{} {}", wire.name, wire.version).expect("wire version line");
-                separator = ", ";
+            if converted.is_empty() {
+                line.push_str("at the engine's layouts");
+            } else {
+                line.push_str("converting ");
+                let mut separator = "";
+                for wire in &converted {
+                    line.push_str(separator);
+                    line.push_str(wire);
+                    separator = ", ";
+                }
             }
             line.push('\n');
             line
@@ -717,50 +764,13 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
         temper_engine_service::Note::WorkerUnsent { worker, channel, unsent } => {
             use jig_protocol_engine_workers::Bound;
-            use jig_protocol_worker_wire::Kind;
-            let record = match unsent.kind {
-                Kind::Hello => "hello",
-                Kind::Turn => "turn",
-                Kind::Call => "call",
-                Kind::Answer => "answer",
-                Kind::Fact => "fact",
-                Kind::Unauthorized => "unauthorized",
-                Kind::Usage => "usage",
-                Kind::UsageRead => "usage-read",
-                Kind::ReadUsage => "read-usage",
-                Kind::Limited => "limited",
-                Kind::AccountRefused => "account-refused",
-                Kind::Assignment => "assignment",
-                Kind::Message => "message",
-                Kind::Relayed => "relayed",
-                Kind::TurnKept => "turn-kept",
-                Kind::TurnBusy => "turn-busy",
-                Kind::Acknowledge => "acknowledge",
-                Kind::Cancel => "cancel",
-                Kind::Grant => "grant",
-                Kind::Sources => "sources",
-                Kind::Check => "check",
-                Kind::ReadList => "read-list",
-                Kind::ListRead => "list-read",
-                Kind::Draining => "draining",
-                Kind::SignOut => "sign-out",
-                Kind::Logins => "logins",
-                Kind::SignedOut => "signed-out",
-                Kind::Job => "job",
-                Kind::JobAnswer => "job-answer",
-                Kind::Figures => "figures",
-                Kind::Wires => "wires",
-                Kind::Ask => "ask",
-                Kind::Pause => "pause",
-                Kind::Paused => "paused",
-                Kind::Restarting => "restarting",
-                Kind::Asked => "asked",
-            };
+            let record = worker_record(unsent.kind);
             let bound = match unsent.bound {
-                Bound::Translation { version, halt } => {
+                Bound::Translation(problem) => {
                     return format!(
-                        "{binary} serve: cannot send {record} to worker {} at jig-worker-wire {version}: {halt:?}\n",
-                        worker_name(Some(&worker))
+                        "{binary} serve: cannot send {record} to worker {}: {}\n",
+                        worker_name(Some(&worker)),
+                        String::from_utf8_lossy(&problem.kept()),
                     );
                 }
                 Bound::Room(room) => format!("past the room of {room} bytes"),
@@ -782,6 +792,10 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 unsent.bytes
             )
         }
+        temper_engine_service::Note::WorkerUnread { worker, kind, text } => run_detail_line(
+            format!("{binary} serve: cannot read {} from worker {}: ", worker_record(kind), worker_name(Some(&worker))),
+            &text,
+        ),
         temper_engine_service::Note::WorkerOpeningEnded { worker, why } => {
             format!(
                 "{binary} serve: worker opening ended worker={}: {}\n",
@@ -836,7 +850,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
     }
 }
-// protocol/README.md, 6.3: names cannot introduce another operator line.
+// protocol/service-process.md, 1.3: names cannot introduce another operator line.
 fn start_wait_line(binary: &str, words: &[u8]) -> String {
     let text = format!("{binary} serve: {}", String::from_utf8_lossy(words));
     let mut line = String::new();
@@ -852,14 +866,20 @@ fn start_wait_line(binary: &str, words: &[u8]) -> String {
     line
 }
 
-// temper/docs/design/domain/worker/README.md, 4.3: one bounded, escaped operator line.
+// temper/docs/design/domain/worker/hosted-runs.md, 1.3: one bounded, escaped operator line.
 fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalDiagnostic) -> String {
     let temper_engine_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
     let (class, detail) = match &reason {
-        jig_domain_host::Refusal::Version(mismatch) | jig_domain_host::Refusal::Untranslated(mismatch) => {
+        jig_domain_host::Refusal::Version(mismatch) => {
             return run_detail_line(
                 format!("{binary} serve: task {task} run {run} attempt {attempt} refused: "),
                 &mismatch.reason(),
+            );
+        }
+        jig_domain_host::Refusal::Untranslated(words) => {
+            return format!(
+                "{binary} serve: task {task} run {run} attempt {attempt} refused: {}\n",
+                String::from_utf8_lossy(words),
             );
         }
         jig_domain_host::Refusal::Busy => (String::from("Busy"), b"".as_slice()),
@@ -876,7 +896,7 @@ fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalD
     run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} refused {class}: "), detail)
 }
 
-// temper/docs/design/domain/worker/checkouts.md, 1.4: keep the fields at the detail's head.
+// temper/docs/design/domain/worker/checkouts-prepare.md, 12.4: keep the fields at the detail's head.
 fn run_failure_line(
     binary: &str,
     task: u64,
@@ -910,9 +930,9 @@ fn job_ending(ending: &temper_engine_service::JobDiagnosticEnding) -> (String, &
         JobDiagnosticEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
             (String::from("refused Invalid(Start)"), why)
         }
+        JobDiagnosticEnding::Refused(JobRefusal::Untranslated(words)) => (String::from("refused"), words),
         JobDiagnosticEnding::Refused(
-            reason @ (JobRefusal::Untranslated(_)
-            | JobRefusal::Busy
+            reason @ (JobRefusal::Busy
             | JobRefusal::Invalid(
                 JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
             )),
@@ -1047,6 +1067,50 @@ fn loss_refusal(code: u16) -> String {
     })
 }
 
+fn worker_record(kind: jig_protocol_worker_wire::Kind) -> &'static str {
+    use jig_protocol_worker_wire::Kind;
+    match kind {
+        Kind::Hello => "hello",
+        Kind::Turn => "turn",
+        Kind::Part => "part",
+        Kind::PartKept => "part-kept",
+        Kind::PartBusy => "part-busy",
+        Kind::Call => "call",
+        Kind::Answer => "answer",
+        Kind::Fact => "fact",
+        Kind::Unauthorized => "unauthorized",
+        Kind::Usage => "usage",
+        Kind::UsageRead => "usage-read",
+        Kind::ReadUsage => "read-usage",
+        Kind::Limited => "limited",
+        Kind::AccountRefused => "account-refused",
+        Kind::Assignment => "assignment",
+        Kind::Message => "message",
+        Kind::Relayed => "relayed",
+        Kind::TurnKept => "turn-kept",
+        Kind::TurnBusy => "turn-busy",
+        Kind::Acknowledge => "acknowledge",
+        Kind::Cancel => "cancel",
+        Kind::Grant => "grant",
+        Kind::Sources => "sources",
+        Kind::Check => "check",
+        Kind::ReadList => "read-list",
+        Kind::ListRead => "list-read",
+        Kind::Draining => "draining",
+        Kind::SignOut => "sign-out",
+        Kind::Logins => "logins",
+        Kind::SignedOut => "signed-out",
+        Kind::Job => "job",
+        Kind::JobAnswer => "job-answer",
+        Kind::Figures => "figures",
+        Kind::Ask => "ask",
+        Kind::Pause => "pause",
+        Kind::Paused => "paused",
+        Kind::Restarting => "restarting",
+        Kind::Asked => "asked",
+    }
+}
+
 fn worker_name(worker: Option<&[u8]>) -> String {
     match worker {
         Some(name) => String::from_utf8_lossy(name).into_owned(),
@@ -1136,8 +1200,6 @@ fn start_phase(phase: jig_domain_core::start::Phase) -> String {
         Phase::Wires => "wires".into(),
         Phase::Switch => "store switch".into(),
         Phase::AdoptRuns => "run adoption".into(),
-        Phase::ReadAfresh { connector } => format!("connector {connector} refresh"),
-        Phase::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
         Phase::Open => "opening decisions".into(),
     }
 }

@@ -11,6 +11,15 @@ const FIRST_FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, wi
 const FIRST_SECRET: &[u8] = &[0x83; 32];
 const AFTER_BLOCK: &[u8] = b"Additional startup information.\n";
 fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Harness {
+    first_link_opening(steps, items, FIRST_URL, Box::new([]), AFTER_BLOCK)
+}
+fn first_link_opening(
+    steps: &[Step],
+    items: &[skein_fake_machine::Item],
+    url: &[u8],
+    log_lines: Box<[Box<[u8]>]>,
+    after_block: &[u8],
+) -> Harness {
     Harness::with_terminal(
         temper_forge_setup::Steps { always: Box::from(steps), asked: Box::new([]) },
         items,
@@ -21,14 +30,14 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
         super::fixtures::Opening {
             parent: None,
             link_form: crate::terminal::LinkForm::Bare,
-            log_lines: Box::new([]),
+            log_lines,
             front: None,
             first_link: Some(crate::host::FirstLink {
-                url: bytes::copy_of(FIRST_URL),
+                url: bytes::copy_of(url),
                 local: None,
                 secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
             }),
-            after_block: bytes::copy_of(AFTER_BLOCK),
+            after_block: bytes::copy_of(after_block),
         },
     )
 }
@@ -620,6 +629,26 @@ fn the_block_is_the_terminal_before_any_spawn() {
     assert!(!Harness::contains(&h.terminal_bytes(), crate::terminal::CTRL_C));
     assert!(Harness::contains(&h.log(), b"Logs: /data/box/logs/\n00:00:00Z Ctrl-C stops temper.\n"));
 }
+
+#[test]
+fn the_no_openssl_opening_prints_a_link_and_logs_the_warning_once() {
+    use skein_shell::Host;
+    const WARNING: &[u8] = b"First run: no sign-in through temper: openssl is not on PATH\n";
+    let mut h =
+        first_link_opening(&[long(b"serve", &[b"never"])], &[], FIRST_URL, Box::new([bytes::copy_of(WARNING)]), b"");
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://local/first\n");
+    assert_eq!(h.launches.get(0).expect("serve launched").name.as_ref(), b"serve");
+    let serve = h.hosted.get(h.child_index(b"serve")).expect("hosted serve").pid;
+    assert!(h.sim.service_running(serve));
+    assert_eq!(h.service.exit(), None, "the box stays up until stopped");
+
+    stop_first_link(&mut h);
+    let log = h.log();
+    assert!(log.starts_with(b"00:00:00Z First run: no sign-in through temper: openssl is not on PATH\n"));
+    assert_eq!(bytes::count(&log, b"no sign-in through temper:", 2), 1);
+}
+
 #[test]
 fn a_held_block_holds_the_first_spawn() {
     use skein_shell::Host;
@@ -656,6 +685,77 @@ fn a_held_block_holds_the_first_spawn() {
     assert_eq!(h.launches.len(), 1);
     stop_first_link(&mut h);
 }
+#[test]
+fn the_first_printed_link_connects_before_serve_takes_the_listener() {
+    use super::fixtures::{call, socket};
+    use skein_io::kernel::{Fd, Op, Way};
+
+    const URL: &[u8] = b"http://127.0.0.1:8124/first";
+    const CLIENTS_FD: u32 = 3; // The first listener is handed on as fd 3.
+    let address = ([127, 0, 0, 1], 8124).into();
+    let serve = long(b"serve", &[b"never"]).listening(Box::new([address]));
+    let mut h = first_link_opening(&[serve], &[], URL, Box::new([]), b"");
+    h.hold_terminal_ack = true;
+    h.run_until_idle();
+    h.release_terminal_ack(); // Let the prelude complete; hold the URL's acknowledgement next.
+    h.turn();
+    h.hold_terminal_ack = true;
+    h.run_until_idle();
+    assert_eq!(h.stdout().as_ref(), b"http://127.0.0.1:8124/first\n");
+    assert!(h.launches.is_empty(), "serve has not spawned when the first URL is visible");
+
+    let client = h.sim.spawn_process();
+    let connection = socket(&mut h.sim, client);
+    assert_eq!(call(&mut h.sim, client, Op::Connect { fd: connection, addr: address }).result, Ok(Done::Nothing));
+    h.release_terminal_ack();
+    h.run_until_idle();
+
+    let mut listener = None;
+    for entry in h.sim.trace() {
+        if let Event::Submit { kind: Summary::Bind { fd, addr }, .. } = entry.event {
+            assert_eq!(addr, address);
+            assert_eq!(entry.pid, h.pid);
+            assert!(listener.replace(fd).is_none(), "there was no second bind");
+        }
+    }
+    let listener = listener.expect("the box bound the clients listener");
+    let launch = h.launches.get(0).expect("serve launched");
+    let mut given = None;
+    for pipe in &launch.pipes {
+        if pipe.child == CLIENTS_FD
+            && let Way::Given(_) = pipe.way
+        {
+            given = pipe.parent;
+        }
+    }
+    assert_eq!(given, Some(listener), "serve is given the box's held listener");
+    let clients_fd = Fd::new(i32::try_from(CLIENTS_FD).unwrap());
+    let child = h.hosted.get(h.child_index(b"serve")).expect("serve is running");
+    let pid = child.pid;
+    let Ok(Done::Accepted { fd, .. }) = call(&mut h.sim, pid, Op::Accept { fd: clients_fd }).result else {
+        panic!("serve accepts the connection queued before it spawned");
+    };
+    assert_eq!(call(&mut h.sim, pid, Op::Close { fd }).result, Ok(Done::Nothing));
+    assert_eq!(call(&mut h.sim, client, Op::Close { fd: connection }).result, Ok(Done::Nothing));
+    stop_first_link(&mut h);
+    h.sim.assert_no_open_fds(client);
+}
+
+#[test]
+fn the_first_and_reissued_links_are_the_only_terminal_output() {
+    let mut h = first_link_opening(&[long(b"serve", &[b"never"])], &[], FIRST_URL, Box::new([]), b"");
+    h.run_until_idle();
+    h.write_child(h.child_index(b"serve"), 1, b"http://local/fresh\n");
+    h.run_until_idle();
+    stop_first_link(&mut h);
+    assert_eq!(h.stdout().as_ref(), b"http://local/first\nhttp://local/fresh\n");
+    let stderr = h.stderr();
+    let after_prelude = stderr
+        .strip_prefix(b"Open this link in a browser on this machine.\n\n")
+        .expect("stderr starts with the prelude");
+    assert_eq!(after_prelude.strip_suffix(b"\n"), Some(FIRST_FOOTER), "stderr ends with the footer and one LF");
+}
+
 fn stdin_pipes(launch: &super::fixtures::Launch) -> u32 {
     let mut count = 0_u32;
     for pipe in &launch.pipes {
@@ -2721,7 +2821,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
     }
 }
 
-// protocol/setup/box.md, 2: fetch progress belongs to the pipe and private log.
+// protocol/setup/box-supervision.md, 1: fetch progress belongs to the pipe and private log.
 const FETCH_LINE: &[u8] = b"fetched forgejo 1 of 2 bytes\n";
 const FETCH_STDERR: &[u8] = b"download refused\n";
 fn fetch_harness(echo: crate::host::Echo, buffer: u32, items: &[skein_fake_machine::Item]) -> Harness {

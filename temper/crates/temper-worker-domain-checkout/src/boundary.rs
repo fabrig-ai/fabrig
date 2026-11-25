@@ -34,6 +34,8 @@ use crate::git::{Commit, Done, Missing, Op};
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Event {
+    /// Release a cut run, marking its workspace if its last save succeeded.
+    Keep { hold: Token },
     /// The answer to this hold's landed-dependency question; dropped unless waiting.
     DependencyLanded { hold: Token, landed: bool },
     /// A clear supersedes check writes still in flight.
@@ -191,6 +193,9 @@ pub struct CandidateMember {
     pub squash_message: Message,
 }
 
+/// The title shared by a drain's save and a crashed workspace's take-up.
+pub const SAVED: &[u8] = b"Save unfinished work";
+
 /// A commit's message.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Message {
@@ -204,6 +209,8 @@ pub enum Prepared {
     /// The workspace is ready, in the directory io names `workspace`: each
     /// repository at its starting point.
     Ready { workspace: Token, conflicts: Box<[Conflicts]> },
+    /// A crashed hold was saved before preparing this workspace as a saved start.
+    Recovered { workspace: Token, conflicts: Box<[Conflicts]>, saved: Box<[crate::git::KeptRepository]> },
     /// The members' prefixes and conflicts, prepared without a process.
     Candidate { workspace: Token, outcome: Candidate },
     /// Refused at the entrance: nothing is held.

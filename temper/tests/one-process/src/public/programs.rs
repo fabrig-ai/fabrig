@@ -1,4 +1,4 @@
-//! Programs composed on one simulated machine (temper/docs/design/testing/README.md, 2.5).
+//! Programs composed on one simulated machine (temper/docs/design/testing/tiers.md, 1.5).
 use super::{
     http::{self, Answer},
     proxy::Proxy,

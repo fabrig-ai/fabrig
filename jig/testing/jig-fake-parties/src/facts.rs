@@ -1,4 +1,4 @@
-//! Independent answer facts at the party face (client/domain/contract/README.md, section 3).
+//! Independent answer facts at the party face (client/domain/contract/answers.md, section 1).
 use skein_lib::Wall;
 
 /// A setting named independently of the engine's vocabulary.
@@ -274,6 +274,7 @@ pub enum HoldReason {
     /// A configured bound refused the run's model call.
     Exceeded(Exceeded),
     Circle,
+    Waited,
     /// Its retry allowance was exhausted.
     Failures {
         class: FailureClass,

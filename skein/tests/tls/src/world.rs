@@ -310,8 +310,8 @@ impl<'a> World<'a> {
     }
 
     /// The stream ends. A read outstanding is never met, and stays
-    /// outstanding until the client withdraws it, as io keeps it (runtime/lib.md,
-    /// 7); its room may still be granted.
+    /// outstanding until the client withdraws it, as io keeps it (runtime/lib-streams.md,
+    /// 1); its room may still be granted.
     fn end(&mut self) {
         self.below.life = Life::Ended;
         self.up(Up::End);

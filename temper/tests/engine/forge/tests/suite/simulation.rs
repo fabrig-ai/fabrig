@@ -268,6 +268,7 @@ fn uncommitted_queue_step(
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -904,6 +905,7 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1030,6 +1032,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1377,6 +1380,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1407,6 +1411,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1447,6 +1452,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 no_test: false,
                 delegate_live: false,
                 review_request: None,
+                closer_waiting: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,
@@ -1494,11 +1500,13 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::CloseDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
                 | top::Request::MarkedForges
+                | top::Request::Waits { .. }
                 | top::Request::MilestoneMarked { .. }
                 | top::Request::Marked { .. }
                 | top::Request::Erase { .. }
@@ -1547,9 +1555,12 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::FileVerdict { .. }
+                | top::Request::ReturnFinding(_)
+                | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LandingUnmade { .. }
+                | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
@@ -1771,7 +1782,7 @@ fn a_pull_opened_with_its_answer_lost_is_found_by_its_branches_after_restart_onc
 }
 
 #[test]
-fn a_restored_write_waits_for_the_fresh_repository_read() {
+fn a_restored_write_runs_while_the_fresh_repository_read_keeps_failing() {
     let mut world = World::new(124);
     world.adopt();
     world.event(top::Event::Names {
@@ -1805,19 +1816,22 @@ fn a_restored_write_waits_for_the_fresh_repository_read() {
     assert!(world.stored().contains_key(&top::Key::Entry(1)));
     world.take_seen();
     world.slow_calls(skein_lib::Duration::from_secs(5));
+    world.script_branch_error(b"main", Some(skein_forge::api::Error::Unavailable));
     world.restart();
     world.run_for(2);
-    assert_eq!(world.writes(), 0, "a restored entry cannot write before the fresh read");
+    assert_eq!(world.writes(), 0, "the restored write still owes its own clock read");
     assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Restored }));
     assert!(!world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
     world.run_for(20);
     assert_eq!(world.writes(), 1);
+    assert!(!world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::ReadAfresh }));
+    assert!(world.seen().contains(&top::Request::RestartDone { stage: top::RestartStage::Settled }));
     let stages: Vec<_> = world
         .seen()
         .iter()
         .filter_map(|request| if let top::Request::RestartDone { stage } = request { Some(*stage) } else { None })
         .collect();
-    assert_eq!(stages, [top::RestartStage::Restored, top::RestartStage::ReadAfresh, top::RestartStage::Settled]);
+    assert_eq!(stages, [top::RestartStage::Restored, top::RestartStage::Settled]);
 }
 
 #[test]
@@ -2273,6 +2287,7 @@ fn a_change_rides_a_long_forge_outage_and_reads_ci_posted_without_a_delivery() {
         entry: 1,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -2492,6 +2507,32 @@ fn a_permanently_failed_reason_post_still_closes_and_releases() {
 }
 
 #[test]
+fn cancelling_an_unproduced_change_leaves_only_the_two_existing_pulls() {
+    use skein_fake_forge_domain::Observation;
+    let mut world = World::new(93);
+    world.adopt();
+    for branch in [b"temper/x3".as_slice(), b"temper/a1"] {
+        world.produce(branch);
+        world.open_pull(branch, b"main");
+    }
+    world.event(top::Event::Release {
+        task: RELEASE_TASK,
+        root: RELEASE_TASK,
+        ending: top::ReleaseEnding::Cancelled,
+        reason: Some(Box::from(CANCEL_REASON)),
+        entry: 10,
+    });
+    world.run_for(5);
+    let pulls: Vec<_> = world
+        .observations()
+        .into_iter()
+        .filter_map(|record| if let Observation::Opened { number, .. } = record { Some(number) } else { None })
+        .collect();
+    assert_eq!(pulls, [1, 2], "cancelling a plan without a pull opens none");
+    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: RELEASE_TASK })));
+}
+
+#[test]
 fn releases_without_a_cancelled_pull_post_no_reason() {
     for ending in [top::ReleaseEnding::Cancelled, top::ReleaseEnding::Done, top::ReleaseEnding::Failed] {
         let mut world = World::new(93);
@@ -2659,6 +2700,7 @@ fn a_watched_pulls_mergeable_turning_true_at_the_same_head_wakes_its_change() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one story follows the held branch across a move and its reread")]
 fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     let mut world = World::new(31);
     world.adopt();
@@ -2711,6 +2753,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -2741,6 +2784,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -3424,7 +3468,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     assert_eq!(world.writes(), 0, "no pull request or other write for an inapplicable change");
 }
 
-// Removal retires every live watch (temper/docs/design/domain/forge/adoption.md, 1).
+// Removal retires every live watch (temper/docs/design/domain/forge/adoption-connection.md, 1).
 #[test]
 fn a_removed_forge_reads_nothing_after() {
     let mut world = World::writerless(204);

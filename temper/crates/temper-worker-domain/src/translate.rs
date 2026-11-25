@@ -15,7 +15,7 @@ use smith_host_domain as agent;
 use temper_worker_domain_checkout::{self as checkout, git};
 
 /// The title of the commit that saves a run's unfinished work.
-pub(crate) const SAVED: &[u8] = b"Save unfinished work";
+pub(crate) const SAVED: &[u8] = checkout::SAVED;
 
 /// The checkout's spec for a run's workspace: keyed by the workstream, the
 /// holding task's number in eight big-endian bytes; the same repositories, in
@@ -237,7 +237,7 @@ pub(crate) const fn operation(operation: agent::Operation) -> jig_domain_link::O
 /// Why a run failed, as it reports it. A configured bound on the model call
 /// is `Exceeded`, which jig holds at once; a limited or refused account stays
 /// a failure of its own, for the engine to retry the run once the account has
-/// room (`domain/worker/README.md`, 4.3; jig's `domain/hosts/hub.md`, 3).
+/// room (`domain/worker/hosted-runs.md`, 1.3; jig's `domain/hosts/hub.md`, 3).
 pub(crate) const fn run_failure(failure: &agent::RunFailure) -> host::RunFailure {
     match failure {
         agent::RunFailure::Model(agent::ModelFault::Limited { account, reset }) => {
@@ -271,7 +271,7 @@ pub(crate) const fn run_failure(failure: &agent::RunFailure) -> host::RunFailure
     }
 }
 
-/// Structured call classes, without provider prose (domain/worker/README.md, 4.3).
+/// Structured call classes, without provider prose (domain/worker/hosted-runs.md, 1.3).
 pub(crate) const fn model_failure_kind(failure: &agent::CompletionFailure) -> host::ModelFailureKind {
     match failure {
         agent::CompletionFailure::Unavailable => host::ModelFailureKind::Unavailable,
@@ -292,7 +292,7 @@ pub(crate) const fn model_failure_kind(failure: &agent::CompletionFailure) -> ho
     }
 }
 
-/// The configured call bounds that jig holds instead of retrying (domain/worker/README.md, 4.3).
+/// The configured call bounds that jig holds instead of retrying (domain/worker/hosted-runs.md, 1.3).
 const fn exceeded(which: &agent::Limit) -> Option<host::Bound> {
     match which {
         agent::Limit::Path(cap) => match cap {

@@ -1,5 +1,5 @@
-//! Lost updates and their copies (domain/forge/README.md, 6 and 10;
-//! domain/landing.md, 5.2 and 16; jig/docs/design/domain/connectors.md, 15).
+//! Lost updates and their copies (domain/forge/updates.md, 1, and domain/forge/README.md, 10;
+//! domain/landing-prepare.md, 1.2, and domain/landing.md, 16; jig/docs/design/domain/connectors.md, 15).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;
@@ -373,6 +373,7 @@ fn decide_before_check(world: &mut World, entry: u64) -> change::Decision {
         entry,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

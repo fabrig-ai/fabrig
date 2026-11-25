@@ -13,8 +13,7 @@ fn driver(pending: bool) -> Driver {
     let mut limits = walking::limits();
     limits.forge.bindings = 3;
     let mut driver = Driver::cold(store, walking::config(91), &limits);
-    driver.env.wall = Wall::from_nanos(100);
-    driver.env.now = Time::from_nanos(100);
+    driver.advance_to(Time::from_nanos(100));
     driver
 }
 fn forge_page(driver: &mut Driver, previous: Option<Token>) -> Token {

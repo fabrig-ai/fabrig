@@ -1,7 +1,9 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub mod application;
 mod limit_settings;
-pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, resolve_limits};
+#[cfg(test)]
+pub(crate) use limit_settings::Preflight;
+pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, carrier_floors, resolve_limits};
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;
 pub use crate::limits::{engine_reference, reference};
@@ -182,14 +184,14 @@ pub fn deployment_store(
     };
     let root = engine_limits(&mut jig, &own, None)?;
     let store = checked_store(&root, &jig.store, None)?;
-    Ok(StoreLimits { store, forge: root.forge })
+    Ok(StoreLimits { store: *store.limits(), forge: root.forge })
 }
 
 pub fn checked_store(
     root: &temper_engine_domain::Limits,
     profile: &jig_protocol_store::Limits,
     turn: Option<u32>,
-) -> Result<jig_protocol_store::Limits, Problems> {
+) -> Result<jig_protocol_store::Checked, Problems> {
     match crate::store::admit(root, &root.forge, profile, turn) {
         Ok(store) => Ok(store),
         Err(why) => Err(checks::store_refusal(why)),

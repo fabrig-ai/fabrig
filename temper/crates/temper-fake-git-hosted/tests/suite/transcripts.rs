@@ -50,6 +50,10 @@ const CASES: &[(&str, Fault)] = &[
     ("push-no-permission", Fault::NoPermission),
     ("clone-missing-repository", Fault::MissingRepository),
     ("clone-stranger-private", Fault::MissingRepository),
+    ("counts-present", Fault::None),
+    ("counts-absent", Fault::None),
+    ("counts-update", Fault::None),
+    ("counts-delete", Fault::None),
     ("fetch-missing-branch", Fault::MissingBranch),
     ("fetch-missing-commit", Fault::MissingCommit),
     ("clone-refused-connection", Fault::Unreachable),
@@ -71,6 +75,10 @@ fn each_transcript_s_exit_and_masked_stdout_match_the_fake_s() {
         let fake = fixtures::answer_case(case, fault);
         assert_eq!(fake.exit, real.exit, "{case}: exit");
         assert_eq!(fixtures::masked(&fake.stdout), fixtures::masked(&real.stdout), "{case}: stdout");
+        if case == "counts-absent" {
+            assert_eq!(fake.stderr, temper_fake_git::counts::ABSENT);
+            assert!(real.stderr.ends_with(&fake.stderr));
+        }
         for bytes in [&fake.stdout, &fake.stderr] {
             assert!(!bytes.windows(fixtures::TOKEN.len()).any(|value| value == fixtures::TOKEN), "{case}: token");
         }

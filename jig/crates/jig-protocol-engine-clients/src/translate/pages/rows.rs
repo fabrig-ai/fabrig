@@ -1,5 +1,6 @@
 //! Bounded owner page pieces (protocol/client/wire.md, 1).
 use super::super::{owner, pieces, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
@@ -104,27 +105,8 @@ pub(super) fn note_pieces(
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::FundingRecord, w::Problem> {
-    Ok(w::FundingRecord {
-        period: match value.period {
-            Some(value) => Some(w::PeriodTimes {
-                began: value.began.as_nanos(),
-                next: match value.next {
-                    Some(value) => Some(value.as_nanos()),
-                    None => None,
-                },
-            }),
-            None => None,
-        },
-        funder: owner::funder(value.funder, limits)?,
-        parent: match value.parent {
-            Some(value) => Some(owner::funder(value, limits)?),
-            None => None,
-        },
-        numbers: owner::numbers(value.numbers, limits)?,
-        made: value.made,
-        closed: value.closed,
-    })
+pub(super) fn funding(value: &t::FundingRecord) -> w::FundingRecord {
+    mapped::funding_record_to_record(value)
 }
 pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits) -> Result<w::Note, w::Problem> {
     let scope = match &value.scope {
@@ -137,12 +119,8 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
         d::NoteLocation::Resources { project, scope } => w::NoteScope::Resource(w::NoteScopeResource {
             project: *project,
             connector: scope.connector,
-            pattern: owner::pattern(&scope.segments, &scope.last, limits)?,
+            pattern: owner::pattern(&scope.segments, &scope.last),
         }),
-    };
-    let writer = match value.writer {
-        jig_domain_notes::Author::Party { party } => w::NoteAuthor::Party(w::NoteAuthorParty { party }),
-        jig_domain_notes::Author::Task { task, attempt } => w::NoteAuthor::Task(w::NoteAuthorTask { task, attempt }),
     };
     if value.tasks.capacity() > limits.note_tasks.min(w::CEILINGS.note_tasks) {
         return Err(w::Problem { path: w::paths::NOTE_TASKS, reason: skein_codec::Reason::Bound });
@@ -155,9 +133,9 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
         number: value.number,
         revision: w::Revision { value: u64::from(value.revision) },
         scope,
-        description: owner::text(&value.description, limits)?,
-        body: owner::text(&value.body, limits)?,
-        writer,
+        description: owner::text(&value.description),
+        body: owner::text(&value.body),
+        writer: mapped::note_author_to_record(&value.writer),
         tasks,
         changed: match value.changed {
             Some(value) => Some(value.as_nanos()),

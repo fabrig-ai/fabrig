@@ -31,6 +31,7 @@ mod tests {
                     owners: &[jig_client::Spoken {
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
+                        layout: temper_client_protocol_wire::CLIENT_LAYOUT,
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
@@ -90,6 +91,7 @@ mod tests {
             key_bytes: 256,
             redirect_bytes: 256,
             words_bytes: 8192,
+            sign_in_expires: Wall::from_nanos(86_400_000_000_000),
             party: MeParty {
                 number: 73,
                 kind: PartyKind::Person,
@@ -509,6 +511,8 @@ mod tests {
             ended_at: Some(Wall::EPOCH),
             budget: task.budget,
             waits_on: c::WaitsOn::Nothing,
+            wait: None,
+            nearest: None,
             phases: c::PhaseCounts::ZERO,
             delegates_done: 0,
             delegates_total: 0,
@@ -564,7 +568,7 @@ mod tests {
     }
 
     // client/pages/task.md 3: the change's words are the forge table's;
-    // client/web/README.md 2.4 / README 6: both supported shells show the same panel facts.
+    // client/web/sign-in.md 1 / README 6: both supported shells show the same panel facts.
     #[test]
     fn terminal_and_browser_words_show_the_panel_at_the_domain_text_bound() {
         let (root, _) = show(panel_parts(w::Step::Gating));

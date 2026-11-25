@@ -78,12 +78,14 @@ impl World {
                 | Request::RestoreRefused { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }
+                | Request::Waits { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
                 | Request::Section { .. }
                 | Request::Workspace { .. }
                 | Request::DriftResource { .. }
                 | Request::Changed { .. }
+                | Request::ReadAfreshDone
                 | Request::RestartDone
                 | Request::Described { .. }
                 | Request::EffectBusy { .. }
@@ -169,12 +171,14 @@ impl World {
                 | Request::RestoreRefused { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }
+                | Request::Waits { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
                 | Request::Section { .. }
                 | Request::Workspace { .. }
                 | Request::DriftResource { .. }
                 | Request::Changed { .. }
+                | Request::ReadAfreshDone
                 | Request::RestartDone
                 | Request::Described { .. }
                 | Request::EffectBusy { .. }
@@ -217,7 +221,7 @@ impl World {
     /// Restore and request every live fact, letting the scripted root hold their replies.
     /// The caller completes these fresh reads before requesting outbox settlement.
     /// Passive restored resource reports stay in `seen`; every other restoration output is rejected.
-    pub fn begin_restart(&mut self) -> Vec<Request> {
+    fn restore_for_restart(&mut self) -> BTreeSet<connector::Path> {
         let mut live = BTreeSet::new();
         for record in self.records.values() {
             match record {
@@ -254,11 +258,23 @@ impl World {
         }
         let records = self.event(Event::Restart(RestartStep::Records));
         assert!(records.is_empty(), "record phase makes no external call");
+        live
+    }
+
+    /// Restore and request fresh reads without settling, for explicit restart cuts.
+    pub fn begin_restart(&mut self) -> Vec<Request> {
+        let live = self.restore_for_restart();
         let mut requests = Vec::new();
         for resource in live {
             requests.extend(self.event(Event::Restart(RestartStep::FreshRead { resource })));
         }
         requests
+    }
+
+    /// The scripted root asks for both halves only once its core has opened.
+    pub fn begin_catch_up(&mut self) -> Vec<Request> {
+        self.restore_for_restart();
+        self.event(Event::CatchUp { procedures: Box::new([]) })
     }
 
     /// Ask the connector to settle one more outbox step after fresh reads.

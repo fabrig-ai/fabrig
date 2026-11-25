@@ -1,4 +1,4 @@
-//! Independent parties at `domain/people/README.md`, 10 and `domain/testing.md`, 7.
+//! Independent parties at `domain/people/README.md`, 10 and `domain/testing-fakes.md`, 1.
 //! A party keeps its sign-in, last task, visible waiting work and request keys.
 //! One script action waits for its reply before the next; duplicate sends reuse
 //! the original key and payload. Nothing depends on core or people vocabulary.
@@ -93,6 +93,7 @@ pub enum Ask {
     /// Stop a current run.
     Stop {
         task: Task,
+        reason: Box<[u8]>,
     },
     /// Release a held task.
     Release {
@@ -411,7 +412,7 @@ impl Party {
             Ask::Say { task, words, release, .. } => Ask::Say { task: self.task(task)?, words, release },
             Ask::SeeConversation { task, through } => Ask::SeeConversation { task: self.task(task)?, through },
             Ask::Cancel { task, grace } => Ask::Cancel { task: self.task(task)?, grace },
-            Ask::Stop { task } => Ask::Stop { task: self.task(task)? },
+            Ask::Stop { task, reason } => Ask::Stop { task: self.task(task)?, reason },
             Ask::Release { task, revision, again } => Ask::Release { task: self.task(task)?, revision, again },
             Ask::Take { task } => Ask::Take { task: self.task(task)? },
             Ask::Choose { task, revision, code, words } => {

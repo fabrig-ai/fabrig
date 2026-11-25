@@ -15,6 +15,7 @@ fn wait(h: &mut Harness) -> Box<[crate::Request]> {
     let (_, _, step) = h.domain.procedure_due(1).expect("due procedure");
     let read = h.domain.procedure_offered(1);
     h.send(Event::Procedure {
+        reads_project: false,
         reply_to: to(),
         task: 1,
         step,

@@ -83,7 +83,6 @@ impl State {
 impl Component {
     pub(super) fn provider_client(
         &mut self,
-        env: &Env<Limits>,
         change: crate::ProviderClientChange,
     ) -> Result<(), crate::ProviderClientRefusal> {
         use crate::{ProviderClientChange, ProviderClientRefusal};
@@ -125,6 +124,7 @@ impl Component {
                             | Waiting::Keep { .. }
                             | Waiting::Get { .. }
                             | Waiting::Made { .. }
+                            | Waiting::Reissue { .. }
                             | Waiting::Moving { .. }
                             | Waiting::Read { .. }
                             | Waiting::ApplicationRead { .. }
@@ -135,10 +135,7 @@ impl Component {
                     }
                     let Some(exchange) = found else { break };
                     self.pending.exchanges.remove(&exchange);
-                    self.respond(
-                        exchange,
-                        routes::authorize_answer(refused(&env.limits, w::AuthorizeWhy::UnknownClient)),
-                    );
+                    self.respond(exchange, routes::authorize_answer(refused(w::AuthorizeWhy::UnknownClient)));
                 }
                 Ok(())
             }
@@ -157,10 +154,10 @@ impl Component {
             return false;
         }
         let answer = match &self.settings.provider {
-            None => Some(refused(&env.limits, w::AuthorizeWhy::NoProvider)),
+            None => Some(refused(w::AuthorizeWhy::NoProvider)),
             Some(issuer) => match issuer.authorize(record.query.as_ref()) {
                 Ok(_) => None,
-                Err(why) => Some(query_refused(&env.limits, why)),
+                Err(why) => Some(query_refused(why)),
             },
         };
         if let Some(answer) = answer {
@@ -186,7 +183,7 @@ impl Component {
         let authorization = match issuer.authorize(record.query.as_ref()) {
             Ok(authorization) => authorization,
             Err(why) => {
-                self.respond(exchange, routes::authorize_answer(query_refused(&env.limits, why)));
+                self.respond(exchange, routes::authorize_answer(query_refused(why)));
                 return;
             }
         };
@@ -225,7 +222,7 @@ impl Component {
             return w::AuthorizeAnswer::NotReady;
         }
         let Some(person) = person(signer, &self.settings.addresses, &env.limits) else {
-            return refused(&env.limits, w::AuthorizeWhy::NotAPerson);
+            return refused(w::AuthorizeWhy::NotAPerson);
         };
         self.provider.sweep(env.now);
         // Every live code reserves an access-token slot, including while Whose was outstanding.
@@ -244,7 +241,7 @@ impl Component {
                 Code { until: env.now.saturating_add(CODE_LIFE), authorization, person },
             )
             .expect("code room checked");
-        go(&env.limits, location)
+        go(location)
     }
     pub(super) fn redeem(
         &mut self,
@@ -307,18 +304,18 @@ impl Component {
         answer(issuer.userinfo_refused())
     }
 }
-fn query_refused(limits: &Limits, why: Refusal) -> w::AuthorizeAnswer {
+fn query_refused(why: Refusal) -> w::AuthorizeAnswer {
     match why {
-        Refusal::Malformed => refused(limits, w::AuthorizeWhy::Malformed),
-        Refusal::UnknownClient => refused(limits, w::AuthorizeWhy::UnknownClient),
-        Refusal::UnknownRedirect => refused(limits, w::AuthorizeWhy::UnknownRedirect),
-        Refusal::Back { location } => go(limits, location),
+        Refusal::Malformed => refused(w::AuthorizeWhy::Malformed),
+        Refusal::UnknownClient => refused(w::AuthorizeWhy::UnknownClient),
+        Refusal::UnknownRedirect => refused(w::AuthorizeWhy::UnknownRedirect),
+        Refusal::Back { location } => go(location),
     }
 }
-fn refused(_limits: &Limits, why: w::AuthorizeWhy) -> w::AuthorizeAnswer {
+fn refused(why: w::AuthorizeWhy) -> w::AuthorizeAnswer {
     w::AuthorizeAnswer::Refused(w::AuthorizeRefused { why })
 }
-fn go(_limits: &Limits, location: Box<[u8]>) -> w::AuthorizeAnswer {
+fn go(location: Box<[u8]>) -> w::AuthorizeAnswer {
     w::AuthorizeAnswer::Go(w::AuthorizeGo { location })
 }
 fn draw(rng: &mut skein_lib::CryptoRng) -> Secret {

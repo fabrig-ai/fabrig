@@ -26,6 +26,7 @@ fn header(commits: u64) -> root::Write {
         connector_rows: 0,
         projects: 0,
         restart_wait_ms: None,
+        wait_floors: None,
         applications: 0,
         commits,
     }))
@@ -59,6 +60,7 @@ fn turn_commit(task: u64, turn: u32, bytes: &[u8]) -> Box<[root::Write]> {
             transcript: Box::from(bytes),
         })),
         save(core::CoreRecord::RunProof(core::RunProof {
+            kept_part: 0,
             worker: None,
             accounts: Box::new([]),
             placement: None,

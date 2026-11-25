@@ -208,6 +208,7 @@ fn a_standing_roles_person_delegate_is_live_beyond_the_first_needs_page() {
         &mut core,
         &Env { now: Time::ZERO, wall: Wall::from_nanos(8), limits },
         Event::Tasks(tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),

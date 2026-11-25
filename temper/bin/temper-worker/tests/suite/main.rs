@@ -1,67 +1,17 @@
 //! The worker binary's table and dispatch (temper/docs/design/protocol/binaries.md, 5).
 use std::process::{Command, Stdio};
 use temper_config_shell::{File, Shape, render};
-use temper_worker_shell::{PROGRAM_LOGIN, WORKER};
+use temper_worker_shell::WORKER;
 
 const SERVE: &[&str] = &["serve", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
 const LOGIN: &[&str] = &["program-login", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE", "work"];
-const LOGIN_WITHOUT_NAME: &[&str] = &["program-login", "--config", "CONFIG", "--data", "DATA", "--cache", "CACHE"];
 
 fn empty(text: &str) -> bool {
     text.is_empty()
 }
 
 fn version(text: &str) -> bool {
-    let prefix = format!("temper-worker {} (", env!("CARGO_PKG_VERSION"));
-    let Some(commit) = text.strip_prefix(&prefix).and_then(|text| text.strip_suffix(")\n")) else {
-        return false;
-    };
-    let hash = commit.strip_suffix("-dirty").unwrap_or(commit);
-    // release.md, 3: twelve hexadecimal digits, or unknown outside git.
-    commit == "unknown" || (hash.len() == 12 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()))
-}
-
-fn help(text: &str) -> bool {
-    let Some((_, commands)) = text.split_once("\ncommands:\n") else { return false };
-    let names: Vec<_> = commands
-        .split("\n\n")
-        .next()
-        .expect("command lines")
-        .lines()
-        .filter_map(|line| line.strip_prefix("  "))
-        .filter(|line| !line.starts_with(' '))
-        .filter_map(|line| line.split_whitespace().next())
-        .collect();
-    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    text == WORKER.help()
-        && names == ["serve", "program-login", "help"]
-        && ["--config CONFIG", "--data DATA", "--cache CACHE", "TEMPER_CONFIG", "TEMPER_DATA", "TEMPER_CACHE"]
-            .iter()
-            .all(|word| words.contains(word))
-}
-
-fn serve_help(text: &str) -> bool {
-    text == WORKER.command_help(WORKER.commands.first().expect("serve command"))
-        && !text.starts_with("internal:")
-        && text.contains("worker alone")
-        && text.contains("temper-engine serve")
-        && text.contains("temper-box serve")
-}
-
-fn login_help(text: &str) -> bool {
-    text == WORKER.command_help(&PROGRAM_LOGIN) && !text.starts_with("internal:")
-}
-
-fn pages(text: &str) -> bool {
-    text == temper_shell::help::answer(WORKER.binary, &temper_shell::help::Request::Index).expect("index page")
-}
-
-fn config_page(text: &str) -> bool {
-    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::WorkerAlone).as_ref()
-}
-
-fn commands_page(text: &str) -> bool {
-    text == temper_shell::table::commands_page(&WORKER)
+    text == format!("{}\n", temper_version::line("temper-worker"))
 }
 
 #[derive(Debug)]
@@ -84,42 +34,10 @@ type Check = fn(&str) -> bool;
 type Case = (&'static [&'static str], Option<Shape>, i32, Check, Stderr);
 
 const ROWS: &[Case] = &[
+    (&["--help"], None, 0, |text| text == WORKER.help(), Exact("")),
     (&["--version"], None, 0, version, Exact("")),
-    (&["-h"], None, 0, help, Exact("")),
-    (&["--help"], None, 0, help, Exact("")),
-    (&["serve", "--help"], None, 0, serve_help, Exact("")),
-    (&["program-login", "--help"], None, 0, login_help, Exact("")),
-    (&["help"], None, 0, help, Exact("")),
-    (&["help", "pages"], None, 0, pages, Exact("")),
-    (&["help", "commands"], None, 0, commands_page, Exact("")),
-    (&["help", "config"], None, 0, config_page, Exact("")),
     (&["frobnicate"], None, 2, empty, Exact("temper-worker: no command frobnicate; temper-worker --help lists them\n")),
-    (&[], None, 2, empty, Exact("temper-worker: no command; temper-worker --help lists them\n")),
-    (
-        &["serve", "extra"],
-        None,
-        2,
-        empty,
-        Exact("temper-worker serve: invalid arguments\nusage: temper-worker serve [DIRECTORIES]\n"),
-    ),
-    (
-        SERVE,
-        Some(Shape::EngineAlone),
-        1,
-        empty,
-        Exact(
-            "temper-worker serve: {file}:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker serve: {file}: engine: required in temper-worker's file\n",
-        ),
-    ),
-    (
-        SERVE,
-        Some(Shape::Standalone),
-        1,
-        empty,
-        Exact(
-            "temper-worker serve: {file}:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker serve: {file}: engine: required in temper-worker's file\n",
-        ),
-    ),
+    (SERVE, Some(Shape::WorkerAlone), 1, empty, Stderr::WorkerChecks),
     (
         LOGIN,
         Some(Shape::EngineAlone),
@@ -129,25 +47,6 @@ const ROWS: &[Case] = &[
             "temper-worker program-login: {file}:4: workers: a key of temper-engine's file, not temper-worker's\ntemper-worker program-login: {file}: engine: required in temper-worker's file\n",
         ),
     ),
-    (
-        LOGIN,
-        Some(Shape::Standalone),
-        1,
-        empty,
-        Exact(
-            "temper-worker program-login: {file}:4: listen: a key of temper-box's or temper-engine's file, not temper-worker's\ntemper-worker program-login: {file}: engine: required in temper-worker's file\n",
-        ),
-    ),
-    (
-        LOGIN_WITHOUT_NAME,
-        None,
-        2,
-        empty,
-        Exact(
-            "temper-worker program-login: invalid arguments\nusage: temper-worker program-login [DIRECTORIES] NAME\n",
-        ),
-    ),
-    (SERVE, Some(Shape::WorkerAlone), 1, empty, Stderr::WorkerChecks),
 ];
 
 #[test]

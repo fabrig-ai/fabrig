@@ -1,7 +1,7 @@
 //! Pure row-part encodings, shared by the root and service vocabulary
 //! (temper/docs/design/client/forge/parts.md, 3–4).
 #![expect(clippy::manual_map, reason = "pure encodings spell out optional fields without closures")]
-use crate::MilestoneTotals;
+use crate::{MilestoneTotals, generated::client_wire::milestone_totals_to_record};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents::TaskLine;
 use skein_lib::{List, Wall};
@@ -44,27 +44,9 @@ pub fn chat(document: Option<&[u8]>) -> Option<Box<[u8]>> {
     record.encode(&w::CEILINGS).ok()
 }
 
-pub fn totals(value: &MilestoneTotals, _limits: &w::Limits) -> Option<w::MilestoneTotals> {
-    let last_landing = match &value.last_landing {
-        Some(landing) => {
-            Some(w::MilestoneLanding { at: landing.at.as_nanos(), goal: landing.goal, change: landing.change })
-        }
-        None => None,
-    };
-    Some(w::MilestoneTotals {
-        task: value.task,
-        done: value.done,
-        failed: value.failed,
-        closed: value.closed,
-        live: value.live,
-        ended: match value.ended {
-            Some(at) => Some(at.as_nanos()),
-            None => None,
-        },
-        last_landing,
-        spent: value.spent,
-        reds: value.reds,
-    })
+#[must_use]
+pub fn totals(value: &MilestoneTotals) -> w::MilestoneTotals {
+    milestone_totals_to_record(value)
 }
 
 fn milestone_goal(line: &TaskLine, headline: Option<Box<[u8]>>) -> Option<w::MilestoneGoal> {
@@ -85,7 +67,7 @@ pub fn milestone(
         Some(at) => Some(at.as_nanos()),
         None => None,
     };
-    let mut record = w::MilestonePart { whole, totals: totals(value, limits)?, goals: kept.clone(), more: total };
+    let mut record = w::MilestonePart { whole, totals: totals(value), goals: kept.clone(), more: total };
     for (line, headline) in goals {
         if kept.len() == 16 {
             break;
@@ -94,7 +76,7 @@ pub fn milestone(
         kept.push(goal).ok()?;
         let candidate = w::MilestonePart {
             whole,
-            totals: totals(value, limits)?,
+            totals: totals(value),
             goals: kept.clone(),
             more: total.saturating_sub(kept.len()),
         };

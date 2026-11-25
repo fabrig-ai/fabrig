@@ -1,4 +1,4 @@
-//! Outside observation of an aborted agent's tree (smith/docs/design/protocol/programs.md, 5.1).
+//! Outside observation of an aborted agent's tree (smith/docs/design/protocol/programs-claude-code.md, 1.1).
 //! The keeper owns cleanup; the referee keeps PID/start-time identities, never environment.
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
@@ -173,7 +173,7 @@ pub fn abort_agent(scratch: &Scratch) {
     let start = clock.now().now;
     let binary = Binary::start_with_tree(
         Command {
-            program: skein_scratch::paths::binary("smith"),
+            program: skein_scratch::paths::built("smith", "smith"),
             arguments: vec!["exec".into(), "Hang until the agent ends".into()],
             environment: vec![
                 ("HOME".into(), scratch.path().into()),

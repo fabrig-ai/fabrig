@@ -59,6 +59,9 @@ impl Play for Sequence<'_> {
         }
         Next::Done
     }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        self.parts.get(self.part).and_then(|part| part.next_wake(face, now, runnable))
+    }
     fn at(&self) -> u32 {
         self.parts.iter().map(|part| part.at()).sum()
     }
@@ -83,30 +86,6 @@ impl Play for Sequence<'_> {
     }
 }
 
-fn pending_reload(setup: &Setup<'_>, states: &States, request: &mut dyn Play, after: Box<[Step]>) -> Outcome {
-    let mut before = Script::new(Box::new([see(states.live.clone()), Step::StopServer]));
-    let mut after = Script::new(after);
-    let mut sequence = Sequence { parts: [&mut before, request, &mut after], part: 0 };
-    harness(setup, true).run(&mut [&mut sequence])
-}
-
-/// A reload keeps the pending request; the protocol world checks it is made once.
-#[must_use]
-pub fn a_reload_keeps_a_pending_request(
-    setup: &Setup<'_>,
-    states: &States,
-    request: &mut dyn Play,
-    pending: Find,
-    made: Find,
-) -> Outcome {
-    pending_reload(
-        setup,
-        states,
-        request,
-        Box::new([see(pending), Step::Person(PersonStep::Reload), Step::Warned(true), Step::StartServer, see(made)]),
-    )
-}
-
 /// A pending request protects the person from leaving without a closing warning.
 #[must_use]
 pub fn a_reload_with_a_pending_request_meets_the_closing_warning(
@@ -115,12 +94,10 @@ pub fn a_reload_with_a_pending_request_meets_the_closing_warning(
     request: &mut dyn Play,
     pending: Find,
 ) -> Outcome {
-    pending_reload(
-        setup,
-        states,
-        request,
-        Box::new([see(pending), Step::Person(PersonStep::Reload), Step::Warned(true)]),
-    )
+    let mut before = Script::new(Box::new([see(states.live.clone()), Step::StopServer]));
+    let mut after = Script::new(Box::new([see(pending), Step::Person(PersonStep::Reload), Step::Warned(true)]));
+    let mut sequence = Sequence { parts: [&mut before, request, &mut after], part: 0 };
+    harness(setup, true).run(&mut [&mut sequence])
 }
 
 /// An answered request leaves no closing warning after the person acts on the page.

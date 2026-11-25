@@ -14,25 +14,25 @@
   terminal records, nonterminal and wrong-number records, unknown or
   hidden history, Busy, sign-out and read failure. Only matching
   terminal records meet `ended`; each path emits exactly one result
-  and releases its handles and timer. No new harness (`tools.md`, 4).
+  and releases its handles and timer. No new harness (`tools-waiting.md`, 1).
 - **Tree waits,** in the same tools step fixture: an Idle-root delivery
   remains pending until `SubjectEnded`; text and JSON then report
   watch completion and label the unchanged rows as the last observed
   snapshot, with its digest. Terminal deliveries, no-delivery `gone`,
   timeout, `--since`, and a single answer with watch/timer cleanup
-  are covered here: no forge, workflow, model or kernel is needed (`tools.md`, 4).
+  are covered here: no forge, workflow, model or kernel is needed (`tools-waiting.md`, 1).
 - **No-change completion,** in the tools step fixture: a producing panel,
   a successful no-change report, the unmet landing wait and the retained
   ended panel on a later read. Completion on the first task read and
   arriving during a wait both name the result and the direct report
-  command; `task show` keeps the empty-search explanation (`tools.md`, 4).
+  command; `task show` keeps the empty-search explanation (`tools-waiting.md`, 1).
 - **The boundary:** `temper-client-tools-jig`'s `src/jig/` names no temper item, in its own step
   tests (`README.md`, section 4; `tools-crates.md`, 4.1).
 - **The bounds:** each of the tools' ceilings within the client's limit
-  it reads from, and a picker's page within a result's text (`README.md`, section 9
+  it reads from, and a picker's page within a result's text (`bounds.md`, section 1
   ): a result's text within one document's bytes, a page within a
   turn's bytes, the client's text within a result's text and equal to
-  the words an act takes, and a `task text` page holding `README.md`, section 9's
+  the words an act takes, and a `task text` page holding `bounds.md`, section 1's
   page whole, its lines within the 512 bytes beside it and its JSON
   within a result's bytes.
 - **Paged reads,** as table rows beside the existing `task text` and
@@ -70,7 +70,7 @@ reading the older page, the first reply once and not the second, and
 `chat show` both, each once; a repository adopted; a held task released. The
 existing agent story also waits for a task whose end was observed before
 `task show TASK --until ended` begins, checking the matching terminal
-answer (`tools.md`, 4). A turn too large for a page exists only where the engine's
+answer (`tools-waiting.md`, 1). A turn too large for a page exists only where the engine's
 bound on a turn passes its page bound, so the world's profile sets it
 so. The world's faults hold: a call cut by a link drop or an engine
 restart, asked again under its named key, is made once. Each area adds
@@ -120,6 +120,15 @@ answered `removed`, the forge gone from `forge list`, and refused for
 the playground's forge. After each, no pasted value in
 DIRECTORY's store or in any document the tools print.
 
+Area 3's, a service's credential reissued (`README.md`, section 7): a
+service made and signed in in its own DIRECTORY, with a task it made and
+something in its inbox; its owner's `party reissue`, after which the
+service's next call is answered signed out at once; its link, given to
+`sign-in -`, signing the same DIRECTORY in again as the same party, its
+tasks and inbox as they were; a member's reissue refused `role` and a
+person's `not_offered`, exit 2; and `me` printing its sign-in's expiry.
+No link in either DIRECTORY's store or in any output but the link's own.
+
 One story reads at `temper-box init`'s template's bounds, its documents'
 rows below the tools' 32-row window: a goal with more delegates than
 those rows, one of them ended with an ended dependency, and `task show
@@ -140,18 +149,25 @@ the fake git program over that forge, on one thread and one real ring
 joined to their worker by real pipes. The store and client credentials
 use a scratch directory on the real filesystem.
 
-Its stories sign in, start a chat and wait for its reply, and satisfy one
-client's wait by another client's act; each drains with everything
-settled. Then a service restart retains the work. A call whose answer was
-lost is made once: the tools' root is dropped once the engine holds its
-request, before its answer, and a fresh one, on another DIRECTORY signed
-in as the same party, asks under the same name and is answered the first
-answer; the party has one chat. One signed in again as another party:
-the first party's kept request stays unsent, and the call goes on. The
-forge's stories adopt a repository, and clone, push and land through the
-fake git program over the forge peer's git route, with CI by the fake
-forge's content marker and its webhooks delivered to the engine
-(`../../testing/real-loop.md`). Real git meets a forge in the process
+Its stories are what only the real kernel shows of the tools
+(`../../testing/real-loop.md`): two acts at once on one DIRECTORY
+serialized by its lock, and a sign-in begun from the terminal returning
+to the engine's real listener; each drains with everything settled.
+The tools' other stories are the one-process world's, each call hosted
+on skein's simulator, its DIRECTORY on the fake machine
+(`../../testing/tiers.md`, 1.5): a chat started and its reply waited
+for; one client's wait satisfied by another's act, two waits open while
+`me` answers; DIRECTORY's files private to its user; a service started
+again that retains the work; a call whose answer was lost made once: the
+caller ended once the engine holds its request, before its answer, and
+a fresh one, on another DIRECTORY signed in as the same party, asks under
+the same name and is answered the first answer, the party with one
+chat. One signed in again as another party: the first party's kept
+request stays unsent, and the call goes on. The forge's stories adopt a
+repository, and clone, push and land through the fake git program over
+the forge peer's git route, with CI by the fake forge's content marker
+and its webhooks delivered to the engine: the one-process world's and
+the real loop's case library's. Real git meets a forge in the process
 tier (4). The forge's stories run on `skein-world`'s
 `World::new_controlled`, unchecked, while the fake git program shares
 the fake forge in memory: its memory there outlives the git program
@@ -162,8 +178,9 @@ Every other story here is checked.
 
 Every story whose agents run first adds a key the fake LLM peer
 accepts, `account add-key` from a scratch file, as `README.md`, section 8's harness
-does, and waits for `usable`. Area 5's stories (`../../testing/real-loop.md`
-):
+does, and waits for `usable`. Area 5's stories, the sign-in the real
+loop's (`../../testing/real-loop.md`) and the rest the one-process
+world's (`../../testing/tiers.md`, 1.5):
 
 - **A sign-in:** `account connect` against skein's fake issuer, the
   browser's visit and the redirect to the engine's loopback listener
@@ -179,7 +196,8 @@ does, and waits for `usable`. Area 5's stories (`../../testing/real-loop.md`
   engine's store holds a key's or a record's value in a request, an
   answer or a fact; the secrets' store alone does.
 
-Area 6's stories reach the forge through the tools, on skein's fake
+Area 6's stories, the one-process world's (`../../testing/tiers.md`,
+1.5), reach the forge through the tools, on skein's fake
 forge, whose browser pages are plain HTTP: its manifest post answers
 `200` with a page holding one link, `Create GitHub App` (id `create`),
 and its install page `302` (skein's `testing/fakes/github.md`, 1.1), so the test
@@ -213,21 +231,21 @@ person clicks it, and no story calls github.com:
   in a root, a fact, a record but the secrets' store's, a request or an
   answer, nor in DIRECTORY's store.
 
-Each call of `temper ctl` in these stories is its host,
+Each call of `temper ctl` in the real loop's stories is its host,
 `temper-client-shell-cli`'s, hosted as a program of the real world, one
-per call, on its DIRECTORY: the lock, DIRECTORY's files and the call's
-exit run on the real kernel. Two acts at once on one DIRECTORY are
+per call, on its DIRECTORY: the lock and the call's exit run on the
+real kernel. Two acts at once on one DIRECTORY are
 serialized by the lock: skein's `Lock` is `flock`, held per open
 descriptor (skein's `runtime/kernel.md`), so two programs of one process contend
 as two processes do.
 
-These are smoke, one end-to-end path per feature, at the gate
-(`../../testing/real-loop.md`). A tool's behaviour and corner cases are
+The one-process world's are smoke, one path per feature, at the gate
+(`../../testing/tiers.md`, 1.5). A tool's behaviour and corner cases are
 `tests/client`'s (2) and the lower worlds' (1): a sign-in refused
 or past its deadline, a limit and `account retry`, a record the tools do not
-read. These stories reuse lower worlds' scripts and outside expectations
-where applicable, and add checks of the full transport, persistence and
-teardown on the real kernel; the harness checks memory ownership,
+read. The real loop's stories reuse lower worlds' scripts and outside
+expectations where applicable, and add only what the real kernel shows;
+the harness checks memory ownership,
 outstanding operations and release between iterations.
 A real-loop failure is kept with its trace and reproduced lower down
 where possible; its seed does not replay the kernel's schedule.
@@ -238,7 +256,7 @@ Settings inventory, individual values, history, proposals, owner decisions
 and placed holds use the CLI's scripted machine world, client tools' step
 tests and jig's core worlds. Their rendering is 1's. Running work
 keeps its revision in `tests/system/tests/suite/running_revision.rs`
-(`../../testing/README.md`, 2.1): after an owner's instruction change makes
+(`../../testing/tiers.md`, 1.1): after an owner's instruction change makes
 R+1, running work staying, a parked task that is no conversation runs
 again on R, its run and smith's requests reading R's instructions, while
 a parked chat moves at its next run and reads R+1's; the owner's advance
@@ -258,8 +276,9 @@ and restore decisions.
 The owned-Forgejo stories (`../../testing/process-tier.md`) share setup where
 one adds a variant: a real turn gate cancelled and retried across restart;
 a first CSV change whose failed CI output reaches its repair, followed by
-a blocking review, landing and a restart that finds it. The lock,
-DIRECTORY's files and a call's exit are the real loop's (3).
+a blocking review, landing and a restart that finds it. The lock
+and a call's exit on the real kernel are the real loop's (3);
+DIRECTORY's files the one-process world's, on the fake machine (3).
 
 ## 5. The agents' help
 
@@ -267,10 +286,10 @@ DIRECTORY's files and a call's exit are the real loop's (3).
   (`../../protocol/documentation.md`), then the tools from the table, a
   line each, its usage and its line. The page is the driver's first
   read (`../../protocol/documentation.md`, section 2.4): how to sign in, the loop
-  of `tools.md`, 4 (read, act, wait), naming keys and their prefix, reading acts
+  of `tools-waiting.md`, 1 (read, act, wait), naming keys and their prefix, reading acts
   and the revisions they name, the exit statuses of `results.md`, 3, JSON, the forge
   read with whatever the agent chooses and what temper owns there
-  changed only through temper (`tools.md`, 2), and a secret read from a private
+  changed only through temper (`tools-reads.md`, 1), and a secret read from a private
   file, never typed or given as an argument, with a link printed as
   text, never opened, and followed by a wait (`areas.md`, areas 5 and 6).
 - **`temper ctl help GROUP VERB`** prints the tool's record (`tools.md`, 1): its

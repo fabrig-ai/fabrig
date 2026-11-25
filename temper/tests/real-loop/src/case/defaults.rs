@@ -1,10 +1,10 @@
-//! The reference cases' defaults, shared by the real loop and its process adapter.
+//! The reference cases' defaults in the real loop.
 mod values;
 pub use values::items;
 
 use jig_domain_core::settings::Defaults;
 use serde_json::Value;
-use skein_lib::{Duration, List, bytes};
+use skein_lib::{Duration, bytes};
 
 pub(crate) fn apply(defaults: &mut Defaults, flags: &Value, stock_period_spend: u64) {
     // Project-period budgets stay in policy 1; the deployment keeps its stock period.
@@ -37,21 +37,5 @@ pub(crate) fn apply(defaults: &mut Defaults, flags: &Value, stock_period_spend: 
             second.policy.instructions = bytes::copy_of(super::OLD_BRIEF.as_bytes());
         }
         defaults.charters[1] = second;
-    }
-    if flags["helper"] == true {
-        let mut helper = defaults.charters[0].clone();
-        helper.number = u32::try_from(super::HELPER_CHARTER).expect("helper charter number");
-        let capacity = u32::try_from(defaults.charters.len())
-            .expect("bounded stock charters")
-            .checked_add(1)
-            .expect("stock charters plus case helper");
-        let mut charters = List::with_capacity(capacity);
-        for charter in &defaults.charters {
-            if charter.number != helper.number {
-                charters.push(charter.clone()).expect("counted stock charters");
-            }
-        }
-        charters.push(helper).expect("room for case helper charter");
-        defaults.charters = charters.into_boxed();
     }
 }

@@ -1,0 +1,12 @@
+Address: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+AddressConversations: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
+AddressInbox: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
+AddressProject: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
+AddressTask: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
+Draft: ceilings encoded=65564 decoded=65536; at_most(3) encoded=31 decoded=3
+Place: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
+ProjectSection: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+StoredRecord: ceilings encoded=65603 decoded=65565; at_most(3) encoded=41 decoded=3
+TaskSection: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+ViewRecord: ceilings encoded=65565 decoded=65536; at_most(3) encoded=32 decoded=3
+family: ceilings encoded=65603 decoded=65565; at_most(3) encoded=41 decoded=3

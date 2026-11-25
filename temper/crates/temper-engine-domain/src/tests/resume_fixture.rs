@@ -55,6 +55,7 @@ pub fn limits() -> engine::Limits {
             records: Duration::from_secs(30 * 86_400),
             summaries: Duration::from_secs(365 * 86_400),
         },
+        waits: jig_protocol_config_fixtures::small().core.waits,
         journal,
         loads: loads::Limits {
             read_bytes: 65_536,
@@ -250,8 +251,6 @@ pub fn root_with_records(
                 | jig_domain_core::start::Phase::Switch
                 | jig_domain_core::start::Phase::Wires
                 | jig_domain_core::start::Phase::AdoptRuns
-                | jig_domain_core::start::Phase::ReadAfresh { .. }
-                | jig_domain_core::start::Phase::SettleOutbox { .. }
                 | jig_domain_core::start::Phase::Open) => {
                     root.core.start_done(&crate::limits::environment_core(&env), phase, &mut output)
                 }

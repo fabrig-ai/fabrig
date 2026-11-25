@@ -107,6 +107,7 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
         | Ask::MakeService { .. }
+        | Ask::ReissueService { .. }
         | Ask::SignIn { .. }
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
@@ -618,7 +619,12 @@ mod tests {
             c::Ask::Create { project: PROJECT, tasks: list([]) },
             c::Ask::Take { project: PROJECT, task: OBSERVED_TASK },
             c::Ask::HandBack { project: PROJECT, task: OBSERVED_TASK },
-            c::Ask::Stop { project: PROJECT, task: OBSERVED_TASK },
+            c::Ask::Stop {
+                project: PROJECT,
+                task: OBSERVED_TASK,
+                reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            },
             c::Ask::Cancel { project: PROJECT, task: OBSERVED_TASK, reason: reason.clone(), grace: None },
             c::Ask::Move { project: PROJECT, task: OBSERVED_TASK, reason: reason.clone() },
             c::Ask::Withdraw { project: PROJECT, proposal: 1 },
@@ -642,7 +648,12 @@ mod tests {
             c::Ask::Compound {
                 project: PROJECT,
                 operations: list([
-                    c::Operation::Stop { project: PROJECT, task: OBSERVED_TASK },
+                    c::Operation::Stop {
+                        project: PROJECT,
+                        task: OBSERVED_TASK,
+                        reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
+                    },
                     c::Operation::Message {
                         project: PROJECT,
                         task: OBSERVED_TASK,

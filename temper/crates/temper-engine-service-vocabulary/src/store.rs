@@ -1,8 +1,9 @@
-//! The deployment store’s routes over jig’s file-driver host (protocol/store.md, 3–5;
+//! The deployment store’s routes over jig’s file-driver host (protocol/store.md, 3, and protocol/store-versions.md, 1, and protocol/store-restart.md, 1;
 //! jig's protocol/store/README.md, 8).
 mod ranges;
 pub mod route;
 mod unreadable;
+use alloc::boxed::Box;
 use jig_protocol_store as protocol;
 use protocol::host::{check_read_page, max_whole};
 use skein_lib::{List, Token};
@@ -32,27 +33,59 @@ pub const WIRES: [protocol::Wire; 6] = [
     },
 ];
 
-/// The engine's wires from their floors, in statement order (protocol/wires.md, 10).
-#[must_use]
-pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
-    use jig_protocol_worker_wire::Spoken;
-    let mut wires = List::with_capacity(6);
-    for wire in jig_protocol_worker_wire::spoken().into_boxed() {
-        wires.push(wire).expect("six wire slots");
+/// One entry in the engine's wires table (protocol/wires.md, 10).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Wire {
+    pub name: &'static str,
+    pub lowest: u16,
+    pub layouts: List<[u8; 32]>,
+}
+
+impl Wire {
+    /// The last version in this entry.
+    #[must_use]
+    pub fn highest(&self) -> u16 {
+        let last = self.layouts.len().checked_sub(1).expect("one or more layouts per wire");
+        self.lowest.checked_add(u16::try_from(last).expect("a wire range fits u16")).expect("a wire range fits u16")
     }
-    wires.push(temper_protocol_worker_wire::spoken()).expect("six wire slots");
-    let mut layouts = List::with_capacity(u32::from(temper_engine_smith::wire::VERSION));
-    for (index, text) in temper_engine_smith::wire::TEXTS.iter().enumerate() {
+
+    /// This version's layout, if it is in this entry.
+    #[must_use]
+    pub fn layout(&self, version: u16) -> Option<[u8; 32]> {
+        self.layouts.get(u32::from(version.checked_sub(self.lowest)?)).copied()
+    }
+}
+
+fn worker_entry(wire: &jig_protocol_worker_wire::Spoken) -> Wire {
+    Wire { name: wire.name, lowest: wire.version, layouts: List::from_boxed(Box::new([wire.layout])) }
+}
+
+/// The engine's wires in statement order, followed by its host tools.
+#[must_use]
+pub fn wires() -> List<Wire> {
+    let jig = jig_protocol_worker_wire::spoken();
+    let mut wires = List::with_capacity(jig.len().checked_add(2).expect("two more wires"));
+    for wire in &jig {
+        wires.push(worker_entry(wire)).expect("one slot per wire");
+    }
+    wires.push(worker_entry(&temper_protocol_worker_wire::spoken())).expect("worker wire slot");
+    wires.push(host_tools_wire()).expect("host tools slot");
+    wires
+}
+
+/// The versioned host-tools contract, separate from the worker channel.
+#[must_use]
+pub fn host_tools_wire() -> Wire {
+    use temper_engine_smith::wire;
+    let mut layouts = List::with_capacity(u32::from(wire::VERSION));
+    for (index, text) in wire::TEXTS.iter().enumerate() {
         let version =
             u16::try_from(index).expect("kept contract index fits u16").checked_add(1).expect("contract version");
-        if version >= temper_engine_smith::wire::FLOOR {
+        if version >= wire::FLOOR {
             layouts.push(skein_lib::sha256::digest(text.as_bytes())).expect("one layout per kept contract");
         }
     }
-    wires
-        .push(Spoken { name: temper_engine_smith::wire::FAMILY, lowest: temper_engine_smith::wire::FLOOR, layouts })
-        .expect("six wire slots");
-    wires
+    Wire { name: wire::FAMILY, lowest: wire::FLOOR, layouts }
 }
 /// Owners kept by every engine shape, upstream first (protocol/floor.md, 3).
 pub const OWNER_SETS: protocol::OwnerSets = protocol::OwnerSets {
@@ -67,8 +100,20 @@ const fn wire_version(version: u16) -> u32 {
 pub const KERNEL_HANDOFF_ENTRIES: u32 = protocol::host::KERNEL_HANDOFF_ENTRIES;
 /// Admit the core, journal and temper families, then copy checked sizes to KV.
 #[must_use]
-pub fn limits(root: &root::Limits, forge: &forge::Limits, profile: &protocol::Limits) -> Option<protocol::Limits> {
-    admit(root, forge, profile, None).ok()
+pub fn limits(root: &root::Limits, forge: &forge::Limits, profile: &protocol::Limits) -> Option<protocol::Checked> {
+    limits_reusing(root, forge, profile, None)
+}
+
+/// Admit the application and reuse a matching stock store's codec bounds.
+#[must_use]
+pub fn limits_reusing(
+    root: &root::Limits,
+    forge: &forge::Limits,
+    profile: &protocol::Limits,
+    opening: Option<&protocol::Checked>,
+) -> Option<protocol::Checked> {
+    let limits = admitted_layout(root, forge, profile, None).ok()?;
+    protocol::check_reusing(&limits, opening)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -81,6 +126,16 @@ pub enum Refusal {
 
 /// Keep the cause for startup before any comparison needs the store's bounds.
 pub fn admit(
+    root: &root::Limits,
+    forge: &forge::Limits,
+    profile: &protocol::Limits,
+    turn: Option<u32>,
+) -> Result<protocol::Checked, Refusal> {
+    let limits = admitted_layout(root, forge, profile, turn)?;
+    protocol::check(&limits).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))
+}
+
+fn admitted_layout(
     root: &root::Limits,
     forge: &forge::Limits,
     profile: &protocol::Limits,
@@ -170,7 +225,7 @@ pub fn layout(
 }
 
 // Settings carry a whole revision, including replaced values and model names.
-// Their room follows the effective capacities (protocol/store.md, 4).
+// Their room follows the effective capacities (protocol/store-versions.md, 1).
 fn settings_room(core: &jig_domain_core::Limits, mut kv: skein_kv::Limits) -> Option<skein_kv::Limits> {
     let value = protocol::sizes::settings_value(core)?;
     if value > kv.value {
@@ -180,7 +235,7 @@ fn settings_room(core: &jig_domain_core::Limits, mut kv: skein_kv::Limits) -> Op
     Some(kv)
 }
 
-// protocol/store.md, 4; jig owns current full-frame sizing.
+// protocol/store-versions.md, 1; jig owns current full-frame sizing.
 fn page_bytes(core: &jig_domain_core::Limits, transcript: u32, key: u32, value: u32) -> Option<u32> {
     Some(key.checked_add(value)?.max(protocol::sizes::frame(core, transcript)?))
 }
@@ -206,7 +261,36 @@ mod sizing_tests {
                 entry = Some(wire);
             }
         }
-        assert_eq!(application.spoken.get(0), Some(entry.expect("engine's worker wire")));
+        let worker = application.spoken.get(0).expect("worker application wire");
+        assert_eq!(super::worker_entry(worker), *entry.expect("engine's worker wire"));
+    }
+
+    #[test]
+    fn admission_carries_the_laid_out_limits_and_codec_view() {
+        let (root, _, stock) = crate::tests::fixtures::store_limits();
+        let mut custom = stock;
+        custom.checkpoints.keep = 3;
+        custom.store.page.rows = 32;
+        for profile in [stock, custom] {
+            let layout = super::layout(&root, &root.forge, &profile).unwrap();
+            let checked = super::admit(&root, &root.forge, &profile, None).unwrap();
+            assert_eq!(checked.limits(), &layout);
+            assert_eq!(Some(*checked.codec()), layout.codec_view());
+        }
+    }
+
+    #[test]
+    fn admission_refuses_unrepresentable_store_limits_before_construction() {
+        let (root, _, mut profile) = crate::tests::fixtures::store_limits();
+        profile.files = 0;
+        let layout = super::layout(&root, &root.forge, &profile).unwrap();
+        assert!(super::check_read_page(&layout).is_some());
+        protocol::sizes::whole(max_whole(&layout)).expect("manifest fits");
+        assert_eq!(
+            super::admit(&root, &root.forge, &profile, None),
+            Err(super::Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))
+        );
+        assert!(super::limits(&root, &root.forge, &profile).is_none());
     }
 
     #[test]
@@ -220,8 +304,9 @@ mod sizing_tests {
     #[test]
     fn drivers_read_a_whole_page_in_every_admitted_store() {
         let (application, _, profile) = crate::tests::fixtures::store_limits();
-        let limits = super::limits(&application, &application.forge, &profile).unwrap();
-        assert!(max_read(&limits) >= limits.store.page.bytes);
+        let checked = super::limits(&application, &application.forge, &profile).unwrap();
+        let limits = checked.limits();
+        assert!(max_read(limits) >= limits.store.page.bytes);
     }
 
     #[test]
@@ -255,9 +340,10 @@ mod sizing_tests {
     #[test]
     fn an_admitted_store_already_reads_the_whole_manifest() {
         let (application, _, profile) = crate::tests::fixtures::store_limits();
-        let limits = super::limits(&application, &application.forge, &profile).unwrap();
-        assert!(max_read(&limits) >= protocol::sizes::MANIFEST_BYTES);
-        assert_eq!(max_whole(&limits), max_read(&limits));
+        let checked = super::limits(&application, &application.forge, &profile).unwrap();
+        let limits = checked.limits();
+        assert!(max_read(limits) >= protocol::sizes::MANIFEST_BYTES);
+        assert_eq!(max_whole(limits), max_read(limits));
     }
 
     // The core refuses sign-ins at the root's fill mark; a store whose map budget is
@@ -269,7 +355,8 @@ mod sizing_tests {
         let (application, _, _) = crate::tests::fixtures::store_limits();
         let mark = temper_engine_domain::core_limits(&application).fill_mark;
         assert_eq!(mark, jig.core.fill_mark);
-        let limits = super::limits(&application, &application.forge, &jig.store).unwrap();
+        let checked = super::limits(&application, &application.forge, &jig.store).unwrap();
+        let limits = checked.limits();
         assert!(limits.store.budget >= mark);
     }
 
@@ -278,7 +365,8 @@ mod sizing_tests {
         // Secrets keys are the two owner bytes followed by a u64 number.
         const KEY_BYTES: u64 = 2 + 8;
         let (application, _, profile) = crate::tests::fixtures::store_limits();
-        let limits = super::limits(&application, &application.forge, &profile).unwrap();
+        let checked = super::limits(&application, &application.forge, &profile).unwrap();
+        let limits = checked.limits();
         let row = protocol::secrets_v1::encoded_bound(&protocol::secrets_v1::CEILINGS).unwrap();
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));

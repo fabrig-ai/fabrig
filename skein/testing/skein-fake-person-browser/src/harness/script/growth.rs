@@ -3,6 +3,10 @@ use crate::BrowserFace;
 use skein_fake_person::{Find, Found};
 use skein_lib::{Duration, Time};
 
+const GROWTH_BOUND: Duration = Duration::from_secs(1);
+// A boxed find reports the current geometry, not later growth.
+const GROWTH_POLL: Duration = Duration::from_millis(10);
+
 pub(super) struct Growth {
     find: Find,
     words: Option<Box<[u8]>>,
@@ -16,8 +20,7 @@ impl Growth {
         Self { find, words: Some(words), before: None, last: 0, until: None, poll: Time::ZERO }
     }
     pub(super) fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
-        if let Some(why) = self.expired(now) {
-            face.fail(why);
+        if self.expire(face, now) {
             return true;
         }
         if now < self.poll {
@@ -40,10 +43,10 @@ impl Growth {
             if height > before {
                 return true;
             }
-            self.poll = now.saturating_add(super::super::POLL);
+            self.poll = now.saturating_add(GROWTH_POLL);
         } else {
             self.before = Some(height);
-            self.until = Some(now.saturating_add(Duration::from_secs(1)));
+            self.until = Some(now.saturating_add(GROWTH_BOUND));
             if let Err(why) = face.text(node, self.words.take().expect("words typed once"), false) {
                 face.fail(why);
                 return true;
@@ -51,14 +54,26 @@ impl Growth {
         }
         false
     }
-    pub(super) fn expired(&self, now: Time) -> Option<String> {
-        self.until.filter(|until| now >= *until).map(|_| {
-            format!(
-                "field height {} did not exceed {} within 1 s",
-                self.last,
-                self.before.expect("measured before typing")
-            )
-        })
+    pub(super) fn poll(&self) -> Time {
+        self.poll
+    }
+    pub(super) fn until(&self) -> Option<Time> {
+        self.until
+    }
+    pub(super) fn expire(&self, face: &mut BrowserFace<'_>, now: Time) -> bool {
+        if self.until.is_some_and(|until| now >= until) {
+            face.expire(
+                GROWTH_BOUND,
+                format!(
+                    "field height {} did not exceed {} within 1 s",
+                    self.last,
+                    self.before.expect("measured before typing")
+                ),
+            );
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -149,10 +164,9 @@ mod tests {
         growth.next(&mut face, Time::ZERO);
         found(&mut face, Some(target(18)));
         growth.next(&mut face, Time::ZERO);
-        assert_eq!(
-            growth.expired(Time::ZERO.saturating_add(Duration::from_secs(1))).as_deref(),
-            Some("field height 18 did not exceed 20 within 1 s")
-        );
+        assert!(growth.expire(&mut face, Time::ZERO.saturating_add(Duration::from_secs(1))));
+        assert_eq!(face.expired(), Some(Duration::from_secs(1)));
+        assert_eq!(face.failure().as_deref(), Some("field height 18 did not exceed 20 within 1 s"));
     }
     #[test]
     fn the_growth_deadline_is_checked_while_a_browser_act_is_pending() {
@@ -167,6 +181,7 @@ mod tests {
         found(&mut face, Some(target(20)));
         script.next(&mut face, Time::ZERO);
         script.check_deadline(&mut face, Time::ZERO.saturating_add(Duration::from_secs(1)));
+        assert_eq!(face.expired(), Some(Duration::from_secs(1)));
         assert_eq!(face.failure().as_deref(), Some("field height 20 did not exceed 20 within 1 s"));
     }
 }

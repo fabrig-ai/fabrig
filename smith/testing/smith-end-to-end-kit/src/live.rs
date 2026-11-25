@@ -1,4 +1,4 @@
-//! Live account setup and command policy (smith/docs/design/testing.md, section 2.3).
+//! Live account setup and command policy (smith/docs/design/testing-tiers.md, section 3).
 //! Keeps only the guarded live root; smith owns all credential reads and writes.
 
 use std::path::{Path, PathBuf};
@@ -19,13 +19,13 @@ pub const CHECK_SECONDS: u64 = 30;
 pub const EXEC_SECONDS: u64 = 260;
 
 /// How far ahead an earliest refresh time must be for the refresh story to expect its record
-/// kept: longer than its check and exec bounds together (testing.md, 2.3).
+/// kept: longer than its check and exec bounds together (testing-tiers.md, 3).
 pub const EARLIEST_MARGIN_SECONDS: u64 = 300;
 
 /// A record without a refresh token needs a new sign-in before the refresh story.
 pub const NOT_REFRESHABLE: &str = "the record in `$SMITH_LIVE/tokens/chatgpt` holds no refresh token: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login chatgpt`";
 
-/// The refresh story's case, from its record's refresh facts (testing.md, 2.3).
+/// The refresh story's case, from its record's refresh facts (testing-tiers.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefreshCase {
     /// No earliest refresh time, or one at or before now: the run refreshes at once.
@@ -159,13 +159,23 @@ pub fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
 }
 
 pub fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
+    setup_with(root, account, key, |path| std::fs::symlink_metadata(path).map(|_| ()))
+}
+
+/// Require the selected account's record entry or the supplied key, without reading credentials.
+pub fn setup_with(
+    root: &Path,
+    account: &str,
+    key: bool,
+    present: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Result<(), &'static str> {
     let (path, message) = match account {
         "chatgpt" => ("tokens/chatgpt", CHATGPT),
         "claude" => ("programs/claude", CLAUDE),
         "anthropic-key" => return if key { Ok(()) } else { Err(KEY) },
         _ => panic!("unknown live account"),
     };
-    std::fs::symlink_metadata(root.join(path)).map(|_| ()).map_err(|_| message)
+    present(&root.join(path)).map_err(|_| message)
 }
 
 /// Insert `-c deployment.refresh_lead=<lead_seconds>` before the trailing prompt argument `-`.

@@ -95,6 +95,7 @@ fn assignment() -> engine::Assignment {
         workspace: engine::ForgeWorkspace { repositories: Box::new([]) },
         workstream: 23,
         transcript: Box::new([]),
+        parts: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
         grants: Box::new([jig_domain_link::Grant {
@@ -1777,10 +1778,10 @@ fn a_second_proposal_is_refused_naming_the_one_pending() {
 fn a_subscription_refused_for_a_full_room_names_its_bound() {
     let value = engine::CallAnswer::SubscriptionRefused(busy_problem(
         tasks::CapacityAction::Subscription { number: 23 },
-        tasks::CapacityCause::Subscriptions { limit: 4 },
+        tasks::CapacityCause::Subscriptions { limit: 5 },
     ));
     let rendered = answer(&value);
-    assert_eq!(rendered.text(), b"Refused: task 2 busy: it holds its most subscriptions (at most 4, counting the topics the engine keeps for a goal); unsubscribe one it made to make room");
+    assert_eq!(rendered.text(), b"Refused: task 2 busy: it holds its most subscriptions (at most 5, counting the topics the engine keeps for a goal); unsubscribe one it made to make room");
     assert!(rendered.error());
 }
 
@@ -2781,6 +2782,17 @@ fn a_chats_answer_refusal_names_its_persons_inbox_question() {
 }
 
 #[test]
+fn a_late_answer_refusal_names_its_first_writer() {
+    const QUESTION: u64 = 42;
+    const ANSWERER: u64 = 23;
+    refusal_words(
+        tasks::Refusal::QuestionAnswered { question: QUESTION, by: tasks::QuestionAnswerer::Task(ANSWERER) },
+        None,
+        b"Refused: task 99 question 42 was answered by task 23",
+    );
+}
+
+#[test]
 fn a_numbered_verdict_preserves_its_fields_and_cannot_claim_a_resource() {
     let answer = || run::Answer::Accepted {
         outcome: run::outcome::Declared::Verdict(run::outcome::Verdict {
@@ -2902,7 +2914,7 @@ fn document_sections_have_repository_path_and_heading_titles() {
     }
 }
 
-/// temper/docs/design/domain/agent/tools.md, 1: merge accepts both commit widths and pads SHA-1.
+/// temper/docs/design/domain/agent/tools-change.md, 1: merge accepts both commit widths and pads SHA-1.
 #[test]
 fn a_plan_change_reads_merge_as_a_commit() {
     for (digits, length) in [("aB".repeat(20), 20), ("aB".repeat(32), 32)] {
@@ -2924,7 +2936,7 @@ fn a_plan_change_reads_merge_as_a_commit() {
     }
 }
 
-/// temper/docs/design/domain/agent/tools.md, 1: a malformed commit names the refused member.
+/// temper/docs/design/domain/agent/tools-change.md, 1: a malformed commit names the refused member.
 #[test]
 fn a_malformed_merge_is_refused_naming_it() {
     for (digit, length) in [("a", 0), ("a", 39), ("a", 41), ("a", 63), ("a", 65), ("g", 40), ("g", 64)] {
@@ -3646,7 +3658,7 @@ fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
         hold: Some(jig_domain_core::reads::run_task::TaskHold {
             revision: 9,
             reason: tasks::Hold::Dependency(5),
-            words: Some(b"restart vetoed; amend authority and release".as_slice().into()),
+            words: Some(b"Dependency task 5 failed. Held since 2026-11-24T06:07Z. Amend it to drop the dependency, then release it.".as_slice().into()),
         }),
     }
 }
@@ -3664,7 +3676,7 @@ fn task_reads_fit_the_host_bound_and_continue_cut_words() {
     let text = first.text();
     assert!(skein_lib::bytes::find(text, b"spec revision 8").is_some());
     assert!(skein_lib::bytes::find(text, b"Hold revision 9: dependency 5").is_some());
-    assert!(skein_lib::bytes::find(text, b"restart vetoed; amend authority and release").is_some());
+    assert!(skein_lib::bytes::find(text, b"Dependency task 5 failed. Held since 2026-11-24T06:07Z. Amend it to drop the dependency, then release it.").is_some());
     let start = skein_lib::bytes::find(text, WORDS).expect("words").checked_add(WORDS.len()).expect("header");
     let body = text.get(start..).expect("words body");
     let cut = skein_lib::bytes::find(body, NEXT).expect("continuation");
@@ -3687,6 +3699,8 @@ fn task_reads_fit_the_host_bound_and_continue_cut_words() {
 
 #[test]
 fn escalations_name_the_subject_revision_and_task_read_recovery() {
+    const WHY: &[u8] =
+        b"Its deadline 2026-11-24T06:00Z passed. Held since 2026-11-24T06:07Z. Move its deadline, then release it.";
     let word = tasks::Word {
         number: 1,
         from: tasks::Party::Task(23),
@@ -3694,10 +3708,10 @@ fn escalations_name_the_subject_revision_and_task_read_recovery() {
         hits: 1,
         eligible: true,
         kind: tasks::MessageKind::Escalation { task: 23, revision: 9 },
-        words: b"Held task needs a decision".as_slice().into(),
+        words: WHY.into(),
     };
     let words = engine::inbox_words(1, &word);
-    assert!(skein_lib::bytes::find(&words, b"Held task needs a decision").is_some());
+    assert!(words.starts_with(WHY));
     assert!(skein_lib::bytes::find(&words, b"Held task 23, hold revision 9").is_some());
     assert!(skein_lib::bytes::find(&words, b"Use read_task on that task").is_some());
 }
@@ -3796,6 +3810,7 @@ fn task_reads_name_durable_answer_targets_and_answerers() {
         answerer: tasks::Party::Task(18),
         asked: tasks::Party::Task(18),
         line: 106,
+        offer: None,
     }]);
     let rendered = answer(&engine::CallAnswer::TaskRead(Box::new(Ok(read))));
     assert!(
@@ -3886,3 +3901,16 @@ mod record_words;
 mod wire;
 
 mod forge_reads;
+
+#[test]
+fn task_reads_name_the_wait_hold_with_its_words() {
+    const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z: subscription 3. Held since 2026-11-25T06:07Z. Release it to wait again, or amend or cancel it.";
+    let mut read = held_task_read();
+    let hold = read.hold.as_mut().expect("held task fixture");
+    hold.reason = tasks::Hold::Waited;
+    hold.words = Some(WORDS.into());
+    let result = crate::answer_bounded(&engine::CallAnswer::TaskRead(Box::new(Ok(read))), 1024);
+    assert!(!result.error());
+    assert!(skein_lib::bytes::find(result.text(), b"Hold revision 9: wait past its bound\n").is_some());
+    assert!(skein_lib::bytes::find(result.text(), WORDS).is_some());
+}

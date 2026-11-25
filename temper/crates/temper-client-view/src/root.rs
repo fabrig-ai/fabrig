@@ -85,6 +85,23 @@ impl View {
     pub const fn next_change(&self) -> Option<Wall> {
         self.next_change
     }
+    /// Whether a new view or new time words are due (temper/docs/design/client/view.md, 6).
+    #[must_use]
+    pub fn needs_build(&self, root: &Domain, wall: Wall) -> bool {
+        self.pending(root, wall).is_some()
+    }
+    fn pending(&self, root: &Domain, wall: Wall) -> Option<(u64, bool)> {
+        let shown = temper_client_domain::shown(root)
+            .checked_add(self.accounts.revision())
+            .expect("view revisions fit")
+            .checked_add(self.clock_revision)
+            .expect("view clock revisions fit");
+        let due = match self.next_change {
+            Some(next) => wall >= next,
+            None => false,
+        };
+        (self.render.stale(shown) || due).then_some((shown, due))
+    }
     #[must_use]
     pub fn tree(&self) -> &Tree {
         self.render.tree()
@@ -96,15 +113,7 @@ impl View {
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch draws each address's page")]
 pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>) {
-    let shown = temper_client_domain::shown(root).checked_add(view.accounts.revision()).expect("view revisions fit");
-    let shown = shown.checked_add(view.clock_revision).expect("view clock revisions fit");
-    let due = match view.next_change {
-        Some(next) => wall >= next,
-        None => false,
-    };
-    if !view.render.stale(shown) && !due {
-        return;
-    }
+    let Some((shown, due)) = view.pending(root, wall) else { return };
     // skein-ui also gates finish by its revision: a clock wake advances it.
     let shown = if due {
         view.clock_revision = view.clock_revision.checked_add(1).expect("view clock revisions fit");
@@ -501,7 +510,7 @@ pub fn opening_tab(view: &View, root: &Domain, opening: temper_client_domain::Op
 }
 
 /// The address a link node opens, which the browser shell gives as its href
-/// (client/web/README.md, 2.3, and client/web/gallery.md, 1): its external address, or the page its press goes to.
+/// (client/web/addresses.md, 1, and client/web/gallery.md, 1): its external address, or the page its press goes to.
 #[must_use]
 pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
     for shown in view.tree().nodes() {
@@ -543,7 +552,7 @@ pub fn shell_event(view: &View, node: NodeId, act: &Act) -> Option<ShellEvent> {
     }
 }
 
-/// Read the event an act gives, without changing the view (client/web/journeys.md, 3.3).
+/// Read the event an act gives, without changing the view (client/web/journeys-recordings.md, 1.3).
 /// Shell inputs can move a secret directly to the domain without a clonable action.
 #[must_use]
 pub fn event(view: &View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {

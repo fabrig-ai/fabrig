@@ -1,4 +1,4 @@
-//! Tier families and receipt failures (temper/docs/design/protocol/store.md, 2–4).
+//! Tier families and receipt failures (temper/docs/design/protocol/store.md, 2–3, and temper/docs/design/protocol/store-versions.md, 1).
 use super::fixtures;
 use crate::{Undecodable, keys, records};
 use skein_codec::Record;
@@ -24,6 +24,18 @@ fn round_trip(row: d::Stored, family: u8) {
 #[test]
 fn signature_test_ids_fit_the_store_ceiling() {
     assert!(d::FindingSignature::ID_BYTES <= crate::test_id_ceiling());
+}
+
+#[test]
+fn the_last_judged_run_number_round_trips_including_earlier_absence() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for number in [None, Some(0), Some(u64::MAX)] {
+        let mut row = fixtures::tier_row();
+        row.record.last_run = number;
+        let bytes = records::encode(&d::Stored::Tier(row));
+        let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier row") };
+        assert_eq!(decoded.record.last_run, number);
+    }
 }
 
 #[test]
@@ -237,7 +249,14 @@ fn tier_records_keep_the_whole_policy_and_all_parts() {
     empty.held = None;
     empty.result = None;
     empty.received = false;
-    empty.record = p::Record { sequence: 0, judged: None, failing: p::Failures::Many, flakes: Box::new([]), run: None };
+    empty.record = p::Record {
+        sequence: 0,
+        last_run: None,
+        judged: None,
+        failing: p::Failures::Many,
+        flakes: Box::new([]),
+        run: None,
+    };
     round_trip(d::Stored::Tier(empty), 28);
 }
 #[test]
@@ -420,9 +439,11 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.shown_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_235);
+    assert_eq!(empty_goals.len(), 120_238);
     assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
+    full.record.last_run = Some(u64::MAX);
+    full.flight.as_mut().unwrap().clock = Some(waiting_clock());
     full.hold = Some(d::TierHold {
         party: u64::MAX,
         at: skein_lib::Wall::from_nanos(u64::MAX),
@@ -460,7 +481,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.unkept = u32::MAX;
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 3_993_742);
+    assert_eq!(row.len(), 3_995_550);
 }
 
 #[test]
@@ -476,22 +497,52 @@ fn tier_operations_keep_branch_states_faults_and_pending_tips() {
     ] {
         let mut row = fixtures::tier_row();
         row.branch = branch;
-        row.held = Some(fault);
+        row.held = Some(d::TierHeld::Faults(fault));
         row.flight.as_mut().unwrap().fault = Some(fault);
         row.pending[0].key = None;
         round_trip(d::Stored::Tier(row), 28);
     }
 }
+fn waiting_clock() -> temper_engine_domain_forge_change::Clock {
+    use skein_lib::{Duration, Wall};
+    use temper_engine_domain_forge_change::{Clock, Execution};
+    Clock {
+        since: Wall::from_nanos(10),
+        head: [4; 32],
+        run: 71,
+        attempt: 2,
+        ran: Duration::from_secs(3),
+        waited: Duration::from_secs(240),
+        unknown: Duration::from_secs(5),
+        at: Wall::from_nanos(248_000_000_010),
+        seen: Execution::Waiting,
+    }
+}
+
+#[test]
+fn a_runner_wait_hold_and_its_execution_clock_round_trip() {
+    let mut row = fixtures::tier_row();
+    row.held = Some(d::TierHeld::RunnerWait);
+    row.flight.as_mut().unwrap().clock = Some(waiting_clock());
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier record") };
+    assert_eq!(decoded.held, Some(d::TierHeld::RunnerWait));
+    assert_eq!(decoded.flight.as_ref().unwrap().clock, row.flight.as_ref().unwrap().clock);
+    assert_eq!(decoded, row);
+    round_trip(d::Stored::Tier(row), 28);
+}
+
 #[test]
 fn a_missing_workflow_kind_round_trips_in_the_flight_and_hold() {
     use temper_engine_domain_forge_landing::Fault;
     let mut row = fixtures::tier_row();
-    row.held = Some(Fault::MissingWorkflow);
+    row.held = Some(d::TierHeld::Faults(Fault::MissingWorkflow));
     row.flight.as_mut().unwrap().fault = Some(Fault::MissingWorkflow);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let bytes = records::encode(&d::Stored::Tier(row));
     let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier record") };
-    assert_eq!(decoded.held, Some(Fault::MissingWorkflow));
+    assert_eq!(decoded.held, Some(d::TierHeld::Faults(Fault::MissingWorkflow)));
     assert_eq!(decoded.flight.as_ref().unwrap().fault, Some(Fault::MissingWorkflow));
     assert_eq!(records::encode(&d::Stored::Tier(decoded)), bytes);
 }
@@ -499,12 +550,12 @@ fn a_missing_workflow_kind_round_trips_in_the_flight_and_hold() {
 fn an_unreported_fault_round_trips_in_the_flight_and_hold() {
     use temper_engine_domain_forge_landing::Fault;
     let mut row = fixtures::tier_row();
-    row.held = Some(Fault::Unreported);
+    row.held = Some(d::TierHeld::Faults(Fault::Unreported));
     row.flight.as_mut().unwrap().fault = Some(Fault::Unreported);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let bytes = records::encode(&d::Stored::Tier(row.clone()));
     let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier record") };
-    assert_eq!(decoded.held, Some(Fault::Unreported));
+    assert_eq!(decoded.held, Some(d::TierHeld::Faults(Fault::Unreported)));
     assert_eq!(decoded.flight.as_ref().unwrap().fault, Some(Fault::Unreported));
     round_trip(d::Stored::Tier(row), 28);
 }
@@ -524,7 +575,8 @@ fn rows_before_the_unreported_arm_keep_their_encoding_and_decode_unchanged() {
     let old = skein_codec::schema::parse(old_text.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
     let root = b"TierRow";
-    let before = skein_codec::layout::Plan::derive_dropping(
+    let before = skein_codec::layout::Plan::between(
+        skein_codec::layout::Mode::Read,
         &new,
         new.root(root, None).unwrap(),
         &[],
@@ -536,7 +588,7 @@ fn rows_before_the_unreported_arm_keep_their_encoding_and_decode_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for fault in [Fault::SetUp, Fault::MissingWorkflow] {
         let mut row = fixtures::tier_row();
-        row.held = Some(fault);
+        row.held = Some(d::TierHeld::Faults(fault));
         row.flight.as_mut().unwrap().fault = Some(fault);
         let row = d::Stored::Tier(row);
         let bytes = records::encode(&row);

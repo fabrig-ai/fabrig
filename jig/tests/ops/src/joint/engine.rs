@@ -158,22 +158,35 @@ impl Application for OpsApplication {
     type Domain = root::Domain;
     type Store = Store;
     type Config = Config;
+    type PeerSetup = <Ops as Application>::PeerSetup;
     type Systems = Systems;
     type Peers = Peers;
     type Event = root::Event;
     type Delivery = Delivery;
 
-    fn store(_: &Config) -> Self::Store {
-        Store::default()
-    }
     fn build(config: &Config) -> root::Domain {
         Ops::build(config)
+    }
+    fn rehearse(domain: &mut root::Domain) {
+        Ops::rehearse(domain);
+    }
+    fn rehearsed(domain: &root::Domain) -> bool {
+        Ops::rehearsed(domain)
+    }
+    fn refused(domain: &root::Domain) -> Option<String> {
+        Ops::refused(domain)
+    }
+    fn start_phase(domain: &root::Domain) -> String {
+        Ops::start_phase(domain)
     }
     fn systems(config: &Config, seed: u64) -> Systems {
         Ops::systems(config, seed)
     }
-    fn peers(config: &Config, seed: u64) -> Peers {
-        let mut conformance = Ops::peers(config, seed);
+    fn bootstrap(config: &Config) -> (Store, Self::PeerSetup) {
+        Ops::bootstrap(config)
+    }
+    fn peers(config: &Config, seed: u64, setup: &Self::PeerSetup) -> Peers {
+        let mut conformance = Ops::peers(config, seed, setup);
         // Interactive navigation and the post-action health wait outlive the
         // inline scenario's 2,000 iterations; keep their joint allowance finite.
         conformance.observer.referee.policy.story_steps = 20_000;
@@ -330,6 +343,9 @@ impl Application for OpsApplication {
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
+                | core::Held::TaskPartKept { .. }
+                | core::Held::AcknowledgePart { .. }
+                | core::Held::PartBusy { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::AcknowledgeTurn { .. }
                 | core::Held::Drained
@@ -387,6 +403,7 @@ impl Application for OpsApplication {
                 | core::Now::BriefFailed { .. }
                 | core::Now::RunPrepared { .. }
                 | core::Now::EndedEscalation { .. }
+                | core::Now::PartBusy { .. }
                 | core::Now::RestoreRefused,
             )
             | root::Output::IncidentAssociationRefused { .. }
@@ -523,8 +540,9 @@ mod tests {
         let world = conformance::night(17, jig_conformance::Cut::None);
         let config = Config::new(17, conformance::Story::Night);
         let clock = world.clock();
-        let mut shared = OpsApplication::peers(&config, 17);
-        let mut separate = OpsApplication::peers(&config, 17);
+        let (_, setup) = OpsApplication::bootstrap(&config);
+        let mut shared = OpsApplication::peers(&config, 17, &setup);
+        let mut separate = OpsApplication::peers(&config, 17, &setup);
         OpsApplication::cold(&mut shared, &world.store, clock).expect("shared cold observer");
         OpsApplication::cold(&mut separate, &world.store, clock).expect("separate cold observer");
 

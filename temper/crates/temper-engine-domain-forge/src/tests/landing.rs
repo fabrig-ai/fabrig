@@ -280,7 +280,7 @@ fn tier_limits_are_nonzero_and_failure_lists_fit_the_store_row() {
 pub(crate) fn landing_fixture() -> Domain {
     landing_fixture_with(domain())
 }
-fn landing_fixture_with(mut d: Domain) -> Domain {
+pub(super) fn landing_fixture_with(mut d: Domain) -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.repository = REPO;
@@ -305,9 +305,11 @@ fn landing_fixture_with(mut d: Domain) -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
+        follows: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -344,16 +346,18 @@ fn landing_preflight_checks_rules_and_live_room() {
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
     d.landing.rows.get_mut(&100).expect("landing").landing.phase = policy::Phase::Landed;
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
-    d.landing.rows.get_mut(&100).expect("landing").entries = Box::new([LandingEntry {
-        run: None,
-        preparation: None,
-        base: None,
-        entry: 1,
-        member: 0,
-        gate: 0,
-        operation: Operation::Merge,
-    }]);
+    let mut entry = refusals::entry(1);
+    entry.task = 100;
+    outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held: false } });
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
+    d.entries.remove(&1);
+    let mut flight = runs::follow();
+    flight.task = 100;
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: [7; 32] };
+    d.landing.flights.insert(key.clone(), flight).unwrap();
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
+    d.landing.flights.remove(&key);
+    assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
 }
 
 #[test]
@@ -364,8 +368,8 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         let mut d = landing_fixture();
         fixtures::connect(&mut d);
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
             temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
         member_landing(&mut d);
@@ -472,8 +476,8 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
         temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     member_landing(&mut d);
@@ -489,7 +493,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
     }
     let repo = change.repository;
     d.changes.insert(52, change).expect("second member");
-    // A stack's gather can name one repository more than once (landing.md, 5.3).
+    // A stack's gather can name one repository more than once (domain/landing-prepare.md, 1.3).
     let row = d.landing.rows.get_mut(&61).expect("landing");
     let first = row.landing.members.first().expect("first member").clone();
     let mut second = first.clone();
@@ -578,8 +582,8 @@ fn busy_landing_gather() -> (Domain, Env<Limits>) {
     limits.client.reserve = 1;
     let mut d = landing_fixture_with(domain_with_limits(&limits));
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
         temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     member_landing(&mut d);
@@ -747,7 +751,7 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
 fn a_single_landing_resumes_ancestry_and_merges_its_members_pull_with_coherent_evidence() {
     landing_merge_evidence(true);
 }
-fn merge_landing_row(single: bool) -> LandingRow {
+pub(super) fn merge_landing_row(single: bool) -> LandingRow {
     let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
     row.landing.members = Box::new([policy::Member {
         round: None,
@@ -788,8 +792,8 @@ fn landing_merge_evidence(single: bool) {
     {
         let mut d = landing_fixture();
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
             change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
         let row = merge_landing_row(single);
@@ -875,8 +879,8 @@ fn turn_fixture() -> Domain {
     use temper_engine_domain_forge_change as change;
     let mut d = landing_fixture();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
         change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
@@ -968,6 +972,79 @@ fn turn_reviews_at(d: &mut Domain, entry: u64, main: skein_forge::api::Commit) -
     fixtures::answer(d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
+#[test]
+fn a_startup_landing_read_without_a_number_does_not_hold_another_write() {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut d = landing_fixture();
+    outputs(&mut d, Event::Restore { record: Stored::Landing(merge_landing_row(false)) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    let (_fresh, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+    assert!(!d.fresh_reads_in());
+    let entry = status(91, 8);
+    outputs(&mut d, Event::Enqueue { entry: entry.clone() });
+    outputs(&mut d, Event::Committed { entry: 91 });
+    let (clock, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None, single: false }));
+    fixtures::answer(&mut d, clock, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env().now }));
+    let (write, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Write(entry.effect.write));
+    fixtures::answer(&mut d, write, Ok(Answer::Done));
+    assert!(!d.entries.contains_key(&91));
+    assert!(!d.fresh_reads_in(), "the startup gather's unanswered read holds no write");
+}
+
+#[test]
+fn a_merge_waiting_on_authority_retries_without_spending_a_send() {
+    let mut d = turn_fixture();
+    let start = 91_u64;
+    let end = start + u64::from(env().limits.client.write_attempts) + 1;
+    for entry in start..end {
+        turn_reviews_at(&mut d, entry, fixtures::BASE);
+        d.decide_landing(&env(), 61, true, &mut Queue::uncapped());
+        assert!(d.describe_landing_effect(61, entry).is_some(), "the merge is staged afresh");
+        assert_eq!(d.landing(61).unwrap().landing.round.merges, 1);
+        let deferred = outputs(&mut d, Event::DeferLandingMerge { task: 61, entry });
+        assert!(deferred.contains(&Request::Erase { key: Key::Entry(entry) }));
+        assert!(d.describe_landing_effect(61, entry).is_none());
+        assert!(d.landing(61).unwrap().entries.is_empty());
+        assert_eq!(d.landing(61).unwrap().landing.round.merges, 0, "waiting spends no send");
+        assert!(matches!(d.landing(61).unwrap().landing.phase, policy::Phase::Turn { .. }));
+        outputs(&mut d, Event::Committed { entry });
+        assert!(ready(&mut d).is_empty(), "an unadmitted merge never reaches the client");
+    }
+}
+
+#[test]
+fn a_record_waiting_on_authority_is_unknown_not_failed() {
+    let mut d = turn_fixture();
+    let mut entry = status(91, 61);
+    entry.effect.write = skein_forge::api::Write::Merge {
+        number: 1,
+        head: fixtures::HEAD,
+        how: skein_forge::api::MergeHow::Recorded { commit: fixtures::HEAD },
+    };
+    entry.effect.condition = skein_forge_client::Condition::Merge { base: b"main".as_slice().into() };
+    outputs(&mut d, Event::Enqueue { entry });
+    d.landing.rows.get_mut(&61).unwrap().entries = Box::new([LandingEntry {
+        entry: 91,
+        member: 0,
+        gate: 0,
+        operation: Operation::Record,
+        run: None,
+        preparation: Some(0),
+        base: Some(fixtures::BASE),
+    }]);
+    d.landing.results.insert((61, 0, 0, 9), (policy::Status::Pending, false)).unwrap();
+    let deferred = outputs(&mut d, Event::DeferLandingMerge { task: 61, entry: 91 });
+    assert!(deferred.contains(&Request::Erase { key: Key::Entry(91) }));
+    assert!(d.describe_landing_effect(61, 91).is_none());
+    assert!(d.landing(61).unwrap().entries.is_empty());
+    assert_eq!(d.landing(61).unwrap().landing.round.merges, 0);
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 9)), Some(&(policy::Status::Unknown, false)));
+}
+
 /// A restored merge is recovered by its outbox entry, not proposed again (domain/landing.md, 12).
 #[test]
 fn a_restored_turn_waits_for_its_existing_merge_entry() {
@@ -1029,7 +1106,7 @@ fn a_restored_turn_keeps_a_poll_after_its_startup_read() {
         temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     outputs(&mut d, Event::Restore { record: Stored::Landing(merge_landing_row(false)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::CatchUp);
     let mut requests: Box<[Request]> = Box::new([]);
     for answer in [
         Answer::Commit(fixtures::HEAD),
@@ -1040,7 +1117,7 @@ fn a_restored_turn_keeps_a_poll_after_its_startup_read() {
         requests = fixtures::answer_next(&mut d, Ok(answer));
     }
     assert!(requests.contains(&Request::WakeProcedure { task: 61 }), "startup refresh: {requests:?}");
-    outputs(&mut d, Event::SettleOutbox);
+
     assert!(d.landing.due.contains_key(&61), "an idle turn still needs its poll after startup's wake");
     let mut later = env();
     let until = *d.landing.due.get(&61).expect("restored poll");
@@ -1270,8 +1347,8 @@ fn cached_merged_pull_news_wakes_a_landing_after_its_raw_hint() {
 fn landing_deadline_wakes_once_and_an_offered_step_clears_it() {
     let mut d = landing_fixture();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     d.wait_landing(&env(), 61, Some(env().wall));
     assert_eq!(d.next_wall_deadline(), Some(env().wall));
     let mut out = Queue::uncapped();
@@ -1306,8 +1383,8 @@ fn landing_waits_use_the_repositories_hearing_deadline() {
 fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64, bool, u64)) {
     let mut d = landing_fixture();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     member_landing(&mut d);
     d.offered_change(fixtures::CHANGE);
     let mut clock = env();
@@ -1398,8 +1475,8 @@ fn a_ready_change_joined_during_its_gather_keeps_its_landing_at_the_same_head() 
     use temper_engine_domain_forge_change as change;
     let mut d = landing_fixture_with(fixtures::connected_domain());
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
     row.pending = None;
     row.effect = change::EffectResult::None;
@@ -1443,8 +1520,8 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let mut change = fixtures::opening_row();
     change.pull = Some(1);
     change.pending = None;
@@ -1573,8 +1650,8 @@ fn a_turn_merges_landed_owner_survives_rebuild() {
     let mut restarted = landing_fixture();
     outputs(&mut restarted, Event::Restore { record: landed });
     outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut restarted, Event::ReadAfresh);
-    outputs(&mut restarted, Event::SettleOutbox);
+    outputs(&mut restarted, Event::CatchUp);
+
     assert_eq!(restarted.landed.get(&fixtures::HEAD), Some(&fixtures::CHANGE));
 }
 fn take_departed_change(
@@ -2165,8 +2242,8 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
         let mut d = landing_fixture();
         fixtures::connect(&mut d);
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         d.changes.get_mut(&fixtures::CHANGE).unwrap().change.state =
             temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
         let after = d.after_landing(5).unwrap();
@@ -2382,8 +2459,8 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
         let mut d = landing_fixture();
         fixtures::connect(&mut d);
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
             change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
         let after = d.after_landing(5).expect("configured project");
@@ -2481,8 +2558,8 @@ fn connected_member_landing() -> Domain {
     let mut d = landing_fixture();
     fixtures::connect(&mut d);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     member_landing(&mut d);
     d
 }
@@ -2749,7 +2826,7 @@ fn preparing_landing() -> Domain {
     d
 }
 
-fn preparing_heard(preparation: Option<policy::Preparation>) -> LandingHeard {
+pub(super) fn preparing_heard(preparation: Option<policy::Preparation>) -> LandingHeard {
     LandingHeard {
         job: None,
         outcomes: Box::new([]),
@@ -2948,7 +3025,7 @@ fn a_busy_landing_read_retries_before_the_hearing_fallback() {
     assert!(d.is_ready(), "the retained read is immediately runnable after reclamation");
 }
 
-/// A successor reads the key's run even after its dispatcher ends (domain/landing.md, 6 and 7).
+/// A successor reads the key's run even after its dispatcher ends (domain/landing-proof.md, 1 and 2).
 #[test]
 fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
     use skein_forge::api::{Answer, Op, Read};
@@ -3291,6 +3368,9 @@ fn reporting_gate(format: temper_engine_domain_forge_tiers::Format) -> (Domain, 
     }
     .identity()
     .unwrap();
+    flight.inputs = landing::inputs(fixtures::HEAD, key.key, None, false);
+    let row = d.landing.rows.get_mut(&61).unwrap();
+    row.follows = Some(Box::new([saved_dispatch(row, &flight, 0, 1)]));
     d.landing.flights.insert(key.clone(), flight).unwrap();
     let run = api::Run {
         id: 7,
@@ -3314,6 +3394,31 @@ fn reporting_gate(format: temper_engine_domain_forge_tiers::Format) -> (Domain, 
         }]),
     };
     (d, key, run)
+}
+
+fn saved_dispatch(row: &LandingRow, flight: &crate::runs::Follow, member: u16, try_number: u16) -> LandingFollow {
+    LandingFollow {
+        entry: LandingEntry {
+            preparation: Some(row.landing.preparation),
+            base: Some(fixtures::BASE),
+            entry: flight.entry,
+            member,
+            gate: 0,
+            operation: Operation::Dispatch,
+            run: None,
+        },
+        dispatch: Some(LandingDispatch {
+            workflow: flight.workflow.clone(),
+            branch: flight.branch.clone(),
+            inputs: flight.inputs.clone(),
+        }),
+        start: flight.start,
+        since: flight.since,
+        wall: flight.wall,
+        try_number,
+        failed: false,
+        reruns: Box::new([]),
+    }
 }
 
 fn begin_reporting_gate(d: &mut Domain, entry: u64) {
@@ -3536,14 +3641,11 @@ fn a_regate_in_flight_is_rebuilt_from_saved_rows_and_followed_without_another_di
         &mut restarted,
         Event::Restore { record: Stored::Receipt { key: key.clone(), receipt: d.receipt(&key).unwrap().clone() } },
     );
-    outputs(
-        &mut restarted,
-        Event::Restore { record: Stored::Entry { entry: d.entries.get(&91).unwrap().entry.clone(), held: false } },
-    );
+    assert!(!d.entries.contains_key(&91), "the made regate follows from its landing row");
     fixtures::connect(&mut restarted);
     outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut restarted, Event::ReadAfresh);
-    outputs(&mut restarted, Event::SettleOutbox);
+    outputs(&mut restarted, Event::CatchUp);
+
     assert!(
         restarted.landing.flights.contains_key(&key),
         "the standing failed receipt does not hide the saved dispatch"

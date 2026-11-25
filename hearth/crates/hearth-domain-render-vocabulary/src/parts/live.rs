@@ -39,7 +39,7 @@ impl Action {
 pub struct Change {
     pub paths: Box<[ConsumersKeyed]>,
 }
-/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
+/// Keyed changes (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ConsumersKeyed {
     Added { key: Box<[u8]>, value: Box<[Consumer]> },

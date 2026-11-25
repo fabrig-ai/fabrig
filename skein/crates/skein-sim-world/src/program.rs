@@ -90,7 +90,7 @@ pub fn check_roots(roots: &[StartupRoot]) {
 
 /// Machine calls a simulated world forwards when no hosted program matches.
 pub trait Machine {
-    /// A digest of the fake's own state for replay (testing/README.md, 5).
+    /// A digest of the fake's own state for replay (testing/service-tiers.md, 1).
     fn state_digest(&self) -> Option<[u8; 32]> {
         None
     }

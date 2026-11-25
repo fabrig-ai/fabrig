@@ -38,7 +38,7 @@ fn read_answer(
     panic!("forge read was not answered");
 }
 
-pub(super) fn next_assignment(world: &mut World, index: usize) -> engine::Assignment {
+pub(crate) fn next_assignment(world: &mut World, index: usize) -> engine::Assignment {
     for _ in 0..MAX_TICKS {
         world.tick();
         if let Some(run) = world.assigned.get(index) {
@@ -74,12 +74,24 @@ pub(super) fn produce(world: &mut World, producer: &engine::Assignment, branch: 
 }
 
 pub(super) fn review_world() -> (World, engine::Assignment, [u8; 32]) {
-    review_in(World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None))
+    review_in(review_fixture())
+}
+
+fn review_fixture() -> World {
+    World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None)
 }
 
 fn review_in(world: World) -> (World, engine::Assignment, [u8; 32]) {
-    let (mut world, _, producer, branch) = change_world_in(world, Change::default());
-    let head = produce(&mut world, &producer, &branch);
+    let (world, _, producer, branch) = change_world_in(world, Change::default());
+    review_production(world, &producer, &branch)
+}
+
+fn review_production(
+    mut world: World,
+    producer: &engine::Assignment,
+    branch: &[u8],
+) -> (World, engine::Assignment, [u8; 32]) {
+    let head = produce(&mut world, producer, branch);
     let reviewer = next_assignment(&mut world, 2);
     (world, reviewer, head)
 }
@@ -210,6 +222,63 @@ fn a_changes_reviewer_reads_its_own_pull() {
         panic!("items")
     };
     assert!(items.iter().any(|item| item.number == pull.number && item.title.as_ref() == b"Small fix"));
+}
+
+#[test]
+fn a_landed_change_returns_the_same_result_on_two_party_reads() {
+    use jig_domain_core::{documents as docs, reads};
+    let (world, _, producer, branch) = temper_engine_domain_world::forge_routes::change_world_with_result_words(
+        review_fixture(),
+        Change::default(),
+        40,
+        64,
+    );
+    let (mut world, reviewer, checked) = review_production(world, &producer, &branch);
+    let task = requester(&world, reviewer.task);
+    let pull = change_row(&world, task).pull.expect("the reviewed pull");
+    finish_review(
+        &mut world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
+    for _ in 0..MAX_TICKS {
+        if super::goal_landing::ended(&world, task).is_some() {
+            break;
+        }
+        world.tick();
+    }
+    assert!(super::goal_landing::ended(&world, task).is_some(), "the approved change ends");
+    let merge = std::iter::from_fn(|| world.fake.pop_observation())
+        .find_map(|seen| match seen {
+            fake::Observation::Merged { repository, number, head, commit, .. }
+                if repository.as_ref() == b"org/repo" && number == pull && translate::commit(head) == checked =>
+            {
+                Some(translate::commit(commit))
+            }
+            _ => None,
+        })
+        .expect("the forge merged the reviewed pull at its checked head");
+
+    let mut read = || {
+        let reads::Answer::Ended(receipt) = world.party_read(reads::Read::Task { task }) else {
+            panic!("an ended task receipt")
+        };
+        let reads::EndedValue::Task { document, result } = receipt.value else { panic!("task receipt") };
+        assert_eq!(document.chip.number, task);
+        assert_eq!(document.chip.phase, docs::PhaseLine::Ended);
+        assert_eq!(result.task.number, task);
+        assert_eq!(result.task.phase, docs::PhaseLine::Ended);
+        result
+    };
+    let first = read();
+    let second = read();
+    assert_eq!(first, second, "a second party request returns the same typed result");
+    let docs::Ending::Done(docs::ResultValue::Change { kind, part, words }) = first.ending else {
+        panic!("landed change result")
+    };
+    assert_eq!(kind, 1, "landed");
+    assert_eq!(part.key, tasks::PartKey::Number(pull));
+    assert_eq!(words.bytes.split(|byte| *byte == b'\n').next(), Some(engine::commit_text(&merge).as_ref()));
 }
 
 // The fake and renderer carry a 60 KiB generated file without a model or service.
@@ -524,12 +593,13 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
     let before = world.answers.len();
     let file = Read::File { head, path: FILE.into(), max_bytes: 1024 };
     // These concurrent attempts fit inside the held call's lifetime; ticks keep one clock sample.
-    let now = world.env.now;
+    let cadence = world.tick_interval;
+    world.advance_to(world.env.now.saturating_add(cadence));
+    world.tick_interval = Duration::ZERO;
     for attempt in 0..SWEEP {
         let busy = world.busy_calls;
         ask_read(&mut world, &reviewer, 10, forge_world::REPO, file.clone());
         for _ in 0..MAX_TICKS {
-            world.env.now = now;
             world.tick();
             if world.busy_calls != busy {
                 break;
@@ -554,6 +624,7 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
         }
         assert_eq!(world.busy_calls, busy + 1, "attempt {attempt}: the run hears its own Busy");
     }
+    world.tick_interval = cadence;
     assert_eq!(world.answers.len(), before, "Busy has no model-visible answer");
     for event in completions {
         world.send(event);
@@ -705,8 +776,8 @@ fn reviewer_reads_back_off_for_the_background_reserve() {
     let before = world.answers.len();
     let busy = world.busy_calls;
     // A due keeping read must get the reserved request before another fresh read.
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll);
-    world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.client.poll));
+
     for _ in 0..8 {
         engine::fire(&mut world.root, &world.env);
     }
@@ -874,7 +945,7 @@ fn assert_repository_grants(task: u64, authority: &tasks::Authority) {
     }
 }
 
-pub(super) fn finish_review(world: &mut World, reviewer: &engine::Assignment, result: tasks::TaskResult) {
+pub(crate) fn finish_review(world: &mut World, reviewer: &engine::Assignment, result: tasks::TaskResult) {
     let event = world.protocol.answer(
         CHANNEL,
         reviewer.task,
@@ -1109,7 +1180,7 @@ fn a_review_repair_waiting_on_an_answer_ends_when_another_writer_advances_its_br
     delivered_review_repair(false, true);
 }
 
-fn delivered_review_repair(moved: bool, idle: bool) {
+fn waiting_review_repair() -> (World, engine::Assignment, u64, Box<[u8]>, engine::Assignment) {
     let (mut world, requester) = super::questions::plan_world_with_gate(
         None,
         Gate { agent: true, ..Gate::default() },
@@ -1144,6 +1215,31 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     let event =
         world.protocol.answer(CHANNEL, repair.task, repair.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
+    (world, requester, change, branch, repair)
+}
+
+pub(crate) fn preparing_review_repair() -> (World, u64) {
+    let (mut world, _, change, branch, _) = waiting_review_repair();
+    world.advance_ticks(MAX_TICKS);
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
+        .expect("another writer advances the idle repair's branch");
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        let row = change_row(&world, change);
+        if matches!(row.change.state, temper_engine_domain_forge_change::State::Preparing { .. })
+            && row.pending.is_some_and(|entry| world.root.forge().inspection_entry(entry).is_some())
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            return (world, change);
+        }
+    }
+    panic!("review repair reaches its own preparing write");
+}
+
+fn delivered_review_repair(moved: bool, idle: bool) {
+    let (mut world, requester, change, branch, repair) = waiting_review_repair();
     if idle {
         world.advance_ticks(MAX_TICKS);
         let head = fake::advance(
@@ -1190,7 +1286,7 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
 }
 
-// domain/forge/change/README.md, 3: the procedure retains the precise hold while its review waits.
+// domain/forge/change/drift.md, 1: the procedure retains the precise hold while its review waits.
 #[test]
 fn an_external_close_holds_the_change_during_review() {
     use temper_engine_domain_forge_change::{Hold, State};
@@ -2132,7 +2228,7 @@ pub(super) fn producer_for(world: &mut World, change: u64) -> engine::Assignment
     panic!("change {change} has no producer: {:?}; answers {:?}", live_task(world, change), world.answers);
 }
 
-fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
+pub(crate) fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
     let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 32;
     documents.text_bytes = 512;

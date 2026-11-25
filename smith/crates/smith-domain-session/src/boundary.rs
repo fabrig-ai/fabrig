@@ -91,11 +91,13 @@ pub enum Event {
     /// End the session, whatever its state: it cancels what is in flight, and
     /// ends once that has settled. A `session` that has ended is dropped.
     Close { session: Token },
+    /// Cut an open turn, keeping interrupted commands but no whole turn.
+    Cut { session: Token },
     /// Cancel the session's jobs; `JobsCancelled` follows their settlement.
     CancelJobs { session: Token },
     /// The run asks this session to yield its outstanding Complete; its terminal remains owed.
     Yield { session: Token },
-    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs-claude-code.md, 1.5).
     BuiltinResult { session: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
     Completed {
@@ -174,6 +176,8 @@ pub enum Request {
         /// Settled concrete transcript turn handed to the opener.
         turn: crate::record::Turn,
     },
+    /// An answer or result copied before the whole turn, only when requested.
+    Part { opener: Token, part: crate::record::Part },
     /// The cumulative deployment-unit spend, including child calls.
     Priced {
         opener: Token,
@@ -209,6 +213,12 @@ pub enum Request {
         /// Last bounded provider diagnostic; never part of the model history.
         detail: Box<[u8]>,
     },
+    /// Tell the opener a rate limit wait began, ending in `RateLimitWaitDone`.
+    RateLimitWait { opener: Token, until: Time },
+    /// Tell the opener the rate limit wait ended, before retry or close.
+    RateLimitWaitDone { opener: Token },
+    /// Tell the opener a provider's reset outlasts this accounted session, before its `Ended`.
+    RateLimitOutlastsSession { opener: Token, retry_after: Duration },
     /// Ask an LLM for its next message, ended by one completion or call terminal.
     Complete {
         owner: Token,
@@ -270,7 +280,9 @@ pub enum Request {
 /// What a session is opened for.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Spec {
-    /// Transport named in this conversation's opening turns (smith/docs/design/domain/session.md 8.2).
+    /// Tell answers and results as they arrive, beside whole turns.
+    pub tell_parts: bool,
+    /// Transport named in this conversation's opening turns (smith/docs/design/domain/session-context.md 1.2).
     pub backend: crate::record::Backend,
     /// Account named by the charter, absent for uncredentialed calls.
     pub account: Option<u32>,
@@ -408,7 +420,7 @@ pub enum Yield {
     Malformed,
 }
 
-/// Why a compaction answer cannot open a new window (smith/docs/design/domain/session.md, 8.2).
+/// Why a compaction answer cannot open a new window (smith/docs/design/domain/session-context.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NoSummary {
     /// The provider refused the summary, with or without accompanying text.

@@ -7,8 +7,9 @@ use skein_lib::{Duration, RequestKey, Writer};
 pub const ATTEMPT: Token = Token::new(17);
 pub const KEY: RequestKey = [9; 16];
 pub const SERVICE_CREDENTIAL: [u8; 40] = [7; 40];
+const OWNER: jig_client_domain::Spoken = jig_client_domain::Spoken { family: 19, version: 23, layout: [1; 32] };
 const CLIENT: jig_client_domain::Limits = jig_client_domain::Limits {
-    owners: &[jig_client_domain::Spoken { family: 19, version: 23 }],
+    owners: &[OWNER],
     watches: 4,
     handles: 8,
     turn_bytes: 32,
@@ -81,8 +82,16 @@ pub fn answer_family(family: u16, version: u32) -> Box<[u8]> {
     encoded_answer(&w::KeyedAnswer::FinalAnswer(record))
 }
 pub fn answer_done_service(credential: &[u8]) -> Box<[u8]> {
-    let row = w::MadeService { party: 7, credential: skein_lib::Secret::new(Box::from(credential)) };
-    let made = w::OutcomeMade { what: w::Made::Service(row) };
+    answer_service(w::Made::Service(service(credential)))
+}
+pub fn answer_reissued_service(credential: &[u8]) -> Box<[u8]> {
+    answer_service(w::Made::Reissued(service(credential)))
+}
+fn service(credential: &[u8]) -> w::MadeService {
+    w::MadeService { party: 7, credential: skein_lib::Secret::new(Box::from(credential)) }
+}
+fn answer_service(what: w::Made) -> Box<[u8]> {
+    let made = w::OutcomeMade { what };
     final_answer(w::Final::Done(w::Done { outcome: w::Outcome::Made(made) }))
 }
 pub fn answer_busy() -> Box<[u8]> {

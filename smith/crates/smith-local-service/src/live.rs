@@ -11,7 +11,7 @@ use smith_host_protocol::Received;
 /// reasoning and input pieces are never kept.
 pub const LIVE_SLOTS: u32 = 4;
 
-/// protocol/limits.md, section 3.6: maximum bytes in one live piece.
+/// protocol/limits-derivation.md, section 1.6: maximum bytes in one live piece.
 pub const LIVE_BYTES: u32 = smith_channel::CEILINGS.live_bytes;
 
 /// One text piece, sent beside the domain to the shown activation's front.
@@ -180,11 +180,12 @@ impl Timing {
             | process::Request::Send {
                 message:
                     host::Down::Answer { .. }
+                    | host::Down::PartKept { .. }
                     | host::Down::Acknowledge { .. }
                     | host::Down::Grant { .. }
                     | host::Down::Renewals { .. }
                     | host::Down::Cancel
-                    | host::Down::Drain,
+                    | host::Down::Drain { .. },
                 ..
             } => {}
         }
@@ -207,7 +208,8 @@ impl Timing {
                         }
                     }
                 }
-                host::Up::Admitted
+                host::Up::Part { .. }
+                | host::Up::Admitted
                 | host::Up::Call { .. }
                 | host::Up::Withdraw { .. }
                 | host::Up::Fact { .. }
@@ -546,6 +548,8 @@ mod tests {
                 process: Token::new(8),
                 message: host::Down::Start {
                     start: host::Start {
+                        parts: Box::default(),
+                        tell_parts: false,
                         live: None,
                         identity: None,
                         messages: messages.into_boxed(),

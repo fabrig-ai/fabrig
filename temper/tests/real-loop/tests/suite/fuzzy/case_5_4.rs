@@ -1,4 +1,4 @@
-//! Retained first-edition story (testing/reference-case.md): new direction and overlap news wakes B once released.
+//! Pushed-head cancellation and held overlap news (testing/reference-case.md).
 use temper_real_loop_world::{
     Exit,
     case::{
@@ -9,23 +9,10 @@ use temper_real_loop_world::{
 };
 
 #[test]
-fn a_new_direction_cancels_x3_under_its_closed_pull_and_bs_landing_news_waits_for_its_release_with_an_overlap_wake_and_a_closing_comment()
- {
-    // B's planned change makes a1's overlapping landing wake it, while its
-    // hold still defers the next run until Release, with the news told once.
-    // A follows the amendment and its delegates' results; its changes' CI
-    // is read by their procedures alone.
-    // Leaves out the kept branch: domain/forge/change/README.md 4 deletes it; its closed
-    // pull keeps the commits, with A's reason posted once before it closes.
-    // Leaves out x3 past its cap: a running
-    // task's deadline never fires (jig's crates/jig-domain-tasks/src/domain.rs:698
-    // and crates/jig-domain-core/src/run.rs:121; case_5_3.rs).
-    // Leaves out enforced grants, which are undesigned: A's grant is
-    // its instructions' convention; the footprint detects overlap at landing.
-    // Leaves out the hunks (news names commits), B's rebase (its planned h1
-    // is cancelled to go again from new main), and the twenty minutes.
-    // Three one-slot workers: x3's review and h1's coder can remain held
-    // together, with one slot for A/a1 or B. Waiting owner runs park.
+fn a_pushed_change_is_cancelled_under_its_closed_pull_and_an_overlapping_landing_wakes_b_after_release() {
+    // The real workers push x3 and a1; the loopback forge keeps x3's head under
+    // its closed pull and lands a1 on B's file. B hears the overlap after release.
+    // Three one-slot workers let x3's review and h1's coding turn wait together.
     let ran = run_cluster_forge(
         case::PAUSE_WORKERS,
         &[],

@@ -1,4 +1,4 @@
-//! Record and replay the shipped host's seam (client/web/journeys.md, 2–4).
+//! Record and replay the shipped host's seam (client/web/journeys.md, 2, and client/web/journeys-recordings.md, 1–2).
 use crate::host::{self, Host};
 use skein_lib::{Time, Wall};
 use skein_ui::{Act, NodeId, Tree};
@@ -24,7 +24,7 @@ pub use temper_client_redaction::{Framing, Kind, Original, Originals, placeholde
 #[cfg(test)]
 mod tests;
 
-/// The start's facts, as the shell reads them (client/web/journeys.md, 3.2).
+/// The start's facts, as the shell reads them (client/web/journeys-recordings.md, 1.2).
 pub struct Facts {
     pub seed: u64,
     pub now: Time,
@@ -39,7 +39,7 @@ pub struct Facts {
     pub stored: Vec<skein_ui_web::store::Record>,
 }
 impl Facts {
-    /// Start exactly as the browser does (client/web/journeys.md, 4.1).
+    /// Start exactly as the browser does (client/web/journeys-recordings.md, 2.1).
     #[must_use]
     pub fn start(&self) -> (Host, Page<'static>) {
         let ways = self.ways.as_ref().map_or(temper_client_view::sign_in::Ways::NONE, |(content, origin)| {
@@ -58,7 +58,7 @@ impl Facts {
 }
 
 /// The event the view makes of `act` on `node`, as a recording keeps it: the
-/// domain `Event`'s Debug print (client/web/journeys.md, 3.3). None when it makes none.
+/// domain `Event`'s Debug print (client/web/journeys-recordings.md, 1.3). None when it makes none.
 #[must_use]
 pub fn event(host: &Host, node: NodeId, act: &Act) -> Option<Box<[u8]>> {
     host.event_of(node, line::clone_act(act)).map(|event| format!("{event:?}").into_bytes().into())

@@ -48,13 +48,13 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
   as configuration/README.md, section 2 gives them; an engine alone's the same, but for its
   listener and its workers, by the table's rule, and the root's for
   every shape with an engine; a worker alone's, its worker part's and its
-  entry of `application.workers` (configuration/README.md, section 3), then,
+  entry of `application.workers` (configuration/worker.md, section 1), then,
   once its engine has sent its figures, the limits' checks its side
   holds over them (configuration/figures.md, section 3; configuration/limits.md).
 - **The service** has an optional engine and an optional worker:
   standalone both, an engine alone no worker, and a worker alone no
   engine, whose loop, ending and exit are its worker's alone, with no
-  store (`README.md`, sections 4 and 5; jig's `protocol/service.md`, section 6).
+  store (`service-routing.md`, sections 1 and 2; jig's `protocol/service.md`, section 6).
 - **Three directories for each process,** its own (configuration/directories.md
   ): an engine alone's data holds the deployment's directory,
   the store and the secrets' store among it; a
@@ -67,7 +67,7 @@ shape, below (`binaries.md`, 1): `temper-engine serve` an engine alone (`binarie
 - **`temper-box program-login`** takes a worker alone's directories as it
   takes standalone's, and reads only the worker's part: each worker
   signs its programs in on its own, and none is copied to another
-  (credentials.md, section 3). `temper-worker program-login` takes a
+  (credentials-llm-accounts.md, section 1). `temper-worker program-login` takes a
   worker alone's alone (`binaries.md`, 5).
 
 ## 2. Its processes
@@ -105,7 +105,7 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
 ## 3. Joining, and its lines
 
 - **jig's link, in plaintext over loopback** (jig's
-  `protocol/channel/README.md`, section 9): the worker dials the engine's
+  `protocol/channel/worker-link.md`, section 1): the worker dials the engine's
   workers' listener; the engine takes its name and its secret against
   its setting's digest (jig's `domain/engine/workers.md`, 4), then its
   hello: its capability, its position, its capacity and a stop bound
@@ -136,9 +136,9 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   | `lost <worker> <address> <why>` | a worker alone | once each linked link is lost, with its `Loss` (below) |
   | `temper-box serve: worker lost worker=<worker> channel=<n>: <why>` | each shape with an engine | once each worker's channel that said hello ends |
   | `temper-box serve: worker opening ended worker=<worker>: <why>` | each shape with an engine | once a worker's connection ends before its hello: refused, turned away, out of time or cut; `worker=-` before its name is taken |
-  | `temper-box serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel/README.md`, 8): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
+  | `temper-box serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel/liveness.md`, 1): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
 
-  **A link that drops is never silent** (jig's `protocol/channel/README.md`, 8,
+  **A link that drops is never silent** (jig's `protocol/channel/liveness.md`, 1,
   *A lost link says why*). `<why>` is the link's `Loss` in one word or
   two: `silence`, `stall`, `full`, `deadline` (the engine's opening or
   hello), `handshake` (the worker's opening), `stream`, `truncated`,
@@ -182,7 +182,7 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   server keeps its own, as the sign-in link reads it; the workers'
   routing keeps the one io's `Listening` event gives; and the webhooks'
   comes up from skein-forge-connection as its `listening` event (skein's
-  `forge/connection.md`, 6.4).
+  `forge/connection-webhooks.md`, 1.4).
 - **Ready**: the engine at its `listening` lines
   and its sign-in link; a worker at its `linked` line. A task created
   before a worker's hello has reached the fleet waits for a free slot,
@@ -271,81 +271,55 @@ Each where `../testing/README.md` puts it (2.4 to 2.6):
 | Where | What it shows |
 |---|---|
 | step tests | each shape read and checked, a document of none refused, naming its path; each line of 3 as printed |
-| the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace |
-| the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
-| the process tier | `bin/temper-box/tests/fixtures/cluster/` on real processes, as below, and case 4.6's restart boundary (`../testing/reference-case.md` and `../testing/process-tier.md`) |
+| the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace, the lost attempt's reply never committed and its replacement's committed once; a fenced attempt's late traffic changing no turn, its worker then taking new work; a task waiting for a slot taken at a late worker's hello; a worker back at its position after its run ended taking new work there |
+| the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end; case 4.6's restarted workstation (`../testing/reference-case.md`) |
+| the process tier | `bin/temper-box/tests/fixtures/cluster/` on real processes, as below |
 
-The process tier's first stories, one slot on each worker: the
-cluster's fixtures give each worker one. Two tasks on two workers need
-no more; the cluster's workers of several slots are later (7).
+The process tier's stories, one slot on each worker: the cluster's
+fixtures give each worker one. Two tasks on two workers need no more;
+the cluster's workers of several slots are later (7). Each ends a
+process and reads how it ended; what a loss, a fence or a return does
+to the run is the engine's domain world's, as the table says.
 
-
-- **A task on each worker:** two tasks on the fakes, one run on w1 and
-  one on w2, each to its end; then the cluster stopped, each process
-  exiting 0, no survivor.
-- **A task on each worker, on the deployment's binaries:** the same
-  story on the same description, its engine started by
-  `temper-engine serve`, each worker by `temper-worker serve`, and each
-  worker's agent `temper-agent AGENT.json` (configuration/README.md, section
-  4) in place of the box's `temper-box internal agent`; the fakes and the
-  client stay the box's `temper-box`. The process tier builds the three
-  beside the box's binary (`tools/tiers/design.md`). Written and
-  compiled in its plan, and run after landing
-  (`../draft/deployment-binaries.md`, section 10).
-- **A worker lost:** w1 killed mid-run; its task's run is placed on w2
-  past the grace, and lands once. Its process is killed first, then
-  its tree, so the engine sees its link close, not an agent's end, and
-  no silence is waited on. A waiting
-  run's turn is committed only when the run ends, so the killed
-  attempt's reply never reaches the engine; the retried run resumes
-  from the chat's committed turns and answers anew, the reply is in
-  them once, and the lost attempt's run ends as lost in the task's
-  activity. The killed process's end is the story's, not a failure.
-- **A worker hung:** w1 stopped past the grace, then continued; its run,
-  placed on w2, lands once, and w1's attempt lands nothing. First, a
-  stop past the engine's silence alone, continued within the fleet's
-  grace, heals: w1 links again and the same attempt answers there,
-  nothing placed twice. Then a stop held until the run is seen on w2
-  (never a length of time): once continued, w1 links again, its
-  listing of the fenced attempt is cancelled and what it sends of it
-  dropped, and w1 takes a new run on its one slot, which shows it
-  acted on the cancel, whose end sent the fenced attempt's held turn;
-  the fenced attempt's activity and the chat's turns are as they were
-  before the continue, and the reply is in them once.
-- **A worker started later:** w2 started once w1's slot is taken; the
-  second task waits, due and unplaced, with no attempt (the engine
-  admits a run only once a slot is free), then runs on w2 once it
-  links. A restarted worker links again at its position: w1, its run
-  ended, is stopped alone, exits 0, and is started again on its own
-  directories; it prints `linked` again, is the engine's w1 again, and
-  takes a new run.
+- **A task on each worker, on the deployment's binaries:** two tasks
+  on the fakes, one run on w1 and one on w2, each to its end; then the
+  cluster stopped, each process exiting 0, no survivor. Its engine is
+  started by `temper-engine serve`, each worker by `temper-worker
+  serve`, and each worker's agent `temper-agent AGENT.json`
+  (configuration/worker.md, section 2) in place of the box's
+  `temper-box internal agent`; the fakes and the client stay the box's
+  `temper-box`. The process tier builds the three beside the box's
+  binary (`tools/tiers/design.md`).
+- **A worker killed** (`a_worker_killed_mid_run_ends_by_its_signal_and_its_link_closes`):
+  w1 killed mid-run, its process first, then its
+  tree, so the engine sees its link close, not an agent's end, and no
+  silence is waited on: w1 ends by signal 9, the engine reads its link
+  closed, and the others stop in reverse, exiting 0. The killed
+  process's end is the story's, not a failure.
+- **A worker stopped and continued** (`a_worker_stopped_past_the_silence_links_again_as_the_same_process`):
+  w1 alone is started, then stopped past the engine's
+  silence alone, read disconnected, then continued within the fleet's
+  grace: the same process links again and the same attempt answers
+  there, nothing placed twice.
 - **Every story waits on what shows each step,** read through the
   client and the processes' lines, never on a clock, within one bound;
-  w2 starts only once w1 holds its run, so which worker takes a chat is
-  never left to placement's order; and each chat is closed and ended
-  before the cluster stops, since a worker's ending under a waiting
-  run fails it into a retry.
+  in the kill story w2 starts only once w1 holds its run. Chat stories
+  that stop normally close their chats and wait for them to end first,
+  since a worker's ending under a waiting run fails it into a retry.
 - **A mixed document,** each shape's departures, refuses its start,
   exiting 1 and naming the path.
 
 These are the case's multi-worker steps at their smallest
-(`../testing/reference-case.md`): `binaries.md`, 1's placement by free slots, `binaries.md`, 3's
-worker added later, 4.6's hung worker.
-
-- **The case's restart,** a story on the same
-  description, the case's workers named ws, s1 and s2, its fixture
-  applied to the engine's and the workers' documents, its acts by real
-  `temper ctl`, and its oracle over what the processes observed
-  (`../testing/process-tier.md`): 4.6's restarted
-  workstation, ws stopped under the director's waiting chat and started
-  again on its own directories.
+(`../testing/reference-case.md`): `binaries.md`, 1's placement by free
+slots and 4.6's hung worker, at their process boundary; `binaries.md`,
+3's worker added later is the engine's domain world's.
 
 ## 7. Later
 
 - **A worker stopped apart from its engine** (4): its Shutdown
   cancel's agent answer counts as `Failed(Agent)`, spending an agent
   try while the engine stays up. Giving that restart the standalone
-  stop's no-try interruption (`README.md`, section 6) is left for the cluster
+  stop's no-try interruption (`service-process.md`, section 1) is left for the cluster
   (jig's `protocol/service.md`, section 9).
 - **The engine's refusal text on the worker** (3): the text is sent
   over the channel, but jig's worker link retains only the reason code
@@ -355,11 +329,11 @@ worker added later, 4.6's hung worker.
 - **TLS on the workers' listener, contained process trees, and workers
   on other hosts,** with hosts apart (`README.md`, section 11): a worker alone on
   another machine is the same document, its `engine` in TLS (jig's
-  `protocol/README.md`, section 10).
+  `protocol/needs.md`, section 1).
 - **An engine restarted under live workers,** with generations kept
   across starts (`README.md`, section 11).
 - **The cluster's workers of several slots,** as the case of
   `../testing/reference-case.md` has: a worker hosts an agent per slot
-  (`../domain/worker/README.md`, section 5), and the cluster's fixtures and
+  (`../domain/worker/agent-processes.md`, section 1), and the cluster's fixtures and
   stories still give each of its workers one slot.
 - **`temper-box init` for the cluster's shapes** (`README.md`, section 11).

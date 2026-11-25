@@ -1,46 +1,24 @@
 //! Landing view records (temper/docs/design/domain/landing.md, 14).
-use super::{forge, w};
-use skein_lib::List;
+use super::{forge, maps, w};
+use alloc::boxed::Box;
 use temper_client_protocol_wire::v1::Record;
-use temper_engine_domain_forge_change::Status;
 
-pub(super) fn train(value: forge::LandingTrain, limits: &w::Limits) -> Option<w::Train> {
-    {
-        let value = w::Train {
-            forge: value.repository.forge,
-            repository: value.repository.repository,
-            owner: value.owner,
-            name: value.name,
-            branch: value.branch,
-        };
-        value.measure(limits).ok()?;
-        Some(value)
+pub(super) fn train(value: &forge::LandingTrain, limits: &w::Limits) -> Option<w::Train> {
+    let record = train_to_record(value);
+    record.measure(limits).ok()?;
+    Some(record)
+}
+
+pub(crate) fn train_to_record(value: &forge::LandingTrain) -> w::Train {
+    w::Train {
+        forge: value.repository.forge,
+        repository: value.repository.repository,
+        owner: value.owner.clone(),
+        name: value.name.clone(),
+        branch: value.branch.clone(),
     }
 }
-pub(super) fn step(value: forge::LandingStep) -> w::LandingStep {
-    match value {
-        forge::LandingStep::Waiting => w::LandingStep::Waiting,
-        forge::LandingStep::Preparing => w::LandingStep::Preparing,
-        forge::LandingStep::Proving => w::LandingStep::Proving,
-        forge::LandingStep::Probing => w::LandingStep::Probing,
-        forge::LandingStep::ProbingByTest => w::LandingStep::ProbingByTest,
-        forge::LandingStep::Proved => w::LandingStep::Proved,
-        forge::LandingStep::Turn => w::LandingStep::Turn,
-        forge::LandingStep::Landed => w::LandingStep::Landed,
-        forge::LandingStep::Held => w::LandingStep::Held,
-        forge::LandingStep::Cancelled => w::LandingStep::Cancelled,
-        forge::LandingStep::Judging => w::LandingStep::Judging,
-        forge::LandingStep::Leaving => w::LandingStep::Leaving,
-        forge::LandingStep::Recording => w::LandingStep::Recording,
-        forge::LandingStep::Telling => w::LandingStep::Telling,
-    }
-}
-pub(super) fn combined(value: forge::LandingCombine) -> w::Combined {
-    match value {
-        forge::LandingCombine::Merge => w::Combined::Merge,
-        forge::LandingCombine::Squash => w::Combined::Squash,
-    }
-}
+
 pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::LandingLeave> {
     let value = {
         Some(match value {
@@ -67,47 +45,11 @@ pub(super) fn search(value: &forge::LandingView, limits: &w::Limits) -> Option<w
             green: bound(value, search.green, limits)?,
             red: bound(value, search.red, limits)?,
             probe: value.probe,
-            tests: search_tests(&search.tests, limits)?,
+            tests: maps::search_tests_to_record(&search.tests).ok()?,
         };
         value.measure(limits).ok()?;
         Some(value)
     }
-}
-fn search_tests(value: &forge::LandingSearchTests, limits: &w::Limits) -> Option<w::SearchTests> {
-    let value = {
-        Some(match value {
-            forge::LandingSearchTests::Whole => w::SearchTests::Whole,
-            forge::LandingSearchTests::WholeAgain => w::SearchTests::WholeAgain,
-            forge::LandingSearchTests::ByTest { gates, passes } => {
-                let mut selections = List::with_capacity(u32::try_from(gates.len()).ok()?);
-                for gate in gates {
-                    selections
-                        .push(w::SearchSelection {
-                            gate: gate.gate,
-                            name: gate.name.clone(),
-                            count: gate.count,
-                            ids: List::from_boxed(gate.ids.clone()),
-                        })
-                        .ok()?;
-                }
-                let mut probed = List::with_capacity(u32::try_from(passes.len()).ok()?);
-                for pass in passes {
-                    probed
-                        .push(w::SearchPass {
-                            member: pass.member,
-                            prefix: pass.prefix,
-                            gate: pass.gate,
-                            name: pass.name.clone(),
-                            run: pass.run,
-                        })
-                        .ok()?;
-                }
-                w::SearchTests::ByTest(w::SearchByTest { gates: selections, passes: probed })
-            }
-        })
-    }?;
-    value.measure(limits).ok()?;
-    Some(value)
 }
 fn bound(value: &forge::LandingView, member: u16, limits: &w::Limits) -> Option<w::SearchBound> {
     let prefix = if member == 0 {
@@ -141,28 +83,22 @@ fn bound(value: &forge::LandingView, member: u16, limits: &w::Limits) -> Option<
         Some(value)
     }
 }
-pub(super) fn judgement(value: forge::PrefixJudgement, limits: &w::Limits) -> Option<w::PrefixJudgement> {
-    let mut gates = List::with_capacity(u32::try_from(value.gates.len()).ok()?);
-    for gate in value.gates {
-        gates
-            .push(w::PrefixGate { number: gate.number, blocking: gate.blocking, verdict: status(gate.verdict) })
-            .ok()?;
-    }
-    {
-        let value = w::PrefixJudgement { prefix: value.prefix, verdict: status(value.verdict), gates };
-        value.measure(limits).ok()?;
-        Some(value)
-    }
+pub(super) fn judgement(value: &forge::PrefixJudgement, limits: &w::Limits) -> Option<w::PrefixJudgement> {
+    let record = maps::prefix_judgement_to_record(value).ok()?;
+    record.measure(limits).ok()?;
+    Some(record)
 }
-fn status(value: Status) -> w::Ci {
-    match value {
-        Status::Unknown => w::Ci::Unknown,
-        Status::Pending => w::Ci::Pending,
-        Status::Passed => w::Ci::Passed,
-        Status::Failed => w::Ci::Failed,
-    }
+
+// Prefix evidence omits the change gate's kind.
+pub(crate) fn prefix_gate_to_record(value: &forge::PanelGate) -> w::PrefixGate {
+    w::PrefixGate { number: value.number, blocking: value.blocking, verdict: maps::ci_to_record(&value.verdict) }
 }
-pub(super) fn hold(value: &forge::LandingPhase, limits: &w::Limits) -> Option<w::LandingHold> {
+
+pub(super) fn hold(
+    value: &forge::LandingPhase,
+    read_hold: Option<Box<[u8]>>,
+    limits: &w::Limits,
+) -> Option<w::LandingHold> {
     let value = {
         let forge::LandingPhase::Held { why, .. } = value else { return None };
         Some(match *why {
@@ -173,34 +109,15 @@ pub(super) fn hold(value: &forge::LandingPhase, limits: &w::Limits) -> Option<w:
                 w::LandingHold::Timeout(w::HeldTimeout { member, gate, run })
             }
             forge::LandingHold::Turn => w::LandingHold::Turn,
+            forge::LandingHold::Read => w::LandingHold::Read(w::HeldRead { reason: read_hold? }),
         })
     }?;
     value.measure(limits).ok()?;
     Some(value)
 }
 
-pub(super) fn wait(value: forge::LandingWait, limits: &w::Limits) -> Option<w::LandingWait> {
-    let on = match value.on {
-        forge::LandingWaitFor::Nothing => w::LandingWaitFor::Nothing,
-        forge::LandingWaitFor::Release => w::LandingWaitFor::Release,
-        forge::LandingWaitFor::Turn => w::LandingWaitFor::Turn,
-        forge::LandingWaitFor::Prepare => w::LandingWaitFor::Prepare,
-        forge::LandingWaitFor::Prefixes => w::LandingWaitFor::Prefixes,
-        forge::LandingWaitFor::Open => w::LandingWaitFor::Open,
-        forge::LandingWaitFor::Close => w::LandingWaitFor::Close,
-        forge::LandingWaitFor::Merge => w::LandingWaitFor::Merge,
-        forge::LandingWaitFor::Read => w::LandingWaitFor::Read,
-        forge::LandingWaitFor::Ready => w::LandingWaitFor::Ready,
-        forge::LandingWaitFor::Delete => w::LandingWaitFor::Delete,
-        forge::LandingWaitFor::Judgement => w::LandingWaitFor::Judgement,
-        forge::LandingWaitFor::Record => w::LandingWaitFor::Record,
-        forge::LandingWaitFor::Ancestry => w::LandingWaitFor::Ancestry,
-        forge::LandingWaitFor::Post => w::LandingWaitFor::Post,
-        forge::LandingWaitFor::Run => w::LandingWaitFor::Run,
-        forge::LandingWaitFor::Receipt => w::LandingWaitFor::Receipt,
-        forge::LandingWaitFor::Room => w::LandingWaitFor::Room,
-    };
-    let wait = w::LandingWait { on, change: value.change, gate: value.gate, run: value.run, landing: value.landing };
+pub(super) fn wait(value: &forge::LandingWait, limits: &w::Limits) -> Option<w::LandingWait> {
+    let wait = maps::landing_wait_to_record(value);
     wait.measure(limits).ok()?;
     Some(wait)
 }

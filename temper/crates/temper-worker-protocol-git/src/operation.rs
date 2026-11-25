@@ -141,7 +141,7 @@ impl Operation {
         };
         let kind = self.environment_kind(kind);
         let mut credentials = true;
-        if let Command::UpdateRef { .. } = self.command {
+        if let Command::UpdateRef { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts = self.command {
             credentials = false;
         }
         let mut pipes = skein_lib::List::with_capacity(3);
@@ -236,10 +236,14 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::UpdateIndex { .. }
             | Command::Add
@@ -271,11 +275,15 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::Add
             | Command::DiffPaths { .. }
@@ -305,11 +313,15 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::Add
             | Command::DiffPaths { .. }
@@ -323,6 +335,7 @@ impl Operation {
                 Some(git::Op::Commit { title, body, .. }) if self.has_input() => invocation::message(title, body),
                 Some(
                     git::Op::Store { .. }
+                    | git::Op::Keep { .. }
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
@@ -330,6 +343,7 @@ impl Operation {
                     | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
+                    | git::Op::Counts { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
@@ -373,6 +387,7 @@ impl Operation {
                 | Next::Run(_)
                 | Next::Snapshot { .. }
                 | Next::Look { .. }
+                | Next::Keep
                 | Next::Make
                 | Next::Store
                 | Next::InstallStore { .. }
@@ -418,6 +433,7 @@ impl Operation {
                 Some(git::Op::Merge { .. } | git::Op::Commit { .. }) => true,
                 Some(
                     git::Op::Store { .. }
+                    | git::Op::Keep { .. }
                     | git::Op::Make { .. }
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
@@ -426,6 +442,7 @@ impl Operation {
                     | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
+                    | git::Op::Counts { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::DiffPaths { .. }
@@ -436,7 +453,7 @@ impl Operation {
                 | None => false,
             };
         let progress = match self.command {
-            Command::Merge { .. } => true,
+            Command::Merge { .. } | Command::MergeHistory { .. } => true,
             Command::Reds(_)
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
@@ -452,7 +469,10 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
@@ -514,11 +534,15 @@ impl Operation {
             | Command::Store { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffIndex { .. }
@@ -750,7 +774,7 @@ impl Child {
     fn read(&self, i: usize, delimiter: u8, out: &mut Outputs) {
         if let Some(token) = self.pipes.get(i).copied().flatten() {
             // max=1 delivers an unterminated final fragment before End, which
-            // a larger scan can hide under skein's runtime/lib.md section 7's contract.
+            // a larger scan can hide under skein's runtime/lib-streams.md section 1's contract.
             let read = if i == 1 {
                 stream::Read::Scan { until: stream::Delimiter::new(&[delimiter]).expect("one-byte delimiter"), max: 1 }
             } else {

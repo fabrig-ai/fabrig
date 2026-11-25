@@ -10,6 +10,7 @@ use temper_fake_git_hosted::Remote;
 use temper_playground::documents;
 pub(crate) use temper_playground::fakes::forge_table;
 pub mod playground;
+pub(crate) mod recovery;
 
 /// The stock settings file is independent of the story, seed and phase.
 pub(crate) fn settings_file() -> &'static [u8] {
@@ -57,6 +58,8 @@ pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
     limits
 }
 
+const PLAN_REQUEST: &[u8] = b"@plan Fix the adopted repository";
+
 pub(crate) fn person() -> Vec<Step<temper_client_domain::Address>> {
     let mut steps = vec![
         Step::Go {
@@ -79,10 +82,10 @@ pub(crate) fn person() -> Vec<Step<temper_client_domain::Address>> {
         see(Find::text(b"acme/app")),
         Step::Go { address: temper_client_domain::Address::NewChat { draft: false } },
         see(Find::named(Role::TextArea, b"What do you want done?")),
-        ty(Role::TextArea, b"What do you want done?", b"@plan Fix the adopted repository"),
+        ty(Role::TextArea, b"What do you want done?", PLAN_REQUEST),
         press(Role::Button, b"Send"),
     ];
-    steps.push(see(Find::text(b"@plan Fix the adopted repository")));
+    steps.push(see(Find::text(PLAN_REQUEST)));
     steps
 }
 pub(crate) fn adoption_person() -> Vec<Step<temper_client_domain::Address>> {
@@ -117,11 +120,12 @@ pub(crate) fn provider(story: Story) -> skein_fake_peers::llm::Peer {
         return fixtures::provider();
     }
     let grant = |kind| serde_json::json!({"connector":fixtures::FORGE_CONNECTOR,"kind":kind,"segments":["forge","127.0.0.1:3000"],"terminal":"open","last":"acme"});
+    let grants: Vec<_> = grant_kinds().map(grant).collect();
     let mut delegate = serde_json::json!({"batch":[{
         "executor":{"kind":"procedure","connector":fixtures::FORGE_CONNECTOR,"code":fixtures::PROCEDURE_CODE},
         "spec":{"words":"@edit Fix","parameters":[{"name":fixtures::PARAMETER_NAMES[0],"kind":"resource","connector":fixtures::FORGE_CONNECTOR,"resource":fixtures::REPOSITORY_TAG},{"name":fixtures::PARAMETER_NAMES[1],"kind":"bytes","value":"main"}]},
         "contract":{"kind":"change","connector":fixtures::FORGE_CONNECTOR,"change_kind":fixtures::CHANGE_KIND,"words":fixtures::CHANGE_WORDS},
-        "authority":{"tools":fixtures::PRODUCER_TOOLS,"grants":fixtures::GRANT_KINDS.map(grant),"delegation":{"kinds":[{"kind":"agent","number":fixtures::AGENT_KIND}],"tasks":fixtures::PRODUCER_TASKS,"depth":fixtures::PRODUCER_DEPTH},"budget":{"spend":fixtures::PRODUCER_SPEND},"notes":fixtures::PRODUCER_NOTES}
+        "authority":{"tools":fixtures::PRODUCER_TOOLS,"grants":grants,"delegation":{"kinds":[{"kind":"agent","number":fixtures::AGENT_KIND}],"tasks":fixtures::PRODUCER_TASKS,"depth":fixtures::PRODUCER_DEPTH},"budget":{"spend":fixtures::PRODUCER_SPEND},"notes":fixtures::PRODUCER_NOTES}
     }]});
     if matches!(story, Story::Merge) {
         delegate["batch"][0]["spec"]["parameters"]
@@ -166,6 +170,29 @@ pub(crate) fn provider(story: Story) -> skein_fake_peers::llm::Peer {
     ]))
 }
 pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
+    forge_with_readme(story, None)
+}
+
+pub(crate) fn forge_with_readme(story: Story, readme: Option<(&[u8], &[u8])>) -> temper_fake_git_hosted::Typed {
+    use skein_fake_forge_domain::api::{Cue, File, Protection};
+    let mut tree = vec![File { path: b"conflict.txt".as_slice().into(), content: b"base\n".as_slice().into() }];
+    let contexts: Box<[_]> = Box::new([b"check".as_slice().into()]);
+    let (cue, protection) = readme.map_or((None, None), |(readme, edit)| {
+        tree.push(File { path: b"README.md".as_slice().into(), content: readme.into() });
+        (
+            Some(Cue::File { path: b"README.md".as_slice().into(), green: edit.into() }),
+            Some(Protection {
+                branch: b"main".as_slice().into(),
+                contexts: contexts.clone(),
+                approvals: 0,
+                dismiss_stale: false,
+                queue: false,
+                linear: false,
+                code_owners: false,
+                bypassing_users: Box::new([]),
+            }),
+        )
+    });
     let config = skein_fake_forge_domain::Config {
         limits: skein_fake_forge_domain::Limits {
             statuses: fixtures::FORGE_STATUSES,
@@ -182,22 +209,19 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
             id: fixtures::REPOSITORY,
             name: b"acme/app".as_slice().into(),
             default: b"main".as_slice().into(),
-            tree: Box::new([skein_fake_forge_domain::api::File {
-                path: b"conflict.txt".as_slice().into(),
-                content: b"base\n".as_slice().into(),
-            }]),
+            tree: tree.into_boxed_slice(),
             labels: Box::new([]),
             checks: skein_fake_forge_domain::api::Checks {
                 cues: Box::new([]),
-                contexts: Box::new([b"check".as_slice().into()]),
+                contexts,
                 latency_min: Duration::ZERO,
                 latency_max: Duration::ZERO,
                 silent: fixtures::CI_SILENT,
                 passes: fixtures::CI_PASSES,
                 reruns: fixtures::CI_RERUNS,
-                cue: None,
+                cue,
             },
-            protection: None,
+            protection,
             hooked: matches!(story, Story::Adopt),
         },
     );
@@ -306,6 +330,9 @@ pub(crate) fn configure(value: &mut temper_playground::documents::Configuration)
         return;
     }
     documents::configure(value);
+    if recovery::merge_granted() {
+        recovery::grant_merge(value);
+    }
     if STORY.with(|slot| matches!(slot.get(), Story::Merge)) {
         // The compact resolution and change context fit beside the pinned parameters.
         value.jig_over("tasks.spec_bytes", 1024);
@@ -342,6 +369,12 @@ pub(crate) fn uses_stock() -> bool {
     })
 }
 
+// `merge pull request` (temper-engine-domain-forge-vocabulary's hold words).
+const MERGE_PULL: u16 = 4;
+pub(crate) fn grant_kinds() -> impl Iterator<Item = u16> {
+    fixtures::GRANT_KINDS.into_iter().chain(recovery::merge_granted().then_some(MERGE_PULL))
+}
+
 thread_local! { static FIRST_START: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
 pub(crate) fn first_start() -> bool {
     FIRST_START.with(std::cell::Cell::get)
@@ -353,9 +386,15 @@ pub(crate) fn setup_settings(phase: crate::world::Phase) {
         slot.set(
             !playground()
                 && !STORY.with(|story| matches!(story.get(), Story::NoWelcome))
-                && (matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. })
-                    || matches!(phase, crate::world::Phase::Drain)
-                        && STORY.with(|story| matches!(story.get(), Story::CodingAtStop))),
+                && (matches!(
+                    phase,
+                    crate::world::Phase::Story
+                        | crate::world::Phase::LandedRestart
+                        | crate::world::Phase::ForgeReceipt
+                        | crate::world::Phase::CtlAdopt
+                        | crate::world::Phase::Fault { .. }
+                ) || matches!(phase, crate::world::Phase::Drain)
+                    && STORY.with(|story| matches!(story.get(), Story::CodingAtStop))),
         );
     });
     SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain) && uses_stock()));

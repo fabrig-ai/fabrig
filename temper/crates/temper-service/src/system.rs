@@ -1,4 +1,4 @@
-//! One process, joined through io's workers channel (protocol/README.md, 6).
+//! One process, joined through io's workers channel (protocol/service-process.md, 1).
 use crate::{AccountsRuntime, End, Worker, clients, settings, store};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
@@ -141,7 +141,7 @@ impl Service {
         io_limits: io::Limits,
     ) -> Result<Self, Problems> {
         let forges = crate::forge::prepare(&settings, forges)?;
-        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None)
+        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None, None)
     }
     #[expect(clippy::too_many_arguments, reason = "startup keeps the checked settings and runtime facts together")]
     pub(crate) fn prepared(
@@ -153,6 +153,7 @@ impl Service {
         io_limits: io::Limits,
         box_line_bytes: Option<u32>,
         program_login: Option<Box<[u8]>>,
+        opening: Option<&jig_protocol_store::Checked>,
     ) -> Result<Self, Problems> {
         let links = settings.limits.sign_in.pending;
         let notes = settings.limits.forge.forges;
@@ -165,13 +166,14 @@ impl Service {
             },
         )
         .ok_or(start_problem(b"limits", What::Bound))?;
-        let engine = temper_engine_service::Engine::prepared(
+        let engine = temper_engine_service::Engine::prepared_with_store_limits(
             settings,
             seeds,
             accounts,
             forges,
             box_line_bytes,
             if worker.is_some() { program_login } else { None },
+            opening,
         )?;
         Ok(Self {
             engine: Some(Box::new(engine)),
@@ -213,6 +215,18 @@ impl Service {
     /// (protocol/floor.md, 3). Production keeps the binary's sets.
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
+    }
+    /// The directory component's checked bounds before runtime settings.
+    #[must_use]
+    pub fn checked_opening_limits(&self) -> Option<&jig_protocol_store::Checked> {
+        match &self.engine {
+            Some(engine) => Some(engine.checked_opening_limits()),
+            None => None,
+        }
+    }
+    /// Supply optional parsed binary texts before open; admission still checks the sets.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.engine.as_mut().expect("engine prepared schemas").prepared_schemas(schemas);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
     pub fn rehearse_store(
@@ -540,7 +554,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
 }
 pub use temper_service_core::{STAGES, Stage};
 
-/// Run one stage with the pass's times (protocol/README.md, 6.1).
+/// Run one stage with the pass's times (protocol/service-process.md, 1.1).
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
     if let Some(engine) = &mut service.engine {
         engine.held_notes(service.notes.len());

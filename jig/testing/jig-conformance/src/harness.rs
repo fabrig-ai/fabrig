@@ -2,9 +2,12 @@
 //! Applications translate boundaries; this loop owns commit application and
 //! checks observations after every iteration (`domain/testing.md`, 5–6).
 use crate::referee::{Observed, Policy, PolicySnapshot, Referee, Violation};
+use crate::store_check::{self, StoreChecks};
 use crate::trace::Trace;
+
 use std::collections::VecDeque;
 use std::fmt::Debug;
+use std::rc::Rc;
 
 /// A durable store driven by the application-independent loop.
 pub trait Durable: Sized {
@@ -93,9 +96,11 @@ pub trait Application {
     /// Concrete durable storage and the writes it accepts.
     type Store: Durable;
     /// Scenario configuration retained for cold starts.
-    type Config;
+    type Config: Clone;
     /// Independent system fakes.
     type Systems;
+    /// Immutable evidence derived from the configuration for fresh peers.
+    type PeerSetup;
     /// Scripted hosts, parties and outside correlation state.
     type Peers;
     /// Application boundary events.
@@ -105,12 +110,28 @@ pub trait Application {
 
     /// Build the engine from its original scenario configuration.
     fn build(config: &Self::Config) -> Self::Domain;
-    /// Construct empty storage using the scenario's final limits.
-    fn store(config: &Self::Config) -> Self::Store;
+    /// Stop the next cold start before its switch, without reaching outside peers.
+    fn rehearse(domain: &mut Self::Domain);
+    /// Report that the rehearsing start reached its switch.
+    fn rehearsed(domain: &Self::Domain) -> bool;
+    /// The start's refusal in its Debug form alone.
+    fn refused(domain: &Self::Domain) -> Option<String>;
+    /// The current start phase, also when a start stalls or refuses.
+    fn start_phase(domain: &Self::Domain) -> String;
+    /// Construct the fixture's store and configuration-derived peer evidence once per harness.
+    fn bootstrap(config: &Self::Config) -> (Self::Store, Self::PeerSetup);
+    /// The same fixture's store for callers that only need its initial rows.
+    fn store(config: &Self::Config) -> Self::Store {
+        Self::bootstrap(config).0
+    }
     /// Construct independent system fakes from the scenario seed.
     fn systems(config: &Self::Config, seed: u64) -> Self::Systems;
     /// Construct scripted hosts, parties and observation translations.
-    fn peers(config: &Self::Config, seed: u64) -> Self::Peers;
+    fn peers(config: &Self::Config, seed: u64, setup: &Self::PeerSetup) -> Self::Peers;
+    /// Cold-open a rehearsal fork, unless `Durable::fork` already did.
+    fn open_rehearsal(store: &mut Self::Store, seed: u64) -> Result<(), String> {
+        store.crash(seed)
+    }
     /// Borrow the complete scenario policy, including independently requested edits.
     fn policy(peers: &Self::Peers) -> &Policy;
     /// The same complete policy as `policy`, shared immutably until an edit.
@@ -121,8 +142,9 @@ pub trait Application {
     }
     /// Prepare the initial durable fixture and begin the cold-load script.
     fn start(config: &Self::Config, store: &mut Self::Store) -> Vec<Self::Event>;
-    /// Reconnect retained peers and observe the last durable store on a crash.
-    /// This clears outside correlation only; `start` chooses the application's
+    /// Reconnect peers and observe the last durable store on a crash or rehearsal.
+    /// Rehearsal peers are freshly built. This clears outside correlation only;
+    /// `start` chooses the application's
     /// cold-load vocabulary after the harness rebuilds its domain.
     fn cold(peers: &mut Self::Peers, store: &Self::Store, clock: Clock) -> Result<(), Violation>;
     /// Translate the application’s fleet, task and connector timers.
@@ -186,6 +208,7 @@ pub trait Application {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Outcome {
     pub commits: u64,
+    pub checked: u64,
     pub iterations: u64,
     pub stopped: bool,
     pub crashes: Vec<u64>,
@@ -212,7 +235,13 @@ pub fn cut_passed() {
     skein_fork::passed();
 }
 
-type CommitHook<A> = Box<dyn FnMut(&Harness<A>)>;
+type ColdCut<A> = Box<dyn FnMut(&Harness<A>) -> Result<bool, Violation>>;
+
+struct Kept<A: Application> {
+    store: A::Store,
+    config: A::Config,
+    clock: Clock,
+}
 
 /// The application engine, its independent peers, and durable store.
 /// The heap meter begins before engine construction; counting the test peers
@@ -226,6 +255,7 @@ pub struct Harness<A: Application> {
     pub trace: Trace,
     maximum: u64,
     config: A::Config,
+    peer_setup: Rc<A::PeerSetup>,
     seed: u64,
     events: VecDeque<Input<A::Event>>,
     outputs: Vec<Output<<A::Store as Durable>::Write, A::Delivery>>,
@@ -238,7 +268,12 @@ pub struct Harness<A: Application> {
     forked: Vec<u64>,
     forked_at: Option<u64>,
     fork_only: Option<Vec<u64>>,
-    commit_hook: Option<CommitHook<A>>,
+    cold_cut: Option<ColdCut<A>>,
+    store_checks: StoreChecks,
+    kept: Option<Kept<A>>,
+    finished: bool,
+    cut_start: Option<u64>,
+    cut_inspection: Option<Violation>,
 }
 
 impl<A: Application> Harness<A> {
@@ -255,9 +290,11 @@ impl<A: Application> Harness<A> {
     }
 
     fn start(config: A::Config, seed: u64, trace: Trace) -> Self {
-        let peers = A::peers(&config, seed);
+        eprintln!("application seed {seed}");
+        let (mut store, peer_setup) = A::bootstrap(&config);
+        let peer_setup = Rc::new(peer_setup);
+        let peers = A::peers(&config, seed, &peer_setup);
         let systems = A::systems(&config, seed);
-        let mut store = A::store(&config);
         let events = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
         let policy = match A::policy_snapshot(&peers) {
             Some(policy) => policy.clone(),
@@ -275,6 +312,7 @@ impl<A: Application> Harness<A> {
             trace,
             maximum,
             config,
+            peer_setup,
             seed,
             events,
             outputs: Vec::new(),
@@ -287,25 +325,128 @@ impl<A: Application> Harness<A> {
             forked: Vec::new(),
             forked_at: None,
             fork_only: None,
-            commit_hook: None,
+            cold_cut: None,
+            store_checks: StoreChecks::one(seed),
+            kept: None,
+            finished: false,
+            cut_start: None,
+            cut_inspection: None,
         }
     }
 
-    /// Observe each durable application before acknowledgement or polling.
-    /// The hook reads only outside state; it never copies the live engine.
-    pub fn on_commit(&mut self, hook: impl FnMut(&Self) + 'static) {
-        self.commit_hook = Some(Box::new(hook));
+    /// Choose which durable commits receive an independent cold store check.
+    pub fn store_checks(&mut self, checks: StoreChecks) {
+        self.store_checks = checks;
+        self.kept = None;
+        self.finished = false;
+    }
+
+    /// The run's checked count and its selection policy.
+    #[must_use]
+    pub fn store_check_report(&self) -> String {
+        self.store_checks.report()
+    }
+
+    /// Rehearse a cold start on an owned durable snapshot, apart from the live run.
+    ///
+    /// # Errors
+    /// Returns the start's refusal or a start stalled before the switch.
+    pub fn check_store(&self) -> Result<(), Violation> {
+        self.rehearse_store(self.store.applied(), self.keep_store()?)
+    }
+
+    fn keep_store(&self) -> Result<Kept<A>, Violation> {
+        Ok(Kept {
+            config: self.config.clone(),
+            clock: self.clock,
+            store: self.store.fork().map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?,
+        })
+    }
+
+    fn rehearse_store(&self, commit: u64, kept: Kept<A>) -> Result<(), Violation> {
+        let Kept { config, mut store, mut clock } = kept;
+        A::open_rehearsal(&mut store, self.seed)
+            .map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?;
+        let mut peers = A::peers(&config, self.seed, &self.peer_setup);
+        A::cold(&mut peers, &store, clock)?;
+        let mut systems = A::systems(&config, self.seed);
+        let mut domain = A::build(&config);
+        StoreChecks::rehearse(|| {
+            A::rehearse(&mut domain);
+            let mut events: VecDeque<_> = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
+            for _ in 0..self.referee.policy.story_steps {
+                clock.now = clock.now.checked_add(1_000_000).expect("scenario time fits");
+                if let Some(input) = events.pop_front() {
+                    A::step(&mut domain, &config, clock, input);
+                }
+                let mut stopped = false;
+                let outputs = A::release(&mut domain, &config, clock);
+                let empty = outputs.is_empty();
+                for output in outputs {
+                    match output {
+                        Output::Commit { number, writes } => store.submit(number, writes, 0),
+                        Output::Deliver(delivery) => {
+                            events.extend(A::deliver(&mut peers, &mut systems, &mut store, clock, delivery)?);
+                        }
+                        Output::Stop => stopped = true,
+                    }
+                }
+                if let Some(refusal) = A::refused(&domain) {
+                    return Err(Violation {
+                        promise: crate::referee::Promise::Once,
+                        why: store_check::finding(commit, &A::start_phase(&domain), &refusal),
+                    });
+                }
+                if A::rehearsed(&domain) {
+                    return Ok(());
+                }
+                if stopped {
+                    break;
+                }
+                match store.tick(false) {
+                    Ok(Some(number)) => events.push_front(Input::Committed(number)),
+                    Ok(None) => {}
+                    Err(number) => events.push_front(Input::Failed(number)),
+                }
+                events.extend(A::poll(&mut peers, &mut systems, &mut store, clock, false)?);
+                A::reclaim(&mut domain);
+                if empty && events.is_empty() && store.idle() && (A::quiescent(&domain) || store.holding()) {
+                    break;
+                }
+            }
+            Err(Violation {
+                promise: crate::referee::Promise::Once,
+                why: format!("store check: commit {commit}: start stalled at {}", A::start_phase(&domain)),
+            })
+        })
+    }
+
+    fn start_finding(&self, commit: u64, refusal: &str) -> Violation {
+        Violation {
+            promise: crate::referee::Promise::Once,
+            why: store_check::finding(commit, &A::start_phase(&self.domain), refusal),
+        }
+    }
+
+    /// Visit durable applications before acknowledgement or polling and report
+    /// which were checked by a cold cut. The sweep keeps no separate sample.
+    pub fn on_cold_cut(&mut self, visit: impl FnMut(&Self) -> Result<bool, Violation> + 'static) {
+        self.kept = None;
+        self.cold_cut = Some(Box::new(visit));
     }
 
     /// Arm one cold restart before its selected durable completion is released.
     pub fn cut(&mut self, cut: Cut) {
         self.cut = cut;
         self.fork_only = None;
+        if matches!(cut, Cut::EachCommitFrom(_)) {
+            self.kept = None;
+        }
     }
 
     /// Fork only these commits, through the same cold restart as `EachCommitFrom`.
     pub fn fork_cuts(&mut self, commits: &[u64]) {
-        self.cut = Cut::EachCommitFrom(1);
+        self.cut(Cut::EachCommitFrom(1));
         self.fork_only = Some(commits.to_vec());
     }
 
@@ -338,7 +479,9 @@ impl<A: Application> Harness<A> {
         self.events.clear();
         self.outputs.clear();
         A::cold(&mut self.peers, &self.store, self.clock)?;
-        self.inspect()?;
+        if self.cut_start.is_none() {
+            self.inspect()?;
+        }
         self.domain = A::build(&self.config);
         self.events.extend(A::start(&self.config, &mut self.store).into_iter().map(Input::Event));
         self.stopped = false;
@@ -396,7 +539,17 @@ impl<A: Application> Harness<A> {
                     )?);
                     self.inspect()?;
                 }
-                Output::Stop => self.stopped = true,
+                Output::Stop => {
+                    self.stopped = true;
+                    if let Some(commit) = self.cut_start
+                        && let Some(refusal) = A::refused(&self.domain)
+                    {
+                        return Err(self.start_finding(commit, &refusal));
+                    }
+                    if let Some(finding) = self.cut_inspection.take() {
+                        return Err(finding);
+                    }
+                }
             }
         }
         if !self.stopped {
@@ -406,30 +559,11 @@ impl<A: Application> Harness<A> {
                 Ok(None) => {}
                 Err(number) => self.events.push_front(Input::Failed(number)),
             }
-            self.inspect()?;
-            if self.store.applied() != previous {
-                if let Some(mut hook) = self.commit_hook.take() {
-                    hook(self);
-                    self.commit_hook = Some(hook);
-                }
-                let should_cut = match self.cut {
-                    Cut::None => false,
-                    Cut::AfterCommit(number) => number == self.store.applied(),
-                    Cut::Random { seed } => {
-                        let mut random = skein_lib::Rng::new(seed ^ self.store.applied());
-                        random.below(4) == 0
-                    }
-                    Cut::EachCommitFrom(first) => {
-                        let commit = self.store.applied();
-                        commit >= first && self.fork_cut(commit)?
-                    }
-                };
-                if should_cut {
-                    self.cut = Cut::None;
-                    self.crash()?;
-                    return Ok(true);
-                }
+            let inspection = self.inspect();
+            if self.store.applied() != previous && self.committed()? {
+                return Ok(true);
             }
+            inspection?;
             self.events.extend(A::poll(
                 &mut self.peers,
                 &mut self.systems,
@@ -438,6 +572,9 @@ impl<A: Application> Harness<A> {
                 A::ready(&self.domain),
             )?);
             self.inspect()?;
+        }
+        if A::ready(&self.domain) {
+            self.cut_start = None;
         }
         A::reclaim(&mut self.domain);
         self.referee.observe(self.clock.now, Observed::Heap { held: self.meter.held(), maximum: self.maximum })?;
@@ -448,6 +585,44 @@ impl<A: Application> Harness<A> {
                 && (A::quiescent(&self.domain) || self.store.holding())))
     }
 
+    fn committed(&mut self) -> Result<bool, Violation> {
+        let commit = self.store.applied();
+        let forked = matches!(self.cut, Cut::EachCommitFrom(first) if commit >= first)
+            && self.fork_only.as_ref().is_none_or(|commits| commits.contains(&commit));
+        let cold_checked = if let Some(mut visit) = self.cold_cut.take() {
+            let checked = visit(self);
+            self.cold_cut = Some(visit);
+            checked?
+        } else {
+            false
+        };
+        if cold_checked {
+            self.store_checks.restarted(commit);
+        } else if !forked && !self.finished {
+            if self.store_checks.due(commit) {
+                self.check_store()?;
+            } else if self.store_checks.keeps()
+                && self.cold_cut.is_none()
+                && !matches!(self.cut, Cut::EachCommitFrom(_))
+            {
+                self.kept = None;
+                self.kept = Some(self.keep_store()?);
+            }
+        }
+        let should_cut = match self.cut {
+            Cut::None => false,
+            Cut::AfterCommit(number) => number == commit,
+            Cut::Random { seed } => skein_lib::Rng::new(seed ^ commit).below(4) == 0,
+            Cut::EachCommitFrom(first) => commit >= first && self.fork_cut(commit)?,
+        };
+        if should_cut {
+            self.cut = Cut::None;
+            self.cut_start = Some(commit);
+            self.crash()?;
+        }
+        Ok(should_cut)
+    }
+
     fn fork_cut(&mut self, commit: u64) -> Result<bool, Violation> {
         if self.fork_only.as_ref().is_some_and(|commits| !commits.contains(&commit)) {
             return Ok(false);
@@ -456,10 +631,12 @@ impl<A: Application> Harness<A> {
             skein_fork::Split::Child => {
                 self.forked.clear();
                 self.forked_at = Some(commit);
+                self.store_checks(StoreChecks::none("the cut's cold restart checks its commit"));
                 Ok(true)
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
                 self.forked.push(commit);
+                self.store_checks.fork_restarted(commit);
                 Ok(false)
             }
             skein_fork::Split::Parent(exit) => Err(Violation {
@@ -470,7 +647,17 @@ impl<A: Application> Harness<A> {
     }
 
     fn inspect(&mut self) -> Result<(), Violation> {
-        Self::inspect_outside(&mut self.peers, &self.systems, &self.store, &mut self.referee, self.clock)
+        let result = Self::inspect_outside(&mut self.peers, &self.systems, &self.store, &mut self.referee, self.clock);
+        if self.cut_start.is_some() && !A::ready(&self.domain) {
+            if let Err(finding) = result {
+                self.cut_inspection.get_or_insert(finding);
+            }
+            return Ok(());
+        }
+        if let Some(finding) = self.cut_inspection.take() {
+            return Err(finding);
+        }
+        result
     }
 
     fn inspect_outside(
@@ -509,11 +696,9 @@ impl<A: Application> Harness<A> {
     /// # Errors
     /// Returns the same broken promise or exhausted bound as a fresh drain.
     pub fn drain_from(&mut self, started: u64) -> Result<Outcome, Violation> {
-        eprintln!("application seed {}", self.seed);
         let spent = self.iterations.checked_sub(started).expect("drain starts before its snapshot");
         let remaining = self.referee.policy.story_steps.saturating_sub(spent);
-        let result = self.drain_iterations(remaining);
-        result.map_err(|violation| self.diagnostic(violation))
+        self.drain_iterations(remaining).map_err(|violation| self.diagnostic(violation))
     }
 
     /// Attach the seed and enabled full trace only when a check fails.
@@ -535,11 +720,32 @@ impl<A: Application> Harness<A> {
         })
     }
 
+    /// Rehearse the kept commit and report this run's coverage once.
+    ///
+    /// # Errors
+    /// Returns the kept commit's refusal or stalled start.
+    pub fn finish(&mut self) -> Result<(), Violation> {
+        if self.finished {
+            return Ok(());
+        }
+        self.finished = true;
+        let result = match self.kept.take() {
+            Some(kept) => {
+                let commit = self.store_checks.end().expect("the policy kept this commit");
+                self.rehearse_store(commit, kept)
+            }
+            None => Ok(()),
+        };
+        eprintln!("{}", self.store_check_report());
+        result.map_err(|violation| self.diagnostic(violation))
+    }
+
     /// Counts from the outside store and loop.
     #[must_use]
     pub fn outcome(&self) -> Outcome {
         Outcome {
             commits: self.store.applied(),
+            checked: self.store_checks.checked(),
             iterations: self.iterations,
             stopped: self.stopped,
             crashes: self.crashes.clone(),
@@ -548,10 +754,21 @@ impl<A: Application> Harness<A> {
     }
 }
 
+impl<A: Application> Drop for Harness<A> {
+    fn drop(&mut self) {
+        if !std::thread::panicking()
+            && let Err(finding) = self.finish()
+        {
+            panic!("{finding:?}");
+        }
+    }
+}
+
 /// Owned outside state at a durable commit, before its acknowledgement.
 /// No domain, boundary event, journal or reply capability belongs here.
 pub struct ColdSnapshot<A: Application> {
     config: A::Config,
+    peer_setup: Rc<A::PeerSetup>,
     seed: u64,
     systems: A::Systems,
     peers: A::Peers,
@@ -564,20 +781,20 @@ pub struct ColdSnapshot<A: Application> {
     crashes: Vec<u64>,
 }
 
-impl<A: Application> Harness<A>
-where
-    A::Config: Clone,
-    A::Systems: Clone,
-    A::Peers: Clone,
-{
+impl<A: Application> Harness<A> {
     /// Capture the outside state only; resuming necessarily performs a cold start.
     /// Held domain continuations are discarded along with the domain.
     ///
     /// # Errors
     /// Returns a recovery readback finding from replaying the captured store.
-    pub fn cold_snapshot(&self) -> Result<ColdSnapshot<A>, Violation> {
+    pub fn cold_snapshot(&self) -> Result<ColdSnapshot<A>, Violation>
+    where
+        A::Systems: Clone,
+        A::Peers: Clone,
+    {
         Ok(ColdSnapshot {
             config: self.config.clone(),
+            peer_setup: Rc::clone(&self.peer_setup),
             seed: self.seed,
             systems: self.systems.clone(),
             peers: self.peers.clone(),
@@ -592,11 +809,13 @@ where
     }
 
     /// Fork a captured durable cut through the same crash/restart path as fresh replay.
+    /// The new harness starts its own store-check count.
     ///
     /// # Errors
     /// Returns the same missing receipt or broken promise as `crash`.
     pub fn from_snapshot(mut snapshot: ColdSnapshot<A>) -> Result<Self, Violation> {
         // Exactly crash's outside sequence, before constructing its one new root.
+        eprintln!("application seed {}", snapshot.seed);
         snapshot.crashes.push(snapshot.store.applied());
         snapshot.referee.observe(snapshot.clock.now, Observed::Restart)?;
         snapshot.store.crash(snapshot.seed).map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?;
@@ -622,6 +841,7 @@ where
             trace: snapshot.trace,
             maximum: snapshot.maximum,
             config: snapshot.config,
+            peer_setup: snapshot.peer_setup,
             seed: snapshot.seed,
             events,
             outputs: Vec::new(),
@@ -634,7 +854,12 @@ where
             forked: Vec::new(),
             forked_at: None,
             fork_only: None,
-            commit_hook: None,
+            cold_cut: None,
+            store_checks: StoreChecks::one(snapshot.seed),
+            kept: None,
+            finished: false,
+            cut_start: None,
+            cut_inspection: None,
         })
     }
 }

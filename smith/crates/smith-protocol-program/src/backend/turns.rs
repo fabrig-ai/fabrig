@@ -1,7 +1,7 @@
-//! API message assembly (protocol/programs.md, section 5.5). Keeps one
+//! API message assembly (protocol/programs-claude-code.md, section 1.5). Keeps one
 //! message and four waiting completions; never derives usage from a result.
 //! `StructuredOutput` waits for its outcome and becomes finish in the same slot;
-//! it is never a workspace built-in (protocol/programs.md, section 5.5).
+//! it is never a workspace built-in (protocol/programs-claude-code.md, section 1.5).
 
 use super::{Bound, Rejection};
 use crate::mcp::json;
@@ -314,7 +314,7 @@ impl Turns {
             }
         }
         // StructuredOutput's result supplies the finish input for this same
-        // model completion (smith/docs/design/protocol/programs.md 5.5), never an extra budgeted turn.
+        // model completion (smith/docs/design/protocol/programs-claude-code.md 1.5), never an extra budgeted turn.
         if structured && !boundary {
             return Ok(());
         }
@@ -341,7 +341,7 @@ impl Turns {
         Ok(())
     }
 
-    // smith/docs/design/protocol/programs.md 5.5: a successful result without an assistant still hands
+    // smith/docs/design/protocol/programs-claude-code.md 1.5: a successful result without an assistant still hands
     // the no-tool turn to the domain, which owns its nudge allowance.
     pub fn end_empty(&mut self) -> Result<(), Rejection> {
         if self.assistant_events == 0 && self.ready.is_empty() {

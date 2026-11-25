@@ -48,13 +48,13 @@ its own beside jig's (3). How a public read travels is
   (`acts.md`, 2), and no configuration makes one public: a start opens nothing.
   Project 0, the deployment's roster, is never public. Visibility is a
   row of its own, kept only while a project is public
-  (`../../protocol/store/README.md`, 4.4), so a store written before it holds
+  (`../../protocol/store/keys.md`, 1.4), so a store written before it holds
   none and every project in it reads private: no default makes one
   public.
 - **Made public by its owners:** `SetVisibility { project, public }`,
   owner of the project alone; no policy gives it to another role. It is committed and answered once
   durable, as any request (`acts.md`, 1), and is a record of the project's, kept
-  in the people family's project row (`../../protocol/store/README.md`, 4.4).
+  in the people family's project row (`../../protocol/store/keys.md`, 1.4).
   Making a project public shows its name, its structure and its tasks'
   titles (3).
 - **Every party of the project sees it:** the project's entry in `me`
@@ -120,7 +120,7 @@ and the project's name. Their records, and each field's source, are
   chat can reach a stranger. Titles cross all the same: the user's
   decision, reaffirmed on 2026-11-06 (the request `ui-public-3`), on the
   condition that making a project public says so. temper's words, in
-  each place it offers that (temper's `client/ctl/tools.md`, 3), are:
+  each place it offers that (temper's `client/ctl/tools-acts.md`, 1), are:
   "Anything said in this project's chats may show on its public pages,
   in the titles of its goals and tasks. On a public repository, a
   change's pull request shows what its agent wrote too."
@@ -202,7 +202,7 @@ every signed-in one. Every figure below is the deployment's
   the answers within their freshness, limits each address and admits
   public reads before they take its connections to the engine; jig
   trusts no address and counts none.
-- **Durable before shown,** as every read's answer is (../engine/README.md, 5.2).
+- **Durable before shown,** as every read's answer is (../engine/decisions.md, 1.2).
 
 ## 6. Its world
 

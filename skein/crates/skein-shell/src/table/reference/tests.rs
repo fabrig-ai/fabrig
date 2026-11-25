@@ -1,4 +1,4 @@
-//! Handwritten documents from skein/docs/design/runtime/shell.md, 14.3.
+//! Handwritten documents from skein/docs/design/runtime/shell-table.md, 1.3.
 
 use crate::Table;
 use crate::table::demo::{DEMO, DEMO_TESTS, OTHER};
@@ -6,7 +6,7 @@ use crate::table::demo::{DEMO, DEMO_TESTS, OTHER};
 const ARGUMENTS: &str = "\
 # demo-box: arguments
 
-Generated from demo-box's table (`skein/docs/design/runtime/shell.md`, 14.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
+Generated from demo-box's table (`skein/docs/design/runtime/shell-table.md`, 1.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
 
 ## Public
 
@@ -105,7 +105,7 @@ Generated from demo-box's table (`skein/docs/design/runtime/shell.md`, 14.3): a 
 const ENVIRONMENT: &str = "\
 # demo-box: environment
 
-Generated from demo-box's table (`skein/docs/design/runtime/shell.md`, 14.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
+Generated from demo-box's table (`skein/docs/design/runtime/shell-table.md`, 1.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
 
 ## Public
 
@@ -133,7 +133,7 @@ Generated from demo-box's table (`skein/docs/design/runtime/shell.md`, 14.3): a 
 const COMMON: &str = "\
 # demo: common environment
 
-Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
+Generated from the tree's tables (`skein/docs/design/runtime/shell-table.md`, 1.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
 
 ## Public
 
@@ -214,7 +214,7 @@ Generated from the tree's tables (`skein/docs/design/runtime/shell.md`, 14.3): a
 const TESTS: &str = "\
 # demo: test environment
 
-Generated from the tree's test table (`skein/docs/design/runtime/shell.md`, 14.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
+Generated from the tree's test table (`skein/docs/design/runtime/shell-table.md`, 1.3): a test checks it byte for byte, and the tree's rewrite switch rewrites it.
 
 ## Test
 
@@ -245,11 +245,11 @@ fn the_four_documents_follow_the_reference_form_byte_for_byte() {
         ("common", Table::common_document("demo", tree), COMMON),
         ("test", DEMO_TESTS.document(), TESTS),
     ] {
-        assert_eq!(got, expected, "{name}: handwritten from runtime/shell.md, 14.3");
+        assert_eq!(got, expected, "{name}: handwritten from runtime/shell-table.md, 1.3");
     }
 }
 
-/// Only headings and the first Set item belong to check 5's reading (runtime/shell.md, 14.3).
+/// Only headings and the first Set item belong to check 5's reading (runtime/shell-table.md, 1.3).
 fn environment_entries(document: &str) -> Vec<(&str, &str)> {
     let mut entries = Vec::new();
     let mut name = None;

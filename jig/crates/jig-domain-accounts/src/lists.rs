@@ -1,5 +1,5 @@
 //! When an account's list is read, and what an answer changes
-//! (jig/docs/design/domain/accounts.md, 3.7).
+//! (jig/docs/design/domain/accounts-lists.md, 1).
 //! Keeps the read in flight per account and each account's alarm; never a value or a row.
 use crate::{Domain, Holder, Limits, ListRecord, ReadFailure, Request, State};
 use skein_lib::{Duration, Env, List, Queue, Wall};
@@ -16,7 +16,7 @@ pub(crate) struct Reading {
 }
 
 impl Domain {
-    /// The account still holding this volatile list read (accounts.md, 3.7).
+    /// The account still holding this volatile list read (domain/accounts-lists.md, 1).
     #[must_use]
     pub fn reading_list(&self, read: u64) -> Option<u32> {
         for (account, state) in &self.list_reads {

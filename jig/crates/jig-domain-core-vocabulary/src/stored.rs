@@ -1,4 +1,4 @@
-//! The core's durable run and call identities (domain/engine/README.md, 5.4 and domain/engine/executors.md).
+//! The core's durable run and call identities (domain/engine/decisions.md, 1.4 and domain/engine/executors.md).
 
 pub mod fit;
 
@@ -17,11 +17,11 @@ use skein_lib::Wall;
 
 /// The core's retained part of a named call answer. A connector owns its
 /// answer; the core keeps only its number, while it keeps complete
-/// answers for calls routed among its children (domain/engine/executors.md, 3).
+/// answers for calls routed among its children (domain/engine/executors-tools.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPart {
     SettingsRefused(jig_domain_people::Refusal),
-    /// A placed hold can be released only by its owner (domain/tasks/lifecycle.md, 10).
+    /// A placed hold can be released only by its owner (domain/tasks/lifecycle-holds.md, 2).
     HoldOwner {
         task: u64,
         hold: u64,
@@ -276,8 +276,26 @@ pub struct CallRecord {
     pub settled: Option<crate::SettledCall>,
 }
 
+/// A kept part of a turn in flight (domain/engine/executors-transcripts.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct PartKey {
+    pub task: u64,
+    pub attempt: u64,
+    pub number: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct PartRecord {
+    pub key: PartKey,
+    pub turn: u32,
+    pub thread: u32,
+    pub call: u32,
+    pub kind: jig_domain_link::PartKind,
+    pub body: Box<[u8]>,
+}
+
 /// Core-owned durable rows before the application's store wrapper assigns
-/// its own child-family variant (domain/engine/README.md, 5.4).
+/// its own child-family variant (domain/engine/decisions.md, 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CoreRecord {
     /// Settings have their own independently versioned store family.
@@ -288,6 +306,8 @@ pub enum CoreRecord {
     Deployment(Deployment),
     /// One live named call's core answer.
     Call(CallRecord),
+    /// A part kept until a turn or the task's end retires it.
+    Part(PartRecord),
     /// Current claim evidence.
     RunProof(RunProof),
     /// One immutable transcript turn.
@@ -301,7 +321,7 @@ pub enum CoreRecord {
 }
 
 impl CoreRecord {
-    /// The durable address of this core-owned row (domain/engine/README.md, 5.4).
+    /// The durable address of this core-owned row (domain/engine/decisions.md, 1.4).
     #[must_use]
     pub fn key(&self) -> CoreKey {
         match self {
@@ -309,6 +329,7 @@ impl CoreRecord {
             Self::Deployment(_) => CoreKey::Deployment,
             Self::Projection(row) => CoreKey::Projection(row.key()),
             Self::Call(row) => CoreKey::Call(row.key),
+            Self::Part(row) => CoreKey::Part(row.key),
             Self::RunProof(row) => CoreKey::RunProof(row.task),
             Self::Turn(row) => CoreKey::Turn { task: row.task, attempt: row.attempt, turn: row.turn },
             Self::Terminal(row) => CoreKey::Terminal { task: row.task, attempt: row.attempt },
@@ -339,6 +360,8 @@ pub enum CoreKey {
     EscalationDecision { task: u64, revision: u64 },
     /// The settings live family and its on-demand history.
     Settings(crate::settings::Key),
+    /// A kept part of a turn in flight.
+    Part(PartKey),
 }
 
 impl CoreKey {
@@ -346,7 +369,7 @@ impl CoreKey {
     #[must_use]
     pub const fn live(&self) -> bool {
         match self {
-            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) => true,
+            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) | Self::Part(_) => true,
             Self::Settings(_)
             | Self::Deployment
             | Self::Turn { .. }
@@ -369,12 +392,12 @@ pub enum Record {
     People(jig_domain_people::Stored),
     /// Scoped note entries and index lines.
     Notes(jig_domain_notes::Record),
-    /// The accounts' counter, accounts and their sources (protocol/store/README.md, 4.4).
+    /// The accounts' counter, accounts and their sources (protocol/store/keys.md, 1.4).
     Accounts(jig_domain_accounts::Stored),
 }
 
 impl Record {
-    /// The durable address owned by the core or its child (domain/engine/README.md, 5.4).
+    /// The durable address owned by the core or its child (domain/engine/decisions.md, 1.4).
     #[must_use]
     pub fn key(&self) -> Key {
         match self {
@@ -403,7 +426,7 @@ pub enum Key {
 }
 
 /// Stable call identity supplied by a run and scoped by the root's task and
-/// claim (domain/engine/README.md, section 5.4, and domain/engine/executors.md, section 3).
+/// claim (domain/engine/decisions.md, section 1.4, and domain/engine/executors-tools.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct CallKey {
     pub task: u64,
@@ -417,7 +440,7 @@ pub struct CallKey {
 /// Root to store: an accepted numbered transcript and cumulative priced spend,
 /// saved atomically with child task/funding and root latest-turn proof before
 /// its worker ACK
-/// (domain/engine/README.md, 5.1, and domain/engine/executors.md, 2). Loads return the same owned shape.
+/// (domain/engine/decisions.md, 1.1, and domain/engine/executors-transcripts.md, 1). Loads return the same owned shape.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TurnRecord {
     /// A window turn, or the conversation's first.
@@ -459,7 +482,7 @@ pub struct TerminalRecord {
 }
 
 /// Root's latest accepted turn metadata; the full transcript stays only in
-/// the immutable turn archive. Fleet fences earlier bodies (domain/engine/executors.md, 2).
+/// the immutable turn archive. Fleet fences earlier bodies (domain/engine/executors-transcripts.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TurnProof {
     /// Positive consecutive accepted turn, supplied by the worker.
@@ -475,7 +498,7 @@ pub struct TurnProof {
 /// Claim reserves map room before child mutation and replaces this row. Ending
 /// erases it atomically; immutable transcript/terminal archives never enter the
 /// live map. Startup validates every row or stops, dropping none silently
-/// (domain/engine/restart.md and domain/engine/executors.md, section 2; domain/tasks/proposals.md).
+/// (domain/engine/restart.md and domain/engine/executors-transcripts.md, section 1; domain/tasks/proposals.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunProof {
     /// Positive task identity allocated by root; unique in the live proof table.
@@ -485,7 +508,7 @@ pub struct RunProof {
     /// The conversation's first attempt: this claim's attempt when its run starts
     /// fresh, the previous proof's when it resumes; never zero.
     pub conversation: u64,
-    /// Main model endpoint committed with this claim (domain/engine/executors.md, 1 and 2).
+    /// Main model endpoint committed with this claim (domain/engine/executors.md, 1, and domain/engine/executors-transcripts.md, 1).
     pub endpoint: Option<u32>,
     /// Application credential numbers lent with this claim.
     pub credentials: Box<[u32]>,
@@ -516,6 +539,8 @@ pub struct RunProof {
     pub terminal: Option<TerminalRecord>,
     /// Setting number of the worker selected at preparation, none on an engine host.
     pub worker: Option<u32>,
+    /// Highest part acknowledged for this attempt, including parts a turn retired.
+    pub kept_part: u32,
 }
 
 /// Durable current-window position (protocol/store/transcripts.md 6).
@@ -592,6 +617,7 @@ impl RunProof {
             turn: None,
             terminal: None,
             worker: None,
+            kept_part: 0,
         }
     }
 }

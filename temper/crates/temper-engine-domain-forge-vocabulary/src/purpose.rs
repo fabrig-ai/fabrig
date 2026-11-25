@@ -1,12 +1,12 @@
-//! Stable forge effect identities (domain/forge/README.md, section 4).
+//! Stable forge effect identities (domain/forge/effects.md, section 1).
 use alloc::boxed::Box;
 use skein_lib::List;
 
 /// Why an effect exists, independent of its outbox entry number or wall time
-/// (jig's domain/connectors.md, section 4.4).
+/// (jig's domain/connectors-effects.md, section 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum EffectPurpose {
-    /// A tier run operation (temper/docs/design/domain/after-landing.md, 10).
+    /// A tier run operation (temper/docs/design/domain/after-landing-storage.md, 1).
     Tier {
         repository: skein_forge::api::Repository,
         tier: u16,

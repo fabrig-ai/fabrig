@@ -1,60 +1,14 @@
-//! Kit independence (jig/docs/design/README.md, 6.6).
+//! Kit independence (jig/docs/design/rails.md, 1.6).
 
 use super::kit_root;
-use std::{
-    collections::{BTreeMap, BTreeSet, VecDeque},
-    process::Command,
-};
+use crate::manifest::workspace::{Package, jig_packages};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-// Kits by design, whatever their names say (jig/docs/design/domain/testing.md, 7).
+// Kits by design, whatever their names say (jig/docs/design/domain/testing-fakes.md, 1).
 const WORLD_KITS: [&str; 2] = ["skein-world", "smith-agent-process-world"];
 
-#[derive(Debug)]
-struct Package {
-    name: String,
-    dependencies: Vec<String>,
-    dev_dependencies: Vec<String>,
-}
-
 fn packages() -> Vec<Package> {
-    let root = kit_root();
-    let output = Command::new("cargo")
-        .args(["metadata", "--offline", "--no-deps", "--format-version", "1"])
-        .current_dir(&root)
-        .output()
-        .expect("Cargo metadata runs without building");
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).expect("Cargo metadata is JSON");
-    metadata["packages"]
-        .as_array()
-        .expect("metadata packages")
-        .iter()
-        .filter_map(|package| {
-            let path = std::path::Path::new(package["manifest_path"].as_str().expect("manifest path"));
-            if !path.starts_with(&root) {
-                return None;
-            }
-            let mut dependencies = Vec::new();
-            let mut dev_dependencies = Vec::new();
-            for dependency in package["dependencies"].as_array().expect("package dependencies") {
-                let name = dependency["name"].as_str().expect("dependency package name");
-                match dependency["kind"].as_str() {
-                    None => dependencies.push(name.to_owned()),
-                    Some("dev") => {
-                        dependencies.push(name.to_owned());
-                        dev_dependencies.push(name.to_owned());
-                    }
-                    Some("build") => {}
-                    Some(kind) => panic!("unknown dependency kind: {kind}"),
-                }
-            }
-            Some(Package {
-                name: package["name"].as_str().expect("package name").to_owned(),
-                dependencies,
-                dev_dependencies,
-            })
-        })
-        .collect()
+    jig_packages(&kit_root())
 }
 
 fn world_breaches(packages: &[Package]) -> Vec<String> {

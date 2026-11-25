@@ -1,4 +1,4 @@
-//! Reusable bytes (runtime/lib.md, 6): capacity, back-patches, reuse and exact copies.
+//! Reusable bytes (runtime/lib-bytes.md, 1): capacity, back-patches, reuse and exact copies.
 
 use crate::{Buffer, Overflow};
 

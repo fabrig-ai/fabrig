@@ -40,10 +40,12 @@ mod attempts;
 mod batch_bytes;
 mod decision_reads;
 mod hold_origin;
+mod hold_words;
 mod kept;
 mod keys;
 mod refusals;
 pub(crate) mod revisions;
+mod subscriptions;
 mod summary;
 mod waiting;
 
@@ -55,12 +57,12 @@ mod last_batch;
 
 mod changed;
 mod control;
+mod fail;
 
 mod address;
 mod instructions;
 
 mod deadlines;
-mod topic_apart;
 
 mod index;
 

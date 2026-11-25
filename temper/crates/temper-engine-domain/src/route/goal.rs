@@ -1,11 +1,11 @@
-//! Goals in the run's words (domain/agent/tools.md, 2, and domain/agent/agents.md, 2).
+//! Goals in the run's words (domain/agent/tools-goal.md, 1, and domain/agent/agents.md, 2).
 use super::{Delegate, Domain, Env, Limits};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
-use skein_lib::{Decimal, List, Writer};
+use skein_lib::{Decimal, Writer};
 use temper_engine_domain_forge as forge;
 
-/// The root names an advisor after the caller's words (domain/agent/tools.md, 2).
+/// The root names an advisor after the caller's words (domain/agent/tools-goal.md, 1).
 const ADVISOR_SCOPE: &[u8] =
     b"You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.";
 
@@ -16,7 +16,7 @@ const ASK_PLAN: &[u8] =
     b"this work is to be agreed: ask your requester your plan with message, as a question, and wait";
 
 /// Work goals carry a tracked priority; advisors and chats are untracked.
-/// The caller owns its plan regardless of who requested it (domain/agent/tools.md, 2).
+/// The caller owns its plan regardless of who requested it (domain/agent/tools-goal.md, 1).
 pub(crate) fn refusal(domain: &Domain, task: u64, advisor: bool, agree: bool) -> Option<&'static [u8]> {
     let row = domain.core.tasks.task(task)?;
     if row.tracked.is_some()
@@ -66,31 +66,9 @@ pub(crate) fn goal(
     if spend <= domain.core.authority.rules().minimum_run_spend {
         return Err(tasks::Refusal::Funding);
     }
-    let mut authority = context.authority.clone();
-    let mut grants = List::with_capacity(u32::try_from(authority.grants.len()).expect("bounded grants"));
-    for grant in &authority.grants {
-        if grant.connector == domain.config.forge_connector
-            && (forge::READ_KINDS.contains(&grant.kind) || (!advisor && forge::CHANGE_KINDS.contains(&grant.kind)))
-        {
-            grants.push(grant.clone()).expect("narrowed grants fit");
-        }
-    }
-    authority.grants = grants.into_boxed();
-    let mut kinds = List::with_capacity(u32::try_from(authority.delegation.kinds.len()).expect("bounded kinds"));
-    for kind in &authority.delegation.kinds {
-        match *kind {
-            tasks::AuthorityExecutor::Role(_) => {}
-            tasks::AuthorityExecutor::Job(_)
-            | tasks::AuthorityExecutor::Charter(_)
-            | tasks::AuthorityExecutor::Procedure(_) => kinds.push(*kind).expect("narrowed kinds fit"),
-        }
-    }
-    authority.delegation.kinds = kinds.into_boxed();
-    authority.delegation.tasks = context.tasks_left.saturating_sub(1);
+    let mut authority =
+        temper_engine_domain_translate::goal_authority(domain.config.forge_connector, context, advisor, spend);
     authority.delegation.depth = authority.delegation.depth.saturating_sub(1);
-    authority.budget.spend = spend;
-    authority.notes = tasks::Scopes(authority.notes.0 & tasks::Scopes::GOAL.0);
-    authority.note_resources = Box::new([]);
     if advisor {
         authority.notes = tasks::Scopes(0);
         authority.tools.0 &= domain.core.settings.tools.read.0;

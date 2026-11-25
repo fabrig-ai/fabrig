@@ -1,4 +1,5 @@
 //! Adversarial dependency amendments through the engine's public world.
+use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Queue, ReplyTo, Token};
 use temper_engine_domain as engine;
@@ -6,6 +7,12 @@ use temper_engine_domain_world::journal_limits as journal;
 use temper_engine_domain_world::{direct::Driver, fixtures, protocol, store::Store, walking};
 
 const CHANNEL: Token = Token::new(7);
+const PROJECT: u32 = 1;
+const OTHER_PROJECT: u32 = 2;
+const OTHER_OWNER: u64 = 8;
+const PERIOD_BUDGET: u64 = 1000; // Match the first project's funding in Driver::period.
+const PARENT_CHAT: u8 = 31;
+const UNRELATED_CHAT: u8 = 32;
 // Chat plus up to four siblings; two pending dependencies exercise both sides of the bound.
 const TASKS: u32 = 6;
 const DEPENDENCIES: u32 = 2;
@@ -68,21 +75,90 @@ pub(super) fn configuration() -> engine::Config {
 }
 
 fn story() -> (Driver, engine::Assignment) {
-    let mut driver = Driver::configured(Store::new(), [configuration(), configuration()], &limits());
-    driver.send(protocol::hello_slots(CHANNEL, limits().fleet.slots, Box::new([])));
+    story_with([configuration(), configuration()], &limits())
+}
+
+fn story_with(configs: [engine::Config; 2], bounds: &engine::Limits) -> (Driver, engine::Assignment) {
+    let mut driver = Driver::configured(Store::new(), configs, bounds);
+    driver.send(protocol::hello_slots(CHANNEL, bounds.fleet.slots, Box::new([])));
     driver.settle();
     driver.sign_in();
     driver.settle();
+    let session = driver.session();
+    let parent = ask_chat(&mut driver, session, PROJECT, PARENT_CHAT, b"amend my live delegates");
+    let parent = assignment(&driver, parent);
+    (driver, parent)
+}
+
+fn ask_chat(driver: &mut Driver, sign_in: u64, project: u32, key: u8, words: &[u8]) -> u64 {
+    let reply = Token::new(u64::from(key));
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(1001)),
-        sign_in: driver.session(),
-        key: [31; 16],
-        ask: driver.chat_ask(1, b"amend my live delegates"),
+        reply_to: ReplyTo::new(reply),
+        sign_in,
+        key: [key; 16],
+        ask: driver.chat_ask(project, words),
     }));
     driver.settle();
-    let parent = driver.last_assignment();
-    (driver, parent)
+    let reply = web_reply(driver, reply);
+    let Some(people::Reply::Outcome(people::Outcome::Created { first, .. })) = reply else {
+        panic!("chat created in project {project}: {reply:?}");
+    };
+    *first
+}
+
+fn web_reply(driver: &Driver, token: Token) -> Option<&people::Reply> {
+    driver.delivered.iter().find_map(|delivery| match delivery {
+        engine::Delivery::WebReply { to, reply } if *to == ReplyTo::new(token) => Some(reply),
+        _ => None,
+    })
+}
+
+fn two_project_story() -> (Driver, engine::Assignment, u64) {
+    let configs = [configuration(), configuration()].map(|mut config| {
+        let other = jig_domain_core::SeedProject {
+            number: OTHER_PROJECT,
+            name: "Other project".into(),
+            policy: config.core.seed_projects[0].policy.clone(),
+        };
+        let owner = people::InitialOwner {
+            project: OTHER_PROJECT,
+            identity: temper_engine_domain_forge::user_key(1, OTHER_OWNER),
+        };
+        config.core.seed_projects = config.core.seed_projects.into_vec().into_iter().chain([other]).collect();
+        config.core.owners = config.core.owners.into_vec().into_iter().chain([owner]).collect();
+        config
+    });
+    let mut bounds = limits();
+    bounds.authority.projects = 2;
+    bounds.people.projects = 3; // The two projects and the deployment roster.
+    bounds.people.initial_owners = 2;
+    let (mut driver, parent) = story_with(configs, &bounds);
+    driver.send(engine::Event::Party(engine::PartyInput::Period {
+        project: OTHER_PROJECT,
+        period: 1,
+        budget: PERIOD_BUDGET,
+        next: None,
+    }));
+    driver.settle();
+    let reply = Token::new(OTHER_OWNER);
+    driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        until: None,
+        held: None,
+        reply_to: ReplyTo::new(reply),
+        identity: people::Identity {
+            key: temper_engine_domain_forge::user_key(1, OTHER_OWNER),
+            login: b"other".as_slice().into(),
+            name: b"Other".as_slice().into(),
+        },
+    }));
+    driver.settle();
+    let reply = web_reply(&driver, reply);
+    let Some(people::Reply::SignedIn { sign_in, .. }) = reply else {
+        panic!("other project owner signed in: {reply:?}");
+    };
+    let session = *sign_in;
+    (driver, parent, session)
 }
 
 fn siblings(driver: &mut Driver, parent: &engine::Assignment, names: &[&[u8]]) -> Vec<u64> {
@@ -157,10 +233,15 @@ fn starts(driver: &Driver, task: u64) -> usize {
 
 fn kept_story() -> (Driver, engine::Assignment, u64, u64) {
     let (mut driver, parent) = story();
-    let children = siblings(&mut driver, &parent, &[b"report", b"prerequisite"]);
+    let (report, prerequisite) = keep_report(&mut driver, &parent);
+    (driver, parent, report, prerequisite)
+}
+
+fn keep_report(driver: &mut Driver, parent: &engine::Assignment) -> (u64, u64) {
+    let children = siblings(driver, parent, &[b"report", b"prerequisite"]);
     let [report, prerequisite] = children.as_slice() else { panic!("two delegates") };
-    amend(&mut driver, &parent, AMEND_CALL, *report, 0, &[*prerequisite]);
-    (driver, parent, *report, *prerequisite)
+    amend(driver, parent, AMEND_CALL, *report, 0, &[*prerequisite]);
+    (*report, *prerequisite)
 }
 
 fn finish_task(driver: &mut Driver, task: u64) {
@@ -170,7 +251,7 @@ fn finish_task(driver: &mut Driver, task: u64) {
 
 #[test]
 fn ordinary_words_cannot_wake_a_kept_delegate() {
-    // jig's domain/tasks/lifecycle.md 8: messages wait while kept, without a new run.
+    // jig's domain/tasks/lifecycle-endings.md 1: messages wait while kept, without a new run.
     let (mut driver, _, report, _) = kept_story();
     let run = assignment(&driver, report);
     finish(&mut driver, &run);
@@ -238,7 +319,7 @@ fn stale_revision_cannot_remove_pending_dependencies() {
 
 #[test]
 fn dependencies_at_the_bound_wait_for_the_last() {
-    // jig's domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md: each pending prerequisite keeps the task.
+    // jig's domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md: each pending prerequisite keeps the task.
     let (mut driver, parent) = story();
     let children = siblings(&mut driver, &parent, &[b"report", b"first", b"last"]);
     let [report, first, last] = children.as_slice() else { panic!("report and two prerequisites") };
@@ -321,32 +402,43 @@ fn a_sibling_cannot_amend_another_sibling() {
 }
 
 #[test]
-fn a_dependency_outside_the_amenders_reach_is_refused() {
-    // jig's domain/tasks/changes.md: added prerequisites must be within the amender's reach.
+fn a_dependency_on_a_task_the_requester_reads_is_admitted() {
+    // jig/docs/design/domain/tasks/messages.md, 5, Waits by reading: a person holding a role
+    // in the project reads all of it. An amendment may add what the amender could name in a
+    // batch (jig/docs/design/domain/tasks/changes.md, What may be added).
     let (mut driver, parent, report, _) = kept_story();
-    // A separately created top-level chat belongs to the party, outside this agent's tree/references.
-    driver.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(1002)),
-        sign_in: driver.session(),
-        key: [32; 16],
-        ask: driver.chat_ask(1, b"unrelated root"),
-    }));
-    driver.settle();
-    let outside = driver.last_assignment().task;
+    let session = driver.session();
+    let unrelated = ask_chat(&mut driver, session, PROJECT, UNRELATED_CHAT, b"unrelated root");
+    amend(&mut driver, &parent, FOLLOWUP_CALL, report, 1, &[unrelated]);
+    let answer = driver.answered(FOLLOWUP_CALL);
+    assert!(matches!(answer, Some(engine::CallAnswer::Amended { .. })), "readable dependency: {answer:?}");
+    let row = driver.task(report).expect("live report");
+    assert_eq!(row.dependencies.as_ref(), &[unrelated]);
+    assert_eq!(row.waiting_on.as_ref(), &[unrelated]);
+}
+
+#[test]
+fn a_dependency_in_another_project_is_out_of_reach() {
+    // jig/docs/design/domain/tasks/messages.md, 5, Waits by reading: a task may depend on what its
+    // tree's requester reads in its project. An out-of-reach dependency is named in blocked_by
+    // (jig/docs/design/domain/tasks/changes.md, Out of reach).
+    let (mut driver, parent, other_session) = two_project_story();
+    let (report, prerequisite) = keep_report(&mut driver, &parent);
+    let outside = ask_chat(&mut driver, other_session, OTHER_PROJECT, UNRELATED_CHAT, b"unrelated root");
     let before = driver.task(report).expect("live report").clone();
-    amend(&mut driver, &parent, FOLLOWUP_CALL, report, 1, &[outside]);
-    assert!(
-        format!("{:?}", driver.answered(FOLLOWUP_CALL)).contains("Refused"),
-        "unreferenced outside task must be refused: {:?}",
-        driver.answered(FOLLOWUP_CALL)
-    );
-    assert_eq!(driver.task(report), Some(&before), "unreachable prerequisite changes nothing");
+    amend(&mut driver, &parent, FOLLOWUP_CALL, report, 1, &[prerequisite, outside]);
+    let answer = driver.answered(FOLLOWUP_CALL);
+    let Some(engine::CallAnswer::ControlRefused(problem)) = answer else {
+        panic!("out-of-reach dependency must be refused: {answer:?}");
+    };
+    assert_eq!(problem.why, tasks::Refusal::Dependencies);
+    assert_eq!(problem.blocked_by.as_deref(), Some([outside].as_slice()));
+    assert_eq!(driver.task(report), Some(&before), "refused amendment changes nothing");
 }
 
 #[test]
 fn restarting_a_parked_kept_task_does_not_start_it() {
-    // jig's domain/tasks/lifecycle.md, 8, and domain/tasks/holds.md, 7: restoration preserves the pending keep.
+    // jig's domain/tasks/lifecycle-endings.md, 1, and domain/tasks/holds.md, 7: restoration preserves the pending keep.
     let (mut driver, parent, report, prerequisite) = kept_story();
     finish_task(&mut driver, report);
     let prerequisite_run = assignment(&driver, prerequisite);
@@ -403,7 +495,7 @@ fn a_cancelled_dependency_is_refused_by_name() {
 
 #[test]
 fn a_declared_failure_ends_a_kept_task() {
-    // jig's domain/tasks/lifecycle.md 8: a failure ends it as ever, rather than parking.
+    // jig's domain/tasks/lifecycle-endings.md 1: a failure ends it as ever, rather than parking.
     let (mut driver, _, report, _) = kept_story();
     let run = assignment(&driver, report);
     driver.answer(
@@ -429,7 +521,7 @@ fn a_declared_failure_ends_a_kept_task() {
 
 #[test]
 fn a_cancel_ends_a_parked_kept_task_immediately() {
-    // jig's domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md: a kept task with no run can be cancelled.
+    // jig's domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md: a kept task with no run can be cancelled.
     let (mut driver, parent, report, _) = kept_story();
     finish_task(&mut driver, report);
     cancel(&mut driver, &parent, FOLLOWUP_CALL, report);
@@ -487,7 +579,7 @@ fn an_already_done_retained_dependency_does_not_keep() {
 
 #[test]
 fn a_live_run_hears_the_amendment_that_keeps_it() {
-    // jig's domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md: a run already live hears the amendment as it arrives.
+    // jig's domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md: a run already live hears the amendment as it arrives.
     let (driver, _, report, _) = kept_story();
     let run = assignment(&driver, report);
     let messages: Vec<_> = driver
@@ -528,7 +620,7 @@ fn met_notices(run: &engine::Assignment) -> Vec<(u64, bool)> {
 
 #[test]
 fn final_dependency_met_is_in_the_resumed_runs_start() {
-    // jig's domain/tasks/lifecycle.md, 8, domain/tasks/messages.md, 1: completion wakes once, carrying the Met notice.
+    // jig's domain/tasks/lifecycle-endings.md, 1, domain/tasks/messages.md, 1: completion wakes once, carrying the Met notice.
     let (mut driver, _, report, prerequisite) = kept_story();
     finish_task(&mut driver, report);
     finish_task(&mut driver, prerequisite);
@@ -566,7 +658,7 @@ fn removing_a_dependency_detaches_its_later_cancellation() {
 
 #[test]
 fn parking_a_kept_done_run_spends_no_failure_try() {
-    // jig's domain/tasks/lifecycle.md 8; jig/docs/design/domain/engine/executors.md 4: a done run parked while kept spends no try.
+    // jig's domain/tasks/lifecycle-endings.md 1; jig/docs/design/domain/engine/executors.md 4: a done run parked while kept spends no try.
     let (mut driver, _, report, _) = kept_story();
     let before = driver.task(report).expect("live report").tries;
     finish_task(&mut driver, report);
@@ -579,7 +671,7 @@ fn parking_a_kept_done_run_spends_no_failure_try() {
 
 #[test]
 fn a_turn_committed_while_kept_resumes_in_the_transcript() {
-    // jig's domain/tasks/lifecycle.md 8; jig/docs/design/domain/engine/executors.md 2, 4: the current turn and saved state survive parking.
+    // jig's domain/tasks/lifecycle-endings.md 1; jig/docs/design/domain/engine/executors-transcripts.md, 1, jig/docs/design/domain/engine/executors.md, 4: the current turn and saved state survive parking.
     const TURN: &[u8] = b"work finished while kept";
     const FIRST_TURN: u32 = 1;
     let (mut driver, _, report, prerequisite) = kept_story();

@@ -7,11 +7,12 @@ use smith_channel::Record;
 use crate::calls;
 use crate::credentials::Credentials;
 use crate::facts;
+use crate::generated::channel;
 use crate::limits::{Error, Limits};
 use smith_domain::run;
 use smith_domain_session::record;
-use smith_protocol_translate::encode_turn;
 use smith_protocol_translate::{DecodedStart, Endpoints, answer_record};
+use smith_protocol_translate::{encode_part, encode_turn};
 
 mod cancellation;
 mod ending;
@@ -27,17 +28,13 @@ use smith_channel::reason::RULES;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct CallKey {
-    activation: u64,
-    completion: u32,
-    position: u32,
+    pub(crate) activation: u64,
+    pub(crate) completion: u32,
+    pub(crate) position: u32,
 }
 
 impl CallKey {
     fn from_domain(name: run::CallName) -> CallKey {
-        CallKey { activation: name.activation, completion: name.completion, position: name.position }
-    }
-
-    fn from_wire(name: &smith_channel::CallName) -> CallKey {
         CallKey { activation: name.activation, completion: name.completion, position: name.position }
     }
 
@@ -48,7 +45,7 @@ impl CallKey {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum CallRoute {
-    Host { relay: run::RelayName, send: Token },
+    Host { relay: run::RelayName, send: Token, withdrawn: bool },
     Delivery { owner: Token, send: Token },
 }
 
@@ -72,7 +69,9 @@ pub enum Heard {
     /// The host asked to stop politely; the service resolves or awaits the admitted run name.
     Cancel,
     /// The host asks for the current turn to finish before cancellation.
-    Drain,
+    Drain { grace: Option<Duration> },
+    /// The host kept this part and its prefix.
+    PartKept { number: u32 },
     /// Independent write failure; input and terminal rights may still continue.
     WriteFailed,
     /// The channel ended before or after opening.
@@ -89,9 +88,12 @@ pub struct Component {
     ending: Ending,
     bodies: smith_channel::Limits,
     charter: smith_charter::v5::Limits,
-    transcript: smith_transcript::v7::Limits,
+    transcript: smith_transcript::v8::Limits,
     endpoints: Endpoints,
     calls: Map<CallKey, CallRoute>,
+    withdrawn: u32,
+    drained: bool,
+    abandoned: bool,
     turn_capacity: u32,
     resume_turns: u32,
     search_hits: u32,
@@ -127,6 +129,9 @@ impl Component {
             transcript: limits.transcript,
             endpoints,
             calls: Map::with_capacity(limits.calls),
+            withdrawn: 0,
+            drained: false,
+            abandoned: false,
             turn_capacity: limits.turns,
             resume_turns: limits.resume_turns,
             search_hits: limits.search_hits,
@@ -144,14 +149,57 @@ impl Component {
         self.ending.reported()
     }
 
+    /// Whole input records and output frames handed to the pipe since the last sample.
+    #[must_use]
+    pub fn take_progress(&mut self) -> bool {
+        let read = self.machine.take_record_read();
+        let drained = core::mem::replace(&mut self.drained, false);
+        read || drained
+    }
+
+    /// Whether output is queued or a withdrawn call still needs a host terminal.
+    #[must_use]
+    pub fn waits_for_host(&self) -> bool {
+        self.machine.waiting().write == skein_channel::WriteWait::Frames
+            || (self.state.admitted() && !self.ended() && self.withdrawn > 0)
+    }
+
+    fn remove_call(&mut self, key: &CallKey) -> Option<CallRoute> {
+        let route = self.calls.remove(key)?;
+        match route {
+            CallRoute::Host { withdrawn: true, .. } => {
+                self.withdrawn = self.withdrawn.checked_sub(1).expect("withdrawn route was counted");
+            }
+            CallRoute::Host { withdrawn: false, .. } | CallRoute::Delivery { .. } => {}
+        }
+        Some(route)
+    }
+
     /// An ended channel still owes the terminals of calls it sent.
     #[must_use]
     pub fn has_work(&self) -> bool {
         self.ended() && !self.calls.is_empty()
     }
 
+    /// Give up both streams. The service aborts their IO and the channel
+    /// owes only its lost calls. Returns whether this is the first abandonment.
+    pub fn abandon(&mut self, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) -> bool {
+        if self.abandoned {
+            return false;
+        }
+        self.abandoned = true;
+        self.state = State::Refused;
+        self.machine.down(Request::Close, &mut self.events, below);
+        self.events.clear();
+        self.ending.end(Closed::Owner, to_service);
+        true
+    }
+
     /// Consume one stream event and progress the opening.
     pub fn from_below(&mut self, event: LowerEvent, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
+        if self.abandoned {
+            return;
+        }
         self.machine.up(event, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -159,8 +207,10 @@ impl Component {
 
     /// Request the next read or write operation, including the initial Open read.
     pub fn fire(&mut self, to_service: &mut Queue<Heard>, below: &mut Queue<Lower>) {
-        self.machine.poll(&mut self.events, below);
-        self.drain(to_service, below);
+        if !self.abandoned {
+            self.machine.poll(&mut self.events, below);
+            self.drain(to_service, below);
+        }
         self.lost_call(to_service);
     }
 
@@ -203,12 +253,7 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let reason = match reason {
-            run::MessageRefusal::TooLarge => smith_channel::MessageRefusal::TooLarge,
-            run::MessageRefusal::Full => smith_channel::MessageRefusal::Full,
-            run::MessageRefusal::NameInUse => smith_channel::MessageRefusal::NameInUse,
-            run::MessageRefusal::Ending => smith_channel::MessageRefusal::Ending,
-        };
+        let reason = channel::message_refusal_to_record(&reason);
         let record = smith_channel::MessageRefused { name: name.raw(), reason };
         match record.measure(&self.bodies) {
             Ok(_) => (),
@@ -325,12 +370,7 @@ impl Component {
             return Err(Error::Order);
         }
         let next = self.state.active()?.long_open.checked_add(1).ok_or(Error::Order)?;
-        let operation = match operation {
-            smith_domain::Operation::Checks => smith_channel::Operation::Check,
-            smith_domain::Operation::Completion => smith_channel::Operation::Completion,
-            smith_domain::Operation::Command => smith_channel::Operation::Command,
-            smith_domain::Operation::Grant => smith_channel::Operation::Grant,
-        };
+        let operation = channel::operation_to_record(&operation);
         let record = smith_channel::Long { operation, span };
         match record.measure(&self.bodies) {
             Ok(_) => (),
@@ -407,6 +447,47 @@ impl Component {
             Err(problem) => return Err(Error::Frame(problem)),
         };
         self.state.turns_mut()?.keep(number, body_bytes)?;
+        self.state.active_mut()?.answered_turn = false;
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
+        self.drain(to_service, below);
+        self.fire(to_service, below);
+        Ok(())
+    }
+
+    /// Tell the host a turn part, consuming the same credit as a turn.
+    pub fn send_part(
+        &mut self,
+        number: u32,
+        turn: u32,
+        part: &record::Part,
+        token: Token,
+        to_service: &mut Queue<Heard>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        let active = self.state.active()?;
+        if !self.state.admitted()
+            || !active.tell_parts
+            || active.turns.next() != Some(turn)
+            || (part.kind == record::PartKind::Result && !active.answered_turn)
+        {
+            return Err(Error::Order);
+        }
+        let body = encode_part(&part.body, &self.transcript, &self.endpoints)?;
+        let bytes = part.body.owned_bytes().ok_or(Error::Window)?;
+        let kind = channel::part_kind_to_record(&part.kind);
+        let value = smith_channel::Part { number, turn, thread: part.thread, call: part.call, kind, body };
+        if let Err(error) = value.measure(&self.bodies) {
+            return Err(Error::ChannelBody(error));
+        }
+        let frame = match smith_channel::frame(smith_channel::Body::Part(value)) {
+            Ok(frame) => frame,
+            Err(error) => return Err(Error::Frame(error)),
+        };
+        let active = self.state.active_mut()?;
+        active.turns.keep_part(number, bytes)?;
+        if part.thread == 0 && part.kind == record::PartKind::Answer {
+            active.answered_turn = true;
+        }
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -607,7 +688,7 @@ impl Component {
             return Err(Error::Calls);
         }
         let frame = calls::host_call(name, tool, effect, input, deadline.saturating_since(now), &self.bodies)?;
-        if self.calls.insert(key, CallRoute::Host { relay, send: token }).is_err() {
+        if self.calls.insert(key, CallRoute::Host { relay, send: token, withdrawn: false }).is_err() {
             return Err(Error::Calls);
         }
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
@@ -685,15 +766,22 @@ impl Component {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let mut name = None;
+        let mut found = None;
         for (key, route) in &self.calls {
             match route {
-                CallRoute::Host { relay: held, send: _ } if *held == relay => name = Some(key.domain()),
+                CallRoute::Host { relay: held, .. } if *held == relay => found = Some(*key),
                 CallRoute::Host { .. } | CallRoute::Delivery { .. } => {}
             }
         }
-        let name = name.ok_or(Error::Calls)?;
-        let frame = calls::withdraw(name, &self.bodies)?;
+        let key = found.ok_or(Error::Calls)?;
+        let frame = calls::withdraw(key.domain(), &self.bodies)?;
+        match self.calls.get_mut(&key).expect("withdraw names a retained call") {
+            CallRoute::Host { withdrawn, .. } if !*withdrawn => {
+                *withdrawn = true;
+                self.withdrawn = self.withdrawn.checked_add(1).expect("bounded withdrawn routes");
+            }
+            CallRoute::Host { .. } | CallRoute::Delivery { .. } => {}
+        }
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);

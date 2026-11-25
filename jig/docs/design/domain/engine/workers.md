@@ -46,13 +46,13 @@ places runs on the workers is `fleet.md`; the channel they open is
   name (7).
 - **The current workers** are the defaults with the stored changes over
   them, as for every kind (`settings.md`, 1), changed by `ChangeSettings`
-  (`settings.md`, 2) or an accepted proposal of settings (`settings.md`,
-  6), running work staying: a worker change moves no task.
+  (`settings.md`, 2) or an accepted proposal of settings (`settings-proposals.md`,
+  1), running work staying: a worker change moves no task.
 
 ## 2. Numbers and names
 
 - **A number keeps its name** for the deployment's life, as a model's
-  does (`settings.md`, 11): a set naming another name than its default's
+  does (`settings-catalogue.md`, 1): a set naming another name than its default's
   or its stored change's is out of shape, and so is a name another
   number holds, withdrawn ones included. A rename is a removal and an
   add.
@@ -99,7 +99,7 @@ The worker kind joins `settings.md`, 1's one check, with its faults:
   the box's worker cannot be removed.
 - ***count:*** a number past `fleet.configured_workers`, also for a
   stored worker under a limit lowered since, which refuses the start
-  naming it (`settings.md`, 7).
+  naming it (`settings-store.md`, 1).
 - ***linked:*** a removal of a worker the fleet holds a channel of
   (5). A decision's alone: at a start no channel is admitted yet.
 
@@ -112,10 +112,10 @@ as every change's does (`settings.md`, 2).
   (`jig-protocol-engine-workers`) the current workers by asking the
   root, `Ask::Workers`, with every worker not withdrawn, by number, its
   name and its digest: at the start's settings restore, before
-  `Event::Needs` (`restart.md`; `settings.md`, 7), and in every decision
+  `Event::Needs` (`restart.md`; `settings-store.md`, 1), and in every decision
   or release's revision that changes a worker's name, digest or
   withdrawal, part of that decision as `Ask::Catalogue` is
-  (`settings.md`, 11). The root hands it on, and the component replaces
+  (`settings-catalogue.md`, 1). The root hands it on, and the component replaces
   its table whole. The fleet is told the same workers, with their
   places, in the same decision.
 - **At the opening** (`../../protocol/channel/README.md`, 4.1) the
@@ -150,7 +150,7 @@ as every change's does (`settings.md`, 2).
 - **Places and digest change at the next opening.** A change of a
   linked worker's places or digest is accepted, and the channel keeps
   its admission: its operator restarts the worker, whose drain lets its
-  runs end (temper's `draft/redeploys.md`, 6.1), and its next opening
+  runs end (temper's `draft/archive/redeploys.md`, 6.1), and its next opening
   takes the new setting.
 - **Removing a linked worker is refused** *linked*, naming its setting:
   a decision withdrawing a worker the fleet holds an admitted channel of,
@@ -162,7 +162,7 @@ as every change's does (`settings.md`, 2).
 - **Up or down is its link's,** as the fleet keeps it: up while it has
   an admitted channel, down once that channel is lost.
 - **Paused, drained and taking again** (temper's
-  `draft/worker-restarts.md`, section 2). An owner asks a linked worker
+  `draft/archive/worker-restarts.md`, section 2). An owner asks a linked worker
   to take no new work, to drain, or to take work again:
 
   ```rust
@@ -228,20 +228,21 @@ as every change's does (`settings.md`, 2).
   version (`AGENTS.md`, section 2); the families that name a setting
   (a refusal's facts, a proposal's heads) gain the identity each by its
   own rule.
-- **The client wire** moves its version, unbridged (temper's
-  `draft/redeploys.md`, 3.1 and section 4), once, for all of this
+- **The client wire** changes its layout, its version frozen
+  (`../../protocol/client/versions.md`, 1), for all of this
   document's: `Setting::Worker`, `SettingValue::Worker`,
   `SettingFault::Linked` and `Deployment.worker_settings`.
-- **The worker channel's wire** keeps its version: its credential and
+- **The worker channel's wire** keeps its layout: its credential and
   its reasons are as they were, and only the reason a refused name is
   given changes (4).
-- **The pause** (5) moves the client wire again, unbridged, for
+- **The pause** (5) changes the client wire's layout again, for
   `Ask::PauseWorker`, its refusals and `WorkerState.pause`; and the
-  worker channel's wire to 19, bridged (`../../protocol/channel/pause.md`,
-  2).
+  worker channel's, whose pause the engine sends only where a worker's
+  layout has its kind (`../../protocol/channel/pause.md`, 2;
+  `../../protocol/channel/layouts.md`, 4.1).
 - **The engine's document:** `engine.hosts.workers` is refused by name,
   "workers are settings in the store", as `engine.charters` is
-  (`../../protocol/configuration.md`, section 3), and no digest file is
+  (`../../protocol/configuration-engine.md`, section 1), and no digest file is
   read.
 
 ## 8. Open questions

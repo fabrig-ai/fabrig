@@ -33,6 +33,8 @@ pub struct Hub {
     /// attributes interrupted work to shutdown (domain/hosts/hub.md, 7, 9).
     pub(crate) shut: bool,
     pub(crate) pause: jig_domain_link::PauseState,
+    pub(crate) local_places: u32,
+    reported_full: bool,
     pub(crate) refusals_lost: u64,
 }
 
@@ -54,6 +56,8 @@ impl Hub {
             answers: Map::with_capacity(limits.slots),
             shut: false,
             pause: jig_domain_link::PauseState::Taking,
+            local_places: u32::MAX,
+            reported_full: false,
             refusals_lost: 0,
         }
     }
@@ -92,11 +96,48 @@ impl Hub {
         self.pause
     }
 
+    /// Capacity available on this machine, independent of an owner's pause.
+    pub fn set_local_places(&mut self, places: u32, out: &mut Queue<Request>) {
+        self.local_places = places;
+        self.report_capacity(out);
+    }
+
+    fn reported_pause(&self) -> jig_domain_link::PauseState {
+        if self.pause == jig_domain_link::PauseState::Taking && self.hosted() >= self.local_places {
+            jig_domain_link::PauseState::Paused
+        } else {
+            self.pause
+        }
+    }
+
+    fn report_capacity(&mut self, out: &mut Queue<Request>) {
+        let full = self.hosted() >= self.local_places;
+        if full != self.reported_full {
+            self.reported_full = full;
+            if self.link_up && !self.shut && self.pause == jig_domain_link::PauseState::Taking {
+                out.push(Request::Up(LinkUp::Paused { state: self.reported_pause() }));
+            }
+        }
+    }
+
     /// Runs hosted: the slots taken, closed runs included until they are
     /// reclaimed.
     #[must_use]
     pub fn hosted(&self) -> u32 {
         self.hosted.len()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn hosted_at(&self, index: u32) -> Option<(Token, Token)> {
+        let mut position = 0_u32;
+        for (_, entry) in &self.hosted {
+            if position == index {
+                return Some((entry.run, entry.attempt));
+            }
+            position = position.checked_add(1).expect("hosted slots fit in a u32");
+        }
+        None
     }
 
     /// Runs that have not answered yet: those hosted, closed ones aside.
@@ -200,7 +241,7 @@ impl Hub {
         self.facts.pieces_fenced()
     }
 
-    /// Turns retained until the engine commits them.
+    /// Turns and parts retained until the engine commits them.
     #[must_use]
     pub fn retained_turns(&self) -> u32 {
         self.turns.len()
@@ -212,7 +253,7 @@ impl Hub {
         self.turns.holds(run, attempt, turn)
     }
 
-    /// Whether any turn of this attempt remains unacknowledged.
+    /// Whether any turn or part of this attempt remains unacknowledged.
     #[must_use]
     pub fn has_turns_for(&self, run: Token, attempt: Token) -> bool {
         self.turns.has_run(run, attempt)
@@ -224,11 +265,16 @@ impl Hub {
         self.turns.get(run, attempt, turn)
     }
 
-    /// A transmission copy of a retained turn by position, for reconnecting.
+    /// A transmission copy of a retained turn or part in telling order, for reconnecting.
     #[must_use]
     pub fn turn_at(&self, index: u32) -> Option<LinkUp> {
-        let (run, attempt, turn) = self.turns.nth(index)?;
-        Some(LinkUp::Turn { run, attempt, turn })
+        self.turns.nth(index)
+    }
+
+    /// A transmission copy of a retained part, for a busy retry.
+    #[must_use]
+    pub fn part(&self, run: Token, attempt: Token, number: u32) -> Option<jig_domain_link::Part> {
+        self.turns.part(run, attempt, number)
     }
 
     #[must_use]
@@ -286,6 +332,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             hosted::called(domain, env, owner, call, ask, out);
         }
         Event::Agent(crate::FromAgent::Withdrawn { owner, call }) => hosted::withdrawn(domain, owner, call, out),
+        Event::Agent(crate::FromAgent::Part { owner, part }) => hosted::parted(domain, env, owner, part, out),
         Event::Agent(crate::FromAgent::Turn { owner, turn }) => hosted::turned(domain, env, owner, turn, out),
         Event::Agent(crate::FromAgent::Piece { owner, piece }) => crate::live::reported(domain, env, owner, piece),
         Event::Agent(crate::FromAgent::Activity { owner, activity }) => {
@@ -314,7 +361,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         }
         Event::Drain => {
             shutting_down(domain, out);
-            hosted::drain(domain, out);
+            hosted::drain(domain, env.limits.drain_grace, out);
         }
         Event::CancelAll { reason } => {
             if reason == Reason::Shutdown {
@@ -330,8 +377,8 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             crate::answers::opened(domain, env.limits.slots, stop_bound, workstreams, bounds, out);
             if domain.shut {
                 out.push(Request::Up(LinkUp::Draining));
-            } else if domain.pause != jig_domain_link::PauseState::Taking {
-                out.push(Request::Up(LinkUp::Paused { state: domain.pause }));
+            } else if domain.reported_pause() != jig_domain_link::PauseState::Taking {
+                out.push(Request::Up(LinkUp::Paused { state: domain.reported_pause() }));
             }
         }
         Event::Job(event) => crate::jobs::reported(domain, env, event, out),
@@ -397,9 +444,13 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             }
             LinkDown::AssignJob { job } => crate::jobs::assign(domain, env, job, out),
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
+            LinkDown::PartKept { run, attempt, part } => {
+                domain.turns.acknowledge_part(run, attempt, part);
+                domain.turns.admit(run, attempt, false, &env.limits, out);
+            }
             LinkDown::TurnKept { run, attempt, turn } => hosted::acknowledge_turn(domain, env, run, attempt, turn, out),
             LinkDown::Grant { run, attempt, grant } => hosted::grant(domain, run, attempt, grant, out),
-            LinkDown::Pause { mode } => pause(domain, mode, out),
+            LinkDown::Pause { mode } => pause(domain, env.limits.drain_grace, mode, out),
             LinkDown::Cancel { run, attempt } => hosted::cancel(domain, env, run, attempt, out),
             LinkDown::Relayed { run, attempt, call, answer } => {
                 hosted::relayed(domain, run, attempt, &call, answer, out);
@@ -408,10 +459,16 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         },
     }
     check_drained(domain, out);
+    domain.report_capacity(out);
 }
 
 // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
-fn pause(domain: &mut Hub, mode: jig_domain_link::PauseMode, out: &mut Queue<Request>) {
+fn pause(
+    domain: &mut Hub,
+    drain_grace: skein_lib::Duration,
+    mode: jig_domain_link::PauseMode,
+    out: &mut Queue<Request>,
+) {
     use jig_domain_link::{PauseMode, PauseState};
     if domain.shut {
         return;
@@ -430,14 +487,15 @@ fn pause(domain: &mut Hub, mode: jig_domain_link::PauseMode, out: &mut Queue<Req
     let changed = state != domain.pause;
     say_pause(domain, state, out);
     if changed && state == PauseState::Draining {
-        hosted::drain(domain, out);
+        hosted::drain(domain, drain_grace, out);
     }
 }
 
 fn say_pause(domain: &mut Hub, state: jig_domain_link::PauseState, out: &mut Queue<Request>) {
-    out.push(Request::Up(LinkUp::Paused { state }));
-    if state != domain.pause {
-        domain.pause = state;
+    let changed = state != domain.pause;
+    domain.pause = state;
+    out.push(Request::Up(LinkUp::Paused { state: domain.reported_pause() }));
+    if changed {
         out.push(Request::Paused { state });
     }
 }

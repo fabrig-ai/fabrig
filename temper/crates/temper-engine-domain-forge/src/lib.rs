@@ -1,5 +1,5 @@
-//! The forge connector's top (jig's domain/connectors.md, sections 2–8;
-//! domain/forge/README.md, section 3 and domain/forge/adoption.md and domain/forge/keeping-up.md and domain/forge/README.md, sections 4–5 and domain/forge/change/README.md and domain/forge/queues.md and domain/forge/README.md, section 6 and domain/forge/branches.md and domain/forge/issues.md). It keeps adopted repositories, resource
+//! The forge connector's top (jig's domain/connectors.md, sections 2–3, and domain/connectors-effects.md, section 1, and domain/connectors-facts.md, section 1, and domain/connectors-procedures.md, section 1, and domain/connectors.md, sections 7–8;
+//! domain/forge/README.md, section 3 and domain/forge/adoption.md and domain/forge/keeping-up.md and domain/forge/effects.md, section 1, and domain/forge/topics.md, section 1 and domain/forge/change/README.md and domain/forge/queues.md and domain/forge/updates.md, section 1 and domain/forge/branches.md and domain/forge/issues.md). It keeps adopted repositories, resource
 //! holds, writer slots, subscriptions, procedure and projection rows, and
 //! outbox entries. The client alone executes API calls; change and issues
 //! decide policy without retained state.
@@ -15,6 +15,15 @@
 #![cfg_attr(test, expect(clippy::disallowed_macros, reason = "step tests use ordinary Rust assertions and fixtures"))]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod public;
+}
 
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
@@ -83,9 +92,9 @@ pub use away::{
     OverturnAnswer, SetAwayAnswer, decided_subject,
 };
 pub use findings::{
-    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
-    FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
-    Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
+    AreaRow, BlameAct, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind,
+    FindingRefusal, FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer,
+    Holder, RepairAct, Severity, Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod dismissed;
@@ -180,7 +189,9 @@ mod topics;
 mod verification;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
-pub use domain::{DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
+pub use domain::{
+    DEFAULT_CHANGE_TITLE, Domain, RestoreFit, RestoreSet, StartLink, fire, resume, step, tag, untag, writer,
+};
 pub use gates::{GateCandidate, GateLast, GatePattern, Requires, Touched, covers, covers_branch, touched};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{

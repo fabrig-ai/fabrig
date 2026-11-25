@@ -502,7 +502,7 @@ pub struct CallRecord {
 
 /// Ordered address of a durable row. Root and child identities keep their own
 /// variants; a scoped note index includes its bounded resource pattern
-/// (jig's domain/engine/README.md, 5.3–5.6).
+/// (jig's domain/engine/decisions.md, 1.3–1.6).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Wires,
@@ -671,6 +671,9 @@ impl CoreRange {
                 *proposal != 0 && found == proposer && number == proposal
             }
             CoreRange::Calls => {
+                if let Core::Core(CoreKey::Part(part)) = key {
+                    return part.task != 0 && part.attempt != 0 && part.number != 0;
+                }
                 let Core::Core(CoreKey::Call(call)) = key else { return false };
                 call.task != 0 && call.attempt != 0 && call.completion != 0
             }
@@ -792,8 +795,8 @@ pub struct WorkerStatement {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OpenedWire {
     pub name: Box<str>,
-    pub lowest: u16,
-    pub layouts: Box<[[u8; 32]]>,
+    pub layout: [u8; 32],
+    pub text: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OpenedTerm {
@@ -813,7 +816,7 @@ pub struct WorkerOpening {
 /// (domain/root.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
-    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
+    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
     DropHistory { task: u64 },
@@ -887,6 +890,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
         Record::Core(jig_domain_core::Record::Core(
             jig_domain_core::CoreRecord::ProposalDecision(_) | jig_domain_core::CoreRecord::Deployment(_),
         )) => Some(0),
+        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Part(part))) => {
+            Some(skein_lib::len_u64(part.body.len()))
+        }
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => {
             Some(skein_lib::len_u64(turn.transcript.len()))
         }
@@ -977,6 +983,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         action: jig_domain_people::Action::Batch(batch), reason, ..
                     } => people_bytes::batch(batch)?.checked_add(skein_lib::len_u64(reason.len())),
                     jig_domain_people::Ask::Restore { reason, .. }
+                    | jig_domain_people::Ask::Move { reason, .. }
+                    | jig_domain_people::Ask::Cancel { reason, .. }
+                    | jig_domain_people::Ask::Stop { reason, .. }
                     | jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Settings { .. },
                         reason,
@@ -1031,15 +1040,13 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Talk { words, .. }
                     | jig_domain_people::Ask::Say { words, .. }
                     | jig_domain_people::Ask::AnswerQuestion { words, .. } => Some(skein_lib::len_u64(words.len())),
-                    jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
-                        Some(skein_lib::len_u64(reason.len()))
-                    }
                     jig_domain_people::Ask::Leave { .. }
                     | jig_domain_people::Ask::RemoveProject { .. }
                     | jig_domain_people::Ask::SetVisibility { .. }
                     | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::PauseWorker { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
+                    | jig_domain_people::Ask::ReissueService { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
                     | jig_domain_people::Ask::MarkSeen { .. }
                     | jig_domain_people::Ask::Application { .. }
@@ -1047,7 +1054,6 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::SetPool { .. }
                     | jig_domain_people::Ask::HandBackPerson { .. }
                     | jig_domain_people::Ask::Conclude { .. }
-                    | jig_domain_people::Ask::Stop { .. }
                     | jig_domain_people::Ask::Lift { .. }
                     | jig_domain_people::Ask::Release { .. }
                     | jig_domain_people::Ask::AccountSignIn { .. }
@@ -1147,7 +1153,7 @@ pub fn owned_bytes(write: &Write) -> Option<u64> {
             for wire in &opening.statement.wires {
                 bytes = bytes
                     .checked_add(skein_lib::len_u64(wire.name.len()))?
-                    .checked_add(skein_lib::len_u64(wire.layouts.len()).checked_mul(32)?)?;
+                    .checked_add(skein_lib::len_u64(wire.text.len()))?;
             }
             Some(bytes)
         }
@@ -1163,6 +1169,7 @@ pub fn owned_bytes(write: &Write) -> Option<u64> {
                 | jig_domain_core::Key::Core(
                     jig_domain_core::CoreKey::Deployment
                     | jig_domain_core::CoreKey::Settings(_)
+                    | jig_domain_core::CoreKey::Part(_)
                     | jig_domain_core::CoreKey::Call(_)
                     | jig_domain_core::CoreKey::EscalationDecision { .. }
                     | jig_domain_core::CoreKey::ProposalDecision { .. }
@@ -1375,6 +1382,7 @@ pub fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64>
         | Outcome::SignedOut
         | Outcome::NoteEdited { .. }
         | Outcome::ServiceMade { .. }
+        | Outcome::ServiceReissued { .. }
         | Outcome::Adopted { .. }
         | Outcome::Proposed { .. }
         | Outcome::Withdrawn { .. }

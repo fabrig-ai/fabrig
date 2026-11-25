@@ -1,32 +1,15 @@
-//! Fresh fake boxes leave a person's preferred ports free (protocol/setup/box.md, 5).
-use super::{Directories, Options, bytes, make_private, prepare};
-use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt};
+//! Fresh fake boxes leave a person's preferred ports free (protocol/setup/box-backends.md, 1).
+use super::{init_ports, tests::Effective};
+use std::{net::SocketAddr, num::NonZeroU16};
 
 #[test]
 fn a_fresh_fake_box_writes_none_of_the_persons_preferred_ports() {
-    let scratch = skein_scratch::Scratch::new("fake-box-ports");
-    let root = scratch.path();
-    let source = Directories {
-        config: bytes(&root.join("config")),
-        data: bytes(&root.join("data")),
-        cache: bytes(&root.join("cache")),
-        origins: [skein_shell::Origin::Flag; 3],
-    };
-    let bundle = root.join("bundle");
-    make_private(&bundle.join("0000000000000001"), skein_shell::effective_user()).expect("fixture bundle");
-    fs::write(bundle.join("index.html"), b"<!doctype html><html><body>fixture</body></html>").expect("fixture page");
-    fs::write(bundle.join("0000000000000001/main.js"), b"// fixture\n").expect("fixture script");
-    let adapter = root.join("fake-claude");
-    fs::write(&adapter, b"#!/bin/sh\nexit 1\n").expect("fixture adapter");
-    fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
-    let prepared = prepare(&source, &Options { bundle: Some(bundle), ..Options::default() }, &adapter, None, &[])
-        .expect("fresh fake box");
-    let document: serde_json::Value = serde_json::from_slice(
-        &temper_config_shell::read(&prepared.directories, temper_config_shell::Shape::Standalone)
-            .expect("written file")
-            .document,
-    )
-    .expect("deployment JSON");
+    let [clients, webhooks] = init_ports(None);
+    let reserve = |requested, available| NonZeroU16::new(requested).unwrap_or(available);
+    let clients = reserve(clients, NonZeroU16::new(17100).expect("scripted clients port"));
+    let webhooks = reserve(webhooks, clients.checked_add(1).expect("scripted following webhooks port"));
+    let prepared = Effective::with_listeners(clients, webhooks);
+    let document: serde_json::Value = serde_json::from_slice(&prepared.document()).expect("deployment JSON");
     for pointer in ["/application/clients/listener/socket", "/application/webhooks/listener/socket"] {
         let address: SocketAddr = document
             .pointer(pointer)

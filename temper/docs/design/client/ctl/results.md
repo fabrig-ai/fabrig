@@ -17,7 +17,7 @@ refuses there (QA 20261027-1434-temper finding 1).
 
 The default: plain UTF-8 lines, no colour, no wrapping. A document
 prints its header line, its fields, its acts and, for a watch's
-subject, its digest (`tools.md`, 4). Account lists use area 5's number-first account
+subject, its digest (`tools-waiting.md`, 1). Account lists use area 5's number-first account
 and source lines, with program observations indented by host; model lists
 keep their field lines. A met text inbox wait uses the plain inbox
 read, including question details and continuation calls, then prints
@@ -31,7 +31,7 @@ task 41 · goal · Running · shop · priority 2
 asked: Add a /health endpoint that reports the store's state
 requester: you · spent 1.20 of 5.00 · deadline 2026-10-24 17:00 UTC
 instructions: Answer on port 8080 unless the store's file names another one, and keep the /hea… (412 bytes; --json prints them whole)
-waiting on: you: question 3 of task 44 · 1 waiting
+waiting on: you: question 3 of task 44 · 1 waiting · since 2026-10-24 15:02 UTC · passes up at 2026-10-24 23:02 UTC
 plan: 4 live (2 running, 1 waiting, 1 held below)
 acts:
   task answer 44 3 TEXT
@@ -99,6 +99,41 @@ digest: task 7c1e09a2b44f0d13
   `nothing` among them. Its `chip.phase` stays `due` and its `run_wait` as jig
   gives it, a wait's `phase:due` still holds, and `task list`'s lines, which
   carry no next-run wait, keep their word.
+  Where the task's document names a first wait, as its line does (jig's
+  `domain/engine/waits.md`, 4), the line goes on, whatever it printed
+  before, with ` · since WALL`, that wait's *since*, then ` · ` and its
+  nearest bound: `holds at WALL`, `passes up at WALL`, `is overdue at
+  WALL` or `gives up at WALL`, led by that wait's kind where the nearest
+  bound is another wait's than the first, `· news holds at WALL`. Where
+  none of its waits has a bound, the line ends with the *since*. Walls
+  are in the text's form; the draft's sample prints them shorter
+  (`../../draft/bounded-waits.md`, 9), and ctl keeps one form for every
+  wall it prints.
+- **`waits:`** follows `waiting on:` and its `unread:` lines where the
+  task's document lists waits of its own, and is left out where it lists
+  none: `waits: N`, how many it has, then one line each, in the
+  document's order, indented two spaces: `KIND OBJECT · since WALL ·
+  BOUND`, and ` · hears HOLDER` where a holder would hear. KIND is the
+  wait's kind as jig names it (`party`, `question`, `dependency`,
+  `resource`, `account`, `host`, `delegate`, `news`, `step`, `room`,
+  `turn`, `sign-off`). OBJECT is, by kind: an entry's kind, its number
+  (the question's, the proposal's, the escalation's revision or the
+  person task's own) and `at` its holder, `question 3 at you`; `question N
+  to task R`; `task N`; `resource NAME`, with `held by task T` where one
+  holds it; the next run's wait as `next run:` prints it; `subscriptions
+  S, T` and `timer at WALL`, or `nothing armed`; a procedure's `step S`,
+  each thing it names by its connector's words and number, with `of
+  task O` where one owns it. BOUND is as the line's, or `no bound: no
+  deadline`, `no bound: standing`, `no bound: behind task N` or `no
+  bound: an operator's hold`. A holder prints as `requester:` prints a
+  party, a role as `role R in project P`, a task as `task T`. A document
+  that cut its waits to its lines ends them with `  … K more`:
+
+  ```
+  waits: 2
+    question 228316 to task 34 · since 2026-11-24 06:07 UTC · passes up at 2026-11-24 08:07 UTC · hears task 34
+    dependency task 17 · since 2026-11-24 05:50 UTC · no bound: no deadline · hears task 34
+  ```
 - **`unread:`** follows `waiting on:` where the task's document lists
   unread words (jig's `client/domain/contract/documents.md`, section 1),
   and is left out where it lists none: words a person, or a requesting
@@ -128,7 +163,7 @@ digest: task 7c1e09a2b44f0d13
   that log is, under `temper box` and under `temper-box serve`
   (`../../domain/worker/README.md`, 10, on keeping the text with the hold).
 - **`next run:`** prints what a run that can't start waits for, then the
-  lines that say why and what to run (`tools.md`, 2). When no account serves the
+  lines that say why and what to run (`tools-reads.md`, 1). When no account serves the
   work, an account wait with neither an account nor a source and the why
   `Empty`, the label stands alone and those lines speak:
 
@@ -155,7 +190,7 @@ digest: task 7c1e09a2b44f0d13
 
   A run no worker can ever take (jig's `Refused(Bounds)`, `jig/docs/design/client/domain/contract/documents.md`,
   1) says which bound keeps it out in the client's form
-  (`../pages/accounts.md`, 2), lower case, a count as digits, a duration in
+  (`../pages/accounts-words.md`, 1), lower case, a count as digits, a duration in
   milliseconds as `N ms`:
 
   ```
@@ -201,7 +236,7 @@ digest: task 7c1e09a2b44f0d13
   jig's `Dependency.added`), ` · added by WHO at 2026-10-22 05:10 UTC`,
   WHO as the requester is said (`you`, `party 3`, `task 7`,
   `deployment 1`); then, while it keeps the task (jig's `keeps`, jig's
-  `domain/tasks/lifecycle.md`, 8), ` · keeps task N from ending`:
+  `domain/tasks/lifecycle-endings.md`, 1), ` · keeps task N from ending`:
 
   ```
   dependencies:
@@ -222,7 +257,7 @@ digest: task 7c1e09a2b44f0d13
   resource is a path, `../forge/family.md`, 1), then the call that reads its
   panel, `change show TASK`; the id is the words' first line. The
   pull request line, after any verification words, with its address
-  (`../../domain/root.md`, section 5), prints as `pull request: ADDRESS` when the task's document
+  (`../../domain/root-translation.md`, section 1), prints as `pull request: ADDRESS` when the task's document
   carries it whole: a line the document's text window cut prints
   nothing, and `change show TASK` has the address. Verification words
   immediately after the id remain readable: `Cleared by TIER run N.`,
@@ -260,7 +295,7 @@ digest: task 7c1e09a2b44f0d13
   beyond them goes with them, since `proposed to` beside a bare call
   would say the whole act asks another party first. `--json` prints the
   admission whole.
-- **An offered act with no tool** (`tools.md`, 3 has none for it) prints its name
+- **An offered act with no tool** (`tools-acts.md`, 1 has none for it) prints its name
   in the tools' words and ` (no tool)`, in the document's order, with no
   call and no admission: the agent learns the act is there and may hand
   it to a person, and no call names a tool that does not exist. Under
@@ -269,10 +304,10 @@ digest: task 7c1e09a2b44f0d13
   task waits on and refusals in the words a person reads.
 - **Lists** print one line per row, its number first, then the cursor
   for the next page, or that there is none.
-- **`deployment census`** (`tools.md`, 2) reads jig's deployment document,
+- **`deployment census`** (`tools-reads.md`, 1) reads jig's deployment document,
   for a party with a deployment role, and prints its census (jig's
   `client/domain/contract/documents.md`, 1; jig's
-  `protocol/store/README.md`, 6.3): a first line `census at commit N,
+  `protocol/store/growth.md`, 1.3): a first line `census at commit N,
   writes since commit S`, then a line per keyspace in prefix order,
   `PREFIX NAME rows R keys K values V puts P erases E written W heads
   H:R,H:R`, PREFIX its bytes in lower-case hex with no space (`01010a`,
@@ -283,7 +318,7 @@ digest: task 7c1e09a2b44f0d13
   role is jig's refusal, exit 2 (3).
 - **A tree** prints `tree:`, then its root and each row its window
   holds, a chip a line. The engine answers the tools' window within its
-  own rows (jig's `client/domain/contract/README.md`, 5.2), so a tree larger
+  own rows (jig's `client/domain/contract/watches.md`, 1.2), so a tree larger
   than either folds the rest. Its text prints one total line after the
   rows: `cut: 3 more not shown (1 Waiting, 2 Running)`, the folded tasks'
   count, then each phase that has any, in a chip's words and jig's order
@@ -305,12 +340,12 @@ digest: task 7c1e09a2b44f0d13
   `repository adopt`, `../forge/family.md`, 6's words. A deletion kept
   from an earlier call, which knows no name, prints `kept: remove-project,
   deleted: project 3`, its number from the answer, the operation jig's.
-- **What a call sends first** (`README.md`, 6.2, step 4) prints on stderr, a line
+- **What a call sends first** (`command-line.md`, 1.2, step 4) prints on stderr, a line
   each: `kept: `, the request's operation, jig's or the forge's (`stop`,
   `adopt`), then its outcome as an act's prints, which names what it
   made or decided. No name and no key: a request's record keeps the
   engine's key, drawn or a name's digest, and the client's, the
-  runner's (jig's `protocol/client/README.md`, section 7), never the name,
+  runner's (jig's `protocol/client/small-store.md`, section 1), never the name,
   and neither key is of use to an agent.
 - **A restored proposal's `kept:` line** prints its identity alone,
   `kept: chat, proposed: t3/17`, with no recipient: jig keeps none with
@@ -324,7 +359,7 @@ digest: task 7c1e09a2b44f0d13
   limit, unconfirmed, not kept.
 - **What it does not send** prints a line on stderr too: another
   party's kept requests, `kept: N for party P, unsent while it is not
-  signed in here` (`README.md`, 6.2); the records the client dropped at start,
+  signed in here` (`command-line.md`, 1.2); the records the client dropped at start,
   `dropped: N kept records these tools cannot read` (`host.md`).
 
 ## 2. JSON
@@ -348,6 +383,16 @@ may change with them.
   first, empty for none, each object `message`, `by` (the requester as
   `requester` prints it), `at` (a wall in nanoseconds), `seen`, `head`
   and `bytes` (1, *`unread:`*).
+- **A task's waits** print as jig gives them (jig's `domain/engine/waits.md`,
+  2): a task line, and a task's document, `wait`, `null` or one wait,
+  and `nearest`, `null` or `at`, `then` and `kind`; a task's document,
+  `waits`, an array in order, and `wait_count`. A wait is `task`, `kind`
+  (as the text prints it), `object` (an object named for its kind, as
+  `waits_on` is), `since` (a wall in nanoseconds), `bound` (`{"at": …,
+  "then": …}`, `then` one of `hold`, `pass_up`, `overdue` and `give_up`,
+  or `{"none": …}`, one of `no_deadline`, `standing`, `operator_hold` and
+  `{"behind": N}`) and `hears` (`null` or the holder). `waits_on` stays
+  as jig gives it (1).
 - **`deployment census`** prints one object, `{"census": …}`: `null`
   before the store's first report, else the census whole, its fields
   named as jig's document names them (`commit`, `since`, `keyspaces`,
@@ -368,7 +413,7 @@ may change with them.
 - **The `kept:` lines,** under `--json`, are one JSON object a line on
   stderr: `operation` and `outcome`, as the act's; another party's,
   `party` and `unsent`; the dropped, `dropped`.
-- **A project made public,** under `--json`, prints `tools.md`, 3's words on stderr
+- **A project made public,** under `--json`, prints `tools-acts.md`, 1's words on stderr
   as one JSON object a line, `may_show`, beside its record on stdout.
 
 ## 3. Exit status
@@ -376,10 +421,10 @@ may change with them.
 | Status | Meaning | Prints |
 |---|---|---|
 | 0 | a read answered, an act done or proposed, a wait's condition met | the result |
-| 1 | the call failed: usage, the directory refused, its store unreadable (`host.md`), or busy past the lock's wait (`README.md`, 6.3), the engine's address not on loopback, nothing listening at the engine's address, the engine unreachable or the link down past its deadline, signed out, a request past the client's limits, a name the client holds already (`Held`, `README.md`, section 5), unknown past the retention, not kept (DIRECTORY's store not written); the client's own answers alike, a read past its limits among them; a wait's watch ended by the sign-in's end | one line on stderr, `temper ctl: ...` |
-| 2 | refused by the engine, and only by it: a key conflict among them (`README.md`, section 5); a wait's subject no longer visible to the party | jig's refusal, typed in JSON, in words in text; the act's alternatives where the refusal names them (read again, propose instead) |
+| 1 | the call failed: usage, the directory refused, its store unreadable (`host.md`), or busy past the lock's wait (`command-line.md`, 1.3), the engine's address not on loopback, nothing listening at the engine's address, the engine unreachable or the link down past its deadline, signed out, a request past the client's limits, a name the client holds already (`Held`, `requests.md`, section 1), unknown past the retention, not kept (DIRECTORY's store not written); the client's own answers alike, a read past its limits among them; a wait's watch ended by the sign-in's end | one line on stderr, `temper ctl: ...` |
+| 2 | refused by the engine, and only by it: a key conflict among them (`requests.md`, section 1); a wait's subject no longer visible to the party | jig's refusal, typed in JSON, in words in text; the act's alternatives where the refusal names them (read again, propose instead) |
 | 3 | a wait's timeout, or its subject's watch ended, its condition not met | the current document, or the last, and its digest |
-| 128 + N | ended by signal N, `SIGINT` or `SIGTERM`: 130 or 143 (`README.md`, 6.2) | nothing more |
+| 128 + N | ended by signal N, `SIGINT` or `SIGTERM`: 130 or 143 (`command-line.md`, 1.2) | nothing more |
 
 - **An argument refused before a call** names the tool, the argument
   and what it takes from the same specification as help, including its
@@ -392,11 +437,11 @@ may change with them.
 - **2 is the engine's answer alone:** what it decided about the
   request, with the alternatives it names. The client's own answers
   are 1. Two of them never reach a call: unconfirmed, since the runner
-  sends nothing before `me` is live (`README.md`, 6.2, step 3), and the client's key
+  sends nothing before `me` is live (`command-line.md`, 1.2, step 3), and the client's key
   conflict, since each call's keys are its own (`README.md`, section 4). Either is
   the tools' bug: it exits 1, says so, and the page `ctl` says to report
   it as a finding (`testing.md`, 5).
-- **A task wait's final read** follows `tools.md`, 4 on both an `Unknown`
+- **A task wait's final read** follows `tools-waiting.md`, 1 on both an `Unknown`
   opening and `SubjectEnded`: status 0 requires N and a terminal phase,
   for both `Historical` and live-form records. Unknown or hidden
   history remains status 2; a nonterminal or wrong-number result fails
@@ -411,9 +456,9 @@ may change with them.
   export path (an account's give-back, `areas.md`) says the same, never a bare
   `unsent` (QA 20261027-1202-temper finding 3).
 - **A call cut by a signal** ends at once and exits 128 plus the
-  signal's number, never 0 (`README.md`, 6.2).
+  signal's number, never 0 (`command-line.md`, 1.2).
 - **A call whose link stays down** past its deadline exits 1, and what
-  it sent stays in the small store, for the next call that sends (`README.md`, 6.2).
+  it sent stays in the small store, for the next call that sends (`command-line.md`, 1.2).
 - **Nothing listening says so at once.** A call whose connection to the
   engine's address is refused, before the engine has answered anything in
   this call, exits 1 then, with no deadline waited out: `temper ctl:
@@ -433,12 +478,12 @@ may change with them.
   line, since a closing page gives its room back
   (`../../protocol/configuration/limits.md`).
 - **The deadline says what it waited for.** A call past the link's
-  deadline (`README.md`, section 9) exits 1 with one stderr line, at most 240 bytes,
+  deadline (`bounds.md`, section 1) exits 1 with one stderr line, at most 240 bytes,
   which names what was outstanding and holds no request's words and no
-  secret. *Busy*, *streams full* (`README.md`, 6.2) and all watches in use keep their
+  secret. *Busy*, *streams full* (`command-line.md`, 1.2) and all watches in use keep their
   own lines, ahead of these. A watch refused not ready also takes
   precedence: its line says the engine is not ready and points to
-  `temper-box serve`'s log for why (`../../protocol/README.md`, 6.2), rather
+  `temper-box serve`'s log for why (`../../protocol/service-process.md`, 1.2), rather
   than claiming all watches are in use. A sign-in's or a sign-out's call
   says
   `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any
@@ -456,7 +501,7 @@ may change with them.
   | an act's outcome, its answer lost or undecodable | as above | `the last answer to this act from the engine at ADDRESS was lost; no outcome within 30 s` |
 
   A call that acts adds what is true of its act, on any of those lines,
-  until the act has answered; a first repository's watch (`tools.md`, 4) has its
+  until the act has answered; a first repository's watch (`tools-waiting.md`, 1) has its
   answer, and adds nothing:
 
   | The act at the deadline | Added |
@@ -464,13 +509,13 @@ may change with them.
   | not sent: not yet entered, or its record not yet stored | `; it was not sent` |
   | kept, under a `--key` the call names | `; it is kept, and the same --key may be tried again` |
   | kept, under a name the table drew | `; it is kept, and the next call that sends tries it again` |
-  | sent once and never kept (`README.md`, section 5), under a `--key` the call names | `; it is not kept, and the same --key and file may be tried again` |
+  | sent once and never kept (`requests.md`, section 1), under a `--key` the call names | `; it is not kept, and the same --key and file may be tried again` |
   | sent once and never kept, under a name the table drew | `; it is not kept, and calling again is a new request` |
 
-  A same-key retry is safe by `README.md`, section 5, which is why these lines may
+  A same-key retry is safe by `requests.md`, section 1, which is why these lines may
   offer it. The deadline stays the user's 30 s. A line naming a retry's
   why is the call's explicit pending result: its request is kept, and it
-  was still being tried (`README.md`, 6.2).
+  was still being tried (`command-line.md`, 1.2).
 - **An account's move** (`areas.md`, area 5) keeps the rule: 2 is the
   engine's refusal alone, "not signed in", "not ours", "held",
   "moving" and "cancelled"; FILE's faults are the tool's own, exit 1,
@@ -483,7 +528,7 @@ may change with them.
   word: `temper ctl: DIRECTORY does not exist`, for any other call on a
   DIRECTORY that is not there; `temper ctl: DIRECTORY is not signed
   in`, for a call that needs the token when DIRECTORY holds none; and
-  the deadline's lines (above), past the link's deadline (`README.md`, section 9),
+  the deadline's lines (above), past the link's deadline (`bounds.md`, section 1),
   ADDRESS as `address` holds it.
 - **`repository adopt`:** adopted exits 0, with branch protection
   unknown or not (`../forge/family.md`, 6, prints "temper's forge user may not
@@ -550,7 +595,7 @@ its `from` and `next` offsets count reason bytes alone.
   place of the bytes left and the call. B is the source bytes the page
   holds and L those after it. N is ⌈from ÷ C⌉ + 1 and M is N + ⌈L ÷ C⌉,
   where C is the most source bytes the read's page may hold, at least
-  1: for `task text`, `README.md`, section 9's page, within a result's text less
+  1: for `task text`, `bounds.md`, section 1's page, within a result's text less
   512 bytes and within a result's bytes less 512 at six bytes each;
   for a part, the smaller of the page and the result's text room when
   the read starts. A page cut short, to keep a character whole or
@@ -575,7 +620,7 @@ its `from` and `next` offsets count reason bytes alone.
   cut text inside a larger answer, `task show`'s asked words, `task
   turn` without `--part`, `task activity` or `chat show`, is no paged
   read: each cut keeps its end line alone, whose call is a paged read.
-- **The numbers** are `README.md`, section 9's. A path is never cut: the tools
+- **The numbers** are `bounds.md`, section 1's. A path is never cut: the tools
   print it whole, within the client's bound on a path's segments
   (`jig-client-domain`'s `Limits`, `segments`); nor is an authority,
   within its bound on an authority's entries.

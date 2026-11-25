@@ -97,11 +97,12 @@ fn count_answers(world: &World, wanted: Token) -> usize {
             Down::Answer { call, .. } => *call == wanted,
             Down::Start { .. }
             | Down::Message { .. }
+            | Down::PartKept { .. }
             | Down::Acknowledge { .. }
             | Down::Renewals { .. }
             | Down::Grant { .. }
             | Down::Cancel
-            | Down::Drain => false,
+            | Down::Drain { .. } => false,
         })
         .count()
 }
@@ -139,11 +140,12 @@ fn process_started_precedes_agent_admitted_and_start_is_first() {
         }
         Down::Message { .. }
         | Down::Answer { .. }
+        | Down::PartKept { .. }
         | Down::Acknowledge { .. }
         | Down::Renewals { .. }
         | Down::Grant { .. }
         | Down::Cancel
-        | Down::Drain => {
+        | Down::Drain { .. } => {
             panic!("Start must be first")
         }
     }
@@ -199,6 +201,7 @@ fn admission_refusals_preserve_separate_process_rights() {
         (
             Start {
                 directories: Box::new([smith_host_domain::Directory {
+                    results: None,
                     host: Box::from(b"/host".as_slice()),
                     root: Token::new(1),
                     name: Box::from(&b"a"[..]),
@@ -488,11 +491,12 @@ fn inbound_messages_are_ordered_bounded_and_named_opaquely() {
             Down::Message { name, .. } => Some(*name),
             Down::Start { .. }
             | Down::Answer { .. }
+            | Down::PartKept { .. }
             | Down::Acknowledge { .. }
             | Down::Renewals { .. }
             | Down::Grant { .. }
             | Down::Cancel
-            | Down::Drain => None,
+            | Down::Drain { .. } => None,
         })
         .collect();
     assert_eq!(names, [Token::new(u64::MAX), Token::new(0), Token::new(31)]);
@@ -708,11 +712,12 @@ fn an_oversized_generic_answer_is_too_large_but_delivery_always_fits() {
         Down::Answer { .. }
         | Down::Start { .. }
         | Down::Message { .. }
+        | Down::PartKept { .. }
         | Down::Acknowledge { .. }
         | Down::Renewals { .. }
         | Down::Grant { .. }
         | Down::Cancel
-        | Down::Drain => panic!("too large reply"),
+        | Down::Drain { .. } => panic!("too large reply"),
     }
     world.sent();
     finish(&mut world);
@@ -1153,11 +1158,12 @@ fn every_delivery_terminal_survives_withdrawal_and_expired_deadline() {
             Down::Answer { .. }
             | Down::Start { .. }
             | Down::Message { .. }
+            | Down::PartKept { .. }
             | Down::Acknowledge { .. }
             | Down::Renewals { .. }
             | Down::Grant { .. }
             | Down::Cancel
-            | Down::Drain => panic!("full terminal required"),
+            | Down::Drain { .. } => panic!("full terminal required"),
         }
         world.sent();
         finish(&mut world);
@@ -1180,10 +1186,11 @@ fn grant_generation_races_are_fenced_by_emission_not_queued_refresh() {
         Down::Start { .. }
         | Down::Message { .. }
         | Down::Answer { .. }
+        | Down::PartKept { .. }
         | Down::Acknowledge { .. }
         | Down::Renewals { .. }
         | Down::Cancel
-        | Down::Drain => {
+        | Down::Drain { .. } => {
             panic!("latest refresh")
         }
     }
@@ -1473,10 +1480,11 @@ fn continual_progress_reaches_only_the_independent_wall_deadline() {
         Down::Start { .. }
         | Down::Message { .. }
         | Down::Answer { .. }
+        | Down::PartKept { .. }
         | Down::Acknowledge { .. }
         | Down::Renewals { .. }
         | Down::Grant { .. }
-        | Down::Drain => panic!("wall must politely cancel first"),
+        | Down::Drain { .. } => panic!("wall must politely cancel first"),
     }
     world.sent();
     world.at(25);
@@ -1604,18 +1612,18 @@ fn a_process_exit_preserves_the_read_fence_of_its_buffered_answer() {
 fn drain_is_once_without_grace_and_stop_starts_its_own_grace() {
     let mut world = World::new(1770, limits());
     world.live();
-    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
-    assert_eq!(world.seen.down.last(), Some(&Down::Drain));
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent(), grace: None }));
+    assert_eq!(world.seen.down.last(), Some(&Down::Drain { grace: None }));
     world.sent();
     world.at(4);
-    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent(), grace: None }));
     assert_eq!(world.seen.down.len(), 2, "start, then one drain");
     world.at(6);
     assert!(world.seen.signals.is_empty(), "no cancel grace for a drain");
     world.event(Input::Parent(parent::Event::Stop { agent: world.agent() }));
     assert_eq!(world.seen.down.last(), Some(&Down::Cancel));
     world.sent();
-    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent(), grace: None }));
     assert_eq!(world.seen.down.len(), 3, "no drain after stop");
     world.at(10);
     assert_eq!(world.seen.signals, Vec::<Signal>::new());
@@ -1632,14 +1640,14 @@ fn drain_before_start_follows_the_start_send() {
         let mut world = World::new(1771, limits());
         world.spawn(start());
         if spawning {
-            world.event(Input::Parent(parent::Event::Drain { agent: world.owner() }));
+            world.event(Input::Parent(parent::Event::Drain { agent: world.owner(), grace: None }));
             assert_eq!(world.seen.down, Vec::<Down>::new());
         }
         world.spawned();
-        world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+        world.event(Input::Parent(parent::Event::Drain { agent: world.agent(), grace: None }));
         assert_eq!(world.seen.down.len(), 1, "start's send is still owed");
         world.sent();
-        assert_eq!(world.seen.down.last(), Some(&Down::Drain));
+        assert_eq!(world.seen.down.last(), Some(&Down::Drain { grace: None }));
         world.sent();
         world.up(Up::Admitted);
         last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
@@ -1648,7 +1656,7 @@ fn drain_before_start_follows_the_start_send() {
     let mut world = World::new(1773, limits());
     world.spawn(start());
     world.event(Input::Parent(parent::Event::Stop { agent: world.owner() }));
-    world.event(Input::Parent(parent::Event::Drain { agent: world.owner() }));
+    world.event(Input::Parent(parent::Event::Drain { agent: world.owner(), grace: None }));
     world.spawned();
     world.sent();
     assert_eq!(world.seen.down.len(), 1, "a stop supersedes a drain even before spawning ends");
@@ -1666,7 +1674,7 @@ fn drain_keeps_watchdog_and_wall_supervision() {
         }
         let mut world = World::new(1772, bounds);
         world.live();
-        world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+        world.event(Input::Parent(parent::Event::Drain { agent: world.agent(), grace: None }));
         world.sent();
         if wall {
             for second in [6, 12, 18] {
@@ -1770,4 +1778,84 @@ fn every_live_terminate_sends_cancel_or_closes_the_channel_first() {
             );
         }
     }
+}
+
+fn parts_world() -> World {
+    let mut world = World::new(88, limits());
+    world.spawn(Start { tell_parts: true, ..start() });
+    world.spawned();
+    world.sent();
+    world.up(Up::Admitted);
+    world
+}
+
+fn part_record(number: u32) -> Up {
+    Up::Part {
+        part: smith_host_domain::channel::ToldPart {
+            number,
+            turn: 1,
+            thread: 0,
+            call: 0,
+            kind: smith_domain::session::record::PartKind::Answer,
+            body: smith_host_world::turn_value(32),
+        },
+    }
+}
+
+#[test]
+fn a_part_and_turn_fill_one_window_until_the_part_is_kept() {
+    let mut world = parts_world();
+    world.up(part_record(1));
+    turn(&mut world, 1, 0, None, 32);
+    assert_eq!(world.seen.order, [(true, 1), (false, 1)], "parent receives the telling order");
+    assert!(!world.lower.contains(Lower::Read), "one part and one turn fill the two-record window");
+    world.event(Input::Parent(parent::Event::AcknowledgePart { agent: world.agent(), number: 1 }));
+    assert_eq!(world.seen.down.last(), Some(&Down::PartKept { number: 1 }));
+    world.sent();
+    assert!(world.lower.contains(Lower::Read), "part acknowledgement releases one record");
+    world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 1 }));
+    world.sent();
+    last(&mut world, RunResult::Parked, 1, 0);
+    world.clean_end();
+}
+
+#[test]
+fn dropping_a_run_releases_parts_without_acknowledging_them() {
+    let mut world = parts_world();
+    world.up(part_record(1));
+    assert_eq!(world.seen.parts.len(), 1);
+    world.event(Input::Parent(parent::Event::Drop { agent: world.agent() }));
+    assert!(!world.seen.down.iter().any(|word| matches!(word, Down::PartKept { .. })));
+    world.clean_end();
+}
+
+#[test]
+fn a_parts_drain_carries_grace_without_arming_a_kit_timer() {
+    let mut world = parts_world();
+    let grace = Some(Duration::from_secs(1));
+    world.event(Input::Parent(parent::Event::Drain { agent: world.agent(), grace }));
+    assert_eq!(world.seen.down.last(), Some(&Down::Drain { grace }));
+    world.sent();
+    world.at(2);
+    assert!(!world.lower.contains(Lower::Terminate));
+    assert!(!world.seen.down.iter().any(|word| matches!(word, Down::Cancel)));
+    finish(&mut world);
+}
+
+#[test]
+fn part_kept_waits_for_a_contiguous_parent_acknowledgement() {
+    let mut world = parts_world();
+    world.up(part_record(1));
+    world.up(part_record(2));
+    world.event(Input::Parent(parent::Event::AcknowledgePart { agent: world.agent(), number: 2 }));
+    assert!(
+        !world.seen.down.iter().any(|word| matches!(word, Down::PartKept { .. })),
+        "a later part cannot acknowledge an unkept earlier part"
+    );
+    world.event(Input::Parent(parent::Event::AcknowledgePart { agent: world.agent(), number: 1 }));
+    assert_eq!(world.seen.down.last(), Some(&Down::PartKept { number: 1 }));
+    world.sent();
+    assert_eq!(world.seen.down.last(), Some(&Down::PartKept { number: 2 }));
+    world.sent();
+    finish(&mut world);
 }

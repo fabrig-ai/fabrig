@@ -35,10 +35,10 @@ impl Fetch {
             .ok_or(worker_settings::problem(b"limits", What::Bound))?;
         let secret = files.contents(&worker.jig.secret).ok_or(worker_settings::problem(b"secret", What::Unreadable))?;
         let secret = secret.strip_suffix(b"\n").unwrap_or(secret);
-        let mut credential = worker_settings::credential(worker, secret, &payload)
-            .or(Err(worker_settings::problem(b"secret", What::Bound)))?;
+        let wires = worker_settings::wires(&payload).or(Err(worker_settings::problem(b"limits", What::Bound)))?;
+        let mut credential = worker_settings::credential(worker, secret, wires.application);
         credential.opening = jig_protocol_worker_wire::Opening::Figures;
-        let link = link::Component::new(&limits, jig_protocol_worker_wire::spoken(), credential, seed)
+        let link = link::Component::new(&limits, wires.jig, credential, seed)
             .or(Err(worker_settings::problem(b"limits", What::Bound)))?;
         let address = match worker.jig.engine {
             config::Address::Addr(address) => address,
@@ -175,13 +175,10 @@ impl Fetch {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::CannotSendWhole { wire, version } => {
-                    self.notes.push(Note::CannotSendWhole { wire, version });
-                }
-                link::Request::Untranslated { kind, halt } => self.notes.push(Note::Untranslated { kind, halt }),
                 link::Request::Ready
                 | link::Request::Restarting { .. }
                 | link::Request::RelayCancelled { .. }
+                | link::Request::ResendPart { .. }
                 | link::Request::Resend { .. }
                 | link::Request::Lost
                 | link::Request::GracePassed

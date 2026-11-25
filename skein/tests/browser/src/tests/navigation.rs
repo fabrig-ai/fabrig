@@ -69,7 +69,7 @@ fn a_navigation_holds_page_reads_until_load() {
         let expected: &[&[u8]] = if snapshot {
             &[b"Page.bringToFront", b"Accessibility.getFullAXTree"]
         } else {
-            &[b"Page.bringToFront", b"Runtime.evaluate", b"Accessibility.queryAXTree", b"Runtime.releaseObject"]
+            &[b"Page.bringToFront", b"Runtime.evaluate", b"Accessibility.queryAXTree"]
         };
         let sent = methods(&world);
         let after: Vec<&[u8]> = sent.iter().map(AsRef::as_ref).collect();
@@ -148,7 +148,6 @@ fn a_navigation_discards_the_previous_documents_root() {
             b"Page.bringToFront",
             b"Runtime.evaluate",
             b"Accessibility.queryAXTree",
-            b"Runtime.releaseObject"
         ]
     );
 }
@@ -168,6 +167,65 @@ fn a_find_retries_a_discarded_context() {
         }
     }
 }
+#[test]
+fn three_polls_foreground_and_query_using_one_document_handle() {
+    let mut world = scoped_world();
+    world.ax_visible = false;
+    let poll = world.env.limits.poll;
+    let within = poll.saturating_add(poll).saturating_add(poll);
+    world.ask(Request::Await { page: PAGE, op: READ, query: query(), expect: Expect::Present, within });
+    world.tick(world.env.now.saturating_add(poll));
+    world.ax_visible = true;
+    world.tick(world.env.now.saturating_add(poll));
+    assert_eq!(
+        methods(&world),
+        [
+            b"Page.bringToFront".as_slice(),
+            b"Runtime.evaluate",
+            b"Accessibility.queryAXTree",
+            b"Page.bringToFront",
+            b"Accessibility.queryAXTree",
+            b"Page.bringToFront",
+            b"Accessibility.queryAXTree",
+        ]
+        .map(Box::<[u8]>::from),
+    );
+    let Some(Event::Met { op, seen }) = world.above.pop() else { panic!("the third poll found Save") };
+    let node = seen.get(0).expect("the Save button");
+    assert_eq!(
+        (op, seen.len(), node.node, node.role.as_ref(), node.name.as_ref()),
+        (READ, 1, 7, b"button".as_slice(), b"Save".as_slice())
+    );
+}
+
+#[test]
+fn document_lifecycle_events_release_the_handle_before_the_next_find() {
+    const EVENTS: &[&[u8]] = &[
+        b"{\"method\":\"Page.frameStartedLoading\",\"sessionId\":\"s1\",\"params\":{\"frameId\":\"f1\"}}\0",
+        b"{\"method\":\"Runtime.executionContextsCleared\",\"sessionId\":\"s1\",\"params\":{}}\0",
+        b"{\"method\":\"Runtime.executionContextDestroyed\",\"sessionId\":\"s1\",\"params\":{\"executionContextId\":1}}\0",
+    ];
+    for event in EVENTS {
+        let mut world = scoped_world();
+        world.ask(Request::Find { page: PAGE, op: READ, query: query() });
+        world.sent.clear();
+        notify(&mut world, event);
+        loaded(&mut world);
+        world.ask(Request::Find { page: PAGE, op: READ, query: query() });
+        assert_eq!(
+            methods(&world),
+            [
+                b"Runtime.releaseObject".as_slice(),
+                b"Page.bringToFront",
+                b"Runtime.evaluate",
+                b"Accessibility.queryAXTree"
+            ]
+            .map(Box::<[u8]>::from),
+            "event {event:?}",
+        );
+    }
+}
+
 #[test]
 fn a_find_asks_cdp_for_the_role_and_exact_name() {
     let mut world = World::new();
@@ -201,8 +259,7 @@ fn a_cached_history_restore_releases_page_reads() {
     notify(&mut world, b"{\"method\":\"Page.frameNavigated\",\"sessionId\":\"s1\",\"params\":{\"type\":\"BackForwardCacheRestore\",\"frame\":{\"id\":\"f1\"}}}\0");
     assert_eq!(
         methods(&world),
-        [b"Page.bringToFront".as_slice(), b"Runtime.evaluate", b"Accessibility.queryAXTree", b"Runtime.releaseObject"]
-            .map(Box::<[u8]>::from)
+        [b"Page.bringToFront".as_slice(), b"Runtime.evaluate", b"Accessibility.queryAXTree"].map(Box::<[u8]>::from)
     );
 }
 
@@ -252,24 +309,6 @@ fn a_scoped_find_asks_under_its_scopes_object() {
             (Box::from(b"Runtime.releaseObject".as_slice()), None, Some(Box::from(b"scope-7".as_slice()))),
         ]
     );
-}
-#[test]
-fn a_scope_of_an_earlier_document_is_gone() {
-    let mut world = scoped_world();
-    world.fault(b"DOM.resolveNode", crate::world::Fault::ScopeGone);
-    world.ask(Request::Find { page: PAGE, op: READ, query: scoped_query() });
-    world.tick(Time::from_nanos(50_000_000));
-    match world.above.pop() {
-        Some(Event::Refused { op, why, .. }) => assert_eq!(
-            (op, why, methods(&world)),
-            (
-                READ,
-                Refusal::Gone,
-                vec![Box::from(b"Page.bringToFront".as_slice()), Box::from(b"DOM.resolveNode".as_slice())]
-            )
-        ),
-        other => panic!("expected a stale scope to be Gone, got {other:?}"),
-    }
 }
 #[test]
 fn a_late_resolved_scope_object_is_released() {

@@ -187,6 +187,7 @@ pub fn opening_row() -> ChangeRow {
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        close_at: None,
         report: Box::new([]),
         repairs: None,
         follows: None,
@@ -206,8 +207,8 @@ pub fn opening_with(row: ChangeRow) -> (Domain, Token) {
     let mut d = connected_domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
+    outputs(&mut d, Event::CatchUp);
+
     let entry = skein_forge_client::Entry {
         number: OPEN,
         task: row.task,
@@ -395,6 +396,7 @@ pub fn change_step() -> Event {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

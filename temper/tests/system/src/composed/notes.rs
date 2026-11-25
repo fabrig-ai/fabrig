@@ -80,7 +80,7 @@ impl World {
     #[must_use]
     pub fn notes_chat(seed: u64, words: &[u8], script: Script) -> Self {
         let mut world = Self::configured_limits(seed, script, false, config, limits);
-        let bounds = &mut world.worker_env.limits;
+        let bounds = &mut world.lanes[0].worker_env.limits;
         bounds.bounds.endpoints[0].output = 8192;
         bounds.reply_bytes = 8192;
         bounds.host.event_bytes = 10_660;
@@ -89,10 +89,10 @@ impl World {
         bounds.agent.call_bytes = u64::from(PAYLOAD);
         bounds.checkout.message_bytes = PAYLOAD;
         assert!(worker::valid(bounds), "worker bounds: {:?}", worker::unfit(bounds));
-        world.worker = worker::Domain::new(bounds, Box::new([]));
+        world.lanes[0].worker = worker::Domain::new(bounds, Box::new([]));
         world.party = super::signed_in_party(words);
-        world.process.tool_payload = Some(PAYLOAD);
-        world.process.configure_settings = Some(settings);
+        world.lanes[0].process.tool_payload = Some(PAYLOAD);
+        world.lanes[0].process.configure_settings = Some(settings);
         world
     }
 
@@ -114,10 +114,14 @@ impl World {
 
     /// A person's stop, amendment or release, using the same acts as ctl.
     pub fn notes_act(&mut self, ask: people::Ask, key: [u8; 16]) -> people::Reply {
+        self.notes_act_as(self.party.sign_in.expect("authenticated party"), ask, key)
+    }
+
+    pub(super) fn notes_act_as(&mut self, sign_in: u64, ask: people::Ask, key: [u8; 16]) -> people::Reply {
         self.root_events.push_back(engine::Event::Party(engine::PartyInput::Ask {
             models: Box::new([]),
             reply_to: ReplyTo::new(ACT),
-            sign_in: self.party.sign_in.expect("authenticated party"),
+            sign_in,
             key,
             ask,
         }));
@@ -132,6 +136,6 @@ impl World {
 
     /// Prepare the fake model's next activation; the charter decides whether it resumes.
     pub fn notes_follow_up(&mut self, script: Script) {
-        self.process.resume(script);
+        self.lanes[0].process.resume(script);
     }
 }

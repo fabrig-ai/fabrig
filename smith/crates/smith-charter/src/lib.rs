@@ -7,7 +7,7 @@
 
 extern crate alloc;
 
-/// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
+/// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const SCHEMA: &str = include_str!("../schema/charter-v5.schema");
 
@@ -46,10 +46,8 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = crate::v5::VERSION;
 
-    /// The lowest version this build speaks.
-    pub const FLOOR: u16 = crate::patches::kept::smith_charter::FLOOR;
-
-    const TEXT: &str = crate::SCHEMA;
+    /// The embedded current schema text.
+    pub const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]
@@ -63,35 +61,12 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
+        use super::{FAMILY, TEXT, VERSION, layout};
 
         #[test]
         fn host_tool_input_path_names_the_schema_field() {
-            let name = crate::v5::name(crate::v5::paths::HOST_TOOL_INPUT).expect("host tool input path");
+            let name = crate::v5::paths::HOST_TOOL_INPUT.name();
             assert_eq!(name, "HostTool.input");
-        }
-
-        #[test]
-        #[expect(clippy::disallowed_macros, reason = "the patch test embeds the kept version-four schema")]
-        fn a_version_four_charter_takes_up_contract_one() {
-            use crate::Record;
-            use skein_codec::patch::Capacity;
-            use skein_lib::Reader;
-
-            let capacity = Capacity { versions: 2, patches: 2, text: 8192, bytes: 8192, nodes: 256 };
-            let mut bridge = crate::patches::kept::smith_charter::bridge(capacity).expect("charter bridge");
-            let schema =
-                skein_codegen::parse(include_str!("../schema/kept/smith-charter-v4.schema")).expect("kept v4 schema");
-            let mut old = None;
-            for value in skein_codegen::goldens(&schema) {
-                if value.name == "record_charter_smallest.bin" {
-                    old = Some(value.bytes);
-                }
-            }
-            let old = old.expect("v4 charter");
-            let current = bridge.translate(4, VERSION, b"Charter", old.as_slice().into()).expect("v4 taken up");
-            let charter = crate::Charter::decode(&crate::CEILINGS, &mut Reader::new(&current)).expect("v5 charter");
-            assert_eq!(charter.tools.contract, 1);
         }
 
         #[test]
@@ -99,8 +74,7 @@ pub mod wire {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
-            assert_eq!(FLOOR, crate::patches::kept::smith_charter::FLOOR);
-            assert_eq!(FLOOR, 4);
+            assert_eq!(VERSION, 5);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("max: u32", "max: u64", 1);
@@ -110,6 +84,3 @@ pub mod wire {
         }
     }
 }
-
-#[path = "../patches/mod.rs"]
-pub mod patches;

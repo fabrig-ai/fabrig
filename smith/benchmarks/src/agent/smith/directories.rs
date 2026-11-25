@@ -1,7 +1,7 @@
 //! Author mounts resolve only within this attempt's frozen private seed.
 //! The first mount is the native working directory; write authority stays
 //! explicit. No user path or runtime filesystem fact is known here
-//! (../../../../docs/design/benchmarks/README.md, section 10; domain/tools.md, section 2).
+//! (../../../../docs/design/benchmarks/isolation.md, section 1; domain/tools.md, section 2).
 
 use crate::{Fault, Input, format, input, io, refuse_if};
 use std::collections::BTreeSet;
@@ -11,6 +11,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::agent::Context;
+use crate::files::{Files, Kind};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -21,19 +22,19 @@ struct Directory {
     git: bool,
 }
 
-pub(super) fn render(context: &Context<'_>) -> Result<Value, Fault> {
+pub(super) fn render_with(files: &dyn Files, context: &Context<'_>) -> Result<Value, Fault> {
     let requested = context
         .variant
         .and_then(|variant| variant.smith.get("workspace.directories"))
         .or_else(|| context.task.smith.get("workspace.directories"));
     let Some(requested) = requested else {
-        let working = crate::isolate::working_directory(context.guard, context.private, context.task)?;
+        let working = crate::isolate::working_directory_with(files, context.guard, context.private, context.task)?;
         return Ok(json!([{"name":"repo","path":working,"writable":true,"git":true}]));
     };
     let directories: Vec<Directory> =
         requested.clone().try_into().map_err(|error| format(format!("Smith directories: {error}")))?;
     refuse_if(directories.is_empty(), Input, "Smith directories must name at least one seed directory")?;
-    let workspace = context.private.workspace.canonicalize()?;
+    let workspace = files.canonicalize(&context.private.workspace)?;
     let mut names = BTreeSet::new();
     let mut hosts = BTreeSet::new();
     let mut rendered = Vec::new();
@@ -52,9 +53,13 @@ pub(super) fn render(context: &Context<'_>) -> Result<Value, Fault> {
             return Err(input(format!("Smith directory {} must use a seed-relative path", directory.name)));
         }
         let candidate = workspace.join(&directory.path);
-        let host = context.guard.write_path(&candidate)?;
-        let host = host.canonicalize().map_err(|error| io(format!("Smith directory {}: {error}", directory.name)))?;
-        if !host.is_dir() || !host.starts_with(&workspace) || !hosts.insert(host.clone()) {
+        let host = context.guard.write_path_with(files, &candidate)?;
+        let host =
+            files.canonicalize(&host).map_err(|error| io(format!("Smith directory {}: {error}", directory.name)))?;
+        if !files.metadata(&host).is_ok_and(|facts| facts.kind == Kind::Directory)
+            || !host.starts_with(&workspace)
+            || !hosts.insert(host.clone())
+        {
             return Err(input("Smith directories require distinct existing directories inside the private seed"));
         }
         if hosts.iter().any(|earlier| earlier != &host && (earlier.starts_with(&host) || host.starts_with(earlier))) {
@@ -63,7 +68,7 @@ pub(super) fn render(context: &Context<'_>) -> Result<Value, Fault> {
         rendered.push(json!({"name":directory.name,"path":host,"writable":directory.writable,"git":directory.git}));
     }
     if context.task.working_directory.is_some() {
-        let working = crate::isolate::working_directory(context.guard, context.private, context.task)?;
+        let working = crate::isolate::working_directory_with(files, context.guard, context.private, context.task)?;
         if rendered[0]["path"] != json!(working) {
             return Err(input("the first Smith directory must be the task's working directory"));
         }

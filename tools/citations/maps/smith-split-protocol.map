@@ -1,0 +1,8 @@
+# Smith's protocol split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at 86ee2a0529e64036abc87ad929d935273a7ec873.
+# smith/docs/design/protocol/limits.md: 64,264 bytes. The derivation gets its own page; the overview, declared quantities, startup checks, memory, calls at a limit, deadlines, effective limits, obligations and world stay.
+title smith/docs/design/protocol/limits-derivation.md: Limits: the derivation
+smith/docs/design/protocol/limits.md 3 -> smith/docs/design/protocol/limits-derivation.md 1
+
+# smith/docs/design/protocol/programs.md: 63,075 bytes. Running Claude Code gets its own page; the overview, backend choice, sign-in, terms, weakened promises, testing and open questions stay.
+title smith/docs/design/protocol/programs-claude-code.md: Programs as backends: running Claude Code
+smith/docs/design/protocol/programs.md 5 -> smith/docs/design/protocol/programs-claude-code.md 1

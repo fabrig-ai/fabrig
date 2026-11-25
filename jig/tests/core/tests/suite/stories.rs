@@ -17,6 +17,8 @@ use skein_lib::{List, Queue, ReplyTo, Token};
 mod address;
 #[path = "../stories/note_room.rs"]
 mod note_room;
+#[path = "../stories/person_offers.rs"]
+mod person_offers;
 #[path = "../stories/widening_funds.rs"]
 mod widening_funds;
 
@@ -959,6 +961,7 @@ fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource
     };
     let member = resource_member(&world, 1, b"wait for its report");
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(u64::MAX - 3)),
@@ -1143,7 +1146,7 @@ pub(crate) fn amendment(words: &[u8]) -> people::Amendment {
 fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
     let mut world = World::new(Setup { seed: 150, ..Setup::default() });
     let task = world.call_key(1).task;
-    ask(&mut world, 50, people::Ask::Stop { project: 1, task });
+    ask(&mut world, 50, people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) });
     let revision = live_row(&world, task).revisions.hold;
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Budget })));
     ask(&mut world, 51, people::Ask::Release { project: 1, task, revision, again: None });
@@ -1222,7 +1225,7 @@ fn an_amendment_and_a_release_are_one_decision() {
     let (configuration, limits) = amendment_world_fixture(152);
     let mut world = World::new(Setup { seed: 152, configuration: Some(configuration), limits, ..Setup::default() });
     let task = world.call_key(1).task;
-    ask(&mut world, 54, people::Ask::Stop { project: 1, task });
+    ask(&mut world, 54, people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) });
     world.end(tasks::End::Parked, 0);
     let hold = live_row(&world, task).revisions.hold;
     let revision = live_row(&world, task).revisions.spec;

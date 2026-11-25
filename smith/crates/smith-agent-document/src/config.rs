@@ -24,7 +24,7 @@ use endpoints::{PreparedEndpoints, build_endpoints, build_limits};
 mod native;
 #[cfg(test)]
 use document::Variable;
-use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument};
+use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument, TrustDocument};
 pub use native::TRUST_BYTES;
 
 #[cfg(all(test, unix))]
@@ -52,7 +52,7 @@ pub struct Configuration {
     pub declarations: service::profile::Configuration,
 }
 
-/// Validated configuration values awaiting native endpoint resolution and trust loading.
+/// Validated configuration values awaiting endpoint resolution and trust loading.
 /// Decoding retains names and trust sources; it performs no DNS or filesystem effects.
 pub struct Decoded {
     program: Option<Program>,
@@ -111,7 +111,7 @@ pub fn parse(bytes: &[u8]) -> Result<Configuration, String> {
 }
 
 // The exact encoded count supplies machine.env_bytes before the shared encoder
-// validates names. Contract: smith/docs/design/protocol/limits.md, sections 3.5 and 4.
+// validates names. Contract: smith/docs/design/protocol/limits-derivation.md, section 1.5, and smith/docs/design/protocol/limits.md, section 4.
 fn environment_size_refusal() -> ConfigurationRefusal {
     ConfigurationRefusal::Profile(Refusal::Derived { limit: LimitName::deployment(Layer::Machine, "env_bytes") })
 }
@@ -227,6 +227,12 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
     let domain_programs = programs::domain(&program_endpoints, &mut limits.domain)?;
     let environment = machine::Environment::encode(&environment, &limits.machine).map_err(environment_refusal)?;
     let endpoints = build_endpoints(document.endpoints, &declarations, &limits, &profile)?;
+    if let Some(trace) = &trace {
+        // Choose the write deadline before deriving the link. The inventory
+        // sizes the sink later, once the configured endpoints are resolved.
+        limits.events = Some(event_limits(&limits, trace.capture, &[], profile.policy.write_deadline)?);
+    }
+    limits.resolve_link(&profile, &endpoints.limits).map_err(ConfigurationRefusal::Profile)?;
     Ok(Decoded {
         program,
         program_endpoints,
@@ -246,8 +252,13 @@ impl Decoded {
     /// Resolve the endpoints for a native model-list request.
     pub fn list_endpoints(self) -> Result<llm::Endpoints, String> {
         llm::Endpoints::new(
-            native::endpoints(self.endpoints.llm, &self.limits.llm.connection, &mut std::io::sink())
-                .map_err(ConfigurationRefusal::detail)?,
+            native::endpoints(
+                self.endpoints.llm,
+                &self.limits.llm.connection,
+                &mut std::io::sink(),
+                native::RootReader::Native,
+            )
+            .map_err(ConfigurationRefusal::detail)?,
             ENDPOINTS,
         )
         .map_err(|error| format!("LLM endpoints: {error:?}"))
@@ -256,6 +267,75 @@ impl Decoded {
     /// Resolve names and load trust after the caller blocks termination signals.
     /// Trust diagnostics go only to the supplied operator writer.
     pub fn resolve(self, errors: &mut dyn std::io::Write) -> Result<Configuration, ConfigurationRefusal> {
+        #[cfg(unix)]
+        let lookup = find_rg;
+        #[cfg(not(unix))]
+        let lookup = |_: Option<&[u8]>| None;
+        self.resolve_native(
+            errors,
+            lookup,
+            #[cfg(unix)]
+            native::RootReader::Native,
+        )
+    }
+
+    /// Resolve using the caller's bounded root-read answers for each named trust source.
+    /// Machine trust is requested with no `SSL_CERT_FILE` override; a named PEM bundle carries its path.
+    /// Address and command `PATH` lookup remain native.
+    #[cfg(unix)]
+    pub fn resolve_with_roots(
+        self,
+        errors: &mut dyn std::io::Write,
+        mut read_roots: impl FnMut(
+            &skein_shell::Trust,
+            &skein_shell::RootBounds,
+        ) -> Result<skein_shell::Roots, skein_shell::RootsRefusal>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_native(errors, find_rg, native::RootReader::Given(&mut read_roots))
+    }
+
+    fn resolve_native(
+        self,
+        errors: &mut dyn std::io::Write,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+        #[cfg(unix)] mut roots: native::RootReader<'_>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_with_trust(
+            native::resolve,
+            |der, trust| {
+                native::endpoint_trust(
+                    der,
+                    trust,
+                    errors,
+                    #[cfg(unix)]
+                    &mut roots,
+                )
+            },
+            lookup,
+        )
+    }
+
+    /// Resolve without native lookups, using the supplied TLS configuration for every TLS endpoint.
+    /// Without a TLS configuration, only plaintext endpoints can resolve.
+    pub fn resolve_with(
+        self,
+        address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
+        tls: Option<&skein_tls::Config>,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_with_trust(
+            address,
+            |_, _| tls.cloned().ok_or_else(|| "TLS endpoint requires supplied trust".into()),
+            lookup,
+        )
+    }
+
+    fn resolve_with_trust(
+        self,
+        address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
+        trust: impl FnMut(Option<&str>, Option<&TrustDocument>) -> Result<skein_tls::Config, ConfigurationRefusal>,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
         let Self {
             program,
             program_endpoints,
@@ -268,26 +348,19 @@ impl Decoded {
             trace,
             endpoints,
         } = self;
-        #[cfg(unix)]
-        let rg = find_rg(path.as_deref()).map_or_else(
+        let rg = lookup(path.as_deref()).map_or_else(
             || Box::from(b"/usr/bin/rg".as_slice()),
             |path| path.into_os_string().into_encoded_bytes().into(),
         );
-        #[cfg(not(unix))]
-        let rg = {
-            drop(path);
-            Box::from(b"/usr/bin/rg".as_slice())
-        };
-        let llm_endpoints =
-            llm::Endpoints::new(native::endpoints(endpoints.llm, &limits.llm.connection, errors)?, ENDPOINTS)
-                .map_err(|error| format!("LLM endpoints: {error:?}"))?;
+        let llm_endpoints = llm::Endpoints::new(
+            native::endpoints_with(endpoints.llm, &limits.llm.connection, address, trust)?,
+            ENDPOINTS,
+        )
+        .map_err(|error| format!("LLM endpoints: {error:?}"))?;
         if let Some(trace) = &trace {
-            // First admit the sink, then include its own limits in the receiving header.
-            for _ in 0..2 {
-                let header = effective_header(&profile, &declarations, &limits, &endpoints.channel, &llm_endpoints)?;
-                limits.events =
-                    Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
-            }
+            let header = effective_header(&profile, &declarations, &limits, &endpoints.channel, &llm_endpoints)?;
+            limits.events =
+                Some(event_limits(&limits, trace.capture, header.as_slice(), profile.policy.write_deadline)?);
         }
         let config = service::Config {
             program: programs::backend(program.as_ref(), &program_endpoints),

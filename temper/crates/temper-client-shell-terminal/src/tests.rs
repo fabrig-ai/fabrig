@@ -51,11 +51,7 @@ fn a_table_record_saved_then_kept_comes_back_the_same() {
         let (name, record) = ("table", fixtures::table_record());
         let mut link = link::Link::new(&limits).expect("bounded store codec");
         let mut out = Queue::uncapped();
-        link.step(
-            Time::ZERO,
-            link::Event::Save { record: link::Saved { version: 2, record: record.clone() } },
-            &mut out,
-        );
+        link.step(Time::ZERO, link::Event::Save { record: record.clone() }, &mut out);
         let Some(link::Request::Save { record: link::Record { key, bytes } }) = out.pop() else {
             panic!("{name}: save writes");
         };
@@ -66,7 +62,7 @@ fn a_table_record_saved_then_kept_comes_back_the_same() {
         let Some(link::Request::Kept { record: saved }) = out.pop() else {
             panic!("{name}: record restored");
         };
-        assert_eq!(Some(saved.record), Some(record), "{name}: unchanged record");
+        assert_eq!(saved, record, "{name}: unchanged record");
         assert!(out.is_empty(), "{name}: only one restored record");
     }
 }
@@ -149,7 +145,7 @@ fn validity_refuses_unusable_io_and_overflowing_operation_counts() {
 fn the_native_preset_receives_every_supported_membership() {
     use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};
-    // Small and Standard serve up to nine memberships (client/ctl/README.md, 9).
+    // Small and Standard serve up to nine memberships (client/ctl/bounds.md, 1).
     for (count, accepted) in [(3, true), (9, true), (10, false)] {
         let mut parts = jig_client_test_records::frame_two_projects_record();
         let mut reader = Reader::new(&parts.projects);

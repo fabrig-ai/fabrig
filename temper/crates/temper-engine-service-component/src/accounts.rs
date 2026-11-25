@@ -1,5 +1,5 @@
-//! Accounts routing around jig's host (jig/docs/design/protocol/service.md, 11.1;
-//! temper/docs/design/protocol/credentials.md, 3).
+//! Accounts routing around jig's host (jig/docs/design/protocol/service-parts.md, 1.1;
+//! temper/docs/design/protocol/credentials-llm-accounts.md, 1).
 use crate::values::Values;
 use jig_protocol_accounts::host::Output;
 pub use jig_protocol_accounts::host::{Accounts, Runtime as AccountsRuntime};

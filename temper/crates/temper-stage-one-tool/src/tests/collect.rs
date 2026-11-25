@@ -1,15 +1,19 @@
-//! Collector fixtures and fake ctl: `temper/docs/design/testing/checks.md`, 5.3.
-use std::fmt::Write as _;
+//! Collector fixtures and fake ctl: `temper/docs/design/testing/checks-stage-one.md`, 1.3.
+use std::collections::BTreeMap;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::io;
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
+use std::process::{ExitStatus, Output};
 
 use serde_json::{Value, json};
+use skein_fake_machine::{How, Item as File, Listed, Machine, Opened, Refusal};
 use skein_scratch::{Scratch, paths};
 
 use crate::collect::{self, CollectArgs, CtlOutputs};
 use crate::evidence;
 use crate::golden::{Edit, Item, ProjectRef, SettingKey, SettingsFile};
+use crate::testing::{self, EvidenceSink, EvidenceSource};
 
 /// Revision 3 and inventory reads for the project's ways and questions, selected independently.
 pub(super) fn project_settings_outputs(project: u32, accepted: &[usize], listed: &[usize]) -> (CtlOutputs, Vec<Item>) {
@@ -83,19 +87,26 @@ fn assemble_preserves_project_ways_and_questions() {
     }
 }
 
-const READS: [(&str, &str); 12] = [
-    ("revision show 5 --json", "revision.json"),
-    ("settings show charter 3 --json", "settings_value_0_json.txt"),
-    ("settings show charter 6 --revision 5 --json", "charter-6.json"),
-    ("settings show charter 6 --json", "charter-6.json"),
-    ("settings show template 4 --json", "settings_value_1_json.txt"),
-    ("settings show policy 5 --json", "settings_value_2_json.txt"),
-    ("settings show rules --json", "settings_value_3_json.txt"),
-    ("settings show landing-rule 2 --project 1 --json", "landing-rule-project.json"),
-    ("settings show landing-rule 1 --json", "landing-rule.json"),
-    ("settings show forge-charter 1 --json", "forge-charter.json"),
-    ("settings show forge-charter 2 --json", "forge-charter-removed.json"),
-    ("settings show --json", "inventory.json"),
+macro_rules! transcript {
+    ($call:literal, $file:literal) => {
+        ($call, $file, include_str!(concat!("fixtures/ctl/", $file)))
+    };
+}
+
+const READS: [(&str, &str, &str); 13] = [
+    transcript!("revision show 5 --json", "revision.json"),
+    transcript!("settings show charter 3 --json", "settings_value_0_json.txt"),
+    transcript!("settings show charter 6 --revision 5 --json", "charter-6.json"),
+    transcript!("settings show charter 6 --json", "charter-6.json"),
+    transcript!("settings show template 4 --json", "settings_value_1_json.txt"),
+    transcript!("settings show policy 5 --json", "settings_value_2_json.txt"),
+    transcript!("settings show rules --json", "settings_value_3_json.txt"),
+    transcript!("settings show landing-rule 2 --project 1 --json", "landing-rule-project.json"),
+    transcript!("settings show landing-rule 1 --json", "landing-rule.json"),
+    transcript!("settings show forge-charter 1 --json", "forge-charter.json"),
+    transcript!("settings show forge-charter 2 --json", "forge-charter-removed.json"),
+    transcript!("settings show --json", "inventory.json"),
+    transcript!("project show 1 --json", "project_show_json.txt"),
 ];
 fn fixture(name: &str) -> PathBuf {
     paths::package().join("src/tests/fixtures/ctl").join(name)
@@ -111,7 +122,7 @@ fn words(line: &str) -> Vec<String> {
 }
 fn outputs() -> CtlOutputs {
     let mut outputs = CtlOutputs { project: 1, revision: 5, ..CtlOutputs::default() };
-    for (call, name) in READS.into_iter().chain([("project show 1 --json", "project_show_json.txt")]) {
+    for (call, name, _) in READS {
         outputs.by_command.insert(words(call), text(name));
     }
     outputs
@@ -219,9 +230,6 @@ fn a_size_only_project_policy_keeps_what_project_show_gives() {
     let (items, current) = collect::assemble(&outputs).expect("partial policy");
     assert_eq!(items.items[0].edit, edit(&current, "project-policy", None, Some(1)));
 }
-fn quote(text: &str) -> String {
-    format!("'{}'", text.replace('\'', "'\\''"))
-}
 #[test]
 fn a_projects_ways_and_questions_are_collected_from_their_own_reads() {
     let mut outputs = outputs();
@@ -247,69 +255,171 @@ fn a_projects_ways_and_questions_are_collected_from_their_own_reads() {
     let way = current.items.iter().find(|item| item.setting.kind == "project-ways").expect("ways");
     assert!(matches!(&way.edit, Edit::Set(value) if value["way"] == json!(4)), "{way:?}");
 }
-fn fake(scratch: &Scratch, fail: Option<&str>) -> CollectArgs {
-    let path = scratch.path().join("temper");
-    let mut script = String::from(
-        "#!/bin/sh\nif read -r unexpected; then exit 90; fi\n[ \"$1\" = ctl ] || exit 91\n[ \"$2\" = ctl-dir ] || exit 92\nshift 2\n",
-    );
-    writeln!(script, "printf '%s\\n' \"$*\" >> {}", quote(scratch.path().join("calls.txt").to_str().expect("path")))
-        .expect("script text");
-    if let Some(call) = fail {
-        writeln!(
-            script,
-            "if [ \"$*\" = {} ]; then printf 'read refused\\nsecond line\\n' >&2; exit 2; fi",
-            quote(call)
-        )
-        .expect("script text");
+struct EvidenceDisk {
+    machine: Machine,
+    root: Opened,
+}
+
+impl EvidenceDisk {
+    fn new(items: &[File]) -> Self {
+        let mut machine = Machine::new();
+        let root = machine.lay(items);
+        Self { machine, root }
     }
-    script.push_str("case \"$*\" in\n");
-    for (call, name) in READS.into_iter().chain([
-        ("project show 1 --json", "project_show_json.txt"),
-        ("proposal show t41/7", "proposal.txt"),
-        ("chat show 41", "chat-latest.txt"),
-        ("chat show 41 --before aabb", "chat-middle.txt"),
-        ("chat show 41 --before ccdd", "chat-first.txt"),
-    ]) {
-        writeln!(script, "{}) cat {} ;;", quote(call), quote(fixture(name).to_str().expect("fixture path")))
-            .expect("script text");
+
+    fn list(&mut self, path: &Path) -> Result<Vec<Listed>, Refusal> {
+        let dir = self.machine.open(self.root, path.as_os_str().as_encoded_bytes(), How::Directory)?;
+        let entries = self.machine.list(dir, 128, 4096);
+        self.machine.close(dir);
+        entries
     }
-    script.push_str("*) printf 'unexpected read: %s\\n' \"$*\" >&2; exit 93 ;;\nesac\n");
-    fs::write(&path, script).expect("fake temper");
-    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).expect("executable");
-    CollectArgs {
-        temper: path,
-        ctl: "ctl-dir".into(),
-        project: 1,
-        revision: 5,
-        proposal: "t41/7".into(),
-        chat: 41,
-        forge: "code.example:3000".into(),
-        repository: "team/rules".into(),
-        evidence: scratch.path().join("evidence"),
+
+    fn write(&mut self, path: &str, bytes: &[u8]) {
+        self.write_new(Path::new(path), bytes).expect("fixture evidence");
     }
 }
+
+fn disk_error(why: Refusal) -> io::Error {
+    match why {
+        Refusal::NotFound => io::ErrorKind::NotFound.into(),
+        Refusal::Exists => io::ErrorKind::AlreadyExists.into(),
+        other => io::Error::other(format!("{other:?}")),
+    }
+}
+
+impl EvidenceSink for EvidenceDisk {
+    fn create_dir_all(&mut self, path: &Path) -> io::Result<()> {
+        match self.machine.open(self.root, path.as_os_str().as_encoded_bytes(), How::Directory) {
+            Ok(dir) => {
+                self.machine.close(dir);
+                Ok(())
+            }
+            Err(Refusal::NotFound) => self.create_dir(path),
+            Err(why) => Err(disk_error(why)),
+        }
+    }
+
+    fn check_entry(&mut self, path: &Path) -> io::Result<()> {
+        let file =
+            self.machine.open(self.root, path.as_os_str().as_encoded_bytes(), How::PathNoFollow).map_err(disk_error)?;
+        self.machine.close(file);
+        Ok(())
+    }
+
+    fn write_new(&mut self, path: &Path, bytes: &[u8]) -> io::Result<()> {
+        let file = self
+            .machine
+            .open(self.root, path.as_os_str().as_encoded_bytes(), How::Create { mode: 0o600 })
+            .map_err(disk_error)?;
+        let written = self.machine.write(file, 0, bytes).map_err(disk_error);
+        self.machine.close(file);
+        written
+    }
+
+    fn create_dir(&mut self, path: &Path) -> io::Result<()> {
+        let name = path.file_name().expect("directory name").as_encoded_bytes();
+        let parent = path.parent().expect("evidence path");
+        if parent.as_os_str().is_empty() {
+            return self.machine.make_directory(self.root, name, 0o700).map_err(disk_error);
+        }
+        let dir =
+            self.machine.open(self.root, parent.as_os_str().as_encoded_bytes(), How::Directory).map_err(disk_error)?;
+        let made = self.machine.make_directory(dir, name, 0o700).map_err(disk_error);
+        self.machine.close(dir);
+        made
+    }
+}
+
+impl EvidenceSource for EvidenceDisk {
+    fn read_text(&mut self, path: &Path) -> io::Result<String> {
+        let file = self.machine.open(self.root, path.as_os_str().as_encoded_bytes(), How::Read).map_err(disk_error)?;
+        let size = u32::try_from(self.machine.stat(file).size).expect("fixture length");
+        let bytes = self.machine.read(file, 0, size).map_err(disk_error);
+        self.machine.close(file);
+        String::from_utf8(bytes?).map_err(io::Error::other)
+    }
+
+    fn read_documents(
+        &mut self,
+        dir: &Path,
+        _out: &mut BTreeMap<String, String>,
+        _recursive: bool,
+    ) -> Result<(), evidence::EvidenceError> {
+        assert_eq!(self.list(dir).expect("collected document directory"), [] as [Listed; 0]);
+        Ok(())
+    }
+}
+
+struct Script {
+    replies: CtlOutputs,
+    calls: Vec<String>,
+    fail: Option<&'static str>,
+}
+
+impl Script {
+    fn new() -> Self {
+        let mut replies = CtlOutputs { project: 1, revision: 5, ..CtlOutputs::default() };
+        for (call, _, text) in READS.into_iter().chain([
+            transcript!("proposal show t41/7", "proposal.txt"),
+            transcript!("chat show 41", "chat-latest.txt"),
+            transcript!("chat show 41 --before aabb", "chat-middle.txt"),
+            transcript!("chat show 41 --before ccdd", "chat-first.txt"),
+        ]) {
+            replies.by_command.insert(words(call), text.into());
+        }
+        Self { replies, calls: Vec::new(), fail: None }
+    }
+
+    fn collect(&mut self, args: &CollectArgs, disk: &mut EvidenceDisk) -> Result<(), collect::CollectError> {
+        testing::collect_with(args, disk, &mut |command| {
+            assert_eq!(command.get_program(), args.temper.as_os_str());
+            let mut arguments = command.get_args();
+            assert_eq!(arguments.next(), Some(std::ffi::OsStr::new("ctl")));
+            assert_eq!(arguments.next(), Some(args.ctl.as_os_str()));
+            let words: Vec<_> = arguments.map(|arg| arg.to_str().expect("ctl word").to_owned()).collect();
+            let call = words.join(" ");
+            let (status, stdout, stderr) = if self.fail == Some(call.as_str()) {
+                (2, Vec::new(), b"read refused\nsecond line\n".to_vec())
+            } else {
+                let reply = self.replies.by_command.get(&words).unwrap_or_else(|| panic!("unexpected read: {call}"));
+                (0, reply.as_bytes().to_vec(), Vec::new())
+            };
+            self.calls.push(call);
+            Ok(Output { status: ExitStatus::from_raw(status << 8), stdout, stderr })
+        })
+    }
+}
+
+fn collect_args() -> CollectArgs {
+    CollectArgs::parse(&arguments(Path::new("evidence"))).expect("collect arguments")
+}
+
 #[test]
 fn collect_writes_evidence_through_a_fake_temper() {
-    let scratch = Scratch::new("stage-one-collect");
-    let args = fake(&scratch, None);
-    collect::collect(&args).expect("collect");
-    fs::write(args.evidence.join("confirmed.json"), r#"{"box":[]}"#).expect("pass confirmation");
-    let evidence = evidence::read(&args.evidence).expect("read collected evidence");
-    let (items, current) = collect::assemble(&outputs()).expect("assemble");
+    let args = collect_args();
+    let mut disk = EvidenceDisk::new(&[]);
+    let mut script = Script::new();
+    script.collect(&args, &mut disk).expect("collect");
+    disk.write("evidence/confirmed.json", br#"{"box":[]}"#);
+    let evidence = testing::read_with(&args.evidence, &mut disk).expect("read collected evidence");
+    let (items, current) = collect::assemble(&script.replies).expect("assemble");
     assert_eq!(evidence.items, items);
     assert_eq!(evidence.current, current);
     assert_eq!(evidence.facts.project, 1);
     assert_eq!(evidence.facts.proposal, "t41/7");
-    assert_eq!(evidence.proposal, text("proposal.txt"));
+    assert_eq!(evidence.proposal, include_str!("fixtures/ctl/proposal.txt"));
     assert_eq!(
         evidence.chat,
         "Person: Configure the workflow from the process documents.\nPerson: Keep running work as it is.\nAgent: The settings are accepted.\n"
     );
-    assert_eq!(fs::read_to_string(args.evidence.join("revision.json")).expect("revision"), text("revision.json"));
+    assert_eq!(
+        disk.read_text(&args.evidence.join("revision.json")).expect("revision"),
+        include_str!("fixtures/ctl/revision.json")
+    );
     for name in ["documents", "person"] {
-        assert_eq!(fs::read_dir(args.evidence.join(name)).expect("empty directory").count(), 0);
+        assert_eq!(disk.list(&args.evidence.join(name)).expect("empty directory").len(), 0);
     }
-    let calls = fs::read_to_string(scratch.path().join("calls.txt")).expect("calls");
+    let calls = script.calls.join("\n") + "\n";
     assert!(calls.starts_with("revision show 5 --json\nsettings show charter 6 --revision 5 --json\nsettings show landing-rule 2 --project 1 --json\nsettings show forge-charter 1 --json\nsettings show --json\n"));
     assert!(
         calls.ends_with("proposal show t41/7\nchat show 41\nchat show 41 --before aabb\nchat show 41 --before ccdd\n")
@@ -317,34 +427,40 @@ fn collect_writes_evidence_through_a_fake_temper() {
 }
 #[test]
 fn a_failing_ctl_call_is_named() {
-    let scratch = Scratch::new("stage-one-failing-ctl");
-    let args = fake(&scratch, Some("settings show --json"));
-    let error = collect::collect(&args).expect_err("failed ctl").to_string();
+    let args = collect_args();
+    let mut disk = EvidenceDisk::new(&[]);
+    let mut script = Script::new();
+    script.fail = Some("settings show --json");
+    let error = script.collect(&args, &mut disk).expect_err("failed ctl").to_string();
     assert!(error.contains(&format!("{} ctl ctl-dir settings show --json", args.temper.display())), "{error}");
     assert!(error.contains("read refused"), "{error}");
     assert!(!error.contains("second line"), "{error}");
-    assert!(!args.evidence.join("items.json").exists());
+    assert_eq!(
+        disk.check_entry(&args.evidence.join("items.json")).expect_err("no output").kind(),
+        io::ErrorKind::NotFound
+    );
 }
 #[test]
 fn existing_evidence_is_refused_before_any_read_but_confirmations_are_kept() {
+    let args = collect_args();
+    let mut script = Script::new();
     for name in
         ["box.json", "revision.json", "items.json", "current.json", "proposal.txt", "chat.txt", "documents", "person"]
     {
-        let scratch = Scratch::new("stage-one-existing-output");
-        let args = fake(&scratch, None);
-        fs::create_dir(&args.evidence).expect("evidence");
-        fs::write(args.evidence.join(name), "keep").expect("existing output");
-        let error = collect::collect(&args).expect_err("refuse overwrite").to_string();
+        let path = args.evidence.join(name);
+        let mut disk = EvidenceDisk::new(&[
+            File::directory(b"evidence"),
+            File::file(path.as_os_str().as_encoded_bytes(), b"keep"),
+        ]);
+        let error = script.collect(&args, &mut disk).expect_err("refuse overwrite").to_string();
         assert!(error.contains(name), "{error}");
-        assert_eq!(fs::read_to_string(args.evidence.join(name)).expect("retained"), "keep");
-        assert!(!scratch.path().join("calls.txt").exists());
+        assert_eq!(disk.read_text(&path).expect("retained"), "keep");
+        assert_eq!(script.calls, [] as [String; 0]);
     }
-    let scratch = Scratch::new("stage-one-confirmed");
-    let args = fake(&scratch, None);
-    fs::create_dir(&args.evidence).expect("evidence");
-    fs::write(args.evidence.join("confirmed.json"), r#"{"box":[]}"#).expect("confirmation");
-    collect::collect(&args).expect("existing confirmation permitted");
-    assert!(evidence::read(&args.evidence).is_ok());
+    let mut disk =
+        EvidenceDisk::new(&[File::directory(b"evidence"), File::file(b"evidence/confirmed.json", br#"{"box":[]}"#)]);
+    script.collect(&args, &mut disk).expect("existing confirmation permitted");
+    assert!(testing::read_with(&args.evidence, &mut disk).is_ok());
 }
 #[test]
 fn malformed_and_mismatched_ctl_json_is_named() {
@@ -372,6 +488,15 @@ fn arguments(evidence: &Path) -> Vec<String> {
 }
 #[test]
 fn collect_requires_each_flag_once_and_one_evidence_directory() {
+    let refusal = collect::arguments(&[]).expect_err("no flags");
+    let (reason, usage) = refusal.split_once("\nusage:\n").expect("usage follows the refusal");
+    assert_eq!(reason, "temper-stage-one collect: missing --temper");
+    assert_eq!(
+        usage.split_whitespace().collect::<Vec<_>>().join(" "),
+        "temper-stage-one collect --temper PATH --ctl DIR --project NUMBER --revision NUMBER --proposal TASK/NUMBER --chat NUMBER --forge HOST --repository OWNER/NAME EVIDENCE"
+    );
+    assert_eq!(collect::main(&[]), std::process::ExitCode::from(2));
+
     let args = arguments(Path::new("evidence"));
     let parsed = CollectArgs::parse(&args).expect("all flags");
     assert_eq!(parsed.project, 1);
@@ -399,18 +524,19 @@ fn collect_requires_each_flag_once_and_one_evidence_directory() {
 }
 #[test]
 fn a_repeated_chat_cursor_is_refused() {
-    let scratch = Scratch::new("stage-one-chat-cycle");
-    let args = fake(&scratch, None);
-    let cycle = scratch.path().join("cycle.txt");
-    fs::write(&cycle, "Agent: Same page.\nread on with: chat show 41 --before aabb\n").expect("cycle page");
-    let script = fs::read_to_string(&args.temper).expect("fake script").replace(
-        &quote(fixture("chat-middle.txt").to_str().expect("fixture")),
-        &quote(cycle.to_str().expect("cycle path")),
+    let args = collect_args();
+    let mut disk = EvidenceDisk::new(&[]);
+    let mut script = Script::new();
+    script.replies.by_command.insert(
+        words("chat show 41 --before aabb"),
+        "Agent: Same page.\nread on with: chat show 41 --before aabb\n".into(),
     );
-    fs::write(&args.temper, script).expect("cycle script");
-    let error = collect::collect(&args).expect_err("cursor cycle").to_string();
+    let error = script.collect(&args, &mut disk).expect_err("cursor cycle").to_string();
     assert!(error.contains("chat show 41 --before aabb: repeated chat cursor"), "{error}");
-    assert!(!args.evidence.join("chat.txt").exists());
+    assert_eq!(
+        disk.check_entry(&args.evidence.join("chat.txt")).expect_err("no output").kind(),
+        io::ErrorKind::NotFound
+    );
 }
 #[test]
 fn current_keeps_an_unset_temper_default_as_reset() {

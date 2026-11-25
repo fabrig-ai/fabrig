@@ -1,4 +1,4 @@
-//! Turn and answer admission fences (domain/engine/executors.md, 2 and 4).
+//! Turn and answer admission fences (domain/engine/executors-transcripts.md, 1, and domain/engine/executors.md, 4).
 use crate::{Core, Event, Request, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -16,7 +16,7 @@ pub(crate) struct Answer {
     pub refused: Box<[u64]>,
 }
 
-/// An account terminal whose source is usable again takes a refusal pause (jig/docs/design/domain/tasks/lifecycle.md, 6).
+/// An account terminal whose source is usable again takes a refusal pause (jig/docs/design/domain/tasks/lifecycle-holds.md, 1).
 pub(crate) fn route_answer_payload(
     core: &mut Core,
     limits: &tasks::Limits,
@@ -56,7 +56,7 @@ pub(crate) fn route_answer_payload(
                     })));
                 }
                 if unusable_history {
-                    // Only this window's history closes it (jig/docs/design/domain/engine/executors.md, 2).
+                    // Only this window's history closes it (jig/docs/design/domain/engine/executors-transcripts.md, 1).
                     core.close_window(run.raw());
                 }
                 let end = if untooled {
@@ -112,6 +112,7 @@ pub(crate) fn route_answer_payload(
     proof.terminal =
         Some(crate::TerminalRecord { task: run.raw(), attempt: attempt.raw(), cumulative, end: end.clone() });
     work.push(Work::Event(Event::Tasks(tasks::Event::Activation {
+        reads_project: false,
         reply_to: ReplyTo::new(payload),
         task: run.raw(),
         attempt: attempt.raw(),
@@ -122,7 +123,7 @@ pub(crate) fn route_answer_payload(
     Queue::uncapped()
 }
 
-/// Fixed words and a u32 account number fit within `REASON_BYTES` (domain/tasks/lifecycle.md, 6).
+/// Fixed words and a u32 account number fit within `REASON_BYTES` (domain/tasks/lifecycle-holds.md, 1).
 fn account_terminal_reason(account: u32) -> Box<[u8]> {
     let number = skein_lib::Decimal::of(u64::from(account));
     let parts = [b"account ".as_slice(), number.as_bytes(), b"'s source ended the run and is usable again"];

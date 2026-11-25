@@ -968,6 +968,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
+        close_at: None,
         report: Box::new([]),
         repairs: Some([28; 32]),
         follows: None,
@@ -1161,7 +1162,7 @@ pub fn tier_row() -> top::TierRow {
         branch: top::TierBranch::Pending { entry: 17 },
         probe: Some(top::TierProbeBranch { landing: 1, branch: top::TierBranch::Pending { entry: 19 } }),
         flight: Some(tier_flight()),
-        held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
+        held: Some(top::TierHeld::Faults(temper_engine_domain_forge_landing::Fault::Cancelled)),
         result: Some(top::Receipt {
             report: temper_engine_domain_forge::ReceiptReport::Unset,
             base: None,
@@ -1182,6 +1183,7 @@ pub fn tier_row() -> top::TierRow {
         task: Some(51),
         record: p::Record {
             sequence: 2,
+            last_run: None,
             judged: Some(p::Judged { tip: [2; 32], key: [3; 32] }),
             failing: failures.clone(),
             flakes: flakes.into_boxed(),
@@ -1256,6 +1258,7 @@ fn tier_flight() -> top::TierFlight {
         jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: u64::from(id), attempt: 1 }).unwrap();
     }
     top::TierFlight {
+        clock: None,
         entry: 18,
         start: Some(skein_lib::Time::ZERO),
         since: Some(skein_lib::Time::ZERO),
@@ -1322,12 +1325,25 @@ pub fn finding() -> top::Finding {
         signature: Some(top::FindingSignature {
             repository: REPO,
             source: Box::new([b's'; 64]),
-            ids: ids.into_boxed(),
+            ids: ids.clone().into_boxed(),
             first: Box::new([b'f'; 512]),
             many: false,
         }),
         seen: Some(u32::MAX),
-        blame: Some(top::FindingBlame { strength: top::BlameStrength::Owned, landings: landings.into_boxed() }),
+        blame: Some(top::FindingBlame {
+            strength: top::BlameStrength::Moved,
+            landings: landings.into_boxed(),
+            moved: Some(top::BlameMove { by: top::Filer::Party(u64::MAX), why: Box::new([b'w'; 200]) }),
+        }),
+        repair: Some(top::FindingRepair {
+            goal: u64::MAX,
+            made: true,
+            attempts: u8::MAX,
+            cancelled: true,
+            failing: ids.into_boxed(),
+            until: Some(skein_lib::Wall::from_nanos(u64::MAX)),
+            judging: Some(top::RepairJudging::Landing([255; 32])),
+        }),
         cleared: Some(top::FindingCleared { run: u64::MAX, at: skein_lib::Wall::from_nanos(u64::MAX) }),
     }
 }

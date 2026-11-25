@@ -11,8 +11,10 @@ the machine, read the forge's setup file. Each:
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
 | `owned` | an object, or absent | ../setup/init.md's owned members: `listen`, a socket address on loopback, unique among the deployment's listeners; `remote`, its remotes' base, `http://` and its `listen` as `temper-box init` writes it; `forgejo` and `runner.binary`, cache paths or `"fetched"`; `runner`, `person`, and the optional `mirror`, `public` and `sign_in`, a client of `engine.clients.provider` (`../openid-provider.md`, 9) | an owned Forgejo's place, which `SetUp` gives its record (../forge/engine.md, 2), and its setup entry and group's steps (../setup/init.md and ../setup/box.md, section 1); absent, no owned forge is offered |
-| `fake` | an object, or absent | `listen`, as `owned.listen`; `remote`, `http://` and its `listen`; `git`, a data path, the fake git's link (../setup/init.md, 2) | the playground's fake forge's place and setup entry, its owner `playground` and its repository `widget` (../setup/playground.md), and its git program, which the engine's routing names in each of its repositories' records (../channel.md, section 4); absent, no playground is offered |
+| `fake` | an object, or absent | `listen`, as `owned.listen`; `remote`, `http://` and its `listen`; `git`, a data path, the fake git's link (../setup/init.md, 5) | the playground's fake forge's place and setup entry, its owner `playground` and its repository `widget` (../setup/playground.md), and its git program, which the engine's routing names in each of its repositories' records (../channel.md, section 4); absent, no playground is offered |
 | `github` | an object, or `null` | `null` for github.com's: `api.github.com`, port 443, TLS with the machine's roots, remotes under `https://github.com`, pages at `https://github.com`. Otherwise `{"api", "transport", "remote", "web", "git"}`: `api` a socket address or a host's name and port, never an in-process name; `transport` plaintext to a socket address on loopback alone, or `{"tls": {"server_name", "trust"}}`; `remote` and `web` remotes' bases; `git` an optional data path, the git program of its repositories | a GitHub forge's place and git program, which `Connect` gives its record (../forge/engine.md, 2); a value is given only to point at a fake, as temper's tests and `temper box --fake-backends` do (`directories.md`, 1), or at the live tier's relay to github.com (`../../testing/live-tier.md`) |
+
+## 1. Forge addresses, records and credentials
 
 - **A remotes' base** (each part's `remote`, GitHub's `web`, and the
   base a person gives a Forgejo connected as its admin) is an `http` or
@@ -37,17 +39,19 @@ the machine, read the forge's setup file. Each:
   not connected, named, and erase nothing (../credentials.md, 2.1).
 - **Git identities are not configured either:** each kept forge has one,
   its number the forge's, its login and author its record's bot
-  (../credentials.md, section 4). The largest value an identity can take,
+  (../credentials-git-identities.md, section 1). The largest value an identity can take,
   encoded (../channel.md, section 6), must fit the channel's bound on a
   credential's value, or the start is refused, naming the limit: its
   login and author at their bounds, with a Forgejo forge's token at
   `records.value_bytes`, or a GitHub forge's list at
   `forges.installations` entries, each at its largest (`limits.md`).
 
+## 2. Landing settings and their former member
+
 **`landing`** is no member now: a start refuses it (`moved.md`,
 section 3). Each project's way of landing is temper's kind 4, and its
 repositories' gates and tiers kind 5, settings taken at the next start
-(`../../domain/landing-settings.md`, 1.1; `settings.md`, 2). What follows gives
+(`../../domain/landing-settings.md`, 1.1; `settings-kinds.md`, 1). What follows gives
 their fields' forms, bounds and defaults, as the member had them: a
 project's entry is kind 4's value with its `gates` as kind 5's
 `repositories`. Where a bullet says a value refuses the start at its
@@ -75,17 +79,17 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   a repository at most once (`../../domain/landing-settings.md`, 1.1;
   `../../domain/after-landing.md`, section 11). A gate's `base`, false
   when absent, says that it reads the base: it is given `temper_base`
-  and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
-  7.1). A gate's `report`, none when absent, names the artifact its
+  and its key holds the base's tree (`../../domain/landing-proof.md`, 1.1 and
+  2.1). A gate's `report`, none when absent, names the artifact its
   failed run uploads and its format, read as a tier's, and `fuzzy`, when
   present, the name prefix of its fuzzy tests, all others focused: the
-  failed tests a landing's repair names (`../../domain/landing.md`, 7.3;
+  failed tests a landing's repair names (`../../domain/landing-proof.md`, 2.3;
   `../../domain/forge/change/repairs.md`, *A landing's repair*). Its
   artifact is bounded as a tier's (below), its `fuzzy` 1 to 64 bytes
   (2026-11-15). A tier's `branch` is the
   branch it follows, by its name on the forge, the repository's landing
   branch when absent, or `goal`, the goals' own branches, a tier that
-  judges no landing (`../../domain/after-landing.md`, section 2). Its
+  judges no landing (`../../domain/after-landing-runs.md`, section 1). Its
   `span_ms` is the least time between the starts of two of its runs on
   one branch, none when absent or 0.
 - **A tier's `description`:** what the tier checks, in words written with
@@ -96,7 +100,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   UTF-8 or holding a control character refuses the start at its member.
   It is the words saved with a tier (`../../draft/whole-story.execution.md`,
   P3e), kept in the document as the tier is until kind 5 holds tiers
-  (`settings.md`, 2), so that whoever writes the tier writes them; Ask temper, which
+  (`settings-kinds.md`, 1), so that whoever writes the tier writes them; Ask temper, which
   proposes no tier, writes none. The engine decides nothing by them.
 - **The delivery checks' bound,** beside `by`, by either way:
   `check_timeout_ms`, a u64 of milliseconds from 1,000 to 86,400,000,
@@ -104,8 +108,8 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   delegated for one of the project's changes, its producers', repairs' and
   resolutions', a goal's landing into the landing branch's among them, in
   place of the agent's `check_timeout`
-  (`../../domain/agent/charter.md`, section 4; smith's `domain/run.md`,
-  8.1). A project whose landings are goal-sized sets it above the agent's,
+  (`../../domain/agent/charter.md`, section 4; smith's `domain/run-delivery.md`,
+  1.1). A project whose landings are goal-sized sets it above the agent's,
   so a landing's repair has room to check. It need not fit a charter's
   reserve: a check is cut at its run's end. One past its bounds refuses the
   start at its member, `application.landing.projects[i].check_timeout_ms`.
@@ -115,7 +119,10 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   tier follows lives to cleared or ends at landed; `tier_retries`, a
   u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
-  (`../../domain/after-landing.md`, sections 3 and 6).
+  (`../../domain/after-landing-runs.md`, section 2, and `../../domain/after-landing.md`, section 6).
+
+## 3. Turn landing settings
+
 - **Prepare under `turn`:** a document that selects `by: turn` needs job
   kind 1 declared: `engine.limits`' `tasks.spec_bytes` at least 16,384 and
   `tasks.result_bytes` at least 4,096. A start below either bound is
@@ -124,7 +131,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   (`../../domain/worker/jobs.md`).
 - **The batch,** beside `by`: `batch`, a u16 from 1 to the deployment's
   `forge.landing_members`, 1 when absent: the most changes a landing
-  into a repository's main forms with (`../../domain/landing.md`, section 9, and `../../domain/landing-settings.md`, section 1.1
+  into a repository's main forms with (`../../domain/landing-turn.md`, section 2, and `../../domain/landing-settings.md`, section 1.1
   ). One past its bounds refuses the start at its
   member, `application.landing.projects[i].batch`, naming
   `forge.landing_members` where it passes that.
@@ -134,15 +141,15 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   the trains into a repository's main and `other` for those into any
   other branch; a member absent, or `combine` absent, takes its stock,
   `merge` for `main` and `squash` for `other`
-  (`../../domain/landing.md`, 5.2, and `../../domain/landing-settings.md`, 1.1). Another value refuses the
+  (`../../domain/landing-prepare.md`, 1.2, and `../../domain/landing-settings.md`, 1.1). Another value refuses the
   start at its member, `application.landing.projects[i].combine.main`
   or `.other`.
 - **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of
   milliseconds from 60,000 to 86,400,000, 3,600,000 (one hour) when
   absent: how long a gate's run may be in flight before it holds its
-  landing (`../../domain/landing.md`, 7.1); and `gate_retries`, a u8, 2
+  landing (`../../domain/landing-proof.md`, 2.1); and `gate_retries`, a u8, 2
   when absent: how many times a runner's fault is dispatched again per
-  key (`../../domain/landing.md`, 7.4). One past its bounds refuses
+  key (`../../domain/landing-proof.md`, 2.4). One past its bounds refuses
   the start at its member,
   `application.landing.projects[i].gate_timeout_ms` or `.gate_retries`.
 - **The merge job's command,** beside `by`, by either way: `merge_job`,
@@ -150,7 +157,7 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   repository the merge job merges, none when absent: the project's merge
   command (`../tooling.md`, 4.1), and with it the merge job before each
   resolution of its changes and catch-ups into its goals' branches
-  (`../../domain/forge/change/repairs.md` and `../../domain/forge/README.md`, 6). A path past its bounds
+  (`../../domain/forge/change/repairs.md` and `../../domain/forge/updates.md`, 1). A path past its bounds
   refuses the start at its member.
 - **The close job's command,** beside `merge_job`, by either way:
   `close_job`, a relative path of at most 4,096 bytes, without `..`, in
@@ -174,9 +181,11 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   `prepare_timeout`; `pins`, a list of `{"downstream": REPOSITORY,
   "upstream": REPOSITORY}`, each a repository as `gates` names one;
   `pins_follow_main`, false when absent; `dependencies_join`, true when
-  absent (`../../domain/landing.md`, 4.1 and 5.3).
+  absent (`../../domain/landing.md`, 4.1, and `../../domain/landing-prepare.md`, 1.3).
 
-A landing rule, the value of kinds 1 and 2 (`settings.md`, 2), is a `LandingRule`,
+## 4. Landing rules
+
+A landing rule, the value of kinds 1 and 2 (`settings-kinds.md`, 1), is a `LandingRule`,
 member for member:
 
 | Member | Type | Meaning, and bounds |
@@ -210,26 +219,28 @@ member for member:
   (`../../domain/forge/queues.md`).
 - **Bounds:** a project appears in `projects` at most once, and must be
   one of `engine.projects`; a rule's bounds are those the forge judges
-  it by (`settings.md`, 2).
+  it by (`settings-kinds.md`, 1).
 - **Feeds** `Config.landings`: each project's way, gates, tiers, merge
   job, close job, goal closer's attempts and turn's settings.
 
+## 5. Client listener and credentials
+
 **`clients`:** the clients' listener, which `temper-service` owns
 (`../../client/engine.md`), and the browser's bundle it serves
-(`../../client/web/README.md`, 2.2):
+(`../../client/web/serving.md`, 1):
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper-box serve` prints (`../../client/README.md`, section 4); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../../client/README.md`, the routes) |
-| `bundle` | an absolute directory, or `null` | a bundle of skein's bundler, built apart (`scripts/bundle.sh`): its page and its digest's directory; its files, and the binary's own, within `clients.bundle_files` and `clients.bundle_bytes` (`limits.md`) | the browser's page and bundle, made at start and served on the clients' listener (`../../client/web/README.md`, 2.2): `null` serves the bundle the binary holds (2.6), or, from a binary built without one, the page for no bundle; a directory serves its bundle in place of the binary's. A document naming an old `share/temper/bundle` keeps serving that directory, older than the binary once it is rebuilt: set it to `null` |
+| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper-box serve` prints (`../../client/sign-in.md`, section 1); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../../client/README.md`, the routes) |
+| `bundle` | an absolute directory, or `null` | a bundle of skein's bundler, built apart (`scripts/bundle.sh`): its page and its digest's directory; its files, and the binary's own, within `clients.bundle_files` and `clients.bundle_bytes` (`limits.md`) | the browser's page and bundle, made at start and served on the clients' listener (`../../client/web/serving.md`, 1): `null` serves the bundle the binary holds (2.6), or, from a binary built without one, the page for no bundle; a directory serves its bundle in place of the binary's. A document naming an old `share/temper/bundle` keeps serving that directory, older than the binary once it is rebuilt: set it to `null` |
 | `public` | an origin, or `null` | `https://HOST[:PORT]`: HOST a lower-case DNS name, the port not 443 when written, no user, path, query, fragment or final `/`; `http://` only to a loopback host, for a test; within 253 bytes | the address people's browsers use, behind a TLS proxy (`../sign-in.md`, 2.2): the mapping's Host allow-list holds its host beside the listener's (jig's `Settings.public`, the host with its port where not 443), jig's cookie is `Secure` by it, and every address temper gives out is the origin's: Google's return, a GitHub App's redirect and setup URLs. `null`: the listener's address alone, `public: None` |
 
 - **The printed link and a terminal's approval** are jig's members,
   `engine.clients.link` and `engine.clients.approval` (jig's
-  `protocol/configuration.md`, section 3, clients): `temper-box init`'s
+  `protocol/configuration-engine.md`, section 1, clients): `temper-box init`'s
   documents, so a box's, and the owned example enable both
-  (`../setup/init.md`, 3), the approval being how the TUI signs in from the
-  person's browser (`../../client/README.md`, 4.1). Neither runs off
+  (`../setup/init.md`, 6), the approval being how the TUI signs in from the
+  person's browser (`../../client/sign-in.md`, 1.1). Neither runs off
   loopback: a start refuses a clients' listener off loopback in
   standalone (`README.md`, section 2), whichever is enabled, naming
   `application.clients.listener`; the approval absent is the approval
@@ -238,7 +249,9 @@ member for member:
   and `setup_url` name the clients' listener's address, and GitHub's API
   cannot change them once the App is made. A GitHub `Connect` on a
   listener at port 0 is refused, naming `application.clients.listener`
-  (../forge/engine.md, 1); `temper-box init` writes a fixed port (../setup/init.md, 3).
+  (../forge/engine.md, 1); `temper-box init` writes a fixed port (../setup/init.md, 6).
+
+## 6. People signing in
 
 **`sign_in`:** the people's sign-in with Google (`../sign-in.md`), or
 `null` for none, never missing: with `null`, the browser's signed-out
@@ -262,7 +275,7 @@ answer not found.
 | `members` | a list | 1 to `sign_in.members` | who may sign in, each `{"address", "login"}` |
 | `members[].address` | a string | 3 to 254 bytes of visible ASCII, one `@` with bytes on both sides; unique among members with ASCII letters folded to lower case | the identity's subject, exactly as written; compared with Google's verified `email`, folded |
 | `members[].login` | a string | 1 to 40 bytes of ASCII letters, digits, `-`, `_` and `.`, its first and last a letter or a digit; unique, folded | the login in `Mint`, and the name where Google gives none |
-| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` a forge's number, as the Forges page and the `temper-box forge` commands name it, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it); each forge and each client at most once; with no provider, refused naming `engine.clients.provider`. The forge, a record, is checked once its records load: a Forgejo, whose browser origin's `/user/oauth2/temper/callback` is exactly the client's `redirect_uri` (`../openid-provider.md`, 7) | the forges that sign their people in through temper (`../openid-provider.md`): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (../setup/owned.md, 2) and `temper-box forge sign-in` (../setup/owned.md, 8) |
+| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` a forge's number, as the Forges page and the `temper-box forge` commands name it, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it); each forge and each client at most once; with no provider, refused naming `engine.clients.provider`. The forge, a record, is checked once its records load: a Forgejo, whose browser origin's `/user/oauth2/temper/callback` is exactly the client's `redirect_uri` (`../openid-provider.md`, 7) | the forges that sign their people in through temper (`../openid-provider.md`): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (../setup/owned.md, 2) and `temper-box forge sign-in` (../setup/owned-sign-in.md, 1) |
 
 - **jig's owners of Google's provider are members:** each of
   `engine.owners` whose provider is `google.provider` has a member's
@@ -272,6 +285,8 @@ answer not found.
 - **Google's provider is not the link's:** `google.provider` differs
   from `engine.clients`' link provider, or the start is refused, naming
   both.
+
+## 7. Limits and webhook delivery
 
 **`limits`:** temper's profile and overrides (`limits.md`).
 
@@ -290,6 +305,8 @@ answer not found.
 - **A GitHub forge has no path:** its hints come from its App's
   delivery log, which the forge component reads, with no address GitHub
   must reach (../forge/README.md, section 4).
+
+## 8. Playground and notifications
 
 **`demo`:** refused since 2026-11-17, the playground's scripted model
 being the box's constant (`providers.md`, 4; `moved.md`, 3); what
@@ -335,13 +352,15 @@ bytes; `password`, a data path, a secrets' file, private, 0o600. Until
 it is built, the start refuses a document naming `mail` as it refuses
 any member it doesn't know.
 
+## 9. Configuration passed to the root and components
+
 **What the engine root's `Config` takes,** field by field:
 
 | Field | From |
 |---|---|
 | `core` | `engine`, by `jig-protocol-config`, with the deployment's id and seed |
 | `landings` | `application.landing`'s `projects` |
-| `kinds_stock` | not configured: the stock defaults of temper's kinds 1 to 3 (`stock.md`), which the root gives the forge at each start (`settings.md`, 2); kinds 6 and 7 have none |
+| `kinds_stock` | not configured: the stock defaults of temper's kinds 1 to 3 (`stock.md`), which the root gives the forge at each start (`settings-kinds.md`, 1); kinds 6 and 7 have none |
 | `forge.writers` | not configured: each forge's writer comes from its connect, its user as the routing tells the root (../credentials.md, section 5) |
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
 | `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (../forge/engine.md, 1) |
@@ -358,10 +377,12 @@ webhooks' listener, `webhooks.listener`; the engine's setup host takes
 each kept forge's record, with an owned or fake one's setup entry,
 and GitHub's place for GitHub's plans (../forge/engine.md, 6); the
 identities' table takes each kept forge's identity, its number, login
-and author from its record, its value from its forge (../credentials.md,
-section 4); the engine's routing takes each forge's `git` base and git
+and author from its record, its value from its forge (../credentials-git-identities.md,
+section 1); the engine's routing takes each forge's `git` base and git
 program; the clients' listener takes `clients.listener`, and its forge
 routes each GitHub forge's `web`.
+
+## 10. Merge command and tier bounds
 
 `merge_job`, when present, is a string of 1 to 4,096 bytes, with no leading
 `/`, NUL or `..` segment. An invalid form refuses the start at

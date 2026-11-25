@@ -23,8 +23,8 @@ fn checking_reads_execution_once_and_caps_its_next_poll() {
         repository.protection = ci_protection(required);
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh);
-        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::CatchUp);
+
         let mut row = fixtures::opening_row();
         row.pending = None;
         row.effect = change::EffectResult::None;

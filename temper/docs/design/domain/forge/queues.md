@@ -2,7 +2,7 @@
 
 Under a project's queue. A project that lands by turn has no queue of
 its own: its trains take its waiting changes in this order
-(`../landing.md`, section 9), and its changes view shows each train
+(`../landing-turn.md`, section 2), and its changes view shows each train
 (`../landing.md`, section 14).
 
 One per landing branch that has changes ready. A repository belongs to
@@ -12,7 +12,7 @@ are comparable.
 - **In the queue:** a change is in the queue once it is ready (CI passed
   where its landing branch's rules ask it (`change/gates.md`, 2), and every blocking gate
   holds, at its head, and its task is not kept:
-  no dependency it was given is pending, jig's `domain/tasks/lifecycle.md`, 8),
+  no dependency it was given is pending, jig's `domain/tasks/lifecycle-endings.md`, 1),
   and no person's approval it waits on is short at its head (below).
   It keeps the time it
   first became ready while it stays live, so leaving and coming back
@@ -85,7 +85,7 @@ are comparable.
   changes' own states, so a restart rebuilds it from them.
 - **The branch's own CI,** for a branch no tier follows: a branch
   tiers follow is judged by their verdicts instead, and its queue never
-  pauses for them (`../after-landing.md`, sections 2 and 7). A landing temper did
+  pauses for them (`../after-landing-runs.md`, section 1, and `../after-landing.md`, section 7). A landing temper did
   not make may break the branch. Once CI fails on the branch's tip, the queue pauses and one
   repair is made: a change task into that branch, first in its queue,
   its words, and its producer's, opening with what it repairs, as a
@@ -109,7 +109,7 @@ are comparable.
 ## 1. A forge's own merge queue
 
 A branch whose rules require the forge's merge queue (GitHub's; the
-adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none.
+adoption says so, `adoption.md`, 8) lands through that queue. Forgejo keeps none.
 
 - **Entering is the merge.** The first's merge (kind 4) is made as any
   merge is: at exactly its head, its requirements judged at that head
@@ -117,7 +117,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   for the entry: the pull request is in the forge's queue at that head,
   neither landed nor refused. temper names no other call for it: the
   forge's rules, not temper, send the merge into its queue (skein's
-  `forge/README.md`, 3.3).
+  `forge/vocabulary.md`, 1.3).
 - **temper's queue decides only what enters and when.** A change in
   the forge's queue leaves temper's turn, and the next ready change
   becomes first, and enters behind it when its own turn comes; the
@@ -128,8 +128,8 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   delivery or the delivery log (`../../protocol/forge/README.md`, section 4 and
   4.1), and found by the client's read of the pull request: the merge's
   entry stays open in the client until that read finds the pull request
-  merged or out of the queue (skein's `forge/README.md`, 3.3;
-  `skein/docs/design/forge/client.md`, 7.7).
+  merged or out of the queue (skein's `forge/vocabulary.md`, 1.3;
+  `skein/docs/design/forge/client-effects.md`, 1.7).
 - **Landed:** the change is landed (`change/README.md`, 2), and its landing's commit is
   the queue's group's (`Pull.merged`), not the head temper saw: the
   forge merged that head onto the queue's base with the changes ahead
@@ -140,7 +140,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   alone, the pull request's `dequeued` (`README.md`, section 11), which a green head
   does not end. The change takes
   its base before the repair starts (`change/README.md`, 2), so a conflict there is
-  resolved. A head another hand moved is drift, as ever (`change/README.md`, 3).
+  resolved. A head another hand moved is drift, as ever (`change/drift.md`, 1).
 - **Its place there,** `Pull.queued`, is read with the pull request and
   shown in the change's panel ("in GitHub's merge queue, n";
   `../../client/forge/README.md`, a change's panel). The wait there is bounded by
@@ -167,7 +167,7 @@ adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none
   grouping them.
 
 - **The update before entering a forge's merge queue** (`queues.md`, 1): the first
-  takes its base as any first does (`README.md`, section 6), though the queue merges
+  takes its base as any first does (`updates.md`, section 1), though the queue merges
   the base itself. The alternative enters it as its head is, saving a CI
   run. Default: as any first.
 

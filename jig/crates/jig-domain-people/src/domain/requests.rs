@@ -102,6 +102,7 @@ pub(super) fn outcome_reply(outcome: Outcome) -> Reply {
         | OutcomeFamily::Refused
         | OutcomeFamily::CompoundRefused
         | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::ServiceReissued
         | OutcomeFamily::RolesSet(_)
         | OutcomeFamily::ProjectMade(_)
         | OutcomeFamily::Settled => Reply::Outcome(outcome),
@@ -174,7 +175,7 @@ pub(super) fn admit_ask(
     }
     let written = written_place(domain, key.person, &ask);
     // A move is admitted whole; Written transfers its already reserved place.
-    // Seen still uses only pending room (protocol/llm.md, 5.6; domain/people/acts.md, 1).
+    // Seen and service reissue use only pending room (domain/people/acts.md, 1).
     let occupied = domain.answers.len().saturating_add(domain.acted.len()).saturating_add(answer_reservations(domain));
     let credit = u32::from(written.is_some());
     if occupied.saturating_sub(credit).saturating_add(answer_places(&ask)) > env.limits.requests {
@@ -182,13 +183,14 @@ pub(super) fn admit_ask(
         return again(to, full_answers(domain, env, occupied), out);
     }
     let project = project(&ask);
-    // An account request's check is its holder, never a role (domain/authority.md, 8.4).
+    // An account request's check is its holder, never a role (domain/authority-checks.md, 1.4).
     let role = match ask.family() {
         AskFamily::Application(ApplicationScope::Own) | AskFamily::Lift | AskFamily::Account => None,
         AskFamily::Project(_)
         | AskFamily::Application(ApplicationScope::Project(_) | ApplicationScope::Deployment)
         | AskFamily::Restore
         | AskFamily::Deployment
+        | AskFamily::ReissueService
         | AskFamily::Seen => role(domain, key.person, project),
     };
     let refusal = admission(domain, key.person, project, role, &ask);
@@ -306,7 +308,7 @@ pub(super) fn answer_reservations(domain: &Domain) -> u32 {
     reserved
 }
 
-fn answer_places(ask: &Ask) -> u32 {
+pub(super) fn answer_places(ask: &Ask) -> u32 {
     if let Ask::AccountChange { change: crate::AccountChange::MoveOut { .. }, .. } = ask {
         2
     } else {
@@ -330,7 +332,7 @@ fn written_place(domain: &Domain, person: u64, ask: &Ask) -> Option<(RequestKey,
 
 pub(super) fn reserves_answer(ask: &Ask) -> bool {
     match ask.family() {
-        AskFamily::Seen => false,
+        AskFamily::Seen | AskFamily::ReissueService => false,
         AskFamily::Project(_)
         | AskFamily::Application(_)
         | AskFamily::Restore
@@ -384,7 +386,7 @@ pub(super) fn answer_decided(
 
     match outcome.family() {
         // A retry closes the flight without retaining its key.
-        OutcomeFamily::Again(_) | OutcomeFamily::SignedOut => {}
+        OutcomeFamily::Again(_) | OutcomeFamily::SignedOut | OutcomeFamily::ServiceReissued => {}
         OutcomeFamily::Compound
         | OutcomeFamily::Refused
         | OutcomeFamily::CompoundRefused

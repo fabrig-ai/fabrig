@@ -9,9 +9,12 @@ use skein_channel::{Lower, LowerEvent};
 use skein_lib::{Duration, Intake, Queue, Rng, Secret, Time, Token, stream};
 use std::collections::{BTreeSet, VecDeque};
 
+#[path = "layouts.rs"]
+pub mod layouts;
+
 // Kept here so the real engine stays a dev-dependency of the world.
 mod net {
-    use super::{Intake, Lower, LowerEvent, Rng, Token, VecDeque, stream};
+    use super::{Intake, Lower, LowerEvent, Rng, Token, VecDeque, layouts, stream};
     pub struct Pipe {
         ends: [End; 2],
         pub frames: [Vec<u16>; 2],
@@ -90,7 +93,7 @@ mod net {
                 closed: [false; 2],
             }
         }
-        pub fn lower(&mut self, side: usize, lower: Lower) {
+        pub fn lower(&mut self, side: usize, lower: Lower, mut shim: Option<&mut layouts::Shim>) {
             let end = &mut self.ends[side];
             match lower {
                 Lower::Read(stream::Down::Demand { read, room }) => {
@@ -113,12 +116,25 @@ mod net {
                     }
                     stream::OutputDown::Release { .. } => {}
                     stream::OutputDown::Send { bytes, .. } => {
-                        let kind = skein_channel::parse_header(&bytes[..8]).expect("frame").kind;
-                        self.frames[side].push(kind);
-                        if side == 1 && kind == jig_protocol_worker_wire::Kind::Assignment.number() {
-                            self.assignment_bytes.push(u32::try_from(bytes.len()).expect("frame length"));
+                        let mut kind = skein_channel::parse_header(&bytes[..8]).expect("frame").kind;
+                        if side == 0
+                            && let Some(shim) = shim.as_deref_mut()
+                        {
+                            let frame = shim.up(kind, &bytes[8..]);
+                            kind = frame.kind();
+                            self.ends[1].bytes.extend(frame.bytes());
+                        } else if side == 1
+                            && let Some(shim) = shim
+                        {
+                            let frame = shim.down(kind, &bytes[8..]);
+                            self.ends[0].bytes.extend(frame.bytes());
+                        } else {
+                            if side == 1 && kind == jig_protocol_worker_wire::Kind::Assignment.number() {
+                                self.assignment_bytes.push(u32::try_from(bytes.len()).expect("frame length"));
+                            }
+                            self.ends[1 - side].bytes.extend(bytes);
                         }
-                        self.ends[1 - side].bytes.extend(bytes);
+                        self.frames[side].push(kind);
                     }
                 },
             }
@@ -173,6 +189,8 @@ pub struct Joined {
     acknowledge: bool,
     committed: BTreeSet<(Token, Token, u32)>,
     pub dials: Vec<Time>,
+    shim: Option<layouts::Shim>,
+    hello_stop_bound: Option<Duration>,
 }
 impl Joined {
     #[must_use]
@@ -181,24 +199,21 @@ impl Joined {
     }
     #[must_use]
     pub fn with_credential(limits: &Limits, seed: u64, credential: Credential) -> Self {
-        Self::with_options(limits, seed, credential, None, None, None, None)
+        Self::with_options(limits, seed, credential, None, None, None)
     }
     #[must_use]
     pub fn with_engine_room(limits: &Limits, seed: u64, room: u32) -> Self {
-        Self::with_options(limits, seed, fixtures::credential(), Some(room), None, None, None)
+        Self::with_options(limits, seed, fixtures::credential(), Some(room), None, None)
     }
     #[must_use]
     pub fn with_limits(limits: &Limits, engine: engine::Limits, seed: u64) -> Self {
-        Self::with_options(limits, seed, fixtures::credential(), Some(engine.room), Some(engine), None, None)
+        Self::with_options(limits, seed, fixtures::credential(), Some(engine.room), Some(engine), None)
     }
-    #[must_use]
-    pub fn with_wires(
-        limits: &Limits,
-        seed: u64,
-        engine: skein_lib::List<jig_protocol_worker_wire::Spoken>,
-        worker: skein_lib::List<jig_protocol_worker_wire::Spoken>,
-    ) -> Self {
-        Self::with_options(limits, seed, fixtures::credential(), None, None, Some((engine, worker)), None)
+    pub fn with_layouts(limits: &Limits, seed: u64, profile: layouts::Profile) -> Self {
+        Self::with_options(limits, seed, fixtures::credential(), None, None, Some(profile))
+    }
+    pub fn next_turn_worker_only(&mut self) {
+        self.shim.as_mut().expect("derived worker layout").next_turn_worker_only();
     }
     #[must_use]
     pub fn worker_records(&self) -> Vec<u16> {
@@ -208,30 +223,13 @@ impl Joined {
     pub fn engine_records(&self) -> Vec<u16> {
         self.pipe.as_ref().expect("live pipe").frames[1].iter().copied().filter(|kind| *kind >= 0x0100).collect()
     }
-    #[must_use]
-    pub fn with_applications(
-        limits: &Limits,
-        seed: u64,
-        engine: skein_lib::List<jig_protocol_worker_wire::Spoken>,
-        worker: skein_lib::List<jig_protocol_worker_wire::Spoken>,
-        application: jig_protocol_worker_wire::Application,
-        worker_application: jig_protocol_worker_wire::Application,
-    ) -> Self {
-        let mut credential = fixtures::credential();
-        credential.application = worker_application;
-        Self::with_options(limits, seed, credential, None, None, Some((engine, worker)), Some(application))
-    }
     fn with_options(
         limits: &Limits,
         seed: u64,
-        credential: Credential,
+        mut credential: Credential,
         engine_room: Option<u32>,
         engine: Option<engine::Limits>,
-        wires: Option<(
-            skein_lib::List<jig_protocol_worker_wire::Spoken>,
-            skein_lib::List<jig_protocol_worker_wire::Spoken>,
-        )>,
-        application: Option<jig_protocol_worker_wire::Application>,
+        profile: Option<layouts::Profile>,
     ) -> Self {
         let engine_limits = engine.unwrap_or(engine::Limits {
             sizes: limits.sizes,
@@ -253,16 +251,31 @@ impl Joined {
             name: fixtures::WORKER_A.into(),
             digest: Some(skein_lib::sha256::digest(fixtures::SECRET_A)),
         }]);
-        let (engine_wires, worker_wires) = wires.unwrap_or_else(|| (fixtures::spoken(), fixtures::spoken()));
+        let worker_schema = fixtures::schema_for_sizes(&limits.sizes);
+        let engine_schema = if engine_limits.sizes == limits.sizes {
+            worker_schema.clone()
+        } else {
+            fixtures::schema_for_sizes(&engine_limits.sizes)
+        };
+        let (worker_wires, application, shim) = match profile {
+            Some(profile) => {
+                credential.application = layouts::application(Some(profile));
+                let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).expect("worker fixture sizes");
+                (layouts::worker_wires(profile), layouts::application(None), Some(layouts::Shim::new(profile, &codec)))
+            }
+            None => (fixtures::spoken(), jig_protocol_worker_wire::Application::opaque(fixtures::application()), None),
+        };
         Self {
-            engine: engine::Component::new(
+            engine: engine::Component::with_schema(
                 &engine_limits,
                 workers,
-                engine_wires,
-                application.unwrap_or_else(|| jig_protocol_worker_wire::Application::opaque(fixtures::application())),
+                fixtures::spoken(),
+                application,
+                engine_schema,
             )
             .expect("engine limits"),
-            worker: Component::new(limits, worker_wires, credential, seed).expect("worker limits"),
+            worker: Component::with_schema(limits, worker_wires, credential, seed, worker_schema)
+                .expect("worker limits"),
             pipe: None,
             engine_root: Vec::new(),
             engine_ended: Vec::new(),
@@ -284,6 +297,8 @@ impl Joined {
             acknowledge: true,
             committed: BTreeSet::new(),
             dials: Vec::new(),
+            shim,
+            hello_stop_bound: None,
         }
     }
     pub fn run(&mut self) {
@@ -321,8 +336,11 @@ impl Joined {
     fn worker_event(&mut self, event: Event) {
         self.worker.down(self.now, event, &mut self.worker_out);
     }
-    fn engine_event(&mut self, event: engine::Event) {
+    pub fn engine_event(&mut self, event: engine::Event) {
         self.engine.down(self.now, event, &mut self.engine_out);
+    }
+    pub fn set_hello_stop_bound(&mut self, bound: Duration) {
+        self.hello_stop_bound = Some(bound);
     }
     pub fn figures(&mut self, figures: jig_protocol_worker_wire::Figures) {
         self.engine_event(engine::Event::Figures { figures });
@@ -334,17 +352,6 @@ impl Joined {
             self.retained_turn = true;
         }
         self.worker_event(Event::Up { up, parts });
-    }
-    pub fn engine_busy(&mut self) {
-        self.engine_event(engine::Event::TurnBusy {
-            channel: self.channel.expect("admitted hello"),
-            run: fixtures::RUN_SEVEN,
-            attempt: fixtures::ATTEMPT_TWO,
-            turn: 1,
-        });
-    }
-    pub fn engine_restarting(&mut self, wait: Duration) {
-        self.engine_event(engine::Event::Restarting { wait });
     }
     pub fn engine_down(&mut self, down: host::LinkDown, parts: Box<[Part]>, values: Box<[Option<engine::GrantValue>]>) {
         self.engine_event(engine::Event::Down { channel: self.channel.expect("admitted hello"), down, parts, values });
@@ -367,7 +374,11 @@ impl Joined {
             Request::Lower { connection, lower } => self.lower(0, connection, lower),
             Request::Close { connection } | Request::Abort { connection } => self.close(0, connection),
             Request::Ready => {
-                self.worker_event(Event::Hello { hello: fixtures::hello() });
+                let mut hello = fixtures::hello();
+                if let Some(bound) = self.hello_stop_bound {
+                    hello.stop_bound = bound;
+                }
+                self.worker_event(Event::Hello { hello });
                 if self.retained_turn {
                     self.worker_event(Event::Up { up: fixtures::turn(), parts: Box::new([]) });
                 }
@@ -391,16 +402,15 @@ impl Joined {
                 self.worker_order.push("value");
                 self.values.push(request);
             }
-            Request::Figures { .. }
+            Request::ResendPart { .. }
+            | Request::Figures { .. }
             | Request::RelayCancelled { .. }
             | Request::Lost
             | Request::Restarting { .. }
             | Request::GracePassed
             | Request::Closed
             | Request::Refused { .. }
-            | Request::Fact { .. }
-            | Request::CannotSendWhole { .. }
-            | Request::Untranslated { .. } => {
+            | Request::Fact { .. } => {
                 self.worker_root.push(request);
             }
         }
@@ -432,6 +442,7 @@ impl Joined {
                         Some(host::LinkDown::Acknowledge { run: *run, attempt: *attempt })
                     }
                     host::LinkUp::Ask { .. }
+                    | host::LinkUp::Part { .. }
                     | host::LinkUp::Piece { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }
@@ -461,6 +472,7 @@ impl Joined {
             engine::Request::Unpaused { .. }
             | engine::Request::Told { .. }
             | engine::Request::Unsent { .. }
+            | engine::Request::Unread { .. }
             | engine::Request::Lost { .. }
             | engine::Request::Closed => {
                 self.engine_root.push(request);
@@ -470,7 +482,7 @@ impl Joined {
     fn lower(&mut self, side: usize, connection: Token, lower: Lower) {
         assert_eq!(connection, self.connection);
         if let Some(pipe) = &mut self.pipe {
-            pipe.lower(side, lower);
+            pipe.lower(side, lower, self.shim.as_mut());
         }
     }
     fn close(&mut self, side: usize, connection: Token) {
@@ -536,6 +548,9 @@ impl Joined {
     pub fn engine_turns(&self) -> Vec<u32> {
         self.committed.iter().map(|(_, _, turn)| *turn).collect()
     }
+    pub fn channel(&self) -> Token {
+        self.channel.expect("admitted hello")
+    }
     #[must_use]
     pub fn engine_channels(&self) -> Vec<Token> {
         self.engine_root
@@ -554,6 +569,7 @@ impl Joined {
                 | engine::Request::Opened { .. }
                 | engine::Request::Refused { .. }
                 | engine::Request::Unsent { .. }
+                | engine::Request::Unread { .. }
                 | engine::Request::Ended { .. }
                 | engine::Request::Lost { .. }
                 | engine::Request::Closed => None,

@@ -21,6 +21,7 @@ macro_rules! encode {
 }
 mod batch;
 pub mod changes;
+pub mod chat;
 pub mod local;
 pub mod moves;
 pub mod recovery;
@@ -46,7 +47,7 @@ pub struct Frame {
     pub asked_attempts: Vec<Time>,
     pub asked_bearers: Vec<Box<[u8]>>,
     pub service_mode: bool,
-    pub service_replay: bool,
+    pub service_credential: &'static [u8],
     pub hold_service_erase: bool,
     pub made_services: u32,
     pub move_answers: VecDeque<moves::Answer>,
@@ -86,6 +87,7 @@ pub struct Frame {
     pub sign_out_answer: w::SignOutAnswer,
     pub keep_link: Option<()>,
     pub link_bearers: Vec<Option<Box<[u8]>>>,
+    pub first_connect: Option<std::net::SocketAddr>,
     pub again_links: u32,
     pub busy_links: u32,
     pub full_link: Option<(u32, Wall, Wall)>,
@@ -114,6 +116,7 @@ pub struct Frame {
     wait_task: Option<u64>,
     stopping: Option<()>,
     change: bool,
+    chat: Option<chat::Read>,
     read_unreachable: bool,
     stream: Option<Fd>,
     opening: Option<w::Hello>,
@@ -152,13 +155,13 @@ impl Frame {
     pub fn act(words: &[&[u8]]) -> Self {
         let parsed = arguments::parse(words).expect("fixture call");
         let move_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT || call.tool == temper_client_tools::jig::rows::IMPORT_AT);
-        let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::PARTY_MAKE_AT || arguments::class(call) == crate::arguments::Class::Link);
+        let service_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if matches!(call.tool, temper_client_tools::jig::rows::PARTY_MAKE_AT | temper_client_tools::jig::rows::PARTY_REISSUE_AT) || arguments::class(call) == crate::arguments::Class::Link);
         let file_parent = arguments::file_root(&parsed).map(|_| FILE_PARENT);
         let files = arguments::text_files(&parsed)
             .into_iter()
             .map(|(index, _)| (index, Fd::new(30 + i32::from(index))))
             .collect();
-        let host = OneShot::with_text_files(
+        let host = OneShot::with_directory(
             Invocation { directory: Some(b"directory".as_slice().into()), parsed },
             Startup {
                 parent: Some(Fd::new(1)),
@@ -171,6 +174,7 @@ impl Frame {
                 seed: 1,
             },
             files,
+            Some(service::GIVEN_DIRECTORY),
         )
         .expect("native limits");
         Self {
@@ -178,7 +182,7 @@ impl Frame {
             asked_attempts: Vec::new(),
             asked_bearers: Vec::new(),
             service_mode,
-            service_replay: false,
+            service_credential: &service::CREDENTIAL,
             hold_service_erase: false,
             made_services: 0,
             move_answers: VecDeque::new(),
@@ -218,6 +222,7 @@ impl Frame {
             sign_out_answer: w::SignOutAnswer::SignedOut,
             keep_link: None,
             link_bearers: Vec::new(),
+            first_connect: None,
             again_links: 0,
             busy_links: 0,
             full_link: None,
@@ -246,6 +251,7 @@ impl Frame {
             wait_task: None,
             stopping: None,
             change: false,
+            chat: None,
             read_unreachable: false,
             stream: None,
             opening: None,
@@ -598,7 +604,10 @@ impl Frame {
             Op::Sync { fd } if Some(*fd) == self.record_fd || *fd == FILE_PARENT => self.record_sync(*fd),
             Op::Remove { name, dir, .. } if name.as_ref() == b"record" => self.record_remove(*dir),
             Op::Sync { .. } if self.fail_store.is_some() => Err(Error::Permission),
-            Op::Connect { .. } => self.connect(),
+            Op::Connect { addr, .. } => {
+                self.first_connect = self.first_connect.or(Some(*addr));
+                self.connect()
+            }
             Op::Close { fd } if *fd == DIRECTORY && self.locked.is_some() => {
                 self.released_after = Some(self.store_count());
                 Ok(Done::Nothing)
@@ -799,6 +808,8 @@ impl Frame {
                 if self.deliver.is_some() {
                     if self.move_mode {
                         self.deliver_move_accounts(open.watch, &subject);
+                    } else if self.chat.is_some() {
+                        self.deliver_chat_run(open.watch, &subject);
                     } else {
                         self.deliver_task(false);
                     }
@@ -822,6 +833,7 @@ impl Frame {
                     }
                 }
             }
+            b"/jig/v1/read" if self.chat.is_some() => self.read_chat_activity(fd),
             b"/jig/v1/read" => self.read_setup_or_task(fd),
             b"/jig/v1/sign-out" => {
                 self.hold_stores = Some(());
@@ -840,7 +852,14 @@ impl Frame {
             None => jig_client_test_records::frame_record(),
         };
         if let Some(hello) = self.opening.take() {
-            let event = jig_client_test_records::opened(hello, me);
+            let event = jig_client_test_records::opened_with_layouts(
+                hello,
+                me,
+                &[jig_client_test_records::family_layout(
+                    temper_client_protocol_wire::FORGE,
+                    temper_client_protocol_wire::CLIENT_LAYOUT,
+                )],
+            );
             self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
             return;
         }

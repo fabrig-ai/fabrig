@@ -51,16 +51,15 @@ pub(crate) const CLIENT: jig_client::DomainLimits = jig_client::DomainLimits {
     heartbeat: skein_lib::Duration::from_secs(1000),
 };
 use crate::state::address::Address;
-use crate::state::records::{RECORDS_VERSION, Record};
+use crate::state::records::Record;
 use jig_client::contract::Text;
 pub const PARTY: u64 = u64::MAX;
 pub const TASK: u64 = u64::MAX;
 pub fn place() -> Record {
-    Record::Place { version: RECORDS_VERSION, party: PARTY, address: Address::Deployment }
+    Record::Place { party: PARTY, address: Address::Deployment }
 }
 pub fn draft() -> Record {
     Record::Draft {
-        version: RECORDS_VERSION,
         party: PARTY,
         task: TASK,
         words: Text::new(Box::from(b"words".as_slice()), 65536).unwrap(),
@@ -105,7 +104,7 @@ pub fn places() -> skein_lib::List<Record> {
     }
     let mut saved = skein_lib::List::with_capacity(addresses.len());
     for address in addresses.into_boxed() {
-        saved.push(Record::Place { version: RECORDS_VERSION, party: u64::MAX, address }).unwrap();
+        saved.push(Record::Place { party: u64::MAX, address }).unwrap();
     }
     saved
 }
@@ -211,6 +210,8 @@ pub(crate) fn task_line(
             deadline: None,
         },
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: c::PhaseCounts {
             waiting: 0,
             idle: 0,

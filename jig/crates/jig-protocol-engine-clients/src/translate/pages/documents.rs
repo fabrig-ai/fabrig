@@ -1,6 +1,7 @@
 //! Each original page's whole owner rows (protocol/client/wire.md, 1).
-use super::super::{activity, chips, history, inbox, objects, w};
+use super::super::{activity, history, inbox, objects, w};
 use super::rows;
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::reads;
 use skein_lib::List;
@@ -57,7 +58,7 @@ pub(super) fn history(
     for row in &page.rows {
         rows.push(match row {
             reads::PageRow::Attempt(value) if subtree || value.task == task => {
-                w::HistoryRow::Attempt(w::HistoryRowAttempt { value: objects::ended::attempt(value, limits)? })
+                w::HistoryRow::Attempt(w::HistoryRowAttempt { value: objects::ended::attempt(value) })
             }
             reads::PageRow::History(value) if subtree || value.task == task => {
                 w::HistoryRow::Change(Box::new(w::HistoryRowChange { value: history::line(models, value, limits)? }))
@@ -153,15 +154,7 @@ pub(super) fn ended(
             | reads::PageRow::Note(_)
             | reads::PageRow::Spend(_) => return Err(invalid),
         };
-        rows.push(w::EndedDelegate {
-            chip: chips::chip(&value.chip, limits)?,
-            ended: chips::ending(&value.ended, limits)?,
-            at: match value.at {
-                Some(value) => Some(value.as_nanos()),
-                None => None,
-            },
-        })
-        .expect("selected rows fit");
+        rows.push(mapped::ended_delegate_to_record(value, &(&[], limits))?).expect("selected rows fit");
     }
     Ok(w::ReadValue::EndedPage(w::EndedPage {
         cut: page.cut,
@@ -210,7 +203,7 @@ pub(super) fn spend(
         if !same_project {
             return Err(invalid);
         }
-        rows.push(rows::funding(value, limits)?).expect("selected rows fit");
+        rows.push(rows::funding(value)).expect("selected rows fit");
     }
     Ok(w::ReadValue::Spend(w::SpendPage { cut: page.cut, rows, before, after }))
 }

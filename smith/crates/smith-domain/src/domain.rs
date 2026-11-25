@@ -5,8 +5,8 @@
 //! It retains the run and session children, conversation and credential
 //! bindings and issued renewal policies, pending starts, turn handoffs, unsent completions waiting for
 //! acknowledgements or renewable grants, uncapped handoff queues, notices and facts awaiting the owner. [`step`],
-//! [`fire`] and [`resume`] are its entries (smith/docs/design/domain/run.md, sections 2, 3, 9,
-//! 12; smith/docs/design/domain/session.md, sections 3–5). It never knows provider
+//! [`fire`] and [`resume`] are its entries (smith/docs/design/domain/run.md, section 2, smith/docs/design/domain/run-start.md, section 1, smith/docs/design/domain/run.md, sections 9, 12
+//! ; smith/docs/design/domain/session.md, sections 3–5). It never knows provider
 //! wire syntax, encoded turn size, credential secrets, forge state or host delivery policy.
 //! Facts are kept losslessly in uncapped queues and drained by their queued count.
 //!
@@ -91,9 +91,13 @@ pub struct Domain {
 /// The main takes history once; the terminal alone consumes the right.
 #[derive(Debug)]
 pub(crate) struct StartContext {
+    pub(crate) host_run: Token,
+    pub(crate) run: Option<Token>,
+    pub(crate) flow: crate::flow::Flow,
     pub(crate) reply_to: Option<ReplyTo>,
     pub(crate) transcript: Option<session::record::Transcript>,
     pub(crate) answered: Box<[u8]>,
+    pub(crate) parts: Option<crate::resuming::Parts>,
     pub(crate) refused: Option<run::TranscriptRefusal>,
 }
 
@@ -127,6 +131,8 @@ pub(crate) struct Flight {
     pub(crate) peer: Id<Peer>,
     /// The session withdrew it.
     pub(crate) withdrawn: bool,
+    /// Host calls, saves and children have no result when cut.
+    pub(crate) omit_on_cut: bool,
     pub(crate) answer: Due,
 }
 
@@ -231,7 +237,7 @@ impl Domain {
             flights: Map::with_capacity(flights),
             grants: Map::with_capacity(limits.accounts),
             completions: Map::with_capacity(limits.run.conversations),
-            pending: Map::with_capacity(limits.run.runs),
+            pending: Map::with_capacity(limits.run.conversations),
             renewals_held: false,
             grant_waits: Map::with_capacity(limits.run.conversations),
             notices: Queue::uncapped(),
@@ -276,6 +282,24 @@ impl Domain {
     #[must_use]
     pub const fn tickets(&self) -> u32 {
         self.tickets
+    }
+
+    /// Whether a pending record or completion needs durable host credit.
+    #[must_use]
+    pub fn waits_for_host_credit(&self) -> bool {
+        for (_, context) in &self.starts {
+            if context.flow.waits_for_host() {
+                return true;
+            }
+        }
+        for (owner, _) in &self.pending {
+            let id = *self.sessions.get(owner).expect("held session");
+            let conversation = self.peers.get(id).expect("held peer").conversation;
+            if run::completion_waits_for_host(&self.run, conversation) {
+                return true;
+            }
+        }
+        false
     }
 
     /// When the earliest alarm falls due.

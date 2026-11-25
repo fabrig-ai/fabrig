@@ -179,7 +179,7 @@ impl Projection {
                 .rows
                 .contains_key(&core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(task.number))));
         }
-        self.joins.resolve(&mut snapshot);
+        self.joins.resolve(&mut snapshot, get);
         snapshot
     }
 

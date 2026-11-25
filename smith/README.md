@@ -33,8 +33,8 @@ each run its instructions, tools, budget and what counts as done.
   run, the session, tools and the host's contract.
 - [`docs/design/protocol/README.md`](docs/design/protocol/README.md):
   the channel, the charter, transcripts, LLM calls and hosts, in bytes.
-- [`docs/design/STATUS.md`](docs/design/STATUS.md): how far the code is
-  from the design.
+- [`docs/design/STATUS.md`](docs/design/STATUS.md): where to find how far
+  the code is from the design and how to roll up the status files.
 - skein's foundation, which smith follows: `programming-model.md`,
   `testing-strategy.md` and `notes.md`.
 
@@ -85,7 +85,7 @@ The directory holds `host-id`, `tokens/chatgpt`, `programs/claude/` and
 their locks. Each test keeps its HOME, workspace and chats in scratch;
 the suite never rewrites the live user layer or borrows a personal login.
 A directory unused past the issuer's refresh-token lifetime needs another
-sign-in. See [testing.md, section 2.3](docs/design/testing.md#23-end-to-end).
+sign-in. See [testing-tiers.md, section 3](docs/design/testing-tiers.md#3-end-to-end).
 
 ## The family
 

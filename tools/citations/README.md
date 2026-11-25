@@ -2,7 +2,9 @@
 
 `citations.py` checks the citations the design relies on (AGENTS.md, 6): Markdown links and
 `x.md` paths, sections ("`x.md`, 5.3", "section N.N") against the cited document's numbered
-headings, and a status file's labels ("**Not yet:** 3.2:") against its document.
+headings, and a status file's labels ("**Not yet:** 3.2:") against its document. It also holds
+design documents under the size limit and each tree's `STATUS.md` to its fixed page.
+`status.py`, beside it, rolls up the status files and prints that page (below).
 
 ```sh
 python3 -I -B tools/citations/citations.py --base origin/main   # the gate: nothing new broken
@@ -41,10 +43,140 @@ python3 -I -B tools/citations/test_citations.py
 - **The size limit:** in the trees `sized.txt` lists, a Markdown file under `docs/design/` over
   64 KiB (`LIMIT`) fails `--all`, and fails the gate when it crossed the limit or grew while
   over it, renames mapped (`DESIGN.md`, 5). A tree is listed once its layout keeps every file
-  under the limit.
+  under the limit. Its line reads `PATH: size N bytes, over the 65,536-byte limit: split it
+  along its concepts, each piece under 40 KB (DESIGN.md, 5); don't cut text to fit`. Nothing
+  fails at the 48 KB mark or at an opening past 8 KB: `status.py` lists those files.
+- **The fixed page:** in the trees `sized.txt` lists, a tree's `docs/design/STATUS.md` whose
+  text isn't, byte for byte, the page `status.py --page TREE` prints fails `--all`, and fails
+  the gate whatever the base's page holds, with the line `PATH: STATUS.md is a fixed page
+  (DESIGN.md, 4): put the gap in its document's status file`. Only those five paths: the
+  mockups' `STATUS.md` (`temper/docs/design/client/web/mockups/`) keeps its own rules, and a
+  tree with no page fails nothing here. The checker takes the page from `status.py`'s
+  `page(tree)`, the file beside it loaded by path, since `-I` keeps the script's directory off
+  `sys.path`.
 - **`allow.txt`** excuses what must stay as it is, one line each: `FILE TARGET # reason`, FILE a
   glob and TARGET as the checker prints it, or `*` for every target.
 - Exit 0 clean, 1 findings, 2 usage, a malformed `allow.txt` or a git failure.
+
+## The status roll-up and the page
+
+`status.py` reads the status files of a committed tree and rolls them up, and prints each
+tree's fixed `docs/design/STATUS.md` (`temper/docs/design/draft/design-upkeep.md`, 3.1 and
+3.2). It writes nothing, and no gate runs the roll-up.
+
+```sh
+python3 -I -B tools/citations/status.py [--head REV] [TREE...]   # the roll-up, every tree when none is named
+python3 -I -B tools/citations/status.py --page TREE              # the tree's fixed page
+python3 -I -B tools/citations/test_status.py
+```
+
+- **What it reads:** every tracked `*.status.md` under each named tree's `docs/design/`, at
+  REV (`HEAD` by default), through `git archive` as the checker does. A status file under
+  `docs/design/draft/`, `draft/archive/` included, is a draft's; any other is a design
+  document's. `--page` reads nothing and needs no repository.
+- **The opening:** the first line that isn't blank is a heading (`# `), and the next paragraph
+  starts with a date, `YYYY-MM-DD` (`DESIGN.md`, 2). The heading and that paragraph open the
+  file; its text is what follows them, and its date is that one.
+- **Labels:** `**Not yet:**`, `**Departs:**`, `**Design lags:**`, `**Design departs:**` and
+  `**Open:**`, each at the start of a line, after any indent and a list marker `- `. A label's
+  text runs from it to the next label or to the end of the file, its bullets included. Other
+  bold words (`**Later:**`) are text. Text before the first label holds no entry and leaves
+  the file read. A design document's status may use any of the five: goals record there where
+  the design departs from a request or a mockup, as **Design departs**.
+- **Entries:** in a label's text, each section label counts one entry: a section number, or a
+  list of them as the checker reads a status label (`3.2:`, `3.2 and 4:`, `5, 6:`), with its
+  colon, at the start of the text, at the start of a line or list item, or after a sentence's
+  end (`. `). A text with no section label counts one entry, and none if it reads "none",
+  whatever its case, a final full stop aside.
+- **In flight:** a **Not yet** entry whose text, to the next section label or the end of its
+  label's text, ends with a tag `[in flight: TEXT]`, as `tools/close/README.md` reads one: after
+  the tag only sentence punctuation and spaces.
+- **Done:** it has labels and none has an entry, or it has none and its text is empty or
+  reads "No gap." alone. An empty text is what `close` leaves when it settles a file's last
+  entry, and it reads as done. A draft's status is also done when no label but **Design
+  departs** has an entry, so when its **Design lags** and **Open** read none: departures
+  record what the design does instead, and nothing closes them, since goals leave a draft's
+  text as it is (`temper/docs/design/draft/design-upkeep.md`, 2.5 and 3.2). A design
+  document's status is done only as the first sentence says, whatever its labels.
+- **Archived:** a status file under `docs/design/draft/archive/` counts no entry, neither in
+  the open entries nor as a line of a status file with an open entry: its draft has gone.
+  It is still read, and listed as unread when it is in neither form.
+- **Unread:** a file without the opening, or with no label and any text but "No gap.". It is
+  listed as unread, never as done, and counts no entry.
+- **What it prints,** for each tree in the order named, or `temper`, `smith`, `skein`, `jig`,
+  `hearth` when none is named, with a blank line between trees. Paths are from the repository
+  root and sorted bytewise; a list with nothing in it prints `- none`; counts are plain and
+  bytes take thousands separators.
+
+  ```
+  # temper
+
+  Open entries: 812 Not yet (14 in flight), 181 Departs, 97 Design lags, 256 Design departs, 108 Open.
+
+  Status files with an open entry:
+  - temper/docs/design/domain/landing.status.md, 2026-11-20: 3 Not yet (1 in flight), 1 Departs
+
+  Over the mark, 49,152 bytes, largest first:
+  - temper/docs/design/domain/landing.md: 65,526 bytes
+
+  Openings over 8,192 bytes, largest first:
+  - temper/docs/design/testing/process-tier.md: 46,132 bytes
+
+  Drafts done, outside draft/archive/:
+  - temper/docs/design/draft/archive/flake-regate.md
+
+  Unread status files:
+  - temper/docs/design/draft/archive/cli-c8-tools.status.md
+  ```
+
+  - **Open entries:** the tree's entries by label, every label shown, zeros too, with the
+    **Not yet** entries in flight; none from `draft/archive/`.
+  - **A status file's line:** each file with an entry, outside `draft/archive/`, with its date
+    and its labels that have entries, in the order above; "(N in flight)" only where N isn't 0.
+  - **Over the mark:** every Markdown file under the tree's `docs/design/` over 49,152 bytes
+    (`DESIGN.md`, 5), status files and `draft/archive/` included, largest first, then by path.
+  - **Openings over 8,192 bytes:** every Markdown file under the tree's `docs/design/` whose
+    opening is over 8,192 bytes, giving the opening's bytes, largest opening first, then by
+    path (`DESIGN.md`, 5; `design-upkeep.md`, 4.1). A file's opening is its bytes before the
+    first line that starts with `## ` and a digit, a numbered section's heading, in a code
+    fence or not; all its bytes where it has no such line. Status files, notes files and
+    execution files (`*.status.md`, `*.notes.md`, `*.execution.md`) are left out, not read
+    for an opening; `draft/archive/` is included, as over the mark.
+  - **Drafts done:** each draft whose status file is done, outside `draft/archive/`, named by
+    the draft's own path (`DESIGN.md`, 4); a draft's notes file and execution file are never drafts.
+  - **Unread status files.**
+- **The page,** printed by `--page TREE` and returned by `page(tree)`, TREE one of the five:
+  the text below, less the two spaces that indent it here, with `TREE` replaced by the tree's
+  name, ending in one newline. It changes only with this rule (`DESIGN.md`, 4): its summary of
+  what's due stays as written, though the roll-up also lists the long openings and counts a
+  draft with only departures left as done.
+
+  ```
+  # Status
+
+  The status of each of TREE's design documents and drafts is beside it,
+  as `<name>.status.md`: where the code lags or departs from a design
+  document (**Not yet**, **Departs**), and where the design lags or
+  departs from a draft (**Design lags**, **Design departs**, **Open**),
+  as `DESIGN.md`, 2, says. A gap goes in its document's status file,
+  never on this page.
+
+  To roll them up, from the repository root:
+
+      python3 -I -B tools/citations/status.py TREE
+
+  It prints the open entries by label, a line for each status file with
+  an open entry, and what's due: the files over 48 KB, largest first, the
+  drafts whose status records no gap, and the status files it can't read.
+
+  This page is fixed: `python3 -I -B tools/citations/status.py --page TREE`
+  prints it, and the citation checker refuses any other text
+  (`DESIGN.md`, 4).
+  ```
+- **Exit** 0 when it printed, 2 for a usage error (a tree that isn't one of the five, `--page`
+  without exactly one tree) or a git failure. It uses Python's standard library alone.
+- **Its tests,** `test_status.py`, are a table of small committed trees, each with its expected
+  output, as `test_citations.py` builds its repositories.
 
 ## Moving documents and sections
 

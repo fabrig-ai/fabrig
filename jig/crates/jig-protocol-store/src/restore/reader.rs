@@ -2,7 +2,7 @@
 use super::{Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, RangeFailure, RowSite, ready, site};
 use crate::{Cursor, Restore, Row, Store, codec, intervals, keys, pages};
 use alloc::boxed::Box;
-use jig_domain_core_vocabulary::{Key, Record, RestoreRange};
+use jig_domain_core_vocabulary::{Key, Record};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token, length::len_u64};
 
@@ -31,22 +31,23 @@ pub fn page(
     let capacity = rows.min(store.limits.store.page.bytes);
     let mut found = List::with_capacity(capacity);
     let mut used = 0_u64;
-    let mut cursor = after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) });
+    let mut cursor = None;
     for item in walked.rows {
-        let source = site(store, &item.row.key);
-        let (row, joined, size) = decode(store, item.row, &source)?;
-        let total =
-            used.checked_add(size).ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), source.clone()))?;
+        let key = &item.row.key;
+        let (row, joined, size) = decode(store, key, item.row.value)?;
+        let Some(total) = used.checked_add(size) else {
+            return Err(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), site(store, key)));
+        };
         if total > bytes && found.is_empty() {
-            return Err(Failure::at(Cause::RowPastPage { needs: size, has: bytes }, source));
+            return Err(Failure::at(Cause::RowPastPage { needs: size, has: bytes }, site(store, key)));
         }
         if total > bytes || found.room() < if joined.is_some() { 2 } else { 1 } {
-            let next = Some(cursor);
+            let next = Some(pages::resume(cursor, after));
             super::assert_progress(after, found.is_empty(), next.as_ref());
             return Ok(Loaded { items: found.into_boxed(), next });
         }
         used = total;
-        cursor = item.cursor;
+        cursor = Some(item.cursor);
         found.push(row).expect("bounded restore items");
         if let Some(joined) = joined {
             found.push(joined).expect("pair room checked");
@@ -59,76 +60,62 @@ pub fn page(
 fn ranges(store: &Store, range: Restore) -> Result<Box<[skein_kv::Range]>, Failure> {
     match range {
         Restore::Application(ranges) => {
-            u32::try_from(ranges.len()).ok().ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))?;
-            pages::application(&ranges, store.limits.store.key)
-                .ok_or(Failure::rowless(Cause::Range(RangeFailure::Encoding)))
-        }
-        Restore::Jig(ranges) => {
-            let mut count = 0_u32;
-            for range in &ranges {
-                // Check census cardinalities before intervals' infallible bounded constructor.
-                let size = match range {
-                    RestoreRange::Census(census) => {
-                        let results = u32::try_from(census.results.len()).ok();
-                        let questions = u32::try_from(census.questions.len()).ok();
-                        let results = results.ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))?;
-                        let questions = questions.ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))?;
-                        match results.checked_add(questions) {
-                            Some(count) => count.checked_add(1),
-                            None => None,
-                        }
-                    }
-                    RestoreRange::Accounts | RestoreRange::People | RestoreRange::Tasks => Some(2),
-                    RestoreRange::Deployment | RestoreRange::Settings | RestoreRange::Core => Some(1),
-                };
-                let size = size.ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))?;
-                count = count.checked_add(size).ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))?;
+            if u32::try_from(ranges.len()).is_err() {
+                return Err(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)));
             }
-            intervals::intervals(&ranges).ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))
+            let Some(intervals) = pages::application(&ranges, store.limits.store.key) else {
+                return Err(Failure::rowless(Cause::Range(RangeFailure::Encoding)));
+            };
+            Ok(intervals)
         }
+        Restore::Jig(ranges) => match intervals::collect(&ranges) {
+            Ok(intervals) => Ok(intervals),
+            Err(intervals::CountFailure::Census | intervals::CountFailure::Total) => {
+                Err(Failure::rowless(Cause::Arithmetic(Arithmetic::RangeCount)))
+            }
+        },
     }
 }
 
-pub(crate) fn decode_row(store: &mut Store, row: skein_kv::Row, source: &RowSite) -> Result<(Row, u64), Failure> {
-    if let Some(key) = keys::of_application(&row.key) {
+pub(crate) fn decode_row(store: &mut Store, raw: &[u8], value: Box<[u8]>) -> Result<(Row, u64), Cause> {
+    if let Some(key) = keys::of_application(raw) {
         let key_bytes = len_u64(key.len());
-        let value_bytes = len_u64(row.value.len());
-        let size = key_bytes
-            .checked_add(value_bytes)
-            .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::RowBytes), source.clone()))?;
-        return Ok((Row::Application { key: Box::from(key), value: row.value }, size));
+        let value_bytes = len_u64(value.len());
+        let Some(size) = key_bytes.checked_add(value_bytes) else {
+            return Err(Cause::Arithmetic(Arithmetic::RowBytes));
+        };
+        return Ok((Row::Application { key: Box::from(key), value }, size));
     }
-    let key = keys::decode(&row.key).ok_or(Failure::at(Cause::Decode(DecodeFailure::Key), source.clone()))?;
+    let Some(key) = keys::decode(raw) else { return Err(Cause::Decode(DecodeFailure::Key)) };
     if let Key::Tasks(tasks::Key::Live(number)) = key {
-        return live(store, number, &row.value, source);
+        return live(store, number, &value);
     }
-    let record = decode_value(store, &key, &row.value);
-    let record = match record {
+    let record = match decode_value(store, &key, &value) {
         Ok(record) => record,
-        Err(failure) => return Err(Failure::at(Cause::Decode(failure), source.clone())),
+        Err(failure) => return Err(Cause::Decode(failure)),
     };
-    let size = len_u64(row.value.len());
+    let size = len_u64(value.len());
     Ok((Row::Jig(record), size))
 }
 
-fn live(store: &mut Store, number: u64, hot: &[u8], source: &RowSite) -> Result<(Row, u64), Failure> {
+fn live(store: &mut Store, number: u64, hot: &[u8]) -> Result<(Row, u64), Cause> {
     let cold_key = Key::Tasks(tasks::Key::LiveCold(number));
-    let cold_key = keys::encode(&cold_key, store.limits.store.key)
-        .ok_or(Failure::at(Cause::Decode(DecodeFailure::Key), source.clone()))?;
-    let cold = crate::open::get(store, Token::new(0), cold_key)
-        .or(Err(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone())))?
-        .ok_or(Failure::at(Cause::Decode(DecodeFailure::Value), source.clone()))?;
+    let Some(cold_key) = keys::encode(&cold_key, store.limits.store.key) else {
+        return Err(Cause::Decode(DecodeFailure::Key));
+    };
+    let Ok(Some(cold)) = crate::open::get(store, Token::new(0), cold_key) else {
+        return Err(Cause::Decode(DecodeFailure::Value));
+    };
     let Ok(record) = codec::tasks::decode_live(hot, &cold, &store.codec_limits.tasks, &store.names) else {
         let key = Key::Tasks(tasks::Key::Live(number));
-        let why = value_failure(store, &key, hot, Some(&cold));
-        return Err(Failure::at(Cause::Decode(why), source.clone()));
+        return Err(Cause::Decode(value_failure(store, &key, hot, Some(&cold))));
     };
     if record.key() != tasks::Key::Live(number) {
-        return Err(Failure::at(Cause::Decode(DecodeFailure::KeyValueDisagree), source.clone()));
+        return Err(Cause::Decode(DecodeFailure::KeyValueDisagree));
     }
-    let size = len_u64(hot.len())
-        .checked_add(len_u64(cold.len()))
-        .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::JoinedBytes), source.clone()))?;
+    let Some(size) = len_u64(hot.len()).checked_add(len_u64(cold.len())) else {
+        return Err(Cause::Arithmetic(Arithmetic::JoinedBytes));
+    };
     Ok((Row::Jig(Record::Tasks(record)), size))
 }
 
@@ -150,15 +137,18 @@ fn decode_value(store: &Store, key: &Key, value: &[u8]) -> Result<Record, Decode
     Ok(record)
 }
 
-fn decode(store: &mut Store, row: skein_kv::Row, source: &RowSite) -> Result<(Item, Option<Item>, u64), Failure> {
-    let (row, size) = decode_row(store, row, source)?;
+fn decode(store: &mut Store, key: &[u8], value: Box<[u8]>) -> Result<(Item, Option<Item>, u64), Failure> {
+    let (row, size) = match decode_row(store, key, value) {
+        Ok(decoded) => decoded,
+        Err(cause) => return Err(Failure::at(cause, site(store, key))),
+    };
     let task = match &row {
         Row::Jig(Record::Tasks(tasks::Stored::Result(row))) => row.task,
         Row::Jig(Record::People(jig_domain_people::Stored::EndedRead { task, .. })) => *task,
         Row::Jig(_) | Row::Application { .. } => return Ok((Item::Row(row), None, size)),
     };
     let target = Key::Tasks(tasks::Key::Ended(task));
-    let owner = ended(store, &target, source)?;
+    let owner = ended(store, &target, &site(store, key))?;
     let Some((owner, owner_size)) = owner else {
         let record = match row {
             Row::Jig(record) => record.key(),
@@ -169,9 +159,9 @@ fn decode(store: &mut Store, row: skein_kv::Row, source: &RowSite) -> Result<(It
     };
     match row {
         Row::Jig(Record::People(jig_domain_people::Stored::EndedRead { .. })) => {
-            let joined = size
-                .checked_add(owner_size)
-                .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::JoinedBytes), source.clone()))?;
+            let Some(joined) = size.checked_add(owner_size) else {
+                return Err(Failure::at(Cause::Arithmetic(Arithmetic::JoinedBytes), site(store, key)));
+            };
             Ok((Item::Row(row), Some(Item::Row(Row::Jig(owner))), joined))
         }
         Row::Jig(_) | Row::Application { .. } => Ok((Item::Row(Row::Jig(owner)), None, owner_size)),

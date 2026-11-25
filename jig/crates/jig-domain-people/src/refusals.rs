@@ -1,5 +1,5 @@
-//! Durable refusal facts and unsaved retry kinds (client/domain/contract/README.md,
-//! section 3). A judged settings refusal also carries the connector's bounded words.
+//! Durable refusal facts and unsaved retry kinds (client/domain/contract/answers.md,
+//! section 1). A judged settings refusal also carries the connector's bounded words.
 use crate::Role;
 use alloc::boxed::Box;
 use skein_lib::Wall;
@@ -16,9 +16,20 @@ pub enum Accepter {
     Role(u32),
 }
 
+/// The task or person that settled a question.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum QuestionAnswerer {
+    Task(u64),
+    Person(u64),
+}
+
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    QuestionAnswered {
+        question: u64,
+        by: QuestionAnswerer,
+    },
     /// The named worker has no admitted channel (domain/engine/workers.md, 5).
     Unlinked {
         worker: u32,
@@ -51,7 +62,7 @@ pub enum Refusal {
         tasks: Box<[u64]>,
         more: u32,
     },
-    /// Another project holds this name under simple case folding, or a program source's name a declaration gives is taken (domain/accounts.md, 3.4).
+    /// Another project holds this name under simple case folding, or a program source's name a declaration gives is taken (domain/accounts-sources.md, 1).
     NameTaken,
     /// A holder's account move could not proceed (domain/accounts.md, section 6).
     AccountMove {
@@ -67,7 +78,7 @@ pub enum Refusal {
         dependency: u64,
         how: DependencyStatus,
     },
-    /// An answer is kept by its pending prerequisites (domain/tasks/lifecycle.md, 8).
+    /// An answer is kept by its pending prerequisites (domain/tasks/lifecycle-endings.md, 1).
     Kept {
         pending: Box<[u64]>,
     },
@@ -119,7 +130,7 @@ pub enum Refusal {
     /// The program source name remains reserved after its account is forgotten.
     ProgramNameReserved,
     /// A plan's uses name another person, directly or through a project
-    /// (domain/accounts.md, 4.2; domain/providers.md, 2.6 and 3.4).
+    /// (domain/accounts-uses.md, 1.2; domain/providers.md, 2.6 and 3.4).
     Provider,
     /// This party's key names another ask.
     KeyConflict,
@@ -162,7 +173,7 @@ pub enum Malformed {
 pub enum Lack {
     /// A policy edit passes this ceiling; scalar values use their dimension's unit.
     Ceiling { holder: CeilingHolder, dimension: CeilingDimension, value: Option<u64>, asked: Option<u64> },
-    /// A placed hold waits for its owner (domain/tasks/lifecycle.md, 10).
+    /// A placed hold waits for its owner (domain/tasks/lifecycle-holds.md, 2).
     HoldOwner { hold: u64, owner: HoldOwner },
     /// No policy role may accept this kind of party proposal.
     Approver,
@@ -342,7 +353,7 @@ pub enum Again {
     NotReady,
 }
 
-/// The terminal phase of an added prerequisite (client/domain/contract/README.md, 3).
+/// The terminal phase of an added prerequisite (client/domain/contract/answers.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DependencyStatus {
     Done,
@@ -350,7 +361,7 @@ pub enum DependencyStatus {
     Cancelled,
 }
 
-/// Who placed a hold, independent of the tasks child (domain/tasks/lifecycle.md, 10).
+/// Who placed a hold, independent of the tasks child (domain/tasks/lifecycle-holds.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldOwner {
     Party { person: u64 },

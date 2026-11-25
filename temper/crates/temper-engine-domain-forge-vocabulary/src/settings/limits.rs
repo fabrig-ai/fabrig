@@ -1,4 +1,5 @@
 //! Limit overrides at the client boundary (protocol/configuration/limit-settings.md, 2).
+use crate::generated::client_wire::{limit_override_to_domain, limit_override_to_record};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::settings::{OVERRIDES, Override, OverrideFault};
 use skein_lib::{Decimal, List};
@@ -8,9 +9,7 @@ use temper_client_protocol_wire::v1 as w;
 pub fn limits_record(values: &[Override]) -> w::LimitOverrides {
     let mut overrides = List::with_capacity(OVERRIDES);
     for value in values {
-        overrides
-            .push(w::LimitOverride { name: value.name.clone(), value: value.value, reason: value.reason.clone() })
-            .expect("admitted override count");
+        overrides.push(limit_override_to_record(value)).expect("admitted override count");
     }
     w::LimitOverrides { overrides }
 }
@@ -19,8 +18,7 @@ pub fn limits_record(values: &[Override]) -> w::LimitOverrides {
 pub fn limits_from(record: w::LimitOverrides) -> Box<[Override]> {
     let mut overrides = List::with_capacity(OVERRIDES);
     for value in record.overrides.into_boxed() {
-        let w::LimitOverride { name, value, reason } = value;
-        overrides.push(Override { name, value, reason }).expect("decoded override count");
+        overrides.push(limit_override_to_domain(value)).expect("decoded override count");
     }
     overrides.into_boxed()
 }

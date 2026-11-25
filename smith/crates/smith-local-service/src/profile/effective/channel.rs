@@ -1,13 +1,13 @@
 //! The spawned adapter's own derived codec bounds, apart from the agent half.
-//! Contract: protocol/limits.md, sections 3.6 and 9.
+//! Contract: protocol/limits-derivation.md, section 1.6, and protocol/limits.md, section 9.
 
 use alloc::boxed::Box;
 use smith_agent_service::profile::{Layer, Limit, Value};
 
 use super::entry;
 
-pub(super) fn transcript(limits: &smith_transcript::v7::Limits) -> Box<[Limit]> {
-    let mut entries = skein_lib::List::with_capacity(35);
+pub(super) fn transcript(limits: &smith_transcript::v8::Limits) -> Box<[Limit]> {
+    let mut entries = skein_lib::List::with_capacity(37);
     for group in [transcript_provider(limits), transcript_tools(limits)] {
         for (name, value) in group {
             entries.push(entry(Layer::Host, name, value)).expect("every transcript bound counted");
@@ -20,6 +20,7 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
     let smith_channel::Limits {
         directory_name,
         directory_path,
+        directory_results_some,
         directory_conflicts,
         directory_conflicts_item,
         workspace_directories,
@@ -45,6 +46,7 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
         message_text,
         start_charter,
         start_transcript,
+        start_parts,
         start_answered,
         start_grants,
         start_messages,
@@ -54,6 +56,8 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
         field_text,
         deliver_ask_fields,
         turn_body,
+        part_body,
+        kept_part_body,
         accepted_result,
         live_call_id,
         live_call_tool,
@@ -67,6 +71,7 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
     Box::new([
         body_bytes("process.channel.bodies.directory_name", directory_name),
         body_bytes("process.channel.bodies.directory_path", directory_path),
+        body_bytes("process.channel.bodies.directory_results_some", directory_results_some),
         body_count("process.channel.bodies.directory_conflicts", directory_conflicts),
         body_bytes("process.channel.bodies.directory_conflicts_item", directory_conflicts_item),
         body_count("process.channel.bodies.workspace_directories", workspace_directories),
@@ -92,6 +97,7 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
         body_bytes("process.channel.bodies.message_text", message_text),
         body_bytes("process.channel.bodies.start_charter", start_charter),
         body_bytes("process.channel.bodies.start_transcript", start_transcript),
+        body_bytes("process.channel.bodies.start_parts", start_parts),
         body_count("process.channel.bodies.start_answered", start_answered),
         body_count("process.channel.bodies.start_grants", start_grants),
         body_count("process.channel.bodies.start_messages", start_messages),
@@ -101,6 +107,8 @@ pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
         body_bytes("process.channel.bodies.field_text", field_text),
         body_count("process.channel.bodies.deliver_ask_fields", deliver_ask_fields),
         body_bytes("process.channel.bodies.turn_body", turn_body),
+        body_bytes("process.channel.bodies.part_body", part_body),
+        body_bytes("process.channel.bodies.kept_part_body", kept_part_body),
         body_bytes("process.channel.bodies.accepted_result", accepted_result),
         body_bytes("process.channel.bodies.live_call_id", live_call_id),
         body_bytes("process.channel.bodies.live_call_tool", live_call_tool),
@@ -116,7 +124,7 @@ fn body_count(field: &'static str, value: u32) -> Limit {
     entry(Layer::Host, field, Value::Count(u64::from(value)))
 }
 
-fn transcript_provider(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str, Value)]> {
+fn transcript_provider(limits: &smith_transcript::v8::Limits) -> Box<[(&'static str, Value)]> {
     Box::new([
         ("process.channel.transcript.program_name", Value::Bytes(u64::from(limits.program_name))),
         ("process.channel.transcript.replay_bytes", Value::Bytes(u64::from(limits.replay_bytes))),
@@ -134,7 +142,7 @@ fn transcript_provider(limits: &smith_transcript::v7::Limits) -> Box<[(&'static 
     ])
 }
 
-fn transcript_tools(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str, Value)]> {
+fn transcript_tools(limits: &smith_transcript::v8::Limits) -> Box<[(&'static str, Value)]> {
     Box::new([
         ("process.channel.transcript.allowed_calls_names", Value::Count(u64::from(limits.allowed_calls_names))),
         ("process.channel.transcript.entry_name", Value::Bytes(u64::from(limits.entry_name))),
@@ -147,6 +155,8 @@ fn transcript_tools(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str
         ("process.channel.transcript.command_end_last", Value::Bytes(u64::from(limits.command_end_last))),
         ("process.channel.transcript.command_running_head", Value::Bytes(u64::from(limits.command_running_head))),
         ("process.channel.transcript.command_running_last", Value::Bytes(u64::from(limits.command_running_last))),
+        ("process.channel.transcript.interrupted_head", Value::Bytes(u64::from(limits.interrupted_head))),
+        ("process.channel.transcript.interrupted_last", Value::Bytes(u64::from(limits.interrupted_last))),
         ("process.channel.transcript.job_read_head", Value::Bytes(u64::from(limits.job_read_head))),
         ("process.channel.transcript.job_read_last", Value::Bytes(u64::from(limits.job_read_last))),
         ("process.channel.transcript.ambiguous_lines", Value::Count(u64::from(limits.ambiguous_lines))),

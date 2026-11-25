@@ -1,11 +1,13 @@
 //! One report renderer for shells and worlds (protocol/binaries.md, upgrade).
-use jig_protocol_store::{BackRefusal, Event, KeptMap, KeptWire, Owner, Undecoded, WorkerOpening};
+use jig_protocol_store::{
+    BackRefusal, Event, KeptMap, KeptOpening, KeptWire, KeptWorker, Owner, Undecoded, WorkerOpening,
+};
 #[cfg(test)]
 #[path = "report/tests.rs"]
 mod decode_tests;
 use jig_protocol_engine_workers::{Stated, Statement, Unfit, judge};
 use skein_lib::{List, Wall};
-use std::fmt::Write;
+use std::{collections::BTreeMap, fmt::Write};
 use temper_engine_service::upgrade::{Report, Workers};
 use temper_shell::directories::Directories;
 
@@ -55,12 +57,43 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
     if report.end.is_none() && report.restored {
         writeln!(
             text,
-            "{binary} upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed"
+            "{binary} upgrade: registry commit, jobs and restores pass; opened in {} ms",
+            report.elapsed.as_millis()
         )
         .expect("string write");
+        for (forge, state) in &report.catching_up {
+            writeln!(text, "{binary} upgrade: forge {forge} would catch up: {}", catching_up(*state))
+                .expect("string write");
+        }
     }
     verdict(&mut text, binary, report, false);
     (text, u8::from(!passed || !report.done))
+}
+
+fn catching_up(state: Option<temper_engine_domain_forge::CatchingUp>) -> String {
+    let mut text = String::new();
+    if let Some(state) = state {
+        for (count, singular, plural) in [
+            (state.fresh, "fresh read", "fresh reads"),
+            (state.gathers, "landing read", "landing reads"),
+            (state.ci, "CI read", "CI reads"),
+            (state.goal_files, "goal-file read", "goal-file reads"),
+            (state.lost_writers, "lost-writer read", "lost-writer reads"),
+            (state.goal_branches, "goal-branch read", "goal-branch reads"),
+            (state.uncertain, "uncertain write", "uncertain writes"),
+        ] {
+            if count != 0 {
+                if !text.is_empty() {
+                    text.push_str(", ");
+                }
+                write!(text, "{count} {}", if count == 1 { singular } else { plural }).expect("string write");
+            }
+        }
+    }
+    if text.is_empty() {
+        text.push_str("nothing");
+    }
+    text
 }
 
 /// Rehearsal file counts and the workers' verdict, or the whole check's opening refusal.
@@ -107,7 +140,7 @@ fn event_refusal(text: &mut String, binary: &str, event: &Event, mut passed: boo
             writeln!(text, "{binary} upgrade: scratch cleanup failed; check the cache directory")
                 .expect("string write");
         }
-        // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
+        // Upgrade progress does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
         Event::Rehearsing { .. }
         | Event::Decoded { .. }
         | Event::Ran { .. }
@@ -122,7 +155,6 @@ fn event_refusal(text: &mut String, binary: &str, event: &Event, mut passed: boo
         | Event::Opened { .. }
         | Event::OpenRefused { .. }
         | Event::Switched { .. }
-        | Event::Site { .. }
         | Event::Job { .. }
         | Event::Committed { .. }
         | Event::Failed { .. }
@@ -161,18 +193,20 @@ fn verdict(text: &mut String, binary: &str, report: &Report, count_files: bool) 
     let mut kept = None;
     let mut openings = &[][..];
     let mut counts = None;
+    let mut workers_kept = None;
     for event in &report.events {
-        if let Event::Rehearsing { wires, openings: stated, linked, copied, .. } = event {
+        if let Event::Rehearsing { wires, openings: stated, workers, linked, copied, .. } = event {
             counts = Some((*linked, *copied));
             kept = wires.as_deref();
             openings = stated;
+            workers_kept = workers.as_deref();
         }
     }
     if count_files && let Some((linked, copied)) = counts {
         writeln!(text, "{binary} upgrade: rehearsal linked {linked} files, copied {copied}").expect("string write");
     }
     if counts.is_some() || report.end.is_some() {
-        workers(text, binary, kept, openings, &report.workers);
+        workers(text, binary, kept, openings, workers_kept, &report.workers);
     }
     counts.is_some()
 }
@@ -196,27 +230,56 @@ fn place(text: &mut String, at: &Undecoded) {
     }
 }
 
-// The table's worker-facing entries are precisely jig's four and temper's worker wire.
-fn worker_wire(name: &str) -> bool {
-    name == temper_protocol_worker_wire::wire::FAMILY
-        || jig_protocol_worker_wire::spoken().iter().any(|wire| wire.name == name)
-}
-
 fn workers(
     text: &mut String,
     binary: &str,
     kept: Option<&[KeptWire]>,
-    openings: &[WorkerOpening],
+    openings: &[KeptOpening],
+    workers_kept: Option<&[KeptWorker]>,
     configured: &Workers,
 ) {
     let Some(kept) = kept else {
         writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy keeps no wires").expect("string write");
         return;
     };
-    let (spoken, mut allowed) = engine_wires(text, binary, kept);
-    for opening in openings {
-        let name = &opening.worker;
-        match judge(&spoken, configured.room, &configured.schema, &statement(opening)) {
+    let mut allowed = host_tools(text, binary, kept);
+    let Some(workers_kept) = workers_kept else {
+        writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy's workers cannot be read")
+            .expect("string write");
+        return;
+    };
+    // Settings changes replace defaults by number; a removal masks its default.
+    let current: BTreeMap<_, _> = configured.defaults.iter().chain(workers_kept).map(|w| (w.number, w)).collect();
+    let by_name: BTreeMap<_, _> = openings
+        .iter()
+        .map(|opening| {
+            let name = match opening {
+                KeptOpening::Current(current) => &current.worker,
+                KeptOpening::BeforeLayouts { worker } => worker,
+            };
+            (name.as_bytes(), opening)
+        })
+        .collect();
+    for worker in current.values().filter(|worker| !worker.withdrawn) {
+        let name = String::from_utf8_lossy(&worker.name);
+        let opening = match by_name.get(worker.name.as_ref()) {
+            Some(KeptOpening::Current(opening)) => opening,
+            Some(KeptOpening::BeforeLayouts { .. }) => {
+                allowed = false;
+                writeln!(text, "{binary} upgrade: worker {name} unknown: opened before layouts").expect("string write");
+                continue;
+            }
+            None => {
+                allowed = false;
+                writeln!(
+                    text,
+                    "{binary} upgrade: worker {name} unknown: no opening kept since the engine's last start"
+                )
+                .expect("string write");
+                continue;
+            }
+        };
+        match judge(&configured.spoken, &configured.roots, configured.room, &configured.limits, &statement(opening)) {
             Ok(_) => writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
                 .expect("string write"),
             Err(unfit) => {
@@ -237,35 +300,27 @@ fn workers(
     writeln!(text, "{binary} upgrade: workers may stay: {}", if allowed { "yes" } else { "no" }).expect("string write");
 }
 
-fn engine_wires(text: &mut String, binary: &str, kept: &[KeptWire]) -> (List<jig_protocol_worker_wire::Spoken>, bool) {
-    let mut allowed = true;
-    let mut spoken = List::with_capacity(temper_engine_service::wires().len());
-    for wire in temper_engine_service::wires().into_boxed() {
-        if worker_wire(wire.name) {
-            spoken.push(wire).expect("table capacity");
-            continue;
+fn host_tools(text: &mut String, binary: &str, kept: &[KeptWire]) -> bool {
+    let wire = temper_engine_service::store::host_tools_wire();
+    match kept.iter().find(|old| old.name.as_ref() == wire.name) {
+        Some(old) if (u32::from(wire.lowest)..=u32::from(wire.highest())).contains(&old.version) => true,
+        Some(old) => {
+            writeln!(
+                text,
+                "{binary} upgrade: wire {}: kept {}, this binary speaks {}..{}",
+                wire.name,
+                old.version,
+                wire.lowest,
+                wire.highest()
+            )
+            .expect("string write");
+            false
         }
-        match kept.iter().find(|old| old.name.as_ref() == wire.name) {
-            Some(old) if (u32::from(wire.lowest)..=u32::from(wire.highest())).contains(&old.version) => {}
-            Some(old) => {
-                allowed = false;
-                writeln!(
-                    text,
-                    "{binary} upgrade: wire {}: kept {}, this binary speaks {}..{}",
-                    wire.name,
-                    old.version,
-                    wire.lowest,
-                    wire.highest()
-                )
-                .expect("string write");
-            }
-            None => {
-                allowed = false;
-                writeln!(text, "{binary} upgrade: wire {} is not kept by the copy", wire.name).expect("string write");
-            }
+        None => {
+            writeln!(text, "{binary} upgrade: wire {} is not kept by the copy", wire.name).expect("string write");
+            false
         }
     }
-    (spoken, allowed)
 }
 
 fn statement(opening: &WorkerOpening) -> Statement {
@@ -274,11 +329,7 @@ fn statement(opening: &WorkerOpening) -> Statement {
             opening
                 .wires
                 .iter()
-                .map(|wire| Stated {
-                    name: wire.name.clone(),
-                    lowest: wire.lowest,
-                    layouts: List::from_boxed(wire.layouts.clone()),
-                })
+                .map(|wire| Stated { name: wire.name.clone(), layout: wire.layout, text: wire.text.clone() })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
         ),
@@ -322,6 +373,7 @@ mod tests {
             elapsed: Duration::from_secs(1),
             end: None,
             restored: false,
+            catching_up: Box::new([]),
             done: true,
             open_failure: None,
         }

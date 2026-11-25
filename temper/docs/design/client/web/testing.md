@@ -40,18 +40,18 @@
 
 1. **Signing in by the printed link:** the welcome shows, at
    `/welcome`, or, where the first run is over, the chats, the
-   address reading `/chats` once they do (`README.md`, 2.4); a reload on a chat's
+   address reading `/chats` once they do (`sign-in.md`, 1); a reload on a chat's
    address shows that chat, signed in by the cookie; a link spent shows
    the reason-specific signed-out paragraph (`../view.md`, 1). After a
    server restart, reopening the first printed link shows "This link
    isn't from this temper. Use the one its terminal printed." because a
    restart forgets retired link digests (jig's `protocol/client/sign-in.md`).
    That the secret leaves the address before the first request is held by
-   the shell's start order (`README.md`, 2.1), and is not tested.
+   the shell's start order (`shell.md`, 1), and is not tested.
 2. **Addresses:** skein's `back_and_forward` (skein's `ui/web/testing.md`,
    2), from the chats to a chat by its link and back; `/` and an
    address that is no page open Home, and the address reads that Home's
-   once it shows (`README.md`, 2.3).
+   once it shows (`addresses.md`, 1).
 3. **The composer:** in the chats, Enter starts a chat with the words
    once, and Shift+Enter makes a new line in them (`look.md`). The chat opens
    with its composer focused, the focus stays there after Enter and after
@@ -60,7 +60,7 @@
 4. **A panic:** skein's `panic` (skein's `ui/web/testing.md`, 2), which
    checks the shell's wiring of the restart part, at the test address
    `/test/panic` at which the shell panics at start, as jig's reference
-   shell has it (`README.md`, 2.1).
+   shell has it (`shell.md`, 1).
 5. **Reading back:** scroll a chat's log up; Latest appears. New words
    arriving while reading back leave the view where it is. Press Latest
    or send from the chat; the end returns, read again if the window let
@@ -81,7 +81,7 @@ proves.
 
 A page gets a story here only for what of its own a browser alone
 shows. The inbox, a task's page and the adoption form have none: a
-first load at any address is the shell's one start (`README.md`, 2.1), which 6's
+first load at any address is the shell's one start (`shell.md`, 1), which 6's
 tests 1 and 2 hold on a chat's address and a filter's. A procedure's
 plan, its agent, the lineage bar and a fresh client at an agent's
 address are the client world's (`suite::b2`, `suite::task`). The
@@ -119,7 +119,7 @@ the page, which stayed, drawing the end.
   second provider of the same issuer, Welcome provider (18), with a model of
   its own: the issuer's one subject signing in twice on one provider renews
   its account, in other words than Ready's
-  (`../pages/accounts.md`, 2), and a usable model leaves the welcome no sign-in to
+  (`../pages/accounts-words.md`, 1), and a usable model leaves the welcome no sign-in to
   press. Each sign-in keeps its tab, so the story ends with two.
   The client world's `suite::second_sign_in` holds that the second provider's
   sign-in reaches Ready after the welcome's.
@@ -145,7 +145,7 @@ real key in that restored form.
 ## 3. Its budget, outside the gate
 
 - **A suite of its own,** outside the focused and fuzzy suites
-  (`../../testing/README.md`, section 2), in its own crate
+  (`../../testing/tiers.md`, section 1), in its own crate
   (`tests/client-browser`, `temper-client-browser-world`), run by
   `scripts/browser.sh`, a slow tier outside temper's gate, with the nextest profile `browser-temper`,
   one test at a time, on the bundle it builds first, with the dev
@@ -153,10 +153,10 @@ real key in that restored form.
 - **The tier's bundle** is the shipped page's, built apart
   (`scripts/bundle.sh`). Each address of the page the tier loads, from
   a printed or a command's link or a person's own load, carries the page's
-  internal settings (`README.md`, 2.1), `internal-loopback-navigation=1`
+  internal settings (`shell.md`, 1), `internal-loopback-navigation=1`
   and `internal-small-window=1`, which the page honours on the tier's
   loopback origin: so a sign-in's tab (2) can go to the fake issuer on
-  plaintext loopback (skein's `ui/web/README.md`, section 8), and a
+  plaintext loopback (skein's `ui/web/effects.md`, section 1), and a
   reload, a load without them, is loaded again by the tier with them.
   The service's own routes, `/forges/N/github/manifest`, `redirect` and
   `setup` (`../forge/served.md`, 1), aren't the page and carry none:
@@ -164,7 +164,7 @@ real key in that restored form.
   ctl's manifest link opens as ctl prints it. A page the browser
   reaches from one of them, by a redirect, loads without them.
   The tier names that bundle in its configuration, so it
-  runs alike over a binary built with or without its own (`README.md`, 2.6). It holds
+  runs alike over a binary built with or without its own (`bundle.md`, 1). It holds
   the compressed forms and Chromium takes gzip on loopback, so every
   test loads the compressed module under temper's policy.
 - **The tier's window:** the page's `internal-small-window` names a
@@ -175,8 +175,10 @@ real key in that restored form.
   `turn_text` to the same 32,768: the largest page `read_docs` answers
   (`temper-docs`' `PAGE_BYTES`), so that a tier story's line holding one
   stays whole. The long reading
-  story (6, 14) passes that bound by at least two windows' worth and
-  evicts and recovers lines at both ends. The unanchored position story
+  story's chat (6, 14) passes that bound by at least two windows' worth; the
+  story lets the window's end go and brings it back, and the client world walks
+  a chat of that shape to its opening and back (6, the list below the stories).
+  The unanchored position story
   stays within one window; it checks the words holding across a read above,
   and a window dropping lines would change what that proves, so it never
   reads the long story's chat.
@@ -191,15 +193,27 @@ real key in that restored form.
   `temper ctl` before a page opens on it: `playground start`, `chat start`
   and `task message`, each answer waited for with
   `task show --until replied`. A face of its own signs ctl in with the printed
-  link and opens the spent link, so that the server prints the reader's, as
-  `public.md`, 4's walk does. A page types only what its story is about: in reading's,
-  the message sent from far back. Reading's test (6, 14) holds three chats
+  link and opens the spent link, so that the server prints the reader's. A page
+  types only what its story is about: in reading's, the message sent from far back.
+  The playground of the history story (6, 2 and 11) is made the same way,
+  `playground start` before its page opens. Reading's test (6, 14) holds three chats
   on one `temper box`, as few as its stories allow: T1, the short chat, which
   six messages sent through ctl then make Latest's; T2, the position story's,
   inside one window; T3, the long story's, past three. Their requests cue
   disjoint scripts, and their replies together stay within the fake's joint
   script allowance (`temper-fake`'s `SCRIPT_BYTES`), both held by a focused test
   of the tier's crate.
+- **A public board** (6, 13) is made the same way, by the ctl face before any page
+  opens, and never walked to in the browser: `playground start`, a chat whose
+  scripted cue tracks the goal with the long title and delegates one task, that
+  delegate's script leaving it waiting, so that no turn, change or landing moves
+  the board while it is measured, and `project amend …
+  --visibility public`, whose printed page the browser opens with no sign-in. The
+  page waits until the board shows the goal and its delegate. Not a store
+  written before start: the engine resumes a restored live goal's agent as it
+  starts, so its rows would move under the measurement, while ctl makes the same
+  rows through the product with the tier's scripted model, as reading's chats are
+  made.
 - **Anchoring within a step** (6, 14): reading's test serves a private
   bundle whose stylesheet, only at a page one pixel taller than the kit's
   1280 by 800, turns the browser's scroll anchoring off on the log
@@ -228,7 +242,7 @@ real key in that restored form.
   the story, or only the person and the step where no story of that
   person had begun; the test fails with it once the harness has
   returned, and a test of the attribution reads it
-  (`../../testing/README.md`, 4.2). Each story's assertions
+  (`../../testing/scenarios.md`, 1.2). Each story's assertions
   stay as its steps, in its order. It reruns whole on a flake, and a failure
   hides the steps after it: taken, for the cap. It stands on the same forty
   seconds as any run of the harness (skein's `ui/web/testing.md`, 2): a test that
@@ -324,16 +338,22 @@ One test, the provider's (`../../protocol/openid-provider.md`, 8).
 
 The tier's tests, each on its own `temper-box serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
-over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
-5 another; 8 and 9 share their Accounts setup, and 16 shares its sheet's
-setup across desktop and phone widths. The twelve test functions in
-`tests/client-browser/tests/browser_all` are:
+over; 17 and 18 each on a journeys' drive session's box). Each is one test of the steps
+it names; 2 and 11 share one, and 4, 5 and 15 another, on one setup (3, the
+cap); 8 and 9 share their Accounts setup, 17 and 18 their journeys' scratch
+and built programs, and 16 shares its sheet's setup
+across desktop and phone widths. A story's state is made before its page
+opens, through ctl and the tier's scripted model (3), and its page goes to the
+address the story is about: what a story would walk through on its way is held
+below, in the list after the stories, and never asserted again on the way. A
+`See` a later browser observation waits on stays, as that wait. The twelve test
+functions in `tests/client-browser/tests/browser_all` are:
 
 | Stories below | Module | Test |
 |---|---|---|
 | 1 | `browser_sign_in` | `signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` |
 | 2 and 11 | `browser_pages` | `history_keeps_the_chat_focus_and_filter_across_reload_and_back` |
-| 4 and 5 | `browser_pages` | `enter_starts_one_chat_and_the_composer_keeps_the_focus` |
+| 4, 5 and 15 | `browser_pages` | `enter_starts_one_chat_and_the_composer_keeps_the_focus` |
 | 6 | `browser_attacks` | `cross_origin_requests_and_framing_cannot_act_as_the_person` |
 | 7 | `browser_authorize` | `a_cross_site_authorization_returns_a_code_and_the_links_state` |
 | 8 and 9 | `browser_accounts` | `the_sign_in_opens_a_tab_and_lands_on_accounts` |
@@ -341,16 +361,19 @@ setup across desktop and phone widths. The twelve test functions in
 | 12 | `browser_playground` | `story_a_walks_on_the_built_playground` |
 | 13 | `browser_public` | `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` |
 | 14 | `browser_pages` | `a_chat_opens_at_its_end_and_reads_back_keeping_its_place` |
-| 15 | `browser_pages` | `closing_project_rename_returns_focus_to_the_summary` |
 | 16 | `browser_connect_flows` | `scrolling_the_sheet_reads_more_then_search_picks_and_adopts` |
+| 17 and 18 | `browser_journeys` | `a_browser_journey_looks_and_a_tui_journey_is_approved_in_chromium` |
 
 1. **Signing in** (1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
    signed-out words; signing out clears the cookie on later loads. The same
    chat reconnects after a server restart and remains live after rapid reloads.
-2. **History** (1, 2): from the chats to a chat by its link, Back and
-   Forward; a new chat's composer focused, and its filter's address and
-   pressed state kept across a reload and Back. The story awaits Closed
+2. **History** (1, 2), on a playground made through ctl (3): from the chats to
+   a chat by its link, Back and Forward; a chat started from the list
+   replacing the new chat's entry, so that Back lands on the chats and Forward
+   returns to it; a new chat's composer focused, and its filter's address and
+   pressed state kept across a reload and Back; Night's look kept across a
+   reload. The story awaits Closed
    pressed after reloading `/chats?state=closed`, then All pressed after
    Back to `/chats`, each by its exact button name within `WITHIN`
    (skein's `ui/web/testing.md`, 2), independently of a Drafts button arriving
@@ -359,9 +382,10 @@ setup across desktop and phone widths. The twelve test functions in
    line hides its rows until a press, and stays open on its node across a reply,
    `details[open]` being the browser's, which the model doesn't hold
    (`../pages/README.md`).
-4. **The composer** (1, 3), and its model picker (`../pages/README.md`): one press
-   applies a model and an effort, at 420 px and 1440 px, and a press away or
-   Escape closes it.
+4. **The composer** (1, 3), opened at `/chats/new` once signed in, and its
+   model picker (`../pages/README.md`): the picker opens, folds and opens again
+   at 420 px, and a press away at 1440 px or Escape closes it. What a press
+   applies, and the chat it starts, are held below.
 5. **A panic** (1, 4).
 6. **jig's attacks that need a browser** (1, 6): a cross-site request
    from another port and from another host does nothing, and a framed
@@ -376,35 +400,57 @@ setup across desktop and phone widths. The twelve test functions in
    Back, Forward and reload while the completion message disappears.
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4).
-11. **The box's project across a reload:** the playground's project
-    made, the Chats page Live, never Behind, with the story's chat,
-    before and after a reload (`../README.md`, 2). Before that chat, at
-    420 px, Home's To begin and its Start open Ask temper's page, whose
-    composer and model picker end above the three tabs' top (`look.md`, *The
-    project's frame*), and whose ways show their head, the way the
-    project runs, Agents review, shown; "Draft first" chosen from the
-    head's drop-down, as a person chooses it, shows its path and
-    "Use this", the drop-down then reading "Draft first", and choosing
-    "Agents review" from it shows that way again (`../pages/ask-temper.md`, 1, *Ask temper's
-    page*).
+11. **Ask temper's page at a phone's width:** at 420 px, Home's Start opens
+    Ask temper's page at its address, whose composer and model picker end
+    above the three tabs' top (`look.md`, *The project's frame*), and Back
+    returns through Home. The box's project and its chats' Live across a fresh
+    load (`../README.md`, 2), and the ways' head and its drop-down
+    (`../pages/ask-temper.md`, 1, *Ask temper's page*), are held below.
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../../playground.md`, 9).
-13. **Reading a public project** (`public.md`, 4), with no sign-in, its board and task
-    lines readable at 1440 px and 420 px, and losing it when it is made private.
+13. **Reading a public project** (`public.md`, 4), with no sign-in, on a board
+    made through ctl before the page opens (3): its board, and a goal's task
+    page reached by the goal's link at its address, readable at 1440 px and
+    420 px. What the pages say, a project made private, the landings page and a
+    malformed address are held below.
 14. **Reading back** (1, 5), one test of four stories, each on its own page
-    load (3): a short chat opens whole, with no reading status, both its ends
-    in the log; Latest returns a chat to its end, after new words and after a
-    send from far back, the view holding while it reads back; earlier words stay
-    put without the browser's scroll anchoring; and a long chat opens at its end
-    and reads back from the composer, past its window at both ends.
+    load (3): a short chat opens with both its ends in the log and Latest
+    hidden; Latest returns a chat to its end, after new words and after a send
+    from far back, the view holding while it reads back; earlier words stay
+    put without the browser's scroll anchoring; and a long chat opens at its
+    end and reads back from the composer: an earlier read keeping the focus and
+    the words in view across its insertion, a read back until the window lets
+    its end go, one later read from the composer keeping an overlapping reply's
+    box, and Latest bringing the end back into the log. Which lines each window
+    holds, in what order, and the walk to the chat's opening and back are held
+    below.
 15. **A project's rename** closed by Escape, Enter and Save returns the
-    focus to its summary, and never to the page's `main`.
+    focus to its summary, and never to the page's `main`: on 4's setup, at
+    Home, after 4's stories and before 5's. A load in the tab that showed
+    5's failure page shows it again until its restarts are past their
+    minute (`shell.md`, 1; skein's `ui/web/README.md`, 4), so nothing
+    follows the panic in that tab.
 
 16. **The repository sheet** (`../forge/family.md`, 4; `../forge/repositories.md`, 1): scrolling
     the last loaded row into view reads the second page without changing the
     list's bounds; search finds its repository, selection counts it, and adoption
     returns to its row. On the same deployment at phone width, a reopened
     sheet meets the viewport's bottom and keeps its primary button visible.
+17. **A journey's look** (`../drive.md`, 3.6): a scratch journey walked by the
+    journeys' drive session on the shipped bundle; its mark answers one
+    screenshot at 420 px, a PNG, then the page's text, and its kept lines are
+    its lines but the mark. A chain's sequencing and a TUI walk's answers are
+    the drive's focused tests' (below).
+18. **A TUI journey approved in Chromium** (`../drive.md`, 3.3;
+    `../tui/journeys.md`, 8): a scratch TUI journey walked by the same kind
+    of session runs the native TUI on its terminal, waits for its approval
+    prompt, and its `tui approve` presses Approve in the session's Chromium;
+    the launchpad's words then answer its mark, no screenshot is taken, and
+    its kept lines hold `tui approve` and no `tui mark`. It is the one
+    witness of a native TUI signed in through a real browser, which is why
+    it stays in the tier (`temper/docs/design/draft/slow-tests-down.status.md`,
+    Design departs); the rules its walk follows are the drive's focused
+    tests' (below).
 
 The cap includes all browser tests, whatever their names.
 
@@ -455,9 +501,125 @@ Not in the tier, each in the lowest world that shows it:
   world's welcome, forge and adoption stories; the manifest's post, the
   one thing a browser alone shows, stays in 10.
 
+What 2, 4, 11, 13, 14 and 15 asserted on their way, the Workers tab's and the
+journey chain's stories, which left the tier, and the rules 18's walk follows
+(`temper/docs/design/draft/slow-tests-down.md`, 3.2 and 5.1), each beside the
+lower test that holds it:
+- **A public project's pages (13):**
+  - the projects page's heading and its whole list: `temper-client-view-parts`'
+    `tests::public::the_projects_page_lists_its_projects_under_its_heading`, with
+    `projects_are_named_and_the_top_bar_offers_sign_in_from_the_pages_origin`;
+  - the board and a goal's card against the records' fields alone, a long title
+    cut, the goal and its delegate, spend on both, no priority on the board, the
+    executor on the card alone, and none of a signed-in page's words or a
+    forge's address: `tests::public::a_populated_board_and_its_goals_card_show_their_records_alone`,
+    with `the_view_shows_only_what_the_records_carry` and
+    `tests::public::rules::public_row_titles_cut_locally_and_keep_only_the_engines_needed_cut_word`;
+  - the records carrying none of a chat's words, a report, another task's
+    title, a private project's name, an owner, a repository or branch, a review
+    or a forge's address: `temper-one-process-world`'s
+    `suite::public::every_owner_version_and_kind_answers_as_declared`, its
+    markers widened to those;
+  - each row's phase with its live `for …` or ended age at fixed clocks, and a
+    change's landed never read as its task's phase:
+    `tests::public::rules::each_rows_phase_and_time_read_at_fixed_clocks`, with
+    `a_goals_row_shows_phase_time_and_spend_and_a_tasks_no_spend`;
+  - the landings page whole in each of its forms (`public.md`, 4):
+    `tests::public::rules::a_landings_page_reads_whole_in_each_queue_and_merge_form`,
+    with `a_lines_words_never_touch`; the tier's own recognizer of those forms
+    and its focused tables go;
+  - publishing and making private print their lines: `temper-client-tools`'
+    `tests::jig::visibility::made_public_prints_the_page_from_me` and
+    `made_private_prints_no_page`;
+  - a task open when its project is made private reading Unknown at its next
+    read, at its address, a late change not restoring it, and its link reading
+    the empty projects page: `temper-client-shell-web`'s `host_tests_public.rs`
+    `a_task_made_private_reads_unknown_at_its_next_read`; the service answering
+    the card and the change unknown: `temper-one-process-world`'s
+    `suite::public::a_project_made_private_answers_its_card_and_change_unknown`,
+    beside jig's `suite::public::a_public_board_is_read_over_http_bytes_through_the_service`
+    for the board;
+  - Unknown's and the empty projects page's whole words, the top bar's "temper"
+    and "Sign in" among them:
+    `tests::public::unknown_and_empty_pages_read_their_whole_words`;
+  - an upper-case board path read and replaced as `/public`:
+    `temper-client-domain-forge`'s `tests::address::a_malformed_public_path_reads_as_public`
+    and the host's `malformed_paths_are_replaced_and_old_answers_are_ignored`,
+    widened to that path.
+- **The history story's way (2 and 11):**
+  - the playground started and its project chosen, and Home's To begin and
+    Start: the client world's `suite::playground::try_run_and_leave_the_playground_through_its_banner`
+    and the view's `tests::home::home_ready_headline_and_done_steps_hold_in_both_shells`;
+  - the ways' head, "Draft first"'s path and "Use this", and "Agents review"
+    chosen again: the view's `tests::ask::stock_menu_names_and_ticks_the_shown_way_with_current_described`
+    and the client world's `suite::ways::choosing_the_running_way_from_the_menu_shows_it_again`;
+  - the playground's chats under their repository's heading, Live and never
+    Behind across a fresh load: the view's `tests::chats::a_live_playground_chat_is_listed_under_your_chats`
+    and the host's `host_tests.rs` `a_fresh_load_of_a_playgrounds_chats_stays_live`;
+  - Skip on Home, and Needs at its address: the client world's
+    `suite::to_begin::skip_on_home_hides_to_begin_on_every_device` and the
+    host's `a_load_at_a_filtered_address_opens_the_inbox_filtered`;
+  - each filter's rows and its pressed button: the view's
+    `tests::chats::each_filter_selects_its_lines_and_presses_its_bound_button`.
+- **The composer's way (4 and 5):**
+  - Enter starting one chat titled by its first line, and the chat listed by
+    its number: the client world's `suite::stories::enter_in_the_start_composer_starts_one_chat_titled_by_its_first_line`
+    and the view's `tests::chats::a_chats_row_links_to_its_chat_by_number`;
+  - the sent words in the chat: the client world's
+    `suite::chat::a_message_in_a_chat_is_answered_in_its_conversation` and
+    `suite::composer::a_paragraph_pasted_into_a_chat_reads_back`;
+  - the picker's hint, a model's press then an effort's applying to the
+    started chat with no Apply, the byline following each, and the pressed
+    rows: the view's `tests::choice::a_started_chat_says_when_a_change_applies`,
+    `the_chosen_model_and_effort_are_pressed`,
+    `the_model_disclosure_holds_its_rows_and_folds_away` and
+    `tests::choice::a_model_press_then_an_effort_press_read_in_the_byline`, and
+    `temper-client-domain-pages`' `tests::choice::a_model_then_an_effort_press_send_one_amendment_each`.
+- **The rename's way (15):** the rename offered and its form's bindings, a
+  cancel sending nothing, and a rename's request and answer: the view's
+  `tests::frame::an_owner_is_offered_rename_on_the_open_project` and
+  `the_rename_form_binds_its_field_save_and_cancel`, and the client domain's
+  `tests::pages::switcher::cancel_closes_the_form_and_sends_nothing` and
+  `rename_sends_jigs_rename_with_the_new_name`.
+- **Reading's lines (14):**
+  - a short chat read whole with no earlier read, status or Older: the client
+    domain's `tests::pages::chat::a_chat_opens_to_its_opening_or_a_screen_and_a_half`
+    and the view's `tests::chat::the_head_says_when_an_earlier_read_is_out`;
+  - an earlier read's status words and its busy log: `the_head_says_when_an_earlier_read_is_out`
+    and `temper-client-view-work`'s `tests::chat::a_log_is_busy_while_a_read_is_out_or_failed`;
+  - the long chat walked to its opening and back, each window's person
+    messages and replies whole, in their order, with no gap or repeat at a
+    seam, the newest let go reading back and the oldest reading forward:
+    the client world's `suite::reading::a_long_chat_keeps_its_order_through_each_window_both_ways`,
+    beside `suite::reading::reading_back_then_forward_recovers_whole_lines_and_follows_new_turns`
+    and jig's `tests::thread::reading_older_lets_the_newest_go_and_reading_newer_the_oldest`;
+  - Latest reading the end's window once the window let it go: the client
+    world's `suite::reading::latest_replaces_the_past_with_the_ends_window`;
+  - a send from far back reaching the end with the person's words: the client
+    world's `suite::reading::sending_from_the_past_returns_to_the_end_and_shows_the_persons_words`.
+- **The Workers tab** (`../pages/workers.md`, 2), whose story left the tier
+  whole: a worker added, its places changed by the field's submit, read again
+  on a fresh load at the tab's address, and removed: the client world's
+  `suite::builders::an_owner_adds_revises_reopens_and_removes_a_worker`, with
+  the view's `tests::builders::owners_fields_and_presses_bind_in_both_shells_and_gate_add`
+  for the submit binding; a real form's Enter is skein's tier's
+  `chromium_selects_all_replaces_and_submits_a_form`.
+- **A journey's chain** (`../drive.md`, 6), whose story left the tier whole: the
+  ancestor's lines walked first without its mark, the child seeing the page
+  the ancestor's press left, and one screenshot, at the child's mark:
+  `temper-client-journeys-tool`'s `journey_walk::tests::chain_walks_one_journey_session_root_first_with_scripts_and_only_its_own_marks`,
+  with a page the ancestor's press changes.
+- **A TUI journey's answers** (`../drive.md`, 6), which 18 also shows once
+  natively: each line's answer under its
+  journey's line number, the launchpad's rows after an explicit approval,
+  `tui approve` kept and `tui mark` not, and no screenshot:
+  `journey_walk::tests::a_tui_walk_answers_by_its_lines_and_keeps_approve_alone`,
+  beside `drive::tests::tui`'s `journey_tui_approve_is_a_kept_line_on_a_new_or_running_tui`
+  and the playground world's `suite::tui::browser_approval_signs_in_and_restores_its_address`.
+
 ## 7. Open questions
 
-- **A filter row while its project's ways arrive** (`README.md`, 2.3, `testing.md`, 6): Drafts
+- **A filter row while its project's ways arrive** (`addresses.md`, 1, `testing.md`, 6): Drafts
   appears before Closed once the ways offer drafts, moving Closed under
   a person's pointer. Default: keep the conditional Drafts button; a
   separate look decision settles whether the row should reserve its

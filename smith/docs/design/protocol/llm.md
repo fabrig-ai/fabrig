@@ -54,14 +54,14 @@ schemas, decodes what the LLM calls, and renders what the tools return.
 
 A completion's prompt is built from what the domain gives:
 
-- **the system text,** which the domain wrote (domain/run.md, 3.3);
+- **the system text,** which the domain wrote (../domain/run-start.md, 1.3);
 - **the messages,** in order. Each block is translated, and a provider's
   replay goes back verbatim, only to its own dialect;
 - **the tools offered,** with their schemas (section 3), and the
   completion's tool choice;
 - **the model, and the prompt's output cap,** the charter's `output` for
   that model (charter.md, section 2): a dialect that takes an output cap
-  sends it, Anthropic's as `max_tokens` (skein's `llm/README.md`, section 4);
+  sends it, Anthropic's as `max_tokens` (skein's `llm/wire.md`, section 1);
 - **the endpoint's options,** from its configuration, and the reasoning
   effort the conversation's LLM asks for in its charter (charter.md,
   section 2);
@@ -78,7 +78,7 @@ one could otherwise never be sent again. The marker is the request's
 alone: the history keeps the message as it came, and the marker counts
 in the request as any block does, in skein's admission and in the guard
 (section 6). A carried-over history marks its own first
-(domain/session.md, 8.2), so this meets only what that did not. A
+(../domain/session-context.md, 1.2), so this meets only what that did not. A
 program backend sends none of these messages, keeping its own history
 (programs.md), so this is the direct backend's.
 
@@ -87,7 +87,7 @@ program backend sends none of these messages, keeping its own history
 - **One key per run tree, one thread per conversation.** `Affinity { key,
   thread }`: the key is the run tree's identity, 16 opaque bytes, from
   the host's start or minted by the run from its seeded random state
-  (domain/run.md, 3.2); the thread is the conversation's ordinal, main's
+  (../domain/run-start.md, 1.2); the thread is the conversation's ordinal, main's
   being 0. The session puts the affinity unchanged into every prompt of
   the conversation (domain/session.md, section 2). This component passes
   it on and never makes one.
@@ -115,17 +115,17 @@ program backend sends none of these messages, keeping its own history
   once, when the conversation opens.
 - **A window boundary is the one exception.** A compaction opens a new
   window, whose prompt starts afresh from the task, the summary preamble
-  and the summary (domain/session.md, section 8).
+  and the summary (../domain/session-context.md, section 1).
 - **A compaction asks with `None`.** Its request is the window's prompt,
   with the results owed to it and the summary instruction appended
   (section 5), asked with the tool choice `None` whatever the
-  conversation's (section 3; domain/session.md, 8.2). The tool choice is
+  conversation's (section 3; ../domain/session-context.md, 1.2). The tool choice is
   not among what a window fixes:
   - on the OpenAI dialect, which keeps the tool choice outside the
     cached prefix, the request reads the cached prefix;
   - on the Anthropic dialect a changed choice keeps the cache of the
     tools and the system text and loses that of the messages (skein's
-    `llm/README.md`, 4.7), so the compaction writes its window's messages to
+    `llm/wire.md`, 1.7), so the compaction writes its window's messages to
     the cache again. The design accepts that cost, once per window.
 - **Byte-deterministic.** The same prompt becomes the same bytes:
   translation here, rendering (section 5) and skein's dialect encoding
@@ -165,7 +165,7 @@ program backend sends none of these messages, keeping its own history
   tools' `input_schema` lacks the first, with
   `tools.N.custom.input_schema.type: Field required`, and refuses the
   second; the program backend serves its tools under the same rule
-  (programs.md, 5.3). smith's own schemas are written so, `finish`'s
+  (programs-claude-code.md, 1.3). smith's own schemas are written so, `finish`'s
   included (below). A host tool's declared schema, an object, is
   normalized as the program backend's server normalizes it:
   - with no `type` at its top, it is sent with `"type":"object"` as
@@ -244,10 +244,10 @@ program backend sends none of these messages, keeping its own history
   never asked for and never shown (domain/run.md, 5.3). There is no `agents` field: a sub-agent never
   opens sub-agents (section 4). The brief is the child's text in its
   window's host part, and its schema states that bound: a brief past it
-  is invalid, too large (limits.md, 3.9).
+  is invalid, too large (limits-derivation.md, 1.9).
 - **`wait`'s result is deferred.** The run withholds it until a message
   arrives, and then the result and the message go in one request, so an
-  exchange costs one completion (domain/run.md, section 6). Its
+  exchange costs one completion (../domain/run-messages.md, section 1). Its
   description says that it returns with the next message.
 - **The tool choice narrows; the tools never change.** A conversation is
   offered the same definitions for its life. Which of them a completion
@@ -269,12 +269,12 @@ program backend sends none of these messages, keeping its own history
   These alternatives, a `oneOf`, go in one property, `outcome`,
   required, beside nothing else, so that the tool's schema is an object
   schema (above). The tool's schema is, byte for byte, the one the
-  program backend serves (programs.md, 5.3):
+  program backend serves (programs-claude-code.md, 1.3):
   `{"type":"object","properties":{"outcome":ALTERNATIVES},"required":["outcome"],"additionalProperties":false}`,
   ALTERNATIVES the `oneOf` object. The schema is written with skein's
   JSON writer, measured first, and the counts the run admits it by
   include the wrapper's bytes, since they count the schema as sent
-  (limits.md, 3.9).
+  (limits-derivation.md, 1.9).
 - **Names are unique across sources.** A charter that declares a host tool
   named like one of smith's is refused at the entrance (domain/run.md,
   5.1).
@@ -310,7 +310,7 @@ program backend sends none of these messages, keeping its own history
   result in its place, so the history stays replayable
   (domain/session.md, section 4).
 - **Neither goes back as it came.** skein refuses a history that holds
-  an oversize or a cut block (skein's `llm/README.md`, 2.4), so this component
+  an oversize or a cut block (skein's `llm/vocabulary.md`, 1.4), so this component
   replaces each when it builds a prompt from history: a call with its
   provider id and its tool's name, and an empty object as its input,
   followed by its error result, which says what was wrong and how to
@@ -359,7 +359,12 @@ program backend sends none of these messages, keeping its own history
     then `running`, or its end: its exit, its deadline passed, stopped
     or cancelled;
   - a request clamped to a ceiling, saying so and naming the ceiling;
-  - a failure with its output.
+  - a failure with its output;
+  - a command or a `job` wait a drain or a crash cut (domain/turn-parts.md,
+    sections 3 and 4): `interrupted by a worker restart after N s`, N its whole
+    seconds, or `interrupted by a worker restart after an unknown time`,
+    then its output so far as a running command's is rendered, its head,
+    what was dropped and its last bytes, and that it may be run again.
 
   The same rendering serves a live call and a resumed transcript
   (transcript.md, section 5).
@@ -380,7 +385,7 @@ program backend sends none of these messages, keeping its own history
   compaction are rendered within what the window leaves above the
   compaction's history, less the summary instruction, each cut with its
   marker as the rest require; its summary is its output, beside its
-  prompt (limits.md, 2.1 and 3.9). Only
+  prompt (limits.md, 2.1, and limits-derivation.md, 1.9). Only
   that request's tail and its tool choice change: the history before it
   is as it was sent, so the cached prefix holds, but for the messages'
   cache on the Anthropic dialect (2.2).
@@ -442,13 +447,13 @@ program backend sends none of these messages, keeping its own history
   handed over (section 12). Nothing of any delta reaches the domain beyond byte counts.
 - **The guard, before an ordinary request is sent.** When the session
   gives a request the line, its last prompt's reported size and where
-  the new part starts (domain/session.md, 8.1), this layer measures the
+  the new part starts (../domain/session-context.md, 1.1), this layer measures the
   new part, the last answer and every block after it, as the request
   encodes them: the request's encoded body less the encoded body of the
   same request cut where the new part starts, each as skein's client
   measures a request before it is sent, a byte a token. So each block's
   text counts with its escapes, and its framing as encoded, as the
-  prompt's allowance counts a whole prompt's (limits.md, 3.2). When the
+  prompt's allowance counts a whole prompt's (limits-derivation.md, 1.2). When the
   last prompt's size plus that measure passes the line, the request is
   not sent: the call fails as *context too long*, with evidence
   `unsent`, and its detail names the line and the measure. The same
@@ -476,7 +481,7 @@ program backend sends none of these messages, keeping its own history
   The session's classes are these, unchanged (domain/session.md,
   section 4).
 - **A failure's detail is the operator's.** The provider's text goes up
-  with the failure, within skein's failure detail (limits.md, 3.2). The
+  with the failure, within skein's failure detail (limits-derivation.md, 1.2). The
   operator's line on standard error shows it clipped (limits.md, 2.4),
   and the event stream keeps it whole only under content capture
   (agent.md, section 6; events.md, section 3.10). It never enters a
@@ -559,7 +564,7 @@ program backend sends none of these messages, keeping its own history
 - **A credential's scheme says how it is sent, and whether its host may
   renew it** (channel.md, section 6). A bearer goes as an
   authorization bearer and a key as its provider's key, as the
-  endpoint's dialect sends that scheme (skein's `llm/README.md`, 2.6). A scheme the
+  endpoint's dialect sends that scheme (skein's `llm/vocabulary.md`, 1.6). A scheme the
   dialect does not take is a value the agent cannot install (a bearer on
   `anthropic`, which takes a key alone) (channel.md, section 6).
 - **A program source is never read here.** Its run makes no call through
@@ -585,7 +590,7 @@ program backend sends none of these messages, keeping its own history
   covers the tool payload, and one rendered result covers each tool's
   outcome at its caps, a host's reply, a message and a sub-agent's
   result (limits.md, section 4). The system text is the run's, bounded
-  by a window's room (limits.md, 3.9).
+  by a window's room (limits-derivation.md, 1.9).
 - **Stated to the LLM.** The limits a call can meet are written into the
   tools' descriptions from these effective values (section 3).
 - **Receiving and rendering bounds** (programming-model.md, 6.3):
@@ -609,7 +614,7 @@ program backend sends none of these messages, keeping its own history
     per-call headers, `ToolChoice`, an oversized call as a block of its
     own, typed limits and HTTP statuses, Anthropic's cache markers, and
     `Limits::derive`;
-  - the public OpenAI Responses dialect (skein's `llm/README.md`, 4.8) and
+  - the public OpenAI Responses dialect (skein's `llm/wire.md`, 1.8) and
     Anthropic's Messages with a key (4.7), the credential's scheme
     (2.6), and the failure classes exhausted, with its reset only where
     the provider gives one, refused and unsupported, naming its field,
@@ -702,7 +707,7 @@ component and skein's client against scripted byte peers, in each dialect.
     for byte;
   - one exception, Anthropic's tail marker. skein moves that cache
     marker to the newest message's last eligible block on every request
-    (skein's `llm/README.md`, 4.7), and the provider's cache does not hash the
+    (skein's `llm/wire.md`, 1.7), and the provider's cache does not hash the
     marker. So the referee:
     - removes from each request's messages the one marker the dialect
       placed there, exactly the bytes the dialect writes. Since a quote

@@ -34,7 +34,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 | `tasks.depth` | count | 32 | next start | Bounds structural depth below the requester-tree root, which has depth zero. |
 | `tasks.delegates` | count | 80 | next start | Bounds live direct delegates of one requester task. |
 | `tasks.references` | count | 16 | next start | Bounds introduced peer references per live task. |
-| `tasks.subscriptions` | count | 4 | next start | Bounds standing interests per task. |
+| `tasks.subscriptions` | count | 4 | next start | Bounds standing interests per task, with one extra and all kinds counted alike. |
 | `tasks.batch` | count | 160 | next start | Bounds directly created tasks in one atomic nonempty `Make` batch. |
 | `tasks.batch_bytes` | bytes | 4,194,304 | next start | Bounds the complete owned bytes of one task batch. |
 | `tasks.dependencies` | count | 16 | next start | Bounds immutable dependency identities per task, including its remaining live waiting subset. |
@@ -290,6 +290,19 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 | `retention.turns_ms` | milliseconds | 1,209,600,000 | next start | Bounds how long ended tasks keep their transcripts. |
 | `retention.records_ms` | milliseconds | 2,592,000,000 | next start | Bounds how long ended tasks keep their full records and decided person proposals. |
 | `retention.summaries_ms` | milliseconds | 31,536,000,000 | next start | Bounds how long ended tasks keep their summaries. |
+
+## waits
+
+| Name | Unit | Stock | Applies | Bounds |
+|---|---|---|---|---|
+| `waits.question_ms` | milliseconds | 7,200,000 | next start | Bounds a task waiting for its requester to answer a question. |
+| `waits.party_ms` | milliseconds | 28,800,000 | next start | Bounds a question waiting at a person or role when it has no stall of its own. |
+| `waits.news_ms` | milliseconds | 86,400,000 | next start | Bounds a task waiting for news unless the wait is standing. |
+| `waits.host_ms` | milliseconds | 7,200,000 | next start | Bounds a task waiting for a host, counted from a known later reset. |
+| `waits.account_ms` | milliseconds | 7,200,000 | next start | Bounds a task waiting for an account, counted from a known later reset. |
+| `waits.step_ms` | milliseconds | 1,800,000 | next start | Bounds a procedure waiting on a step with no clock of its own. |
+| `waits.room_ms` | milliseconds | 1,800,000 | next start | Bounds a procedure waiting for room when no other clock bounds the wait. |
+| `waits.sign_off_ms` | milliseconds | 86,400,000 | next start | Bounds a wait for sign-off before it becomes overdue. |
 
 ## link
 

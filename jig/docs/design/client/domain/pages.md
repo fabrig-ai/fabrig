@@ -4,7 +4,7 @@ Provisional, 2026-10-09, revised 2026-10-21. The reference UI's pages:
 jig's optional pages, in `jig-client-view`, for `ops` and jig's test
 application: how they are organised, what a party finds where, and what
 they do there. They are built on the public client alone (`jig-client`
-and its helpers, client/README.md, section 4 and client/helpers.md), and they are jig's
+and its helpers, client/vocabulary.md, section 1 and client/helpers.md), and they are jig's
 default arrangement of jig's primitives, which an application on the
 reference UI uses as they are, rearranges, or composes into a tree of
 its own, around its own pages. An application that does not take the
@@ -60,7 +60,7 @@ holds is contract/README.md. What is still open is listed in `pages.md`, section
   conversations, a project's goals, a project's tasks) is one task
   query: live tasks first, watched; ended ones read below them a page at
   a time, through the engine's indexes of ended tasks (12.5;
-  contract/README.md, 4.1). A page lists nothing the API does not serve.
+  contract/reads.md, 1.1). A page lists nothing the API does not serve.
 - **Shapes are sugar.** A chat is started with `shapes::chat` and closed
   with `shapes::close_chat`, a goal set with `shapes::set_goal`: helpers
   filling the application's templates, as `me` serves them for a project
@@ -125,7 +125,7 @@ Deployment       hosts, accounts, connectors, capacity
     live, behind or offline (client/watches.md, 2);
   - *the party part* omitted, with no sign-out of its own, leaves the
     person no way to sign out, nor to learn that a sign-out did not reach
-    the engine (client/README.md, section 9);
+    the engine (client/sign-in.md, section 1);
   - *what needs the party* omitted leaves them no count of what waits
     for them outside the inbox.
 - **Places.** A place is where the person is: one of the reference UI's
@@ -168,7 +168,7 @@ Deployment       hosts, accounts, connectors, capacity
 What waits for the party (`../../domain/people/README.md`, section 5), shown
 across every project they hold a role in. It is the `inbox` subject, the
 people child's own index, not a task query: proposals, escalations and
-questions are entries, not tasks (contract/documents.md, 1, and contract/README.md, 5.1).
+questions are entries, not tasks (contract/documents.md, 1, and contract/watches.md, 1.1).
 
 - **Two groups.**
   - *Needs you:* proposals and escalations to decide, questions to
@@ -229,8 +229,8 @@ activity, the conversation, comes first.
 - **The list:** one task query (12.5): the person's tasks of the chat
   template's label, across projects or in one, by last activity; live
   ones first, watched; ended ones read below them a page at a time,
-  through the engine's index of ended tasks by requester (contract/README.md,
-  4.1). Each line is the chat's task line (contract/documents.md, 1): its name,
+  through the engine's index of ended tasks by requester (contract/reads.md,
+  1.1). Each line is the chat's task line (contract/documents.md, 1): its name,
   its project, what it is doing in words, its turns not yet read, what
   it waits on, its live delegates counted, and its spend.
 - **Starting a chat:** a project and the first words. `shapes::chat`
@@ -238,7 +238,7 @@ activity, the conversation, comes first.
   ): its executor the template's charter, and its budget the merged
   template's (jig's default `AsAllowed`: as much as the person's role
   and pool allow, the answer saying what was given;
-  `../../protocol/configuration.md`, 3.1). The form says both and asks
+  `../../protocol/configuration-templates.md`, 1). The form says both and asks
   neither. A chat may also be started from what it is about (a task's
   page, a held task's card, a goal), with the thing named in its first
   words. Answered with the chat's number once durable, its page opens
@@ -324,7 +324,7 @@ A section with nothing in it is not shown.
   it writes alone, and which run holds the writer slot.
 - **Activity.** For an agent, its conversation and its runs: each run's
   attempt, why it ran, how it began (resuming, or fresh and why where
-  its activity says: `../../domain/engine/executors.md`, 2), how it ended,
+  its activity says: `../../domain/engine/executors-transcripts.md`, 1), how it ended,
   what it spent; failed runs kept, folded. For a procedure, its
   connector's panel, a part. For a party's task, its card, then who
   answered and how.
@@ -439,7 +439,7 @@ Searching by description.
   period, its budget per period, its last batch and when it next runs.
   The engine keeps no calendar: periods are the application's to say,
   and a period says when the next begins only if its source knows
-  (`../../domain/authority.md`, section 7). Where the current one said
+  (`../../domain/authority-budgets.md`, section 1). Where the current one said
   so, the line says when the next period begins; otherwise, that the
   task runs at the next period, with the current period and when it
   began.
@@ -490,7 +490,7 @@ restarts, they start empty.
 
 - **Starting:** while the link is starting, until `me`'s first delivery
   (client/watches.md, 2).
-- **Signing in:** while the link is signed out (client/watches.md, 2, and client/README.md, 9
+- **Signing in:** while the link is signed out (client/watches.md, 2, and client/sign-in.md, 1
   ). The page says how to sign in: by the printed link,
   opening the link the application's startup printed; and by the
   application's own ways of signing in, in a slot the page leaves for
@@ -504,11 +504,11 @@ restarts, they start empty.
 - **Out of date:** while the link is out of date, the engine serving no
   version of jig's that the client speaks (client/watches.md, 2; contract/README.md,
   section 6): the page says so, and how to update. What is pending stays
-  in the client's small store (client/README.md, section 8); what the client
+  in the client's small store (client/small-store.md, section 1); what the client
   sends of it, and when, is client/watches.md's, 2.
 - **Someone else's work:** the client restored requests kept for a
-  party other than the one `me` names, and keeps them parked (client/README.md,
-  section 8): the page says so, and keeps them hidden. The reference UI
+  party other than the one `me` names, and keeps them parked (client/small-store.md,
+  section 1): the page says so, and keeps them hidden. The reference UI
   counts the kept requests the client root routes to it (root.md, section
   8) whose party, as `client.pending(key)` gives it, is not `me`'s; the
   page shows while that count is not zero, and leaves when that party
@@ -572,8 +572,8 @@ inbox, withdrawn, with R's result saying why.
 - **Naming a chat:** a chat is named by its first words; whether its
   person names it, or the chat proposes a name.
 - **A board across projects,** for a party with several.
-- **A person's own LLM accounts:** the `accounts` watch (contract/README.md,
-  5.1) gives every party theirs, with their sign-ins under way; which
+- **A person's own LLM accounts:** the `accounts` watch (contract/watches.md,
+  1.1) gives every party theirs, with their sign-ins under way; which
   page of the reference UI shows them, and its place in view.md's
   places, is not settled. Until it is, an application shows them on its
   own page.
@@ -748,8 +748,8 @@ build its own from the reference UI's page (view-state.md, 2).
   documents for that subject.
 - **What each opens,** through the client, under the reference UI's own
   handles (view-state.md, 2): what is live is watched, and what is past is
-  read, a page at a time, as the person asks (contract/README.md, sections 4
-  and 5):
+  read, a page at a time, as the person asks (contract/reads.md, section 1, and contract/watches.md, section 1
+  ):
 
   | Section | Watches | Reads |
   |---|---|---|

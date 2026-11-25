@@ -161,7 +161,7 @@ past the document:
 | a number | `Fill(1)` per byte; the byte that ends it is held for the next token |
 
 It sends nothing down, so it asks for no room. The side below meets the
-contract of a stream (../runtime/lib.md, 7), and the tokenizer keeps its side of
+contract of a stream (../runtime/lib-streams.md, 1), and the tokenizer keeps its side of
 it: it states a demand only after an answer, withdraws one only when it
 closes, and reads by JSON's framing, so that no read of a whole document
 is larger than what is left of it. What that contract leaves to the side
@@ -192,15 +192,15 @@ pub struct Limits {
   buffer for the text being read, the longer of `string` and `number`,
   both allocated with the tokenizer, and the delivery it reads, at most
   `largest_demand`: a delivery is made to the tokenizer's demand, so it
-  counts it, held for the step that reads it (../testing/README.md, 5). A token's
+  counts it, held for the step that reads it (../testing/service-tiers.md, 1). A token's
   box is the side above's to count once emitted. `None` for a `chunk` of
   zero, and for a `length` of `u32::MAX`: a position at the end of such
-  a document would pass `u32` (section 3.6). A tokenizer made with
+  a document would pass `u32` (`json.md`, section 3.6). A tokenizer made with
   either is its maker's bug, asserted.
 - **`largest_demand(&limits)`** is the larger of `chunk` and 4 (the rest
   of `false`). Whoever stacks the tokenizer checks at startup that it fits
   the cap of the side below: a demand past that cap could never be met,
-  and the side below asserts it (../runtime/lib.md, 7).
+  and the side below asserts it (../runtime/lib-streams.md, 1).
 - **Outputs:** each entrance emits one event above and one request
   below at most: a call emits at most one of each. Only a `Close` of a
   reading tokenizer emits both, `Closed` and the demand withdrawn; an end
@@ -399,7 +399,7 @@ pub struct Limits {
 - **A filter names what is kept,** as a tree of paths written by hand as
   static data. Its caps are named, not numbered: a `Cap` is an index
   into the caps the collector is built with, which the application
-  derives from its limits at startup (../llm/README.md, 4.4). One filter thus
+  derives from its limits at startup (../llm/wire.md, 1.4). One filter thus
   serves every set of derived limits, and a test lowers a cap without
   writing another filter. At each value it walks to, the collector looks the value's
   key up among the children of the node it is in (`Each` for an array's
@@ -540,7 +540,7 @@ never the whole input. Its steps are bounded by the input length.
 
 `tokenizer::Feed` is that driver, for a caller that reads the tokens itself:
 it owns a tokenizer, its two one-entry queues and a `stream::Slice` of the
-input (../runtime/lib.md, 7).
+input (../runtime/lib-streams.md, 1).
 
 ```rust
 Feed::new(input: &[u8], limits: &tokenizer::Limits) -> Feed<'_>
@@ -651,7 +651,7 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
   every byte a string may hold; and what the tokenizer refuses, the writer
   refuses to write.
 - **Memory** (`tests/json/tests/suite/memory.rs`, with the counting allocator,
-  ../testing/README.md, 5): every call of an entry point is a step of the meter, and
+  ../testing/service-tiers.md, 1): every call of an entry point is a step of the meter, and
   what the tokenizer or the encoder held of its own is never more than its
   scenario's named ceiling with headroom. The connection's queues and stream are made before the
   meter; each delivery is made between steps and counts from when it is
@@ -722,7 +722,7 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
 - **A string past its cap is a length, not a failure.** An application
   may want to know that a value was too large, and by how much, without
   holding it: the LLM client turns such a tool call into a per-call
-  outcome (../llm/README.md, section 2.4). A failure would lose the rest of the
+  outcome (../llm/vocabulary.md, section 1.4). A failure would lose the rest of the
   document.
 - **UTF-8 is checked by the tokenizer's own code,** not by
   `core::str::from_utf8` under a scoped `#[expect]`. A string arrives in

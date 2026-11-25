@@ -69,7 +69,7 @@ read.
   and its run are each person's (3).
 
   A landing is counted in the decision that first logs its change in
-  the landing log (`../after-landing.md`, section 10), once a change; the
+  the landing log (`../after-landing-storage.md`, section 1), once a change; the
   row is saved and the subject `status` marked there. A project with no
   repository left in `repositories` counts nothing. Past the bound a
   landing is not counted, as `Landed`'s are not past theirs
@@ -122,7 +122,7 @@ read.
     branch: a live repair of the branch (`queues.md`), or a landing a tier
     still holds red (`../after-landing.md`, 5.3). False with no home;
   - `branch`, the home repository's landing branch, its record's
-    `landing` (`adoption.md`, 8); empty with no home.
+    `landing` (`adoption.md`, 12); empty with no home.
 
   It is marked wherever the subject `changes` is (a queue, a branch's
   red, a merge), and at a look, a brief and a run found unpaid. A look makes the document
@@ -178,7 +178,7 @@ and only with something new to say to them
   it. A run in flight over an hour counts as none, so one that is held or
   waits on an account never stops the next, and its late result is
   dropped, as `running` no longer names it.
-- **Made** as a tier run's task is (`../after-landing.md`, section 3):
+- **Made** as a tier run's task is (`../after-landing-runs.md`, section 2):
   `Request::StatusRun { project, party, since, words, findings, signers
   }`; the root makes a procedure task, code `STATUS_CODE`, funded from
   the party's pool in the project, on `Core::pool_seed(project, party)`
@@ -188,10 +188,10 @@ and only with something new to say to them
   `Domain::status_owner(task)`, the party and project whose `running`
   names it.
 - **What funds it:** the party's pool in the project (jig's
-  `domain/authority.md`, section 7), within that pool's room, the
+  `domain/authority-budgets.md`, section 1), within that pool's room, the
   project's ceiling and the rules' run cap, which a run returns what it
   leaves of. Its payer is the person, so an account is chosen as for any
-  of their runs (jig's `domain/accounts.md`, 4.3): their own, a plan
+  of their runs (jig's `domain/accounts-uses.md`, 1.3): their own, a plan
   included, then those whose uses name them or the project, then the
   deployment's. The project's period funds no brief; a key whose uses
   name the project still pays each person's, as it pays for any work
@@ -444,8 +444,8 @@ no brief or wake (`../../draft/what-reaches-you.md`, sections 4 and 6).
 ## 6. What reaches a person
 
 What an agent may decide for a person, and what reaches them, is one
-setting of a project's, its classes (`../../protocol/configuration/settings.md`,
-2, kind 8), judged by one pure function that the forge's `decided`
+setting of a project's, its classes (`../../protocol/configuration/settings-kinds.md`,
+1, kind 8), judged by one pure function that the forge's `decided`
 (5) and the client (`../../client/pages/README.md`) both call: the crate
 `temper-protocol-reaches`, a step crate on `skein-lib` and the client
 wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
@@ -467,8 +467,8 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
     as the triager's question over a group asks it (`../areas.md`, 6,
     *Its groups*). On the wire and in the store it is `ReachKind`'s last
     variant, `findings`, appended so that every earlier value keeps its
-    encoding (`../../protocol/configuration/settings.md`, 2): the
-    client wire's version moves with its layout
+    encoding (`../../protocol/configuration/settings-kinds.md`, 1): the
+    client wire's layout changes, its version frozen
     (`../../protocol/wires.md`, 9), and `temper-store`, a registered
     family, takes the variant in place, its version unmoved and no
     patch written (jig's `protocol/store/layouts.md`).
@@ -544,7 +544,7 @@ wire's records alone (`../../draft/what-reaches-you.md`, sections 2 to 5).
   bit `i` for its pattern `i`, 0 for any other reason; `away` whether Away
   was on. `Reach::decided` says which. On the wire and in the store a
   reach is the record `Reach`, and a table `ProjectClasses`
-  (`../../protocol/configuration/settings.md`, 2).
+  (`../../protocol/configuration/settings-kinds.md`, 1).
 - **Away may decide** while the table holds an item of `Ask`
   (`Classes::away_may_decide`): what the client's switch is shown by
   (`../../client/pages/README.md`).
@@ -660,7 +660,7 @@ digest are designed (7.4) and not built.
     `LINE` is "1 thing needs you in NAME" or "COUNT things need you in
     NAME", `COUNT` the arrival's `needs` and `NAME` the project's name as
     the core holds it; `N` the project's number, which the browser opens
-    Needs you at (`../../client/web/README.md`, 2.7). Never the
+    Needs you at (`../../client/web/push.md`, 1). Never the
     question's words, its task's title or who asked: the push service
     carries the payload sealed, but a phone shows it on a locked screen.
     A name that would take the payload past skein's `PAYLOAD_BYTES` is
@@ -716,7 +716,7 @@ digest are designed (7.4) and not built.
   person turns it on again on their page.
 - **A box** pushes only if its configuration is given push, as any
   deployment's; a story with no browser registers a device with `temper
-  ctl push add` (`../../client/ctl/tools.md`, 3) whose endpoint is a fake
+  ctl push add` (`../../client/ctl/tools-acts.md`, 1) whose endpoint is a fake
   push service's (skein's `testing/fakes/push.md`).
 
 ### 7.4 Mail and the digest
@@ -755,7 +755,7 @@ the changes it was given.
 
 - **A person with no account** on a deployment whose key names them or
   the project (`../../draft/brief-per-person.md`, 6). Default: that key
-  pays, by jig's `domain/accounts.md`, 4.3's order.
+  pays, by jig's `domain/accounts-uses.md`, 1.3's order.
 
 - **What lands on a goal's branch and then on main** (`attention.md`, 2) counts twice,
   each a change landed. Default: so, said here and in the design of Home.

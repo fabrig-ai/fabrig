@@ -64,6 +64,8 @@ fn row() -> d::TaskLine {
         ended_at: None,
         budget: budget(),
         waits_on: d::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: d::PhaseCounts::ZERO,
         delegates_done: 1,
         delegates_total: 3,
@@ -292,6 +294,10 @@ fn task() -> d::Task {
         session: None,
         settings: None,
         waits_on: d::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         label: 2,
         flags: tasks::Flags::PLAIN,
         last_activity: row().last_activity,
@@ -437,7 +443,7 @@ fn turn_record_with(
     second_input: &[u8],
     second_result: &[u8],
 ) -> jig_domain_core::TurnRecord {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     const BLOCKS: u32 = 5; // Words and two call/result pairs.
 
     let mut blocks = List::with_capacity(BLOCKS);
@@ -638,6 +644,7 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
 fn changes() -> Box<temper_engine_domain_forge::Document> {
     use temper_engine_domain_forge as f;
     Box::new(f::Document::Changes(f::ChangesView {
+        catching_up: None,
         landed_default: Box::new([]),
         landed_default_more: 0,
         project: 7,

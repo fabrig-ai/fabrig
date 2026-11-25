@@ -123,10 +123,12 @@ impl Fill {
                 Request::Prepared { prepared, .. } => Asked::Prepared {
                     prepared: match prepared {
                         Prepared::Candidate { .. } => unreachable!("branch-only clients"),
-                        Prepared::Ready { workspace, conflicts } => Preparation::Ready {
-                            workspace,
-                            conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
-                        },
+                        Prepared::Ready { workspace, conflicts } | Prepared::Recovered { workspace, conflicts, .. } => {
+                            Preparation::Ready {
+                                workspace,
+                                conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
+                            }
+                        }
                         Prepared::Refused { refusal } => Preparation::Refused { refusal },
                         Prepared::Failed { failure, .. } => Preparation::Failed { failure },
                         Prepared::Aborted => Preparation::Aborted,
@@ -145,11 +147,23 @@ impl Fill {
     }
 
     fn done(&mut self, hold: Token, done: Done) -> Vec<Asked> {
-        self.step(Event::Done { owner: hold, done })
+        // Mark writes share this hold's IO lane. Meter each write and removal,
+        // then return the lifecycle or git operation the scenario is waiting for.
+        let mut pending: std::collections::VecDeque<_> = self.step(Event::Done { owner: hold, done }).into();
+        let mut next = Vec::new();
+        while let Some(asked) = pending.pop_front() {
+            if asked == (Asked::Io { op: Kind::Keep }) {
+                pending.extend(self.step(Event::Done { owner: hold, done: Done::Succeeded }));
+            } else {
+                next.push(asked);
+            }
+        }
+        next
     }
 
-    fn files(&mut self, hold: Token, mut next: Vec<Asked>) -> Vec<Asked> {
-        while next.as_slice() == [Asked::Io { op: Kind::Reds }] {
+    /// Settle the prepare's final check files and any due maintenance, metering each step.
+    fn finish_prepare(&mut self, hold: Token, mut next: Vec<Asked>) -> Vec<Asked> {
+        while matches!(next.as_slice(), [Asked::Io { op: Kind::Reds | Kind::Pack }]) {
             next = self.done(hold, Done::Succeeded);
         }
         next
@@ -179,15 +193,13 @@ impl Fill {
             assert_eq!(self.done(hold, missing)[..], [Asked::Io { op: Kind::Fetch }], "the default branch");
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(place) })[..], [Asked::Io { op: Kind::Create }]);
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Fetch }]);
-            assert_eq!(
-                self.done(hold, Done::Fetched { commit: commit(place) })[..],
-                [Asked::Io { op: Kind::CheckOut }]
-            );
+            assert_eq!(self.done(hold, Done::Fetched { commit: commit(place) })[..], [Asked::Io { op: Kind::Counts }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::CheckOut }]);
             let next = self.done(hold, Done::Succeeded);
-            let next = self.files(hold, next);
             if place + 1 < limits.repositories {
                 assert_eq!(next[..], [Asked::Io { op: Kind::Fetch }]);
             } else {
+                let next = self.finish_prepare(hold, next);
                 let [Asked::Prepared { prepared: Preparation::Ready { .. } }] = next[..] else {
                     panic!("the workspace is ready: {next:?}");
                 };
@@ -335,6 +347,7 @@ impl Fill {
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(5) })[..], [Asked::Io { op: Kind::CheckOut }]);
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::IsAncestor }]);
             assert_eq!(self.done(hold, Done::IsAncestor { contains: false })[..], [Asked::Io { op: Kind::Point }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Counts }]);
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Merge }]);
             if place + 1 < limits.repositories {
                 assert_eq!(
@@ -375,7 +388,7 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
     assert_eq!(fill.domain.holds(), limits.workspaces * 2);
     for hold in &active {
         let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits), cut: false });
-        let next = fill.files(*hold, next);
+        let next = fill.finish_prepare(*hold, next);
         let [Asked::Prepared { prepared: Preparation::Ready { conflicts, .. } }] = next[..] else { panic!("prepared") };
         assert_eq!(conflicts, u64::from(limits.repositories) * u64::from(limits.conflicts));
         assert_eq!(

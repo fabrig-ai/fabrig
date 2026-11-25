@@ -1,6 +1,6 @@
 //! Root and caller ownership at Start, Complete and concrete Turn boundaries.
 //! Typed Wait/text neighbours keep provider grammar and transport outside this domain measurement.
-//! Contract: smith/docs/design/domain/run.md, sections 3, 6 and 12;
+//! Contract: smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 12;
 //! smith/docs/design/protocol/limits.md, section 11.
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -119,6 +119,7 @@ fn bounds(messages: u32) -> Limits {
 fn workspace() -> run::Workspace {
     run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: b"work".as_slice().into(),
             root: Token::new(7),
@@ -592,7 +593,8 @@ impl Counted {
                     assert_eq!(complete.owner, owner);
                     assert!(matches!(complete.prompt.purpose, llm::Purpose::Compaction { .. }));
                 }
-                Request::HostCall { .. }
+                Request::Part { .. }
+                | Request::HostCall { .. }
                 | Request::WithdrawHost { .. }
                 | Request::Save { .. }
                 | Request::Deliver { .. }
@@ -602,7 +604,8 @@ impl Counted {
                 | Request::Limited { .. }
                 | Request::MessageRefused { .. }
                 | Request::Lower(
-                    smith_domain::Lower::Io { .. }
+                    smith_domain::Lower::Classify { .. }
+                    | smith_domain::Lower::Io { .. }
                     | smith_domain::Lower::Job { .. }
                     | smith_domain::Lower::CancelIo { .. }
                     | smith_domain::Lower::Check { .. }
@@ -844,7 +847,7 @@ fn assert_generated(history: &root::Transcript, messages: u32) {
 
 fn cap(source: &Counted, waking: &[u8]) -> u64 {
     // Fixed SUMMARY and PREAMBLE texts in smith-domain-run/src/prompt.rs;
-    // domain/run.md, section 3.3. The summary includes the 1,000-word limit.
+    // domain/run-start.md, section 1.3. The summary includes the 1,000-word limit.
     const SUMMARY_BYTES: u64 = 415;
     const PREAMBLE_BYTES: u64 = 97;
 
@@ -1101,6 +1104,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
     let mounted = run::Workspace {
         directories: Box::new([
             run::Directory {
+                results: None,
                 host: format!(
                     "/{:h<width$}",
                     "",
@@ -1127,6 +1131,7 @@ fn maximum_workspace(limits: &run::Limits) -> run::Workspace {
                     .collect(),
             },
             run::Directory {
+                results: None,
                 host: format!(
                     "/{:h<width$}",
                     "",

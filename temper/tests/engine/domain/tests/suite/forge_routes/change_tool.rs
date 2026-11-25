@@ -22,7 +22,7 @@ fn chat_world_in(mut world: World, adopt: bool, words: &[u8]) -> (World, engine:
     (world, chat)
 }
 
-pub(super) fn change(
+pub(crate) fn change(
     world: &mut World,
     chat: &engine::Assignment,
     name: u64,
@@ -32,7 +32,7 @@ pub(super) fn change(
     change_landing(world, chat, name, repository, words, None)
 }
 
-pub(super) fn change_landing(
+pub(crate) fn change_landing(
     world: &mut World,
     chat: &engine::Assignment,
     name: u64,
@@ -249,7 +249,7 @@ fn two_changes_in_one_call_are_one_batch_the_second_after_the_first() {
 
 #[test]
 fn a_change_batch_admits_thirty_two_members_and_refuses_one_more() {
-    const BATCH: u32 = 32; // temper/docs/design/protocol/configuration/settings.md, 7, A batch.
+    const BATCH: u32 = 32; // temper/docs/design/protocol/configuration/settings-output.md, 1, A batch.
     const ONE_MORE: u32 = BATCH + 1;
     const TASK_ROOM: u32 = ONE_MORE * 2; // One change and one producer for each member.
     // Both admission rows, including their world setup, measured 102 ms CPU together.
@@ -1315,7 +1315,7 @@ pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, bran
     land_titled_change(world, producer, branch, b"Small fix");
 }
 
-pub(super) fn deliver_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
+pub(crate) fn deliver_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
     push_change(world, branch);
     let tasks::Contract::Change { connector, .. } = live(world, producer.task).contract else {
         panic!("change contract")

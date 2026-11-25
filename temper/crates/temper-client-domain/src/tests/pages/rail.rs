@@ -1,4 +1,4 @@
-//! The rail's rules and domain facts (temper/docs/design/client/view.md, 3).
+//! The rail's rules and domain facts (temper/docs/design/client/view-navigation.md, 1).
 use super::{
     fixtures as f,
     welcome::{deliver, event, up},
@@ -144,6 +144,7 @@ fn project_domain(second: Option<c::PartyKind>) -> Domain {
         &mut root,
         Up::FamilyServed {
             family: wire::FORGE,
+            served: true,
             versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
         },
     );

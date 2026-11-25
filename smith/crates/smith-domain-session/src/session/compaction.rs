@@ -1,4 +1,4 @@
-//! Whole-window replacement (smith/docs/design/domain/session.md, section 8.2). The session
+//! Whole-window replacement (smith/docs/design/domain/session-context.md, section 1.2). The session
 //! keeps opener text aside while the provider summarises the old history.
 //! This module knows no provider wire form or run policy. Admission, `start`,
 //! `open_window` and the content-free facts are the session's call sites.
@@ -419,7 +419,11 @@ pub(super) fn follow(conversation: &mut Conversation, facts: &mut crate::facts::
             conversation.compaction = Compaction::Idle;
         }
         Request::Ended { .. }
+        | Request::Part { .. }
         | Request::JobsCancelled { .. }
+        | Request::RateLimitWait { .. }
+        | Request::RateLimitWaitDone { .. }
+        | Request::RateLimitOutlastsSession { .. }
         | Request::Opened { .. }
         | Request::Yielded { .. }
         | Request::Used { .. }

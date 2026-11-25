@@ -10,7 +10,11 @@ use skein_lib::{Duration, Env, Intake, Queue, Time, Token, Wall};
 use smith_agent_world::backend::{Backend, Progress};
 use smith_domain::{Event, GrantName, Request, llm, run};
 use smith_protocol_llm::{Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain};
-use std::collections::{BTreeMap, VecDeque};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    rc::Rc,
+};
 
 /// One logical call's public receiving contract and independently received HTTP request.
 #[derive(Debug)]
@@ -19,6 +23,12 @@ pub struct Call {
     pub receiving: Receiving,
     pub request: Vec<u8>,
     pub started: (Time, Wall),
+    /// Clock when the byte peer decoded this request, before account checks.
+    pub received_at: Option<Time>,
+    /// Typed client failure, independent of the session's final answer.
+    pub failure: Option<llm::Failure>,
+    /// Transport evidence from a failed request, including its received head.
+    pub evidence: Option<llm::Evidence>,
     /// The component terminal and its clock, independent of pooled socket retirement.
     pub terminal: Option<(Time, Wall, Terminal)>,
 }
@@ -54,8 +64,27 @@ struct Socket {
     peer_grant: u32,
 }
 
+/// The independently configured fake domain shared by successive wire clients.
+/// Switch only between settled activations: outstanding replies belong to their transport.
+#[derive(Clone)]
+#[expect(missing_debug_implementations, reason = "the fake provider does not expose its internal state")]
+pub struct Peer {
+    domain: Rc<RefCell<fake::Domain>>,
+    limits: fake::Config,
+}
+
+impl Peer {
+    /// Use a domain already checked by its document loader, with the same limits at each step.
+    #[must_use]
+    pub fn new(domain: fake::Domain, limits: fake::Config) -> Self {
+        Self { domain: Rc::new(RefCell::new(domain)), limits }
+    }
+}
+
 /// One production component owns calls and connection reuse; the fixture owns only byte delivery.
 pub struct Protocol {
+    pub(crate) faults: crate::faults::Faults,
+    call_names: BTreeMap<Token, String>,
     component: Component,
     env: Env<ComponentLimits>,
     above: Queue<ToDomain>,
@@ -63,9 +92,10 @@ pub struct Protocol {
     service: provider::Service,
     peer_env: Env<provider::Limits>,
     credentials: Box<[skein_llm::Credential]>,
-    provider: fake::Domain,
+    provider: Rc<RefCell<fake::Domain>>,
     provider_env: Env<fake::Config>,
     replies: Queue<fake::Request>,
+    held: BTreeSet<Token>,
     sockets: BTreeMap<Token, Socket>,
     next_socket: u64,
     pending: VecDeque<Pending>,
@@ -90,8 +120,68 @@ impl Protocol {
         seed: u64,
         domain: &smith_domain::Limits,
     ) -> Self {
-        let mut limits =
-            smith_protocol_llm_fixtures::component(translation, Duration::from_secs(60)).expect("receiving bounds");
+        Self::with_grant(configuration, translation, scripts, seed, domain, GrantName { account: 0, generation: 1 })
+    }
+
+    /// Build with the host's initial source identity instead of the standalone fixture's.
+    #[must_use]
+    pub fn with_grant(
+        configuration: Configuration,
+        translation: smith_protocol_llm::Limits,
+        scripts: Box<[fake::api::Script]>,
+        seed: u64,
+        domain_limits: &smith_domain::Limits,
+        initial: GrantName,
+    ) -> Self {
+        let limits = fake::Config { calls: 256, cache_entries: 256, accounts: 1, ..skein_llm_kit::fake::config() };
+        let domain = fake::Domain::try_scripted(&limits, 3, scripts).expect("bounded scripts");
+        Self::connect(
+            (configuration.endpoint, configuration.usage_fields, configuration.credential),
+            translation,
+            Peer::new(domain, limits),
+            seed,
+            domain_limits,
+            initial,
+        )
+    }
+
+    /// Attach a plaintext client to a caller-owned peer without resetting its state.
+    #[must_use]
+    pub fn with_peer(
+        configuration: &Configuration,
+        translation: smith_protocol_llm::Limits,
+        peer: Peer,
+        seed: u64,
+        domain: &smith_domain::Limits,
+        initial: GrantName,
+    ) -> Self {
+        let credential = skein_llm::Credential {
+            scheme: configuration.credential.scheme,
+            value: configuration.credential.value.clone(),
+        };
+        Self::connect(
+            (configuration.endpoint.clone(), configuration.usage_fields, credential),
+            translation,
+            peer,
+            seed,
+            domain,
+            initial,
+        )
+    }
+
+    fn connect(
+        (endpoint, usage_fields, credential): (skein_llm::Endpoint, documents::UsageFields, skein_llm::Credential),
+        translation: smith_protocol_llm::Limits,
+        peer: Peer,
+        seed: u64,
+        domain: &smith_domain::Limits,
+        initial: GrantName,
+    ) -> Self {
+        let mut limits = smith_protocol_llm_fixtures::component(
+            translation,
+            smith_agent_service::profile::standard().policy.connection_keep,
+        )
+        .expect("receiving bounds");
         limits.connection.calls = 64;
         limits.connection.connections = 64;
         limits.connection.per_endpoint = 64;
@@ -105,18 +195,22 @@ impl Protocol {
             max_failure_bytes: domain.session.failure_bytes,
             decoded_call_bytes: domain.decoded_call_bytes,
         };
-        let peer_limits = skein_llm_kit::fake::limits(&translation.client);
+        let mut peer_limits = skein_llm_kit::fake::limits(&translation.client);
+        peer_limits.http.body = peer_limits.http.body.max(u64::from(translation.client.http.request));
+        peer_limits.http.read = translation.client.http.read;
+        peer_limits.http.send = translation.client.sse.chunk;
+        peer_limits.sse.chunk = translation.client.sse.chunk;
         let service = provider::Service::new(
             provider::Config {
                 list: None,
                 list_status: None,
                 echo: skein_llm::openai::Echo::NONE,
-                usage_fields: configuration.usage_fields,
-                provider: match configuration.endpoint.provider {
+                usage_fields,
+                provider: match endpoint.provider {
                     skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
                     skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
                 },
-                path: configuration.endpoint.target.clone(),
+                path: endpoint.target.clone(),
                 headers: Box::new([]),
                 without_credential: false,
             },
@@ -133,7 +227,7 @@ impl Protocol {
                     credential: skein_llm::client::CredentialLimits { value: 128 },
                     address: "127.0.0.1:443".parse().expect("fixture address"),
                     transport: skein_llm_connection::Transport::Plaintext,
-                    llm: configuration.endpoint,
+                    llm: endpoint,
                 },
                 oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
             }]),
@@ -141,25 +235,25 @@ impl Protocol {
         )
         .expect("fixture endpoint");
         let mut component = Component::new(&limits, endpoints).expect("production component");
-        let credential = match configuration.credential.scheme {
-            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()),
-            skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()),
+        let grant = match credential.scheme {
+            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+            skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()),
         };
-        component
-            .grant(GrantName { account: 0, generation: 1 }, credential, Time::from_nanos(u64::MAX))
-            .expect("fixture grant");
-        let config = fake::Config { calls: 256, cache_entries: 256, ..skein_llm_kit::fake::config() };
+        component.grant(initial, grant, Time::from_nanos(u64::MAX)).expect("fixture grant");
         Self {
+            faults: crate::faults::Faults::default(),
+            call_names: BTreeMap::new(),
             component,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),
             below: Queue::uncapped(),
             service,
             peer_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: peer_limits },
-            credentials: Box::new([configuration.credential]),
-            provider: fake::Domain::try_scripted(&config, 3, scripts).expect("bounded scripts"),
-            provider_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config },
+            credentials: Box::new([credential]),
+            provider: peer.domain,
+            provider_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: peer.limits },
             replies: Queue::uncapped(),
+            held: BTreeSet::new(),
             sockets: BTreeMap::new(),
             next_socket: 100,
             pending: VecDeque::new(),
@@ -172,9 +266,51 @@ impl Protocol {
             referee: skein_world::domain::Referee::new(crate::referee::Meeting::default()),
         }
     }
+    /// Keep the fake provider's state across process activations, not its client sockets.
+    pub fn continue_provider(&mut self, previous: &mut Self) {
+        core::mem::swap(&mut self.provider, &mut previous.provider);
+    }
+
+    /// Grant caller-owned fixture credentials, in the peer's stable credential order.
+    pub fn grant(&mut self, name: GrantName, credential: skein_llm::Credential) {
+        let peer = match credential.scheme {
+            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+            skein_llm::Scheme::Key => skein_llm::Credential::key(credential.value.clone()),
+        };
+        self.component.grant(name, credential, Time::from_nanos(u64::MAX)).expect("fixture grant");
+        let mut credentials = core::mem::take(&mut self.credentials).into_vec();
+        if !credentials.iter().any(|kept| kept.scheme == peer.scheme && kept.value == peer.value) {
+            credentials.push(peer);
+        }
+        self.credentials = credentials.into_boxed_slice();
+    }
+
     pub(crate) fn calls(&self) -> &[Call] {
         &self.calls
     }
+    /// Strike one credential in the fake provider at the supplied clock.
+    /// # Errors
+    /// Refuses a strike that exceeds the fake provider's account or model bounds.
+    pub fn strike(&mut self, credential: u32, strike: fake::api::Strike, now: Time) -> Result<(), fake::api::Error> {
+        self.provider.borrow_mut().strike(credential, strike.clone(), now)?;
+        self.faults.strike(credential, strike, now);
+        Ok(())
+    }
+    pub(crate) fn renew(&mut self, generation: u64, until: Time) {
+        let credential = self.credentials.first().expect("one fixture account");
+        let renewed = match credential.scheme {
+            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(credential.value.clone()),
+            skein_llm::Scheme::Key => panic!("the host never renews a key"),
+        };
+        self.component.grant(GrantName { account: 0, generation }, renewed, until).expect("fixture renewal");
+    }
+
+    /// Clear one fake provider fault at the supplied clock.
+    pub fn clear(&mut self, credential: u32, strike: &fake::api::Strike, now: Time) {
+        self.provider.borrow_mut().clear(credential, strike);
+        self.faults.clear(credential, strike, now);
+    }
+
     fn at(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
@@ -336,7 +472,7 @@ impl Protocol {
             incoming.extend(event);
             while let Some(event) = socket.up.pop() {
                 if let provider::Event::Domain(event) = event {
-                    if let fake::Event::Call { query, .. } = &event {
+                    if let fake::Event::Call { query, call: token, .. } = &event {
                         let position = self
                             .pending
                             .iter()
@@ -345,6 +481,13 @@ impl Protocol {
                         let index = self.pending.remove(position).expect("matching pending request").index;
                         let call = &mut self.calls[index];
                         call.request = core::mem::take(&mut socket.request);
+                        call.received_at = Some(self.env.now);
+                        let name = self
+                            .call_names
+                            .get(&call.owner)
+                            .cloned()
+                            .unwrap_or_else(|| format!("request {}", call.owner.raw()));
+                        self.faults.call(*token, query.credential, name);
                         let seen = match crate::referee::NativeRequest::from_http(&call.request) {
                             Ok(request) => crate::referee::Seen::Request { owner: call.owner, request },
                             Err(finding) => crate::referee::Seen::RequestFinding(finding),
@@ -352,7 +495,7 @@ impl Protocol {
                         self.referee.observe(self.env.now, seen, &mut Vec::new());
                         progress.queries.push(query.clone());
                     }
-                    fake::step(&mut self.provider, &self.provider_env, event, &mut self.replies);
+                    fake::step(&mut self.provider.borrow_mut(), &self.provider_env, event, &mut self.replies);
                     progress.immediate = true;
                 }
             }
@@ -365,6 +508,12 @@ impl Protocol {
 }
 
 impl Backend for Protocol {
+    fn renewable(&self) -> bool {
+        self.credentials.first().is_some_and(|credential| credential.scheme == skein_llm::Scheme::Bearer)
+    }
+    fn name_call(&mut self, owner: Token, name: &str) {
+        self.call_names.insert(owner, name.into());
+    }
     fn contract(&mut self, outcome: run::outcome::OutcomeSpec, deliver: Option<run::outcome::ChangeSpec>) {
         self.contract = Some(outcome);
         self.deliver = deliver;
@@ -390,7 +539,16 @@ impl Backend for Protocol {
         let index = self.calls.len();
         assert!(self.active.insert(owner, index).is_none());
         self.pending.push_back(Pending { index, model: prompt.model.clone(), system: prompt.system.clone() });
-        self.calls.push(Call { owner, receiving: bounds, request: Vec::new(), started: (now, wall), terminal: None });
+        self.calls.push(Call {
+            owner,
+            receiving: bounds,
+            request: Vec::new(),
+            started: (now, wall),
+            received_at: None,
+            failure: None,
+            evidence: None,
+            terminal: None,
+        });
         self.component.from_domain(
             &self.env,
             FromDomain::Complete {
@@ -427,10 +585,23 @@ impl Backend for Protocol {
             self.io(request);
             self.drain_measures();
         }
-        while self.provider.is_due(now) {
-            fake::fire(&mut self.provider, &self.provider_env, &mut self.replies);
+        while self.provider.borrow().is_due(now) {
+            fake::fire(&mut self.provider.borrow_mut(), &self.provider_env, &mut self.replies);
         }
         while let Some(reply) = self.replies.pop() {
+            let reply = self.faults.report(now, reply);
+            let reply = match reply {
+                reply @ fake::Request::Hold { call, .. } => {
+                    self.held.insert(call);
+                    reply
+                }
+                fake::Request::Reply { to, result } => {
+                    let token = to.into_token();
+                    self.held.remove(&token);
+                    fake::Request::Reply { to: skein_lib::ReplyTo::new(token), result }
+                }
+                reply @ fake::Request::Piece { .. } => reply,
+            };
             let Ok((socket, reply)) = self.service.target(reply) else { continue };
             if let Some(binding) = self.sockets.get_mut(&socket) {
                 provider::down(
@@ -454,11 +625,16 @@ impl Backend for Protocol {
                     Event::Below(smith_domain::Below::Completed { owner, completion }),
                     Terminal::Completed(owner),
                 ),
-                ToDomain::Failed { owner, failure, evidence, detail, report } => (
-                    owner,
-                    Event::Below(smith_domain::Below::Failed { owner, failure, evidence, detail, report }),
-                    Terminal::Failed(owner),
-                ),
+                ToDomain::Failed { owner, failure, evidence, detail, report } => {
+                    let call = &mut self.calls[*self.active.get(&owner).expect("live failing call")];
+                    call.failure = Some(failure);
+                    call.evidence = Some(evidence);
+                    (
+                        owner,
+                        Event::Below(smith_domain::Below::Failed { owner, failure, evidence, detail, report }),
+                        Terminal::Failed(owner),
+                    )
+                }
                 ToDomain::Cancelled { owner } => {
                     (owner, Event::Below(smith_domain::Below::Cancelled { owner }), Terminal::Cancelled(owner))
                 }
@@ -471,7 +647,7 @@ impl Backend for Protocol {
             progress.terminals.push((owner, event));
             progress.immediate = true;
         }
-        self.provider.reclaim();
+        self.provider.borrow_mut().reclaim();
         self.service.reclaim();
         self.component.reclaim();
         self.referee.assert_holding(self.seed);
@@ -492,10 +668,13 @@ impl Backend for Protocol {
             && self.component.closed()
             && self.sockets.is_empty()
             && self.active.is_empty()
-            && self.provider.calls() == 0
+            && self.service.calls() == 0
+            // A never-released hold belongs to the fake's lifetime. Once the
+            // peer has closed its route, it cannot answer this client.
+            && usize::try_from(self.provider.borrow().calls()).expect("fake call count") == self.held.len()
     }
     fn next_deadline(&self) -> Option<Time> {
-        self.component.next_deadline().into_iter().chain(self.provider.next_deadline()).min()
+        self.component.next_deadline().into_iter().chain(self.provider.borrow().next_deadline()).min()
     }
     fn assert_settled(&self) {
         assert!(self.is_settled());

@@ -11,13 +11,21 @@ pub const HOOK_SECRET: &[u8] = b"real-loop-hook-secret";
 #[derive(Clone, Copy)]
 pub struct Fixture {
     pub setup: fn() -> api::Setup,
+    /// Arrange branches on the fake before connecting the real clients.
+    pub prepare: fn(&mut domain::Domain, &Env<domain::Config>),
     pub manual_merges: api::ManualMerges,
     pub extra_setups: fn() -> Box<[api::Setup]>,
     pub configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value, SocketAddr),
 }
 #[must_use]
 pub fn fixture() -> Fixture {
-    Fixture { setup, manual_merges: api::ManualMerges::OFF, extra_setups: || Box::new([]), configure: |_, _, _| {} }
+    Fixture {
+        setup,
+        prepare: |_, _| {},
+        manual_merges: api::ManualMerges::OFF,
+        extra_setups: || Box::new([]),
+        configure: |_, _, _| {},
+    }
 }
 fn setup() -> api::Setup {
     api::Setup {
@@ -65,79 +73,16 @@ pub struct Snapshot {
     pub branches: Box<[(Box<[u8]>, u64)]>,
     pub pulls: Box<[u64]>,
 }
-/// The first completed attempt of a dispatch, before a rerun can replace it.
-pub struct Dispatched {
-    pub run: api::Run,
-    pub jobs: Box<[api::Job]>,
-    pub tree: Box<[api::File]>,
-}
 #[derive(Default)]
 pub struct Seen {
-    handle: Option<Rc<RefCell<Forge>>>,
-    dispatched: std::collections::BTreeMap<u64, Dispatched>,
     snapshots: Vec<Snapshot>,
     deliveries: Vec<Delivery>,
     peer_records: usize,
-    pub(crate) responses: Vec<u16>,
     observations: Vec<domain::Observation>,
     merged_green: bool,
     main: std::collections::BTreeMap<Vec<u8>, Vec<u8>>,
 }
 impl Seen {
-    /// Referee reads of completed dispatches; subsequent reruns do not erase evidence.
-    pub fn dispatched(&self) -> impl Iterator<Item = &Dispatched> {
-        self.dispatched.values()
-    }
-    fn read_dispatches(&mut self, repository: &[u8]) -> Result<(), String> {
-        let forge = self.handle.as_ref().ok_or("story forge")?.borrow();
-        if forge.config.limits.workflows == 0 {
-            return Ok(());
-        }
-        let api::Answer::Runs(runs) = forge
-            .domain
-            .inspect(
-                &forge.config,
-                repository,
-                &api::Read::Runs { workflow: None, commit: None, number: None, page: 1, limit: 32 },
-            )
-            .map_err(|why| format!("outside runs: {why:?}"))?
-        else {
-            return Err("runs".into());
-        };
-        for run in runs {
-            if run.event != api::RunEvent::Dispatch
-                || run.state != api::RunState::Completed
-                || self.dispatched.contains_key(&run.id)
-            {
-                continue;
-            }
-            let api::Answer::Jobs(jobs) = forge
-                .domain
-                .inspect(&forge.config, repository, &api::Read::Jobs { run: run.id })
-                .map_err(|why| format!("outside jobs: {why:?}"))?
-            else {
-                return Err("jobs".into());
-            };
-            let api::Answer::Tree(tree) = forge
-                .domain
-                .inspect(&forge.config, repository, &api::Read::Tree { commit: run.commit })
-                .map_err(|why| format!("outside dispatched tree: {why:?}"))?
-            else {
-                return Err("tree".into());
-            };
-            if self.dispatched.len() >= usize::try_from(STORY_OBSERVATIONS).expect("observation bound") {
-                return Err("bounded dispatch reads".into());
-            }
-            self.dispatched.insert(run.id, Dispatched { run, jobs, tree });
-        }
-        Ok(())
-    }
-    /// Outside reads use the same API as the referee, including closed pulls and runs.
-    #[must_use]
-    pub fn read(&self, repository: &[u8], read: &api::Read) -> api::Answer {
-        let forge = self.handle.as_ref().expect("story forge").borrow();
-        forge.domain.inspect(&forge.config, repository, read).expect("outside forge API read")
-    }
     #[must_use]
     pub fn snapshots(&self) -> &[Snapshot] {
         &self.snapshots
@@ -146,10 +91,6 @@ impl Seen {
     #[must_use]
     pub fn deliveries(&self) -> &[Delivery] {
         &self.deliveries
-    }
-    #[must_use]
-    pub fn responses(&self) -> &[u16] {
-        &self.responses
     }
     #[must_use]
     pub fn merged_green(&self) -> bool {
@@ -195,7 +136,6 @@ impl Seen {
         handle: &Rc<RefCell<Forge>>,
         repository: &[u8],
     ) -> Result<(), String> {
-        self.handle.get_or_insert_with(|| handle.clone());
         let previous = self.observations.len();
         loop {
             let Some(observed) = handle.borrow_mut().domain.pop_observation() else { break };
@@ -231,8 +171,7 @@ impl Seen {
             }
             self.observations.push(observed);
         }
-        // Every forge change, including CI completion, is observed. Unchanged
-        // passes need neither a branch snapshot nor a dispatch listing.
+        // Unchanged passes need no branch snapshot.
         let changed = self.snapshots.is_empty() || self.observations.len() != previous;
         if changed {
             let forge = handle.borrow();
@@ -256,9 +195,6 @@ impl Seen {
                 }
                 self.snapshots.push(Snapshot { at: now, branches, pulls });
             }
-        }
-        if changed {
-            self.read_dispatches(repository)?;
         }
         self.collect_deliveries(peer.observations())
     }
@@ -352,6 +288,7 @@ impl State {
             domain::manual_merges(&mut domain, &name, fixture.manual_merges);
             domain::grant(&mut domain, &name, 1, api::Permission::Write);
         }
+        (fixture.prepare)(&mut domain, &Env { now: now.now, wall: now.wall, limits: config.clone() });
         let handle = Rc::new(RefCell::new(Forge::new(domain, config)));
         crate::git::share(Some(temper_fake_git_hosted::Typed::new(handle.clone(), &table)));
         let peer = Peer::new(
@@ -376,9 +313,6 @@ impl State {
             secret: Secret::new(HOOK_SECRET.into()),
         });
         self.hooked = true;
-    }
-    pub(crate) fn advance(&mut self, now: Time, wall: Wall) -> Result<(), String> {
-        self.push(now, wall, b"conflict.txt", b"other\n")
     }
     pub(crate) fn push(&mut self, now: Time, wall: Wall, path: &[u8], words: &[u8]) -> Result<(), String> {
         let mut forge = self.handle.borrow_mut();

@@ -1,10 +1,10 @@
-//! Input gates and the settings warning after start (temper/docs/design/protocol/README.md, 6.2;
-//! jig/docs/design/domain/engine/settings.md, 7).
+//! Input gates and the settings warning after start (temper/docs/design/protocol/service-process.md, 1.2;
+//! jig/docs/design/domain/engine/settings-store.md, 1).
 use alloc::boxed::Box;
 use jig_domain_core::start::Phase;
 use skein_lib::{Decimal, Time, bytes};
 
-/// Why the gate keeps a party's input from the root (protocol/README.md, 6.2).
+/// Why the gate keeps a party's input from the root (protocol/service-process.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CoreWait {
     Starting { step: Option<Phase> },
@@ -50,13 +50,11 @@ pub(crate) fn starting(step: Option<Phase>) -> &'static [u8] {
         Some(Phase::Switch) => b"switching the store",
         Some(Phase::Wires) => b"committing the wires",
         Some(Phase::AdoptRuns) => b"adopting runs",
-        Some(Phase::ReadAfresh { .. }) => b"reading the forge afresh",
-        Some(Phase::SettleOutbox { .. }) => b"settling the forge's outbox",
         Some(Phase::Open) => b"opening decisions",
     }
 }
 
-/// One warning after start for values kept in the stock range (jig/docs/design/domain/engine/settings.md, 7).
+/// One warning after start for values kept in the stock range (jig/docs/design/domain/engine/settings-store.md, 1).
 pub(crate) fn settings_kept(settings: &[jig_domain_core::settings::Setting]) -> Box<[u8]> {
     use jig_domain_core::settings::Setting;
     let mut line: Box<[u8]> =

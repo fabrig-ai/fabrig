@@ -1,6 +1,6 @@
 # Hosts
 
-Provisional, 2026-10-05, revised 2026-10-28. The other side of a run:
+Provisional, 2026-10-05, revised 2026-11-24. The other side of a run:
 what a host owes an agent and is owed, the channel between them, and the
 domains smith ships for hosts: `smith-host-domain`, which a host embeds
 to start and supervise agent processes; `smith-inline-agent`, its twin,
@@ -40,21 +40,21 @@ What a host and a run say to each other, in order.
 
 Down, from the host:
 
-- **the start** first (run.md, 3.2): the charter, the workspace, the
+- **the start** first (run-start.md, 1.2): the charter, the workspace, the
   transcript and the calls answered after it, the messages that
   triggered the run, credential grants, an activation number, the
   run's identity, and, if the host wants its words as they come, the ask
   for live content: one boolean for each kind (`text`, `reasoning`,
   `input`; protocol/channel.md, section 3). The transcript is the current window's turns only:
   those from the last turn that opens a window, as each told turn says
-  (section 6). The identity is opaque, of the size the vocabulary seals
+  (`host.md`, section 6). The identity is opaque, of the size the vocabulary seals
   (protocol/limits.md, section 2.4); the host keeps it the same across
   the run's starts, resumes included, or gives none and the run mints
   one. Each conversation of the run carries it with a thread number of
-  its own, main's being zero (run.md, section 3.2);
-- **messages,** named, in order (run.md, section 6);
+  its own, main's being zero (run-start.md, section 1.2);
+- **messages,** named, in order (run-messages.md, section 1);
 - **answers** to the run's calls: host tools' (text, as a result or an
-  error), deliveries' (run.md, 8.2), busy, unavailable, withdrawn, too
+  error), deliveries' (run-delivery.md, 1.2), busy, unavailable, withdrawn, too
   large;
 - **credential grants,** refreshed (section 7);
 - **acknowledgements** of turns, when the host keeps them (section 6);
@@ -107,7 +107,7 @@ Messages:
   - **unread:** the run answered without reading it. The answer's fence
     says which; a message is never read after the answer.
 - **A start's messages** enter the run's inbox at admission, before any
-  message sent after the start, and the run opens on them (run.md, 3.4).
+  message sent after the start, and the run opens on them (run-start.md, 1.4).
   A host that has the first message before it starts a run carries it
   so; one that starts a run before it has a message relays it later.
 
@@ -121,7 +121,7 @@ What a host owes:
   activation number, never reused, which every name carries.
 - **A delivery is never abandoned.** One in flight runs to its end, which
   its deadline bounds, and is answered with what it did, so one that
-  landed is reported landed. A save is a delivery here (run.md, 8.5).
+  landed is reported landed. A save is a delivery here (run-delivery.md, 1.5).
 - **Nothing written after a stop.** The host touches the workspace only
   once the run and everything it started are gone, but for the delivery
   it asked for.
@@ -198,8 +198,9 @@ policy.
   sent to it; while a call waits for its answer, which the run's own
   deadline for it bounds; and while a turn waits for room to be sent
   (section 6). It stretches to the span of the long operations the run
-  reports (its checks, its LLM completions, its commands, its `job`
-  calls' waits, a completion's wait for a grant: session.md, section 4),
+  reports (its checks, its LLM completions and their waits out of a
+  rate limit, its commands, its `job` calls' waits, a completion's wait
+  for a grant: session.md, section 4),
   each bounded by the run's own deadlines, until the run
   says each is done. A job that runs on between calls is no long
   operation: the run reports the calls that read it. What
@@ -218,7 +219,7 @@ policy.
   operation (a program's own tools report none), and a run with no call
   running and no turn coming is stopped once it has been silent past the
   longest of them. `host_limits`, the host's share of the profile
-  (protocol/limits.md, 3.8), computes it from the profile, the agent's
+  (../protocol/limits-derivation.md, 1.8), computes it from the profile, the agent's
   limits and the endpoints' declarations (smith's `EndpointLimits`, the
   `limits` of `smith-domain`'s `Config`), each term checked, an overflow
   refused as `derived` naming `no_progress`. At the `standard` profile,
@@ -252,9 +253,9 @@ policy.
   (`temper/docs/design/domain/worker/README.md`, section 2); smith's
   local host writes it to its log and goes on. So a stray signal, as a
   service manager's that signals every process of a unit, never cuts a
-  run its host means to keep (temper's `draft/worker-restarts.md`,
+  run its host means to keep (temper's `draft/archive/worker-restarts.md`,
   section 2).
-- **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2).
+- **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2). A parent whose start asked for parts may give the drain a grace, which the kit carries down as it is: the run then answers at its answer, the calls in flight cut after the grace (turn-parts.md, section 4), and the kit still arms nothing for it.
 - **An answered agent exits on its own.** After its answer, the agent
   closes everything it owns and exits once each has settled; only io's
   close deadlines bound that, and they make its teardown bound
@@ -263,6 +264,46 @@ policy.
   section 12; protocol/limits.md, `grace-over-teardown`), so an agent
   that keeps its contract is never signalled. Past the grace, its tree
   is terminated, then killed.
+- **An agent whose host is gone ends on its own.** Its host is its only
+  reader: once the host is gone, nothing hears the run's turns or
+  answers its calls, and nothing will stop it. So the agent stops
+  spending and exits by itself, leaving what its host kept for the next
+  activation (temper's `draft/archive/worker-restarts.md`, sections 2 and 7).
+  - **Gone** is either of two things. **The channel's end:** its input
+    read to its end, or a write to it failing; the loss of either half
+    is the loss of the channel, and the agent abandons the other.
+    **The host's silence:** the agent waits on its host and hears and
+    sends nothing for the link's no-progress deadline, `no_progress`
+    above, the figure its host times it by, which the agent derives from
+    its own configuration with the same `host_limits`. It waits on its
+    host while frames are queued that the host does not take, while a
+    turn or a part waits for the host's acknowledgement to make room
+    (section 6), and while a call it withdrew waits for its answer. Each
+    record read from the host and each frame the host takes starts that
+    clock again. A host that owes nothing is never silent, as one that
+    keeps a run waiting for its next message: over pipes a host sends
+    no keepalive (protocol/channel.md, section 7).
+  - **Then cancel, grace, drop,** the stop of section 9.2 with the agent
+    its own host. The run's cancel: no completion or tool call starts
+    after it, the calls in flight are cut, the calls to the host are
+    lost, and the turns held for the host are released unacknowledged.
+    The host's `cancel_grace` for the run to answer. Past it, the run is
+    dropped as 9.2 drops one: its domain hears nothing more, and its
+    completions are cancelled and the process trees of its commands and
+    checks stopped. Nothing more goes to the host: the channel's streams
+    are aborted, never finished. The rest closes as after any answer
+    (protocol/agent.md, section 6), and a drop aborts those closes too.
+  - **Within `orphan_exit`** of the loss: the link's `cancel_grace` plus
+    its `exit_grace` (protocol/limits.md, section 7), what its host would
+    have given it from a cancel to its exit. Its answer is never sent;
+    standard error's last line says why, the channel ended or the host
+    was silent; and it exits with failure.
+  - **What stays** is what its host kept: the turns it acknowledged and
+    the parts it kept are the next activation's (turn-parts.md, section
+    5), and the workspace is as the cut left it, for the host's next
+    start to save (temper's `draft/archive/worker-restarts.md`, section 7). An
+    agent that outlives its host to be adopted by the host's next start
+    is later (same draft, section 10).
 - **How the agent ended** is evidence, not a guess: its end carries
   `exit`, the code it exited with or the signal that ended it, and
   `forced`, whether the kit had to end it (no, terminated or killed). A
@@ -283,7 +324,7 @@ policy.
   such as its error output's tail, never shown to an LLM; and its end,
   with the exit evidence. An agent that panics ends its error output
   with the panic's `panicked at` line and message, after the backtrace
-  (skein's `runtime/shell.md`, section 6), so the tail keeps them when that
+  (skein's `runtime/shell-startup.md`, section 1), so the tail keeps them when that
   closing text fits its bound, however long the backtrace before them.
   A closing text larger than the bound is itself kept as a tail.
 
@@ -296,7 +337,7 @@ policy.
 - **its host tools:** their schemas, their decisions, their answers'
   words, their durable records;
 - **deliveries:** what making a tree durable means, and when a delivery
-  is stale; and what marks a save's tree as unchecked (run.md, 8.5);
+  is stale; and what marks a save's tree as unchecked (run-delivery.md, 1.5);
 - **messages:** which reach a run, rendered how, and which a start
   carries;
 - **unread messages:** what becomes of those a run answered without
@@ -333,6 +374,14 @@ policy.
     which then stands but was not kept whole.
   - **A later resume starts from what was kept.** A host that keeps its
     transcripts durably resumes from the last turn it kept.
+- **Parts are held as turns are,** for a parent whose start asked for
+  them (turn-parts.md, section 3): each told part is held until the
+  parent acknowledges it, counted with the turns against the window,
+  and passed to the parent in the order told, interleaved with the
+  turns, as `parent::Request::Part`. A parent keeps those told since the
+  run's last whole turn it kept, and hands them back, with the activation
+  each was told in, in its next start's parts (protocol/channel.md,
+  section 3).
 - **Only the current window goes back.** Each told turn says whether it
   opens a window (section 2), so a host, or its store with the turns
   encoded, knows where the current window starts from that flag alone. Resuming a run,
@@ -413,13 +462,13 @@ the inline agent it is the `smith` product:
     out; a credential the person must fix; usage or settings refused;
     needing input; interrupted. Its charter grants `wait` with a waiting
     time of zero, so a run that would wait for a person parks at once,
-    and needs input (run.md, 3.1). It edits the workspace in
+    and needs input (run-start.md, 1.1). It edits the workspace in
     place and commits nothing, unless asked to deliver, which keeps the
     change contract.
     The statuses' numbers are the shell's (`../shell/README.md`).
 - **The person's lines:**
   - **A line starts a run** when none is live, carried in its start, so
-    the run opens on it (run.md, 3.4). Lines entered while a run is live
+    the run opens on it (run-start.md, 1.4). Lines entered while a run is live
     go to it as messages, each as it is entered, labelled `person`
     whichever kind of agent runs.
   - **Held until read.** The host keeps each line it relayed until a
@@ -688,11 +737,6 @@ budgets.
 
 ## 12. Open questions
 
-- **A retry's wait past the no-progress deadline:** a provider's
-  `Retry-After` or an exhausted account's reset longer than the derived
-  deadline (section 4) stops the run, since a retry's wait reports no long
-  operation. Whether it should report one, as a grant's wait does, or
-  answer as limited, is open.
 - **A host without a durable record** and host tools that write: refused
   by rule, as section 2 says, or allowed with a warning to the LLM.
 - **Containment in one process:** whether commands may still run under a

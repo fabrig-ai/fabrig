@@ -8,6 +8,7 @@ use temper_worker_domain_checkout::git;
 #[test]
 fn each_operation_s_next_invocation_is_git_md_s() {
     standard_rows();
+    counts_rows();
     let create = git::Op::Create {
         at: fixtures::at(),
         remote: Box::from(fixtures::REMOTE),
@@ -92,7 +93,8 @@ fn standard_rows() {
         (&commit,Command::DiffIndex { parent:fixtures::PARENT },1,b"",Next::Run(Command::WriteTree)),
         (&push,Command::IsAncestor { expected:fixtures::EXPECTED,commit:fixtures::COMMIT },1,b"",Next::End(git::Done::Rejected)),
         (&merge,Command::Merge { theirs:fixtures::COMMIT },0,b"",Next::End(git::Done::Merged)),
-        (&merge,Command::Merge { theirs:fixtures::COMMIT },1,b"",Next::Run(Command::Unmerged)),
+        (&merge,Command::Merge { theirs:fixtures::COMMIT },1,b"",Next::Run(Command::MergeHistory { theirs:fixtures::COMMIT })),
+        (&merge,Command::MergeHistory { theirs:fixtures::COMMIT },0,b"",Next::Run(Command::Unmerged)),
         (&merge,Command::Unmerged,0,b"conflict\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(&b"conflict"[..])]), cut: false })),
         (&merge,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]), cut: true })),
         (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::Scan { files: Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]), cut: true }),
@@ -242,6 +244,45 @@ fn brings_lists_merge_bases_then_commits_missing_from_the_base_and_refuses_other
             sequence::after(&op, command, code, stdout, b"diagnostic", 0, &fixtures::checkout()),
             expected,
             "{command:?}: {code}"
+        );
+    }
+}
+
+fn counts_rows() {
+    let op = fixtures::counts_op();
+    assert!(op.is_remote(), "counts uses the forge deadline");
+    let fetch = Command::FetchCounts { remote: fixtures::REMOTE.into(), workspace: fixtures::WORKSPACE };
+    let update = Command::UpdateCounts { commit: fixtures::COMMIT };
+    let delete = Command::DeleteCounts;
+    assert_eq!(sequence::first(&op), Next::Run(fetch.clone()));
+    let limits = fixtures::checkout();
+    let absent = b"fatal: couldn't find remote ref refs/temper/counts\n".as_slice();
+    for (ran, code, stdout, tail, cut, next) in [
+        (&fetch, 0, b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/counts\n".as_slice(), b"".as_slice(), 0, Next::Run(update.clone())),
+        (&fetch, 0, b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/8/counts\n", b"", 0, sequence::failed(git::Fault::Broken, b"", 0)),
+        (&update, 0, b"", b"", 0, Next::End(git::Done::Fetched { commit: fixtures::COMMIT })),
+        (&fetch, 128, b"", absent, 0, Next::Run(delete.clone())),
+        (&fetch, 128, b"", absent, 2, sequence::failed(git::Fault::Missing { missing: git::Missing::Branch }, absent, 2)),
+        (&delete, 0, b"", b"", 0, Next::End(git::Done::Succeeded)),
+    ] {
+        assert_eq!(sequence::after(&op, ran, code, stdout, tail, cut, &limits), next, "{ran:?}: {code}");
+    }
+    let refused = b"fatal: unable to access 'url': The requested URL returned error: 403\n".as_slice();
+    let unreachable = b"fatal: unable to access 'url': Could not resolve host\n".as_slice();
+    let other_ref = b"fatal: couldn't find remote ref refs/temper/counts-other\n".as_slice();
+    let later_fault = b"fatal: couldn't find remote ref refs/temper/counts\nfatal: early EOF\n".as_slice();
+    for (ran, tail, fault) in [
+        (&fetch, refused, git::Fault::Refused),
+        (&fetch, unreachable, git::Fault::Unreachable),
+        (&fetch, other_ref, git::Fault::Missing { missing: git::Missing::Branch }),
+        (&fetch, later_fault, git::Fault::Unreachable),
+        (&update, refused, git::Fault::Broken),
+        (&delete, absent, git::Fault::Broken),
+    ] {
+        assert_eq!(
+            sequence::after(&op, ran, 128, b"", tail, 0, &limits),
+            sequence::failed(fault, tail, 0),
+            "{ran:?}: {tail:?}"
         );
     }
 }

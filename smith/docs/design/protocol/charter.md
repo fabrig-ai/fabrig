@@ -2,7 +2,7 @@
 
 Provisional, 2026-10-07, revised 2026-10-21. Two records:
 
-- **the charter:** how a run is set up (domain/run.md, 3.1);
+- **the charter:** how a run is set up (../domain/run-start.md, 1.1);
 - **the result:** what a run declares to finish (domain/run.md, section 7).
 
 They are a family of their own, `smith-charter`, versioned apart from the
@@ -49,7 +49,7 @@ workers carry unread, and its version must be the one its agents read
 
 A versioned record (skein's `data/codec/README.md`, section 3):
 
-- **mode:** `finite` or `open` (domain/run.md, 3.1). Open requires `wait`
+- **mode:** `finite` or `open` (../domain/run-start.md, 1.1). Open requires `wait`
   and neither `deliver` nor `save`, or admission refuses MalformedCharter; its result
   contract stays bounded and validated;
 - **instructions:** text;
@@ -63,7 +63,7 @@ A versioned record (skein's `data/codec/README.md`, section 3):
   - whether `wait` is granted;
   - whether `deliver` is granted mid-run, with a change's contract (2.1);
   - whether `save` is granted, a delivery with no checks, marked
-    unchecked (domain/run.md, 8.5): only with `deliver`, or admission
+    unchecked (../domain/run-delivery.md, 1.5): only with `deliver`, or admission
     refuses the grants;
   - the host tools, each declared with:
     - a name;
@@ -82,11 +82,11 @@ A versioned record (skein's `data/codec/README.md`, section 3):
     before it, reads as contract 1;
 - **the result contract** (2.1);
 - **conventions,** if any: the relative paths of the guide and the checks;
-  without them, smith's defaults apply (domain/run.md, 8.1);
+  without them, smith's defaults apply (../domain/run-delivery.md, 1.1);
 - **the checks' bound,** optional, a duration from 1 second to 1 day:
   the wall bound each delivery check is given in place of the agent's
   `check_timeout`, cut at the run's end as every check is
-  (domain/run.md, 8.1). Without it, `check_timeout`. A bound outside
+  (../domain/run-delivery.md, 1.1). Without it, `check_timeout`. A bound outside
   that range is a malformed charter, refused at the entrance. Admission
   reads `check_timeout` alone for the reserve (../domain/budget.md, 1);
   the field is the charter's last;
@@ -126,11 +126,11 @@ A versioned record (skein's `data/codec/README.md`, section 3):
   - **`window`:** its usable input tokens, the most one prompt may hold,
     with a completion's output beside it (limits.md, 2.1). The session
     compacts its conversation before a prompt would pass it
-    (domain/session.md, section 8);
+    (../domain/session-context.md, section 1);
   - **`output`:** the most output tokens a completion may have, thinking
     included. It is sent where the dialect takes it, its budget reserves
     it before each completion (../domain/budget.md), and the window
-    above its threshold holds it (limits.md, 3.9);
+    above its threshold holds it (limits-derivation.md, 1.9);
   - its prices: positive integer amounts per a positive number of
     tokens, for input, cached input, output and, optionally, cache
     writes. Without a cache-write rate, cache writes are priced at the
@@ -188,16 +188,15 @@ already has from the delivery's own answer (channel.md, section 3).
 
 ## 5. Versions
 
-The charter is pre-release, like every format (README.md, section 8): one
-version at a time, and any change a reader would notice is a new one.
+The charter's version is frozen at 5, and a layout is its text's
+fingerprint (README.md, section 8).
 
 - **The charter's first field is its version.** The agent reads its one
   version and refuses any other as an invalid start (domain/run.md,
-  section 4). The agent translates nothing: a host that speaks several
-  versions of the charter, jig's worker channel, translates it to the
-  agent's version before the start, and the result back, by
-  `smith-charter`'s bridge (skein's `data/codec/bridges.md`; jig's
-  `protocol/channel/bridges.md`, 5.3).
+  section 4). The agent translates nothing: a host that speaks to agents
+  of other builds, jig's engine, converts the charter to the agent's
+  layout before the start, and the result back, by plans from both
+  texts (jig's `protocol/channel/layouts.md`, 2.1).
 - **A charter that does not decode** in the version the agent reads is an
   invalid start too, with a reason of its own: its writer has a bug to
   fix, where another version needs a writer and an agent of the same
@@ -207,17 +206,11 @@ version at a time, and any change a reader would notice is a new one.
 - **A writer writes the version of its release.** `smith check` prints the
   version an agent reads (`../shell/README.md`), so a writer and its
   agents that differ find out before a run.
-- **Version 5 is current,** adding the host tools' `contract` to
-  `Tools`. Both versioned records, Charter and RunResult, carry family
-  version 5. Version 4 is kept, its forward patch giving `contract` 1,
-  and its reverse taking a charter whose contract is 1 down to it; the
-  floor is 4. Versions 1–3 are refused, with no decoder of their own.
-- **Before v0.1.0 a format changes in place.** The `save` grant (section
-  2) was added to version 4 as it is, with no new version (the owner,
-  2026-11-09), and so was the charter's last field, the checks' bound
-  (2026-11-11): a writer and its agents of different builds are of one
-  release only once v0.1.0 is cut, and until then they are built
-  together.
+- **Version 5 is the one,** frozen. Both versioned records, Charter and
+  RunResult, carry family version 5, and the crate keeps no older text:
+  a change of the charter is a change of its layout in its current
+  text, which a host converts as above. Any other version is refused,
+  with no decoder of its own.
 
 ## 6. Limits
 
@@ -233,8 +226,8 @@ domain's `Limits` check the charter as a whole at the entrance:
   budget's, and a derived spend within its spend;
 - each LLM's `window` and `output`, at most what the configuration
   declares for its model, leaving at least the room the agent's limits
-  were derived for, and a spare that is not negative (limits.md, 3.9
-  and 4). A negative spare is a model entry whose `window` cannot hold
+  were derived for, and a spare that is not negative (limits-derivation.md, 1.9, and limits.md, 4
+  ). A negative spare is a model entry whose `window` cannot hold
   its `output` above the threshold, so it is refused as a window or an
   output above its declaration is: an invalid start naming the model
   (the channel's `llm`, which carries no bound), with no refusal of its
@@ -242,7 +235,7 @@ domain's `Limits` check the charter as a whole at the entrance:
 - its instructions, brief and host tools, including the names and prose added
   to its reserve note, with a guide at its bound for each of the start's
   directories, within a window's host part
-  (limits.md, 3.9).
+  (limits-derivation.md, 1.9).
 
 A writer that keeps within the ceilings writes a charter every agent can
 decode. Whether a given agent admits it is the agent's limits' decision,
@@ -259,9 +252,9 @@ and a refusal names what was too large.
 ## 8. The world
 
 - **The codec:**
-  - records-only drift and no unpinned constructs (skein's
-    `data/codec/README.md`, section 6); tests build values through
-    constructors or fixed-rule values from embedded current or kept
+  - records-only drift (skein's
+    `data/codec/golden.md`, section 1); tests build values with
+    public fields or take fixed-rule values from the embedded current
     text, without stored golden bytes or generated test targets;
   - each decoder fuzzed.
 - **The domain's entrance,** from encoded charters:

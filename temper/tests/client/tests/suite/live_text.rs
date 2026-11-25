@@ -1,4 +1,5 @@
 //! Scenarios at the separate piece/commit boundary (testing/checks.md, 3).
+use super::terminal::{LineTerminal, Page};
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_world::domain::Verdict;
@@ -7,6 +8,136 @@ use temper_client_world::{app::Temper, fixtures, front::Joint};
 const WRITING: &[u8] = "▍".as_bytes();
 const PARTS: &[&[u8]] = &[b"QA joint prefix", b" and its full suffix."];
 const WHOLE: &[u8] = b"QA joint prefix and its full suffix.";
+
+const REQUEST: &str = "Hello";
+const PROMPT: &str = "What do you want done?";
+const CURSOR: &str = "▍";
+const FIRST: &str = "The answer";
+const REST: &str = " is forty-two.";
+const LIVE: &[&[u8]] = &[FIRST.as_bytes(), REST.as_bytes()];
+// Step through each redraw, including removals and inserts around commitment.
+const PAGE_STEPS: u32 = 256;
+// The two real-loop chat fixtures use this seed.
+const LINE_SEED: u64 = 7;
+
+#[test]
+fn a_line_terminal_prints_a_chat_from_prefix_to_commit() {
+    // Keep both the held answer and the straight-to-commit answer from the real loop.
+    line_chat(Some(LIVE), "The answer is forty-two.");
+    line_chat(None, "World answer");
+}
+
+fn line_chat(pieces: Option<&'static [&'static [u8]]>, reply: &'static str) {
+    let mut world = fixtures::terminal::open_chats_world(LINE_SEED);
+    if let Some(pieces) = pieces {
+        world.front().reply_in_pieces(pieces);
+    } else {
+        world.front().reply_at_once(reply.as_bytes());
+    }
+    let client = fixtures::terminal::chats_client(&mut world);
+    let mut terminal = LineTerminal::new(LINE_SEED);
+    read_until(&mut terminal, &mut world, client, |page| page.contains("New draft or change"));
+    let change = control(&terminal.pages.last().expect("Chats page").text, "Change").to_owned();
+    terminal.type_line(&change);
+    read_until(&mut terminal, &mut world, client, |page| page.contains(PROMPT));
+    let field = control(&terminal.pages.last().expect("prompt page").text, PROMPT);
+    terminal.type_line(&format!("{field} {REQUEST}"));
+
+    if pieces.is_some() {
+        read_until(&mut terminal, &mut world, client, |page| page.contains(FIRST));
+        let first = &terminal.pages.last().expect("first piece's page").text;
+        assert_eq!(writing(first).as_deref(), Some(FIRST), "first piece under Temper, before the cursor:\n{first}");
+        assert!(!first.contains(REST), "the suffix is still held:\n{first}");
+        assert_eq!(world.front().runs_answered, 0, "the first piece is still held");
+        assert!(world.front().release_reply(), "release the suffix");
+        read_until(&mut terminal, &mut world, client, |page| writing(page).as_deref() == Some(reply));
+        assert!(world.front().release_reply(), "release the commit");
+    }
+    read_until(&mut terminal, &mut world, client, |page| {
+        page.contains(reply) && !page.contains(CURSOR) && page.contains("waiting on your words")
+    });
+    terminal.type_line("q");
+    for _ in 0..PAGE_STEPS {
+        terminal.step(&mut world, client);
+        if terminal.drained() {
+            check_pages(&terminal.pages, pieces.is_some(), reply);
+            return;
+        }
+    }
+    panic!("the terminal did not drain after q");
+}
+
+fn read_until(
+    terminal: &mut LineTerminal,
+    world: &mut World<Temper, Joint>,
+    client: ClientId,
+    seen: impl Fn(&str) -> bool,
+) {
+    for _ in 0..PAGE_STEPS {
+        if terminal.step(world, client).is_some_and(&seen) {
+            return;
+        }
+    }
+    panic!("expected page did not print; last page: {:?}", terminal.pages.last().map(|page| &page.text));
+}
+
+fn control<'a>(page: &'a str, label: &str) -> &'a str {
+    page.lines()
+        .filter_map(|line| line.trim_start_matches([' ', '-']).strip_prefix('[')?.split_once("] "))
+        .find(|(number, name)| {
+            number.parse::<u32>().is_ok()
+                && (name == &label || name.strip_prefix(label).is_some_and(|after| after.starts_with(": ")))
+        })
+        .unwrap_or_else(|| panic!("missing numbered {label:?} in:\n{page}"))
+        .0
+}
+
+fn assistant(page: &str) -> Option<(&str, &str)> {
+    page.split_once("Conversation:\n")?.1.split_once("Temper\n")
+}
+
+fn writing(page: &str) -> Option<String> {
+    let (before, turn) = assistant(page)?;
+    let (_, indent) = before.rsplit_once('\n')?;
+    let (prefix, _) = turn.split_once("▍\n")?;
+    Some(prefix.lines().map_while(|line| line.strip_prefix(indent)).collect::<Vec<_>>().join("\n"))
+}
+
+fn committed(page: &str, reply: &str) -> bool {
+    let Some((_, turn)) = assistant(page) else { return false };
+    let mut lines = turn.lines().map(str::trim_ascii);
+    lines.next().is_some_and(|clock| {
+        matches!(clock.as_bytes(), [b'0'..=b'2', b'0'..=b'9', b':', b'0'..=b'5', b'0'..=b'9']) && &clock[..2] < "24"
+    }) && lines.next() == Some(reply)
+}
+
+fn check_pages(pages: &[Page], live: bool, reply: &str) {
+    let first = pages
+        .iter()
+        .find(|page| page.text.contains(if live { FIRST } else { reply }))
+        .expect("a page prints the reply");
+    assert!(first.commands >= 2, "the reply follows the person's commands:\n{}", first.text);
+    let commit = pages
+        .iter()
+        .position(|Page { text, .. }| committed(text, reply) || (text.contains(reply) && !text.contains(CURSOR)))
+        .expect("a committed page prints the whole reply");
+    let first_commit = &pages[commit].text;
+    assert!(committed(first_commit, reply), "the whole reply is the assistant's line after its clock:\n{first_commit}");
+    assert!(first_commit.lines().next().expect("chat title").contains(REQUEST), "{first_commit}");
+
+    let mut previous = 0;
+    for Page { text, .. } in &pages[..commit] {
+        if text.contains(CURSOR) {
+            let prefix = writing(text).expect("the cursor follows the provisional assistant line");
+            assert!(reply.starts_with(&prefix), "not a prefix of the reply:\n{text}");
+            assert!(prefix.len() >= previous, "the provisional text shrank:\n{text}");
+            previous = prefix.len();
+        }
+    }
+    for Page { text, .. } in &pages[commit..] {
+        assert!(!text.contains(CURSOR), "the cursor remains on or after the committed page:\n{text}");
+    }
+}
 
 fn whole_reply_before_commit() -> (World<Temper, Joint>, ClientId) {
     // testing/checks.md, 3: the text and its committed turn are separate releases.

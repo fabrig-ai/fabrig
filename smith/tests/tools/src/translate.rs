@@ -233,6 +233,7 @@ pub fn cut(done: Done, ran: u128, whole: u128) -> Done {
         done @ (Done::Held { .. }
         | Done::Job { .. }
         | Done::Exited { .. }
+        | Done::CommandCancelled { .. }
         | Done::Missing
         | Done::NotDirectory
         | Done::Escapes

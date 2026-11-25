@@ -16,6 +16,7 @@ fn step(world: &mut World, step: u64, decision: ProcedureDecision) -> Reply {
     let key = reply_to.into_token().raw();
     let read = world.contexts[&PROCEDURE].inbox.last().map(|word| word.number);
     world.send(Event::Procedure {
+        reads_project: false,
         read,
         reply_to: ReplyTo::new(skein_lib::Token::new(key)),
         task: PROCEDURE,
@@ -129,7 +130,7 @@ fn a_procedures_job_is_due_once_its_dependency_is_done_and_ends_with_its_result(
     assert_eq!(world.records, before);
 }
 
-/// A result beyond its contract spends an invalid try (jig/docs/design/domain/tasks/lifecycle.md, 3.1 and 6).
+/// A result beyond its contract spends an invalid try (jig/docs/design/domain/tasks/lifecycle.md, 3.1, and jig/docs/design/domain/tasks/lifecycle-holds.md, 1).
 #[test]
 fn a_job_result_past_its_contract_is_an_invalid_attempt() {
     let mut world = with_job();
@@ -149,7 +150,7 @@ fn a_job_result_past_its_contract_is_an_invalid_attempt() {
     assert_eq!(world.record(JOB).phase, Phase::Active(Active::Due));
 }
 
-/// Past its run tries a job is held for its procedure (jig/docs/design/domain/tasks/lifecycle.md, 3.1 and 6).
+/// Past its run tries a job is held for its procedure (jig/docs/design/domain/tasks/lifecycle.md, 3.1, and jig/docs/design/domain/tasks/lifecycle-holds.md, 1).
 #[test]
 fn a_failing_job_is_retried_within_its_tries_then_held_and_its_procedure_hears_it() {
     let mut world = with_job();

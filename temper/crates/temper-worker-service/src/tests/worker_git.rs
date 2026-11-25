@@ -11,6 +11,29 @@ use temper_worker_domain::{
 use temper_worker_protocol_git_world::io::Invocation;
 
 #[test]
+fn the_worker_takes_an_unswept_entry_as_a_note() {
+    use temper_worker_protocol_git_world::io::Node;
+    let mut stand = fixtures::WorkerStand::new();
+    stand.below.tree.insert(b"trash/1".as_slice().into(), Node::File(Box::new([])));
+    stand.below.remove_failure = Some((b"trash/1".as_slice().into(), kernel::Error::Permission));
+    for _ in 0_u16..1000 {
+        if !stand.turn() {
+            assert!(stand.worker.git.ready);
+            assert_eq!(
+                stand.worker.notes().pop(),
+                Some(crate::worker_alone::Note::Unswept {
+                    path: b"trash/1".as_slice().into(),
+                    error: kernel::Error::Permission,
+                })
+            );
+            assert!(stand.worker.notes().is_empty());
+            return;
+        }
+    }
+    panic!("worker and sweep did not settle");
+}
+
+#[test]
 fn a_clone_reaches_git_with_its_identity_s_newest_value() {
     let mut stand = fixtures::started_worker();
     stand.worker.link(fixtures::NOW, fixtures::application_value(fixtures::IDENTITY, 1, b"tok-old"));
@@ -128,7 +151,7 @@ fn the_link_dials_only_once_the_git_component_has_started() {
 #[test]
 fn an_unusable_git_refuses_the_worker_naming_its_program() {
     let mut stand = fixtures::WorkerStand::new();
-    stand.below.script.invocations.front_mut().unwrap().transcript.stdout = b"git version 2.40.0\n".as_slice().into();
+    stand.below.script.invocations.front_mut().unwrap().stdout = b"git version 2.40.0\n".as_slice().into();
     for _ in 0_u16..1000 {
         if !stand.turn() {
             break;

@@ -1,4 +1,4 @@
-//! Neutral forge calls and answers (forge/README.md, section 3).
+//! Neutral forge calls and answers (forge/vocabulary.md, section 1).
 //!
 //! These types describe bounded requests and answers; they retain no state.
 //! They never name tasks or authorization policy. The adapter maps a `Read`
@@ -12,9 +12,9 @@ pub const VALIDATOR_BYTES: usize = 128;
 /// The display reason's byte bound; decoders truncate at a UTF-8 boundary instead of refusing the read.
 pub const DEQUEUED_BYTES: usize = 256;
 
-/// A status's words' bound (forge/README.md, 3.2).
+/// A status's words' bound (forge/vocabulary.md, 1.2).
 pub const DESCRIPTION_BYTES: usize = 140;
-/// A dispatch's inputs' bound (forge/README.md, 3.2).
+/// A dispatch's inputs' bound (forge/vocabulary.md, 1.2).
 pub const INPUTS: usize = 10;
 
 /// A forge's request window, so the client can use its allowance and reset time.
@@ -87,7 +87,7 @@ pub enum Op {
     /// A write operation.
     Write(Write),
 }
-/// The part of a job's log to retain (skein/docs/design/forge/README.md, 3.2).
+/// The part of a job's log to retain (skein/docs/design/forge/vocabulary.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LogPart {
     End,
@@ -221,7 +221,7 @@ pub enum Read {
         object: Commit,
         page: u32,
     },
-    /// One file of a run's named artifact, stored or deflated, cut to `max_bytes` (forge/README.md, 3.2).
+    /// One file of a run's named artifact, stored or deflated, cut to `max_bytes` (forge/vocabulary.md, 1.2).
     Artifact {
         run: u64,
         name: Box<[u8]>,
@@ -256,7 +256,7 @@ pub enum Write {
     /// Checked at exact head. The outbox effect's intended base is a
     /// client-side precondition, checked by reading the pull afresh.
     Merge { number: u64, head: Commit, how: MergeHow },
-    /// Brings a pull request's branch up to its base (forge/README.md, 3.2).
+    /// Brings a pull request's branch up to its base (forge/vocabulary.md, 1.2).
     Update { number: u64, style: UpdateStyle },
     /// Each of `description` (at most `DESCRIPTION_BYTES`) and `link` (an absolute URL) empty for none.
     Status { commit: Commit, context: Box<[u8]>, check: Check, description: Box<[u8]>, link: Box<[u8]> },
@@ -270,7 +270,7 @@ pub enum Write {
     DeleteBranch { branch: Box<[u8]> },
 }
 /// A decoded terminal value for one forge call.
-/// A listing's `cut` keeps whole rows and sets `more` (forge/README.md, 3.3).
+/// A listing's `cut` keeps whole rows and sets `more` (forge/vocabulary.md, 1.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
     /// The located repository's nonzero id on its forge.
@@ -323,7 +323,7 @@ pub enum Answer {
         cut: bool,
     },
     /// Return compare.
-    /// Names, counts and containment of two commits; no contents (forge/README.md, 3.2 and 3.3).
+    /// Names, counts and containment of two commits; no contents (forge/vocabulary.md, 1.2 and 1.3).
     Compare {
         before: Commit,
         after: Commit,
@@ -423,7 +423,7 @@ pub enum EntryKind {
     /// A git submodule.
     Submodule,
 }
-/// What a refused call or answer passed (forge/README.md, 3.4).
+/// What a refused call or answer passed (forge/vocabulary.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Excess {
     pub bound: Bound,
@@ -448,7 +448,7 @@ impl Excess {
         Self { bound, limit, size, exact: true }
     }
 }
-/// The bound a `TooLarge` names (forge/README.md, 3.4).
+/// The bound a `TooLarge` names (forge/vocabulary.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Bound {
     OpBytes,
@@ -564,7 +564,7 @@ pub enum Permission {
     /// The writer may administer the repository.
     Admin,
 }
-/// A forge user's permission on a repository (skein/docs/design/forge/README.md, 3.3).
+/// A forge user's permission on a repository (skein/docs/design/forge/vocabulary.md, 1.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct UserPermission {
     pub user: u64,
@@ -617,7 +617,7 @@ pub struct Comment {
     pub key: Option<Box<[u8]>>,
     pub body: Box<[u8]>,
 }
-/// The forge's own counts at a pull request's head (forge/README.md, 3.6).
+/// The forge's own counts at a pull request's head (forge/vocabulary.md, 1.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Size {
     pub files: u64,
@@ -700,7 +700,7 @@ pub struct File {
     pub before: Option<Box<[u8]>>,
     pub after: Option<Box<[u8]>>,
 }
-/// The App's own ability to bypass a ruleset (forge/github.md, 5.3).
+/// The App's own ability to bypass a ruleset (forge/github-operations.md, 2.3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Bypass {
     Never,
@@ -736,26 +736,26 @@ pub struct Collaborator {
     pub permission: Permission,
 }
 
-/// How a merge lands (forge/README.md, 3.2).
+/// How a merge lands (forge/vocabulary.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MergeHow {
     Style,
     FastForwardOnly,
     Recorded { commit: Commit },
 }
-/// How an update brings a branch up to its base (forge/README.md, 3.2).
+/// How an update brings a branch up to its base (forge/vocabulary.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum UpdateStyle {
     Merge,
     Rebase,
 }
-/// One dispatch input (forge/README.md, 3.2).
+/// One dispatch input (forge/vocabulary.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Input {
     pub name: Box<[u8]>,
     pub value: Box<[u8]>,
 }
-/// An Actions run (forge/README.md, 3.6); `jobs` empty in a `Runs` listing.
+/// An Actions run (forge/vocabulary.md, 1.6); `jobs` empty in a `Runs` listing.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Run {
     pub id: u64,
@@ -772,20 +772,20 @@ pub struct Run {
     pub created: Time,
     pub jobs: Box<[RunJob]>,
 }
-/// What triggered a run (forge/README.md, 3.6).
+/// What triggered a run (forge/vocabulary.md, 1.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     Dispatch,
     Other,
 }
-/// An Actions run's or job's state (forge/README.md, 3.6).
+/// An Actions run's or job's state (forge/vocabulary.md, 1.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RunState {
     Waiting,
     Running,
     Completed,
 }
-/// An Actions run's or job's conclusion (forge/README.md, 3.6).
+/// An Actions run's or job's conclusion (forge/vocabulary.md, 1.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Conclusion {
     Success,
@@ -793,7 +793,7 @@ pub enum Conclusion {
     Cancelled,
     Skipped,
 }
-/// One job of an Actions run (forge/README.md, 3.6).
+/// One job of an Actions run (forge/vocabulary.md, 1.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunJob {
     /// Steps listed for a failed job; zero when its steps were not read.
@@ -806,7 +806,7 @@ pub struct RunJob {
     /// None when no step failed.
     pub step: Option<Step>,
 }
-/// One entry of a tree (forge/README.md, 3.6).
+/// One entry of a tree (forge/vocabulary.md, 1.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TreeEntry {
     pub name: Box<[u8]>,
@@ -814,7 +814,7 @@ pub struct TreeEntry {
     pub kind: TreeEntryKind,
     pub object: Commit,
 }
-/// A tree entry's object kind (forge/README.md, 3.6).
+/// A tree entry's object kind (forge/vocabulary.md, 1.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TreeEntryKind {
     Blob,

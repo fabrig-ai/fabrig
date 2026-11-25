@@ -1,4 +1,4 @@
-//! One stdio MCP child for smith/docs/design/protocol/programs.md, sections 5 and 8. Keeps
+//! One stdio MCP child for smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8. Keeps
 //! framing and request IDs, never credentials or observations. The driver
 //! routes owned I/O events here; notices settle startup or calls matched by ID.
 

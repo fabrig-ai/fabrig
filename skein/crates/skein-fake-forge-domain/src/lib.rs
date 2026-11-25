@@ -54,10 +54,12 @@ mod creation;
 mod dispatch;
 mod domain;
 mod faults;
+mod fell;
 mod git;
 mod hooks;
 pub mod image;
 mod issues;
+mod lag;
 mod limits;
 mod next;
 mod object;
@@ -66,6 +68,7 @@ pub mod promises;
 mod pulls;
 mod queue;
 mod reads;
+mod runners;
 mod scenario;
 mod store;
 mod trees;
@@ -79,13 +82,15 @@ pub use contents::{ContentsChange, change_files};
 pub use creation::{create_empty_repository, create_file, create_repository};
 pub use domain::{Config, Domain, Metadata, Room, Skew, Tally, fire, step, step_admitted, time};
 pub use faults::{Rate, RateDenied, RateKey, rate};
+pub use fell::{Called, Fault, Fell};
 pub use git::{Object, Signature, Tree};
 pub use limits::{Limits, valid};
 pub use object::{commit_bytes, commit_count, object_bytes};
 pub use observe::{Branches, Observation, Operation};
 pub use scenario::{
-    advance, check, commit, commit_tree, grant, manual_merges, merge_commit, repository, set_failing, set_opening,
-    set_reachable, set_refusing, settings, unborn_repository,
+    Lag, advance, check, commit, commit_tree, grant, lag, manual_merges, merge_commit, refuse_close, repository,
+    root_commit, runners, set_failing, set_job_log, set_opening, set_reachable, set_refusing, settings,
+    unborn_repository,
 };
 pub use trees::blob_id;
 

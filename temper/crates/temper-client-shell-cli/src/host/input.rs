@@ -1,4 +1,4 @@
-//! Load and check external input before DIRECTORY opens (client/ctl/README.md, 6.2).
+//! Load and check external input before DIRECTORY opens (client/ctl/command-line.md, 1.2).
 use super::{Class, Down, OneShot, Parsed, Read, Time, Up, arguments, io, limits};
 use temper_client_tools::{
     help,
@@ -43,14 +43,18 @@ impl OneShot {
                 }
             }
             Parsed::Call { call, .. }
-                if call.tool == jig::rows::PARTY_MAKE_AT
+                if matches!(call.tool, jig::rows::PARTY_MAKE_AT | jig::rows::PARTY_REISSUE_AT)
                     && self.service_file.as_ref().is_none_or(|service| !service.checked) =>
             {
-                if let Some(service) = &self.service_file {
-                    self.directory.check_output(&service.path);
+                if let Some(path) = self.service_file.as_ref().and_then(|service| service.path.as_deref()) {
+                    self.directory.check_output(path);
                 } else {
                     self.fail(b"party make --out needs a file, not stdin");
                 }
+            }
+            Parsed::Call { call, .. } if call.tool == jig::rows::PARTY_REISSUE_AT => {
+                // Its only file argument takes '-' as output, never as input.
+                self.preparing = false;
             }
             Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT => {
                 self.directory.create_record(self.move_file.as_deref().expect("export file"));
@@ -151,7 +155,7 @@ impl OneShot {
                     temper_client_tools::table::refusal(why, &[], &mut measured).expect("refusal");
                     let mut exact = skein_lib::Writer::new(measured.written());
                     temper_client_tools::table::refusal(why, &[], &mut exact).expect("refusal");
-                    self.fail(&exact.finish());
+                    self.fail_with_status(&exact.finish(), arguments::usage_status(why));
                 }
             },
             Parsed::Call { call, json } if arguments::key_file(&call).is_some() => {
@@ -247,7 +251,7 @@ impl OneShot {
             Some(Parsed::Call { call, .. }) => {
                 call.tool == temper_client_tools::jig::rows::EXPORT_AT
                     || self.class == Class::Link
-                    || call.tool == jig::rows::PARTY_MAKE_AT
+                    || self.service_file.as_ref().is_some_and(|service| service.path.is_some())
                     || arguments::key_file(call).is_some()
                     || text_file(call).is_some()
             }

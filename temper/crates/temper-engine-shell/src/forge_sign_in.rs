@@ -3,14 +3,22 @@
 use temper_shell::directories::EnvironmentEntry;
 mod http;
 use jig_protocol_config as config;
+use skein_lib::{Duration, Secret, Time};
 use std::{
     fs,
-    io::Write,
+    io::{self, Write},
     os::unix::fs::{DirBuilderExt, OpenOptionsExt},
     path::{Path, PathBuf},
 };
 use temper_engine_service::startup::Named;
-use temper_forge_setup::sign_in;
+use temper_forge_setup::{
+    place::Place,
+    prepare::{Exit, Ran},
+    setup::Owned,
+    sign_in,
+    spec::{self, Spec},
+};
+use temper_forge_setup_shell::command;
 use temper_forge_setup_shell::process as host;
 use temper_service_shell::jig_directories;
 
@@ -29,6 +37,21 @@ pub(crate) fn run(
     named: &Named,
     number: u16,
     environment: &[EnvironmentEntry],
+) -> Result<u8, String> {
+    run_with(directories, bytes, named, number, environment, make_missing, |instructions| {
+        std::io::stdout().write_all(instructions).map_err(|why| format!("print instructions: {why}"))
+    })
+}
+
+/// Perform the checked sign-in command with supplied credential and print effects.
+pub fn run_with(
+    directories: &super::Directories,
+    bytes: &[u8],
+    named: &Named,
+    number: u16,
+    environment: &[EnvironmentEntry],
+    mut make_missing: impl FnMut(&Path, bool) -> Result<(), String>,
+    print: impl FnOnce(&[u8]) -> Result<(), String>,
 ) -> Result<u8, String> {
     let row = named
         .sign_in
@@ -54,7 +77,7 @@ pub(crate) fn run(
         sign_in::instructions(b"forgejo", None, &client.id, secret, &discovery, first_sign_in(environment));
     make_missing(super::path(&provider.key), true)?;
     make_missing(super::path(secret), false)?;
-    std::io::stdout().write_all(&instructions).map_err(|why| format!("print instructions: {why}"))?;
+    print(&instructions)?;
     Ok(0)
 }
 
@@ -76,19 +99,47 @@ enum Credential<'a> {
 }
 
 fn make_missing_from(path: &Path, source: Credential<'_>) -> Result<(), String> {
-    match fs::symlink_metadata(path) {
-        Ok(_) => return Ok(()),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+    make_missing_from_with(
+        path,
+        source,
+        &CredentialFiles {
+            stat: &|path| fs::symlink_metadata(path).map(|_| ()),
+            mkdir: &|path, mode| fs::DirBuilder::new().recursive(true).mode(mode).create(path),
+            seed: &skein_shell::crypto_seed,
+            open: &|path, mode| fs::OpenOptions::new().write(true).create_new(true).mode(mode).open(path),
+            key: &host::sign_in_key,
+            publish: &|temporary, path| fs::rename(temporary, path),
+            remove: &|path| fs::remove_file(path),
+        },
+    )
+}
+
+type FileMode<'a, T> = dyn Fn(&Path, u32) -> io::Result<T> + 'a;
+type Publish<'a> = dyn Fn(&Path, &Path) -> io::Result<()> + 'a;
+struct CredentialFiles<'a, F> {
+    stat: &'a dyn Fn(&Path) -> io::Result<()>,
+    mkdir: &'a FileMode<'a, ()>,
+    seed: &'a dyn Fn() -> Result<Secret, i32>,
+    open: &'a FileMode<'a, F>,
+    key: &'a dyn Fn(F) -> Result<(), String>,
+    publish: &'a Publish<'a>,
+    remove: &'a dyn Fn(&Path) -> io::Result<()>,
+}
+
+fn make_missing_from_with<F: Write>(
+    path: &Path,
+    source: Credential<'_>,
+    files: &CredentialFiles<'_, F>,
+) -> Result<(), String> {
+    match (files.stat)(path) {
+        Ok(()) => return Ok(()),
+        Err(why) if why.kind() == io::ErrorKind::NotFound => {}
         Err(why) => return Err(format!("{}: {why}", path.display())),
     }
     let parent = path.parent().ok_or("credential path has no parent")?;
-    fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(parent)
-        .map_err(|why| format!("{}: {why}", parent.display()))?;
+    (files.mkdir)(parent, 0o700).map_err(|why| format!("{}: {why}", parent.display()))?;
     let mut temporary: PathBuf = path.into();
-    let seed = skein_shell::crypto_seed().map_err(|errno| format!("system randomness: errno {errno}"))?;
+    let seed = (files.seed)().map_err(|errno| format!("system randomness: errno {errno}"))?;
     let random: &[u8; 32] = seed.expose().try_into().expect("system seed has 32 bytes");
     let suffix = sign_in::secret(random);
     let mut name = path.as_os_str().to_os_string();
@@ -96,16 +147,11 @@ fn make_missing_from(path: &Path, source: Credential<'_>) -> Result<(), String> 
     name.push(std::str::from_utf8(suffix.expose()).expect("base64url suffix"));
     name.push(".partial");
     temporary.set_file_name(Path::new(&name).file_name().expect("partial file name"));
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&temporary)
-        .map_err(|why| format!("{}: {why}", temporary.display()))?;
+    let mut file = (files.open)(&temporary, 0o600).map_err(|why| format!("{}: {why}", temporary.display()))?;
     let result = match source {
-        Credential::Key => host::sign_in_key(file),
+        Credential::Key => (files.key)(file),
         Credential::Secret => {
-            skein_shell::crypto_seed().map_err(|errno| format!("system randomness: errno {errno}")).and_then(|seed| {
+            (files.seed)().map_err(|errno| format!("system randomness: errno {errno}")).and_then(|seed| {
                 let random: &[u8; 32] = seed.expose().try_into().expect("system seed has 32 bytes");
                 file.write_all(sign_in::secret(random).expose())
                     .map_err(|why| format!("{}: {why}", temporary.display()))
@@ -113,9 +159,10 @@ fn make_missing_from(path: &Path, source: Credential<'_>) -> Result<(), String> 
         }
         Credential::Given(bytes) => file.write_all(bytes).map_err(|why| format!("{}: {why}", temporary.display())),
     };
-    let result = result.and_then(|()| fs::rename(&temporary, path).map_err(|why| format!("{}: {why}", path.display())));
+    let result =
+        result.and_then(|()| (files.publish)(&temporary, path).map_err(|why| format!("{}: {why}", path.display())));
     if result.is_err() {
-        let _ = fs::remove_file(&temporary);
+        let _ = (files.remove)(&temporary);
     }
     result
 }
@@ -132,26 +179,57 @@ pub(crate) fn source(
     deadline: skein_lib::Duration,
     client: Option<&[u8]>,
 ) -> Result<u8, String> {
-    use temper_forge_setup::{prepare::Exit, spec};
-    use temper_forge_setup_shell::command;
+    let limits = jig_protocol_config::stock().io;
+    source_with(
+        bytes,
+        named,
+        owned,
+        place,
+        deadline,
+        client,
+        &mut SourceEffects {
+            now: &|| skein_shell::Clock::new().now().now,
+            get: &mut http::get,
+            command: &mut |spec, until| command::run_until(&limits, spec, until),
+            out: &mut std::io::stdout(),
+        },
+    )
+}
+
+type Get<'a> = dyn FnMut(&[u8], Time) -> Result<skein_http::client::Response, String> + 'a;
+type Command<'a> = dyn FnMut(&Spec, Time) -> Result<Ran, command::Error> + 'a;
+struct SourceEffects<'a> {
+    now: &'a dyn Fn() -> Time,
+    get: &'a mut Get<'a>,
+    command: &'a mut Command<'a>,
+    out: &'a mut dyn Write,
+}
+
+fn source_with(
+    bytes: &[u8],
+    named: &Named,
+    owned: &Owned,
+    place: &Place,
+    deadline: Duration,
+    client: Option<&[u8]>,
+    effects: &mut SourceEffects<'_>,
+) -> Result<u8, String> {
     let client = client.ok_or("setup.sign_in is not configured")?;
     let discovery = discovery(bytes, named)?;
-    let clock = skein_shell::Clock::new();
-    let until = clock.now().now.saturating_add(deadline);
-    let limits = jig_protocol_config::stock().io;
-    let answered = http::get(&discovery, until).is_ok_and(|answer| (200..300).contains(&answer.status));
+    let until = (effects.now)().saturating_add(deadline);
+    let answered = (effects.get)(&discovery, until).is_ok_and(|answer| (200..300).contains(&answer.status));
     if !answered {
         return Err("temper's discovery did not answer".into());
     }
     // An unreadable list still attempts add: its refusal explains the failure.
-    let present = command::run_until(&limits, &spec::source_list(owned, place), until)
+    let present = (effects.command)(&spec::source_list(owned, place), until)
         .is_ok_and(|answer| answer.exit == Exit::Code(0) && sign_in::source_present(answer.stdout.expose()));
     if present {
         let url = format!("http://{}/user/oauth2/temper", owned.listen);
         let issuer = discovery.strip_suffix(b"/.well-known/openid-configuration").expect("discovery path");
         let mut authorize = issuer.to_vec();
         authorize.extend_from_slice(b"/oauth/authorize");
-        let served = http::get(url.as_bytes(), until).is_ok_and(|answer| {
+        let served = (effects.get)(url.as_bytes(), until).is_ok_and(|answer| {
             (300..400).contains(&answer.status)
                 && answer.header(b"location").is_some_and(|location| {
                     location == authorize
@@ -164,7 +242,7 @@ pub(crate) fn source(
             return Err("Forgejo does not serve the source".into());
         }
     } else {
-        let answer = command::run_until(&limits, &spec::source_add(owned, place, client, &discovery), until)
+        let answer = (effects.command)(&spec::source_add(owned, place, client, &discovery), until)
             .map_err(super::forge::command_error)?;
         if answer.exit != Exit::Code(0) {
             let diagnostic =
@@ -176,7 +254,7 @@ pub(crate) fn source(
             ));
         }
     }
-    std::io::stdout().write_all(&sign_in::Source::Added.line()).map_err(|why| format!("source outcome: {why}"))?;
+    effects.out.write_all(&sign_in::Source::Added.line()).map_err(|why| format!("source outcome: {why}"))?;
     Ok(0)
 }
 

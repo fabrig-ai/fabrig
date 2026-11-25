@@ -99,6 +99,7 @@ fn observe_pull(d: &mut Domain) {
         branch_fresh: false,
         base_tip: Some(FIRST),
         base_read: Some(FIRST),
+        close_landing: None,
         pull: Some(pull),
         ci: change::Status::Passed,
         base_ci: change::Status::Passed,
@@ -409,6 +410,7 @@ fn finding(number: u32, kind: FindingKind, severity: Severity, title: &[u8], sta
         signature: None,
         seen: None,
         blame: None,
+        repair: None,
         cleared: None,
     }
 }
@@ -464,7 +466,7 @@ fn blamed_red_findings_are_open_until_cleared_whatever_their_triage_state() {
             let row = Finding {
                 kind: FindingKind::Red,
                 state,
-                blame: Some(FindingBlame { strength: BlameStrength::Owned, landings: Box::new([]) }),
+                blame: Some(FindingBlame { moved: None, strength: BlameStrength::Owned, landings: Box::new([]) }),
                 cleared: cleared.then_some(FindingCleared { run: 8, at: BEFORE }),
                 ..high_a()
             };

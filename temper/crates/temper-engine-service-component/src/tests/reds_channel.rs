@@ -23,13 +23,9 @@ struct Channel {
     engine_read: Option<stream::Read>,
     worker_read: Option<stream::Read>,
     hello: Option<jig_domain_link::Hello>,
-    cannot_send: Option<(&'static str, u16)>,
 }
 impl Channel {
     fn new() -> Self {
-        Self::at_version(payload::wire::VERSION)
-    }
-    fn at_version(version: u16) -> Self {
         let settings = fixtures::engine();
         let limits = crate::workers::limits(&settings).unwrap();
         let largest = payload::largest(&v1::CEILINGS).unwrap();
@@ -52,11 +48,7 @@ impl Channel {
             busy: Duration::from_millis(100),
         };
         let secret = b"reader-secret".as_slice();
-        let mut application = payload::application(&fixtures::wire_limits()).unwrap();
-        if version != payload::wire::VERSION {
-            let spoken = application.spoken.get_mut(0).unwrap();
-            *spoken = jig_protocol_worker_wire::Spoken::current(spoken.name, version, spoken.layout(version).unwrap());
-        }
+        let application = payload::application(&fixtures::wire_limits()).unwrap();
         let engine = engine::Component::new(
             &limits,
             Box::new([engine::Worker {
@@ -93,7 +85,6 @@ impl Channel {
             to_worker: Intake::with_capacity(limits.room),
             engine_read: None,
             worker_read: None,
-            cannot_send: None,
             hello: Some(jig_domain_link::Hello {
                 fresh: false,
                 reads_usage: true,
@@ -112,10 +103,8 @@ impl Channel {
         );
         channel.worker.fire(Time::ZERO, &mut channel.worker_out);
         channel.settle();
-        if version == payload::wire::VERSION {
-            let Some(engine::Request::Hello { channel: name, .. }) = channel.up.pop() else { panic!("hello crosses") };
-            assert_eq!(name, CONNECTION);
-        }
+        let Some(engine::Request::Hello { channel: name, .. }) = channel.up.pop() else { panic!("hello crosses") };
+        assert_eq!(name, CONNECTION);
         channel
     }
     fn engine_lower(&mut self, event: LowerEvent) {
@@ -146,6 +135,7 @@ impl Channel {
                     other @ (engine::Request::Lower { .. }
                     | engine::Request::Refused { .. }
                     | engine::Request::Unsent { .. }
+                    | engine::Request::Unread { .. }
                     | engine::Request::TurnAway { .. }
                     | engine::Request::Close { .. }
                     | engine::Request::Abort { .. }
@@ -185,14 +175,10 @@ impl Channel {
                         assert!(parts.is_empty());
                         self.down.push(down);
                     }
-                    worker::Request::CannotSendWhole { wire, version } => {
-                        self.cannot_send = Some((wire, version));
-                        return;
-                    }
                     other @ (worker::Request::Lower { .. }
-                    | worker::Request::Untranslated { .. }
                     | worker::Request::Refused { .. }
                     | worker::Request::RelayCancelled { .. }
+                    | worker::Request::ResendPart { .. }
                     | worker::Request::Resend { .. }
                     | worker::Request::Lost
                     | worker::Request::Restarting { .. }
@@ -267,6 +253,8 @@ fn exchange(
     let mut out = Queue::uncapped();
     channel.send_down(hub::LinkDown::Assign {
         assignment: hub::Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
             assignment: hub::RunAssignment {
                 identity: [0; 16],
                 run: Token::new(run.task),
@@ -371,12 +359,4 @@ fn a_hosted_runs_results_are_kept_through_jigs_channel() {
     );
     assert_eq!(finding.title.as_ref(), b"Flake in a delivery's check: test fabrig-x::t b");
     assert!(finding.body.ends_with(b"Its log under load:\nboom"));
-}
-
-#[test]
-fn a_v9_worker_closes_at_a_v8_engines_statement_before_hello() {
-    let channel = Channel::at_version(8);
-    assert_eq!(channel.cannot_send, Some((payload::wire::FAMILY, 8)));
-    assert!(channel.hello.is_some(), "the worker never became ready to send hello");
-    assert!(channel.up.is_empty(), "the engine sees no worker record");
 }

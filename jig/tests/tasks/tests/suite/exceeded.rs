@@ -1,4 +1,4 @@
-//! Configured bounds hold a run at once (domain/tasks/lifecycle.md, 6 and 9).
+//! Configured bounds hold a run at once (domain/tasks/lifecycle-holds.md, 1, and domain/tasks/lifecycle-endings.md, 2).
 use jig_domain_tasks::{
     Accepted, Active, Bound, Cause, Class, End, EndKind, EndedBy, Event, Exceeded, Flags, Hold, Line, MessageKind,
     Party, Phase, Release, RetryNotice, Stored, Tries, Was, Word,
@@ -162,6 +162,7 @@ fn a_bound_hold_keeps_the_terminals_saved_resources() {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
     w.send(Event::Activation {
+        reads_project: false,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         task: TASK,
         attempt: FIRST,

@@ -125,6 +125,7 @@ pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
         | OutcomeFamily::Refused
         | OutcomeFamily::CompoundRefused
         | OutcomeFamily::ServiceMade(_)
+        | OutcomeFamily::ServiceReissued
         | OutcomeFamily::RolesSet(_)
         | OutcomeFamily::Settled => None,
     }

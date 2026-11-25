@@ -43,8 +43,11 @@ def left_out(path):
     return path in (LIST, OWN) or (len(parts) >= 5 and parts[1:3] == ['docs', 'plan'])
 
 
-def scan(pattern, prefilter):
-    listed = subprocess.run(['git', 'ls-files', '-z'], capture_output=True, check=True).stdout
+def scan(pattern, prefilter, paths=None):
+    if paths is None:
+        listed = subprocess.run(['git', 'ls-files', '-z'], capture_output=True, check=True).stdout
+    else:
+        listed = paths
     findings = []
     for raw in sorted(set(listed.split(b'\0')) - {b''}):
         path = raw.decode('utf-8')
@@ -68,7 +71,12 @@ def scan(pattern, prefilter):
 def main():
     try:
         patterns = names(Path(__file__).with_name('names.txt').read_bytes())
-        findings = scan(*patterns)
+        if sys.argv[1:] == ['--paths0']:
+            findings = scan(*patterns, sys.stdin.buffer.read())
+        elif not sys.argv[1:]:
+            findings = scan(*patterns)
+        else:
+            raise ValueError('expected no arguments or --paths0')
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f'outward: {error}', file=sys.stderr)
         return 2

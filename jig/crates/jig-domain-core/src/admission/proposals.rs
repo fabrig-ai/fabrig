@@ -1,5 +1,5 @@
 //! Core-owned proposal action checks and nearest-holder routing
-//! (domain/engine/README.md, 4.4; domain/tasks/proposals.md).
+//! (domain/engine/vocabulary.md, 1.4; domain/tasks/proposals.md).
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -92,7 +92,7 @@ fn distance(core: &Core, limits: &Limits, proposer: u64, holder: u64) -> Option<
 
 fn covers_person(
     core: &Core,
-    limits: &Limits,
+    bounds: (u32, u32),
     needed: &authority::Authority,
     person: u64,
     project: u32,
@@ -112,7 +112,7 @@ fn covers_person(
             role: role.number(),
             proposal: kind,
             pool: translate::authority_numbers(numbers),
-            tasks_left: limits.tasks.tree_tasks,
+            tasks_left: bounds.1,
         },
         0,
     )
@@ -122,7 +122,7 @@ fn covers_person(
 /// the policy's eligible people. `after` skips holders through one pass/stall.
 fn holder(
     core: &Core,
-    limits: &Limits,
+    bounds: (u32, u32),
     proposer: u64,
     action: &tasks::ProposalAction,
     after: Option<tasks::ProposalHolder>,
@@ -151,7 +151,7 @@ fn holder(
     let mut next = context.requester;
     let mut distance = 1_u32;
     let mut passed = after.is_none();
-    for _ in 0..limits.tasks.depth.saturating_add(1) {
+    for _ in 0..bounds.0.saturating_add(1) {
         match next {
             tasks::Party::Task(task) => {
                 let holder = tasks::ProposalHolder::Task(task);
@@ -169,7 +169,7 @@ fn holder(
             }
             tasks::Party::Person(person) => {
                 let holder = tasks::ProposalHolder::Person(person);
-                if passed && covers_person(core, limits, &needed, person, context.project, policy_kind) {
+                if passed && covers_person(core, bounds, &needed, person, context.project, policy_kind) {
                     return Some(holder);
                 }
                 if after == Some(holder) {
@@ -348,7 +348,7 @@ impl Core {
         project: u32,
         kind: authority::ProposalKind,
     ) -> bool {
-        covers_person(self, limits, needed, person, project, kind)
+        covers_person(self, (limits.tasks.depth, limits.tasks.tree_tasks), needed, person, project, kind)
     }
 
     /// Choose the next live proposal holder after any passed holder.
@@ -361,7 +361,16 @@ impl Core {
         after: Option<tasks::ProposalHolder>,
         decision: Wall,
     ) -> Option<tasks::ProposalHolder> {
-        holder(self, limits, proposer, action, after, decision)
+        holder(self, (limits.tasks.depth, limits.tasks.tree_tasks), proposer, action, after, decision)
+    }
+
+    /// Whether a pending proposal has a further covering holder at the core's clock
+    /// (domain/tasks/README.md, 8), for its inspection adapter.
+    #[must_use]
+    pub fn inspection_proposal_has_further(&self, proposer: u64, proposal: u64) -> bool {
+        let Some(row) = self.tasks.proposal(proposer, proposal) else { return false };
+        let tasks::ProposalState::Pending { holder: current, .. } = row.state else { return false };
+        holder(self, self.proposal_bounds, proposer, &row.action, Some(current), self.run_wall).is_some()
     }
 }
 

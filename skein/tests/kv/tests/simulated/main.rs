@@ -25,6 +25,7 @@ mod target;
 mod fuzzy {
     mod census;
     mod holds;
+    mod kept_reads;
     mod logs;
     mod map;
 }

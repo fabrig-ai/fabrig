@@ -1,6 +1,6 @@
 //! Product user layers hold the account and trace; task settings travel as flags.
 //! Only attempt-owned paths and the selected model are substituted. No preset
-//! value is derived here (../../../../docs/design/benchmarks/README.md, sections 5.4, 6.1 and 10).
+//! value is derived here (../../../../docs/design/benchmarks/README.md, section 5.4, and ../../../../docs/design/benchmarks/agents.md, section 1.1, and ../../../../docs/design/benchmarks/isolation.md, section 1).
 
 use crate::{Fault, configuration};
 use std::path::Path;
@@ -8,10 +8,16 @@ use std::path::Path;
 use serde_json::Value;
 
 use crate::agent::Context;
+use crate::files::{Files, Native};
 use crate::isolate::SetupStep;
 
 /// Render the pin's trace and shared account declarations with its credentials directory.
 pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Value, Fault> {
+    product_with(&Native, context, base, login)
+}
+
+/// Render the product layer with paths resolved on a supplied filesystem.
+pub fn product_with(files: &dyn Files, context: &Context<'_>, base: &Value, login: &Path) -> Result<Value, Fault> {
     let mut layer = base.clone();
     if !layer.is_object() || !layer["trace"].is_object() {
         return Err(configuration("Smith pin requires a product account and trace layer"));
@@ -21,7 +27,7 @@ pub fn product(context: &Context<'_>, base: &Value, login: &Path) -> Result<Valu
     let endpoint = endpoint(context.pin.pin.provider);
     layer["endpoints"] = serde_json::json!({endpoint: shared["endpoints"][endpoint]});
     layer["credentials"] = serde_json::json!(login);
-    layer["invocation"] = serde_json::json!(arguments(context)?);
+    layer["invocation"] = serde_json::json!(arguments_with(files, context)?);
     Ok(layer)
 }
 
@@ -63,8 +69,8 @@ fn setting(arguments: &mut Vec<String>, key: &str, value: &toml::Value) {
     arguments.extend(["-c".into(), format!("{key}={value}")]);
 }
 
-/// Pass product settings directly, resolving the tier model and private paths.
-pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Fault> {
+// Pass product settings directly, resolving the tier model and private paths.
+fn arguments_with(files: &dyn Files, context: &Context<'_>) -> Result<Vec<String>, Fault> {
     let model = context
         .model
         .model
@@ -83,7 +89,7 @@ pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Fault> {
         .or_else(|| context.task.smith.get("model"))
         .and_then(toml::Value::as_str)
         .map_or_else(|| format!("{}/{model}", endpoint(context.pin.pin.provider)), str::to_owned);
-    let working = crate::isolate::working_directory(context.guard, context.private, context.task)
+    let working = crate::isolate::working_directory_with(files, context.guard, context.private, context.task)
         .map_err(Fault::at(SetupStep::Configuration))?;
     let mut arguments = vec![
         "-C".into(),
@@ -97,7 +103,8 @@ pub fn arguments(context: &Context<'_>) -> Result<Vec<String>, Fault> {
         for (key, value) in fields {
             let key = key.replace("{model}", &selected);
             let value = if key == "workspace.directories" {
-                let directories = super::directories::render(context).map_err(Fault::at(SetupStep::Configuration))?;
+                let directories =
+                    super::directories::render_with(files, context).map_err(Fault::at(SetupStep::Configuration))?;
                 serde_json::from_value(directories).map_err(Fault::at(SetupStep::Configuration))?
             } else {
                 value.clone()

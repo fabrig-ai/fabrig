@@ -3,11 +3,11 @@
 2026-11-16. A deployment's state at one commit, taken by the serving
 store at a short barrier in its ordered work, mostly by hard links,
 never changed once made, and laid out as a stopped deployment's
-directory (temper's `draft/checkpoints.md`, sections 2 to 4 and 5.1,
-milestone C1 of `draft/checkpoints.execution.md`). The component takes it
+directory (temper's `draft/archive/checkpoints.md`, sections 2 to 4 and 5.1,
+milestone C1 of `temper/docs/design/draft/archive/checkpoints.execution.md`). The component takes it
 through skein-kv's holds for both of its stores (skein's `data/kv.md`,
 2.3), and takes the transcripts and the task logs itself. Restoring one
-is `restoring.md`'s (temper's `draft/checkpoints.md`, 5.3).
+is `restoring.md`'s (temper's `draft/archive/checkpoints.md`, 5.3).
 
 ## 1. In one page
 
@@ -64,7 +64,7 @@ it. A checkpoint inside it, laid out as a stopped deployment's directory
 
 - **Left out:** a snapshot still being written and the temporary of a
   durable replace (skein's `data/kv.md`, 5; skein's
-  `runtime/io/files.md`, 2); a segment no hold names (skein's
+  `runtime/io/files.md`, 10); a segment no hold names (skein's
   `data/kv.md`, 2.3); a transcript's or a log's bytes past what the map
   at C names; a log or a transcript no row at C names; every other
   generation and every other checkpoint.
@@ -74,7 +74,7 @@ it. A checkpoint inside it, laid out as a stopped deployment's directory
   up to its length at C, never linked (4.3). An open writes the
   directory it opens (recovery's next segment, the transcripts' cut), so
   a checkpoint is opened only through a copy of it: `upgrade --check`
-  copies its input (`opening.md`, 5), and a restore stages one
+  copies its input (`opening-rehearsal.md`, 1), and a restore stages one
   (`restoring.md`, 4.4 and 4.5).
 
 ### 2.3 Its record
@@ -216,7 +216,7 @@ tasks beside them:
    tasks that may still write turns, as the open's cut reads them
    (`transcripts.md`, 4). Every task with a turns log or a transcript
    file still written to has one, from its claim to its end (temper's
-   `draft/checkpoints.md`, section 9, answered from S7's code).
+   `draft/archive/checkpoints.md`, section 9, answered from S7's code).
 2. **The transcripts,** each place row, `00 01 <task>`, with its
    committed `length` (`transcripts.md`, 1).
 3. **The logs,** each extent row, `00 09 <log>`, with its extent
@@ -270,7 +270,7 @@ and no serving request behind more than one of its own.
 1. **The temporary** made: `checkpoints/<name>.skein-<16 hex>/`, then
    `generations/1/`, `store/`, `store/logs/` and `transcripts/` in it,
    each `0o700`, and `secrets/` opened private (skein's
-   `runtime/io/files.md`, 3); each directory durable as io makes it.
+   `runtime/io/files.md`, 11); each directory durable as io makes it.
 2. **Each name checked** in the active generation's `store/` and
    `secrets/`, a page at a time: `snapshot`, a segment's name, `logs`
    (the store's alone), and the temporaries of 2.2 are known; any other
@@ -384,7 +384,7 @@ one always among them:
 - **A reader holds its lock:** io's `Lock` on the checkpoint's
   directory, as a deployment's is held (`opening.md`, 1.1), for as long
   as it reads. `upgrade --check` over a checkpoint takes it as it takes
-  its source's (`opening.md`, 5).
+  its source's (`opening-rehearsal.md`, 1).
 - **`Request::HoldCheckpoint { owner, root, name }`,** with the
   deployment's directory as `root`, needing no open: the checkpoint's
   directory opened and locked; answered `CheckpointHeld { owner }`, the
@@ -433,7 +433,8 @@ one always among them:
 
 - **Step tests,** in `jig-protocol-store`: a name and a temporary's
   formatted and parsed, and every other form refused; the record's and
-  the manifest's bytes, with golden bytes; a selection over a map with
+  the manifest's bytes, with fixed-rule values built from the schema's
+  text; a selection over a map with
   live and ended tasks, transcripts and logs, each source taken as 4.3's
   table says; a second request refused `InProgress`; a memory store's
   `Unavailable`; the first start's refusal and the sweep.

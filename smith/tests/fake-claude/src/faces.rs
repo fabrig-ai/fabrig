@@ -1,5 +1,5 @@
-//! Startup adapters for the same command machine (smith/docs/design/protocol/programs.md,
-//! sections 4.2, 5 and 8; smith/docs/design/testing.md, section 4). Only this module reads the
+//! Startup adapters for the same command machine (smith/docs/design/protocol/programs.md, section 4.2, and smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8
+//! ; smith/docs/design/testing.md, section 4). Only this module reads the
 //! process's arguments/environment or opens kernel startup descriptors.
 
 use std::{os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
@@ -66,6 +66,26 @@ pub fn observation_append(spawn: &Spawn) -> Option<StartupAppend> {
         path: OBSERVATIONS_FILE.as_bytes().into(),
         mode: 0o600,
     })
+}
+
+/// Resolve a simulated print invocation's descriptor-relative directory into the
+/// fake machine's namespace. An empty directory is relative to the workspace;
+/// otherwise the launch is relative to the programs directory.
+pub fn simulated_launch(spawn: &Spawn, programs: &[u8], workspace: &[u8]) -> Spawn {
+    let directory = if spawn.args.first().is_some_and(|argument| argument.as_ref() == b"-p") {
+        if spawn.dir.is_empty() { workspace.into() } else { [programs, b"/", &spawn.dir].concat().into() }
+    } else {
+        spawn.dir.clone()
+    };
+    Spawn {
+        reach: None,
+        program: spawn.program.clone(),
+        args: spawn.args.clone(),
+        env: spawn.env.clone(),
+        root: spawn.root,
+        dir: directory,
+        pipes: spawn.pipes.clone(),
+    }
 }
 
 /// A hosted factory; register it with [`config_root`] and [`observation_append`]
@@ -146,7 +166,6 @@ pub fn main() -> ExitCode {
         Faces { stdin: Some(Fd::new(0)), stdout: Fd::new(1), stderr: Fd::new(2), signal, config, observations, mcp },
         &directory,
     );
-    fake.record_process(skein_shell::process_id());
     let mut kernel = match skein_shell::Kernel::open(Config { operations: fake.operations() }) {
         Ok(kernel) => kernel,
         Err(error) => {

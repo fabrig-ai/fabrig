@@ -2,9 +2,12 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use skein_lib::{Duration, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Schedule, Span, Stage, Trace};
+use skein_world::faults::FaultLedger;
+use skein_world::inspect::{Moment, check_tables, check_waits};
+use skein_world::streams::Streams;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{Created, Remote, Tree};
-use temper_worker_domain_checkout::git::{Done, Fault, Kind, Missing, Op, Want};
+use temper_worker_domain_checkout::git::{Done, Fault, Kept, KeptState, Kind, Missing, Op, Want};
 use temper_worker_domain_checkout::{
     Cached, Domain, Event, Fact, Failure, Landing, Limits, Message, Outcome, Prepared, Refusal, Repository, Request,
     Spec, Start, valid,
@@ -265,6 +268,8 @@ enum Work {
     Perform(Op),
     /// It runs when it ends, and io reports that it ran out of time.
     Ambiguous(Op),
+    /// Partial disk effects, answered at the operation's deadline.
+    Cut(Op),
     /// It ends so, having done nothing.
     Ending(Done),
 }
@@ -292,12 +297,16 @@ enum Verified {
 #[derive(Debug)]
 pub struct World {
     now: Time,
+    iteration: u64,
     rng: Rng,
+    scheduling: Option<Rng>,
     settings: Settings,
+    faults: crate::faults::Faults,
     domain: Domain,
     stage: Stage<Limits, Event, Request>,
     wire: Schedule<Delivery>,
     disk: Checkout,
+    kept: BTreeMap<Token, temper_worker_domain_checkout::git::Kept>,
     forge: Forge,
     /// The forge's repositories.
     repositories: Vec<Hosted>,
@@ -366,12 +375,16 @@ impl World {
         }
         World {
             now: Time::ZERO,
+            iteration: 0,
             rng,
+            scheduling: None,
             settings,
+            faults: crate::faults::Faults::default(),
             domain,
             stage: Stage::uncapped(settings.checkout),
             wire: Schedule::new(),
             disk,
+            kept: BTreeMap::new(),
             forge,
             repositories,
             workstreams,
@@ -405,13 +418,64 @@ impl World {
         self.domain = Domain::new(&self.settings.checkout);
         if self.settings.reuse {
             self.domain.reuse_workspaces();
-        } else {
-            self.disk.remove(b"ws");
         }
+        let marks: Vec<_> =
+            self.kept.values().filter(|mark| self.disk.exists(&translate::dir(mark.workspace))).cloned().collect();
+        if !self.settings.reuse {
+            for workspace in &self.workspaces {
+                if !marks.iter().any(|mark| mark.workspace == *workspace) {
+                    self.disk.remove(&translate::dir(*workspace));
+                }
+            }
+        }
+        self.domain.restore_workspaces(marks.into_boxed_slice());
         self.stage = Stage::uncapped(self.settings.checkout);
         self.holds.clear();
         self.workspaces.clear();
         self.checked_out.clear();
+    }
+
+    #[must_use]
+    pub fn kept(&self) -> Vec<temper_worker_domain_checkout::git::Kept> {
+        self.kept.values().cloned().collect()
+    }
+
+    /// The fault sweep's world: workload and fault draws have independent streams.
+    #[must_use]
+    pub fn with_faults(settings: Settings, streams: Streams) -> World {
+        let mut world =
+            Self::new(Settings { seed: streams.seed_of(skein_world::streams::Stream::Workload, "worker"), ..settings });
+        world.settings.seed = streams.seed();
+        world.scheduling = Some(streams.rng(skein_world::streams::Stream::Scheduling, "worker"));
+        world.faults.seed(streams, world.iteration);
+        world
+    }
+
+    /// Cut the next matching content-fetch operation at its deadline.
+    pub fn cut_next(&mut self, kind: Kind) {
+        self.faults.cut_next(kind);
+    }
+
+    /// Set capacity just above the current regular-file usage.
+    pub fn limit_disk(&mut self, headroom: u64) {
+        self.faults.capacity = Some(self.disk_used() + headroom);
+    }
+
+    #[must_use]
+    pub fn disk_used(&self) -> u64 {
+        translate::used(&self.disk)
+    }
+
+    #[must_use]
+    pub fn faults(&self) -> &FaultLedger {
+        &self.faults.ledger
+    }
+
+    /// Settle a sweep's run and return its ledger with the checked outcome.
+    #[must_use]
+    pub fn run_faults(mut self, iterations: u32) -> FaultLedger {
+        self.run(iterations);
+        self.faults.ledger
     }
 
     pub fn write_disk(&mut self, path: &[u8], content: &[u8]) {
@@ -476,6 +540,16 @@ impl World {
         self.workstreams[workstream] = places.to_vec();
     }
 
+    /// Publish a fresh counts commit for the repository at `place`.
+    pub fn publish_counts(&mut self, place: usize, bytes: &[u8]) -> u64 {
+        self.forge.publish_counts(&self.repositories[place].remote, bytes)
+    }
+
+    /// Remove the forge's counts reference, leaving any checkout's pin alone.
+    pub fn remove_counts(&mut self, place: usize) {
+        self.forge.remove_counts(&self.repositories[place].remote);
+    }
+
     /// Another party advances `branch` of the repository at `place`, at `at`.
     pub fn advance_at(&mut self, at: Time, place: usize, branch: &[u8]) {
         let repository = self.repositories[place].remote.clone();
@@ -518,7 +592,7 @@ impl World {
     /// settled world. Panics if it takes more than `iterations`.
     pub fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
-            self.iterate();
+            self.iterate().unwrap_or_else(|finding| panic!("{finding}"));
             if self.has_work_now() {
                 continue;
             }
@@ -533,7 +607,9 @@ impl World {
     }
 
     /// One iteration of the loop, as the shell would run it.
-    fn iterate(&mut self) {
+    fn iterate(&mut self) -> Result<(), String> {
+        self.iteration += 1;
+        self.faults.tick(self.iteration, &self.disk);
         self.stage.tick(self.now);
         self.deliver();
         while let Some(event) = self.stage.next_event() {
@@ -555,7 +631,13 @@ impl World {
         assert!(self.workspaces.len() <= usize::try_from(limits.workspaces).expect("small"), "no more directories");
         self.stats.most_workspaces = self.stats.most_workspaces.max(self.domain.workspaces());
         self.stats.most_holds = self.stats.most_holds.max(self.domain.holds());
+        let moment = Moment { seed: self.settings.seed, at: self.now, iteration: self.iteration };
+        let mut found = temper_worker_inspect::inspection();
+        temper_worker_inspect::inspect_checkout(&self.domain, &limits, &mut found);
+        temper_worker_inspect::inspect_disk(&self.domain, &limits, &self.disk, &mut found);
+        check_waits(&[&found], moment).and(check_tables(&[&found], moment))?;
         self.domain.reclaim();
+        Ok(())
     }
 
     fn deliver(&mut self) {
@@ -672,7 +754,7 @@ impl World {
         let hosted = self.repositories.iter().any(|hosted| hosted.remote == first.remote);
         if hosted && self.rng.chance(self.settings.advance) {
             let delivery = Delivery::Advance { repository: first.remote.clone(), branch: base.clone() };
-            let at = self.now.saturating_add(self.settings.remote.draw(&mut self.rng));
+            let at = self.now.saturating_add(self.latency(self.settings.remote));
             self.schedule(at, delivery);
         }
         let mut key = format!("work-{workstream}").into_bytes();
@@ -738,7 +820,7 @@ impl World {
         assert!(client.operation.is_none(), "a client acts between its operations");
         let ready = match client.prepared {
             Some(Prepared::Candidate { .. }) => unreachable!("branch-only clients"),
-            Some(Prepared::Ready { .. }) => true,
+            Some(Prepared::Ready { .. } | Prepared::Recovered { .. }) => true,
             Some(Prepared::Failed { .. } | Prepared::Aborted) => false,
             Some(Prepared::Refused { .. }) | None => unreachable!("a client acts once it holds a workspace"),
         };
@@ -817,7 +899,7 @@ impl World {
         let client = self.clients.get_mut(&name).expect("a client submitted");
         let hold = client.hold.expect("a client releases what it holds");
         client.release = Release::Asked;
-        self.stage.push(Event::Release { hold });
+        self.stage.push(if client.plan.keep { Event::Keep { hold } } else { Event::Release { hold } });
     }
 
     /// The client interrupts at a moment of its own.
@@ -905,7 +987,7 @@ impl World {
         let stats = &mut self.stats;
         match prepared {
             Prepared::Candidate { .. } => unreachable!("branch-only clients"),
-            Prepared::Ready { workspace, .. } => {
+            Prepared::Ready { workspace, .. } | Prepared::Recovered { workspace, .. } => {
                 stats.ready += 1;
                 client.workspace = Some(*workspace);
                 self.check_ready(name, *workspace);
@@ -943,13 +1025,23 @@ impl World {
         let hold = client.hold.expect("a prepared client holds a workspace");
         let mut start = Vec::new();
         for repo in &client.repos {
-            let commit = *self.checked_out.get(&(hold, repo.name.clone())).expect("each repository was checked out");
+            let commit = self.checked_out.get(&(hold, repo.name.clone())).copied().unwrap_or_else(|| {
+                let at = [translate::dir(workspace).as_slice(), b"/", &repo.name, b"/.git/temper-head"].concat();
+                u64::from_le_bytes(self.disk.content(&at).expect("preserved head").try_into().expect("fake commit"))
+            });
             if let Some(named) = repo.commit {
                 assert_eq!(commit, named, "a repository starts at the commit its spec names");
             }
             let tree = self.tree(workspace, &repo.name);
-            assert_eq!(tree, self.forge.tree(commit), "a repository is checked out at its starting point");
-            start.push(tree);
+            let expected = self.forge.tree(commit);
+            if self.checked_out.contains_key(&(hold, repo.name.clone())) {
+                assert_eq!(tree, expected, "a repository is checked out at its starting point");
+            } else {
+                for (path, content) in &expected {
+                    assert_eq!(tree.get(path), Some(content), "preserved tracked file");
+                }
+            }
+            start.push(expected);
         }
         let client = self.clients.get_mut(&name).expect("a client submitted");
         client.pushed.clone_from(&start);
@@ -961,7 +1053,7 @@ impl World {
                 repository: repo.remote.clone(),
                 branch: format!("base/{}", client.plan.workstream).into_bytes(),
             };
-            let at = self.now.saturating_add(self.settings.think.draw(&mut self.rng));
+            let at = self.now.saturating_add(self.latency(self.settings.think));
             self.schedule(at, delivery);
         }
     }
@@ -1077,7 +1169,7 @@ impl World {
     fn think(&mut self, name: u64) {
         let client = self.clients.get(&name).expect("a client submitted");
         if client.release == Release::NotAsked {
-            let at = self.now.saturating_add(self.settings.think.draw(&mut self.rng));
+            let at = self.now.saturating_add(self.latency(self.settings.think));
             self.schedule(at, Delivery::Act { client: name });
         }
     }
@@ -1086,11 +1178,21 @@ impl World {
 
     fn start_op(&mut self, owner: Token, op: Op, deadline: Time) {
         let name = *self.holds.get(&owner).expect("an operation is a hold's");
-        let client = self.clients.get(&name).expect("a hold's client");
+        let client = self.clients.get_mut(&name).expect("a hold's client");
         assert!(client.release != Release::Done, "no operation touches a workspace after its release");
-        assert!(client.operation.is_some(), "an operation runs only while its client waits for one to end");
+        let operation = client.operation;
+        assert!(
+            operation.is_some() || client.release == Release::Asked || op.kind() == Kind::Keep,
+            "git runs while its client waits; a held mark may finish after its answer"
+        );
         let limits = self.settings.checkout;
-        if client.operation == Some(Operation::Prepare) {
+        if let Op::Pack { at, store } = &op {
+            assert_eq!(operation, Some(Operation::Prepare), "only a prepare packs");
+            client.packs.push((at.clone(), *store));
+        } else if operation == Some(Operation::Prepare) && op.kind() != Kind::Keep {
+            assert!(client.packs.is_empty(), "packing follows all other git operations of a prepare");
+        }
+        if operation == Some(Operation::Prepare) {
             assert!(self.preparing_io.insert(owner), "one operation per prepare");
             let count = u32::try_from(self.preparing_io.len()).expect("small");
             assert!(count <= limits.preparations, "io never holds more prepares than preparation permits");
@@ -1114,10 +1216,13 @@ impl World {
             }
             assert!(self.making.insert(owner, *store).is_none());
         }
-        let verifies = self.attempt(owner, client.operation, &op);
+        let verifies = self.attempt(owner, operation, &op);
         let span = if op.is_remote() { self.settings.remote } else { self.settings.local };
-        let mut ends = self.now.saturating_add(span.draw(&mut self.rng));
-        let mut work = if self.rng.chance(self.settings.broken) {
+        let mut ends = self.now.saturating_add(self.latency(span));
+        let cut = self.faults.draws_cut(op.kind());
+        let mut work = if cut {
+            Work::Cut(op)
+        } else if self.rng.chance(self.settings.broken) {
             self.stats.op_broken += 1;
             Work::Ending(Done::Failed { fault: Fault::Broken })
         } else if self.rng.chance(self.settings.ambiguous.max(if op.kind() == Kind::Push {
@@ -1132,9 +1237,12 @@ impl World {
         };
         // io runs the race with the deadline, and tells it lost a moment
         // after the deadline passes, having done nothing.
-        if ends > deadline {
+        if cut {
+            ends = deadline;
+            self.stats.op_timeouts += 1;
+        } else if ends > deadline {
             work = Work::Ending(Done::Failed { fault: Fault::TimedOut });
-            ends = deadline.saturating_add(self.settings.network.draw(&mut self.rng));
+            ends = deadline.saturating_add(self.latency(self.settings.network));
             self.stats.op_timeouts += 1;
         }
         let delivery = self.schedule(ends, Delivery::Ran { owner });
@@ -1162,12 +1270,16 @@ impl World {
                 assert_eq!(attempt.verified, Verified::Not, "a push is verified once");
                 Some(remote.to_vec())
             }
+            // A hold's updated head is marked even while its client pushes or saves.
+            Op::Keep { mark: Some(Kept { state: KeptState::Held, .. }), .. } | Op::Commit { .. } => None,
             Op::Store { .. }
             | Op::Reds { .. }
             | Op::Reset { .. }
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
+            | Op::Keep { .. }
+            | Op::Counts { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }
@@ -1179,7 +1291,6 @@ impl World {
             | Op::Merge { .. } => {
                 panic!("a push or a save commits, pushes and verifies, nothing else: {op:?}")
             }
-            Op::Commit { .. } => None,
         }
     }
 
@@ -1203,7 +1314,7 @@ impl World {
             return;
         }
         let key = pending.delivery;
-        let at = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
+        let at = self.now.saturating_add(self.latency(self.settings.network));
         let delivery = self.schedule(at, Delivery::Ran { owner });
         self.wire.withdraw(key).expect("an operation in flight has its end on the way");
         let pending = self.ops.get_mut(owner).expect("looked up above");
@@ -1218,9 +1329,10 @@ impl World {
         self.making.remove(&owner);
         self.cancel_lost.remove(&owner);
         let done = match pending.work {
-            Work::Perform(op) => self.perform(owner, op),
+            Work::Perform(op) => self.perform(owner, op, false),
+            Work::Cut(op) => self.perform(owner, op, true),
             Work::Ambiguous(op) => {
-                self.perform(owner, op);
+                self.perform(owner, op, false);
                 Done::Failed { fault: Fault::TimedOut }
             }
             Work::Ending(done) => done,
@@ -1255,7 +1367,7 @@ impl World {
         clippy::too_many_lines,
         reason = "the operation boundary records transferred objects and changed working paths"
     )]
-    fn perform(&mut self, owner: Token, op: Op) -> Done {
+    fn perform(&mut self, owner: Token, op: Op, cut: bool) -> Done {
         // As it takes effect: its hold still holds its workspace, and its
         // client still waits for the operation it is part of.
         let workspace = translate::workspace(&op);
@@ -1264,7 +1376,10 @@ impl World {
         }
         let client = self.clients.get(self.holds.get(&owner).expect("a hold's")).expect("a hold's client");
         assert!(client.release != Release::Done, "nothing touches a workspace once its hold is released");
-        assert!(client.operation.is_some(), "nothing touches a workspace once its client has heard the end");
+        assert!(
+            client.operation.is_some() || client.release == Release::Asked || op.kind() == Kind::Keep,
+            "workspace operations settle before release ends"
+        );
         if op.kind() == Kind::Make && self.disk.exists(&translate::dir(workspace.expect("Make has a workspace"))) {
             self.stats.made_over += 1;
         }
@@ -1287,6 +1402,7 @@ impl World {
                 Some((at.repository.to_vec(), path, tree))
             }
             Op::Store { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Reds { .. }
@@ -1294,6 +1410,7 @@ impl World {
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
+            | Op::Counts { .. }
             | Op::Create { .. }
             | Op::Commit { .. }
             | Op::Push { .. }
@@ -1317,7 +1434,7 @@ impl World {
             Op::Clone { at, .. } => {
                 Some((at.repository.to_vec(), [translate::path(at).as_slice(), b"/.git/objects"].concat()))
             }
-            Op::Fetch { at, store, .. } => {
+            Op::Fetch { at, store, .. } | Op::Counts { at, store, .. } => {
                 Some((at.repository.to_vec(), [translate::store_path(*store).as_slice(), b"/objects"].concat()))
             }
             _ => None,
@@ -1331,7 +1448,27 @@ impl World {
         let kind = op.kind();
         let creates = kind == Kind::Create;
         self.forge.at(self.now);
-        let done = translate::perform(&mut self.forge, &mut self.disk, op);
+        let keep = if let Op::Keep { workspace, mark } = &op { Some((*workspace, mark.clone())) } else { None };
+        let used = if self.faults.capacity.is_some() { self.disk_used() } else { 0 };
+        let done = if cut && self.faults.capacity.is_none_or(|capacity| used < capacity) {
+            let done = translate::cut(&mut self.forge, &mut self.disk, op);
+            if matches!(done, Done::Failed { fault: Fault::TimedOut }) {
+                self.faults.cut(owner, kind, self.now);
+            }
+            done
+        } else {
+            translate::perform_with_capacity(&mut self.forge, &mut self.disk, op, self.faults.capacity)
+        };
+        if done == Done::Succeeded
+            && let Some((workspace, mark)) = keep
+        {
+            if let Some(mark) = mark {
+                self.kept.insert(workspace, mark);
+            } else {
+                self.kept.remove(&workspace);
+            }
+        }
+        self.faults.answered(owner, kind, self.now, used, &done);
         if let Some((repository, objects, before)) = transfer {
             let after = object_markers(&self.disk, &objects);
             let commits = after.difference(&before).copied().collect();
@@ -1421,12 +1558,14 @@ impl World {
                 match op {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
-                    Kind::Reds
+                    Kind::Keep
+                    | Kind::Reds
                     | Kind::Reset
                     | Kind::Pack
                     | Kind::Point
                     | Kind::Store
                     | Kind::Fetch
+                    | Kind::Counts
                     | Kind::Create
                     | Kind::CheckOut
                     | Kind::Commit
@@ -1506,6 +1645,10 @@ impl World {
         tree
     }
 
+    fn latency(&mut self, span: Span) -> Duration {
+        span.draw(self.scheduling.as_mut().unwrap_or(&mut self.rng))
+    }
+
     fn schedule(&mut self, at: Time, delivery: Delivery) -> Key {
         // On a coarse grid, if the world has one, so that deliveries coincide.
         let granule = self.settings.granule.as_nanos();
@@ -1552,6 +1695,7 @@ fn describe_event(event: &Event) -> String {
         Event::Save { hold, .. } => format!("save {}", hold.raw()),
         Event::Abort { hold } => format!("abort {}", hold.raw()),
         Event::Cut { hold } => format!("cut {}", hold.raw()),
+        Event::Keep { hold } => format!("keep {}", hold.raw()),
         Event::Release { hold } => format!("release {}", hold.raw()),
         Event::PushUnchecked { hold } => format!("save unchecked {}", hold.raw()),
         Event::Reds { hold, action } => format!("reds {} {action:?}", hold.raw()),

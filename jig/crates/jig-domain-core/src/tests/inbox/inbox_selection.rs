@@ -186,6 +186,9 @@ fn both_save_orders_keep_a_task_need_and_its_party_amendment_until_withdrawn() {
         let (mut core, mut limits) = fixture();
         limits.documents.rows = 1;
         let mut task = core.tasks.task(1).unwrap().clone();
+        task.phase =
+            tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None };
+        task.revisions.hold = 1;
         task.escalation = tasks::Escalation::Waiting {
             revision: 1,
             holder: tasks::EscalationHolder::Person(1),
@@ -361,6 +364,7 @@ fn finished_chat() -> (Core, Limits, Box<[Record]>) {
         },
         // The final turn is kept before its finish is admitted and closing settles.
         tasks::Event::Activation {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(task)),
             task,
             attempt,
@@ -907,7 +911,8 @@ fn stored_waiting_and_reply_entries_keep_separate_original_contexts_and_activity
         hits: 0,
         eligible: true,
     }]);
-    owner.question_lines = Box::new([tasks::QuestionLine { message: u64::MAX, line: owner.activity, answer: None }]);
+    owner.question_lines =
+        Box::new([tasks::QuestionLine { message: u64::MAX, line: owner.activity, answer: None, resolution: None }]);
     core.question_activity
         .insert(
             (owner.number, owner.activity),
@@ -1054,7 +1059,7 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
 }
 
 fn settings_document_bytes(limits: &Limits) -> u64 {
-    // A settings inventory document is priced beside every document (domain/engine/settings.md 7).
+    // A settings inventory document is priced beside every document (domain/engine/settings-store.md 1).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
     // Four older held revision heads, each with its holder count, add 288 bytes.

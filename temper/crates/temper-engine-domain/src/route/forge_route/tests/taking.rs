@@ -106,7 +106,7 @@ fn taking_accounts_reach_the_task_under_the_existing_stalled_and_effect_failed_h
             forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
             &mut skein_lib::Queue::uncapped(),
         );
-        let decision = route::hold_change_decision(&domain, &env, task, cause, None);
+        let decision = route::hold_change_decision(&domain, &env, task, cause, None, None);
         let route::StepEnd::HoldFrom { why, source } = decision.end else { panic!("taking hold has an account") };
         assert_eq!(why, expected);
         let tasks::HoldSource::Account { words: held, .. } = source.as_ref() else { panic!("taking keeps its words") };

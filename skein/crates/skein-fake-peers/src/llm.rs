@@ -29,8 +29,8 @@ pub enum Observation {
     Credential { connection: Token, route: skein_llm::Provider, scheme: Option<skein_llm::Scheme>, index: Option<u32> },
     /// A model-list request, with the same credential description and no value.
     List { connection: Token, route: skein_llm::Provider, scheme: Option<skein_llm::Scheme>, index: Option<u32> },
-    /// The byte peer decoded this complete call before the script domain received it.
-    Query { connection: Token, query: api::Query },
+    /// The byte peer decoded this complete call at the supplied monotonic time, before the script domain received it.
+    Query { connection: Token, at: Time, query: api::Query },
     /// The real script domain emitted this terminal, even after the connection closed.
     Answered { connection: Option<Token>, result: Result<(), api::Error> },
     /// io completed this connection's close.
@@ -207,6 +207,25 @@ impl Peer {
     #[must_use]
     pub fn is_held(&self, name: &[u8]) -> bool {
         self.domain.is_held(name)
+    }
+
+    /// Includes detached calls, so a referee can tell when a retry reaches the same hold.
+    #[must_use]
+    pub fn held_count(&self, name: &[u8]) -> u32 {
+        self.domain.held_count(name)
+    }
+
+    /// Installs an account fault at the owner's iteration time; no credential value is read.
+    pub fn strike(&mut self, credential: u32, strike: api::Strike, now: Time) -> Result<(), Error> {
+        if usize_of(credential) >= self.credentials.len() {
+            return Err(Error::Limits);
+        }
+        self.domain.strike(credential, strike, now).map_err(|_| Error::Limits)
+    }
+
+    /// Clears a fault by kind, and by model for Unserved.
+    pub fn clear(&mut self, credential: u32, strike: &api::Strike) {
+        self.domain.clear(credential, strike);
     }
 
     /// Queues a hold name for the next domain pass, without releasing from the wire.
@@ -420,7 +439,7 @@ impl Peer {
                             let bytes = query_bytes(&query).expect("bounded decoded query");
                             // Check before cloning any owned query bytes.
                             self.reserve_observation(bytes);
-                            self.observe(Observation::Query { connection, query: query.clone() }, bytes);
+                            self.observe(Observation::Query { connection, at: now, query: query.clone() }, bytes);
                         }
                         domain::step(
                             &mut self.domain,

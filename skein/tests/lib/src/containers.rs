@@ -1,4 +1,4 @@
-//! Naive map join and slice search, with seeded inputs (runtime/lib.md, 5.2, 5.3).
+//! Naive map join and slice search, with seeded inputs (runtime/lib-containers.md, 1.2, 1.3).
 
 use skein_lib::{Joined, Map, Rng};
 

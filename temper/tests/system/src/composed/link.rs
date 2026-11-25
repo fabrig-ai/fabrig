@@ -5,7 +5,7 @@
 //! engine gives typed and the hub takes with smith's charter encoded and
 //! temper's workspace items beside it; an answer's parts, which the worker
 //! gives in its own detail and the engine takes typed (jig's
-//! `protocol/channel/README.md`, 5.2); and the engine's hand-outs of host calls and
+//! `protocol/channel/owners.md`, 1.2); and the engine's hand-outs of host calls and
 //! results, decoded and rendered with smith's codecs and temper's charter
 //! translation.
 
@@ -27,13 +27,15 @@ pub const GIT_BASE: &[u8] = b"http://forge.test";
 
 /// The hub's assignment beside the service's workspace and per-repository saves.
 #[must_use]
-pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::Workspace) {
-    let forges = forges();
+pub fn assignment(assignment: &engine::Assignment, forge: settings::Forge) -> (host::Assignment, wire::Workspace) {
+    let forges = forges(forge);
     let encoding = temper_engine_service_vocabulary::assignment::Encoding {
         limits: v1::CEILINGS,
         endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
+        reply_bytes: 1_048_576,
+        forge_reads: temper_engine_smith::ForgeReadBounds::STOCK,
     };
     let event = temper_engine_service_vocabulary::assignment::down(
         assignment.clone(),
@@ -65,11 +67,13 @@ pub fn job(
         endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
+        reply_bytes: 1_048_576,
+        forge_reads: temper_engine_smith::ForgeReadBounds::STOCK,
     };
     let event = temper_engine_service_vocabulary::assignment::job_down(
         job,
         workspace,
-        &forges(),
+        &forges(default_forge()),
         &encoding,
         &temper_engine_service_vocabulary::values::Values::new(0, 0),
         Token::new(7),
@@ -175,9 +179,14 @@ pub fn end_with(outcome: &[u8], change: Option<temper_engine_smith::ChangeResour
     temper_engine_smith::result(answer, change).expect("a result the engine takes").end
 }
 
-fn forges() -> temper_engine_service_vocabulary::forges::Forges {
+fn forges(forge: settings::Forge) -> temper_engine_service_vocabulary::forges::Forges {
     let mut table = temper_engine_service_vocabulary::forges::Forges::with_capacity(1);
-    assert!(table.insert(settings::Forge {
+    assert!(table.insert(forge));
+    table
+}
+
+pub(super) fn default_forge() -> settings::Forge {
+    settings::Forge {
         log_origins: None,
         mode: temper_engine_domain_forge::Mode::Connected,
         number: temper_engine_forge_world::REPO.forge,
@@ -190,6 +199,5 @@ fn forges() -> temper_engine_service_vocabulary::forges::Forges {
         app_read_only: false,
         user: 1,
         identity: 1,
-    }));
-    table
+    }
 }

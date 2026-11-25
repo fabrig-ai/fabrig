@@ -43,7 +43,37 @@ pub enum PauseState {
     Drained,
 }
 
-/// A configuration-directory name (accounts.md, 3.4), never an account number.
+/// A turn part's kind (jig/docs/design/domain/hosts/hub.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PartKind {
+    Answer,
+    Result,
+    Window,
+}
+
+/// A numbered part told within one attempt (domain/hosts/hub.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Part {
+    pub number: u32,
+    pub turn: u32,
+    pub thread: u32,
+    pub call: u32,
+    pub kind: PartKind,
+    pub body: Box<[u8]>,
+}
+
+/// A part kept since the task's last committed turn (domain/hosts/hub.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct KeptPart {
+    pub attempt: u64,
+    pub turn: u32,
+    pub thread: u32,
+    pub call: u32,
+    pub kind: PartKind,
+    pub body: Box<[u8]>,
+}
+
+/// A configuration-directory name (domain/accounts-sources.md, 1), never an account number.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct SourceName(skein_lib::Name<32>);
 
@@ -159,7 +189,7 @@ impl Membership {
 #[path = "tests.rs"]
 mod membership_tests;
 
-/// Maximum endpoint identities admitted in one host hello (domain/hosts/charters.md, 1).
+/// Maximum endpoint identities admitted in one host hello (domain/hosts/charters.md, 4).
 /// Independent of the number of model declarations.
 pub const PROGRAM_ENDPOINTS: u32 = 64;
 
@@ -466,7 +496,7 @@ pub enum AskAnswer {
     Refused,
 }
 
-/// A program's usage window (jig/docs/design/domain/accounts.md, 3.7).
+/// A program's usage window (jig/docs/design/domain/accounts-lists.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct FactWindow {
     pub length: Option<Duration>,

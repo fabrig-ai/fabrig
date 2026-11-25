@@ -17,7 +17,7 @@ are limits.md's, and its event vocabulary events.md's.
 ## 1. In one page
 
 Live and Start-carried messages preserve `finish_requested` through decoding
-and pre-admission buffering to the run entrance (domain/run.md, section 6).
+and pre-admission buffering to the run entrance (../domain/run-messages.md, section 1).
 
 - **The machine component translates the tools' and the checks'
   operations** into skein's io (domain/tools.md, section 6):
@@ -67,7 +67,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
 | list a tree | the entries beneath a directory, to a depth, leaving out what the ignore files and git exclude, within their bound |
 | search | `rg` in a process group of its own: no configuration, an empty environment, the pattern and glob after `--` |
 | run a command | `sh -c` in a process group of its own, in the working directory, with the configured environment and the domain's deadline, its output's head and tail kept; asked with a yield, answered at the yield with its output so far while it goes on as a job |
-| hold a job | its group kept running under its command's deadline, and what it writes kept as the head and the tail of the bytes not yet read, with the count dropped between them, within the job's kept output (limits.md, 3.5) |
+| hold a job | its group kept running under its command's deadline, and what it writes kept as the head and the tail of the bytes not yet read, with the count dropped between them, within the job's kept output (limits-derivation.md, 1.5) |
 | read a job | the job's kept output, as much of its head and its tail as the domain asks for, the rest counted as dropped, and the read empties it; then its end, once it has ended. It answers at the job's end, or when the wait the domain asks for ends |
 | stop a job | its group stopped in the three steps below, then its end answered |
 | run the checks | the convention's executable, in its directory, the same way |
@@ -118,7 +118,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
   alone, io's close of the job's child, which kills what is left of the
   group and reaps it within one `close`, so jobs add nothing to the
   teardown bound (limits.md, section 7).
-- **Its limits are derived from the tools'** (limits.md, section 3.5),
+- **Its limits are derived from the tools'** (limits-derivation.md, section 1.5),
   so a tool's limit never meets a smaller one here: its processes hold
   `jobs` for each of `conversations` beside the listings, searches,
   commands and checks the run's calls may have running at once.
@@ -162,15 +162,15 @@ spawns the agent, which `smith-agent-shell` reads whole and strictly; the
 product's own settings are `../shell/README.md`'s.
 
 - **Endpoints:** at least one. Every run needs main's LLM, and the limits
-  are derived from the endpoints' limits and their smallest room (limits.md,
-  3.9), so a configuration with no endpoint is refused as it is read, naming
+  are derived from the endpoints' limits and their smallest room (limits-derivation.md,
+  1.9), so a configuration with no endpoint is refused as it is read, naming
   the field. It is never given neutral bounds, since that would invent a
   declaration. Each endpoint has:
   - its name, which charters and transcripts use;
   - **its dialect,** by name and number, each fixed for good: `openai`,
-    3, OpenAI's public Responses dialect (skein's `llm/README.md`, 4.8);
-    `anthropic`, 2, Anthropic's Messages dialect (skein's `llm/README.md`,
-    4.7). A transcript's turns and opaque blocks carry the number
+    3, OpenAI's public Responses dialect (skein's `llm/wire.md`, 1.8);
+    `anthropic`, 2, Anthropic's Messages dialect (skein's `llm/wire.md`,
+    1.7). A transcript's turns and opaque blocks carry the number
     (transcript.md, section 2), so a number is never given to another
     dialect, and 1 is given to none;
     a name and number that do not match are refused, naming the field;
@@ -205,17 +205,17 @@ product's own settings are `../shell/README.md`'s.
   whose endpoint names a program it gives no path for is refused,
   naming the field. `programs.claude_code.keep_program_prompt` is a
   boolean, `false` when omitted: `true` keeps Claude Code's own prompt
-  and appends the charter instead of replacing it (programs.md, 5.1).
+  and appends the charter instead of replacing it (programs-claude-code.md, 1.1).
   This belongs to the program declaration with its other launch choices,
-  rather than to a model. The agent runs a program as programs.md,
-  section 5 says, in the commands' environment as programs.md, 4.2
+  rather than to a model. The agent runs a program as programs-claude-code.md,
+  section 1 says, in the commands' environment as programs.md, 4.2
   changes it.
 - **A profile:** its name, and the deployment's declared quantities,
   `charter_models` among them, and policy values (limits.md, sections 2.2
   and 2.3). A profile is a named
   bundle, kept as step code in the service crate, which the configuration
   names and may override value by value. Every byte limit is derived
-  from it (limits.md, section 3); none is configuration. Tests may
+  from it (limits-derivation.md, section 1); none is configuration. Tests may
   override a derived limit; nothing else may.
 - **The commands' environment,** whole, and the graces of a group's three
   steps.
@@ -240,7 +240,7 @@ spawns one (host.md, section 5.2).
   output in an uncapped queue (domain/run.md, section 10;
   programming-model.md, section 3). The next domain entrance waits until
   the previous entrance's requests and facts have been dispatched
-  (limits.md, 3.8).
+  (limits-derivation.md, 1.8).
 - **Two sinks, each with its own policy and its own count of loss:**
   - **the channel** projects facts, content-free, only while the run is
     admitted and has not answered, and only with room to spare. The rest
@@ -256,7 +256,7 @@ spawns one (host.md, section 5.2).
   A fact taken by one sink is never taken from the other.
 - **Written through io, as an append stream.** The shell opens the trace
   file for appending, beneath its root, and io adopts it as a write
-  stream with the configured `write_deadline` (skein's `runtime/io/files.md`, 1). A
+  stream with the configured `write_deadline` (skein's `runtime/io/files.md`, 9). A
   destination that is a pipe or a redirected standard output is adopted
   the same way. Each record is encoded at its final length into the
   stream's output, within its cap. A write that outstays the deadline
@@ -325,7 +325,7 @@ spawns one (host.md, section 5.2).
   what work is pending and whether the process is done both follow:
   - **`Live`:** the run runs. **A termination signal is its host's to
     decide** while the channel is open and the host's cancel is not yet
-    heard (temper's `draft/worker-restarts.md`, section 2): the agent
+    heard (temper's `draft/archive/worker-restarts.md`, section 2): the agent
     tells its host, `signalled` (channel.md, section 4), once, with the
     signal and its sender where the system names one, and the run goes
     on; the host's word, a drain, a cancel or none, is what ends it. One
@@ -335,9 +335,12 @@ spawns one (host.md, section 5.2).
     domain's cancel, as before: the run winds down and answers, as it
     would on the host's cancel. A signal told while the channel was
     open becomes that cancel when the channel goes, if the run is still
-    live; a channel's end cancels a live run in any case. So a service
-    manager's signal to every process of its unit leaves the run to its
-    host, and an agent whose host died stops on its own.
+    live; a channel's end, or a host silent past the link's no-progress
+    deadline, ends a live run in any case, as domain/host.md, section 4,
+    has it: cancel, grace, drop, and the process gone within
+    `orphan_exit` (limits.md, section 7). So a service manager's signal
+    to every process of its unit leaves the run to its host, and an agent
+    whose host died stops on its own.
   - **`Answered`:** the answer is sent, and `run.completed` written. The
     service closes everything it owns at once: the LLM pool, whose idle
     connections close at once and whose busy ones close when their calls
@@ -405,12 +408,12 @@ run has.
   - process groups, signalled whole (skein's `runtime/io/processes.md`), and
     contained trees (skein's `runtime/io/processes.md`, 2–4);
   - append streams on files, with write and close deadlines (skein's
-    `runtime/io/files.md`, 1);
+    `runtime/io/files.md`, 9);
   - owner close, with a closed terminal, for every component the agent
     owns, the LLM connection pool's included (programming-model.md,
     section 5.2; skein's `llm/connection.md`);
-  - the shell's startup, its loop and its end (skein's `runtime/shell.md`,
-    sections 6, 11 and 12).
+  - the shell's startup, its loop and its end (skein's `runtime/shell-startup.md`, section 1, and `runtime/shell.md`, sections 11 and 12
+    ).
 
 ## 8. The world
 
@@ -450,6 +453,18 @@ run has.
   - a termination signal after the answer, with a peer that ignores the
     close, ending by abort before io's close deadline;
   - a host that hangs up mid-call: one terminal per call;
+  - a host gone, both its ends closed, while the run awaits its answer
+    with live text held, while a command runs, and while the run waits
+    for a message; and one whose reading end alone closed mid-answer:
+    no completion or command starts after the loss, each call in flight
+    is cut, and the agent exits with failure within `orphan_exit` of it,
+    never at the world's iteration limit; a wind-down that outlasts the
+    cancel's grace, dropped, and still within it;
+  - a host that stops taking the agent's frames, and one that reads but
+    never acknowledges a full window: judged gone at the link's
+    no-progress deadline, then ending as a host gone does; and a host
+    that says nothing past that deadline while the run waits for its
+    next message, the run still waiting;
   - standard error's last line, for each way of ending without an answer
     and for a failed answer;
   - a host slow to acknowledge during a run full of facts: the channel's

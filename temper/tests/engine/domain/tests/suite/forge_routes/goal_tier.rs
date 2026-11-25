@@ -1,5 +1,5 @@
 //! A goal's tier checks its branch while changes keep landing
-//! (temper/docs/design/domain/after-landing.md, 3, 5.4, 7 and 12).
+//! (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 5.4, 7 and 12).
 use super::*;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_world::tier_runs::{self, LANDING_TICKS, RUN_TICKS, merge, named_tier, task, until};
@@ -23,7 +23,7 @@ const RED_MESSAGES: usize = 1; // Each run emits one red to its goal.
 const FAILED_JOBS: usize = 1; // goal.yml has the fixture's one test job.
 const FIRST_CHANGE: u64 = 93;
 const SECOND_CHANGE: u64 = 94;
-const GOAL_SPAN: Duration = Duration::from_secs(20 * 60); // after-landing.md, 2.
+const GOAL_SPAN: Duration = Duration::from_secs(20 * 60); // domain/after-landing-runs.md, 1.
 
 fn world() -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = tier_runs::goal_world();
@@ -122,7 +122,7 @@ fn span_end(world: &World) -> Time {
 }
 
 fn advance_to_span(world: &mut World) {
-    world.env.now = span_end(world);
+    world.advance_to(span_end(world));
     tier_runs::tick(world);
 }
 
@@ -133,7 +133,7 @@ fn changes_into_a_goal_branch_are_cleared_as_they_land() {
     let [_, second] = two_changes(&mut world, &goal, &branch, b"");
     assert!(world.env.now < span_end(&world), "both changes land within the span");
     assert_eq!(goal_runs(&world).len(), BASELINE_RUNS, "only the goal baseline ran before the span");
-    world.env.now = Time::from_nanos(span_end(&world).as_nanos() - Duration::from_secs(1).as_nanos());
+    world.advance_to(Time::from_nanos(span_end(&world).as_nanos() - Duration::from_secs(1).as_nanos()));
     tier_runs::tick(&mut world);
     assert_eq!(goal_runs(&world).len(), BASELINE_RUNS, "the span has not passed");
     let due = span_end(&world);
@@ -386,7 +386,7 @@ fn a_goals_close_ends_its_branchs_following() {
     }
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"after", b"after goal close", 1)
         .expect("released branch moved");
-    world.env.now = world.env.now.saturating_add(GOAL_SPAN);
+    world.advance_to(world.env.now.saturating_add(GOAL_SPAN));
     for _ in 0..RUN_TICKS {
         tier_runs::tick(&mut world);
     }

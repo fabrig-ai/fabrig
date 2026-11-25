@@ -7,7 +7,7 @@ to, in decoded ownership and in encoded bytes (2). This document says how
 the engine fits a brief to what the rest leaves, what a refusal names when
 the rest alone doesn't fit (3), and how a charter is checked before a run
 meets it (4). The tools themselves are `tools.md`'s; this is written from
-`../../draft/tools-by-role.md`, 6.
+`../../draft/archive/tools-by-role.md`, 6.
 
 ## 1. The host part's budget
 
@@ -15,7 +15,7 @@ smith refuses a run whose host part (its host tools, instructions, brief,
 and finish and deliver schemas) passes its bound, the room of the agent's
 smallest window (`charter.md`, 5), before any turn. The largest stock
 charter's non-brief host part is charter 1's with a Change contract and
-the control family's plan form of `change` (`tools.md`, 1); with the
+the control family's plan form of `change` (`tools-change.md`, 1); with the
 authorised brief, its task section a whole spec
 (`../../protocol/configuration/limits.md`), and 1,472 bytes for 64 stock
 sections' titles and framing (16 title bytes and 7 framing bytes each), it
@@ -42,9 +42,9 @@ both the encoded charter, including framing, and its decoded ownership.
   that allowance is the agent's `run_bytes`, as a task read's room is its
   `host_reply_text` (`../routing.md`, 2). Where it doesn't know its
   worker's, it takes smith's at its floor, 65,536, which the stock agent's
-  `tool_payload` of 10,662 does not raise (smith's `protocol/limits.md`,
-  3.10): the smaller of the two defaults, and how the engine learns a
-  remote worker's is section 5's. The cap stays 65,536 (the user,
+  `tool_payload` of 10,662 does not raise (smith's `protocol/limits-derivation.md`,
+  1.10): the smaller of the two defaults, and how the engine learns a
+  remote worker's is `room.md`, section 5's. The cap stays 65,536 (the user,
   2026-11-16): a reasonable size for what a run is sent at once.
 - **What stays whole.** Instructions, tools, contracts, models and run
   identity stay whole.
@@ -55,7 +55,7 @@ both the encoded charter, including framing, and its decoded ownership.
   engine fills from its records, and that a codec checks as UTF-8, text
   before it fits the brief: each byte that is not part of a UTF-8
   character becomes `?` (skein's `bytes::utf8_replaced`,
-  `runtime/lib.md`, 6), the length kept, so every bound the field met
+  `skein/docs/design/runtime/lib-bytes.md`, 1), the length kept, so every bound the field met
   still holds and the fit below cuts whole characters. UTF-8 is sent
   unchanged, and a field a codec carries as bytes is left as it is. The
   transcript tail keeps its own cut first (`text_tail`), and a source
@@ -65,7 +65,7 @@ both the encoded charter, including framing, and its decoded ownership.
   way a repository's or a tool's bytes reach a field: a CI log, a
   configured document, a dependency's result, a message. No field's
   bytes make an assignment unsendable as not UTF-8, and no refusal of
-  section 3 names a reason `not UTF-8` for a field this covers.
+  `room.md`, section 3 names a reason `not UTF-8` for a field this covers.
 - **The worker fits again.** The worker service also fits the brief after
   the workspace is prepared and before encoding the start, using the
   receiving run's limits and measured schema costs. It fits both rendered
@@ -225,7 +225,7 @@ allowance (2), in decoded ownership or in encoded bytes: the comparison
   its start, naming the field (3), and section 5 keeps it open.
 - **The brief's floor:** a fixed part that fits its allowance but leaves
   the brief less than its floor, on some wake and in either measure, is
-  refused the same way (`../../draft/tools-by-role.md`, 6). The floor is
+  refused the same way (`../../draft/archive/tools-by-role.md`, 6). The floor is
   what a goal's brief fills: its task, transcript tail, dependencies,
   attempts, plan and notes, each at its budget in the engine's profile
   (jig's `CoreBriefBudgets`), 13,312 bytes of body in the shipped

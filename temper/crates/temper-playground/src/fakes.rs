@@ -133,11 +133,27 @@ const STORY_OBSERVATION_BYTES: u32 = 2_097_152;
 /// The scripted provider with caller-owned scripts and seed.
 #[must_use]
 pub fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script]>, seed: u64) -> skein_fake_peers::llm::Peer {
+    scripted_provider_at(
+        (std::net::Ipv4Addr::LOCALHOST, 443).into(),
+        skein_llm::Credential::key(crate::documents::KEY.into()),
+        scripts,
+        seed,
+    )
+}
+
+/// The scripted `OpenAI` peer, restricted to one caller-supplied credential and dial.
+#[must_use]
+pub fn scripted_provider_at(
+    address: std::net::SocketAddr,
+    credential: skein_llm::Credential,
+    scripts: Box<[skein_fake_llm_domain::api::Script]>,
+    seed: u64,
+) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_protocol::{documents, provider};
     let config = llm_config();
     let protocol = llm_limits();
     skein_fake_peers::llm::Peer::new(
-        (std::net::Ipv4Addr::LOCALHOST, 443).into(),
+        address,
         skein_fake_peers::Transport::Plaintext,
         llm_peer_limits(),
         provider::Config {
@@ -150,7 +166,7 @@ pub fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script]>, see
             headers: Box::new([]),
             without_credential: false,
         },
-        skein_llm::Credential::key(crate::documents::KEY.into()),
+        credential,
         protocol,
         skein_fake_llm_domain::Domain::try_scripted(&config, seed, scripts).expect("bounded provider scripts"),
         config,

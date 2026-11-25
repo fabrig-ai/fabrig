@@ -1,10 +1,11 @@
 //! Seeded configuration and world construction.
 use super::{
-    Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, World, accounts, connector, core, fleet, people,
-    root,
+    Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, Wall, World, accounts, connector, core, fleet,
+    people, root,
 };
 use jig_domain_link::{Form, Hello, Scheme};
 pub use jig_test_profile::effect_fixture as fixture;
+use std::rc::Rc;
 
 pub(super) fn limits() -> root::Limits {
     let mut limits = jig_test_profile::limits();
@@ -37,6 +38,7 @@ impl World {
             startup,
             owner_sets,
             disk_store,
+            keep_reads,
             mut peers,
             cut,
             sweep,
@@ -45,6 +47,7 @@ impl World {
             require_assignment,
             walking,
         } = setup;
+        eprintln!("core world seed {seed}");
         let mut configuration = configuration.unwrap_or_else(|| fixture(seed, requirement).0);
         if let Some(peers) = &peers {
             let workers = peers.workers.iter().filter(|worker| worker.channel != 0).count();
@@ -62,8 +65,7 @@ impl World {
         }
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
-        let mut world = Self::empty(configuration, &limits, owner_sets, disk_store);
-        world.seed = seed;
+        let mut world = Self::empty(seed, configuration, &limits, owner_sets, disk_store, keep_reads);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }
@@ -179,10 +181,12 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
     #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
     fn empty(
+        seed: u64,
         mut configuration: root::Config,
         limits: &root::Limits,
         sets: jig_protocol_store::OwnerSets,
         disk: bool,
+        keep_reads: bool,
     ) -> World {
         // These nominal fixture workers offer the scenario's full fleet capacity.
         // Stories that change places do so through settings after the start.
@@ -198,11 +202,18 @@ impl World {
             assert!(sets.sets.is_empty(), "disk crash scenarios use the current format");
             Store::on_disk(limits, &configuration.core.settings.models)
         } else {
-            Store::starting_with_owner_sets(limits, &configuration.core.settings.models, sets)
+            Store::starting_with_read_reuse(limits, &configuration.core.settings.models, sets, keep_reads)
         };
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
-            seed: 0,
+            seed,
+            store_checks: super::StoreChecks::one(seed),
+            store_checks_reported: false,
+            kept_check: None,
+            restart_check: None,
+            iteration: 0,
+            inspections: 0,
+            fault_ledger: None,
             manual: false,
             public_referee: crate::referee::public::Referee::default(),
             returned: 0,
@@ -211,7 +222,8 @@ impl World {
             walking: None,
             broken: false,
             oracle_closed: false,
-            restart_config: (crate::oracle::configuration(&configuration), *limits),
+            closed_documents: None,
+            restart_config: (Rc::new(crate::oracle::configuration(&configuration)), *limits),
             startup: None,
             fixture_rows: Box::new([]),
             domain: root::Domain::new(configuration, limits),
@@ -223,6 +235,7 @@ impl World {
             host_calls: Vec::new(),
             host_answers: Vec::new(),
             inbound: Vec::new(),
+            inbound_runs: Vec::new(),
             answers: Vec::new(),
             settings_answers: Vec::new(),
             person_answers: Vec::new(),
@@ -261,6 +274,7 @@ impl World {
             initial_ask,
             creating,
             people_answers: Vec::new(),
+            people_replies: Vec::new(),
             project_made: Vec::new(),
             act_answers: Vec::new(),
             project_releases: Vec::new(),
@@ -286,6 +300,7 @@ impl World {
             restore_ranges: Vec::new(),
             census_ended: 0,
             hold_restart_reads: false,
+            restart_reads: std::collections::BTreeSet::new(),
             hold_restore_pages: false,
             hold_switch: false,
             hold_logins: false,
@@ -302,7 +317,6 @@ impl World {
             observer,
             heap,
             restoring: None,
-            restart_reads: std::collections::BTreeMap::new(),
             events: VecDeque::new(),
             limits: *limits,
             cut: None,
@@ -311,10 +325,11 @@ impl World {
             sweep: Vec::new(),
             fork_child: None,
             case_child: false,
-            hold_kinds: Vec::new(),
+            hold_kinds: Rc::default(),
             wall: 0,
             wall_lag: 0,
             supplied_wall: None,
+            record_wall: Wall::EPOCH,
         }
     }
 }

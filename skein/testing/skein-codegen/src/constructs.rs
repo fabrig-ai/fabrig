@@ -1,4 +1,4 @@
-//! The pin's schema constructs (data/codec/README.md, section 6).
+//! The pin's schema constructs (data/codec/golden.md, section 1).
 //! Table metadata retains holds, explicit defaults and former names.
 
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Named, Shape, Type, TypeIx, VariantIx};
@@ -229,11 +229,6 @@ pub fn constructs(text: &str) -> Result<Vec<Construct>, Error> {
 
 fn without(found: Vec<Construct>, pinned: &[Construct]) -> Vec<Construct> {
     found.into_iter().filter(|construct| !pinned.contains(construct)).collect()
-}
-
-/// Finds the text's constructs not held by [`CONSTRUCTS`], in the same order.
-pub fn unpinned(text: &str) -> Result<Vec<Construct>, Error> {
-    Ok(without(constructs(text)?, CONSTRUCTS))
 }
 
 /// Finds the constructs of [`CONSTRUCTS`] the text lacks, in pin order, each once.

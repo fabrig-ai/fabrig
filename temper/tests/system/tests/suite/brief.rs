@@ -67,6 +67,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     disk.write(b"work/src/lib.rs", b"pub fn answer() -> u32 { 42 }\n");
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             name: b"work".as_slice().into(),
             host: b"/work".as_slice().into(),
             root: Token::new(disk.root(b"work")),
@@ -169,6 +170,12 @@ fn large_pull_review(seed: u64, bytes: usize) {
     let agent = world.review_agent(task);
     assert!(!agent.prompts().is_empty(), "large review must reach a model turn: {:?}", agent.answer());
     assert!(matches!(agent.answer(), run::Answer::Accepted { .. }), "{:?}", agent.answer());
+    let head_text = temper_engine_domain::commit_text(&head);
+    let cue = format!("Pull request at head {}", std::str::from_utf8(&head_text).expect("head hex"));
+    assert!(
+        agent.prompts().iter().any(|query| skein_lib::bytes::find(&query.system, cue.as_bytes()).is_some()),
+        "the review query names its exact head"
+    );
     assert_forge_reads(agent);
     let fitted = world.review_charter(task);
     assert_eq!(fitted.instructions, uncut.instructions);
@@ -190,7 +197,7 @@ fn large_pull_review(seed: u64, bytes: usize) {
     assert_eq!(world.observed.spawns, 3, "chat, producer and one admitted reviewer");
 }
 
-fn assert_forge_reads(agent: &smith_agent_world::World) {
+fn assert_forge_reads(agent: &smith_agent_world::World<temper_system_world::composed::provider::Provider>) {
     use smith_domain_session::llm::{Block, Returned};
     let results = agent
         .turns()

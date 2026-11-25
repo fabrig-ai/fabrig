@@ -1,6 +1,6 @@
 //! Preparation writes guarded settings and selects access-only credential handling.
 //! The arm and append-only face registry choose the codec; user login
-//! bytes are read only by credential.rs (../../../../docs/design/benchmarks/README.md, sections 6.2 and 10).
+//! bytes are read only by credential.rs (../../../../docs/design/benchmarks/agents.md, section 1.2, and ../../../../docs/design/benchmarks/isolation.md, section 1).
 
 use crate::{Fault, configuration};
 use std::fs;
@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use crate::agent::{Context, Invocation};
 use crate::isolate::SetupStep;
+use crate::process::{Bounds, ProcessResult};
 
 use super::{FaceSince, faces, settings};
 
@@ -26,7 +27,7 @@ pub struct Prepared {
     pub serial: Option<std::fs::File>,
 }
 
-/// Read check's version 1 or 2 teardown bound (../../../../docs/design/benchmarks/README.md, section 10).
+/// Read check's version 1 or 2 teardown bound (../../../../docs/design/benchmarks/isolation.md, section 1).
 /// Both versions use the same effective limits shape.
 pub fn teardown_from_check(bytes: &[u8]) -> Result<skein_lib::Duration, Fault> {
     let report: serde_json::Value =
@@ -62,7 +63,10 @@ fn write(context: &Context<'_>, path: &Path, bytes: &[u8]) -> Result<(), Fault> 
 
 /// Prepare the selected arm, refusing a nonzero product startup check.
 pub fn prepare(context: &Context<'_>) -> Result<Prepared, Fault> {
-    let (prepared, receipt) = prepare_checked(context, &[])?;
+    require_success(prepare_checked(context, &[])?)
+}
+
+fn require_success((prepared, receipt): (Prepared, Option<ProcessResult>)) -> Result<Prepared, Fault> {
     if let Some(receipt) = receipt {
         return Err(configuration(format!("Smith check refused setup with {:?}", receipt.exit)));
     }
@@ -73,7 +77,7 @@ pub fn prepare(context: &Context<'_>) -> Result<Prepared, Fault> {
 pub fn prepare_checked(
     context: &Context<'_>,
     overrides: &[String],
-) -> Result<(Prepared, Option<crate::process::ProcessResult>), Fault> {
+) -> Result<(Prepared, Option<ProcessResult>), Fault> {
     if context.pin.pin.agent != crate::Agent::Smith || context.pin.pin.version != "built-arm" {
         return Err(configuration("Smith requires a built-arm configuration pin"));
     }
@@ -125,13 +129,23 @@ pub fn prepare_checked(
     exec(context, &base, program, registry, overrides)
 }
 
+const CHECK_BOUNDS: Bounds = Bounds {
+    hard: skein_lib::Duration::from_secs(15),
+    teardown: skein_lib::Duration::ZERO,
+    grace: skein_lib::Duration::from_secs(1),
+    settlement: skein_lib::Duration::from_secs(5),
+    stdout: 1_048_576,
+    stderr: 65_536,
+    force_walk: true,
+};
+
 fn exec(
     context: &Context<'_>,
     base: &serde_json::Value,
     program: PathBuf,
     registry: FaceSince,
     overrides: &[String],
-) -> Result<(Prepared, Option<crate::process::ProcessResult>), Fault> {
+) -> Result<(Prepared, Option<ProcessResult>), Fault> {
     let account = settings::account(context)?;
     crate::credential::logins::smith(context.home, &account)?;
     if account == "claude" {
@@ -142,7 +156,6 @@ fn exec(
     let serial =
         if account == "claude" { Some(crate::credential::logins::serial(context.guard, context.home)?) } else { None };
     let prepared = render(context, base, program, registry, serial)?;
-    let directory = prepared.settings.parent().expect("private settings directory");
     let mut check_arguments = check_arguments(prepared.face, &prepared.rendered);
     crate::batch::settings_arguments(&mut check_arguments, overrides);
     let receipt = crate::process::execute(
@@ -155,17 +168,19 @@ fn exec(
         },
         Box::default(),
         crate::process::Capture::Raw,
-        crate::process::Bounds {
-            hard: skein_lib::Duration::from_secs(15),
-            teardown: skein_lib::Duration::ZERO,
-            grace: skein_lib::Duration::from_secs(1),
-            settlement: skein_lib::Duration::from_secs(5),
-            stdout: 1_048_576,
-            stderr: 65_536,
-            force_walk: true,
-        },
+        CHECK_BOUNDS,
     )
     .map_err(Fault::at(SetupStep::Configuration))?;
+    checked(context, prepared, receipt)
+}
+
+// Supplied only after the check's process tree has settled.
+fn checked(
+    context: &Context<'_>,
+    prepared: Prepared,
+    receipt: ProcessResult,
+) -> Result<(Prepared, Option<ProcessResult>), Fault> {
+    let directory = prepared.settings.parent().expect("private settings directory");
     write(context, &directory.join("check.json"), &receipt.stdout)?;
     write(context, &directory.join("check-stderr.log"), &receipt.stderr)?;
     if receipt.error.is_some() || receipt.forced != crate::Forced::No {

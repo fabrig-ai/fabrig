@@ -1,4 +1,4 @@
-//! The director, P and its implementers (temper/docs/design/testing/README.md, 2.2).
+//! The director, P and its implementers (temper/docs/design/testing/tiers.md, 1.2).
 use super::*;
 use jig_domain_link::EndpointBound;
 
@@ -17,6 +17,8 @@ fn opening() -> (Driver, Cast) {
     bounds.authority.executors = 2;
     bounds.documents.executors = 2;
     bounds.journal.writes = CAST_WRITES;
+    // Two delegations, release and proposal, then the resumed owner's question.
+    bounds.call_records = 5;
     for config in &mut configuration {
         let mut coordinator = config.core.defaults.charters[0].clone();
         coordinator.policy.model.name = b"claude".as_slice().into();
@@ -112,6 +114,10 @@ fn person_ask(driver: &mut Driver, key: u8, ask: people::Ask) {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the subtree's stop, acceptance and resumed journal share one causal sequence"
+)]
 fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_transcripts() {
     let (mut driver, cast) = opening();
     let runs = [&cast.p, &cast.implementers[0], &cast.implementers[1]];
@@ -119,7 +125,11 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
         driver.send(protocol::turn(Token::new(7), run.task, run.attempt, 1, 1, None, &run.task.to_be_bytes()));
         driver.settle();
     }
-    person_ask(&mut driver, 80, people::Ask::Stop { project: 1, task: cast.p.task });
+    person_ask(
+        &mut driver,
+        80,
+        people::Ask::Stop { project: 1, task: cast.p.task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     assert!(replied(&driver, &people::Outcome::Stopped { task: cast.p.task }));
     let hold = live(&driver, cast.p.task).placed.expect("person's subtree hold");
     for run in runs {
@@ -130,8 +140,23 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
         driver.answer(Token::new(7), run.task, run.attempt, 1, tasks::End::Parked, engine::Parts::none());
         driver.settle();
     }
+    let history = |driver: &Driver, task| -> Vec<tasks::ActivityLine> {
+        driver
+            .store
+            .rows
+            .values()
+            .filter_map(|record| match record {
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(row))) if row.task == task => {
+                    Some(row.clone())
+                }
+                _ => None,
+            })
+            .collect()
+    };
+    let stopped: Vec<_> = runs.iter().map(|run| history(&driver, run.task)).collect();
     assert_eq!(live(&driver, cast.director.task).placed, None);
     assert!(!cancelled(&driver).contains(&(cast.director.task, cast.director.attempt)));
+    assert!(live(&driver, cast.p.task).questions.is_empty(), "no delegate question before resuming");
     let revision = live(&driver, cast.p.task).revisions.hold;
     tool_call(&mut driver, &cast.director, 932, engine::Tool::Release { target: cast.p.task, revision, again: None });
     let person = signed_in(&driver, 101).0;
@@ -157,6 +182,7 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
     let proposal = proposal_of(&driver, 933);
     assert!(proposal_waits_at(&driver, cast.director.task, tasks::ProposalHolder::Person(person)));
     for run in runs {
+        assert_eq!(live(&driver, run.task).attempt, run.attempt, "Stop starts no new attempt");
         assert_eq!(
             driver
                 .delivered
@@ -181,7 +207,27 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
     assert!(driver.delivered.iter().any(|item| matches!(item,
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::ProposalDecided {
             proposal: found, choice: people::ProposalChoice::Accepted, .. }), .. } if *found == proposal)));
-    for run in runs {
+    for (run, before) in runs.into_iter().zip(stopped) {
+        let after = history(&driver, run.task);
+        assert!(after.starts_with(&before), "the stopped journal is an unchanged prefix");
+        let release = after
+            .iter()
+            .find(|row| {
+                matches!(row.line, tasks::Line::Decided { .. })
+                    && row.position > before.last().expect("stopped history").position
+            })
+            .expect("release decision")
+            .position;
+        let attempts: Vec<_> = after
+            .iter()
+            .filter_map(|row| match row.line {
+                tasks::Line::RunBegan { attempt, .. } => Some((row.position, attempt)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(attempts.len(), 2, "every original and resumed attempt is retained");
+        assert_eq!(attempts[0].1, run.attempt);
+        assert!(attempts[1].0 > release, "no attempt starts before Release");
         let resumed = driver
             .delivered
             .iter()
@@ -202,4 +248,51 @@ fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_tran
         assert!(matches!(live(&driver, run.task).phase,
             tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == resumed.attempt));
     }
+    resumed_question(&mut driver, &cast);
+}
+
+fn resumed_question(driver: &mut Driver, cast: &Cast) {
+    const QUESTION: &[u8] = b"What is the scope of my part?";
+    let resumed = |task| {
+        driver
+            .delivered
+            .iter()
+            .rev()
+            .find_map(|item| match item {
+                Delivery::Assigned { assignment, .. } if assignment.task == task => Some(assignment.clone()),
+                _ => None,
+            })
+            .expect("resumed assignment")
+    };
+    let p = resumed(cast.p.task);
+    driver.call(
+        Token::new(7),
+        p.task,
+        p.attempt,
+        934,
+        engine::Call {
+            completion: 2,
+            position: 0,
+            tool: engine::Tool::Message {
+                target: cast.director.task,
+                form: engine::MessageForm::Question,
+                words: QUESTION.into(),
+            },
+        },
+    );
+    driver.settle();
+    let Some(engine::CallAnswer::Sent { message }) = driver.answered(934) else {
+        panic!("numbered question: {:?}", driver.answered(934))
+    };
+    assert!(live(driver, cast.director.task).inbox.iter().any(|question| question.number == *message
+        && question.from == tasks::Party::Task(p.task)
+        && question.kind == tasks::MessageKind::Question
+        && question.words.as_ref() == QUESTION));
+    let delivered = messages_to(driver, &cast.director);
+    assert_eq!(delivered.iter().filter(|(number, _)| number == message).count(), 1);
+    assert!(
+        delivered
+            .iter()
+            .any(|(number, words)| number == message && words.windows(QUESTION.len()).any(|part| part == QUESTION))
+    );
 }

@@ -17,7 +17,7 @@ pub const SIGN_OUT: [&[u8]; 2] = [b"auth", b"logout"];
 /// The method naming a person's subscription (protocol/programs.md, section 3).
 pub const SUBSCRIPTION: &[u8] = b"claude.ai";
 
-/// Usage arguments sent by the host, without argv[0] (protocol/programs.md, 5.11).
+/// Usage arguments sent by the host, without argv[0] (protocol/programs-claude-code.md, 1.11).
 pub const USAGE: [&[u8]; 8] =
     [b"-p", b"/usage", b"--output-format", b"json", b"--setting-sources", b"user", b"--tools", b""];
 

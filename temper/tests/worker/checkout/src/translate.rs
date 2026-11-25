@@ -4,9 +4,13 @@
 //! uses the fake forge's shared object spelling (skein's testing/fakes/forge.md, 3).
 
 use skein_lib::Token;
+use std::collections::BTreeMap;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{self, Pushed, Remote, What};
-use temper_worker_domain_checkout::git::{Commit, Done, Fault, Missing, Op, Place, Want};
+use temper_worker_domain_checkout::git::{Commit, Done, Fault, Missing, Op, Place};
+
+mod machine;
+pub use machine::{cut, perform_with_capacity, used, writes};
 
 /// The domain's name for the fake's commit `fake`.
 #[must_use]
@@ -30,13 +34,22 @@ pub fn fake(commit: Commit) -> u64 {
 /// Where io keeps the workspace `workspace`.
 #[must_use]
 pub fn dir(workspace: Token) -> Vec<u8> {
-    format!("ws/{}", workspace.raw()).into_bytes()
+    temper_fake_checkout::layout::dir(workspace)
 }
 
 /// Where io keeps the repository at `place`.
 #[must_use]
 pub fn path(place: &Place) -> Vec<u8> {
-    [dir(place.workspace).as_slice(), b"/", &place.repository].concat()
+    temper_fake_checkout::layout::path(place.workspace, &place.repository)
+}
+
+/// Every fake disk file's bytes and write version, including metadata.
+#[must_use]
+pub fn disk_snapshot(disk: &Checkout) -> BTreeMap<Vec<u8>, (Vec<u8>, u64)> {
+    disk.files()
+        .into_iter()
+        .map(|(path, bytes)| (path.to_vec(), (bytes.to_vec(), disk.version(path).expect("file"))))
+        .collect()
 }
 
 /// The workspace an operation is in.
@@ -44,13 +57,14 @@ pub fn path(place: &Place) -> Vec<u8> {
 pub fn workspace(op: &Op) -> Option<Token> {
     match op {
         Op::Store { .. } => None,
-        Op::Make { workspace, .. } => Some(*workspace),
+        Op::Keep { workspace, .. } | Op::Make { workspace, .. } => Some(*workspace),
         Op::Clone { at, .. }
         | Op::Reds { at, .. }
         | Op::Reset { at, .. }
         | Op::Pack { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
+        | Op::Counts { at, .. }
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
@@ -71,6 +85,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::CheckOut { identity, .. }
         | Op::Merge { identity, .. }
         | Op::Fetch { identity, .. }
+        | Op::Counts { identity, .. }
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
@@ -79,6 +94,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
@@ -91,15 +107,18 @@ pub fn identity(op: &Op) -> Option<u32> {
 #[must_use]
 pub fn remote(op: &Op) -> Option<&[u8]> {
     match op {
-        Op::Store { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
-            Some(remote)
-        }
+        Op::Store { remote, .. }
+        | Op::Fetch { remote, .. }
+        | Op::Counts { remote, .. }
+        | Op::Create { remote, .. }
+        | Op::Push { remote, .. } => Some(remote),
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
         Op::Reds { .. }
         | Op::Reset { .. }
         | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Merge { .. }
@@ -112,9 +131,22 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
 
 /// Runs `op` on the fakes, as the protocol layer would run its git
 /// invocation, git reaching the forge through `forge`, and says how it ended.
+pub fn perform(forge: &mut impl temper_fake_git::counts::Remote, disk: &mut Checkout, op: Op) -> Done {
+    perform_with_capacity(forge, disk, op, None)
+}
+
 #[expect(clippy::too_many_lines, reason = "the world translates every checkout operation in one table")]
-pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
+fn perform_unchecked(forge: &mut impl temper_fake_git::counts::Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
+        Op::Keep { workspace, mark } => {
+            let path = format!("kept/{}", workspace.raw());
+            if let Some(mark) = mark {
+                disk.write(path.as_bytes(), format!("{mark:?}").as_bytes());
+            } else {
+                disk.remove(path.as_bytes());
+            }
+            Done::Succeeded
+        }
         Op::Reset { at, commit: head } => {
             assert_cloned(disk, &at);
             assert!(git::object_present(disk, &path(&at), fake(head)));
@@ -200,38 +232,22 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
         }
         Op::Fetch { at, store, remote, want, into, identity: _, account: _ } => {
             assert_cloned(disk, &at);
-            let want = match &want {
-                Want::Branch { branch } => git::Want::Branch(branch),
-                Want::Commit { commit } => git::Want::Commit(fake(*commit)),
-                Want::Default => git::Want::Default,
-            };
-            match git::fetch(forge, disk, &remote, &store_path(store), want) {
-                Ok(fetched) => {
-                    let reference = match into {
-                        temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
-                        temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
-                    };
-                    let store_ref = [
-                        b"refs/temper/".as_slice(),
-                        at.workspace.raw().to_string().as_bytes(),
-                        b"/",
-                        reference.strip_prefix(b"refs/temper/").expect("fixed ref"),
-                    ]
-                    .concat();
-                    git::update_ref(disk, &store_path(store), &store_ref, fetched).expect("fetched into store");
-                    git::update_ref(disk, &path(&at), reference, fetched).expect("borrowed from store");
-                    Done::Fetched { commit: commit(fetched) }
-                }
-                Err(fault) => failed(fault),
-            }
+            machine::fetch(forge, disk, &at, store, &remote, &want, into, false)
         }
-        Op::Pack { .. } => Done::Succeeded,
+        Op::Counts { at, store, remote, .. } => {
+            assert_cloned(disk, &at);
+            machine::counts(forge, disk, &at, store, &remote, false)
+        }
+        Op::Pack { at, store } => {
+            if let Some(store) = store {
+                machine::pack(disk, &store_path(store));
+            }
+            machine::pack(disk, &[path(&at).as_slice(), b"/.git"].concat());
+            Done::Succeeded
+        }
         Op::Point { at, into, commit } => {
             assert_cloned(disk, &at);
-            let reference = match into {
-                temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
-                temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
-            };
+            let reference = machine::reference(into);
             match git::update_ref(disk, &path(&at), reference, fake(commit)) {
                 Ok(()) => Done::Succeeded,
                 Err(_) => Done::Failed { fault: Fault::Broken },
@@ -247,11 +263,9 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
         }
         Op::CheckOut { at, commit, .. } => {
             assert_cloned(disk, &at);
-            if disk.exists(&[path(&at).as_slice(), b"/.git/index.lock"].concat()) {
-                return Done::Failed { fault: Fault::Broken };
-            }
             let checked_out = git::check_out(forge, disk, &path(&at), fake(commit));
             checked_out.expect("a checkout is of a commit fetched into the repository");
+            machine::add_pack(disk, &[path(&at).as_slice(), b"/.git"].concat());
             Done::Succeeded
         }
         Op::Commit { at, mut parent, mut merging, mut always, title, body, identity: _, snapshot } => {
@@ -336,6 +350,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
         Op::Merge { at, theirs, .. } => {
             assert_cloned(disk, &at);
             let merged = git::merge(forge, disk, &path(&at), fake(theirs)).expect("merge parent is locally fetched");
+            machine::add_pack(disk, &[path(&at).as_slice(), b"/.git"].concat());
             if merged.conflicts.is_empty() {
                 Done::Merged
             } else {
@@ -367,10 +382,26 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
 }
 
 /// `perform`, with the git layer's rules on the checkout's `conflicts`
-/// (temper/docs/design/protocol/git.md, 4.6 and 4.7).
-pub fn perform_within(forge: &mut impl Remote, disk: &mut Checkout, op: Op, conflicts: u32) -> Done {
+/// (temper/docs/design/protocol/git-operations.md, 1.6 and 1.7).
+pub fn perform_within(
+    forge: &mut impl temper_fake_git::counts::Remote,
+    disk: &mut Checkout,
+    op: Op,
+    conflicts: u32,
+) -> Done {
+    perform_within_capacity(forge, disk, op, conflicts, None)
+}
+
+/// The same conflict bound, with the fake disk's optional byte capacity.
+pub fn perform_within_capacity(
+    forge: &mut impl temper_fake_git::counts::Remote,
+    disk: &mut Checkout,
+    op: Op,
+    conflicts: u32,
+    capacity: Option<u64>,
+) -> Done {
     let merge = matches!(op, Op::Merge { .. });
-    match perform(forge, disk, op) {
+    match perform_with_capacity(forge, disk, op, capacity) {
         Done::Conflicted { files, cut } if merge => {
             let most = usize::try_from(conflicts).expect("conflicts fits usize");
             let cut = cut || files.len() > most;
@@ -420,7 +451,7 @@ fn local_head(disk: &Checkout, at: &Place, name: &[u8]) -> Option<Commit> {
 /// A shared bare repository on the world's fake disk.
 #[must_use]
 pub fn store_path(store: Token) -> Vec<u8> {
-    format!("stores/{}", store.raw()).into_bytes()
+    temper_fake_checkout::layout::store_path(store)
 }
 
 fn ancestors(forge: &mut impl Remote, head: u64) -> std::collections::BTreeSet<u64> {

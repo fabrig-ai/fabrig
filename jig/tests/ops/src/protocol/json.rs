@@ -1,4 +1,4 @@
-//! Ops tool argument reads over compact JSON (jig/docs/design/domain/engine/executors.md, 3).
+//! Ops tool argument reads over compact JSON (jig/docs/design/domain/engine/executors-tools.md, 1).
 
 use jig_protocol_tools::Why as Problem;
 use skein_json::{

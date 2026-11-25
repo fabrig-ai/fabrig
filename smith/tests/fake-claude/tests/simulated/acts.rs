@@ -1,5 +1,5 @@
 //! Allowed workspace operations through the shared simulated process face
-//! (smith/docs/design/protocol/programs.md, sections 5.3, 5.4 and 8).
+//! (smith/docs/design/protocol/programs-claude-code.md, sections 1.3 and 1.4, and smith/docs/design/protocol/programs.md, section 8).
 
 use crate::support::{Run, print};
 use serde_json::{Value, json};

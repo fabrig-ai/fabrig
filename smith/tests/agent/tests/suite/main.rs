@@ -19,12 +19,14 @@ mod models;
 mod no_workspace;
 mod orders;
 mod parallel_children;
+mod parts;
 mod referee;
 mod restored_memory;
 mod simulation;
 mod workspace;
 
 mod fuzzy {
+    mod faults;
     mod memory;
     mod messages;
     mod simulation;

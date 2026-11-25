@@ -1,6 +1,7 @@
 //! Exhaustive owner translations (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 pub mod answers;
 pub mod asks;
+pub(crate) mod client;
 pub mod documents;
 mod facts;
 pub mod live;
@@ -9,6 +10,7 @@ mod model_sets;
 mod operations;
 pub(crate) mod programs;
 mod task_wait;
+mod waits;
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;

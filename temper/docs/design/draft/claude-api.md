@@ -10,7 +10,7 @@ Claude through Claude Code alone, on a person's subscription
 way to the same provider, run by smith's own loop, in two steps: the
 first in v0.1.0, the second weighed once the first has landed (the
 user, 2026-11-11). temper/migration carries it out. The reasons are
-`notes.md`, section 14.
+`claude-api.notes.md`.
 
 ## 1. In one page
 
@@ -55,10 +55,10 @@ user, 2026-11-11). temper/migration carries it out. The reasons are
 - **A subscription reaches Claude through Claude Code alone,** as its
   publisher ships it (smith's `protocol/programs.md`, section 6).
 - **The direct backend can't take one:** it sends its credential as
-  `x-api-key` with no `Authorization` field (skein's `llm/README.md`,
-  4.7), which a Claude.ai token does not authenticate, and no page or
+  `x-api-key` with no `Authorization` field (skein's `llm/wire.md`,
+  1.7), which a Claude.ai token does not authenticate, and no page or
   command offers to paste one. A key's words say where a key comes from
-  (section 6).
+  (`claude-api.md`, section 6).
 
 ## 3. The provider
 
@@ -69,16 +69,16 @@ What is there:
   `protocol/programs.md`, sections 1 and 3). The direct backend's
   Anthropic dialect is skein's LLM client's: streaming, tool calls,
   adaptive thinking with an effort, cache marks and usage (skein's
-  `llm/README.md`, 4.7).
+  `llm/wire.md`, 1.7).
 - **A key's way through:** jig keeps a key in its secrets' store and
-  grants it as a key (`../protocol/credentials.md`, section 3).
+  grants it as a key (`../protocol/credentials-llm-accounts.md`, section 1).
 - **`ctl` adds keys** to any provider that offers them
   (`../client/ctl/areas.md`, area 5).
 
 What step 1 adds:
 
 - **The offer:** `anthropic` offers Claude Code's program alone
-  (`../protocol/setup/init.md`, section 3). It offers keys too, its
+  (`../protocol/setup/init.md`, section 6). It offers keys too, its
   sources `{"programs": ["claude_code"], "keys": true}`, everywhere init
   writes the provider (`claude-provider.md`, section 2).
 - **A direct endpoint:** beside Claude Code's, which names the program,
@@ -87,10 +87,10 @@ What step 1 adds:
   agent's configuration alike, under the same name on both
   (`../protocol/llm.md`, section 3).
 - **The provider names both:** its endpoint stays Claude Code's, the one
-  its models take (jig's `protocol/configuration.md`, section 3), and it
+  its models take (jig's `protocol/configuration-engine.md`, section 1), and it
   names the direct one for keys. A provider with one way, as OpenAI,
   names one. A stored model keeps its form; a run's copy of it takes
-  the endpoint of the source chosen for it (section 4).
+  the endpoint of the source chosen for it (`claude-api.md`, section 4).
 - **No Claude Code for a key:** a deployment whose Claude accounts are
   keys never fetches Claude Code, which only a command that runs it
   fetches (`claude-provider.md`, section 3).
@@ -101,14 +101,14 @@ What step 1 adds:
   holder's order, an Anthropic account's Claude Code then a key by
   default; a run takes the first usable on its host, and passes to the
   next only when the earlier is unusable there alone, such as a login
-  not signed in on that host (jig's `domain/accounts.md`, 3.4). Today a
+  not signed in on that host (jig's `domain/accounts-sources.md`, 1). Today a
   model whose endpoint names a program takes program sources alone, and
   one naming none direct sources alone; a model of a provider with both
   endpoints takes either.
 - **Account, source, host and endpoint are chosen together:** the
   endpoint a host is checked for is the chosen source's, never the
   model's stored one, at a run's start, in readiness and the offer, and
-  when a claim is checked again (jig's `domain/accounts.md`, 4.3).
+  when a claim is checked again (jig's `domain/accounts-uses.md`, 1.3).
 - **The charter names the chosen source's endpoint:** Claude Code's for
   a program source, the direct one for a key. smith then does what it
   already says: a key on the direct backend, a program source on the
@@ -116,21 +116,21 @@ What step 1 adds:
 - **One way per run:** a charter's models of one provider share its
   grant, so a run's alternatives take the same way as its main model.
 - **A run keeps its source** (smith's `protocol/programs.md`, section 3),
-  and **a task its account** (jig's `domain/accounts.md`, 4.3). A
+  and **a task its account** (jig's `domain/accounts-uses.md`, 1.3). A
   source limited everywhere holds its account's runs until its holder
-  acts, since the order decides who pays (jig's `domain/accounts.md`,
-  3.4): no key is spent because a subscription ran out. Whether it
+  acts, since the order decides who pays (jig's `domain/accounts-sources.md`,
+  1): no key is spent because a subscription ran out. Whether it
   should be is step 2's.
 - **A conversation crosses backends:** a task whose next run takes the
   other way carries its conversation over from smith's transcript
-  (smith's `protocol/programs.md`, 5.8).
+  (smith's `protocol/programs-claude-code.md`, 1.8).
 - **One row per model:** Claude's models are the same models whichever
   way reaches them, so the catalogue keeps one row each, under
   `anthropic`, and no name is doubled.
 - **A key reads Anthropic's list** through the direct endpoint, never
   Claude Code's (`model-catalogue.md`, section 5), for an account whose
   first source is the key. One that lists Claude Code first reads none,
-  as jig's rule has it (jig's `domain/accounts.md`, 3.7): the order
+  as jig's rule has it (jig's `domain/accounts-lists.md`, 1): the order
   decides who pays, and a subscription has no list to read.
 
 ## 5. The models' figures
@@ -141,8 +141,8 @@ What step 1 adds:
 - **Cache prices become Anthropic's,** as read on 2026-11-11: a cache
   read $0.20 per million tokens for Opus 5.5 and Sonnet 5.5, $0.25 for
   Fable 5.1; a cache write 1.25 times the input price, for the
-  five-minute cache smith's marks ask for (skein's `llm/README.md`,
-  4.7). The stock prices cached input as input and a write not at all,
+  five-minute cache smith's marks ask for (skein's `llm/wire.md`,
+  1.7). The stock prices cached input as input and a write not at all,
   its providers' pages giving no figure (`../protocol/configuration/stock.md`);
   Anthropic's does, and a key pays it.
 - **The same figures for both ways:** a subscription's runs bill nobody,
@@ -150,7 +150,7 @@ What step 1 adds:
   budget means the same whichever way a run took.
 - **The output:** the stock's 8,192 bounds thinking and the answer
   together on the direct route, since `max_tokens` is the declared
-  output (skein's `llm/README.md`, 4.7). Whether Claude's models declare
+  output (skein's `llm/wire.md`, 1.7). Whether Claude's models declare
   more, up to Anthropic's 128,000, M1's design weighs against the
   agent's largest turn, which a larger output raises (`model-catalogue.md`,
   section 2); the walk after landing shows whether a delegated change at
@@ -163,7 +163,7 @@ What step 1 adds:
   PROVIDER `anthropic`'s number as `me` prints it, 2 as init writes it:
   a key-only account, a key after ACCOUNT's Claude Code login, or the
   deployment's key, which pays for every payer (jig's
-  `domain/accounts.md`, 4.2). FILE is private, as any key's is.
+  `domain/accounts-uses.md`, 1.2). FILE is private, as any key's is.
   `replace-key`, `forget`, `rank` and `account list` work on it as on
   OpenAI's.
 - **Its proof:** a key-only account of a person's is tried by the model
@@ -172,9 +172,9 @@ What step 1 adds:
   check passes over for the login, and the deployment's key, which the
   check doesn't try, are proven by the first run that takes them, as an
   OpenAI key added through `ctl` is; a refused key says so on its
-  source (skein's `llm/README.md`, 4.7).
+  source (skein's `llm/wire.md`, 1.7).
 - **The pages draw it where they draw OpenAI's key**
-  (`../client/pages/accounts.md`, section 2): with two providers offering
+  (`../client/pages/accounts-words.md`, section 1): with two providers offering
   keys, the ways read "Use an OpenAI API key" and "Use an Anthropic API
   key", rows under "Or an API key". A key's details read "An Anthropic
   API key", then "From the Claude Console, under API keys. What temper's
@@ -193,8 +193,8 @@ focused test of the dialect:
   `disabled`, which these models refuse at every effort. An effort
   that turns thinking off is not offered for them.
 - **No forced tool and no sampling settings:** `tool_choice` never
-  `any` or a named tool, as skein's dialect has it (`llm/README.md`,
-  4.7), and no `temperature`, `top_p` or `top_k`.
+  `any` or a named tool, as skein's dialect has it (`skein/docs/design/llm/wire.md`,
+  1.7), and no `temperature`, `top_p` or `top_k`.
 - **The effort is always sent:** Opus 5.5's own default is `medium`,
   below the stock's `high`.
 - **History only grows:** for an Anthropic account made on or after

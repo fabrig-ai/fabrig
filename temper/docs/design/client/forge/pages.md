@@ -11,8 +11,8 @@
   other's read is refused, and the page says so in jig's words, and a
   request the root refuses for the role says "Your role does not hold
   the deployment's forges." Its acts are the FORGE
-  requests (`../engine.md`), each sent as `../README.md`, 3.6
-  says; a pasted key or token is a secret field (`../README.md`, 3.6). A connect's or
+  requests (`../engine.md`), each sent as `../root.md`, 1.6
+  says; a pasted key or token is a secret field (`../root.md`, 1.6). A connect's or
   an install's link is where a new tab goes, opened by the press and
   pointed once from the answer (`Tab::Open`, `Tab::Point`), the request
   naming no `back` (`../engine.md`); the page stays and waits, its note
@@ -43,7 +43,10 @@
     number in words, "Three changes are on the way to BRANCH."; from ten
     in digits, "12 changes are on the way to BRANCH.";
   - the lede: "Each change is checked on top of BRANCH before it lands.";
-    the landing's line is Work's head's. **The landing's line,** one function's,
+    then, while the document's `catching_up` is there, a line of its own
+    in the muted colour, its words `../../domain/forge/catching-up.md`, 5's,
+    "Catching up: 6 goal-branch reads, 2 uncertain writes"; the
+    landing's line is Work's head's. **The landing's line,** one function's,
     its parts joined by " · ": with something queued, "3 queued" and, once
     anything has landed, "last landed 6 min ago"; with nothing queued and
     something landed, "main last moved 1 h ago" and "nothing queued"; with

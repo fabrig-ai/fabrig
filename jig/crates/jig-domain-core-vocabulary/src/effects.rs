@@ -1,4 +1,4 @@
-//! Connector effect identities and origins (jig/docs/design/domain/engine/README.md, 4.3).
+//! Connector effect identities and origins (jig/docs/design/domain/engine/vocabulary.md, 1.3).
 
 pub mod connector;
 pub mod projections;

@@ -1,4 +1,4 @@
-//! Settled panels give their room to new changes (domain/forge/change/README.md, 7).
+//! Settled panels give their room to new changes (domain/forge/change/records.md, 1).
 use super::{change_row, change_start_fixture};
 use crate::{Decision, Key, Record, Write, route::forge_route::start_change};
 use skein_lib::{Env, Queue};
@@ -49,11 +49,9 @@ fn a_release_room_ask_takes_a_fresh_number_unless_cleanup_is_held() {
             },
             &mut out,
         );
-        for event in [
-            forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-            forge::Event::ReadAfresh,
-            forge::Event::SettleOutbox,
-        ] {
+        for event in
+            [forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, forge::Event::CatchUp]
+        {
             forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
         }
         assert!(domain.forge.room_asked(task));

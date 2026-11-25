@@ -4,7 +4,7 @@
 use skein_lib::Duration;
 use smith_local_domain::{self as local, ExitStatus};
 use smith_local_protocol as protocol;
-use std::io::Write;
+use std::io::{self, Write};
 
 mod input;
 pub(crate) use input::read_prompt;
@@ -69,7 +69,6 @@ pub struct Headless {
     pub json: bool,
     pub output_kind: skein_shell::OutputKind,
     pub input_closed: bool,
-    pub(crate) result_file: bool,
     text: skein_lib::List<u8>,
 }
 
@@ -77,7 +76,7 @@ impl Headless {
     /// Prepare a bounded last response before resource adoption.
     #[must_use]
     pub fn new(json: bool, output_kind: skein_shell::OutputKind, cap: u32) -> Self {
-        Self { json, output_kind, input_closed: false, result_file: false, text: skein_lib::List::with_capacity(cap) }
+        Self { json, output_kind, input_closed: false, text: skein_lib::List::with_capacity(cap) }
     }
 
     /// Show tool status and keep the latest told text, with names clipped for the operator.
@@ -132,6 +131,10 @@ impl Headless {
     }
 }
 
+pub(crate) fn write_operator_line(errors: &mut dyn Write, text: &[u8]) -> io::Result<()> {
+    write!(errors, "smith: {}", String::from_utf8_lossy(text))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,6 +181,26 @@ mod tests {
         assert_eq!(ending.text.as_ref(), b"Please answer");
         assert_eq!(ending.line.unwrap().as_ref(), b"needs input: answer with `smith exec --chat plan`\n");
         assert_eq!(errors, b"smith: tool wait\n");
+    }
+
+    #[test]
+    fn a_headless_run_that_would_wait_exits_5_naming_its_chat() {
+        use crate::command::{Command, Prompt, parse};
+        let Command::Exec(invocation) = parse(["exec", "--chat", "plan", "-"].map(Into::into).to_vec())
+            .expect("a named headless chat with a piped prompt")
+        else {
+            panic!("expected exec");
+        };
+        assert_eq!(invocation.prompt, Prompt::Stdin, "the prompt comes from the pipe");
+        let chat = invocation.shared.chat.expect("selected chat");
+        let mut front = Headless::new(false, skein_shell::OutputKind::Pipe, 0);
+        let answer =
+            smith_host_domain::Answer { read: None, turns: 1, spent: 0, result: smith_host_domain::RunResult::Parked };
+        let ending = front.answered(&answer, chat.as_bytes(), Duration::ZERO);
+        let mut errors = Vec::new();
+        write_operator_line(&mut errors, &ending.line.expect("parked last line")).expect("write operator line");
+        assert_eq!(ExitCode::from_status(ExitStatus::NeedsInput).code(), 5, "parked exit");
+        assert_eq!(errors, b"smith: needs input: answer with `smith exec --chat plan`\n", "parked last line");
     }
 
     #[test]

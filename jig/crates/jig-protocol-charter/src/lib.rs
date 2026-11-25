@@ -7,6 +7,17 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+#[rustfmt::skip]
+mod generated {
+    pub mod channel {
+        include!("generated/channel.rs");
+    }
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "generated translations borrow all domain values (data/codec/maps.md, 4.1)")]
+    pub mod charter {
+        include!("generated/charter.rs");
+    }
+}
+
 mod assignment;
 mod boundary;
 mod call;
@@ -31,7 +42,7 @@ pub use identity::run_identity;
 pub use result::{Field, RunResult, Unreadable, result};
 pub use smith_domain_run::Mode;
 
-/// The encoding ceilings already owned by this kit (protocol/channel/README.md, 5.1).
+/// The encoding ceilings already owned by this kit (protocol/channel/owners.md, 1.1).
 #[must_use]
 pub const fn limits() -> smith_charter::v5::Limits {
     smith_charter::v5::CEILINGS

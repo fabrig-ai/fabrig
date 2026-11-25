@@ -4,7 +4,7 @@
 
 `crates/skein-fake-forge-github` serves github.com's API, at the
 dialect's pin (../../forge/github.md), over the same domain, beside the Forgejo
-layer and in its shape (`forge.md`, section 4): a `Server` per connection, a
+layer and in its shape (`forgejo.md`, section 1): a `Server` per connection, a
 `Service` that owns routing, the tally and the layer's own stores, a
 `Config` of the scenario's tables, and `Limits` checked by `valid`.
 Each route is decoded by the server side of `skein_forge::github` and
@@ -18,8 +18,8 @@ faults; the service and the hosted peer each have an allocator binary.
 
 ### 1.1 What it serves
 
-- **REST at the pin.** Every route of ../../forge/github.md, sections 4, 8, 9
-  and 11, at github.com's paths, with no prefix. A request without
+- **REST at the pin.** Every route of ../../forge/github-operations.md, section 1, and ../../forge/github-app.md, section 1, and ../../forge/github.md, section 9, and ../../forge/github-app.md, section 2
+  , at github.com's paths, with no prefix. A request without
   `X-GitHub-Api-Version: 2026-03-10`, or without `User-Agent`, is
   refused as GitHub refuses it (`400`, `403`). Pages are GitHub's: up to
   `per_page` rows, at most 100, with `Link` next while more remain.
@@ -37,7 +37,7 @@ faults; the service and the hosted peer each have an allocator binary.
   answered `200` with an `errors` entry. This is a difference from
   github.com, which answers any query.
 - **Credentials.** `Authorization: Bearer <t>` names one of three kinds:
-  - a person's token (the scenario's `tokens`, as in `forge.md`, section 4);
+  - a person's token (the scenario's `tokens`, as in `forgejo.md`, section 1);
   - an installation's token, which the layer mints;
   - the App's JSON Web Token, whose signature the layer checks with
     `skein_tls::verify_rs256`, by the public half of the App's key
@@ -51,7 +51,7 @@ faults; the service and the hosted peer each have an allocator binary.
 
   The App's routes on another kind are `401`. `GET /user` on an
   installation's token is `403`. Tokens stay in the layer, as in
-  `forge.md`, section 4. Each person secret names a configured account's domain user;
+  `forgejo.md`, section 1. Each person secret names a configured account's domain user;
   repository permissions and write authorship follow that user. An optional
   expiry on each configured person token emits
   `github-authentication-token-expiration` on that token's answers, in
@@ -70,7 +70,7 @@ faults; the service and the hosted peer each have an allocator binary.
   either all its repositories or a list of them, and may be suspended.
   A repository's `owner.type` is its account's kind, so one an
   organization owns reads `Organization`, and its pulls take the queue
-  (../../forge/github.md, 4.1 and 5.1).
+  (../../forge/github-operations.md, 1.1 and 2.1).
   The mint answers a token that expires an hour later on the forge's
   clock, full, or contents-only when the body asks. The domain sees the
   bot's user number, and the layer refuses beforehand what the token
@@ -170,7 +170,7 @@ faults; the service and the hosted peer each have an allocator binary.
     `hook_attributes` and the rest), since the page's post is not
     otherwise in sight.
   - `POST /app-manifests/<code>/conversions` makes the App and answers
-    as ../../forge/github.md, section 11, says. The converted App retains every
+    as ../../forge/github-app.md, section 2, says. The converted App retains every
     posted `default_permissions` and `default_events` entry. The scenario's
     `Config::app_facts` is `Complete`, `Omitted` (GET /app omits both fields
     while retaining the grants), or `Narrow` (conversion retains only the
@@ -313,7 +313,7 @@ faults; the service and the hosted peer each have an allocator binary.
   place. Tokens on App routes are charged before their credential-class refusal.
   The primary message "API rate limit exceeded" is inferred and
   unrecorded; `texts.rs` marks it. Both rate refusals supply `Retry-After`.
-- **Faults** are `forge.md`, section 4's, at the bytes, with GitHub's statuses. Built:
+- **Faults** are `forgejo.md`, section 1's, at the bytes, with GitHub's statuses. Built:
   `Config::faults` uses the Forgejo face's `Faults` type. Reset closes before
   reading the next request, including on reuse. Drop and server-error draws
   follow the final domain continuation, so an applied write survives the
@@ -333,7 +333,7 @@ These are small:
   head, as a merge does. An entry's group commit is the squash of its
   head onto the base's tip, or onto the entry ahead of it. That commit
   becomes the head of `gh-readonly-queue/<base>/pr-<n>-<head>`, with `<head>`
-  in `forge.md`, section 4's SHA-1 spelling, so the domain's CI runs on it as on any head.
+  in `forgejo.md`, section 1's SHA-1 spelling, so the domain's CI runs on it as on any head.
   Every queue group is modelled as a squash, regardless of merge_method.
   Its message follows
   COMMIT_OR_PR_TITLE: one commit relative to the pull's base uses that
@@ -480,7 +480,7 @@ a domain the caller lends, with no io.
   of a blob are `application/octet-stream`, as they stand.
 - **What a scenario turns.** `Service::ambiguous_updates` answers an
   update's conflict with the stale head's refusal, the one spelling
-  ../../forge/github.md, 5.2 reads as ambiguous. `Installations::minted_token`
+  ../../forge/github-operations.md, 2.2 reads as ambiguous. `Installations::minted_token`
   lends a live token by its mint number, so a world that checks for leaks
   holds every token the layer minted, a reply lost on the wire included.
 - **The fixture.** `skein_fake_forge_github::fixture` is the scenario a
@@ -614,13 +614,35 @@ masking and refusal of leaked secrets are `throwaway.md`, section 2's.
   or writing its value.
 - **Calls are few.** A full live run stays under 400 requests and about
   ten minutes, most of it waiting for the probe workflow's 45 seconds.
+- **Its directories,** the output directory and the fixtures', are one
+  face's: the host's directory, as the tool's commands read and write it,
+  or a directory in skein's fake machine (../README.md, section 4), as its
+  tests lay it. Both take the same operations in the same order: the
+  journal made new and synced with its directory, each record appended and
+  synced before the request it intends, the facts and the cleanup report
+  replaced and synced, a case's transcripts replaced only after their scan,
+  and fixture admission reading each entry's kind and mode without
+  following a link. So the fake machine's crash keeps what the host's disk
+  keeps: every synced record, and at most a torn last one, which a resumed
+  cleanup cuts back to its last whole line before it reads. The host's
+  side is the calls the commands made before the face, with no decision of
+  its own, so no real-loop witness stays for it.
+- **Its tests replay,** at every gate, and none writes a real file. The
+  runner's, on the fake over the simulator with the output directory in
+  the fake machine, are a simulated world's, `github-conformance::suite`:
+  the fake GitHub is a process of skein's simulator, which the strategy's
+  table places there (../../../foundation/testing-strategy.md, 2). Those
+  that drive no runner, the fact names against ../../forge/github.md,
+  section 13, the leak refusal, fixture admission over laid entries, the
+  live guard's refusals and the journal through a crash, are the
+  library's own step tests.
 
 ## 3. What the two layers share
 
-Forgejo's layer (`forge.md`, section 4) and GitHub's (`github.md`, section 1) serve different
+Forgejo's layer (`forgejo.md`, section 1) and GitHub's (`github.md`, section 1) serve different
 APIs from one domain, and speak HTTP the same way. What they have in
 common sits in `skein-fake-forge-http`, which depends on skein-lib,
-skein-http, skein-json, `skein-forge`'s neutral root (../../forge/README.md, 4.4) and
+skein-http, skein-json, `skein-forge`'s neutral root (../../forge/dialects.md, 1.4) and
 the domain. It names no item of either dialect, and neither layer names
 the other's crate: a change to one fake reaches the other only through
 this one. Forgejo's layer is the crate `skein-fake-forge-forgejo`, which
@@ -637,11 +659,11 @@ says what it is.
   event at a time, and answers it by its own routing. So a layer keeps
   its events, its body's reading, its headers, its fault draws and its
   order of work, and the core draws no chance and calls no one.
-- **The git route** (`forge.md`, section 4) is typed here: `git::Limits` holds the
+- **The git route** (`forgejo.md`, section 1) is typed here: `git::Limits` holds the
   HTTP server's limits and the documents' (`skein_forge::limits::Limits`),
   all the route reads. `git::status` answers a domain error's status
   on the route. Each layer serves the route through its own entrance,
-  with its own credential rule (`forge.md`, section 4, and `github.md`, section 1.1).
+  with its own credential rule (`forgejo.md`, section 1, and `github.md`, section 1.1).
 - **`Hosted` and `Faults`,** the forge lent for one pass and the byte
   faults' chances, are the layers' alike, so they sit here and each
   layer's `Config` names `Faults`.

@@ -1,10 +1,14 @@
-//! Deployment numbers owned by the core (domain/engine/README.md, 3 and 5.4; domain/model.md, 6.1).
+//! Deployment numbers owned by the core (domain/engine/README.md, 3, and domain/engine/decisions.md, 1.4; domain/model.md, 6.1).
 
-use crate::{CoreRecord, Record, Write};
+use crate::{
+    CoreRecord, Record, Write,
+    waits::{WaitFloors, WaitKind},
+};
+use skein_lib::Wall;
 
 /// Core to store, then store to core at startup: one fixed-size deployment
 /// header with allocated high-water marks. Every writing decision saves it
-/// atomically with its other rows (domain/engine/README.md, 5.1 and 5.4).
+/// atomically with its other rows (domain/engine/decisions.md, 1.1 and 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Deployment {
     /// Shell-supplied identity committed on the deployment's first start and restored thereafter;
@@ -35,12 +39,26 @@ pub struct Deployment {
     pub commits: u64,
     /// Largest seeded or allocated project number.
     pub projects: u64,
-    /// The longest restart wait still kept (domain/engine/restart.md, 1).
+    /// The longest restart wait still kept (domain/engine/restart.md, 5).
     pub restart_wait_ms: Option<u64>,
+    /// Each recorded wait kind's first observation.
+    pub wait_floors: Option<WaitFloors>,
+}
+
+impl Deployment {
+    #[must_use]
+    pub fn wait_floor(&self, kind: WaitKind) -> Option<Wall> {
+        self.wait_floors.as_ref()?.floor(kind)
+    }
+
+    /// Keep the first wall observation for a kind, returning whether it changed the header.
+    pub fn set_wait_floor(&mut self, kind: WaitKind, at: Wall) -> bool {
+        self.wait_floors.get_or_insert(WaitFloors::EMPTY).set_once(kind, at)
+    }
 }
 
 /// Core-selected counter for `fresh`; each is a separate checked `u64` high-water
-/// mark, not a channel token or child-owned handle (domain/engine/README.md, 5.4).
+/// mark, not a channel token or child-owned handle (domain/engine/decisions.md, 1.4).
 /// Selecting a family is pure; allocating it dirties the journal header.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Family {
@@ -97,6 +115,7 @@ impl Counters {
             commits: 0,
             projects: 0,
             restart_wait_ms: None,
+            wait_floors: None,
         };
         Counters { deployment, header: Header::Dirty }
     }
@@ -193,7 +212,7 @@ pub fn fresh(counters: &mut Counters, family: Family) -> Option<u64> {
 }
 
 impl Counters {
-    /// Number a writing decision and construct its deployment row (domain/engine/README.md, 5.4).
+    /// Number a writing decision and construct its deployment row (domain/engine/decisions.md, 1.4).
     #[must_use]
     pub fn commit_header(&mut self) -> Write {
         Write::Save(self.commit_record())

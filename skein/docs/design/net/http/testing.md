@@ -33,13 +33,16 @@
   comments, every refusal, an event in pieces within the room granted,
   the end and a failure, a close in each state, and events read back by
   the reader as they were written.
+
+## 1. Machine worlds
+
 - **Machine worlds** (../../../foundation/testing-strategy.md, 2.4) in `tests/http`
   (`skein-http-world`), one machine from a seed in one loop with both its
   neighbours:
   - **The client's** runs one connection for one exchange after another.
     Below, the server's stream: its bytes arrive in pieces cut at random,
     late, into an intake under its cap, and meet each read as lib's
-    intake does (../../runtime/lib.md, 7); room
+    intake does (../../runtime/lib-streams.md, 1); room
     is granted late, one `Send` a grant, while a response may wait; now
     and then the server is patient, and answers each exchange only once
     it has the whole request, so that a client that waited for the
@@ -127,6 +130,9 @@
     being written; and it reads back, by the reference reader and by the
     reader's own world, as each event was written.
   - A seed replays to the same run.
+
+## 2. Transcripts
+
 - **Transcripts** in `tests/http/transcripts/`, each `<name>.http` beside
   `<name>.expect`, what it must decode to: the head, the body or the
   events its body holds, and the outcome. Each is written by hand after
@@ -186,12 +192,18 @@
   Each comes to its expectation through the server's world under several
   seeds, read a byte at a time, and cut anywhere, as the reference reads
   the prefix.
+
+## 3. The machines stacked
+
 - **The machines stacked** (`tests/http/tests/suite/stack.rs`), a small step
   towards the protocol worlds: the reader and a tokenizer per event over
   the client, as a connection routes between them, the request body
   written by the JSON writer and uploaded, over the LLM transcripts cut
   at random; every event is the transcript's and every document the JSON
   reference parser's reading of its data.
+
+## 4. Protocol worlds
+
 - **Protocol worlds** (../../../foundation/testing-strategy.md, 2.5) in `tests/protocol`
   (`skein-protocol-world`): both ends of an LLM streaming exchange, built
   as two services would build them. The client's end stacks the client,
@@ -236,8 +248,11 @@
   simulator, through the kernel's records, which a world joined by bytes
   has none of, so these keep their own loop, of the same shape: the
   contracts as it goes, the referee beside it.
+
+## 5. Memory
+
 - **Memory** (`tests/http/tests/suite/memory.rs`, with the counting allocator,
-  ../../testing/README.md, 5): every call of an entry point a step of the meter. The
+  ../../testing/service-tiers.md, 1): every call of an entry point a step of the meter. The
   client at its limits: a head at the head limit with folds among its
   fields, bodies by length, chunked with a trailer section at its limit,
   and to the end of the stream, an interim head, an upload, a request
@@ -258,6 +273,9 @@
   its target's copy; and a response head at its limit, held while a
   discard reads a piece of the most a read is. The writer's peak at its
   limits stays under its scenario's ceiling.
+
+## 6. The fuzzy suite
+
 - **The fuzzy suite** (`tests/http/tests/suite/fuzzy/*.rs`): 20,000 connections
   of one to four generated exchanges, valid, mutated, and corrupted where
   a random edit seldom lands (another major version, a code past 599, an
@@ -294,6 +312,9 @@
   carried several calls, an event's id or reconnection time was checked,
   and each outcome at each end fell. Fuzz targets run beside it, on a
   nightly toolchain.
+
+## 7. The reader's data face
+
 - **The reader's data face** (`sse.md`), joins each tier
   above. Step tests: the data under fills and scans of every shape, data
   lines joined across a CRLF split and a CR alone, comments and other

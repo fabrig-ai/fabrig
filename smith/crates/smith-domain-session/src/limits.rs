@@ -70,8 +70,7 @@ pub struct Limits {
     /// together, up to this many, and a call that writes runs alone. Between
     /// one and [`MAX_PARALLEL`].
     pub parallel_tools: u32,
-    /// Retries of a call that failed transiently, after which the session
-    /// fails.
+    /// Retries of a call that failed transiently, excluding rate limit waits.
     pub retries: u32,
     /// The wait before the first retry, doubled for each one after it, with
     /// jitter.
@@ -184,7 +183,7 @@ impl Field {
 }
 
 /// Derive this layer from declarations, refusing checked arithmetic overflow.
-/// Contract: smith/docs/design/protocol/limits.md, sections 2 and 3.
+/// Contract: smith/docs/design/protocol/limits.md, section 2, and smith/docs/design/protocol/limits-derivation.md, section 1.
 pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
     if inputs.conversations == 0 {
         return Err(Field::Sessions);

@@ -7,7 +7,7 @@ settled in detail.** Sections 2 and 3 are a direction; section 4 is the
 first pass, the only part to build now, with section 5's recording
 (`tui.execution.md`). The rest is refined by the user once the first
 pass runs, on its recorded frames, as the browser's look is refined on
-its journeys. The reasons are `notes.md`, section 9.
+its journeys. The reasons are `tui.notes.md`.
 
 ## 1. In one page
 
@@ -34,7 +34,7 @@ its journeys. The reasons are `notes.md`, section 9.
   screen or all of it (section 3), and a recorded frame is the whole
   screen (section 5).
 - **Its own view, on the shared client.** It holds the client root the
-  browser holds (`../client/README.md`, section 3) and draws its own
+  browser holds (`../client/root.md`, section 1) and draws its own
   pages as skein-ui's tree, mapped by a full-screen shell of skein's
   (4.4).
 - **Signed in from the browser** (4.2): `temper` opens a tab, the
@@ -74,7 +74,7 @@ its journeys. The reasons are `notes.md`, section 9.
   web.
 - **`temper open`, in `temper-box` (`cli.md`, section 4), and `temper ctl` stay what they are:** the line client
   is the tests' surface (`../client/line.md`, 9), `temper ctl` the
-  agents' (`../client/ctl/README.md`, section 6). The TUI is the person's.
+  agents' (`../client/ctl/command-line.md`, section 1). The TUI is the person's.
 
 ## 3. The direction
 
@@ -136,10 +136,10 @@ their words and look are refined on the recording (section 5).
   whose port fell back to another is named by its address.
 - **The printed link, pasted:** the sign-in screen also takes the link
   the box printed, pasted into its field, and signs in by it as `temper
-  open` does (`../client/README.md`, section 4): the way in when no
+  open` does (`../client/sign-in.md`, section 1): the way in when no
   browser can approve, and the only one until the approval is built.
   The link is never an argument, as `temper ctl`'s isn't
-  (`../client/ctl/README.md`, 6.1).
+  (`../client/ctl/command-line.md`, 1.1).
 - **Its directory,** private as `temper open`'s (`../client/line.md`,
   1), under the person's state directory
   (`$XDG_STATE_HOME/temper/tui`, else `~/.local/state/temper/tui`): its
@@ -156,7 +156,7 @@ their words and look are refined on the recording (section 5).
   **a sign-in approved by a signed-in browser, for that browser's own
   party.** It is enabled where the printed link is, by configuration
   and on a loopback listener alone (jig's `protocol/client/sign-in.md`
-  ). Why jig's and not temper's: `notes.md`, section 9.
+  ). Why jig's and not temper's: `tui.notes.md`.
 - **The flow:**
   1. The TUI, signed out, asks the engine for an approval. The answer
      holds a secret, which the TUI keeps and never shows, a short code
@@ -191,7 +191,7 @@ their words and look are refined on the recording (section 5).
      approval never taken expires with nothing made.
 - **A browser approves, nothing else:** the approval is sent with the
   browser's cookie, under jig's browser guards (jig's
-  `protocol/browser/README.md`, 12.2), so that no agent driving `temper ctl`
+  `protocol/browser/serving.md`, 1.2), so that no agent driving `temper ctl`
   as the owner (`../client/ctl/README.md`, section 7) can approve a
   terminal.
 - **The code in the tab's address,** on a box, so that one press
@@ -202,7 +202,7 @@ their words and look are refined on the recording (section 5).
 - **Refused, expired or used:** the TUI and the page each say which;
   the TUI offers to ask again.
 - **The browser signed out:** the page says to open the link the box
-  printed first (`../client/web/README.md`, 2.4), then the approval's
+  printed first (`../client/web/sign-in.md`, 1), then the approval's
   address again.
 - **No browser to open** (an SSH session, no display, or the opener
   failing): the TUI prints the address and the code, to open in a
@@ -231,7 +231,7 @@ It proves the connection, and nothing more. Illustrative:
 ```
 
 - **What it reads:** `me`, for the party's name and projects, and the
-  link's state (`../client/README.md`, 3.1), live.
+  link's state (`../client/root.md`, 1.1), live.
 - **The engine stopped and started again:** the status line says so,
   then online again, and nothing is lost.
 - **Signed out** elsewhere: the TUI returns to signing in.
@@ -239,7 +239,7 @@ It proves the connection, and nothing more. Illustrative:
 ### 4.4 Its parts
 
 - **The client root, shared:** `temper-client-domain`, holding
-  `jig-client` (`../client/README.md`, sections 2 and 3), as the browser
+  `jig-client` (`../client/README.md`, section 2, and `../client/root.md`, section 1), as the browser
   and the line client hold it.
 - **A view of its own:** the TUI's pages as skein-ui's tree, beside
   `temper-client-view`, with the same words where the same thing is
@@ -267,21 +267,21 @@ The TUI's journeys, as the browser's (`../client/web/journeys.md`), with the
 TUI's host:
 
 - **Recorded at the host's seam,** in a build of its own, on a fresh
-  fake box (`../client/web/journeys.md`, 3.5): the start's facts, the
+  fake box (`../client/web/journeys-recordings.md`, 1.5): the start's facts, the
   screen's size among them, then turn by turn the clocks, each report
   with what the host asked back, each key as the event the view makes
   of it, and a mark for each frame the person saw. A resize is a
   report. A key marks the frame as drawn, another saves; the shell
   reads both before the view does.
 - **Replayed through the shipped host,** natively, and stale where it
-  asks otherwise (`../client/web/journeys.md`, section 4).
+  asks otherwise (`../client/web/journeys-recordings.md`, section 2).
 - **Printed as frames:** a mark's screen as text, a line per row, for a
   diff; and a page that draws it in the theme's colours, linked so that
   the same keys walk the frames; with each journey's README.
 - **Kept current by a test,** as the browser's are
   (`../client/web/journeys.md`, section 6).
 - **Redacted and scanned** as the browser's, with the same code
-  (`../client/web/journey-redaction.md` and `../client/web/journeys.md`, 3.7), which gains the TUI's
+  (`../client/web/journey-redaction.md` and `../client/web/journeys-recordings.md`, 1.7), which gains the TUI's
   originals: the approval's secret, the credential it takes, and the
   bearer every exchange carries.
 - **Recorded again** by a command, on a fresh fake box, the TUI in a
@@ -290,7 +290,7 @@ TUI's host:
 - **The look is asked for on the frames:** the person edits a frame's
   text in place and writes the theme's overlay, which stays empty on
   main as the browser's `overlay.css` does; each request lands as the
-  browser's do (`look-requests.md`; `../client/web/journeys.md`, section 7).
+  browser's do (`archive/look-requests.md`; `../client/web/journeys.md`, section 7).
 - **The first journey:** a fresh fake box, the browser signed in by its
   printed link, `temper` started, the approval's frame, the approval
   given, and the first screen.
@@ -311,7 +311,7 @@ TUI's host:
 
 - **A deployment at a name:** Google's sign-in on the web
   (`../protocol/sign-in.md`), then the same approval over HTTPS, with
-  native clients between hosts (`../client/README.md`, section 4). The
+  native clients between hosts (`../client/sign-in.md`, section 1). The
   code is typed on the page there, never carried in its address, and
   the page says where the request came from and how long ago.
 - **The direction's parts** (section 3) that `surfaces.md`, section 11
@@ -329,5 +329,5 @@ TUI's host:
   server's, as the sign-in's endings are (`../protocol/sign-in.md`,
   4.3). Default: the client's. The designer's.
 - **One journey format or two:** the browser's file
-  (`../client/web/journeys.md`, 3.2) with records of the TUI's, or a file of
+  (`../client/web/journeys-recordings.md`, 1.2) with records of the TUI's, or a file of
   the TUI's own. Default: sharing what fits. The designer's.

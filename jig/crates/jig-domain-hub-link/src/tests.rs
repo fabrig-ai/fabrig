@@ -92,6 +92,7 @@ fn run() -> Box<core::RunCharter> {
 }
 fn assignment() -> Assignment {
     Assignment {
+        parts: Box::new([]),
         live: core::LiveAsk::NONE,
         brief: Box::new([]),
         conversation: 1,
@@ -856,10 +857,10 @@ fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
 
 #[test]
 fn untranslated_runs_and_jobs_keep_a_retry_reason_on_the_usual_answer_route() {
-    let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 };
-    let run = host::Ending::Refused(host::Refusal::Untranslated(mismatch.clone()));
-    let job = host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch.clone()));
-    let end = tasks::End::RefusedWithReason { reason: mismatch.reason() };
+    let reason: Box<[u8]> = b"the worker's layout cannot keep smith-charter Charter.title: field".as_slice().into();
+    let run = host::Ending::Refused(host::Refusal::Untranslated(reason.clone()));
+    let job = host::JobEnding::Refused(host::JobRefusal::Untranslated(reason.clone()));
+    let end = tasks::End::RefusedWithReason { reason };
     assert_eq!(payload::ending(&run, None, Duration::ZERO), end);
     assert_eq!(payload::job_end(&job, None, Duration::ZERO), end);
     assert!(!payload::unusable_history(&run));
@@ -1037,6 +1038,7 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
 
 fn asking_hub() -> (host::Hub, skein_lib::Env<host::Limits>) {
     let limits = host::Limits {
+        drain_grace: Duration::from_secs(10),
         application_ask_bytes: 1,
         application_answer_bytes: 1,
         piece_bytes: 0,
@@ -1068,6 +1070,8 @@ fn asking_hub() -> (host::Hub, skein_lib::Env<host::Limits>) {
         &env,
         host::Event::Down(host::LinkDown::Assign {
             assignment: host::Assignment {
+                parts: Box::new([]),
+                tell_parts: false,
                 assignment: host::RunAssignment {
                     identity: [0; 16],
                     run: RUN,

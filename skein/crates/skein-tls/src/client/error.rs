@@ -36,7 +36,7 @@ pub enum Error {
 
 impl Error {
     /// What the plaintext stream is told when the connection fails with
-    /// this (runtime/lib.md, 7): the stream's own fault; a reset for the peer's
+    /// this (runtime/lib-streams.md, 1): the stream's own fault; a reset for the peer's
     /// alert, by which it gave up; invalid for anything wrong with the
     /// peer's data, a truncation among it, which a clean end would hide.
     #[must_use]

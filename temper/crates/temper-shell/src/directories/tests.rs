@@ -1,4 +1,46 @@
 use super::*;
+use crate::test_disk::{Disk, USER};
+use skein_fake_machine::Item;
+#[test]
+fn roots_are_private_and_checked_at_their_own_names() {
+    let target = Path::new("/parent/root");
+    for (row, entries, private) in [
+        ("absent", vec![], true),
+        ("private", vec![Item::directory(b"parent"), Item::directory(b"parent/root").mode(0o700)], true),
+        ("public", vec![Item::directory(b"parent"), Item::directory(b"parent/root").mode(0o755)], false),
+        (
+            "link",
+            vec![
+                Item::directory(b"parent"),
+                Item::directory(b"private-target").mode(0o700),
+                Item::link(b"parent/root", b"../private-target"),
+            ],
+            false,
+        ),
+        ("file", vec![Item::directory(b"parent"), Item::file(b"parent/root", b"").mode(0o600)], false),
+        ("parent-link", vec![Item::directory(b"real"), Item::link(b"parent", b"real")], true),
+    ] {
+        let mut disk = Disk::new(&entries);
+        let result = make_private_with(target, USER, &mut disk);
+        if private {
+            result.expect(row);
+            assert_eq!(disk.symlink_stat(target).expect(row).mode, 0o700, "{row}");
+        } else {
+            assert_eq!(
+                result.expect_err(row),
+                format!("{}: must be a private directory of this user's, not reached through a link", target.display()),
+                "{row}"
+            );
+        }
+        if row == "absent" {
+            assert_eq!(disk.symlink_stat(Path::new("/parent")).expect("made parent").mode, 0o700);
+        }
+        if row == "parent-link" {
+            assert_eq!(disk.symlink_stat(Path::new("/real/root")).expect("made through link").mode, 0o700);
+        }
+    }
+}
+
 fn args(values: &[&str]) -> Vec<Argument> {
     values.iter().map(|s| Box::from(s.as_bytes())).collect()
 }
@@ -50,49 +92,5 @@ fn settings_refusals_name_the_flag_and_its_reason() {
         (vec!["--config", &long, "--data", "/d", "--cache", "/c"], "--config DIR: absolute path is past 4096 bytes"),
     ] {
         assert_eq!(resolve(&args(&arguments), &[], b"/work").expect_err("refused").to_string(), expected);
-    }
-}
-#[test]
-fn roots_are_private_and_checked_at_their_own_names() {
-    use std::os::unix::fs::{PermissionsExt, symlink};
-    for row in ["absent", "private", "public", "link", "file", "parent-link"] {
-        let scratch = skein_scratch::Scratch::new(row);
-        let root = scratch.path().to_path_buf();
-        let target = root.join("parent/root");
-        match row {
-            "absent" => {}
-            "parent-link" => {
-                std::fs::create_dir(root.join("real")).expect("parent");
-                symlink(root.join("real"), root.join("parent")).expect("parent link");
-            }
-            _ => {
-                std::fs::create_dir(root.join("parent")).expect("parent");
-                match row {
-                    "link" => symlink(&root, &target).expect("link"),
-                    "file" => std::fs::write(&target, b"").expect("file"),
-                    _ => {
-                        std::fs::create_dir(&target).expect("directory");
-                        std::fs::set_permissions(
-                            &target,
-                            std::fs::Permissions::from_mode(if row == "public" { 0o755 } else { 0o700 }),
-                        )
-                        .expect("mode");
-                    }
-                }
-            }
-        }
-        let result = make_private(&target, skein_shell::effective_user());
-        if ["public", "link", "file"].contains(&row) {
-            assert_eq!(
-                result.expect_err(row),
-                format!("{}: must be a private directory of this user's, not reached through a link", target.display())
-            );
-        } else {
-            result.expect(row);
-            assert_eq!(std::fs::metadata(&target).expect("made").mode() & 0o777, 0o700);
-        }
-        if row == "absent" {
-            assert_eq!(std::fs::metadata(root.join("parent")).expect("made parent").mode() & 0o777, 0o700);
-        }
     }
 }

@@ -1,5 +1,5 @@
-//! Kept-task stories at the core's public entrances (domain/engine/README.md, section 9;
-//! domain/tasks/lifecycle.md, section 8). Assertions observe durable rows and party deliveries.
+//! Kept-task stories at the core's public entrances (domain/engine/world.md, section 1;
+//! domain/tasks/lifecycle-endings.md, section 1). Assertions observe durable rows and party deliveries.
 use super::*;
 use jig_core_world::world::Setup;
 use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
@@ -254,22 +254,67 @@ fn a_failure_finished_under_its_question_parks_and_the_answer_resumes_it() {
     );
 }
 
+fn ask_requester(world: &mut World, run: (u64, u64), parent: u64) -> u64 {
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(9201)),
+        key: core::CallKey { task: run.0, attempt: run.1, completion: 1, position: 0 },
+        action: core::NamedAction::Message {
+            target: parent,
+            kind: tasks::MessageKind::Question,
+            words: b"proceed?".as_slice().into(),
+        },
+    }));
+    live_row(world, run.0)
+        .questions
+        .first()
+        .unwrap_or_else(|| panic!("question not admitted: {:?}", world.answers.last()))
+        .number
+}
+
+#[test]
+fn waits_for_an_open_question_and_pending_dependency_survive_restart() {
+    let seed = 887;
+    let (configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
+    // Two result reservations and a question must fit in the requester's inbox together.
+    limits.core.tasks.inbox_messages = 10;
+    limits.core.tasks.inbox_bytes = 1024;
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
+    let parent = world.assignments[0];
+    let kept = member(&world, tasks::Executor::Agent { charter: 1 }, b"kept report");
+    let kept = delegate(&mut world, parent, 1, kept);
+    let dependency = member(&world, tasks::Executor::Agent { charter: 1 }, b"prerequisite");
+    let dependency = delegate(&mut world, parent, 2, dependency);
+    let run = running(&world, kept);
+    world.advance(skein_lib::Duration::from_millis(1));
+    let question = ask_requester(&mut world, run, parent.0);
+    world.advance(skein_lib::Duration::from_millis(1));
+    amend_dependency(&mut world, parent, kept, dependency);
+    finish(&mut world, run, b"kept by the question and dependency");
+    let before = task_waits(&mut world, kept);
+    assert_eq!(before.0[0].object, core::WaitObject::Question { number: question, answerer: parent.0 });
+    assert_eq!(before.0[1].object, core::WaitObject::Task(dependency));
+    assert_eq!(before.0[1].kind, core::WaitKind::Dependency);
+    let (configuration, _) = jig_core_world::faults::plan_fixture(seed);
+    world.restart_with(configuration);
+    assert_eq!(task_waits(&mut world, kept), before);
+    world.close();
+}
+
+fn task_waits(world: &mut World, task: u64) -> (Vec<core::Wait>, u32) {
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    jig_core_world::reads::ask(world, 1, core::reads::Read::Task { task });
+    let core::reads::Answer::Document(document) = jig_core_world::reads::latest(world) else { panic!("task document") };
+    let core::documents::Document::Task(task) = &**document else { panic!("task document") };
+    (task.waits.as_slice().to_vec(), task.wait_count)
+}
+
 fn requester_question_parks_and_resumes(seed: u64, result: tasks::TaskResult) {
     let mut world = plan_world(seed);
     let parent = world.assignments[0];
     let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"question report");
     let child = delegate(&mut world, parent, 1, child);
     let run = running(&world, child);
-    world.send(root::Event::Core(core::Event::NamedAction {
-        to: ReplyTo::new(Token::new(9201)),
-        key: core::CallKey { task: run.0, attempt: run.1, completion: 1, position: 0 },
-        action: core::NamedAction::Message {
-            target: parent.0,
-            kind: tasks::MessageKind::Question,
-            words: b"proceed?".as_slice().into(),
-        },
-    }));
-    let question = live_row(&world, child).questions[0].number;
+    let question = ask_requester(&mut world, run, parent.0);
     let assignments = world.assignments.len();
     world.send(root::Event::Answer {
         read: None,

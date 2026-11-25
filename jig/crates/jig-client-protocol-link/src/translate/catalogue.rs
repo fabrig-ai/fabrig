@@ -1,6 +1,7 @@
-//! Catalogue decoding owns no account selection (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
+//! Catalogue decoding owns no account selection (client/domain/contract/documents.md, 1, and client/domain/contract/watches.md, 1.1).
 use super::accounts::{charge, checked_manage_usage, piece_count};
 use super::{Limits, List, Reader, c, piece_problem, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::length::len_u64;
 
@@ -66,23 +67,13 @@ pub(super) fn readiness(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result
     for _ in 0..count {
         let item = skein_codec::piece::counted(&mut reader);
         let value = w::PayerReadiness::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let payer = super::accounts::account_use(&value.payer);
+        let value = client::payer_readiness_to_domain(value);
         for old in &rows {
-            if old.provider == value.provider && old.payer == payer {
+            if old.provider == value.provider && old.payer == value.payer {
                 return Err(piece_problem(skein_codec::Reason::Malformed));
             }
         }
-        rows.push(c::PayerReadiness {
-            provider: value.provider,
-            payer,
-            readiness: match &value.readiness {
-                w::Readiness::Usable => c::Readiness::Usable,
-                w::Readiness::Unavailable => c::Readiness::Unavailable,
-                w::Readiness::Unknown => c::Readiness::Unknown,
-            },
-            settled: value.settled,
-        })
-        .or(Err(too_large()))?;
+        rows.push(value).or(Err(too_large()))?;
     }
     Ok(rows)
 }

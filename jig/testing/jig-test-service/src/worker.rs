@@ -28,9 +28,12 @@ pub struct Worker {
     asked: Queue<(Token, Token, u64, jig_domain_host::AskAnswer)>,
     pub(super) root: root::Domain,
     pub(super) root_steps: u64,
+    pub(super) starts_telling_parts: u32,
     admission_waits: u64,
     env: Env<root::Limits>,
     agent: Agent,
+    workspace_directories: Box<[smith::Directory]>,
+    workspace_delivery: Option<smith_domain_run::outcome::ChangeSpec>,
     sources: crate::program_sources::Component,
     source_files: crate::program_sources::FileStage,
     source_events: Queue<jig_domain_host::Event>,
@@ -90,12 +93,14 @@ impl Worker {
         let mut limits = settings.hub;
         limits.slots = config.slots;
         limits.source_interval = config.check_interval;
+        limits.drain_grace = config.graces.drain_grace;
         let root_limits = root::Limits {
             watermark: root::WATERMARK,
             hub: limits,
             agent: agent.host_limits,
             bounds: agent.bounds.clone(),
             stop_bound: config.stop_bound,
+            drain: config.graces.drain,
             workstreams: Box::default(),
         };
         if !root::valid(&root_limits) {
@@ -122,9 +127,12 @@ impl Worker {
             asked: Queue::uncapped(),
             root: root::Domain::new(&root_limits),
             root_steps: 0,
+            starts_telling_parts: 0,
             admission_waits: 0,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: root_limits },
             agent: agent_values(agent),
+            workspace_directories: Box::default(),
+            workspace_delivery: None,
             sources: crate::program_sources::Component::new(limits.detail_bytes),
             source_files: crate::program_sources::FileStage::new(prefix),
             source_events: Queue::uncapped(),
@@ -181,6 +189,21 @@ impl Worker {
         });
         self.sources.configure(resources)
     }
+    /// Supply a test application's workspace before the worker loop starts.
+    /// Paths name only the caller's fake filesystem; the default has no workspace.
+    pub fn configure_workspace(
+        &mut self,
+        directories: Box<[smith::Directory]>,
+        delivery: Option<smith_domain_run::outcome::ChangeSpec>,
+    ) {
+        assert!(!self.started, "workspace configured before startup");
+        assert!(
+            directories.len() <= usize::try_from(self.env.limits.agent.directories).expect("directory bound"),
+            "configured directory bound"
+        );
+        self.workspace_directories = directories;
+        self.workspace_delivery = delivery;
+    }
     /// Ask through the hosted attempt's application port.
     pub fn ask(&mut self, run: Token, attempt: Token, bytes: Box<[u8]>) {
         self.events.push(root::Event::Source(Box::new(jig_domain_host::Event::Ask { run, attempt, bytes })));
@@ -191,7 +214,7 @@ impl Worker {
     pub fn stop(&mut self) {
         if !self.stopping {
             self.stopping = true;
-            self.events.push(root::Event::Shutdown);
+            self.events.push(root::Event::Drain);
         }
     }
     /// End immediately, dropping domain work and aborting every owned IO entity.
@@ -331,8 +354,16 @@ impl Worker {
                 link::Request::RelayCancelled { run, attempt, call } => {
                     self.events.push(root::Event::RelayCancelled { run, attempt, call });
                 }
-                link::Request::Down { down, parts } => {
+                link::Request::Down { mut down, parts } => {
                     drop(parts);
+                    if !self.workspace_directories.is_empty()
+                        && let jig_domain_host::LinkDown::Assign { assignment } = &mut down
+                    {
+                        assignment.assignment.workspace = Some(jig_domain_host::Workspace {
+                            workstream: assignment.assignment.run.raw(),
+                            items: assignment.assignment.run,
+                        });
+                    }
                     self.events.push(root::Event::Link(down));
                 }
                 link::Request::Value { account, generation, expires, value } => {
@@ -376,12 +407,13 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
+                link::Request::ResendPart { run, attempt, part } => {
+                    self.events.push(root::Event::ResendPart { run, attempt, part });
+                }
                 link::Request::Figures { .. }
                 | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
-                | link::Request::Restarting { .. }
-                | link::Request::CannotSendWhole { .. }
-                | link::Request::Untranslated { .. } => {}
+                | link::Request::Restarting { .. } => {}
             }
         }
         self.values.expire(now);
@@ -447,7 +479,8 @@ impl Worker {
                     root::Request::SourceFault => self.link_down(self.env.now, link::Event::SourceFault),
                     root::Request::Hello(hello) => self.link_down(self.env.now, link::Event::Hello { hello }),
                     root::Request::Link(up) => {
-                        self.link_down(self.env.now, link::Event::Up { up, parts: Box::default() });
+                        let parts = self.workspace_parts(&up);
+                        self.link_down(self.env.now, link::Event::Up { up, parts });
                     }
                     root::Request::CancelRelay { run, attempt, call } => {
                         self.link_down(self.env.now, link::Event::CancelRelay { run, attempt, call });
@@ -455,7 +488,12 @@ impl Worker {
                     root::Request::Stop => self.link_down(self.env.now, link::Event::Stop),
                     root::Request::Process(request) => self.process(*request),
                     root::Request::Decode { agent, run, start } => {
-                        let start = worker_route::decode(run, *start, &self.agent);
+                        let start = self.decode(run, *start);
+                        if let Ok(start) = &start
+                            && start.tell_parts
+                        {
+                            self.starts_telling_parts = self.starts_telling_parts.saturating_add(1);
+                        }
                         self.root_steps = self.root_steps.wrapping_add(1);
                         root::step(&mut self.root, &self.env, root::Event::Decoded { agent, start }, &mut self.out);
                     }
@@ -473,6 +511,48 @@ impl Worker {
             }
         }
         assert!(self.out.is_empty(), "each payload hand-out is answered in this iteration");
+    }
+    fn workspace_parts(&self, up: &jig_domain_host::LinkUp) -> Box<[jig_protocol_worker_wire::Part]> {
+        let mut parts = List::with_capacity(2);
+        if self.workspace_directories.is_empty() {
+            return parts.into_boxed();
+        }
+        if let jig_domain_host::LinkUp::Answer { answer, .. } = up {
+            let work = match &answer.ending {
+                jig_domain_host::Ending::Ended { work, .. }
+                | jig_domain_host::Ending::Parked { work }
+                | jig_domain_host::Ending::Failed { work, .. } => Some(work),
+                jig_domain_host::Ending::Refused(_) => None,
+            };
+            if let Some(work) = work {
+                for token in [work.left, work.saved].into_iter().flatten() {
+                    parts
+                        .push(jig_protocol_worker_wire::Part { token, bytes: Box::default() })
+                        .expect("at most left and saved work");
+                }
+            }
+        }
+        parts.into_boxed()
+    }
+    fn decode(
+        &self,
+        run: Token,
+        source: jig_domain_host::Start,
+    ) -> Result<Box<smith::Start>, jig_domain_host::Undecoded> {
+        let mut start = worker_route::decode(run, source, &self.agent)?;
+        assert!(
+            self.workspace_directories.is_empty() || start.workspace.is_some(),
+            "configured workspace has a prepared owner"
+        );
+        start.directories.clone_from(&self.workspace_directories);
+        if let Some(delivery) = &self.workspace_delivery {
+            let mut charter = start.charter.into_value();
+            charter.grants.deliver = Some(delivery.clone());
+            charter.grants.tools.modify = true;
+            start.charter = smith::Charter::new(charter, self.env.limits.agent.charter_bytes)
+                .ok_or(jig_domain_host::Undecoded::Charter)?;
+        }
+        Ok(start)
     }
     fn process(&mut self, request: smith::process::Request) {
         match request {
@@ -524,12 +604,13 @@ impl Worker {
             smith::Down::Grant { grant } => grant_value(&self.values, grant, self.env.now),
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
+            | smith::Down::PartKept { .. }
             | smith::Down::Acknowledge { .. }
             | smith::Down::Renewals { .. }
             | smith::Down::Cancel
-            | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
+            | smith::Down::Drain { .. } => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
-        let Some(values) = values else {
+        let Some(mut values) = values else {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
             return;
         };
@@ -537,6 +618,11 @@ impl Worker {
         let token = owner;
         let sent = match message {
             smith::Down::Start { start, window } => {
+                let mut paths = List::with_capacity(self.env.limits.agent.directories);
+                for directory in &self.workspace_directories {
+                    paths.push(directory.host.clone()).expect("configured paths fit the agent");
+                }
+                values.paths = paths.into_boxed();
                 process.send_start(start, window, values, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Grant { grant } => process.send_grant(
@@ -555,6 +641,9 @@ impl Worker {
             smith::Down::Answer { call, reply } => {
                 process.send_reply(call, reply, token, &mut self.process_events, &mut self.io)
             }
+            smith::Down::PartKept { number } => {
+                process.send_part_kept(number, token, &mut self.process_events, &mut self.io)
+            }
             smith::Down::Acknowledge { turn } => {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
             }
@@ -562,7 +651,7 @@ impl Worker {
                 process.send_renewals(held, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
-            smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
+            smith::Down::Drain { grace } => process.send_drain(grace, token, &mut self.process_events, &mut self.io),
         };
         if sent.is_err() {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -1031,6 +1120,16 @@ mod program_grant_tests {
 }
 
 impl crate::Service {
+    /// Decoded native starts that asked their agents for parts.
+    #[must_use]
+    pub fn starts_telling_parts(&self) -> u32 {
+        let mut count = 0_u32;
+        for worker in &self.workers {
+            count = count.saturating_add(worker.starts_telling_parts);
+        }
+        count
+    }
+
     /// Access a reference worker to tune its pacing and observe admission in worlds.
     pub fn worker(&mut self, index: u32) -> Option<&mut Worker> {
         self.workers.get_mut(index)
@@ -1099,7 +1198,7 @@ mod admission_tests {
             let limits = crate::limits::worker_link(&worker);
             let codec = wire::sizes::limits(&limits.sizes).expect("codec");
             let mut channel_limits = link::channel_limits(&limits).expect("channel limits");
-            let cap = wire::sizes::engine_cap(&limits.sizes).expect("engine cap");
+            let cap = wire::sizes::engine_cap(&limits.sizes, limits.room).expect("engine cap");
             channel_limits.output_bytes = cap.bytes;
             channel_limits.output_frames = cap.frames;
             let mut peer = Self {
@@ -1114,22 +1213,6 @@ mod admission_tests {
                 intake: Intake::with_capacity(WIRE_BYTES),
                 read: stream::Read::Nothing,
             };
-            let mut wires = List::with_capacity(4);
-            for spoken in &wire::spoken() {
-                wires
-                    .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
-                    .expect("four wires");
-            }
-            let record = wire::v21::Agreed { wires };
-            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
-                record.measure(&wire::CEILINGS).expect("statement within limits"),
-            ));
-            record.write(&wire::CEILINGS, &mut body).expect("statement body");
-            let mut frame =
-                skein_channel::frame_writer(0x018d, record.measure(&wire::CEILINGS).expect("statement within limits"))
-                    .expect("statement frame");
-            frame.put(&body.finish()).expect("measured body");
-            peer.channel.play(frame.finish().expect("measured frame"));
             layer.socket = Some(SOCKET);
             layer.link_down(Time::ZERO, link::Event::Dialled { connection: Token::new(layer.prefix) });
             peer.pump(layer);

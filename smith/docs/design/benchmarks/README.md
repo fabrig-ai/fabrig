@@ -6,6 +6,9 @@ claims and keeps it, and how smith compares with other agents. Tests are
 ../protocol/events.md's; its commands, settings and exit codes are
 ../shell/README.md's. What is still open is listed in section 14; parity with
 Codex, the comparison's verdict, is `codex-parity.md`.
+Agent adapters and model tiers are in `agents.md`.
+The result schema and statistics are in `results.md`.
+Attempt isolation is in `isolation.md`.
 
 ## 1. In one page
 
@@ -55,7 +58,7 @@ Codex, the comparison's verdict, is `codex-parity.md`.
   the others (`codex-parity.md`, 6).
 - **Spend is priced as billed.** Each response's tokens are priced at
   the list rates its own prompt reaches, never at the rates an agent's
-  declared window could reach (8.1).
+  declared window could reach (`results.md`, 1.1).
 
 ## 2. What benchmarks are for
 
@@ -79,7 +82,7 @@ with its interval, or that none was detected.
 A task (section 5.2) holds a prompt, byte-identical for every agent, a
 seed, a model tier, budgets, checks and the design sections it guards.
 An attempt is one run of a task by one agent configuration in a fresh
-workspace, ending in one result (section 8). The kinds are a closed set:
+workspace, ending in one result (`results.md`, section 1). The kinds are a closed set:
 
 | Kind | Judged by | Default design | Cost per attempt (estimate) |
 |---|---|---|---|
@@ -96,15 +99,15 @@ workspace, ending in one result (section 8). The kinds are a closed set:
   model (3.2 says whose a failure is).
 - **A probe is calibrated** before it gates anything: before it joins
   `smoke`, and before its failure in `probes` counts as a regression
-  (section 9). `probes` lists every probe and variant, calibrated or not
+  (`results.md`, section 2). `probes` lists every probe and variant, calibrated or not
   (`catalogue.md`, 5); its task file's `[calibration]` block, one per task and one per
   variant, says which (5.2). Calibrated means ten passes within at
   most twelve attempts on the binary it guards, the other attempts failed
-  only by the model, never by smith (a model deviation, 3.2; section
-  8.3's ends), and a failure on the binary before the fix or,
+  only by the model, never by smith (a model deviation, 3.2; `results.md`, section 1.3
+  's ends), and a failure on the binary before the fix or,
   for a behaviour already in place, on a control arm. Where neither can
   run, as for a behaviour older than the oldest binary the harness runs
-  (6.2) that no setting turns off, the block says why, and the
+  (`agents.md`, 1.2) that no setting turns off, the block says why, and the
   calibration stands on its passes. A probe that cannot
   fail guards nothing. A calibration stands while the variant's prompt,
   seed and checks keep the digests its block records; a new task version
@@ -130,7 +133,7 @@ workspace, ending in one result (section 8). The kinds are a closed set:
 - **Outcome checks** are agent-neutral, read once the agent's tree has
   ended: a file's content, digest, absence or pattern; protected files;
   writes outside the workspace and the attempt's private directories;
-  the end (section 8.3) and, for smith, its exit code and the words on
+  the end (`results.md`, section 1.3) and, for smith, its exit code and the words on
   its standard error (../shell/commands.md); the grader's commands.
 - **Event checks** read smith's event stream (../protocol/events.md, section
   3): a closed set of named, typed checks with parameters, such as "one
@@ -176,7 +179,7 @@ workspace, ending in one result (section 8). The kinds are a closed set:
   windows compact also decides on `compaction-carried`: each
   compaction's request holds a result for each call its window owes it,
   and the window after it opens with that compaction's summary
-  (../domain/session.md, sections 8.1 and 8.2). With that check passing, a
+  (../domain/session-context.md, sections 1.1 and 1.2). With that check passing, a
   summary that misstates or drops what it was given is the model's, and
   so is the count that follows from it.
 - **A request smith retried** (../domain/session.md, section 4) is judged
@@ -184,8 +187,8 @@ workspace, ending in one result (section 8). The kinds are a closed set:
   and its prompt is the one its retry sends (../protocol/events.md, section
   3.11), so the failed request's missing usage leaves no check
   unavailable. Its tokens are a retried failure's, or none when it failed
-  unsent (8.2). A failure smith
-  did not recover from is the attempt's end (8.3).
+  unsent (`results.md`, 1.2). A failure smith
+  did not recover from is the attempt's end (`results.md`, 1.3).
 - **An arm** is a binary, a configuration override or an agent. Two arms
   make an experiment: a **fix** (before and after), a **control** (the
   mechanism switched off), a **decision** left to measurement (`catalogue.md`, section 3
@@ -234,7 +237,7 @@ adapter's among that adapter's tests.
   the commit says which.
 - **An improvement shown on fixtures,** such as a change to smith's role
   (../shell/settings.md, 2.6), names the `compare` suite in place of a probe: one run
-  with two arms, its parent and the change, interleaved (`README.md`, section 9),
+  with two arms, its parent and the change, interleaved (`results.md`, section 2),
   whose comparison goes in its commit body. It adds no probe. In a
   parity series (`codex-parity.md`, 6), after its baseline, a change to what
   the model is sent names the `parity-change` suite in its place when
@@ -258,7 +261,7 @@ adapter's among that adapter's tests.
   sections a change cites, cheapest first by their committed medians or
   estimates, within the suite's wall and token budgets, and reports what
   did not fit. A fix's probes run at least once before it and once after;
-  repetition beyond that is the statistics' (section 9).
+  repetition beyond that is the statistics' (`results.md`, section 2).
 
 ## 5. Layout and formats
 
@@ -288,7 +291,7 @@ benchmarks/
   `std::process` (../shell/README.md, section 3.2), and the harness starts
   processes. Like `tests/clippy.toml`, its file keeps the bans that make
   a run reproduce from its seed and read one clock.
-- **Modules by concern,** one per agent (section 6). smith's events are read through `smith-events`, so a
+- **Modules by concern,** one per agent (`agents.md`, section 1). smith's events are read through `smith-events`, so a
   changed record fails the build or the offline tier, never a run.
 - **Commands** run a suite or a task with its arms, calibrate a probe,
   record a fix's before and after, list the tasks guarding a section,
@@ -328,7 +331,7 @@ verdict = "written"
 | `tier`, `effort` | the model tier; an effort only where calibration needs one |
 | `prompt` | delivered whole, through a file or standard input |
 | `deadline_seconds`, `estimate` | the hard deadline on the attempt's process tree; seconds and tokens, until measured |
-| `[budget]` | turns, time and spend, given to each agent as far as it takes them (section 6.1) |
+| `[budget]` | turns, time and spend, given to each agent as far as it takes them (`agents.md`, section 1.1) |
 | `[smith]`, `[environment]` | settings overrides, passed as `-c` settings, never through the seed; variables the agent's commands see |
 | `setup`, `protected` | commands that warm caches outside the timer, with the agent's own build profile; files that must not change. A task that builds warms its build in `setup`. A task never protects a path its prompt asks the agent to change: that the seed's tests still pass is its grader's, which holds a copy of them |
 | `[[outcome]]`, `[[event]]`, `[[grade]]`, `waives`, `deciding` | the checks; the passive checks the task expects to fail; the checks that decide its verdict (3.2) |
@@ -377,7 +380,7 @@ A task listed under `when_asked` runs only when a run names it
 (`--include`). A new schedule is a new file. An attempt whose every
 provider request was refused with a 4xx status before any output charges
 no tokens to the suite's `max_tokens`; its usage stays unavailable. An
-attempt whose total tokens miss only retried failures (8.2) charges the
+attempt whose total tokens miss only retried failures (`results.md`, 1.2) charges the
 total's lower bound, what the provider reported, and the suite goes on.
 Any other unknown in an attempt's total stops the suite as incomplete,
 since what it would charge is not known.
@@ -392,7 +395,7 @@ since what it would charge is not known.
 - **A comparison's pin changes nothing the agent ships** but what the
   attempt must own: its paths (home, temporary directory, caches, trace),
   its model and effort, its account, one of the harness's, and the keys
-  that keep it unattended and isolated (section 10). It restates no
+  that keep it unattended and isolated (`isolation.md`, section 1). It restates no
   default. An experiment's arm names each key it changes, and only those
   (`catalogue.md`, 3). A probe that needs another value, a small window or an empty
   brief, names it in its own task's `[smith]` overrides (5.2).
@@ -408,397 +411,52 @@ since what it would charge is not known.
   identity, end, judgment, task wall, common priced spend, token fields,
   responses and the agent's own peak resident memory, so that a verdict
   recomputes from the file), and `baselines/`
-  (section 9). Smoke runs, and a fix's before and after, go in commit
+  (`results.md`, section 2). Smoke runs, and a fix's before and after, go in commit
   bodies; a calibration goes in its task file (5.2).
 
 ## 6. Agents as adapters
 
-`enum Agent { Smith, Codex, ClaudeCode }` is matched exhaustively, one
-module per variant, in five steps. **Prepare** the attempt's private
-directories and the agent's pinned configuration, writing nothing in the
-user's tool directories.
-**Command:** an exact environment from an allow-list, nothing inherited,
-and the prompt on standard input. **Observe** the output as it arrives,
-as neutral observations: a response and its usage, a tool call, a child,
-the answer, which ends task wall time and starts teardown. **Collect**,
-once the tree has ended, what the agent persisted, as metrics with their
-scope and convention. **Classify** one end (section 8.3).
-
-| Step | Smith | Codex | Claude Code |
-|---|---|---|---|
-| prepare | `XDG_CONFIG_HOME` holds the pinned settings as the user's layer: the account's file and the trace, capturing `calls` so the scope gate sees each call's input (`everything` where a task needs prompts), and nothing else of a comparison's; `XDG_STATE_HOME` the attempt's state; `credentials` the harness's credentials directory, and the account one of its own (section 10). Before an arm's first attempt, `smith check --json` with the attempt's own flags, those of `exec` for a headless arm and the interactive `smith`'s, its trace among them, for a Chat arm, records the effective limits, the teardown bound, schema versions and credentials of the run it will start; a nonzero exit refuses the arm as setup. The attempt's events are its standard output's, under `--json`: the harness gives `exec` no trace file, so the run has one event destination | a `CODEX_HOME` of the attempt's own, holding only an access-only `auth.json` the harness writes from the harness's own Codex login (section 10), so none of the user's instructions, skills, plugins, memories or configuration reach it and its rollouts are the attempt's; only the keys an attempt must own (5.4) pinned by `-c` overrides: no MCP servers, the attempt root trusted, workspace edits allowed, no approvals, the model and effort, and the attempt's private caches among its sandbox's writable roots, so that it can write them; no other key, so that the rest is Codex's default; its background service disabled where it can be, or ended with the tree | `CLAUDE_CONFIG_DIR` the harness's own configuration directory, signed in once with `claude auth login` (section 10); the attempt's own settings, instructions and empty MCP configuration given by flags (`--settings`, `--strict-mcp-config`, `--setting-sources`), so that none of the login's directory's reach it, and its session found by its id; edits and commands allowed without asking |
-| command | `smith exec --json -C <workspace> -m <endpoint>/<model> --effort <effort> -`, overrides as `-c KEY=VALUE` (../shell/commands.md, section 2); interactive, `smith --trace <file>` at a pseudo-terminal | `codex exec --json -m <model> -c model_reasoning_effort=<effort> -C <workspace> -o <final> -` | `claude -p --output-format stream-json --verbose --model <model> --effort <effort> --max-budget-usd <ceiling> --settings <pinned> --mcp-config <empty>`; `--input-format stream-json` for later messages |
-| observe | the event stream, through `smith-events`; standard error is never parsed | JSON lines: thread, turns, items, and each turn's usage, of the root thread only, cached input within input | the opening record, assistant messages with usage, sub-agent messages with their parent's call, the result with durations, turns, cost and per-model usage, in the pinned version's recorded shapes |
-| collect | nothing beyond the stream | the rollouts of the thread named, of the children its stream's `spawn_agent` calls name, and of each thread linked to one of those as a child (codex-cli 0.160.0 names its parent in the child's opening record), each thread's file the one under the attempt's `CODEX_HOME/sessions/` or `archived_sessions/` whose opening record names it, found in the rollouts alone and never in Codex's state database (6.3): per-response usage, children and their spans, and each command's span against its call's; where a child is not linked to its parent, child scopes are unavailable and totals lower bounds | nothing; transcripts are archived |
-| classify | the exit code (../shell/commands.md, section 3), held against `run.completed` | the exit, the last turn's completion or failure, the deadline | the result's subtype and error flag, the exit, the deadline |
-
-- **One runner.** Each attempt runs on skein's world harness, end to end
-  (skein's examples.md, section 6): the agent starts as it ships; a
-  scripted person types where a probe is interactive; the attempt's
-  referee reads the output as it arrives and keeps the hard deadline.
-  The live tier runs smith the same way.
-- **An adapter fails loudly.** A known record in an unknown shape ends the
-  attempt as a harness error naming it. Unknown record types are skipped
-  (../protocol/events.md, section 6).
+Moved to [`agents.md`](agents.md), section 1.
 
 ### 6.1 What each agent sees
 
-- **Instructions.** A seed's are in `AGENTS.md`, and every agent gets the
-  same text through the file it reads, whole: smith reads it into its
-  system text by its default guide convention (../domain/run.md, 3.3), Codex
-  into its first user message, and Claude Code's `../../../CLAUDE.md` is made at
-  preparation and left out of the diff. smith runs with its shipped role
-  (../shell/settings.md, 2.6): its pinned settings add nothing and remove nothing. No
-  home or directory above the attempt's root holds
-  instructions: each agent's home is the attempt's (`README.md`, section 10), since
-  an agent may read its home's instructions whatever its command line
-  says (codex-cli 0.160.0 reads `CODEX_HOME/AGENTS.md` unconditionally).
-- **Models.** A comparison's smith declares each model as its presets do
-  (../shell/settings.md, 2.1): its window, output and deadlines. A smaller window or
-  output is a probe's, named in its task (5.2).
-- **The environment.** `HOME`, `TMPDIR` and the build caches are the
-  attempt's; `PATH` and the toolchain's home are the machine's,
-  read-only; then the locale and the agent's home. A task's variables
-  reach smith's commands through its settings, which own their
-  environment whole, and the others' through their own process.
-  A login shell sees the same `PATH`: the attempt's home holds a
-  `.profile` that sets it to the machine's. Agents that run commands in
-  a login shell would otherwise lose it, since the system profile
-  resets `PATH` (codex-cli 0.160.0 runs each command as `bash -lc`, and
-  Debian's `/etc/profile` drops `~/.cargo/bin`).
-- **Budgets.** smith takes turns, time and spend; Claude Code a spend
-  ceiling; Codex none. In a comparison every agent's own limits sit above
-  the task's hard deadline, the bound they share: a fixture or a
-  repository task names no `[budget]`, so smith runs on its run defaults
-  (../shell/settings.md, 2.4), and `check` refuses such a task that names one, or
-  whose `deadline_seconds` is not below the defaults' `budget.seconds`.
-  Each result
-  records the effective limits, and a budget end is labelled as one.
-- **Caches.** Each agent can write the attempt's build caches: a sandbox's
-  writable roots include them. A task that builds warms them in `setup`,
-  outside the timer.
+Moved to [`agents.md`](agents.md), section 1.1.
 
 ### 6.2 smith as it ships
 
-- **One face.** The Smith adapter drives smith only as it ships: `smith
-  exec --json` headless, or `smith --trace <file>` at a pseudo-terminal
-  for an interactive task, with its settings as the product's TOML
-  layers (../shell/settings.md, section 1) and a task's overrides as `-c` settings.
-  A binary that predates them is not run, and no adapter face, settings
-  template or reader of an earlier binary is kept.
-- **What a trace lacks is unavailable,** never estimated. A result names
-  the face, and results of different faces are never compared.
-- **Baselines** taken on an earlier face are retaken or dropped (section
-  9). Results from before this harness are never a baseline.
+Moved to [`agents.md`](agents.md), section 1.2.
 
 ### 6.3 Codex's threads
 
-The Codex adapter's collect step finds the attempt's threads and their
-files in its `CODEX_HOME`'s rollouts alone. Every rollout there is the
-attempt's (section 10), so no file need be asked for by name, and the
-harness links no SQLite and runs no `sqlite3`.
-
-- **The files.** Every regular file under `CODEX_HOME/sessions/` and
-  `CODEX_HOME/archived_sessions/`, at any depth and whatever its name,
-  taken under the canonical `CODEX_HOME`; a missing directory holds none.
-  The walk meets entries in name order and follows no symbolic link: one
-  whose canonical target lies inside either directory is skipped, its
-  target met on its own; any other, out of them or dangling, refuses the
-  collection, the fault naming the link's path under `CODEX_HOME` and
-  nothing it points at. An entry that is neither a directory, a regular
-  file nor a link is skipped unopened.
-- **A file's thread.** A file's opening is its first line, read up to its
-  newline within the opening bound. It names a thread when it is a JSON
-  `session_meta` record whose `payload.id` is a nonempty string. Its
-  parent is `payload.source.subagent.thread_spawn.parent_thread_id`, else
-  `payload.parent_thread_id`, when that is a nonempty string, and none
-  otherwise. Any other opening (not JSON, another record, no id, or cut at
-  the bound) marks an unrelated file, skipped and read no further. Two
-  files naming one thread refuse the collection.
-- **The threads.** Known first: the root the stream names and the
-  children its `spawn_agent` calls name (their `receiver_thread_ids`).
-  Then, until none is added, each thread whose file names a known thread
-  as its parent. A known thread's file is the one naming it. A known
-  child with no file, or whose file names no known parent, is unlinked:
-  its scope unavailable and the totals lower bounds (8.2). The root's own
-  parent links nothing.
-- **Bounds.** Discovery meets at most 8,192 entries under the two
-  directories, directories and files alike, and reads at most 1 MiB of
-  each file's opening (an opening stops at its newline); past the first
-  bound the collection is refused, and an opening that meets the second
-  is cut. The known threads stay within 4,096 and their files, read whole,
-  within 64 MiB together; past either, the collection is refused.
-- **A known thread's file** is read whole, its canonical path checked
-  inside the two directories again, and decoded: its first record is its
-  owner's metadata, a later one an ancestor's, and malformed, repeated
-  or conflicting metadata refuses the collection, naming the thread and
-  never a credential's bytes. Its bytes are kept for the attempt's
-  archive, the files in thread-id order and the children too.
-- **Why not the database.** codex-cli 0.160.0's `state_5.sqlite` holds
-  each thread's children (`thread_spawn_edges`) and its file
-  (`threads.rollout_path`). Its rollouts hold both: each file's opening
-  record names its thread, and a child's names its parent and is written
-  before the child's first response
-  (`smith/benchmarks/tests/recorded/codex/live-child-rollout.jsonl`). A
-  child the database alone knows would
-  have neither a rollout nor a response, so no case this design needs
-  reads it.
+Moved to [`agents.md`](agents.md), section 1.3.
 
 ## 7. Models as tiers
 
-| Tier | `openai` | `anthropic` | Used by |
-|---|---|---|---|
-| `small` | `gpt-6-luna`, low effort | `claude-haiku-5-5`, low effort | probes, smoke, the live tier |
-| `working` | the user's working model and effort | the same | fixtures, repository tasks |
-
-- **`agents/models.toml`** holds this mapping, pinned: the working tier
-  changes by commit when the user's working model does, so that a
-  comparison never mixes models. A new tier is an entry; a new model for
-  a tier starts new baselines.
-- **A tier's model is one smith's presets declare** (../shell/settings.md, 2.1), so
-  that smith runs it as it ships; a model the presets lack gets its row
-  there first.
-- **Providers are a closed set,** named as smith's presets (../shell/settings.md,
-  section 2.2). smith runs on both, Codex on `openai`'s models, Claude
-  Code on `anthropic`'s. Each result records the model and effort asked
-  for and those the agent reports; a mismatch is flagged.
-- **smith's accounts.** smith's own loop runs on `openai` with a sign-in
-  of the harness's, and on `anthropic` with a key. smith on a Claude
-  subscription runs Claude Code's loop under smith's adapter
-  (../protocol/programs.md): its results are an arm of their own,
-  `smith-claude-code`, never pooled with smith's own loop's.
+Moved to [`agents.md`](agents.md), section 2.
 
 ## 8. The result schema
 
+Moved to [`results.md`](results.md), section 1.
+
 ### 8.1 One result per attempt
 
-A JSON document. Like every format it is pre-release: one version, any
-change a reader would notice is a new one, and a reader refuses others.
-Committed summaries and baselines of an older version are regenerated or
-dropped, never read across versions.
-
-| Part | What it holds |
-|---|---|
-| identity | run, attempt and arm; the task's id, version, seed and prompt digests; the agent, its version, its binary's SHA-256 and, for smith, its face; the configuration's digest; the provider; model and effort, requested and resolved; the harness's commit; the host and CPUs used; the start, in wall time |
-| timing | on the harness's one clock: process wall, to the tree's end; task wall, to the answer observed; teardown, from the answer to the tree's end; grading wall. The agent's own times beside them: smith's `first_byte_ms`, `largest_gap_ms` and longest completion, and its `t_ms`, from its own start. The time record: the seconds of the main conversation (Codex's root thread) in model requests, with their first-byte and largest-gap sums; in each tool, by name; in compaction; waiting on children; and the rest; and the seconds of commands that ran outside any call |
-| tokens | per scope (section 8.2) |
-| counts | responses, provider attempts and retries; completions; tool calls by name, not comparable across agents; tool failures by verdict; children; conversations and compactions; messages by terminal |
-| delegation | for each child: its effective share, how it ended (an answer, its budget, failed, closed) and its turns and seconds; the time the parent was blocked on children |
-| resources | CPU time and peak memory, each with its scope: the tree's accounting, the agent's process alone, or unavailable. smith's own peak resident size is its `session.ended`'s `peak_rss_bytes` (../protocol/events.md, 3.2) |
-| spend | the agent's own figure, such as smith's `spent` or Claude Code's cost, with its basis: notional, priced or reported; and the common priced spend, every agent's tokens priced on one basis, as its provider bills them: each response's tokens at the list rates of the tier its own prompt reaches, from smith's presets' price list (../shell/settings.md, 1.2 and 2.1) at the harness's commit, which the summary names. The agent's declared window plays no part. The adapter reads each response's usage from the agent's records: smith's `response.completed`, Codex's usage per model response. Without a response's usage, its prompt's tier is unknown, and the common priced spend is unavailable, or a lower bound under 8.2's rule for a retried failure. A response that failed unsent reached no provider, and costs nothing (8.2). The harness keeps no catalog of its own |
-| outcome | the end; the exit, a code or a signal; whether the harness forced it (no, terminated, killed); each check's verdict and evidence; protected files changed; writes outside the workspace |
-| health | smith's loss per sink; headroom against each limit, as the fraction of its bound used; the passive checks |
-| artifacts | each raw file's path and digest |
-
-Every measurement is a `Measure`: observed, a lower bound, or unavailable
-with its reason, never written as zero and never filled from another
-scope.
+Moved to [`results.md`](results.md), section 1.1.
 
 ### 8.2 Tokens
 
-One normalised record per scope: **fresh** (input not read from a cache,
-cache writes included), **cache read**, **cache write**, **output**
-(reasoning included) and **reasoning**, each where reported. Each
-convention is a tag on the record, with a fixed mapping:
-
-| Convention | Fresh is | Not reported apart |
-|---|---|---|
-| Codex | input less cached input; cache writes (`cache_write_input_tokens`) are within input, reasoning (`reasoning_output_tokens`) within output | nothing, as codex-cli 0.160.0 reports them; a version that omits a field has it unavailable, never zero |
-| Claude Code | input plus cache writes | thinking, within output |
-| smith's events (../protocol/events.md, section 3.10) | `input_tokens` plus `cache_write_tokens` | whatever is null |
-
-- **Once per response.** A response's usage counts once however many
-  records repeat it: smith's by its `response`, the others' by message
-  id. A retried attempt that was billed is a response of its own.
-- **A retried failure** is a response that the provider failed before
-  any block and smith retried, with none of its usage reported
-  (../protocol/events.md, section 3.5). Its `response.completed` has
-  `outcome` `failed`, `blocks` 0, a failure whose `evidence` is
-  `response`, and every usage count null. A later
-  `response.started` of its conversation and `turn` has a higher
-  `attempt`.
-  - **Its usage is unknown, never zero.** A provider that answered with
-    a failure may have read the prompt first. skein's failed call
-    carries no usage, whatever the provider sent with it (skein's
-    `llm/README.md`, section 2: a completion carries the token usage).
-  - **Its scope's totals and the attempt's are lower bounds,** and each
-    names it as a retried failure, apart from any other gap. They miss
-    the failed request alone. Its prompt is its retry's (../protocol/events.md,
-    section 3.11), and the retry's usage counts that prompt.
-  - **The common priced spend** (8.1) of an attempt whose totals miss
-    only retried failures prices what was reported. It is a lower bound
-    naming them. Any other gap in the tokens it prices leaves it
-    unavailable.
-  - **A failure whose `evidence` is `maybe_sent` is never one.** The
-    provider never answered it: a deadline of smith's cut it, or the
-    connection dropped, and the provider may have carried the request
-    to its end. What it cost is open.
-- **A response that failed unsent costs nothing.** A `response.completed`
-  whose failure's `evidence` is `unsent` reached no provider: smith
-  refused the request before any byte of it was sent, as the guard does
-  past the line (../protocol/llm.md, section 6), or the connection failed
-  before it. Its usage is zero, observed, though its counts are null,
-  and the common priced spend prices it at nothing, whether smith
-  retried it or compacted after it. It is no retried failure, and
-  leaves no gap.
-- **Scopes:** the root conversation; each child, under its parent;
-  compactions; helper models; the total. A total is observed only when
-  every scope is; otherwise it is a lower bound naming what is missing,
-  and unavailable when the root is.
+Moved to [`results.md`](results.md), section 1.2.
 
 ### 8.3 Ends
 
-| End | Meaning | smith's exit (../shell/commands.md, section 3) |
-|---|---|---|
-| `Completed` | answered and exited by itself | 0 |
-| `Failed(reason)` | ended without an answer: the provider, the model, a tool, input needed, or another typed reason | 1; 5 for input needed |
-| `Budget(which)` | stopped on its own limit: turns, time or spend | 4 |
-| `Refused(setup)` | never reached inference: the seed, the warm-up, the configuration or the credentials | 2; 3 for credentials |
-| `Timeout` | the harness's hard deadline ended the tree | 130 after the harness's signal, or killed |
-| `HarnessError(what)` | the harness failed: an unknown persisted shape, a grader that crashed | |
-
-A budget end is not a failure, and a setup refusal is not the agent's:
-rates leave both out and report them beside. A task whose story is a
-startup refusal (a `failures` variant) is judged by its checks: its
-refusal is the agent's end, not `Refused(setup)`, and it made no provider
-request. The grade is apart: a
-completed attempt can fail its grader. A forced exit after an accepted
-answer is a warning on a completed attempt.
+Moved to [`results.md`](results.md), section 1.3.
 
 ## 9. Statistics
 
-- **Probes.** A probe passes when every check passes, and reruns once on
-  failure. Two failures of two are a regression; calibration makes one
-  unlikely to be chance. One of two quarantines the probe: reported, and
-  gating nothing until it passes calibration again.
-- **Comparisons interleave in one session.** Each block holds one attempt
-  of each arm, in an order drawn from the run's seed, so that drift,
-  warming caches and shared rate limits fall on every arm alike. At
-  least five attempts per arm: three can never reach significance.
-- **A difference is reported** per task and metric when the 95%
-  bootstrap interval of the ratio of the arms' medians, resampled with
-  the run's seed, excludes 1, and the effect exceeds the task's minimum
-  detectable effect: about 2.8 · CV · √(2/n) for n attempts per arm, from
-  its committed variation. Otherwise the summary says none was detected,
-  not that the arms are equal.
-- **Every attempt counts.** Pass rates are counts with exact intervals; a
-  median over successes alone is never reported without the rest. Only
-  outcome, wall time, tokens by convention and spend on one basis are
-  compared across agents. Cache-read volumes and cached shares are
-  reported, never compared across agents as rates: an agent with a
-  larger fixed prompt reads more from its cache.
-- **Parity** with another agent is non-inferiority, not "none detected":
-  its time and cost criteria hold when the upper bound of the 95%
-  interval of smith's ratio to the other agent lies below each one's
-  margin, and its outcome criterion when smith's count of passes reaches
-  the lower bound of the exact 95% interval of the other agent's count,
-  over as many attempts (`codex-parity.md`). It is the
-  verdict of its own suite, never inferred from a comparison that
-  detected nothing.
-- **A repository task's large effect** is section 3.1's disjoint ranges,
-  computed by the summary for every metric both arms observe.
-- **Baselines** are committed summaries of a suite for one agent
-  configuration and tier: each task's medians, each metric's coefficient
-  of variation, n and minimum detectable effects, with the binary and the
-  date. A run outside one by more than a task's minimum detectable effect
-  raises a drift notice, which asks for a comparison in one session and
-  is never a verdict. A baseline is retaken by commit after an intended
-  change, a new model, a new task version or a new result version. A
-  suite is summarised once, whole; each baseline is cut from that summary
-  by one command naming one agent, configuration digest, model and
-  effort.
-- **Audits are sampled.** A summary draws a few attempts with its seed,
-  plus every attempt whose checks disagree with its grader, for a person
-  or a model to audit: did the agent do the task asked, without reading
-  the grader or changing what it must not. The scope gate is automatic:
-  protected files unchanged, nothing written outside the workspace, no
-  read of the benchmark tree in what the agent shows of its calls.
+Moved to [`results.md`](results.md), section 2.
 
 ## 10. Isolation
 
-- **Credentials are logins of the harness's own,** each signed in once
-  by the developer with its agent's own flow, never a person's own tool
-  directory and never a copy of a refresh token: issuers rotate them,
-  and a copy is spent by whichever holder refreshes first.
-  - **smith** runs on a credentials directory of the harness's, signed
-    in once with `smith login` as the live suite's is (../testing.md, 2.3),
-    and shared by attempts under each record's lock (../shell/credentials.md, 3);
-    each attempt keeps its own state directory. Its Anthropic models run
-    on a key.
-  - **Codex** gets a `CODEX_HOME` of the attempt's own. Its `auth.json`
-    is written by the harness from a Codex login of the harness's own: a
-    `CODEX_HOME` the developer signs in once with Codex's own flow, and
-    that Codex alone refreshes, never the person's `~/.codex`. The
-    attempt's file holds the access and identity tokens and the account,
-    with the refresh token left empty. It is `0o600` in a `0o700`
-    directory and removed when the tree has ended. Codex cannot refresh
-    it, so it never rotates the harness's login. Codex runs from a
-    private copy of its pinned release's whole package under the
-    harness's state, never the user's installation; its pin names the
-    executable's SHA-256, and setup refuses another.
-  - **Claude Code** runs with a configuration directory of the
-    harness's, signed in once with `claude auth login`, never a copy of
-    a login, which would carry a person's subscription credential
-    outside its program. The login is shared; each attempt's settings,
-    instructions and MCP servers are its own, given by flags (section
-    6). Attempts on one login run one at a time.
-
-  An access token that expires before the attempt's hard deadline (its
-  expiry read from its claims) is a setup refusal, like a lapsed login.
-  The refusal names the command to run once, whose own use refreshes the
-  login where it lives. Nothing in the harness writes to a person's own
-  tool directories.
-- **Configuration is pinned, not inherited.** An agent's home is the
-  attempt's, so nothing of the user's configuration, instructions,
-  skills, plugins or memories reaches it. The keys it is given come
-  from the command line, and only those an attempt must own (5.4): MCP
-  servers, trust, approvals, model, effort and the caches it may write.
-  smith's settings come only from the harness's layer (../shell/settings.md, section
-  1).
-- **Out of sight, nothing shared.** Attempts run under the harness's
-  scratch root, outside every repository and the benchmark tree, each
-  with its own temporary directory, build caches and target directory,
-  warmed outside the timer and copied by reflink where the filesystem
-  allows. A grader reaches the workspace's copy only after the tree has
-  ended. Without contained trees nothing keeps an agent from the
-  user's files, so the scope gate looks for it, and lists the user's entries
-  under `/tmp` before and after each attempt: a new or changed one is a
-  write outside the workspace. The directory it lists is an input of the
-  attempt, its request's `shared_temporary`. A planned request names `/tmp`
-  for every real run, and a document naming none means `/tmp`. Only `probe`
-  takes another (`--shared-temporary`), and an offline test names a
-  directory of its own, so what a test costs never depends on what else the
-  machine has run.
-- **Process trees.** An attempt ends when its whole tree has ended. At
-  the hard deadline the tree is terminated, then killed after a grace;
-  after an observed answer, the deadline is the agent's teardown bound
-  (smith's from its effective limits, read by `smith check --json exec`
-  with the attempt's flags;
-  another agent's from its pinned configuration)
-  plus that grace. Accounting of a whole tree (a cgroup scope, its CPU
-  and peak memory) is skein's; without it each attempt runs
-  in its own process group, and its resources carry the narrower scope.
-- **A tree's containment by platform.** A request's `force_walk` asks
-  for the walk, Linux's subreaper, which finds and ends every
-  descendant, whatever group or session it makes
-  (skein/docs/design/examples.md, 6). smith-bench reads it as the walk
-  where the platform has one: on Linux, `true` starts the tree under
-  `Containment::Walk` and `false` under `Containment::Best`, as before;
-  elsewhere both start it under `Containment::Best`, which on macOS is
-  the binary's process group, the most macOS has. The request's format
-  is unchanged, so a request written on one platform starts on the
-  other. Under the group the tree is the group: its members are
-  signalled and waited for, a descendant that leaves it is neither seen
-  nor ended, none is named at the leader's exit, so `tree-ended` reads
-  the group alone, and resources carry the group's scope. smith-bench's
-  own tests run so on macOS (section 13); whether `run` and `probe` do
-  is section 14's.
-- **Setup is not the agent's.** A seed digest that differs, a failed
-  warm-up, a refused configuration or missing credentials end the attempt
-  as `Refused(setup)`, and mark the suite incomplete.
-- **Load and disk.** A grader sensitive to load runs serially on an idle
-  machine. Raw output is bounded per attempt, and a suite checks free
-  space against its estimate before it starts.
+Moved to [`isolation.md`](isolation.md), section 1.
 
 ## 11. How it relates
 
@@ -807,7 +465,7 @@ answer is a warning on a completed attempt.
   reproduced in the lowest tier that shows it (skein/docs/foundation/testing-strategy.md,
   section 9) and fixed there with that test; the probe stays as evidence
   of the effect. Benchmarks never stand in for a world's story.
-- **To the live tier** (../testing.md, section 2.3). The live tier checks
+- **To the live tier** (../testing-tiers.md, section 3). The live tier checks
   once, by outcome, that each wire, issuer refresh and push is right.
   Benchmarks repeat, measure and compare. Both read smith through
   `smith-events`, take logins of their own, signed in once, under one
@@ -842,7 +500,7 @@ The offline tier runs in the focused suite, with no agent and no network:
   lines and rollouts with root-only usage, an unlinked child and repeated
   usage, and rollout trees with an archived rollout, an unrelated file,
   a link out of the session directories and two files naming one thread
-  (6.3); Claude Code's are streams with repeated message ids, sub-agent
+  (`agents.md`, 1.3); Claude Code's are streams with repeated message ids, sub-agent
   messages and helper models. Unknown records are skipped, a known record
   in a new shape is a harness error, usage counts once per response, and
   unavailable is never zero.
@@ -866,7 +524,7 @@ The offline tier runs in the focused suite, with no agent and no network:
   the declared window; a response without usage leaving the spend
   unavailable, a retried failure a lower bound, and a response failed
   unsent, retried or followed by a compaction, priced at nothing, the
-  spend observed (8.1, 8.2).
+  spend observed (`results.md`, 1.1, 1.2).
 - **A change's report:** a recorded `parity-change` summary gives each
   criterion's ratio of the change to its parent, the parent chosen by
   its commit, and its projection on a recorded baseline; a projection
@@ -878,9 +536,29 @@ The offline tier runs in the focused suite, with no agent and no network:
   temporary directory its request names is a write outside (10); that a
   planned request names `/tmp` is read from the request, without listing
   `/tmp`.
-- **A tree's containment:** section 10's choice as a table, each
+- **A tree's containment:** `isolation.md`, section 1's choice as a table, each
   platform with each `force_walk`, run on Linux; and a replay's counts
   name the platform's method, the walk on Linux and the group elsewhere.
+- **The harness over a test tree.** The harness reads and writes files
+  through one face: the native filesystem in a run, the same calls in the
+  same order; in the offline tier, a tree laid on skein's fake machine,
+  with its modes, owners and links. Over it run a Codex rollout tree's
+  discovery, a working directory's and mounts' admission, a pin's and a
+  binary's digests, a credential's staging and removal, a bundle's intake,
+  a scratch root's refusal, the catalogue's walk, a calibration's and a
+  summary's writes, a parity change's named inputs and a written file's
+  settled bytes. A test reads back what was written and asserts what was
+  never read, a login or a credential source above all.
+- **Receipts from supplied completions:** the supervisor's deadlines,
+  capture bounds and overflow, an answer before the tree settles, a
+  partial record and a refused product check are judged over completions,
+  times and exits the test supplies.
+- **What stays a process,** in `tests/suite`: real git and archives, login
+  shells, a write outside, an answer observed before the tree settles, a
+  lingering descendant's teardown, one pipe's overflow, a terminal peer's
+  hangup and a final record drained at its end of file, this checkout's
+  own history choosing its face, and one path each through the shipped
+  `probe` and `suite` commands.
 - **Fuzzy:** parsers fed truncated and corrupted lines never panic and
   never count a response twice.
 
@@ -897,7 +575,7 @@ runs on both.
 
 | Test | Its reason |
 |---|---|
-| `benchmarks/tests/suite/runner.rs`: `an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown` | only the walk names a descendant alive at the leader's exit (section 10) |
+| `benchmarks/tests/suite/runner.rs`: `an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown` | only the walk names a descendant alive at the leader's exit (`isolation.md`, section 1) |
 | `benchmarks/tests/suite/runner.rs`: `a_file_left_in_tmp_by_an_attempt_is_a_write_outside`; `benchmarks/tests/suite/pipeline.rs`: `grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer` and `login_shells_keep_machine_path_in_setup_agent_and_grading` | an attempt copies its caches by GNU `cp --reflink` and reads the shared temporary directory's owner through `/proc/self` (section 14) |
 | `benchmarks/tests/suite/probe_command.rs`: `a_replay_arm_runs_through_the_probe_command_and_prints_one_line` | the probe's plan reads `/proc`, its attempts are the row above's, and its arm needs the source's history |
 | `benchmarks/tests/suite/smith_adapter.rs`: `the_current_source_arm_selects_the_chat_face` | it reads the source's history, which macOS's run lacks: its checkout holds the tested commit alone (`temper/docs/design/testing/macos.md`, 1) |
@@ -913,13 +591,13 @@ runs on both.
   `projects.<root>.trust_level`. A new pin checks each, on a recorded
   attempt with a child and a grandchild, before its first comparison: the
   collector finds every thread its stream and its state database name,
-  each linked (6.3).
+  each linked (`agents.md`, 1.3).
 - **Claude Code:** the settings that allow edits and commands headless;
   whether `CLAUDE_CONFIG_DIR` keeps every user file out;
   `claude-haiku-5-5` at low effort on a subscription.
 - **Claude Code's attempts at once on one login:** whether attempts that
   share a configuration directory interfere. Default: one at a time
-  (section 10).
+  (`isolation.md`, section 1).
 - **Tree accounting:** cgroup v2 delegated to the user on the development
   machine, as containment also needs (../testing.md, section 8).
 - **The shared credential guard:** which crate the live tier and
@@ -941,17 +619,17 @@ runs on both.
   attempt copies its caches by GNU `cp --reflink`, reads the shared
   temporary directory's owner and the probe's machine through `/proc`,
   and under the process group `tree-ended` cannot see a descendant that
-  left the group (section 10). Default: they stay Linux's, and macOS
-  runs smith-bench's tests alone (section 13).
+  left the group (`isolation.md`, section 1). Default: they stay Linux's, and macOS
+  runs smith-bench's tests alone (`README.md`, section 13).
 - **Task kinds beyond code,** such as chat, research or review, with
   graders of their own; and **audits:** how many attempts a run samples,
   and who audits them.
 - **Recording smoke runs:** whether a commit hook checks that a runtime
   change's body carries one.
 - **A failed response's usage:** skein's failed call carries none, so
-  usage a provider sends with its failure is told as null (8.2, a
+  usage a provider sends with its failure is told as null (`results.md`, 1.2, a
   retried failure). Whether a failure should carry it is skein's
   `llm/README.md`'s question.
 - **A failure's kind in a summary:** a harness failure has a kind, and only
-  its words reach a result: `HarnessError` and `Refused` hold text (8.3).
+  its words reach a result: `HarnessError` and `Refused` hold text (`results.md`, 1.3).
   Default: so; a summary that counts by kind changes the result's format.

@@ -469,7 +469,7 @@ fn people_and_task_continuations_cross_into_jigs_later_interval() {
         (
             engine::CoreRange::Tasks,
             [core::Key::Tasks(Tasks::Live(1)), core::Key::Tasks(Tasks::PlacedHold(1))],
-            [1, 2], // Core's interval, then live tasks, then placed holds (tag 21).
+            [2, 3], // Core's projections and parts, then live tasks and placed holds (tag 21).
         ),
     ] {
         let mut routes = fixtures::routes();
@@ -527,7 +527,7 @@ fn a_task_page_keeps_projections_then_live_tasks_and_drops_calls() {
     else {
         panic!("task continuation")
     };
-    assert_eq!(cursor.interval, 1);
+    assert_eq!(cursor.interval, 2);
 }
 
 #[test]
@@ -800,7 +800,7 @@ fn unread_and_corrupt_window_pages_still_fail_the_load_once() {
 }
 
 fn assistant_turn(words: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v7 as wire;
+    use smith_transcript::v8 as wire;
 
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks.push(wire::Block::Text(wire::Text { text: words.into(), replay: None })).unwrap();
@@ -909,44 +909,12 @@ fn a_loaded_turn_larger_than_the_tail_budget_keeps_its_texts_end() {
 }
 
 #[test]
-fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_root_event() {
-    use skein_codec::{
-        patch::{Capacity, Halt, Patcher, Site},
-        value::Value,
-    };
-    let schema = skein_codec::schema::parse(b"family fixture 1\nrecord Row {} ").unwrap();
-    let mut value = Value::with_room(1);
-    let at = value.decode(&schema, schema.find(b"Row").unwrap(), Box::new([])).unwrap();
-    let mut routes = fixtures::routes();
-    let mut out = Queue::with_capacity(4);
-    for of in [store::Owner::Skein, store::Owner::Smith, store::Owner::Jig, store::Owner::Application] {
-        let site = Site::new(2, 0);
-        route::up(
-            &mut routes,
-            store::Event::Site {
-                owner: fixtures::OWNER,
-                of,
-                key: Box::new([]),
-                site,
-                at,
-                patcher: Box::new(Patcher::new(Capacity { versions: 0, patches: 0, text: 0, bytes: 0, nodes: 0 })),
-            },
-            &mut out,
-        );
-        let Some(Up::Ask(store::Request::Site { owner, result, .. })) = out.pop() else { panic!("site reply") };
-        assert_eq!(owner, fixtures::OWNER);
-        assert_eq!(result, Err(Halt::NoSite(site)));
-        assert!(out.is_empty());
-    }
-}
-
-#[test]
 fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
     let (root, core, mut limits) = fixtures::store_limits();
     limits.core = core;
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
     let mut component = store::Store::over(
-        &limits,
+        &store::check(&limits).expect("route fixture limits"),
         application,
         &[],
         store::Stores {
@@ -957,7 +925,7 @@ fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
     let mut routes = fixtures::routes();
     let mut out = Queue::with_capacity(4);
     for (of, words) in [(store::Owner::Jig, "no such jig job"), (store::Owner::Application, "no such temper job")] {
-        route::site(
+        route::job(
             &mut routes,
             &mut component,
             store::Event::Job {
@@ -994,6 +962,7 @@ fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
         settled: None,
     }));
     let proof = core::Record::Core(core::CoreRecord::RunProof(core::RunProof {
+        kept_part: 0,
         worker: None,
         task: 0,
         attempt: 0,
@@ -1249,8 +1218,8 @@ fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
         statement: engine::WorkerStatement {
             wires: Box::new([engine::OpenedWire {
                 name: "example-wire".into(),
-                lowest: 3,
-                layouts: Box::new([[4; 32], [5; 32]]),
+                layout: [4; 32],
+                text: b"worker-stated wire text".as_slice().into(),
             }]),
             output: 4096,
             terms: Box::new([engine::OpenedTerm { kind: 12, largest: 34 }]),
@@ -1271,8 +1240,8 @@ fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
             worker: "w1".into(),
             wires: Box::new([store::OpenedWire {
                 name: "example-wire".into(),
-                lowest: 3,
-                layouts: Box::new([[4; 32], [5; 32]])
+                layout: [4; 32],
+                text: b"worker-stated wire text".as_slice().into()
             }]),
             output: 4096,
             terms: Box::new([store::OpenedTerm { kind: 12, largest: 34 }]),

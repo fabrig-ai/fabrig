@@ -2,8 +2,8 @@
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::Duration;
-/// Retained connector accounts have their own bound (client/domain/contract/documents.md, 3).
-pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;
+/// Hold explanations have their own bound (domain/tasks/lifecycle-holds.md, 3).
+pub(crate) const HOLD_WORDS: u32 = 1_024;
 /// The most bytes of a gathered batch's record (protocol/client/wire.md, 2.3).
 pub const BATCH_BYTES: u32 = 131_072;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -130,8 +130,8 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
     let document_bytes = u32::try_from(client.document_bytes).ok()?;
     let ask_bytes = u32::try_from(client.ask_bytes).ok()?;
     wire.owned_record = document_bytes;
-    // Retained connector accounts fit beside text previews (client/domain/contract/documents.md, 3).
-    wire.document_text_bytes = client.long_text.clamp(HOLD_ACCOUNT_BYTES, w::CEILINGS.document_text_bytes);
+    // Hold explanations fit beside text previews (domain/tasks/lifecycle-holds.md, 3).
+    wire.document_text_bytes = client.long_text.clamp(HOLD_WORDS, w::CEILINGS.document_text_bytes);
     #[rustfmt::skip]
     narrow(client.text, &mut [
         &mut wire.task_text_words, &mut wire.placed_line_reason, &mut wire.model_set_names_names_item,
@@ -154,7 +154,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.setting_model_effort_some, &mut wire.setting_model_efforts_item,
         &mut wire.worker_setting_name, &mut wire.worker_state_name,
         &mut wire.catalogue_entry_shown_some, &mut wire.catalogue_entry_description_some,
-        &mut wire.charter_document_name_item,
+        &mut wire.charter_document_name_item, &mut wire.wait_resource_name_path_item,
     ]);
     narrow(
         client.long_text,
@@ -164,6 +164,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
             &mut wire.word_words,
             &mut wire.activity_words_words,
             &mut wire.message_words,
+            &mut wire.stop_reason,
             &mut wire.answer_question_words,
         ],
     );
@@ -210,10 +211,10 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.settings_document_held, &mut wire.settings_document_pending, &mut wire.revision_row_items,
         &mut wire.revisions_page_rows, &mut wire.refusal_full_tasks,
     ]);
-    narrow(
-        client.segments,
-        &mut [&mut wire.part_key_path_value, &mut wire.pattern_segments, &mut wire.charter_document_name],
-    );
+    #[rustfmt::skip]
+    narrow(client.segments, &mut [
+        &mut wire.part_key_path_value, &mut wire.pattern_segments, &mut wire.charter_document_name, &mut wire.wait_resource_name_path,
+    ]);
     narrow(client.authority, &mut [&mut wire.delegation_kinds, &mut wire.bounds_amend_implications]);
     narrow(ask_bytes, &mut [&mut wire.propose_settings_items, &mut wire.change_settings_items]);
     w::check_limits(&wire).ok()?;

@@ -1,28 +1,33 @@
 //! Offline checks keep no process state and never execute setup or graders.
 //! `check_tree` finds task manifests; `check_task` verifies prompts, frozen
-//! seeds and design guards, following ../../docs/design/benchmarks/README.md, sections 5.2, 6.1 and 13.
+//! seeds and design guards, following ../../docs/design/benchmarks/README.md, section 5.2, and ../../docs/design/benchmarks/agents.md, section 1.1, and ../../docs/design/benchmarks/README.md, section 13.
 
 mod events;
+mod seed;
+
+pub use seed::{seed_digest, seed_digest_with};
 
 use std::collections::BTreeSet;
-use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 
-use sha2::{Digest, Sha256};
-
-use crate::task::{Kind, OutcomeCheck, Refusal, Task, read_task};
+use crate::files::{Files, Kind as FileKind, Native};
+use crate::task::{Kind, OutcomeCheck, Refusal, Task, read_task_with};
 
 // The shipped run budget in shell/settings.md, section 2.4.
 const RUN_DEFAULT_SECONDS: u64 = 3_600;
 
 /// Verify all task documents below a directory without running an agent.
 pub fn check_tree(directory: &Path, design: &Path) -> Result<usize, Refusal> {
+    check_tree_with(&Native, directory, design)
+}
+
+/// Verify a tree of task documents on the supplied filesystem.
+pub fn check_tree_with(files: &dyn Files, directory: &Path, design: &Path) -> Result<usize, Refusal> {
     let mut manifests = Vec::new();
-    find_manifests(directory, &mut manifests)?;
+    find_manifests(files, directory, &mut manifests)?;
     manifests.sort();
     for manifest in &manifests {
-        check_task(manifest, design)?;
+        check_task_with(files, manifest, design)?;
     }
     Ok(manifests.len())
 }
@@ -52,28 +57,39 @@ pub fn check_benchmark_tree_with_bundles(
     design: &Path,
     bundles: &Path,
 ) -> Result<ManifestCounts, Refusal> {
-    let tasks = crate::catalogue(&root.join("tasks"), design)?;
-    crate::bundle::check_repository_bundles(&tasks, bundles)?;
+    check_benchmark_tree_with(&Native, root, design, bundles)
+}
+
+/// Validate the benchmark inventory and its bundles on the supplied filesystem.
+pub fn check_benchmark_tree_with(
+    files: &dyn Files,
+    root: &Path,
+    design: &Path,
+    bundles: &Path,
+) -> Result<ManifestCounts, Refusal> {
+    let tasks = crate::catalogue_with(files, &root.join("tasks"), design)?;
+    crate::bundle::check_repository_bundles(files, &tasks, bundles)?;
     let agents = root.join("agents");
-    let models = crate::read_model_tiers(&agents.join("models.toml"))?;
+    let models = crate::read_model_tiers_with(files, &agents.join("models.toml"))?;
     for provider in [crate::Provider::Codex, crate::Provider::Anthropic] {
         models.lookup(&agents.join("models.toml"), "small", provider)?;
     }
     let mut configurations = 0;
-    for agent in fs::read_dir(&agents).map_err(|error| Refusal::new(&agents, "agents", error.to_string()))? {
+    for agent in files.read_dir(&agents).map_err(|error| Refusal::new(&agents, "agents", error.to_string()))? {
         let agent = agent.map_err(|error| Refusal::new(&agents, "agents", error.to_string()))?;
-        if !agent.file_type().map_err(|error| Refusal::new(&agent.path(), "agents", error.to_string()))?.is_dir() {
+        let directory = agent.path();
+        if agent.file_type().map_err(|error| Refusal::new(&directory, "agents", error.to_string()))?
+            != FileKind::Directory
+        {
             continue;
         }
-        for file in
-            fs::read_dir(agent.path()).map_err(|error| Refusal::new(&agent.path(), "agents", error.to_string()))?
-        {
-            let file = file.map_err(|error| Refusal::new(&agent.path(), "agents", error.to_string()))?;
-            if file.file_name().to_str().is_some_and(|name| name.ends_with(".pin.toml")) {
-                let pin = crate::read_configuration(&file.path())?;
+        for file in files.read_dir(&directory).map_err(|error| Refusal::new(&directory, "agents", error.to_string()))? {
+            let path = file.map_err(|error| Refusal::new(&directory, "agents", error.to_string()))?.path();
+            if path.file_name().and_then(std::ffi::OsStr::to_str).is_some_and(|name| name.ends_with(".pin.toml")) {
+                let pin = crate::read_configuration_with(files, &path)?;
                 let expected = agents.join(pin.pin.agent.directory()).join(format!("{}.pin.toml", pin.pin.name));
-                if expected != file.path() {
-                    return Err(Refusal::new(&file.path(), "name/agent", "pin path disagrees with its name or agent"));
+                if expected != path {
+                    return Err(Refusal::new(&path, "name/agent", "pin path disagrees with its name or agent"));
                 }
                 configurations += 1;
             }
@@ -81,11 +97,13 @@ pub fn check_benchmark_tree_with_bundles(
     }
     let mut suites = 0;
     let directory = root.join("suites");
-    for file in fs::read_dir(&directory).map_err(|error| Refusal::new(&directory, "suites", error.to_string()))? {
-        let file = file.map_err(|error| Refusal::new(&directory, "suites", error.to_string()))?;
-        if file.path().extension().is_some_and(|extension| extension == "toml") {
-            let suite = crate::read_suite(&file.path())?;
-            crate::validate_suite(&file.path(), &suite, &tasks, &agents, &models)?;
+    for file in files.read_dir(&directory).map_err(|error| Refusal::new(&directory, "suites", error.to_string()))? {
+        let path = file.map_err(|error| Refusal::new(&directory, "suites", error.to_string()))?.path();
+        if path.extension().is_some_and(|extension| extension == "toml") {
+            let suite = crate::read_suite_with(files, &path)?;
+            crate::suite::validate_suite_with(&path, &suite, &tasks, &agents, &models, |pin| {
+                crate::read_configuration_with(files, pin)
+            })?;
             suites += 1;
         }
     }
@@ -93,21 +111,21 @@ pub fn check_benchmark_tree_with_bundles(
     let mut baselines = 0;
     for (name, count) in [("summaries", &mut summaries), ("baselines", &mut baselines)] {
         let directory = root.join(name);
-        for file in fs::read_dir(&directory).map_err(|error| Refusal::new(&directory, name, error.to_string()))? {
-            let file = file.map_err(|error| Refusal::new(&directory, name, error.to_string()))?;
-            if file.path().extension().is_some_and(|extension| extension == "json") {
+        for file in files.read_dir(&directory).map_err(|error| Refusal::new(&directory, name, error.to_string()))? {
+            let path = file.map_err(|error| Refusal::new(&directory, name, error.to_string()))?.path();
+            if path.extension().is_some_and(|extension| extension == "json") {
                 if name == "summaries" {
-                    let summary = crate::read_summary(&file.path())?;
+                    let summary = crate::read_summary_with(files, &path)?;
                     if summary.suite == "parity-change" {
                         crate::parity::change::verify(&summary)
-                            .map_err(|reason| Refusal::new(&file.path(), "change", reason.detail))?;
+                            .map_err(|reason| Refusal::new(&path, "change", reason.detail))?;
                     }
                     if let Some(parity) = &summary.parity {
                         crate::parity::verify(&summary, &parity.smith_commit)
-                            .map_err(|reason| Refusal::new(&file.path(), "parity", reason.detail))?;
+                            .map_err(|reason| Refusal::new(&path, "parity", reason.detail))?;
                     }
                 } else {
-                    crate::read_baseline(&file.path())?;
+                    crate::read_baseline_with(files, &path)?;
                 }
                 *count += 1;
             }
@@ -116,21 +134,21 @@ pub fn check_benchmark_tree_with_bundles(
     Ok(ManifestCounts { tasks: tasks.len(), suites, configurations, summaries, baselines })
 }
 
-pub(crate) fn find_manifests(directory: &Path, manifests: &mut Vec<PathBuf>) -> Result<(), Refusal> {
-    let entries = fs::read_dir(directory).map_err(|error| Refusal::new(directory, "tasks", error.to_string()))?;
+pub(crate) fn find_manifests(files: &dyn Files, directory: &Path, manifests: &mut Vec<PathBuf>) -> Result<(), Refusal> {
+    let entries = files.read_dir(directory).map_err(|error| Refusal::new(directory, "tasks", error.to_string()))?;
     for entry in entries {
         let entry = entry.map_err(|error| Refusal::new(directory, "tasks", error.to_string()))?;
         let path = entry.path();
         let kind = entry.file_type().map_err(|error| Refusal::new(&path, "tasks", error.to_string()))?;
-        if kind.is_symlink() {
+        if kind == FileKind::Link {
             return Err(Refusal::new(&path, "tasks", "symlinks are not frozen task inputs"));
         }
-        if kind.is_dir() {
+        if kind == FileKind::Directory {
             // Hidden graders and solutions are never task catalogues.
-            if !matches!(entry.file_name().to_str(), Some("seed" | "grader" | "reference")) {
-                find_manifests(&path, manifests)?;
+            if !matches!(path.file_name().and_then(std::ffi::OsStr::to_str), Some("seed" | "grader" | "reference")) {
+                find_manifests(files, &path, manifests)?;
             }
-        } else if entry.file_name() == "task.toml" {
+        } else if path.file_name().is_some_and(|name| name == "task.toml") {
             manifests.push(path);
         }
     }
@@ -139,7 +157,27 @@ pub(crate) fn find_manifests(directory: &Path, manifests: &mut Vec<PathBuf>) -> 
 
 /// Verify one task's frozen inputs and return its parsed specification.
 pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
-    let task = read_task(file)?;
+    check_task_with(&Native, file, design)
+}
+
+/// Verify a task document, its guards and frozen seed on the supplied filesystem.
+pub fn check_task_with(files: &dyn Files, file: &Path, design: &Path) -> Result<Task, Refusal> {
+    check_task_inputs(
+        files,
+        file,
+        read_task_with(files, file)?,
+        |path| files.read_to_string(&design.join(path)),
+        |path| seed_digest_with(files, path),
+    )
+}
+
+pub(crate) fn check_task_inputs(
+    files: &dyn Files,
+    file: &Path,
+    task: Task,
+    read_guard: impl Fn(&Path) -> std::io::Result<String>,
+    digest_seed: impl FnOnce(&Path) -> Result<String, Refusal>,
+) -> Result<Task, Refusal> {
     if !valid_name(&task.id) {
         return Err(Refusal::new(file, "id", "expected a nonempty lowercase task name"));
     }
@@ -205,7 +243,7 @@ pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
     match task.kind {
         Kind::Probe => {}
         Kind::Fixture | Kind::Repository => {
-            comparison_limits(file, &task)?;
+            comparison_limits(files, file, &task)?;
             if task.grade.is_empty() {
                 return Err(Refusal::new(file, "grade", "graded task requires a grader"));
             }
@@ -218,13 +256,13 @@ pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
         calibration(file, &format!("variant[{index}].calibration"), &selected)?;
     }
     for (index, guard) in task.guards.iter().enumerate() {
-        check_guard(file, &format!("guards[{index}]"), guard, design)?;
+        check_guard(file, &format!("guards[{index}]"), guard, &read_guard)?;
     }
     if !valid_digest(&task.seed_sha256) {
         return Err(Refusal::new(file, "seed_sha256", "expected 64 lowercase hexadecimal digits"));
     }
     let directory = file.parent().ok_or_else(|| Refusal::new(file, "seed", "task needs a directory"))?;
-    let observed = seed_digest(&directory.join("seed"))?;
+    let observed = digest_seed(&directory.join("seed"))?;
     if observed != task.seed_sha256 {
         return Err(Refusal::new(
             file,
@@ -235,7 +273,7 @@ pub fn check_task(file: &Path, design: &Path) -> Result<Task, Refusal> {
     Ok(task)
 }
 
-fn comparison_limits(file: &Path, task: &Task) -> Result<(), Refusal> {
+fn comparison_limits(files: &dyn Files, file: &Path, task: &Task) -> Result<(), Refusal> {
     if task.deadline_seconds >= RUN_DEFAULT_SECONDS {
         return Err(Refusal::new(
             file,
@@ -243,7 +281,7 @@ fn comparison_limits(file: &Path, task: &Task) -> Result<(), Refusal> {
             "comparison deadline must be below the run default of 3600 seconds",
         ));
     }
-    let document: toml::Table = crate::formats::read_document(file)?;
+    let document: toml::Table = crate::formats::read_document_with(files, file)?;
     if document.contains_key("budget") {
         return Err(Refusal::new(file, "budget", "comparison task must not name a budget"));
     }
@@ -397,13 +435,17 @@ fn check_outcomes(file: &Path, key: &str, outcomes: &[OutcomeCheck]) -> Result<(
     Ok(())
 }
 
-fn check_guard(file: &Path, key: &str, guard: &str, design: &Path) -> Result<(), Refusal> {
+fn check_guard(
+    file: &Path,
+    key: &str,
+    guard: &str,
+    read: &impl Fn(&Path) -> std::io::Result<String>,
+) -> Result<(), Refusal> {
     let Some((name, section)) = guard.split_once(", section ") else {
         return Err(Refusal::new(file, key, "expected '<design file>, section <number>'"));
     };
     check_path(file, key, Path::new(name))?;
-    let text =
-        fs::read_to_string(design.join(name)).map_err(|error| Refusal::new(file, key, format!("{guard}: {error}")))?;
+    let text = read(Path::new(name)).map_err(|error| Refusal::new(file, key, format!("{guard}: {error}")))?;
     let found = text.lines().any(|line| {
         let Some(heading) = line.strip_prefix('#') else {
             return false;
@@ -419,60 +461,6 @@ fn check_guard(file: &Path, key: &str, guard: &str, design: &Path) -> Result<(),
         || !found
     {
         return Err(Refusal::new(file, key, format!("guarded section does not exist: {guard}")));
-    }
-    Ok(())
-}
-
-/// Hash a frozen seed by sorted relative names, executable bits and file bytes.
-pub fn seed_digest(directory: &Path) -> Result<String, Refusal> {
-    let mut files = Vec::new();
-    seed_files(directory, directory, &mut files)?;
-    files.sort();
-    let mut digest = Sha256::new();
-    for path in files {
-        let relative = path.strip_prefix(directory).expect("walked files remain under seed");
-        let name = relative.to_str().ok_or_else(|| Refusal::new(&path, "seed", "file name must be UTF-8"))?;
-        let bytes = fs::read(&path).map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
-        let metadata = fs::metadata(&path).map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
-        digest.update(skein_lib::len_u64(name.len()).to_be_bytes());
-        digest.update(name.as_bytes());
-        digest.update([u8::from(metadata.permissions().mode() & 0o111 != 0)]);
-        digest.update(skein_lib::len_u64(bytes.len()).to_be_bytes());
-        digest.update(bytes);
-    }
-    Ok(format!("{:x}", digest.finalize()))
-}
-
-fn seed_files(root: &Path, directory: &Path, files: &mut Vec<PathBuf>) -> Result<(), Refusal> {
-    let metadata =
-        fs::symlink_metadata(directory).map_err(|error| Refusal::new(directory, "seed", error.to_string()))?;
-    if !metadata.is_dir() || metadata.is_symlink() {
-        return Err(Refusal::new(directory, "seed", "expected an ordinary seed directory"));
-    }
-    for entry in fs::read_dir(directory).map_err(|error| Refusal::new(directory, "seed", error.to_string()))? {
-        let entry = entry.map_err(|error| Refusal::new(directory, "seed", error.to_string()))?;
-        let path = entry.path();
-        let relative = path.strip_prefix(root).expect("walk remains under seed");
-        if relative.components().any(|part| {
-            matches!(
-                part.as_os_str().to_str(),
-                Some("benchmarks" | "grader" | "grading" | "reference" | "reference-solutions" | ".git")
-            )
-        }) {
-            return Err(Refusal::new(
-                &path,
-                "seed",
-                "benchmark, grader, reference and git files stay outside the seed",
-            ));
-        }
-        let kind = entry.file_type().map_err(|error| Refusal::new(&path, "seed", error.to_string()))?;
-        if kind.is_dir() {
-            seed_files(root, &path, files)?;
-        } else if kind.is_file() {
-            files.push(path);
-        } else {
-            return Err(Refusal::new(&path, "seed", "symlinks and special files are not frozen inputs"));
-        }
     }
     Ok(())
 }

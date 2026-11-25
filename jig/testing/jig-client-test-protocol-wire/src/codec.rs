@@ -1,4 +1,4 @@
-//! The application's own wire, at the engine's protocol boundary (client/domain/client/README.md, 8).
+//! The application's own wire, at the engine's protocol boundary (client/domain/client/small-store.md, 1).
 use crate::v2::{self as w, Record};
 use alloc::boxed::Box;
 use jig_test_connector as d;
@@ -64,7 +64,7 @@ pub fn outcome_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ApplicationOu
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(parts::decode_application_outcome(record.value, bound))
+    Ok(parts::decode_application_outcome(record.value))
 }
 #[must_use]
 pub fn subject(value: &d::ClientSubject) -> Box<[u8]> {

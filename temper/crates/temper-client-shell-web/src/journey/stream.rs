@@ -1,4 +1,4 @@
-//! Joined recording streams (client/web/journeys.md, 3.2 and client/web/journey-redaction.md).
+//! Joined recording streams (client/web/journeys-recordings.md, 1.2 and client/web/journey-redaction.md).
 use super::Line;
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::base64::{self, Alphabet};

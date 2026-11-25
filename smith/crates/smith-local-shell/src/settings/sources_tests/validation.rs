@@ -1,6 +1,5 @@
 use super::*;
-use crate::credentials::{Directory, tests::Files};
-use std::os::unix::fs::PermissionsExt;
+use crate::credentials::Directory;
 
 #[test]
 fn credential_commands_refuse_the_startup_declaration_matrix() {
@@ -79,15 +78,20 @@ fn credential_paths_use_only_the_supplied_environment() {
 
 #[test]
 fn program_documents_use_the_supplied_path() {
-    let files = Files::new("smith-credentials");
-    let executable = files.path().join("claude");
-    std::fs::write(&executable, b"#!/bin/sh\nexit 0\n").expect("scratch executable");
-    std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
-    let mut settings = resolution::configured(&files, "program", true);
+    let path = std::path::Path::new("/fixture/bin");
+    let executable = path.join("claude");
+    let mut settings = resolution::configured_in(
+        std::path::Path::new("/fixture/installation"),
+        std::path::Path::new("/fixture/root.der"),
+        "program",
+        true,
+    );
     settings.values.remove("programs.claude_code");
-    settings.paths.path = Some(files.path().to_path_buf().into());
-    let (_, bytes) = crate::fixture::ready(resolve::resolve_startup(&settings));
-    let document: serde_json::Value = serde_json::from_slice(&bytes).expect("agent document");
+    settings.paths.path = Some(path.as_os_str().to_owned());
+    settings.values.get_mut("environment.inherit").expect("built-in inheritance").value = toml::Value::Array(vec![]);
+    let document = crate::fixture::ready(resolve::agent_document_with(&settings, |path| {
+        (path == executable).then_some(resolve::programs::FileFacts { is_file: true, mode: 0o700 })
+    }));
     assert!(document["programs"]["claude_code"]["path"].as_str() == executable.to_str(), "supplied PATH used");
 }
 

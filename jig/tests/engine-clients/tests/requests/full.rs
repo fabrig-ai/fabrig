@@ -2,7 +2,9 @@
 use super::{Peer, bearer, real_core_settings, route_real_core};
 use jig_client::{self as client, contract as c};
 use jig_client_protocol_link as link;
+use jig_domain_core as core;
 use jig_domain_people as people;
+use jig_test_domain as root;
 use skein_lib::{Duration, List, Queue, Time, Wall};
 
 // The fixture's owner is party 1. Its bootstrap chat and one ordinary refusal fill the table.
@@ -12,7 +14,7 @@ const EXPORT_ACCOUNT: u32 = 9; // its account is never looked up while admission
 const PARTY: u64 = 1;
 const HELD: u32 = 2;
 const WALL: Wall = Wall::from_nanos(1_000_000_000);
-const ROOM: Wall = Wall::from_nanos(120_028_000_000); // bootstrap chat at 28 ms + 120-second retention
+const RETENTION: Duration = Duration::from_secs(120);
 const KEY: client::Key = client::Key { asker: client::Asker(7), number: 1 };
 const NAME: [u8; 16] = [52; 16];
 
@@ -20,12 +22,33 @@ const NAME: [u8; 16] = [52; 16];
 fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
     let mut world = jig_core_kit::stories::offers::world_with(SEED, None, |limits| {
         limits.core.people.requests = HELD;
-        limits.core.people.request_retention = Duration::from_secs(120);
+        limits.core.people.request_retention = RETENTION;
     });
+    let bootstrap_at = world
+        .store
+        .rows
+        .values()
+        .find_map(|row| {
+            if let root::Record::Core(core::Record::People(people::Stored::Answer { ask, at, .. })) = row
+                && matches!(ask.as_ref(), people::Ask::Create { .. })
+            {
+                Some(*at)
+            } else {
+                None
+            }
+        })
+        .expect("retained bootstrap chat");
+    let room_at =
+        Wall::from_nanos(bootstrap_at.as_nanos().checked_add(RETENTION.as_nanos()).expect("bounded retention"));
     let (now, _) = world.clocks();
     world.set_clock(now, WALL);
     let sign_in = world.sign_in.expect("member");
-    jig_core_kit::fixtures::ask_as(&mut world, sign_in, FILL_KEY, people::Ask::Stop { project: 1, task: u64::MAX });
+    jig_core_kit::fixtures::ask_as(
+        &mut world,
+        sign_in,
+        FILL_KEY,
+        people::Ask::Stop { project: 1, task: u64::MAX, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let mut peer = Peer::started(&real_core_settings());
     let bearer = bearer(&mut peer, world.sign_in.expect("member"), PARTY);
 
@@ -92,5 +115,5 @@ fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
             }
         })
         .collect();
-    assert_eq!(terminal, [(KEY, client::Outcome::Full { held: HELD, room_at: ROOM })]);
+    assert_eq!(terminal, [(KEY, client::Outcome::Full { held: HELD, room_at })]);
 }

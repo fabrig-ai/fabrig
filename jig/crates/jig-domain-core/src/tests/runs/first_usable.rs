@@ -1,5 +1,5 @@
 //! Omitted choices follow current accounts; a successful claim keeps its provider
-//! (jig/docs/design/domain/accounts.md, 4.3).
+//! (jig/docs/design/domain/accounts-uses.md, 1.3).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -470,6 +470,7 @@ fn a_busy_login_host_is_a_host_wait() {
         &mut core.fleet,
         &env,
         fleet::Event::Adopt {
+            kept_part: 0,
             worker: None,
             reply_to: ReplyTo::new(HOST),
             run: BUSY,
@@ -521,6 +522,7 @@ fn create_and_amend_refuse_an_authority_with_no_charter_model() {
         &mut core.tasks,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
         tasks::Event::Amend {
+            reads_project: false,
             reply_to: ReplyTo::new(HOST),
             by: tasks::Party::Person(1),
             places: Box::new([]),

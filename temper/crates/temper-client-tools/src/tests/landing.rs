@@ -97,6 +97,23 @@ fn a_landed_landing_prints_main_at_its_candidate() {
 fn a_held_landing_names_its_gate() {
     f::check_golden("landing_held", &read_panel(&panel(w::LandingPhase::Held), false).stdout);
 }
+#[test]
+fn a_read_hold_names_the_fact_in_text_and_json() {
+    let mut value = panel(w::LandingPhase::Held);
+    value.hold = Some(w::LandingHold::Read(w::HeldRead {
+        reason: b"read: branch temper/51, for change 51: no answer".as_slice().into(),
+    }));
+    let text = read_panel(&value, false);
+    assert!(
+        skein_lib::bytes::find(&text.stdout, b"held: read: branch temper/51, for change 51: no answer\n").is_some()
+    );
+    let json = read_panel(&value, true);
+    assert!(
+        skein_lib::bytes::find(&json.stdout, br#""hold":{"read":"read: branch temper/51, for change 51: no answer"}"#)
+            .is_some()
+    );
+}
+
 fn with_gate(proof: w::Proof, key: Option<[u8; 32]>, blocking: bool, faults: u32) -> w::LandingPanel {
     let mut parts = panel(w::LandingPhase::Proving);
     let mut member = parts.members.get(0).unwrap().clone();

@@ -33,7 +33,7 @@ the box's scripted provider, and what the document loses.
 
 - **Two providers, numbered for good:** OpenAI, 1, and Anthropic, 2,
   with today's values: the `engine.llm` that `temper-box init` writes
-  without `--box` (`../setup/init.md`, 3), OpenAI with its sign-in, keys,
+  without `--box` (`../setup/init.md`, 6), OpenAI with its sign-in, keys,
   list and endpoint `openai`, 1, and Anthropic with Claude Code's
   program, keys, list and its endpoints `anthropic`, 2, and
   `anthropic-api`, 4, its `direct`. Their keep and drop lists are
@@ -131,7 +131,7 @@ the box's scripted provider, and what the document loses.
   `demo/llm.key`, its cues the scripts'; an engine alone holds none, and
   a test world that runs a playground builds its own in code
   (`moved.md`, 2). Whether the playground is offered stays the welcome's,
-  kind 20 (`settings.md`, 2).
+  kind 20 (`settings-kinds.md`, 1).
 - **`temper-box fake llm DIRS`** takes its listener from the box, its key
   from `demo/llm.key` and its scripts from the binary, and reads no
   document.
@@ -147,7 +147,7 @@ the box's scripted provider, and what the document loses.
   join; jig refuses `llm` as `What::Stored` once temper passes the
   providers' defaults, and temper's words for its path are the table's.
 - **`temper-box init`** writes neither member, no `demo/llm.key` and no
-  scripted model's port (`../setup/init.md`, 2 and 3); `--box` still
+  scripted model's port (`../setup/init.md`, 5 and 6); `--box` still
   makes `demo/` and `demo/bin/git`.
 
 ## 6. Changing a provider

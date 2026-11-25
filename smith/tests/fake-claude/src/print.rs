@@ -1,4 +1,4 @@
-//! One print conversation (smith/docs/design/protocol/programs.md, sections 5 and 8). Keeps
+//! One print conversation (smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8). Keeps
 //! parsed flags, session and request cursors, a system-cue selection and file
 //! state; matches cues without otherwise interpreting or retaining prompt text.
 //! Session state survives a process resume.
@@ -527,6 +527,11 @@ impl Print {
             }
         }
         while let Some(step) = self.turn.steps.get(self.step).cloned() {
+            if matches!(&step, Step::RateLimit { .. } | Step::LoseLogin | Step::Hang)
+                || matches!(&step, Step::RateLimitWindow { status, .. } if status == "rejected")
+            {
+                effects.push(Effect::Fault(crate::Fault::Step(step.clone())));
+            }
             self.step = self.step.checked_add(1).expect("step count fits");
             let (step, thinking) = match step {
                 Step::Think { tokens, step } => {
@@ -663,8 +668,12 @@ impl Print {
                 }
                 effects.extend(self.finish(value));
             }
-            End::Error { api_error_status, terminal_reason, errors, resets_at } => {
+            End::Error { api_error_status, terminal_reason, errors, result, resets_at } => {
+                effects.push(Effect::Fault(crate::Fault::End(self.turn.end.clone())));
                 let mut value = stream::failure(api_error_status, terminal_reason, errors);
+                if let Some(text) = result {
+                    value["result"] = json!(text);
+                }
                 if let Some(reset) = resets_at {
                     value["rate_limit_info"] = json!({"resetsAt":reset});
                 }
@@ -796,10 +805,13 @@ impl Print {
                     },
                     Err(error) => (error, true),
                 };
-                if let Some(expected) = self.expected_reply.take() {
-                    failed |= !text.contains(&expected);
-                }
                 let mut effects = Vec::new();
+                if let Some(expected) = self.expected_reply.take()
+                    && !text.contains(&expected)
+                {
+                    effects.push(Effect::Seen(Seen::ReplyMismatch { tool: pending.tool.clone() }));
+                    failed = true;
+                }
                 let text = match &pending.action {
                     ToolAction::Server => {
                         effects.push(Effect::Seen(Seen::Called { tool: pending.tool.clone(), error: failed }));

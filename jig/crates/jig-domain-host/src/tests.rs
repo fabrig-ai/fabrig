@@ -10,6 +10,7 @@ use crate::{
 };
 
 const LIMITS: Limits = Limits {
+    drain_grace: skein_lib::Duration::from_secs(10),
     application_ask_bytes: 4,
     application_answer_bytes: 4,
     slots: 2,
@@ -197,6 +198,8 @@ fn turns_stay_in_the_host_until_their_own_ack_and_credit_returns() {
             assignment,
             turns: Box::new([]),
             answered: Box::new([]),
+            parts: Box::new([]),
+            tell_parts: false,
         },
     }));
     let [Request::Agent(crate::ToAgent::Start { owner, start })] = &*requests else {
@@ -530,7 +533,14 @@ mod fixtures {
     }
     pub fn assign(assignment: RunAssignment) -> Event {
         Event::Down(LinkDown::Assign {
-            assignment: Assignment { messages: Box::new([]), assignment, turns: Box::new([]), answered: Box::new([]) },
+            assignment: Assignment {
+                messages: Box::new([]),
+                assignment,
+                turns: Box::new([]),
+                answered: Box::new([]),
+                parts: Box::new([]),
+                tell_parts: false,
+            },
         })
     }
     pub fn inbound(run: Token, attempt: Token, name: Token, words: Box<[u8]>) -> Event {
@@ -961,7 +971,7 @@ fn program_endpoints(count: u32) -> Box<[u32]> {
 
 #[test]
 fn program_endpoints_are_valid_up_to_the_cap_and_distinct() {
-    // domain/hosts/charters.md, 1: 64 distinct endpoint identities per hello.
+    // domain/hosts/charters.md, 4: 64 distinct endpoint identities per hello.
     const ENDPOINT_CAP: u32 = 64;
     let mut duplicate = program_endpoints(ENDPOINT_CAP);
     *duplicate.last_mut().expect("nonempty endpoint list") = 0;
@@ -1310,3 +1320,30 @@ fn a_usage_read_is_queued_and_its_answer_keeps_the_number() {
     );
     assert_eq!(h.domain.hosted(), 0);
 }
+
+#[test]
+fn a_part_is_acknowledged_retained_and_relayed_to_its_attempt() {
+    let mut h = Harness::new();
+    let (owner, _, agent) = h.live(1);
+    let part = jig_domain_link::Part {
+        number: 1,
+        turn: 1,
+        thread: 2,
+        call: 3,
+        kind: jig_domain_link::PartKind::Result,
+        body: b"opaque".as_slice().into(),
+    };
+    assert!(h.step(Event::Agent(crate::FromAgent::Part { owner: Token::new(999), part: part.clone() })).is_empty());
+    assert_eq!(
+        h.step(Event::Agent(crate::FromAgent::Part { owner, part: part.clone() })).as_ref(),
+        &[
+            Request::Up(LinkUp::Part { run: Token::new(1), attempt: Token::new(1001), part: part.clone() }),
+            Request::Agent(crate::ToAgent::AcknowledgePart { agent, number: 1 }),
+        ]
+    );
+    assert_eq!(h.domain.retained_turns(), 1);
+    assert_eq!(h.domain.part(Token::new(1), Token::new(1001), 1), Some(part));
+    assert_eq!(h.domain.kept_answers(), 0);
+}
+
+mod parts;

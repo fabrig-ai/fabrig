@@ -1,11 +1,13 @@
 //! Agent identities and pinned configuration records; no login is read here.
 //! `read_configuration` checks the pin and hashes its metadata and exact
-//! configuration bytes (../../../docs/design/benchmarks/README.md, sections 5.4, 6 and 10).
+//! configuration bytes (../../../docs/design/benchmarks/README.md, section 5.4, and ../../../docs/design/benchmarks/agents.md, section 1, and ../../../docs/design/benchmarks/isolation.md, section 1).
 
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+use crate::files::{Files, Kind, Native};
 
 use crate::Refusal;
 use crate::arm::ArmRef;
@@ -98,7 +100,7 @@ pub(crate) struct Traces<'a> {
     pub(crate) maximum: usize,
 }
 
-/// The settled tree and authored checks an adapter reads (../../../docs/design/benchmarks/README.md, 6).
+/// The settled tree and authored checks an adapter reads (../../../docs/design/benchmarks/agents.md, 1).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Ended<'a> {
     pub(crate) exit: Exit,
@@ -249,7 +251,7 @@ impl Observing {
         }
     }
 
-    /// Archive the main trace after the standard streams (../../../docs/design/benchmarks/README.md, 10).
+    /// Archive the main trace after the standard streams (../../../docs/design/benchmarks/isolation.md, 1).
     pub(crate) fn archive_trace(
         &self,
         archive: Archive<'_>,
@@ -278,7 +280,7 @@ impl Observing {
         }
     }
 
-    /// What the agent persisted (../../../docs/design/benchmarks/README.md, 6, collect).
+    /// What the agent persisted (../../../docs/design/benchmarks/agents.md, 1, collect).
     pub(crate) fn collect(&mut self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), Fault> {
         match self {
             Self::Codex(observing) => observing.collect_result(archive, result),
@@ -476,7 +478,12 @@ pub struct PinnedConfiguration {
 
 /// Read a committed pin without reading a user's home or credentials.
 pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
-    let pin: Configuration = crate::formats::read_document(file)?;
+    read_configuration_with(&Native, file)
+}
+
+/// Validate and digest a pin and its configuration on the supplied filesystem in a step test.
+pub fn read_configuration_with(files: &dyn Files, file: &Path) -> Result<PinnedConfiguration, Refusal> {
+    let pin: Configuration = crate::formats::read_document_with(files, file)?;
     if pin.name.is_empty() || pin.version.is_empty() {
         return Err(Refusal::new(file, "name/version", "configuration name and agent version must be pinned"));
     }
@@ -516,15 +523,15 @@ pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
         }
     }
     let directory = file.parent().ok_or_else(|| Refusal::new(file, "configuration", "pin needs a directory"))?;
-    let metadata = std::fs::read(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
     let configuration = directory.join(&pin.configuration);
-    let config_metadata = std::fs::symlink_metadata(&configuration)
+    let metadata = files.read(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
+    let facts = files
+        .symlink_metadata(&configuration)
         .map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
-    if !config_metadata.is_file() || config_metadata.is_symlink() {
+    if facts.kind != Kind::File {
         return Err(Refusal::new(file, "configuration", "expected a committed regular configuration file"));
     }
-    let bytes =
-        std::fs::read(&configuration).map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
+    let bytes = files.read(&configuration).map_err(|error| Refusal::new(file, "configuration", error.to_string()))?;
     let mut digest = Sha256::new();
     digest.update(skein_lib::len_u64(metadata.len()).to_be_bytes());
     digest.update(metadata);

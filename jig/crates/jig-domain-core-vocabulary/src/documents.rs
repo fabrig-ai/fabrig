@@ -1,6 +1,6 @@
 //! Typed document vocabulary and checked allocation bounds
 //! (`jig/docs/design/domain/engine/README.md`, 3; `client/domain/contract/documents.md`
-//! and `client/domain/contract/README.md`, 5; `domain/engine/views.md`).
+//! and `client/domain/contract/watches.md`, 1; `domain/engine/views.md`).
 //!
 //! Text and lists state their loss. Chips retain owner phase clocks, readiness,
 //! retries, resource references and endings. Engine receipt clocks in fenced
@@ -202,7 +202,7 @@ pub enum Subject {
     },
 }
 
-/// Watch routing categories (`client/domain/contract/README.md`, section 5).
+/// Watch routing categories (`client/domain/contract/watches.md`, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SubjectShape {
     Application { scope: ApplicationScope, connector: u16, subject: skein_lib::Token },
@@ -213,7 +213,7 @@ pub enum SubjectShape {
 }
 
 /// Changes that mark subjects without consulting live child state
-/// (`client/domain/contract/README.md`, section 5.2).
+/// (`client/domain/contract/watches.md`, section 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Touch {
     Party(u64),
@@ -404,7 +404,7 @@ pub struct Chip {
 /// Each project has its kept name (domain/model.md, 6.1); unopened pools have no ledger.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FrameProjectRole {
-    /// Catalogue models beyond the chat charter's bounds (domain/engine/settings.md, 11).
+    /// Catalogue models beyond the chat charter's bounds (domain/engine/settings-catalogue.md, 1).
     pub left_out: u32,
     pub project: u32,
     pub role: people::Role,
@@ -426,7 +426,7 @@ pub struct FrameProjectRole {
 
 /// Party identity, current roles, bounded counts and contract configuration.
 /// Deployment membership is supplied independently of the bounded project rows
-/// (`client/domain/contract/README.md`, section 2 and `client/domain/contract/documents.md` and `client/domain/contract/README.md`, section 5.1).
+/// (`client/domain/contract/README.md`, section 2 and `client/domain/contract/documents.md` and `client/domain/contract/watches.md`, section 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Frame {
     pub party: u64,
@@ -583,7 +583,7 @@ pub fn chip_heap_bound(limits: &DocumentLimits) -> Option<u64> {
 /// Construct a bounded chip from a loaded owner row, without live observations
 /// or restoring it. Whole opaque resource keys must fit the receiving limits.
 pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, Missing> {
-    small::chip_from_row(limits, row)
+    small::chip_from_row(limits, row, None)
 }
 
 /// A list-only chip from retained summary facts (protocol/store/retention.md, 7).

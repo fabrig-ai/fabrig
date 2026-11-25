@@ -602,7 +602,7 @@ fn a_program_grant_never_lapses() {
     let (source, _) = declare(&mut world, HOLDER, PROVIDER, None, b"personal");
     let source = source.expect("declared source");
     assert_eq!(world.domain.source_grant(source, skein_lib::Time::from_nanos(u64::MAX)), Some(named_grant(source, 2)));
-    // The grant never lapses; the account's next alarm reads idle usage (accounts.md, 3.7).
+    // The grant never lapses; the account's next alarm reads idle usage (domain/accounts-lists.md, 1).
     assert_eq!(world.domain.next_deadline(), Some(skein_lib::Time::ZERO.saturating_add(QUIET)));
 }
 #[test]
@@ -670,7 +670,7 @@ fn a_login_check_with_an_exhausted_epoch_changes_nothing() {
     assert_eq!(world.domain.source_grant(1, world.now), Some(named_grant(1, u64::from(u32::MAX))));
 }
 
-/// Each accepted report replaces only what it says (accounts.md, 3.7).
+/// Each accepted report replaces only what it says (domain/accounts-lists.md, 1).
 #[test]
 fn program_reports_follow_the_live_source() {
     use jig_domain_accounts::{AccountFact, FactValue, KIND_EMAIL, Key, ORIGIN_PROGRAM};

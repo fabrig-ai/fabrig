@@ -1,4 +1,4 @@
-//! Complete watch admission and timed retry (temper/docs/design/domain/forge/keeping-up.md, 1, and temper/docs/design/domain/forge/change/README.md, 3).
+//! Complete watch admission and timed retry (temper/docs/design/domain/forge/keeping-up.md, 1, and temper/docs/design/domain/forge/change/drift.md, 1).
 use super::{
     ChangeRow, Domain, Env, Limits, Name, PendingStep, Request, StepStage, Stored, What, child, child_env, drain, emit,
     participating, to_client, valid_name,
@@ -487,6 +487,7 @@ pub(super) fn read_failed(
             },
         ),
         StepStage::Taking
+        | StepStage::CloseLanding
         | StepStage::StallChecks
         | StepStage::StallJobs
         | StepStage::Ci

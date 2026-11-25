@@ -1,4 +1,4 @@
-//! Current people/account coverage (accounts.md, 4.2; providers.md, 2.6 and 3.4).
+//! Current people/account coverage (domain/accounts-uses.md, 1.2; providers.md, 2.6 and 3.4).
 //! One predicate serves named-account admission, selection and the account document.
 use jig_domain_accounts as accounts;
 use jig_domain_people as people;

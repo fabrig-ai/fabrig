@@ -1,4 +1,4 @@
-//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, sections 2, 3, 9 and 12;
+//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, section 2, and smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run.md, sections 9 and 12;
 //! smith/docs/design/domain/session.md, sections 3–6): each of the protocol's events to the child domain it is for,
 //! each child domain's requests to the protocol layer or, translated, to the
 //! other, and the hand-offs the ready list deferred.
@@ -34,6 +34,7 @@ pub(crate) const fn session_env(env: &Env<Limits>) -> Env<session::Limits> {
 }
 
 /// Hands one of the protocol's events to the child domain it is for.
+#[expect(clippy::too_many_lines, reason = "one exhaustive ingress routing boundary")]
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let event = match event {
         Event::Start(crate::Start {
@@ -47,6 +48,8 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             workspace,
             grants,
             transcript,
+            tell_parts,
+            parts,
             answered,
         }) => {
             if let Err(invalid) = models_declared(domain, &charter) {
@@ -72,7 +75,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             }
             return start(
                 domain, env, reply_to, host_run, activation, identity, window, messages, charter, workspace,
-                transcript, answered,
+                transcript, answered, tell_parts, parts,
             );
         }
         Event::Acknowledge { run, turn } => return acknowledge(domain, env, run, turn),
@@ -85,7 +88,16 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             run::Event::Message { finish_requested, run, name, label, text }
         }
         Event::Cancel { run } => run::Event::Cancel { run },
-        Event::Drain { run } => run::Event::Drain { run },
+        Event::Disconnected { run } => {
+            disconnect_output(domain, run);
+            run::Event::Cancel { run }
+        }
+        Event::Drain { run, grace } => run::Event::Drain { run, grace },
+        Event::PartKept { run, number } => {
+            run_step(domain, env, run::Event::PartKept { run, number });
+            kept_output(domain, env, run, number, true);
+            return resume_pending(domain, env, run);
+        }
         Event::HostReturned { relay, reply } => run::Event::HostReturned { relay, reply },
         Event::Delivered { owner, delivery } => run::Event::Delivered { owner, delivery },
         Event::Below(Below::Read { owner, read }) => run::Event::Read { owner, read },
@@ -104,6 +116,9 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             }
             return;
         }
+        Event::Below(Below::Classified { owner, completion }) => {
+            return classified(domain, env, owner, completion);
+        }
         Event::Below(Below::Completed { owner, completion }) => {
             return completed(domain, env, owner, completion);
         }
@@ -119,6 +134,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
                 run::settle_reservation(&mut domain.run, conversation, owner, 0),
                 "cancelled call held its reservation"
             );
+            run::completion_settled(&mut domain.run, conversation, env.now);
             return session_step(domain, env, session::Event::Cancelled { owner });
         }
         Event::Below(Below::Done { owner, done }) => {
@@ -166,6 +182,7 @@ fn failed(
     let conversation = peer.conversation;
     peer.report = report;
     assert!(run::settle_reservation(&mut domain.run, conversation, owner, 0), "failed call held its reservation");
+    run::completion_settled(&mut domain.run, conversation, env.now);
     match failure {
         crate::llm::Failure::Unauthorized | crate::llm::Failure::SignedOut => {
             if let Some(grant) = grant
@@ -230,6 +247,7 @@ fn completed(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: c
     };
     let charge = preview.unwrap_or_default();
     let within_reservation = run::settle_reservation(&mut domain.run, conversation, owner, charge);
+    run::completion_settled(&mut domain.run, conversation, env.now);
     if !within_reservation {
         return session_step(domain, env, session::Event::Overflowed { owner, end: session::End::PriceOverflow });
     }
@@ -243,9 +261,81 @@ fn completed(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: c
     session_step(domain, env, session::Event::Completed { owner, completion });
 }
 
+fn record_bytes(env: &Env<Limits>) -> u64 {
+    limits::max_turn_bytes(&env.limits).expect("admitted record bound")
+}
+
+fn output_context(domain: &Domain, host_run: Token) -> Option<Id<StartContext>> {
+    for (id, context) in &domain.starts {
+        if context.host_run == host_run && !context.flow.done() {
+            return Some(id);
+        }
+    }
+    None
+}
+
+fn tell_output(
+    domain: &mut Domain,
+    host_run: Token,
+    record: crate::flow::Record,
+    request: Request,
+    out: &mut Queue<Request>,
+) {
+    let id = output_context(domain, host_run).expect("a told record retains its start");
+    domain.starts.get_mut(id).expect("live start").flow.push(record, request, out);
+}
+
+fn kept_output(domain: &mut Domain, _env: &Env<Limits>, run: Token, number: u32, part: bool) {
+    let mut found = None;
+    for (id, context) in &domain.starts {
+        if context.run == Some(run) && !context.flow.done() {
+            found = Some(id);
+            break;
+        }
+    }
+    if let Some(id) = found {
+        let context = domain.starts.get_mut(id).expect("live start");
+        context.flow.keep(part, number, &mut domain.notices);
+        if context.flow.done() {
+            domain.starts.retire(id);
+        }
+    }
+}
+
+fn disconnect_output(domain: &mut Domain, run: Token) {
+    let mut found = None;
+    for (id, context) in &domain.starts {
+        if context.run == Some(run) && !context.flow.done() {
+            found = Some(id);
+            break;
+        }
+    }
+    if let Some(id) = found {
+        let context = domain.starts.get_mut(id).expect("live start");
+        context.flow.disconnect(&mut domain.notices);
+        if context.flow.done() {
+            domain.starts.retire(id);
+        }
+    }
+}
+
 fn acknowledge(domain: &mut Domain, env: &Env<Limits>, run: Token, turn: u32) {
     run_step(domain, env, run::Event::Acknowledge { run, turn });
-    if let Some(pending) = domain.pending.remove(&run) {
+    kept_output(domain, env, run, turn, false);
+    resume_pending(domain, env, run);
+}
+
+fn resume_pending(domain: &mut Domain, env: &Env<Limits>, run: Token) {
+    let mut owners = List::with_capacity(domain.pending.len());
+    for (owner, _) in &domain.pending {
+        let id = *domain.sessions.get(owner).expect("held session");
+        let conversation = domain.peers.get(id).expect("held peer").conversation;
+        if run::owner(&domain.run, conversation) == Some(run) {
+            owners.push(*owner).expect("bounded held sessions");
+        }
+    }
+    for owner in &owners {
+        let pending = domain.pending.remove(owner).expect("held completion");
         let mut emitted = Queue::uncapped();
         complete(domain, env, pending, &mut emitted);
         // Completion settlement is finite; transferring notices makes no more work.
@@ -282,7 +372,11 @@ pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, handoff: Handoff) 
         Handoff::Close { peer } => {
             let peer = domain.peers.get(peer).expect("a close is forgotten when its peer goes");
             let session = peer.session.expect("the run closes a conversation once it has started");
-            session::Event::Close { session }
+            if run::cutting(&domain.run, peer.conversation) {
+                session::Event::Cut { session }
+            } else {
+                session::Event::Close { session }
+            }
         }
         Handoff::Answer { owner } => {
             let flight = domain.flights.remove(&owner).expect("a call is in flight until it is answered");
@@ -314,6 +408,7 @@ pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, handoff: Handoff) 
     clippy::too_many_arguments,
     reason = "Start keeps the host-issued activation with its concrete admission fields"
 )]
+#[expect(clippy::too_many_lines, reason = "admission validates the prepared start before handing it to the run")]
 fn start(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -327,6 +422,8 @@ fn start(
     workspace: Option<run::Workspace>,
     transcript: Option<session::record::Transcript>,
     answered: Box<[AnsweredCall]>,
+    tell_parts: bool,
+    parts: Box<[session::record::Resumed]>,
 ) {
     let largest_turn = limits::max_turn_bytes(&env.limits).expect("representable turn cap");
     if window.turns == 0 || window.bytes < largest_turn {
@@ -364,6 +461,19 @@ fn start(
         });
         return;
     }
+    let mut transcript = transcript;
+    let (parts, answered) = if charter.resume {
+        crate::resuming::select(transcript.as_ref(), parts, answered, &env.limits)
+    } else {
+        (None, answered)
+    };
+    if parts.is_none()
+        && let Some(history) = &transcript
+        && history.version == session::record::VERSION
+        && history.turns.is_empty()
+    {
+        transcript = None;
+    }
     let (transcript, answered, refused) = if charter.resume {
         match crate::waking::render(answered, &env.limits) {
             Some(text) if history_fits(transcript.as_ref(), &text, &env.limits) => (transcript, text, None),
@@ -374,7 +484,7 @@ fn start(
     };
     let resumed = transcript.is_some();
     // A resume without a host identity keeps the run tree under the recorded
-    // main key (smith/docs/design/domain/run.md, section 3.2). The run only mints when both are absent.
+    // main key (smith/docs/design/domain/run-start.md, section 1.2). The run only mints when both are absent.
     let identity = match identity {
         Some(identity) => Some(identity),
         None => match transcript.as_ref() {
@@ -385,12 +495,24 @@ fn start(
                     }
                     session::record::Kind::Ordinary => None,
                 },
-                None => None,
+                None => match &parts {
+                    Some(parts) => parts.identity(),
+                    None => None,
+                },
             },
             None => None,
         },
     };
-    let context = StartContext { reply_to: Some(reply_to), transcript, answered, refused };
+    let context = StartContext {
+        host_run,
+        run: None,
+        flow: crate::flow::Flow::new(window, tell_parts),
+        reply_to: Some(reply_to),
+        transcript,
+        answered,
+        parts,
+        refused,
+    };
     let id = domain.starts.insert(context).expect("reserved original parent right before work");
     run_step(
         domain,
@@ -406,6 +528,7 @@ fn start(
             workspace,
             transcript: Some(id.token()),
             resumed,
+            tell_parts,
         },
     );
 }
@@ -548,16 +671,73 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
         session::Request::Priced { opener, spent, own_spent } => {
             run::Event::Priced { conversation: opener, own_spent, subtree_spent: spent }
         }
-        session::Request::Turn { opener, turn } => {
+        session::Request::Part { opener, mut part } => {
+            if let Some((host_run, number, turn, call, spent)) = run::part(&mut domain.run, opener) {
+                part.call = call;
+                part.body.spent = spent;
+                let request = Request::Part { host_run, number, turn, part };
+                tell_output(
+                    domain,
+                    host_run,
+                    crate::flow::Record::Part { number, bytes: record_bytes(env) },
+                    request,
+                    out,
+                );
+            }
+            return;
+        }
+        session::Request::Turn { opener, mut turn } => {
             let id = peer(domain, opener);
             if !domain.peers.get(id).expect("main binding lives through Turn").is_main() {
+                if turn.kind.opens_window()
+                    && turn.sequence != 1
+                    && let Some((host_run, number, main_turn, call, spent)) = run::part(&mut domain.run, opener)
+                {
+                    let thread = match &turn.kind {
+                        session::record::Kind::First(opening) | session::record::Kind::Window(opening) => {
+                            opening.affinity.thread
+                        }
+                        session::record::Kind::Ordinary => 0,
+                    };
+                    turn.spent = spent;
+                    let part =
+                        session::record::Part { thread, call, kind: session::record::PartKind::Window, body: turn };
+                    let request = Request::Part { host_run, number, turn: main_turn, part };
+                    tell_output(
+                        domain,
+                        host_run,
+                        crate::flow::Record::Part { number, bytes: record_bytes(env) },
+                        request,
+                        out,
+                    );
+                }
                 return;
+            }
+            if let Some(host_run) = run::host_name(&domain.run, opener)
+                && let Some(context) = output_context(domain, host_run)
+            {
+                domain.starts.get_mut(context).expect("start retained").parts = None;
             }
             let sequence = turn.sequence;
             let opens_window = turn.kind.opens_window();
             let record =
                 domain.turns.insert(TurnHandoff { turn: Some(turn) }).expect("room for every queued session turn");
             run::Event::Turn { conversation: opener, record: record.token(), sequence, opens_window }
+        }
+        session::Request::RateLimitWait { opener, until } => {
+            let host_run = run::host_name(&domain.run, opener).expect("waiting session retains its run");
+            return out.push(Request::Long { host_run, operation: Operation::Completion, until });
+        }
+        session::Request::RateLimitWaitDone { opener } => {
+            let host_run = run::host_name(&domain.run, opener).expect("waiting session retains its run");
+            return out.push(Request::LongDone { host_run });
+        }
+        session::Request::RateLimitOutlastsSession { opener, retry_after } => {
+            let id = peer(domain, opener);
+            let peer = domain.peers.get_mut(id).expect("session retains peer through its terminal");
+            let account = peer.account.expect("the failed call issued with this account's grant");
+            peer.retry_at = Some(env.now.saturating_add(retry_after));
+            return out.push(Request::Limited { account, reset: Some(retry_after) });
         }
         session::Request::Complete {
             owner,
@@ -583,18 +763,13 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
         session::Request::Cancel { owner } => {
             let id = *domain.sessions.get(&owner).expect("a call owner retains its session");
             let conversation = domain.peers.get(id).expect("session retains peer").conversation;
-            let run = run::owner(&domain.run, conversation).expect("run outlives its session");
+            let _run = run::owner(&domain.run, conversation).expect("run outlives its session");
             if domain.grant_waits.remove(&owner).is_some() {
                 let host_run = run::host_name(&domain.run, conversation).expect("session retains run");
                 out.push(Request::LongDone { host_run });
                 return session_step(domain, env, session::Event::Cancelled { owner });
             }
-            let held = match domain.pending.get(&run) {
-                Some(pending) => pending.owner == owner,
-                None => false,
-            };
-            if held {
-                domain.pending.remove(&run);
+            if domain.pending.remove(&owner).is_some() {
                 return session_step(domain, env, session::Event::Cancelled { owner });
             }
             return out.push(Request::Lower(Lower::Cancel { owner }));
@@ -663,7 +838,11 @@ fn delegated(
     let activation = domain.peers.get(id).expect("found above").activation;
     let ask = domain.peers.get_mut(id).expect("found above").take(call);
     domain.tickets = domain.tickets.saturating_sub(1);
-    let flight = Flight { peer: id, withdrawn: false, answer: Due::Waiting };
+    let omit_on_cut = match &ask {
+        run::Ask::Save | run::Ask::Wait | run::Ask::Host { .. } | run::Ask::SubAgent { .. } => true,
+        run::Ask::Deliver { .. } | run::Ask::Finish { .. } => false,
+    };
+    let flight = Flight { peer: id, withdrawn: false, omit_on_cut, answer: Due::Waiting };
     let fresh = domain.flights.insert(owner, flight).expect("room for a batch of each session");
     assert!(fresh.is_none(), "a session names its calls in flight apart");
     run::Event::Delegated {
@@ -671,8 +850,24 @@ fn delegated(
         call: owner,
         ask,
         deadline,
-        name: run::CallName { activation, completion: origin.sequence, position: origin.position },
+        name: run::CallName { activation, completion: run::call_turn(&domain.run, opener), position: origin.position },
     }
+}
+
+// A disconnect cuts the session before a provider terminal can start a tool
+// batch. The normal hand-off waits a pass so an in-order completion can settle.
+fn close_session(domain: &mut Domain, session: Token) -> Option<session::Event> {
+    let id = *domain.sessions.get(&session)?;
+    let conversation = domain.peers.get(id).expect("session retains peer").conversation;
+    if let Some(run) = run::owner(&domain.run, conversation) {
+        for (_, context) in &domain.starts {
+            if context.run == Some(run) && context.flow.disconnected() {
+                return Some(session::Event::Cut { session });
+            }
+        }
+    }
+    domain.ready.defer(Handoff::Close { peer: id });
+    None
 }
 
 /// One of the run's requests: out to the protocol layer, or to the sessions.
@@ -680,8 +875,9 @@ fn delegated(
 fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: &mut Queue<Request>) {
     let event = match request {
         run::Request::CompletionReady { conversation } => {
-            let run = run::owner(&domain.run, conversation).expect("main retains its run");
-            if let Some(pending) = domain.pending.remove(&run) {
+            let id = peer(domain, conversation);
+            let owner = domain.peers.get(id).expect("retained peer").session.expect("started session");
+            if let Some(pending) = domain.pending.remove(&owner) {
                 complete(domain, env, pending, out);
             }
             return;
@@ -693,15 +889,24 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::MessageRefused { host_run, name, reason } => {
             return out.push(Request::MessageRefused { host_run, name, reason });
         }
-        run::Request::Admitted { host_run, run } => return out.push(Request::Admitted { host_run, run }),
+        run::Request::Admitted { host_run, run } => {
+            let id = output_context(domain, host_run).expect("admission retains its start");
+            domain.starts.get_mut(id).expect("retained start").run = Some(run);
+            return out.push(Request::Admitted { host_run, run });
+        }
         run::Request::Answer { to, answer, read, detail } => {
             let id = Id::<StartContext>::from_token(to.into_token());
             let context = domain.starts.get_mut(id).expect("root issued the start reply binding");
             let to = context.reply_to.take().expect("one terminal consumes the parent right");
             context.transcript = None;
             context.answered = Box::default();
-            domain.starts.retire(id);
-            return out.push(Request::Answer { to, answer, read, detail });
+            context.parts = None;
+            let request = Request::Answer { to, answer, read, detail };
+            context.flow.push(crate::flow::Record::Answer, request, out);
+            if context.flow.done() {
+                domain.starts.retire(id);
+            }
+            return;
         }
         run::Request::Waiting { host_run, read } => return out.push(Request::Waiting { host_run, read }),
         run::Request::Turn { host_run, record, number, position, opens_window, read, spent } => {
@@ -710,7 +915,9 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
             let turn = handoff.turn.take().expect("one output takes the concrete body");
             assert_eq!(turn.sequence, position, "run and record name the same conversation turn");
             domain.turns.retire(id);
-            return out.push(Request::Turn { host_run, number, position, opens_window, read, spent, turn });
+            let request = Request::Turn { host_run, number, position, opens_window, read, spent, turn };
+            tell_output(domain, host_run, crate::flow::Record::Turn { number, bytes: record_bytes(env) }, request, out);
+            return;
         }
         run::Request::Checking { host_run, deadline } => {
             return out.push(Request::Long { host_run, operation: Operation::Checks, until: deadline });
@@ -728,26 +935,26 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Probe { owner, at, deadline } => {
             return out.push(Request::Lower(Lower::Probe { owner, at, deadline }));
         }
-        run::Request::Check { owner, program, bound, cap, tail } => {
-            return out.push(Request::Lower(Lower::Check { owner, program, bound, cap, tail }));
+        run::Request::Check { owner, program, results, bound, cap, tail } => {
+            return out.push(Request::Lower(Lower::Check { owner, program, results, bound, cap, tail }));
         }
         run::Request::Abort { owner } => return out.push(Request::Lower(Lower::Abort { owner })),
         run::Request::Open { conversation, opening } => {
-            return open(domain, env, conversation, opening);
+            return open(domain, env, conversation, opening, out);
         }
         run::Request::Say { peer, text } => session::Event::Continue { session: peer, content: text },
         run::Request::Yield { peer } => session::Event::Yield { session: peer },
         run::Request::CancelJobs { peer } => session::Event::CancelJobs { session: peer },
         run::Request::Close { peer } => {
-            // A close of a session that has ended is stale.
-            if let Some(id) = domain.sessions.get(&peer) {
-                domain.ready.defer(Handoff::Close { peer: *id });
-            }
-            return;
+            let Some(event) = close_session(domain, peer) else { return };
+            event
         }
         run::Request::Return { call, result, spent } => {
             let flight = domain.flights.get_mut(&call).expect("the run returns a call in flight");
-            if flight.withdrawn && result == run::Returned::Cancelled {
+            let conversation = domain.peers.get(flight.peer).expect("flight retains peer").conversation;
+            if (flight.omit_on_cut && run::cutting(&domain.run, conversation))
+                || (flight.withdrawn && result == run::Returned::Cancelled)
+            {
                 flight.answer = Due::Cancelled { spent };
             } else if result == run::Returned::Withheld {
                 flight.answer = Due::Withheld;
@@ -867,9 +1074,8 @@ fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, 
             return session_step(domain, env, session::Event::Narrowed { owner, note, choice, names });
         }
         run::CompletionPermit::Held => {
-            let run = run::owner(&domain.run, conversation).expect("main remains live while held");
-            let old = domain.pending.insert(run, pending).expect("one held completion per run");
-            assert!(old.is_none(), "only one unsent main completion");
+            let old = domain.pending.insert(owner, pending).expect("one held completion per conversation");
+            assert!(old.is_none(), "only one unsent completion per conversation");
             return;
         }
         run::CompletionPermit::Denied(exhausted) => {
@@ -1006,7 +1212,11 @@ fn model_index(domain: &Domain, conversation: Token, model: &run::charter::Llm) 
 
 /// Host rate/share translation and concrete restore admission precede effects.
 /// Session alone prices, while token ceilings remain receiving limits.
-fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: run::Opening) {
+#[expect(
+    clippy::too_many_lines,
+    reason = "one prepared opening crosses the run/session boundary with optional cut history"
+)]
+fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: run::Opening, out: &mut Queue<Request>) {
     let endpoint = opening.llm.endpoint;
     let model = model_index(domain, conversation, &opening.llm);
     let progress = domain.config.progress(&opening.llm);
@@ -1016,7 +1226,7 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
     let dialect = opening.llm.dialect;
     let prices = opening.llm.prices;
     let budget = opening.budget.spend;
-    let (transcript, answered) = match opening.transcript {
+    let (mut transcript, answered) = match opening.transcript {
         Some(binding) => {
             let context = domain.starts.get_mut(Id::from_token(binding)).expect("root issued the restore binding");
             match context.refused.take() {
@@ -1037,6 +1247,31 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         }
         None => (None, Box::default()),
     };
+    let mut cut = None;
+    let mut fallback_answers = None;
+    let mut window_answers = None;
+    if let Some((host_run, position)) = run::resume_position(&domain.run, conversation)
+        && let Some(context) = output_context(domain, host_run)
+        && let Some(parts) = &domain.starts.get(context).expect("start retained").parts
+    {
+        match parts.build(position, transcript.clone(), &env.limits) {
+            Some((history, answer)) => {
+                transcript = Some(history);
+                cut = Some(answer);
+                if position.is_none() {
+                    fallback_answers = Some(parts.fallback_answers.clone());
+                }
+            }
+            None => {
+                if let Some(position) = position
+                    && let Some((history, answers)) = parts.window(position)
+                {
+                    transcript = Some(history);
+                    window_answers = Some(answers);
+                }
+            }
+        }
+    }
     let window_llm = resumed_model(
         &domain.config,
         run::conversation_charter(&domain.run, conversation).expect("run owns its conversation"),
@@ -1060,6 +1295,18 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         );
     };
     spec.protocol_allowance = protocol_allowance;
+    let fallback_prompt = match fallback_answers {
+        Some(answers) => {
+            let mut prompt = List::with_capacity(
+                u32::try_from(answers.len().saturating_add(spec.prompt.len())).expect("bounded waking text"),
+            );
+            for byte in answers.iter().chain(spec.prompt.iter()) {
+                prompt.push(*byte).expect("measured waking text");
+            }
+            Some(prompt.into_boxed())
+        }
+        None => None,
+    };
     if !answered.is_empty() {
         let Some(length) = answered.len().checked_add(spec.prompt.len()) else {
             return run_step(
@@ -1079,24 +1326,143 @@ fn open(domain: &mut Domain, env: &Env<Limits>, conversation: Token, opening: ru
         }
         spec.prompt = prompt.into_boxed();
     }
-    let peer = Peer::new(conversation, activation, account, model, offered, &env.limits.session);
+    if let Some(cut) = &cut
+        && spec.affinity.thread != 0
+    {
+        spec.budget.turns = spec.budget.turns.saturating_sub(cut.answers);
+    }
+    if let Some(answers) = window_answers {
+        spec.budget.turns = spec.budget.turns.saturating_sub(answers);
+        if let Some(history) = &transcript
+            && let Some(first) = history.turns.first()
+        {
+            match &first.kind {
+                session::record::Kind::First(opener) | session::record::Kind::Window(opener) => {
+                    if let Some(system) = &opener.system {
+                        spec.system.clone_from(system);
+                    }
+                }
+                session::record::Kind::Ordinary => {}
+            }
+        }
+    }
+    prepare_cut(&mut cut, &spec, env);
+    let mut peer = Peer::new(conversation, activation, account, model, offered, &env.limits.session);
+    peer.fallback_prompt = fallback_prompt;
     let id = domain.peers.insert(peer).expect("a peer for every conversation the run has");
     let fresh = domain.conversations.insert(conversation, id).expect("a peer for every conversation");
     assert!(fresh.is_none(), "the run names its conversations apart");
-    let event = session::Event::Open {
-        opener: conversation,
-        opening: Box::new(session::record::Opening {
-            spec,
-            window_llm,
-            dialect,
-            prices: translate::prices(prices),
-            budget,
-            transcript,
-            answered: Box::default(),
-            withheld: Some(Box::from(crate::peer::WAIT_NAME)),
-        }),
-    };
-    session_step(domain, env, event);
+    let opening = Box::new(session::record::Opening {
+        spec,
+        window_llm,
+        dialect,
+        prices: translate::prices(prices),
+        budget,
+        transcript,
+        answered: Box::default(),
+        cut,
+        withheld: Some(Box::from(crate::peer::WAIT_NAME)),
+    });
+    if let Some(cut) = &opening.cut {
+        let peer = domain.peers.get_mut(id).expect("inserted peer");
+        let request = Lower::Classify {
+            owner: conversation,
+            content: cut.content.clone(),
+            tools: opening.spec.authority.grants,
+            served: peer.served(),
+            asker: if peer.is_main() { crate::llm::Asker::Main } else { crate::llm::Asker::Child },
+            decoded_call_bytes: env.limits.decoded_call_bytes,
+        };
+        peer.opening = Some(opening);
+        out.push(Request::Lower(request));
+    } else {
+        session_step(domain, env, session::Event::Open { opener: conversation, opening });
+    }
+}
+
+fn prepare_cut(cut: &mut Option<session::record::Cut>, spec: &session::Spec, env: &Env<Limits>) {
+    if let Some(cut) = cut {
+        // A withheld wait receives the waking prompt rather than entering live waiting.
+        let mut results = List::with_capacity(env.limits.session.completion_blocks);
+        for result in &cut.results {
+            results.push(result.clone()).expect("bounded cut results");
+        }
+        for block in &cut.content {
+            let Some(call) = block.tool_call() else { continue };
+            if call.name.as_ref() == crate::peer::WAIT_NAME && !cut_result(&cut.results, &call.id) {
+                results
+                    .push(session::llm::Block::ToolResult {
+                        id: call.id.clone(),
+                        result: session::llm::Returned::Text { text: spec.prompt.clone(), error: false, replay: None },
+                    })
+                    .expect("one result per cut call");
+                cut.waking_in_result = true;
+            }
+        }
+        cut.results = results.into_boxed();
+    }
+}
+
+fn cut_result(results: &[session::llm::Block], wanted: &[u8]) -> bool {
+    for result in results {
+        match result {
+            session::llm::Block::ToolResult { id, .. } if id.as_ref() == wanted => return true,
+            session::llm::Block::ToolResult { .. }
+            | session::llm::Block::ToolCall(_)
+            | session::llm::Block::Text { .. }
+            | session::llm::Block::Refusal { .. }
+            | session::llm::Block::Opaque { .. } => {}
+        }
+    }
+    false
+}
+
+fn classified(domain: &mut Domain, env: &Env<Limits>, owner: Token, completion: Option<crate::llm::Completion>) {
+    let Some(id) = domain.conversations.get(&owner).copied() else { return };
+    let peer = domain.peers.get_mut(id).expect("classifying peer");
+    let Some(mut opening) = peer.opening.take() else { return };
+    match completion {
+        Some(completion) => {
+            peer.fallback_prompt = None;
+            let cut = opening.cut.as_mut().expect("classifying a cut answer");
+            let before = peer.tickets();
+            let completion = peer.resumed(
+                completion,
+                &cut.results,
+                env.limits.decoded_call_bytes.min(env.limits.session.history_bytes),
+            );
+            domain.tickets = domain.tickets.saturating_add(peer.tickets()).saturating_sub(before);
+            cut.content = completion.content;
+        }
+        None => {
+            if let Some(prompt) = peer.fallback_prompt.take() {
+                opening.spec.prompt = prompt;
+            }
+            let cut = opening.cut.take().expect("classifying cut");
+            if let Some(mut history) = opening.transcript.take() {
+                let mut turns = List::with_capacity(cut.previous);
+                for turn in history.turns.into_iter().take(usize::try_from(cut.previous).expect("bounded prefix")) {
+                    turns.push(turn).expect("bounded prefix");
+                }
+                history.turns = turns.into_boxed();
+                if cut.previous > 0 {
+                    opening.transcript = Some(history);
+                }
+            }
+        }
+    }
+    if opening.cut.is_some() {
+        run::resume_answer(&mut domain.run, owner, env.now);
+        if let Some((host_run, None)) = run::resume_position(&domain.run, owner)
+            && let Some(context) = output_context(domain, host_run)
+            && let Some(parts) = &domain.starts.get(context).expect("retained start").parts
+        {
+            for (position, delivery) in &parts.deliveries {
+                run::recover_delivery(&mut domain.run, owner, *position, delivery.clone());
+            }
+        }
+    }
+    session_step(domain, env, session::Event::Open { opener: owner, opening });
 }
 
 /// Select charter quantities for a saved window, falling back to main for an unnamed model.

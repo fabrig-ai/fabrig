@@ -1,5 +1,6 @@
 //! A worker's start: a worker alone's whole, and what a standalone start's worker takes (protocol/binaries.md, 5, and protocol/cluster.md, 1).
 use crate::{agent, path};
+use skein_io::kernel::{Fd, Stat};
 use std::{
     fs,
     io::Write,
@@ -10,7 +11,7 @@ use std::{
     path::Path,
 };
 use temper_service_shell::jig_directories;
-use temper_shell::directories::{Directories, EnvironmentEntry, private_root};
+use temper_shell::directories::{Directories, EnvironmentEntry, private_root_with};
 use temper_worker_service as service;
 /// Prepare a worker's own directories and program sources, with no deployment.
 pub fn alone(
@@ -51,7 +52,17 @@ pub(crate) fn part(
     environment: &[EnvironmentEntry],
     programs: &temper_config_shell::Programs,
 ) -> Result<service::startup::WorkerPart, String> {
-    let git = programs.git.clone().or_else(|| temper_shell::lookup::find(environment, b"git"));
+    part_with(directories, bytes, environment, programs, || temper_shell::lookup::find(environment, b"git"))
+}
+
+pub(crate) fn part_with(
+    directories: &Directories,
+    bytes: &[u8],
+    environment: &[EnvironmentEntry],
+    programs: &temper_config_shell::Programs,
+    find_git: impl FnOnce() -> Option<std::path::PathBuf>,
+) -> Result<service::startup::WorkerPart, String> {
+    let git = programs.git.clone().or_else(find_git);
     let mut part = service::startup::worker_part(
         bytes,
         &jig_directories(directories),
@@ -109,7 +120,15 @@ pub(crate) fn configuration(
     directories: &Directories,
     environment: &[EnvironmentEntry],
 ) -> Result<Box<[u8]>, String> {
-    let claude = part.claude.as_deref().map(path).map(Path::to_path_buf).or_else(|| find_claude(environment));
+    configuration_with(part, directories, || find_claude(environment))
+}
+
+pub(crate) fn configuration_with(
+    part: &service::startup::WorkerPart,
+    directories: &Directories,
+    find_claude: impl FnOnce() -> Option<std::path::PathBuf>,
+) -> Result<Box<[u8]>, String> {
+    let claude = part.claude.as_deref().map(path).map(Path::to_path_buf).or_else(find_claude);
     agent::figures::configuration(
         part.figures.as_ref().expect("applied figures"),
         claude.as_deref(),
@@ -124,14 +143,27 @@ pub fn root(
     user: u32,
     owned: &mut Vec<skein_io::kernel::Fd>,
 ) -> Result<service::WorkerRuntime, String> {
+    root_with(worker, configuration, user, owned, skein_shell::symlink_stat, skein_shell::make_root, pin)
+}
+
+fn root_with(
+    worker: &service::startup::NamedWorker,
+    configuration: &[u8],
+    user: u32,
+    owned: &mut Vec<Fd>,
+    mut inspect: impl FnMut(&Path) -> std::io::Result<Stat>,
+    make: impl FnOnce(&Path, u32) -> Result<Fd, i32>,
+    pin: impl FnOnce(&Path, &jig_protocol_config::Agent, &[u8]) -> Result<jig_protocol_config::Agent, String>,
+) -> Result<service::WorkerRuntime, String> {
     let root_path = path(&worker.root);
-    if std::fs::symlink_metadata(root_path).is_ok() {
-        private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
+    let check =
+        |metadata| private_root_with(user, metadata).map_err(|why| format!("application.workers[0].root: {why}"));
+    if inspect(root_path).is_ok() {
+        check(inspect(root_path))?;
     }
-    let root = skein_shell::make_root(root_path, 0o700)
-        .map_err(|errno| format!("application.workers[0].root: errno {errno}"))?;
+    let root = make(root_path, 0o700).map_err(|errno| format!("application.workers[0].root: errno {errno}"))?;
     owned.push(root);
-    private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
+    check(inspect(root_path))?;
     let agent = pin(
         root_path,
         &jig_protocol_config::Agent {
@@ -141,28 +173,30 @@ pub fn root(
         },
         configuration,
     )?;
-    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into(), agent, wires: None })
+    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into(), agent })
 }
 
 /// Write a fresh, private agent from the start's checked bytes
-/// (domain/worker/README.md, 5). Only exact configuration arguments are replaced.
+/// (domain/worker/agent-processes.md, 1). Only exact configuration arguments are replaced.
 pub fn pin(
     root: &Path,
     agent: &jig_protocol_config::Agent,
     configuration: &[u8],
 ) -> Result<jig_protocol_config::Agent, String> {
-    let directory = std::path::absolute(root).map_err(|why| format!("{}: {why}", root.display()))?.join("agent");
-    match fs::symlink_metadata(&directory) {
-        Ok(metadata) => {
-            let removed = if metadata.is_dir() { fs::remove_dir_all(&directory) } else { fs::remove_file(&directory) };
-            removed.map_err(|why| format!("{}: {why}", directory.display()))?;
-        }
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
-        Err(why) => return Err(format!("{}: {why}", directory.display())),
-    }
-    fs::DirBuilder::new().mode(0o700).create(&directory).map_err(|why| format!("{}: {why}", directory.display()))?;
-    fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))
-        .map_err(|why| format!("{}: {why}", directory.display()))?;
+    let root = std::path::absolute(root).map_err(|why| format!("{}: {why}", root.display()))?;
+    pin_with(&root, agent, configuration, pin_directory, pin_program, pin_configuration)
+}
+
+pub(crate) fn pin_with(
+    root: &Path,
+    agent: &jig_protocol_config::Agent,
+    configuration: &[u8],
+    prepare_directory: impl FnOnce(&Path) -> Result<(), String>,
+    copy_program: impl FnOnce(&Path, &Path) -> Result<(), String>,
+    write_configuration: impl FnOnce(&Path, &[u8]) -> Result<(), String>,
+) -> Result<jig_protocol_config::Agent, String> {
+    let directory = root.join("agent");
+    prepare_directory(&directory)?;
     let program = path(&agent.program);
     let document = path(&agent.configuration);
     let program_copy =
@@ -172,19 +206,8 @@ pub fn pin(
     if program_copy == document_copy {
         return Err(format!("{}: program and configuration have the same file name", document.display()));
     }
-    fs::copy(program, &program_copy)
-        .map_err(|why| format!("{} -> {}: {why}", program.display(), program_copy.display()))?;
-    fs::set_permissions(&program_copy, fs::Permissions::from_mode(0o700))
-        .map_err(|why| format!("{}: {why}", program_copy.display()))?;
-    let mut file = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&document_copy)
-        .map_err(|why| format!("{}: {why}", document_copy.display()))?;
-    file.write_all(configuration).map_err(|why| format!("{}: {why}", document_copy.display()))?;
-    file.set_permissions(fs::Permissions::from_mode(0o600))
-        .map_err(|why| format!("{}: {why}", document_copy.display()))?;
+    copy_program(program, &program_copy)?;
+    write_configuration(&document_copy, configuration)?;
     let pinned_configuration: Box<[u8]> = document_copy.as_os_str().as_bytes().into();
     let arguments = agent
         .arguments
@@ -196,6 +219,36 @@ pub fn pin(
         arguments,
         configuration: pinned_configuration,
     })
+}
+
+fn pin_directory(directory: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(directory) {
+        Ok(metadata) => {
+            let removed = if metadata.is_dir() { fs::remove_dir_all(directory) } else { fs::remove_file(directory) };
+            removed.map_err(|why| format!("{}: {why}", directory.display()))?;
+        }
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+        Err(why) => return Err(format!("{}: {why}", directory.display())),
+    }
+    fs::DirBuilder::new().mode(0o700).create(directory).map_err(|why| format!("{}: {why}", directory.display()))?;
+    fs::set_permissions(directory, fs::Permissions::from_mode(0o700))
+        .map_err(|why| format!("{}: {why}", directory.display()))
+}
+
+fn pin_program(program: &Path, copy: &Path) -> Result<(), String> {
+    fs::copy(program, copy).map_err(|why| format!("{} -> {}: {why}", program.display(), copy.display()))?;
+    fs::set_permissions(copy, fs::Permissions::from_mode(0o700)).map_err(|why| format!("{}: {why}", copy.display()))
+}
+
+fn pin_configuration(copy: &Path, configuration: &[u8]) -> Result<(), String> {
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(copy)
+        .map_err(|why| format!("{}: {why}", copy.display()))?;
+    file.write_all(configuration).map_err(|why| format!("{}: {why}", copy.display()))?;
+    file.set_permissions(fs::Permissions::from_mode(0o600)).map_err(|why| format!("{}: {why}", copy.display()))
 }
 
 /// Resources and switches the caller installs on its own service.
@@ -234,11 +287,24 @@ fn source_inputs(
     environment: &[EnvironmentEntry],
     open_parent: bool,
 ) -> Result<Sources, String> {
+    source_inputs_with(agent, command_environment, user, environment, open_parent, |directory| {
+        temper_launcher::place(directory, cache, agent_program)
+    })
+}
+
+fn source_inputs_with(
+    agent: &service::settings::Agent,
+    command_environment: Box<[Box<[u8]>]>,
+    user: u32,
+    environment: &[EnvironmentEntry],
+    open_parent: bool,
+    place: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<Sources, String> {
     let reuse = crate::workspace_reuse(environment);
     let dump = crate::dump_llm(environment).map(|directory| directory.as_os_str().as_bytes().into());
     let resources = if let Some(program) = agent.programs.first() {
         if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
-            temper_launcher::place(path(&program.path).parent().expect("launcher parent"), cache, agent_program)
+            place(path(&program.path).parent().expect("launcher parent"))
                 .map_err(|why| format!("programs.claude_code: {why}"))?;
         }
         // Source commands use the agent's explicit command environment.
@@ -263,8 +329,18 @@ pub fn inputs(
     directories: &Directories,
     executable: &Path,
 ) -> Result<(), String> {
-    match fs::symlink_metadata(path(&directories.config).join("agent.json")) {
-        Ok(_) => {
+    let former = fs::symlink_metadata(path(&directories.config).join("agent.json")).map(|_| ());
+    inputs_with(part, executable, former, temper_shell::lookup::is_executable)
+}
+
+pub(crate) fn inputs_with(
+    part: &mut service::startup::WorkerPart,
+    executable: &Path,
+    former: std::io::Result<()>,
+    is_executable: impl Fn(&Path) -> bool,
+) -> Result<(), String> {
+    match former {
+        Ok(()) => {
             return Err(
                 "agent.json: moved: temper writes the agent's configuration under the worker's root; remove it".into(),
             );
@@ -273,28 +349,34 @@ pub fn inputs(
         Err(why) => return Err(format!("agent.json: {why}")),
     }
     if let Some(claude) = &part.claude {
-        executable_file(path(claude), "application.workers[0].claude")?;
+        executable_file(path(claude), "application.workers[0].claude", &is_executable)?;
     }
     let program = executable.parent().ok_or("worker executable has no directory")?.join("temper-agent");
-    executable_file(&program, "the derived agent program")?;
+    executable_file(&program, "the derived agent program", is_executable)?;
     part.named.program = program.as_os_str().as_bytes().into();
     part.named.arguments = Box::new([part.named.agent.clone()]);
     Ok(())
 }
-pub(crate) fn executable_file(program: &Path, name: &str) -> Result<(), String> {
-    if !temper_shell::lookup::is_executable(program) {
+pub(crate) fn executable_file(
+    program: &Path,
+    name: &str,
+    is_executable: impl FnOnce(&Path) -> bool,
+) -> Result<(), String> {
+    if !is_executable(program) {
         return Err(format!("{name}: {}: must be an absolute path to an executable file", program.display()));
     }
     Ok(())
 }
 #[must_use]
 pub fn find_claude(environment: &[EnvironmentEntry]) -> Option<std::path::PathBuf> {
-    let value = temper_shell::environment::PATH.value(environment)?;
-    value
-        .split(|byte| *byte == b':')
-        .filter(|entry| entry.starts_with(b"/"))
-        .map(|entry| path(entry).join("claude"))
-        .find(|candidate| executable_file(candidate, "claude").is_ok())
+    find_claude_with(environment, temper_shell::lookup::is_executable)
+}
+
+pub(crate) fn find_claude_with(
+    environment: &[EnvironmentEntry],
+    is_executable: impl Fn(&Path) -> bool,
+) -> Option<std::path::PathBuf> {
+    temper_shell::lookup::candidates(environment, b"claude").into_iter().find(|candidate| is_executable(candidate))
 }
 #[must_use]
 pub fn figures_line(engine: &jig_protocol_config::Address, figures: &jig_protocol_worker_wire::Figures) -> String {
@@ -318,3 +400,10 @@ pub fn stop_line(stop_bound: skein_lib::Duration, drain: skein_lib::Duration) ->
     let drain = drain.as_nanos().div_ceil(1_000_000_000);
     format!("stop bound {stop} s, drain {drain} s\n")
 }
+
+#[cfg(test)]
+mod root_tests;
+
+#[cfg(test)]
+#[path = "worker_sources_tests.rs"]
+mod sources_tests;

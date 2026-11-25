@@ -239,7 +239,7 @@ fn a_restart_resends_the_step_it_cut() {
         outputs(&mut restored, Event::Restore { record: Stored::Forge(forge) });
         outputs(&mut restored, Event::Restore { record: Stored::Playground(row) });
         outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        let sent = outputs(&mut restored, Event::ReadAfresh);
+        let sent = outputs(&mut restored, Event::CatchUp);
         match step {
             ResetStep::Project => assert_eq!(
                 reset_act(&sent),
@@ -268,7 +268,7 @@ fn a_restart_keeps_resetting_until_both_forge_removal_steps_answer() {
         let sent = outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         assert_eq!(sent.contains(&Request::ForgeGone { forge: row.forge }), !secrets_erased);
         assert_eq!(sent.contains(&Request::BoxRemove { forge: row.forge }), !box_removed);
-        outputs(&mut restored, Event::ReadAfresh);
+        outputs(&mut restored, Event::CatchUp);
         assert_eq!(restored.playground(), Some(&row), "the reload still reads resetting");
         assert!(ask(&mut restored, 2, Ask::EndPlayground).is_empty(), "another end waits on the same removal");
         let mut sent: Box<[Request]> = Box::new([]);
@@ -346,7 +346,7 @@ fn a_start_cut_by_a_restart_resets_the_playground() {
         outputs(&mut restored, Event::Restore { record: Stored::Forge(forge) });
         outputs(&mut restored, Event::Restore { record: Stored::Playground(row) });
         outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        let sent = outputs(&mut restored, Event::ReadAfresh);
+        let sent = outputs(&mut restored, Event::CatchUp);
         if let Some(project) = project {
             assert_eq!(reset_act(&sent).1, ResetAct::RemoveProject { project });
         } else {
@@ -369,7 +369,7 @@ fn a_restart_with_the_playground_running_resets_it() {
     outputs(&mut restored, Event::Restore { record: Stored::Forge(forge) });
     outputs(&mut restored, Event::Restore { record: Stored::Playground(row) });
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    let sent = outputs(&mut restored, Event::ReadAfresh);
+    let sent = outputs(&mut restored, Event::CatchUp);
     let resetting = Playground { state: PlaygroundState::Resetting(ResetStep::Project), ..row };
     assert_eq!(restored.playground(), Some(&resetting));
     assert_eq!(

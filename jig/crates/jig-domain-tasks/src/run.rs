@@ -1,5 +1,5 @@
 //! Fenced run preparation, claims, activation terminals and holds
-//! (domain/tasks/lifecycle.md, sections 2 and 6–8). Root supplies run
+//! (domain/tasks/lifecycle.md, section 2, and domain/tasks/lifecycle-holds.md, section 1, and domain/tasks/lifecycle.md, section 7, and domain/tasks/lifecycle-endings.md, section 1). Root supplies run
 //! events; tasks checks lifecycle/result shape and emits bounded state changes.
 //! Priced inputs use combined accounting admission; exact replay is root-owned.
 pub(crate) mod ends;
@@ -431,11 +431,12 @@ pub(crate) struct Ended {
     pub(crate) attempt: u64,
     pub(crate) end: End,
     pub(crate) saved: Option<Box<[SavedResource]>>,
+    pub(crate) park: bool,
 }
 
 #[expect(clippy::too_many_lines, reason = "one terminal normalizes the result and settles its current attempt")]
 pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, ended: Ended, out: &mut Queue<Request>) {
-    let Ended { number, attempt, end, saved } = ended;
+    let Ended { number, attempt, end, saved, park } = ended;
     let (end, reason) = match end {
         End::RefusedWithReason { reason } => {
             let reason = preparation_reason(&reason);
@@ -625,7 +626,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     };
     let terminal_parks = end == End::Parked;
     let activation_ended = match &end {
-        End::Parked => !narrowed && !kept.blocks_claims() && !kept.owes,
+        End::Parked => !narrowed && !park && !kept.blocks_claims() && !kept.owes,
         End::Finished { .. } => true,
         End::Exceeded(_)
         | End::Failed(_)
@@ -668,11 +669,19 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
             End::Parked => {
                 let task = task_mut(domain, number).expect("terminal names live task");
-                if !kept.owes && task.record.flags.ended_by != crate::EndedBy::Standing {
-                    task.record.tries = Tries::NONE;
+                if park {
+                    kept.amended(executor, Phase::Active(Active::Due))
+                } else {
+                    if !kept.owes && task.record.flags.ended_by != crate::EndedBy::Standing {
+                        task.record.tries = Tries::NONE;
+                    }
+                    task.record.refusals = 0;
+                    if narrowed && !kept.blocks_claims() {
+                        Phase::Active(Active::Due)
+                    } else {
+                        Phase::Active(Active::Idle)
+                    }
                 }
-                task.record.refusals = 0;
-                if narrowed && !kept.blocks_claims() { Phase::Active(Active::Due) } else { Phase::Active(Active::Idle) }
             }
             End::Exceeded(value) => exceeded(domain, number, value),
             End::FailedWithReason { class, .. } | End::Failed(class) => failure(domain, env, number, class, reason),
@@ -751,10 +760,10 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     }
     crate::standing::after_run(domain, env, number, out);
     // The numbered reminder must precede any preparation caused by unread words.
-    if !parked || !kept.owes {
+    if !park && (!parked || !kept.owes) {
         crate::wake::after_run(domain, env, number, out);
     }
-    let question = if end_kind == crate::EndKind::Parked && !narrowed {
+    let question = if end_kind == crate::EndKind::Parked && !narrowed && !park {
         question_left_open(domain, record(domain, number).expect("answered task live"))
     } else {
         None
@@ -762,13 +771,17 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if question.is_some() {
         task_mut(domain, number).expect("idle question task").record.tries = previous_tries;
     }
-    let words =
-        end_kind == crate::EndKind::Parked && !narrowed && question.is_none() && words_left_unrecorded(domain, number);
+    let words = end_kind == crate::EndKind::Parked
+        && !narrowed
+        && !park
+        && question.is_none()
+        && words_left_unrecorded(domain, number);
     if words {
         task_mut(domain, number).expect("idle words task").record.tries = previous_tries;
     }
     let nothing_awaited = end_kind == crate::EndKind::Parked
         && !narrowed
+        && !park
         && nothing_awaited(domain, record(domain, number).expect("answered task live"));
     let closer = crate::closer::named(record(domain, number).expect("answered task live"));
     if nothing_awaited {

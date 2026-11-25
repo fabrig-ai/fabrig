@@ -18,6 +18,9 @@ fn an_act_without_key_draws_one() {
     let call = root.submit(fixtures::STOP_CALL);
     root.serve(call, fixtures::task_result(fixtures::offered(&[c::ActKind::Stop])));
     assert_eq!(root.sent_name(call), Some(*root.saved.get(&call).expect("drawn key saved")));
+    let jig_client::Ask::Jig(ask) = &root.sends[&call].2 else { panic!("sent a jig stop") };
+    let c::Ask::Stop { task: 41, reason, .. } = ask.as_ref() else { panic!("stops task 41") };
+    assert_eq!(reason.bytes(), b"Parking the task");
 }
 #[test]
 fn an_act_not_offered_reaches_the_engine_for_replay_or_refusal() {
@@ -577,6 +580,22 @@ fn a_cut_question_is_answered_as_any_other() {
     );
     root.done(call, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     assert_eq!(root.answer(call).expect("answer completed").status, 0);
+}
+
+#[test]
+fn answering_the_inbox_question_prints_its_kept_identity() {
+    let (mut root, call) = fixtures::send_act(
+        &["task", "answer", "41", "3", "Go ahead.", "--key", "approval", "--json"],
+        fixtures::SEED,
+        fixtures::EMPTY.into(),
+    );
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::QuestionAnswered { task: 41, question: 3, message: 9 }));
+    let printed = root.answer(call).expect("answer kept");
+    assert_eq!(printed.status, 0);
+    assert!(
+        skein_lib::bytes::find(&printed.stdout, br#""question_answered":{"task":41,"question":3,"message":9}"#)
+            .is_some()
+    );
 }
 
 // Three retained answers, with a full day's advertised retention.

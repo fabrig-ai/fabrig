@@ -125,6 +125,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Record::Core(
             CoreRecord::Settings(_)
             | CoreRecord::Projection(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Turn(_)
@@ -259,15 +260,8 @@ fn ready(
         refuse(store, owner, OpenRefusal::Set { owner: why }, above);
         return;
     }
-    // The copy's serving machines are made after its check.
+    store.directory.admitted_schemas = None;
     if store.directory.patch.is_none() {
-        store.transcripts.machines = match crate::transcripts::patches::make(&store.owner_sets, &store.limits) {
-            Ok(machines) => machines,
-            Err(why) => {
-                refuse(store, owner, OpenRefusal::Set { owner: why }, above);
-                return;
-            }
-        };
         // Serving codecs read the catalogue after the registry's commit and jobs (protocol/store/opening.md, 2).
         if let Err(failure) = crate::catalogue::catalogue(store) {
             store.open_failed(restore::OpenFailure::Data(failure));
@@ -282,7 +276,7 @@ fn ready(
 
 pub(crate) fn refuse(store: &mut Store, owner: Token, why: OpenRefusal, above: &mut Queue<Event>) {
     crate::rehearsal::announce(store, above);
-    store.directory.checked = None;
+    store.directory.reset_admission();
     store.open_failed(restore::OpenFailure::Refused(why.clone()));
     store.phase = Phase::Stopped;
     above.push(Event::OpenRefused { owner, why });

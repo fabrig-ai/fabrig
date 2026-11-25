@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use skein_lib::bytes::{concat, find, utf8_prefix};
 use skein_lib::{Decimal, List, Writer};
 
+pub const REPORT_OPENING: &[u8] = b"report: ";
 pub const SELECTION_PREFIX: &[u8] = b"selection: ";
 pub const SELECTION_LINE_BYTES: usize = 256;
 pub const LOG_START_BYTES: u32 = 4096;
@@ -14,6 +15,7 @@ pub struct Report {
     pub title: Box<[u8]>,
     pub landed: Box<[Landed]>,
     pub unlanded: Box<[Unlanded]>,
+    pub goal_left: Option<Box<[u8]>>,
     pub landing: Landing,
     pub selections: Box<[Selection]>,
 }
@@ -64,6 +66,25 @@ pub fn first_line(words: &[u8]) -> &[u8] {
         Some(line) => line,
         None => line,
     }
+}
+
+/// The last `Left: ` field of the goal's report, as the client reads it.
+#[must_use]
+pub fn goal_left(body: &[u8]) -> Option<&[u8]> {
+    let mut left = None;
+    let mut rest = body;
+    for _ in 0..=body.len() {
+        let end = find(rest, b"\n").unwrap_or(rest.len());
+        let line = rest.get(..end).expect("the line ends within the note");
+        if let Some(words) = line.trim_ascii_start().strip_prefix(b"Left: ") {
+            left = Some(words.trim_ascii());
+        }
+        if end == rest.len() {
+            break;
+        }
+        rest = rest.get(end.saturating_add(1)..).expect("a newline has a following suffix");
+    }
+    left
 }
 
 /// The first Left section, without the newline before the next heading or end.
@@ -251,6 +272,11 @@ fn render(output: &mut Output, report: &Report) -> List<Left> {
         output.put(&change.title);
         output.put(b": ");
         reason(output, &change.why);
+        output.put(b"\n");
+    }
+    if let Some(left) = &report.goal_left {
+        output.put(b"Left by the goal: ");
+        output.put(left);
         output.put(b"\n");
     }
     landing(output, &report.landing);

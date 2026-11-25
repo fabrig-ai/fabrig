@@ -7,8 +7,34 @@ use a = jig_domain_authority
 use n = jig_domain_notes
 use f = jig_domain_fleet
 use s = skein_codec::convert
-by hand crate::codec::core
+use l = jig_domain_link
+use h = crate::codec::core
+by hand h
 context crate::codec::View
+refuses h::call_part_delegated_to_record
+refuses h::change_bytes_to_domain
+refuses h::change_bytes_to_record
+refuses h::end_bytes_to_domain
+refuses h::end_bytes_to_record
+refuses h::note_bytes_to_domain
+refuses h::note_bytes_to_record
+refuses h::phase_bytes_to_domain
+refuses h::phase_bytes_to_record
+refuses h::settings_refusal_to_domain
+refuses h::settings_refusal_to_record
+refuses h::task_bytes_to_domain
+refuses h::task_bytes_to_record
+refuses h::wait_floors_to_domain
+with context h::change_bytes_to_domain
+with context h::change_bytes_to_record
+with context h::end_bytes_to_domain
+with context h::end_bytes_to_record
+with context h::note_bytes_to_domain
+with context h::note_bytes_to_record
+with context h::phase_bytes_to_domain
+with context h::phase_bytes_to_record
+with context h::task_bytes_to_domain
+with context h::task_bytes_to_record
 
 record MovedPlacedHold
 record HoldOwnerParty
@@ -116,6 +142,12 @@ enum CallPart = d::CallPart {
     settings_refused tuple
 }
 record CallRecord = d::CallRecord
+record PartKey = d::PartKey
+enum PartKind = l::PartKind
+record PartRecord = d::PartRecord
+enum WaitKind = d::waits::WaitKind
+record WaitFloor
+record WaitFloors by hand
 record Deployment = d::Deployment
 record PhaseBytes by hand
 record ChangeBytes by hand

@@ -1,4 +1,4 @@
-//! Independent branch trains against the fake forge (temper/docs/design/domain/landing.md, 9, 15, 16).
+//! Independent branch trains against the fake forge (temper/docs/design/domain/landing-turn.md, 2, temper/docs/design/domain/landing.md, 15, 16).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use temper_engine_domain_forge as top;
@@ -299,7 +299,7 @@ fn drill_19_named_flake_and_inherited_reports_are_still_a_failed_landing_gate() 
     assert!(!calls.iter().any(|op| matches!(op, api::Op::Read(api::Read::Artifact { .. }))));
     // The runner can prove the named flake passes alone at the same candidate;
     // landing gates classify workflow outcomes, without reading report artifacts
-    // (temper/docs/design/domain/landing.md, 7.3).
+    // (temper/docs/design/domain/landing-proof.md, 2.3).
     world.external(
         raw::Op::Git(raw::Git::Create {
             branch: b"temper/alone".as_slice().into(),

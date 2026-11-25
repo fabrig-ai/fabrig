@@ -48,7 +48,7 @@ pub(super) struct Asked {
 }
 
 impl Sim {
-    /// A root the shell opened at startup (runtime/shell.md, 6), for `pid`: the
+    /// A root the shell opened at startup (runtime/shell-startup.md, 1), for `pid`: the
     /// machine's `handle` of an open directory, which it issued to the
     /// world, given a descriptor as if opened with `OpenHow::Directory`.
     pub fn root(&mut self, pid: Pid, handle: Handle) -> Fd {
@@ -59,7 +59,7 @@ impl Sim {
         self.open_file(pid, File { handle, access: Access::Record(OpenHow::Directory), position: 0 })
     }
 
-    /// Adopts the machine's writable append handle opened at startup (runtime/shell.md, 6).
+    /// Adopts the machine's writable append handle opened at startup (runtime/shell-startup.md, 1).
     pub fn append(&mut self, pid: Pid, handle: Handle) -> Fd {
         if self.fds_full(pid) {
             self.fail(pid, "an append descriptor past the descriptor limit");

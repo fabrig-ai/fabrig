@@ -4,7 +4,13 @@ use skein_lib::Duration;
 use std::fmt::Write;
 use temper_limits_fixtures::small;
 
-fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
+// One checking change and its run branch, at the fixture seed used for Forgejo CI.
+const SEED: u64 = 71;
+const CHANGE: &[u8] = b"temper/51";
+// The pace case ends one job every twenty seconds for ten minutes.
+const PACE_JOBS: u32 = 30;
+
+fn limits() -> top::Limits {
     let shipped = small().forge;
     let mut limits = temper_engine_forge_world::LIMITS;
     limits.client = shipped.client;
@@ -14,11 +20,20 @@ fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
     limits.client.fallback = Duration::from_secs(900);
     limits.change_policy.stall = shipped.change_policy.stall;
     limits.resources_per_task = shipped.resources_per_task;
-    let mut world = Protocol::forgejo_ci(71, &limits, hearing);
+    limits
+}
+
+fn adopted(limits: &top::Limits, hearing: bool, jobs: u32) -> Protocol {
+    let mut world = Protocol::forgejo_ci(SEED, limits, hearing, jobs);
     world.adopt();
     let run = branch_name(b"temper/1/r1");
     world.event(top::Event::Names { task: 1, resources: Box::new([run.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 1, resource: run, from: None });
+    world
+}
+
+fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
+    let mut world = adopted(&limits(), hearing, PACE_JOBS);
     let mut unpushed = change_row();
     unpushed.task = 52;
     unpushed.change.task = 52;
@@ -28,23 +43,29 @@ fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
     world.event(top::Event::Names { task: 52, resources: Box::new([branch_name(b"main")]) });
     waiting_step(&mut world, 1);
     world.run_for(1);
+    let (pushed, head) = open_change(&mut world);
+    let verdict = Wall::from_nanos(pushed.as_nanos() + Duration::from_secs(600).as_nanos());
+    (world, pushed, verdict, head)
+}
+
+fn open_change(world: &mut Protocol) -> (Wall, u64) {
     let mut row = change_row();
     row.goal = Some(1);
     row.change.since = world.wall();
     world.event(top::Event::Change { row });
-    let branch = branch_name(b"temper/51");
+    let branch = branch_name(CHANGE);
     world.event(top::Event::Names { task: 51, resources: Box::new([branch.clone(), branch_name(b"main")]) });
     world.event(top::Event::Hold { entry: 0, task: 51, resource: branch, from: None });
     world.run_for(0);
     assert_eq!(
-        change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
+        change_step(world, 2, change::Status::Unknown, Box::new([])),
         change::Decision::Delegate(change::Delegate::Produce)
     );
     let pushed = world.wall();
-    world.produce(b"temper/51");
-    let head = world.branch(b"temper/51");
+    world.produce(CHANGE);
+    let head = world.branch(CHANGE);
     world.take_seen();
-    step_change(&mut world, 3, change::Status::Passed, false);
+    step_change(world, 3, change::Status::Passed, false);
     let mut opened = false;
     for _ in 0..90 {
         for request in world.take_seen() {
@@ -65,8 +86,7 @@ fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
         world.run_for(1);
     }
     assert!(opened, "opening decides after its complete fresh reads");
-    let verdict = Wall::from_nanos(pushed.as_nanos() + Duration::from_secs(600).as_nanos());
-    (world, pushed, verdict, head)
+    (pushed, head)
 }
 
 fn waiting_step(world: &mut Protocol, entry: u64) {
@@ -79,6 +99,7 @@ fn waiting_step(world: &mut Protocol, entry: u64) {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -105,11 +126,7 @@ fn pace(hearing: bool) {
     let deadline = Wall::from_nanos(verdict.as_nanos() + poll_max.as_nanos());
     let (mut due, mut until, mut entry, mut named) = (true, None, 4, false);
     let (mut job, mut written) = (0, 0);
-    let mut hex = String::new();
-    for byte in skein_fake_forge_forgejo::routes::object(head).bytes.iter().take(20) {
-        write!(hex, "{byte:02x}").expect("hex in a String");
-    }
-    let status = format!("GET /api/v1/repos/org/repo/commits/{hex}/status");
+    let status = status_route(head);
     let mut gathering = false;
     let mut gathers = 0;
     let mut unpushed_due = false;
@@ -117,7 +134,7 @@ fn pace(hearing: bool) {
     while world.wall() <= deadline && world.tally().routes.get(&Route::Merge) != Some(&1) {
         let seconds = (world.wall().as_nanos() - pushed.as_nanos()) / 1_000_000_000;
         // Alternating ends have their status written three seconds after delivery.
-        if job < 30 && seconds >= u64::from(job + 1) * 20 {
+        if job < PACE_JOBS && seconds >= u64::from(job + 1) * 20 {
             if hearing {
                 world.job_end(b"temper/51", job);
             }
@@ -232,6 +249,74 @@ fn pace(hearing: bool) {
     for (count, ceiling) in maxima.into_iter().zip(ceilings) {
         assert!(count <= ceiling, "{hearing}: {maxima:?} > {ceilings:?}");
     }
+}
+
+fn status_route(head: u64) -> String {
+    let mut hex = String::new();
+    for byte in skein_fake_forge_forgejo::routes::object(head).bytes.iter().take(20) {
+        write!(hex, "{byte:02x}").expect("hex in a String");
+    }
+    format!("GET /api/v1/repos/org/repo/commits/{hex}/status")
+}
+
+// The job ends after the push's settlement window; the test ends before a
+// keep poll, slow pass or stall read can see the result (setup/webhooks.md, 1).
+const SETTLE_SECONDS: u64 = 3;
+const JOB_END_SECONDS: u64 = 10;
+const DEADLINE_SECONDS: u64 = 30;
+// At most four root turns per second: one clock step and up to three change decisions.
+const ROOT_TURNS: u64 = 4 * DEADLINE_SECONDS;
+const QUIET_SECONDS: u64 = 60;
+const ONLY_JOB: u32 = 0;
+
+fn slow_job(deliver_end: bool) -> (bool, bool) {
+    let mut limits = limits();
+    let quiet = Duration::from_secs(QUIET_SECONDS);
+    limits.client.poll = quiet;
+    limits.client.poll_max = quiet;
+    limits.client.slow = quiet;
+    limits.client.settle = Duration::from_secs(SETTLE_SECONDS);
+    limits.change_policy.stall = quiet;
+    // Both arms subscribe to hooks; only the job's end is omitted in one.
+    let mut world = adopted(&limits, true, ONLY_JOB + 1);
+    let (pushed, head) = open_change(&mut world);
+    let job_end = Wall::from_nanos(pushed.as_nanos() + Duration::from_secs(JOB_END_SECONDS).as_nanos());
+    let deadline = Wall::from_nanos(pushed.as_nanos() + Duration::from_secs(DEADLINE_SECONDS).as_nanos());
+    let mut schedule = ci_poll::Schedule::after_open();
+    let mut named = false;
+    let mut passed = false;
+    for _ in 0..ROOT_TURNS {
+        if world.wall() >= deadline || world.tally().routes.get(&Route::Merge) == Some(&1) {
+            break;
+        }
+        if !passed && world.wall() >= job_end {
+            if deliver_end {
+                world.job_end(CHANGE, ONLY_JOB);
+            }
+            world.job_status(CHANGE, ONLY_JOB);
+            passed = true;
+        }
+        if !named {
+            named = ci_poll::name_pull(&mut world);
+        }
+        ci_poll::hear(&mut world, &mut schedule);
+        ci_poll::advance(&mut world, &mut schedule);
+    }
+    let status = status_route(head);
+    let read = world.requests().any(|(at, line)| at >= job_end && line.starts_with(status.as_bytes()));
+    let landed = world.wall() < deadline
+        && world.observations().iter().any(|observation| {
+            matches!(observation, Observation::Merged { head: checked, commit, .. }
+            if *checked == head && *commit == world.branch(b"main"))
+        });
+    assert!(world.wall() >= deadline || landed, "the referee reaches the merge or the cutoff");
+    (read, landed)
+}
+
+#[test]
+fn a_slow_job_lands_its_change_only_by_its_delivered_end() {
+    assert_eq!(slow_job(true), (true, true), "the signed job end prompts a CI read and merge");
+    assert_eq!(slow_job(false), (false, false), "without the job end no read or merge occurs by the cutoff");
 }
 
 #[test]

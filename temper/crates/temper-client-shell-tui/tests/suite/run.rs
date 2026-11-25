@@ -1,7 +1,7 @@
 use jig_client_protocol_wire::Record as _;
 mod fake_box;
 
-use skein_fake_machine::{Item, Machine};
+use skein_fake_machine::{How, Item, Machine};
 use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Op, ServiceSignal, Submit},
@@ -14,9 +14,10 @@ use skein_ui_screen_terminal::{Depth, ENTER, LEAVE};
 use temper_client_shell_tui::{
     limits,
     opener::Opener,
-    run::{Run, Settings},
+    run::{PreparedOrigin, Run, Settings},
+    start,
 };
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Note, Origin, Scheme};
 
 const USER: u32 = 1000;
 const SEED: u64 = 7;
@@ -58,6 +59,8 @@ struct World {
     bound: std::collections::BTreeSet<Token>,
     hold_link: bool,
     connects: Vec<io::Addr>,
+    handed_preparations: usize,
+    handed_opens: usize,
     run: Run,
     now: Time,
     wall: Wall,
@@ -255,6 +258,8 @@ impl World {
             bound: std::collections::BTreeSet::new(),
             hold_link: false,
             connects: Vec::new(),
+            handed_preparations: 0,
+            handed_opens: 0,
             run,
             now: Time::ZERO,
             wall: Wall::EPOCH,
@@ -336,6 +341,7 @@ impl World {
                     self.children.push(fake_box::Child::new(&mut self.sim, self.pid, pidfd, boxed, !self.hold_link));
                 }
                 self.run.iterate(self.now, Wall::from_nanos(self.wall.as_nanos() + self.now.as_nanos()));
+                self.prepare_handed();
                 runnable = self.run.work_pending(self.now);
             }
             self.inspect_submissions();
@@ -396,6 +402,22 @@ impl World {
         );
     }
 
+    fn prepare_handed(&mut self) {
+        let Some(origin) = self.run.handed_origin() else { return };
+        assert_eq!(origin.print().as_ref(), HANDED_ADDRESS);
+        self.handed_preparations += 1;
+        // The simulated startup has already prepared the common host directory.
+        let root = self.files.reopen_root(0);
+        let parent = self.files.open(root, b"tui/at/127.0.0.1", How::Directory).expect("host directory");
+        match self.files.make_directory(parent, b"8367", 0o700) {
+            Ok(()) | Err(skein_fake_machine::Refusal::Exists) => {}
+            Err(why) => panic!("handed directory fixture: {why:?}"),
+        }
+        self.files.close(parent);
+        self.files.close(root);
+        self.run.prepared_origin(Ok(PreparedOrigin { directory: HANDED_DIRECTORY.into(), theme: None, note: None }));
+    }
+
     fn inspect_submissions(&mut self) {
         for submit in self.run.submissions().iter() {
             if let Op::Spawn { spawn } = &submit.kind {
@@ -435,6 +457,11 @@ impl World {
                 } else {
                     assert!([b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref()));
                 }
+            }
+            if let Op::Open { path, how: io::kernel::OpenHow::ReadNoFollow, .. } = &submit.kind
+                && path.as_ref() == b"8367"
+            {
+                self.handed_opens += 1;
             }
             if let Op::Connect { addr, .. } = &submit.kind {
                 self.connects.push(io::Addr::Ip(*addr));
@@ -665,6 +692,7 @@ struct Engine {
     link_sign_ins: usize,
     approvals: usize,
     terminal_watch: Option<u64>,
+    committed_chat: Option<CommittedChat>,
 }
 impl Engine {
     fn new(sim: &mut Sim) -> Self {
@@ -690,6 +718,7 @@ impl Engine {
             link_sign_ins: 0,
             approvals: 0,
             terminal_watch: None,
+            committed_chat: None,
         };
         engine.down(io::Request::Listen {
             owner: Token::new(1),
@@ -779,7 +808,11 @@ impl Engine {
         {
             self.stream = Some(owner);
             let mut response = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n".to_vec();
-            response.extend_from_slice(&hello_event());
+            let mut me = jig_client_test_records::frame_record();
+            if let Some(chat) = &self.committed_chat {
+                me.projects = chat.projects();
+            }
+            response.extend_from_slice(&hello_event(me));
             self.respond(owner, response.into_boxed_slice());
         } else if bytes.starts_with(b"POST /jig/v1/watch ") || bytes.starts_with(b"POST /jig/v1/batch ") {
             let header = std::str::from_utf8(bytes).expect("HTTP header");
@@ -832,7 +865,9 @@ impl Engine {
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
         use jig_client_protocol_wire as w;
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
-        self.opened(&open);
+        if let Some(delivery) = self.opened(&open) {
+            self.respond(self.stream.expect("opened stream"), delivery);
+        }
         self.respond(owner, {
             let answer = w::OpenAnswer::Admitted;
             let mut writer = skein_lib::Writer::new(
@@ -844,26 +879,41 @@ impl Engine {
         });
     }
 
-    fn opened(&mut self, open: &jig_client_protocol_wire::Open) {
+    fn opened(&mut self, open: &jig_client_protocol_wire::Open) -> Option<Box<[u8]>> {
         use jig_client_protocol_wire as w;
-        if open.subject.owner == w::Owner::Jig {
-            let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject.record.as_ref()))
-                .expect("subject");
-            if subject == w::Subject::Me {
-                self.respond(self.stream.expect("opened stream"), me_event(open.watch));
-            } else if matches!(subject, w::Subject::Terminal(_)) {
-                self.terminal_watch = Some(open.watch);
-            }
+        if open.subject.owner != w::Owner::Jig {
+            return self
+                .committed_chat
+                .as_ref()?
+                .forge_watch(&open.subject)
+                .map(|document| owned_delivery_event(open.watch, document));
+        }
+        let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject.record.as_ref()))
+            .expect("subject");
+        if subject == w::Subject::Me {
+            let projects = self.committed_chat.as_ref().map_or_else(Box::default, CommittedChat::projects);
+            Some(me_event(open.watch, projects))
+        } else if matches!(subject, w::Subject::Terminal(_)) {
+            self.terminal_watch = Some(open.watch);
+            None
+        } else {
+            self.committed_chat
+                .as_ref()
+                .and_then(|chat| chat.watched(&subject))
+                .map(|value| delivery_event(open.watch, &value))
         }
     }
     fn batch(&mut self, owner: Token, bytes: &[u8]) {
         use jig_client_protocol_wire as w;
         let batch = w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("batch body");
         let mut frames = Vec::new();
+        let mut deliveries = Vec::new();
         for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
             let reply = match member {
                 w::Member::Open(open) => {
-                    self.opened(&open);
+                    if let Some(delivery) = self.opened(&open) {
+                        deliveries.extend_from_slice(&delivery);
+                    }
                     let answer = w::OpenAnswer::Admitted;
                     let mut writer = skein_lib::Writer::new(
                         usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
@@ -881,14 +931,18 @@ impl Engine {
                     answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
                     writer.finish()
                 }
-                w::Member::Read(_) => {
-                    let answer = w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown });
-                    let mut writer = skein_lib::Writer::new(
-                        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
-                            .expect("answer size"),
+                w::Member::Read(read) => {
+                    let answer = self.committed_chat.as_ref().and_then(|chat| chat.read(&read)).map_or(
+                        w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown }),
+                        |value| {
+                            w::ReadAnswer::Value(w::Owned {
+                                owner: w::Owner::Jig,
+                                version: w::VERSION,
+                                record: wire(&value),
+                            })
+                        },
                     );
-                    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer");
-                    writer.finish()
+                    wire(&answer)
                 }
             };
             let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
@@ -901,6 +955,10 @@ impl Engine {
                 &part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes(),
             );
             frames.extend_from_slice(&writer.finish());
+        }
+        if !deliveries.is_empty() {
+            // One stream demand carries all watch snapshots from this batch.
+            self.respond(self.stream.expect("opened stream"), deliveries.into_boxed_slice());
         }
         self.respond(owner, http_response(&frames));
     }
@@ -930,6 +988,380 @@ impl Engine {
         }
     }
 }
+
+const LANDING_CHAT: u64 = 7;
+const ASK_LABEL: u32 = 8;
+const LANDING_REPLY: &str = "The change landed.";
+
+struct CommittedChat {
+    task: jig_client_protocol_wire::Task,
+    rows: Box<[u8]>,
+    activity: jig_client_protocol_wire::ActivityPage,
+}
+
+fn wire(value: &impl jig_client_protocol_wire::Record<Limits = jig_client_protocol_wire::Limits>) -> Box<[u8]> {
+    use jig_client_protocol_wire::CEILINGS;
+    let size = usize::try_from(value.measure(&CEILINGS).expect("bounded fixture")).expect("wire size");
+    let mut writer = skein_lib::Writer::new(size);
+    value.write(&CEILINGS, &mut writer).expect("measured record");
+    writer.finish()
+}
+
+impl CommittedChat {
+    fn landing(reply: &[u8]) -> Self {
+        use jig_client_protocol_wire as w;
+        use jig_client_test_records as records;
+        let w::Fact::Chip(mut root) = records::chip_root_fact() else { panic!("chip root") };
+        root.value.phase = w::Phase::Idle;
+        root.value.title = records::wire_text(b"Update README");
+        let chip = records::chip_from_rows(&[
+            w::Fact::Chip(root),
+            w::Fact::ChipPhase(w::ChipPhaseRow {
+                parent: Some(0),
+                value: w::ChipPhaseOwnerFields {
+                    phase: w::ChipPhase::Active(w::ChipPhaseActive { value: w::RunStage::Idle }),
+                    details: 2,
+                },
+            }),
+            w::Fact::ChipDetails(Box::new(records::wire_owner_chip_details_row())),
+        ]);
+        let requester = w::Requester::Person(w::RequesterPerson { value: 7 });
+        let mut task = records::task_record();
+        task.chip = chip.clone();
+        task.requester = requester.clone();
+        task.flags.conversation = true;
+        task.flags.listed = true;
+        task.label = ASK_LABEL;
+        task.activity = 1;
+        let mut row = records::task_line_record();
+        row.chip = chip;
+        row.requester = requester;
+        row.flags = task.flags.clone();
+        row.label = ASK_LABEL;
+        row.tracked = None;
+        row.parts = skein_lib::List::from_boxed(Box::new([w::RowPart::Unknown]));
+        let rows = piece(&row);
+        let mut activity = records::activity_rows(&[records::turn_line(1, 20, 1, &committed_turn(reply))]);
+        activity.cut = false;
+        activity.after = None;
+        Self { task, rows, activity }
+    }
+
+    fn projects(&self) -> Box<[u8]> {
+        use jig_client_protocol_wire as w;
+        let template = |number, label, name: &[u8]| w::Template {
+            number,
+            name: jig_client_test_records::wire_text(name),
+            executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: 7 }),
+            contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: 64 }),
+            shallower: 1,
+            budget: w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap: None }),
+            deadline: w::TemplateDeadline::None,
+            tracked: None,
+            flags: self.task.flags.clone(),
+            label,
+            grace: None,
+            llm: None,
+            resources: skein_lib::List::with_capacity(0),
+        };
+        let ask = piece(&template(5, 7, b"Ask temper"));
+        let chat = piece(&template(jig_client::shapes::CHAT, ASK_LABEL, b"Chat"));
+        piece(&w::MeProject {
+            left_out: 0,
+            defaults: skein_lib::List::with_capacity(0),
+            public: None,
+            templates: [ask.as_ref(), chat.as_ref()].concat().into_boxed_slice(),
+            creating: None,
+            project: self.task.project,
+            name: jig_client_test_records::wire_text(b"Widget"),
+            role: w::HeldRole::Owner,
+            pool: None,
+            models: skein_lib::List::with_capacity(0),
+        })
+    }
+
+    fn forge_watch(&self, subject: &jig_client_protocol_wire::Owned) -> Option<jig_client_protocol_wire::Owned> {
+        use jig_client_protocol_wire as j;
+        use temper_client_protocol_wire::{self as wire, v1 as w};
+        let owner = j::Owner::Family(j::Family { number: wire::FORGE });
+        if subject.owner != owner || subject.version != wire::CLIENT_VERSION {
+            return None;
+        }
+        let envelope = j::FamilyRecord::decode(&j::CEILINGS, &mut skein_lib::Reader::new(&subject.record))
+            .expect("forge watch envelope");
+        let watch = wire::decode_watching(&envelope.record, &w::CEILINGS).expect("forge watch");
+        let record = if let w::Watch::Changes(changes) = &watch.watch
+            && changes.project == self.task.project
+        {
+            let landed = skein_lib::List::from_boxed(Box::new([w::ChangesLanded {
+                goal: None,
+                chat: Some(w::ChangeFrom { task: LANDING_CHAT, title: b"Update README".as_slice().into() }),
+                milestone: None,
+                signed: skein_lib::List::with_capacity(0),
+                commit: [0xab; 32],
+                default_branch: true,
+                task: 8,
+                title: b"Update README".as_slice().into(),
+                at: 21,
+            }]));
+            wire::changes_panel(&w::ChangesPanel {
+                project: self.task.project,
+                landing: b"main".as_slice().into(),
+                catching_up: None,
+                queues: skein_lib::List::with_capacity(0),
+                more: 0,
+                landed_default: landed.clone(),
+                landed_default_more: 0,
+                landed,
+                landed_more: 0,
+            })
+        } else if let w::Watch::Drafts(drafts) = &watch.watch
+            && drafts.project == self.task.project
+        {
+            wire::drafts_panel(&w::DraftsPanel {
+                project: self.task.project,
+                drafts: skein_lib::List::with_capacity(0),
+            })
+        } else {
+            return None;
+        };
+        Some(j::Owned { owner, version: wire::CLIENT_VERSION, record })
+    }
+
+    fn watched(&self, subject: &jig_client_protocol_wire::Subject) -> Option<jig_client_protocol_wire::DeliveryValue> {
+        use jig_client_protocol_wire as w;
+        if let w::Subject::Tasks(tasks) = subject
+            && tasks.query.project.is_none_or(|n| n == self.task.project)
+        {
+            let rows = if tasks.query.label == Some(ASK_LABEL) { self.rows.clone() } else { Box::default() };
+            Some(w::DeliveryValue::Tasks(w::Tasks { rows, more: false, ended_mark: 0 }))
+        } else if let w::Subject::Task(task) = subject
+            && task.task == LANDING_CHAT
+        {
+            Some(w::DeliveryValue::Task(Box::new(self.task.clone())))
+        } else {
+            None
+        }
+    }
+
+    fn read(&self, owned: &jig_client_protocol_wire::Owned) -> Option<jig_client_protocol_wire::ReadValue> {
+        use jig_client_protocol_wire as w;
+        if owned.owner != w::Owner::Jig {
+            return None;
+        }
+        let read = w::Read::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&owned.record)).expect("read request");
+        if let w::Read::Task(task) = &read
+            && task.task == LANDING_CHAT
+        {
+            Some(w::ReadValue::Task(self.task.clone()))
+        } else if let w::Read::Tasks(tasks) = &read
+            && tasks.live.is_none()
+            && tasks.ended.is_none()
+        {
+            let mut page = jig_client_test_records::task_page_record();
+            if tasks.query.phase == Some(w::PhaseClass::Ended) {
+                page.ended = w::EndedGroup::Rows(w::EndedRows { rows: Box::default(), after: None, cut: false });
+            } else if tasks.query.label == Some(ASK_LABEL) {
+                page.live.clone_from(&self.rows);
+            }
+            Some(w::ReadValue::Tasks(page))
+        } else if let w::Read::Project(project) = &read
+            && project.project == self.task.project
+        {
+            Some(w::ReadValue::Project(jig_client_test_records::owner_project_record()))
+        } else if let w::Read::Activity(activity) = read
+            && activity.task == LANDING_CHAT
+            && activity.before.is_none()
+        {
+            Some(w::ReadValue::Activity(self.activity.clone()))
+        } else {
+            None
+        }
+    }
+}
+
+fn piece(value: &impl jig_client_protocol_wire::Record<Limits = jig_client_protocol_wire::Limits>) -> Box<[u8]> {
+    let bytes = wire(value);
+    let mut out = skein_lib::Writer::new(4 + bytes.len());
+    skein_codec::piece::write(&mut out, &bytes).expect("one measured piece");
+    out.finish()
+}
+
+fn committed_turn(reply: &[u8]) -> Box<[u8]> {
+    use smith_transcript::{self as s, Record as _};
+    let turn = s::Turn {
+        kind: s::TurnKind::Ordinary,
+        opening: None,
+        endpoint: Box::default(),
+        model: Box::default(),
+        effort: None,
+        dialect: 0,
+        place: 1,
+        usage: s::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+        spent: 0,
+        jobs: 0,
+        messages: skein_lib::List::from_boxed(Box::new([s::Message {
+            role: s::Role::Assistant,
+            blocks: skein_lib::List::from_boxed(Box::new([s::Block::Text(s::Text {
+                text: reply.into(),
+                replay: None,
+            })])),
+        }])),
+        system: None,
+    };
+    let mut writer =
+        skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure(&s::CEILINGS).expect("turn size")));
+    turn.write(&s::CEILINGS, &mut writer).expect("committed assistant turn");
+    writer.finish()
+}
+
+#[test]
+fn a_committed_landing_reply_is_visible_in_its_chat() {
+    let mut reading = Reading::new(CommittedChat::landing(LANDING_REPLY.as_bytes()));
+    for label in ["Work", "Chats · 1", &format!("T{LANDING_CHAT}")] {
+        reading.select(label);
+    }
+    reading.until(|page| page.contains(LANDING_REPLY));
+    assert!(reading.frame().contains("Update README"), "the reply is in its own chat");
+    reading.close();
+}
+
+// The numbered terminal uses the same engine peer and simulated sockets and files as Run.
+struct Reading {
+    sim: Sim,
+    files: Machine,
+    pid: Pid,
+    input: Fd,
+    output: Fd,
+    bytes: Vec<u8>,
+    now: Time,
+    terminal: temper_client_shell_terminal::terminal::Terminal,
+    engine: Engine,
+}
+impl Reading {
+    fn new(chat: CommittedChat) -> Self {
+        use temper_client_shell_terminal::{
+            client::{NativeClient, Settings, Start},
+            limits,
+            terminal::{Loop, Terminal},
+        };
+        let mut sim = Sim::new(SEED, Config::calm());
+        let pid = sim.spawn_process();
+        let input = sim.open_inherited_read(pid);
+        let output = sim.open_inherited_write(pid);
+        let signals = sim.open_signal_source(pid);
+        let mut files = Machine::for_user(USER);
+        let dir = b"private";
+        let root = files.lay(&[Item::directory(dir).mode(0o700)]);
+        let root = sim.root(pid, Handle::new(root.raw()));
+        let bounds = limits::native();
+        let view = limits::view(&bounds).expect("native view bounds").0;
+        let native = NativeClient::new(
+            Settings {
+                engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("fake engine")),
+                directory: dir.as_slice().into(),
+                limits: bounds,
+            },
+            root,
+            USER,
+            SEED,
+            Start::Link(LOCAL_LINK.into()),
+        )
+        .expect("native client");
+        let state = Loop::new(
+            &limits::terminal(),
+            &view.tree,
+            dir.as_slice().into(),
+            Some(skein_lib::Secret::new(LOCAL_LINK.into())),
+        );
+        let terminal = Terminal::new(native, state, input, output, signals).expect("terminal descriptors");
+        let mut engine = Engine::new(&mut sim);
+        engine.committed_chat = Some(chat);
+        Self { sim, files, pid, input, output, bytes: Vec::new(), now: Time::ZERO, terminal, engine }
+    }
+
+    fn step(&mut self) {
+        self.sim.reap(self.pid, self.terminal.completions());
+        self.terminal.iterate(self.now, Wall::from_nanos(self.now.as_nanos()));
+        self.sim.submit(self.pid, self.terminal.submissions());
+        let mut calls = Queue::with_capacity(64);
+        let mut answers = Queue::with_capacity(64);
+        self.sim.calls(&mut calls);
+        while let Some(call) = calls.pop() {
+            skein_fake_machine::step(&mut self.files, call, &mut answers);
+        }
+        self.sim.answer(&mut answers);
+        if self.terminal.is_empty() {
+            self.engine.close();
+        }
+        self.engine.iterate(&mut self.sim, self.now);
+        self.bytes.extend(self.sim.peer_drain(self.pid, self.output, ROOM));
+        if !self.terminal.work_pending(self.now)
+            && self.sim.ready(self.pid) == 0
+            && !self.sim.deferred(self.pid)
+            && !self.engine.pending(&self.sim)
+            && let Some(next) =
+                [self.sim.next_due(), self.terminal.next_mechanism_deadline(), self.terminal.next_policy_deadline()]
+                    .into_iter()
+                    .flatten()
+                    .min()
+        {
+            self.now = next;
+            self.sim.advance_to(next);
+        }
+    }
+
+    fn frame(&self) -> &str {
+        let output = std::str::from_utf8(&self.bytes).expect("terminal UTF-8");
+        output.rsplit_once("\n== ").map_or(output, |(_, page)| page)
+    }
+
+    fn until(&mut self, seen: impl Fn(&str) -> bool) {
+        for _ in 0..512 {
+            self.step();
+            if seen(self.frame()) {
+                return;
+            }
+        }
+        panic!("terminal did not print the expected frame:\n{}", self.frame());
+    }
+
+    fn select(&mut self, label: &str) {
+        self.until(|frame| control(frame, label).is_some());
+        let number = control(self.frame(), label).expect("numbered control");
+        let command = format!("{number}\n");
+        assert_eq!(self.sim.peer_feed(self.pid, self.input, command.as_bytes()), command.len());
+    }
+
+    fn close(mut self) {
+        self.sim.peer_close(self.pid, self.input);
+        for _ in 0..512 {
+            self.step();
+            if self.terminal.is_empty() && self.engine.io.is_empty() {
+                break;
+            }
+        }
+        assert!(self.terminal.is_empty() && self.engine.io.is_empty(), "both sides drain");
+        assert_eq!(self.terminal.exit(), Some(Exit::Code(0)));
+        self.sim.assert_no_open_fds(self.pid);
+        self.sim.assert_quiescent(self.pid);
+        self.sim.assert_no_open_fds(self.engine.pid);
+        self.sim.assert_quiescent(self.engine.pid);
+        assert_eq!(self.files.open_handles(), 0);
+    }
+}
+
+fn control<'a>(frame: &'a str, label: &str) -> Option<&'a str> {
+    frame.lines().find_map(|line| {
+        let line = line.trim_start();
+        let line = line.strip_prefix("- ").unwrap_or(line).strip_prefix('[')?;
+        let (number, text) = line.split_once("] ")?;
+        let matches = text == label
+            || text.strip_prefix(label).is_some_and(|rest| rest.starts_with(" (") || rest.starts_with(" · "));
+        (matches && !number.is_empty() && number.bytes().all(|byte| byte.is_ascii_digit())).then_some(number)
+    })
+}
+
 fn approval_response() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let answer = w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
@@ -1684,7 +2116,7 @@ fn sign_in_response() -> Box<[u8]> {
     http_response(&body)
 }
 
-fn hello_event() -> Box<[u8]> {
+fn hello_event(me: jig_client_protocol_wire::Me) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     use skein_lib::List;
     let owners = limits::tui().native.client.client.domain.owners;
@@ -1696,24 +2128,27 @@ fn hello_event() -> Box<[u8]> {
             last: jig_client_protocol_wire::VERSION,
         })
         .expect("Jig owner");
+    let mut layouts = Vec::new();
     for owner in owners {
+        layouts.push(jig_client_test_records::family_layout(owner.family, owner.layout));
         let family = w::Family { number: owner.family };
         served
             .push(w::Served { owner: w::Owner::Family(family), first: owner.version, last: owner.version })
             .expect("family owner");
     }
-    let hello = jig_client_test_records::opened(
+    let hello = jig_client_test_records::opened_with_layouts(
         w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
-        jig_client_test_records::frame_record(),
+        me,
+        &layouts,
     );
     sse(&hello)
 }
-fn me_event(watch: u64) -> Box<[u8]> {
+fn me_event(watch: u64, projects: Box<[u8]>) -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let text = |bytes: &[u8]| w::DocumentText { bytes: bytes.into(), cut: false };
     let me = w::Me {
         party: w::MeParty { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
-        projects: Box::new([]),
+        projects,
         needs: w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
         needs_total: 0,
         updates: w::Count { value: 0, limited: false },
@@ -1726,6 +2161,7 @@ fn me_event(watch: u64) -> Box<[u8]> {
         key_bytes: 256,
         redirect_bytes: 256,
         words_bytes: 8192,
+        sign_in_expires: 86_400_000_000_000,
     };
     delivery_event(watch, &w::DeliveryValue::Me(me))
 }
@@ -1740,8 +2176,12 @@ fn delivery_event(watch: u64, value: &jig_client_protocol_wire::DeliveryValue) -
     value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("document fits");
     let document =
         w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
-    let delivery = w::StreamEvent::Delivery(w::Delivery { watch, document });
-    sse(&delivery)
+    owned_delivery_event(watch, document)
+}
+
+fn owned_delivery_event(watch: u64, document: jig_client_protocol_wire::Owned) -> Box<[u8]> {
+    use jig_client_protocol_wire as w;
+    sse(&w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }
 
 fn sse(event: &jig_client_protocol_wire::StreamEvent) -> Box<[u8]> {
@@ -1879,6 +2319,9 @@ fn the_box_ending_while_lent_leaves_the_login_to_its_end() {
     world.end_loan_world();
 }
 
+const HANDED_ADDRESS: &[u8] = b"http://127.0.0.1:8367";
+const HANDED_DIRECTORY: &[u8] = b"tui/at/127.0.0.1/8367";
+const STARTING_ADDRESS: &[u8] = b"http://127.0.0.1:9000";
 const HANDED_LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 #[test]
@@ -1961,7 +2404,7 @@ fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
         Recording::None,
         Some(Scheme::Dark),
         None,
-        false,
+        true,
         None,
         true,
     );
@@ -1998,6 +2441,65 @@ fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
     world.sim.assert_no_open_fds(world.pid);
     world.sim.assert_quiescent(world.pid);
     assert!(world.children.iter().all(|child| child.finished));
+    assert_eq!(world.files.open_handles(), 0);
+    assert_eq!(world.handed_preparations, 1);
+    let root = world.files.reopen_root(0);
+    assert_eq!(mode(&mut world.files, root, HANDED_DIRECTORY), Some(0o700));
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/8367/token"), Some(0o600));
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/9000/token"), None);
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/8367/sign-in"), Some(0o600));
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/9000/sign-in"), None);
+    let saved = Origin::parse(STARTING_ADDRESS).expect("start address");
+    start::update_address(Some(&saved), world.run.signed_in(), |bytes| {
+        // The fake answers the binary's post-run address store.
+        let file = world.files.open(root, b"tui/address", How::Create { mode: 0o600 }).expect("address file");
+        world.files.write(file, 0, &bytes).expect("kept address");
+        world.files.close(file);
+    });
+    world.files.close(root);
+    assert_eq!(world.file(b"tui/address"), Some((HANDED_ADDRESS.to_vec(), 0o600)));
+}
+
+fn mode(files: &mut Machine, root: skein_fake_machine::Opened, name: &[u8]) -> Option<u32> {
+    let file = files.open(root, name, How::PathNoFollow).ok()?;
+    let mode = files.stat(file).mode & 0o777;
+    files.close(file);
+    Some(mode)
+}
+
+#[test]
+fn a_same_origin_front_opens_its_directory_once() {
+    let mut files = Machine::for_user(USER);
+    let root = files.lay(&[
+        Item::directory(b"tui").mode(0o700),
+        Item::directory(b"tui/at").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1").mode(0o700),
+        Item::directory(HANDED_DIRECTORY).mode(0o700),
+    ]);
+    files.close(root);
+    let mut world = World::front_configured(
+        false,
+        true,
+        false,
+        Outcome::Success,
+        Recording::None,
+        Some(Scheme::Dark),
+        None,
+        false,
+        None,
+        true,
+        Config::calm(),
+        Some(files),
+        Some((8367, None)),
+    );
+    world.settle();
+    assert_eq!(world.run.signed_in().map(Origin::print).as_deref(), Some(HANDED_ADDRESS));
+    world.draining = true;
+    world.keys(b"\x03");
+    assert_eq!(world.run.exit(), Some(Exit::Code(0)));
+    assert_eq!(world.handed_preparations, 0);
+    assert_eq!(world.handed_opens, 1);
+    world.sim.assert_no_open_fds(world.pid);
     assert_eq!(world.files.open_handles(), 0);
 }
 

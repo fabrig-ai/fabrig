@@ -1,7 +1,7 @@
 //! Runtime world. The real root, hub, checkout and agent child domains meet
 //! a scripted engine and process, the protocol layer's hand-outs answered
 //! with smith's codecs, and deterministic git terminals. The turn referee's
-//! first finding returns to the run (temper/docs/design/testing/README.md, 4.2).
+//! first finding returns to the run (temper/docs/design/testing/scenarios.md, 1.2).
 
 use std::collections::VecDeque;
 use std::fmt::{self, Write};
@@ -96,6 +96,8 @@ enum Bodies {
 }
 
 pub struct World {
+    iteration: u64,
+    builder: crate::builder::Builder,
     settings: Settings,
     env: Env<Limits>,
     domain: Domain,
@@ -167,6 +169,8 @@ impl World {
         let observed = Vec::with_capacity(64);
         let meter = Meter::new();
         World {
+            iteration: 0,
+            builder: crate::builder::Builder::new(1),
             settings,
             out,
             domain: Domain::new(&limits, Box::new([])),
@@ -263,7 +267,16 @@ impl World {
                 self.drain()?;
                 continue;
             }
-            let Some(event) = self.owed.pop_front() else { return Ok(()) };
+            let Some(event) = self.owed.pop_front() else {
+                return crate::inspection::check(
+                    self.settings.seed,
+                    &self.env,
+                    &mut self.iteration,
+                    &self.domain,
+                    None,
+                    &self.builder,
+                );
+            };
             self.remember(&event);
             self.meter.start();
             step(&mut self.domain, &self.env, event, &mut self.out);
@@ -416,9 +429,10 @@ impl World {
                 }
             }
             agent::Down::Renewals { .. }
+            | agent::Down::PartKept { .. }
             | agent::Down::Acknowledge { .. }
             | agent::Down::Cancel
-            | agent::Down::Drain => {}
+            | agent::Down::Drain { .. } => {}
             agent::Down::Message { .. } | agent::Down::Grant { .. } => panic!("unscripted down record"),
         }
     }
@@ -430,10 +444,12 @@ impl World {
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Store { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }
-            | Op::CheckOut { .. } => Done::Succeeded,
+            | Op::CheckOut { .. }
+            | Op::Counts { .. } => Done::Succeeded,
             Op::Fetch { want, .. } => {
                 let commit = match want {
                     Want::Branch { branch } => {
@@ -537,6 +553,8 @@ impl World {
             },
         };
         let assignment = host::Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
             messages: Box::new([]),
             turns: Box::new([protocol::transcript_turn(1, crate::TURN_TEXT, true)]),
             answered: Box::new([]),

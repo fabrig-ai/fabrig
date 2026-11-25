@@ -69,6 +69,7 @@ pub(super) fn opened(
         Record::Core(
             CoreRecord::Settings(_)
             | CoreRecord::Projection(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Turn(_)

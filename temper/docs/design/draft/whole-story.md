@@ -7,11 +7,11 @@ areas owned by standing agents; the kinds of agent session that carry
 it; and the parts still missing, each with a draft of its own. It is the
 top of four drafts written with it, `standing-roles.md`,
 `what-reaches-you.md`, `follows.md` and `surfaces.md`, and it frames
-`tui.md`, `ask-temper.md` and `stock-ways.md`, which keep their own. Its
+`tui.md`, `ask-temper.md` and `archive/stock-ways.md`, which keep their own. Its
 mockups are section 9's. The user: "I'll be the first user of temper and
 ideally temper would be my only frontend", and they asked for all of it
 by v0.1.0 (`v0.1.0.md`, section 5). Its milestones are
-`whole-story.execution.md`. Reasons: `notes.md`, section 12.
+`whole-story.execution.md`. Reasons: `whole-story.notes.md`.
 
 ## 1. In one page
 
@@ -121,7 +121,7 @@ areas to standing roles.
 1. They download temper, run `temper box`, try the playground, then
    adopt their own repository.
 2. Ask temper's opening offers the ways as pictures; they pick You
-   approve (`stock-ways.md`, section 2).
+   approve (`archive/stock-ways.md`, section 2).
 3. In the terminal, or a chat on the web, they ask for a change. The
    chat delegates it; an agent produces it, CI checks it, and failures
    are repaired.
@@ -232,7 +232,7 @@ them first.
 | Standing roles: sessions, Now, wakes, budgets per period, areas and routing | `standing-roles.md` | temper/migration; Team's page temper/ui; talking in the terminal temper/tui |
 | Follows, their lag and parity | `follows.md` | temper/migration; lag on the pages temper/ui |
 | Ask temper reading work, and its memory | `ask-temper.execution.md`, M2 and M4 | temper/ui |
-| Ways and their paths | `stock-ways.md` | temper/ui |
+| Ways and their paths | `archive/stock-ways.md` | temper/ui |
 | The pilot's projects and workers | section 5.2 | temper/migration, with the deployment's operators |
 
 ## 9. The mockups

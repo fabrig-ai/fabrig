@@ -1,5 +1,5 @@
 //! Child replies resume the continuation named by their handle
-//! (`jig/docs/design/domain/engine/README.md`, sections 4.3 and 4.4).
+//! (`jig/docs/design/domain/engine/vocabulary.md`, sections 1.3 and 1.4).
 
 use crate::Core;
 use alloc::boxed::Box;
@@ -161,16 +161,17 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::WithdrawProposal { reply_to, .. }
         | tasks::Event::Conclude { reply_to, .. }
         | tasks::Event::Cancel { reply_to, .. }
+        | tasks::Event::Fail { reply_to, .. }
         | tasks::Event::Release { reply_to, .. }
         | tasks::Event::Amend { reply_to, .. }
         | tasks::Event::Move { reply_to, .. }
         | tasks::Event::Subscribe { reply_to, .. }
         | tasks::Event::SubscribeTopic { reply_to, .. }
-        | tasks::Event::SubscribeTopicApart { reply_to, .. }
         | tasks::Event::Unsubscribe { reply_to, .. }
         | tasks::Event::Introduce { reply_to, .. }
         | tasks::Event::Message { reply_to, .. }
         | tasks::Event::PersonQuestion { reply_to, .. }
+        | tasks::Event::AnswerOfferedQuestion { reply_to, .. }
         | tasks::Event::PersonQuestionAnswer { reply_to, .. }
         | tasks::Event::Talk { reply_to, .. }
         | tasks::Event::Leave { reply_to, .. }
@@ -207,6 +208,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::CloserBatch { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::StalledProposal { .. }
+        | tasks::Event::ReadingLost { .. }
         | tasks::Event::Notice { .. }
         | tasks::Event::DelegateResult { .. }
         | tasks::Event::RememberStub { .. }
@@ -227,8 +229,10 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::Retained { .. }
         | tasks::Event::Settled { .. }
         | tasks::Event::PersonStallNotice { .. }
+        | tasks::Event::RearmPersonStall { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
+        | tasks::Event::PassQuestion { .. }
         | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::MetNotice { .. }
@@ -340,7 +344,7 @@ impl Core {
         }
     }
     /// Name a connector payload before handing it to the core's effect route
-    /// (`jig/docs/design/domain/engine/README.md`, section 4.4).
+    /// (`jig/docs/design/domain/engine/vocabulary.md`, section 1.4).
     pub fn effect_owner(&mut self) -> Token {
         self.fly(Flight::EffectStaging)
     }
@@ -427,7 +431,7 @@ impl Core {
 
 impl Core {
     /// The parent application request naming connector state while this party part
-    /// awaits its answer (jig/docs/design/domain/connectors.md, 5.5).
+    /// awaits its answer (jig/docs/design/domain/connectors-facts.md, 1.5).
     #[must_use]
     pub fn application_part_request(&self, token: Token) -> Option<Token> {
         match self.flights.get(Id::from_token(token)) {
