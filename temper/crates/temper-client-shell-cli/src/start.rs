@@ -9,10 +9,15 @@ use skein_shell::{Clock, Config, Host, Kernel};
 use std::{ffi::OsString, os::unix::ffi::OsStrExt, path::Path};
 
 pub fn parse<'a>(words: &[&'a [u8]]) -> Result<(Option<&'a [u8]>, temper_client_tools::jig::call::Parsed), String> {
+    parse_with_status(words).map_err(|(_, text)| text)
+}
+
+type Call<'a> = (Option<&'a [u8]>, temper_client_tools::jig::call::Parsed);
+fn parse_with_status<'a>(words: &[&'a [u8]]) -> Result<Call<'a>, (u8, String)> {
     let (directory, words) = match words.split_first() {
         Some((word, _)) if *word == b"help" => (None, words),
         Some((directory, words)) => (Some(*directory), words),
-        None => return Err(String::from_utf8_lossy(temper_client_tools::table::USAGE).into_owned()),
+        None => return Err((1, String::from_utf8_lossy(temper_client_tools::table::USAGE).into_owned())),
     };
     let parsed = arguments::parse(words).map_err(|why| {
         let size = words.iter().map(|word| word.len()).sum::<usize>() + 256;
@@ -20,14 +25,12 @@ pub fn parse<'a>(words: &[&'a [u8]]) -> Result<(Option<&'a [u8]>, temper_client_
         temper_client_tools::table::refusal(why, words, &mut out).expect("usage fits");
         let mut exact = skein_lib::Writer::new(out.written());
         temper_client_tools::table::refusal(why, words, &mut exact).expect("measured usage");
-        String::from_utf8_lossy(&exact.finish()).into_owned()
+        (arguments::usage_status(why), String::from_utf8_lossy(&exact.finish()).into_owned())
     })?;
     Ok((directory, parsed))
 }
 
-fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
-    let words: Vec<_> = arguments.iter().map(|word| word.as_bytes()).collect();
-    let (directory, parsed) = parse(&words)?;
+fn start((directory, parsed): Call<'_>, clock: &Clock) -> Result<u8, String> {
     let given = directory;
     let help = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if arguments::class(call) == arguments::Class::Help);
     let mut owned = Vec::new();
@@ -88,7 +91,15 @@ fn start(arguments: &[OsString], clock: &Clock) -> Result<u8, String> {
 }
 #[must_use]
 pub fn run(arguments: &[OsString], clock: &Clock) -> u8 {
-    match start(arguments, clock) {
+    let words: Vec<_> = arguments.iter().map(|word| word.as_bytes()).collect();
+    let call = match parse_with_status(&words) {
+        Ok(call) => call,
+        Err((status, why)) => {
+            eprintln!("temper ctl: {why}");
+            return status;
+        }
+    };
+    match start(call, clock) {
         Ok(code) => code,
         Err(why) => {
             eprintln!("temper ctl: {why}");
@@ -105,4 +116,12 @@ fn close(owned: Vec<Fd>) {
     for fd in owned {
         skein_shell::close_startup_fd(fd);
     }
+}
+
+#[cfg(test)]
+#[test]
+fn a_stop_without_a_reason_is_usage_exit_two() {
+    let (status, why) = parse_with_status(&[b"unused", b"task", b"stop", b"41"]).unwrap_err();
+    assert_eq!(status, 2);
+    assert!(why.contains("REASON"), "{why}");
 }

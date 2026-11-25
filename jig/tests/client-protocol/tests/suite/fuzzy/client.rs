@@ -14,8 +14,15 @@ fn apply(story: &mut Story, choice: u64, number: u64) {
         1 => story.event(Event::Unwatch { handle: HANDLE }),
         2 => story.read(HANDLE, Readable::Jig(contract::Read::Project { project: 1 })),
         3 => {
-            story
-                .send(Key { asker: Asker(1), number }, Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 9 })));
+            story.send(
+                Key { asker: Asker(1), number },
+                Ask::Jig(Box::new(contract::Ask::Stop {
+                    project: 1,
+                    task: 9,
+                    reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                        .expect("fixture reason fits"),
+                })),
+            );
         }
         4 => story.event(Event::SignOut),
         5 => {

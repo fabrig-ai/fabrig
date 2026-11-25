@@ -2581,6 +2581,7 @@ version = "0.0.0"
 name = "jig-test-profile"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-authority",
@@ -7379,6 +7380,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-limits",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-engine-service-startup",

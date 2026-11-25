@@ -1395,7 +1395,15 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: jig_client::contract::Text::new(
+                            Box::from(b"Stopped from the task card".as_slice()),
+                            u32::MAX,
+                        )
+                        .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },
@@ -1453,7 +1461,15 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: jig_client::contract::Text::new(
+                            Box::from(b"Stopped from the task card".as_slice()),
+                            u32::MAX,
+                        )
+                        .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },
@@ -1523,7 +1539,15 @@ mod tests {
                 down: jig_client::Down::Send {
                     attempt,
                     key,
-                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop { project: 1, task: u64::MAX })),
+                    request: jig_client::Ask::Jig(Box::new(client::Ask::Stop {
+                        project: 1,
+                        task: u64::MAX,
+                        reason: jig_client::contract::Text::new(
+                            Box::from(b"Stopped from the task card".as_slice()),
+                            u32::MAX,
+                        )
+                        .expect("fixture reason fits"),
+                    })),
                     value: None,
                 },
             },

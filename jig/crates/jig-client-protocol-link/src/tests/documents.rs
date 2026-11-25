@@ -157,12 +157,13 @@ fn document_decodes_borrow_the_kept_bounds() {
         };
         let limits = Limits::new(client, fixtures::limits().exchanges()).unwrap();
         let bounds = limits.receiving();
-        assert_eq!(bounds.document_text_bytes, long_text.clamp(512, w::CEILINGS.document_text_bytes));
+        // A hold's explanation fits even when ordinary document text is small.
+        assert_eq!(bounds.document_text_bytes, long_text.clamp(1_024, w::CEILINGS.document_text_bytes));
         assert_eq!(bounds.specification_words, long_text.min(w::CEILINGS.specification_words));
         assert_eq!(bounds.edit_note_body, long_text.min(w::CEILINGS.edit_note_body));
         assert_eq!(bounds.call_input, limits.client().text);
         assert_eq!(bounds.message_words, long_text.min(w::CEILINGS.message_words));
-        let len = 512.max(long_text.min(w::CEILINGS.document_text_bytes));
+        let len = 1_024.max(long_text.min(w::CEILINGS.document_text_bytes));
         let mut bytes = skein_lib::List::with_capacity(len);
         for _ in 0..len {
             bytes.push(b'x').unwrap();
@@ -174,7 +175,7 @@ fn document_decodes_borrow_the_kept_bounds() {
         party.name = record;
         frame.party = party;
         let decoded = documents::frame(frame, &limits);
-        if long_text < 512 {
+        if long_text < 1_024 {
             assert!(decoded.is_err());
         } else {
             assert_eq!(decoded.unwrap().party.name.bytes.bytes(), bytes.as_ref());
@@ -506,13 +507,16 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
 }
 
 #[test]
-fn hold_accounts_decode_whole_past_the_text_preview_bound() {
-    let limits = fixtures::limits();
-    assert!(limits.client().text < 512);
-    let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 512]), true), (Box::new([b'x'; 513]), false)];
+fn hold_words_decode_whole_past_the_text_preview_bound() {
+    let defaults = fixtures::limits();
+    let client = jig_client_domain::Limits { long_text: 128, ..*defaults.client() };
+    let limits = Limits::new(client, defaults.exchanges()).unwrap();
+    assert_eq!(limits.wire().document_text_bytes, 1024);
+    let cases: [(Box<[u8]>, bool); 2] = [(Box::new([b'x'; 1024]), true), (Box::new([b'x'; 1025]), false)];
     for (bytes, accepted) in cases {
         let mut parts = jig_client_test_records::hold_record();
         parts.words = Some(w::DocumentText { bytes: bytes.clone(), cut: false });
+        assert_eq!(parts.measure(limits.wire()).is_ok(), accepted);
         let mut task = fixtures::task_record();
         task.hold = Some(parts);
         let decoded = documents::task(task, &limits);
@@ -640,4 +644,24 @@ fn a_task_line_reads_the_descendants_wait_and_the_separate_nearest() {
         line.nearest,
         Some(c::Nearest { at: Wall::from_nanos(59), then: c::AtBound::Hold, kind: c::WaitKind::Resource })
     );
+}
+
+#[test]
+fn wait_hold_chips_decode_with_their_words() {
+    const WORDS: &[u8] = b"Waited 24 h for a reply";
+    let limits = fixtures::limits();
+    let mut held = jig_client_test_records::hold_record();
+    held.words = Some(w::DocumentText { bytes: WORDS.into(), cut: false });
+    for (reason, expected) in
+        [(w::HoldCategory::Waited, c::HoldCategory::Waited), (w::HoldCategory::Deadline, c::HoldCategory::Deadline)]
+    {
+        held.reason = reason;
+        let mut task = fixtures::task_record();
+        task.hold = Some(held.clone());
+        let read = documents::task(task, &limits).unwrap().hold.expect("decoded hold");
+        assert_eq!(read.reason, expected);
+        let words = read.words.expect("wait source's words");
+        assert_eq!(words.bytes.bytes(), WORDS);
+        assert!(!words.cut);
+    }
 }

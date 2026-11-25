@@ -86,6 +86,8 @@ fn form(kind: &tasks::MessageKind) -> Option<Form> {
         | tasks::MessageKind::Amendment { .. }
         | tasks::MessageKind::Met { .. }
         | tasks::MessageKind::Notice { .. }
+        | tasks::MessageKind::PassedQuestion { .. }
+        | tasks::MessageKind::PassedAnswer { .. }
         | tasks::MessageKind::QuestionAnswered { .. }
         | tasks::MessageKind::QuestionOwed
         | tasks::MessageKind::NothingAwaited

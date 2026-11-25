@@ -135,7 +135,11 @@ fn deleted_world(seed: u64) -> World {
     request(&mut world, 62, people::Ask::MarkSeen { seen: people::Seen::Conversation { task: chat, through: 1 } });
     world.turn(2, 0, None, b"unread reply");
     let (held, other) = delegate_pair(&mut world);
-    request(&mut world, 63, people::Ask::Stop { project: PROJECT, task: held });
+    request(
+        &mut world,
+        63,
+        people::Ask::Stop { project: PROJECT, task: held, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     assert!(live_row(&world, held).placed.is_some(), "fixture has a placed hold");
     let attempt = live_row(&world, held).attempt;
     world.send(root::Event::Answer {

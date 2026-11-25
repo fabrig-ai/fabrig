@@ -280,7 +280,12 @@ pub fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         | Tool::Change { .. }
         | Tool::Delegate { .. } => jig_domain_core::ToolKind::Delegate,
         Tool::MarkRead { .. } => jig_domain_core::ToolKind::MarkRead,
-        Tool::Message { target, .. } => jig_domain_core::ToolKind::Message { target: *target },
+        Tool::Message { target, form: MessageForm::Answer { question }, .. } => {
+            jig_domain_core::ToolKind::AnswerQuestion { target: *target, question: *question }
+        }
+        Tool::Message { target, form: MessageForm::Words | MessageForm::Question, .. } => {
+            jig_domain_core::ToolKind::Message { target: *target }
+        }
         Tool::Introduce { left, .. } => jig_domain_core::ToolKind::Message { target: *left },
         Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } => {
             jig_domain_core::ToolKind::Control

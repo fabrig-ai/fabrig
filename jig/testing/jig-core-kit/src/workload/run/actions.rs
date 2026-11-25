@@ -170,7 +170,7 @@ fn request(act: &super::Act, current: &tasks::TaskRecord, world: &World) -> Resu
             grace: None,
         })
     } else if act.kind == people::HOLDS_A_TASK {
-        Some(requests::Ask::Stop { project: 1, task: number })
+        Some(requests::Ask::Stop { project: 1, task: number, reason: Box::from(b"Parking the task".as_slice()) })
     } else if act.kind == people::RELEASES_A_TASK {
         Some(requests::Ask::Release { project: 1, task: number, revision: current.revisions.hold, again: None })
     } else if act.kind == people::NEVER_ANSWERS {
@@ -241,6 +241,7 @@ mod tests {
             stall: Duration::from_secs(60),
             deadline: Wall::from_nanos(60_000_000_000),
             notice: None,
+            offer: None,
         });
         assert!(holds(Moment::QuestionOpen, people::ANSWERS_LATE, &row, false));
         assert!(!holds(Moment::RunEnded, people::ANSWERS_AN_ENDED_RUN, &row, false));

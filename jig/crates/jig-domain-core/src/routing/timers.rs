@@ -9,7 +9,7 @@ impl Core {
         self.deadline(now, wall, true)
     }
 
-    /// First due timer in people, tasks, reports, fleet, brief, account and retention order.
+    /// First due timer in people, wait bounds, tasks, reports, fleet, brief, account and retention order.
     #[must_use]
     pub fn due(&self, now: Time, wall: Wall) -> Option<Timer> {
         self.due_timer(now, wall, true)
@@ -27,7 +27,7 @@ impl Core {
         self.due_timer(now, wall, false)
     }
 
-    fn deadlines(&self, now: Time, wall: Wall) -> [(Timer, Option<Time>); 7] {
+    fn deadlines(&self, now: Time, wall: Wall) -> [(Timer, Option<Time>); 8] {
         let saved = match self.people.next_wall_expiry() {
             Some(expiry) if self.people.ready() => {
                 Some(now.saturating_add(Duration::from_nanos(expiry.as_nanos().saturating_sub(wall.as_nanos()))))
@@ -36,6 +36,7 @@ impl Core {
         };
         [
             (Timer::People, earliest(self.people.next_deadline(), saved)),
+            (Timer::WaitBounds, self.wait_alarms.next()),
             (Timer::Tasks, self.tasks.next_deadline()),
             (Timer::Resources, crate::effects::resources::next_deadline(self)),
             (Timer::Fleet, self.fleet.next_deadline()),

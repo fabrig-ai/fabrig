@@ -158,7 +158,7 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
             match act {
                 ActKind::Message => out.put(b" TEXT"),
                 ActKind::Answer => out.put(b" QUESTION TEXT"),
-                ActKind::Cancel => out.put(b" REASON"),
+                ActKind::Stop | ActKind::Cancel => out.put(b" REASON"),
                 ActKind::Release => hold(task, out),
                 ActKind::Talk
                 | ActKind::Leave
@@ -169,7 +169,6 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
                 | ActKind::PassUp
                 | ActKind::LeaveHeld
                 | ActKind::Amend
-                | ActKind::Stop
                 | ActKind::Move
                 | ActKind::Reorder
                 | ActKind::Seen
@@ -407,6 +406,7 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::NotLending
         | Refusal::NotOffered
         | Refusal::KeyConflict
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Llm { .. } => {}
     }
     plain_refusal(why, book, out);
@@ -428,6 +428,9 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         }
         Refusal::Judged { why, .. } => book.say(0, word.id(), &[Hole::Name(why.bytes().into())]),
         Refusal::Account { account, .. } => book.say(0, word.id(), &[Hole::Number(u64::from(*account))]),
+        Refusal::QuestionAnswered { question, by } => {
+            book.say(0, word.id(), &[Hole::Number(*question), Hole::Number(by.number())])
+        }
         Refusal::Taken { by } => book.say(0, word.id(), &[Hole::Number(*by)]),
         Refusal::Llm { model, .. } => book.say(0, word.id(), &[Hole::Name(model.bytes().into())]),
         Refusal::NoEscalationHolder

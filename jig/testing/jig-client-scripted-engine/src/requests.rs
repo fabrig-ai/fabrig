@@ -737,7 +737,7 @@ fn target(ask: &Ask) -> Option<Target> {
         Ask::Amend { project, task, revision, .. } => {
             (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Amend, revision.map(|value| (value, Moved::Spec)))
         }
-        Ask::Stop { project, task } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Stop, None),
+        Ask::Stop { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Stop, None),
         Ask::Cancel { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Cancel, None),
         Ask::Move { project, task, .. } => (Some(*project), Some(ObjectKey::Task(*task)), ActKind::Move, None),
         Ask::Withdraw { project, .. } => (Some(*project), None, ActKind::Withdraw, None),

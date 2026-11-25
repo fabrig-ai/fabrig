@@ -1218,3 +1218,54 @@ fn an_active_goals_subscription_inbox_reservations_outlive_a_read() {
         assert_eq!(world.record(GOAL).subscriptions.len(), 2);
     }
 }
+
+const COVERING_TASK: u64 = 3;
+const PASSED_ENTRY: u64 = 4;
+const FIRST_ANSWER: u64 = 5;
+const LATE_ANSWER: u64 = 6;
+const PASS_WORDS: &[u8] = b"proceed?";
+
+fn passed() -> World {
+    let mut world = asked();
+    world.make(PERSON_PARTY, vec![task(COVERING_TASK, &[])]);
+    world.claim(COVERING_TASK, ATTEMPT);
+    world.send(Event::PassQuestion {
+        asker: ASKER,
+        question: QUESTION,
+        offer: QuestionOffer {
+            holder: EscalationHolder::Task(COVERING_TASK),
+            since: Wall::EPOCH,
+            relay: Some(QuestionRelay { entry: PASSED_ENTRY, words: PASS_WORDS.into() }),
+        },
+    });
+    world
+}
+
+#[test]
+fn an_offered_question_relays_without_taking_inbox_room() {
+    let world = passed();
+    assert!(world.relays.contains(&(COVERING_TASK, ATTEMPT, PASSED_ENTRY)));
+    let offered = world.run_context(COVERING_TASK).inbox.iter().find(|word| word.number == PASSED_ENTRY).cloned();
+    assert_eq!(
+        offered.map(|word| (word.from, word.kind, word.words)),
+        Some((Party::Task(ASKER), MessageKind::PassedQuestion { question: QUESTION }, PASS_WORDS.into(),))
+    );
+    let holder = world.record(COVERING_TASK);
+    assert!(holder.inbox.is_empty(), "the entry uses no room in the holder's word inbox");
+}
+
+#[test]
+fn a_late_answer_names_the_first_writer_from_either_holder() {
+    for (winner, late) in [(COVERING_TASK, REQUESTER), (REQUESTER, COVERING_TASK)] {
+        let mut world = passed();
+        let answer = MessageKind::Answer { question: QUESTION };
+        message(&mut world, Party::Task(winner), ASKER, FIRST_ANSWER, answer.clone());
+        assert_eq!(
+            message(&mut world, Party::Task(late), ASKER, LATE_ANSWER, answer),
+            Reply::Refused(Problem::new(
+                Some(ASKER),
+                Refusal::QuestionAnswered { question: QUESTION, by: QuestionAnswerer::Task(winner) }
+            ))
+        );
+    }
+}

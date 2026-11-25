@@ -272,6 +272,8 @@ fn full_documents_tabs_and_all_page_kinds_stay_under_their_measured_ceiling() {
                     request: jig_client::Ask::Jig(Box::new(jig_client_domain::contract::Ask::Stop {
                         project: 1,
                         task: 9,
+                        reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
                     })),
                 },
             },

@@ -559,7 +559,7 @@ fn hold_reasons_survive_restart_and_release_without_losing_task_state() {
                     owner: jig_domain_tasks::Owner::Party { person: 1 },
                     mode: jig_domain_tasks::Mode::Stop,
                     scope: jig_domain_tasks::Scope::Subtree { task: 1 },
-                    reason: Box::new([]),
+                    reason: Box::from(b"Parked".as_slice()),
                     placed_at: 0,
                     revision: 1,
                     exempt: Box::new([]),

@@ -39,6 +39,7 @@ pub fn hold_number(task: u64, reason: &c::HoldCategory) -> Option<Hole> {
         | c::HoldCategory::ResourceUnavailable
         | c::HoldCategory::ResourceAccess
         | c::HoldCategory::Circle
+        | c::HoldCategory::Waited
         | c::HoldCategory::Procedure => None,
     }
 }

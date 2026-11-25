@@ -93,7 +93,7 @@ record HoldCategoryUncertain { entry: u64 }
 record HoldCategoryPoolLost { pool: u64 }
 enum Bound { reasoning, metadata, items, answer, tools, history_items, history, window, output }
 record Exceeded { bound: Bound value: u64 }
-enum HoldCategory { failures: HoldCategoryFailures, stalled, dependency: HoldCategoryDependency, stopped, placed: HoldCategoryPlaced, drift, effects, effect_failed, uncertain: HoldCategoryUncertain, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost: HoldCategoryPoolLost, procedure, circle, exceeded: Exceeded }
+enum HoldCategory { failures: HoldCategoryFailures, stalled, dependency: HoldCategoryDependency, stopped, placed: HoldCategoryPlaced, drift, effects, effect_failed, uncertain: HoldCategoryUncertain, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost: HoldCategoryPoolLost, procedure, circle, exceeded: Exceeded, waited }
 record ChipPhaseWaiting { dependencies: list 32 u64 more: bool holds: bool }
 record ChipPhaseActive { value: RunStage }
 record ChipPhasePerson { address: PersonAddress taken_by: option u64 since: option u64 }
@@ -323,7 +323,8 @@ enum DecideOn { proposal: DecideProposal, escalation: DecideEscalation }
 record Decide { project: u32 on: DecideOn }
 record Release { project: u32 task: u64 revision: Revision again: option bool }
 record Amend { project: u32 task: u64 revision: option Revision change: Amendment reason: text 65536 }
-record Stop { project: u32 task: u64 }
+record Stop { project: u32 task: u64 reason: text 65536 = "" }
+record Leave { project: u32 task: u64 }
 record Conclude { project: u32 task: u64 }
 record Concluded { by: u64 at: u64 }
 record RefusalConcluded { at: u64 }

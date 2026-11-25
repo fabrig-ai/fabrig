@@ -719,7 +719,15 @@ pub fn transient_request(seed: u64, fault: &jig_client_kit::FrontFault) {
     story.now = story.now.saturating_add(Duration::from_millis(50));
     story.advance();
     let key = Key { asker: client::Asker::JIG, number: 62 };
-    story.send(key, Ask::Jig(Box::new(client::contract::Ask::Stop { project: 1, task: u64::MAX })));
+    story.send(
+        key,
+        Ask::Jig(Box::new(client::contract::Ask::Stop {
+            project: 1,
+            task: u64::MAX,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    );
     assert!(
         story.run_until(
             |s| s.client.pending(key).is_some_and(|p| matches!(p.progress, client::Progress::Retrying { .. })),

@@ -113,12 +113,13 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     }
 }
 
-fn word(task: u64, revision: u64, entry: u64, since: Wall) -> crate::Word {
+fn word(domain: &Domain, row: &crate::TaskRecord, revision: u64, entry: u64, since: Wall) -> crate::Word {
+    let task = row.number;
     crate::Word {
         number: entry,
         from: Party::Task(task),
         kind: crate::MessageKind::Escalation { task, revision },
-        words: Box::from(&b"Held task needs a decision"[..]),
+        words: crate::hold_words(Some(domain), row).expect("an escalation waits for a held task").bytes,
         at: since,
         hits: 1,
         eligible: true,
@@ -133,7 +134,7 @@ pub(crate) fn waiting_for(domain: &Domain, holder: u64) -> Box<[crate::Word]> {
             Escalation::Waiting { revision, holder: EscalationHolder::Task(target), entry, since }
                 if target == holder =>
             {
-                entries.push(word(*number, revision, entry, since)).expect("one escalation per held task");
+                entries.push(word(domain, task, revision, entry, since)).expect("one escalation per held task");
             }
             Escalation::Waiting { .. }
             | Escalation::Unheld { .. }
@@ -158,7 +159,7 @@ fn wake_holder(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Qu
     if record(domain, holder).is_none() {
         out.push(Request::EscalationStalled { task: number, revision, holder: EscalationHolder::Task(holder) });
     } else {
-        crate::wake::after_message(domain, env, holder, None, word(number, revision, entry, since), out);
+        crate::wake::after_message(domain, env, holder, None, word(domain, task, revision, entry, since), out);
     }
 }
 
@@ -192,7 +193,7 @@ pub(crate) fn wake_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             Escalation::Waiting { revision, holder: EscalationHolder::Task(holder), entry, since } => {
                 if let Some(row) = record(domain, holder)
                     && row.phase == Phase::Active(crate::Active::Idle)
-                    && crate::reasons::covered(&word(number, revision, entry, since), row.offered)
+                    && crate::reasons::covered(&word(domain, task, revision, entry, since), row.offered)
                 {
                     continue;
                 }

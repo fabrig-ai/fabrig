@@ -19,6 +19,8 @@ pub(super) fn language() -> Language {
             ]),
             Word::Refusal(RefusalWord::HoldOwnerParty) => held_by(b"person "),
             Word::Refusal(RefusalWord::HoldOwnerTask) => held_by(b"task "),
+            Word::Refusal(RefusalWord::QuestionAnsweredByTask) => answered_by(b" was answered by task "),
+            Word::Refusal(RefusalWord::QuestionAnsweredByPerson) => answered_by(b" was answered by person "),
             Word::Phase(_) | Word::Hold(_) | Word::Refusal(_) | Word::Waiting(_) | Word::Status(_) => {
                 let (_, label, holes) = word.data();
                 let mut segments = List::with_capacity(3);
@@ -102,6 +104,7 @@ impl Word {
             Self::Hold(HoldWord::Uncertain) => (22, b"Uncertain outbox entry ", &[HoleKind::Number]),
             Self::Hold(HoldWord::Budget) => (23, b"Insufficient activation budget", &[]),
             Self::Hold(HoldWord::Deadline) => (24, b"Deadline passed", &[]),
+            Self::Hold(HoldWord::Waited) => (135, b"A wait passed its bound", &[]),
             Self::Hold(HoldWord::HoldsWaited) => (25, b"Resource holds waited too long", &[]),
             Self::Hold(HoldWord::ResourceUnavailable) => (26, b"A required connector resource is unavailable", &[]),
             Self::Hold(HoldWord::ResourceAccess) => (27, b"Current resource access forbids this action", &[]),
@@ -117,6 +120,8 @@ impl Word {
             Self::Refusal(RefusalWord::Authority) => (37, b"Authority missing", &[]),
             Self::Refusal(RefusalWord::Limit) => (38, b"Limit reached", &[]),
             Self::Refusal(RefusalWord::Moved) => (39, b"The object changed", &[]),
+            Self::Refusal(RefusalWord::QuestionAnsweredByTask) => (136, b"", &[HoleKind::Number, HoleKind::Number]),
+            Self::Refusal(RefusalWord::QuestionAnsweredByPerson) => (137, b"", &[HoleKind::Number, HoleKind::Number]),
             Self::Refusal(RefusalWord::Unlinked) => (133, b"The worker is unlinked", &[]),
             Self::Refusal(RefusalWord::Concluded) => (132, b"The gathering is concluded; no delegate may join it", &[]),
             Self::Refusal(RefusalWord::Ended) => (40, b"The object ended", &[]),
@@ -205,5 +210,14 @@ fn held_by(kind: &[u8]) -> Box<[Segment]> {
         Segment::Text(copy_of(kind)),
         Segment::Hole { index: 1, kind: HoleKind::Number },
         Segment::Text(copy_of(b": only they, or a role above theirs, may release it")),
+    ])
+}
+
+fn answered_by(kind: &[u8]) -> Box<[Segment]> {
+    Box::new([
+        Segment::Text(copy_of(b"Question ")),
+        Segment::Hole { index: 0, kind: HoleKind::Number },
+        Segment::Text(copy_of(kind)),
+        Segment::Hole { index: 1, kind: HoleKind::Number },
     ])
 }

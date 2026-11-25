@@ -66,7 +66,10 @@ pub fn pressure() -> jig_fake_parties::Party {
         1_000_000,
         Box::new([
             Act::SignIn { provider: 0, subject: b"ordinary pressure".as_slice().into() },
-            Act::Request { key: [61; 16], ask: Ask::Stop { task: Task::Number(u64::MAX) } },
+            Act::Request {
+                key: [61; 16],
+                ask: Ask::Stop { task: Task::Number(u64::MAX), reason: Box::from(b"Parking the task".as_slice()) },
+            },
         ]),
     )
 }

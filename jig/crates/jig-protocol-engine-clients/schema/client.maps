@@ -117,7 +117,7 @@ enum ResultsWake = p::ResultsWake to domain
 record WakePolicy = t::WakePolicy
 record WakePolicy = p::WakePolicy to domain
 record PersonStallNotice = t::PersonStallNotice { at via s::wall }
-record PersonWait = t::PersonWait { since via s::wall, deadline via s::wall }
+record PersonWait by hand
 enum PartKind = t::PartKind both ways
 record PartKeyPath stands for value
 record PartKeyNumber stands for value

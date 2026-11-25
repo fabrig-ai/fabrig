@@ -32,7 +32,7 @@ fn operation(value: &c::Operation, limits: &w::Limits) -> Result<w::Operation, w
         }
         c::Operation::Cancel { project, task, reason, grace } => c::Ask::Cancel { project, task, reason, grace },
         c::Operation::Release { project, task, revision, again } => c::Ask::Release { project, task, revision, again },
-        c::Operation::Stop { project, task } => c::Ask::Stop { project, task },
+        c::Operation::Stop { project, task, reason } => c::Ask::Stop { project, task, reason },
         c::Operation::Move { project, task, reason } => c::Ask::Move { project, task, reason },
     };
     Ok(match asks::ask(&ask, limits)? {
@@ -105,7 +105,7 @@ pub(super) fn restore(value: w::Compound, limits: &Limits) -> Result<c::Ask, w::
             c::Ask::Release { project, task, revision, again } => {
                 c::Operation::Release { project, task, revision, again }
             }
-            c::Ask::Stop { project, task } => c::Operation::Stop { project, task },
+            c::Ask::Stop { project, task, reason } => c::Operation::Stop { project, task, reason },
             c::Ask::Move { project, task, reason } => c::Operation::Move { project, task, reason },
             c::Ask::Talk { .. }
             | c::Ask::Conclude { .. }

@@ -478,6 +478,7 @@ fn tag_tasks(
         }
         tasks::Request::Refused { reply_to, problem } => refused::refused(core, env, reply_to, problem, pending, out),
         tasks::Request::PersonStallDue { task } => notices::person_stall_due(core, env, task, pending),
+        tasks::Request::PersonStallRestored { task } => notices::person_stall_restored(core, env, task, pending),
         tasks::Request::QuestionOwedDue { task } => notices::question_owed_due(core, env, task, pending),
         tasks::Request::NothingAwaitedDue { task } => notices::nothing_awaited_due(core, env, task, pending),
         tasks::Request::QuestionParked { task, question } => {

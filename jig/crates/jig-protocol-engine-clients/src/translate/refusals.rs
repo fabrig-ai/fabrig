@@ -4,6 +4,7 @@ use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_people as p;
 use skein_lib::Writer;
+#[expect(clippy::too_many_lines, reason = "One exhaustive dispatch keeps the sparse and document refusals together.")]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
         p::Refusal::Forgotten { oldest } => w::Refusal::Forgotten(w::RefusalForgotten { oldest }),
@@ -69,6 +70,13 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         }),
         p::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept {
             pending: names(&pending, limits.refusal_kept_pending, w::paths::REFUSAL_KEPT_PENDING)?,
+        }),
+        p::Refusal::QuestionAnswered { question, by } => w::Refusal::QuestionAnswered(w::RefusalQuestionAnswered {
+            question,
+            by: match by {
+                p::QuestionAnswerer::Task(number) => w::QuestionAnswerer::Task(w::AnswererNumber { number }),
+                p::QuestionAnswerer::Person(number) => w::QuestionAnswerer::Person(w::AnswererNumber { number }),
+            },
         }),
         p::Refusal::Unlinked { worker } => w::Refusal::Unlinked(w::RefusalUnlinked { worker }),
         p::Refusal::Concluded { at } => {
@@ -172,6 +180,7 @@ fn hold(value: p::HoldReason) -> w::HoldCategory {
         p::HoldReason::ResourceAccess => w::HoldCategory::ResourceAccess,
         p::HoldReason::Procedure => w::HoldCategory::Procedure,
         p::HoldReason::Circle => w::HoldCategory::Circle,
+        p::HoldReason::Waited => w::HoldCategory::Waited,
         p::HoldReason::Dependency { task } => w::HoldCategory::Dependency(w::HoldCategoryDependency { task }),
         p::HoldReason::Placed { hold } => w::HoldCategory::Placed(w::HoldCategoryPlaced { hold }),
         p::HoldReason::Uncertain { entry } => w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry }),

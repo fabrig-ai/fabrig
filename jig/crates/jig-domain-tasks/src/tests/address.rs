@@ -9,6 +9,7 @@
 use super::revisions::{Harness, task, to};
 use crate::{AddressChange, Amendment, Event, Executor, Key, Party, PersonAddress, Refusal, Request, Stored};
 use alloc::vec::Vec;
+use skein_lib::{Time, Wall};
 
 fn change(revision: u64, address: PersonAddress) -> Amendment {
     Amendment {
@@ -47,7 +48,9 @@ fn readdressing_releases_the_taker_moves_only_the_person_revision_and_keeps_hist
     h.make(Vec::from([member]));
     h.send(Event::TakePerson { reply_to: to(), task: 1, person: 7 });
     assert_eq!(h.domain.task(1).unwrap().taken_by, Some(7));
-    let wait = h.domain.task(1).unwrap().person_wait;
+    let wait = h.domain.task(1).unwrap().person_wait.expect("active person wait");
+    h.env.now = Time::from_nanos(100);
+    h.env.wall = Wall::from_nanos(100);
     let out = amend(&mut h, change(0, PersonAddress::Person(8)));
     assert!(
         out.iter().any(|r| match r {
@@ -61,7 +64,10 @@ fn readdressing_releases_the_taker_moves_only_the_person_revision_and_keeps_hist
     assert_eq!(row.taken_by, None);
     assert_eq!(row.revisions.person, 1);
     assert_eq!(row.revisions.spec, 0);
-    assert_eq!(row.person_wait, wait, "addressing preserves the active wait");
+    let fresh = row.person_wait.expect("the new addressee has a wait");
+    assert_eq!(fresh.since, h.env.wall);
+    assert!(fresh.since > wait.since);
+    assert_eq!(fresh.offer, None);
     let Stored::History(history) = &h.stored[&Key::History { task: 1, revision: 1 }] else { panic!("history") };
     let settings = history.amendment.as_ref().unwrap();
     assert_eq!(settings.before.addressed, Some(PersonAddress::Role(4)));
@@ -76,8 +82,13 @@ fn readdressing_releases_the_taker_moves_only_the_person_revision_and_keeps_hist
     amend(&mut h, change(1, PersonAddress::Role(u32::MAX)));
     assert_eq!(h.domain.task(1).unwrap().executor, Executor::Person(PersonAddress::Role(u32::MAX)));
     assert_eq!(h.domain.task(1).unwrap().revisions.person, 2);
+    let wait = h.domain.task(1).unwrap().person_wait;
+    h.env.now = Time::from_nanos(200);
+    h.env.wall = Wall::from_nanos(200);
     amend(&mut h, change(2, PersonAddress::Role(u32::MAX)));
-    assert_eq!(h.domain.task(1).unwrap().revisions.person, 2, "equal unclaimed address keeps its semantic revision");
+    let unchanged = h.domain.task(1).unwrap();
+    assert_eq!(unchanged.revisions.person, 2, "equal unclaimed address keeps its semantic revision");
+    assert_eq!(unchanged.person_wait, wait, "no new addressee, no new wait");
 }
 
 #[test]

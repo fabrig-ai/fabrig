@@ -150,6 +150,7 @@ pub enum PublicHold {
     Deadline,
     HoldsWaited,
     Circle,
+    Waited,
     ResourceUnavailable,
     ResourceAccess,
     PoolLost,

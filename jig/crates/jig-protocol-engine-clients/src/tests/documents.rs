@@ -772,3 +772,20 @@ fn core_waits() -> List<jig_domain_core_vocabulary::Wait> {
     }
     waits
 }
+
+#[test]
+fn wait_hold_chips_keep_the_category_and_words() {
+    use jig_domain_core_vocabulary::documents::Text;
+    use jig_domain_tasks as t;
+    const WORDS: &[u8] = b"Waited 24 h for a reply";
+    let mut hold = fixtures::task_with_hold().hold.expect("held fixture");
+    for (reason, expected) in
+        [(t::Hold::Waited, w::HoldCategory::Waited), (t::Hold::Deadline, w::HoldCategory::Deadline)]
+    {
+        hold.reason = reason;
+        hold.words = Some(Text { bytes: WORDS.into(), cut: false });
+        let record = translate::chips::held(&hold);
+        assert_eq!(record.reason, expected);
+        assert_eq!(record.words, Some(w::DocumentText { bytes: WORDS.into(), cut: false }));
+    }
+}

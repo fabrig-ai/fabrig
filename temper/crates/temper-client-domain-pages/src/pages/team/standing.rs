@@ -584,6 +584,7 @@ fn paused(task: &c::Task) -> bool {
         | c::HoldCategory::Deadline
         | c::HoldCategory::HoldsWaited
         | c::HoldCategory::Circle
+        | c::HoldCategory::Waited
         | c::HoldCategory::ResourceUnavailable
         | c::HoldCategory::ResourceAccess
         | c::HoldCategory::PoolLost { .. }

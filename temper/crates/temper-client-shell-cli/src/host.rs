@@ -215,6 +215,9 @@ impl OneShot {
         io::down(&mut self.io, &self.env, request, &mut self.raw);
     }
     fn fail(&mut self, text: &[u8]) {
+        self.fail_with_status(text, 1);
+    }
+    fn fail_with_status(&mut self, text: &[u8], status: u8) {
         if self.status.is_some() {
             return;
         }
@@ -222,7 +225,7 @@ impl OneShot {
         line.extend_from_slice(text);
         line.push(b'\n');
         self.output.push(true, line.into_boxed_slice());
-        self.finish(1, false);
+        self.finish(status, false);
     }
     fn print(&mut self, printed: temper_client_tools::jig::Printed) {
         self.file_end = Some(printed.file);

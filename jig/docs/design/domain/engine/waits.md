@@ -111,6 +111,13 @@ A closed set, so that every view, test and tool reads the same names.
   finishes its turn (`../tasks/lifecycle-endings.md`, 1); none other. Its
   line's first wait stays none and what it waits on stays *nothing*
   (`views.md`, 3); its nearest bound counts them. An ended task has none.
+- **Passed up, still one wait:** a question passed up
+  (`../tasks/messages.md`, 2) is one wait of its asker's, at its current
+  holder, since its arrival there: a `question` wait while a task holds
+  it, a `party` wait while a party does. A person task offered to its
+  next holder (`../people/README.md`, 7) is one `party` wait, at that
+  holder, since its offer there; its first addressee's inbox entry is no
+  second wait.
 - **Their order:** as listed, each group oldest first by *since*, then by
   number. `task show` lists them so.
 - **A line's first wait** is the oldest entry waiting at a person or a
@@ -146,6 +153,10 @@ A closed set, so that every view, test and tool reads the same names.
   An `account` or `host` wait with a known reset counts the figure from
   the reset instead, where that is later.
 - **A `dependency` or `delegate` wait** is bound by the task's deadline.
+  Every deadline a bound takes here is the one the task is held at, its
+  deadline moved later by the time the task spent suspended
+  (`../tasks/lifecycle-holds.md`, 1), so that a record's bound is the
+  instant its outcome is taken.
 - **No bound,** each for its reason, which the record names and the views
   show with the wait's age:
   - *no deadline:* a `dependency` or `delegate` wait in a task with none;
@@ -163,6 +174,21 @@ A closed set, so that every view, test and tool reads the same names.
 | *pass up* | `party` at a holder past which another holder covers the entry; `question` |
 | *overdue* | `party` at the project's last holder, which no other covers; `sign-off` |
 | *give up* | a read its caller may lose, reported |
+
+- **Who covers what passes up:** an escalation, a proposal and a
+  question pass to the next holder their route finds, a task or a party
+  (`../tasks/proposals.md`, *Where they wait*); a person task passes only
+  to a party, since a party answers it (`../people/README.md`, 7). A
+  `question` wait whose route finds no holder past its current one is
+  *overdue*.
+- **Taking the outcome:** jig's kinds' outcomes are taken where their
+  owners say: a hold, and a question's pass up, by the core's bound alarm
+  (`../tasks/lifecycle-holds.md`, 1; `../tasks/messages.md`, 2); a
+  resource's hold, an escalation's and a proposal's pass up, and a
+  person task's offer, by their own clocks (`../tasks/holds.md`, 2;
+  `../tasks/proposals.md`; `../people/README.md`, 7). An *overdue* wait
+  is taken by no one: past its bound it is overdue, with no timer after
+  (`../tasks/proposals.md`, *Overdue at the last holder*).
 
 ## 6. A procedure's waits
 
@@ -211,8 +237,9 @@ A closed set, so that every view, test and tool reads the same names.
   client contract's (`../../client/domain/contract/documents.md`, 1).
 - **The worlds' record check** at each driver's quiet point
   (`../testing-fakes.md`, 1.1 and 1.2).
-- **A bound's outcome:** the tasks' own design for jig's kinds, the
-  application's for a procedure's (the draft, 4.2).
+- **A bound's outcome:** the tasks' own design for jig's kinds (5,
+  *Taking the outcome*), the application's for a procedure's (the
+  draft, 4.2).
 
 ## 9. Open questions
 

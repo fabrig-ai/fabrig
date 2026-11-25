@@ -463,7 +463,8 @@ fn an_agents_page_reads_long_lines_through_older() {
 
 // A stored line one byte beyond the reading client's 1,024-byte long_text.
 const UNREADABLE_BYTES: usize = 1025;
-const RETAINED_BYTES: usize = 538;
+// The readable lines together exceed the window, so Latest has to read again.
+const RETAINED_BYTES: usize = 720;
 const QUIET: skein_lib::Duration = skein_lib::Duration::from_secs(120);
 const IMMEDIATE: skein_lib::Duration = skein_lib::Duration::from_secs(3);
 // One requested read and one spare expose any duplicate.

@@ -16,10 +16,7 @@ impl Core {
     /// A task whose charter is configured but whose authority allows none of its models is
     /// refused, naming the charter's
     /// first model; a task of an unknown charter is left to tasks, which refuses its executor.
-    #[cfg_attr(
-        not(target_arch = "wasm32"),
-        expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")
-    )]
+    #[expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")]
     pub(crate) fn resolve_llm(&self, batch: &mut [tasks::New]) -> Result<(), tasks::Problem> {
         let mut links = List::with_capacity(u32::try_from(batch.len()).expect("bounded batch"));
         for new in &*batch {
@@ -39,10 +36,7 @@ impl Core {
         Ok(())
     }
 
-    #[cfg_attr(
-        not(target_arch = "wasm32"),
-        expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")
-    )]
+    #[expect(clippy::result_large_err, reason = "the refusal keeps tasks' exact problem for the creator")]
     fn default_llm(
         &self,
         new: &mut tasks::New,

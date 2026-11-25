@@ -59,6 +59,7 @@ pub enum RestoreBound {
     HoldPathCapacity,
     HoldBytes,
     AccountOriginBytes,
+    WaitOriginBytes,
     PreparationReasonBytes,
     Circle,
     Dependencies,

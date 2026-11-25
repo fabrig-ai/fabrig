@@ -51,6 +51,7 @@ pub fn public_hold_to_record(value: &jig_domain_core_vocabulary::PublicHold) -> 
         jig_domain_core_vocabulary::PublicHold::Procedure => jig_client_protocol_wire::public_v1::PublicHold::Procedure,
         jig_domain_core_vocabulary::PublicHold::Circle => jig_client_protocol_wire::public_v1::PublicHold::Circle,
         jig_domain_core_vocabulary::PublicHold::Exceeded => jig_client_protocol_wire::public_v1::PublicHold::Exceeded,
+        jig_domain_core_vocabulary::PublicHold::Waited => jig_client_protocol_wire::public_v1::PublicHold::Waited,
     }
 }
 

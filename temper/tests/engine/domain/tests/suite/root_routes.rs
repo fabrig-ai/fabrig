@@ -1101,7 +1101,7 @@ fn a_person_stops_a_run_and_releases_it() {
         reply_to: ReplyTo::new(Token::new(980)),
         sign_in: session,
         key: [80; 16],
-        ask: people::Ask::Stop { project: 1, task: assignment.task },
+        ask: people::Ask::Stop { project: 1, task: assignment.task, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     for _ in 0..40 {
         driver.advance(true);

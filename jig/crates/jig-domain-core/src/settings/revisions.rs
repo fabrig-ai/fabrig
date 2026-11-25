@@ -147,6 +147,7 @@ fn hold_reason(why: tasks::Hold) -> people::HoldReason {
         tasks::Hold::PoolLost { pool } => people::HoldReason::PoolLost { pool },
         tasks::Hold::Procedure => people::HoldReason::Procedure,
         tasks::Hold::Circle => people::HoldReason::Circle,
+        tasks::Hold::Waited => people::HoldReason::Waited,
     }
 }
 

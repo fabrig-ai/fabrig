@@ -233,7 +233,7 @@ pub fn step_5_1() -> Vec<calls::Step> {
         call(D1, argv!["task", "show", number(RULES), "--until", "replied"]),
         // A's completed opening run witnesses the old checkout before Stop.
         call(D1, argv!["task", "show", number(SCOPE), "--until", "ended"]),
-        call(D1, argv!["task", "stop", number(RULES), "--key", "rules-stop"]),
+        call(D1, argv!["task", "stop", number(RULES), "Parked", "--key", "rules-stop"]),
         calls::push(RULES_FILE.as_bytes(), NEW_RULES.as_bytes()),
         call(
             D1,
@@ -306,7 +306,7 @@ pub fn step_5_2() -> Vec<calls::Step> {
         until(D1, argv!["task", "show", number(H1), "--json"], Agent::Review.cue(), b"\"task\""),
         calls::writing_task(D1, H1_REVIEWER),
         call(D1, argv!["task", "show", number(BOWNER), "--until", "phase:idle"]),
-        call(D1, argv!["task", "stop", number(BOWNER), "--key", "stop-b"]),
+        call(D1, argv!["task", "stop", number(BOWNER), "Parked", "--key", "stop-b"]),
         until(D1, argv!["task", "show", number(BOWNER), "--json"], b"\"phase\":\"held\"", b"\"task\""),
         until(D1, argv!["task", "show", number(H1), "--json"], b"\"phase\":\"held\"", b"\"task\""),
         until(D1, argv!["task", "show", number(H1_REVIEWER), "--json"], b"\"phase\":\"held\"", b"\"task\""),
@@ -367,7 +367,7 @@ pub fn step_5_4() -> Vec<calls::Step> {
         until(D1, argv!["task", "show", number(OVERLAP_OWNER), "--json"], Agent::PlannedWriter.cue(), b"\"task\""),
         until(D1, argv!["task", "show", number(PLANNED_CODER), "--json"], b"\"work\":\"writing\"", b"\"task\""),
         call(D1, argv!["task", "show", number(OVERLAP_OWNER), "--until", "phase:idle"]),
-        call(D1, argv!["task", "stop", number(OVERLAP_OWNER), "--key", "stop-b"]),
+        call(D1, argv!["task", "stop", number(OVERLAP_OWNER), "Parked", "--key", "stop-b"]),
         until(D1, argv!["task", "show", number(OVERLAP_OWNER), "--json"], b"\"phase\":\"held\"", b"\"task\""),
         call(D1, argv!["task", "message", number(STORY_OWNER), "--key", "new-direction", DIRECTION_MESSAGE]),
         call(D1, argv!["task", "show", number(X3), "--until", "phase:closing"]),

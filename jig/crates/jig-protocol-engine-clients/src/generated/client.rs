@@ -129,6 +129,7 @@ pub fn hold_category_to_record(value: &jig_domain_tasks::Hold) -> jig_client_pro
         jig_domain_tasks::Hold::Procedure => jig_client_protocol_wire::v44::HoldCategory::Procedure,
         jig_domain_tasks::Hold::Circle => jig_client_protocol_wire::v44::HoldCategory::Circle,
         jig_domain_tasks::Hold::Exceeded(held) => jig_client_protocol_wire::v44::HoldCategory::Exceeded(exceeded_to_record(held)),
+        jig_domain_tasks::Hold::Waited => jig_client_protocol_wire::v44::HoldCategory::Waited,
     }
 }
 
@@ -322,23 +323,6 @@ pub fn person_stall_notice_to_record(value: &jig_domain_tasks::PersonStallNotice
         message: *field_000000,
         at: skein_codec::convert::wall_to_record(field_000001),
         activity: *field_000002
-    }
-}
-
-#[must_use]
-pub fn person_wait_to_record(value: &jig_domain_tasks::PersonWait) -> jig_client_protocol_wire::v44::PersonWait {
-    let jig_domain_tasks::PersonWait { since: field_000000, stall: field_000001, deadline: field_000002, notice: field_000003 } = value;
-    jig_client_protocol_wire::v44::PersonWait {
-        since: skein_codec::convert::wall_to_record(field_000000),
-        stall: *field_000001,
-        deadline: skein_codec::convert::wall_to_record(field_000002),
-        notice: match field_000003 {
-            Some(item) => {
-                let converted = person_stall_notice_to_record(item);
-                Some(converted)
-            }
-            None => None,
-        }
     }
 }
 
