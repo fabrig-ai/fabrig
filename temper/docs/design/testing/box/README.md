@@ -17,6 +17,7 @@ Provisional, 2026-11-24. Where `temper-box`'s own checks run: which of its test 
 - **Their admission** is the service's own: `temper_service::startup`'s naming, checked start and construction, with synthetic named files, fixed seeds and typed limits, and the worker's figures applied as the worker applies them. Its refusals are compared in `startup::lines`' words.
 - **The agent** is prepared from its composed bytes by the worker shell's preparation, with the programs directory's verdict supplied (section 3.7).
 - **A composer writes nothing.** Where a slow story still needs the profile's files, the kit lays what the composer returned, its one writer, so a story never starts from a document no check admitted.
+- **What the kit hands an engine beside its documents** is admitted as the served engine takes it, so a drift reddens here, not in the slow binaries: a cluster's bindings, each bound once, every member's argv, environment and files rendering from them, the deployment's binaries in place included; the figures a subprocess story's bootstrap holds in `limits-held`, resolved by `startup::resolve_limits` over the sources that engine's serve takes (its agent's declaration, or none for an engine alone) and no typed base; and the bootstrap's settings change, one that changes a fresh deployment's settings, or none made. The kit takes each floor and derivation from the service, never from a copy of its lists.
 
 ### 2.2 The shells' step tests
 

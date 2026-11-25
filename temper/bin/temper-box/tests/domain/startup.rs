@@ -1,4 +1,6 @@
 //! Harness parsers, configuration naming and embedded bundle values.
+mod bootstrap;
+
 use crate::support;
 use std::{fmt::Write, path::Path};
 use support::bundle_fixture::{BUNDLE_BYTES, BUNDLE_COUNT, BUNDLE_FILES, BUNDLE_LIMITS, PAGE, PATH_STEM_BOUND};
@@ -860,25 +862,12 @@ fn the_live_github_configuration_passes_startup_admission() {
     use temper_playground::documents::Configuration;
     use temper_worker_service::{figures, startup};
 
-    let root = Path::new("/fixture/live-github");
-    let templates = skein_scratch::paths::package().join("tests/fixtures/github");
-    let api = "127.0.0.1:31001".parse().expect("synthetic API address");
-    let git = "127.0.0.1:31002".parse().expect("synthetic git address");
-    let workers = "127.0.0.1:31003".parse().expect("synthetic worker address");
-    let mut cluster = support::cluster::Cluster::description_from(root, &templates);
-    for (name, value) in [
-        ("proc.forge.ready.address", "127.0.0.1:31002"),
-        ("proc.llm.ready.address", "127.0.0.1:31004"),
-        ("proc.engine.ready.workers", "127.0.0.1:31003"),
-        ("story.clients", "127.0.0.1:31005"),
-    ] {
-        cluster.bind(name, value);
-    }
+    let cluster = live_github_cluster(Path::new("/fixture/live-github"));
     let rendered = cluster.render_files("engine");
     let mut engine = Configuration::from_jig(
         serde_json::from_slice(&rendered.start.expect("engine start").document).expect("engine JSON"),
     );
-    support::live_github::configure_engine(&mut engine, "fabrig-ai", api, git, workers);
+    configure_live_github(&mut engine);
     let providers = rendered
         .files
         .iter()
@@ -917,6 +906,27 @@ fn the_live_github_configuration_passes_startup_admission() {
     let service = startup::worker::worker_alone(part, &files, &agent, support::admission::worker_runtime(), 7)
         .expect("live GitHub w1 admission");
     assert!(service.operations() > 0);
+}
+
+fn live_github_cluster(root: &Path) -> support::cluster::Cluster {
+    let templates = skein_scratch::paths::package().join("tests/fixtures/github");
+    let mut cluster = support::cluster::Cluster::description_from(root, &templates);
+    for (name, value) in [
+        ("proc.forge.ready.address", "127.0.0.1:31002"),
+        ("proc.llm.ready.address", "127.0.0.1:31004"),
+        ("proc.engine.ready.workers", "127.0.0.1:31003"),
+        ("story.clients", "127.0.0.1:31005"),
+    ] {
+        cluster.bind(name, value);
+    }
+    cluster
+}
+
+fn configure_live_github(engine: &mut temper_playground::documents::Configuration) {
+    let api = "127.0.0.1:31001".parse().expect("synthetic API address");
+    let git = "127.0.0.1:31002".parse().expect("synthetic git address");
+    let workers = "127.0.0.1:31003".parse().expect("synthetic worker address");
+    support::live_github::configure_engine(engine, "fabrig-ai", api, git, workers);
 }
 
 fn rendered_files(

@@ -10,7 +10,7 @@ use skein_world::{
     real,
 };
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, btree_map::Entry},
     fs,
     os::unix::fs::DirBuilderExt,
     path::{Component, Path, PathBuf},
@@ -20,6 +20,7 @@ use std::{
 const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
+const DEPLOYMENT_BINARIES: [&str; 3] = ["temper-engine", "temper-worker", "temper-agent"];
 // The stock worker stop bound and the engine's derived fleet grace (configuration/moved.md, 2).
 #[must_use]
 pub fn fleet_grace_ms() -> u64 {
@@ -277,10 +278,21 @@ impl Cluster {
     /// and temper-agent as each worker's agent (protocol/cluster.md, 5 and 6).
     pub fn deployment_binaries(&mut self) {
         let temper = skein_scratch::paths::binary("temper-box");
-        for name in ["temper-engine", "temper-worker", "temper-agent"] {
-            let binary = temper.with_file_name(name);
-            assert!(binary.is_file(), "build the deployment's binary: cargo build -p {name} --bin {name}");
-            self.bind(&format!("artifact.{name}"), binary.to_str().expect("deployment binary path"));
+        let directory = temper.parent().expect("box binary directory");
+        for name in DEPLOYMENT_BINARIES {
+            assert!(
+                directory.join(name).is_file(),
+                "build the deployment's binary: cargo build -p {name} --bin {name}"
+            );
+        }
+        self.deployment_binaries_from(directory);
+    }
+
+    /// Place the deployment's binaries from supplied paths, without opening them.
+    pub fn deployment_binaries_from(&mut self, directory: &Path) {
+        for name in DEPLOYMENT_BINARIES {
+            let binary = directory.join(name);
+            self.replace_artifact(name, binary.to_str().expect("deployment binary path"));
         }
         for spec in &mut self.specs {
             if spec["name"] == "engine" {
@@ -315,7 +327,23 @@ impl Cluster {
     }
     /// A story-owned template binding, fixed before rendering any document.
     pub fn bind(&mut self, name: &str, value: &str) {
-        assert!(self.bindings.insert(name.into(), value.into()).is_none(), "duplicate binding {name}");
+        if let Err(error) = self.try_bind(name, value) {
+            panic!("{error}");
+        }
+    }
+    /// Bind an unused name, or return an error without changing the existing binding.
+    pub fn try_bind(&mut self, name: &str, value: &str) -> Result<(), String> {
+        match self.bindings.entry(name.into()) {
+            Entry::Vacant(entry) => {
+                entry.insert(value.into());
+                Ok(())
+            }
+            Entry::Occupied(_) => Err(format!("duplicate binding {name}")),
+        }
+    }
+    // Deployment selection may replace a default artifact; story bindings are still single-assignment.
+    fn replace_artifact(&mut self, name: &str, value: &str) {
+        self.bindings.insert(format!("artifact.{name}"), value.into());
     }
     /// The study's settings FILE; the native client applies it after owner sign-in.
     #[must_use]
@@ -330,7 +358,9 @@ impl Cluster {
     fn index(&self, name: &str) -> usize {
         self.specs.iter().position(|s| s["name"] == name).unwrap_or_else(|| panic!("unknown cluster process {name}"))
     }
-    fn render(&self, text: &str) -> String {
+    /// Render text against the description's bindings, without laying any files.
+    #[must_use]
+    pub fn render(&self, text: &str) -> String {
         let mut chars = text.chars().peekable();
         let mut out = String::new();
         while let Some(c) = chars.next() {
@@ -457,6 +487,12 @@ impl Cluster {
             let root = self.dir(process);
             super::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
         }
+        self.render_command(process)
+    }
+
+    /// Render the member's command without laying files or installing settings.
+    #[must_use]
+    pub fn render_command(&self, process: &str) -> Command {
         let spec = &self.specs[self.index(process)];
         let argv: Vec<_> = list(&spec["argv"]).iter().map(|v| self.render(string(v))).collect();
         let (program, arguments) = argv.split_first().expect("cluster argv");
