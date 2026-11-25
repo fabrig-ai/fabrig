@@ -534,7 +534,8 @@ wrong, and reports each as `Trouble` with its text, cut to
 - a console message at error level;
 - a log entry at error level, which is how a content security policy
   violation, a failed load or a blocked request shows, other than the
-  blocked closing warning a go takes as its own (section 6);
+  blocked closing warning a go takes as its own (section 6) and the
+  refusal of the kit's own inspector request (below);
 - the page crashing, which also fails its operations in flight with
   `Crashed`;
 - a native dialog, other than the closing warning a go accepts (section
@@ -553,6 +554,24 @@ prompt gives nothing, and a `beforeunload` prompt keeps the page where
 it is. The page goes on, and the test sees it as it stayed. Left open,
 the dialog would hold every operation on the page until its deadline,
 and no request would answer it.
+
+**The kit's own inspector request.** Enabling `CSS` on a page (section
+6, style) makes Chromium's inspector ask the document again for its own
+URL, a same-origin request answered from the cache alone, to hold its
+sources. A page whose origin may not read its own URL refuses that
+request before it leaves the page, and a `file://` page always does,
+since Chromium treats each `file:` document as a unique origin. The
+refusal is a log entry at error level from the `security` source,
+`Unsafe attempt to load URL U from frame with URL U.` and Chromium's
+reason (seen on Chrome for Testing 147.0.7727.117). The page still
+loaded once, as its own origin: the request was the kit's, and never
+sent. So that entry, one URL in both places, on a page whose
+`CSS.enable` awaits its reply, is the kit's and no `Trouble`; the same
+words outside that wait, or naming two URLs, are the page's. Turned
+down: enabling `CSS` before a page navigates, which would only move the
+request to the blank page it opens at, unchecked; and letting `file:`
+pages read files (`--allow-file-access-from-files`), since a page kept
+to files must not read other local files.
 
 A log entry's `url` is the resource it names, cut to `Limits::text`,
 beside its text and never in it, so that a test's expected words are
@@ -602,7 +621,10 @@ named scenario ceiling with headroom.
   elements in order with depths, all and by a selector, past
   `Limits::elements` counted; a style, a long value cut; a rect, and
   none; a node gone; `files` enabling `Fetch` before navigating, a
-  `file://` request continued and others failed.
+  `file://` request continued and others failed; the refusal of the
+  kit's own inspector request (section 7) not reported while its
+  `CSS.enable` awaits its reply, and the same entry before it, after its
+  reply or naming two URLs reported as `Trouble`.
 - **The machine world:** the kit against a fake browser, a scripted CDP
   peer over in-memory pipes. Its pages and accessibility trees come from
   the scenario, and the seed drives what goes wrong:

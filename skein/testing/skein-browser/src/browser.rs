@@ -1,5 +1,5 @@
 //! The browser and its operations, each advanced by one reply or event.
-//! Looking brings its page forward (skein/docs/design/testing/browser.md, 6).
+//! Looking brings its page forward; the kit takes its own inspector refusal (skein/docs/design/testing/browser.md, 6–7).
 
 #![expect(
     clippy::disallowed_types,
@@ -1888,9 +1888,16 @@ impl Browser {
                     let entry = params.get(b"entry");
                     if opt_text(opt_field(entry, b"level")).as_deref() == Some(b"error") {
                         let text = opt_text(opt_field(entry, b"text")).unwrap_or_default();
+                        let source = opt_field(entry, b"source");
                         if text.starts_with(BLOCKED_LEAVE_PROMPT)
-                            && opt_text(opt_field(entry, b"source")).as_deref() == Some(b"intervention")
+                            && opt_text(source).as_deref() == Some(b"intervention")
                             && self.warn_go(page)
+                        {
+                            return;
+                        }
+                        if let Some(Page { css: render::Css::Enabling, .. }) = self.page(page)
+                            && opt_text(source).as_deref() == Some(b"security")
+                            && inspector_self_load_refused(&text)
                         {
                             return;
                         }
@@ -2540,6 +2547,20 @@ fn restarts_on_document(kind: &OpKind, navigation: bool) -> bool {
         | OpKind::Snapshot
         | OpKind::Screenshot => false,
     }
+}
+
+fn inspector_self_load_refused(text: &[u8]) -> bool {
+    const FRAME: &[u8] = b" from frame with URL ";
+    if let Some(urls) = text.strip_prefix(b"Unsafe attempt to load URL ")
+        && let Some(at) = skein_lib::bytes::find(urls, FRAME)
+        && let Some((url, frame)) = urls.split_at_checked(at)
+        && !url.is_empty()
+        && let Some(frame) = frame.strip_prefix(FRAME)
+        && let Some(after_url) = frame.strip_prefix(url)
+    {
+        return after_url.starts_with(b".");
+    }
+    false
 }
 
 fn node_missing(message: &[u8]) -> bool {
