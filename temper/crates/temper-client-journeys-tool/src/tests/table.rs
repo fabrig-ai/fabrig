@@ -51,6 +51,14 @@ fn look_compare_help(text: &str) -> bool {
         && words.contains("No browser, terminal or box. Exit 0: landed or left for the account; 1: differs, missing, conflict or stopped; 2: refused or unreadable request; 3: comparison couldn't finish.")
 }
 
+fn look_render_help(text: &str) -> bool {
+    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    internal(text)
+        && text.lines().any(|line| line.trim() == "temper-client-journeys look-render NAME C")
+        && words.contains("SKEIN_TEST_CHROMIUM")
+        && words.contains("Exit 0: verdict written; 2: refused or unreadable request; 3: render check couldn't finish.")
+}
+
 fn version(text: &str) -> bool {
     text == "temper-client-journeys 0.0.0 (0123456789ab)\n"
 }
@@ -66,6 +74,7 @@ const ROWS: &[Case] = &[
     (&["journey", "walk", "--help"], 0, journey_walk_help, ""),
     (&["drive", "--help"], 0, drive_help, ""),
     (&["look-compare", "--help"], 0, look_compare_help, ""),
+    (&["look-render", "--help"], 0, look_render_help, ""),
     (&["add"], 2, empty, "temper-client-journeys: no command add; temper-client-journeys --help says more\n"),
     (
         &["normalise"],

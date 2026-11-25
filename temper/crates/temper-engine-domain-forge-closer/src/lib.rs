@@ -14,6 +14,6 @@ pub use selection::{PullSelection, SELECTION_JOBS, SelectionProgress, selection_
 mod tests;
 
 pub use report::{
-    LOG_START_BYTES, Landed, Landing, REPORT_OPENING, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX, Selection,
-    Unlanded, Why, first_line, goal_left, left_section, selection_line, words,
+    GoalFinish, LOG_START_BYTES, Landed, Landing, REPORT_OPENING, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX,
+    Selection, Unlanded, Why, first_line, goal_left, left_section, selection_line, words,
 };

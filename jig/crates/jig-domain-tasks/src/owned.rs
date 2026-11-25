@@ -469,6 +469,10 @@ pub fn task_bytes(task: &TaskRecord) -> Option<u64> {
         .checked_add(authority_bytes(&task.authority)?)?
         .checked_add(contract_bytes(&task.contract)?)?
         .checked_add(phase_bytes(&task.phase)?)?
+        .checked_add(match &task.parked_result {
+            Some(result) => result_bytes(result)?,
+            None => 0,
+        })?
         .checked_add(match &task.escalation {
             crate::Escalation::Rejected { reason, .. } => bytes(reason.len())?,
             crate::Escalation::Unheld { .. }

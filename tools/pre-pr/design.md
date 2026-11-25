@@ -155,8 +155,10 @@ receipts, this section takes precedence.
   `tools/tiers/budgets.md`, 10.1).
 - **Journey files, the writer's alone.** A delivery whose own changes
   hold a journey's recording, page or file printed beside them and any
-  other path is refused, and so is a nonempty `overlay.css`; a delivery
-  of those files alone passes (section 4, check 8;
+  other path is refused, and so is a nonempty `overlay.css` and a
+  journey's `walk` deleted while its pages stay; a delivery of those
+  files alone passes, a journey's directory deleted whole among them
+  (section 4, check 8;
   `temper/docs/design/client/journey-writer.md`, 2 and 5).
 - **A goal's design delivery too.** A goal run's `deliver` of Markdown
   straight to its goal branch runs the project's checks before the worker
@@ -636,24 +638,37 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    `temper/docs/design/client/web/journeys/` or
    `temper/docs/design/client/tui/journeys/`, a journey directory's
    `recording` or a page of it, `NN.html` or `NN.txt` with two digits or
-   more, or, at either root, `skein-ui.css`, `journey.js`, `theme.css`
-   or `tui-journey.js`.
+   more, or, at either root, `skein-ui.css`, `journey.js`, `theme.css`,
+   `tui-journey.js` or `looks.html`, the render check's verdicts.
    - **The delivery's own paths:** with a base, section 3's changed
      paths, which already leave out each whose entry in the tree is the
      one a merged tip holds at that path; without a base,
      the paths the tree changes against `HEAD`, staged, unstaged and
-     untracked.
+     untracked. A deleted path is among them.
+   - **A journey's directory deleted whole** is written files too: where
+     the delivery's own paths hold `ROOT/D/walk`, ROOT either root and D
+     a directory directly under it, and the tree checked holds no path
+     under `ROOT/D/`, every own path under `ROOT/D/` is a written file,
+     its `walk`, `README.md` and `scripts.json` among them. So a journey
+     retired passes alone or beside other written files
+     (`temper/docs/design/client/journey-writer.md`, 2), and beside any
+     other path is a mixture.
    - **Refused,** one failure, `journeys`: those paths holding a
-     written file and any path that is not one; or a tree whose
-     `overlay.css` under either root holds a byte. Its log names the
-     written files, the first twenty and then a count, one other path,
-     and each nonempty overlay, and ends with the repair: `a journey's
+     written file and any path that is not one; a tree whose
+     `overlay.css` under either root holds a byte; or an own path
+     `ROOT/D/walk` that the tree checked lacks while it holds a written
+     file under `ROOT/D/`, a walk deleted while its pages stay, which no
+     run removes. Its log names the written files, the first twenty and
+     then a count, one other path, each nonempty overlay, and each such
+     walk, `ROOT/D/walk deleted while its pages stay: delete the
+     journey's directory whole, or keep its walk`, and ends with the
+     repair: `a journey's
      recording, pages and the files beside them are written on main by
      the journeys' writer alone (AGENTS.md, 4): restore them with git
      checkout BASE -- PATH..., and compare pages by cargo run -p
      temper-client-walk -- print --out DIR in your own tree`, BASE the base or
      `HEAD`. It is the delivery's own, never inherited (section 5).
-   - **Passed:** neither; a delivery whose own paths are written files
+   - **Passed:** none of these; a delivery whose own paths are written files
      alone among them.
 9. **The merge job's tests,** where section 3's changed paths include
    `.temper/merge` or a path under `tools/merge/` other than its

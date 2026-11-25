@@ -152,11 +152,15 @@ fn parked_closer() -> World {
     park_after_work(working())
 }
 
-fn park_after_work(mut world: World) -> World {
+fn finish_work(world: &mut World) {
     world.claim(WORK, 1);
     world.finish(WORK);
     world.settle(WORK);
-    read_inbox(&mut world);
+    read_inbox(world);
+}
+
+fn park_after_work(mut world: World) -> World {
+    finish_work(&mut world);
     world.terminal(TASK, tasks::End::Parked);
     world
 }
@@ -171,6 +175,186 @@ fn result_step(world: &mut World, closer: u64, words: &[u8]) -> Reply {
         closer,
         tasks::ProcedureDecision::new(tasks::ProcedureEnd::Result(tasks::TaskResult::Report { words: words.into() })),
     )
+}
+
+fn report(words: &[u8]) -> tasks::TaskResult {
+    tasks::TaskResult::Report { words: words.into() }
+}
+
+fn finish(world: &mut World, result: tasks::TaskResult, cancel_delegates: bool) {
+    assert_eq!(
+        world.terminal(TASK, tasks::End::Finished { result, cancel_delegates }),
+        Reply::Acknowledged(tasks::Accepted::New)
+    );
+}
+
+#[test]
+fn a_finish_parks_and_its_closer_reports_to_its_requester() {
+    for requester in [false, true] {
+        let mut world = working_for(requester);
+        finish_work(&mut world);
+        finish(&mut world, report(b"delivered"), false);
+        let parent = world.record(TASK);
+        assert_eq!(parent.parked_result, Some(report(b"delivered")));
+        assert_eq!(parent.phase, tasks::Phase::Active(tasks::Active::Idle));
+        assert_eq!(parent.tries, tasks::Tries::NONE);
+        let closer = live_closer(&world);
+        assert_eq!(world.record(closer).spec.words.as_ref(), tasks::CLOSER_WORDS);
+        assert_eq!(world.record(closer).requester, Party::Task(TASK));
+        assert_eq!(world.procedure_due(closer).map(|(connector, code, _)| (connector, code)), Some((1, 6)));
+        assert_eq!(result_step(&mut world, closer, b"closed"), Reply::Done);
+        world.settle(closer);
+        world.settle(TASK);
+        assert_eq!(world.results[&TASK], tasks::Ending::Done(report(b"closed")));
+        if requester {
+            let inbox = &world.record(100).inbox;
+            assert_eq!(inbox.len(), 1);
+            assert_eq!(inbox[0].from, Party::Task(TASK));
+            assert_eq!(inbox[0].words.as_ref(), b"closed");
+        }
+    }
+}
+
+#[test]
+fn a_parked_finish_waits_for_live_work_before_making_its_closer() {
+    let mut world = working();
+    let result = report(b"delivered");
+    finish(&mut world, result.clone(), false);
+    let parent = world.record(TASK);
+    assert_eq!(parent.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(parent.parked_result.as_ref(), Some(&result));
+    assert_eq!(parent.closer, None);
+    let attempt = parent.attempt;
+    world.finish_task(WORK);
+    let parent = world.record(TASK);
+    assert!(parent.closer.is_some());
+    assert_eq!(parent.attempt, attempt);
+    assert_eq!(parent.parked_result, Some(result));
+    assert_eq!(world.activations(TASK), 1);
+}
+
+#[test]
+fn a_parked_finish_cancels_work_then_makes_its_closer() {
+    let mut world = working();
+    let result = report(b"abandoned");
+    finish(&mut world, result.clone(), true);
+    assert!(matches!(
+        world.record(WORK).phase,
+        tasks::Phase::Closing(tasks::Closing { ending: tasks::Ending::Cancelled { by: Party::Task(TASK), .. }, .. })
+    ));
+    assert_eq!(world.record(TASK).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(world.record(TASK).closer, None);
+    world.settle(WORK);
+    assert!(matches!(world.results[&WORK], tasks::Ending::Cancelled { .. }));
+    let parent = world.record(TASK);
+    assert_eq!(parent.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(parent.closer.is_some());
+    assert_eq!(parent.parked_result, Some(result));
+    assert_eq!(world.activations(TASK), 1);
+}
+
+#[test]
+fn parking_a_verdict_keeps_the_result_but_makes_no_followups() {
+    let mut world = World::new(866, LIMITS);
+    let mut parent = member();
+    parent.contract = tasks::Contract::Verdict {
+        choices: Box::new([tasks::Verdict { fields: Box::new([]), code: 7, words: 32, followups: 1 }]),
+    };
+    parent.authority.budget.spend = 1_000;
+    parent.numbers.budget = 1_000;
+    assert_eq!(world.make(jig_tasks_world::PERSON_PARTY, vec![parent]), Reply::Made(vec![TASK]));
+    world.claim(TASK, 1);
+    let result = tasks::TaskResult::Verdict { fields: Box::new([]), code: 7, words: b"ready".as_slice().into() };
+    let followup = task(WORK, &[]);
+    let end = tasks::End::FinishedWithFollowups {
+        result: result.clone(),
+        followups: tasks::ResultFollowups::Delegates(Box::new([followup])),
+    };
+    assert_eq!(
+        world.terminal_cause(TASK, end, tasks::Cause::Priced { cumulative: 0 }),
+        Reply::Acknowledged(tasks::Accepted::New)
+    );
+    let parent = world.record(TASK);
+    assert_eq!(parent.parked_result, Some(result));
+    assert_eq!(parent.delegates.as_ref(), [live_closer(&world)]);
+    assert!(parent.result_followups.is_empty());
+    assert!(parent.proposal.is_none());
+}
+
+#[test]
+fn a_finished_failure_parks_for_the_closer() {
+    let mut world = working();
+    finish_work(&mut world);
+    let failure = tasks::TaskResult::Failure { reason: b"stuck".as_slice().into() };
+    finish(&mut world, failure.clone(), false);
+    let parent = world.record(TASK);
+    assert_eq!(parent.parked_result, Some(failure));
+    assert_eq!(parent.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(parent.tries, tasks::Tries::NONE);
+    assert!(parent.closer.is_some());
+}
+
+#[test]
+fn a_later_parked_finish_replaces_the_first() {
+    let mut world = working();
+    finish(&mut world, report(b"first"), false);
+    assert_eq!(world.record(TASK).parked_result, Some(report(b"first")));
+    world.claim(WORK, 1);
+    world.terminal(
+        WORK,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Failure { reason: b"failed".as_slice().into() },
+            cancel_delegates: false,
+        },
+    );
+    world.settle(WORK);
+    assert_eq!(world.record(TASK).phase, tasks::Phase::Active(tasks::Active::Due));
+    world.claim(TASK, 2);
+    read_inbox(&mut world);
+    finish(&mut world, report(b"second"), false);
+    assert_eq!(world.record(TASK).parked_result, Some(report(b"second")));
+    assert!(world.record(TASK).closer.is_some());
+}
+
+#[test]
+fn a_finish_outside_its_contract_fails_before_it_can_park() {
+    let mut world = working();
+    finish_work(&mut world);
+    finish(&mut world, report(&[b'x'; 33]), false);
+    let parent = world.record(TASK);
+    assert_eq!(parent.invalid_result, Some(tasks::InvalidResult::Words));
+    assert_eq!(parent.tries.invalid, 1);
+    assert!(matches!(parent.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+    assert_eq!(parent.parked_result, None);
+    assert_eq!(parent.closer, None);
+}
+
+#[test]
+fn the_parked_finish_is_still_available_to_its_closer_after_restart() {
+    let mut world = working();
+    finish_work(&mut world);
+    finish(&mut world, report(b"delivered"), false);
+    let closer = live_closer(&world);
+    world.restart();
+    assert_eq!(live_closer(&world), closer);
+    assert_eq!(world.record(TASK).parked_result, Some(report(b"delivered")));
+    assert_eq!(result_step(&mut world, closer, b"closed"), Reply::Done);
+    world.settle(closer);
+    world.settle(TASK);
+    assert_eq!(world.results[&TASK], tasks::Ending::Done(report(b"closed")));
+}
+
+#[test]
+fn a_task_without_a_closer_still_takes_its_finish() {
+    let mut world = World::new(863, LIMITS);
+    assert_eq!(world.make(jig_tasks_world::PERSON_PARTY, vec![task(TASK, &[])]), Reply::Made(vec![TASK]));
+    world.claim(TASK, 1);
+    let result = report(b"done");
+    finish(&mut world, result.clone(), false);
+    assert!(matches!(world.record(TASK).phase, tasks::Phase::Closing(_)));
+    assert_eq!(world.record(TASK).parked_result, None);
+    world.settle(TASK);
+    assert_eq!(world.results[&TASK], tasks::Ending::Done(result));
 }
 
 #[test]

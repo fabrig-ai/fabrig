@@ -215,6 +215,10 @@ class Delivery(unittest.TestCase):
             (f'{tui}/journey.js', True),
             (f'{tui}/theme.css', True),
             (f'{tui}/tui-journey.js', True),
+            (f'{web}/looks.html', True),
+            (f'{tui}/looks.html', True),
+            (f'{web}/chat-draft/looks.html', False),
+            ('temper/docs/design/client/web/looks.html', False),
             (f'{web}/chat-draft/3.html', False),
             (f'{web}/chat-draft/walk', False),
             (f'{web}/chat-draft/README.md', False),
@@ -267,10 +271,76 @@ class Delivery(unittest.TestCase):
         paths = [f'{web}/chat-draft/03.html', f'{web}/x/recording', f'{tui}/theme.css']
         self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
 
+    def test_looks_html_passes_alone_or_with_pages(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            looks = f'{prefix}/looks.html'
+            for paths in ([looks], [looks, f'{prefix}/chat-draft/03.html']):
+                with self.subTest(paths=paths):
+                    self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
+
+    def test_looks_html_with_a_source_is_refused(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            looks = f'{prefix}/looks.html'
+            for source in (f'{prefix}/chat-draft/README.md', 'tools/x.py'):
+                with self.subTest(looks=looks, source=source):
+                    error = self.journey_failure([looks, source])
+                    self.assertEqual(error['log'].splitlines()[:3],
+                                     ['written files:', looks, f'other path: {source}'])
+
+    def retired_paths(self, prefix):
+        return [f'{prefix}/old/{name}' for name in ('01.html', 'README.md', 'scripts.json', 'walk')]
+
+    def test_whole_journey_deletion_passes_with_only_written_paths(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            for extra in ([], [f'{prefix}/new/01.html'], [f'{prefix}/looks.html']):
+                with self.subTest(prefix=prefix, extra=extra):
+                    paths = self.retired_paths(prefix) + extra
+                    self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
+
+    def test_whole_journey_deletion_with_a_source_is_a_mixture(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            with self.subTest(prefix=prefix):
+                paths = self.retired_paths(prefix)
+                error = self.journey_failure([*paths, 'skein/a.rs'])
+                self.assertEqual(error['log'].splitlines()[:-1],
+                                 ['written files:', *paths, 'other path: skein/a.rs'])
+
+    def test_deleted_walk_with_written_files_still_present_is_refused(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            walk = f'{prefix}/old/walk'
+            for name in ('01.html', 'recording'):
+                written = self.root / prefix / 'old' / name
+                written.parent.mkdir(parents=True, exist_ok=True)
+                written.touch()
+                for extra in ([], ['skein/a.rs']):
+                    with self.subTest(prefix=prefix, name=name, extra=extra):
+                        error = self.journey_failure([walk, *extra])
+                        lines = error['log'].splitlines()
+                        self.assertEqual(lines[:-1], [f"{walk} deleted while its pages stay: "
+                                                      "delete the journey's directory whole, or keep its walk"])
+                        self.assertIn('git checkout HEAD -- PATH...', lines[-1])
+                        self.assertTrue(lines[-1].endswith('cargo run -p temper-client-walk -- print --out DIR '
+                                                           'in your own tree'))
+                written.unlink()
+
+    def test_journey_deletion_that_leaves_a_source_is_not_whole(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            with self.subTest(prefix=prefix):
+                directory = f'{prefix}/old'
+                (self.root / directory).mkdir(parents=True)
+                (self.root / directory / 'README.md').touch()
+                walk, page = f'{directory}/walk', f'{directory}/01.html'
+                error = self.journey_failure([walk, page])
+                self.assertEqual(error['log'].splitlines()[:-1], ['written files:', page, f'other path: {walk}'])
+
     def test_no_written_paths_pass(self):
-        web = PRE.JOURNEY_ROOTS[0]
-        paths = ['skein/a.rs', f'{web}/chat-draft/walk', f'{web}/README.md']
-        self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
+        for prefix in PRE.JOURNEY_ROOTS:
+            with self.subTest(prefix=prefix):
+                walk = f'{prefix}/chat-draft/walk'
+                (self.root / walk).parent.mkdir(parents=True)
+                (self.root / walk).write_text('walk 2\n')
+                paths = ['skein/a.rs', walk, f'{prefix}/README.md']
+                self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
 
     def test_nonempty_overlay_refuses_even_without_changed_paths(self):
         for prefix in PRE.JOURNEY_ROOTS:

@@ -1,18 +1,16 @@
 //! One rule for delegates, dependencies and ending authority (domain/tasks/lifecycle.md, 7, and domain/tasks/lifecycle-endings.md, 1–2 and domain/tasks/changes.md).
 use crate::domain::{Domain, record};
-use crate::{Active, End, Executor, Phase, TaskResult, Was};
+use crate::{Active, End, EndedBy, Executor, Phase, TaskResult, Was};
 use alloc::boxed::Box;
 
 /// Whether an active task may go on, and why not (domain/tasks/lifecycle-endings.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "independent facts keep their separate claim and finish rules")]
 pub(crate) struct Kept {
     /// A dependency is pending.
     pub(crate) dependencies: bool,
     /// Its own unanswered question to its requester, oldest first.
     pub(crate) question: Option<u64>,
-    /// Its requester ends it: no run's result may (5.8).
-    pub(crate) open: bool,
+    ended_by: EndedBy,
     /// Its immutable spec requires a requester question it has not sent.
     pub(crate) owes: bool,
     /// An active agent has live delegates, so its ended run cannot hear a refusal (5.6).
@@ -39,7 +37,7 @@ impl Domain {
 pub(crate) fn kept(domain: &Domain, task: u64) -> Kept {
     match record(domain, task) {
         Some(row) => for_record(row),
-        None => pending(&[], crate::EndedBy::Result),
+        None => pending(&[], EndedBy::Result),
     }
 }
 
@@ -59,22 +57,13 @@ pub(crate) fn for_record(row: &crate::TaskRecord) -> Kept {
         Phase::Waiting
         | Phase::Closing(_)
         | Phase::Held { was: Was::Waiting | Was::Closing(_), .. }
-        | Phase::Ended(_) => pending(&[], crate::EndedBy::Result),
+        | Phase::Ended(_) => pending(&[], EndedBy::Result),
     }
 }
 
 /// The same facts for a compound request's projected dependency list.
-pub(crate) fn pending(dependencies: &[u64], ended_by: crate::EndedBy) -> Kept {
-    Kept {
-        dependencies: !dependencies.is_empty(),
-        question: None,
-        open: match ended_by {
-            crate::EndedBy::Requester | crate::EndedBy::Standing => true,
-            crate::EndedBy::Result | crate::EndedBy::Closer(_) => false,
-        },
-        owes: false,
-        agent_delegates: false,
-    }
+pub(crate) fn pending(dependencies: &[u64], ended_by: EndedBy) -> Kept {
+    Kept { dependencies: !dependencies.is_empty(), question: None, ended_by, owes: false, agent_delegates: false }
 }
 
 /// The oldest unanswered question addressed to this task's requester (domain/tasks/lifecycle-endings.md, 1).
@@ -118,7 +107,7 @@ impl Kept {
 
     /// No run of it may end it, so a finish grace without a live run cancels it at once.
     pub(crate) fn finishes_alone(self) -> bool {
-        !self.refuses_done() && !self.open
+        !self.refuses_done() && !self.open()
     }
 
     /// Whether a wake may make this executor Due; a person or a procedure is never kept from its step.
@@ -148,18 +137,22 @@ impl Kept {
 
     /// Open discards a run's raw finish before judgment; its run parks (domain/tasks/lifecycle-endings.md, 2).
     pub(crate) fn discards(self, end: &End) -> bool {
-        self.open
-            && match end {
-                End::Finished { .. } | End::FinishedWithFollowups { .. } => true,
-                End::Exceeded(_)
-                | End::Parked
-                | End::Failed(_)
-                | End::FailedWithReason { .. }
-                | End::Refused
-                | End::RefusedWithReason { .. }
-                | End::Suspended(_)
-                | End::Recheck => false,
-            }
+        self.open() && finished(end)
+    }
+
+    pub(crate) fn open(self) -> bool {
+        match self.ended_by {
+            EndedBy::Requester | EndedBy::Standing => true,
+            EndedBy::Result | EndedBy::Closer(_) => false,
+        }
+    }
+
+    /// The closer, not a run's judged finish, ends its task (domain/tasks/lifecycle-endings.md, 3).
+    pub(crate) fn parks_for_closer(self, end: &End) -> bool {
+        match self.ended_by {
+            EndedBy::Closer(_) => finished(end),
+            EndedBy::Result | EndedBy::Requester | EndedBy::Standing => false,
+        }
     }
 
     /// A judged done end waits until every dependency is met; a failure still ends (5.7).

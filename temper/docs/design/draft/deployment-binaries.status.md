@@ -1,6 +1,6 @@
 # deployment-binaries: status
 
-2026-11-11. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
+2026-11-25. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
 
 M1 to M5 are designed: the four binaries, the box linking them and
 sharing their rows and code, the dependency rule's one test with a row
