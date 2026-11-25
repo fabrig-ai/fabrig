@@ -1796,6 +1796,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
         kept,
         credential: None,
     }));
+    restarted.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
     give(&mut restarted, Event::Own { command: Own::Theme });
     restarted.frame();
     assert_eq!(restarted.state().theme_choice(), ThemeChoice::Light);

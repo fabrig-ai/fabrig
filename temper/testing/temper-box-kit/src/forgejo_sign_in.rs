@@ -181,23 +181,30 @@ fn run_owned(directory: &Path) -> io::Result<()> {
         let id = public_source(directory);
         sign_in(&mut Browser::default(), temper, forge, &link)?;
         owner_named(directory, &instance);
-        // The printed command adds a source with this same name.
-        remove_public_source(directory, &id);
+        // Keep the owner's link while freeing the name for the printed command.
+        rename_public_source(directory, &id);
         serve.stop();
     }
     let owner_signed_in = clock.now().now;
+    instance.stop().expect("Forgejo stopped to drop the cached public provider");
+    // Jig seeds owners only on the first start. Keep separate temper stores
+    // for the two owner identities, while keeping one Forgejo database.
+    fs::rename(directory.join("state"), directory.join("public-state")).expect("set aside the public owner's store");
 
     // Serve fixes its clients and the printed link's identity at startup.
     let (_google, instructions) = confidential_configuration(directory, forge, temper);
-    {
-        let (serve, _stdout, link) = start_serve(directory, "confidential");
-        confidential_source(directory, &instructions);
-        // First registration is still enabled; there is no account to auto-link.
-        no_sam(&instance);
-        sign_in(&mut Browser::default(), temper, forge, &link)?;
-        member_named(&instance);
-        serve.stop();
-    }
+    let (serve, _stdout, link) = start_serve(directory, "confidential");
+    confidential_source(directory, &instructions);
+    // The CLI updates the database, not the running Forgejo's providers.
+    let before_source_restart = clock.now().now;
+    let running = super::owned::run(directory, "forgejo");
+    let instance = super::owned::attach(directory, forge.port(), running);
+    let source_restart = clock.now().now.saturating_since(before_source_restart);
+    // First registration is still enabled; there is no account to auto-link.
+    no_sam(&instance);
+    sign_in(&mut Browser::default(), temper, forge, &link)?;
+    member_named(&instance);
+    serve.stop();
     let member_signed_in = clock.now().now;
 
     instance.stop().expect("Forgejo stopped for links-only preparation");
@@ -216,7 +223,7 @@ fn run_owned(directory: &Path) -> io::Result<()> {
     instance.stop().expect("Forgejo stopped");
     assert!(!directory.join("box/groups").exists(), "the walk needs no group's file");
     eprintln!(
-        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}; owner sign-in {:?}; member sign-in {:?}; no registration {:?}; admin connect {:?}; shutdown {:?}",
+        "Forgejo sign-in: whole {:?}; past Forgejo start {:?}; owner sign-in {:?}; member sign-in {:?}; no registration {:?}; admin connect {:?}; shutdown {:?}; Forgejo source restart {source_restart:?}",
         clock.now().now.saturating_since(whole),
         clock.now().now.saturating_since(past_start),
         owner_signed_in.saturating_since(past_start),
@@ -342,27 +349,45 @@ fn public_source(directory: &Path) -> String {
     std::str::from_utf8(id).expect("source id text").into()
 }
 
-fn admin_auth(directory: &Path) -> Command {
+fn admin_auth(forgejo: &Path, directory: &Path) -> Command {
     let work = directory.join("forge-1/forgejo");
-    let mut command = Command::new(super::owned::binaries().0);
+    let mut command = Command::new(forgejo);
     command.arg("--work-path").arg(&work).arg("--config").arg(work.join("app.ini")).args(["admin", "auth"]);
     command
 }
 
 fn auth_list(directory: &Path) -> Vec<u8> {
-    let list = admin_auth(directory).arg("list").output().expect("real auth list");
+    let list = admin_auth(&super::owned::binaries().0, directory).arg("list").output().expect("real auth list");
     success(&list);
     list.stdout
 }
 
-fn remove_public_source(directory: &Path, id: &str) {
-    let removed = super::story_command::standalone(
-        admin_auth(directory).args(["delete", "--id", id]),
-        "Forgejo removing the public source",
+const PUBLIC_SOURCE_NAME: &str = "temper-public";
+
+/// Renames the public source in place so the owner's link keeps its source ID.
+#[must_use]
+pub fn rename_public_source_command(forgejo: &Path, directory: &Path, id: &str) -> Command {
+    let mut command = admin_auth(forgejo, directory);
+    command.args(["update-oauth", "--id", id, "--name", PUBLIC_SOURCE_NAME]);
+    command
+}
+
+fn rename_public_source(directory: &Path, id: &str) {
+    let renamed = super::story_command::standalone(
+        &mut rename_public_source_command(&super::owned::binaries().0, directory, id),
+        "Forgejo renaming the public source",
         super::WITHIN,
     );
-    success(&removed);
-    assert!(!temper_forge_setup::sign_in::source_present(&auth_list(directory)), "temper is free for the new source");
+    success(&renamed);
+    let list = auth_list(directory);
+    assert!(!temper_forge_setup::sign_in::source_present(&list), "temper is free for the new source");
+    assert!(
+        String::from_utf8_lossy(&list).lines().any(|line| {
+            let mut columns = line.split_whitespace();
+            columns.next() == Some(id) && columns.next() == Some(PUBLIC_SOURCE_NAME)
+        }),
+        "the renamed source keeps the owner's source ID"
+    );
 }
 
 fn owner_named(directory: &Path, instance: &skein_throwaway_forgejo::Instance) {

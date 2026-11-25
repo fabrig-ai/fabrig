@@ -219,8 +219,12 @@ fn install_at_with(directories: &temper_box_shell::directories::Directories, ext
     super::write_private(&applied, &fs::read(pending).expect("applied figures"));
 }
 
-/// Write the operator's bootstrap file for the same figures the setting takes.
+/// Write the operator's bootstrap file, preparing a private data directory if absent.
 pub fn hold(directory: &Path, overrides: &[(&str, &str, u64, &str)]) {
+    if !directory.exists() {
+        temper_shell::directories::make_private(directory, skein_shell::effective_user())
+            .expect("private fixture data directory");
+    }
     super::write_private(&directory.join("limits-held"), held_text(overrides).as_bytes());
 }
 
