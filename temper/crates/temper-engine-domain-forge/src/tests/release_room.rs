@@ -71,14 +71,88 @@ fn freed(d: &mut Domain, number: u64) -> Box<[Request]> {
 }
 
 #[test]
+fn a_cleanup_entry_keeps_the_end_learned_at_settlement() {
+    let mut d = refusals::adopted_domain();
+    pull(&mut d);
+    let closed = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
+    assert!(closed.contains(&Request::EffectsSettled { task: TASK }));
+    let later = outbox_room::later(&env(), Duration::from_secs(5));
+    step(
+        &mut d,
+        &later,
+        Event::Release { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled, reason: None, entry: FRESH },
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(d.releases.get(&TASK).unwrap().pending, Some((FRESH, None)));
+    assert_eq!(d.inspection_entry_owner_ended(FRESH), Some(env().wall));
+}
+
+#[test]
+fn a_room_bound_fails_release_without_a_cleanup_write() {
+    let mut d = outbox_room::full();
+    pull(&mut d);
+    let waiting = cancel(&mut d, None, DISCARDED);
+    waited(&d, &waiting, 1);
+    let clock = outbox_room::later(&env(), Duration::from_secs(5));
+    let writer = refusals::entry(1).task;
+    let mut out = Queue::uncapped();
+    step(&mut d, &clock, Event::ChangeEnding { task: writer, ending: Ending::Cancelled }, &mut out);
+    let due = outbox_room::later(&clock, clock.limits.waits.room);
+    assert_eq!(d.next_wall_deadline(), Some(due.wall));
+    out = Queue::uncapped();
+    fire(&mut d, &due, &mut out);
+    let words = format!(
+        "no progress at release for 30 minutes: waiting for room in the forge's outbox, held by entry 1 of ended task {writer}"
+    );
+    let failed = collected(out);
+    assert!(
+        failed.contains(&Request::ReleaseFailed {
+            task: TASK,
+            account: Some(EffectAccount { entry: 1, words: words.into_bytes().into_boxed_slice() }),
+            reason: None,
+        }),
+        "{failed:?}"
+    );
+    assert!(d.releases.get(&TASK).unwrap().failed);
+    assert_eq!(d.releases.get(&TASK).unwrap().room, None);
+    assert!(entries(&failed).is_empty());
+    assert_eq!(d.entries.len(), clock.limits.entries);
+}
+
+#[test]
+fn a_waiting_release_keeps_its_room_bound_without_reporting_it() {
+    let mut d = outbox_room::full();
+    pull(&mut d);
+    let settling = outputs(&mut d, Event::SettleEffects { task: TASK, root: TASK, ending: ReleaseEnding::Cancelled });
+    assert!(settling.contains(&Request::EffectsSettled { task: TASK }));
+    assert_eq!(wait_report(&settling, TASK), Some([].as_slice()), "settling clears the change's wait");
+    let waiting = cancel(&mut d, None, DISCARDED);
+    waited(&d, &waiting, 1);
+    assert_eq!(wait_report(&waiting, TASK), None, "a release behind a live writer does not report");
+    assert_eq!(d.inspection_room_wait(TASK), None, "a live writer gives the release no timed bound");
+
+    let writer = refusals::entry(1).task;
+    let ended = outbox_room::later(&env(), Duration::from_secs(5));
+    let mut out = Queue::uncapped();
+    step(&mut d, &ended, Event::ChangeEnding { task: writer, ending: Ending::Cancelled }, &mut out);
+    assert_eq!(wait_report(&collected(out), TASK), None, "the ended writer's deadline stays internal");
+    let due = advanced_wall(ended.wall, ended.limits.waits.room);
+    assert_eq!(d.inspection_room_wait(TASK), Some((due, true)));
+}
+
+#[test]
 fn a_release_comment_waits_then_keeps_one_fresh_entry_before_its_close() {
     let mut d = outbox_room::full();
     pull(&mut d);
     let waiting = cancel(&mut d, Some(b"cancelled"), DISCARDED);
     waited(&d, &waiting, 1);
-    assert_eq!(asks(&freed(&mut d, 1)).as_ref(), &[TASK]);
+    assert_eq!(wait_report(&waiting, TASK), Some([].as_slice()), "closing clears the change's wait");
+    let asked = freed(&mut d, 1);
+    assert_eq!(asks(&asked).as_ref(), &[TASK]);
+    assert_eq!(wait_report(&asked, TASK), None, "the release ask does not report a wait");
     assert_eq!(room::reserved(&d), 1);
     let kept = outputs(&mut d, Event::ContinueRelease { task: TASK, entry: FRESH });
+    assert_eq!(wait_report(&kept, TASK), None, "keeping the cleanup write is silent");
     let saved = entries(&kept);
     assert_eq!(saved.len(), 1);
     let entry = saved.first().unwrap();

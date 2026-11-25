@@ -6,13 +6,6 @@ use temper_engine_forge_world::open::{self, *};
 // Each row pins a distinct open problem, its fault vocabulary and fixing work.
 const CASES: &[(Kind, &str, &str, &str, &str)] = &[
     (
-        temper_faults::bounds::FORGE_WRITE_ENTRIES,
-        "the engine's own bounds/forge write entries",
-        "a_change_waiting_for_room_has_a_bound",
-        "bounded waits",
-        "a change waiting for room past its stall",
-    ),
-    (
         temper_faults::bounds::BRANCH_HOLDS,
         "the engine's own bounds/branch holds",
         "a_prepare_is_admitted_when_branch_holds_are_released",
@@ -55,13 +48,6 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "failure worlds: repaired as a red",
         "a goal branch making in flight",
     ),
-    (
-        temper_faults::restarts::ENGINE_CRASH,
-        "restarts/engine crash",
-        "a_stored_charter_is_checked_at_start",
-        "bounded waits",
-        "a stored charter past its room",
-    ),
 ];
 
 #[test]
@@ -72,6 +58,10 @@ fn engine_exclusions_require_the_configured_fault_and_its_conditions() {
         sweep.configure(*kind);
     }
     open::exclude(&mut sweep, &configured).expect("all faults configured");
+    let kind = temper_faults::bounds::FORGE_WRITE_ENTRIES;
+    sweep.configure(kind);
+    open::exclude(&mut sweep, &[kind]).expect("room bound's fault is configured");
+    assert!(sweep.leaves_out(kind, &["a change waiting for room past its stall"]).is_none());
     let mut empty = Sweep::new("no open engine faults");
     open::exclude(&mut empty, &[]).expect("no exclusions needed");
 
@@ -100,14 +90,23 @@ fn engine_exclusions_require_the_configured_fault_and_its_conditions() {
 }
 
 #[test]
+fn a_crash_with_an_unfit_stored_charter_is_not_excluded() {
+    let kind = temper_faults::restarts::ENGINE_CRASH;
+    let mut sweep = Sweep::new("engine crash with an unfit stored charter");
+    sweep.configure(kind);
+    open::exclude(&mut sweep, &[kind]).expect("engine crash is configured");
+    assert!(sweep.leaves_out(kind, &["a stored charter past its room"]).is_none());
+}
+
+#[test]
 fn engine_exclusions_return_the_first_refusal_without_adding_later_rows() {
     let mut sweep = Sweep::new("missing configured fault");
     sweep.configure(A_WRITE_REFUSED);
-    let refusal = open::exclude(&mut sweep, &[temper_faults::bounds::FORGE_WRITE_ENTRIES, A_WRITE_REFUSED])
+    let refusal = open::exclude(&mut sweep, &[temper_faults::bounds::BRANCH_HOLDS, A_WRITE_REFUSED])
         .expect_err("the first fault is absent from the sweep");
     assert_eq!(
         refusal,
-        "sweep missing configured fault: exclusion \"a_change_waiting_for_room_has_a_bound\": fault is not configured"
+        "sweep missing configured fault: exclusion \"a_prepare_is_admitted_when_branch_holds_are_released\": fault is not configured"
     );
     assert!(sweep.leaves_out(A_WRITE_REFUSED, &["a task's release under way"]).is_none());
 }

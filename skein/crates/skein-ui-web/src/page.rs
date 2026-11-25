@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use skein_lib::{List, usize_of};
 use skein_ui::{
-    Act, Limits, LogEdge, Made, Modifier, NodeId, Patch, Role, State,
+    Act, Attribute, Limits, LogEdge, Made, Modifier, NodeId, Patch, Role, State,
     scene::{Point, Scene},
 };
 
@@ -14,6 +14,8 @@ mod components;
 mod fold;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod measure;
+#[cfg(any(test, target_arch = "wasm32"))]
+mod scroll;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 
@@ -24,7 +26,7 @@ use crate::{
     svg,
 };
 
-/// The platform half replays these operations in order.
+/// The platform replays operations in order, settling log views and measuring after writes.
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[expect(
     clippy::large_enum_variant,
@@ -35,7 +37,7 @@ pub enum Op {
     Remove { node: NodeId },
     Move { node: NodeId, parent: NodeId, before: Option<NodeId>, shown_folded: bool },
     Replace { node: NodeId, element: Element },
-    Attributes { node: NodeId, element: Element },
+    Attributes { node: NodeId, element: Element, own_content_changed: bool },
     Text { node: NodeId, element: Element },
     Value { node: NodeId, value: Box<[u8]> },
     Choice { node: NodeId, checked: bool },
@@ -79,6 +81,14 @@ struct Options {
     active: Option<NodeId>,
 }
 
+// Insert companions before looking them up. Registration gets only the new parts,
+// not their parent or any of their existing siblings.
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(super) fn mount_parts<T>(parts: &[T], mut mount: impl FnMut(&T), register: impl FnMut(&T)) {
+    parts.iter().for_each(&mut mount);
+    parts.iter().for_each(register);
+}
+
 /// The semantic nodes and their document model, sharing the view's limits.
 pub struct Page<'a> {
     look: Look<'a>,
@@ -88,6 +98,9 @@ pub struct Page<'a> {
     nodes: BTreeMap<NodeId, Held>,
     roots: Vec<NodeId>,
     links: Vec<NodeId>,
+    href_revision: Option<u64>,
+    #[cfg(test)]
+    link_order_visits: usize,
     focused: Option<NodeId>,
     pub(crate) scene: Option<Scene>,
     limits: Limits,
@@ -95,6 +108,9 @@ pub struct Page<'a> {
     act_bytes: u32,
     menu: Option<NodeId>,
     options: BTreeMap<NodeId, Options>,
+    option_menus: usize,
+    #[cfg(test)]
+    option_visits: usize,
     option_enter: Option<NodeId>,
     composition_end: Option<(NodeId, Box<[u8]>)>,
 }
@@ -110,6 +126,9 @@ impl<'a> Page<'a> {
             nodes: BTreeMap::new(),
             roots: Vec::new(),
             links: Vec::new(),
+            href_revision: None,
+            #[cfg(test)]
+            link_order_visits: 0,
             focused: None,
             scene: None,
             limits: *limits,
@@ -117,6 +136,9 @@ impl<'a> Page<'a> {
             act_bytes: limits.drawing_bytes,
             menu: None,
             options: BTreeMap::new(),
+            option_menus: 0,
+            #[cfg(test)]
+            option_visits: 0,
             option_enter: None,
             composition_end: None,
         }
@@ -133,18 +155,21 @@ impl<'a> Page<'a> {
         reason = "patch ordering keeps log state changes before the final measurements (ui/web/patches.md, 1)"
     )]
     pub fn apply(&mut self, patches: &[Patch], ops: &mut Vec<Op>) {
-        if !patches.is_empty() {
-            for (node, held) in &self.nodes {
-                if held.made.attribute.role == Role::Log && !held.follow_log {
-                    ops.push(Op::HoldView { node: *node });
-                }
+        if patches.is_empty() {
+            return;
+        }
+        for (node, held) in &self.nodes {
+            if held.made.attribute.role == Role::Log && !held.follow_log {
+                ops.push(Op::HoldView { node: *node });
             }
         }
         let mut focus = None;
+        let mut reorder_links = false;
         for patch in patches {
             match patch {
                 Patch::Insert { nodes, .. } => {
                     for made in nodes {
+                        reorder_links |= internal_link(&made.attribute);
                         if made.attribute.focus.is_some() {
                             focus = Some(made.id);
                         }
@@ -159,8 +184,9 @@ impl<'a> Page<'a> {
             }
             match patch {
                 Patch::Insert { parent, before, nodes } => self.insert(*parent, *before, nodes, ops),
-                Patch::Remove { node } => self.remove(*node, ops),
+                Patch::Remove { node } => reorder_links |= self.remove(*node, ops),
                 Patch::Move { node, parent, before } => {
+                    reorder_links |= !self.links.is_empty();
                     let old_parent = self.held(*node).parent;
                     self.detach(*node, old_parent);
                     self.attach(*node, *parent, *before);
@@ -179,9 +205,14 @@ impl<'a> Page<'a> {
                     ops.push(Op::Text { node: *node, element: self.own_element(*node) });
                 }
                 Patch::Attribute { node, attribute } => {
-                    let old_tag = semantic(&self.held(*node).element).tag.clone();
                     let was_shown_folded = self.shown_folded(*node);
                     let held = self.nodes.get_mut(node).expect("held node");
+                    reorder_links |= internal_link(attribute) != internal_link(&held.made.attribute);
+                    match (option_menu(&held.made.attribute), option_menu(attribute)) {
+                        (false, true) => self.option_menus += 1,
+                        (true, false) => self.option_menus -= 1,
+                        (false, false) | (true, true) => {}
+                    }
                     if (attribute.role == Role::Log || (attribute.role == Role::List && attribute.bound))
                         && held.made.attribute.states.as_slice().contains(&State::Busy)
                         && !attribute.states.as_slice().contains(&State::Busy)
@@ -197,12 +228,18 @@ impl<'a> Page<'a> {
                             held.follow_log = false;
                         }
                     }
+                    let was_drawn = held.drawn.is_some();
                     held.made.attribute = attribute.as_ref().clone();
-                    self.remap(*node);
+                    let previous = self.remap(*node);
                     self.draw(*node);
                     let element = self.own_element(*node);
-                    if semantic(&element).tag == old_tag {
-                        ops.push(Op::Attributes { node: *node, element });
+                    let old = semantic(&previous);
+                    let new = semantic(&element);
+                    if new.tag == old.tag {
+                        let removed_component =
+                            old.attribute("data-component").is_some() && new.attribute("data-component").is_none();
+                        let own_content_changed = was_drawn || removed_component || old.children != new.children;
+                        ops.push(Op::Attributes { node: *node, element, own_content_changed });
                     } else {
                         ops.push(Op::Replace { node: *node, element });
                     }
@@ -238,25 +275,16 @@ impl<'a> Page<'a> {
         }
         self.sync_options(ops);
         self.collection_sizes(ops);
-        self.links.clear();
-        let mut order = Vec::new();
-        for root in &self.roots {
-            self.preorder(*root, &mut order);
-        }
-        for node in order {
-            let a = &self.held(node).made.attribute;
-            if a.linked && a.external.is_none() {
-                self.links.push(node);
-            }
+        self.href_revision = None;
+        if reorder_links {
+            self.reorder_links();
         }
         if let Some(node) = focus.filter(|node| self.nodes.contains_key(node)) {
             self.focused = Some(node);
             ops.push(Op::Focus { node });
             ops.push(Op::Reveal { node });
         }
-        if !patches.is_empty() {
-            self.finish_logs(ops);
-        }
+        self.finish_logs(ops);
     }
 
     fn finish_logs(&self, ops: &mut Vec<Op>) {
@@ -295,7 +323,7 @@ impl<'a> Page<'a> {
         }
         held.size = Some((width, height));
         self.draw(node);
-        ops.push(Op::Attributes { node, element: self.own_element(node) });
+        self.attribute_op(node, true, ops);
     }
 
     #[must_use]
@@ -312,12 +340,59 @@ impl<'a> Page<'a> {
         &self.links
     }
 
-    pub fn set_href(&mut self, node: NodeId, path: &[u8], ops: &mut Vec<Op>) {
-        if self.held(node).href.as_deref() == Some(path) {
+    #[cfg(test)]
+    pub(crate) const fn link_order_visits(&self) -> usize {
+        self.link_order_visits
+    }
+
+    fn reorder_links(&mut self) {
+        self.links.clear();
+        let mut order = Vec::new();
+        for root in &self.roots {
+            self.preorder(*root, &mut order);
+        }
+        #[cfg(test)]
+        {
+            self.link_order_visits += order.len();
+        }
+        for node in order {
+            if internal_link(&self.held(node).made.attribute) {
+                self.links.push(node);
+            }
+        }
+    }
+
+    /// Resolve internal links after patches or a change to the owner's bindings.
+    /// The owner changes `revision` whenever a link's path could have changed,
+    /// even if its view produced no patches.
+    pub fn resolve_links(
+        &mut self,
+        revision: u64,
+        mut href: impl FnMut(NodeId) -> Option<Box<[u8]>>,
+        ops: &mut Vec<Op>,
+    ) {
+        if self.href_revision == Some(revision) {
             return;
         }
-        self.nodes.get_mut(&node).expect("held node").href = Some(path.into());
-        self.remap(node);
+        for at in 0..self.links.len() {
+            let node = self.links[at];
+            if let Some(path) = href(node) {
+                self.set_href(node, &path, ops);
+            }
+        }
+        self.href_revision = Some(revision);
+    }
+
+    pub fn set_href(&mut self, node: NodeId, path: &[u8], ops: &mut Vec<Op>) {
+        let held = self.nodes.get_mut(&node).expect("held node");
+        if held.href.as_deref() == Some(path) {
+            return;
+        }
+        held.href = Some(path.into());
+        if held.made.attribute.linked && held.made.attribute.external.is_none() {
+            // An address update changes only the href, not derived list or option attributes.
+            semantic_mut(&mut held.element).set("href", &String::from_utf8_lossy(path));
+        }
         ops.push(Op::Href { node, path: path.into() });
     }
 
@@ -351,7 +426,7 @@ impl<'a> Page<'a> {
             } else {
                 element.remove("aria-setsize");
             }
-            ops.push(Op::Attributes { node, element: self.own_element(node) });
+            self.attribute_op(node, false, ops);
         }
     }
 
@@ -409,6 +484,9 @@ impl<'a> Page<'a> {
                 near_foot: None,
                 input: made.value.as_ref().map_or_else(Box::<[u8]>::default, |value| value.text.clone()),
             };
+            if option_menu(&made.attribute) {
+                self.option_menus += 1;
+            }
             assert!(self.nodes.insert(made.id, held).is_none(), "inserted node has a fresh identity");
             self.attach(made.id, node_parent, if index == 0 { before } else { None });
             let end = index + usize_of(made.size);
@@ -435,7 +513,7 @@ impl<'a> Page<'a> {
         }
     }
 
-    fn remove(&mut self, node: NodeId, ops: &mut Vec<Op>) {
+    fn remove(&mut self, node: NodeId, ops: &mut Vec<Op>) -> bool {
         let parent = self.held(node).parent;
         let mut removed = Vec::new();
         self.preorder(node, &mut removed);
@@ -456,8 +534,13 @@ impl<'a> Page<'a> {
         if self.menu.is_some_and(|menu| removed.contains(&menu)) {
             self.menu = None;
         }
+        let mut removed_link = false;
         for node in removed {
-            self.nodes.remove(&node);
+            let held = self.nodes.remove(&node).expect("removed subtree was held");
+            removed_link |= internal_link(&held.made.attribute);
+            if option_menu(&held.made.attribute) {
+                self.option_menus -= 1;
+            }
         }
         ops.push(Op::Remove { node });
         if took_focus {
@@ -473,11 +556,13 @@ impl<'a> Page<'a> {
                 ops.push(Op::Focus { node });
             }
         }
+        removed_link
     }
 
-    fn remap(&mut self, node: NodeId) {
+    fn remap(&mut self, node: NodeId) -> Element {
         let held = self.nodes.get_mut(&node).expect("held node");
-        held.element = components::element(&held.made, &self.look, self.prefix, self.primary, &self.words);
+        let mapped = components::element(&held.made, &self.look, self.prefix, self.primary, &self.words);
+        let previous = std::mem::replace(&mut held.element, mapped);
         if held.made.attribute.role == Role::Menu && !held.made.attribute.states.as_slice().contains(&State::Options) {
             menu_element(&mut held.element, self.menu == Some(node));
         }
@@ -487,6 +572,7 @@ impl<'a> Page<'a> {
         {
             semantic_mut(&mut held.element).set("href", &String::from_utf8_lossy(path));
         }
+        previous
     }
 
     fn draw(&mut self, node: NodeId) {
@@ -529,6 +615,10 @@ impl<'a> Page<'a> {
             core.children.insert(0, Child::Element(svg.clone()));
         }
         element
+    }
+
+    fn attribute_op(&self, node: NodeId, own_content_changed: bool, ops: &mut Vec<Op>) {
+        ops.push(Op::Attributes { node, element: self.own_element(node), own_content_changed });
     }
 
     fn shown_folded(&self, node: NodeId) -> bool {
@@ -743,7 +833,7 @@ impl Page<'_> {
                 }
             }
             for log in logs {
-                ops.push(Op::Attributes { node: log, element: self.own_element(log) });
+                self.attribute_op(log, false, ops);
                 ops.push(Op::ScrollEnd { node: log });
             }
         }
@@ -807,7 +897,7 @@ impl Page<'_> {
             Event::Choose { select, option } => self.choose(select, option, ops),
             Event::Cancel { dialog } => {
                 self.held(dialog);
-                ops.push(Op::Attributes { node: dialog, element: self.own_element(dialog) });
+                self.attribute_op(dialog, false, ops);
                 if self.menu.is_some() {
                     self.close_menu(true, ops);
                     return None;
@@ -822,7 +912,7 @@ impl Page<'_> {
             }
             Event::Closed { dialog } => {
                 self.held(dialog);
-                ops.push(Op::Attributes { node: dialog, element: self.own_element(dialog) });
+                self.attribute_op(dialog, false, ops);
                 None
             }
             Event::Focused { node } => {
@@ -902,7 +992,7 @@ impl Page<'_> {
             None
         };
         if changed {
-            ops.push(Op::Attributes { node, element: self.own_element(node) });
+            self.attribute_op(node, false, ops);
         }
         edge.map(|edge| (node, Act::Near { edge }))
     }
@@ -959,7 +1049,7 @@ impl Page<'_> {
             if open {
                 self.menu = Some(node);
                 menu_element(&mut self.nodes.get_mut(&node).expect("held menu").element, true);
-                ops.push(Op::Attributes { node, element: self.own_element(node) });
+                self.attribute_op(node, true, ops);
                 if let Some(item) = self.menu_items(node).first() {
                     ops.push(Op::Focus { node: *item });
                 }
@@ -1140,12 +1230,25 @@ impl Page<'_> {
         })
     }
 
+    #[cfg(test)]
+    pub(crate) const fn option_visits(&self) -> usize {
+        self.option_visits
+    }
+
     fn sync_options(&mut self, ops: &mut Vec<Op>) {
+        // A removed or changed last menu can still have an old field to clear.
+        if self.option_menus == 0 && self.options.is_empty() {
+            return;
+        }
         let previous = std::mem::take(&mut self.options);
         let mut fields = BTreeMap::new();
         let mut order = Vec::new();
         for root in &self.roots {
             self.preorder(*root, &mut order);
+        }
+        #[cfg(test)]
+        {
+            self.option_visits += order.len();
         }
         for node in &order {
             let a = &self.held(*node).made.attribute;
@@ -1153,8 +1256,7 @@ impl Page<'_> {
                 if a.role.is_text_field() {
                     fields.insert(form, *node);
                 }
-                if a.role == Role::Menu
-                    && a.states.as_slice().contains(&State::Options)
+                if option_menu(a)
                     && let Some(field) = fields.get(&form).copied()
                 {
                     let items = self.menu_items(*node);
@@ -1185,7 +1287,9 @@ impl Page<'_> {
                 self.remap(node);
             }
             if self.held(node).element != before {
-                ops.push(Op::Attributes { node, element: self.own_element(node) });
+                let element = self.own_element(node);
+                let own_content_changed = semantic(&before).children != semantic(&element).children;
+                ops.push(Op::Attributes { node, element, own_content_changed });
             }
         }
         let menus: Vec<_> = self.options.keys().copied().collect();
@@ -1282,7 +1386,7 @@ impl Page<'_> {
     fn close_menu(&mut self, restore_focus: bool, ops: &mut Vec<Op>) {
         if let Some(node) = self.menu.take() {
             menu_element(&mut self.nodes.get_mut(&node).expect("held menu").element, false);
-            ops.push(Op::Attributes { node, element: self.own_element(node) });
+            self.attribute_op(node, true, ops);
             if restore_focus {
                 ops.push(Op::Focus { node });
             }
@@ -1306,6 +1410,14 @@ fn scene_point(point: Point, width: Option<u16>, box_width: u16) -> Point {
         u16::try_from(scaled).unwrap_or(u16::MAX)
     };
     Point { x: scale(point.x), y: scale(point.y) }
+}
+
+fn internal_link(attribute: &Attribute) -> bool {
+    attribute.linked && attribute.external.is_none()
+}
+
+fn option_menu(attribute: &Attribute) -> bool {
+    attribute.role == Role::Menu && attribute.states.as_slice().contains(&State::Options)
 }
 
 fn enabled(attribute: &skein_ui::Attribute) -> bool {

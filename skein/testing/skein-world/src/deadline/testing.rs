@@ -37,7 +37,7 @@ pub(crate) mod linux {
         pub fn first(&self) -> Option<Watch> {
             match self.0.trees.first()? {
                 TreeWatch::Cgroup { start, .. } => Some(Watch::Cgroup { start: *start }),
-                TreeWatch::Threads(threads) => Some(Watch::Threads(threads.len())),
+                TreeWatch::Threads(threads) => Some(Watch::Threads(threads.0.len())),
             }
         }
 

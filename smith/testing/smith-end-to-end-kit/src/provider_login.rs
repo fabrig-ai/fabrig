@@ -171,7 +171,7 @@ fn start(scratch: &Scratch, name: &str, logout: bool, mode: Mode) -> Binary {
             ("HOME".into(), scratch.path().into()),
             ("XDG_CONFIG_HOME".into(), scratch.path().join("config").into()),
             ("XDG_STATE_HOME".into(), scratch.path().join("state").into()),
-            ("PATH".into(), "/usr/bin:/bin".into()),
+            ("PATH".into(), super::stories_path()),
             ("SSH_CONNECTION".into(), "192.0.2.2 1234 192.0.2.1 22".into()),
         ],
         directory: scratch.path().into(),

@@ -10,14 +10,6 @@ pub const A_REPAIR_FINDS_ITS_TESTS_PASSING: Kind = Kind { family: "runs", name: 
 
 /// Adds each engine exclusion whose fault `configured` holds, returning the first refusal.
 pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
-    if configured.contains(&temper_faults::bounds::FORGE_WRITE_ENTRIES) {
-        sweep.exclude(Exclusion::new(
-            "a_change_waiting_for_room_has_a_bound",
-            "bounded waits",
-            temper_faults::bounds::FORGE_WRITE_ENTRIES,
-            &["a change waiting for room past its stall"],
-        ))?;
-    }
     if configured.contains(&temper_faults::bounds::BRANCH_HOLDS) {
         sweep.exclude(Exclusion::new(
             "a_prepare_is_admitted_when_branch_holds_are_released",
@@ -72,6 +64,24 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             "bounded waits",
             temper_faults::restarts::ENGINE_CRASH,
             &["a stored charter past its room"],
+        ))?;
+    }
+    for kind in [temper_faults::people::ANSWERS_LATE, temper_faults::people::ANSWERS_TWICE] {
+        if configured.contains(&kind) {
+            sweep.exclude(Exclusion::new(
+                "a_held_answer_tells_its_requester",
+                "bounded waits",
+                kind,
+                &["a dependency holds the answer"],
+            ))?;
+        }
+    }
+    if configured.contains(&temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL) {
+        sweep.exclude(Exclusion::new(
+            "a_change_waits_on_another_goal",
+            "bounded waits",
+            temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL,
+            &["its requester parked"],
         ))?;
     }
     if configured.contains(&temper_faults::people::CANCELS_A_GOAL) {

@@ -743,15 +743,17 @@ pub(crate) fn route_account(
         core.touch_accounts(Some(*party));
     }
     let party = account_party(core, &event);
-    let refresh = match &event {
-        accounts::Event::UsageRead { .. } | accounts::Event::Usage { .. } | accounts::Event::ProgramSaid { .. } => true,
+    let (refresh, source_failed) = match &event {
+        accounts::Event::UsageRead { .. } | accounts::Event::Usage { .. } | accounts::Event::ProgramSaid { .. } => {
+            (true, false)
+        }
         accounts::Event::Component(event) => match event {
-            accounts::FromComponent::Refreshed { .. } => true,
+            accounts::FromComponent::Refreshed { .. } => (true, false),
+            accounts::FromComponent::Failed { .. } => (false, true),
             accounts::FromComponent::Granted { .. }
             | accounts::FromComponent::Expiring { .. }
-            | accounts::FromComponent::Failed { .. }
             | accounts::FromComponent::KeepFailed { .. }
-            | accounts::FromComponent::Closed => false,
+            | accounts::FromComponent::Closed => (false, false),
         },
         accounts::Event::Listed { .. }
         | accounts::Event::ListFailed { .. }
@@ -778,11 +780,12 @@ pub(crate) fn route_account(
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
-        | accounts::Event::Close => false,
+        | accounts::Event::Close => (false, false),
     };
     let mut out = Queue::uncapped();
     super::step::step_accounts(core, env, event, &mut out);
-    let mut changes = out.is_empty();
+    // A failure changes the source's facts even if its only output asks for a read.
+    let mut changes = source_failed || out.is_empty();
     let mut facts_changed = false;
     for request in &out {
         match request {

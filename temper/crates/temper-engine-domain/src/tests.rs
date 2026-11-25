@@ -230,26 +230,37 @@ fn fresh_numbers_and_unused_gaps_are_durable_in_the_decisions_header() {
 
 #[test]
 fn same_key_saves_and_erases_collapse_to_the_last_write_before_commit() {
-    let mut j = Journal::new(DEPLOYMENT, &LIMITS);
-    let mut out = Queue::with_capacity(1);
-    let mut d = Decision::decide(&mut j.inner, &LIMITS);
-    d.write(&LIMITS, turn(1, 2)).unwrap();
-    d.write(&LIMITS, turn(2, 3)).unwrap();
-    d.write(
-        &LIMITS,
-        Write::Erase(Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
-            task: 1,
-            attempt: 1,
-            turn: 1,
-        }))),
-    )
-    .unwrap();
-    d.write(&LIMITS, turn(1, 4)).unwrap();
-    accept(&mut j, &LIMITS, d, &mut out).unwrap();
-    let (_, writes) = commit(&mut out);
-    assert_eq!(writes.len(), 3);
-    assert_eq!(writes[1], turn(1, 4));
-    assert_eq!(writes[2], turn(2, 3));
+    const SHORT: &[(u32, u32)] = &[(1, 2), (2, 3)];
+    // The fifth write builds the index; the sixth is admitted through it.
+    const INDEXED: &[(u32, u32)] = &[(1, 2), (2, 3), (3, 2), (4, 2), (5, 2), (6, 2)];
+    // The indexed row has room for its six writes, the header and a new key.
+    const INDEXED_LIMITS: Limits = Limits { writes: 8, ..LIMITS };
+    for (limits, initial) in [(&LIMITS, SHORT), (&INDEXED_LIMITS, INDEXED)] {
+        let mut j = Journal::new(DEPLOYMENT, limits);
+        let mut out = Queue::with_capacity(1);
+        let mut d = Decision::decide(&mut j.inner, limits);
+        for &(number, bytes) in initial {
+            d.write(limits, turn(number, bytes)).unwrap();
+        }
+        d.write(
+            limits,
+            Write::Erase(Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                task: 1,
+                attempt: 1,
+                turn: 1,
+            }))),
+        )
+        .unwrap();
+        d.write(limits, turn(1, 4)).unwrap();
+        accept(&mut j, limits, d, &mut out).unwrap();
+        let (_, writes) = commit(&mut out);
+        let mut expected = List::with_capacity(limits.writes);
+        expected.push(turn(1, 4)).unwrap();
+        for &(number, bytes) in &initial[1..] {
+            expected.push(turn(number, bytes)).unwrap();
+        }
+        assert_eq!(&writes[1..], expected.as_slice(), "cohort of {} writes", initial.len());
+    }
 }
 
 #[test]

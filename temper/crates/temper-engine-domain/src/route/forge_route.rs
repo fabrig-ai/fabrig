@@ -76,7 +76,6 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused, r
 mod close;
 pub(crate) mod delegate_record;
 mod merge;
-pub(crate) mod prepare;
 
 #[cfg(test)]
 mod tests;
@@ -1734,7 +1733,12 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
         });
     }
     if let Some(task) = oldest.or(oldest_last) {
-        forge::step(&mut domain.forge, &env.with(env.limits.forge), forge::Event::DropChange { task }, out);
+        forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(env),
+            forge::Event::DropChange { task },
+            out,
+        );
     }
 }
 
@@ -2005,7 +2009,7 @@ pub(super) fn start_recovered_change(
                 follow_check: None,
             },
         };
-        forge::step(&mut domain.forge, &env.with(env.limits.forge), registration, &mut out);
+        forge::step(&mut domain.forge, &crate::translate::environment_forge(env), registration, &mut out);
         domain.work.push(Work::ForgeSettings(out));
         if domain.forge.change(task).is_none() {
             return true;
@@ -4177,7 +4181,13 @@ pub(crate) fn outputs(
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::StepDependents { task } => step_dependents(domain, env, task),
-            forge::Request::CloserChecked { task } => resume_closer_step(domain, env, decision, task),
+            forge::Request::CloserChecked { task } => {
+                if domain.forge.closer_stall_words(task).is_some() && domain.core.tasks.procedure_due(task).is_none() {
+                    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                } else {
+                    resume_closer_step(domain, env, decision, task);
+                }
+            }
             forge::Request::WakeProcedure { task } => {
                 if domain.forge.room_asked(task) {
                     let can_step = match domain.core.tasks.task(task) {
@@ -4653,7 +4663,7 @@ pub(crate) fn outputs(
                     },
                 )));
             }
-            forge::Request::ReleaseFailed { task, account } => {
+            forge::Request::ReleaseFailed { task, account, reason } => {
                 if let Some(account) = account {
                     domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
                         task,
@@ -4665,7 +4675,7 @@ pub(crate) fn outputs(
                         domain,
                         task,
                         tasks::Hold::EffectFailed,
-                        b"forge could not release this task's resources",
+                        reason.as_deref().unwrap_or(b"forge could not release this task's resources"),
                     );
                 }
             }
@@ -5352,7 +5362,7 @@ pub(crate) fn effect_ask(
                     let mut out = Queue::uncapped();
                     forge::step(
                         &mut domain.forge,
-                        &env.with(env.limits.forge),
+                        &crate::translate::environment_forge(env),
                         forge::Event::DropErased { task },
                         &mut out,
                     );

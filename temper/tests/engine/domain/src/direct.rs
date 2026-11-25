@@ -528,12 +528,12 @@ impl Driver {
     pub fn settle(&mut self) {
         for _ in 0..200 {
             self.advance(true);
-            if self.root.next_deadline(&self.env).is_some_and(|due| due <= self.env.now) {
-                engine::fire(&mut self.root, &self.env);
-                engine::release(&mut self.root, &self.env, &mut self.out);
-                self.collect();
+            let mut deadline = self.root.next_deadline(&self.env);
+            if deadline.is_some_and(|due| due <= self.env.now) {
+                self.fire();
+                deadline = self.root.next_deadline(&self.env);
             }
-            if self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
+            if deadline.is_none_or(|due| due > self.env.now)
                 && self.root.quiescent()
                 && self.events.is_empty()
                 && self.store.pending.is_empty()

@@ -47,22 +47,79 @@ pub fn control(id: &str, story: &str) -> Option<Control> {
     }
 }
 
-#[must_use]
-pub fn time_words(now: Time) -> String {
-    let millis = now.as_nanos() / 1_000_000;
+const MIB: u64 = 1024 * 1024;
+const PACES: [(&str, Speed); 4] = [(PAUSE, Speed::PAUSED), (HALF, Speed(500)), (ONE, Speed::ONE), (TEN, Speed(10_000))];
+
+fn elapsed_millis(now: Time) -> u64 {
+    now.as_nanos() / 1_000_000
+}
+
+fn memory_tenths(bytes: u64) -> u64 {
+    bytes / MIB * 10 + bytes % MIB * 10 / MIB
+}
+
+fn slice_micros(slice: Duration) -> u64 {
+    slice.as_nanos() / 1000
+}
+
+/// The figure values in their displayed units, initialized to index.html's figures.
+struct Figures {
+    millis: u64,
+    tenths: u64,
+    micros: u64,
+    pace: &'static str,
+    speed: Speed,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct FigureWrites {
+    millis: Option<u64>,
+    tenths: Option<u64>,
+    micros: Option<u64>,
+    pace: Option<&'static str>,
+    pressed: [Option<bool>; PACES.len()],
+}
+
+impl Figures {
+    fn new() -> Self {
+        Self { millis: 0, tenths: 0, micros: 0, pace: speed_words(Speed::ONE), speed: Speed::ONE }
+    }
+
+    fn update(&mut self, reading: Option<(Time, u64, Duration)>, speed: Speed, hidden: bool) -> FigureWrites {
+        let mut writes = FigureWrites::default();
+        if let Some((now, memory, slice)) = reading {
+            let millis = elapsed_millis(now);
+            let tenths = memory_tenths(memory);
+            let micros = slice_micros(slice);
+            writes.millis = (self.millis != millis).then_some(millis);
+            writes.tenths = (self.tenths != tenths).then_some(tenths);
+            writes.micros = (self.micros != micros).then_some(micros);
+            self.millis = millis;
+            self.tenths = tenths;
+            self.micros = micros;
+        }
+        let pace = if hidden { "Paused (tab hidden)" } else { speed_words(speed) };
+        writes.pace = (self.pace != pace).then_some(pace);
+        writes.pressed = PACES.map(|(_, control)| {
+            let pressed = speed == control;
+            (pressed != (self.speed == control)).then_some(pressed)
+        });
+        self.pace = pace;
+        self.speed = speed;
+        writes
+    }
+}
+
+fn time_words(millis: u64) -> String {
     let seconds = millis / 1000;
     format!("World time {:02}:{:02}:{:02}.{:03}", seconds / 3600, seconds / 60 % 60, seconds % 60, millis % 1000)
 }
 
-#[must_use]
-pub fn memory_words(bytes: u64) -> String {
-    const MIB: u64 = 1024 * 1024;
-    format!("Memory high water {}.{} MiB", bytes / MIB, bytes % MIB * 10 / MIB)
+fn memory_words(tenths: u64) -> String {
+    format!("Memory high water {}.{} MiB", tenths / 10, tenths % 10)
 }
 
-#[must_use]
-pub fn slice_words(slice: Duration) -> String {
-    let micros = slice.as_nanos() / 1000;
+fn slice_words(micros: u64) -> String {
     format!("Longest slice {}.{:03} ms", micros / 1000, micros % 1000)
 }
 

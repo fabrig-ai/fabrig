@@ -277,10 +277,14 @@ def seed(root, work, source_env, index):
     if any(tag[:1].islower() or tag[:1] == b'S' for tag in tags if tag):
         return False
     shutil.copy2(source, index)
+    borrow_objects(work, objects)
+    return True
+
+
+def borrow_objects(work, objects):
     alternates = work / '.git/objects/info/alternates'
     alternates.parent.mkdir(parents=True, exist_ok=True)
     alternates.write_text(str(objects) + '\n')
-    return True
 
 
 def snapshot(root, work, env, source_env, index):
@@ -699,13 +703,71 @@ def merge_tests(root, env):
 
 
 JOURNEY_ROOTS = tuple(f'temper/docs/design/client/{kind}/journeys' for kind in ('web', 'tui'))
-def journeys(root):
-    errors = []
+JOURNEY_ASSETS = {'skein-ui.css', 'journey.js', 'theme.css', 'tui-journey.js'}
+
+
+def written_journey_file(path):
+    for prefix in JOURNEY_ROOTS:
+        if path.startswith(prefix + '/'):
+            parts = path[len(prefix) + 1:].split('/')
+            if len(parts) == 1:
+                return parts[0] in JOURNEY_ASSETS
+            return len(parts) == 2 and bool(parts[0]) and (
+                parts[1] == 'recording' or re.fullmatch(r'[0-9]{2,}\.(?:html|txt)', parts[1]) is not None)
+    return False
+
+
+def journey_paths(root, source_env, work, env, tree_id, paths, base_id, head):
+    """For check 8 only, leave out entries a merged tip holds as they stand in the snapshot."""
+    if base_id is None:
+        return changed_paths(root, source_env, head) if head else []
+    if not paths or not head:
+        return paths
+
+    pending = git(['rev-parse', '--verify', '--quiet', 'MERGE_HEAD^{commit}'], root, source_env)
+    tips = pending.stdout.decode().split() if pending.returncode == 0 else []
+    merges = checked_git(['rev-list', '--first-parent', '--merges', '--parents', f'{base_id}..HEAD'], root, source_env)
+    for line in merges.decode().splitlines():
+        tips.extend(line.split()[2:])
+    if not tips:
+        return paths
+
+    # Both the snapshot and the source's tips must be visible to diff-tree, even if seed skipped the index.
+    if not (work / '.git/objects/info/alternates').exists():
+        borrow_objects(work, git_path(root, source_env, 'objects'))
+    own = set(paths)
+    for tip in dict.fromkeys(tips):
+        differences = checked_git(['diff-tree', '-r', '--no-renames', '--name-only', '-z',
+                                   '--ignore-submodules=none', tip, tree_id], work, env)
+        # Intersecting with the differences also removes entries absent from both trees.
+        own.intersection_update(os.fsdecode(p) for p in differences.split(b'\0') if p)
+        if not own:
+            break
+    return sorted(own)
+
+
+def journeys(root, paths, base):
+    """Refuse mixed writer/source changes and nonempty overlays (tools/pre-pr/design.md, 4, check 8)."""
+    written, others = [], []
+    for path in sorted(paths):
+        names = written if written_journey_file(path) else others
+        names.append(path if path.isprintable() else ascii(path))
+    log = []
+    if written and others:
+        log = ['written files:', *written[:20]]
+        if len(written) > 20:
+            log.append(f'… and {len(written) - 20} more written files')
+        log.append(f'other path: {others[0]}')
     for prefix in JOURNEY_ROOTS:
         overlay = root / prefix / 'overlay.css'
         if overlay.is_symlink() or (overlay.exists() and overlay.stat().st_size):
-            errors.append(failure('journeys', f'{prefix}/overlay.css must be empty'))
-    return errors
+            log.append(f'{prefix}/overlay.css must be empty')
+    if not log:
+        return []
+    log.append("a journey's recording, pages and the files beside them are written on main by "
+               f"the journeys' writer alone (AGENTS.md, 4): restore them with git checkout {base} -- PATH..., "
+               'and compare pages by cargo run -p temper-client-walk -- print --out DIR in your own tree')
+    return [failure('journeys', '\n'.join(log))]
 
 
 def outward(root, env, paths=None):
@@ -1308,7 +1370,6 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             outcomes[key] = {'outcome': 'passed' if rc == 0 else 'failed'}
     if any(p in paths for p in ('tools/tiers/cpu.py', 'tools/tiers/budgets.toml', 'tools/tiers/layers.toml')):
         errors += timed('budgets', lambda: budget_table(root))
-    errors += journeys(root)
     if groups:
         scratch = nullcontext()
         if suites:
@@ -1448,20 +1509,29 @@ def check(scope, commits):
                 counts = published_counts(runpy.run_path(str(TIERS / 'counts.py')), root, source_env)
                 key = verdict_key(tree_id, base_id, counts) if counts else None
             saved = saved_verdict(key) if key else None
-            if no_base:
-                # Loud, so that a checkout the worker set up otherwise is seen and repaired (section 1).
-                errors.append(failure('base', no_base))
-            elif saved:
-                # Temper retries a refused close as it would a fault; the same inputs give the same verdict.
-                stamp = time.strftime('%H:%M:%SZ', time.gmtime(saved['at']))
-                print(f'pre-pr: the refusal of {stamp} for this tree, base and main\'s counts, again: '
-                      'a retry would measure the same (tools/pre-pr/design.md, 4.1)', flush=True)
-                errors.extend(saved['errors'])
-            else:
-                tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close',
-                                         counts_source=(root, source_env), whole=base_id is None, base_id=base_id)
-            if scope == 'goal' and not errors:
-                lints, tests, warnings = goal_checks(work, paths, env, errors, rerun_bound(root, source_env) if has_git else 0)
+            try:
+                if no_base:
+                    # Loud, so that a checkout the worker set up otherwise is seen and repaired (section 1).
+                    errors.append(failure('base', no_base))
+                elif saved:
+                    # Temper retries a refused close as it would a fault; the same inputs give the same verdict.
+                    stamp = time.strftime('%H:%M:%SZ', time.gmtime(saved['at']))
+                    print(f'pre-pr: the refusal of {stamp} for this tree, base and main\'s counts, again: '
+                          'a retry would measure the same (tools/pre-pr/design.md, 4.1)', flush=True)
+                    errors.extend(saved['errors'])
+                else:
+                    tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes,
+                                             completed_goal=scope == 'close', counts_source=(root, source_env),
+                                             whole=base_id is None, base_id=base_id)
+                if scope == 'goal' and not errors:
+                    lints, tests, warnings = goal_checks(work, paths, env, errors,
+                                                        rerun_bound(root, source_env) if has_git else 0)
+            finally:
+                def check_journeys():
+                    own = journey_paths(root, source_env, work, env, tree_id, paths, base_id, head)
+                    return journeys(checks_root, own, base_id or 'HEAD')
+
+                errors += timed('journeys', check_journeys)
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
                 raise ValueError('staged close tree changed during checks')
             if tree_id != snapshot(root, work, env, source_env, Path(directory) / 'final-index') or head != current_head():

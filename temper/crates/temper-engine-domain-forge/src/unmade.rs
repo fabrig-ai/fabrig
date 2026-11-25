@@ -57,6 +57,7 @@ impl Domain {
     fn end_unmade(&mut self, task: u64, env: &Env<Limits>, out: &mut Queue<Request>) {
         let row = self.landing.rows.remove(&task).expect("selected unmade landing");
         self.landing.due.remove(&task);
+        crate::landing::forget_progress(self, task);
         crate::room::leave(self, crate::room::Waiter::Landing(task));
         let mut members = List::with_capacity(env.limits.landing_members);
         for member in &row.landing.members {

@@ -56,6 +56,9 @@ impl Play for Sequence<'_> {
         }
         next
     }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        if self.began { self.person.next_wake(face, now, runnable) } else { self.before.next_wake(face, now, runnable) }
+    }
     fn at(&self) -> u32 {
         self.before.at().saturating_add(self.person.at())
     }
@@ -77,6 +80,11 @@ struct After<'a> {
 impl Play for After<'_> {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         if self.ready.get() { self.person.next(face, now) } else { Next::Wait { until: None } }
+    }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        // The player sharing `ready` schedules its own progress. Once it sets
+        // the flag, that same harness turn can schedule this player too.
+        self.ready.get().then(|| self.person.next_wake(face, now, runnable)).flatten()
     }
     fn at(&self) -> u32 {
         self.person.at()
@@ -141,6 +149,9 @@ impl Play for Field {
         self.script = Script::new(Box::new([Step::Type { find: self.find.clone(), words: b"abc".as_slice().into() }]));
         Next::Wait { until: None }
     }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        self.script.next_wake(face, now, runnable)
+    }
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
         self.script.check_deadline(face, now);
     }
@@ -203,4 +214,43 @@ pub fn back_and_forward(setup: &Setup<'_>, first: Shown<'_>, second: Shown<'_>, 
         see(second.sees),
     ]));
     harness(setup, vec![]).run(&mut [&mut script])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::{face, found};
+
+    #[test]
+    fn a_wrapped_find_wakes_at_the_faces_next_look() {
+        const ANSWER: Time = Time::from_nanos(100_000_000);
+        // A negative reply schedules the kit's next 50 ms look.
+        const RETRY: Time = Time::from_nanos(150_000_000);
+        let mut tail = Script::new(Box::new([]));
+        let before = Script::new(Box::new([Step::Person(PersonStep::See {
+            find: Find::text(b"Ready"),
+            within: Duration::from_secs(1),
+        })]));
+        let mut player = Sequence { before, person: &mut tail, began: false, done: None, ready: None };
+        let mut face = face();
+        player.next(&mut face, Time::ZERO);
+        player.next(&mut face, Time::ZERO);
+        face.tick(ANSWER);
+        found(&mut face, None);
+        player.next(&mut face, ANSWER);
+
+        assert_eq!(player.next_wake(&face, ANSWER, true), Some(RETRY));
+    }
+
+    #[test]
+    fn a_gated_player_has_no_wake_until_released() {
+        let mut script = Script::new(Box::new([]));
+        let player = After { ready: Rc::new(Cell::new(false)), person: &mut script };
+        let face = face();
+        let wakes = [false, true].map(|ready| {
+            player.ready.set(ready);
+            player.next_wake(&face, Time::ZERO, true)
+        });
+        assert_eq!(wakes, [None, Some(Time::ZERO)]);
+    }
 }

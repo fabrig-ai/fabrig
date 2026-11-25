@@ -529,8 +529,10 @@ unchanged.
   it.
 - **The timer in the world's time:** the application's deadline, a
   world instant, is set as the browser instant at which the platform's
-  clock reaches it, again at each report of the world's and each change
-  of pace; none while paused or while the world steps.
+  clock reaches it. The page sets it once at the end of its turn,
+  after carrying reports and any changes to the world's clock, pace
+  or visibility. The worker adapter does not arm another timer for
+  those changes. None is armed while paused or while the world steps.
 - **A hidden tab pauses the world** and the shown tab resumes it at the
   speed it had, through the bridge's pace; the stream is kept, since the
   world is the server and holds no connection of the browser's (`effects.md`, section 1

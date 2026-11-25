@@ -143,6 +143,7 @@ pub use summary::{
     TaskSummary,
 };
 mod stored;
+mod stuck;
 pub use stored::failure::{RestoreBound, RestoreCause, RestoreFailure, RestoreLlmWhy};
 pub use subscriptions::kept_capacity as subscription_capacity;
 mod subscriptions;
@@ -199,6 +200,7 @@ pub use proposals::{
 };
 pub use questions::{OpenQuestion, QuestionTicket, open_question_reason};
 pub use runtime::{REASON_BYTES, RetryNotice};
+pub use stuck::StuckLink;
 pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,
     Scopes, Tools,

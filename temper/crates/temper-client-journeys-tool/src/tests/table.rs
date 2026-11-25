@@ -15,7 +15,9 @@ fn opening(text: &str) -> String {
 
 fn help(text: &str) -> bool {
     opening(text) == "temper-client-journeys: recorded walks, replayed through the shipped hosts and printed."
-        && !text.split_whitespace().any(|word| ["add", "normalise", "again", "pages", "reprint"].contains(&word))
+        && !text
+            .split_whitespace()
+            .any(|word| ["add", "normalise", "again", "pages", "reprint", "look-compare"].contains(&word))
         && text
             .split_once("environment:\n")
             .is_some_and(|(_, environment)| environment.contains("PATH") && !environment.contains("CARGO_TARGET_DIR"))
@@ -40,6 +42,15 @@ fn drive_help(text: &str) -> bool {
     internal(text) && text.contains("--journey") && text.contains("--widths LIST")
 }
 
+fn look_compare_help(text: &str) -> bool {
+    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    internal(text)
+        && text.lines().any(|line| line.trim() == "temper-client-journeys look-compare NAME C")
+        && words.contains("TEMPER_INTERNAL_BUNDLE")
+        && words.contains("PATH")
+        && words.contains("No browser, terminal or box. Exit 0: landed or left for the account; 1: differs, missing, conflict or stopped; 2: refused or unreadable request; 3: comparison couldn't finish.")
+}
+
 fn version(text: &str) -> bool {
     text == "temper-client-journeys 0.0.0 (0123456789ab)\n"
 }
@@ -54,6 +65,7 @@ const ROWS: &[Case] = &[
     (&["print", "--help"], 0, print_help, ""),
     (&["journey", "walk", "--help"], 0, journey_walk_help, ""),
     (&["drive", "--help"], 0, drive_help, ""),
+    (&["look-compare", "--help"], 0, look_compare_help, ""),
     (&["add"], 2, empty, "temper-client-journeys: no command add; temper-client-journeys --help says more\n"),
     (
         &["normalise"],

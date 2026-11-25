@@ -20,7 +20,6 @@ struct Shared<R> {
     handlers: RefCell<Option<Handlers>>,
     ready: Cell<bool>,
     ended: Cell<bool>,
-    deadline: Cell<Option<Time>>,
     timeout: Cell<Option<i32>>,
     inbox: Rc<Inbox<R>>,
     fetch: fn(fetch::Report) -> R,
@@ -56,7 +55,6 @@ impl<R: 'static> Worker<R> {
             handlers: RefCell::new(None),
             ready: Cell::new(false),
             ended: Cell::new(false),
-            deadline: Cell::new(None),
             timeout: Cell::new(None),
             inbox,
             fetch,
@@ -79,7 +77,6 @@ impl<R: 'static> Worker<R> {
         let now = crate::platform::clocks().0;
         self.shared.page.borrow_mut().pace(speed, now);
         self.shared.post();
-        self.shared.set_timer(now);
     }
 
     pub fn visibility(&self, hidden: bool) {
@@ -89,16 +86,14 @@ impl<R: 'static> Worker<R> {
         let now = crate::platform::clocks().0;
         self.shared.page.borrow_mut().visibility(hidden, now);
         self.shared.post();
-        self.shared.set_timer(now);
     }
 
-    /// Keeps the application's deadline in the world's time, or clears it.
+    /// At the end of the page turn, arm the application's world deadline or clear it.
     pub fn timer(&self, deadline: Option<Time>) {
         if self.shared.ended.get() {
             return;
         }
-        self.shared.deadline.set(deadline);
-        self.shared.set_timer(crate::platform::clocks().0);
+        self.shared.set_timer(deadline, crate::platform::clocks().0);
     }
 
     #[must_use]
@@ -181,7 +176,6 @@ impl<R: 'static> Shared<R> {
                 && !shared.ended.get()
             {
                 shared.timeout.set(None);
-                shared.deadline.set(None);
                 shared.inbox.raise((shared.due)());
             }
         });
@@ -225,10 +219,7 @@ impl<R: 'static> Shared<R> {
             bridge::ToPage::Printed(printed) => self.inbox.raise((self.heard)(Heard::Printed(printed))),
             bridge::ToPage::Stopped => self.inbox.raise((self.heard)(Heard::Stopped)),
             bridge::ToPage::Failed { words } => self.fail(words),
-            bridge::ToPage::Clock(_) => {
-                self.set_timer(now);
-                self.inbox.raise((self.heard)(Heard::Clock));
-            }
+            bridge::ToPage::Clock(_) => self.inbox.raise((self.heard)(Heard::Clock)),
             bridge::ToPage::Stamp(_) => {}
         }
     }
@@ -279,12 +270,12 @@ impl<R: 'static> Shared<R> {
         }
     }
 
-    fn set_timer(&self, now: Time) {
+    fn set_timer(&self, deadline: Option<Time>, now: Time) {
         self.clear_timer();
         if self.ended.get() {
             return;
         }
-        let Some(deadline) = self.deadline.get() else { return };
+        let Some(deadline) = deadline else { return };
         let Some(at) = self.page.borrow().timer(deadline, now) else { return };
         let millis = at.saturating_since(now).as_nanos().div_ceil(1_000_000);
         let handlers = self.handlers.borrow();
@@ -312,7 +303,6 @@ impl<R> Shared<R> {
             return;
         }
         self.clear_timer();
-        self.deadline.set(None);
         if let Some(worker) = self.worker.borrow_mut().take() {
             worker.set_onmessage(None);
             worker.set_onerror(None);

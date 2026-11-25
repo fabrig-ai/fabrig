@@ -138,6 +138,15 @@ impl Play for TreeStory {
         self.at += 1;
         Next::Wait { until: None }
     }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        match self.parts.front() {
+            Some(Part::Navigate(script) | Part::Script(script)) => script.next_wake(face, now, runnable),
+            Some(Part::Identity { name, .. }) if runnable => {
+                Some(face.look_again_at(&Find::exactly_named(Role::TreeItem, name.as_bytes())).unwrap_or(now))
+            }
+            _ => runnable.then_some(now),
+        }
+    }
     fn at(&self) -> u32 {
         self.at
     }

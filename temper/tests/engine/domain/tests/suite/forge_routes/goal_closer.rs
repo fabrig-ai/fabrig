@@ -1355,8 +1355,7 @@ fn a_failed_log_read_reads_unknown() {
     world.close();
 }
 
-#[test]
-fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
+fn reading_containment() -> (World, engine::Assignment, u64) {
     let (mut world, goal, branch) = goal_world(false, true);
     add_change(&mut world, &goal, &branch, 93, b"First", b"done");
     world.hold_ancestry_answers = true;
@@ -1364,10 +1363,59 @@ fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
     for _ in 0..80 {
         world.tick();
         if !world.held_ancestry_answers.is_empty() {
-            break;
+            return (world, goal, task);
         }
     }
-    assert!(!world.held_ancestry_answers.is_empty(), "the closer is reading fresh containment");
+    panic!("the closer is reading fresh containment");
+}
+
+#[test]
+fn a_closers_containment_wait_in_its_document_becomes_a_hold() {
+    use jig_domain_core::{AtBound, Bound, WaitKind, WaitObject, documents, reads};
+    use temper_client_protocol_wire::waits::CLOSER_LANDING;
+    let (mut world, goal, task) = reading_containment();
+    super::tiers::sign_in(&mut world);
+    let engine::Event::Forge(mut answer) = world.held_ancestry_answers.pop().expect("held containment answer") else {
+        panic!("forge answer")
+    };
+    let forge_top::Event::Client(skein_forge_client::Event::Answered { result, .. }) = answer.as_mut() else {
+        panic!("containment result")
+    };
+    *result = Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true });
+    world.events.push_front(engine::Event::Forge(answer));
+    for _ in 0..STEPS {
+        if live_task(&world, task).phase == tasks::Phase::Active(tasks::Active::Idle) {
+            break;
+        }
+        world.tick();
+    }
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task }) else {
+        panic!("live task document for the closer")
+    };
+    let documents::Document::Task(document) = *document else { panic!("task document") };
+    let [wait] = document.waits.as_slice() else { panic!("one containment wait: {:?}", document.waits) };
+    assert_eq!(wait.kind, WaitKind::Step);
+    let WaitObject::Procedure { step, .. } = wait.object else { panic!("procedure wait") };
+    assert_eq!(step, CLOSER_LANDING);
+    let Bound::At { at, then: AtBound::Hold } = wait.bound else { panic!("closer step's hold bound") };
+    let remaining = Duration::from_nanos(at.as_nanos().saturating_sub(world.env.wall.as_nanos()));
+    world.env.now = world.env.now.saturating_add(remaining);
+    wait_held(&mut world, task, goal.task);
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, task).phase
+    else {
+        panic!("a closing procedure hold")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("a hold account") };
+    assert!(words.starts_with(b"no progress at landing for 30 minutes: waiting for whether main at "));
+    assert!(words.ends_with(b"; the last answer: not there yet"));
+    world.hold_ancestry_answers = false;
+    world.events.extend(world.held_ancestry_answers.drain(..));
+    world.close();
+}
+
+#[test]
+fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
+    let (mut world, goal, task) = reading_containment();
     let saved = closer_row(&world, task).expect("closer before check").clone();
     let step = live_task(&world, task).attempt;
     let completion = live_task(&world, goal.task).turn + 1;

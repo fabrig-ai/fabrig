@@ -24,7 +24,11 @@ temper-engine-service                   iterate: io ↔ components ↔ root
 ```
 
 Starting, ending, `iterate`'s passes, room and timers are jig's
-(jig's `protocol/service.md`, sections 3 to 5). What temper adds:
+(jig's `protocol/service.md`, sections 3 to 5). In the engine's readiness
+check, a due deadline makes a turn runnable only when the root can act
+and no other work already makes the turn runnable. The engine folds its
+children's deadlines only when that check needs the result. The shell
+still sees the same earliest deadline for its wait. What temper adds:
 
 - **The forge component,** speaking each forge's API, Forgejo's REST API
   under `/api/v1` or GitHub's in skein's dialect, polled at the domain's

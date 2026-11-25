@@ -53,6 +53,16 @@ impl Inspection {
         &self.tables
     }
 
+    /// Let a harness attach its own wakes to the adapter's observations.
+    pub fn waits_mut(&mut self) -> &mut [Wait] {
+        &mut self.waits
+    }
+
+    /// Let a harness mark its fixture's entries without copying the table.
+    pub fn tables_mut(&mut self) -> &mut [Table] {
+        &mut self.tables
+    }
+
     /// The shared one-line form for a check's finding (section 6).
     #[must_use]
     pub fn finding(&self, moment: Moment, object: &str, what: &str) -> String {
