@@ -2,8 +2,6 @@
 
 2026-11-25. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
-- **Not yet:** 2, *The close kind*: its spec carries no ask for a typed refusal, and the worker sets no `TEMPER_CLOSE_REFUSAL`. [in flight: change 18069]
-- **Not yet:** 2, *The close kind*: its checkout fetches the goal's branch by name at preparation, not the commit its change read. [in flight: change 18070]
 
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,

@@ -2,7 +2,6 @@
 
 2026-11-25. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 2, *Close*: a refusal of the close's check fails its job and is tried three more times before its change holds. [in flight: change 18070]
 
 
 
