@@ -2,16 +2,23 @@
 use super::{Account, Arming, Play};
 use crate::BrowserFace;
 use skein_lib::{Duration, Time};
+use skein_world::deadline::ProcessSampler;
 
 pub(super) struct StepAccount {
     pub step: u32,
     pub deadline: Account,
 }
 impl StepAccount {
-    pub fn begin(account: &mut Option<Self>, step: u32, command: Option<u32>, arming: &mut Arming) {
+    pub fn begin(
+        account: &mut Option<Self>,
+        step: u32,
+        command: Option<u32>,
+        arming: &mut Arming,
+        sampler: &mut ProcessSampler,
+    ) {
         if account.as_ref().is_none_or(|account| account.step != step) {
             // The arriving expiry supplies its own bound. This account only measures.
-            let deadline = arming.arm("the browser step", Duration::from_nanos(0), command);
+            let deadline = arming.arm("the browser step", Duration::from_nanos(0), command, sampler);
             *account = Some(Self { step, deadline });
         }
     }

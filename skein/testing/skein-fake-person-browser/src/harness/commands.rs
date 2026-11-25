@@ -368,7 +368,8 @@ impl super::Runtime {
                     self.pending_commands[index] = Some(command);
                     return;
                 }
-                let deadline = arming.arm("the scenario command's readiness", command.within, None);
+                let deadline =
+                    arming.arm("the scenario command's readiness", command.within, None, &mut self.process_sampler);
                 let command = Process::new(
                     self.command_serial,
                     command,
@@ -386,7 +387,12 @@ impl super::Runtime {
             }
             super::CommandAction::Exit { code, within } => {
                 if let Some(command) = &mut self.commands[index] {
-                    let deadline = arming.arm("the scenario command's expected exit", within, command.pid);
+                    let deadline = arming.arm(
+                        "the scenario command's expected exit",
+                        within,
+                        command.pid,
+                        &mut self.process_sampler,
+                    );
                     command.wait = Some((deadline, WaitFor::Exit { code }));
                 } else {
                     face.command_complete();

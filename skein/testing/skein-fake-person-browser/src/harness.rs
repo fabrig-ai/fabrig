@@ -9,6 +9,7 @@ use skein_io::{
     kernel::{self, Complete, Op, Pipe, Spawn, Submit, Way},
 };
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall, stream};
+use skein_world::deadline::ProcessSampler;
 use skein_world::{Expired, Starved};
 use std::fmt::Write as _;
 use std::{collections::VecDeque, ffi::OsString, os::unix::ffi::OsStrExt, path::PathBuf};
@@ -305,6 +306,7 @@ struct Runtime {
     close_window: Option<CloseWindow>,
     deadline: Option<Account>,
     step_accounts: Vec<Option<StepAccount>>,
+    process_sampler: ProcessSampler,
     step_wakes: Vec<Option<Time>>,
     starved: Option<Starved>,
     spawned_pids: VecDeque<Option<u32>>,
@@ -428,6 +430,7 @@ impl Runtime {
             deadline: None,
             step_wakes: vec![None; people.len()],
             step_accounts: (0..people.len()).map(|_| None).collect(),
+            process_sampler: ProcessSampler::default(),
             starved: None,
             spawned_pids: VecDeque::new(),
             server_pid: None,
@@ -920,7 +923,7 @@ impl Runtime {
             let step = play.at();
             let command =
                 self.commands[index].as_ref().filter(|command| !command.settled).and_then(|command| command.pid);
-            StepAccount::begin(&mut self.step_accounts[index], step, command, &mut arming);
+            StepAccount::begin(&mut self.step_accounts[index], step, command, &mut arming, &mut self.process_sampler);
             face.clear_look_wake();
             let next = play.next(face, now);
             if play.at() != step {

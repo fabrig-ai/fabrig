@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 mod process;
 pub(crate) mod testing;
-use process::{Boot, Proc, Processes};
+use process::{Boot, Proc, Processes, SampleFiles};
 
 use skein_lib::{Duration, Time};
 use skein_shell::Clock;
@@ -83,6 +83,25 @@ impl ProcessWatch {
 
     fn capture_with(pids: &[u32], proc: &Proc) -> Self {
         Self(Arc::new(Processes::arm(pids, proc)))
+    }
+}
+
+/// A run's reusable procfs descriptors for arming process watches on Linux.
+/// Each capture reads new figures and checks ownership and identity anew.
+#[derive(Debug, Default)]
+pub struct ProcessSampler {
+    files: SampleFiles,
+}
+
+impl ProcessSampler {
+    #[must_use]
+    pub fn capture(&mut self, pids: &[u32]) -> ProcessWatch {
+        self.capture_with(pids, &Proc::Live)
+    }
+
+    fn capture_with(&mut self, pids: &[u32], proc: &Proc) -> ProcessWatch {
+        let files = cfg!(target_os = "linux").then_some(&mut self.files);
+        ProcessWatch(Arc::new(Processes::arm_with(pids, proc, files)))
     }
 }
 

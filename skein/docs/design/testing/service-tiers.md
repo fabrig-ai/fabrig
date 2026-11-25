@@ -260,10 +260,17 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   `watch_snapshot(&ProcessWatch)` shares the sample of their owned roots
   without reading procfs again. A stable arming scan reads the caller's
   owner once, each process's owner once and identity before and after its
-  records, and each thread's scheduler and children records. Descendants
-  count; a thread counts from zero only when its own or its process's
-  birth proves it began after arming. Unreadable or vanished accounting
-  contributes nothing.
+  records, and each thread's scheduler and children records. On Linux,
+  a run may use `ProcessSampler` to avoid reopening those two thread
+  records on later armings. It keeps a bounded set of descriptors for
+  tasks seen in the last scan. Reuse requires the same process identity
+  and an inode match from the fresh task listing; a record descriptor
+  pins its task directory. Every scan reads the records from offset
+  zero, and opens them by path when it has no matching readable
+  descriptor. Ownership, process identity checks and expiry scans are
+  unchanged. Descendants count; a thread counts from zero only when
+  its own or its process's birth proves it began after arming.
+  Unreadable or vanished accounting contributes nothing.
   `passed`, `remaining` and `until` let the loop wait; `expired` classifies
   an unanswered wait once it passes. `expired_for(what, bound)` classifies
   one of the waits an account armed for several covers, as a browser

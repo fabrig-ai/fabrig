@@ -1,7 +1,16 @@
 //! Owned process trees' scheduler snapshots (skein/docs/foundation/testing-strategy.md, 2.10).
 
+use alloc::borrow::Cow;
 use alloc::collections::{BTreeSet, VecDeque};
 use core::fmt::Write;
+use std::fs::{self, File};
+use std::io::Read;
+use std::os::unix::fs::{DirEntryExt, MetadataExt};
+use std::path::Path;
+
+mod files;
+pub(super) use files::SampleFiles;
+use files::{TaskFiles, TaskIdentity, read_fresh};
 
 use super::{Duration, Sched, parse_schedstat, sched_elapsed};
 
@@ -32,8 +41,8 @@ impl Boot {
         if !cfg!(target_os = "linux") {
             return None;
         }
-        let ticks = clock_ticks(&std::fs::read("/proc/self/auxv").ok()?)?;
-        let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
+        let ticks = clock_ticks(&fs::read("/proc/self/auxv").ok()?)?;
+        let uptime = fs::read_to_string("/proc/uptime").ok()?;
         let (seconds, hundredths) = uptime.split_whitespace().next()?.split_once('.')?;
         if hundredths.len() != 2 {
             return None;
@@ -83,23 +92,50 @@ pub(super) enum Proc {
     Live,
     #[cfg(test)]
     Text(&'static [(&'static str, &'static str)]),
+    #[cfg(test)]
+    Directory(std::path::PathBuf),
+}
+
+#[derive(Clone, Copy)]
+struct Task {
+    tid: u32,
+    inode: u64,
 }
 
 impl Proc {
+    fn path<'a>(&self, path: &'a str) -> Cow<'a, Path> {
+        match self {
+            Self::Live => Cow::Borrowed(Path::new(path)),
+            #[cfg(test)]
+            Self::Text(_) => Cow::Borrowed(Path::new(path)),
+            #[cfg(test)]
+            Self::Directory(root) => Cow::Owned(root.join(path.trim_start_matches('/'))),
+        }
+    }
+
+    fn open(&self, path: &str) -> Option<File> {
+        #[cfg(test)]
+        tests::opened(false);
+        File::open(self.path(path)).ok()
+    }
+
     fn read<'a>(&self, path: &str, text: &'a mut String) -> Option<&'a str> {
         text.clear();
         match self {
-            Self::Live => {
-                use std::io::Read;
-                // Proc exposes these records with a size of zero. Use streaming
-                // reads without File::read_to_string's metadata lookup.
-                std::fs::File::open(path).ok()?.take(u64::MAX).read_to_string(text).ok()?;
-            }
             #[cfg(test)]
             Self::Text(files) => {
                 tests::opened(false);
                 let (_, source) = files.iter().find(|(name, _)| *name == path)?;
                 text.push_str(source);
+            }
+            Self::Live => {
+                // Proc exposes these records with a size of zero. Use streaming
+                // reads without File::read_to_string's metadata lookup.
+                self.open(path)?.take(u64::MAX).read_to_string(text).ok()?;
+            }
+            #[cfg(test)]
+            Self::Directory(_) => {
+                self.open(path)?.take(u64::MAX).read_to_string(text).ok()?;
             }
         }
         Some(text)
@@ -113,22 +149,54 @@ impl Proc {
         source
     }
 
-    fn tasks(&self, directory: &str, tids: &mut Vec<u32>) {
-        tids.clear();
-        match self {
-            Self::Live => {
-                if let Ok(tasks) = std::fs::read_dir(directory) {
-                    tids.extend(tasks.flatten().filter_map(|task| task.file_name().to_str()?.parse::<u32>().ok()));
-                }
+    fn task_file<'a>(
+        &self,
+        path: &mut String,
+        leaf: &str,
+        text: &'a mut String,
+        slot: &mut Option<File>,
+    ) -> Option<&'a str> {
+        text.clear();
+        if let Some(file) = slot {
+            if read_fresh(file, text).is_ok() {
+                return Some(text);
             }
+            *slot = None;
+            return self.file(path, leaf, text);
+        }
+        let base = path.len();
+        path.push_str(leaf);
+        let file = self.open(path);
+        path.truncate(base);
+        // This is also the ordinary read when a descriptor cannot be reused.
+        text.clear();
+        let file = file?;
+        (&file).take(u64::MAX).read_to_string(text).ok()?;
+        *slot = Some(file);
+        Some(text)
+    }
+
+    fn tasks(&self, directory: &str, tasks: &mut Vec<Task>) {
+        tasks.clear();
+        #[cfg(test)]
+        tests::opened(true);
+        match self {
             #[cfg(test)]
             Self::Text(files) => {
-                tests::opened(true);
-                tids.extend(files.iter().filter_map(|(path, _)| {
-                    path.strip_prefix(directory)?.strip_prefix('/')?.split('/').next()?.parse::<u32>().ok()
+                tasks.extend(files.iter().filter_map(|(path, _)| {
+                    let tid = path.strip_prefix(directory)?.strip_prefix('/')?.split('/').next()?.parse().ok()?;
+                    Some(Task { tid, inode: 0 })
                 }));
-                tids.sort_unstable();
-                tids.dedup();
+                tasks.sort_unstable_by_key(|task| task.tid);
+                tasks.dedup_by_key(|task| task.tid);
+            }
+            _ => {
+                if let Ok(directory) = fs::read_dir(self.path(directory)) {
+                    tasks.extend(directory.flatten().filter_map(|entry| {
+                        let tid = entry.file_name().to_str()?.parse().ok()?;
+                        Some(Task { tid, inode: entry.ino() })
+                    }));
+                }
             }
         }
     }
@@ -146,11 +214,16 @@ impl Proc {
         source.lines().find_map(|line| line.strip_prefix("Uid:"))?.split_whitespace().nth(1)?.parse().ok()
     }
 
-    fn snapshot(&self, mut pending: VecDeque<(u32, Edge)>, boot: Option<Boot>) -> Processes {
+    fn snapshot(
+        &self,
+        mut pending: VecDeque<(u32, Edge)>,
+        boot: Option<Boot>,
+        mut files: Option<&mut SampleFiles>,
+    ) -> Processes {
         let mut path = String::from("/proc/self");
         let mut text = String::new();
         let owner = self.owner(&mut path, &mut text);
-        let mut tids = Vec::new();
+        let mut tasks = Vec::new();
         let mut seen = BTreeSet::new();
         let mut roots = Vec::new();
         let mut threads = Vec::new();
@@ -173,28 +246,50 @@ impl Proc {
             }
             let process_path = path.len();
             path.push_str("/task");
-            self.tasks(&path, &mut tids);
+            self.tasks(&path, &mut tasks);
             let base = path.len();
             let first_thread = threads.len();
             let first_child = pending.len();
             let process_born = boot.is_some_and(|boot| boot.includes(process_start));
-            for &tid in &tids {
+            for &Task { tid, inode } in &tasks {
                 write!(&mut path, "/{tid}").expect("String formatting");
+                let mut task_files = files
+                    .as_deref_mut()
+                    .filter(|_| inode != 0)
+                    .and_then(|files| files.task(tid, TaskIdentity { pid, process_start, inode }));
+                let filling = task_files.as_deref().is_some_and(TaskFiles::filling);
                 // Thread birth is needed only at expiry and only if the process's
                 // birth cannot already prove it. The leader has its process's birth.
                 let thread_start =
                     if boot.is_some() && !process_born && tid != pid { self.stat(&mut path, &mut text) } else { None };
-                if let Some(sched) = self.file(&mut path, "/schedstat", &mut text).and_then(parse_schedstat)
+                let sched = match &mut task_files {
+                    Some(files) => self.task_file(&mut path, "/schedstat", &mut text, files.schedstat()),
+                    None => self.file(&mut path, "/schedstat", &mut text),
+                };
+                if let Some(sched) = sched.and_then(parse_schedstat)
                     && (thread_start.is_none() || self.stat(&mut path, &mut text) == thread_start)
                 {
                     let born_after_arm =
                         process_born || boot.zip(thread_start).is_some_and(|(boot, (_, start))| boot.includes(start));
                     threads.push(Thread { pid, process_start, tid, sched, born_after_arm });
                 }
-                if let Some(children) = self.file(&mut path, "/children", &mut text) {
+                let children = match &mut task_files {
+                    Some(files) => self.task_file(&mut path, "/children", &mut text, files.children()),
+                    None => self.file(&mut path, "/children", &mut text),
+                };
+                if let Some(children) = children {
                     pending.extend(
                         children.split_whitespace().filter_map(|child| Some((child.parse().ok()?, Edge::Child(pid)))),
                     );
+                }
+                // Open record descriptors pin their containing proc directory.
+                // Only keep newly opened records if that directory still has
+                // the inode reported by this scan's task enumeration.
+                if filling
+                    && let Some(files) = task_files
+                    && !fs::metadata(self.path(&path)).is_ok_and(|entry| entry.ino() == inode)
+                {
+                    files.clear();
                 }
                 path.truncate(base);
             }
@@ -206,6 +301,9 @@ impl Proc {
                 threads.truncate(first_thread);
                 pending.truncate(first_child);
             }
+        }
+        if let Some(files) = files {
+            files.drop_unseen();
         }
         roots.sort_unstable();
         roots.dedup();
@@ -224,7 +322,11 @@ fn parse_stat(source: &str) -> Option<(u32, u64)> {
 
 impl Processes {
     pub(super) fn arm(pids: &[u32], proc: &Proc) -> Self {
-        proc.snapshot(pids.iter().map(|&pid| (pid, Edge::Root(None))).collect(), None)
+        Self::arm_with(pids, proc, None)
+    }
+
+    pub(super) fn arm_with(pids: &[u32], proc: &Proc, files: Option<&mut SampleFiles>) -> Self {
+        proc.snapshot(pids.iter().map(|&pid| (pid, Edge::Root(None))).collect(), None, files)
     }
 
     pub(super) fn has_root(&self, pid: u32) -> bool {
@@ -238,7 +340,7 @@ impl Processes {
     pub(super) fn waited(&self, proc: &Proc, boot: Option<Boot>) -> Option<Duration> {
         let roots = self.roots.iter().map(|&(pid, start)| (pid, Edge::Root(Some(start)))).collect();
         let mut largest = None;
-        for thread in proc.snapshot(roots, boot).threads {
+        for thread in proc.snapshot(roots, boot, None).threads {
             let delta = if thread.born_after_arm {
                 Some(thread.sched)
             } else {
@@ -331,6 +433,84 @@ mod tests {
         let (snapshot, opens) = count(|| Processes::arm(&[10], &OWNED_TREE));
         assert_eq!(opens, Opens { files: 1 + 3 * PROCESSES + 2 * THREADS, directories: PROCESSES });
         assert_eq!(snapshot.threads.len(), THREADS);
+    }
+
+    #[cfg(target_os = "linux")]
+    mod reuse {
+        use super::{CHILD, OWNED_TREE, Opens, Proc, UID, count};
+        use crate::deadline::{ProcessSampler, Sched};
+        use skein_scratch::Scratch;
+        use std::{fs, path::Path};
+
+        const ROOT: u32 = 10;
+        const PARENT_THREAD: u32 = 11;
+        const OWNED_PROCESSES: usize = 2;
+        const PARENT_SCHEDSTAT: &str = "proc/10/task/11/schedstat";
+        const PARENT_CHILDREN: &str = "proc/10/task/11/children";
+        const LATER_CPU: u64 = 7;
+        const LATER_WAIT: u64 = 80;
+
+        fn write(root: &Path, name: &str, text: &str) {
+            let path = root.join(name.trim_start_matches('/'));
+            fs::create_dir_all(path.parent().expect("fixture file's directory")).expect("fixture directory");
+            fs::write(path, text).expect("fixture record");
+        }
+
+        fn tree(scratch: &Scratch) -> Proc {
+            let Proc::Text(tree) = OWNED_TREE else { unreachable!("text fixture") };
+            for (path, text) in tree {
+                write(scratch.path(), path, text);
+            }
+            for path in ["proc/10/task/10/children", "proc/30/task/30/children"] {
+                write(scratch.path(), path, "");
+            }
+            Proc::Directory(scratch.path().to_path_buf())
+        }
+
+        fn warmed(label: &str) -> (Scratch, Proc, ProcessSampler) {
+            let scratch = Scratch::new(label);
+            let proc = tree(&scratch);
+            let mut sampler = ProcessSampler::default();
+            drop(sampler.capture_with(&[ROOT], &proc));
+            (scratch, proc, sampler)
+        }
+
+        #[test]
+        fn warm_arming_reuses_task_opens_without_reusing_figures() {
+            let (scratch, proc, mut sampler) = warmed("deadline-warm");
+            write(scratch.path(), PARENT_SCHEDSTAT, "7 80 1\n");
+            let (watch, opens) = count(|| sampler.capture_with(&[ROOT], &proc));
+            // One caller owner, and two identity reads and one owner per process.
+            assert_eq!(opens, Opens { files: 1 + 3 * OWNED_PROCESSES, directories: OWNED_PROCESSES });
+            let parent = watch.0.threads.iter().find(|thread| thread.tid == PARENT_THREAD).expect("child's parent");
+            assert_eq!(parent.sched, Sched { cpu: LATER_CPU, waited: Some(LATER_WAIT) });
+        }
+
+        #[test]
+        fn a_reused_tid_does_not_reuse_open_task_records() {
+            let (scratch, proc, mut sampler) = warmed("deadline-replaced-task");
+            fs::rename(scratch.path().join("proc/10/task/11"), scratch.path().join("dead-task"))
+                .expect("replace the task without reusing its inode");
+            write(scratch.path(), PARENT_SCHEDSTAT, "7 80 1\n");
+            write(scratch.path(), PARENT_CHILDREN, "");
+            let watch = sampler.capture_with(&[ROOT], &proc);
+            let mut threads: Vec<_> = watch.0.threads.iter().map(|thread| thread.tid).collect();
+            threads.sort_unstable();
+            assert_eq!(threads, [ROOT, PARENT_THREAD]);
+        }
+
+        #[test]
+        fn warm_arming_rediscovers_children_of_stable_threads() {
+            const NEW_CHILD: u32 = 40;
+            let (scratch, proc, mut sampler) = warmed("deadline-warm-children");
+            write(scratch.path(), PARENT_CHILDREN, "30 40 ");
+            write(scratch.path(), "proc/40/stat", CHILD);
+            write(scratch.path(), "proc/40/status", UID);
+            write(scratch.path(), "proc/40/task/40/schedstat", "7 80 1\n");
+            write(scratch.path(), "proc/40/task/40/children", "");
+            let watch = sampler.capture_with(&[ROOT], &proc);
+            assert!(watch.0.threads.iter().any(|thread| thread.pid == NEW_CHILD));
+        }
     }
 
     #[test]

@@ -1,5 +1,6 @@
 //! Run and step accounts on the driving world's clock (skein/docs/design/ui/web/testing.md, 2).
 use skein_lib::{Duration, Time};
+use skein_world::deadline::ProcessSampler;
 use skein_world::{Deadline, DeadlineOrigin, Expired, ProcessWatch};
 
 pub(super) enum Account {
@@ -28,7 +29,13 @@ impl Arming {
         Self { native, now, roots: [server, browser], origin: None, common: None, commands: Vec::new() }
     }
 
-    pub fn arm(&mut self, what: &'static str, bound: Duration, command: Option<u32>) -> Account {
+    pub fn arm(
+        &mut self,
+        what: &'static str,
+        bound: Duration,
+        command: Option<u32>,
+        sampler: &mut ProcessSampler,
+    ) -> Account {
         if !self.native {
             return Account::arm(false, what, bound, self.now);
         }
@@ -37,7 +44,7 @@ impl Arming {
         if self.roots.iter().any(Option::is_some) {
             let watch = self.common.get_or_insert_with(|| {
                 let roots = self.roots.into_iter().flatten().collect::<Vec<_>>();
-                ProcessWatch::capture(&roots)
+                sampler.capture(&roots)
             });
             deadline.watch_snapshot(watch);
         }

@@ -226,7 +226,9 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     the person's command's processes (../../testing/service-tiers.md,
     1). Step and command waits begun in the same dispatch share their
     scheduler origin and the snapshot of their common roots, not their
-    bounds. A spawn supplies one sample to the accounts watching it,
+    bounds. On Linux, the run reuses procfs thread record descriptors
+    for these common roots across dispatches, not the figures they read.
+    A spawn supplies one sample to the accounts watching it,
     without changing when those waits began. Opening the command's link
     keeps its Chromium watch if the process identity is unchanged.
     The harness classifies the step's expiry against that account with the
