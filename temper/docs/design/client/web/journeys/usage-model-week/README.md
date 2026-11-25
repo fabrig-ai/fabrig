@@ -1,0 +1,3 @@
+# usage-model-week
+
+Hand-made from the gallery's state `accounts-usage-filling`, printed by `temper-client-gallery` at main `ed505074e5`: an account's folded row with its 5 h and week windows. A Fable week is added by hand, as Claude Code's `/usage` reports a week per model, which no gallery state sets. Its figures are examples. `accounts-before.html` draws it as main does, under its raw label; `accounts-after.html` the request, the week filling before its reset; `accounts-unused-after.html` the request with the model unused, its week not drawn. The gallery's stylesheets are the tree's own, so the pages link those.

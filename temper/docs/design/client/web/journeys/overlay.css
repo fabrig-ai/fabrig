@@ -1,0 +1,4 @@
+/* usage-model-week */
+/* A window's name column fits a model's name, "Sonnet" the widest today. */
+#app > .temper-settings .temper-usage-window { grid-template-columns: 48px 120px 36px minmax(0, 1fr); }
+@media (max-width: 760px) { #app > .temper-settings .temper-usage-window { grid-template-columns: 48px minmax(0, 1fr) 36px; } }
