@@ -410,9 +410,9 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   sources, never its pages (`look-requests.md`, 3).
 - **The landing** moves the overlay's rules into `temper.css` or
   `task-pages.css` and the markup's changes into the view, for every
-  state, then compares `temper-client-walk print --out DIR` in its own
-  tree with the request's pages, read from the request's commit, equal
-  where their facts agree. It needs no box and commits no page
+  state, then compares with `scripts/look-compare.sh NAME C`, which
+  prints into scratch in its own tree and compares with the request's
+  commit (`../journey-writer.md`, 6.1). It needs no box and commits no page
   (`look-requests.md`, 3; `../journey-writer.md`, 6). Its own commits carry
   the request's trailer, never the request's commit itself, and its
   last, carrying the account, `Look-landed: NAME` beside it. The account
