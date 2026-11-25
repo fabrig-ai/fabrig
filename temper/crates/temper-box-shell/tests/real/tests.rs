@@ -6,6 +6,30 @@ use temper_box_shell::testing::{scripted, serve};
 mod box_kinds;
 mod box_link_form;
 
+#[test]
+fn serve_distinguishes_open_pipes_from_other_descriptors() {
+    use std::os::fd::AsRawFd;
+    use temper_box_shell::testing::serve::{PipeKind, pipe_kind};
+
+    let (read, write) = std::io::pipe().expect("pipe");
+    let null = std::fs::File::open("/dev/null").expect("null device");
+    let directories = [
+        #[cfg(target_os = "linux")]
+        "/proc/self/fd",
+        "/dev/fd",
+    ];
+    for directory in directories {
+        assert_eq!(pipe_kind(directory, read.as_raw_fd()), PipeKind::Open, "{directory}: read end");
+        assert_eq!(pipe_kind(directory, write.as_raw_fd()), PipeKind::Open, "{directory}: write end");
+        assert_eq!(pipe_kind(directory, null.as_raw_fd()), PipeKind::Other, "{directory}: /dev/null");
+    }
+    let closed = read.as_raw_fd();
+    drop(read);
+    for directory in directories {
+        assert_ne!(pipe_kind(directory, closed), PipeKind::Open, "{directory}: closed pipe end");
+    }
+}
+
 // Linux's passwd entry is the reference for macOS's command lookup.
 #[cfg(target_os = "linux")]
 #[test]

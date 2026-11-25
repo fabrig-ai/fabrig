@@ -261,11 +261,11 @@ mod tests {
                                 box_inputs_with(
                                     true,
                                     count,
-                                    Some(|fd| {
+                                    |fd| {
                                         assert_eq!(fd, next_fd, "{name}, {listeners} listeners");
                                         next_fd += 1;
                                         facts.next().expect("no probe after the first bad pipe")
-                                    }),
+                                    },
                                     || panic!("pipes are checked before stdin"),
                                 )
                             },

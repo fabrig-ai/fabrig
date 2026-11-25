@@ -147,9 +147,14 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
 
 #[test]
 fn forge_fetch_command() {
-    use skein_forge::forgejo::pin::{self, Binary, Form, Platform};
+    use skein_forge::forgejo::pin::Platform;
     use skein_lib::sha256::Sha256;
     use support::{configuration, owned};
+    use temper_forge_setup::{
+        fetch::{hex, pins},
+        machine::BoxKind,
+        setup::Mode,
+    };
 
     let scratch = support::Scratch::new("forge-fetch-digest");
     let directory = scratch.path();
@@ -170,6 +175,13 @@ fn forge_fetch_command() {
     setup["forgejo"] = "fetched".into();
     setup["mirror"] = serde_json::json!({"forgejo":origin,"runner":origin});
     configuration::setup(directory, 3, setup);
+    let directories = temper_service_shell::jig_directories(&configuration::directories(directory));
+    let setup = temper_forge_setup_shell::setup_file::read(&directories, 3, BoxKind::Owned).expect("mirrored setup");
+    let Mode::Owned(owned) = setup.entry(3, &directories).expect("forge entry").mode else { panic!("owned forge") };
+    let platform = if cfg!(target_os = "macos") { Platform::Macos } else { Platform::Linux };
+    let pins = pins(&owned, platform, std::env::consts::ARCH).expect("host pins");
+    let [pin] = pins.as_ref() else { panic!("only Forgejo is fetched") };
+
     let root = directory.join("root.pem");
     support::fetch::roots(&root);
     let result = Command::new(skein_scratch::paths::binary("temper-box"))
@@ -182,26 +194,24 @@ fn forge_fetch_command() {
         .expect("fetch command");
     assert_eq!(result.status.code(), Some(1));
     assert_eq!(result.stdout, b"fetched forgejo 0 of 3 bytes\nfetched forgejo 3 of 3 bytes\n");
-    peer.check();
+    peer.check(pin);
 
-    let arch = match std::env::consts::ARCH {
-        "x86_64" => "amd64",
-        "aarch64" => "arm64",
-        _ => panic!("test host has pinned architecture"),
-    };
-    let pinned = pin::digest(Binary::Forgejo, Platform::Linux, arch, Form::Binary).expect("pin");
+    let pinned = hex(pin.bottle.as_ref().map_or(&pin.digest, |bottle| &bottle.digest));
     let mut hash = Sha256::new();
     hash.update(b"abc");
-    let got = temper_forge_setup::fetch::hex(&hash.finish());
+    let got = hex(&hash.finish());
+    let path = std::str::from_utf8(&pin.path).expect("pinned request path");
     assert_eq!(
         String::from_utf8_lossy(&result.stderr),
         format!(
-            "temper-box forge fetch: forge 3: {origin}/forgejo/forgejo/releases/download/v17.0.1/forgejo-17.0.1-linux-{arch}: digest differs: pinned {pinned}, got {}\n",
+            "temper-box forge fetch: forge 3: {origin}{path}: digest differs: pinned {}, got {}\n",
+            String::from_utf8_lossy(&pinned),
             String::from_utf8_lossy(&got)
         ),
     );
     let file = directory.join("forgejo/17.0.1/forgejo");
     assert!(!file.with_file_name("forgejo.part").exists());
+    assert!(!file.with_file_name("forgejo.archive").exists());
     assert!(!file.exists());
     scratch.remove();
 }
