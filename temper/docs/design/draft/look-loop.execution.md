@@ -15,5 +15,5 @@ One milestone, its goals in the table's order, each after the one before. The fi
 ## Acceptance
 
 - **The first:** the design documents say what `look-loop.md`, 2, 3, 4.1 and 4.4, says; the citations pass; and `look-loop.status.md` lists no gap there.
-- **The second:** the comparison's focused tests (7) pass; a run on a scratch repository holding one request and its landing prints the account's rows.
+- **The second:** the comparison's focused tests (7) pass.
 - **The third:** the run's and the refresh's focused tests (7) pass with a fake check; the browser story compiles; the delivery check refuses `looks.html` beside a source and lets it through alone.

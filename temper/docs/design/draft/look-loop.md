@@ -245,9 +245,14 @@ reach main before the landing's code does.
 
 ### 5.1 The run
 
-- **It starts by itself:** a timer runs the writer's run
-  (`../client/journey-writer.md`, 4) every ten minutes, until temper
-  runs it on each new tip (`../client/journey-writer.md`, 8).
+- **It starts by itself:** a timer ticks every ten minutes, until
+  temper runs the writer on each new tip
+  (`../client/journey-writer.md`, 8). A tick runs the writer's run
+  (`../client/journey-writer.md`, 4) when a commit carrying a
+  `Look-landed` has reached main since its last finished run, and
+  otherwise once an hour has passed since that run. So a verdict comes
+  within ten minutes of its landing, and main's many other landings
+  cost the worker one run an hour.
 - **Skipping:** the run does nothing when main's tip is the tip of its
   last finished run. A finished run is one that wrote nothing, or whose
   offer landed. Waiting on its own offer, as now, finishes nothing, so
@@ -360,9 +365,9 @@ Focused and native: no browser, terminal or box starts.
 - **The comparison's decisions,** step tests in
   `crates/temper-client-journeys-tool`'s library beside the refresh's:
   the `look-compare` command on canned answers (git's output, the
-  print's lines and pages), then its rows and exit. One witness in
-  `temper-client-journeys`' suite runs the shipped script in a scratch
-  repository with real git and a fake print. Cases:
+  print's lines and pages), then its rows and exit. Each of its
+  effects is a value these steps answer, so its package's suite gains
+  no launch of its own (`../testing/tools.md`, 6). Cases:
   - every edit landed: exit 0;
   - an edit missing: its hunk is a row, exit 1;
   - one tag changed by both sides: a conflict row;
@@ -389,8 +394,11 @@ Focused and native: no browser, terminal or box starts.
   command: a request is kept until `looks.html` holds its
   entry, and dropped then. One with no `Look-landed` is dropped by
   `Printed:`.
-- **The render check's reading of Chromium:** a browser-tier story,
-  written and compiled in the plan, not run.
+- **The render check's reading of Chromium:** cases in a story skein's
+  browser tier already has, in the Chromium session it already starts,
+  on two `file://` pages: no new browser start and no new test binary.
+  Written and compiled in the plan, not run. None goes in temper's
+  browser tier, whose stories sit at their CPU budget's edge.
   - Two pages differing by one rule give one difference at each width.
   - Equal pages give none.
   - A request to a network address is blocked.
@@ -398,6 +406,11 @@ Focused and native: no browser, terminal or box starts.
   - the run commits it beside pages;
   - the delivery check refuses it beside a source;
   - the merge job settles it as any written file.
+- **What it costs other work:** a goal that isn't a look request's
+  runs none of this. The delivery check and the merge job match one more
+  file name. The new step tests run where the journeys tool's library
+  is selected, each within the step layer's reference. Chromium and the
+  print run on the after-landing worker alone, after landing.
 
 ## 8. Later
 
