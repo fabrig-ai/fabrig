@@ -155,9 +155,9 @@ pub enum Reach { Whole, Openings }                     // `Openings`: `Rehearsin
 Adoption::Rehearse { scratch: Fd, reach: Reach }      // the host's adoption (`host.rs`), beside `Back` and `Checkpoint`
 Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, openings: Box<[KeptOpening]>, workers: Option<Box<[KeptWorker]>>, linked: u32, copied: u32 } // before `Opened` or `OpenRefused`; files linked into the scratch and copied (`Whole` links none)
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
-pub enum KeptOpening { Current(WorkerOpening), BeforeLayouts { worker: Box<str> } }        // an opening kept before workers stated layouts is named, its body unread (`records.md`, 3)
+pub enum KeptOpening { Current(WorkerOpening), BeforeLayouts { worker: Box<str> }, BeforeJobs { worker: Box<str> } } // an opening of the family's version 1 (before layouts) or 2 (before job kinds) is named, its body unread (`records.md`, 3)
 pub struct KeptWorker { pub number: u32, pub name: Box<[u8]>, pub withdrawn: bool }        // a stored worker change, in number order; `None`: one does not decode
-pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order
+pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub jobs: Box<[jig_domain_link::JobBound]>, pub at: Wall } // in the workers' names' order
 pub struct OpenedWire { pub name: Box<str>, pub layout: [u8; 32], pub text: Box<[u8]> }   // `records.md`, 3
 pub struct OpenedTerm { pub kind: u16, pub largest: u32 }
 Write::Opening(WorkerOpening)                         // replaces that worker's row; `Write::Wires` clears them all

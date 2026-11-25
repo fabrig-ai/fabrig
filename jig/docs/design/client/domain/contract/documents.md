@@ -100,7 +100,13 @@
     or, while such hosts exist and every one of them falls short of a
     bound of the run's charter version, `Bounds { kind, why, figures }`
     (`../../../domain/engine/fleet.md`), `why` an `AgentShortfall`, none
-    where each falls short of another bound. `figures`, `Option<Figures>`,
+    where each falls short of another bound; or, for a job task that
+    every host taking work falls short of, `Job { worker, kind, why,
+    figures }` (`../../../domain/engine/fleet.md`, 2, *A job that waits
+    says why*), `worker` the first such host's setting number, none for
+    the engine's host, `kind` the job's, `why` a `JobWhy`:
+    `Short(JobShort)`, `JobShort` one of `Kind`, `Spec`, `Result`,
+    `Deadline`, or `Untranslated`. `figures`, `Option<Figures>`,
     `Figures { required: u64, offered: u64 }`, is what the bound needs and
     what is offered, in the bound's own unit, a duration in milliseconds:
     for `Hello` the refused host's, for `Bounds` the most any of those

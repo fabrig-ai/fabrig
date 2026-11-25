@@ -427,14 +427,19 @@ versioned record Floor { number: u32 build: text 64 }
   ```
   record OpenedWire { name: text 32 layout: fixed 32 text: bytes 65536 }
   record OpenedTerm { kind: u16 largest: u32 }
-  versioned record WorkerOpening { worker: text 256 wires: list 8 OpenedWire output: u32 terms: list 64 OpenedTerm at: u64 }
+  record OpenedJob { kind: u32 spec: u32 result: u32 deadline: duration }
+  versioned record WorkerOpening { worker: text 256 wires: list 8 OpenedWire output: u32 terms: list 64 OpenedTerm jobs: list 256 OpenedJob at: u64 }
   ```
 
   `at` is the wall time the engine accepted the opening, in nanoseconds
   since the Unix epoch (skein's `Wall`). The terms' bound is the most
   skein's opening admits, if that is fewer. Each wire's `layout` and
   `text` are the worker's credential's (`../channel/wires.md`, 2), so a
-  later build derives from them the plans its own opening would.
+  later build derives from them the plans its own opening would. `jobs`
+  are the job kinds the worker's hello declared, in its order, with
+  their bounds (`../../domain/hosts/hub.md`, 9), the hello's own bound,
+  so a later build judges them as its fleet would place a job
+  (`../../domain/engine/fleet.md`, 2).
   - **Written** by the root, in a decision of its own, at each opening
     accepted (`Write::Opening`), replacing that worker's row; an opening
     heard before the start's wires are durable is written after them.
@@ -444,13 +449,16 @@ versioned record Floor { number: u32 build: text 64 }
   - **Read** by the rehearsal alone (`opening-rehearsal.md`, 1), from `A` before
     the plan, by the family's current text. A start loads none.
 
-  The family is at version 2, outside the registry; the component's
+  The family is at version 3, outside the registry; the component's
   version and its other rows are independent of it. A row of version 1,
-  which a build before layouts wrote, is never decoded: the rehearsal
+  which a build before layouts wrote, or of version 2, which a build
+  before the job kinds were kept wrote, is never decoded: the rehearsal
   reads its head alone and answers that worker's opening as of an
-  earlier build (temper's `protocol/wires.md`, 10.2), and the next
-  start's wires clear it with the rest, so dev.fabrig.ai's store holds
-  none once it has started on a build that writes version 2.
+  earlier build, naming which (temper's `protocol/wires.md`, 10.2), and
+  the next start's wires clear it with the rest, so a store holds none
+  once it has started on a build that writes version 3. No row is
+  converted, since every start clears them: that is how dev.fabrig.ai's
+  store, whose rows are of version 1, reaches version 3.
 - **No layouts' row.** The store keeps no family's fingerprint: a
   build computes one from the schema text it embeds where it needs it
   (skein's `data/codec/fingerprints.md`, section 1), and the levels and

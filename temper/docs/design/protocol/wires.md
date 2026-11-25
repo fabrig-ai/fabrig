@@ -309,6 +309,24 @@ them.
   number, which a worker declares in its hello only once it runs it, so
   the engine places that job on no worker of an older build
   (`../domain/worker/jobs.md`).
+- **A kind's bounds are judged as its number is:** a job goes only to a
+  worker whose hello declares its kind with a spec, a result and a
+  deadline at least the engine's declaration of it, and waits, saying
+  why, while none does (jig's `domain/engine/fleet.md`, 2, *A job goes
+  only where a host runs it*). An engine whose declaration of a kind
+  grows (a longer close deadline, a larger spec) places none of that
+  kind on a worker of the build before until it restarts on the new
+  build; `upgrade --check` names that worker (10.2).
+- **A step a job cannot do without** is asked for in what the engine
+  sends: a field or a variant of the job's spec or items that the
+  engine sets, which a worker whose layout lacks it cannot keep, so the
+  job is refused for that worker as *untranslated* and waits for another
+  (jig's `protocol/channel/layouts.md`, 5.1), and `upgrade --check`
+  names the worker (10.2); or it moves the kind's number. A step of the
+  worker's own whose absence the job's command meets needs neither: main's
+  counts (`../domain/worker/checkouts-prepare.md`, 5), whose absence the
+  checked close warns of and leaves to the gate
+  (`tools/pre-pr/design.md`, 4.1), is one.
 
 ## 9. Clients
 
@@ -377,11 +395,12 @@ them.
 
 ### 10.1 The workers' openings kept
 
-- **At each link opening the engine accepts,** its workers component
-  hands the service the worker's name, the wires that convert and its
-  statement, the worker's texts among it (jig's
-  `protocol/channel/wires.md`, 3, *The statement handed up whole*). A
-  figures-only opening hands up no statement (jig's
+- **At each link opening the engine accepts,** once the worker's hello
+  decodes, its workers component hands the service the worker's name,
+  the wires that convert and its statement, the worker's texts and its
+  hello's job kinds among it (jig's `protocol/channel/wires.md`, 3, *The
+  statement handed up whole*). A figures-only opening, and a channel
+  lost before its hello, hand up no statement (jig's
   `protocol/channel/figures.md`, 3). The service logs the link opening
   (section 4) and hands the root the name and the statement; the root
   commits them, `Write::Opening`, in a decision of its own, `at` its
@@ -426,18 +445,52 @@ verdict does not change its exit code.
    the copy's workers cannot be read`, and nothing more of this step or
    the next.
 4. **Each worker the copy names,** in number order, by its kept
-   opening, judged by `jig_protocol_engine_workers::judge` (jig's
-   `protocol/channel/wires.md`, 3) with this binary's worker wires and
-   roots, and the room and limits its engine's workers component would
-   take from the configuration, as that engine's opening would judge it,
-   deriving the plans from the kept texts:
-   - `worker NAME may stay: opened AT`, AT the opening's time in UTC
-     to the second, `YYYY-MM-DDTHH:MM:SSZ`;
-   - `worker NAME may not stay: wires: TEXT` or `worker NAME may not
-     stay: limits: TEXT`, TEXT the opening's refusal's words;
+   opening, judged in three parts, each as this binary's engine would
+   judge it with the room, the limits and the job kinds its start would
+   take from the configuration:
+   1. **Its opening,** by `jig_protocol_engine_workers::judge` (jig's
+      `protocol/channel/wires.md`, 3) with this binary's worker wires and
+      roots, deriving the plans from the kept texts. Where it refuses:
+      `worker NAME may not stay: wires: TEXT` or `worker NAME may not
+      stay: limits: TEXT`, TEXT the opening's refusal's words, and
+      nothing more of that worker.
+   2. **Its job kinds:** for each kind this binary's engine declares
+      (`temper_engine_service_vocabulary::limits::jobs`, ascending), the
+      kept hello's kinds judged by `jig_domain_fleet::job_short`, the
+      function placement judges by (jig's `domain/engine/fleet.md`, 2).
+      Each kind it falls short of: `worker NAME must restart: job kind K
+      (VERB): WHAT, this binary's REQUIRED`, VERB the kind's
+      (`../domain/worker/jobs.md`: `prepare`, `key`, `merge`, `close`),
+      WHAT `it runs none` (with no `, this binary's` part), `its spec
+      takes N bytes`, `its result takes N bytes` or `its deadline is N
+      s`, REQUIRED the same unit: `worker s1 must restart: job kind 4
+      (close): its deadline is 600 s, this binary's 1800 s`.
+   3. **What this binary would send it:** each gap of its kept texts,
+      by `jig_protocol_engine_workers::gaps` (jig's
+      `protocol/channel/layouts.md`, 5.4), a part of what this binary's
+      engine sends whose Keep plan may refuse a value: `worker NAME must
+      restart: TEXT, sent in WHERE; this binary's WIRE is at HEX`, TEXT
+      the words a job or an assignment refused for it as *untranslated*
+      would carry (`the worker's layout cannot keep WIRE
+      DECLARATION.PART: WHY`), HEX this binary's layout of WIRE, its
+      first 8 bytes in lowercase hex as the opening's refusals give a
+      layout, and WHERE by the gap's site: `frames to workers` for a
+      frame's record, `assignments` for a charter, `resumed assignments`
+      for a turn or a part, `assignments and jobs of kinds KINDS` for
+      the items, `jobs of kinds KINDS` for a job's spec, `assignments,
+      jobs of kinds KINDS, list reads and renewals` for a grant's value,
+      `answers to asks` for an answer, KINDS this binary's declared kinds
+      as `4 (close)`, joined by `, ` and a last ` and `.
+
+   With none of these: `worker NAME may stay: opened AT`, AT the
+   opening's time in UTC to the second, `YYYY-MM-DDTHH:MM:SSZ`.
+   Without a judgeable opening:
    - an opening kept by a build before layouts, a row of the openings'
-     family's previous version: `worker NAME unknown: opened before
-     layouts`, and it may not stay;
+     family's version 1: `worker NAME unknown: opened before layouts`,
+     and it may not stay;
+   - one kept by a build before job kinds were kept, a row of its
+     version 2: `worker NAME unknown: opened before its job kinds were
+     kept`, and it may not stay;
    - with no opening kept: `worker NAME unknown: no opening kept since
      the engine's last start`, and it may not stay.
 
@@ -447,10 +500,27 @@ verdict does not change its exit code.
    worker named may stay, with none named too; else `workers may stay:
    no`.
 
-- **One judgement:** a worker may stay where each of its wires is at
-  this binary's layout, or at one whose plans derive both ways it
-  crosses; a value its layout cannot keep is no reason, since only a
-  value refuses (jig's `protocol/channel/layouts.md`, 5.1).
+- **Two judgements:** the opening's, by which a worker may connect at
+  all: each of its wires at this binary's layout, or at one whose plans
+  derive both ways it crosses, where a value its layout cannot keep is
+  no reason, since only a value refuses (jig's
+  `protocol/channel/layouts.md`, 5.1); and the work's, by which it may
+  stay: it runs every job kind this binary's engine makes, at its
+  bounds, and keeps every value of every part that engine sends. A
+  worker the opening accepts but the work's judgement does not must
+  restart, since its work would wait for another worker: a job of a
+  kind it falls short of is never placed there, and one it cannot keep
+  is refused there as *untranslated*. A part's Keep plan that refuses
+  only some values (a field the worker lacks, sent at its default) is
+  still a gap: the engine may send it otherwise. Its author marks a
+  field the worker may lose `droppable`, which no plan refuses.
+- **Why the work is judged** (draft-8, 2026-11-25): staging's verdict
+  said `workers may stay: yes` for an engine whose close kind declared
+  a 30-minute deadline over a worker whose hello declared it at 10
+  minutes; the close job was claimed and never placed, and sat
+  *claimed by a host* until the worker restarted on the new build. The
+  missing `counts` step was not the cause: the checked close only warns
+  without main's counts (section 8).
 - **The window is not judged here:** the whole rehearsal/tool time is
   a rehearsal line (`binaries.md`, section 2), and comparing the window
   with the workers' grace is the referee's of a redeploy, its
@@ -490,13 +560,25 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   committing an opening, and one heard before its start's wires after
   them.
 - **The verdict** (10.2), over kept openings and wires made by hand:
-  every worker opened at this binary's layouts, yes; one at a derived
-  layout whose plans derive, yes; one whose text gives no plan, one
-  whose output differs, each named with the opening's words; one of the
-  openings' previous version, unknown; one with no opening, unknown;
-  `temper-host-tools` kept at another version; the copy keeping
-  no wires. And in the one-process world, a rehearsal of a deployment
-  whose worker opened says it may stay, by name.
+  every worker opened at this binary's layouts, with this binary's job
+  kinds, yes; one at a derived layout whose plans derive and keep every
+  value, yes; one whose text gives no plan, one whose output differs,
+  each named with the opening's words; one whose hello declared the
+  close kind with a shorter deadline, and one declaring no close kind,
+  each told to restart naming kind 4 (close) and the figures; one at an
+  older layout of `temper-worker-wire` lacking a part the close job's
+  items or spec carry, told to restart naming the part, `jobs of kinds`
+  with `4 (close)` among them, and this binary's layout; one of the
+  openings' version 1 and one of version 2, unknown; one with no
+  opening, unknown; `temper-host-tools` kept at another version; the
+  copy keeping no wires. And in the one-process world, a rehearsal of a
+  deployment whose worker opened says it may stay, by name.
+- **The close job kept** (section 8): in temper's engine, a worker whose
+  hello declares the close kind with a shorter deadline, and one whose
+  layout cannot keep the close job, each the only worker: a goal's
+  close job stays due, never claimed, its task's wait naming the worker
+  and what it lacks, and is placed once a worker that covers it says
+  hello.
 
 ## 12. Open questions
 
