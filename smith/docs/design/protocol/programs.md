@@ -208,7 +208,7 @@ open is section 9.
   Where a gateway session lives is 9's *Credentials outside the
   environment*.
 - **The settings file** in the directory is the agent's (`programs-claude-code.md`, 1.3): written
-  whole, by durable replace (skein's `runtime/io/files.md`, 2), with the same content
+  whole, by durable replace (skein's `runtime/io/files.md`, 10), with the same content
   for every run, so that runs on one source never race over it.
 
 ## 5. Running Claude Code
@@ -390,7 +390,7 @@ conditions. smith keeps each as a rule of its own:
     same fake filesystem and main resumes while its children start fresh,
     at either a named LLM's effort or main's default effort.
 - **The live suite** runs the real program on a source signed in once
-  (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
+  (`../testing-tiers.md`, 3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a
   summary session's `system/init` with no tools and no MCP servers
   (`programs-claude-code.md`, 1.8), a limit's events, a `rate_limit_event`'s fields (`programs-claude-code.md`, 1.6),
@@ -409,7 +409,7 @@ conditions. smith keeps each as a rule of its own:
   3) with Kill, as `programs-claude-code.md`, 1.1's program child does, its home and working directory in the
   probe's scratch. Its configuration directory is the one signed in
   once, used in place, and keeps the sessions Claude Code writes there:
-  a login is never copied (`docs/design/testing.md`, 2.3).
+  a login is never copied (`../testing-tiers.md`, 3).
 
 The fake's simultaneous calls may each check their reply. Each queued call
 keeps its own expected text and checks its own tool result when answered;

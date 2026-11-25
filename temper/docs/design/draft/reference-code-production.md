@@ -7,7 +7,7 @@ configuration that sets it up. It is the way a
 project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
 who make the code meet it. How the goal lands is `archive/reference-landing.md`;
-`reference-case.md` walks both on one small goal; `reference-code-production.notes.md` holds the
+`archive/reference-case.md` walks both on one small goal; `reference-code-production.notes.md` holds the
 reasons for each choice, N1 to N24, cited here by number.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
@@ -214,7 +214,7 @@ G's runs read: a checkout of g, inspect only, no delivery (`../domain/agent/tool
 
 **A spec** is a change's words (`../domain/forge/change/README.md`, 1): what to make, citing
 the design in g by path and section (`temper/docs/design/domain/forge/adoption.md,
-2`) and the status entries it closes; what it owns and must leave
+6`) and the status entries it closes; what it owns and must leave
 alone; its checks; its report. It is short: the design holds the
 detail, and the producer's checkout holds the design. Its parameters
 carry the rest: g as its landing branch, its dependencies, an LLM choice

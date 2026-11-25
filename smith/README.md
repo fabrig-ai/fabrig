@@ -85,7 +85,7 @@ The directory holds `host-id`, `tokens/chatgpt`, `programs/claude/` and
 their locks. Each test keeps its HOME, workspace and chats in scratch;
 the suite never rewrites the live user layer or borrows a personal login.
 A directory unused past the issuer's refresh-token lifetime needs another
-sign-in. See [testing.md, section 2.3](docs/design/testing.md#23-end-to-end).
+sign-in. See [testing-tiers.md, section 3](docs/design/testing-tiers.md#3-end-to-end).
 
 ## The family
 

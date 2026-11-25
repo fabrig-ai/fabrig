@@ -21,7 +21,7 @@ pub mod secrets_v1;
 
 #[rustfmt::skip]
 #[path = "generated/openings.rs"]
-pub mod openings_v1;
+pub mod openings_v2;
 
 #[rustfmt::skip]
 #[path = "generated/registry.rs"]

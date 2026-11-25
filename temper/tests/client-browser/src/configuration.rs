@@ -458,6 +458,10 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
 /// jig/docs/design/domain/people/public-reading.md, 7).
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
+    public_limits(directory);
+}
+
+fn public_limits(directory: &Path) {
     let figures = [
         ("clients.public.rate", 20),
         ("clients.public.rate_burst", 20),
@@ -465,6 +469,8 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("clients.public.bytes_burst", 2_097_152),
         // The 20/20/50 board reserves 730,728 bytes; this tier's approved ceiling is 1 MiB.
         ("clients.public.answer_bytes", 1_048_576),
+        // A zero-age record expires as soon as the page receives it.
+        ("clients.public.max_age", 2),
         ("clients.public.reads", 8),
         ("clients_http.public_calls", 8),
         ("core.public.goals", 20),
@@ -632,6 +638,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn public_board_reads_have_time_to_draw_before_they_expire() {
+        let scratch = skein_scratch::Scratch::new("browser-public-limits");
+        super::public_limits(scratch.path());
+        let bytes = std::fs::read(scratch.path().join("browser-limits.json")).expect("fixture limit settings");
+        let rows: Vec<serde_json::Value> = serde_json::from_slice(&bytes).expect("limit rows");
+        let mut limits = jig_protocol_config::stock();
+        for row in &rows {
+            let name = row["name"].as_str().expect("limit name");
+            let value = row["value"].as_u64().expect("limit value");
+            jig_protocol_config::overrides::apply(&mut limits, name.as_bytes(), value).expect("public limit");
+        }
+        assert_eq!(limits.clients.public.max_age, 2);
     }
 
     #[test]

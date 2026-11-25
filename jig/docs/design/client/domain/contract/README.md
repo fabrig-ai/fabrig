@@ -156,9 +156,10 @@ Moved to [`watches.md`](watches.md), section 1.
   each application's by the application, and every message names its
   owner and its version (`../../../protocol/client/versions.md`, section 1).
 - **The engine serves a range of each owner's versions,** which the hello
-  of its stream states first, then `me`, at the version of jig's the
+  of its stream states first, then each owner's layout, then `me`, at the version of jig's the
   stream's opening names (`../../../protocol/client/wire.md`, section 2);
-  `me` carries no range.
+  `me` carries no range. Versions are frozen, and a client at another
+  layout is refused by name (`../../../protocol/client/versions.md`, section 1).
 - **A version not served is refused with a typed answer,** *version not
   served* (`answers.md`, section 1), naming the owner and the ranges the engine
   serves, with nothing read, made or kept; a read and a watch in it
@@ -169,8 +170,8 @@ Moved to [`watches.md`](watches.md), section 1.
 - **One jig pin.** In an application, `jig-client` and the engine come
   from one jig pin, so they agree on jig's records unless the engine was
   updated under a client still running. A change to the plumbing moves
-  jig's wire version, and before a release each range is one version
-  (`../../../protocol/README.md`, section 7).
+  jig's wire layout, never its version, and before a release each range
+  is one version (`../../../protocol/README.md`, section 7).
 - **How jig is released and pinned,** and how a change of jig's reaches
   every application, is `../../../README.md`'s, section 14.
 

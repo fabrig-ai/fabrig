@@ -115,6 +115,7 @@ fn query(read: Read) -> Query {
         | Read::Transcript { .. }
         | Read::GoalWords(_)
         | Read::InputCheck(_)
+        | Read::CloserReport(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }

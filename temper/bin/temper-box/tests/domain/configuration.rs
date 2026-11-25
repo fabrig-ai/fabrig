@@ -199,7 +199,7 @@ fn the_process_workers_figures_follow_the_agents_setting() {
     }
 }
 
-fn fixture_forgejo() -> support::Forge<'static> {
+pub(super) fn fixture_forgejo() -> support::Forge<'static> {
     support::Forge::Throwaway {
         forgejo: Path::new("/fixture/forgejo"),
         api: "127.0.0.1:3000".parse().expect("fixture forge"),
@@ -290,7 +290,7 @@ fn the_clusters_description_is_the_labs_canonical_form() {
     }
 }
 
-fn cluster_documents(root: &Path) -> support::cluster::Cluster {
+pub(super) fn cluster_documents(root: &Path) -> support::cluster::Cluster {
     support::cluster::Cluster::documents(
         root,
         &[("forge", "address", "127.0.0.1:3"), ("llm", "address", "127.0.0.1:1"), ("engine", "workers", "127.0.0.1:2")],

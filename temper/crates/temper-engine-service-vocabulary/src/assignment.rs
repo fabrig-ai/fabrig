@@ -518,7 +518,7 @@ mod tests {
 
     #[test]
     fn a_first_goals_fixed_ownership_exceeds_its_room() {
-        // temper/docs/design/draft/tools-by-role.md, 9: first wake joins the first three parts.
+        // temper/docs/design/draft/archive/tools-by-role.md, 9: first wake joins the first three parts.
         let mut settings = crate::tests::fixtures::engine();
         let mut subagent = crate::tests::fixtures::small_model();
         subagent.number = 2;

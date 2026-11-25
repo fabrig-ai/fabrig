@@ -1,0 +1,12 @@
+# Number the long openings without splitting any documents.
+renumber jig/docs/design/protocol/client/sign-in.md
+renumber jig/docs/design/protocol/limits.md
+renumber jig/docs/design/domain/engine/fleet.md
+renumber jig/docs/design/domain/tasks/changes.md
+renumber jig/docs/design/domain/engine/restart.md
+renumber jig/docs/design/protocol/store/secrets.md
+renumber jig/docs/design/domain/hosts/charters.md
+renumber jig/docs/design/client/domain/client/requests.md
+renumber jig/docs/design/domain/tasks/proposals.md
+renumber jig/docs/design/client/domain/client/helpers.md
+renumber jig/docs/design/client/domain/client/conversations.md

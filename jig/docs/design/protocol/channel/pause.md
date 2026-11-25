@@ -2,7 +2,7 @@
 
 Provisional, 2026-11-20. How an engine asks a worker to take no new
 work, to drain, or to take work again, and how the worker says where it
-stands. It carries temper's `draft/worker-restarts.md`, section 2, for
+stands. It carries temper's `draft/archive/worker-restarts.md`, section 2, for
 the channel. The hub's side, its states and its drain, is
 `../../domain/hosts/hub.md`, 7, *Paused over the link*; the fleet's
 placement is `../../domain/engine/fleet.md`, *A paused worker leaves
@@ -27,7 +27,7 @@ placement too*; the owner's ask is `../../domain/engine/workers.md`, 5,
 - **Nothing here stops a process.** Drained, a worker stays linked and
   takes nothing until it is told to take work again or stopped. When to
   stop which worker is its operator's, or the deployment's redeploy
-  tool's (temper's `draft/worker-restarts.md`, section 10).
+  tool's (temper's `draft/archive/worker-restarts.md`, section 10).
 
 ## 2. The records
 

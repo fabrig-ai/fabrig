@@ -4,7 +4,7 @@ Provisional, 2026-11-17. Whether a landing's round at preparing has a
 prepare that lives, read afresh at each of the landing's steps from
 jig's context and the landing's job record, and how such a round
 recovers with no person across an engine's restart, a worker's loss,
-and a person's stop and release. It is `../draft/prepare-restart.md`'s
+and a person's stop and release. It is `../draft/archive/prepare-restart.md`'s
 design. It details `landing-prepare.md`, 1.2 (*Lost or partial*) and 15 for the
 round's prepare; the prepare job itself, its branches and its outcome
 stay `landing.md`'s, and its events `landing-history.md`'s.
@@ -208,4 +208,4 @@ Focused and fuzzy suites alone, each test failing first:
 ## 8. Later
 
 - **Why an engine loses its workers** is its deployment's matter
-  (`../draft/prepare-restart.md`, 2).
+  (`../draft/archive/prepare-restart.md`, 2).

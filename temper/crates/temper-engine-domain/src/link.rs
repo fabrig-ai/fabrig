@@ -713,6 +713,7 @@ mod tests {
             questions: change::Questions::default(),
             effect_account: None,
             producer_failure: None,
+            close_at: None,
             report: Box::new([]),
             repairs: None,
             follows: None,

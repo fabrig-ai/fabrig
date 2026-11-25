@@ -1,5 +1,5 @@
-//! Reusable local-host processes and hosted factories (testing.md, sections
-//! 2.1, 2.2 and 5). Each process owns its IO and outside observations. Launch
+//! Reusable local-host processes and hosted factories (testing-tiers.md, sections 1 and 2, and testing.md, section 5
+//! ). Each process owns its IO and outside observations. Launch
 //! arguments carry immutable scenario settings; no process knows a simulator,
 //! fake checkout, another process's heap or the driving loop.
 use crate::fixture::contains;

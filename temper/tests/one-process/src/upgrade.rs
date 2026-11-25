@@ -1,4 +1,4 @@
-//! A registry and job upgrade at the build's levels (temper/docs/design/draft/store-floor.md, 4.4).
+//! A registry and job upgrade at the build's levels (temper/docs/design/draft/archive/store-floor.md, 4.4).
 pub mod check;
 pub(crate) mod maps;
 pub mod rehearsal;

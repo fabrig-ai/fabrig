@@ -3,7 +3,7 @@ use crate::{
     Domain, Down, Handle, Limits, Readable, Readout, Request, Told,
     domain::{down, tell},
 };
-use skein_lib::{Env, Queue, Token};
+use skein_lib::{Env, List, Queue, Token};
 
 #[derive(Debug)]
 pub(crate) struct PendingRead {
@@ -23,26 +23,22 @@ impl Domain {
         false
     }
 
-    /// A current queued read whose owner stopped serving must keep that terminal's meaning.
-    #[must_use]
-    pub fn read_refusal(&self, read: Token) -> Option<Readout> {
-        for (_, pending) in &self.reads {
-            if pending.token != read {
-                continue;
+    pub(crate) fn refuse_reads(
+        &mut self,
+        family: Option<u16>,
+        served: Option<crate::contract::VersionRange>,
+        out: &mut Queue<Request>,
+    ) {
+        let mut refused = List::with_capacity(self.reads.len());
+        for (handle, pending) in &self.reads {
+            if family.is_none() || pending.family == family {
+                refused.push(*handle).expect("one refusal per read");
             }
-            if self.link == crate::Link::OutOfDate {
-                return Some(Readout::NotServed { family: None, served: self.jig_versions });
-            }
-            if let Some(family) = pending.family {
-                for owner in &self.owners {
-                    if owner.spoken.family == family && !owner.served {
-                        return Some(Readout::NotServed { family: Some(family), served: owner.versions });
-                    }
-                }
-            }
-            return None;
         }
-        None
+        for handle in &refused {
+            self.reads.remove(handle);
+            tell(out, Told::Page { handle: *handle, page: Readout::NotServed { family, served } });
+        }
     }
 
     pub(crate) fn read(&mut self, env: &Env<Limits>, handle: Handle, what: Readable, out: &mut Queue<Request>) {

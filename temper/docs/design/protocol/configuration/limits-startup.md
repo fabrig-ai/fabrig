@@ -132,7 +132,7 @@ This document holds the limits checked at startup, split from [`limits.md`](limi
     `temper-service`'s limits module that its io check takes in place
     of the sum of jig's engine's and worker's, and hold, under `standard`, a
     document with both listeners and a sign-in, as the owned example has (../setup/init.md,
-    1);
+    4);
   - the channel's (../channel.md, section 8): each of temper's largest
     parts within the ceiling jig's schema gives its field; the largest
     part the engine can send within what the worker's limits take; the
@@ -236,4 +236,4 @@ This document holds the limits checked at startup, split from [`limits.md`](limi
   a read carries with its row, have no bound the start can name: jig
   gives neither's worst case. Default: the hub refuses an assignment
   past its bound at run time, and the documents leave room beside the
-  turn for the read's evidence (../setup/init.md, 1).
+  turn for the read's evidence (../setup/init.md, 4).

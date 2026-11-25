@@ -1,26 +1,31 @@
 # Layouts and derived plans
 
 How a value written at one layout of its value type is read or kept at
-another, with no patch file and no generic value: a plan derived from
-the two layouts' texts, in one of two modes, run as a pass over the
-value's bytes that gives the other layout's bytes or refuses that value.
-A plan has no notion of older or newer: its old text is the **source**,
-the layout the bytes are at, and its new text the **target**, the layout
-its caller wants. A store that names each value's layout (jig's
+another, with no generic value: a plan derived from the two layouts'
+texts, in one of two modes, run as a pass over the value's bytes that
+gives the other layout's bytes or refuses that value. It is the one
+conversion between layouts, for the store and every wire. A plan has no
+notion of older or newer: its old text is the **source**, the layout
+the bytes are at, and its new text the **target**, the layout its
+caller wants. A store that names each value's layout (jig's
 `protocol/store/layouts.md`) builds one plan per layout it holds, at
 open, and runs it on each value read at that layout, its transcripts'
-frames among them. The patch machine (`patches.md`) stays for wires; a
-registered family's written changes use its owner's jobs.
+frames among them. An engine whose worker speaks another layout of a
+wire builds a plan for each value type the wire carries, each way, at
+the connection's opening, and runs one on each message (jig's
+`protocol/channel/layouts.md`). What no plan derives is its owner's: a
+store's written job (jig's `protocol/store/jobs.md`, 4), or a wire's
+written converter (jig's `protocol/channel/layouts.md`, 6).
 
 - **A value type's layout** (`fingerprints.md`, 1.4): a root declaration, at
   one variant where the root is broad and its keys tell its variants
   apart, its fingerprint without the
   family's version and with what it holds resolved.
 - **Derived from the two texts** (2): the source's text and the
-  target's, each with the texts of the families its values hold. The
-  matching is the diff's (`diff.md`, 1), former names its confirmed
-  renames; each change met in the root's reach is judged by 2's rules,
-  and either planned, planned with a refusal per value, or not derived.
+  target's, each with the texts of the families its values hold. Parts
+  match by their names and former names (2); each change met in the
+  root's reach is judged by 2's rules, and either planned, planned with
+  a refusal per value, or not derived.
 - **Two modes** (2): **Read**, where the target uses the value as its
   own and skips what it lacks; **Keep**, where the value must mean the
   same at the target, so what the target lacks is dropped only at its
@@ -43,7 +48,7 @@ A plan converts from a source root, `Root { decl, variant }` of the old
 text, to a target root of the new text (`fingerprints.md`, 1.4). Its caller says
 which: the root it stores beside each layout and the root its binary's
 text names, both by its own table of value types. The two roots match
-as the diff matches declarations (2): by name or a former name, the new
+as 2 matches declarations: by name or a former name, the new
 variant's former names among them; roots that do not match have no
 plan (`Underived::Root`). A broad root without a variant (`fingerprints.md`,
 1.4) matches only another without one, and is planned as the
@@ -64,22 +69,51 @@ holder that keeps plans for reuse keys them by the two texts.
 ## 2. The plan
 
 - **Matching:** declarations, then the fields of matched records and the
-  variants of matched enumerations, as `diff.md`, 1, each part's former
-  names (`README.md`, section 3) its confirmed renames. A field of
+  variants of matched enumerations. A part matches the other text's
+  part of its own name; failing that, the part one of its former names
+  (`README.md`, section 3) names; and, in `between` (4), failing that,
+  the other text's part whose former names name it, so that a plan from
+  a text that renamed a part back to one that did not matches as the
+  plan the other way. In `between`, a pairing found through a former
+  name holds only where matching from the other side finds the same
+  pair, so a part with several names in its history pairs one way or
+  not at all. `derive` reads the target's former names alone. A part
+  matched to none is added, or dropped. A field of
   either text that no field of the other matches is matched, the same
   way, against the other record's tombstones (`README.md`, section 3),
   in both modes alike, so the two modes plan the same pairs. Only
   what the root's reach holds is matched and judged: a sibling variant
   of a broad root, and the declarations no value of the root can hold,
   are not, so a variant dropped beside the value type's own is no change
-  of it.
-- **Planned in both modes:** each change `diff.md`, 3 calls none needed
-  or derived: a field added, dropped, or moved; a variant added after
-  every kept one, or before one (its tags move); a bound widened; an
+  of it. Comments, `boxed`, the text's layout and the declarations'
+  order are in no layout and change nothing.
+- **Types compare level by level,** outermost first, a named type equal
+  to the one it matches whatever that one's own changes:
+  - **equal:** the same levels, bounds and end;
+  - **widened:** the levels alike (a `list` for a `list`, an `option` for
+    an `option`), each bound the same or larger, and at the end an
+    integer the same or wider, `text` made `bytes` or `secret`, `bytes`
+    and `secret` made one another, a `bytes` clause (`holds` or
+    `pieces`) added or taken away, or a named type matched;
+  - **wrapped:** an `option` at one or more levels where the source has
+    none, and otherwise widened; a source `option` stands for the
+    outermost target `option` it can, so the one added is the one the
+    source has no level for;
+  - **retyped,** anything else: a bound or an integer narrowed and an
+    `option` taken away, which the table below plans with a refusal per
+    value; and a kind changed (an integer made a `duration` or a `bool`,
+    or back), a `fixed` length changed, `bytes` made `text` (bytes need
+    not be UTF-8), a `bytes` clause naming another family, type or
+    declaration, or a named type matched to another, which no plan
+    derives.
+- **Planned in both modes,** every source value becoming one target
+  value from the change alone: a field added, dropped, or moved; a
+  variant added after every kept one, or before one (its tags move); a
+  bound widened; an
   integer widened (its bytes move); an `option` wrapped around a type
   (its presence put before it); a record made `versioned` (its head put
   before it) or no longer (its head taken away); a `bytes` clause added
-  or taken away, as a `widen`.
+  or taken away, as a widening.
 - **Each change between source and target, by mode:**
 
 | Between source and target | Read | Keep |
@@ -91,7 +125,7 @@ holder that keeps plans for reuse keys them by the two texts.
 | A variant only the target has | its tags mapped by name | the same |
 | An `option` at the source, its type at the target | a present value converted; an absent one takes the target field's default where the `option` is the field's outermost level and the field has one, and is refused otherwise (`Refused::Absent`) | a present value converted; an absent one refused (`Refused::Absent`) |
 | A former name | a rename confirmed | the same |
-| Any other `retype` of `diff.md`, 3; a `reshape`; a variant's record changed for another (`Payload`); a held record's family given on one side alone (`Held`); a pieces' item type no plan reaches (`Pieces`) | no plan (`Underived`) | the same |
+| Any other retyping (above); a declaration a record in one text and an enumeration in the other (`Reshaped`); a variant's record changed for another (`Payload`); a held record's family given on one side alone (`Held`); a pieces' item type no plan reaches (`Pieces`) | no plan (`Underived`) | the same |
 
 - **A field's compared default,** in Keep, is the value the way back
   writes for it: the source field's own default, else the target
@@ -130,15 +164,15 @@ holder that keeps plans for reuse keys them by the two texts.
   named, held, pieces); per refusal, its kind and its declaration's and
   part's names in the source text, by an index (`Plan::refusal`); and
   whether the declaration's conversion **keeps**: every source value of
-  it is, byte for byte, a value of the target, with no head moved
-  (`patches.md`, 3.1's `keeps`, nested heads included). A root that
+  it is, byte for byte, a value of the target, with no head moved,
+  nested heads included. A root that
   keeps converts by its caller's head alone. A declaration whose
   conversion can refuse a value does not keep, and neither does any
   declaration enclosing it in the reach, so no copy of a span passes
   over it.
 - **Pieces** are copied as their bytes where their item's conversion
   keeps, and opened otherwise, each piece converted as its item type
-  and written with its new length, as `patches.md`, 4 opens them.
+  and written with its new length (3).
 - **Held records** are converted by the held text's plan from the source
   held text to the target one, in the same mode, at the held type's own
   root, and keep only where that plan keeps; the held record's versioned
@@ -255,7 +289,8 @@ impl Workspace {
 - `derive` and `between` judge what both roots reach and nothing else,
   so their cost is that reach's parts, not the texts'; the plan holds no
   reference to either text, and records no mode: the two modes' plans
-  for a pair whose source has no field the target lacks are equal.
+  for a pair whose source has no field the target lacks and no `option`
+  the target takes away are equal.
 - `convert` writes into lib's reusable `Buffer`
   (../../runtime/lib-bytes.md, section 1), whose capacity bounds the new
   value (`Room` past it): its caller gives the most bytes it admits for
@@ -325,13 +360,6 @@ impl Workspace {
   plan at a part the target lacks or narrows; what the Keep plan writes
   the target text's generic decoder takes. A pair 2 does not derive is
   refused by both modes alike.
-- **The machine as oracle,** in the fuzzy suite: for each pair of
-  `tests/codec-patches`' fixture texts whose patch is derived, values
-  drawn from the old text by the seeded generator of `run-time.md`, 2.3,
-  converted by the plan and by the patch machine, give the same bytes;
-  arbitrary bytes and goldens with a byte changed, cut or grown are
-  refused by the pass, or converted to bytes the new text's generic
-  decoder takes or refuses as it would any.
 - **Keeps:** a plan that keeps converts each drawn value to itself but
   for its head.
 - **Memory:** a pass allocates nothing past its buffer and a fitted

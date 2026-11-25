@@ -1,9 +1,12 @@
 //! Reach worklists and retained level conversions (data/codec/layouts.md, 2).
+use super::compare::{
+    Comparison, compare as compare_types, held as compare_held, leaf as compare_leaf, payload as payload_matches,
+    width as integer_width,
+};
 use super::{
     Absent, DropField, Field, Inner, Kind, Mode, Narrowed, Node, Plan, Read, ReadKind, Refusal, Refused, Source,
     Underived, Variant, Why, add,
 };
-use crate::patch::{Comparison, compare_held, compare_leaf, compare_types, integer_width, payload_matches};
 use crate::schema::{
     DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
 };

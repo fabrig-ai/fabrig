@@ -2,7 +2,7 @@
 
 Provisional, 2026-11-11, from `../draft/archive/cli-c8-tools.md`, milestone C8
 of `../draft/cli.execution.md`, with landed QA's tool from milestone Q1
-of `../draft/landed-qa.execution.md`. The binaries temper's
+of `../draft/archive/landed-qa.execution.md`. The binaries temper's
 development, tests and QA run beside its products: each an internal
 binary in a package
 of its own under `temper/bin/`, built as the repository's command line

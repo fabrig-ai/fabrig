@@ -1,5 +1,5 @@
 //! A project's follows, from settings and retained facts (domain/forge/follows.md, 7).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Domain, Limits};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};

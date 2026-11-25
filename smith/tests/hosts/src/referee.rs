@@ -108,7 +108,7 @@ pub fn review(observations: &[Observation]) -> Referee<Meeting> {
 }
 
 /// Compare the host's Gone tail with the shipped agent's diagnostic
-/// writer (testing.md, section 2.1).
+/// writer (testing-tiers.md, section 1).
 pub fn check_agent_errors(errors: &[u8], tail: &[u8], answered: bool) -> Result<(), String> {
     if tail != errors {
         return Err(format!(

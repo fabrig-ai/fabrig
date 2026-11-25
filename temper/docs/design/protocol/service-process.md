@@ -44,7 +44,7 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   killed, and a program they started outlives them until agents run in
   contained trees (`README.md`, section 11). No worker outlives the engine, so the
   engine, on hearing the signal, settles the worker's agent claims
-  as interrupted (jig's `domain/engine/restart.md`, 1): a stop spends no try
+  as interrupted (jig's `domain/engine/restart.md`, 5): a stop spends no try
   of a run's task, a coding run's among them, and moves none of its
   change's counts; the task is due again at the next start, its next
   attempt resuming from the turns it committed and starting from the

@@ -1,4 +1,4 @@
-//! Content-free outside evidence (smith/docs/design/testing.md, section 2.3).
+//! Content-free outside evidence (smith/docs/design/testing-tiers.md, section 3).
 //! Keeps no state and prints no bytes from a provider, a prompt or a file.
 //! `exec_report`, `file_report` and `stderr_lines` accept settled observations;
 //! only typed facts, prescribed paths and fixed diagnostic forms leave them.

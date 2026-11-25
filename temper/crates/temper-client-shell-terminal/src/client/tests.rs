@@ -103,10 +103,10 @@ fn a_late_creation_answer_keeps_the_later_applied_page() {
 
 #[test]
 fn held_startup_keeps_the_first_quiet_chat_activity_answer() {
-    let mut host = fixtures::loaded_chat();
+    let mut host = fixtures::live_chat();
     let (exchange, credential) = fixtures::activity_read(&mut host);
     let message = fixtures::activity_answer(true);
-    host.transport(jig_client::Event::Reply { exchange, message: message.clone() });
+    exchange.reply(&mut host, message.clone());
     let chat = host.root.pages().chat().expect("chat remains open");
     assert_eq!(chat.thread.lines.rows.len(), 1, "the first activity answer reaches the actual page");
     assert_eq!(credential, Some(fixtures::credential()), "first read uses the installed held credential");
@@ -119,8 +119,8 @@ fn held_startup_keeps_the_first_quiet_chat_activity_answer() {
         "the view receives the intended line"
     );
     assert!(chat.thread.reading.is_none(), "the page consumed its answer");
-    host.transport(jig_client::Event::Reply { exchange, message });
-    host.transport(jig_client::Event::Lost { exchange });
+    exchange.reply(&mut host, message);
+    host.transport(jig_client::Event::Lost { exchange: exchange.exchange });
     assert_eq!(
         host.root.pages().chat().expect("chat").thread.lines.rows.len(),
         1,
@@ -131,10 +131,10 @@ fn held_startup_keeps_the_first_quiet_chat_activity_answer() {
 
 #[test]
 fn held_startup_keeps_the_first_empty_chat_activity_answer() {
-    let mut host = fixtures::loaded_chat();
+    let mut host = fixtures::live_chat();
     let (exchange, credential) = fixtures::activity_read(&mut host);
     assert!(host.root.pages().chat().expect("chat").thread.reading.is_some(), "the first empty read is still owned");
-    host.transport(jig_client::Event::Reply { exchange, message: fixtures::activity_answer(false) });
+    exchange.reply(&mut host, fixtures::activity_answer(false));
     let chat = host.root.pages().chat().expect("chat");
     assert!(chat.thread.reading.is_none(), "the empty answer completes the page's read");
     assert!(chat.thread.lines.rows.is_empty());
@@ -144,27 +144,37 @@ fn held_startup_keeps_the_first_empty_chat_activity_answer() {
 
 #[test]
 fn an_explicit_startup_link_takes_precedence_over_the_stored_credential() {
-    let (host, signing, activity) = fixtures::link_chat(Some(fixtures::credential()));
-    assert_ne!(signing, activity);
+    let (mut host, signing) = fixtures::link_chat(Some(fixtures::credential()));
     assert!(host.loaded && host.started());
     assert_eq!(host.credential, Some(fixtures::credential()), "the loaded credential remains shell-owned");
     assert!(host.root.pages().chat().expect("chat").thread.reading.is_some());
+    host.transport(jig_client::Event::Reply { exchange: signing, message: fixtures::sign_in_answer(None) });
+    let activity = held_link_activity(&mut host);
+    assert_ne!(signing, activity.exchange);
+}
+
+fn held_link_activity(host: &mut NativeClient) -> fixtures::ActivityExchange {
+    fixtures::open_chat(host, 7);
+    let (activity, credential) = fixtures::activity_read(host);
+    assert_eq!(credential, Some(fixtures::credential()));
+    activity
 }
 
 #[test]
 fn a_kept_link_sign_in_holds_the_stored_credential_without_writing_it() {
-    let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
+    let (mut host, signing) = fixtures::link_chat(Some(fixtures::credential()));
     host.transport(jig_client::Event::Reply { exchange: signing, message: fixtures::sign_in_answer(None) });
     assert_eq!(host.root.client().link().credential, Some(&fixtures::credential()));
     assert_eq!(host.credential, Some(fixtures::credential()));
     assert!(host.saving_signing.is_none(), "no token write delays the answer");
     assert_eq!(host.signing(), Some(Signing::SignedIn { party: CURRENT_PARTY }));
+    held_link_activity(&mut host);
 }
 
 #[test]
 fn a_refused_or_lost_startup_link_keeps_the_stored_credential() {
     for refused in [true, false] {
-        let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
+        let (mut host, signing) = fixtures::link_chat(Some(fixtures::credential()));
         let event = if refused {
             let answer = jig_client_protocol_wire::SignInAnswer::Refused;
             let mut writer = skein_lib::Writer::new(
@@ -185,7 +195,7 @@ fn a_refused_or_lost_startup_link_keeps_the_stored_credential() {
 #[test]
 fn busy_keeps_the_link_and_held_token_for_the_next_sign_in() {
     use jig_client_protocol_wire as w;
-    let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
+    let (mut host, signing) = fixtures::link_chat(Some(fixtures::credential()));
     let answer = w::SignInAnswer::Busy;
     let mut writer = skein_lib::Writer::new(
         usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
@@ -216,12 +226,13 @@ fn busy_keeps_the_link_and_held_token_for_the_next_sign_in() {
         "the retry's With::Link carried the same held token"
     );
     assert!(host.saving_signing.is_none(), "the held sign-in writes no token");
+    held_link_activity(&mut host);
 }
 
 #[test]
 fn full_installs_nothing_and_hands_both_times_to_the_terminal() {
     use jig_client_protocol_wire as w;
-    let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
+    let (mut host, signing) = fixtures::link_chat(Some(fixtures::credential()));
     let earliest = skein_lib::Wall::from_nanos(3_600_000_000_000);
     let link_until = skein_lib::Wall::from_nanos(300_000_000_000);
     let answer = w::SignInAnswer::Full(w::SignInsFull {
@@ -255,43 +266,66 @@ fn first_link_sign_in_recovers_the_cancelled_empty_activity_read() {
 }
 
 fn first_link_activity(nonempty: bool) {
-    let (mut host, signing, old) = fixtures::link_chat(None);
+    let (mut host, current) = fixtures::recovered_link_chat();
+    expect_activity_answer(&mut host, current, nonempty);
+
+    // Only a stream that has already judged the owner can have a sent read to cancel.
+    let mut host = fixtures::live_chat();
+    let (old, credential) = fixtures::activity_read(&mut host);
+    assert_eq!(credential, Some(fixtures::credential()));
+    host.sign_in(fixtures::LINK).expect("a link to the same engine");
+    let signing = fixtures::link_exchange(&mut host);
     host.transport(jig_client::Event::Reply { exchange: signing, message: fixtures::signed_in() });
     assert_eq!(host.root.client().link().credential, Some(&fixtures::signed_credential()), "new identity installed");
-    let current = fixtures::activity_reads(&mut host);
-    // A late answer from before sign-in must never populate the new identity's page.
-    host.transport(jig_client::Event::Reply { exchange: old, message: fixtures::activity_answer(nonempty) });
-    host.transport(jig_client::Event::Lost { exchange: old });
+    fixtures::open_chat(&mut host, 8);
+    let (current, credential) = fixtures::activity_read(&mut host);
+    assert_ne!(current.exchange, old.exchange, "the consumer asks anew after cancellation");
+    assert_eq!(credential, Some(fixtures::signed_credential()), "fresh read uses the current identity");
+    old.reply(&mut host, fixtures::activity_answer(nonempty));
+    host.transport(jig_client::Event::Lost { exchange: old.exchange });
     assert!(host.root.pages().chat().expect("chat").thread.lines.rows.is_empty(), "old answer is fenced");
-    assert_eq!(current.len(), 1, "after successful first sign-in the page must ask again, even when quiet");
-    let (exchange, credential) = &current[0];
-    assert_ne!(*exchange, old, "the consumer asks anew");
-    assert_eq!(credential.as_ref(), Some(&fixtures::signed_credential()), "fresh read uses the current identity");
+    expect_activity_answer(&mut host, current, nonempty);
+}
+
+fn expect_activity_answer(host: &mut NativeClient, exchange: fixtures::ActivityExchange, nonempty: bool) {
     let message = fixtures::activity_answer(nonempty);
-    host.transport(jig_client::Event::Reply { exchange: *exchange, message: message.clone() });
+    exchange.reply(host, message.clone());
     let chat = host.root.pages().chat().expect("chat");
     assert!(chat.thread.reading.is_none(), "the current answer completes the read");
     assert_eq!(chat.thread.lines.rows.len(), u32::from(nonempty), "the actual page consumes the answer");
-    host.transport(jig_client::Event::Reply { exchange: *exchange, message });
-    host.transport(jig_client::Event::Lost { exchange: *exchange });
+    exchange.reply(host, message);
+    host.transport(jig_client::Event::Lost { exchange: exchange.exchange });
     assert_eq!(host.root.pages().chat().expect("chat").thread.lines.rows.len(), u32::from(nonempty));
     assert!(host.out.is_empty(), "no later activity or person act is needed");
+    assert!(fixtures::activity_reads(host).is_empty(), "the completed page does not ask again");
 }
 
 #[test]
 fn starting_retold_by_a_lost_sign_out_keeps_the_pending_link_activity_read() {
-    let (mut host, current) = fixtures::recovered_link_chat();
-    assert!(host.root.pages().chat().expect("chat").thread.reading.is_some());
-    fixtures::lost_sign_out(&mut host);
-    assert!(fixtures::activity_reads(&mut host).is_empty(), "Starting again must not issue a duplicate read");
-    host.transport(jig_client::Event::Reply { exchange: current, message: fixtures::activity_answer(true) });
-    let chat = host.root.pages().chat().expect("chat");
-    assert_eq!(chat.thread.lines.rows.len(), 1, "the original pending R2 answer is still accepted");
-    assert!(
-        matches!(chat.thread.lines().as_slice(), [jig_client::thread::Line::Activity { line }] if matches!(line.source.line, jig_client::contract::Activity::RunBegan { attempt: fixtures::RUN, .. }))
-    );
-    assert!(chat.thread.reading.is_none());
-    assert!(host.out.is_empty(), "answering R2 quietly completes the read");
+    for state in [jig_client::Link::Starting, jig_client::Link::Live] {
+        let mut host = fixtures::signed_link_chat();
+        fixtures::chat_stream_opened(&mut host);
+        if state == jig_client::Link::Starting {
+            fixtures::lost_sign_out(&mut host, state);
+            assert!(fixtures::activity_reads(&mut host).is_empty(), "Starting cannot release an unjudged read");
+        }
+        fixtures::chat_hello(&mut host, 7);
+        let (current, credential) = fixtures::activity_read(&mut host);
+        assert_eq!(credential, Some(fixtures::signed_credential()));
+        assert!(host.root.pages().chat().expect("chat").thread.reading.is_some());
+        if state == jig_client::Link::Live {
+            fixtures::lost_sign_out(&mut host, state);
+        }
+        assert!(fixtures::activity_reads(&mut host).is_empty(), "re-telling the link must not issue a duplicate read");
+        current.reply(&mut host, fixtures::activity_answer(true));
+        let chat = host.root.pages().chat().expect("chat");
+        assert_eq!(chat.thread.lines.rows.len(), 1, "the original pending R2 answer is still accepted");
+        assert!(
+            matches!(chat.thread.lines().as_slice(), [jig_client::thread::Line::Activity { line }] if matches!(line.source.line, jig_client::contract::Activity::RunBegan { attempt: fixtures::RUN, .. }))
+        );
+        assert!(chat.thread.reading.is_none());
+        assert!(host.out.is_empty(), "answering R2 quietly completes the read");
+    }
 }
 
 #[test]
@@ -305,7 +339,7 @@ fn starting_retold_after_a_nonempty_held_answer_does_not_read_again() {
 }
 
 fn answered_held_activity(nonempty: bool) {
-    let mut host = fixtures::loaded_chat();
+    let mut host = fixtures::live_chat();
     let (exchange, _) = fixtures::activity_read(&mut host);
     answered_activity(&mut host, exchange, nonempty);
 }
@@ -325,14 +359,14 @@ fn answered_link_activity(nonempty: bool) {
     answered_activity(&mut host, exchange, nonempty);
 }
 
-fn answered_activity(host: &mut NativeClient, exchange: skein_lib::Token, nonempty: bool) {
-    host.transport(jig_client::Event::Reply { exchange, message: fixtures::activity_answer(nonempty) });
+fn answered_activity(host: &mut NativeClient, exchange: fixtures::ActivityExchange, nonempty: bool) {
+    exchange.reply(host, fixtures::activity_answer(nonempty));
     let chat = host.root.pages().chat().expect("chat");
     assert!(chat.thread.reading.is_none(), "the first answer completed its read");
     assert_eq!(chat.thread.lines.rows.len(), u32::from(nonempty));
     assert!(host.out.is_empty(), "the first answer completes quietly");
-    fixtures::lost_sign_out(host);
-    assert!(fixtures::activity_reads(host).is_empty(), "an answered page does not reread on Starting");
+    fixtures::lost_sign_out(host, jig_client::Link::Live);
+    assert!(fixtures::activity_reads(host).is_empty(), "an answered page does not reread when Live is re-told");
     let chat = host.root.pages().chat().expect("chat");
     assert!(chat.thread.reading.is_none());
     assert_eq!(chat.thread.lines.rows.len(), u32::from(nonempty), "the answered page is retained");
@@ -494,33 +528,10 @@ fn the_deadline_takes_the_earlier_policy_or_view_time_from_the_same_clocks() {
 
 #[test]
 fn a_chat_keeps_its_activity_read_through_local_exchange_pressure() {
-    use jig_client::{Asker, Handle, Message, Readable, Request, contract as c};
-    let mut host = fixtures::loaded_chat();
-    let mut occupied = 0_u32;
-    let mut old_activity = None;
-    while let Some(request) = host.out.pop() {
-        if let domain::Request::Client { request: Request::Exchange { exchange, message, .. } } = request {
-            occupied += 1;
-            if let Message::Read(bytes) = message {
-                let owned = jig_client_protocol_wire::Owned::decode(
-                    &jig_client_protocol_wire::CEILINGS,
-                    &mut skein_lib::Reader::new(&bytes),
-                )
-                .expect("read envelope");
-                if owned.owner == jig_client_protocol_wire::Owner::Jig {
-                    let read = jig_client_protocol_wire::Read::decode(
-                        &jig_client_protocol_wire::CEILINGS,
-                        &mut skein_lib::Reader::new(owned.record.as_ref()),
-                    )
-                    .expect("jig read");
-                    if matches!(read, jig_client_protocol_wire::Read::Activity(_)) {
-                        assert!(old_activity.replace(exchange).is_none());
-                    }
-                }
-            }
-        }
-    }
-    for slot in occupied..crate::limits::EXCHANGES {
+    use jig_client::{Asker, Handle, Readable, Request, contract as c};
+    let mut host = fixtures::live_chat();
+    let (old, _) = fixtures::activity_read(&mut host); // Its exchange occupies the first slot.
+    for slot in 1..crate::limits::EXCHANGES {
         host.event(domain::Event::Client {
             event: jig_client::Event::Read {
                 handle: Handle { asker: Asker::JIG, number: 100 + u64::from(slot) },
@@ -542,12 +553,11 @@ fn a_chat_keeps_its_activity_read_through_local_exchange_pressure() {
     });
     assert!(host.out.is_empty(), "local pressure emits no failed page or exchange");
     assert!(host.root.pages().chat().expect("chat").thread.reading.is_some(), "the page keeps its demand");
-    let old = old_activity.expect("initial activity exchange occupies a slot");
-    host.transport(jig_client::Event::Reply { exchange: old, message: fixtures::activity_answer(true) });
+    old.reply(&mut host, fixtures::activity_answer(true));
     assert!(host.root.pages().chat().expect("chat").thread.lines.rows.is_empty(), "the superseded answer is fenced");
     let (current, _) = fixtures::activity_read(&mut host);
-    assert_ne!(current, old, "the slot release admits the pending read");
-    host.transport(jig_client::Event::Reply { exchange: current, message: fixtures::activity_answer(true) });
+    assert_ne!(current.exchange, old.exchange, "the slot release admits the pending read");
+    current.reply(&mut host, fixtures::activity_answer(true));
     let chat = host.root.pages().chat().expect("chat");
     assert_eq!(chat.thread.lines.rows.len(), 1);
     assert_eq!(chat.thread.loaded, 1);
@@ -557,9 +567,9 @@ fn a_chat_keeps_its_activity_read_through_local_exchange_pressure() {
 
 #[test]
 fn a_snapshot_retains_the_latest_activity_refusal_without_its_payload() {
-    let mut host = fixtures::loaded_chat();
+    let mut host = fixtures::live_chat();
     let (exchange, _) = fixtures::activity_read(&mut host);
-    host.transport(jig_client::Event::Reply { exchange, message: fixtures::busy_activity_answer() });
+    exchange.reply(&mut host, fixtures::busy_activity_answer());
     let snapshot = host.pending();
     let chat = snapshot.chat.as_ref().expect("chat snapshot");
     assert_eq!(chat.last_read_none, Some(c::ReadNone::Busy));
@@ -573,16 +583,15 @@ fn a_snapshot_retains_the_latest_activity_refusal_without_its_payload() {
 
 #[test]
 fn a_busy_activity_read_is_asked_again_and_the_reply_arrives() {
-    let mut host = fixtures::committed_chat();
-    let (exchange, _) = fixtures::activity_read(&mut host);
-    host.transport(jig_client::Event::Reply { exchange, message: fixtures::busy_activity_answer() });
+    let (mut host, exchange) = fixtures::committed_chat();
+    exchange.reply(&mut host, fixtures::busy_activity_answer());
     let due = host.env.now.saturating_add(skein_lib::Duration::from_secs(1));
     assert_eq!(domain::pages::next_deadline(host.root.pages()), Some(due));
     assert!(fixtures::activity_reads(&mut host).is_empty(), "the transient end waits");
     host.env.now = due;
     domain::fire(&mut host.root, &host.env, &mut host.out);
     let (retry, _) = fixtures::activity_read(&mut host);
-    host.transport(jig_client::Event::Reply { exchange: retry, message: fixtures::committed_activity_answer() });
+    retry.reply(&mut host, fixtures::committed_activity_answer());
     let chat = host.root.pages().chat().expect("chat");
     assert_eq!(chat.thread.loaded, fixtures::COMMITTED);
     let lines = chat.thread.lines();

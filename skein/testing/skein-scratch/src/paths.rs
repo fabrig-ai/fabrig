@@ -50,15 +50,16 @@ pub fn tree() -> PathBuf {
     }
 }
 
-/// The running test's package's binary `name`.
+/// The running test's package's binary `name`, for that package's own tests.
+/// A shared kit uses [`built`] because its caller may be in another package.
 #[must_use]
 pub fn binary(name: &str) -> PathBuf {
     PathBuf::from(variable(&format!("CARGO_BIN_EXE_{name}")))
 }
 
-/// Another package's binary: the file `name` in the nearest directory above
-/// the test's executable that holds a file of that name. A directory of that
-/// name is passed over (skein/docs/design/testing/layout.md, 1).
+/// A kit's binary or another package's binary: the file `name` in the nearest
+/// directory above the test's executable that holds a file of that name. A
+/// directory of that name is passed over (skein/docs/design/testing/layout.md, 1).
 #[must_use]
 pub fn built(package: &str, name: &str) -> PathBuf {
     let executable = match std::env::current_exe() {

@@ -20,7 +20,7 @@ pub fn printed(stderr: &[u8], name: &str) -> Option<Box<[u8]>> {
 pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Path) {
     let (agent, mut value) = super::configuration::typed_documents(
         directory,
-        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
+        skein_scratch::paths::built("temper-box", "temper-box").to_str().expect("a UTF-8 path"),
     );
     let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
     if let Some(programs) = programs {
@@ -90,7 +90,7 @@ pub fn run(directory: &Path) -> super::Ended {
     use skein_world::end_to_end::{Binary, Command, Mode, Streams};
     let mut binary = Binary::start(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: std::iter::once("program-login".into())
                 .chain(super::configuration::flags(directory))
                 .chain(["source".into()])

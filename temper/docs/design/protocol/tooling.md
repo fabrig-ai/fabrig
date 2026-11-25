@@ -179,7 +179,7 @@ baseline recounted, a generated file made again), with no model.
   runs the family's drift test, whose world builds the very codec
   crates left in conflict. A module whose schema text, maps file or
   generator conflicts too is left with them
-  (`../draft/codec-shape.md`, 6.2). It settles a conflict at a
+  (`../draft/archive/codec-shape.md`, 6.2). It settles a conflict at a
   journey's recording, page or file printed beside them with the base's
   copy, the landing branch's, or with none where the base holds none,
   deletions and renames among them, since only the journeys' writer
@@ -210,7 +210,7 @@ baseline recounted, a generated file made again), with no model.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree and the same result.
 
-**A left file's record** (`../draft/merge-deletions.md`, 1) is a JSON
+**A left file's record** (`../draft/archive/merge-deletions.md`, 1) is a JSON
 object of these members, in this order, each present only where its
 kind has it. The head is the branch merged into, the index's stage 2,
 and the base the commit merged in, stage 3; stage 1 is their merge
@@ -308,8 +308,9 @@ keeps of a goal's work in its own files.
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the goal's branch's tip, on
   the close change's own branch made there, clean, nothing staged. That
-  repository is writable on every attempt, a released job's too
-  (`../domain/forge/change/repairs.md`); a checkout with none or several
+  repository is writable on every attempt, a fresh job's on its
+  change's release too (`../domain/forge/change/repairs-releases.md`,
+  1); a checkout with none or several
   writable fails the job, naming each repository it saw and whether it
   could write it (`../domain/worker/jobs.md`).
 - **`request.json`:** `{"version": 1, "goal": G, "changes": [{"task": N,

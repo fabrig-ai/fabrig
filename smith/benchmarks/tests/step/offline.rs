@@ -1,4 +1,4 @@
-//! Replaying controls (smith/docs/design/testing.md, 2).
+//! Replaying controls (smith/docs/design/testing-tiers.md).
 
 use skein_fake_machine::Item;
 use smith_bench::files::{Files, Kind};

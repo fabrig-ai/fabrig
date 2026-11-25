@@ -12,7 +12,7 @@ use temper_engine_domain_forge as forge;
 pub use temper_engine_service_vocabulary::forge::*;
 
 /// The address reserved for a waiting or unreachable host (protocol/forge/README.md, 2.6;
-/// protocol/setup/init.md, 3). skein's forge connection and setup host refuse an in-process
+/// protocol/setup/init.md, 6). skein's forge connection and setup host refuse an in-process
 /// address, so the forge keeps its entries with loopback port 0, which no listener can hold.
 /// No socket ever sees it: connect and setup wait for GitHub's API answer, or refuse a held
 /// forge, before either component is asked.

@@ -5,6 +5,20 @@ use jig_protocol_store::tasks_v13::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[test]
+fn largest_worker_opening_stays_within_its_codec_bounds() {
+    use jig_protocol_store::openings_v2 as wire;
+    assert_eq!(wire::WorkerOpening::encoded_bound(&wire::CEILINGS), Some(525_530));
+    family!(
+        CAP,
+        jig_protocol_store::STORE_FAMILIES.get(1).expect("store family").current,
+        jig_protocol_store::openings_v2,
+        roots [
+            WorkerOpening,
+        ]
+    );
+}
+
 #[expect(clippy::too_many_lines, reason = "one dispatch per schema root")]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
@@ -49,14 +63,6 @@ fn largest_roots_stay_within_decoded_bounds() {
         jig_protocol_store::notes_v1,
         roots [
             Row,
-        ]
-    );
-    family!(
-        CAP,
-        jig_protocol_store::STORE_FAMILIES.get(1).expect("store family").current,
-        jig_protocol_store::openings_v1,
-        roots [
-            WorkerOpening,
         ]
     );
     family!(

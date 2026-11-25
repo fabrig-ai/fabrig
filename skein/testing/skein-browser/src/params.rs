@@ -39,7 +39,7 @@ pub(crate) enum Params<'a> {
     Backend(u64),
     Query {
         object: &'a [u8],
-        role: &'a [u8],
+        role: Option<&'a [u8]>,
         name: Option<&'a [u8]>,
     },
     Quads(u64),
@@ -180,8 +180,10 @@ impl Params<'_> {
             Params::Query { object, role, name } => {
                 json.key(b"objectId");
                 json.string(object);
-                json.key(b"role");
-                json.string(role);
+                if let Some(role) = role {
+                    json.key(b"role");
+                    json.string(role);
+                }
                 if let Some(name) = name {
                     json.key(b"accessibleName");
                     json.string(name);

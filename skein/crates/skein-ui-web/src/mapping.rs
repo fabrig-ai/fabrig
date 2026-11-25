@@ -695,7 +695,7 @@ fn shortcut(e: &mut Element, shortcut: Option<Shortcut>, primary: Primary) {
 
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "over a dozen other roles all use their first accessible role when overriding the element (ui/web/elements.md, 1)"
+    reason = "over a dozen other roles all use their first accessible role when overriding the element (ui/web/elements.md, 5)"
 )]
 fn override_element(e: &mut Element, made: &Made, look: &Look<'_>) {
     let a = &made.attribute;

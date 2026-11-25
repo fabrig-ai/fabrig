@@ -159,7 +159,7 @@ fn measured(face: &mut BrowserFace<'_>, stage: Stage, width: u32) -> bool {
 #[test]
 fn public_board_and_task_lines_are_readable_at_desktop_and_phone_widths() {
     let tier = Tier::public_demo("public-readable-lines");
-    let _model = tier.scripted_model();
+    let _model = tier.public_board_model();
     let capture = skein_scratch::Scratch::new("public-board-answer");
     let answer = capture.path().join("publish.txt");
     let script = tier.ctl_public_board(&answer);

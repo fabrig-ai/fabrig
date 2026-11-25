@@ -109,7 +109,7 @@ are comparable.
 ## 1. A forge's own merge queue
 
 A branch whose rules require the forge's merge queue (GitHub's; the
-adoption says so, `adoption.md`, 4) lands through that queue. Forgejo keeps none.
+adoption says so, `adoption.md`, 8) lands through that queue. Forgejo keeps none.
 
 - **Entering is the merge.** The first's merge (kind 4) is made as any
   merge is: at exactly its head, its requirements judged at that head

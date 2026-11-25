@@ -262,7 +262,7 @@ git clean -ffdxq                                                          only w
   failure names the invocation it ended in (`git.md`, section 6): `checkout`, its
   lazy fetch's time within it, or `clean`. So a deadline that passes
   during the checkout and one that passes during the clean read apart in
-  the prepare's detail (`../domain/worker/checkouts.md`, 1.1).
+  the prepare's detail (`../domain/worker/checkouts-prepare.md`, 12.1).
 
 ### 1.6 Merge
 

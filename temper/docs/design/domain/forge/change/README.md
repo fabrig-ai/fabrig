@@ -458,7 +458,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    the change waits for it, until the window's end at most, and the
    stall does not count that wait.
 7. **Landing:** merged at exactly its head, in the repository's merge
-   style (`../adoption.md`, 4), automatically, unless its landing branch
+   style (`../adoption.md`, 8), automatically, unless its landing branch
    already holds its head, which has landed it with no merge sent
    (*From its turn on, a contained head has landed*, above): what more a landing needs is a landing
    rule's, which the core checks at the merge (`gates.md`, 2). Where the forge's

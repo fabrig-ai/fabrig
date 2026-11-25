@@ -77,7 +77,7 @@ fn settings(configuration: smith_agent_document::config::Configuration) -> Resul
         },
     })
 }
-/// Read declarations and check existing programs directories at their names (skein/docs/design/runtime/io/files.md, 3).
+/// Read declarations and check existing programs directories at their names (skein/docs/design/runtime/io/files.md, 11).
 /// Missing directories stay missing; neither this nor smith's check reads any login.
 pub fn preflight_worker(worker: &service::startup::NamedWorker) -> Result<Agent, String> {
     Ok(prepare_worker(worker)?.agent)

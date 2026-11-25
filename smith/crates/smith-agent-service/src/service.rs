@@ -13,10 +13,12 @@ mod effects;
 mod face;
 pub(crate) mod link;
 mod opening;
+mod orphan;
 mod readiness;
 mod request;
 mod roots;
 mod routing;
+mod silence;
 mod stages;
 mod up;
 
@@ -85,6 +87,8 @@ pub enum Failure {
     ChannelEnded,
     /// The channel's output side failed.
     WriteFailed,
+    /// The host said and took nothing for the link's no-progress deadline while the agent waited on it.
+    HostSilent,
     /// A host grant could not be installed below the domain.
     Credential,
     /// A required host record could not be encoded or queued.
@@ -113,6 +117,7 @@ struct Frame {
     channel: channel::Component,
     io: io::Io,
     program_diagnostics: Queue<(Token, run::Fault)>,
+    silence: silence::Silence,
 }
 
 /// Lower construction and the inputs retained for framed composition.
@@ -172,6 +177,7 @@ pub(crate) struct Stages {
     signals: Option<Token>,
     admission: admission::Admission,
     host_word_closed: bool,
+    host: orphan::Host,
     signalled: bool,
     pending_signal: Option<smith_channel::Signalled>,
     run_started: Time,
@@ -214,6 +220,7 @@ impl Service {
             channel,
             io: io::Io::new(&limits.io),
             program_diagnostics: Queue::with_capacity(limits.queue),
+            silence: silence::Silence::new(limits.link),
         };
         Ok(Service { stages, frame })
     }
@@ -359,9 +366,13 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     let stages = &mut service.stages;
     let frame = &mut service.frame;
     stages::clocks(stages, now, wall);
+    let output_before = silence::pipe_output(stages, frame);
     up::io_up(stages, Some(frame));
+    let wrote_frame = silence::pipe_output(stages, frame) < output_before;
     up::lower_events(stages, Some(frame));
     up::component_up(stages, Some(frame));
+    silence::judge(stages, frame, wrote_frame);
+    orphan::expire(stages);
     up::domain_up(stages, frame);
     down::domain_down(stages, Some(frame));
     down::component_down(stages);
@@ -370,6 +381,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         events.sinks().down(stages.io_env.now, &mut stages.io_requests);
     }
     routing::io_down(stages, Some(frame));
+    silence::refresh(stages, frame, false);
     frame.io.reclaim();
     stages.llm.reclaim();
     frame.domain.reclaim();

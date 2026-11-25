@@ -33,6 +33,7 @@ jig-domain-host.workspace = true
 jig-domain-tasks.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-lib.workspace = true
+skein-io.workspace = true
 skein-world.workspace = true
 skein-sim.workspace = true
 smith-agent-process-world.workspace = true

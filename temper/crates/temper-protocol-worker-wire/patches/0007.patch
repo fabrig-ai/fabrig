@@ -1,5 +1,0 @@
-patch 1
-owner temper 7
-
-family temper-worker-wire 11 to 12
-add Writable.pin option fixed 32 none

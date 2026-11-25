@@ -143,7 +143,7 @@ be read from:
   none of them up, and no start waits on a lookup of GitHub's. The
   shell hands the engine GitHub's place unresolved: the runtime's API
   address, and each results origin's, is the placeholder
-  `127.0.0.1:0` a held forge has (../setup/init.md, 3), which the engine
+  `127.0.0.1:0` a held forge has (../setup/init.md, 6), which the engine
   replaces as each resolves and never hands to a socket. The binary's
   `names` stage (../service-process.md, 1.1) resolves at most one of them a
   pass, through the machine's resolver and with no network probe, the
@@ -157,14 +157,14 @@ be read from:
   run, in the first pass that serves with such a forge kept; one the
   machine gives as an address needs none. Until it is answered, the
   forge waits: it is added to the component and the setup host with
-  the placeholder, as a held forge is (../setup/init.md, 3); its connect
+  the placeholder, as a held forge is (../setup/init.md, 6); its connect
   from the records and each setup run asked for it wait, and none of
   them is answered unreachable; and it does not hold the start's
   serving (../service-process.md, 1.2). Resolved, each forge on that host is
   added again with the address, as a forge resolved at start is, and
   what waited goes on; a forge kept later takes the address at once.
   Not resolved, each is held for the run as a forge whose name a start
-  did not resolve (../setup/init.md, 3): its connect is answered
+  did not resolve (../setup/init.md, 6): its connect is answered
   unreachable, as is each run that waited, naming the host, and a forge
   kept later on that host is held at once.
 - **A job log's redirect** is followed only to an origin its forge's
@@ -414,7 +414,7 @@ its `limits` member (../configuration/limits.md), set in
 - **Beside this layer,** the clients' listener's `routes.query_bytes`
   and the picker's `picker.page` (100, GitHub's page), which bound the
   GitHub routes and the picker's reads (../../client/README.md, the routes and
-  the picker; `../../domain/forge/adoption.md`, 3).
+  the picker; `../../domain/forge/adoption.md`, 7).
 
 The domain's `temper_engine_domain_forge::valid` checks the entrance
 constraints of `../../domain/forge/adoption.md` and `../../domain/forge/change/README.md` and `../../domain/forge/effects.md`, section 2, and count

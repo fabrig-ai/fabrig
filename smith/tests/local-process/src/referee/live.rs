@@ -1,4 +1,4 @@
-//! Shared live outcome judgments over outside observations (smith/docs/design/testing.md, 2.3).
+//! Shared live outcome judgments over outside observations (smith/docs/design/testing-tiers.md, 3).
 //! Simulated terminal captures and live exec records use the same delivery
 //! checks. No process, clock, credential or filesystem is inspected here.
 

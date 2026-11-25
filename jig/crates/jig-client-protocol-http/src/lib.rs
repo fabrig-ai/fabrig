@@ -4,6 +4,10 @@
 extern crate alloc;
 mod call;
 mod frames;
+mod generated {
+    #[rustfmt::skip]
+    pub(crate) mod client;
+}
 pub use frames::Frames;
 mod printed;
 mod public;

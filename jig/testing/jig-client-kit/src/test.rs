@@ -60,8 +60,16 @@ pub fn limits() -> jig_client_test_domain::Limits {
         client: jig_client::Limits {
             domain: jig_client::DomainLimits {
                 owners: &[
-                    jig_client::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION },
-                    jig_client::Spoken { family: 2, version: jig_client_test_protocol_wire::VERSION },
+                    jig_client::Spoken {
+                        family: 1,
+                        version: jig_client_test_protocol_wire::VERSION,
+                        layout: jig_client_test_protocol_wire::LAYOUT,
+                    },
+                    jig_client::Spoken {
+                        family: 2,
+                        version: jig_client_test_protocol_wire::VERSION,
+                        layout: jig_client_test_protocol_wire::LAYOUT,
+                    },
                 ],
                 requests: RequestLimits {
                     requests: 4,
@@ -258,6 +266,7 @@ impl App for Test {
                         event: jig_client::Event::Up {
                             up: jig_client::Up::FamilyServed {
                                 family,
+                                served: true,
                                 versions: Some(VersionRange {
                                     first: jig_client_test_protocol_wire::VERSION,
                                     last: jig_client_test_protocol_wire::VERSION,

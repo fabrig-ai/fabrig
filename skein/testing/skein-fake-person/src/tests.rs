@@ -79,6 +79,31 @@ fn text_boxes_match_both_roles_by_whole_name_in_document_order() {
     assert_eq!(face.find(&Find::text_box(b"Rep")), Found::Absent);
 }
 
+#[test]
+fn paragraph_text_requires_the_exact_displayed_words_and_role() {
+    let view = build(|b| {
+        b.open(Role::Page);
+        b.text(Run::Plain, b"Read this.");
+        b.open(Role::Paragraph);
+        b.name(b"Different label");
+        b.open(Role::Text);
+        b.run(Run::Plain, b"Read ");
+        b.run(Run::Strong, b"this.");
+        b.close();
+        b.close();
+        b.open(Role::Paragraph);
+        b.text(Run::Plain, b"Read this. Later.");
+        b.close();
+        b.close();
+    });
+    let mut face = TreeFace::new(view.tree());
+    let find = Find::paragraph_text(b"Read this.");
+    assert_eq!(face.find(&find), Found::Node(NodeId(3)));
+    assert_eq!(face.find(&find.nth(1)), Found::Absent);
+    assert_eq!(face.find(&Find::paragraph_text(b"read this.")), Found::Absent);
+    assert_eq!(face.find(&Find::exactly_named(Role::Paragraph, b"Different label")), Found::Node(NodeId(3)));
+}
+
 const CONTROL: NodeId = NodeId(2); // page, control
 fn page_with_control(role: Role, name: &[u8]) -> View {
     build(|b| {

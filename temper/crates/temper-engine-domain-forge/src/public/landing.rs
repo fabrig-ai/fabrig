@@ -1,6 +1,9 @@
 //! A landing reached through a public member (temper/docs/design/client/forge/README.md, 9.1).
 use super::{Names, phase, policy, w};
-use crate::{Check, Domain, ReceiptKey};
+use crate::{
+    Check, Domain, PrefixJudgement, ReceiptKey,
+    generated::public::{public_combined_to_record, public_judgement_to_record},
+};
 use skein_lib::List;
 use temper_client_protocol_wire::v1::Record;
 impl Domain {
@@ -32,7 +35,7 @@ impl Domain {
                         None => None,
                     },
                     judgement: match self.prefix_judgement(row, member) {
-                        Some(value) => Some(make_judgement(value)?),
+                        Some(value) => Some(make_judgement(&value)?),
                         None => None,
                     },
                     base: member.base,
@@ -74,10 +77,11 @@ impl Domain {
                 members,
                 stale_proofs: row.stale_proofs,
                 holds_turn: crate::views::matches_turn(&row.phase),
-                combined: match row.round.combined {
-                    Some(policy::Combine::Merge) => Some(w::PublicCombined::Merge),
-                    Some(policy::Combine::Squash) => Some(w::PublicCombined::Squash),
-                    None => None,
+                combined: if let Some(combined) = &row.round.combined {
+                    let record = public_combined_to_record(combined);
+                    Some(record)
+                } else {
+                    None
                 },
                 step: Some(step(crate::views::landing_step(self, row))),
             };
@@ -170,41 +174,12 @@ fn search_bound(row: &policy::Landing, member: u16) -> Option<w::PublicSearchBou
     }
 }
 
-fn make_judgement(value: crate::PrefixJudgement) -> Option<w::PublicJudgement> {
+fn make_judgement(value: &PrefixJudgement) -> Option<w::PublicJudgement> {
     let l = &w::CEILINGS;
-    let mut gates = List::with_capacity(l.public_judgement_gates);
-    for gate in value.gates {
-        gates
-            .push(w::PublicGate {
-                number: gate.number,
-                kind: match gate.kind {
-                    temper_engine_domain_forge_change::GateKind::Agent => w::PublicGateKind::Review,
-                    temper_engine_domain_forge_change::GateKind::Person => w::PublicGateKind::Approval,
-                    temper_engine_domain_forge_change::GateKind::Check
-                    | temper_engine_domain_forge_change::GateKind::Follow => w::PublicGateKind::Check,
-                },
-                blocks: gate.blocking,
-                verdict: match gate.verdict {
-                    temper_engine_domain_forge_change::Status::Unknown => w::PublicVerdict::None,
-                    temper_engine_domain_forge_change::Status::Pending => w::PublicVerdict::Pending,
-                    temper_engine_domain_forge_change::Status::Passed => w::PublicVerdict::Approved,
-                    temper_engine_domain_forge_change::Status::Failed => w::PublicVerdict::Changes,
-                },
-            })
-            .ok()?;
+    if value.gates.len() > skein_lib::usize_of(l.public_judgement_gates) {
+        return None;
     }
-    {
-        let value = w::PublicJudgement {
-            prefix: value.prefix,
-            verdict: match value.verdict {
-                temper_engine_domain_forge_change::Status::Unknown => w::PublicCi::Unknown,
-                temper_engine_domain_forge_change::Status::Pending => w::PublicCi::Pending,
-                temper_engine_domain_forge_change::Status::Passed => w::PublicCi::Passed,
-                temper_engine_domain_forge_change::Status::Failed => w::PublicCi::Failed,
-            },
-            gates,
-        };
-        value.measure(l).ok()?;
-        Some(value)
-    }
+    let record = public_judgement_to_record(value).ok()?;
+    record.measure(l).ok()?;
+    Some(record)
 }

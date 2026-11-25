@@ -130,7 +130,7 @@ use step_deadline::{StepAccount, StepFailure, face_failure, step_failure};
 mod request;
 mod script;
 pub mod session;
-pub use script::{Script, Step, TabSeen};
+pub use script::{NestedHas, Script, Step, TabSeen};
 #[derive(Clone, Copy)]
 pub enum ServerAction {
     Stop,

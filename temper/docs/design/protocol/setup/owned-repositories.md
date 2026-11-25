@@ -193,7 +193,7 @@ This document holds an owned forge's repositories, split from [`owned.md`](owned
   `--project` in their own run (`../../client/ctl/areas.md`): once the
   row says made, the call sends, under the same party, jig's
   `MakeProject` for a new project, its name and policy 1, the default
-  document's (`init.md`, 3), when `--project` names no project, then `Adopt`:
+  document's (`init.md`, 6), when `--project` names no project, then `Adopt`:
   the project, the forge, `ORG`, `NAME`, landing on `main`, owned, the
   project's home, with CI. Nothing in the engine reads a project for
   it.
@@ -229,7 +229,7 @@ This document holds an owned forge's repositories, split from [`owned.md`](owned
 ## 2. A repository made or copied
 
 - **The service runs what the connector holds**
-  (`../../domain/forge/adoption.md`, 5), in the setup's one pull
+  (`../../domain/forge/adoption.md`, 9), in the setup's one pull
   (`temper-service`'s `lifecycle::advance`): on a forge connected with no
   writing run live, the connector's oldest `Waiting` row starts, the
   connector told so before the run's first event. A forge whose setup is
@@ -251,7 +251,7 @@ This document holds an owned forge's repositories, split from [`owned.md`](owned
   reconcile, adoption's access or `Create` beside a run of a row, and
   one that finds it `Busy` waits as a held `Install` does. A copy may
   last 30 minutes, so a forge's restart and its reconcile wait as long.
-- **Adopting** (`../../domain/forge/adoption.md`, 5) is asked by the same pull: a
+- **Adopting** (`../../domain/forge/adoption.md`, 9) is asked by the same pull: a
   row `Made` or `Adopting` with no act in flight, on a connected forge,
   is given to the connector to act.
 

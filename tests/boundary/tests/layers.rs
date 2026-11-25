@@ -93,9 +93,33 @@ fn real_packages(name: &str, lines: &BTreeSet<&str>, packages: &toml::Table, fin
     }
 }
 
+/// Each pair's prerequisite binaries in the order the tier runner requires, sorted and unique by package then
+/// binary (tools/tiers/design.md, 2.1), so a list the runner would refuse reddens the gate, not after landing.
+fn binary_lists(packages: &toml::Table, findings: &mut Vec<String>) {
+    let Some(lists) = packages.get("binaries").and_then(toml::Value::as_table) else { return };
+    for (pair, list) in lists {
+        let records = list.as_array().map(|list| {
+            list.iter()
+                .map(|record| {
+                    let field = |name| record.get(name).and_then(toml::Value::as_str).unwrap_or_default();
+                    (field("package"), field("bin"))
+                })
+                .collect::<Vec<_>>()
+        });
+        let Some(records) = records else {
+            findings.push(format!("tools/tiers/packages.toml: [binaries] {pair} is not a list"));
+            continue;
+        };
+        if !records.windows(2).all(|pair| pair[0] < pair[1]) {
+            findings.push(format!("tools/tiers/packages.toml: [binaries] {pair} is not sorted by package then binary"));
+        }
+    }
+}
+
 fn real_profiles(table: &toml::Table, config: &str, packages: &str, findings: &mut Vec<String>) -> Result<(), String> {
     let config: toml::Table = toml::from_str(config).map_err(|why| format!("nextest configuration: {why}"))?;
     let packages: toml::Table = toml::from_str(packages).map_err(|why| format!("package map: {why}"))?;
+    binary_lists(&packages, findings);
     let profiles = config.get("profile").and_then(toml::Value::as_table);
     let mut trees: BTreeSet<&str> = TREES.into_iter().collect();
     if let Some(profiles) = profiles {
@@ -342,6 +366,16 @@ fn real_pair_rules_on_fixtures() {
     ] {
         let found = findings(&world, browser, both, packages).expect("fixture texts read");
         let found: Vec<_> = found.into_iter().filter(|finding| finding.starts_with("tools/")).collect();
+        assert_eq!(found, expected, "{packages}");
+    }
+    let sorted = "real-skein = ['demo', 'view']\n[binaries]\nreal-skein = [{ package = 'a', bin = 'x' }, { package = 'b', bin = 'y' }]";
+    let unsorted = "real-skein = ['demo', 'view']\n[binaries]\nreal-skein = [{ package = 'b', bin = 'y' }, { package = 'a', bin = 'x' }]";
+    for (packages, expected) in [
+        (sorted, vec![]),
+        (unsorted, vec!["tools/tiers/packages.toml: [binaries] real-skein is not sorted by package then binary"]),
+    ] {
+        let found = findings(&world, browser, both, packages).expect("fixture texts read");
+        let found: Vec<_> = found.into_iter().filter(|finding| finding.contains("[binaries]")).collect();
         assert_eq!(found, expected, "{packages}");
     }
 }

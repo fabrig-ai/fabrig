@@ -628,7 +628,7 @@ The vocabulary is pre-release, like every format (README.md, section 8).
 - **skein owes:**
   - its JSON writer and reader (skein's `data/json.md`);
   - an append stream on a file, and standard output adopted as a stream,
-    with write deadlines (skein's `runtime/io/files.md`, 1);
+    with write deadlines (skein's `runtime/io/files.md`, 9);
   - the kernel's resource usage of the process and its children, read by
     the shell through io's usage request after the last child has closed
     and before the stream closes (skein's `runtime/io/processes.md`, section 1; skein's

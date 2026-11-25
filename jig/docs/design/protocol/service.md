@@ -232,7 +232,7 @@ down:  released and door outputs → components → io submissions
   2. **The core hears that the engine is stopping,** settles the claims
      of its agent runs in this process as interrupted, spending no try,
      in one decision, and from then on takes nothing that would make a
-     commit, and ends every watch saying so (`../domain/engine/restart.md`, 1).
+     commit, and ends every watch saying so (`../domain/engine/restart.md`, 5).
   3. **What is in flight finishes:** the commits made before are answered,
      and their held outputs released, until nothing waits for a commit,
      which the core says.
@@ -505,7 +505,7 @@ between hosts.
   section 1). Their runs end with the service, as the engine's own
   slots' do, so the engine settled their agent claims as interrupted when
   it heard it was stopping, spending no try of their tasks
-  (`../domain/engine/restart.md`, 1). After a crash the next start settles
+  (`../domain/engine/restart.md`, 5). After a crash the next start settles
   them at once (`../domain/engine/restart.md`).
 - **Its world** is the protocol world of `service-testing.md`, section 1, with workers: the
   engine's and a test worker's services in one loop, joined by in-process

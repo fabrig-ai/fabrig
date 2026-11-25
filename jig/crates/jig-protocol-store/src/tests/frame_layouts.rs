@@ -185,7 +185,7 @@ fn payload(events: &[Event]) -> &[u8] {
 }
 #[test]
 fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
-    let text = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
+    let text = smith_transcript::SEED[0];
     let old = skein_codegen::fixed_values(&skein_codegen::parse(text).expect("kept v7"))
         .into_iter()
         .find(|value| value.name == "record_turn_smallest.bin")
@@ -265,7 +265,7 @@ fn a_kept_part_uses_its_live_key_and_converts_its_held_turn_on_read() {
 #[test]
 fn the_real_smith_set_converts_kept_version_seven_on_read() {
     const REAL: OwnerSets = OwnerSets { sets: &[crate::owners::SMITH_SET] };
-    let text = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
+    let text = smith_transcript::SEED[0];
     let old = skein_codegen::fixed_values(&skein_codegen::parse(text).expect("kept v7"))
         .into_iter()
         .find(|value| value.name == "record_turn_smallest.bin")

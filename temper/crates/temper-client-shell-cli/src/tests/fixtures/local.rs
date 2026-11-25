@@ -8,7 +8,7 @@ pub fn pending(unread: bool, stream: bool, json: bool) -> Frame {
         records.push(Record { key: b"unread".as_slice().into(), bytes: b"unknown".as_slice().into() });
     }
     if stream {
-        let kept = w::Kept { store_version: jig_client_domain::TABLE_VERSION, record: [1; 16].into() };
+        let kept = w::Kept { layout: w::LAYOUT, record: [1; 16].into() };
         records.push(Record { key: jig_client::STREAM_KEY.into(), bytes: encode!(kept) });
     }
     Frame::act_words_with(if json { &[b"pending", b"--json"] } else { &[b"pending"] }, small_store(&records))

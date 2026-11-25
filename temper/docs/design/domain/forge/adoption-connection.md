@@ -334,7 +334,7 @@ This document holds a forge's connection, access state and removal, split from [
 - **A change whose forge is not connected,** or whose repository is not
   reachable (an installation suspended, a repository it does not select):
   it waits, its stall not counting the wait, and nothing is narrowed
-  (`adoption-connection.md`, 1, `adoption.md`, 3). The alternative is holding it for a person past a bound.
+  (`adoption-connection.md`, 1, `adoption.md`, 7). The alternative is holding it for a person past a bound.
   Default: it waits, and the client shows why.
 
 - **Connecting a forge as another user** (`adoption-connection.md`, 1): refused, since the keys

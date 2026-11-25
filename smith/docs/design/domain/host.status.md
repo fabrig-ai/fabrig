@@ -1,6 +1,6 @@
 # host: status
 
-2026-11-23. Where smith's code lags or departs from [host.md](host.md).
+2026-11-24. Where smith's code lags or departs from [host.md](host.md).
 
 
 Section 4 has no known gap in retaining a panic's closing line and

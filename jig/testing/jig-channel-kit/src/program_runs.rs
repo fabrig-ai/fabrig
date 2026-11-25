@@ -194,7 +194,7 @@ pub(crate) fn configured_agent(
         Box::new(errors.clone()),
     )
     .expect("program-capable agent");
-    Proc::Agent { host: Box::new(capture.host(agent)), errors }
+    Proc::Agent { host: Box::new(capture.host(agent)), errors, output: pipe(1) }
 }
 pub(crate) fn relay(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let pipe = |number| inherited.pipes.iter().find(|(child, _)| *child == number).map(|(_, fd)| *fd);

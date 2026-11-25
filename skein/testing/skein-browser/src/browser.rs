@@ -1955,15 +1955,10 @@ impl Browser {
         let query = query.clone();
         let name = match query.matching {
             Match::Exact => Some(query.name.as_ref()),
-            Match::Words => None,
+            Match::Words | Match::ParagraphText => None,
         };
-        self.issue_step(
-            env,
-            token,
-            b"Accessibility.queryAXTree",
-            &Params::Query { object, role: &query.role, name },
-            Step::Query,
-        );
+        let role = (query.matching != Match::ParagraphText).then_some(query.role.as_ref());
+        self.issue_step(env, token, b"Accessibility.queryAXTree", &Params::Query { object, role, name }, Step::Query);
         if !self.queue_page(env, page, b"Runtime.releaseObject", &Params::Object(object), PendingKind::Release) {
             self.close_page_local(page);
         }
@@ -2052,8 +2047,13 @@ impl Browser {
                     seen.clear();
                     *more = 0;
                     *next = 0;
+                    let paragraphs = if query.matching == Match::ParagraphText {
+                        Some(crate::find::Paragraphs::new(nodes.clone()))
+                    } else {
+                        None
+                    };
                     for node in nodes {
-                        if !crate::find::accepts(node, query) {
+                        if !crate::find::accepts(node, query, paragraphs.as_ref()) {
                             continue;
                         }
                         let Some(seen_node) = parse_seen(node, env.limits.text) else {

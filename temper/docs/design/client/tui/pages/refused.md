@@ -18,7 +18,7 @@ waits for nothing. Illustrative, at a name:
 ```
 
 - **When:** out of front, the engine refuses the TUI's version
-  (`../../../draft/redeploys.md`, 8): `jig-client`'s link out of date,
+  (`../../../draft/archive/redeploys.md`, 8): `jig-client`'s link out of date,
   `link().state` `Link::OutOfDate`, jig's own version not served, or an
   owner its link view names as not served, `link().not_served` not
   empty. Signed out or signed in, at a name or on loopback, alike. In

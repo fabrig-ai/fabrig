@@ -196,8 +196,8 @@ time ahead of the engine's reads `0s`.
   the forge's bound (section 3) says `held: ` and the hold's words above
   it, `held: read: WHAT, for change C: WHY; ...`, as each other hold names
   its cause; the hold's kind is `read`, its words kept with it, a kind
-  the client's wire carries as it carries the others
-  (`../protocol/wires.md`, 9).
+  the client's wire carries as it carries the others, its layout changed
+  for it (`../protocol/wires.md`, 9).
 - **Kept by the top:** the time of its last event, written with each
   event; the time its turn began; its latest wait. Each is a field of
   the landing's row with a default (`landing.md`, 12): a row kept

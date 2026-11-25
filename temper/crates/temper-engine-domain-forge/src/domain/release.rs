@@ -256,6 +256,7 @@ fn erasures(writes: &mut Queue<Request>, groups: &mut Queue<Box<[Key]>>, out: &m
     outputs(writes, groups, out, false);
 }
 
+#[expect(clippy::too_many_lines, reason = "all connector outputs are classified in one place")]
 fn outputs(
     writes: &mut Queue<Request>,
     groups: &mut Queue<Box<[Key]>>,
@@ -348,6 +349,7 @@ fn outputs(
             | Request::ProjectionSettled { .. }
             | Request::ProjectionFailed { .. }
             | Request::Reviewed { .. }
+            | Request::CloseDecision { .. }
             | Request::ChangeDecision { .. }
             | Request::News { .. }
             | Request::Drift { .. }

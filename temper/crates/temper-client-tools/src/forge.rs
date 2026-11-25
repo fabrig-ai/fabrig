@@ -224,24 +224,7 @@ fn restored(ask: &jig_client::Ask, limits: forge::Limits) -> Option<forge::Adopt
     }
     let requesting = wire::decode_requesting(&record.bytes, &forge::wire_limits(&limits)?)?;
     let w::Request::Adopt(adopt) = requesting.request else { return None };
-    let a = adopt;
-    Some(forge::Adoption {
-        project: a.project,
-        home: a.home,
-        forge: a.forge,
-        owner: a.owner,
-        name: a.name,
-        prefix: a.prefix,
-        role: match a.role {
-            w::Role::Owned => forge::Role::Owned,
-            w::Role::Adopted => forge::Role::Adopted,
-            w::Role::Fork => forge::Role::Fork,
-            w::Role::Context => forge::Role::Context,
-        },
-        landing: a.landing,
-        ci: a.ci,
-        checks: a.checks.into_boxed(),
-    })
+    Some(crate::generated::client_wire::adopt_to_domain(adopt))
 }
 /// Whether an adoption's text says its protection went unread (temper/docs/design/client/ctl/areas.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

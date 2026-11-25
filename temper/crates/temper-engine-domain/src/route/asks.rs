@@ -63,9 +63,12 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 return;
             }
             let pending = domain.forge_delegating.remove(&(task, step));
-            let delegation = match &pending {
-                Some(pending) => pending.delegate,
-                None => None,
+            let delegation = if let Some(pending) = &pending
+                && let Some((kind, _)) = pending.delegate
+            {
+                Some(kind)
+            } else {
+                None
             };
             if let Some(pending) = pending
                 && forge_route::relay_refused(domain, env, task, step, pending, &why)
@@ -260,6 +263,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Close { task, root, ending } => {
             if connector == domain.config.forge_connector {
+                forge_route::goal_report::forget(domain, task);
                 domain.work.push(Work::Forge(forge::Event::SettleEffects {
                     task,
                     root,
@@ -587,7 +591,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 {
                     domain.forge.release_closer_wait(task, env.wall);
                 }
-                forge_route::start_closer_step(domain, env, &context);
+                forge_route::start_closer_step(domain, env, decision, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
                 forge_route::start_status_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::FOLLOW_CODE {
@@ -728,14 +732,15 @@ fn step_made(
         domain.work.push(Work::Forge(forge::Event::TierWords { task, words: row.spec.words.clone() }));
     }
     if let Some(pending) = domain.forge_delegating.remove(&(task, step)) {
-        if let Some(kind) = pending.delegate
+        if let Some((kind, close_at)) = pending.delegate
             && let Some(child) = child
         {
-            if kind == super::forge_change::Delegate::Close {
-                forge_route::close_made(domain, task, child);
-            }
             // Jobs prepare at activation, after their parent row names them.
-            super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind });
+            let event = match close_at {
+                Some(at) => forge::Event::CloseDelegated { task, child, at },
+                None => forge::Event::Delegated { task, child, kind },
+            };
+            super::forge_event(domain, env, decision, event);
         }
         if let Some(relayed) = pending.relayed {
             let event = match pending.refusal {

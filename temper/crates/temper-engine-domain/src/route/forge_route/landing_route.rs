@@ -1,5 +1,5 @@
 //! Deployment-funded landing tasks and their authorized steps (domain/landing.md, 4.2, 11).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 //! Task-first admission and refused trains follow domain/landing-forming.md, 2 and 3.
 use super::{
     Box, Domain, EffectDescription, EffectForm, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Recovery,

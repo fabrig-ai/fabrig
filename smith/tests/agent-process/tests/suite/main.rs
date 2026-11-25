@@ -13,6 +13,7 @@ mod list;
 mod memory;
 mod open_opening;
 mod orders;
+mod orphan;
 mod parts;
 mod program;
 mod program_budget;
@@ -25,6 +26,7 @@ mod program_tools;
 mod program_turns;
 mod provider_faults;
 mod signals;
+mod silence;
 mod stories;
 
 mod fuzzy {

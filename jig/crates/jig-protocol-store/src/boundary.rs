@@ -708,7 +708,8 @@ pub enum Event {
     Rehearsing {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
-        openings: Box<[WorkerOpening]>,
+        openings: Box<[KeptOpening]>,
+        workers: Option<Box<[KeptWorker]>>,
         linked: u32,
         copied: u32,
     },
@@ -877,6 +878,21 @@ pub struct KeptWire {
     pub version: u32,
 }
 
+/// An opening kept for rehearsal (protocol/store/opening-rehearsal.md, 1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum KeptOpening {
+    Current(WorkerOpening),
+    BeforeLayouts { worker: Box<str> },
+}
+
+/// A stored change of the worker setting (protocol/store/opening-rehearsal.md, 1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct KeptWorker {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub withdrawn: bool,
+}
+
 /// A worker's last authenticated opening (protocol/store/opening-rehearsal.md 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct WorkerOpening {
@@ -887,12 +903,12 @@ pub struct WorkerOpening {
     pub at: skein_lib::Wall,
 }
 
-/// A wire's lowest version and ordered layouts (protocol/store/opening-rehearsal.md 1).
+/// A wire as stated in the worker's credential (protocol/store/records.md, 3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OpenedWire {
     pub name: Box<str>,
-    pub lowest: u16,
-    pub layouts: Box<[[u8; 32]]>,
+    pub layout: [u8; 32],
+    pub text: Box<[u8]>,
 }
 
 /// An opening term's largest supported value (protocol/store/opening-rehearsal.md 1).

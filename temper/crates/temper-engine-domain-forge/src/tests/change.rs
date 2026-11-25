@@ -780,6 +780,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
                 no_test: false,
                 delegate_live: false,
                 review_request: None,
+                closer_waiting: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,
@@ -1757,6 +1758,7 @@ fn waiting_step(live: bool, released: bool) -> Event {
         entry: fixtures::OPEN + 1,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

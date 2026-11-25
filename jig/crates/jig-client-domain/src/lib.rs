@@ -14,8 +14,6 @@ mod reads;
 mod requests;
 mod text;
 mod watches;
-/// The small-store version of keyed client request records.
-pub const TABLE_VERSION: u16 = 2;
 pub use boundary::*;
 pub use domain::{Domain, fire, next_deadline, reclaim, step};
 pub use limits::{AccountCounts, Backoff, Limits, VALUE_BYTES, valid};

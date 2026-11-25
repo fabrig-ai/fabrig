@@ -141,7 +141,7 @@ with no override. What is jig's:
 
 ### 2.1 An application's elements and components
 
-skein's (skein's `ui/web/elements.md`, 1; skein's `ui/README.md`, section 10). jig
+skein's (skein's `ui/web/elements.md`, 5; skein's `ui/README.md`, section 10). jig
 gives no element and no component, and the reference UI's nodes keep the
 default table: an application's override names one of its own owners'
 tokens or kinds, never jig's. What a component builds keeps to its

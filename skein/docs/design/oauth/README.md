@@ -516,8 +516,10 @@ configuration; provider-specific admission remains with those consumers.
   keep their ordering and the remaining story branches; the open item is
   `skein/docs/development/debt/D048-oauth-accounts-world-copies.md`.
 - **A private file's record of an older version.** Default: unreadable,
-  and its account signs in again (`accounts.md`, 4); skein-oauth could patch it as it
-  loads, with its own patch set, as jig patches transcripts as read.
+  and its account signs in again (`accounts.md`, 4); skein-oauth could
+  keep each layout's text beside its records and convert an older one as
+  it loads, by a layout plan (`../data/codec/layouts.md`), as jig's store
+  converts its transcripts' frames.
 
 - **A `localhost` redirect and IPv6.** The listener binds 127.0.0.1 only. A
   browser that resolves `localhost` to `::1` and does not fall back would

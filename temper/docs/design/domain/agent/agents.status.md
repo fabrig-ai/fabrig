@@ -1,6 +1,6 @@
 # agents: status
 
-2026-11-18. Where the tree's code lags or departs from [agents.md](agents.md).
+2026-11-24. Where the tree's code lags or departs from [agents.md](agents.md).
 
 
 - **Not yet:** 3, *What a document draws*: `chat.txt` and `drafter.txt`

@@ -39,7 +39,8 @@ pub fn configuration(directory: &Path) -> codec::View {
 #[expect(clippy::must_use_candidate, reason = "configuration checks use the written files without the store limits")]
 pub fn configuration_at(directory: &Path, address: &str, peers: Peers) -> codec::View {
     support::write_configuration_fixtures(directory);
-    let documents = configuration_documents(directory, address, peers, &skein_scratch::paths::binary("jig-test"));
+    let documents =
+        configuration_documents(directory, address, peers, &skein_scratch::paths::built("jig-test", "jig-test"));
     support::private(&directory.join("config.json"), &documents.deployment);
     let limits = store_limits(&documents.deployment);
     support::private(&directory.join("agent.json"), &documents.agent);

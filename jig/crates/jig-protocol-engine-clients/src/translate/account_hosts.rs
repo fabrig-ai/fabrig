@@ -9,12 +9,7 @@ pub(super) fn encode(rows: &[p::AccountHostFailure]) -> Result<List<w::AccountHo
     }
     let mut out = List::with_capacity(count);
     for row in rows {
-        let why = match row.why {
-            p::AccountHostWhy::NotInContact => w::AccountHostWhy::NotInContact,
-            p::AccountHostWhy::Lost => w::AccountHostWhy::Lost,
-            p::AccountHostWhy::Failed => w::AccountHostWhy::Failed,
-        };
-        let row = w::AccountHostFailure { name: row.name.clone(), why };
+        let row = crate::generated::client::account_host_failure_to_record(row);
         if out.push(row).is_err() {
             return Err(count_problem_value());
         }

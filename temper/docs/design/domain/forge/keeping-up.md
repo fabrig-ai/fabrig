@@ -458,7 +458,7 @@ for it, never a read of another kind or another party's.
   never the combined status alone, which on GitHub stays pending with no
   status at all while Actions' check runs end. Which rows are CI is the
   adoption's: where the landing branch's rules name required checks
-  (`adoption.md`, 4, `Protection`'s contexts), those contexts, each of which must
+  (`adoption.md`, 8, `Protection`'s contexts), those contexts, each of which must
   have reported; otherwise every row but temper's own verdicts,
   `temper/verdict/<tier>` (`../after-landing.md`, section 9), which
   judge a commit after it landed and are not its CI, so that a red

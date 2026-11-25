@@ -5,6 +5,8 @@ Files are a machine of their own beside io's: `FileIo`
 service holds both, submits the records of each to the one kernel, and
 hands each completion back to the machine whose operation it was.
 
+## 1. The file machine
+
 The operation's token says whose: `file_layer::owns(op)`. `FileIo` mints
 its tokens with `file_layer::LANE`, bit 59, set. `Io`'s never have it: a
 flight's token holds its slot in its top 32 bits, and `valid` refuses an
@@ -26,6 +28,8 @@ replacing store and a private opening are each one enum, whose every state holds
 the descriptors open in it and what it still needs, with no field beside the state
 for a phase. A store settling a failure holds the failure and the step of cleanup
 it has reached.
+
+## 2. File requests and events
 
 ```rust
 // skein_io::file
@@ -77,6 +81,8 @@ pub enum Request {
 // each request ends in one event: its own, Failed { error } or Cancelled
 ```
 
+## 3. Roots and whole or open files
+
 - **Paths resolve beneath a root.** A root is an open directory. Every
   request names one, and a path relative to it that the kernel resolves
   beneath it (`openat2` with `RESOLVE_BENEATH`), so neither `..` nor a
@@ -102,7 +108,7 @@ pub enum Request {
   them; every other field prints as derived. So does `FileIo`'s own
   `Debug`, for the contents it holds while a store, a read or a load is
   in flight. A trace of a stored record, a credential's among them,
-  shows none of it (3).
+  shows none of it (11).
 - **Open files** stay open across requests, behind tokens, up to the
   number the driver is made with. `ReadAt` and `WriteAt` work at an
   offset, and io continues a short transfer until the request is met or
@@ -110,7 +116,7 @@ pub enum Request {
   `SyncDirectory` a directory's entries. These are what ../../data/kv.md's log
   segments need (../../data/kv.md, section 8).
 - **What a request makes by a path, io makes durable** before it
-  answers: `Store` after its directory's `Sync` (2); `MakeDirectory`
+  answers: `Store` after its directory's `Sync` (10); `MakeDirectory`
   after a `Sync` of the directory it made the new one in; `OpenPrivate`,
   when it made its directory, after the same, before it opens it. io
   holds that directory open, having opened it to make the name (below),
@@ -120,6 +126,9 @@ pub enum Request {
   beneath a root it holds open (`Create`, `Rename`, `Remove`, and the
   entries of a directory io made) is durable once it syncs that root
   (`SyncDirectory`), as kv's segments are.
+
+## 4. Directory entries and locks
+
 - **Listing** comes whole or by pages. `List` reads a whole directory,
   and fails with `NoBufferSpace` past the driver's `max_entries`. A
   directory that may hold more is listed by pages: the owner opens it
@@ -156,6 +165,9 @@ pub enum Request {
   descriptor: until its `Close`, for a root `OpenDirectory` made, and
   until the process ends, for one the shell opened. There is no unlock.
   A spawned child never holds it.
+
+## 5. Metadata and filesystems
+
 - **A tree's metadata** is read and written by name, in a directory the
   owner holds open: a root, or one `OpenDirectory` made, named by its
   token, as `ListPage` names one. Each request is one record (../kernel-files.md,
@@ -183,6 +195,7 @@ pub enum Request {
   ID `from` up: a page shorter than 255 is the last, and after a full one
   the owner asks again from the last tree ID plus one. Off btrfs each
   fails `NotSupported`.
+
 - **These requests stall the loop.** Every one but `StatEntry`,
   `MakeLink` and `HardLink` is synchronous (../kernel.md, 6): it runs in the
   loop, at submit, and nothing stops it. A request's deadline cannot cut
@@ -190,6 +203,9 @@ pub enum Request {
   subvolume requests and `SyncFilesystem` are long even on a healthy
   disk (../kernel-files.md, 3). A service that must not stall makes them in a
   process of its own.
+
+## 6. Single-name changes
+
 - **Removing** takes one name. `Remove` removes a file, or, with
   `directory`, an empty directory, never what lies inside one: a
   directory that is not empty fails with the kernel's error, as
@@ -209,7 +225,7 @@ pub enum Request {
   the root, before it renames or removes that name or makes a directory
   there, and it stats what it has opened: a stat needs the file readable,
   but for the path-only open that names why a private open was denied
-  (3). Reads and writes may be short,
+  (11). Reads and writes may be short,
   and io continues them; a listing comes an entry count at a time, and
   io's stated count is a limit it checks as the entries come.
 - **Replacing a file, in order:** `Stat` the old file, opened to read, for
@@ -220,14 +236,14 @@ pub enum Request {
   new one survives a crash (../kernel-files.md, 1). `Absent` uses an atomic
   no-replace rename: any entry at the target makes it fail with `Conflict`.
   `Any` skips the conditional recheck and uses a replacing rename.
-  `Digest` rechecks the target before a replacing rename (2); a recheck
+  `Digest` rechecks the target before a replacing rename (10); a recheck
   is not a lock, so an outside writer can still race with that rename.
   `Stored` carries the new content's digest.
   - The temporary is named `<target>.skein-<16 hex>`: the target's name
     (its first 230 bytes), `.skein-`, and 16 lowercase hex digits drawn
     from io's seeded randomness. The name's shape is part of the
     contract, so that an owner's scan can tell io's temporaries from its
-    own names (2). A `Create` that finds the name taken
+    own names (10). A `Create` that finds the name taken
     (`Exists`) draws another.
   - The old file's permission bits are kept, never its setuid, setgid
     or sticky bits, which `Stat` also answers. A target that does not
@@ -235,6 +251,9 @@ pub enum Request {
     umask.
   - A symbolic link at the target is replaced by the file, not written
     through: the rename gives the link's own name the new file.
+
+## 7. Deadlines and memory
+
 - **One request at a time, each with a deadline:** the driver's timeout
   from when it starts, or the owner's own (`down_until`). At the
   deadline, or when the owner cancels, io cancels the operation in
@@ -243,7 +262,7 @@ pub enum Request {
   `Failed` with `TimedOut`, or `Cancelled`, if the stop won, and the
   request's own if the operation finished first. A store gives up only
   before its rename: once the new file is in place, it runs to the commit
-  terminal described in section 2. An operation that completes without
+  terminal described in section 10. An operation that completes without
   a `Cancel` (../kernel-files.md, 1: a `Stat`, `StatEntry`, `Rename`, `Remove`,
   `MakeDirectory`, `List` or `Lock`, and every operation of its sections
   6.4 and 6.5) always finishes first, so a request
@@ -260,12 +279,15 @@ pub enum Request {
   makes for the request in flight and hands up cut to their length, so
   one request holds at most 65,536 bytes for an attribute's list or
   value and 4,096 for a link's target or a subvolume's path.
-- **Beyond whole files:** a file appended to as a stream (1); the
-  durable replace that services keep their records with (2); and
-  private files, for secrets (3). A file read as a stream, by demand,
+
+## 8. Beyond whole files
+
+- **Beyond whole files:** a file appended to as a stream (9); the
+  durable replace that services keep their records with (10); and
+  private files, for secrets (11). A file read as a stream, by demand,
   comes when a user needs to read one too large to hold.
 
-## 1. Append streams
+## 9. Append streams
 
 A file written as the service goes, a trace or a log, is a stream like a
 write pipe's: lib's stream vocabulary (../lib-streams.md, 1), output only, driven by
@@ -289,7 +311,7 @@ file beside the loop (../../../foundation/programming-model.md, 2.1).
 - **The kernel's copy, not the disk's.** A write is done once the kernel
   took its bytes, which then outlive the process but not a crash of the
   machine. The stream does not sync; what must survive a crash is
-  replaced whole (2).
+  replaced whole (10).
 - **A write deadline gives up on a stalled filesystem.** A regular file
   has no peer to stop reading, but its filesystem may stall (../kernel-files.md,
   1), and a write that never completes would keep facts waiting in
@@ -321,7 +343,7 @@ file beside the loop (../../../foundation/programming-model.md, 2.1).
   takes more. One that may lose drops and counts when the room does not
   come (../../../foundation/programming-model.md, section 3).
 
-## 2. Durable replace
+## 10. Durable replace
 
 Replacing a file whole, in the order above, is how a service keeps a
 record it must neither lose nor tear: a store's file, a configuration it
@@ -375,7 +397,7 @@ run by io.
   retries with a replacing rename. `Digest` uses a replacing rename after
   its optimistic recheck: a recheck is not a lock, and an outside writer
   can change the target between that check and the rename.
-- **The mode** is the old file's, or `0o600` for a private file (3).
+- **The mode** is the old file's, or `0o600` for a private file (11).
 - **Its deadline** is the owner's, as for every whole-file operation. A
   replace that fails or times out before its rename removes its
   temporary before its one terminal, and leaves the old file as it was.
@@ -383,7 +405,7 @@ run by io.
 - **Not here:** updating part of a file, or a set of records larger than
   one write. Those are skein-kv's (../../data/kv.md).
 
-## 3. Private files
+## 11. Private files
 
 A secret a service keeps between runs, such as a token record or a key,
 lives in a private directory, readable by the service's user alone. io's
@@ -399,7 +421,7 @@ are the owner's (../../oauth/accounts.md).
   unsafe (a link, a non-directory, group or other bits, another owner),
   so an owner tells a planted file from a failed read.
 - **Private files are made `0o600`,** less the umask, which only takes
-  bits away, and are replaced whole with that mode (2), never with the
+  bits away, and are replaced whole with that mode (10), never with the
   old file's: a file found with group or other bits is not copied
   forward.
 - **Reading one checks what was opened:** a regular file, reached

@@ -1,0 +1,2 @@
+# Number the checkout's opening before splitting the document.
+renumber temper/docs/design/domain/worker/checkouts.md
