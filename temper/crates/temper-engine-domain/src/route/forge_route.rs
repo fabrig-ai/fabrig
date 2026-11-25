@@ -75,7 +75,6 @@ pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 mod close;
 pub(crate) mod delegate_record;
 mod merge;
-pub(crate) mod prepare;
 
 #[cfg(test)]
 mod tests;
