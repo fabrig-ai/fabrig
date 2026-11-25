@@ -36,7 +36,7 @@ fn sums_get() -> Request {
     get(b"/temper/v0/0123456789ab/SHA256SUMS")
 }
 fn file_get() -> Request {
-    get(b"/temper/v0/0123456789ab/Linux-x86_64/temper-box")
+    get(b"/temper/v0/0123456789ab/Linux-x86_64/temper-box.zst")
 }
 fn clean_request() -> Request {
     Request::Clean { directory: DIR.into() }
@@ -63,11 +63,11 @@ fn refusal(machine: &mut Find, request: Request, words: &str) {
 fn served(machine: &mut Find, body: &[u8], length: Option<u64>) {
     let mut hash = Sha256::new();
     hash.update(body);
-    let sums = joined(&[&hex(&hash.finish()), b"  Linux-x86_64/temper-box\n"]);
+    let sums = joined(&[&hex(&hash.finish()), b"  Linux-x86_64/temper-box.zst\n"]);
     assert_eq!(next(machine, head(None)), Request::Read);
     assert_eq!(next(machine, Event::Chunk(sums)), Request::Read);
     assert_eq!(next(machine, Event::Ended), file_get());
-    assert_eq!(next(machine, head(length)), Request::Open { file: joined(&[FILE, b".gz.part"]) });
+    assert_eq!(next(machine, head(length)), Request::Open { file: joined(&[FILE, b".zst.part"]) });
     assert_eq!(next(machine, Event::Done), Request::Say(Progress { done: 0, total: length.filter(|n| *n != 0) }));
     assert_eq!(next(machine, Event::Done), Request::Read);
 }
@@ -87,19 +87,19 @@ fn pieces() {
 #[test]
 fn sums_rules() {
     let hex = "0123456789abcdef".repeat(4);
-    let name = b"Linux-x86_64/temper-box";
+    let name = b"Linux-x86_64/temper-box.zst";
     let expected = [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef].repeat(4);
     for separator in ["  ", " *"] {
-        let text = format!("{hex}{separator}Linux-x86_64/temper-box\nnot-a-digest  Linux-x86_64/temper-engine\n");
+        let text = format!("{hex}{separator}Linux-x86_64/temper-box.zst\nnot-a-digest  Linux-x86_64/temper-engine\n");
         assert_eq!(sum(text.as_bytes(), name).unwrap().as_slice(), expected);
     }
-    let line = format!("{hex}  Linux-x86_64/temper-box\n");
+    let line = format!("{hex}  Linux-x86_64/temper-box.zst\n");
     for (text, expected) in [
-        (format!("{hex}  Linux-x86_64/temper-engine\n"), Sums::Missing),
+        (format!("{hex}  Linux-x86_64/temper-box\n"), Sums::Missing),
         (line.repeat(2), Sums::Doubled),
-        (format!("{}  Linux-x86_64/temper-box\n", &hex[..63]), Sums::Malformed),
-        (format!("{}  Linux-x86_64/temper-box\n", hex.to_uppercase()), Sums::Malformed),
-        (format!("{hex} Linux-x86_64/temper-box\n"), Sums::Malformed),
+        (format!("{}  Linux-x86_64/temper-box.zst\n", &hex[..63]), Sums::Malformed),
+        (format!("{}  Linux-x86_64/temper-box.zst\n", hex.to_uppercase()), Sums::Malformed),
+        (format!("{hex} Linux-x86_64/temper-box.zst\n"), Sums::Malformed),
         ("x".repeat(65_537), Sums::TooLong),
     ] {
         assert_eq!(sum(text.as_bytes(), name), Err(expected));
@@ -198,7 +198,7 @@ fn download_rows() {
                 next(
                     &mut machine,
                     Event::Chunk(
-                        format!("{}  Linux-x86_64/temper-box\n", "0".repeat(64)).into_bytes().into_boxed_slice()
+                        format!("{}  Linux-x86_64/temper-box.zst\n", "0".repeat(64)).into_bytes().into_boxed_slice()
                     )
                 ),
                 Request::Read
@@ -209,31 +209,9 @@ fn download_rows() {
         refusal(&mut machine, answer, "byte bound");
     }
     let mut machine = download();
-    served(&mut machine, b"", None);
-    let answer =
-        next(&mut machine, Event::Chunk(vec![0; usize::try_from(SERVED_BYTES + 1).unwrap()].into_boxed_slice()));
-    refusal(&mut machine, answer, "byte bound");
-    let mut machine = download();
     served(&mut machine, b"", Some(0));
     let answer = next(&mut machine, Event::Chunk(Box::new([0])));
     refusal(&mut machine, answer, "Content-Length");
-    for (body, unpacked, words) in [
-        (b"".as_slice(), Unpacked::File { digest: [3; 32], bytes: UNPACKED_BYTES + 1 }, "512 MiB"),
-        (b"", Unpacked::Invalid, "gzip"),
-    ] {
-        let mut machine = download();
-        served(&mut machine, body, None);
-        assert_eq!(
-            next(&mut machine, Event::Ended),
-            Request::Unpack {
-                archive: joined(&[FILE, b".gz.part"]),
-                part: joined(&[FILE, b".part"]),
-                bound: UNPACKED_BYTES
-            }
-        );
-        let answer = next(&mut machine, Event::Unpacked(unpacked));
-        refusal(&mut machine, answer, words);
-    }
     let mut machine = download();
     served(&mut machine, b"", None);
     assert_eq!(next(&mut machine, Event::Chunk(Box::new([1]))), Request::Write(Box::new([1])));
@@ -247,7 +225,7 @@ fn download_rows() {
         assert_eq!(
             next(&mut machine, Event::Ended),
             Request::Unpack {
-                archive: joined(&[FILE, b".gz.part"]),
+                archive: joined(&[FILE, b".zst.part"]),
                 part: joined(&[FILE, b".part"]),
                 bound: UNPACKED_BYTES
             }
@@ -267,6 +245,64 @@ fn download_rows() {
         assert_eq!(next(&mut machine, Event::Done), Request::End(Ok(FILE.into())));
     }
 }
+#[test]
+fn a_legacy_or_doubled_sums_body_refuses_before_download() {
+    let digest = "0".repeat(64);
+    let line = format!("{digest}  Linux-x86_64/temper-box.zst\n");
+    for (sums, words) in [
+        (format!("{digest}  Linux-x86_64/temper-box\n"), "missing temper-box line"),
+        (line.repeat(2), "doubled temper-box line"),
+    ] {
+        let mut machine = download();
+        assert_eq!(next(&mut machine, head(None)), Request::Read);
+        assert_eq!(next(&mut machine, Event::Chunk(sums.into_bytes().into_boxed_slice())), Request::Read);
+        let answer = next(&mut machine, Event::Ended);
+        refusal(&mut machine, answer, words);
+    }
+}
+
+#[test]
+fn served_body_admits_through_128_mib_then_refuses() {
+    let mut machine = download();
+    served(&mut machine, b"", None);
+    // Account for the earlier chunks without allocating or hashing 128 MiB.
+    machine.total = SERVED_BYTES - 1;
+    machine.said = machine.total;
+    assert_eq!(next(&mut machine, Event::Chunk(Box::new([0]))), Request::Write(Box::new([0])));
+    assert_eq!(next(&mut machine, Event::Done), Request::Say(Progress { done: SERVED_BYTES, total: None }));
+    assert_eq!(next(&mut machine, Event::Done), Request::Read);
+    let answer = next(&mut machine, Event::Chunk(Box::new([0])));
+    refusal(&mut machine, answer, "body past byte bound");
+}
+
+#[test]
+fn unpacking_faults_refuse_with_the_artifact_url() {
+    for (unpacked, words) in [
+        (Unpacked::Truncated, "truncated zstd frame"),
+        (Unpacked::Damaged, "damaged zstd frame"),
+        (Unpacked::TooLong, "unpacked file past 512 MiB"),
+        (Unpacked::File { digest: [3; 32], bytes: UNPACKED_BYTES + 1 }, "unpacked file past 512 MiB"),
+        (Unpacked::Trailing, "zstd frame followed by other bytes"),
+    ] {
+        let mut machine = download();
+        served(&mut machine, b"", None);
+        assert_eq!(
+            next(&mut machine, Event::Ended),
+            Request::Unpack {
+                archive: joined(&[FILE, b".zst.part"]),
+                part: joined(&[FILE, b".part"]),
+                bound: UNPACKED_BYTES,
+            }
+        );
+        assert_eq!(next(&mut machine, Event::Unpacked(unpacked)), clean_request());
+        let Request::End(Err(why)) = next(&mut machine, Event::Done) else { panic!("refusal") };
+        assert_eq!(
+            core::str::from_utf8(&why.words()).unwrap(),
+            format!("temper-box: https://site.test/temper/v0/0123456789ab/Linux-x86_64/temper-box.zst: {words}")
+        );
+    }
+}
+
 #[test]
 fn redirect_rows() {
     for (location, follow) in [
@@ -364,7 +400,7 @@ fn progress_rows() {
         assert_eq!(
             answer,
             Request::Unpack {
-                archive: joined(&[FILE, b".gz.part"]),
+                archive: joined(&[FILE, b".zst.part"]),
                 part: joined(&[FILE, b".part"]),
                 bound: UNPACKED_BYTES
             }
