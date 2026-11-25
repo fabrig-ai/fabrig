@@ -7,7 +7,13 @@ import subprocess
 import sys
 
 
-TAG = re.compile(rb'\s\[in flight: ([^\]\r\n]*)\][.,;:!?]*[ \t\r]*$')
+# Keep the tag's form in step with tools/citations/status.py's TAG.
+BREAK = rb'(?<![ \t])[ \t]*\r?\n[ \t]+'
+SPACE = rb'(?:' + BREAK + rb'| )'
+# In TEXT only assert indentation when matching a break; fold it afterward.
+TAG = re.compile(rb'(?:' + BREAK + rb'|[^\S\n])(?P<bracket>\[)in' + SPACE + rb'flight:'
+                 + SPACE + rb'(?P<text>(?:[^\]\r\n]|\r?\n(?=[ \t]))*)\]'
+                 rb'[.,;:!?]*[ \t\r]*\n?\Z')
 CHANGE = re.compile(rb'change ([0-9]+)')
 
 
@@ -46,8 +52,7 @@ def file_lines(text):
     return [part + b'\n' for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
 
 
-def entries(text):
-    lines = file_lines(text)
+def entries(lines):
     found = []
     labels = []
     index = 0
@@ -67,30 +72,29 @@ def entries(text):
         else:
             bounds = [(start, index)]
         for first, end in bounds:
-            tag = TAG.search(lines[end - 1])
-            found.append((first, end, tag[1] if tag is not None else None))
+            tag = TAG.search(b''.join(lines[first:end]))
+            if tag is not None:
+                found.append((first, end, tag))
     return found, labels
 
 
 def settle(text, ends):
     lines = file_lines(text)
     kept = []
-    found, labels = entries(text)
+    found, labels = entries(lines)
     for start, end, tag in found:
-        if tag is None:
-            continue
-        change = CHANGE.fullmatch(tag)
+        name = re.sub(BREAK, b' ', tag['text'])
+        change = CHANGE.fullmatch(name)
         task = int(change[1]) if change is not None else None
         if task not in ends:
-            kept.append((end, tag.decode('utf-8', errors='backslashreplace')))
-        elif ends[task]:
-            # Keep offsets stable until empty labels have been checked.
-            lines[start:end] = [b''] * (end - start)
-        else:
-            last = lines[end - 1]
-            match = TAG.search(last)
+            line = start + 1 + tag.string.count(b'\n', 0, tag.start('bracket'))
+            kept.append((line, name.decode('utf-8', errors='backslashreplace')))
+            continue
+        # Keep offsets stable until empty labels have been checked.
+        lines[start:end] = [b''] * (end - start)
+        if not ends[task]:
             # Keep the last line's ending and the bytes after the tag.
-            lines[end - 1] = last[:match.start()] + last[match.end(1) + 1:]
+            lines[start] = tag.string[:tag.start()] + tag.string[tag.end('text') + 1:]
     for start, end in labels:
         if not any(lines[start + 1:end]):
             lines[start] = b''

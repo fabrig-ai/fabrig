@@ -181,9 +181,6 @@ pub(crate) type ServiceHost = temper_playground::service::ServiceHost<OneProcess
 impl Harness for OneProcess {
     type Service = ServiceObserver;
     type Process = HarnessProcess;
-    fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
-        crate::across_versions::worker_wires()
-    }
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         OWNER_SETS.with(std::cell::Cell::get)
     }
@@ -369,7 +366,7 @@ impl Observe for ServiceObserver {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
         while let Some(note) = service.notes().pop() {
-            crate::across_versions::note(&note);
+            crate::worker_openings::note(&note);
             if stories::playground() {
                 eprintln!("story A at {} ns: service {note:?}", now.as_nanos());
             }

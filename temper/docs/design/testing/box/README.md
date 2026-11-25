@@ -23,6 +23,7 @@ Provisional, 2026-11-24. Where `temper-box`'s own checks run: which of its test 
   - `cluster_turn::Engine`: the cluster-turn engine's configuration and its agents' setting, with the spend it leaves for preparation.
   - `forge_land::rung::DeploymentProfile`: B0's directories, start document, configuration and agents.
   - `temper_agent_fixtures::Setting`: the agents' setting composed from figures and providers, encoded as its `agents.setting` copy and laid as the agent's and the providers' files (section 3.4).
+- **What the kit hands an engine beside its documents** is admitted as the served engine takes it, so a drift reddens here, not in the slow binaries: a cluster's bindings, each bound once, every member's argv, environment and files rendering from them, the deployment's binaries in place included; the figures a subprocess story's bootstrap holds in `limits-held`, resolved by `startup::resolve_limits` over the sources that engine's serve takes (its agent's declaration, or none for an engine alone) and no typed base; and the bootstrap's settings change, one that changes a fresh deployment's settings, or none made. The kit takes each floor and derivation from the service, never from a copy of its lists.
 
 ### 2.2 The shells' step tests
 

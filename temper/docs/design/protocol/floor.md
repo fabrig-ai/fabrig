@@ -21,8 +21,8 @@ temper hands them, its fixture and its policy.
   older store.
 - **Formats outside the registry are fixed at their versions** (2).
   The transcripts' frames register their layouts (jig's
-  `protocol/store/transcripts.md`, 6); the wires' patches keep their own
-  rules.
+  `protocol/store/transcripts.md`, 6); the wires keep their own rules
+  (`wires.md`, 3).
 - **One golden deployment at the floor** opens and serves with the
   production owner sets; a copy without its floor is refused (5).
 - **Dev's build's image opens too** (5): the settled image as the build
@@ -224,16 +224,15 @@ start afresh. Staging is made again at dev's build for each drill
   an executor, conversion at read, or registration (`AGENTS.md`, 2).
   The transcripts' frames are registered and converted as read (jig's
   `protocol/store/transcripts.md`, 6).
-- **`tests/boundary/tests/patches.rs` holds the wires and the formats
-  outside the registry.** Its owner inventory covers the crates with
-  `schema/kept/`; `patch_modules_are_current` checks their generated
-  modules, and mutations pin an added field without a patch and a
-  landed kept text edited. The stored-change comparison reads landed
-  files at the merge base with `origin/main` (or `HEAD` without it;
-  during a landing merge, `MERGE_HEAD`). It is not a registered-family
-  patch gate. Each format's byte tests, the schemas' records drift,
-  built-value round trips, registry tests and the
-  golden deployment's outcomes stand beside it.
+- **No patch history is kept** for any format or wire (temper's
+  `draft/layouts-both-ways.md`, 9): a format outside the registry is
+  held by its byte tests, the schemas' records drift, built-value round
+  trips, registry tests, the golden deployment's outcomes and the guard
+  below.
+- **The base,** for a gate that compares a landing with what landed (the
+  host tools' contract and the clients' families, `wires.md`, 7 and 9):
+  files as they are at the merge base with `origin/main` (or `HEAD`
+  without it; during a landing merge, `MERGE_HEAD`).
 - **The deployed layouts are guarded.** A focused test holds every
   family the production owner sets declare (2), and the client's kept
   records (jig's `client/domain/view-state.md`), against the texts of
@@ -260,15 +259,18 @@ start afresh. Staging is made again at dev's build for each drill
     same version, every declaration both texts hold keeps its layout's
     fingerprint (skein's `data/codec/fingerprints.md`, 1.4), so names and
     comments may change and a declaration no row is read by may go; a
-    family whose version moved passes where its patch from the kept
-    version is in the tree (skein's `data/codec/command.md`, 2).
+    family whose version moved passes where the guard names that move
+    with the section designing how dev.fabrig.ai's store gets there: the
+    openings' family, 1 to 2, whose rows of 1 are read by their head
+    alone and cleared at the next start (jig's
+    `protocol/store/records.md`, 3, *The workers' openings*).
   - **Inventory:** each family the sets declare is kept at each build,
     or is new since it; a family that was stored at a build and is
     neither in its directory nor new fails, so a new stored family joins
     the guard.
   - **Its failure** names the build, the family, the value type or
     declaration, and the rule: a default (`= value`), a former name
-    (`was`), a written job, or a version move with its patch.
+    (`was`), a written job, or a version move the guard names.
   - **The builds move** by a landing after dev.fabrig.ai is redeployed:
     the new build's texts are added beside the others, its image
     replaces dev's (5), and a build's texts go only once dev's registry
@@ -284,10 +286,10 @@ start afresh. Staging is made again at dev's build for each drill
   text opens with the production sets in a new generation and reads each
   row back; a second open writes nothing. The guard's own mutations pin
   the red findings' defaults.
-- **The wires' rule is unchanged** (`wires.md`, 3): a layout change
-  moves its wire version, keeps the old text and brings its patch and
-  reverse or breaking declaration. A store's floor promises no wire
-  compatibility of its own.
+- **The wires' rule is their own** (`wires.md`, 3): versions frozen, a
+  layout change made in the current text alone, converted by the
+  engine's plans. A store's floor promises no wire compatibility of its
+  own.
 
 ## 7. Stories through an upgrade
 

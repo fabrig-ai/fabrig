@@ -365,7 +365,7 @@ pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     super::limit_settings::install_paths(&[config.into(), data.into(), cache.into()]);
     let binary = Binary::start(
         Command {
-            program: skein_scratch::paths::binary("temper-box").with_file_name(binary),
+            program: skein_scratch::paths::built("temper-box", "temper-box").with_file_name(binary),
             arguments: vec![
                 "serve".into(),
                 "--config".into(),

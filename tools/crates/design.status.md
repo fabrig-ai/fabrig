@@ -1,6 +1,8 @@
 # design: status
 
-2026-11-18. Where the repository lags or departs from [design.md](design.md).
+2026-11-24. Where the repository lags or departs from [design.md](design.md).
+
+- **Not yet:** 3.2: `temper-box-kit`, `jig-test-kit` and `smith-end-to-end-kit` take their binaries from `paths::binary`, and the boundary suite has no check refusing it [in flight: change 17066].
 
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `jig-protocol-store` until its split [in flight: change 5418].
 

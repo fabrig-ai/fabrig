@@ -1,7 +1,7 @@
 use jig_client_protocol_wire::Record as _;
 mod fake_box;
 
-use skein_fake_machine::{Item, Machine};
+use skein_fake_machine::{How, Item, Machine};
 use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Op, ServiceSignal, Submit},
@@ -14,9 +14,10 @@ use skein_ui_screen_terminal::{Depth, ENTER, LEAVE};
 use temper_client_shell_tui::{
     limits,
     opener::Opener,
-    run::{Run, Settings},
+    run::{PreparedOrigin, Run, Settings},
+    start,
 };
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Note, Origin, Scheme};
 
 const USER: u32 = 1000;
 const SEED: u64 = 7;
@@ -58,6 +59,8 @@ struct World {
     bound: std::collections::BTreeSet<Token>,
     hold_link: bool,
     connects: Vec<io::Addr>,
+    handed_preparations: usize,
+    handed_opens: usize,
     run: Run,
     now: Time,
     wall: Wall,
@@ -255,6 +258,8 @@ impl World {
             bound: std::collections::BTreeSet::new(),
             hold_link: false,
             connects: Vec::new(),
+            handed_preparations: 0,
+            handed_opens: 0,
             run,
             now: Time::ZERO,
             wall: Wall::EPOCH,
@@ -336,6 +341,7 @@ impl World {
                     self.children.push(fake_box::Child::new(&mut self.sim, self.pid, pidfd, boxed, !self.hold_link));
                 }
                 self.run.iterate(self.now, Wall::from_nanos(self.wall.as_nanos() + self.now.as_nanos()));
+                self.prepare_handed();
                 runnable = self.run.work_pending(self.now);
             }
             self.inspect_submissions();
@@ -396,6 +402,22 @@ impl World {
         );
     }
 
+    fn prepare_handed(&mut self) {
+        let Some(origin) = self.run.handed_origin() else { return };
+        assert_eq!(origin.print().as_ref(), HANDED_ADDRESS);
+        self.handed_preparations += 1;
+        // The simulated startup has already prepared the common host directory.
+        let root = self.files.reopen_root(0);
+        let parent = self.files.open(root, b"tui/at/127.0.0.1", How::Directory).expect("host directory");
+        match self.files.make_directory(parent, b"8367", 0o700) {
+            Ok(()) | Err(skein_fake_machine::Refusal::Exists) => {}
+            Err(why) => panic!("handed directory fixture: {why:?}"),
+        }
+        self.files.close(parent);
+        self.files.close(root);
+        self.run.prepared_origin(Ok(PreparedOrigin { directory: HANDED_DIRECTORY.into(), theme: None, note: None }));
+    }
+
     fn inspect_submissions(&mut self) {
         for submit in self.run.submissions().iter() {
             if let Op::Spawn { spawn } = &submit.kind {
@@ -435,6 +457,11 @@ impl World {
                 } else {
                     assert!([b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref()));
                 }
+            }
+            if let Op::Open { path, how: io::kernel::OpenHow::ReadNoFollow, .. } = &submit.kind
+                && path.as_ref() == b"8367"
+            {
+                self.handed_opens += 1;
             }
             if let Op::Connect { addr, .. } = &submit.kind {
                 self.connects.push(io::Addr::Ip(*addr));
@@ -2292,6 +2319,9 @@ fn the_box_ending_while_lent_leaves_the_login_to_its_end() {
     world.end_loan_world();
 }
 
+const HANDED_ADDRESS: &[u8] = b"http://127.0.0.1:8367";
+const HANDED_DIRECTORY: &[u8] = b"tui/at/127.0.0.1/8367";
+const STARTING_ADDRESS: &[u8] = b"http://127.0.0.1:9000";
 const HANDED_LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 #[test]
@@ -2374,7 +2404,7 @@ fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
         Recording::None,
         Some(Scheme::Dark),
         None,
-        false,
+        true,
         None,
         true,
     );
@@ -2411,6 +2441,65 @@ fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
     world.sim.assert_no_open_fds(world.pid);
     world.sim.assert_quiescent(world.pid);
     assert!(world.children.iter().all(|child| child.finished));
+    assert_eq!(world.files.open_handles(), 0);
+    assert_eq!(world.handed_preparations, 1);
+    let root = world.files.reopen_root(0);
+    assert_eq!(mode(&mut world.files, root, HANDED_DIRECTORY), Some(0o700));
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/8367/token"), Some(0o600));
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/9000/token"), None);
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/8367/sign-in"), Some(0o600));
+    assert_eq!(mode(&mut world.files, root, b"tui/at/127.0.0.1/9000/sign-in"), None);
+    let saved = Origin::parse(STARTING_ADDRESS).expect("start address");
+    start::update_address(Some(&saved), world.run.signed_in(), |bytes| {
+        // The fake answers the binary's post-run address store.
+        let file = world.files.open(root, b"tui/address", How::Create { mode: 0o600 }).expect("address file");
+        world.files.write(file, 0, &bytes).expect("kept address");
+        world.files.close(file);
+    });
+    world.files.close(root);
+    assert_eq!(world.file(b"tui/address"), Some((HANDED_ADDRESS.to_vec(), 0o600)));
+}
+
+fn mode(files: &mut Machine, root: skein_fake_machine::Opened, name: &[u8]) -> Option<u32> {
+    let file = files.open(root, name, How::PathNoFollow).ok()?;
+    let mode = files.stat(file).mode & 0o777;
+    files.close(file);
+    Some(mode)
+}
+
+#[test]
+fn a_same_origin_front_opens_its_directory_once() {
+    let mut files = Machine::for_user(USER);
+    let root = files.lay(&[
+        Item::directory(b"tui").mode(0o700),
+        Item::directory(b"tui/at").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1").mode(0o700),
+        Item::directory(HANDED_DIRECTORY).mode(0o700),
+    ]);
+    files.close(root);
+    let mut world = World::front_configured(
+        false,
+        true,
+        false,
+        Outcome::Success,
+        Recording::None,
+        Some(Scheme::Dark),
+        None,
+        false,
+        None,
+        true,
+        Config::calm(),
+        Some(files),
+        Some((8367, None)),
+    );
+    world.settle();
+    assert_eq!(world.run.signed_in().map(Origin::print).as_deref(), Some(HANDED_ADDRESS));
+    world.draining = true;
+    world.keys(b"\x03");
+    assert_eq!(world.run.exit(), Some(Exit::Code(0)));
+    assert_eq!(world.handed_preparations, 0);
+    assert_eq!(world.handed_opens, 1);
+    world.sim.assert_no_open_fds(world.pid);
     assert_eq!(world.files.open_handles(), 0);
 }
 

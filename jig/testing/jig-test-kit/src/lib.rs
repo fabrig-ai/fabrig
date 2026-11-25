@@ -53,7 +53,7 @@ pub fn configuration(directory: &Path) {
 #[must_use]
 pub fn configuration_value(directory: &Path) -> serde_json::Value {
     write_configuration_fixtures(directory);
-    deployment_value(directory, &skein_scratch::paths::binary("jig-test"))
+    deployment_value(directory, &skein_scratch::paths::built("jig-test", "jig-test"))
 }
 fn write_configuration_fixtures(directory: &Path) {
     for name in ["secrets", "charters", "state", "agent-root"] {
@@ -94,7 +94,7 @@ fn deployment_value(directory: &Path, program: &Path) -> serde_json::Value {
 pub fn start(directory: &Path) -> Binary {
     Binary::start(
         Command {
-            program: skein_scratch::paths::binary("jig-test"),
+            program: skein_scratch::paths::built("jig-test", "jig-test"),
             arguments: vec!["serve".into(), "config.json".into()],
             directory: directory.into(),
             environment: std::env::vars_os().filter(|(name, _)| name == "PATH").collect(),

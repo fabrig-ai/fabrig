@@ -224,7 +224,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         .collect();
     Outcome {
         restart: views.restart.evidence.clone(),
-        figures: worker.into_iter().flat_map(|wire| wire.frames.iter()).filter(|(_, kind, _)| *kind == 0x0190).map(|(_, _, body)| jig_protocol_worker_wire::Figures::decode(&jig_protocol_worker_wire::CEILINGS, &mut skein_lib::Reader::new(body)).expect("figures record")).collect(),
+        figures: worker.into_iter().flat_map(|wire| wire.frames.iter()).filter(|(_, kind, _)| *kind == jig_protocol_worker_wire::Kind::Figures.number()).map(|(_, _, body)| jig_protocol_worker_wire::Figures::decode(&jig_protocol_worker_wire::CEILINGS, &mut skein_lib::Reader::new(body)).expect("figures record")).collect(),
         failed_starts: procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.failed_starts.ended) } else { None }).unwrap_or(0),
         durable_at_restart: views.durable_at_restart,
         held_at_restart: views.held_at_restart,

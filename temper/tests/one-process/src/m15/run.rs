@@ -227,7 +227,7 @@ impl Judge {
             && other.iter().any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished))
         {
             checkpoint(service, &self.store.borrow())?;
-            crate::across_versions::tasks(&self.store.borrow())?;
+            crate::worker_openings::tasks(&self.store.borrow())?;
             let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
                 return Err(String::from("unreachable"));
             };

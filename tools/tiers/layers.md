@@ -110,6 +110,7 @@ A focused test of `fabrig-boundary`, `tests/boundary/tests/layers.rs` (`.config/
 - a line whose layer the `layers` list doesn't name, a `layers` list with a name twice or without `step`, or anything at the top but that list and the trees' tables;
 - from `.config/nextest.toml`'s text, for a tree with a line at `real-loop` or `end-to-end`: no `[profile.real-TREE]`, or one whose `default-filter` doesn't name, by `binary_id(=ID)`, each such line of the tree, or names by `binary_id(=…)` an id that is no such line of the tree (section 9.2). A `real-TREE` profile for a tree with no such line is a finding too.
 - from `tools/tiers/packages.toml`, for each such tree: no `real-TREE` list, a package of one of those lines missing from it, or a package on it that is no such line's. The lines of binaries the slow tiers own by name, `browser_*`, `conformance_*`, `recorded_*`, `live` and `live_github`, need no package there, since the pair's clause leaves them out (section 9.2): the runner builds only the packages its list names, so a missing one's tests run nowhere.
+- from `tools/tiers/packages.toml`'s `[binaries]` table: a pair's list not sorted and unique by package then binary, which the runner refuses before any command (`tools/tiers/design.md`, 2.1).
 
 The check passes with no finding. Its findings are computed from the metadata's, the table's and the configuration's text, so its own tests run it on small fixtures of each, and once on the workspace's.
 

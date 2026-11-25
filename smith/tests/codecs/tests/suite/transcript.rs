@@ -1,11 +1,70 @@
-//! Turn wire boundaries (protocol/transcript.md, sections 2, 6 and 7).
+//! Turn wire boundaries and the store seed (protocol/transcript.md, sections 2, 6, 7 and 12).
 
 use crate::support::fixed_values::FixedValues;
 use smith_transcript::Record;
 
-use skein_codec::Reason;
+use skein_codec::{
+    Reason,
+    schema::{self, DeclIx, FieldIx, Held, Shape, Type},
+};
 use skein_lib::Reader;
 use smith_transcript::v8::{CEILINGS, Turn, paths};
+
+#[test]
+fn the_real_set_names_its_owner_family_root_and_mark() {
+    assert_eq!(smith_transcript::OWNER, "smith");
+    assert_eq!(smith_transcript::FAMILY, "smith-transcript");
+    assert_eq!(smith_transcript::ROOT, "Turn");
+    assert_eq!(smith_transcript::FRESH_WINDOWS, "fresh-windows");
+    let schema = schema::parse(smith_transcript::SCHEMA.as_bytes()).expect("runtime transcript schema");
+    assert_eq!(schema.spelled(schema.family()), smith_transcript::FAMILY.as_bytes());
+    let root = schema.find(smith_transcript::ROOT.as_bytes()).expect("Turn declaration");
+    assert!(matches!(schema.declaration(root).shape, Shape::Record { versioned: true, .. }));
+}
+
+#[test]
+fn the_store_seed_names_versions_seven_then_eight() {
+    let [older, current] = smith_transcript::SEED else { panic!("the seed has two texts") };
+    assert_eq!(
+        older.as_bytes(),
+        include_bytes!("../../../../crates/smith-transcript/schema/seed/smith-transcript-v7.schema")
+    );
+    assert_eq!(current.as_bytes(), smith_transcript::SCHEMA.as_bytes());
+    for (text, version) in [(*older, 7), (*current, 8)] {
+        let schema = schema::parse(text.as_bytes()).expect("seed transcript schema");
+        assert_eq!(schema.spelled(schema.family()), b"smith-transcript");
+        assert_eq!(schema.version(), version);
+    }
+}
+
+#[test]
+fn found_hits_holds_pieces_of_hit_read_from_the_schema() {
+    let schema = schema::parse(smith_transcript::wire::TEXT.as_bytes()).expect("runtime transcript schema");
+    let found = schema.find(b"Found").expect("Found declaration");
+    let hit = schema.find(b"Hit").expect("Hit declaration");
+    let mut held_fields = Vec::new();
+    for index in 0..schema.declarations() {
+        let declaration = DeclIx::new(index);
+        if let Shape::Record { first, count, .. } = schema.declaration(declaration).shape {
+            for offset in 0..count {
+                let field = schema.field(FieldIx::new(first.index() + offset));
+                let mut ty = field.ty;
+                loop {
+                    match schema.ty(ty) {
+                        Type::Bytes { held: Held::Pieces(item), .. } => {
+                            held_fields.push((declaration, schema.spelled(field.name), item));
+                            break;
+                        }
+                        Type::Bytes { held: Held::Record { .. }, .. } => panic!("unexpected held record"),
+                        Type::List { item, .. } | Type::Option(item) => ty = item,
+                        _ => break,
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(held_fields, [(found, b"hits".as_slice(), hit)]);
+}
 
 #[test]
 fn turn_fixed_values_decode_at_their_measured_length() {
@@ -149,49 +208,6 @@ fn a_first_turn_result_part_round_trips_without_becoming_a_whole_turn() {
     assert!(decode_turn(&bytes, 1, &CEILINGS, &endpoints).is_err());
     let piece = transcript_piece(&[bytes]).expect("one body");
     assert!(decode_transcript(&piece, 1, 1, &CEILINGS, &endpoints).is_err(), "parts never enter a transcript");
-}
-
-#[test]
-fn the_real_patch_reads_seven_and_only_interrupted_halts_going_back() {
-    use skein_codec::{
-        bridge::Bridge,
-        patch::{Capacity, Halt},
-    };
-    use smith_domain_tools::Outcome;
-    let capacity = Capacity { versions: 2, patches: 2, text: 16_384, bytes: 4096, nodes: 256 };
-    let mut bridge = smith_transcript::patches::kept::smith_transcript::bridge(capacity).expect("real bridge");
-    let kept = smith_transcript::patches::kept::smith_transcript::TEXTS[0];
-    let old = skein_codegen::fixed_values(&skein_codegen::parse(kept).expect("v7"))
-        .into_iter()
-        .find(|value| value.name == "record_turn_smallest.bin")
-        .expect("kept turn")
-        .bytes;
-    let patched = bridge.translate(7, 8, b"Turn", old.clone().into()).expect("patch v7");
-    let mut expected = old.clone();
-    expected[1] = 8;
-    assert_eq!(patched.as_ref(), expected);
-    assert_eq!(bridge.translate(8, 7, b"Turn", patched).expect("reverse old value").as_ref(), old);
-    for outcome in [
-        Outcome::Cancelled,
-        Outcome::Interrupted {
-            ran: Some(skein_lib::Duration::from_millis(42_900)),
-            head: b"building\n".as_slice().into(),
-            last: b"error: x\n".as_slice().into(),
-            dropped: 10,
-        },
-    ] {
-        let interrupted = matches!(outcome, Outcome::Interrupted { .. });
-        let turn = domain_turn(outcome);
-        let bytes = smith_protocol_translate::encode_turn(&turn, &CEILINGS, &endpoints()).expect("turn");
-        let result = bridge.translate(8, 7, b"Turn", bytes.clone());
-        if interrupted {
-            assert!(matches!(result, Err(Halt::Unheld(_))), "{result:?}");
-        } else {
-            let old = result.expect("existing outcome goes down");
-            assert_eq!(bridge.translate(7, 8, b"Turn", old).expect("round trip"), bytes);
-        }
-    }
-    assert_eq!(Bridge::total(&bridge, 7, b"Turn"), Some(false));
 }
 
 fn domain_turn(outcome: smith_domain_tools::Outcome) -> smith_domain_session::record::Turn {

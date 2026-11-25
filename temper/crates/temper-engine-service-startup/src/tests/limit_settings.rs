@@ -160,6 +160,24 @@ fn a_carrier_below_its_derivation_names_the_supplied_figure() {
     assert_eq!(startup::lines(&found).as_ref(), b"tasks.message_bytes (setting limits): 1024 bytes, short of the source's derivation, 63738 bytes; put limits-held in the data directory to start at the stock\ntasks.result_bytes (setting limits): 1024 bytes, short of the source's derivation, 63738 bytes; put limits-held in the data directory to start at the stock\n");
 }
 #[test]
+fn carrier_floors_take_the_larger_agent_or_setting_payload() {
+    const STOCK_PAYLOAD: u32 = 63_740;
+    const LARGER_PAYLOAD: u32 = 64_000;
+    const SMALL_PAYLOAD: u32 = 4_096;
+    let mut agent = inputs_for(true).agent.expect("local agent declaration");
+    let jig = [item(b"tasks.result_bytes", u64::from(SMALL_PAYLOAD - 2))];
+    let temper = [item(b"tool_payload", u64::from(SMALL_PAYLOAD))];
+    for (local_payload, expected) in [(None, STOCK_PAYLOAD - 2), (Some(LARGER_PAYLOAD), LARGER_PAYLOAD - 2)] {
+        let agent = local_payload.map(|payload| {
+            agent.tool_payload = payload;
+            &agent
+        });
+        let floors = startup::carrier_floors(agent, &jig, &temper).expect("carrier floors");
+        let (_, _, result) = floors.iter().find(|(_, name, _)| *name == b"tasks.result_bytes").expect("result floor");
+        assert_eq!(*result, u64::from(expected));
+    }
+}
+#[test]
 fn short_figures_name_the_kind_that_supplied_them() {
     let found = startup::resolve_limits(&inputs(), &[item(b"tasks.tasks", 0)], &[]).unwrap_err();
     let text = String::from_utf8(startup::lines(&found).into_vec()).unwrap();

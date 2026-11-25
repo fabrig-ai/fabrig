@@ -75,6 +75,10 @@ impl Files {
         self.io.seed_randomness(seed);
         self.root = Some(self.io.adopt_root(fd).expect("root room"));
     }
+    pub(crate) fn use_directory(&mut self, directory: Box<[u8]>) {
+        assert!(self.stage == Stage::Unopened && !self.closing, "choose the directory before loading files");
+        self.directory = directory;
+    }
     pub(crate) fn ready(&self) -> bool {
         self.stage == Stage::Ready && self.failure.is_none() && self.batches == 0 && self.credential.is_none()
     }
@@ -168,6 +172,13 @@ impl Files {
         }
         let root = self.root.unwrap_or(OWNER);
         match self.stage {
+            Stage::Unopened if self.closing => {
+                if let Some(file) = self.root {
+                    self.request(now, Stage::ClosingRoot, file::Request::Close { owner: OWNER, file });
+                } else {
+                    self.stage = Stage::Closed;
+                }
+            }
             Stage::Unopened if self.root.is_some() => self.request(
                 now,
                 Stage::Opening,

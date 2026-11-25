@@ -76,7 +76,6 @@ impl Host for ServiceHost {
         if let Some(probe) = &mut self.order_probe {
             probe.receive(now, self.service.completions(), &self.wire);
         }
-        self.failed_starts.receive(self.service.completions());
         for complete in self.service.completions().iter() {
             self.wire.complete(complete, self.worker, now);
             self.files.complete(complete);
@@ -101,7 +100,9 @@ impl Host for ServiceHost {
                     }
                 }
             }
-            if self.failed_starts.cut_record(&submit) {
+            if self.worker {
+                self.failed_starts.corrupt_open(&mut submit);
+            } else if self.failed_starts.cut_record(&submit) {
                 self.service.completions().push(kernel::Complete {
                     op: submit.op,
                     kind: submit.kind,

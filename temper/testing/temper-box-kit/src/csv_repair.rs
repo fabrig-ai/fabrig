@@ -44,7 +44,7 @@ const CONTRIBUTING: &str = "# Contributing\n\nEach pull request adds `changes/<i
 /// Generate the shipped configuration before installing the held fake's endpoint.
 pub fn initialize(paths: &[PathBuf; 3]) {
     let initialized = super::story_command::standalone(
-        std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+        std::process::Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
             .args(["init", "--box"])
             .args(
                 ["--config", "--data", "--cache"]

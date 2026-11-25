@@ -4,8 +4,6 @@ AgentEndpoint: ceilings encoded=155862 decoded=156160; at_most(3) encoded=146 de
 AgentFailure: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 AgentFailureValue: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Agents: ceilings encoded=9984904 decoded=10017792; at_most(3) encoded=491 decoded=1053
-Agreed: ceilings encoded=612 decoded=896; at_most(3) encoded=31 decoded=81
-AgreedWire: ceilings encoded=38 decoded=32; at_most(3) encoded=9 decoded=3
 Answer: ceilings encoded=83960888 decoded=83968000; at_most(3) encoded=135 decoded=69
 AnsweredCall: ceilings encoded=1048718 decoded=1048704; at_most(3) encoded=23 decoded=9
 ApplicationValue: ceilings encoded=8196 decoded=8192; at_most(3) encoded=7 decoded=3
@@ -23,7 +21,7 @@ CancelReasonValue: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Check: ceilings encoded=36 decoded=32; at_most(3) encoded=7 decoded=3
 Count: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 CountKind: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
-Credential: ceilings encoded=10161 decoded=10880; at_most(3) encoded=350 decoded=471
+Credential: ceilings encoded=526161 decoded=526336; at_most(3) encoded=161 decoded=216
 CredentialValue: ceilings encoded=8197 decoded=8192; at_most(3) encoded=8 decoded=3
 DeliveryAnswer: ceilings encoded=1048581 decoded=1048576; at_most(3) encoded=8 decoded=3
 DeliveryOutcome: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -141,7 +139,7 @@ UsageOutcome: ceilings encoded=4102 decoded=4096; at_most(3) encoded=95 decoded=
 UsageRead: ceilings encoded=4110 decoded=4096; at_most(3) encoded=103 decoded=177
 UsageWindow: ceilings encoded=59 decoded=32; at_most(3) encoded=30 decoded=3
 UsageWindows: ceilings encoded=476 decoded=704; at_most(3) encoded=94 decoded=177
-Wire: ceilings encoded=554 decoded=544; at_most(3) encoded=109 decoded=99
+Wire: ceilings encoded=65608 decoded=65568; at_most(3) encoded=46 decoded=6
 Work: ceilings encoded=16842762 decoded=16842752; at_most(3) encoded=16 decoded=6
 Workspace: ceilings encoded=1048588 decoded=1048576; at_most(3) encoded=15 decoded=3
 family: ceilings encoded=2485813962 decoded=2485898240; at_most(3) encoded=545 decoded=1134

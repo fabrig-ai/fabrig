@@ -1,9 +1,8 @@
 //! Keep/Read round trips over the `every` texts and one-edit pairs (skein/docs/design/data/codec/layouts.md, 2 and 6).
 
-use super::tests::{accepts_root, roots};
 use crate::support::generated;
 use skein_codec::layout::{Misconverted, Mode, Plan, Refused, Underived, Why, Workspace};
-use skein_codec::schema::{self, DeclIx, FieldIx, Root, Schema, Shape};
+use skein_codec::schema::{self, DeclIx, FieldIx, Root, Schema, Shape, Type, VariantIx};
 use skein_codec::value::Value;
 use skein_lib::{Buffer, Rng};
 
@@ -420,4 +419,46 @@ fn edited_every_layouts_round_trip_seeded_draws() {
             }
         }
     }
+}
+
+fn roots(schema: &Schema, decl: DeclIx) -> Vec<Root> {
+    if let Some(root) = schema.root(schema.spelled(schema.declaration(decl).name), None) {
+        return vec![root];
+    }
+    let leading = match schema.declaration(decl).shape {
+        Shape::Enum { .. } => decl,
+        Shape::Record { first, .. } => match schema.ty(schema.field(first).ty) {
+            Type::Named(at) => at,
+            Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Bool
+            | Type::Duration
+            | Type::Fixed(_)
+            | Type::Secret { .. }
+            | Type::Text(_)
+            | Type::Bytes { .. }
+            | Type::List { .. }
+            | Type::Option(_) => unreachable!("broad record"),
+        },
+    };
+    let Shape::Enum { first, count } = schema.declaration(leading).shape else { unreachable!("leading enum") };
+    (0..count)
+        .map(|offset| Root {
+            decl,
+            variant: Some(VariantIx::new(first.index().checked_add(offset).expect("variant index"))),
+        })
+        .collect()
+}
+
+fn accepts_root(schema: &Schema, root: Root, bytes: &[u8]) -> bool {
+    let Some(variant) = root.variant else { return true };
+    let offset = match schema.declaration(root.decl).shape {
+        Shape::Record { versioned: true, .. } => 2,
+        Shape::Record { versioned: false, .. } | Shape::Enum { .. } => 0,
+    };
+    let tag = bytes.get(offset).copied();
+    let all = roots(schema, root.decl);
+    all.iter().position(|root| root.variant == Some(variant)).map(|index| u8::try_from(index).expect("tag")) == tag
 }

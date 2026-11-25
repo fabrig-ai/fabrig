@@ -44,8 +44,6 @@ const EXCEPTIONS: &[Exception] = &[
     library("smith-charter", "private record helpers have library tests"),
     library("smith-channel", "private kind and record helpers have library tests"),
     library("smith-transcript", "private record helpers have library tests"),
-    library("temper-protocol-records", "patch golden tests remain in the library"),
-    library("skein-codec-tests", "patch golden tests remain in the library"),
 ];
 
 #[derive(Default)]

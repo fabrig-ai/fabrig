@@ -1,5 +1,4 @@
 mod account_key;
-mod across_versions;
 mod cluster_start;
 mod copy;
 mod core_after_project;
@@ -21,6 +20,7 @@ mod restarts;
 mod story_a;
 mod tools;
 mod upgrade;
+mod worker_openings;
 
 mod fuzzy {
     mod one_process;

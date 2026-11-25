@@ -23,6 +23,7 @@ pub fn judge(root: &[Request]) -> Result<(), &'static str> {
             Request::Unpaused { .. }
             | Request::Told { .. }
             | Request::Unsent { .. }
+            | Request::Unread { .. }
             | Request::Ended { .. }
             | Request::Opened { .. }
             | Request::Refused { .. } => {}

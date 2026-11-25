@@ -6,7 +6,7 @@ use crate::{
 use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
 use jig_protocol_store::{Event, Get, Request, Row, Write};
 use skein_fake_machine::Machine;
-use skein_io::kernel::Op;
+use skein_io::{Addr, Name, kernel::Op};
 use skein_lib::{List, Queue, Token};
 use temper_engine_domain_forge as forge;
 use temper_engine_service::{self as service, startup};
@@ -170,7 +170,7 @@ pub fn a_live_change_and_uncertain_write_reach_the_opening_without_network(
     let began = disk.sim.now();
     open_copy(&mut disk, &mut store);
     let limits = store.resolve_settings(inputs, None).expect("resolve the copy's limits");
-    let startup::CheckedStart { engine, io, forges, .. } = startup::checked_start_with_resolved(
+    let startup::CheckedStart { mut engine, io, forges, .. } = startup::checked_start_with_resolved(
         document,
         &directories_jig,
         &files,
@@ -182,6 +182,9 @@ pub fn a_live_change_and_uncertain_write_reach_the_opening_without_network(
         &limits.in_force,
     )
     .expect("checked stopped engine");
+    // The settled image comes from a box, whose in-process listener supplies the default local worker.
+    let workers = Addr::InProcess(Name::new(b"workers").expect("box worker listener"));
+    engine.jig.hosts.listener = Box::new([jig_protocol_config::Address::Addr(workers)]);
     let mut service = startup::restoring_prepared(engine, &seeds, Some(accounts), forges, io).expect("stopped service");
     service.engine_component().rehearse_opened(store, Some(limits), began);
     let store = service.engine_component().store();
