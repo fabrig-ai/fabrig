@@ -1,0 +1,50 @@
+records temper_protocol_worker_wire::v1
+use w = temper_worker_domain::wire
+use own = crate::translate
+by hand own
+refuses own::head_to_domain
+direction to domain
+
+record Merge
+record Merged { heads slice }
+record Branch
+record Commit
+enum Start = w::Start
+record Writable
+record Prefixes { branches slice }
+enum Access = w::Access
+record Repository = w::Repository
+record Items = w::Workspace { repositories slice }
+record JobSpec = w::JobSpec
+record Landed = w::Landed to record
+record Left by hand
+record Files by hand
+enum PushReason = w::PushReason to record
+record Diagnostic by hand
+record PushFailure = w::PushFailure to record
+enum Landing by hand
+record SavedRepository = w::SavedRepository to record
+record Saved by hand
+enum Missing = w::Missing to record
+record Missed
+record Tag
+record Conflicted
+enum Preparation = w::Preparation to record
+record Token by hand
+record Entry by hand
+record Entries by hand
+enum Kind by hand
+record Identity by hand
+record Flake = w::Flake to record
+enum Verdict = w::Verdict to record
+record CheckResults = w::CheckResults to record {
+    check_number = check
+    passed slice
+    failed slice
+    flakes slice
+}
+record Head
+enum Ask = w::Ask to record { results tuple }
+record Red = w::Red { head via own::head }
+record Reds { reds slice }
+enum Answer = w::Answer

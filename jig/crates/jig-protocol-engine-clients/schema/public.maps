@@ -1,0 +1,20 @@
+records jig_client_protocol_wire::public_v1
+use c = jig_domain_core_vocabulary
+use h = crate::public::records
+by hand h
+context (&crate::public::Names, u32)
+direction to record
+refuses h::public_line_to_record
+with context h::public_line_to_record
+
+enum PublicExecutor = c::PublicExecutor
+enum PublicPhase = c::PublicPhase
+enum PublicHold = c::PublicHold
+record PublicCounts = c::PublicCounts
+record PublicLine by hand
+record PublicProject by hand
+record PublicProjects by hand
+record PublicGoal = c::PublicGoal { tree slice }
+record PublicBoard by hand
+record PublicCard by hand
+record PublicApplication by hand

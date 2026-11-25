@@ -1,5 +1,6 @@
 //! Durable keyed answers (protocol/client/README.md, section 3; client/domain/contract/answers.md, 1).
 use super::refusals;
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
@@ -109,9 +110,10 @@ pub(crate) fn owned(owner: w::Owner, version: u32, record: Box<[u8]>) -> w::Keye
 fn again(value: p::Again) -> w::KeyedAnswer {
     match value {
         p::Again::Busy => w::KeyedAnswer::Busy,
-        p::Again::Full { held, room_at } => {
-            w::KeyedAnswer::AnswersFull(w::AnswersFull { held, room_at: room_at.as_nanos() })
-        }
+        p::Again::Full { held, room_at } => w::KeyedAnswer::AnswersFull(w::AnswersFull {
+            held,
+            room_at: skein_codec::convert::wall_to_record(&room_at),
+        }),
         p::Again::NotReady => w::KeyedAnswer::NotReady,
     }
 }
@@ -143,7 +145,7 @@ fn owner(value: &p::Outcome) -> Result<w::DocumentOutcome, w::Problem> {
             first: *first,
             last: *last,
             given: match given {
-                Some(v) => Some(w::CreatedGiven { task: v.task, amount: v.amount }),
+                Some(v) => Some(mapped::created_given_to_record(v)),
                 None => None,
             },
         }),
@@ -198,19 +200,18 @@ fn owner(value: &p::Outcome) -> Result<w::DocumentOutcome, w::Problem> {
             w::DocumentOutcome::PoolSet(w::OutcomePoolSet { project: *project, person: *person })
         }
         p::Outcome::MarkedSeen { seen } => {
-            w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: self::seen(*seen) })
+            w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: mapped::seen_through_to_record(seen) })
         }
         p::Outcome::ProposalDecided { proposer, proposal, by, at, choice, repeated } => {
-            let proposer = match proposer {
-                p::Proposer::Task(value) => w::Proposer::Task(w::ProposerTask { value: *value }),
-                p::Proposer::Party(value) => w::Proposer::Party(w::ProposerParty { value: *value }),
-            };
-            let proposal = w::ProposalKey { proposer, number: *proposal };
+            let proposal = super::task::proposal(&jig_domain_core_vocabulary::documents::ProposalRef {
+                proposer: *proposer,
+                number: *proposal,
+            });
             w::DocumentOutcome::ProposalDecided(w::OutcomeProposalDecided {
                 proposal,
                 by: *by,
-                at: at.as_nanos(),
-                choice: proposal_choice(*choice),
+                at: skein_codec::convert::wall_to_record(at),
+                choice: mapped::proposal_choice_to_record(choice),
                 repeated: *repeated,
             })
         }
@@ -220,8 +221,8 @@ fn owner(value: &p::Outcome) -> Result<w::DocumentOutcome, w::Problem> {
                 task: *task,
                 revision,
                 by: *by,
-                at: at.as_nanos(),
-                choice: escalation_choice(*choice),
+                at: skein_codec::convert::wall_to_record(at),
+                choice: mapped::escalation_choice_to_record(choice),
             })
         }
         p::Outcome::AccountSignInStarted { source, address } => {
@@ -270,26 +271,4 @@ fn owner(value: &p::Outcome) -> Result<w::DocumentOutcome, w::Problem> {
             return Err(problem());
         }
     })
-}
-fn seen(value: p::Seen) -> w::SeenThrough {
-    match value {
-        p::Seen::Results { through } => w::SeenThrough::Results(w::SeenResults { through }),
-        p::Seen::Conversation { task, through } => w::SeenThrough::Conversation(w::SeenConversation { task, through }),
-    }
-}
-fn proposal_choice(value: p::ProposalChoice) -> w::ProposalChoice {
-    match value {
-        p::ProposalChoice::Accepted => w::ProposalChoice::Accepted,
-        p::ProposalChoice::Rejected => w::ProposalChoice::Rejected,
-        p::ProposalChoice::Passed => w::ProposalChoice::Passed,
-        p::ProposalChoice::Withdrawn => w::ProposalChoice::Withdrawn,
-        p::ProposalChoice::Stale => w::ProposalChoice::Stale,
-    }
-}
-fn escalation_choice(value: p::EscalationChoice) -> w::EscalationChoice {
-    match value {
-        p::EscalationChoice::Released => w::EscalationChoice::Released,
-        p::EscalationChoice::Rejected => w::EscalationChoice::Rejected,
-        p::EscalationChoice::Passed => w::EscalationChoice::Passed,
-    }
 }

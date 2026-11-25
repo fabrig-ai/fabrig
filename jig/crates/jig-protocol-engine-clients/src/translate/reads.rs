@@ -1,10 +1,10 @@
 //! Authenticated reads and their one durable answer (protocol/client/README.md, 4).
 use super::{cursor, objects, pages, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::reads;
 use jig_domain_notes as notes;
-use jig_domain_people as people;
 use skein_lib::{Reader, Writer};
 pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
     Some(match value {
@@ -22,18 +22,12 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
         w::Read::ActivityBeside(value) => reads::Read::ActivityBeside {
             task: value.task,
             position: value.position,
-            side: match &value.side {
-                w::ActivitySide::Earlier => reads::Side::Earlier,
-                w::ActivitySide::Later => reads::Side::Later,
-            },
+            side: mapped::activity_side_to_domain(value.side),
         },
         w::Read::Me => reads::Read::Frame,
         w::Read::Task(value) => reads::Read::Task { task: value.task },
         w::Read::Proposal(value) => reads::Read::Proposal {
-            proposer: match &value.proposal.proposer {
-                w::Proposer::Task(value) => people::Proposer::Task(value.value),
-                w::Proposer::Party(value) => people::Proposer::Party(value.value),
-            },
+            proposer: mapped::proposer_to_domain(value.proposal.proposer),
             proposal: value.proposal.number,
         },
         w::Read::Escalation(value) => reads::Read::Escalation { task: value.task },
@@ -128,7 +122,7 @@ pub(crate) fn answer(
             w::ReadValue::Revision(w::ReadRevisionAnswer { value: super::settings::revision(value, models, limits)? })
         }
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value)),
-        reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value)),
+        reads::Answer::TaskText(value) => w::ReadValue::TaskText(mapped::task_text_to_record(value)),
         reads::Answer::Tasks(page) => {
             let reads::Read::Tasks { query, .. } = read else {
                 return Err(super::problem(skein_codec::Reason::Tag));
@@ -163,47 +157,16 @@ fn decode_cursor(value: Option<w::Cursor>) -> Option<Option<reads::Cursor>> {
     }
 }
 
-fn task_text(value: &reads::TaskText) -> w::TaskText {
-    w::TaskText {
-        task: value.task,
-        field: match value.field {
-            reads::TaskTextField::Specification => w::TaskTextField::Specification,
-            reads::TaskTextField::Instructions => w::TaskTextField::Instructions,
-            reads::TaskTextField::Result => w::TaskTextField::Result,
-        },
-        from: value.from,
-        total: value.total,
-        next: value.next,
-        words: skein_lib::bytes::copy_of(&value.bytes),
-    }
-}
-
 fn read_setting(value: w::ReadSetting) -> reads::Read {
-    {
-        let mut proposal = None;
-        if let Some(key) = &value.proposal {
-            proposal = Some((
-                match &key.proposer {
-                    w::Proposer::Party(party) => people::Proposer::Party(party.value),
-                    w::Proposer::Task(task) => people::Proposer::Task(task.value),
-                },
-                key.number,
-            ));
-        }
-        reads::Read::Setting { setting: super::settings::setting(&value.setting), revision: value.revision, proposal }
-    }
+    let proposal = match value.proposal {
+        Some(key) => Some((mapped::proposer_to_domain(key.proposer), key.number)),
+        None => None,
+    };
+    reads::Read::Setting { setting: mapped::setting_to_domain(value.setting), revision: value.revision, proposal }
 }
 
 fn read_task_text(value: w::ReadTaskText) -> reads::Read {
-    reads::Read::TaskText {
-        task: value.task,
-        from: value.from,
-        field: match &value.field {
-            w::TaskTextField::Specification => reads::TaskTextField::Specification,
-            w::TaskTextField::Instructions => reads::TaskTextField::Instructions,
-            w::TaskTextField::Result => reads::TaskTextField::Result,
-        },
-    }
+    reads::Read::TaskText { task: value.task, from: value.from, field: mapped::task_text_field_to_domain(value.field) }
 }
 
 fn read_ended(value: w::ReadEnded) -> Option<reads::Read> {

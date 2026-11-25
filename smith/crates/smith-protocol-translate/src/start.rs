@@ -1,9 +1,9 @@
 //! Start context before domain admission (smith/docs/design/protocol/channel.md, sections 3 and 5).
 use crate::Error;
 use crate::credentials::renewable;
-use crate::delivery::saved_delivery;
+use crate::generated::channel as mapped;
 use alloc::boxed::Box;
-use skein_lib::{List, Token};
+use skein_lib::List;
 use smith_channel as channel;
 use smith_domain::run;
 
@@ -55,15 +55,8 @@ pub fn start_context(
     let mounts = match parts.workspace {
         Some(workspace) => {
             let mut mounts = List::with_capacity(workspace.directories.len());
-            for directory in &workspace.directories {
-                let mount = Mount {
-                    name: Box::from(directory.name.as_ref()),
-                    path: Box::from(directory.path.as_ref()),
-                    writable: directory.writable,
-                    git: directory.git,
-                    conflicts: directory.conflicts.to_boxed(),
-                    results: directory.results.clone(),
-                };
+            for directory in workspace.directories.into_boxed() {
+                let mount = mapped::directory_to_domain(directory);
                 if mounts.push(mount).is_err() {
                     return Err(Error::Capacity);
                 }
@@ -85,16 +78,7 @@ pub fn start_context(
     }
     let mut messages = List::with_capacity(parts.messages.len());
     for message in parts.messages.into_boxed() {
-        let parts = message;
-        if messages
-            .push(run::Message {
-                finish_requested: parts.finish_requested,
-                name: Token::new(parts.name),
-                label: parts.label,
-                text: parts.text,
-            })
-            .is_err()
-        {
+        if messages.push(mapped::message_to_domain(message)).is_err() {
             return Err(Error::Capacity);
         }
     }
@@ -111,38 +95,18 @@ pub fn start_context(
         transcript,
         tell_parts: parts.tell_parts,
         parts: Box::default(),
-        answered: saved_answers(parts.answered.as_slice())?,
+        answered: saved_answers(parts.answered)?,
         grants: grants.into_boxed(),
-        window: smith_domain::Window { turns: parts.window.turns, bytes: parts.window.bytes },
+        window: mapped::window_to_domain(parts.window),
     })
 }
 
 /// Move post-transcript host decisions into the domain's settled vocabulary.
-fn saved_answers(source: &[channel::AnsweredCall]) -> Result<Box<[smith_domain::AnsweredCall]>, Error> {
-    let Ok(count) = u32::try_from(source.len()) else {
-        return Err(Error::InvalidSavedAnswer);
-    };
-    let mut answered = List::with_capacity(count);
-    for call in source {
-        let name = &call.name;
-        let reply = match &call.reply {
-            channel::SavedReply::Host(host) => {
-                let answer = run::HostAnswer::new(host.text.clone(), host.error).ok_or(Error::InvalidSavedAnswer)?;
-                smith_domain::Answered::Host(answer)
-            }
-            channel::SavedReply::Delivery(delivery) => {
-                smith_domain::Answered::Delivery(Box::new(saved_delivery(&delivery.value)?))
-            }
-            channel::SavedReply::TooLarge => smith_domain::Answered::TooLarge,
-        };
-        let item = smith_domain::AnsweredCall {
-            name: run::CallName { activation: name.activation, completion: name.completion, position: name.position },
-            tool: call.tool.clone(),
-            answer: reply,
-        };
-        if answered.push(item).is_err() {
-            return Err(Error::InvalidSavedAnswer);
-        }
+fn saved_answers(source: List<channel::AnsweredCall>) -> Result<Box<[smith_domain::AnsweredCall]>, Error> {
+    let mut answered = List::with_capacity(source.len());
+    for call in source.into_boxed() {
+        let item = mapped::answered_call_to_domain(call).or(Err(Error::InvalidSavedAnswer))?;
+        answered.push(item).or(Err(Error::InvalidSavedAnswer))?;
     }
     Ok(answered.into_boxed())
 }

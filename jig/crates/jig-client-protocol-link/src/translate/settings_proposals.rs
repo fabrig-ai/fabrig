@@ -1,9 +1,6 @@
 //! Settings proposal and review facts (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
-use super::settings::{
-    restore_revision_item_edit, restore_revision_item_head, restore_setting, restore_setting_item, restore_setting_set,
-    restore_size, wire_setting_item,
-};
-use crate::Limits;
+use super::settings::{restore_revision_item_head, restore_setting_item, wire_setting_item};
+use crate::{Limits, generated::client};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
@@ -11,7 +8,7 @@ use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 #[must_use]
 pub fn restore_origin_revision(value: &w::OriginRevision) -> c::OriginRevision {
-    c::OriginRevision { revision: value.revision }
+    client::origin_revision_to_domain(value.clone())
 }
 pub fn wire_propose_settings(value: &c::ProposeSettings, limits: &w::Limits) -> Result<w::ProposeSettings, w::Problem> {
     Ok(w::ProposeSettings { against: value.against, items: encode_setting_pieces(&value.items, limits)? })
@@ -20,23 +17,7 @@ pub fn restore_propose_settings(value: &w::ProposeSettings, limits: &Limits) -> 
     Ok(c::ProposeSettings { against: value.against, items: decode_setting_pieces(&value.items, limits)? })
 }
 pub fn restore_review_item(value: &w::ReviewItem, limits: &Limits) -> Result<c::ReviewItem, w::Problem> {
-    Ok(c::ReviewItem {
-        setting: restore_setting(&value.setting),
-        edit: restore_revision_item_edit(&value.edit),
-        now: restore_review_value(&value.now, limits)?,
-        origin: restore_setting_origin(&value.origin),
-        would_be: restore_review_value(&value.would_be, limits)?,
-        application: match &value.application {
-            Some(v) => Some(c::ApplicationReview {
-                edit: super::settings::restore_sized_edit(&v.edit),
-                now: match &v.now {
-                    Some(v) => Some(super::settings::restore_application_state(v)),
-                    None => None,
-                },
-            }),
-            None => None,
-        },
-    })
+    client::review_item_to_domain(value.clone(), limits)
 }
 pub fn restore_settings_review(value: &w::SettingsReview, limits: &Limits) -> Result<c::SettingsReview, w::Problem> {
     Ok(c::SettingsReview {
@@ -73,18 +54,10 @@ pub fn restore_owner_retained_action_settings(
 }
 #[must_use]
 pub fn restore_setting_origin(value: &w::SettingOrigin) -> c::SettingOrigin {
-    match value {
-        w::SettingOrigin::Default(item) => c::SettingOrigin::Default(restore_origin_revision(item)),
-        w::SettingOrigin::Change(item) => c::SettingOrigin::Change(restore_origin_revision(item)),
-        w::SettingOrigin::NotOffered => c::SettingOrigin::NotOffered,
-    }
+    client::setting_origin_to_domain(value.clone())
 }
 pub fn restore_review_value(value: &w::ReviewValue, limits: &Limits) -> Result<c::ReviewValue, w::Problem> {
-    Ok(match value {
-        w::ReviewValue::Value(item) => c::ReviewValue::Value(restore_setting_set(item, limits)?),
-        w::ReviewValue::TooLarge(item) => c::ReviewValue::TooLarge(restore_size(item)),
-        w::ReviewValue::None => c::ReviewValue::None,
-    })
+    client::review_value_to_domain(value.clone(), limits)
 }
 fn decode_heads(values: &List<w::RevisionItemHead>, bound: u32) -> Result<List<c::RevisionItemHead>, w::Problem> {
     if values.len() > bound {
@@ -153,7 +126,7 @@ fn decode_review_pieces(values: &[u8], limits: &Limits) -> Result<List<c::Review
         if !input.is_empty() {
             return Err(super::too_large());
         }
-        rows.push(restore_review_item(&row, limits)?).expect("counted pieces");
+        rows.push(client::review_item_to_domain(row, limits)?).expect("counted pieces");
     }
     Ok(rows)
 }

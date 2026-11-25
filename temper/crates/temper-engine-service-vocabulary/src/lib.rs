@@ -10,6 +10,15 @@ pub mod family;
 pub mod figures;
 pub mod forge;
 pub mod forges;
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated to-record functions borrow every domain type (skein/docs/design/data/codec/maps.md, 4.1)"
+    )]
+    pub(super) mod client_wire;
+    pub(super) mod worker_wire;
+}
 pub mod limits;
 pub mod settings;
 pub mod startup;

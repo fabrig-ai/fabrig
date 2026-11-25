@@ -1,141 +1,65 @@
 //! Worker payloads and values (protocol/channel.md, 7).
+use crate::generated::worker_wire;
 use alloc::boxed::Box;
+use skein_codec::Reason;
 use skein_lib::List;
 use temper_protocol_worker_wire::{
     self as wire,
     v1::{self, Record},
 };
+use temper_worker_domain::wire as worker;
 
 /// Encode the worker's typed read, with the run identity supplied by jig.
 #[must_use]
-pub fn ask(ask: temper_worker_domain::wire::Ask) -> Box<[u8]> {
-    use temper_worker_domain::wire as worker;
-    let value = match ask {
-        worker::Ask::Reds => v1::Ask::Reds,
-        worker::Ask::Landed { head } => v1::Ask::Landed(v1::Head { head }),
-        worker::Ask::Results(results) => {
-            let mut passed = List::with_capacity(v1::CEILINGS.check_results_passed);
-            for key in results.passed {
-                passed.push(key).expect("bounded passed keys");
-            }
-            let mut failed = List::with_capacity(v1::CEILINGS.check_results_failed);
-            for key in results.failed {
-                failed.push(key).expect("bounded failed keys");
-            }
-            let mut flakes = List::with_capacity(v1::CEILINGS.check_results_flakes);
-            for flake in results.flakes {
-                flakes.push(v1::Flake { key: flake.key, log: flake.log }).expect("bounded flakes");
-            }
-            v1::Ask::Results(v1::CheckResults {
-                tag: results.tag,
-                check_number: results.check,
-                tree: results.tree,
-                base: results.base,
-                verdict: match results.verdict {
-                    worker::Verdict::Passed => v1::Verdict::Passed,
-                    worker::Verdict::Refused => v1::Verdict::Refused,
-                },
-                passed,
-                failed,
-                flakes,
-            })
-        }
-    };
+pub fn ask(ask: worker::Ask) -> Box<[u8]> {
+    let value = worker_wire::ask_to_record(&ask).expect("bounded check report counts");
+    drop(ask);
     wire::ask(&value)
 }
 
 /// Decode a whole answer before handing its typed snapshot to the worker.
 #[must_use]
-pub fn answer(bytes: &[u8], limits: &v1::Limits) -> Option<temper_worker_domain::wire::Answer> {
-    use temper_worker_domain::wire as worker;
+pub fn answer(bytes: &[u8], limits: &v1::Limits) -> Option<worker::Answer> {
     let mut reader = skein_lib::Reader::new(bytes);
     let answer = v1::Answer::decode(limits, &mut reader).ok()?;
     if !reader.is_empty() {
         return None;
     }
-    Some(match answer {
-        v1::Answer::Kept => worker::Answer::Kept,
-        v1::Answer::Landed => worker::Answer::Landed,
-        v1::Answer::Unlanded => worker::Answer::Unlanded,
-        v1::Answer::Reds(value) => {
-            let mut reds = List::with_capacity(value.reds.len());
-            for red in value.reds.into_boxed() {
-                if !wire::red_head(&red.head) {
-                    return None;
-                }
-                reds.push(worker::Red { key: red.key, head: red.head }).expect("one row per decoded red");
-            }
-            worker::Answer::Reds { reds: reds.into_boxed() }
-        }
-    })
+    worker_wire::answer_to_domain(answer).ok()
+}
+
+pub(crate) fn head_to_domain(head: Box<[u8]>) -> Result<Box<[u8]>, Reason> {
+    if !wire::red_head(&head) {
+        return Err(Reason::Bound);
+    }
+    Ok(head)
 }
 
 /// The worker's decoded workspace with per-repository saved-work branches (protocol/channel.md, 7).
-pub type Assigned = temper_worker_domain::wire::Workspace;
+pub type Assigned = worker::Workspace;
 
 /// Copy every workspace field from its channel record, or an empty workspace.
 #[must_use]
 pub fn workspace(items: Option<&v1::Items>) -> Assigned {
-    use temper_worker_domain::wire as worker;
-    let Some(items) = items else { return worker::Workspace { repositories: Box::new([]) } };
-    let mut repositories = List::with_capacity(items.repositories.len());
-    for repository in &items.repositories {
-        let start = match &repository.start {
-            v1::Start::Merged(value) => {
-                worker::Start::Merged { branch: value.branch.clone(), heads: value.heads.clone().into_boxed() }
-            }
-            v1::Start::Merge(value) => worker::Start::Merge { branch: value.branch.clone(), base: value.base },
-            v1::Start::Base(value) => worker::Start::Base { branch: value.branch.clone() },
-            v1::Start::Branch(value) => worker::Start::Branch { branch: value.branch.clone() },
-            v1::Start::Commit(value) => worker::Start::Commit { commit: value.commit },
-            v1::Start::Saved(value) => worker::Start::Saved { branch: value.branch.clone() },
-        };
-        let access = match &repository.access {
-            v1::Access::Writable(value) => worker::Access::Writable {
-                push: value.push.clone(),
-                expected: value.expected,
-                landing: value.landing.clone(),
-                delivered: value.delivered,
-                pin: value.pin,
-            },
-            v1::Access::ReadOnly => worker::Access::ReadOnly,
-            v1::Access::Prefixes(value) => worker::Access::Prefixes { branches: value.branches.clone().into_boxed() },
-        };
-        repositories
-            .push(worker::Repository {
-                save: repository.save.clone(),
-                tag: repository.tag,
-                name: repository.name.clone(),
-                remote: repository.remote.clone(),
-                git: repository.git.clone(),
-                start,
-                access,
-                identity: repository.identity,
-                account: repository.account,
-            })
-            .expect("one result per decoded repository");
+    match items {
+        Some(items) => worker_wire::items_to_domain(items.clone()),
+        None => worker::Workspace { repositories: Box::new([]) },
     }
-    worker::Workspace { repositories: repositories.into_boxed() }
 }
 
 /// What a run left and saved, field for field under the payload's ceilings.
 #[must_use]
-pub fn work(work: &temper_worker_domain::wire::Work) -> (v1::Left, Option<v1::Saved>) {
+pub fn work(work: &worker::Work) -> (v1::Left, Option<v1::Saved>) {
     let mut landed = List::with_capacity(u32::try_from(work.landed.len()).expect("bounded repositories"));
     for head in &work.landed {
-        landed
-            .push(v1::Landed { tag: head.tag, commit: head.commit, checked: head.checked })
-            .expect("one head per repository");
+        landed.push(worker_wire::landed_to_record(head)).expect("one head per repository");
     }
     let left = v1::Left { landed };
     let saved = match &work.saved {
         Some(rows) => {
             let mut repositories = List::with_capacity(u32::try_from(rows.len()).expect("bounded repositories"));
             for row in rows {
-                let landing = landing(&row.landing);
-                repositories
-                    .push(v1::SavedRepository { tag: row.tag, from_saved: row.from_saved, landing })
-                    .expect("one saved row per repository");
+                repositories.push(worker_wire::saved_repository_to_record(row)).expect("one saved row per repository");
             }
             Some(v1::Saved { repositories })
         }
@@ -144,8 +68,7 @@ pub fn work(work: &temper_worker_domain::wire::Work) -> (v1::Left, Option<v1::Sa
     (left, saved)
 }
 
-fn landing(landing: &temper_worker_domain::wire::Landing) -> v1::Landing {
-    use temper_worker_domain::wire as worker;
+pub(crate) fn landing_to_record(landing: &worker::Landing) -> v1::Landing {
     match landing {
         worker::Landing::Conflicted { files } => {
             let mut paths = List::with_capacity(u32::try_from(files.len()).expect("bounded conflict paths"));
@@ -154,12 +77,7 @@ fn landing(landing: &temper_worker_domain::wire::Landing) -> v1::Landing {
             }
             v1::Landing::Conflicted(v1::Files { files: paths })
         }
-        worker::Landing::Explained { failure } => {
-            let reason = push_reason(failure.reason);
-            let diagnostic =
-                v1::Diagnostic { output: failure.diagnostic.output().into(), cut: failure.diagnostic.cut() };
-            v1::Landing::Explained(v1::PushFailure { repository: failure.repository, reason, diagnostic })
-        }
+        worker::Landing::Explained { failure } => v1::Landing::Explained(worker_wire::push_failure_to_record(failure)),
         worker::Landing::Landed { commit } => v1::Landing::Landed(v1::Commit { commit: *commit }),
         worker::Landing::Moved => v1::Landing::Moved,
         worker::Landing::Failed => v1::Landing::Failed,
@@ -167,43 +85,18 @@ fn landing(landing: &temper_worker_domain::wire::Landing) -> v1::Landing {
         worker::Landing::Unchanged => v1::Landing::Unchanged,
     }
 }
-fn push_reason(reason: temper_worker_domain::wire::PushReason) -> v1::PushReason {
-    use temper_worker_domain::wire::PushReason;
-    match reason {
-        PushReason::MissingRepository => v1::PushReason::MissingRepository,
-        PushReason::MissingBranch => v1::PushReason::MissingBranch,
-        PushReason::MissingCommit => v1::PushReason::MissingCommit,
-        PushReason::Refused => v1::PushReason::Refused,
-        PushReason::Unreachable => v1::PushReason::Unreachable,
-        PushReason::Broken => v1::PushReason::Broken,
-        PushReason::TimedOut => v1::PushReason::TimedOut,
-        PushReason::Cancelled => v1::PushReason::Cancelled,
-        PushReason::Unavailable => v1::PushReason::Unavailable,
-        PushReason::Busy => v1::PushReason::Busy,
-        PushReason::TooLarge => v1::PushReason::TooLarge,
-        PushReason::Nothing => v1::PushReason::Nothing,
-        PushReason::Unknown => v1::PushReason::Unknown,
-    }
+
+pub(crate) fn diagnostic_to_record(diagnostic: &worker::PushDiagnostic) -> v1::Diagnostic {
+    v1::Diagnostic { output: diagnostic.output().into(), cut: diagnostic.cut() }
 }
 
 /// A permanent failed preparation by tag; no resource for a transient one.
 #[must_use]
-pub fn preparation(preparation: &temper_worker_domain::wire::Preparation) -> Option<v1::Preparation> {
-    use temper_worker_domain::wire as worker;
-    match preparation {
-        worker::Preparation::Conflicted { tag, head } => {
-            Some(v1::Preparation::Conflicted(v1::Conflicted { tag: *tag, head: *head }))
-        }
-        worker::Preparation::Transient => None,
-        worker::Preparation::Refused { tag } => Some(v1::Preparation::Refused(v1::Tag { tag: *tag })),
-        worker::Preparation::Missing { tag, missing } => {
-            let missing = match missing {
-                worker::Missing::Repository => v1::Missing::Repository,
-                worker::Missing::Branch => v1::Missing::Branch,
-                worker::Missing::Commit => v1::Missing::Commit,
-            };
-            Some(v1::Preparation::Missing(v1::Missed { tag: *tag, missing }))
-        }
+pub fn preparation(preparation: &worker::Preparation) -> Option<v1::Preparation> {
+    let record = worker_wire::preparation_to_record(preparation);
+    match record {
+        v1::Preparation::Transient => None,
+        v1::Preparation::Missing(_) | v1::Preparation::Refused(_) | v1::Preparation::Conflicted(_) => Some(record),
     }
 }
 

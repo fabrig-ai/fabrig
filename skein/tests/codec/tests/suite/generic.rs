@@ -79,9 +79,9 @@ mod tests {
                 count = count.checked_add(1).expect("fixed-rule value count");
             }
         }
-        // The codec fixtures contribute 388 fixed-rule values, including mapped's 234 and
+        // The codec fixtures contribute 394 fixed-rule values, including mapped's 240 and
         // growth's two; the UI schema contributes 12.
-        assert_eq!(count, 400);
+        assert_eq!(count, 406);
         assert_eq!(compared, count);
     }
 }

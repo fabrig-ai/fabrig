@@ -4,6 +4,14 @@
 #![expect(clippy::disallowed_macros, reason = "the contract gives the empty classes table a Default")]
 
 extern crate alloc;
+
+/// Generated client wire translations (skein/docs/design/data/codec/maps.md, 9).
+#[rustfmt::skip]
+mod generated {
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "maps borrow all domain values to write a record, including small Copy values")]
+    pub(crate) mod client_wire;
+}
+
 use alloc::boxed::Box;
 
 mod judgement;

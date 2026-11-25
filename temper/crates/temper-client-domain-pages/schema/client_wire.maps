@@ -1,0 +1,22 @@
+records temper_client_protocol_wire::v1
+use c = jig_client::contract
+use t = crate::pages::team
+by hand crate::pages::stock_ways
+direction to domain
+
+record HolderTask stands for number
+record HolderParty stands for number
+record HolderRole stands for number
+record AddDevice by hand
+enum DeviceRefusal by hand
+enum Holder = t::Holder { task tuple, party tuple, role tuple }
+record SettingValue by hand
+enum SettingEdit = c::SettingEdit { set tuple }
+record ProposalItem by hand
+record StockWay by hand
+enum Outcome by hand
+record FollowPerson stands for person
+record FollowOwnerTask stands for task
+enum FollowOwner = t::follows::Owner { person tuple, task tuple }
+# Here Holder remains the wire type; HeldArea uses the mapped team type.
+record AreaRow by hand
