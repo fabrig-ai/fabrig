@@ -65,6 +65,7 @@ pub(super) fn wait(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
         waiting.insert(task, env.wall).expect("one connection wait per bounded change");
     }
     super::read_session::pause(d, task);
+    crate::waits::changed(d, task);
     d.change_due.remove(&task);
     emit(
         out,

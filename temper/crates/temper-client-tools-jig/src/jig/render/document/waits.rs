@@ -1,5 +1,6 @@
 //! A task's supplied wait records (client/ctl/results.md, 1 and 2).
 use super::{Cut, Me, Text, acts, clock, llm};
+use crate::jig::render::Parts;
 use jig_client::contract::{self as c, waits::Bound};
 use skein_json::writer::Encoder;
 use skein_lib::Wall;
@@ -43,7 +44,7 @@ pub(super) fn summary(wait: Option<&c::Wait>, nearest: Option<c::Nearest>, out: 
     }
 }
 
-pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn crate::jig::render::Parts, out: &mut Text) {
+pub(super) fn text(task: &c::Task, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
     if task.wait_count == 0 {
         return;
     }
@@ -109,7 +110,7 @@ fn task_text(task: u64, out: &mut Text) {
     out.put(b"task ");
     out.number(task);
 }
-fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn crate::jig::render::Parts, out: &mut Text) {
+fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn Parts, out: &mut Text) {
     if let (c::WaitKind::Account, c::WaitObject::Run(run @ c::TaskRunWait::Account { .. }))
     | (c::WaitKind::Host, c::WaitObject::Run(run @ c::TaskRunWait::Host)) = (wait.kind, &wait.object)
     {
@@ -156,7 +157,7 @@ fn object_text(wait: &c::Wait, me: Option<&Me>, vocabulary: &dyn crate::jig::ren
             llm::run_wait_text(*run, out);
         }
         c::WaitObject::News { subscriptions, timer } => news(subscriptions, *timer, out),
-        c::WaitObject::Procedure { step, things } => procedure(wait.kind, *step, things, out),
+        c::WaitObject::Procedure { step, things } => procedure(*step, things, vocabulary, out),
     }
 }
 fn news(subscriptions: &skein_lib::List<u64>, timer: Option<Wall>, out: &mut Text) {
@@ -176,17 +177,25 @@ fn news(subscriptions: &skein_lib::List<u64>, timer: Option<Wall>, out: &mut Tex
         out.put(b" nothing armed");
     }
 }
-fn procedure(kind: c::WaitKind, step: u32, things: &skein_lib::List<c::Thing>, out: &mut Text) {
-    if kind == c::WaitKind::Step {
+fn procedure(step: u32, things: &skein_lib::List<c::Thing>, vocabulary: &dyn Parts, out: &mut Text) {
+    if let Some(name) = vocabulary.wait_step(step) {
+        out.put(b" at ");
+        out.put(name);
+    } else {
         out.put(b" ");
         out.number(u64::from(step));
     }
-    let mut separator = b" ".as_slice();
+    let mut separator = b": ".as_slice();
     for thing in things {
         out.put(separator);
-        out.put(b"thing ");
-        out.number(u64::from(thing.what));
-        out.put(b" ");
+        if let Some((name, number_separator)) = vocabulary.wait_thing(thing.what) {
+            out.put(name);
+            out.put(number_separator);
+        } else {
+            out.put(b"thing ");
+            out.number(u64::from(thing.what));
+            out.put(b" ");
+        }
         out.number(thing.number);
         if let Some(owner) = thing.owner {
             out.put(b" of ");

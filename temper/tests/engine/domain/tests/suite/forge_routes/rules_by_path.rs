@@ -478,7 +478,11 @@ fn a_turn_keeps_sign_offs_on_the_member_changes_landed_row() {
     assert_eq!(world.merges, 0, "turn waits for its member's approval");
     post_approval_read(&mut world, change, 7);
     let review = pull_of(&mut world, change).reviews.into_vec().pop().expect("member review");
-    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.queue_window));
+    // Drive the forge reads during the queue window; a clock jump can cross the landing's read stall.
+    let until = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    while world.env.now < until {
+        world.tick();
+    }
     for _ in 0..600 {
         world.tick();
         if world.merges == 1 {

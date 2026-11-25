@@ -57,11 +57,18 @@ fn runs(world: &World) -> Box<[raw::Run]> {
 }
 fn until_dispatch(world: &mut World, first: u64) {
     for entry in first..first + 60 {
-        if matches!(step(world, entry), landing::Decision::Dispatch { .. } | landing::Decision::Retry { .. }) {
+        let decision = step(world, entry);
+        if matches!(decision, landing::Decision::Dispatch { .. } | landing::Decision::Retry { .. }) {
             return;
         }
+        landings::wait_for_run_poll(world, decision);
     }
-    panic!("no dispatch");
+    let row = world.landing(LANDING);
+    let hold = row.read_hold.as_deref().map(String::from_utf8_lossy);
+    panic!(
+        "no dispatch at entry {first}: phase {:?}, waiting {:?}, read hold {hold:?}",
+        row.landing.phase, row.waiting
+    );
 }
 fn still_waiting(world: &mut World, first: u64) {
     for entry in first..first + 5 {
@@ -127,10 +134,8 @@ fn retries_keep_the_workflow_reserved_and_the_original_inputs() {
         let first = runs(&world)[0].clone();
         if cancel {
             assert_eq!(world.external(raw::Op::Write(raw::Write::Cancel { run: first.id }), 2), raw::Answer::Done);
-        } else {
-            world.run_for(100);
         }
-        // A fault is read, retained, then retried before the second key can dispatch.
+        // Poll the first run through its fault, then retry before the second key can dispatch.
         until_dispatch(&mut world, 200);
         if !cancel {
             world.runner_setup_faults(0);

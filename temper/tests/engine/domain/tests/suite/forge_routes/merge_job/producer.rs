@@ -374,7 +374,11 @@ fn a_producer_that_cleans_the_conflict_needs_no_resolution() {
 }
 
 pub(crate) fn displaced_producer() -> (World, u64, engine::Assignment, u64, u64, usize) {
-    let configured = World::configured_limits(
+    displaced_producer_in(displaced_producer_fixture())
+}
+
+pub(crate) fn displaced_producer_fixture() -> World {
+    World::configured_limits(
         true,
         true,
         true,
@@ -382,7 +386,10 @@ pub(crate) fn displaced_producer() -> (World, u64, engine::Assignment, u64, u64,
         Gate { agent: true, ..Gate::default() },
         None,
         StoryLimits::default(),
-    );
+    )
+}
+
+pub(crate) fn displaced_producer_in(configured: World) -> (World, u64, engine::Assignment, u64, u64, usize) {
     let (mut world, task, producer, head, base) = live_producer_with_route(configured, true);
     let mut gate = None;
     for _ in 0..STEPS {
