@@ -119,7 +119,7 @@ holder that keeps plans for reuse keys them by the two texts.
 | Between source and target | Read | Keep |
 |---|---|---|
 | A field only the source has | skipped | dropped where its bytes are its compared default's, or where the source marks it `droppable`; otherwise the value is refused (`Refused::Field`) |
-| A field only the target has | the target's default, else the source's tombstone for it; with neither, no plan (`NoDefault`) | the same |
+| A field only the target has | the target's default, else the source's tombstone's default converted to the target's layout (below); with neither, no plan (`NoDefault`) | the same |
 | An integer narrower at the target, or a bound narrower (a list's count, a `text`'s, a `bytes`' or a `secret`'s length) | converted where the value fits; otherwise the value is refused (`Refused::Narrowed`) | the same |
 | A variant of the reach only the source has | a value holding it is refused (`Refused::Variant`) | the same |
 | A variant only the target has | its tags mapped by name | the same |
@@ -129,13 +129,27 @@ holder that keeps plans for reuse keys them by the two texts.
 
 - **A field's compared default,** in Keep, is the value the way back
   writes for it: the source field's own default, else the target
-  record's tombstone for it. A tombstone stands for a field only where
-  its type is the field's, level for level and bound for bound;
-  matched to a field of another type, it gives no plan in either mode
-  (`Retyped`, naming the field). A source field the target lacks, with
-  no compared default and no `droppable` mark, refuses every value in
-  Keep, and is still a plan. `droppable` is the source's mark alone,
-  read in Keep alone.
+  record's tombstone's default converted to the source's layout, as
+  the Read plan from the target to the source converts it. A source
+  field the target lacks, with no compared default and no `droppable`
+  mark, refuses every value in Keep, and is still a plan. `droppable`
+  is the source's mark alone, read in Keep alone.
+- **A tombstone's default is at its own text's layout,** encoded as
+  that text is read (`README.md`, section 3), so a plan converts it to
+  the other text's layout before it uses it: a source tombstone's,
+  written for a field only the target has, by the field type's
+  conversion from the source to the target in the plan's mode; a
+  target tombstone's, compared in Keep, from the target to the source
+  as the way back's Read plan converts it. It converts as one value of
+  its type: a part of the type the default does not hold (a sibling
+  variant, an `option`'s value where it is `none`) refuses nothing, in
+  `derive` too. A tombstone stands for a field only where its type is
+  the field's, level for level and bound for bound, and its default
+  converts. Matched to a field of another type, it gives no plan in
+  either mode; where its default does not convert (it holds a variant
+  the other text lacks), it gives no plan where its default is used:
+  for a field only the target has in both modes, and for a compared
+  default in Keep. Either is `Retyped`, naming the field.
 - **A round trip holds:** a value the Keep plan from a source to a
   target converts, converted back by the Read plan from that target to
   the source, is the value itself, but for the fields the source marks
