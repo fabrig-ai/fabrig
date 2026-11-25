@@ -63,7 +63,6 @@ fn runs_park_resume_and_move_at_any_step() -> Result<(), String> {
         eprintln!("parks fell {seed}: {:?}", ledger.fell());
         sweep.ran(&ledger);
     }
-    eprintln!("P43 left out: {}", sweep.left_out("a_coordinator_watching_its_asker_is_woken"));
     sweep.check_fell()
 }
 
