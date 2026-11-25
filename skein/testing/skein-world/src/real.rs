@@ -342,8 +342,14 @@ impl<P: Host, R: Referee<P>> World<P, R> {
 
     /// Adds a service whose signal records arrive through its own real pipe.
     pub fn spawn_signals<F: FnOnce(Fd) -> P>(&mut self, make: F) -> usize {
+        self.spawn_signals_with_fds(Vec::new(), make)
+    }
+
+    /// Adds a service with a signal pipe and the descriptors opened by its preparation.
+    pub fn spawn_signals_with_fds<F: FnOnce(Fd) -> P>(&mut self, mut fds: Vec<Fd>, make: F) -> usize {
         let (reader, writer) = skein_shell::keeper::open_signal_pipe().expect("open the service signal pipe");
-        let host = self.spawn_with_fds(vec![reader], || make(reader));
+        fds.push(reader);
+        let host = self.spawn_with_fds(fds, || make(reader));
         self.signals.insert(host, SignalSource::Pipe(writer));
         host
     }

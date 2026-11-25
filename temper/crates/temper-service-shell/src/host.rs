@@ -20,7 +20,7 @@ pub struct Host<S> {
     directories: Directories,
     pub(super) store: Box<[u8]>,
     pub(super) link_file: Option<std::path::PathBuf>,
-    output: Box<dyn Write>,
+    pub(super) output: Box<dyn Write>,
     output_failed: bool,
     wait_check: bool,
     cut_at_listen: Option<std::path::PathBuf>,
@@ -63,7 +63,7 @@ impl<S> Host<S> {
             clock: skein_shell::Clock::new(),
         }
     }
-    fn ending(&self) -> (String, u8) {
+    pub(super) fn ending(&self) -> (String, u8) {
         (self.served.ending)(&self.service, &self.binary, self.output_failed, &self.directories, &self.store)
     }
     pub(super) fn keep_link(&self, url: &[u8]) {

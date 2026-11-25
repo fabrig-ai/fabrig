@@ -59,7 +59,7 @@ impl Tier {
     pub(crate) fn ctl_only(&self, calls: Vec<Step>) -> Script {
         let program = temper();
         let directory = self.scratch.path();
-        crate::configuration::install(directory, &program);
+        let _sitting = crate::configuration::install(directory);
         Script::new(seed_calls(&program, directory, calls).into_boxed_slice())
     }
 

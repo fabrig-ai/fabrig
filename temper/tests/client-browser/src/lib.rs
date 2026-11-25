@@ -15,6 +15,16 @@ use std::{
 };
 mod authorize;
 mod configuration;
+
+#[doc(hidden)]
+pub mod testing {
+    pub use crate::configuration::{ENDPOINT, PROVIDER, UNREACHED, flags, install};
+
+    /// Write the same deployment the browser stories start from.
+    pub fn write(directory: &std::path::Path, bundle: &std::path::Path) {
+        let _fixture = crate::configuration::write(directory, bundle);
+    }
+}
 mod forgery;
 mod github;
 mod history;
@@ -422,7 +432,7 @@ impl Tier {
     }
     #[must_use]
     pub fn setup(&self) -> Setup<'_> {
-        configuration::install(self.scratch.path(), &temper());
+        let _sitting = configuration::install(self.scratch.path());
         // The box supplies serve's pipe and --box at every start, including its welcome default
         // (temper/docs/design/protocol/configuration/settings-kinds.md, 1, kind 20).
         let args = configuration::flags(self.scratch.path());

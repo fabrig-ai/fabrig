@@ -26,6 +26,7 @@ pub mod first_repository;
 pub mod github;
 pub mod github_land;
 pub mod held_login;
+pub mod hosted;
 pub mod landing_by_turn;
 pub mod limit_settings;
 pub mod owned;
