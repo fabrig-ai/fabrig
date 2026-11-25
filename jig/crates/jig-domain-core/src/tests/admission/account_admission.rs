@@ -195,6 +195,7 @@ fn narrowed_recurring() -> (Core, Limits, u64) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),

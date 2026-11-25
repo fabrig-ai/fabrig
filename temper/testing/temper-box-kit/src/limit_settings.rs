@@ -1,9 +1,12 @@
 //! Subprocess fixtures apply their figures through ctl before restarting
 //! (temper/docs/design/protocol/configuration/limit-settings.md, 8).
+use super::ctl::Step;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core::settings::Override;
 use serde_json::{Value, json};
 use std::{fs, path::Path};
+use temper_box_shell::directories::Directories;
+use temper_config_shell::Shape;
 use temper_engine_service::startup::{self, LimitKind};
 use temper_playground::documents::Configuration;
 
@@ -203,19 +206,23 @@ pub fn install_paths(paths: &[std::path::PathBuf; 3]) {
 }
 
 /// Install a fresh fixture's additional owner settings before the bootstrap drains.
-pub(crate) fn install_paths_with(paths: &[std::path::PathBuf; 3], extra: Vec<super::ctl::Step>) {
+pub(crate) fn install_paths_with(paths: &[std::path::PathBuf; 3], extra: Vec<Step>) {
     use std::os::unix::ffi::OsStrExt;
     let mut directories = super::configuration::directories(&paths[0]);
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    install_at_with(&directories, extra);
+    install_at_with(&directories, extra, apply_with);
 }
 
-pub fn install_at(directories: &temper_box_shell::directories::Directories) {
-    install_at_with(directories, Vec::new());
+pub fn install_at(directories: &Directories) {
+    install_at_with(directories, Vec::new(), apply_with);
 }
 
-fn install_at_with(directories: &temper_box_shell::directories::Directories, extra: Vec<super::ctl::Step>) {
+fn install_at_with(
+    directories: &Directories,
+    extra: Vec<Step>,
+    apply: impl FnOnce(&Directories, Shape, &Bootstrap, Option<Vec<u8>>, Vec<Step>),
+) {
     use std::os::unix::ffi::OsStrExt;
     let directory = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
@@ -233,7 +240,7 @@ fn install_at_with(directories: &temper_box_shell::directories::Directories, ext
     }
     let path = directory.join(temper_config_shell::FILE);
     let shape = super::read_file_shape(&path);
-    let agent = if shape == temper_config_shell::Shape::Standalone {
+    let agent = if shape == Shape::Standalone {
         let document = super::start_document(&path, shape);
         document["workers"].as_array().filter(|workers| !workers.is_empty()).map(|_| {
             let providers = temper_service_shell::providers::read(
@@ -264,7 +271,9 @@ fn install_at_with(directories: &temper_box_shell::directories::Directories, ext
         return;
     }
     if bootstrap.needs_sitting(local.as_deref(), !extra.is_empty(), previous.is_some()) {
-        apply_with(directories, shape, &bootstrap, local, extra);
+        hold(data, &bootstrap.overrides());
+        apply(directories, shape, &bootstrap, local, extra);
+        fs::remove_file(data.join("limits-held")).expect("release limit settings");
     }
     super::write_private(&applied, &bytes);
 }
@@ -289,19 +298,17 @@ pub fn held_text(overrides: &[(&str, &str, u64, &str)]) -> String {
     lines
 }
 
-/// Bootstrap a fresh sitting with limits-held, apply the same figures as
-/// settings, drain, and remove the file. The next serve takes the settings.
+/// Apply the held figures as settings and drain. The next serve takes the settings.
 fn apply_with(
-    directories: &temper_box_shell::directories::Directories,
-    shape: temper_config_shell::Shape,
+    directories: &Directories,
+    shape: Shape,
     bootstrap: &Bootstrap,
     local: Option<Vec<u8>>,
-    extra: Vec<super::ctl::Step>,
+    extra: Vec<Step>,
 ) {
-    use super::ctl::{Call, Step, Story};
+    use super::ctl::{Call, Story};
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
     let directory = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
-    super::write_private(&directory.join("limits-held"), bootstrap.held().as_bytes());
     let mut steps = vec![Step::Run(Call::sign_in().in_directory("limit-owner"))];
     steps.extend(super::ctl::limit_settings(directory, &bootstrap.overrides(), local).into_iter().chain(extra).map(
         |step| match step {
@@ -316,9 +323,9 @@ fn apply_with(
     steps.push(Step::Run(Call::new(&["sign-out"]).in_directory("limit-owner")));
     let command = skein_world::end_to_end::Command {
         program: skein_scratch::paths::built("temper-box", "temper-box").with_file_name(match shape {
-            temper_config_shell::Shape::Standalone => "temper-box",
-            temper_config_shell::Shape::EngineAlone => "temper-engine",
-            temper_config_shell::Shape::WorkerAlone => panic!("a worker alone has no limit settings store"),
+            Shape::Standalone => "temper-box",
+            Shape::EngineAlone => "temper-engine",
+            Shape::WorkerAlone => panic!("a worker alone has no limit settings store"),
         }),
         arguments: std::iter::once("serve".into())
             .chain(directories.flags().into_vec().into_iter().map(|word| std::ffi::OsString::from_vec(word.into_vec())))
@@ -338,5 +345,43 @@ fn apply_with(
             String::from_utf8_lossy(&call.stderr)
         );
     }
-    fs::remove_file(directory.join("limits-held")).expect("release limit settings");
+}
+
+pub mod tests {
+    pub fn bootstrap_holds_fixture_limits_in_a_private_data_directory() {
+        use super::{Configuration, Value, fs, install_at_with, remember_figures};
+        use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
+        use temper_config_shell::{File, Shape};
+
+        let scratch = skein_scratch::Scratch::new("fixture-limits-bootstrap");
+        let config = scratch.path();
+        let data = config.join("data");
+        let mut directories = crate::configuration::directories(config);
+        directories.data = data.as_os_str().as_bytes().into();
+        let file = File {
+            workers: Some("127.0.0.1:7200".parse().expect("worker listener")),
+            owner: Some("owner@example.invalid".into()),
+            ..File::default()
+        };
+        crate::write_file(&config.join(temper_config_shell::FILE), &file, Shape::EngineAlone);
+        let mut figures = Configuration::stock(Value::Null);
+        figures.jig_over("people.projects", 3);
+        remember_figures(config, &figures);
+        assert!(!data.exists(), "bootstrap starts without its data directory");
+
+        let mut staged = false;
+        install_at_with(&directories, Vec::new(), |_, shape, bootstrap, _, _| {
+            assert_eq!(shape, Shape::EngineAlone);
+            let directory = fs::symlink_metadata(&data).expect("fixture data directory");
+            assert!(directory.is_dir());
+            assert_eq!(directory.permissions().mode() & 0o777, 0o700);
+            let path = data.join("limits-held");
+            let held = fs::symlink_metadata(&path).expect("fixture hold file");
+            assert!(held.is_file());
+            assert_eq!(held.permissions().mode() & 0o777, 0o600);
+            assert_eq!(fs::read(path).expect("held figures"), bootstrap.held().as_bytes());
+            staged = true;
+        });
+        assert!(staged, "bootstrap took the branch that starts a sitting");
+    }
 }

@@ -323,6 +323,11 @@ impl Server {
             self.phase = Phase::Closing;
         }
     }
+    /// Whether both response producers have finished, even if sockets still owe their close terminals.
+    #[must_use]
+    pub const fn finished(&self) -> bool {
+        self.finished
+    }
     /// The clients component and its mount have no more responses to supply.
     pub fn finish(&mut self) {
         self.finished = true;

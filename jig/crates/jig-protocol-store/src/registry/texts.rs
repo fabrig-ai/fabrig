@@ -8,6 +8,8 @@ use skein_codec::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Type, Type
 use skein_lib::{List, Map};
 
 pub(super) fn digest(bytes: &[u8]) -> Digest {
+    #[cfg(test)]
+    super::counting::hashed();
     let mut hash = skein_lib::sha256::Sha256::new();
     hash.update(bytes);
     hash.finish()
@@ -23,9 +25,20 @@ pub(super) enum Cached {
 }
 impl Cached {
     #[cfg_attr(not(test), expect(unused_variables, reason = "only the test parse tally needs the digest"))]
-    fn read(prepared: &'static [Schema], bytes: &[u8], digest: Digest) -> Option<Self> {
+    fn read(
+        prepared: &'static [Schema],
+        admitted: Option<&mut List<Schema>>,
+        bytes: &[u8],
+        digest: Digest,
+    ) -> Option<Self> {
         if let Some(schema) = find(prepared, bytes) {
             return Some(Self::Prepared(schema));
+        }
+        if let Some(admitted) = admitted
+            && let Some(index) = crate::upgrade::schemas::matching(admitted.as_slice(), bytes)
+        {
+            let schema = admitted.swap_remove(u32::try_from(index).ok()?)?;
+            return Some(Self::Parsed(Box::new(schema)));
         }
         #[cfg(test)]
         super::counting::parsed(digest);
@@ -161,11 +174,16 @@ pub(super) fn keep(layouts: &mut Layouts, bytes: &[u8], current: bool) -> Option
     let digest = digest(bytes);
     if let Some(held) = layouts.texts.get_mut(&digest) {
         held.current |= current;
+        // The digest just computed proves the stored bytes only if they match.
+        held.verified = held.verified || held.bytes.as_ref() == bytes;
     } else {
-        let schema = Cached::read(layouts.prepared_schemas, bytes, digest)?;
+        let schema = Cached::read(layouts.prepared_schemas, layouts.admitted_schemas.as_mut(), bytes, digest)?;
         layouts
             .texts
-            .insert(digest, Text { bytes: Box::from(bytes), schema: Some(schema), stored: false, current })
+            .insert(
+                digest,
+                Text { bytes: Box::from(bytes), schema: Some(schema), verified: true, stored: false, current },
+            )
             .expect("uncapped texts");
     }
     Some(digest)
@@ -174,10 +192,14 @@ pub(super) fn keep(layouts: &mut Layouts, bytes: &[u8], current: bool) -> Option
 pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
     let text = layouts.texts.get_mut(&digest)?;
     if text.schema.is_none() {
-        if self::digest(&text.bytes) != digest {
-            return None;
+        if !text.verified {
+            if self::digest(&text.bytes) != digest {
+                return None;
+            }
+            text.verified = true;
         }
-        text.schema = Some(Cached::read(layouts.prepared_schemas, &text.bytes, digest)?);
+        text.schema =
+            Some(Cached::read(layouts.prepared_schemas, layouts.admitted_schemas.as_mut(), &text.bytes, digest)?);
     }
     Some(())
 }
@@ -200,6 +222,7 @@ pub(super) fn clear(layouts: &mut Layouts) {
 pub(super) fn clear_all(layouts: &mut Layouts) {
     clear_schemas(layouts, true);
     layouts.prepared_schemas = &[];
+    layouts.admitted_schemas = None;
 }
 
 fn clear_schemas(layouts: &mut Layouts, all: bool) {

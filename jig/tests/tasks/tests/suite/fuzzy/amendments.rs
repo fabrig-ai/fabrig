@@ -275,6 +275,7 @@ fn amend(world: &mut World, task: u64, dependencies: &[u64], seen: &mut BTreeSet
     let call = reply_to.into_token().raw();
     let reply_to = ReplyTo::new(Token::new(call));
     world.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task,

@@ -1,4 +1,5 @@
 //! Admission of only protocol/git.md's builder vectors and whole environments.
+use crate::answer::explicit_path;
 use skein_io::kernel::Spawn;
 use skein_lib::{Secret, base64};
 use std::collections::BTreeMap;
@@ -16,9 +17,9 @@ pub type Credential = (Box<[u8]>, Secret);
 #[derive(Debug)]
 pub struct Checked {
     pub command: Command,
-    /// The named work tree, or the bare directory for commands without one.
+    /// The named work tree or bare directory, relative to the held file root.
     pub at: Box<[u8]>,
-    /// Explicit metadata selection; no repository discovery reads the work tree.
+    /// Explicit metadata path relative to the held file root; no work tree discovery.
     pub git_dir: Option<Box<[u8]>>,
     /// The spawn's directory, beneath which init and clone resolve their operands.
     pub root: Box<[u8]>,
@@ -158,16 +159,15 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         .env
         .iter()
         .find_map(|e| e.strip_prefix(b"GIT_CONFIG_VALUE_0=Authorization: ").map(|value| Secret::new(value.into())));
-    // The argv names paths from Git's working directory, not the disk root.
-    let cwd = if spawn.dir.as_ref() == b"." { b"".as_slice() } else { &spawn.dir };
-    let from_cwd = |name: Box<[u8]>| {
-        if cwd.is_empty() { name } else { crate::answer::path(cwd, &name).into_boxed_slice() }
-    };
-    let git_dir = git_dir.map(from_cwd);
-    let work_tree = work_tree.map(from_cwd);
+    // Git's relative options start at its working directory, not the file root.
+    let git_dir = git_dir.map(|directory| explicit_path(&spawn.dir, &directory).into_boxed_slice());
+    let at = work_tree
+        .map(|directory| explicit_path(&spawn.dir, &directory).into_boxed_slice())
+        .or_else(|| git_dir.clone())
+        .unwrap_or_else(|| spawn.dir.clone());
     Ok(Checked {
         command,
-        at: work_tree.or_else(|| git_dir.clone()).unwrap_or_else(|| spawn.dir.clone()),
+        at,
         git_dir,
         root: spawn.dir.clone(),
         home,

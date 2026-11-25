@@ -1,8 +1,5 @@
 //! Indexed dependency, delegate and threshold queue waits (domain/tasks/holds.md, 2, 6 and 7).
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")
-)]
+#![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
 
 use crate::compound::Staged;
 use crate::domain::{Domain, publish, record, task_mut};
@@ -61,7 +58,7 @@ pub(crate) fn valid(limits: &Limits) -> bool {
 pub(crate) fn refresh(domain: &mut Domain, number: u64) {
     let row = record(domain, number).expect("published live row");
     let phase = WaitPhase::for_phase(&row.phase);
-    let queued = crate::holds::queued(domain, row);
+    let queued = crate::holds::has_place(domain, row);
     if let Some(old) = domain.waits.rows.get(&number)
         && old.holdings == row.holdings
         && old.pending == row.waiting_on
@@ -1100,6 +1097,7 @@ fn circle_held(phase: &Phase) -> Option<(&Circle, &Was)> {
         Phase::Held { why: Hold::Circle, source: Some(source), was } => match source.as_ref() {
             HoldSource::Circle(circle) => Some((circle, was)),
             HoldSource::Preparation { .. }
+            | HoldSource::Wait { .. }
             | HoldSource::Resource(_)
             | HoldSource::Effect { .. }
             | HoldSource::Account { .. } => None,
@@ -1134,6 +1132,7 @@ fn circle_cut(why: &Refusal) -> bool {
         | Refusal::Dependencies
         | Refusal::DependencyEnded { .. }
         | Refusal::PersonAnswers { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::KeptQuestion { .. }
         | Refusal::Kept
         | Refusal::Executor

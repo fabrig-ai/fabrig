@@ -78,14 +78,13 @@ pub fn bind_addresses(cluster: &mut Cluster, addresses: &[std::net::SocketAddr; 
 pub struct Engine {
     pub configuration: temper_playground::documents::Configuration,
     pub agents: temper_agent_fixtures::Setting,
+    change_spend: u64,
 }
 impl Engine {
     /// Two stock runs fund production and leave room for its scripted turns after the model-priced reserve.
     #[must_use]
     pub fn change_spend(&self) -> u64 {
-        let configured = temper_real_loop_world::settings::configuration(&self.configuration);
-        let stock = temper_service::stock::defaults(&configured.llm, configured.limits.core.tasks.result_bytes);
-        2 * stock.rules.maximum_run_spend
+        self.change_spend
     }
 }
 
@@ -97,7 +96,13 @@ pub fn compose_engine(mut engine: temper_playground::documents::Configuration, a
     support::configuration::turn_bounds::apply(&mut engine, turn);
     let providers = temper_agent_fixtures::providers::take(&mut engine).expect("fixture providers");
     let agents = temper_agent_fixtures::compose_setting(&mut engine, agent, &providers);
-    Engine { configuration: engine, agents }
+    support::configuration::cluster_agent_limits(&mut engine, &agents.figures);
+    let configured = temper_real_loop_world::settings::configuration(&engine);
+    let stock = temper_service::stock::defaults(&configured.llm, configured.limits.core.tasks.result_bytes);
+    // The unit-stop referee reads the parent chat with its whole instructions.
+    let chat = stock.charters.iter().find(|charter| charter.number == 1).expect("stock chat charter");
+    engine.jig_over("documents.text_bytes", chat.policy.instructions.len());
+    Engine { configuration: engine, agents, change_spend: 2 * stock.rules.maximum_run_spend }
 }
 
 /// Keep the current charters, overriding their provider, documents and hosts.

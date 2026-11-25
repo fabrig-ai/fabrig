@@ -28,7 +28,15 @@ fn keyed_requests_leave_only_through_the_table_after_their_records() {
     else {
         unreachable!("one jig request was sent");
     };
-    assert_eq!(**ask, contract::Ask::Stop { project: 1, task: 9 });
+    assert_eq!(
+        **ask,
+        contract::Ask::Stop {
+            project: 1,
+            task: 9,
+            reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits")
+        }
+    );
     assert_eq!(taken(&mut root).len(), 0);
 }
 #[test]
@@ -564,7 +572,12 @@ fn restored_requests(count: u32) -> List<crate::store::Record> {
                 event: jig_client::Event::Send {
                     name: None,
                     key: jig_client::Key { asker: jig_client::Asker::JIG, number: u64::from(n) },
-                    request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 9 + u64::from(n) })),
+                    request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop {
+                        project: 1,
+                        task: 9 + u64::from(n),
+                        reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
+                    })),
                 },
             },
         );

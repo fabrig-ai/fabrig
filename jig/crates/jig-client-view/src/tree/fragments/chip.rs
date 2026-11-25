@@ -76,6 +76,7 @@ pub(crate) fn reason(b: &mut Builder, value: HoldCategory, words: &Words) {
         HoldCategory::Uncertain { entry } => number(b, words, P::Uncertain, entry),
         HoldCategory::Budget => text(b, words, P::Budget, &[]),
         HoldCategory::Deadline => text(b, words, P::HoldDeadline, &[]),
+        HoldCategory::Waited => text(b, words, P::HoldWaited, &[]),
         HoldCategory::HoldsWaited => text(b, words, P::HoldsWaited, &[]),
         HoldCategory::ResourceUnavailable => text(b, words, P::ResourceUnavailable, &[]),
         HoldCategory::ResourceAccess => text(b, words, P::ResourceAccess, &[]),

@@ -4,7 +4,7 @@ pub fn hold_refusal(value: w::HoldCategory) -> w::Refusal {
     let what = w::Moved::Hold(w::MovedHold { reason });
     w::Refusal::Moved(w::RefusalMoved { now: revision(31), what })
 }
-pub fn holds() -> [(p::HoldReason, w::HoldCategory); 22] {
+pub fn holds() -> [(p::HoldReason, w::HoldCategory); 23] {
     [
         (p::HoldReason::Stalled, w::HoldCategory::Stalled),
         (p::HoldReason::Stopped, w::HoldCategory::Stopped),
@@ -17,6 +17,7 @@ pub fn holds() -> [(p::HoldReason, w::HoldCategory); 22] {
         (p::HoldReason::ResourceUnavailable, w::HoldCategory::ResourceUnavailable),
         (p::HoldReason::ResourceAccess, w::HoldCategory::ResourceAccess),
         (p::HoldReason::Procedure, w::HoldCategory::Procedure),
+        (p::HoldReason::Waited, w::HoldCategory::Waited),
         (p::HoldReason::Dependency { task: 9 }, w::HoldCategory::Dependency(w::HoldCategoryDependency { task: 9 })),
         (p::HoldReason::Placed { hold: 9 }, w::HoldCategory::Placed(w::HoldCategoryPlaced { hold: 9 })),
         (p::HoldReason::Uncertain { entry: 9 }, w::HoldCategory::Uncertain(w::HoldCategoryUncertain { entry: 9 })),

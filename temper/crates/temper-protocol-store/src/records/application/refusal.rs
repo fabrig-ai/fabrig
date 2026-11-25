@@ -33,6 +33,7 @@ pub(super) fn encode_hold_reason(value: &p::HoldReason, l: &w::Limits) -> w::Hol
             w::HoldReason::Failures(w::HoldReasonFailures { class: encode_failure_class(*class, l) })
         }
         p::HoldReason::Circle => w::HoldReason::Circle,
+        p::HoldReason::Waited => w::HoldReason::Waited,
         p::HoldReason::Stalled => w::HoldReason::Stalled,
         p::HoldReason::Dependency { task } => w::HoldReason::Dependency(w::HoldReasonDependency { task: *task }),
         p::HoldReason::Stopped => w::HoldReason::Stopped,
@@ -57,6 +58,7 @@ pub(super) fn decode_hold_reason(value: w::HoldReason) -> p::HoldReason {
         }
         w::HoldReason::Failures(value) => p::HoldReason::Failures { class: decode_failure_class(value.class) },
         w::HoldReason::Circle => p::HoldReason::Circle,
+        w::HoldReason::Waited => p::HoldReason::Waited,
         w::HoldReason::Stalled => p::HoldReason::Stalled,
         w::HoldReason::Dependency(value) => p::HoldReason::Dependency { task: value.task },
         w::HoldReason::Stopped => p::HoldReason::Stopped,
@@ -328,6 +330,13 @@ pub(super) fn decode_limit_kind(value: w::LimitKind) -> p::LimitKind {
 )]
 pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::QuestionAnswered { question, by } => w::Refusal::QuestionAnswered(w::RefusalQuestionAnswered {
+            question: *question,
+            by: match *by {
+                p::QuestionAnswerer::Task(value) => w::QuestionAnswerer::Task(w::Number64 { value }),
+                p::QuestionAnswerer::Person(value) => w::QuestionAnswerer::Person(w::Number64 { value }),
+            },
+        }),
         p::Refusal::Unlinked { worker } => w::Refusal::Unlinked(w::RefusalUnlinked { worker: *worker }),
         p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
         p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-store"),
@@ -442,9 +451,18 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
             }),
     })
 }
+fn decode_question_refusal(value: w::RefusalQuestionAnswered) -> p::Refusal {
+    let by = match value.by {
+        w::QuestionAnswerer::Task(n) => p::QuestionAnswerer::Task(n.value),
+        w::QuestionAnswerer::Person(n) => p::QuestionAnswerer::Person(n.value),
+    };
+    p::Refusal::QuestionAnswered { question: value.question, by }
+}
+
 pub(super) fn decode_refusal(value: w::Refusal) -> p::Refusal {
     match value {
         // Forge application records cannot contain a settings decision's stale revision.
+        w::Refusal::QuestionAnswered(v) => decode_question_refusal(v),
         w::Refusal::Unlinked(v) => p::Refusal::Unlinked { worker: v.worker },
         w::Refusal::Concluded(v) => p::Refusal::Concluded { at: Wall::from_nanos(v.at) },
         w::Refusal::Stale(_) => unreachable!("forge applications cannot store a stale settings refusal"),

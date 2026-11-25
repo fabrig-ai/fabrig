@@ -199,10 +199,10 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         problems.push(path.member(b"core.templates"), crate::What::Bound);
         problems.push(path.member(b"authority.projects"), crate::What::Bound);
     }
-    // A task may hold one connector topic past its ordinary subscription bound.
+    // New interests of every kind share one room; the store keeps restored interests past it.
     let subscriptions_ceiling =
         wire.subscriptions_entries.min(jig_protocol_store::tasks_v13::CEILINGS.task_interests_subscriptions);
-    if match core.tasks.subscriptions.checked_add(1) {
+    if match jig_domain_tasks::subscription_capacity(&core.tasks) {
         Some(count) => count > subscriptions_ceiling,
         None => true,
     } {
@@ -281,18 +281,38 @@ mod settings_tests {
         );
     }
     #[test]
-    fn subscriptions_leave_room_for_one_apart_topic_in_both_codecs() {
+    fn the_shared_subscription_room_fits_the_codecs() {
         ceiling(b"tasks.subscriptions", 31);
         let mut limits = crate::stock();
         limits.clients.wire.subscriptions_entries = 0;
         limits.core.tasks.subscriptions = 0;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
-        assert_eq!(problems.problems.len(), 1, "even a zero ordinary bound needs the apart slot");
+        assert_eq!(problems.problems.len(), 1, "even the zero setting admits one standing interest");
         assert_eq!(
             problems.problems.get(0).unwrap().path,
             Path::root().member(b"limits").member(b"tasks.subscriptions")
         );
+    }
+
+    #[test]
+    fn the_shared_subscription_room_fits_the_store_ceiling() {
+        let stored_ceiling = jig_protocol_store::tasks_v13::CEILINGS.task_interests_subscriptions;
+        let refusal = [crate::Problem {
+            path: Path::root().member(b"limits").member(b"tasks.subscriptions"),
+            what: crate::What::Bound,
+        }];
+        // The shared room is the setting plus one. Give the client room for the first refused count.
+        for (subscriptions, expected) in
+            [(stored_ceiling - 1, [].as_slice()), (stored_ceiling, refusal.as_slice()), (u32::MAX, refusal.as_slice())]
+        {
+            let mut limits = crate::stock();
+            limits.clients.wire.subscriptions_entries = stored_ceiling + 1;
+            limits.core.tasks.subscriptions = subscriptions;
+            let mut problems = Problems::empty();
+            check_settings(&limits, &mut problems);
+            assert_eq!(problems.problems.as_slice(), expected, "tasks.subscriptions = {subscriptions}");
+        }
     }
 
     #[test]

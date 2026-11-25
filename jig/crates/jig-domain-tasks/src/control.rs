@@ -297,6 +297,7 @@ pub(crate) struct AmendPlan {
     pub(crate) met: Option<u64>,
 }
 
+#[expect(clippy::too_many_arguments, reason = "amend takes the core's reading and loaded dependency places")]
 pub(crate) fn amend(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -304,6 +305,7 @@ pub(crate) fn amend(
     by: Party,
     change: Amend,
     places: &[DependencyPlace],
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
     let number = change.task;
@@ -311,7 +313,7 @@ pub(crate) fn amend(
         Ok(to) => to,
         Err((to, why)) => return refused(to, Some(number), why, out),
     };
-    match check_amend(domain, &Staged::new(0), env, by, change, places) {
+    match check_amend(domain, &Staged::new(0), env, by, change, places, reads_project) {
         Ok(plan) => {
             apply_amend(domain, env, by, plan, out);
             out.push(Request::Done { reply_to: to });
@@ -328,6 +330,7 @@ pub(crate) fn check_amend(
     by: Party,
     amendment: Amend,
     places: &[DependencyPlace],
+    reads_project: bool,
 ) -> Result<AmendPlan, Box<crate::Problem>> {
     let number = amendment.task;
     let mut plan = match check_amend_fields(domain, staged, env, by, amendment) {
@@ -368,7 +371,7 @@ pub(crate) fn check_amend(
             return Err(Box::new(crate::Problem::new(Some(*dependency), Refusal::Unknown)));
         }
         let reaching = Reaching { project: old.project, task: number, dependency: *dependency };
-        if !dependency_reached(domain, staged, env, by, reaching, places) {
+        if !dependency_reached(domain, staged, env, by, reaching, places, reads_project) {
             return Err(Box::new(crate::Problem::naming(Some(number), Refusal::Dependencies, &[*dependency])));
         }
         if record(domain, *dependency).is_some() {
@@ -429,6 +432,7 @@ fn dependency_reached(
     by: Party,
     reaching: Reaching,
     places: &[DependencyPlace],
+    reads_project: bool,
 ) -> bool {
     let Reaching { project, task, dependency } = reaching;
     if task == dependency {
@@ -443,8 +447,9 @@ fn dependency_reached(
             },
         },
         Party::Task(amender) => {
-            if record(domain, dependency).is_some() {
-                return below(domain, dependency, amender, env.limits.tasks)
+            if let Some(row) = record(domain, dependency) {
+                return reads_project && row.project == project
+                    || below(domain, dependency, amender, env.limits.tasks)
                     || match staged.record(domain, amender) {
                         Some(parent) => {
                             crate::batch::contains(&parent.delegates, dependency)
@@ -454,6 +459,12 @@ fn dependency_reached(
                     };
             }
             let Some(parent) = staged.record(domain, amender) else { return false };
+            if reads_project
+                && let Some(row) = place(places, dependency)
+                && row.project == project
+            {
+                return true;
+            }
             if staged.reference(domain, amender, dependency) {
                 return true;
             }
@@ -616,9 +627,14 @@ fn check_amend_fields(
             None => false,
         };
     let address_changed = match amendment.addressed {
-        Some(change) => old.executor != crate::Executor::Person(change.address) || old.taken_by.is_some(),
+        Some(change) => {
+            old.executor != crate::Executor::Person(change.address) || old.taken_by.is_some() || old.person_offered
+        }
         None => false,
     };
+    if !address_changed {
+        amendment.addressed = None;
+    }
     let person_changed = match old.executor {
         crate::Executor::Person(_) => spec_changed || dependencies_changed || address_changed,
         crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
@@ -658,7 +674,14 @@ fn check_amend_fields(
     };
     let before = old.settings();
     let release = if releasing {
-        Some(check_release(domain, staged, env, by, Release { task: number, again: None, message: None })?)
+        Some(check_release_with_authority(
+            domain,
+            staged,
+            env,
+            by,
+            Release { task: number, again: None, message: None },
+            amendment.authority.as_ref(),
+        )?)
     } else {
         None
     };
@@ -767,8 +790,7 @@ pub(crate) fn apply_amend(
         };
     }
     if let Some(change) = amendment.addressed {
-        task.record.executor = crate::Executor::Person(change.address);
-        task.record.taken_by = None;
+        crate::person::readdress(task, env, change.address);
     }
     if let Some(instructions) = amendment.instructions {
         crate::session::end(&mut task.record, env.wall, crate::SessionEnd::Rules, out);
@@ -939,7 +961,8 @@ fn own_hold(task: &crate::TaskRecord) -> bool {
             | crate::Hold::ResourceUnavailable
             | crate::Hold::ResourceAccess
             | crate::Hold::PoolLost { .. }
-            | crate::Hold::Circle => false,
+            | crate::Hold::Circle
+            | crate::Hold::Waited => false,
         },
         Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => false,
     }
@@ -1043,6 +1066,17 @@ pub(crate) fn check_release(
     by: Party,
     operation: Release,
 ) -> Result<ReleasePlan, Refusal> {
+    check_release_with_authority(domain, staged, env, by, operation, None)
+}
+
+fn check_release_with_authority(
+    domain: &Domain,
+    staged: &Staged,
+    env: &Env<Limits>,
+    by: Party,
+    operation: Release,
+    authority: Option<&Authority>,
+) -> Result<ReleasePlan, Refusal> {
     let Release { task: number, again, message } = operation;
     let task = staged.record(domain, number).ok_or(Refusal::Unknown)?;
     if task.revision == u64::MAX {
@@ -1084,6 +1118,22 @@ pub(crate) fn check_release(
     };
     let next = match &task.phase {
         Phase::Held { was: Was::Waiting, .. } => Phase::Waiting,
+        Phase::Held { was: Was::Active(Active::Idle), why: crate::Hold::Waited, source: Some(source) }
+            if let crate::HoldSource::Wait { .. } = source.as_ref() =>
+        {
+            Phase::Active(Active::Idle)
+        }
+        // If the deadline still has passed, the bound alarm holds the fresh wait
+        // again with its words. Otherwise the release makes the task due.
+        Phase::Held { was: Was::Active(Active::Idle), why: crate::Hold::Deadline, source: Some(source) }
+            if let crate::HoldSource::Wait { .. } = source.as_ref() =>
+        {
+            let authority = authority.unwrap_or(task.authority);
+            match crate::domain::moved_deadline(task.base, authority.budget.deadline, env.wall) {
+                Some(at) if at <= env.wall => Phase::Active(Active::Idle),
+                Some(_) | None => Phase::Active(Active::Due),
+            }
+        }
         Phase::Held {
             was: Was::Active(Active::Idle | Active::Due | Active::Preparing | Active::BackingOff { .. }),
             ..
@@ -1129,10 +1179,11 @@ pub(crate) fn apply_release(
         Phase::Held { why: crate::Hold::Circle, .. } => true,
         Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => false,
     };
+    let keeps_place = crate::holds::kept_place(&task.record);
     task.record.narrowing |= crate::run::run_attempt(&next).is_some();
     task.record.phase = crate::run::ends::for_record(&task.record).amended(task.record.executor, next);
     task.record.due_reason = crate::Why::Released;
-    if task.record.phase == Phase::Waiting && !circle {
+    if task.record.phase == Phase::Waiting && !circle && !keeps_place {
         task.record.hold_wait_since = None;
         task.record.hold_bound_since = None;
     }

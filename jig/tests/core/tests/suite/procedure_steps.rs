@@ -593,6 +593,7 @@ fn a_party_amendment_dropping_a_started_from_dependency_is_refused_naming_it() {
         world.domain.core_mut(),
         &env,
         core::Event::Tasks(tasks::Event::Amend {
+            reads_project: false,
             operation: tasks::Amend {
                 funder: None,
                 task: procedure,

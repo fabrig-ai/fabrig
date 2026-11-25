@@ -211,7 +211,14 @@ fn a_person_stops_a_scripted_run_and_words_release_it_for_a_new_attempt() {
         false,
     );
     acts(&mut world, 2, Box::new([Act::Request { key: [6; 16], ask: Ask::Chat { words: Box::from(&b"start"[..]) } }]));
-    acts(&mut world, 2, Box::new([Act::Request { key: [7; 16], ask: Ask::Stop { task: Task::Last } }]));
+    acts(
+        &mut world,
+        2,
+        Box::new([Act::Request {
+            key: [7; 16],
+            ask: Ask::Stop { task: Task::Last, reason: Box::from(b"Parking the task".as_slice()) },
+        }]),
+    );
     assert_eq!(world.cancellations.len(), 1);
     let task = world.peers.as_ref().expect("peers").parties[2].last_task.expect("started task");
     let hold = jig_core_world::fixtures::live_row(&world, task).revisions.hold;
@@ -295,7 +302,14 @@ fn a_person_stops_a_goal_and_its_delegates_runs_are_cancelled_with_its_own() {
             (task, attempt)
         })
         .collect();
-    acts(&mut world, 0, Box::new([Act::Request { key: [62; 16], ask: Ask::Stop { task: Task::Number(goal) } }]));
+    acts(
+        &mut world,
+        0,
+        Box::new([Act::Request {
+            key: [62; 16],
+            ask: Ask::Stop { task: Task::Number(goal), reason: Box::from(b"Parking the task".as_slice()) },
+        }]),
+    );
     assert_eq!(world.cancellations.len(), before.len());
     let hold = live_row(&world, goal).placed.expect("placed subtree stop");
     for &(task, attempt) in &before {

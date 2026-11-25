@@ -270,6 +270,10 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Refused(..),
                 )) => Request::Held(Box::new(Held::PeopleReply { to, reply })),
             },
+            people::Request::ReadingLost { project, parties } => {
+                routed.work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ReadingLost { project, parties })));
+                continue;
+            }
             people::Request::RolesApplied { .. } => continue,
             people::Request::RolesRefused { .. } | people::Request::RestoreRefused { .. } => {
                 core.start_collect_failure();
@@ -376,7 +380,7 @@ pub(crate) fn tag_people_part(
                             crate::admission::person_task::Action::Answer { task, revision, result },
                         );
                     }
-                    people::Ask::Stop { task, .. } => stop_request(core, env, &mut routed, party, task),
+                    people::Ask::Stop { task, reason, .. } => stop_request(core, env, &mut routed, party, task, reason),
                     people::Ask::Conclude { task, .. } => {
                         super::controls::conclude_request(core, env, &mut routed, party, task);
                     }

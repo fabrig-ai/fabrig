@@ -9,6 +9,6 @@ waits: 4
   room at checking: entry 7 of task 51 · since 2026-10-24 15:02 UTC · no bound: behind task 51
   step at ancestry: task 15090 · since 2026-10-24 15:02 UTC · holds at 2026-11-24 08:07 UTC
 acts:
-  task stop 41 --key KEY
+  task stop 41 REASON --key KEY
   task cancel 41 REASON --key KEY
 digest: task 936f95b85a34f1a6

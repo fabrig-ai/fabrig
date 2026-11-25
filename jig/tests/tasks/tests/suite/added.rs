@@ -57,6 +57,7 @@ fn amend_with_places(
 ) -> Reply {
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task,
@@ -86,6 +87,7 @@ fn procedure(world: &mut World, number: u64, end: ProcedureEnd) -> Reply {
     let read = context.inbox.last().map(|word| word.number);
     let step = world.record(number).attempt + 1;
     response(world, |reply_to| Event::Procedure {
+        reads_project: false,
         reply_to,
         task: number,
         step,
@@ -156,6 +158,7 @@ fn a_live_run_finishes_done_as_parked_keeps_saved_state_and_names_its_dependenci
     let expected = saved.clone();
     assert_eq!(
         response(&mut world, |reply_to| Event::Activation {
+            reads_project: false,
             reply_to,
             task: 1,
             attempt: 1,
@@ -509,6 +512,7 @@ fn a_new_batch_records_an_ended_done_dependency_as_met_and_restores_its_stub() {
     let places = ended_place(&world, 2);
     assert_eq!(
         response(&mut world, |reply_to| Event::Make {
+            reads_project: false,
             maker: None,
             reply_to,
             creator: PERSON_PARTY,
@@ -552,6 +556,7 @@ fn a_new_batch_refuses_failed_or_cancelled_places_and_absent_places_atomically()
         let before = world.records.clone();
         refused(
             response(&mut world, |reply_to| Event::Make {
+                reads_project: false,
                 maker: None,
                 reply_to,
                 creator: PERSON_PARTY,
@@ -865,6 +870,7 @@ fn remove_and_release(world: &mut World, number: u64) -> Reply {
     amendment.release = Some(world.record(number).revisions.hold);
     let message = world.record(number).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: number,

@@ -16,9 +16,20 @@ pub enum Accepter {
     Role(u32),
 }
 
+/// The task or person that settled a question.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum QuestionAnswerer {
+    Task(u64),
+    Person(u64),
+}
+
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    QuestionAnswered {
+        question: u64,
+        by: QuestionAnswerer,
+    },
     /// The named worker has no admitted channel (domain/engine/workers.md, 5).
     Unlinked {
         worker: u32,

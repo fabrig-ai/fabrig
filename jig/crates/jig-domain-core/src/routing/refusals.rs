@@ -38,6 +38,7 @@ fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
         None => Box::new([]),
     };
     let refusal = match why {
+        tasks::Refusal::QuestionAnswered { question, by } => answered(question, by),
         tasks::Refusal::Concluded { at } => people::Refusal::Concluded { at },
         tasks::Refusal::NotStanding => people::Refusal::NotOffered,
         tasks::Refusal::TalkOpen { party } => people::Refusal::Taken { by: party },
@@ -212,4 +213,12 @@ pub(crate) fn note_person_refusal(why: notes::Refusal) -> people::Outcome {
         notes::Refusal::Exists => people::Refusal::Limit { which: people::LimitKind::Duplicate },
     };
     people::Outcome::Refused(refusal)
+}
+
+pub(crate) fn answered(question: u64, by: tasks::QuestionAnswerer) -> people::Refusal {
+    let by = match by {
+        tasks::QuestionAnswerer::Task(task) => people::QuestionAnswerer::Task(task),
+        tasks::QuestionAnswerer::Person(person) => people::QuestionAnswerer::Person(person),
+    };
+    people::Refusal::QuestionAnswered { question, by }
 }

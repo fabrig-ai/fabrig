@@ -353,7 +353,9 @@ entry naming the task or proposal it is and its project:
 - **proposals** routed to them, or to a role they hold;
 - **escalations** that reached them: a held task nobody below could
   decide;
-- **person tasks** addressed to them, or to a role they hold (section 7);
+- **person tasks** addressed to them, or to a role they hold, or
+  offered to either past their stall (section 7); and questions passed
+  up to them so (../tasks/messages.md, 2);
 - **results** of the tasks they asked for, and the turns of their
   conversations they have not read.
 
@@ -568,8 +570,18 @@ A task whose executor is a party, or a role (../model.md, 3.2):
   takes it (`Take`) holds it, so two do not answer at once, and may hand
   it back (`HandBack`). A service may hold a role a person task is
   addressed to, and answer it through its requests.
-- **Stalled,** past its bound, it is news for its requester, which may
-  amend, cancel or address it to someone else.
+- **Stalled,** past its bound, it is news for its requester, once, which
+  may amend, cancel or address it to someone else; and it is offered to
+  its next holder too: the next party its escalations would reach past
+  its addressee, its tree's requesting person, else the project's
+  escalation role (section 4), the route's tasks passed over since a
+  party answers it. That holder finds it in their inbox and may take,
+  hand back and answer it as its addressee may, and so may its first
+  addressee; a take holds it for its taker alone. The first answer
+  settles it; a later one is refused, naming who answered. Offered, it
+  has its stall again and passes on; at the project's last holder it is
+  overdue (../tasks/proposals.md), with no timer after. Addressed anew,
+  it starts again, offered to nobody.
 - **Kept** by a dependency an amendment added (../tasks/lifecycle-endings.md, 1), it stays
   in its party's inbox, shown waiting on its dependencies, and an
   `Answer` is refused, naming them; once they are done, it is answered

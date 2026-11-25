@@ -29,13 +29,14 @@ fn party(domain: &Domain, party: Party) -> Wake {
 }
 
 fn emit(domain: &Domain, core: Option<&Core>, row: &TaskRecord, mut wait: Wait, into: &mut Inspection) {
-    let authority = match row.executor {
+    let retry = match row.executor {
         Executor::Person(_) => None, // This alarm is the person's stall notice, not an authority deadline.
         Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => {
             alarm(domain.inspection_alarms(), row.number)
         }
     };
-    for due in [authority, alarm(domain.inspection_grace_alarms(), row.number)].into_iter().flatten() {
+    let bound = core.and_then(|core| core.inspection_wait_bound(row.number));
+    for due in [retry, alarm(domain.inspection_grace_alarms(), row.number), bound].into_iter().flatten() {
         let timer = Wake::Timer(due);
         if !wait.wakes.contains(&timer) {
             wait.wakes.push(timer);
@@ -322,6 +323,7 @@ fn held(
         Hold::PoolLost { .. } => "held: pool lost",
         Hold::Procedure => "held: procedure",
         Hold::Circle => "held: circle",
+        Hold::Waited => "held: wait past its bound",
     };
     let mut wakes = Vec::new();
     if let Hold::Placed { hold } = why {
@@ -376,7 +378,7 @@ fn held(
         Some(HoldSource::Effect { connector, .. } | HoldSource::Account { connector, .. }) => {
             wakes.push(Wake::Party(format!("connector {connector}")));
         }
-        Some(HoldSource::Preparation { .. }) | None => {}
+        Some(HoldSource::Preparation { .. } | HoldSource::Wait { .. }) | None => {}
     }
     emit(
         domain,

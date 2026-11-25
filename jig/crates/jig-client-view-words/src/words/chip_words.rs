@@ -1,5 +1,5 @@
 //! Checked chip metadata sayings (client/domain/view.md, 7).
-//! IDs 7000..7098 are coordinated append-only owner sayings.
+//! Coordinated append-only owner sayings, starting at ID 7000.
 use crate::Owner;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -110,8 +110,9 @@ pub enum ChipPhrase {
     ResourceAccess,
     PoolLost,
     HoldProcedure,
+    HoldWaited,
 }
-pub const ALL: [ChipPhrase; 101] = [
+pub const ALL: [ChipPhrase; 102] = [
     ChipPhrase::Project,
     ChipPhrase::PhaseSince,
     ChipPhrase::Placement,
@@ -213,6 +214,7 @@ pub const ALL: [ChipPhrase; 101] = [
     ChipPhrase::ResourceAccess,
     ChipPhrase::PoolLost,
     ChipPhrase::HoldProcedure,
+    ChipPhrase::HoldWaited,
 ];
 impl ChipPhrase {
     #[must_use]
@@ -320,6 +322,7 @@ impl ChipPhrase {
             Self::ResourceAccess => 7096,
             Self::PoolLost => 7097,
             Self::HoldProcedure => 7098,
+            Self::HoldWaited => 7112,
         };
         PhraseId { owner: Owner::Jig.opaque(), number }
     }
@@ -421,6 +424,7 @@ impl ChipPhrase {
             | Self::Effects
             | Self::EffectFailed
             | Self::Budget
+            | Self::HoldWaited
             | Self::HoldDeadline
             | Self::HoldsWaited
             | Self::ResourceUnavailable
@@ -528,6 +532,7 @@ impl ChipPhrase {
             Self::Uncertain => b"Held uncertain entry: ",
             Self::Budget => b"Held budget",
             Self::HoldDeadline => b"Held deadline",
+            Self::HoldWaited => b"A wait passed its bound",
             Self::HoldsWaited => b"Held waited holds",
             Self::ResourceUnavailable => b"Held resource unavailable",
             Self::ResourceAccess => b"Held resource access",

@@ -96,7 +96,14 @@ pub(super) fn make(
     send(
         core,
         limits,
-        tasks::Event::Make { maker: None, places: Box::new([]), reply_to: reply(), creator, batch: Box::new([new]) },
+        tasks::Event::Make {
+            reads_project: false,
+            maker: None,
+            places: Box::new([]),
+            reply_to: reply(),
+            creator,
+            batch: Box::new([new]),
+        },
     );
     assert!(core.tasks.task(number).is_some(), "made task {number}");
 }
@@ -159,6 +166,7 @@ pub(super) fn amend_at(
 ) {
     let message = core.tasks.task(task).unwrap().last_message.checked_add(100).unwrap();
     let event = tasks::Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task,

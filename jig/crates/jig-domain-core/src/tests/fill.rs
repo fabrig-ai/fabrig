@@ -188,6 +188,7 @@ fn take_write_holdings(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         core,
         env,
         Event::Tasks(tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(7203)),

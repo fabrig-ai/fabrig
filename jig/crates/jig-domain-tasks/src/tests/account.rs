@@ -66,6 +66,7 @@ fn an_account_wait_releases_reserve_and_charges_once_without_a_try() {
     let mut h = preparing();
     claim(&mut h, 1, SELECTED, 10);
     let terminal = || Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: TASK,
         attempt: 1,
@@ -89,6 +90,7 @@ fn amend_choice(h: &mut Harness, account: Option<u32>) {
     let mut choice = row.llm.clone().unwrap();
     choice.account = account;
     h.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: None,
             task: TASK,
@@ -151,6 +153,7 @@ fn a_cleared_account_pin_survives_restore() {
 fn the_next_claim_keeps_the_replacement_account() {
     let (mut h, _) = amended();
     h.send(Event::Activation {
+        reads_project: false,
         reply_to: to(),
         task: TASK,
         attempt: 1,

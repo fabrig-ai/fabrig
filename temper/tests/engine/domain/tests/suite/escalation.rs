@@ -523,7 +523,7 @@ fn stop_delegate(driver: &mut temper_engine_domain_world::direct::Driver, child:
         reply_to: skein_lib::ReplyTo::new(Token::new(STOP_REPLY)),
         sign_in: driver.session(),
         key,
-        ask: people::Ask::Stop { project: 1, task: child },
+        ask: people::Ask::Stop { project: 1, task: child, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     driver.settle();
 }

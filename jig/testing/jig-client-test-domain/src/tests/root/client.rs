@@ -43,7 +43,12 @@ fn a_kept_request_of_an_asker_no_owner_names_reaches_no_child() {
         &env(),
         Told::Kept {
             key: Key { asker: Asker(u32::MAX), number: UNOWNED_KEY_NUMBER },
-            request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 9 })),
+            request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop {
+                project: 1,
+                task: 9,
+                reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            })),
         },
         &mut out,
     );

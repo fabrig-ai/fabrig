@@ -10,7 +10,7 @@ use skein_io::{
     self as io, Io,
     kernel::{self, Complete, Fd, Pipe, Spawn, Submit, Way},
 };
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Wait};
 use skein_world::ring::Ring;
 use std::{
@@ -22,6 +22,8 @@ use std::{
 const PERSON: Token = Token::new(100_000);
 const PAGE: Token = Token::new(100);
 const ROOT_CLOSE: Token = Token::new(u64::MAX);
+const TRANSPORT: usize = 0;
+const EXTERNAL: usize = 1;
 /// Page observations stay apart from transport failures (ui/web/testing.md, 2).
 #[derive(Debug)]
 pub enum Report {
@@ -96,11 +98,21 @@ pub struct Pump {
 }
 impl Pump {
     pub fn new(chromium: PathBuf, profile: PathBuf, environment: Vec<(OsString, OsString)>) -> Result<Self, String> {
+        Self::with_external(chromium, profile, environment, 0)
+    }
+    /// Reserves raw operations for one caller-owned device on the same ring.
+    pub fn with_external(
+        chromium: PathBuf,
+        profile: PathBuf,
+        environment: Vec<(OsString, OsString)>,
+        external: u32,
+    ) -> Result<Self, String> {
         let bl = browser::Limits::default();
         let cap = capacity::Capacity::new(2, 0, super::Output::Stdout, &bl).ok_or("session capacity does not fit")?;
-        let operations = cap.operations.checked_add(1).ok_or("session root capacity does not fit")?;
+        let transport = cap.operations.checked_add(1).ok_or("session root capacity does not fit")?;
+        let operations = transport.checked_add(external).ok_or("session operation capacity does not fit")?;
         let root = skein_shell::open_root(Path::new("/")).map_err(|error| format!("session child root: {error}"))?;
-        let ring = match Ring::new(operations, vec![operations]) {
+        let ring = match Ring::new(operations, vec![transport, external]) {
             Ok(ring) => ring,
             Err(error) => {
                 skein_shell::close_startup_fd(root);
@@ -213,14 +225,38 @@ impl Pump {
     fn ask(&mut self, request: Request) {
         browser::down(&mut self.browser, &self.benv, request, &mut self.events, &mut self.down);
     }
-    /// Reap, advance and flush once. Wait at most ten ms, leaving the caller's
-    /// own deadlines and input live. Raw io observations belong to the caller.
-    pub fn poll(&mut self, face: &mut BrowserFace<'_>, until: Option<Time>) -> Vec<Report> {
+    /// Queues a device's submission; its operation names are local to it.
+    pub fn submit_external(&mut self, submit: Submit) {
+        let submit = self.ring.register(EXTERNAL, submit);
+        self.ring.queue(submit);
+    }
+    pub fn external_completions(&mut self, out: &mut Queue<Complete>) {
+        self.ring.deliver(EXTERNAL, out);
+    }
+    /// After the device's owner cancels outstanding operations, give up their
+    /// buffers before releasing the descriptors. Retain other hosts' completions.
+    pub fn drain_external(&mut self, out: &mut Queue<Complete>) {
+        loop {
+            self.reap();
+            self.external_completions(out);
+            out.clear();
+            if self.ring.count(EXTERNAL) == 0 {
+                break;
+            }
+            self.ring.enter(Wait::Forever);
+        }
+    }
+    fn reap(&mut self) {
         while let Some(complete) = self.ring.reap().pop() {
             let (host, complete) = self.ring.complete(complete);
             self.ring.returned(host, complete);
         }
-        self.ring.deliver(0, &mut self.complete);
+    }
+    /// Reap, advance and flush once. Wait for a completion or the earliest
+    /// deadline only if neither the transport nor the caller has work to take.
+    pub fn poll(&mut self, face: &mut BrowserFace<'_>, until: Option<Time>) -> Vec<Report> {
+        self.reap();
+        self.ring.deliver(TRANSPORT, &mut self.complete);
         let time = self.clock.now();
         self.benv.now = time.now;
         self.benv.wall = time.wall;
@@ -234,8 +270,9 @@ impl Pump {
         if self.pipes.is_some() {
             browser::fire(&mut self.browser, &self.benv, time.now, &mut self.events, &mut self.down);
         }
+        let face_activity = !self.events.is_empty();
         while let Some(event) = self.events.pop() {
-            face.event(&event);
+            face.event_at(&event, time.now);
             self.browser_event(event);
         }
         // With no page yet, a settled context has no remaining command deadline.
@@ -273,22 +310,33 @@ impl Pump {
             self.submits.push(Submit { op: ROOT_CLOSE, kind: kernel::Op::Close { fd } });
         }
         while let Some(submit) = self.submits.pop() {
-            let submit = self.ring.register(0, submit);
+            let submit = self.ring.register(TRANSPORT, submit);
             self.ring.queue(submit);
         }
         let pending = self.io.is_ready()
             || self.browser.work_pending()
             || !self.requests.is_empty()
             || !self.complete.is_empty()
-            || self.ring.has_ready();
+            || self.ring.has_ready()
+            || face_activity
+            || face.failed()
+            || !self.reports.is_empty();
         let deadline = self
             .io
             .next_deadline()
             .into_iter()
             .chain(self.browser.next_deadline())
+            .chain(face.press_wake())
             .chain(until)
-            .fold(time.now.saturating_add(Duration::from_millis(10)), Time::min);
-        self.ring.enter(if pending || !self.reports.is_empty() { Wait::No } else { Wait::Until(deadline) });
+            .min();
+        let wait = match deadline {
+            _ if pending => Wait::No,
+            Some(at) if at <= time.now => Wait::No,
+            Some(at) => Wait::Until(at),
+            None if self.ring.count(TRANSPORT) != 0 || self.ring.count(EXTERNAL) != 0 => Wait::Forever,
+            None => Wait::No,
+        };
+        self.ring.enter(wait);
         std::mem::take(&mut self.reports)
     }
     fn io_event(&mut self, event: io::Event) {

@@ -583,7 +583,7 @@ pub fn chip_heap_bound(limits: &DocumentLimits) -> Option<u64> {
 /// Construct a bounded chip from a loaded owner row, without live observations
 /// or restoring it. Whole opaque resource keys must fit the receiving limits.
 pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, Missing> {
-    small::chip_from_row(limits, row)
+    small::chip_from_row(limits, row, None)
 }
 
 /// A list-only chip from retained summary facts (protocol/store/retention.md, 7).

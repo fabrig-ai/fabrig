@@ -19,8 +19,9 @@ const STARTUP_STEPS: u64 = 10_000;
 // temper/docs/development/playground-memory.md; its other bounds use the
 // 2026-11-14 store-shape S4 merge table, each plus a quarter, rounded up to
 // two significant digits. The fake disk's start bound uses the 2026-11-25
-// "Stored stock charters at start" table, and the schema cache bound uses the
-// 2026-11-23 "Prepared schemas before start" table. The other nonservice
+// "Stored stock charters at start" table. The bounded-waits measurement is
+// recorded separately. The schema cache bound uses the 2026-11-23
+// "Prepared schemas before start" table. The other nonservice
 // bounds keep the 2026-11-12 figures. Each uses a quarter's margin.
 // Bounds follow process names, not admission order.
 const SERVICE_FIRST_STEP_HELD: i64 = 470_000;

@@ -1,6 +1,16 @@
 //! Owned process trees' scheduler snapshots (skein/docs/foundation/testing-strategy.md, 2.10).
 
-use alloc::collections::BTreeSet;
+use alloc::borrow::Cow;
+use alloc::collections::{BTreeSet, VecDeque};
+use core::fmt::Write;
+use std::fs::{self, File};
+use std::io::Read;
+use std::os::unix::fs::{DirEntryExt, MetadataExt};
+use std::path::Path;
+
+mod files;
+pub(super) use files::SampleFiles;
+use files::{TaskFiles, TaskIdentity, read_fresh};
 
 use super::{Duration, Sched, parse_schedstat, sched_elapsed};
 
@@ -16,6 +26,7 @@ struct Thread {
     process_start: u64,
     tid: u32,
     sched: Sched,
+    born_after_arm: bool,
 }
 
 /// Both values use Linux's boot clock, including suspended time.
@@ -30,8 +41,8 @@ impl Boot {
         if !cfg!(target_os = "linux") {
             return None;
         }
-        let ticks = clock_ticks(&std::fs::read("/proc/self/auxv").ok()?)?;
-        let uptime = std::fs::read_to_string("/proc/uptime").ok()?;
+        let ticks = clock_ticks(&fs::read("/proc/self/auxv").ok()?)?;
+        let uptime = fs::read_to_string("/proc/uptime").ok()?;
         let (seconds, hundredths) = uptime.split_whitespace().next()?.split_once('.')?;
         if hundredths.len() != 2 {
             return None;
@@ -71,82 +82,232 @@ fn clock_ticks(bytes: &[u8]) -> Option<u64> {
     None
 }
 
+#[derive(Clone, Copy)]
+enum Edge {
+    Root(Option<u64>),
+    Child(u32),
+}
+
 pub(super) enum Proc {
     Live,
     #[cfg(test)]
     Text(&'static [(&'static str, &'static str)]),
+    #[cfg(test)]
+    Directory(std::path::PathBuf),
+}
+
+#[derive(Clone, Copy)]
+struct Task {
+    tid: u32,
+    inode: u64,
 }
 
 impl Proc {
-    fn read(&self, path: &str) -> Option<String> {
+    fn path<'a>(&self, path: &'a str) -> Cow<'a, Path> {
         match self {
-            Self::Live => std::fs::read_to_string(path).ok(),
+            Self::Live => Cow::Borrowed(Path::new(path)),
             #[cfg(test)]
-            Self::Text(files) => files.iter().find(|(name, _)| *name == path).map(|(_, text)| (*text).into()),
+            Self::Text(_) => Cow::Borrowed(Path::new(path)),
+            #[cfg(test)]
+            Self::Directory(root) => Cow::Owned(root.join(path.trim_start_matches('/'))),
         }
     }
 
-    fn tasks(&self, pid: u32) -> Vec<u32> {
-        let directory = format!("/proc/{pid}/task");
+    fn open(&self, path: &str) -> Option<File> {
+        #[cfg(test)]
+        tests::opened(false);
+        File::open(self.path(path)).ok()
+    }
+
+    fn read<'a>(&self, path: &str, text: &'a mut String) -> Option<&'a str> {
+        text.clear();
         match self {
-            Self::Live => match std::fs::read_dir(directory) {
-                Ok(tasks) => tasks.flatten().filter_map(|task| task.file_name().to_str()?.parse().ok()).collect(),
-                Err(_) => Vec::new(),
-            },
             #[cfg(test)]
             Self::Text(files) => {
-                let prefix = format!("{directory}/");
-                files
-                    .iter()
-                    .filter_map(|(path, _)| path.strip_prefix(&prefix)?.split('/').next()?.parse().ok())
-                    .collect::<BTreeSet<_>>()
-                    .into_iter()
-                    .collect()
+                tests::opened(false);
+                let (_, source) = files.iter().find(|(name, _)| *name == path)?;
+                text.push_str(source);
+            }
+            Self::Live => {
+                // Proc exposes these records with a size of zero. Use streaming
+                // reads without File::read_to_string's metadata lookup.
+                self.open(path)?.take(u64::MAX).read_to_string(text).ok()?;
+            }
+            #[cfg(test)]
+            Self::Directory(_) => {
+                self.open(path)?.take(u64::MAX).read_to_string(text).ok()?;
+            }
+        }
+        Some(text)
+    }
+
+    fn file<'a>(&self, path: &mut String, leaf: &str, text: &'a mut String) -> Option<&'a str> {
+        let base = path.len();
+        path.push_str(leaf);
+        let source = self.read(path, text);
+        path.truncate(base);
+        source
+    }
+
+    fn task_file<'a>(
+        &self,
+        path: &mut String,
+        leaf: &str,
+        text: &'a mut String,
+        slot: &mut Option<File>,
+    ) -> Option<&'a str> {
+        text.clear();
+        if let Some(file) = slot {
+            if read_fresh(file, text).is_ok() {
+                return Some(text);
+            }
+            *slot = None;
+            return self.file(path, leaf, text);
+        }
+        let base = path.len();
+        path.push_str(leaf);
+        let file = self.open(path);
+        path.truncate(base);
+        // This is also the ordinary read when a descriptor cannot be reused.
+        text.clear();
+        let file = file?;
+        (&file).take(u64::MAX).read_to_string(text).ok()?;
+        *slot = Some(file);
+        Some(text)
+    }
+
+    fn tasks(&self, directory: &str, tasks: &mut Vec<Task>) {
+        tasks.clear();
+        #[cfg(test)]
+        tests::opened(true);
+        match self {
+            #[cfg(test)]
+            Self::Text(files) => {
+                tasks.extend(files.iter().filter_map(|(path, _)| {
+                    let tid = path.strip_prefix(directory)?.strip_prefix('/')?.split('/').next()?.parse().ok()?;
+                    Some(Task { tid, inode: 0 })
+                }));
+                tasks.sort_unstable_by_key(|task| task.tid);
+                tasks.dedup_by_key(|task| task.tid);
+            }
+            _ => {
+                if let Ok(directory) = fs::read_dir(self.path(directory)) {
+                    tasks.extend(directory.flatten().filter_map(|entry| {
+                        let tid = entry.file_name().to_str()?.parse().ok()?;
+                        Some(Task { tid, inode: entry.ino() })
+                    }));
+                }
             }
         }
     }
 
-    fn stat(&self, pid: u32) -> Option<(u32, u64)> {
-        parse_stat(&self.read(&format!("/proc/{pid}/stat"))?)
+    fn stat(&self, path: &mut String, text: &mut String) -> Option<(u32, u64)> {
+        parse_stat(self.file(path, "/stat", text)?)
     }
 
-    fn owner(&self, pid: &str) -> Option<u32> {
-        let source = self.read(&format!("/proc/{pid}/status"))?;
+    pub(super) fn start_of(&self, pid: u32) -> Option<u64> {
+        self.stat(&mut format!("/proc/{pid}"), &mut String::new()).map(|(_, start)| start)
+    }
+
+    fn owner(&self, path: &mut String, text: &mut String) -> Option<u32> {
+        let source = self.file(path, "/status", text)?;
         source.lines().find_map(|line| line.strip_prefix("Uid:"))?.split_whitespace().nth(1)?.parse().ok()
     }
 
-    fn snapshot(&self, roots: &[(u32, u64)]) -> Vec<Thread> {
-        let Some(owner) = self.owner("self") else { return Vec::new() };
-        let mut pending: Vec<_> = roots.iter().map(|&(pid, start)| (pid, Some(start), None)).collect();
+    fn snapshot(
+        &self,
+        mut pending: VecDeque<(u32, Edge)>,
+        boot: Option<Boot>,
+        mut files: Option<&mut SampleFiles>,
+    ) -> Processes {
+        let mut path = String::from("/proc/self");
+        let mut text = String::new();
+        let owner = self.owner(&mut path, &mut text);
+        let mut tasks = Vec::new();
         let mut seen = BTreeSet::new();
+        let mut roots = Vec::new();
         let mut threads = Vec::new();
-        while let Some((pid, expected_start, parent)) = pending.pop() {
-            if !seen.insert(pid) || self.owner(&pid.to_string()) != Some(owner) {
+        while let Some((pid, edge)) = pending.pop_front() {
+            if seen.contains(&pid) {
                 continue;
             }
-            let Some((ppid, process_start)) = self.stat(pid) else { continue };
-            if expected_start.is_some_and(|start| start != process_start) || parent.is_some_and(|parent| parent != ppid)
-            {
+            path.truncate("/proc/".len());
+            write!(&mut path, "{pid}").expect("String formatting");
+            let Some((ppid, process_start)) = self.stat(&mut path, &mut text) else { continue };
+            match edge {
+                // Keep the root's identity even if its accounting is unavailable here.
+                Edge::Root(None) => roots.push((pid, process_start)),
+                Edge::Root(Some(start)) if start != process_start => continue,
+                Edge::Child(parent) if parent != ppid => continue,
+                Edge::Root(Some(_)) | Edge::Child(_) => {}
+            }
+            if owner.is_none() || self.owner(&mut path, &mut text) != owner {
                 continue;
             }
-            let mut sampled = Vec::new();
-            let mut children = Vec::new();
-            for tid in self.tasks(pid) {
-                let base = format!("/proc/{pid}/task/{tid}");
-                if let Some(sched) = self.read(&format!("{base}/schedstat")).and_then(|text| parse_schedstat(&text)) {
-                    sampled.push(Thread { pid, process_start, tid, sched });
+            let process_path = path.len();
+            path.push_str("/task");
+            self.tasks(&path, &mut tasks);
+            let base = path.len();
+            let first_thread = threads.len();
+            let first_child = pending.len();
+            let process_born = boot.is_some_and(|boot| boot.includes(process_start));
+            for &Task { tid, inode } in &tasks {
+                write!(&mut path, "/{tid}").expect("String formatting");
+                let mut task_files = files
+                    .as_deref_mut()
+                    .filter(|_| inode != 0)
+                    .and_then(|files| files.task(tid, TaskIdentity { pid, process_start, inode }));
+                let filling = task_files.as_deref().is_some_and(TaskFiles::filling);
+                // Thread birth is needed only at expiry and only if the process's
+                // birth cannot already prove it. The leader has its process's birth.
+                let thread_start =
+                    if boot.is_some() && !process_born && tid != pid { self.stat(&mut path, &mut text) } else { None };
+                let sched = match &mut task_files {
+                    Some(files) => self.task_file(&mut path, "/schedstat", &mut text, files.schedstat()),
+                    None => self.file(&mut path, "/schedstat", &mut text),
+                };
+                if let Some(sched) = sched.and_then(parse_schedstat)
+                    && (thread_start.is_none() || self.stat(&mut path, &mut text) == thread_start)
+                {
+                    let born_after_arm =
+                        process_born || boot.zip(thread_start).is_some_and(|(boot, (_, start))| boot.includes(start));
+                    threads.push(Thread { pid, process_start, tid, sched, born_after_arm });
                 }
-                if let Some(text) = self.read(&format!("{base}/children")) {
-                    children.extend(text.split_whitespace().filter_map(|pid| pid.parse::<u32>().ok()));
+                let children = match &mut task_files {
+                    Some(files) => self.task_file(&mut path, "/children", &mut text, files.children()),
+                    None => self.file(&mut path, "/children", &mut text),
+                };
+                if let Some(children) = children {
+                    pending.extend(
+                        children.split_whitespace().filter_map(|child| Some((child.parse().ok()?, Edge::Child(pid)))),
+                    );
                 }
+                // Open record descriptors pin their containing proc directory.
+                // Only keep newly opened records if that directory still has
+                // the inode reported by this scan's task enumeration.
+                if filling
+                    && let Some(files) = task_files
+                    && !fs::metadata(self.path(&path)).is_ok_and(|entry| entry.ino() == inode)
+                {
+                    files.clear();
+                }
+                path.truncate(base);
             }
+            path.truncate(process_path);
             // A reused PID cannot lend the previous process its samples or children.
-            if self.stat(pid) == Some((ppid, process_start)) && self.owner(&pid.to_string()) == Some(owner) {
-                threads.extend(sampled);
-                pending.extend(children.into_iter().map(|child| (child, None, Some(pid))));
+            if self.stat(&mut path, &mut text) == Some((ppid, process_start)) {
+                seen.insert(pid);
+            } else {
+                threads.truncate(first_thread);
+                pending.truncate(first_child);
             }
         }
-        threads
+        if let Some(files) = files {
+            files.drop_unseen();
+        }
+        roots.sort_unstable();
+        roots.dedup();
+        Processes { roots, threads }
     }
 }
 
@@ -161,26 +322,38 @@ fn parse_stat(source: &str) -> Option<(u32, u64)> {
 
 impl Processes {
     pub(super) fn arm(pids: &[u32], proc: &Proc) -> Self {
-        let roots = pids.iter().filter_map(|&pid| Some((pid, proc.stat(pid)?.1))).collect();
-        let mut watch = Self { roots, threads: Vec::new() };
-        watch.threads = proc.snapshot(&watch.roots);
-        watch
+        Self::arm_with(pids, proc, None)
+    }
+
+    pub(super) fn arm_with(pids: &[u32], proc: &Proc, files: Option<&mut SampleFiles>) -> Self {
+        proc.snapshot(pids.iter().map(|&pid| (pid, Edge::Root(None))).collect(), None, files)
+    }
+
+    pub(super) fn has_root(&self, pid: u32) -> bool {
+        self.roots.iter().any(|&(root, _)| root == pid)
+    }
+
+    pub(super) fn watches(&self, pid: u32, start: u64) -> bool {
+        self.roots.contains(&(pid, start))
     }
 
     pub(super) fn waited(&self, proc: &Proc, boot: Option<Boot>) -> Option<Duration> {
+        let roots = self.roots.iter().map(|&(pid, start)| (pid, Edge::Root(Some(start)))).collect();
         let mut largest = None;
-        for thread in proc.snapshot(&self.roots) {
-            let start = self
-                .threads
-                .iter()
-                .find(|start| {
-                    start.pid == thread.pid && start.process_start == thread.process_start && start.tid == thread.tid
-                })
-                .map(|start| start.sched);
-            let delta = match start {
-                Some(start) => sched_elapsed(Some(start), Some(thread.sched)),
-                None if boot.is_some_and(|boot| boot.includes(thread.process_start)) => Some(thread.sched),
-                None => None,
+        for thread in proc.snapshot(roots, boot, None).threads {
+            let delta = if thread.born_after_arm {
+                Some(thread.sched)
+            } else {
+                let start = self
+                    .threads
+                    .iter()
+                    .find(|start| {
+                        start.pid == thread.pid
+                            && start.process_start == thread.process_start
+                            && start.tid == thread.tid
+                    })
+                    .map(|start| start.sched);
+                sched_elapsed(start, Some(thread.sched))
             };
             largest = super::largest_wait(largest, delta);
         }
@@ -196,7 +369,35 @@ impl Processes {
 #[cfg(test)]
 mod tests {
     use super::{Boot, Proc, Processes, clock_ticks, parse_stat};
-    use crate::deadline::{Deadline, Duration, Expired, Figures, Time, TreeWatch, classify};
+    use crate::deadline::{Deadline, DeadlineOrigin, Duration, Expired, Figures, ProcessWatch, Time, classify};
+    use core::cell::Cell;
+
+    #[derive(Default, Debug, PartialEq, Eq)]
+    struct Opens {
+        files: usize,
+        directories: usize,
+    }
+
+    std::thread_local! {
+        static OPENS: Cell<Option<Opens>> = const { Cell::new(None) };
+    }
+
+    pub(super) fn opened(directory: bool) {
+        if let Some(mut counts) = OPENS.take() {
+            if directory {
+                counts.directories = counts.directories.saturating_add(1);
+            } else {
+                counts.files = counts.files.saturating_add(1);
+            }
+            OPENS.set(Some(counts));
+        }
+    }
+
+    fn count<T>(sample: impl FnOnce() -> T) -> (T, Opens) {
+        OPENS.set(Some(Opens::default()));
+        let value = sample();
+        (value, OPENS.take().expect("procfs open counts"))
+    }
 
     const ROOT: &str = "10 (root ) worker) S 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1";
     const CHILD: &str = "30 (child) S 10 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 101";
@@ -211,6 +412,157 @@ mod tests {
         ("/proc/20/stat", ROOT),
         ("/proc/20/task/20/schedstat", "1 10 1"),
     ]);
+
+    const OWNED_TREE: Proc = Proc::Text(&[
+        ("/proc/self/status", UID),
+        ("/proc/10/status", UID),
+        ("/proc/10/stat", ROOT),
+        ("/proc/10/task/10/schedstat", "1 10 1"),
+        ("/proc/10/task/11/schedstat", "1 10 1"),
+        ("/proc/10/task/11/children", "30"),
+        ("/proc/30/status", UID),
+        ("/proc/30/stat", CHILD),
+        ("/proc/30/task/30/schedstat", "1 10 1"),
+    ]);
+
+    #[test]
+    fn stable_arming_opens_one_plus_three_per_process_and_two_per_thread() {
+        // OWNED_TREE: root and child; the root's non-leader owns the child.
+        const PROCESSES: usize = 2;
+        const THREADS: usize = 3;
+        let (snapshot, opens) = count(|| Processes::arm(&[10], &OWNED_TREE));
+        assert_eq!(opens, Opens { files: 1 + 3 * PROCESSES + 2 * THREADS, directories: PROCESSES });
+        assert_eq!(snapshot.threads.len(), THREADS);
+    }
+
+    #[cfg(target_os = "linux")]
+    mod reuse {
+        use super::{CHILD, OWNED_TREE, Opens, Proc, UID, count};
+        use crate::deadline::{ProcessSampler, Sched};
+        use skein_scratch::Scratch;
+        use std::{fs, path::Path};
+
+        const ROOT: u32 = 10;
+        const PARENT_THREAD: u32 = 11;
+        const OWNED_PROCESSES: usize = 2;
+        const PARENT_SCHEDSTAT: &str = "proc/10/task/11/schedstat";
+        const PARENT_CHILDREN: &str = "proc/10/task/11/children";
+        const LATER_CPU: u64 = 7;
+        const LATER_WAIT: u64 = 80;
+
+        fn write(root: &Path, name: &str, text: &str) {
+            let path = root.join(name.trim_start_matches('/'));
+            fs::create_dir_all(path.parent().expect("fixture file's directory")).expect("fixture directory");
+            fs::write(path, text).expect("fixture record");
+        }
+
+        fn tree(scratch: &Scratch) -> Proc {
+            let Proc::Text(tree) = OWNED_TREE else { unreachable!("text fixture") };
+            for (path, text) in tree {
+                write(scratch.path(), path, text);
+            }
+            for path in ["proc/10/task/10/children", "proc/30/task/30/children"] {
+                write(scratch.path(), path, "");
+            }
+            Proc::Directory(scratch.path().to_path_buf())
+        }
+
+        fn warmed(label: &str) -> (Scratch, Proc, ProcessSampler) {
+            let scratch = Scratch::new(label);
+            let proc = tree(&scratch);
+            let mut sampler = ProcessSampler::default();
+            drop(sampler.capture_with(&[ROOT], &proc));
+            (scratch, proc, sampler)
+        }
+
+        #[test]
+        fn warm_arming_reuses_task_opens_without_reusing_figures() {
+            let (scratch, proc, mut sampler) = warmed("deadline-warm");
+            write(scratch.path(), PARENT_SCHEDSTAT, "7 80 1\n");
+            let (watch, opens) = count(|| sampler.capture_with(&[ROOT], &proc));
+            // One caller owner, and two identity reads and one owner per process.
+            assert_eq!(opens, Opens { files: 1 + 3 * OWNED_PROCESSES, directories: OWNED_PROCESSES });
+            let parent = watch.0.threads.iter().find(|thread| thread.tid == PARENT_THREAD).expect("child's parent");
+            assert_eq!(parent.sched, Sched { cpu: LATER_CPU, waited: Some(LATER_WAIT) });
+        }
+
+        #[test]
+        fn a_reused_tid_does_not_reuse_open_task_records() {
+            let (scratch, proc, mut sampler) = warmed("deadline-replaced-task");
+            fs::rename(scratch.path().join("proc/10/task/11"), scratch.path().join("dead-task"))
+                .expect("replace the task without reusing its inode");
+            write(scratch.path(), PARENT_SCHEDSTAT, "7 80 1\n");
+            write(scratch.path(), PARENT_CHILDREN, "");
+            let watch = sampler.capture_with(&[ROOT], &proc);
+            let mut threads: Vec<_> = watch.0.threads.iter().map(|thread| thread.tid).collect();
+            threads.sort_unstable();
+            assert_eq!(threads, [ROOT, PARENT_THREAD]);
+        }
+
+        #[test]
+        fn warm_arming_rediscovers_children_of_stable_threads() {
+            const NEW_CHILD: u32 = 40;
+            let (scratch, proc, mut sampler) = warmed("deadline-warm-children");
+            write(scratch.path(), PARENT_CHILDREN, "30 40 ");
+            write(scratch.path(), "proc/40/stat", CHILD);
+            write(scratch.path(), "proc/40/status", UID);
+            write(scratch.path(), "proc/40/task/40/schedstat", "7 80 1\n");
+            write(scratch.path(), "proc/40/task/40/children", "");
+            let watch = sampler.capture_with(&[ROOT], &proc);
+            assert!(watch.0.threads.iter().any(|thread| thread.pid == NEW_CHILD));
+        }
+    }
+
+    #[test]
+    fn coarmed_accounts_share_reads_but_keep_their_own_verdicts() {
+        const SHORT: Duration = Duration::from_nanos(100);
+        const LONG: Duration = Duration::from_nanos(200);
+        const ROOTS: [u32; 2] = [10, 20];
+        let origin = DeadlineOrigin { start: Time::ZERO, thread: None, boot: None };
+        let end = Proc::Text(&[
+            ("/proc/self/status", UID),
+            ("/proc/10/status", UID),
+            ("/proc/10/stat", ROOT),
+            ("/proc/10/task/10/schedstat", "2 70 2"),
+            ("/proc/20/status", UID),
+            ("/proc/20/stat", ROOT),
+            ("/proc/20/task/20/schedstat", "2 10 2"),
+        ]);
+        let (_, single) = count(|| ProcessWatch::capture_with(&ROOTS, &START));
+        let (shared, opens) = count(|| {
+            let watch = ProcessWatch::capture_with(&ROOTS, &START);
+            [("step", SHORT), ("command", LONG)].map(|(what, patience)| {
+                let mut deadline = origin.arm(what, patience);
+                deadline.watch_snapshot(&watch);
+                deadline
+            })
+        });
+        assert_eq!(opens, single);
+        for (shared, expected_starved) in shared.into_iter().zip([true, false]) {
+            let mut separate = origin.arm(shared.what, shared.patience);
+            for pid in ROOTS {
+                separate.watch_process_with(pid, &START);
+            }
+            for deadline in [&shared, &separate] {
+                assert_eq!(
+                    matches!(
+                        deadline.classify_with(deadline.what, deadline.patience, deadline.until(), None, &end),
+                        Expired::Starved(_)
+                    ),
+                    expected_starved,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn another_watch_of_the_same_pid_and_birth_only_checks_identity() {
+        const PID: u32 = 10;
+        let mut deadline = Deadline::at("command readiness", Duration::from_nanos(100), Time::ZERO);
+        deadline.watch_process_with(PID, &OWNED_TREE);
+        let ((), opens) = count(|| deadline.watch_process_with(PID, &OWNED_TREE));
+        assert_eq!(opens, Opens { files: 1, directories: 0 });
+    }
 
     #[test]
     fn two_sources_keep_the_larger_delta_and_never_sum() {
@@ -236,7 +588,7 @@ mod tests {
             for pids in [[10, 20], [20, 10]] {
                 let mut deadline = Deadline::at("two sources", Duration::from_nanos(100), Time::ZERO);
                 for pid in pids {
-                    deadline.trees.push(TreeWatch::Threads(Processes::arm(&[pid], &START)));
+                    deadline.watch_snapshot(&ProcessWatch::capture_with(&[pid], &START));
                 }
                 let (waited, kind) = deadline.watched_wait(&end);
                 assert_eq!(waited, Some(Duration::from_nanos(expected)));
@@ -272,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn an_unseen_thread_counts_from_zero_only_in_a_process_born_after_arming() {
+    fn an_unseen_thread_without_its_own_birth_needs_a_new_process() {
         let old = Proc::Text(&[
             ("/proc/self/status", UID),
             ("/proc/30/status", UID),
@@ -293,6 +645,20 @@ mod tests {
         }
         assert!(!BOOT.includes(100), "the ambiguous arming tick cannot prove a later birth");
         assert!(BOOT.includes(101));
+    }
+
+    #[test]
+    fn a_new_thread_in_an_older_process_counts_from_birth() {
+        let later = Proc::Text(&[
+            ("/proc/self/status", UID),
+            ("/proc/10/status", UID),
+            ("/proc/10/stat", ROOT),
+            ("/proc/10/task/10/schedstat", "2 10 2"),
+            ("/proc/10/task/11/stat", "11 (thread) S 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 101"),
+            ("/proc/10/task/11/schedstat", "7 80 1"),
+        ]);
+        let watch = Processes::arm(&[10], &START);
+        assert_eq!(watch.waited(&later, Some(BOOT)), Some(Duration::from_nanos(80)));
     }
 
     #[test]

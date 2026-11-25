@@ -12,7 +12,7 @@ use skein_lib::{ReplyTo, Token};
 fn a_placed_stop_reads_as_held_without_a_generic_escalation() {
     let mut world = world(1201);
     let task = world.assigned.as_ref().expect("chat").task;
-    request(&mut world, 1, people::Ask::Stop { project: 1, task });
+    request(&mut world, 1, people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) });
     ask(&mut world, 2, reads::Read::Task { task });
     let reads::Answer::Document(document) = latest(&world) else { panic!("a live task") };
     let documents::Document::Task(value) = document.as_ref() else { panic!("the task's document") };
@@ -74,7 +74,11 @@ fn what_each_live_task_waits_on_matches_the_reference_from_the_store() {
     let mut world = world(1202);
     let parent = world.assigned.as_ref().expect("chat").task;
     delegate_question(&mut world, parent);
-    request(&mut world, 1, people::Ask::Stop { project: 1, task: parent });
+    request(
+        &mut world,
+        1,
+        people::Ask::Stop { project: 1, task: parent, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let live: Vec<_> = world
         .store
         .rows
@@ -156,7 +160,11 @@ fn a_task_querys_lines_match_the_reference_over_the_stores_tasks() {
     let mut world = world(1204);
     let parent = world.assigned.as_ref().expect("configured fixture").task;
     delegate_question(&mut world, parent);
-    request(&mut world, 1, people::Ask::Stop { project: 1, task: parent });
+    request(
+        &mut world,
+        1,
+        people::Ask::Stop { project: 1, task: parent, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     world.watches = Some(jig_core_world::watches::Parties::new(
         1204,
         world.store.applied,

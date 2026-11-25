@@ -34,6 +34,7 @@ fn declared_failure(executor: Executor, reason: &[u8], bound: u32) -> Harness {
                 session_end: None,
             });
             h.send(Event::Activation {
+                reads_project: false,
                 reply_to: to(),
                 task: 12,
                 attempt: 1,
@@ -47,6 +48,7 @@ fn declared_failure(executor: Executor, reason: &[u8], bound: u32) -> Harness {
             let (_, _, step) = h.domain.procedure_due(12).unwrap();
             let read = h.domain.procedure_offered(12);
             h.send(Event::Procedure {
+                reads_project: false,
                 reply_to: to(),
                 task: 12,
                 step,

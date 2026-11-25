@@ -16,6 +16,7 @@ fn step(world: &mut World, step: u64, decision: ProcedureDecision) -> Reply {
     let key = reply_to.into_token().raw();
     let read = world.contexts[&PROCEDURE].inbox.last().map(|word| word.number);
     world.send(Event::Procedure {
+        reads_project: false,
         read,
         reply_to: ReplyTo::new(skein_lib::Token::new(key)),
         task: PROCEDURE,

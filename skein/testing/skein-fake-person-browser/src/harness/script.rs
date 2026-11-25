@@ -500,6 +500,7 @@ impl Play for Script {
             Step::Type { find, words } => self.text = Some((find, words, false)),
             Step::Trouble { words, within } => {
                 self.awaited = Some((Bound::new(now, within), Awaited::Trouble(words)));
+                self.await_step(face, now);
             }
             Step::Request { method, path, host, headers, body, status, within } => {
                 self.request = Some(super::Asked { method, path, host, headers, body });
@@ -547,6 +548,24 @@ impl Play for Script {
             }
         }
         Next::Wait { until: None }
+    }
+    fn next_wake(&self, face: &BrowserFace<'_>, now: Time, runnable: bool) -> Option<Time> {
+        let bound = self
+            .person_until
+            .into_iter()
+            .chain(self.pressed.as_ref().map(|(_, bound, _)| bound.until))
+            .chain(self.awaited.as_ref().map(|(bound, _)| bound.until))
+            .chain(self.growth.as_ref().and_then(growth::Growth::until))
+            .chain(self.tabs.as_ref().map(|tabs| tabs.wake(face.pending())))
+            .min();
+        let resume = if !runnable || self.awaited.is_some() || self.commanding || self.keeping || self.tabs.is_some() {
+            None
+        } else if let Some(growth) = &self.growth {
+            Some(growth.poll())
+        } else {
+            face.look_wake().or(self.person_until).or(Some(now))
+        };
+        bound.into_iter().chain(resume).min()
     }
     fn expected(&self) -> Vec<Box<[u8]>> {
         self.steps

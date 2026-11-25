@@ -283,10 +283,11 @@ fn parameter(value: &d::Parameter) -> Result<w::ParameterDocument, w::Problem> {
     })
 }
 #[must_use]
-pub fn subscriptions(value: &List<t::Subscription>) -> w::Subscriptions {
-    let mut entries = List::with_capacity(value.capacity());
-    for item in value {
-        entries.push(subscription(*item)).expect("supplied subscriptions");
+pub fn subscriptions(value: &List<t::Subscription>, bound: u32) -> w::Subscriptions {
+    let count = value.len().min(bound);
+    let mut entries = List::with_capacity(count);
+    for item in value.iter().take(skein_lib::usize_of(count)) {
+        entries.push(subscription(*item)).expect("bounded subscription page");
     }
     w::Subscriptions { entries }
 }

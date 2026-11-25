@@ -90,6 +90,8 @@ pub(crate) struct Swept {
 pub(crate) struct Directory {
     /// The open's verdict survives the copy and its reopen (protocol/store/opening-owners.md, 1).
     pub checked: Option<Result<(), crate::Owner>>,
+    /// Current texts parsed by admission, moved into this open's layout planning.
+    pub admitted_schemas: Option<skein_lib::List<skein_codec::schema::Schema>>,
     pub disk: bool,
     pub purpose: crate::Purpose,
     pub patch: Option<Box<crate::upgrade::admission::Levels>>,
@@ -111,6 +113,7 @@ impl Directory {
     pub fn new() -> Directory {
         Directory {
             checked: None,
+            admitted_schemas: None,
             disk: false,
             purpose: crate::Purpose::Serve,
             patch: None,
@@ -128,6 +131,10 @@ impl Directory {
             survey_manifest: false,
             swept: None,
         }
+    }
+    pub fn reset_admission(&mut self) {
+        self.checked = None;
+        self.admitted_schemas = None;
     }
 }
 
@@ -180,7 +187,7 @@ fn resolve(store: &mut Store, below: &mut Below) {
         Opening::Resolving(crate::restoring::roll::Rolling::begin(deployment(store), OWNER, &mut below.store));
 }
 fn reset_checked(store: &mut Store) {
-    store.directory.checked = None;
+    store.directory.reset_admission();
     #[cfg(test)]
     crate::upgrade::admission::counting::reset();
 }

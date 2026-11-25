@@ -298,6 +298,7 @@ fn recurring_and_accepted_creation_revisions_are_checked_by_the_world_referee() 
     // The scripted parent applies the accepted action before deciding the proposal.
     let reply_to = world.to();
     world.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to,

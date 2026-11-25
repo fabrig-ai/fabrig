@@ -113,7 +113,8 @@ fn client_37_is_refused_by_name_without_reading_the_core() {
     let socket = peer.post(b"/jig/v1/read", read_at_version(37), Some(&bearer));
     assert!(peer.take_core().is_none());
     let w::ReadAnswer::NotServed(why) =
-        w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(socket).expect("version refusal"))).unwrap()
+        w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(socket).expect("version refusal")))
+            .expect("read answer")
     else {
         panic!("not served")
     };

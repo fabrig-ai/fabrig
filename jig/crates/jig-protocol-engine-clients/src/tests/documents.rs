@@ -417,6 +417,28 @@ fn added_dependencies_and_kept_waits_cross_both_client_translations() {
 }
 
 #[test]
+fn a_tasks_retained_subscriptions_fit_the_clients_page() {
+    use jig_domain_tasks as t;
+    const RETAINED: u32 = 7;
+    const PAGE: u32 = 5;
+    let mut task = fixtures::task_with_hold();
+    task.subscriptions = List::with_capacity(RETAINED);
+    for number in 1..=u64::from(RETAINED) {
+        task.subscriptions
+            .push(t::Subscription { number, kind: t::SubscriptionKind::Topic { connector: 1, topic: number } })
+            .expect("fixture interest");
+    }
+    let limits = w::Limits { subscriptions_entries: PAGE, ..fixtures::wire_limits() };
+    let record = translate::task::document(&task, &[], &limits).expect("task document");
+    record.measure(&limits).expect("subscriptions fit the client wire");
+    assert!(record.cut);
+    assert_eq!(record.subscriptions.entries.len(), PAGE);
+    for (number, subscription) in (1..=u64::from(PAGE)).zip(&record.subscriptions.entries) {
+        assert_eq!(subscription.number, number);
+    }
+}
+
+#[test]
 fn a_circle_hold_keeps_its_order_and_cut_through_the_client() {
     use jig_client_domain::contract as c;
     use jig_domain_tasks as t;
@@ -771,4 +793,21 @@ fn core_waits() -> List<jig_domain_core_vocabulary::Wait> {
         waits.push(Wait { task, kind, object, since, bound, hears }).unwrap();
     }
     waits
+}
+
+#[test]
+fn wait_hold_chips_keep_the_category_and_words() {
+    use jig_domain_core_vocabulary::documents::Text;
+    use jig_domain_tasks as t;
+    const WORDS: &[u8] = b"Waited 24 h for a reply";
+    let mut hold = fixtures::task_with_hold().hold.expect("held fixture");
+    for (reason, expected) in
+        [(t::Hold::Waited, w::HoldCategory::Waited), (t::Hold::Deadline, w::HoldCategory::Deadline)]
+    {
+        hold.reason = reason;
+        hold.words = Some(Text { bytes: WORDS.into(), cut: false });
+        let record = translate::chips::held(&hold);
+        assert_eq!(record.reason, expected);
+        assert_eq!(record.words, Some(w::DocumentText { bytes: WORDS.into(), cut: false }));
+    }
 }

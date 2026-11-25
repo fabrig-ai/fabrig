@@ -256,6 +256,7 @@ fn effect(core: &Core, limits: &Limits, act: Act, subject: &Subject) -> Option<a
                 | tasks::Hold::ResourceAccess
                 | tasks::Hold::PoolLost { .. }
                 | tasks::Hold::Circle
+                | tasks::Hold::Waited
                 | tasks::Hold::Procedure => acts::ReleaseEffect::Judged,
             };
             Some(acts::Effect::Release(what))

@@ -444,6 +444,7 @@ fn make_goal_task(
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(number)),
@@ -4531,6 +4532,7 @@ fn idle_change_procedure() -> (super::Domain, skein_lib::Env<super::Limits>, u64
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Procedure {
+            reads_project: false,
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(9)),
             read: None,
             task,
@@ -5044,6 +5046,7 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: super::super::internal(u64::MAX),
@@ -5073,6 +5076,7 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
             &mut domain.core.tasks,
             &env.with(env.limits.tasks),
             tasks::Event::Procedure {
+                reads_project: false,
                 reply_to: super::super::internal(u64::MAX),
                 task,
                 step,
@@ -5780,6 +5784,7 @@ fn a_delegate_made_at_the_amendment_step_carries_its_reason() {
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Amend {
+            reads_project: false,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
             by: requester,

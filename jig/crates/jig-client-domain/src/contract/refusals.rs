@@ -143,6 +143,7 @@ pub enum HoldCategory {
     HoldsWaited,
     /// Joining a queue would close a circle of waits (domain/tasks/holds.md, 7).
     Circle,
+    Waited,
     ResourceUnavailable,
     ResourceAccess,
     PoolLost {
@@ -184,8 +185,27 @@ pub enum Moved {
 }
 
 /// A durable request refusal and all facts needed to show it.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum QuestionAnswerer {
+    Task(u64),
+    Person(u64),
+}
+
+impl QuestionAnswerer {
+    #[must_use]
+    pub fn number(self) -> u64 {
+        match self {
+            Self::Task(number) | Self::Person(number) => number,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
+    QuestionAnswered {
+        question: u64,
+        by: QuestionAnswerer,
+    },
     /// The named worker has no admitted channel (domain/engine/workers.md, 5).
     Unlinked {
         worker: u32,

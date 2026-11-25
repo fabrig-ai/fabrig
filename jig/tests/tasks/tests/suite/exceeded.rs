@@ -162,6 +162,7 @@ fn a_bound_hold_keeps_the_terminals_saved_resources() {
     let reply_to = w.to();
     let call = reply_to.into_token().raw();
     w.send(Event::Activation {
+        reads_project: false,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(call)),
         task: TASK,
         attempt: FIRST,

@@ -15,7 +15,7 @@ pub fn message_kind(value: &t::MessageKind) -> Result<w::MessageKind, w::Problem
                 outcome: mapped::settings_outcome_to_record(outcome),
             })
         }
-        t::MessageKind::QuestionAnswered { question } => {
+        t::MessageKind::QuestionAnswered { question } | t::MessageKind::PassedAnswer { question } => {
             w::MessageKind::QuestionAnswered(w::MessageKindAnswer { question: *question })
         }
         t::MessageKind::QuestionOwed => w::MessageKind::QuestionOwed,
@@ -24,7 +24,7 @@ pub fn message_kind(value: &t::MessageKind) -> Result<w::MessageKind, w::Problem
             w::MessageKind::QuestionEnded(w::MessageKindAnswer { question: *question })
         }
         t::MessageKind::Words => w::MessageKind::Words,
-        t::MessageKind::Question => w::MessageKind::Question,
+        t::MessageKind::Question | t::MessageKind::PassedQuestion { .. } => w::MessageKind::Question,
         t::MessageKind::Escalation { task, revision } => {
             w::MessageKind::Escalation(w::MessageKindEscalation { task: *task, revision: *revision })
         }
@@ -60,6 +60,7 @@ pub fn message_kind(value: &t::MessageKind) -> Result<w::MessageKind, w::Problem
                 t::NoticeState::Done => w::NoticeState::Done,
                 t::NoticeState::Failed => w::NoticeState::Failed,
                 t::NoticeState::Cancelled => w::NoticeState::Cancelled,
+                t::NoticeState::Unreadable => w::NoticeState::Unreadable,
             },
         }),
         t::MessageKind::News { subscription, class } => w::MessageKind::News(w::MessageKindNews {

@@ -11,6 +11,7 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -27,6 +28,7 @@ fn a_refused_procedure_batch_keeps_its_room_wait_write_with_the_refusal() {
         &mut core,
         &env,
         Event::Tasks(tasks::Event::Procedure {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(1)),
             task: 1,
             step: step_number,
@@ -74,6 +76,7 @@ fn ending_a_procedure_releases_its_memory_only_wait_report() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),

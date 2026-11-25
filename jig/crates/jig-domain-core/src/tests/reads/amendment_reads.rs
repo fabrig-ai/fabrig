@@ -11,6 +11,7 @@ use crate::{
     tests::*,
 };
 
+const PROJECT: u32 = 1;
 const AMENDER: u64 = 1;
 const TARGET: u64 = 2;
 const LIVE_ANCESTOR: u64 = 4;
@@ -20,12 +21,33 @@ const OTHER_ROOT: u64 = 14;
 const PERSON: u64 = 99;
 
 fn place(number: u64, requester: tasks::Party, root: u64, depth: u32) -> tasks::DependencyPlace {
-    tasks::DependencyPlace { number, project: 1, requester, root, depth, status: tasks::Status::Done }
+    tasks::DependencyPlace { number, project: PROJECT, requester, root, depth, status: tasks::Status::Done }
+}
+
+fn loaded_places(limits: &Limits, places: &[tasks::DependencyPlace]) -> Evidence {
+    let mut evidence = Evidence::new(&limits.tasks);
+    for &row in places {
+        evidence.loaded.push(row.number).unwrap();
+        evidence.places.push(row).unwrap();
+    }
+    evidence
+}
+
+fn tree_without_project_reading() -> (Core, Limits) {
+    let (mut core, limits) = make_tree();
+    // The root requester is the fixture's only project role holder.
+    people::step(
+        &mut core.people,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
+        people::Event::Roles { project: PROJECT, holdings: Box::new([]) },
+        &mut Queue::uncapped(),
+    );
+    (core, limits)
 }
 
 #[test]
 fn amendment_loads_stop_at_the_amenders_tree_boundary() {
-    let (core, limits) = make_tree();
+    let (core, limits) = tree_without_project_reading();
     let delegate = place(DEPENDENCY, tasks::Party::Task(AMENDER), AMENDER, 1);
     let descendant = place(DEPENDENCY, tasks::Party::Task(ENDED_PARENT), AMENDER, 2);
     for (label, places, expected) in [
@@ -38,17 +60,24 @@ fn amendment_loads_stop_at_the_amenders_tree_boundary() {
         ("above depth", vec![tasks::DependencyPlace { depth: 0, ..descendant }], None),
         ("requester at amender depth", vec![tasks::DependencyPlace { depth: 1, ..descendant }], None),
     ] {
-        let mut evidence = Evidence::new(&limits.tasks);
-        for row in places {
-            evidence.loaded.push(row.number).unwrap();
-            evidence.places.push(row).unwrap();
-        }
+        let evidence = loaded_places(&limits, &places);
         assert_eq!(
             missing(&core, &limits.tasks, tasks::Party::Task(AMENDER), TARGET, Some(&[DEPENDENCY]), &evidence),
             expected,
             "{label}"
         );
     }
+}
+
+#[test]
+fn project_reading_skips_the_ended_requester_load() {
+    let (core, limits) = make_tree();
+    let descendant = place(DEPENDENCY, tasks::Party::Task(ENDED_PARENT), AMENDER, 2);
+    let evidence = loaded_places(&limits, &[descendant]);
+    assert_eq!(
+        missing(&core, &limits.tasks, tasks::Party::Task(AMENDER), TARGET, Some(&[DEPENDENCY]), &evidence),
+        None
+    );
 }
 
 #[test]
@@ -62,11 +91,7 @@ fn a_persons_load_uses_its_row_or_its_root() {
         ("root loaded", vec![ended, place(OTHER_ROOT, tasks::Party::Person(PERSON), OTHER_ROOT, 0)], None),
         ("row is root", vec![tasks::DependencyPlace { root: DEPENDENCY, ..ended }], None),
     ] {
-        let mut evidence = Evidence::new(&limits.tasks);
-        for row in places {
-            evidence.loaded.push(row.number).unwrap();
-            evidence.places.push(row).unwrap();
-        }
+        let evidence = loaded_places(&limits, &places);
         assert_eq!(
             missing(&core, &limits.tasks, tasks::Party::Person(PERSON), TARGET, Some(&[DEPENDENCY]), &evidence),
             expected,
@@ -149,10 +174,9 @@ fn owner_cleanup_drops_all_waiting_amendments_and_late_answers() {
 
 #[test]
 fn a_replay_loads_an_ancestor_that_has_ended_meanwhile() {
-    let (mut core, limits) = make_tree();
-    let mut evidence = Evidence::new(&limits.tasks);
-    evidence.loaded.push(DEPENDENCY).unwrap();
-    evidence.places.push(place(DEPENDENCY, tasks::Party::Task(LIVE_ANCESTOR), AMENDER, 2)).unwrap();
+    let (mut core, limits) = tree_without_project_reading();
+    let descendant = place(DEPENDENCY, tasks::Party::Task(LIVE_ANCESTOR), AMENDER, 2);
+    let evidence = loaded_places(&limits, &[descendant]);
     assert_eq!(
         missing(&core, &limits.tasks, tasks::Party::Task(AMENDER), TARGET, Some(&[DEPENDENCY]), &evidence),
         None

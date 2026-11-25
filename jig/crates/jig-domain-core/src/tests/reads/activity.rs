@@ -63,6 +63,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),
@@ -75,6 +76,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),
@@ -279,6 +281,7 @@ fn cumulative_read_core() -> (Core, Env<Limits>) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),

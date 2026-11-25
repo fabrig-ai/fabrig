@@ -146,7 +146,13 @@ fn every_well_formed_read_is_handed_on_alike() {
         let (reply, mapped) = step.admitted();
         assert_eq!(
             mapped,
-            c::PublicRead { owner: 0, version: 1, kind: 2, project: Some(names().number(id, Of::Project)), task: None }
+            c::PublicRead {
+                owner: 0,
+                version: wire::PUBLIC_VERSION,
+                kind: 2,
+                project: Some(names().number(id, Of::Project)),
+                task: None
+            }
         );
         step.answer(reply, c::PublicAnswer::Unknown);
         step.out.pop().unwrap();
@@ -361,7 +367,7 @@ fn abort_returns_every_public_reservation() {
     assert_eq!(step.bytes(), BURST);
 }
 #[test]
-fn jig_kinds_reserve_the_configured_index_in_public_version_one() {
+fn jig_kinds_reserve_the_configured_index_for_the_public_layout() {
     // The proposed index figures, including the 64-project public-wire measurement.
     let bounds = wire::PublicIndexBounds { goals: 20, ended: 20, lines: 50, depth: 16, projects: 64 };
     let kinds = crate::jig_kinds(&bounds);
@@ -406,4 +412,19 @@ fn a_me_watch_maps_its_public_project_identifier() {
         panic!("me value");
     };
     assert_eq!(frame_public_identifiers(&value, &exchange.env.limits.wire), [Some(names().project(3)), None]);
+}
+
+#[test]
+fn a_wait_hold_is_named_on_the_public_wire() {
+    let c::PublicDocument::Card(mut card) = card() else { panic!("card fixture") };
+    card.line.phase = c::PublicPhase::Held;
+    card.line.hold = Some(c::PublicHold::Waited);
+    let mut step = Step::new();
+    let names = names();
+    let exchange = step.send(read(wire::PUBLIC_CARD, &[names.project(PROJECT), names.task(TASK)]));
+    let (reply, _) = step.admitted();
+    step.document(reply, c::PublicDocument::Card(card));
+    let bytes = bytes(step.reply(exchange));
+    let decoded = w::PublicCard::decode(&wire::public_limits(&INDEX).unwrap(), &mut Reader::new(&bytes)).unwrap();
+    assert_eq!(decoded.line.hold, Some(w::PublicHold::Waited));
 }

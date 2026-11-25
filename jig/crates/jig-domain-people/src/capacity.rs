@@ -189,6 +189,7 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
         | Refusal::Moved { .. }
         | Refusal::Taken { .. }
         | Refusal::Unlinked { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Concluded { .. }
         | Refusal::Ended { .. }
         | Refusal::NotWaiting

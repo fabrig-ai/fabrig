@@ -35,7 +35,7 @@ them.
   version from its floor.
 - **Clients' versions are frozen** (9), their layouts compared at the
   hello, with no kept text and no conversion; a page refused reloads
-  once to the engine's bundle.
+  once to the engine's bundle if it can record that reload.
 - **`versions` prints each wire's layout** (10), and the store keeps the
   wires the engine's last start spoke and each worker's last opening
   since, with its texts (10.1), by which `upgrade --check` says which
@@ -72,11 +72,15 @@ them.
   5, `smith-transcript` at 8, `smith-channel` at 14 and
   `temper-worker-wire` at 12, their headers'. Their crates keep no old
   text and no patch: no `schema/kept/`, `patches/` or `schema/wires`. A
-  layout change is made in the current text alone; what it costs a
-  deployment is the engine's plans' (jig's `protocol/channel/layouts.md`,
-  3), and the common changes cost nothing: a field added with a default,
-  a field dropped with its tombstone (`dropped name: type = default`), a
-  variant added, a bound widened (skein's `data/codec/layouts.md`, 2).
+  layout change is made in the current text alone; the engine derives
+  its plans at the opening (jig's `protocol/channel/layouts.md`, 3).
+  Common changes need no written converter: adding a field with a
+  default, dropping a field with its tombstone (`dropped name: type = default`),
+  adding a variant, widening a bound (skein's `data/codec/layouts.md`, 2).
+  But for `jig-worker-wire`, the engine refuses the opening if a
+  defaulted `text`, `bytes`, `secret` or `list` field brings a bound name
+  it does not know, even when its plans derive (jig's
+  `protocol/channel/wires.md`, 3).
 - **`smith-pieces` is compared, never converted:** the engine keeps its
   bytes naming no layout, so a worker whose layout of it is not the
   engine's is refused at the opening (jig's `protocol/channel/wires.md`,
@@ -135,7 +139,8 @@ them.
 - **jig states its four:** `jig-worker-wire`, `smith-pieces`,
   `smith-charter` and `smith-transcript`, from their crates' texts (jig's
   `protocol/channel/layouts.md`, 7).
-- **Each service builds its wires once** (`../testing/checks.md`, 1):
+- **The wires are computed from the texts when the service builds**
+  (`../testing/checks.md`, 1):
   the engine where it makes its workers host, the worker where it checks
   its link's limits, `worker_settings::prepare`, which keeps its channel
   table and its `Spoken`s in what it prepares. A start that checks its
@@ -143,13 +148,13 @@ them.
   `temper-service`'s, makes the worker from what its check prepared
   rather than checking again.
 - **temper hands both components its own** (6), `temper-worker-wire`,
-  as an `Application` (jig's `protocol/channel/layouts.md`, 7): the
-  engine's from `temper_engine_service`'s table (10), the worker's from
-  `temper_protocol_worker_wire`, the same entry, since the worker's
-  service links no engine crate. `temper-service`, which joins both,
-  holds the two equal.
+  as an `Application` (jig's `protocol/channel/layouts.md`, 7): both
+  take it from `temper_protocol_worker_wire`; the worker's service
+  links no engine crate. `temper-service`, which joins both, holds the
+  two equal and checks the worker's entry against the engine's
+  `versions` table (10).
 - **Named in both logs,** in the shell's own lines:
-  - the engine, at each worker's channel accepted: `worker NAME opened:
+  - the engine, at each worker's link opening accepted: `worker NAME opened:
     at the engine's layouts` where nothing converts, else `worker NAME
     opened: converting WIRE, WIRE`, the wires whose layouts differ, in
     the engine's order;
@@ -172,8 +177,8 @@ them.
     layout lacks the kind; the engine's placement follows the ask`,
     MODE `pause`, `drain` or `resume`;
   - the engine, at each message to a running attempt it could not send
-    (jig's `protocol/channel/layouts.md`, 5.2): `worker NAME: cannot send
-    KIND: TEXT`, TEXT the refusal's words.
+    (jig's `protocol/channel/layouts.md`, 5.2): `cannot send KIND to
+    worker NAME: TEXT`, TEXT the refusal's words.
 
 ## 5. A mismatch costs no task
 
@@ -213,7 +218,7 @@ them.
   | `Saved` | `Saved` | up |
   | `Preparation` | `Preparation` | up |
   | `JobSpec` | `JobSpec` | down |
-  | `JobResult` | none: the project's tooling's result file, carried unread (8) | up |
+  | `JobResult` | none: the job's result bytes, carried without conversion (8) | up |
   | `Grant` | `Identity` | down |
   | `Ask` | `Ask` (`../domain/forge/reds.md`, 5.4) | up |
   | `Answer` | `Answer` | down |
@@ -222,9 +227,9 @@ them.
   decoder of it name; a focused test holds the table against them. The
   engine derives each root's plan in its direction alone (jig's
   `protocol/channel/layouts.md`, 2.1).
-- **`application` parses its text once,** where each service builds its
-  wires (4), and refuses limits `v1::check_limits` refuses before
-  anything is made.
+- **`application` checks its limits** with `v1::check_limits` before
+  computing its `Spoken` from the text where each service builds its
+  wires (4).
 - **A git identity's value is converted at each send** (`channel.md`,
   section 6): the engine keeps the two newest generations encoded at its
   own layout, as before, and jig's component takes the value to each
@@ -232,8 +237,10 @@ them.
   keeping the grant's number, generation and validity.
 - **A renewal the worker cannot keep** is a message to a running attempt
   that cannot go (jig's `protocol/channel/layouts.md`, 5.2): discarded,
-  logged, and the channel taking nothing more. `Identity` changes by
-  defaults and tombstones alone keep every renewal.
+  logged, and the channel taking nothing more. A renewal is kept only
+  if each field the worker's layout lacks is at its compared default or
+  marked `droppable` in the engine's text (skein's
+  `data/codec/layouts.md`, 2).
 
 ## 7. The host tools' contract
 
@@ -289,13 +296,14 @@ them.
 
 ## 8. Jobs
 
-- **A job kind's request and result are no wire between temper's
-  builds.** The spec is `temper-worker-wire`'s `JobSpec`, converted as
-  its other parts are (6); its request and result are the files the
-  project's command reads and writes, which the worker carries as bytes
-  and never reads (`../domain/worker/jobs.md`), versioned by their own
-  `version` member between the engine and the project's tooling
-  (`tooling.md`).
+- **A job kind's request and result are not converted between layouts.**
+  The spec is `temper-worker-wire`'s `JobSpec`, converted as its other
+  parts are (6). For a project's command the worker carries the
+  request and result as file bytes (`../domain/worker/jobs.md`), but
+  reads the close request's `version` and goal for its commit title.
+  For temper's own prepare, the worker reads the request and writes
+  the result itself. The request forms name their `version`; the
+  result forms do not (`tooling.md`, 4 and 5).
 - **A kind's meaning to a worker** (its checkout, its command's verb, its
   delivery) is fixed by its number: a change of it is a new kind
   number, which a worker declares in its hello only once it runs it, so
@@ -328,24 +336,30 @@ them.
   client at another layout of temper's owner finds that owner not
   served at the hello, and a public read at another layout is answered
   not served.
-- **A page refused reloads, once:** when the link turns out of date, or
-  one of temper's owners is not served, the browser's page reloads
-  itself to load the engine's bundle. A page that reloaded for it and is
-  out of date again shows the column (`../client/view.md`, section 1)
-  and reloads no more. `temper-client` and the TUI say to upgrade, as
-  they do. A kept request of another layout is dropped with a notice
+- **A page refused reloads at most once:** when the link turns out of
+  date, or one of temper's owners is not served, the browser's page
+  reloads itself to load the engine's bundle only if it can read and
+  write its marker in session storage and has not already marked a
+  reload. If storage is unavailable, the marker cannot be written, or
+  the page is still out of date after reloading, it shows the column
+  (`../client/view.md`, section 1) without reloading. The TUI says to
+  run the temper the engine runs; `temper-client` reports `client is
+  out of date` for the link and `version not served` for a family's
+  refusal. A kept request of another layout is dropped with a notice
   (jig's `protocol/client/small-store.md`, section 1).
 
 ## 10. `versions`, the stored wires and the workers' openings
 
-- **One table,** `temper_engine_service::wires()`, in this order: jig's
-  four (`jig_protocol_worker_wire::spoken()`), then `temper-worker-wire`,
-  then `temper-host-tools`: each worker wire with its one version and
-  its layout, from its `Spoken`, and `temper-host-tools` with its range
-  from its floor and each version's layout. The engine's workers
-  component takes the worker wires' `Spoken`s, and the worker's link
-  states the same from its crates (4); the store and `versions` take
-  the whole.
+- **Two tables:** `temper_engine_service::wires()` builds the display
+  table for `versions`, in this order: jig's four
+  (`jig_protocol_worker_wire::spoken()`), then `temper-worker-wire`,
+  then `temper-host-tools`. Each worker wire has its one version and
+  its layout, from its `Spoken`, and `temper-host-tools` has its range
+  from its floor and each version's layout. The store takes its own
+  static `WIRES`; tests hold its names and versions equal to the names
+  and highest versions in the display table, in order. The engine's
+  workers component builds its own list of `Spoken`s. The worker's
+  link states the same from its crates (4).
 - **`versions` prints,** after the families' lines (`binaries.md`,
   section 2), for each wire in the table's order:
 
@@ -363,14 +377,15 @@ them.
 
 ### 10.1 The workers' openings kept
 
-- **At each opening the engine accepts,** its workers component hands
-  the service the worker's name, the wires that convert and its
+- **At each link opening the engine accepts,** its workers component
+  hands the service the worker's name, the wires that convert and its
   statement, the worker's texts among it (jig's
-  `protocol/channel/wires.md`, 3, *The statement handed up whole*). The
-  service logs it (section 4) and hands the root the name and the
-  statement; the root commits them, `Write::Opening`, in a decision of
-  its own, `at` its wall time (jig's `protocol/store/records.md`, 3,
-  *The workers' openings*).
+  `protocol/channel/wires.md`, 3, *The statement handed up whole*). A
+  figures-only opening hands up no statement (jig's
+  `protocol/channel/figures.md`, 3). The service logs the link opening
+  (section 4) and hands the root the name and the statement; the root
+  commits them, `Write::Opening`, in a decision of its own, `at` its
+  wall time (jig's `protocol/store/records.md`, 3, *The workers' openings*).
 - **Since the engine's last start:** each start's wires commit clears
   them, and an opening the root hears before that commit is durable is
   committed once it is, so what the store keeps is each worker's last
@@ -384,13 +399,13 @@ them.
 
 `upgrade --check` (`binaries.md`, section 2) judges each worker by its
 kept opening (`../draft/archive/redeploys.md`, 5.1), after its jobs' and
-restores' lines. `upgrade --workers` prints these lines alone, read
-over a checkpoint at the engine's settled stop with no job or restore
-before them, so that a redeploy judges again what may have changed
-since its check (`binaries.md`, section 2; `checkpoints.md`, 2.1).
-Every line starts with the
-binary's name and `upgrade:`, as the check's others do, and none
-changes its exit code.
+restores' lines. `upgrade --workers` prints `rehearsal linked N files,
+copied M` first, then the verdict, with no job or restore before it
+(`binaries-box.md`, section 2). It can read the checkpoint at the
+engine's settled stop, so that a redeploy judges again what may have
+changed since its check (`checkpoints.md`, 2.1). Every line starts with
+the binary's name and `upgrade:`, as the check's others do, and the
+verdict does not change its exit code.
 
 1. **The copy keeps no wires,** a store from before the row: `workers
    may stay: unknown; the copy keeps no wires`, and nothing more.

@@ -368,8 +368,10 @@ fn a_compound_release_exposes_its_waiters_queue_to_later_dependencies() {
 #[test]
 fn a_compound_stop_removes_its_waiters_queue_from_the_walk() {
     let mut world = queued_delegate();
-    let operations =
-        vec![Operation::Stop { task: WAITER, hold: 100 + WAITER }, amendment(&world, HOLDER, &[REQUESTER])];
+    let operations = vec![
+        Operation::Stop { task: WAITER, hold: 100 + WAITER, reason: Box::from(b"Parking the task".as_slice()) },
+        amendment(&world, HOLDER, &[REQUESTER]),
+    ];
     assert_eq!(compound(&mut world, operations), Reply::Done);
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [REQUESTER]);
 }
@@ -430,7 +432,14 @@ fn a_procedure_step_judges_earlier_amendments_before_refusing_a_circle_whole() {
     let before = world.records.clone();
     let reply_to = world.to();
     let call = reply_to.into_token();
-    world.send(Event::Procedure { reply_to: skein_lib::ReplyTo::new(call), task: ROOT, step: 1, read: None, decision });
+    world.send(Event::Procedure {
+        reads_project: false,
+        reply_to: skein_lib::ReplyTo::new(call),
+        task: ROOT,
+        step: 1,
+        read: None,
+        decision,
+    });
     assert!(matches!(&world.replies[&call.raw()], Reply::Refused(problem)
         if problem.why == Refusal::Circle { cut: false }
         && problem.blocked_by.as_deref() == Some(&[REQUESTER, HOLDER])));
@@ -685,6 +694,7 @@ fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
     let reply_to = world.to();
     let message = world.record(HOLDER).last_message + 1;
     world.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: HOLDER,

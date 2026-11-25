@@ -73,10 +73,15 @@ type OrderKey = (Box<str>, u16);
 struct Text {
     bytes: Box<[u8]>,
     schema: Option<texts::Cached>,
+    verified: bool,
     stored: bool,
     current: bool,
 }
 impl Text {
+    fn stored(bytes: Box<[u8]>) -> Self {
+        Self { bytes, schema: None, verified: false, stored: true, current: false }
+    }
+
     fn schema(&self) -> Option<&Schema> {
         match self.schema.as_ref()? {
             texts::Cached::Parsed(schema) => Some(schema),
@@ -173,6 +178,7 @@ pub(crate) struct Layouts {
     written: Map<RowKey, &'static str>,
     texts: Map<Digest, Text>,
     prepared_schemas: &'static [Schema],
+    admitted_schemas: Option<List<Schema>>,
     pending: Queue<skein_kv::Op>,
     owners: crate::OwnerSets,
     walk: Option<Box<settling::Walk>>,
@@ -192,6 +198,7 @@ impl Layouts {
             written: Map::uncapped(),
             texts: Map::uncapped(),
             prepared_schemas: &[],
+            admitted_schemas: None,
             pending: Queue::uncapped(),
             owners: crate::OwnerSets::NONE,
             walk: None,
@@ -480,6 +487,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     if let Err(why) = crate::upgrade::admission::checked(store) {
         return Err(OpenRefusal::Set { owner: why });
     }
+    layouts.admitted_schemas = store.directory.admitted_schemas.take();
     check::retired(store, &mut layouts)?;
     let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;

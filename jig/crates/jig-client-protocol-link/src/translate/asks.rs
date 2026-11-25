@@ -355,7 +355,7 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
         c::Ask::Talk { project, task, words } => {
             w::Ask::Talk(w::Message { project: *project, task: *task, words: bytes::copy_of(words.bytes()) })
         }
-        c::Ask::Leave { project, task } => w::Ask::Leave(w::Stop { project: *project, task: *task }),
+        c::Ask::Leave { project, task } => w::Ask::Leave(w::Leave { project: *project, task: *task }),
         c::Ask::Message { project, task, words } => {
             w::Ask::Message(w::Message { project: *project, task: *task, words: bytes::copy_of(words.bytes()) })
         }
@@ -392,7 +392,9 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
             change: wire_amendment(change, limits)?,
             reason: bytes::copy_of(reason.bytes()),
         })),
-        c::Ask::Stop { project, task } => w::Ask::Stop(w::Stop { project: *project, task: *task }),
+        c::Ask::Stop { project, task, reason } => {
+            w::Ask::Stop(w::Stop { project: *project, task: *task, reason: bytes::copy_of(reason.bytes()) })
+        }
         c::Ask::Conclude { project, task } => w::Ask::Conclude(w::Conclude { project: *project, task: *task }),
         c::Ask::Cancel { project, task, reason, grace } => w::Ask::Cancel(w::Cancel {
             project: *project,

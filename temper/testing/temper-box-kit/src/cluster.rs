@@ -34,7 +34,15 @@ pub struct Cluster {
     specs: Vec<Value>,
     bindings: BTreeMap<String, String>,
     prepared: BTreeSet<String>,
+    bootstrap_providers: BootstrapProviders,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BootstrapProviders {
+    Commit,
+    Stage,
+}
+
 /// A member's rendered files, with any typed data beside its deployment document.
 pub struct Rendered {
     pub files: Vec<(PathBuf, Vec<u8>)>,
@@ -127,8 +135,13 @@ fn private_directory(path: &Path) {
 /// Worker settings from a description, applied by its owner after sign-in.
 #[must_use]
 pub fn worker_settings(file: &Path) -> Vec<Value> {
-    let document: Value =
-        serde_json::from_slice(&fs::read(file).expect("description settings")).expect("settings JSON");
+    worker_settings_from(&fs::read(file).expect("description settings"))
+}
+
+/// Worker settings from the description's rendered settings file, before laying it.
+#[must_use]
+pub fn worker_settings_from(bytes: &[u8]) -> Vec<Value> {
+    let document: Value = serde_json::from_slice(bytes).expect("settings JSON");
     document["items"]
         .as_array()
         .expect("settings items")
@@ -262,7 +275,13 @@ impl Cluster {
                 "{name}'s memory bound"
             );
         }
-        let mut cluster = Self { experiment, specs, bindings, prepared: BTreeSet::new() };
+        let mut cluster = Self {
+            experiment,
+            specs,
+            bindings,
+            prepared: BTreeSet::new(),
+            bootstrap_providers: BootstrapProviders::Commit,
+        };
         for index in 0..cluster.specs.len() {
             if list(&cluster.specs[index]["ready"])
                 .iter()
@@ -274,6 +293,12 @@ impl Cluster {
         }
         cluster
     }
+    /// Start with the fixture's kept copy but leave the store's providers unchanged.
+    /// The engine-only startup story checks the warning about the difference.
+    pub fn stage_providers_only(&mut self) {
+        self.bootstrap_providers = BootstrapProviders::Stage;
+    }
+
     /// The deployment's binaries in place of the box's for the engine and the workers,
     /// and temper-agent as each worker's agent (protocol/cluster.md, 5 and 6).
     pub fn deployment_binaries(&mut self) {
@@ -345,6 +370,14 @@ impl Cluster {
     fn replace_artifact(&mut self, name: &str, value: &str) {
         self.bindings.insert(format!("artifact.{name}"), value.into());
     }
+    /// The worker subprocesses the description renders.
+    pub fn worker_names(&self) -> impl Iterator<Item = &str> {
+        self.specs
+            .iter()
+            .filter(|spec| list(&spec["argv"]).first().and_then(Value::as_str) == Some("{artifact.temper-worker}"))
+            .map(|spec| string(&spec["name"]))
+    }
+
     /// The study's settings FILE; the native client applies it after owner sign-in.
     #[must_use]
     pub fn settings_file(&self) -> PathBuf {
@@ -483,9 +516,22 @@ impl Cluster {
         if !self.prepared.contains(process) {
             self.lay_files(process);
         }
-        if process == "engine" && !self.dir(process).join("data/fixture-limits-applied.json").exists() {
+        if process == "engine" {
             let root = self.dir(process);
-            super::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
+            bootstrap_engine_with(
+                &root,
+                root.join("data/fixture-limits-applied.json").exists(),
+                self.bootstrap_providers,
+                |paths, providers| match providers {
+                    BootstrapProviders::Commit => {
+                        // The store restores its routes and agent profile before tasks can run.
+                        let steps = super::provider_setup::steps(paths[0].join("fixture-providers.json"), &paths[1]);
+                        super::limit_settings::install_paths_with(paths, steps.into());
+                    }
+                    BootstrapProviders::Stage => super::limit_settings::install_paths(paths),
+                },
+                temper_agent_fixtures::providers::restore,
+            );
         }
         self.render_command(process)
     }
@@ -1267,6 +1313,23 @@ impl Referee<Binary> for Probe {
         self.settled
     }
 }
+fn bootstrap_engine_with(
+    root: &Path,
+    applied: bool,
+    providers: BootstrapProviders,
+    install: impl FnOnce(&[PathBuf; 3], BootstrapProviders),
+    restore: impl FnOnce(&Path),
+) {
+    if !applied {
+        let paths = [root.join("config"), root.join("data"), root.join("cache")];
+        install(&paths, providers);
+        if providers == BootstrapProviders::Stage {
+            // The sitting keeps the store's providers; this start needs the staged copy instead.
+            restore(&paths[1]);
+        }
+    }
+}
+
 fn probe(scratch: &Path) {
     let clock = Clock::new();
     let binary = Binary::start_with_tree(
@@ -1290,6 +1353,52 @@ fn probe(scratch: &Path) {
     assert_eq!(binary.counts().expect("probe settled").method, Method::Cgroup, "{CGROUPS}");
 }
 
+pub mod bootstrap_tests {
+    use super::{BootstrapProviders, Path, bootstrap_engine_with};
+    use std::cell::Cell;
+
+    pub fn the_engine_stages_fixture_providers_after_bootstrap() {
+        let root = Path::new("/fixture/engine");
+        let kept = Cell::new("fixture providers");
+        bootstrap_engine_with(
+            root,
+            false,
+            BootstrapProviders::Stage,
+            |paths, providers| {
+                assert_eq!(paths, &[root.join("config"), root.join("data"), root.join("cache")]);
+                assert_eq!(providers, BootstrapProviders::Stage);
+                kept.set("store providers");
+            },
+            |data| {
+                assert_eq!(data, root.join("data"));
+                assert_eq!(kept.get(), "store providers", "the sitting has drained before providers are staged");
+                kept.set("fixture providers");
+            },
+        );
+        assert_eq!(kept.get(), "fixture providers", "the fixture copy survives the sitting");
+
+        bootstrap_engine_with(
+            root,
+            true,
+            BootstrapProviders::Stage,
+            |_, _| panic!("do not reinstall applied settings"),
+            |_| panic!("do not restage providers when skipping the bootstrap"),
+        );
+    }
+
+    pub fn the_engine_keeps_committed_providers_after_bootstrap() {
+        let kept = Cell::new(None);
+        bootstrap_engine_with(
+            Path::new("/fixture/engine"),
+            false,
+            BootstrapProviders::Commit,
+            |_, providers| kept.set(Some(providers)),
+            |_| kept.set(None),
+        );
+        assert_eq!(kept.get(), Some(BootstrapProviders::Commit), "the sitting's committed providers are kept");
+    }
+}
+
 pub mod verdict_tests {
     use super::Cluster;
     use std::{
@@ -1303,6 +1412,7 @@ pub mod verdict_tests {
             specs: Vec::new(),
             bindings: BTreeMap::new(),
             prepared: BTreeSet::new(),
+            bootstrap_providers: super::BootstrapProviders::Commit,
         };
         let (mut members, _) = cluster.members();
         members.failure = Some("worker ended unexpectedly".to_owned());

@@ -1,12 +1,6 @@
 //! A batch names only people held by the core before any task child changes
 //! (jig/docs/design/domain/engine/decisions.md, 1.1).
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::result_large_err,
-        reason = "batch admission keeps the task child's exact refusal without allocation"
-    )
-)]
+#![expect(clippy::result_large_err, reason = "batch admission keeps the task child's exact refusal without allocation")]
 use crate::Core;
 use jig_domain_tasks as tasks;
 
@@ -25,7 +19,8 @@ impl Core {
             return Err(problem.why);
         }
         crate::effects::resources::check_make(self, &limits.tasks, *creator, &mut batch)?;
-        match self.tasks.check_make(&limits.tasks, *creator, *maker, &batch, places) {
+        let reads_project = maker.is_none() && self.creator_reads_project(*creator);
+        match self.tasks.check_make(&limits.tasks, *creator, *maker, &batch, places, reads_project) {
             Ok(()) => Ok(()),
             Err(problem) => Err(problem.why),
         }

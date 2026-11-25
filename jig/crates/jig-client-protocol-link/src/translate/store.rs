@@ -129,7 +129,9 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
             change: Box::new(pages::amendment_fields(&value.change, limits)?),
             reason: text(value.reason.as_ref(), limits)?,
         },
-        w::Ask::Stop(value) => c::Ask::Stop { project: value.project, task: value.task },
+        w::Ask::Stop(value) => {
+            c::Ask::Stop { project: value.project, task: value.task, reason: pages::long_text(&value.reason, limits)? }
+        }
         w::Ask::Conclude(value) => c::Ask::Conclude { project: value.project, task: value.task },
         w::Ask::Cancel(value) => c::Ask::Cancel {
             project: value.project,

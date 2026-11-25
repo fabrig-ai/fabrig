@@ -101,6 +101,7 @@ pub(crate) fn amend_route(
     }
     let request = core.fly_person_task(request, PersonTaskRoute::Amended { task, released });
     routed.work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
+        reads_project: false,
         operation: tasks::Amend { funder, task, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
         reply_to: ReplyTo::new(request),
@@ -132,7 +133,14 @@ pub(crate) fn person_task_request(
     }
 }
 
-pub(crate) fn stop_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, task: u64) {
+pub(crate) fn stop_request(
+    core: &mut Core,
+    env: &Env<Limits>,
+    routed: &mut Routed,
+    party: Party,
+    task: u64,
+    reason: Box<[u8]>,
+) {
     let Party { request, person, project, .. } = party;
 
     match core.control_admit(
@@ -158,7 +166,7 @@ pub(crate) fn stop_request(core: &mut Core, env: &Env<Limits>, routed: &mut Rout
                     owner: tasks::Owner::Party { person },
                     mode: tasks::Mode::Stop,
                     scope: tasks::Scope::Subtree { task },
-                    reason: Box::new([]),
+                    reason,
                     placed_at: env.wall.as_nanos() / 1_000_000,
                     revision: 1,
                     exempt: Box::new([]),

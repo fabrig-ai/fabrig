@@ -24,6 +24,11 @@ fn holding_fixture_limits_creates_a_private_data_directory() {
 }
 
 #[test]
+fn bootstrap_holds_fixture_limits_in_a_private_data_directory() {
+    support::limit_settings::tests::bootstrap_holds_fixture_limits_in_a_private_data_directory();
+}
+
+#[test]
 fn readiness_eof_reports_child_status_and_stderr() {
     use std::os::unix::process::ExitStatusExt;
     let finding = temper_box_kit::fake_readiness::read_with(&mut b"".as_slice(), &"fake fixture", |kind| {
@@ -133,6 +138,16 @@ fn terminal_a_command_waits_for_fresh_controls_when_returning_to_settings() {
 #[test]
 fn gate_receipt_waits_for_an_unpublished_status_context() {
     support::batch_landing::tests::gate_receipt_waits_for_an_unpublished_status_context();
+}
+
+#[test]
+fn cluster_stages_fixture_providers_after_the_engine_bootstrap() {
+    support::cluster::bootstrap_tests::the_engine_stages_fixture_providers_after_bootstrap();
+}
+
+#[test]
+fn cluster_keeps_committed_providers_after_the_engine_bootstrap() {
+    support::cluster::bootstrap_tests::the_engine_keeps_committed_providers_after_bootstrap();
 }
 
 #[test]

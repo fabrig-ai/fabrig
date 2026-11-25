@@ -562,6 +562,10 @@ The session starts `BIN/temper http://HOST:PORT` on a pseudo-terminal,
 (`../drive.md`, 2.2, 2.3 and 3.3). Output is drained and dropped; saves,
 not terminal escape sequences, give the frame.
 
+- **Its waits:** reads, writes and child exit report completions on the
+  session's browser ring. An idle terminal needs no clock wake. While
+  starting, the session checks for raw mode on output and at a 50 ms
+  interval, since a mode change need not produce output.
 - **Its own runtime:** `XDG_RUNTIME_DIR` is `session/tui-runtime/`,
   apart from the box's `session/runtime/`, so no engine's link file is
   read at start and no approval is bypassed. `HOME`, `XDG_STATE_HOME`,
@@ -578,9 +582,10 @@ not terminal escape sequences, give the frame.
   replacement by device and inode, not changed bytes, then reads the
   whole save through the native replay (section 4). The file it watches
   is the newest `recording-TIME` (3.1) in `session/state/temper/tui/`,
-  chosen by name at the save's request and again at each poll; a
-  `recording` an earlier build saved, an older run's file and any other
-  name are not saves. A missing save times out as 8.1 has it.
+  chosen by name at the save's request and again while the save is
+  pending, at a 50 ms interval; the replacement need not produce
+  terminal output. A `recording` an earlier build saved, an older run's
+  file and any other name are not saves. A missing save times out as 8.1 has it.
 - **Its end:** the session stops the TUI and its process group, then
   the browser and box (`../drive.md`, 2.4). Its private session files
   stay until the next session, never becoming main's pages.

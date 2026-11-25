@@ -25,10 +25,7 @@ const SETS: OwnerSets = OwnerSets { sets: &[SET] };
 fn checked_texts_stay_parsed_until_the_decoders_family_clear() {
     let mut layouts = Layouts::new();
     let kept = texts::digest(KEPT.as_bytes());
-    layouts
-        .texts
-        .insert(kept, Text { bytes: Box::from(KEPT.as_bytes()), schema: None, stored: true, current: false })
-        .expect("uncapped texts");
+    layouts.texts.insert(kept, Text::stored(Box::from(KEPT.as_bytes()))).expect("uncapped texts");
     texts::Binary::new(&SETS, &mut layouts).expect("fixture texts check");
     texts::parse(&mut layouts, kept).expect("stored text parses");
     let current = texts::digest(CURRENT.as_bytes());
@@ -57,10 +54,7 @@ fn current_equal_to_kept_keeps_its_checked_schema() {
 fn stored_current_waits_for_first_parse_then_survives_family_clear() {
     let mut layouts = Layouts::new();
     let digest = texts::digest(CURRENT.as_bytes());
-    layouts
-        .texts
-        .insert(digest, Text { bytes: Box::from(CURRENT.as_bytes()), schema: None, stored: true, current: false })
-        .expect("uncapped texts");
+    layouts.texts.insert(digest, Text::stored(Box::from(CURRENT.as_bytes()))).expect("uncapped texts");
     texts::Binary::new(&SETS, &mut layouts).expect("fixture texts check");
     let text = layouts.texts.get(&digest).expect("stored current");
     assert!(text.stored);
@@ -68,6 +62,30 @@ fn stored_current_waits_for_first_parse_then_survives_family_clear() {
     texts::parse(&mut layouts, digest).expect("first use checks the stored digest and parses");
     texts::clear(&mut layouts);
     assert!(layouts.texts.get(&digest).expect("stored current").schema.is_some());
+}
+
+fn stored_current_key(bytes: &[u8]) -> (Layouts, super::Digest) {
+    let mut layouts = Layouts::new();
+    let digest = texts::digest(CURRENT.as_bytes());
+    layouts.texts.insert(digest, Text::stored(Box::from(bytes))).expect("stored row");
+    counting::reset();
+    texts::keep(&mut layouts, CURRENT.as_bytes(), true).expect("binary current text");
+    (layouts, digest)
+}
+
+#[test]
+fn stored_current_reuses_the_matching_binary_text_digest() {
+    // One SHA-256 to name the binary text, reused when parsing the identical stored text.
+    const HASHES: u32 = 1;
+    let (mut layouts, digest) = stored_current_key(CURRENT.as_bytes());
+    texts::parse(&mut layouts, digest).expect("matching stored text");
+    assert_eq!(counting::get().hashes, HASHES);
+}
+
+#[test]
+fn stored_bytes_different_from_binary_still_need_a_digest_check() {
+    let (mut layouts, digest) = stored_current_key(KEPT.as_bytes());
+    assert_eq!(texts::parse(&mut layouts, digest), None);
 }
 
 #[test]
@@ -87,10 +105,7 @@ fn planning_borrows_prepared_texts_only_after_matching_the_whole_text_and_digest
 
     let old = texts::digest(KEPT.as_bytes());
     for (digest, bytes) in [(current, CURRENT), (old, KEPT), ([0; 32], CURRENT)] {
-        layouts
-            .texts
-            .insert(digest, Text { bytes: Box::from(bytes.as_bytes()), schema: None, stored: true, current: false })
-            .expect("uncapped texts");
+        layouts.texts.insert(digest, Text::stored(Box::from(bytes.as_bytes()))).expect("uncapped texts");
     }
     assert!(texts::parse(&mut layouts, [0; 32]).is_none(), "prepared bytes cannot excuse a mismatched digest");
     texts::parse(&mut layouts, current).expect("matching stored text");
@@ -133,6 +148,29 @@ fn planning_store(sets: OwnerSets) -> Store {
     store
 }
 
+#[test]
+fn admission_refuses_an_unknown_variant_before_hashing_registry_text() {
+    const NO_HASHES: u32 = 0;
+    const INVALID: OwnerSets = OwnerSets {
+        sets: &[OwnerSet {
+            families: &[KeptFamily {
+                types: &[ValueType {
+                    variant: Some("Absent"),
+                    number: 0,
+                    root: "Growing",
+                    keys: &[KeyRange { from: b"a", to: b"b" }],
+                }],
+                ..FAMILY
+            }],
+            ..SET
+        }],
+    };
+    let mut store = planning_store(SETS);
+    store.owner_sets(INVALID);
+    assert_eq!(super::open(&mut store, false), Err(crate::OpenRefusal::Set { owner: Owner::Application }));
+    assert_eq!(counting::get().hashes, NO_HASHES, "admission precedes registry hashing");
+}
+
 fn persist_registry(store: &mut Store) {
     let mut ops = skein_lib::List::uncapped();
     for _ in 0..store.registry.pending.len() {
@@ -166,16 +204,24 @@ fn held_rows() -> Store {
 }
 
 #[test]
+fn a_fresh_open_reuses_the_schema_parsed_by_admission() {
+    let store = opened(&mut Disk::new(&[]));
+    assert_counts(&[], 1);
+    assert_schemas_dropped(&store.registry);
+}
+
+#[test]
 fn held_rows_reuse_each_parse_and_layout() {
     let mut store = held_rows();
     assert_eq!(super::open(&mut store, false), Ok(true));
-    assert_counts(&[KEPT, CURRENT], 2);
+    assert_counts(&[KEPT], 2);
     assert_schemas_dropped(&store.registry);
     persist_registry(&mut store);
 
     // The old row is still held by its values, beside the binary's stored row.
+    store.directory.reset_admission();
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[KEPT, CURRENT], 2);
+    assert_counts(&[KEPT], 2);
     assert_eq!(store.registry.rows.len(), 2);
     assert_schemas_dropped(&store.registry);
 }
@@ -197,7 +243,7 @@ fn planning_parses_only_texts_missing_from_prepared_schemas() {
 fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[CURRENT], 1);
+    assert_counts(&[], 1);
     let value = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
     let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&crate::registry_v1::CEILINGS).unwrap()));
     value.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture row encodes");
@@ -214,8 +260,9 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
             skein_kv::Op::Put { key: Box::from(b"\x02a/1".as_slice()), value: Box::from([0, 2, 0, 42, 7]) },
         ],
     );
+    store.directory.reset_admission();
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[CURRENT], 1);
+    assert_counts(&[], 1);
     assert_eq!(store.registry.rows.len(), 2);
     for (_, row) in &store.registry.rows {
         assert!(!row.retire, "both stored ids have values and need their checks");
@@ -262,7 +309,7 @@ fn registered_families_share_held_parses_and_keep_distinct_layout_inputs() {
     };
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[CURRENT, HOLDER, CHILD_CURRENT, OTHER], 4);
+    assert_counts(&[], 4);
     assert_eq!(counting::get().held.len(), 3);
     assert_schemas_dropped(&store.registry);
 }
@@ -290,6 +337,7 @@ fn refused_planning_keeps_no_unfinished_registry_in_the_store() {
 }
 
 fn assert_schemas_dropped(layouts: &Layouts) {
+    assert!(layouts.admitted_schemas.is_none());
     assert!(!layouts.texts.is_empty(), "inspect the open before settlement drops its texts");
     for (_, text) in &layouts.texts {
         assert!(text.schema.is_none(), "plans release every schema");

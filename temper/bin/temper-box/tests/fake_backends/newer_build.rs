@@ -501,7 +501,7 @@ fn first_chat(programs: PathBuf, client: PathBuf) -> Vec<Step> {
             "--json",
         ])),
         Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
-        Step::Run(Call::new(&["task", "stop", "1", "--key", "keep-first-task", "--json"])),
+        Step::Run(Call::new(&["task", "stop", "1", "Parked", "--key", "keep-first-task", "--json"])),
         Step::Run(Call::new(&["task", "show", "1", "--until", "held", "--json"])),
     ]
 }
@@ -535,7 +535,7 @@ fn after_restart(probe: Probe, config: PathBuf, client: PathBuf, before: Kept) -
         Step::Run(Call::new(&["task", "show", "2", "--until", "phase:running", "--json"])),
         Step::Then(Box::new(move |_| {
             live_probe.during_run();
-            Call::new(&["task", "stop", "2", "--key", "end-live-run", "--json"])
+            Call::new(&["task", "stop", "2", "Parked", "--key", "end-live-run", "--json"])
         })),
         Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--json"])),
     ]

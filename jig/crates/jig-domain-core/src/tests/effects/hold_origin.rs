@@ -158,6 +158,7 @@ fn projection_writers(procedure: bool) -> ProjectionWriterFixture {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),
@@ -171,6 +172,7 @@ fn projection_writers(procedure: bool) -> ProjectionWriterFixture {
             &mut core,
             &limits,
             tasks::Event::Procedure {
+                reads_project: false,
                 reply_to: ReplyTo::new(Token::new(2)),
                 task: 1,
                 step: 1,
@@ -322,7 +324,9 @@ fn held_effects_and_procedures_keep_the_connectors_words_in_task_chip_and_escala
         );
         let row = core.tasks.task(2).unwrap();
         let hold = chip_from_row(&limits, row).unwrap().details.hold.unwrap();
-        assert_eq!(hold.words.as_ref().unwrap().bytes.as_ref(), words);
+        let explanation = &hold.words.as_ref().unwrap().bytes;
+        assert!(skein_lib::bytes::find(explanation, words).is_some());
+        assert!(skein_lib::bytes::find(explanation, b"Held since 1970-01-01T00:00Z.").is_some());
         assert_eq!(hold.account, Some(Part { connector: 2, kind: PartKind::Hold, key: PartKey::Number(2) }));
         for subject in [Subject::Task { task: 2 }, Subject::Escalation { task: 2 }] {
             let document = make(&core, &limits, 1, &subject, &window(), Wall::EPOCH).unwrap();
@@ -347,6 +351,7 @@ fn a_refused_procedure_batch_sends_its_findings_to_its_connector() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),

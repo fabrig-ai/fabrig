@@ -31,6 +31,10 @@ impl Class {
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     table::parse(words)
 }
+/// The missing stop reason is refused as a usage error before the call opens DIRECTORY.
+pub(crate) const fn usage_status(why: Usage) -> u8 {
+    if let Usage::Missing { tool: rows::STOP_AT, argument: 1, .. } = why { 2 } else { 1 }
+}
 /// The parent of the FILE this invocation reads, opened separately from DIRECTORY.
 #[must_use]
 pub fn file_root(parsed: &Parsed) -> Option<Box<[u8]>> {

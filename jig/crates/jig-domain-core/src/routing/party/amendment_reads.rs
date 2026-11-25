@@ -84,6 +84,9 @@ pub(crate) fn missing(
             match by {
                 tasks::Party::Task(amender) => {
                     let Some(holder) = core.tasks.task(amender) else { break };
+                    if row.project == holder.project && core.task_reads_project(amender) {
+                        break;
+                    }
                     if row.root != holder.root || row.depth <= holder.depth {
                         break;
                     }

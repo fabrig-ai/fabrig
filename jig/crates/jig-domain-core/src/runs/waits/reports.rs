@@ -34,6 +34,7 @@ pub(crate) fn report(
         }
         let _previous = core.reported_waits.insert(task, report).expect("bounded by live tasks");
     }
+    core.wait_alarms.changed(task);
     core.touch_task_number(&env.limits, task);
     out
 }
@@ -102,13 +103,13 @@ const fn figure(figures: Figures, kind: WaitKind) -> Option<Duration> {
     }
 }
 
-pub(super) fn bound(limits: &Limits, row: &tasks::TaskRecord, wait: &Reported, since: Wall) -> Bound {
+pub(super) fn bound(limits: &Limits, deadline: Option<Wall>, wait: &Reported, since: Wall) -> Bound {
     match wait.bound {
         ReportedBound::At { at, then } => Bound::At { at, then },
         ReportedBound::None(why) => Bound::None(why),
         ReportedBound::Figure(then) => {
             let figure = figure(limits.waits, wait.kind).expect("admitted figure kind");
-            super::own::clock(since, figure, row.authority.budget.deadline, then)
+            super::own::clock(since, figure, deadline, then)
         }
     }
 }

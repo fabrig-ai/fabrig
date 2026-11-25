@@ -625,6 +625,7 @@ fn run_progress_uses_the_current_chip_observation_and_ends_with_the_run() {
         &mut core,
         &env.limits,
         tasks::Event::Activation {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(1)),
             task,
             attempt: 1,

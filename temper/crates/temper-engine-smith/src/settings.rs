@@ -612,6 +612,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         | Refusal::KeyConflict
         | Refusal::NoEscalationHolder
         | Refusal::Unlinked { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Concluded { .. }
         | Refusal::Llm { .. } => {}
     }

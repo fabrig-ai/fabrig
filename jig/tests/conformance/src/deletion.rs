@@ -262,7 +262,7 @@ fn task_rows(world: &mut World) {
     });
     drain(world);
     ask(world, 41, people::Ask::SetPool { project: 1, person: 1, budget: 500 });
-    ask(world, 42, people::Ask::Stop { project: 1, task });
+    ask(world, 42, people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) });
     assert!(world.store.rows.keys().any(|key| matches!(key, root::Key::Core(core::Key::Tasks(tasks::Key::Ended(_))))));
     assert!(
         world.store.rows.keys().any(|key| matches!(key, root::Key::Core(core::Key::Tasks(tasks::Key::PlacedHold(_)))))

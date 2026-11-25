@@ -1,6 +1,6 @@
 # lifecycle-holds: status
 
-2026-11-23. Where the tree's code lags or departs from [lifecycle-holds.md](lifecycle-holds.md).
+2026-11-24. Where the tree's code lags or departs from [lifecycle-holds.md](lifecycle-holds.md).
 
 - **Not yet:** 1: an account's terminal read once its source is usable again is rechecked at once, with no backoff [in flight: change 9667].
 - **Not yet:** 1, *A claim's cause stays readable while its attempt is placed*: a claim keeps no cause once it clears its retry notice, and nothing marks a recheck [in flight: change 9704].

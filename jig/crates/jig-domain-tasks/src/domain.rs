@@ -19,6 +19,8 @@ pub(crate) struct Task {
     pub published: Option<Box<TaskRecord>>,
     pub record: TaskRecord,
     pub alarm: Option<Alarm>,
+    // A stall still to route after the one requester notice has run.
+    pub person_stall_clock: bool,
     pub grace_alarm: Option<Alarm>,
     pub procedure_offered: Option<u64>,
     // Connector facts changed after the current step context was offered.
@@ -34,6 +36,7 @@ impl Task {
             published: None,
             record,
             alarm: None,
+            person_stall_clock: false,
             grace_alarm: None,
             procedure_offered: None,
             procedure_woken: false,
@@ -73,6 +76,9 @@ pub struct Domain {
     pub(crate) alarms: Deadlines<u64>,
     pub(crate) grace_alarms: Deadlines<u64>,
     pub(crate) timers: Deadlines<u64>,
+    pub(crate) timer_capacity: u32,
+    // A due timer keeps room until its notice removes or rearms it.
+    pub(crate) timer_subscriptions: u32,
     pub(crate) wakes: Deadlines<u64>,
     pub(crate) proposal_alarms: Deadlines<u64>,
     pub(crate) escalation_alarms: Deadlines<u64>,
@@ -255,6 +261,7 @@ impl Domain {
     ) -> Domain {
         assert!(crate::valid(limits, kept), "task limits are valid");
         validate_charters(limits, kept, &charters, &efforts);
+        let timer_capacity = crate::limits::timer_capacity(limits).expect("timer room");
         Domain {
             startup: Startup::Restoring,
             subscription_capacity: crate::subscriptions::kept_capacity(limits).expect("validated subscriptions"),
@@ -272,7 +279,9 @@ impl Domain {
             stubs: Map::with_capacity(crate::limits::stub_capacity(limits).expect("valid stub bound")),
             alarms: Deadlines::with_capacity(limits.tasks),
             grace_alarms: Deadlines::with_capacity(limits.tasks),
-            timers: Deadlines::with_capacity(crate::limits::timer_capacity(limits).expect("timer room")),
+            timers: Deadlines::with_capacity(timer_capacity),
+            timer_capacity,
+            timer_subscriptions: 0,
             wakes: Deadlines::with_capacity(limits.tasks),
             proposal_alarms: Deadlines::with_capacity(limits.tasks),
             escalation_alarms: Deadlines::with_capacity(limits.tasks),
@@ -665,8 +674,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::recurring::make_batch(domain, env, task, period, &numbers, out);
         }
         Event::CloserBatch { task, number } => crate::closer::make(domain, env, task, number, out),
-        Event::Procedure { reply_to, task, step, read, decision } => {
-            crate::procedure::stepped(domain, env, reply_to, task, (step, read), decision, out);
+        Event::Procedure { reply_to, task, step, read, decision, reads_project } => {
+            crate::procedure::stepped(domain, env, reply_to, task, (step, read), decision, reads_project, out);
         }
         Event::TakePerson { reply_to, task, person } => {
             crate::person::take(domain, env, reply_to, task, person, out);
@@ -709,21 +718,21 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Release { reply_to, by, operation } => {
             crate::control::release(domain, env, reply_to, by, operation, out);
         }
-        Event::Amend { reply_to, by, operation, places } => {
-            crate::control::amend(domain, env, reply_to, by, operation, &places, out);
+        Event::Amend { reply_to, by, operation, places, reads_project } => {
+            crate::control::amend(domain, env, reply_to, by, operation, &places, reads_project, out);
         }
         Event::Move { reply_to, operation, person, period, pool_budget, period_budget } => {
             let funding = crate::moving::Funding { person, period, pool_budget, period_budget };
             crate::moving::apply(domain, env, reply_to, operation, funding, out);
         }
-        Event::Subscribe { reply_to, task, subscription } => {
+        Event::Subscribe { reply_to, task, subscription, reads_project } => {
             crate::subscriptions::subscribe(
                 domain,
                 env,
                 reply_to,
                 task,
                 subscription,
-                crate::subscriptions::Admission::Own,
+                (crate::subscriptions::Admission::Own, reads_project),
                 out,
             );
         }
@@ -734,24 +743,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 reply_to,
                 task,
                 subscription,
-                crate::subscriptions::Admission::Topic,
-                out,
-            );
-        }
-        Event::SubscribeTopicApart { reply_to, task, subscription } => {
-            crate::subscriptions::subscribe(
-                domain,
-                env,
-                reply_to,
-                task,
-                subscription,
-                crate::subscriptions::Admission::TopicApart,
+                (crate::subscriptions::Admission::Topic, false),
                 out,
             );
         }
         Event::Unsubscribe { reply_to, task, subscription } => {
             crate::subscriptions::unsubscribe(domain, env, reply_to, task, subscription, out);
         }
+        Event::ReadingLost { project, parties } => crate::subscriptions::reading_lost(domain, project, &parties, out),
         Event::Notice { task, word } => crate::subscriptions::notice(domain, env, task, word, out),
         Event::Introduce { reply_to, by, left, right } => {
             crate::refs::introduce(domain, env, reply_to, by, left, right, out);
@@ -801,14 +800,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ResizePeriod { reply_to, project, period, budget } => {
             crate::funders::resize_period(domain, reply_to, project, period, budget, out);
         }
-        Event::Make { reply_to, creator, maker, batch, places } => {
+        Event::Make { reply_to, creator, maker, batch, places, reads_project } => {
             let owner = reply_to.into_token();
-            make(domain, env, ReplyTo::new(owner), creator, maker, batch, &places, out);
+            make(domain, env, ReplyTo::new(owner), creator, maker, batch, &places, reads_project, out);
             domain.unpin_reports(owner);
         }
-        Event::MakeResultFollowups { reply_to, proposer, proposal, batch } => {
+        Event::MakeResultFollowups { reply_to, proposer, proposal, batch, reads_project } => {
             let owner = reply_to.into_token();
-            make_result_followups(domain, env, ReplyTo::new(owner), proposer, proposal, batch, out);
+            make_result_followups(domain, env, ReplyTo::new(owner), proposer, proposal, batch, reads_project, out);
             domain.unpin_reports(owner);
         }
         Event::Message { reply_to, project, operation } => {
@@ -816,6 +815,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::PersonQuestion { reply_to, project, task, person, word } => {
             crate::questions::person_question(domain, env, reply_to, (project, person), task, word, out);
+        }
+        Event::PassQuestion { asker, question, offer } => {
+            crate::questions::pass(domain, env, asker, question, offer, out);
+        }
+        Event::AnswerOfferedQuestion { reply_to, project, asker, word } => {
+            crate::questions::offered_answer(domain, env, reply_to, project, asker, word, out);
         }
         Event::PersonQuestionAnswer { reply_to, project, asked, person, question, word, notice } => {
             crate::questions::person_answer(
@@ -907,16 +912,26 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Refusals { task, attempt, refused, offered } => {
             crate::admission::answer_refusals(domain, env, task, attempt, &refused, offered, out);
         }
-        Event::Activation { reply_to, task, attempt, end, saved, cause } => match cause {
+        Event::Activation { reply_to, task, attempt, end, saved, cause, reads_project } => match cause {
             crate::Cause::Priced { cumulative } => {
                 crate::admission::activation(
                     domain,
                     env,
                     reply_to,
-                    crate::run::Ended { number: task, attempt, end, saved },
+                    crate::run::Ended { number: task, attempt, end, saved, park: false },
                     cumulative,
+                    reads_project,
                     out,
                 );
+            }
+            crate::Cause::Parked { cumulative } => {
+                let ended = crate::run::Ended { number: task, attempt, end: crate::End::Parked, saved, park: true };
+                match cumulative {
+                    Some(cumulative) => {
+                        crate::admission::activation(domain, env, reply_to, ended, cumulative, false, out);
+                    }
+                    None => crate::run::activation(domain, env, reply_to, ended, out),
+                }
             }
             crate::Cause::Unpriced => match end {
                 crate::End::FinishedWithFollowups { .. } => {
@@ -929,7 +944,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                             domain,
                             env,
                             reply_to,
-                            crate::run::Ended { number: task, attempt, end, saved },
+                            crate::run::Ended { number: task, attempt, end, saved, park: false },
                             out,
                         );
                     } else {
@@ -949,7 +964,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                         domain,
                         env,
                         reply_to,
-                        crate::run::Ended { number: task, attempt, end, saved },
+                        crate::run::Ended { number: task, attempt, end, saved, park: false },
                         out,
                     );
                 }
@@ -984,7 +999,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::CancelQuestion { reply_to, task, question } => {
             crate::questions::cancel(domain, env, reply_to, task, question, out);
         }
-        Event::PersonStallNotice { task, message } => crate::person::stalled(domain, env, task, message, out),
+        Event::PersonStallNotice { task, message, offer } => {
+            crate::person::stalled(domain, env, task, message, offer, out);
+        }
+        Event::RearmPersonStall { task, may_pass } => crate::person::rearm(domain, env, task, may_pass),
         Event::MetNotice { task, dependency, removed, by, message } => {
             crate::wake::met(domain, env, task, (dependency, removed), by, message, out);
         }
@@ -1009,8 +1027,14 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     crate::settings::released(domain, held, out);
 }
 
-pub(crate) fn deadline(record: &TaskRecord, wall: Wall) -> Option<Wall> {
-    let deadline = record.authority.budget.deadline?;
+/// The deadline that admission and wait records use, including time spent suspended.
+#[must_use]
+pub fn deadline(record: &TaskRecord, wall: Wall) -> Option<Wall> {
+    moved_deadline(record, record.authority.budget.deadline, wall)
+}
+
+pub(crate) fn moved_deadline(record: &TaskRecord, deadline: Option<Wall>, wall: Wall) -> Option<Wall> {
+    let deadline = deadline?;
     let age = match record.suspension {
         Some(suspension) => wall.as_nanos().saturating_sub(suspension.since.as_nanos()),
         None => 0,
@@ -1037,18 +1061,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         && let Some(task) = task_mut(domain, number)
     {
         match task.record.phase {
-            Phase::Active(Active::Due | Active::Idle) if crate::person::pending(&task.record) => {
+            Phase::Active(Active::Due | Active::Idle) if crate::person::deadline(task).is_some() => {
                 out.push(Request::PersonStallDue { task: number });
-            }
-            Phase::Active(Active::Idle)
-                if match deadline(&task.record, env.wall) {
-                    Some(wall) => env.wall > wall,
-                    None => false,
-                } =>
-            {
-                task.record.phase = Phase::Active(Active::Due);
-                publish(domain, env, number, out);
-                activate(domain, number, out);
             }
             Phase::Active(Active::Due) if task.record.suspension.is_some() => {
                 task.alarm = None;
@@ -1172,6 +1186,9 @@ impl Domain {
         for word in crate::escalation::waiting_for(self, number) {
             last = last.max(word.number);
         }
+        for word in crate::questions::waiting_for(self, number) {
+            last = last.max(word.number);
+        }
         Some(last)
     }
 
@@ -1194,8 +1211,10 @@ impl Domain {
         }
         let waiting = crate::proposals::waiting_for(domain, number);
         let escalations = crate::escalation::waiting_for(domain, number);
+        let questions = crate::questions::waiting_for(domain, number);
         let capacity = task.inbox.len().checked_add(waiting.len()).expect("bounded inbox and proposals");
         let capacity = capacity.checked_add(escalations.len()).expect("bounded inbox and decisions");
+        let capacity = capacity.checked_add(questions.len()).expect("bounded inbox and questions");
         let mut unordered = List::with_capacity(u32::try_from(capacity).expect("bounded inbox and proposals"));
         for word in &task.inbox {
             unordered.push(word.clone()).expect("inbox counted");
@@ -1205,6 +1224,9 @@ impl Domain {
         }
         for word in escalations {
             unordered.push(word).expect("virtual escalation counted");
+        }
+        for word in questions {
+            unordered.push(word).expect("virtual question counted");
         }
         let mut inbox = List::with_capacity(unordered.len());
         let mut previous = 0_u64;
@@ -1279,6 +1301,13 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
         return;
     }
     let initial = task.observed_phase.is_none();
+    task.record.held_since = match (&task.observed_phase, &task.record.phase) {
+        (Some(Phase::Held { why: previous, .. }), Phase::Held { why, .. }) if previous == why => {
+            Some(task.record.held_since.unwrap_or(task.record.phase_since))
+        }
+        (_, Phase::Held { .. }) => Some(env.wall),
+        (_, Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_)) => None,
+    };
     task.record.phase_since = env.wall;
     let previous_held = match &task.observed_phase {
         Some(Phase::Held { .. }) => true,
@@ -1370,30 +1399,37 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     }
     task.observed_hold = held;
     let escalation = crate::escalation::begin(&mut task.record);
-    // Admission permits equality with the wall. Wake just after it, without
-    // another alarm or a durable deadline carrier (domain/authority-budgets.md, 1).
-    let wall = match deadline(&task.record, env.wall) {
-        Some(wall) => match wall.as_nanos().checked_add(1) {
-            Some(nanos) => Some(Wall::from_nanos(nanos)),
-            None => None,
-        },
-        None => None,
-    };
+    schedule_alarm(domain, env, number);
+    save_live(domain, env, number, out);
+    crate::grace::schedule(domain, env, number);
+    crate::escalation::schedule(domain, env, number);
+    if escalation {
+        out.push(Request::EscalationNeeded {
+            context: crate::escalation::context(domain, number).expect("new held person context"),
+        });
+    }
+    if became_held {
+        let revision = record(domain, number).expect("held task").revisions.hold;
+        crate::subscriptions::notify_state(domain, number, crate::NoticeState::Held { revision }, &[], out);
+    }
+    if unavailable {
+        crate::proposals::holder_unavailable(domain, number, out);
+        crate::escalation::holder_unavailable(domain, number, out);
+    }
+}
+
+pub(crate) fn schedule_alarm(domain: &mut Domain, env: &Env<Limits>, number: u64) {
+    let task = task_mut(domain, number).expect("scheduled task is live");
+    let person_deadline = crate::person::deadline(task);
     let until = match task.record.phase {
-        Phase::Active(Active::Due | Active::Idle) if crate::person::pending(&task.record) => {
-            Some(task.record.person_wait.expect("active person wait").deadline)
-        }
-        Phase::Active(Active::Idle) => wall,
+        Phase::Active(Active::Due | Active::Idle) if person_deadline.is_some() => person_deadline,
         Phase::Active(Active::Due) => match task.record.suspension {
             Some(suspension) if suspension.until > env.wall => Some(suspension.until),
             Some(_) | None => None,
         },
-        Phase::Active(Active::BackingOff { until }) => Some(match wall {
-            Some(wall) => until.min(wall),
-            None => until,
-        }),
+        Phase::Active(Active::BackingOff { until }) => Some(until),
         Phase::Waiting
-        | Phase::Active(Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
+        | Phase::Active(Active::Idle | Active::Preparing | Active::Claimed { .. } | Active::Running { .. })
         | Phase::Closing(_)
         | Phase::Held { .. }
         | Phase::Ended(_) => None,
@@ -1411,14 +1447,6 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         None => None,
     };
     task.alarm = alarm;
-    save_live(domain, env, number, out);
-    crate::grace::schedule(domain, env, number);
-    crate::escalation::schedule(domain, env, number);
-    if escalation {
-        out.push(Request::EscalationNeeded {
-            context: crate::escalation::context(domain, number).expect("new held person context"),
-        });
-    }
     match alarm {
         Some(alarm) => {
             let armed = domain.alarms.arm(number, alarm.due);
@@ -1427,14 +1455,6 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
         None => {
             domain.alarms.cancel(number);
         }
-    }
-    if became_held {
-        let revision = record(domain, number).expect("held task").revisions.hold;
-        crate::subscriptions::notify_state(domain, number, crate::NoticeState::Held { revision }, &[], out);
-    }
-    if unavailable {
-        crate::proposals::holder_unavailable(domain, number, out);
-        crate::escalation::holder_unavailable(domain, number, out);
     }
 }
 
@@ -1480,9 +1500,10 @@ pub(crate) fn make(
     maker: Option<u64>,
     batch: Box<[New]>,
     places: &[crate::DependencyPlace],
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
-    if let Err(problem) = domain.check_make(&env.limits, creator, maker, &batch, places) {
+    if let Err(problem) = domain.check_make(&env.limits, creator, maker, &batch, places, reads_project) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     let numbers = make_admitted(domain, env, creator, batch, out);
@@ -1504,6 +1525,10 @@ pub(crate) fn make(
     out.push(Request::Made { reply_to: to, tasks: numbers });
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "result follow-ups carry the proposal fence and the core's current reading judgment"
+)]
 fn make_result_followups(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -1511,14 +1536,20 @@ fn make_result_followups(
     proposer: u64,
     proposal: u64,
     batch: Box<[New]>,
+    reads_project: bool,
     out: &mut Queue<Request>,
 ) {
     if !domain.ready() {
         return refused(to, Some(proposer), Refusal::NotReady, out);
     }
-    if let Err(problem) =
-        crate::batch::check_result_followups(domain, &env.limits, Party::Task(proposer), proposal, &batch)
-    {
+    if let Err(problem) = crate::batch::check_result_followups(
+        domain,
+        &env.limits,
+        Party::Task(proposer),
+        proposal,
+        &batch,
+        reads_project,
+    ) {
         return crate::capacity::refused(domain, env, to, problem, out);
     }
     remember_result_followups(domain, &env.limits, proposer, &batch);
@@ -1703,6 +1734,7 @@ pub(crate) fn make_admitted(
             created_at: env.wall,
             changed: env.wall,
             phase_since: env.wall,
+            held_since: None,
             run_since: None,
             retry_notice: None,
             ended_at: None,

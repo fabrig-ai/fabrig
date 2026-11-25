@@ -35,6 +35,7 @@ fn batch_input(core: &Core, named: u64, name: fn(&mut tasks::New, &mut tasks::Pa
     let mut creator = tasks::Party::Deployment { project: 1 };
     name(&mut row, &mut creator, named);
     Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(Token::new(9053)),
@@ -58,6 +59,7 @@ fn amendment_input(core: &Core, named: u64) -> Event {
         address: tasks::PersonAddress::Person(named),
     });
     Event::Tasks(tasks::Event::Amend {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(9053)),
         by: tasks::Party::Person(PERSON),
         places: Box::new([]),
@@ -101,6 +103,7 @@ fn raw_writers_refuse_unknown_people_before_any_child_changes() {
                 &mut core,
                 &limits,
                 tasks::Event::Make {
+                    reads_project: false,
                     maker: None,
                     places: Box::new([]),
                     reply_to: ReplyTo::new(Token::new(1)),

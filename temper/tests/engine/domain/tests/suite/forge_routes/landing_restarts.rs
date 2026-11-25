@@ -574,7 +574,11 @@ fn person(world: &mut World, key: u8, ask: people::Ask) {
 fn releasing_a_stopped_landing_replaces_its_cancelled_prepare_once() {
     let (mut world, change, landing) = marked_prepare();
     let first = start_prepare(&mut world, landing);
-    person(&mut world, 96, people::Ask::Stop { project: 1, task: landing });
+    person(
+        &mut world,
+        96,
+        people::Ask::Stop { project: 1, task: landing, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     for _ in 0..PAIR_TICKS {
         world.tick();
         if matches!(task_row(&world, landing).expect("stopped landing").phase, tasks::Phase::Held { .. }) {

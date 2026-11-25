@@ -72,6 +72,22 @@ pub(super) fn project(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapsh
                 {
                     snapshot.receipts.insert(r::Receipt::Word(holder, proposal.number));
                 }
+                for credit in &row.questions {
+                    if let Some(tasks::QuestionOffer {
+                        holder: tasks::EscalationHolder::Task(holder),
+                        relay: Some(relay),
+                        ..
+                    }) = &credit.offer
+                    {
+                        snapshot.receipts.insert(r::Receipt::Word(*holder, relay.entry));
+                    }
+                }
+                for position in &row.question_lines {
+                    if let Some(notice) = position.resolution.as_ref().and_then(|resolution| resolution.notice.as_ref())
+                    {
+                        snapshot.receipts.insert(r::Receipt::Word(row.number, notice.number));
+                    }
+                }
                 snapshot.receipts.insert(r::Receipt::Task(row.number));
                 if matches!(row.phase, tasks::Phase::Ended(_)) {
                     snapshot.receipts.insert(r::Receipt::Ended(row.number));

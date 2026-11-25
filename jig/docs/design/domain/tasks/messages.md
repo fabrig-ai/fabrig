@@ -12,7 +12,7 @@
 | a cancel | the same; the deployment, closing a conversation (../people/acts.md, 3) | always |
 | words | a party; a task holding a reference to it | a party's, yes; a task's, by policy |
 | news: a connector's event, classified | its subscriptions (4) | by policy |
-| a notice: a task it references done or held; a proposal passing through; a hold it waits for | its subscriptions; the core | by policy |
+| a notice: a task it watches done or held, or no longer read by its tree's requester (4); a proposal passing through; a hold it waits for | its subscriptions; the core | by policy |
 | a notice: nothing left to await (`lifecycle.md`, 2) | the core | yes |
 | a notice: its last pending dependency done or removed (`lifecycle-endings.md`, 1) | the core | yes |
 | a timer | itself | yes |
@@ -58,6 +58,36 @@ again when a run leaves one undecided only as 6 says.
   message (../engine/briefs.md, 1.2). It is among
   every run's reasons (6), and, left open by a run that parks idle,
   wakes the task again (`lifecycle.md`, 2).
+- **A question left past its bound passes up**
+  (`temper/docs/design/draft/bounded-waits.md`, 4.2). One asked of a task,
+  unanswered `waits.question` after its asking, and one waiting at a
+  person (`../people/README.md`, 5), unanswered `waits.party` after it
+  reached them, each capped by its asker's deadline
+  (`../engine/waits.md`, 5), is offered to the next holder that covers
+  it, found as its asker's escalation would be past that holder
+  (`proposals.md`, *Where they wait*): the nearest task above that may
+  decide, then the tree's requesting person, then the project's
+  escalation role. The core's bound alarm does it
+  (`lifecycle-holds.md`, 1). It stays one question:
+  - *Who may answer:* its first holder, the task or person it was asked
+    of, and its current holder, each as its first holder may: a task in
+    the answer form, naming its number; a party with `Answer` in their
+    inbox, a role's holder as a person. The first answer settles it and
+    reaches its asker as its answer; a later one is refused, naming who
+    answered.
+  - *Where it shows:* at a task, as an entry, as an escalation is,
+    relayed and read in order with its messages, taking none of their
+    room, and waking it on arrival; at a party, as a question in their
+    inbox. Its first holder keeps it as before.
+  - *Onward:* at its current holder it has that holder's bound again,
+    `waits.question` at a task and `waits.party` at a party, from its
+    arrival there, and passes on; at the project's last holder it is
+    overdue (`proposals.md`, *Overdue at the last holder*), with no timer
+    after. Its asker's wait follows it: one wait, at its current holder.
+  - *Kept:* its asker's credit keeps its current holder and since when,
+    an optional member that the previous build's records lack, read as
+    none, so a restart finds the same, and its asker hears nothing of a
+    move but the answer.
 - **Words that direct it stay until a run records them.** A task
   **keeps words** when it is an agent task whose runs start from a
   brief, never resuming (../engine/executors-transcripts.md, 1), that is no
@@ -234,29 +264,57 @@ A subscription is a task's standing interest in what changes:
   a branch: kept by the connector, which names the task by its number and
   classifies each event for it (../connectors-facts.md, 1.3);
 - **another task's state:** done, held, or its result; for a task it
-  references;
+  references, or any live task of its project that its tree's
+  requester reads (5, *Waits by reading*);
 - **a timer.**
 
 Subscriptions end with the task. A goal's subscriptions to the topics its
 connectors offer for goals are the core's to keep, not its executor's
-(../model.md, 6.2). Their number per task is bounded, by `subscriptions`
-(`README.md`, section 6), but for one topic asked apart:
+(../model.md, 6.2).
 
-- **One topic apart.** An application may ask a connector's topic for a
-  task apart from the bound (the tasks child's `SubscribeTopicApart`,
-  beside `SubscribeTopic`): admitted while the task holds at most
-  `subscriptions` subscriptions, so one past the bound, and refused
-  otherwise only as any topic is (its task closing or ended, its number
-  taken, no room in its inbox for its news, 2). Every other
-  subscription stops at the bound, counting it. Nothing marks it once
-  made: it is a topic subscription as any other, and the task holds at
-  most one more than the bound, however many it is asked apart. So
-  news the application owes a task, whatever the task subscribed to
-  itself, such as a work item's to the one that holds it, isn't crowded
-  out.
-- **Kept to the bound and one more:** a task's record, its restore and
-  the store's row hold `subscriptions` and one more; a client's view of
-  them keeps its own bound (`../../client/domain/pages.md`).
+- **One room, every kind alike.** A task holds at most `subscriptions`
+  and one more (`README.md`, section 6): to tasks, topics and timers,
+  counted alike and in any order, whoever asks, its run, its procedure,
+  or the application for news it owes the task, such as a work item's
+  topic for the task that holds it. So with the stock `subscriptions`
+  of 4, a task watching four person tasks and holding a work item's
+  topic fits, whichever came first. One past the room is refused
+  `Busy`, naming the room; any other refusal is as before (its task
+  closing or ended, its number taken, no room in its inbox for its
+  news, 2). An application's topic is asked as any other
+  (`SubscribeTopic`), and a route the room refuses keeps what it owes
+  unheard, saying so, as one the inbox refuses does (decided
+  2026-11-24).
+- **A restored task keeps what it holds.** A task's record, its restore
+  and the store's row hold as many as the store's schema does, not the
+  configured room: a task restored holding more than its room, as after
+  `subscriptions` was lowered, keeps every one, and each new one is
+  refused until it holds fewer than its room. Its timers are armed as
+  any are. A start whose restored timers pass the timers' table, its room
+  for every live task, is refused, naming the table, as a restore past a
+  table's room is (`README.md`, section 6). A client's view of them keeps
+  its own bound (`../../client/domain/pages.md`).
+- **A watch by reading ends with the reading.** When a party no longer
+  holds a role in a project (../people/acts.md), the core tells the
+  tasks child, which ends, in each tree whose root that party requested
+  there, every task watch whose target its subscriber does not
+  reference (5, *By reference*): the subscription goes, and the
+  subscriber hears its last notice, state `unreadable`, in that
+  subscription's merged slot (2), judged as that subscription's
+  notices are (3). A watch by reference stays. A dependency made by
+  reading stays a prerequisite, bounded by its task's deadline: ending
+  it would release its dependent early. A project's deletion ends its
+  tasks, and needs nothing more. The state is stored as the others are,
+  in the tasks family's schema, an added variant moving no version
+  (`../../protocol/store/layouts.md`), and carried to clients, in the
+  client wire's next version.
+
+*Why one room:* a topic admitted one past the bound fitted in one order
+and not the other: a holder that took the topic first had its own
+subscriptions stop one short. Its one more is now every kind's, so no
+task holds fewer than it could, and no figure moves. The price is that
+a task that fills the room with its own subscriptions is refused an
+application's topic as any other, its route saying so.
 
 ## 5. Who may message whom
 
@@ -266,6 +324,21 @@ connectors offer for goals are the core's to keep, not its executor's
   introduces two tasks it references by giving each a reference to the
   other, within their limits. References are kept with the task, and end
   with it.
+- **Waits by reading.** A task may also depend on, or watch, any task of
+  its project that the party who requested its tree reads: one holding
+  a role in the project reads all of it (../people/public-reading.md, 4).
+  The core judges it, since roles are the people child's: with each
+  task-made batch, amendment and watch, it tells the tasks child whether
+  the creator's tree's root has a person requester holding a role in the
+  creator's project, and the tasks child admits by that, at the edge's
+  admission; a tree a deployment requested reads nothing by it. A
+  dependency so made passes the circle check as any other (`holds.md`,
+  7). Reading gives no reference: such a task is not messaged, amended or
+  introduced by it. A batch's dependency by reading names a live task
+  (`README.md`, section 4); an amendment's may name an ended one, on its
+  stored row (`changes.md`, *An ended one*); a watch names a live one. A
+  later loss of the reading ends the watch (4); a person's batch and a
+  maker's keep the reach they have (../people/acts.md, 1).
 - **Parties** message the tasks their role lets them see (../people/acts.md
   ).
 - **No broadcast.** Who may talk to whom stays visible and bounded.

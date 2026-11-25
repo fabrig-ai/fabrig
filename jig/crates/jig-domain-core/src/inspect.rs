@@ -10,6 +10,12 @@ impl Core {
         (self.stopping && timer.waits_while_stopping()) || (self.settling && timer.new_work())
     }
 
+    /// The armed core bound of a task, separate from the tasks child's clocks.
+    #[must_use]
+    pub fn inspection_wait_bound(&self, task: u64) -> Option<Time> {
+        self.wait_alarms.at(task)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub const fn inspection_now(&self) -> Time {

@@ -134,7 +134,7 @@ pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipH
         placed: crate::translate::answers::placed(value.placed.as_ref(), limits)?,
         words: match &value.words {
             Some(text) => Some(c::DocumentText {
-                bytes: match c::Text::new(bytes::copy_of(&text.bytes), crate::limits::HOLD_ACCOUNT_BYTES) {
+                bytes: match c::Text::new(bytes::copy_of(&text.bytes), crate::limits::HOLD_WORDS) {
                     Ok(bytes) => bytes,
                     Err(_) => return Err(text_problem()),
                 },

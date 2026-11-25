@@ -1616,6 +1616,11 @@ pub enum ToolKind {
     Message {
         target: u64,
     },
+    /// A reference granted only to answer this question.
+    AnswerQuestion {
+        target: u64,
+        question: u64,
+    },
     /// The message family alone, without a reference to another task.
     MarkRead,
     Control,
@@ -1652,6 +1657,8 @@ pub enum EscalationChoice {
 pub enum Timer {
     /// Sign-in and retained keyed-answer expiration.
     People,
+    /// Bounds of a task's own waits.
+    WaitBounds,
     /// Task deadlines and standing work.
     Tasks,
     /// Missing batch reports reach their bound (domain/tasks/holds.md, 2).
@@ -1791,13 +1798,13 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Move { .. }
         | tasks::Event::Subscribe { .. }
         | tasks::Event::SubscribeTopic { .. }
-        | tasks::Event::SubscribeTopicApart { .. }
         | tasks::Event::Unsubscribe { .. }
         | tasks::Event::Notice { .. }
         | tasks::Event::Introduce { .. }
         | tasks::Event::Message { .. }
         | tasks::Event::PersonQuestion { .. }
         | tasks::Event::PersonQuestionAnswer { .. }
+        | tasks::Event::AnswerOfferedQuestion { .. }
         | tasks::Event::Talk { .. }
         | tasks::Event::Leave { .. }
         | tasks::Event::AuthorizedMessage { .. }
@@ -1820,6 +1827,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::DelegateResult { .. }
         | tasks::Event::RememberStub { .. }
         | tasks::Event::InspectEscalations { .. }
+        | tasks::Event::ReadingLost { .. }
         | tasks::Event::RecheckEscalations { .. }
         | tasks::Event::RoutedEscalation { .. }
         | tasks::Event::DecideEscalation { .. }
@@ -1843,12 +1851,14 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Retained { .. }
         | tasks::Event::Settled { .. }
         | tasks::Event::PersonStallNotice { .. }
+        | tasks::Event::RearmPersonStall { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
         | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::CancelQuestion { .. }
+        | tasks::Event::PassQuestion { .. }
         | tasks::Event::Restore { .. }
         | tasks::Event::Check
         | tasks::Event::Restored => false,
@@ -2027,7 +2037,7 @@ impl Timer {
     #[must_use]
     pub const fn new_work(self) -> bool {
         match self {
-            Self::Tasks => true,
+            Self::Tasks | Self::WaitBounds => true,
             Self::People | Self::Fleet | Self::Brief | Self::Account | Self::Retention | Self::Resources => false,
         }
     }
@@ -2062,7 +2072,7 @@ impl Timer {
 
 pub fn waits(timer: Timer) -> bool {
     match timer {
-        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
+        Timer::People | Timer::WaitBounds | Timer::Tasks | Timer::Fleet | Timer::Brief | Timer::Retention => true,
         Timer::Account | Timer::Resources => false,
     }
 }

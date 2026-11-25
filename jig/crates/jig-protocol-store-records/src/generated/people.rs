@@ -1322,8 +1322,9 @@ pub fn operation_to_record(value: &jig_domain_people::Operation, context: &crate
             task: *field_000000,
             words: field_000001.clone()
         }),
-        jig_domain_people::Operation::Stop { task: field_000000 } => crate::people_v17::Operation::Stop(crate::people_v17::OperationStop {
-            task: *field_000000
+        jig_domain_people::Operation::Stop { task: field_000000, reason: field_000001 } => crate::people_v17::Operation::Stop(crate::people_v17::OperationStop {
+            task: *field_000000,
+            reason: field_000001.clone()
         }),
     })
 }
@@ -1388,9 +1389,10 @@ pub fn operation_to_domain(record: crate::people_v17::Operation, context: &crate
             }
         },
         crate::people_v17::Operation::Stop(held) => {
-            let crate::people_v17::OperationStop { task: field_000000 } = held;
+            let crate::people_v17::OperationStop { task: field_000000, reason: field_000001 } = held;
             jig_domain_people::Operation::Stop {
-                task: field_000000
+                task: field_000000,
+                reason: field_000001
             }
         },
     })
@@ -1944,669 +1946,6 @@ pub fn worker_pause_mode_to_domain(record: crate::people_v17::WorkerPauseMode) -
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn ask_to_record(value: &jig_domain_people::Ask, context: &crate::people_v17::Limits) -> Result<crate::people_v17::Ask, crate::people_v17::Problem> {
-    Ok(match value {
-        jig_domain_people::Ask::Rename { project: field_000000, name: field_000001 } => crate::people_v17::Ask::Rename(crate::people_v17::AskRename {
-            project: *field_000000,
-            name: skein_codec::convert::text_to_record(field_000001)
-        }),
-        jig_domain_people::Ask::MakeProject { name: field_000000, policy: field_000001 } => crate::people_v17::Ask::MakeProject(crate::people_v17::AskMakeProject {
-            name: skein_codec::convert::text_to_record(field_000000),
-            policy: *field_000001
-        }),
-        jig_domain_people::Ask::Compound { project: field_000000, operations: field_000001 } => crate::people_v17::Ask::Compound(crate::people_v17::AskCompound {
-            project: *field_000000,
-            operations: {
-                let source = field_000001;
-                let count = source.len();
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source {
-                    let converted = operation_to_record(item, context)?;
-                    assert!(translated.push(converted).is_ok(), "one output per source item");
-                }
-                translated
-            }
-        }),
-        jig_domain_people::Ask::Create { project: field_000000, batch: field_000001 } => crate::people_v17::Ask::Create(crate::people_v17::AskCreate {
-            project: *field_000000,
-            batch: {
-                let source = field_000001;
-                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::people_v17::paths::ASK_CREATE_BATCH.problem(skein_codec::Reason::Bound)) };
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.as_ref() {
-                    let converted = crate::codec::people::member_to_record(item, context)?;
-                    assert!(translated.push(converted).is_ok(), "one output per source item");
-                }
-                translated
-            }
-        }),
-        jig_domain_people::Ask::MarkSeen { seen: field_000000 } => crate::people_v17::Ask::MarkSeen(crate::people_v17::AskMarkSeen {
-            seen: seen_to_record(field_000000)
-        }),
-        jig_domain_people::Ask::Application { scope: field_000000, connector: field_000001, digest: field_000002 } => crate::people_v17::Ask::Application(crate::people_v17::AskApplication {
-            scope: application_scope_to_record(field_000000),
-            connector: *field_000001,
-            digest: *field_000002
-        }),
-        jig_domain_people::Ask::EditNote { project: field_000000, name: field_000001, scope: field_000002, change: field_000003 } => crate::people_v17::Ask::EditNote(crate::people_v17::AskEditNote {
-            project: *field_000000,
-            name: *field_000001,
-            scope: note_scope_to_record(field_000002, context)?,
-            change: crate::codec::people::note_change_to_record(field_000003, context)?
-        }),
-        jig_domain_people::Ask::MakeService { project: field_000000, name: field_000001, role: field_000002 } => crate::people_v17::Ask::MakeService(crate::people_v17::AskMakeService {
-            project: *field_000000,
-            name: field_000001.clone(),
-            role: role_to_record(field_000002)
-        }),
-        jig_domain_people::Ask::Adopt { project: field_000000, adoption: field_000001 } => crate::people_v17::Ask::Adopt(crate::people_v17::AskAdopt {
-            project: *field_000000,
-            adoption: crate::codec::people::adoption_to_record(field_000001, context)?
-        }),
-        jig_domain_people::Ask::Stop { project: field_000000, task: field_000001 } => crate::people_v17::Ask::Stop(crate::people_v17::AskStop {
-            project: *field_000000,
-            task: *field_000001
-        }),
-        jig_domain_people::Ask::Cancel { project: field_000000, task: field_000001, reason: field_000002, grace: field_000003 } => crate::people_v17::Ask::Cancel(crate::people_v17::AskCancel {
-            project: *field_000000,
-            task: *field_000001,
-            reason: field_000002.clone(),
-            grace: match field_000003 {
-                Some(item) => {
-                    let converted = skein_codec::convert::duration_to_record(item);
-                    Some(converted)
-                }
-                None => None,
-            }
-        }),
-        jig_domain_people::Ask::Release { project: field_000000, task: field_000001, revision: field_000002, again: field_000003 } => crate::people_v17::Ask::Release(crate::people_v17::AskRelease {
-            project: *field_000000,
-            task: *field_000001,
-            revision: *field_000002,
-            again: match field_000003 {
-                Some(item) => {
-                    let converted = *item;
-                    Some(converted)
-                }
-                None => None,
-            }
-        }),
-        jig_domain_people::Ask::TakePerson { project: field_000000, task: field_000001 } => crate::people_v17::Ask::TakePerson(crate::people_v17::AskTakePerson {
-            project: *field_000000,
-            task: *field_000001
-        }),
-        jig_domain_people::Ask::HandBackPerson { project: field_000000, task: field_000001 } => crate::people_v17::Ask::HandBackPerson(crate::people_v17::AskHandBackPerson {
-            project: *field_000000,
-            task: *field_000001
-        }),
-        jig_domain_people::Ask::AnswerPerson { project: field_000000, task: field_000001, revision: field_000002, result: field_000003 } => crate::people_v17::Ask::AnswerPerson(crate::people_v17::AskAnswerPerson {
-            project: *field_000000,
-            task: *field_000001,
-            revision: *field_000002,
-            result: person_result_to_record(field_000003)
-        }),
-        jig_domain_people::Ask::Move { project: field_000000, task: field_000001, reason: field_000002 } => crate::people_v17::Ask::MoveTask(crate::people_v17::AskMove {
-            project: *field_000000,
-            task: *field_000001,
-            reason: field_000002.clone()
-        }),
-        jig_domain_people::Ask::DecideProposal { project: field_000000, proposer: field_000001, proposal: field_000002, decision: field_000003, running: field_000004 } => crate::people_v17::Ask::DecideProposal(crate::people_v17::AskDecideProposal {
-            project: *field_000000,
-            proposer: proposer_to_record(field_000001),
-            proposal: *field_000002,
-            decision: proposal_decision_to_record(field_000003),
-            running: match field_000004 {
-                Some(item) => {
-                    let converted = running_to_record(item);
-                    Some(converted)
-                }
-                None => None,
-            }
-        }),
-        jig_domain_people::Ask::Say { project: field_000000, task: field_000001, words: field_000002 } => crate::people_v17::Ask::Say(crate::people_v17::AskSay {
-            project: *field_000000,
-            task: *field_000001,
-            words: field_000002.clone()
-        }),
-        jig_domain_people::Ask::AnswerQuestion { project: field_000000, task: field_000001, question: field_000002, words: field_000003 } => crate::people_v17::Ask::AnswerQuestion(crate::people_v17::AskAnswerQuestion {
-            project: *field_000000,
-            task: *field_000001,
-            question: *field_000002,
-            words: field_000003.clone()
-        }),
-        jig_domain_people::Ask::Amend { project: field_000000, task: field_000001, revision: field_000002, amendment: field_000003, release: field_000004 } => crate::people_v17::Ask::Amend(Box::new(crate::people_v17::AskAmend {
-            project: *field_000000,
-            task: *field_000001,
-            revision: *field_000002,
-            amendment: crate::codec::people::amendment_to_record(field_000003, context)?,
-            release: match field_000004 {
-                Some(item) => {
-                    let converted = *item;
-                    Some(converted)
-                }
-                None => None,
-            }
-        })),
-        jig_domain_people::Ask::SetRoles { project: field_000000, holdings: field_000001 } => crate::people_v17::Ask::SetRoles(crate::people_v17::AskSetRoles {
-            project: *field_000000,
-            holdings: {
-                let source = field_000001;
-                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::people_v17::paths::ASK_SET_ROLES_HOLDINGS.problem(skein_codec::Reason::Bound)) };
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.as_ref() {
-                    let converted = holding_to_record(item);
-                    assert!(translated.push(converted).is_ok(), "one output per source item");
-                }
-                translated
-            }
-        }),
-        jig_domain_people::Ask::ChangePolicy { project: field_000000, change: field_000001 } => crate::people_v17::Ask::ChangePolicy(crate::people_v17::AskChangePolicy {
-            project: *field_000000,
-            change: crate::codec::people::policy_change_to_record(field_000001, context)?
-        }),
-        jig_domain_people::Ask::SetPool { project: field_000000, person: field_000001, budget: field_000002 } => crate::people_v17::Ask::SetPool(crate::people_v17::AskSetPool {
-            project: *field_000000,
-            person: *field_000001,
-            budget: *field_000002
-        }),
-        jig_domain_people::Ask::DecideEscalation { project: field_000000, task: field_000001, revision: field_000002, decision: field_000003 } => crate::people_v17::Ask::DecideEscalation(crate::people_v17::AskDecideEscalation {
-            project: *field_000000,
-            task: *field_000001,
-            revision: *field_000002,
-            decision: escalation_decision_to_record(field_000003)
-        }),
-        jig_domain_people::Ask::Propose { project: field_000000, action: field_000001, reason: field_000002 } => crate::people_v17::Ask::Propose(crate::people_v17::AskPropose {
-            project: *field_000000,
-            action: crate::codec::people::action_to_record(field_000001, context)?,
-            reason: field_000002.clone()
-        }),
-        jig_domain_people::Ask::Withdraw { project: field_000000, proposal: field_000001 } => crate::people_v17::Ask::Withdraw(crate::people_v17::AskWithdraw {
-            project: *field_000000,
-            proposal: *field_000001
-        }),
-        jig_domain_people::Ask::AccountSignIn { holder: field_000000, provider: field_000001 } => crate::people_v17::Ask::AccountSignIn(crate::people_v17::AskAccountSignIn {
-            holder: account_holder_to_record(field_000000),
-            provider: *field_000001
-        }),
-        jig_domain_people::Ask::AccountSignOut { holder: field_000000, source: field_000001 } => crate::people_v17::Ask::AccountSignOut(crate::people_v17::AskAccountSignOut {
-            holder: account_holder_to_record(field_000000),
-            source: *field_000001
-        }),
-        jig_domain_people::Ask::AccountChange { holder: field_000000, change: field_000001 } => crate::people_v17::Ask::AccountChange(crate::people_v17::AskAccountChange {
-            holder: account_holder_to_record(field_000000),
-            change: account_change_to_record(field_000001)?
-        }),
-        jig_domain_people::Ask::ChangeSettings { against: field_000000, digest: field_000001, projects: field_000002 } => crate::people_v17::Ask::ChangeSettings(crate::people_v17::AskChangeSettings {
-            against: *field_000000,
-            digest: *field_000001,
-            projects: {
-                let source = field_000002;
-                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::people_v17::paths::ASK_CHANGE_SETTINGS_PROJECTS.problem(skein_codec::Reason::Bound)) };
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.as_ref() {
-                    let converted = *item;
-                    assert!(translated.push(converted).is_ok(), "one output per source item");
-                }
-                translated
-            }
-        }),
-        jig_domain_people::Ask::MoveToNewest { revision: field_000000 } => crate::people_v17::Ask::MoveToNewest(crate::people_v17::AskMoveToNewest {
-            revision: *field_000000
-        }),
-        jig_domain_people::Ask::Lift { hold: field_000000, revision: field_000001, with_tasks: field_000002 } => crate::people_v17::Ask::Lift(crate::people_v17::AskLift {
-            hold: *field_000000,
-            revision: *field_000001,
-            with_tasks: *field_000002
-        }),
-        jig_domain_people::Ask::RemoveProject { project: field_000000, grace: field_000001 } => crate::people_v17::Ask::RemoveProject(crate::people_v17::AskRemoveProject {
-            project: *field_000000,
-            grace: match field_000001 {
-                Some(item) => {
-                    let converted = skein_codec::convert::duration_to_record(item);
-                    Some(converted)
-                }
-                None => None,
-            }
-        }),
-        jig_domain_people::Ask::Restore { revision: field_000000, reason: field_000001 } => crate::people_v17::Ask::Restore(crate::people_v17::AskRestore {
-            revision: *field_000000,
-            reason: field_000001.clone()
-        }),
-        jig_domain_people::Ask::SetVisibility { project: field_000000, public: field_000001 } => crate::people_v17::Ask::SetVisibility(crate::people_v17::AskSetVisibility {
-            project: *field_000000,
-            public: *field_000001
-        }),
-        jig_domain_people::Ask::Talk { project: field_000000, task: field_000001, words: field_000002 } => crate::people_v17::Ask::Talk(crate::people_v17::AskSay {
-            project: *field_000000,
-            task: *field_000001,
-            words: field_000002.clone()
-        }),
-        jig_domain_people::Ask::Leave { project: field_000000, task: field_000001 } => crate::people_v17::Ask::Leave(crate::people_v17::AskStop {
-            project: *field_000000,
-            task: *field_000001
-        }),
-        jig_domain_people::Ask::Conclude { project: field_000000, task: field_000001 } => crate::people_v17::Ask::Conclude(crate::people_v17::AskConclude {
-            project: *field_000000,
-            task: *field_000001
-        }),
-        jig_domain_people::Ask::Delegate { project: field_000000, task: field_000001, batch: field_000002 } => crate::people_v17::Ask::Delegate(crate::people_v17::AskDelegate {
-            project: *field_000000,
-            task: *field_000001,
-            batch: {
-                let source = field_000002;
-                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::people_v17::paths::ASK_DELEGATE_BATCH.problem(skein_codec::Reason::Bound)) };
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.as_ref() {
-                    let converted = crate::codec::people::member_to_record(item, context)?;
-                    assert!(translated.push(converted).is_ok(), "one output per source item");
-                }
-                translated
-            }
-        }),
-        jig_domain_people::Ask::PauseWorker { worker: field_000000, mode: field_000001 } => crate::people_v17::Ask::PauseWorker(crate::people_v17::AskPauseWorker {
-            worker: *field_000000,
-            mode: worker_pause_mode_to_record(field_000001)
-        }),
-        jig_domain_people::Ask::ReissueService { party: field_000000 } => crate::people_v17::Ask::ReissueService(crate::people_v17::ServiceParty {
-            party: *field_000000
-        }),
-    })
-}
-
-#[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn ask_to_domain(record: crate::people_v17::Ask, context: &crate::people_v17::Limits) -> Result<jig_domain_people::Ask, crate::people_v17::Problem> {
-    Ok(match record {
-        crate::people_v17::Ask::Rename(held) => {
-            let crate::people_v17::AskRename { project: field_000000, name: field_000001 } = held;
-            jig_domain_people::Ask::Rename {
-                project: field_000000,
-                name: match skein_codec::convert::text_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::people_v17::paths::ASK_RENAME_NAME.problem(reason)) }
-            }
-        },
-        crate::people_v17::Ask::MakeProject(held) => {
-            let crate::people_v17::AskMakeProject { name: field_000000, policy: field_000001 } = held;
-            jig_domain_people::Ask::MakeProject {
-                name: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::people_v17::paths::ASK_MAKE_PROJECT_NAME.problem(reason)) },
-                policy: field_000001
-            }
-        },
-        crate::people_v17::Ask::Compound(held) => {
-            let crate::people_v17::AskCompound { project: field_000000, operations: field_000001 } = held;
-            jig_domain_people::Ask::Compound {
-                project: field_000000,
-                operations: {
-                    let source = field_000001;
-                    let count = source.len();
-                    let mut translated = skein_lib::List::with_capacity(count);
-                    for item in source.into_boxed() {
-                        let converted = operation_to_domain(item, context)?;
-                        assert!(translated.push(converted).is_ok(), "one output per source item");
-                    }
-                    translated
-                }
-            }
-        },
-        crate::people_v17::Ask::Create(held) => {
-            let crate::people_v17::AskCreate { project: field_000000, batch: field_000001 } = held;
-            jig_domain_people::Ask::Create {
-                project: field_000000,
-                batch: {
-                    let source = field_000001;
-                    let count = source.len();
-                    let mut translated = skein_lib::List::with_capacity(count);
-                    for item in source.into_boxed() {
-                        let converted = crate::codec::people::member_to_domain(item, context)?;
-                        assert!(translated.push(converted).is_ok(), "one output per source item");
-                    }
-                    Box::from(translated)
-                }
-            }
-        },
-        crate::people_v17::Ask::MarkSeen(held) => {
-            let crate::people_v17::AskMarkSeen { seen: field_000000 } = held;
-            jig_domain_people::Ask::MarkSeen {
-                seen: seen_to_domain(field_000000)
-            }
-        },
-        crate::people_v17::Ask::Application(held) => {
-            let crate::people_v17::AskApplication { scope: field_000000, connector: field_000001, digest: field_000002 } = held;
-            jig_domain_people::Ask::Application {
-                scope: application_scope_to_domain(field_000000),
-                connector: field_000001,
-                digest: field_000002
-            }
-        },
-        crate::people_v17::Ask::EditNote(held) => {
-            let crate::people_v17::AskEditNote { project: field_000000, name: field_000001, scope: field_000002, change: field_000003 } = held;
-            jig_domain_people::Ask::EditNote {
-                project: field_000000,
-                name: field_000001,
-                scope: Box::new(note_scope_to_domain(field_000002, context)?),
-                change: Box::new(crate::codec::people::note_change_to_domain(field_000003, context)?)
-            }
-        },
-        crate::people_v17::Ask::MakeService(held) => {
-            let crate::people_v17::AskMakeService { project: field_000000, name: field_000001, role: field_000002 } = held;
-            jig_domain_people::Ask::MakeService {
-                project: field_000000,
-                name: field_000001,
-                role: role_to_domain(field_000002)
-            }
-        },
-        crate::people_v17::Ask::Adopt(held) => {
-            let crate::people_v17::AskAdopt { project: field_000000, adoption: field_000001 } = held;
-            jig_domain_people::Ask::Adopt {
-                project: field_000000,
-                adoption: crate::codec::people::adoption_to_domain(field_000001, context)?
-            }
-        },
-        crate::people_v17::Ask::Stop(held) => {
-            let crate::people_v17::AskStop { project: field_000000, task: field_000001 } = held;
-            jig_domain_people::Ask::Stop {
-                project: field_000000,
-                task: field_000001
-            }
-        },
-        crate::people_v17::Ask::Cancel(held) => {
-            let crate::people_v17::AskCancel { project: field_000000, task: field_000001, reason: field_000002, grace: field_000003 } = held;
-            jig_domain_people::Ask::Cancel {
-                project: field_000000,
-                task: field_000001,
-                reason: field_000002,
-                grace: match field_000003 {
-                    Some(item) => {
-                        let converted = skein_codec::convert::duration_to_domain(item);
-                        Some(converted)
-                    }
-                    None => None,
-                }
-            }
-        },
-        crate::people_v17::Ask::Release(held) => {
-            let crate::people_v17::AskRelease { project: field_000000, task: field_000001, revision: field_000002, again: field_000003 } = held;
-            jig_domain_people::Ask::Release {
-                project: field_000000,
-                task: field_000001,
-                revision: field_000002,
-                again: match field_000003 {
-                    Some(item) => {
-                        let converted = item;
-                        Some(converted)
-                    }
-                    None => None,
-                }
-            }
-        },
-        crate::people_v17::Ask::TakePerson(held) => {
-            let crate::people_v17::AskTakePerson { project: field_000000, task: field_000001 } = held;
-            jig_domain_people::Ask::TakePerson {
-                project: field_000000,
-                task: field_000001
-            }
-        },
-        crate::people_v17::Ask::HandBackPerson(held) => {
-            let crate::people_v17::AskHandBackPerson { project: field_000000, task: field_000001 } = held;
-            jig_domain_people::Ask::HandBackPerson {
-                project: field_000000,
-                task: field_000001
-            }
-        },
-        crate::people_v17::Ask::AnswerPerson(held) => {
-            let crate::people_v17::AskAnswerPerson { project: field_000000, task: field_000001, revision: field_000002, result: field_000003 } = held;
-            jig_domain_people::Ask::AnswerPerson {
-                project: field_000000,
-                task: field_000001,
-                revision: field_000002,
-                result: person_result_to_domain(field_000003)
-            }
-        },
-        crate::people_v17::Ask::MoveTask(held) => {
-            let crate::people_v17::AskMove { project: field_000000, task: field_000001, reason: field_000002 } = held;
-            jig_domain_people::Ask::Move {
-                project: field_000000,
-                task: field_000001,
-                reason: field_000002
-            }
-        },
-        crate::people_v17::Ask::DecideProposal(held) => {
-            let crate::people_v17::AskDecideProposal { project: field_000000, proposer: field_000001, proposal: field_000002, decision: field_000003, running: field_000004 } = held;
-            jig_domain_people::Ask::DecideProposal {
-                project: field_000000,
-                proposer: proposer_to_domain(field_000001),
-                proposal: field_000002,
-                decision: proposal_decision_to_domain(field_000003),
-                running: match field_000004 {
-                    Some(item) => {
-                        let converted = running_to_domain(item);
-                        Some(converted)
-                    }
-                    None => None,
-                }
-            }
-        },
-        crate::people_v17::Ask::Say(held) => {
-            let crate::people_v17::AskSay { project: field_000000, task: field_000001, words: field_000002 } = held;
-            jig_domain_people::Ask::Say {
-                project: field_000000,
-                task: field_000001,
-                words: field_000002
-            }
-        },
-        crate::people_v17::Ask::AnswerQuestion(held) => {
-            let crate::people_v17::AskAnswerQuestion { project: field_000000, task: field_000001, question: field_000002, words: field_000003 } = held;
-            jig_domain_people::Ask::AnswerQuestion {
-                project: field_000000,
-                task: field_000001,
-                question: field_000002,
-                words: field_000003
-            }
-        },
-        crate::people_v17::Ask::Amend(held) => {
-            let crate::people_v17::AskAmend { project: field_000000, task: field_000001, revision: field_000002, amendment: field_000003, release: field_000004 } = *held;
-            jig_domain_people::Ask::Amend {
-                project: field_000000,
-                task: field_000001,
-                revision: field_000002,
-                amendment: crate::codec::people::amendment_to_domain(field_000003, context)?,
-                release: match field_000004 {
-                    Some(item) => {
-                        let converted = item;
-                        Some(converted)
-                    }
-                    None => None,
-                }
-            }
-        },
-        crate::people_v17::Ask::SetRoles(held) => {
-            let crate::people_v17::AskSetRoles { project: field_000000, holdings: field_000001 } = held;
-            jig_domain_people::Ask::SetRoles {
-                project: field_000000,
-                holdings: {
-                    let source = field_000001;
-                    let count = source.len();
-                    let mut translated = skein_lib::List::with_capacity(count);
-                    for item in source.into_boxed() {
-                        let converted = holding_to_domain(item);
-                        assert!(translated.push(converted).is_ok(), "one output per source item");
-                    }
-                    Box::from(translated)
-                }
-            }
-        },
-        crate::people_v17::Ask::ChangePolicy(held) => {
-            let crate::people_v17::AskChangePolicy { project: field_000000, change: field_000001 } = held;
-            jig_domain_people::Ask::ChangePolicy {
-                project: field_000000,
-                change: crate::codec::people::policy_change_to_domain(field_000001, context)?
-            }
-        },
-        crate::people_v17::Ask::SetPool(held) => {
-            let crate::people_v17::AskSetPool { project: field_000000, person: field_000001, budget: field_000002 } = held;
-            jig_domain_people::Ask::SetPool {
-                project: field_000000,
-                person: field_000001,
-                budget: field_000002
-            }
-        },
-        crate::people_v17::Ask::DecideEscalation(held) => {
-            let crate::people_v17::AskDecideEscalation { project: field_000000, task: field_000001, revision: field_000002, decision: field_000003 } = held;
-            jig_domain_people::Ask::DecideEscalation {
-                project: field_000000,
-                task: field_000001,
-                revision: field_000002,
-                decision: escalation_decision_to_domain(field_000003)
-            }
-        },
-        crate::people_v17::Ask::Propose(held) => {
-            let crate::people_v17::AskPropose { project: field_000000, action: field_000001, reason: field_000002 } = held;
-            jig_domain_people::Ask::Propose {
-                project: field_000000,
-                action: crate::codec::people::action_to_domain(field_000001, context)?,
-                reason: field_000002
-            }
-        },
-        crate::people_v17::Ask::Withdraw(held) => {
-            let crate::people_v17::AskWithdraw { project: field_000000, proposal: field_000001 } = held;
-            jig_domain_people::Ask::Withdraw {
-                project: field_000000,
-                proposal: field_000001
-            }
-        },
-        crate::people_v17::Ask::AccountSignIn(held) => {
-            let crate::people_v17::AskAccountSignIn { holder: field_000000, provider: field_000001 } = held;
-            jig_domain_people::Ask::AccountSignIn {
-                holder: account_holder_to_domain(field_000000),
-                provider: field_000001
-            }
-        },
-        crate::people_v17::Ask::AccountSignOut(held) => {
-            let crate::people_v17::AskAccountSignOut { holder: field_000000, source: field_000001 } = held;
-            jig_domain_people::Ask::AccountSignOut {
-                holder: account_holder_to_domain(field_000000),
-                source: field_000001
-            }
-        },
-        crate::people_v17::Ask::AccountChange(held) => {
-            let crate::people_v17::AskAccountChange { holder: field_000000, change: field_000001 } = held;
-            jig_domain_people::Ask::AccountChange {
-                holder: account_holder_to_domain(field_000000),
-                change: account_change_to_domain(field_000001)?
-            }
-        },
-        crate::people_v17::Ask::ChangeSettings(held) => {
-            let crate::people_v17::AskChangeSettings { against: field_000000, digest: field_000001, projects: field_000002 } = held;
-            jig_domain_people::Ask::ChangeSettings {
-                against: field_000000,
-                digest: field_000001,
-                projects: {
-                    let source = field_000002;
-                    let count = source.len();
-                    let mut translated = skein_lib::List::with_capacity(count);
-                    for item in source.into_boxed() {
-                        let converted = item;
-                        assert!(translated.push(converted).is_ok(), "one output per source item");
-                    }
-                    Box::from(translated)
-                }
-            }
-        },
-        crate::people_v17::Ask::MoveToNewest(held) => {
-            let crate::people_v17::AskMoveToNewest { revision: field_000000 } = held;
-            jig_domain_people::Ask::MoveToNewest {
-                revision: field_000000
-            }
-        },
-        crate::people_v17::Ask::Lift(held) => {
-            let crate::people_v17::AskLift { hold: field_000000, revision: field_000001, with_tasks: field_000002 } = held;
-            jig_domain_people::Ask::Lift {
-                hold: field_000000,
-                revision: field_000001,
-                with_tasks: field_000002
-            }
-        },
-        crate::people_v17::Ask::RemoveProject(held) => {
-            let crate::people_v17::AskRemoveProject { project: field_000000, grace: field_000001 } = held;
-            jig_domain_people::Ask::RemoveProject {
-                project: field_000000,
-                grace: match field_000001 {
-                    Some(item) => {
-                        let converted = skein_codec::convert::duration_to_domain(item);
-                        Some(converted)
-                    }
-                    None => None,
-                }
-            }
-        },
-        crate::people_v17::Ask::Restore(held) => {
-            let crate::people_v17::AskRestore { revision: field_000000, reason: field_000001 } = held;
-            jig_domain_people::Ask::Restore {
-                revision: field_000000,
-                reason: field_000001
-            }
-        },
-        crate::people_v17::Ask::SetVisibility(held) => {
-            let crate::people_v17::AskSetVisibility { project: field_000000, public: field_000001 } = held;
-            jig_domain_people::Ask::SetVisibility {
-                project: field_000000,
-                public: field_000001
-            }
-        },
-        crate::people_v17::Ask::Talk(held) => {
-            let crate::people_v17::AskSay { project: field_000000, task: field_000001, words: field_000002 } = held;
-            jig_domain_people::Ask::Talk {
-                project: field_000000,
-                task: field_000001,
-                words: field_000002
-            }
-        },
-        crate::people_v17::Ask::Leave(held) => {
-            let crate::people_v17::AskStop { project: field_000000, task: field_000001 } = held;
-            jig_domain_people::Ask::Leave {
-                project: field_000000,
-                task: field_000001
-            }
-        },
-        crate::people_v17::Ask::Conclude(held) => {
-            let crate::people_v17::AskConclude { project: field_000000, task: field_000001 } = held;
-            jig_domain_people::Ask::Conclude {
-                project: field_000000,
-                task: field_000001
-            }
-        },
-        crate::people_v17::Ask::Delegate(held) => {
-            let crate::people_v17::AskDelegate { project: field_000000, task: field_000001, batch: field_000002 } = held;
-            jig_domain_people::Ask::Delegate {
-                project: field_000000,
-                task: field_000001,
-                batch: {
-                    let source = field_000002;
-                    let count = source.len();
-                    let mut translated = skein_lib::List::with_capacity(count);
-                    for item in source.into_boxed() {
-                        let converted = crate::codec::people::member_to_domain(item, context)?;
-                        assert!(translated.push(converted).is_ok(), "one output per source item");
-                    }
-                    Box::from(translated)
-                }
-            }
-        },
-        crate::people_v17::Ask::PauseWorker(held) => {
-            let crate::people_v17::AskPauseWorker { worker: field_000000, mode: field_000001 } = held;
-            jig_domain_people::Ask::PauseWorker {
-                worker: field_000000,
-                mode: worker_pause_mode_to_domain(field_000001)
-            }
-        },
-        crate::people_v17::Ask::ReissueService(held) => {
-            let crate::people_v17::ServiceParty { party: field_000000 } = held;
-            jig_domain_people::Ask::ReissueService {
-                party: field_000000
-            }
-        },
-    })
-}
-
 #[must_use]
 pub fn failure_class_to_record(value: &jig_domain_people::FailureClass) -> crate::people_v17::FailureClass {
     match value {
@@ -2712,6 +2051,7 @@ pub fn hold_reason_to_record(value: &jig_domain_people::HoldReason) -> crate::pe
         jig_domain_people::HoldReason::Procedure => crate::people_v17::HoldReason::Procedure,
         jig_domain_people::HoldReason::Circle => crate::people_v17::HoldReason::Circle,
         jig_domain_people::HoldReason::Exceeded(held) => crate::people_v17::HoldReason::Exceeded(exceeded_to_record(held)),
+        jig_domain_people::HoldReason::Waited => crate::people_v17::HoldReason::Waited,
     }
 }
 
@@ -2761,6 +2101,7 @@ pub fn hold_reason_to_domain(record: crate::people_v17::HoldReason) -> jig_domai
         crate::people_v17::HoldReason::Procedure => jig_domain_people::HoldReason::Procedure,
         crate::people_v17::HoldReason::Circle => jig_domain_people::HoldReason::Circle,
         crate::people_v17::HoldReason::Exceeded(held) => jig_domain_people::HoldReason::Exceeded(exceeded_to_domain(held)),
+        crate::people_v17::HoldReason::Waited => jig_domain_people::HoldReason::Waited,
     }
 }
 
@@ -3442,6 +2783,28 @@ pub fn account_move_why_to_domain(record: crate::people_v17::AccountMoveWhy) -> 
     }
 }
 
+#[must_use]
+pub fn question_answerer_to_record(value: &jig_domain_people::QuestionAnswerer) -> crate::people_v17::QuestionAnswerer {
+    match value {
+        jig_domain_people::QuestionAnswerer::Task(held) => crate::people_v17::QuestionAnswerer::Task(crate::people_v17::Number64 { value: *held }),
+        jig_domain_people::QuestionAnswerer::Person(held) => crate::people_v17::QuestionAnswerer::Person(crate::people_v17::Number64 { value: *held }),
+    }
+}
+
+#[must_use]
+pub fn question_answerer_to_domain(record: crate::people_v17::QuestionAnswerer) -> jig_domain_people::QuestionAnswerer {
+    match record {
+        crate::people_v17::QuestionAnswerer::Task(held) => jig_domain_people::QuestionAnswerer::Task({
+            let crate::people_v17::Number64 { value: held } = held;
+            held
+        }),
+        crate::people_v17::QuestionAnswerer::Person(held) => jig_domain_people::QuestionAnswerer::Person({
+            let crate::people_v17::Number64 { value: held } = held;
+            held
+        }),
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn refusal_to_record(value: &jig_domain_people::Refusal) -> Result<crate::people_v17::Refusal, crate::people_v17::Problem> {
     Ok(match value {
@@ -3578,6 +2941,10 @@ pub fn refusal_to_record(value: &jig_domain_people::Refusal) -> Result<crate::pe
         }),
         jig_domain_people::Refusal::Unlinked { worker: field_000000 } => crate::people_v17::Refusal::Unlinked(crate::people_v17::RefusalUnlinked {
             worker: *field_000000
+        }),
+        jig_domain_people::Refusal::QuestionAnswered { question: field_000000, by: field_000001 } => crate::people_v17::Refusal::QuestionAnswered(crate::people_v17::RefusalQuestionAnswered {
+            question: *field_000000,
+            by: question_answerer_to_record(field_000001)
         }),
     })
 }
@@ -3781,6 +3148,13 @@ pub fn refusal_to_domain(record: crate::people_v17::Refusal) -> jig_domain_peopl
             let crate::people_v17::RefusalUnlinked { worker: field_000000 } = held;
             jig_domain_people::Refusal::Unlinked {
                 worker: field_000000
+            }
+        },
+        crate::people_v17::Refusal::QuestionAnswered(held) => {
+            let crate::people_v17::RefusalQuestionAnswered { question: field_000000, by: field_000001 } = held;
+            jig_domain_people::Refusal::QuestionAnswered {
+                question: field_000000,
+                by: question_answerer_to_domain(field_000001)
             }
         },
     }

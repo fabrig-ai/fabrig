@@ -1,11 +1,14 @@
 //! Drives the same harness turn on the ring and in a world (skein/docs/design/ui/web/testing.md, 2).
 use super::{
-    Account, BrowserEnd, BrowserFace, Complete, Duration, Harness, Lent, Outcome, POLL, Play, Queue, ROOT, Request,
-    Runtime, SERVER_ROOT, Scripted, Starved, Submit, Time, Wall, bounds, capacity, kernel, peers, person, pidfd_pid,
+    Account, BrowserEnd, BrowserFace, Complete, Duration, Harness, Lent, Outcome, Play, Queue, ROOT, Request, Runtime,
+    SERVER_ROOT, Scripted, Starved, Submit, Time, Wall, bounds, capacity, kernel, peers, person, pidfd_pid,
 };
 use skein_shell::{Clock, Config, Kernel, Wait, open_root};
 use skein_world::{Host, ring::State};
 use std::{os::unix::ffi::OsStrExt, path::Path};
+
+#[cfg(test)]
+mod tests;
 
 const PEER_STARTUP: Duration = Duration::from_secs(36);
 
@@ -31,7 +34,7 @@ pub struct Hosted<'a, 'p, 'l> {
     limit: u32,
     startup: Option<Account>,
     horizon: Option<Time>,
-    next_poll: Time,
+    roots: Queue<Complete>,
     classified: bool,
     faces: Vec<BrowserFace<'static>>,
     done: Vec<bool>,
@@ -64,7 +67,7 @@ impl<'a, 'p, 'l> Hosted<'a, 'p, 'l> {
             limit,
             startup: None,
             horizon: None,
-            next_poll: Time::ZERO,
+            roots: Queue::with_capacity(capacity::ROOT_OPERATIONS),
             classified: false,
             faces: Vec::new(),
             done,
@@ -117,9 +120,8 @@ impl<'a, 'p, 'l> Hosted<'a, 'p, 'l> {
                 }
             }
         }
-        let mut roots = Queue::with_capacity(capacity::ROOT_OPERATIONS);
-        self.operations.deliver(1, &mut roots);
-        while let Some(complete) = roots.pop() {
+        self.operations.deliver(1, &mut self.roots);
+        while let Some(complete) = self.roots.pop() {
             if let Err(error) = complete.result {
                 self.runtime.fail(0, 0, format!("root close: {error:?}"));
             }
@@ -169,6 +171,21 @@ impl<'a, 'p, 'l> Hosted<'a, 'p, 'l> {
         }
     }
 
+    fn play_wake(&self, now: Time) -> Option<Time> {
+        (self.stage == Stage::Playing && self.runtime.outcome.is_none())
+            .then(|| self.runtime.play_wake(self.people, &self.faces, &self.done, now))
+            .flatten()
+    }
+
+    fn stop_peers(&self) -> bool {
+        let run = &self.runtime;
+        run.closing.active()
+            && run.closed == run.spawned
+            && run.io.is_empty()
+            && run.requests.is_empty()
+            && run.origins.iter().all(crate::origins::Pages::is_closed)
+    }
+
     fn play(&mut self, now: Time) {
         let run = &mut self.runtime;
         if self.stage == Stage::Opening
@@ -202,17 +219,12 @@ impl Host for Hosted<'_, '_, '_> {
             self.arm(now);
         }
         self.reap();
-        self.next_poll = now.saturating_add(POLL);
+        let stop_peers = self.stop_peers();
         let run = &mut self.runtime;
         run.benv.now = now;
         run.benv.wall = wall;
         run.ienv.now = now;
         run.ienv.wall = wall;
-        let stop_peers = run.closing.active()
-            && run.closed == run.spawned
-            && run.io.is_empty()
-            && run.requests.is_empty()
-            && run.origins.iter().all(crate::origins::Pages::is_closed);
         self.peers.drive_with(&mut self.operations, now, wall, stop_peers, State::deliver, submit);
         if self.stage == Stage::Lending && self.peers.ready() && run.outcome.is_none() {
             self.stage = Stage::Opening;
@@ -244,7 +256,7 @@ impl Host for Hosted<'_, '_, '_> {
         self.operations.submissions()
     }
 
-    fn work_pending(&self, _now: Time) -> bool {
+    fn work_pending(&self, now: Time) -> bool {
         let run = &self.runtime;
         self.horizon.is_none()
             || run.io.is_ready()
@@ -253,28 +265,23 @@ impl Host for Hosted<'_, '_, '_> {
             || !run.events.is_empty()
             || !run.down.is_empty()
             || !run.requests.is_empty()
-            || matches!(&run.browser, BrowserEnd::Chromium(browser) if browser.work_pending())
+            || (run.pipes.is_some() && matches!(&run.browser, BrowserEnd::Chromium(browser) if browser.work_pending()))
+            || (self.stop_peers() && self.peers.needs_stop())
             || self.peers.pending()
+            || self.play_wake(now).is_some_and(|at| at <= now)
             || self.operations.has_ready()
     }
 
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        let run = &self.runtime;
-        run.io
-            .next_deadline()
-            .into_iter()
-            .chain(
-                // Play scripts expose checks, not all of their wakeups; poll while they run.
-                (run.native() || (self.stage == Stage::Playing && run.outcome.is_none())).then_some(self.next_poll),
-            )
-            .min()
+        self.runtime.io.next_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
         let run = &self.runtime;
         let now = run.benv.now;
         let browser = match &run.browser {
-            BrowserEnd::Chromium(browser) => browser.next_deadline(),
+            BrowserEnd::Chromium(browser) if run.pipes.is_some() => browser.next_deadline(),
+            BrowserEnd::Chromium(_) => None,
             BrowserEnd::Scripted(browser) => browser.next_deadline(),
         };
         let commands =
@@ -287,6 +294,8 @@ impl Host for Hosted<'_, '_, '_> {
             .filter(|at| *at > now)
             .into_iter()
             .chain(self.startup.as_ref().map(Account::until).filter(|at| *at > now))
+            .chain(self.horizon.filter(|at| *at > now))
+            .chain(self.play_wake(now))
             .chain(browser)
             .chain(close)
             .chain(capture)
@@ -308,6 +317,7 @@ impl Host for Hosted<'_, '_, '_> {
             && run.requests.is_empty()
             && run.submits.is_empty()
             && self.operations.is_empty()
+            && !self.peers.needs_stop()
             && self.peers.empty()
     }
 
@@ -345,7 +355,7 @@ pub(super) fn native(setup: &mut Harness, people: &mut [&mut dyn Play], peers: &
         let wait = if run.work_pending(stamp.now) || run.ending {
             Wait::No
         } else {
-            Wait::Until(run.next_deadline().expect("the real harness polls each turn"))
+            Wait::Until(run.next_deadline().expect("the run has a horizon"))
         };
         let submissions = run.submissions();
         kernel.submit(submissions, wait);

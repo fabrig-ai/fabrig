@@ -35,6 +35,7 @@ pub(super) fn seed_change_procedure(
         None => Box::new([]),
     };
     core.send(tasks::Event::Procedure {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(99)),
         task,
         step: 1,

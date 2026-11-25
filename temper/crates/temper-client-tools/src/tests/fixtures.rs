@@ -874,7 +874,12 @@ pub(crate) fn kept(prefix: u32) -> List<skein_lib::RequestRecord<client::Held>> 
         first_sent: None,
         request: client::Held {
             key: client::Key { asker: root::RUNNER.asker(), number: (u64::from(prefix) << 32u32) | 1 },
-            request: client::Ask::Jig(Box::new(c::Ask::Stop { project: PROJECT, task: TASK })),
+            request: client::Ask::Jig(Box::new(c::Ask::Stop {
+                project: PROJECT,
+                task: TASK,
+                reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            })),
         },
     })
     .expect("one kept request");

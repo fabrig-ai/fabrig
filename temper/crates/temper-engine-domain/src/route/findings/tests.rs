@@ -13,6 +13,7 @@ fn add(domain: &mut Domain, env: &Env<Limits>, number: u64, charter: u32, label:
         &mut domain.core.tasks,
         &env.with(env.limits.tasks),
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1000_u64.checked_add(number).expect("fixture token"))),
@@ -350,7 +351,7 @@ fn queued_news(domain: &Domain, task: u64) -> Box<[&tasks::Word]> {
         .collect()
 }
 #[test]
-fn a_holder_at_its_subscription_bound_takes_the_filing_and_news() {
+fn a_holder_with_one_subscription_slot_left_takes_the_filing_and_news() {
     let (mut domain, mut env, task) = triager();
     env.limits.tasks.subscriptions = 1;
     fill_subscriptions(&mut domain, &env, task);
@@ -548,7 +549,7 @@ fn a_repair_deadline_sends_jigs_application_failure_and_a_closing_refusal_writes
 }
 
 #[test]
-fn routing_to_a_goal_at_its_subscription_bound_writes_and_tells_it() {
+fn routing_to_a_goal_with_one_subscription_slot_left_writes_and_tells_it() {
     let (mut domain, mut env, source) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
     env.limits.tasks.subscriptions = 1;
     env.limits.tasks.inbox_bytes = 512;

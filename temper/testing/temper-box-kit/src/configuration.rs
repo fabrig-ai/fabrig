@@ -192,7 +192,6 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
         ("hub.transcript_bytes", 16_777_216),
         ("hub.turn_bytes", 1_327_470),
         ("hub.turn_queue_bytes", 10_619_760),
-        ("hub.turns", 1),
         ("io.output", if turn { 1_327_857 } else { 1_328_262 }),
         ("link.ping_ms", 100),
         ("link.silence_ms", 1000),
@@ -239,6 +238,7 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
     ] {
         value.jig_over(name, figure);
     }
+    cluster_agent_limits(value, &temper_service::stock::agents());
     let grace = temper_service::startup::worker_fleet_grace(&value.jig);
     value.jig_over("fleet.grace_ms", grace.as_millis());
     if !github {
@@ -270,6 +270,15 @@ pub fn cluster_limits(value: &mut temper_playground::documents::Configuration, t
     if turn {
         value.temper_over("forge.client.poll_ms", 50);
     }
+}
+
+/// The worker and its fleet must agree on the window the agent offers at hello.
+pub(crate) fn cluster_agent_limits(
+    value: &mut temper_playground::documents::Configuration,
+    agents: &temper_client_protocol_wire::v1::AgentFigures,
+) {
+    let turns = agents.profile.iter().find(|figure| figure.name.as_ref() == b"policy.unacknowledged");
+    value.jig_over("hub.turns", turns.expect("cluster agents' unacknowledged turns").value);
 }
 
 /// All directories are explicit and belong to this fixture's scratch.

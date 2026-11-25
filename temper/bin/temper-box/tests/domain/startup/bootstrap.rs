@@ -1,8 +1,16 @@
-//! Admit the held file and owner change of the subprocess bootstrap, without a sitting.
+//! Admit the subprocess bootstrap and worker opening without a sitting
+//! (temper/docs/design/testing/box/README.md, 2.1).
+#[path = "opening.rs"]
+mod opening;
+
 use crate::{configuration, support, support_tests};
-use serde_json::json;
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
-use support::limit_settings::{Bootstrap, figures_bytes};
+use support::{
+    cluster::Cluster,
+    limit_settings::{Bootstrap, figures_bytes},
+};
+use temper_client_protocol_wire::v1::AgentFigures;
 use temper_playground::documents::Configuration;
 use temper_service::startup::{self, LimitInputs, Resolved};
 
@@ -12,24 +20,40 @@ struct Fixture {
     bootstrap: Bootstrap,
 }
 
+struct EngineFixture {
+    fixture: Fixture,
+    cluster: Cluster,
+    workers: Vec<Value>,
+    agents: AgentFigures,
+}
+
+const ROOT: &str = "/fixture/bootstrap";
+
 fn fixtures() -> Vec<Fixture> {
-    let root = Path::new("/fixture/bootstrap");
+    let root = Path::new(ROOT);
     let forge = configuration::fixture_forgejo();
+    [boxed("base", &root.join("base"), &support::Forge::Unreached), boxed("Forgejo", &root.join("forgejo"), &forge)]
+        .into_iter()
+        .chain(engine_fixtures().into_iter().map(|engine| engine.fixture))
+        .collect()
+}
+
+fn engine_fixtures() -> Vec<EngineFixture> {
+    let root = Path::new(ROOT);
     let cluster = configuration::cluster_documents(&root.join("cluster"));
     let turn = support_tests::cluster_turn_description(&root.join("turn"));
     let github = super::live_github_cluster(&root.join("github"));
     vec![
-        boxed("base", &root.join("base"), &support::Forge::Unreached),
-        boxed("Forgejo", &root.join("forgejo"), &forge),
-        engine("cluster", &cluster, |_, _| {}),
-        engine("cluster-turn", &turn, |value, data| {
+        engine("cluster", cluster, |_, _, _| {}),
+        engine("cluster-turn", turn, |value, data, agents| {
             let providers = temper_agent_fixtures::providers::values(&value["world_providers"]);
-            let agent = temper_agent_fixtures::with_figures(value, &temper_service::stock::agents(), data, &providers);
+            let agent = temper_agent_fixtures::with_figures(value, agents, data, &providers);
             let configured = support::cluster_turn::compose_engine(value.clone(), &agent);
             *value = configured.configuration;
             value["world_providers"] = temper_agent_fixtures::providers::flat(&configured.agents.providers);
+            *agents = configured.agents.figures;
         }),
-        engine("GitHub", &github, |value, _| super::configure_live_github(value)),
+        engine("GitHub", github, |value, _, _| super::configure_live_github(value)),
     ]
 }
 
@@ -53,14 +77,15 @@ fn boxed(name: &'static str, root: &Path, forge: &support::Forge<'_>) -> Fixture
 
 fn engine(
     name: &'static str,
-    cluster: &support::cluster::Cluster,
-    edit: impl FnOnce(&mut Configuration, &Path),
-) -> Fixture {
+    cluster: Cluster,
+    edit: impl FnOnce(&mut Configuration, &Path, &mut AgentFigures),
+) -> EngineFixture {
     let rendered = cluster.render_files("engine");
     let mut value = rendered.engine_configuration();
     let root = cluster.dir("engine");
     let data = root.join("data");
-    edit(&mut value, &data);
+    let mut agents = temper_service::stock::agents();
+    edit(&mut value, &data, &mut agents);
     let providers = temper_agent_fixtures::providers::take(&mut value).expect("fixture providers");
     let given = temper_agent_fixtures::providers::given_with(providers, None);
     let paths = [root.join("config"), data, root.join("cache")];
@@ -69,11 +94,16 @@ fn engine(
     let document = serde_json::to_vec(&value).expect("engine startup JSON");
     let named = startup::named_with(&document, &dirs, &given).expect("engine named at stock");
     let mut rendered = rendered.files;
+    let settings = cluster.settings_file();
+    let workers = rendered
+        .iter()
+        .find(|(path, _)| path == &settings)
+        .map_or_else(Vec::new, |(_, bytes)| support::cluster::worker_settings_from(bytes));
     rendered.push((cluster.dir("llm").join("root.der"), skein_tls_kit::pki::ROOT.into()));
     let files = super::rendered_files(named.files, named.asked_files, &rendered);
     let inputs = LimitInputs::new(&document, &dirs, &files, None, &support::admission::seeds(), &given, false, None);
     let bootstrap = Bootstrap::compose(&figures_bytes(&value), None).expect(name);
-    Fixture { name, inputs, bootstrap }
+    EngineFixture { fixture: Fixture { name, inputs, bootstrap }, cluster, workers, agents }
 }
 
 fn resolve_held(fixture: &Fixture) -> Resolved {

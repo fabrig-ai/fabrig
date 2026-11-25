@@ -34,7 +34,7 @@ temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the
 | `tasks.depth` | count | 32 | next start | Bounds structural depth below the requester-tree root, which has depth zero. |
 | `tasks.delegates` | count | 80 | next start | Bounds live direct delegates of one requester task. |
 | `tasks.references` | count | 16 | next start | Bounds introduced peer references per live task. |
-| `tasks.subscriptions` | count | 4 | next start | Bounds standing interests per task. |
+| `tasks.subscriptions` | count | 4 | next start | Bounds standing interests per task, with one extra and all kinds counted alike. |
 | `tasks.batch` | count | 160 | next start | Bounds directly created tasks in one atomic nonempty `Make` batch. |
 | `tasks.batch_bytes` | bytes | 4,194,304 | next start | Bounds the complete owned bytes of one task batch. |
 | `tasks.dependencies` | count | 16 | next start | Bounds immutable dependency identities per task, including its remaining live waiting subset. |

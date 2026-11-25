@@ -19,7 +19,7 @@ Project: 4294967295:
     Timers wake
   Failure tries exhausted
   Permanent failure
-  `brief: its required sections do not fit its budget`
+  `It ran out of tries for permanent failures: its required sections do not fit its budget. Held since 1970-01-01T00:00Z. Release it to try again; amend it first if its instructions failed it.`
   Hold revision: 18446744073709551615
   Prior stage waiting
   Transient tries: 1

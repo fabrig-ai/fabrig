@@ -48,12 +48,17 @@ fn escalation() -> Escalation {
 
 #[test]
 fn owner_escalation_named_card_keeps_current_holder_prior_stage_and_whole_task_without_other_context() {
+    const WHY: &[u8] = b"It spent 15; its next run or effect cannot be funded. Held since 1970-01-01T00:00Z. Widen its budget, then release it.";
     let mut goldens = Goldens::new("tree/cards_objects/owner_escalation/owner_escalation_named");
     maximum_card_envelope();
-    let row = escalation();
+    let mut row = escalation();
+    let hold = DocumentText::complete(text(WHY));
+    row.task.hold.as_mut().unwrap().words = Some(hold.clone());
+    row.task.chip.details.details.hold.as_mut().unwrap().words = Some(hold);
     let (domain, id) = loaded(ObjectKey::Escalation(8), ReadValue::Escalation(Box::new(row.clone())));
     let mut bindings = JigBindings::new(limits().bindings, CLIENT.client.text);
     let tree = render(&domain, id, words(), &mut bindings);
+    assert!(tree.nodes().iter().flat_map(|node| node.text.iter()).any(|run| run.text.as_ref() == WHY));
     goldens.check(&tree);
     assert_eq!(domain.objects().get(id).unwrap().body.as_ref().unwrap().ending(), None);
     let names: Vec<_> = tree.nodes().iter().filter_map(|node| node.name.as_deref()).collect();

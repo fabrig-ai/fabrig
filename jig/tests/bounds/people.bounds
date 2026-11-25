@@ -81,7 +81,7 @@ AskSay: ceilings encoded=8208 decoded=8192; at_most(3) encoded=19 decoded=3
 AskSetPool: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
 AskSetRoles: ceilings encoded=13320 decoded=16384; at_most(3) encoded=47 decoded=48
 AskSetVisibility: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
-AskStop: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
+AskStop: ceilings encoded=8208 decoded=8192; at_most(3) encoded=19 decoded=3
 AskTakePerson: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 AskWithdraw: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 Authority: ceilings encoded=1216568 decoded=1216512; at_most(3) encoded=65 decoded=9
@@ -189,7 +189,7 @@ OperationCancel: ceilings encoded=8213 decoded=8192; at_most(3) encoded=24 decod
 OperationMessage: ceilings encoded=8204 decoded=8192; at_most(3) encoded=15 decoded=3
 OperationMove: ceilings encoded=8204 decoded=8192; at_most(3) encoded=15 decoded=3
 OperationRelease: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
-OperationStop: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+OperationStop: ceilings encoded=8204 decoded=8192; at_most(3) encoded=15 decoded=3
 Outcome: ceilings encoded=524934 decoded=527360; at_most(3) encoded=56 decoded=81
 OutcomeAccountFinishing: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 OutcomeAccountKeyKept: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
@@ -273,6 +273,7 @@ ProposalDecisionReject: ceilings encoded=8196 decoded=8192; at_most(3) encoded=7
 Proposer: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 ProposerParty: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ProposerTask: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+QuestionAnswerer: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Refusal: ceilings encoded=8214 decoded=8192; at_most(3) encoded=39 decoded=24
 RefusalAccount: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 RefusalAccountMove: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -290,6 +291,7 @@ RefusalLiveTasks: ceilings encoded=264 decoded=256; at_most(3) encoded=32 decode
 RefusalLlm: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 RefusalMoved: ceilings encoded=19 decoded=0; at_most(3) encoded=19 decoded=0
 RefusalNotWellFormed: ceilings encoded=38 decoded=0; at_most(3) encoded=38 decoded=0
+RefusalQuestionAnswered: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 RefusalRole: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
 RefusalSignInRedirect: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 RefusalStale: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0

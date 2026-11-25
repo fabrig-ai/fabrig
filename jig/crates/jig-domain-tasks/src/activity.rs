@@ -198,5 +198,6 @@ pub fn line_bytes_limit(limits: &crate::Limits) -> Option<u64> {
 /// plus one notice for each bounded standing interest.
 #[must_use]
 pub fn lines_per_decision(limits: &crate::Limits) -> Option<u32> {
-    limits.tasks.checked_mul(12)?.checked_add(limits.tasks.checked_mul(crate::subscriptions::kept_capacity(limits)?)?)
+    // Restored interests can exceed admission room, but each still takes an inbox slot.
+    limits.tasks.checked_mul(12_u32.checked_add(limits.inbox_messages)?)
 }

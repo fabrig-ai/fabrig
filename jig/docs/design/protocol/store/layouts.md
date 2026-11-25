@@ -131,7 +131,8 @@ pub struct KeyRange {
   a retired number not among the family's types; a family with types whose
   `current` does not parse, or that is not in the map (`KeptMap::Store`),
   or a `current` whose version is not the family's at the binary's
-  level.
+  level. Admission checks the root and variant without hashing a layout;
+  planning computes the fingerprint with the held texts (5.2).
 - **Resolved by key:** the store keeps the value types' ranges in one
   table ordered by `from`, the application's under its tag, and finds a
   key's by a binary search, as it finds a key's family for the census
@@ -443,8 +444,10 @@ values at a written job's layouts to the job, never to a plan
     `current` of each family where the open checks it, kept as that
     check parsed or took it; a text the registry already
     holds where a row or a family holding it first needs it,
-    its bytes checked against its digest before it is parsed or taken (5.3). No
-    text is parsed twice in one planning, and a prepared one not at all.
+    its bytes checked against its digest before it is parsed or taken (5.3).
+    Byte-for-byte equality with a binary text already hashed to that key
+    proves the check without hashing the stored text again. No text is
+    parsed twice in one planning, and a prepared one not at all.
   - **A layout computed,** the fingerprint of a root and variant in a
     text with its held texts (skein's `data/codec/fingerprints.md`, 1.4), once
     per those four: the registration's (5.2) is the
