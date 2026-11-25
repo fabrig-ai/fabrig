@@ -1,7 +1,9 @@
 # testing-fakes: status
 
-2026-11-24. Where the tree's code lags or departs from [testing-fakes.md](testing-fakes.md).
+2026-11-25. Where the tree's code lags or departs from [testing-fakes.md](testing-fakes.md).
 
+- **Not yet:** 1.3: P43's scenario, `a_coordinator_watching_its_asker_is_woken`, is
+  still ignored, and its exclusion is still in `jig_core_kit::open`.
 - **Not yet:**
   1: the core kit's `World` keeps one commit per run, rehearsed in
   `World::finish`, and its rehearsal pays for its store and start alone.
