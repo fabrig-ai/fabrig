@@ -4,8 +4,6 @@
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.
-- **Not yet:** 1: the accounts document's *settled* waiting on a made or
-  renewed sign-in's source until its first answer. [in flight: change 17672]
 
 `reads.md`, section 1, and `watches.md`, section 1.3 have a party's scope and withheld turns by plan
 `ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the
