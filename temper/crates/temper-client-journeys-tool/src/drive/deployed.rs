@@ -130,7 +130,7 @@ impl DeploymentState {
                 Progress::Finished(classify(
                     "deployment",
                     self.failed.as_deref().unwrap_or("the deployment exited"),
-                    refusal,
+                    refusal.filter(|_| !activity.browser_lost),
                     &logs.iter().map(Vec::as_slice).collect::<Vec<_>>(),
                 ))
             }

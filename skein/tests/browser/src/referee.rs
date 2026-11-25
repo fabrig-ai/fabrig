@@ -83,6 +83,7 @@ impl Referee {
             | Event::Screenshot { .. }
             | Event::Downloaded { .. }
             | Event::Trouble { .. }
+            | Event::Ended { .. }
             | Event::Closed { .. } => None,
         };
         if page.is_some_and(|page| self.closed_persons.contains(&page)) {
@@ -116,6 +117,7 @@ impl Referee {
             | Event::Screenshot { .. }
             | Event::Downloaded { .. }
             | Event::Trouble { .. }
+            | Event::Ended { .. }
             | Event::Closed { .. } => {}
         }
         Ok(())
@@ -171,6 +173,7 @@ impl Referee {
             | Event::Ready { .. }
             | Event::Opened { .. }
             | Event::Trouble { .. }
+            | Event::Ended { .. }
             | Event::Closed { .. } => None,
         };
         if let Some(op) = op

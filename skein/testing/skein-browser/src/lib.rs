@@ -13,6 +13,6 @@ pub mod limits;
 mod params;
 pub mod wire;
 
-pub use boundary::{Below, Down, Event, Request};
+pub use boundary::{Below, Down, Ending, Event, Request};
 pub use browser::{Browser, down, fire, up};
 pub use limits::{Limits, largest_read, largest_room, valid};
