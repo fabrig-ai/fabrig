@@ -117,9 +117,11 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `--until ended`.
 - **`settled`** follows a sign-in or a check, or a forge's connect or
   install, to its end. A sign-in is in
-  progress from its request's answer until it ends: made, renewed,
-  refused, or past the sign-in's deadline (skein's `oauth/README.md`, section
-  3); a check, until each host it asks has reported (jig's
+  progress from its request's answer until it ends refused or past the
+  sign-in's deadline (skein's `oauth/README.md`, section 3), or, made or
+  renewed, until the source it brought has its first answer, granted
+  or failed (jig's `domain/accounts.md`, section 5), so that the answer
+  shows that source's state; a check, until each host it asks has reported (jig's
   `domain/accounts-sources.md`, 1). So a wait begun once `account connect` or
   `account verify` has answered is not met before them: `account
   connect 1 --key chatgpt`, then `account list --until settled`, then
