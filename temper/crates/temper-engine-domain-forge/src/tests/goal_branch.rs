@@ -2173,7 +2173,7 @@ fn a_release_waiting_for_goal_making_fails_at_its_step_figure() {
     release(&mut d, ReleaseEnding::Done);
     let bound = advanced_wall(clock.wall, clock.limits.waits.step);
     let failed = fire_at(&mut d, &clock, bound);
-    let expected = Request::ReleaseFailed { task: GOAL, account: None, reason: Some(b"no progress at release for 30 minutes: waiting for the goal branch's making; the last answer: forge timed out".as_slice().into()) };
+    let expected = Request::ReleaseFailed { task: GOAL, entry: None, words: b"no progress at release for 30 minutes: waiting for the goal branch's making; the last answer: forge timed out".as_slice().into() };
     assert!(failed.contains(&expected), "{failed:?}");
     assert!(d.hold(&name(GOAL_BRANCH)).is_some());
 }

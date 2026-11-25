@@ -27,7 +27,7 @@ fn page_trouble_reports_kind_text_and_url_without_judging() {
 #[test]
 fn the_session_page_asks_for_requests() {
     let url: Box<[u8]> = b"http://127.0.0.1:9/".as_slice().into();
-    let skein_browser::boundary::Request::Page { person, page, url: opened, requests } =
+    let skein_browser::boundary::Request::Page { person, page, url: opened, requests, files: false } =
         super::session_page(url.clone())
     else {
         panic!("Page")
@@ -135,10 +135,11 @@ fn a_spawn_directory_is_given_beneath_the_root() {
 #[test]
 fn the_kit_ending_and_its_stderr_are_reported_instead_of_the_owner_kill() {
     const CHILD: Token = Token::new(50);
+    const RAW_BROWSER: Token = Token::new(1);
     const OWNER_KILL: Exit = Exit::Signal(9);
     const TAIL: &[u8] = b"late\nlast\n";
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: Limits { stderr: 10, ..Limits::default() } };
-    let mut browser = Browser::new(BROWSER, &env.limits);
+    let mut browser = Browser::new(RAW_BROWSER, &env.limits);
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
     for line in [b"discard me\n".as_slice(), b"late\n", b"last\n"] {
@@ -147,12 +148,12 @@ fn the_kit_ending_and_its_stderr_are_reported_instead_of_the_owner_kill() {
     up(&mut browser, &env, Below::Replies(Up::End), &mut above, &mut below);
     let Some(Event::Ended { why, detail }) = above.pop() else { panic!("kit ending") };
 
-    let mut opening = Opening::Open;
+    let mut opening = Opening::Raw;
     let mut reports = Vec::new();
     let mut requests = VecDeque::new();
     opening.ended(why, &detail, &browser, &mut reports);
-    for owner in [PAGE, PERSON, BROWSER] {
-        opening.browser_closed(owner, Some(CHILD), &mut requests, &mut reports);
+    for owner in [PAGE, PERSON, BROWSER, RAW_BROWSER] {
+        opening.browser_closed(owner, RAW_BROWSER, Some(CHILD), &mut requests, &mut reports);
     }
     assert!(matches!(requests.pop_front(), Some(io::Request::Close { entity: CHILD })));
     assert!(requests.is_empty(), "only the child's close is asked for");
@@ -195,4 +196,30 @@ fn chromium_keeps_home_but_not_the_session_tmpdir() {
 
     assert!(spawn.env.iter().all(|entry| !entry.starts_with(b"TMPDIR=")), "Chromium uses the host's temp directory");
     assert!(spawn.env.iter().any(|entry| entry.as_ref() == b"HOME=/scratch/session/home"));
+}
+
+#[test]
+fn raw_delivery_keeps_a_browser_read_as_its_event() {
+    use skein_browser::boundary::{Property, Rect};
+    use skein_lib::{List, Time};
+
+    let browser = Token::new(0);
+    let op = Token::new(25);
+    let rect = Rect { x: -4, y: 20, width: 16, height: 30 };
+    // One property in Chromium's style reply.
+    let mut style = List::with_capacity(1);
+    style
+        .push(Property { name: b"color".as_slice().into(), value: b"black".as_slice().into() })
+        .expect("one property fits");
+    let mut events = Vec::new();
+    let mut delivery = super::Delivery::Raw { events: &mut events, wake_on_idle: false, owner: browser };
+    let style_transport = delivery.send(Event::Style { op, style }, Time::ZERO);
+    let rect_transport = delivery.send(Event::Rect { op, rect: Some(rect) }, Time::ZERO);
+
+    assert!(style_transport.is_none() && rect_transport.is_none());
+    let [Event::Style { op: style_op, style }, Event::Rect { op: rect_op, rect: reported }] = events.as_slice() else {
+        panic!("expected the raw style and rect replies in order, got {events:?}");
+    };
+    assert_eq!((*style_op, *rect_op, *reported), (op, op, Some(rect)));
+    assert!(style.iter().eq([Property { name: b"color".as_slice().into(), value: b"black".as_slice().into() }].iter()));
 }

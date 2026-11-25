@@ -189,7 +189,7 @@ fn release_waits_for_a_lost_writers_restart_read() {
     let done = finish_reads(&mut d, Some(fixtures::HEAD));
     assert!(done.contains(&Request::ContinueRelease { task: fixtures::CHANGE }));
     let released = outputs(&mut d, Event::ContinueRelease { task: fixtures::CHANGE, entry: ENTRY });
-    assert!(!released.contains(&Request::ReleaseFailed { task: fixtures::CHANGE, account: None, reason: None }));
+    assert!(!release_failed(&released, fixtures::CHANGE));
     assert_eq!(d.entries.get(&ENTRY).unwrap().entry.effect.write, Write::DeleteBranch { branch: C.into() });
 }
 
@@ -651,7 +651,7 @@ fn landing_criteria_wait_until_rebuild_and_the_fresh_reads() {
             last_prepare: None,
             branch: b"main".as_slice().into(),
         },
-        asks: Box::new([None]),
+        previous_asks: Box::new([]),
         entries: Box::new([]),
     };
     let mut d = restored(C, Box::new([Stored::Change(Box::new(change)), Stored::Landing(row.clone())]));
@@ -714,7 +714,7 @@ fn a_release_waiting_for_fresh_observations_fails_at_its_step_figure() {
     let before = fire_at(&mut d, &clock, Wall::from_nanos(bound.as_nanos().saturating_sub(1)));
     no_release_decision(&before);
     let failed = fire_at(&mut d, &clock, bound);
-    let expected = Request::ReleaseFailed { task: GOAL, account: None, reason: Some(b"no progress at release for 30 minutes: waiting for fresh observations from the forge; the last answer: no answer".as_slice().into()) };
+    let expected = Request::ReleaseFailed { task: GOAL, entry: None, words: b"no progress at release for 30 minutes: waiting for fresh observations from the forge; the last answer: no answer".as_slice().into() };
     assert!(failed.contains(&expected), "{failed:?}");
     assert!(d.releases.get(&GOAL).expect("held release").failed);
 }

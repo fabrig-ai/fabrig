@@ -66,7 +66,7 @@ fn page_report(event: Event) -> Result<Report, Event> {
 }
 
 fn session_page(url: Box<[u8]>) -> Request {
-    Request::Page { person: PERSON, page: PAGE, url, requests: true }
+    Request::Page { person: PERSON, page: PAGE, url, requests: true, files: false }
 }
 
 // Each pop reserves the room for putting an ordinary completion back.
@@ -89,6 +89,7 @@ enum Opening {
     Context(Box<[u8]>),
     Page,
     Open,
+    Raw,
     Closing,
     Ended,
     Exited,
@@ -118,11 +119,12 @@ impl Opening {
     fn browser_closed(
         &self,
         owner: Token,
+        browser_owner: Token,
         child: Option<Token>,
         requests: &mut VecDeque<io::Request>,
         reports: &mut Vec<Report>,
     ) {
-        if owner == BROWSER {
+        if owner == browser_owner {
             if !matches!(self, Self::Exited | Self::Closed)
                 && let Some(entity) = child
             {
@@ -136,10 +138,34 @@ impl Opening {
         }
     }
 }
+
+enum Delivery<'a, 'face> {
+    Drive(&'a mut BrowserFace<'face>),
+    Raw { events: &'a mut Vec<Event>, wake_on_idle: bool, owner: Token },
+}
+
+impl Delivery<'_, '_> {
+    // The transport still has to settle the child when the browser closes.
+    fn send(&mut self, event: Event, now: Time) -> Option<Event> {
+        match self {
+            Self::Drive(face) => {
+                face.event_at(&event, now);
+                Some(event)
+            }
+            Self::Raw { events, owner, .. } => {
+                let closed = matches!(event, Event::Closed { owner: closed } if closed == *owner);
+                events.push(event);
+                closed.then_some(Event::Closed { owner: *owner })
+            }
+        }
+    }
+}
+
 /// One ring for a browser and caller-owned processes. No program, profile or
 /// scratch directory is allocated implicitly; the caller owns deadline policy.
 pub struct Pump {
     browser: Browser,
+    browser_owner: Token,
     io: Io,
     ring: Ring,
     clock: Clock,
@@ -172,6 +198,15 @@ impl Pump {
         environment: Vec<(OsString, OsString)>,
         external: u32,
     ) -> Result<Self, String> {
+        Self::build(chromium, profile, environment, external, BROWSER)
+    }
+    fn build(
+        chromium: PathBuf,
+        profile: PathBuf,
+        environment: Vec<(OsString, OsString)>,
+        external: u32,
+        browser_owner: Token,
+    ) -> Result<Self, String> {
         let bl = browser::Limits::default();
         let cap = capacity::Capacity::new(2, 0, super::Output::Stdout, &bl).ok_or("session capacity does not fit")?;
         let transport = cap.operations.checked_add(1).ok_or("session root capacity does not fit")?;
@@ -185,7 +220,8 @@ impl Pump {
             }
         };
         Ok(Self {
-            browser: Browser::new(BROWSER, &bl),
+            browser: Browser::new(browser_owner, &bl),
+            browser_owner,
             io: Io::new(&cap.io),
             ring,
             clock: Clock::new(),
@@ -262,11 +298,14 @@ impl Pump {
                 .collect(),
         }
     }
+    fn start(&mut self, opening: Opening) {
+        let spawn = Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root());
+        self.opening = opening;
+        self.request(io::Request::Spawn { owner: PROCESS, spawn });
+    }
     pub fn open(&mut self, url: Box<[u8]>, face: &mut BrowserFace<'_>) {
         if matches!(self.opening, Opening::Idle) {
-            let spawn = Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root());
-            self.opening = Opening::Starting(url);
-            self.request(io::Request::Spawn { owner: PROCESS, spawn });
+            self.start(Opening::Starting(url));
         } else {
             face.go_to(url);
         }
@@ -277,9 +316,9 @@ impl Pump {
                 self.opening = Opening::Closed;
                 self.reports.push(Report::BrowserClosed);
             }
-            Opening::Starting(_) | Opening::Context(_) | Opening::Page | Opening::Open => {
+            Opening::Starting(_) | Opening::Context(_) | Opening::Page | Opening::Open | Opening::Raw => {
                 self.opening = Opening::Closing;
-                self.ask(Request::Close { entity: BROWSER });
+                self.ask(Request::Close { entity: self.browser_owner });
             }
             Opening::Closing | Opening::Ended | Opening::Exited => {}
         }
@@ -287,7 +326,12 @@ impl Pump {
     pub fn force_browser(&mut self) {
         match self.opening {
             Opening::Idle => self.opening = Opening::Closed,
-            Opening::Starting(_) | Opening::Context(_) | Opening::Page | Opening::Open | Opening::Closing => {
+            Opening::Starting(_)
+            | Opening::Context(_)
+            | Opening::Page
+            | Opening::Open
+            | Opening::Raw
+            | Opening::Closing => {
                 self.opening = Opening::Closing;
                 if let Some(entity) = self.child {
                     self.request(io::Request::Close { entity });
@@ -329,6 +373,9 @@ impl Pump {
     /// Reap, advance and flush once. Wait for a completion or the earliest
     /// deadline only if neither the transport nor the caller has work to take.
     pub fn poll(&mut self, face: &mut BrowserFace<'_>, until: Option<Time>) -> Vec<Report> {
+        self.poll_once(Delivery::Drive(face), until)
+    }
+    fn poll_once(&mut self, mut delivery: Delivery<'_, '_>, until: Option<Time>) -> Vec<Report> {
         self.reap();
         self.ring.deliver(TRANSPORT, &mut self.complete);
         let time = self.clock.now();
@@ -343,14 +390,14 @@ impl Pump {
             // A pipe fault already observed by the kit takes precedence over a
             // subsequent process exit, including when both arrive in this poll.
             if matches!(event, io::Event::Exited { owner: PROCESS, .. }) && !self.events.is_empty() {
-                face_activity |= self.browser_events(face, time.now);
+                face_activity |= self.browser_events(&mut delivery, time.now);
             }
             self.io_event(event);
         }
         if self.browser_live() {
             browser::fire(&mut self.browser, &self.benv, time.now, &mut self.events, &mut self.down);
         }
-        face_activity |= self.browser_events(face, time.now);
+        face_activity |= self.browser_events(&mut delivery, time.now);
         // With no page yet, a settled context has no remaining command deadline.
         if matches!(self.opening, Opening::Context(_)) && self.browser.next_deadline().is_none() {
             let Opening::Context(url) = std::mem::replace(&mut self.opening, Opening::Page) else {
@@ -358,10 +405,17 @@ impl Pump {
             };
             self.ask(session_page(url));
         }
-        face.tick(time.now);
-        for request in face.requests() {
-            self.ask(request);
-        }
+        let raw = matches!(delivery, Delivery::Raw { .. });
+        let (caller_ready, face_wake) = match delivery {
+            Delivery::Drive(face) => {
+                face.tick(time.now);
+                for request in face.requests() {
+                    self.ask(request);
+                }
+                (face.failed(), face.press_wake())
+            }
+            Delivery::Raw { wake_on_idle, .. } => (wake_on_idle && self.browser.next_deadline().is_none(), None),
+        };
         while let Some(down) = self.down.pop() {
             if self.browser_live()
                 && let Some([commands, replies, errors]) = self.pipes
@@ -397,14 +451,15 @@ impl Pump {
             || !self.complete.is_empty()
             || self.ring.has_ready()
             || face_activity
-            || face.failed()
-            || !self.reports.is_empty();
+            || caller_ready
+            || !self.reports.is_empty()
+            || (raw && self.closing_root && self.is_empty());
         let deadline = self
             .io
             .next_deadline()
             .into_iter()
             .chain(self.browser_live().then(|| self.browser.next_deadline()).flatten())
-            .chain(face.press_wake())
+            .chain(face_wake)
             .chain(until)
             .min();
         let wait = match deadline {
@@ -420,13 +475,17 @@ impl Pump {
     fn browser_live(&self) -> bool {
         self.pipes.is_some() && !matches!(self.opening, Opening::Exited | Opening::Closed)
     }
-    fn browser_events(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
+    fn browser_events(&mut self, delivery: &mut Delivery<'_, '_>, now: Time) -> bool {
         let mut activity = false;
         loop {
             while let Some(event) = self.events.pop() {
                 activity = true;
-                face.event_at(&event, now);
-                self.browser_event(event);
+                if let Event::Ended { why, detail } = &event {
+                    self.opening.ended(*why, detail, &self.browser, &mut self.reports);
+                }
+                if let Some(event) = delivery.send(event, now) {
+                    self.browser_event(event);
+                }
             }
             if !self.browser_live() || !self.browser.work_pending() {
                 return activity;
@@ -511,9 +570,14 @@ impl Pump {
                     self.reports.push(Report::Opened);
                 }
             }
-            Event::Ended { why, detail } => self.opening.ended(why, &detail, &self.browser, &mut self.reports),
             Event::Closed { owner } => {
-                self.opening.browser_closed(owner, self.child, &mut self.requests, &mut self.reports);
+                self.opening.browser_closed(
+                    owner,
+                    self.browser_owner,
+                    self.child,
+                    &mut self.requests,
+                    &mut self.reports,
+                );
             }
             Event::Found { .. }
             | Event::Met { .. }
@@ -526,6 +590,10 @@ impl Pump {
             | Event::Address { .. }
             | Event::Tabs { .. }
             | Event::Attribute { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
+            | Event::Ended { .. }
             | Event::Downloaded { .. }
             | Event::Trouble { .. }
             | Event::Sent { .. }
@@ -543,6 +611,66 @@ impl Pump {
             && self.submits.is_empty()
             && self.complete.is_empty()
             && self.requests.is_empty()
+    }
+}
+
+/// The session transport without a person or page policy. After `Ready`, the
+/// caller names its own entities and receives the browser's events in order.
+/// Transport reports (including the child's settlement) stay separate.
+pub struct RawPump(Pump);
+
+impl RawPump {
+    /// `owner` names the browser itself; use other tokens for people and pages.
+    pub fn start(
+        chromium: PathBuf,
+        profile: PathBuf,
+        environment: Vec<(OsString, OsString)>,
+        owner: Token,
+    ) -> Result<Self, String> {
+        let mut pump = Pump::build(chromium, profile, environment, 0, owner)?;
+        pump.start(Opening::Raw);
+        Ok(Self(pump))
+    }
+
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.0.now()
+    }
+
+    pub fn request(&mut self, request: Request) {
+        self.0.benv.now = self.now();
+        self.0.ask(request);
+    }
+
+    /// Whether the browser has a command or operation awaiting an answer.
+    #[must_use]
+    pub fn pending(&self) -> bool {
+        self.0.browser.next_deadline().is_some()
+    }
+
+    /// `wake_on_idle` also returns control once pending commands finish, for
+    /// requests such as `Person` which have no success event.
+    pub fn poll(&mut self, until: Option<Time>, wake_on_idle: bool) -> (Vec<Report>, Vec<Event>) {
+        let mut events = Vec::new();
+        let owner = self.0.browser_owner;
+        let reports = self.0.poll_once(Delivery::Raw { events: &mut events, wake_on_idle, owner }, until);
+        (reports, events)
+    }
+
+    /// Start closing the browser and its root. Poll until `is_empty`.
+    pub fn close(&mut self) {
+        self.0.close_browser();
+        self.0.close_root();
+    }
+
+    /// End the child without waiting for the browser's reply to close.
+    pub fn force(&mut self) {
+        self.0.force_browser();
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

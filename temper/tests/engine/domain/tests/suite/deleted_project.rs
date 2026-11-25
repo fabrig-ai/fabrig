@@ -139,13 +139,15 @@ fn ended_change(repository: Repository) -> forge::Stored {
         base: b"main".as_slice().into(),
         title: b"Kept change".as_slice().into(),
         body: Box::new([]),
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: change::Change {
             task: CHANGE,
             way: change::Way::Queue,
             state: change::State::Ended,
             early: change::Early::None,
-            landing_ask: None,
-            landing: None,
+
             ended_held: None,
             gates: Box::new([]),
             clean: Box::new([]),

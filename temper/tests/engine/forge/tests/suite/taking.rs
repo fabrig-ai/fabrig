@@ -125,7 +125,7 @@ fn a_taken_head_opens_is_ready_joins_the_next_landing_and_releases_only_its_own_
     assert!(!calls.iter().any(|op| matches!(op, Op::Write(Write::CreateBranch { branch, .. } | Write::DeleteBranch { branch }) if branch.as_ref() == SOURCE)));
     let mut trains = landings::Trains::default();
     trains.judge(&mut world);
-    assert_eq!(world.change(TASK).change.landing, Some(landings::LANDING));
+    assert_eq!(world.landing_of(TASK), Some(landings::LANDING));
     // This rule has no workflow gate for the landing either.
     trains.land(&mut world, landings::LANDING);
     assert!(matches!(world.change(TASK).change.state, change::State::Landed { .. }));

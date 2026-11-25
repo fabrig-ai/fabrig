@@ -33,7 +33,7 @@ pub(super) fn compare(
     Ok(())
 }
 
-fn overlay(host: &mut Host, commit: &str, path: &str) -> Result<Sheet, String> {
+pub(crate) fn overlay(host: &mut Host, commit: &str, path: &str) -> Result<Sheet, String> {
     let bytes = blob(host, commit, path)?.unwrap_or_default();
     let path = format!("{commit}:{path}");
     let mut sheet = Sheet::default();
@@ -42,16 +42,16 @@ fn overlay(host: &mut Host, commit: &str, path: &str) -> Result<Sheet, String> {
 }
 
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-struct Key {
-    prelude: String,
+pub(crate) struct Key {
+    pub(crate) prelude: String,
     conditions: Vec<String>,
 }
 
-type Declarations = BTreeMap<String, String>;
+pub(crate) type Declarations = BTreeMap<String, String>;
 
 #[derive(Default)]
-struct Sheet {
-    rules: BTreeMap<Key, Declarations>,
+pub(crate) struct Sheet {
+    pub(crate) rules: BTreeMap<Key, Declarations>,
     at_rules: Vec<(Key, String)>,
     order: Vec<Entry>,
 }
@@ -147,7 +147,7 @@ fn declarations(mut body: &str, declarations: &mut Declarations) -> Result<(), S
 }
 
 // A delimiter is visible only outside strings, escapes, comments and nested groups.
-fn chunk<'a>(source: &'a str, delimiters: &[u8]) -> Result<(&'a str, Option<u8>, &'a str), String> {
+pub(crate) fn chunk<'a>(source: &'a str, delimiters: &[u8]) -> Result<(&'a str, Option<u8>, &'a str), String> {
     let mut closing = Vec::new();
     let mut at = 0;
     while let Some(&byte) = source.as_bytes().get(at) {
@@ -177,7 +177,7 @@ fn chunk<'a>(source: &'a str, delimiters: &[u8]) -> Result<(&'a str, Option<u8>,
     Ok((source, None, ""))
 }
 
-fn opaque(source: &str, at: usize) -> Result<Option<usize>, String> {
+pub(crate) fn opaque(source: &str, at: usize) -> Result<Option<usize>, String> {
     let bytes = source.as_bytes();
     match bytes[at] {
         b'/' if bytes.get(at + 1) == Some(&b'*') => {

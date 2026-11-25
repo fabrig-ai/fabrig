@@ -22,12 +22,14 @@ pub fn change_row() -> top::ChangeRow {
         body: Box::from(&b"Fix the file"[..]),
         priority: 1,
         ci: None,
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
-            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
+
             task: 51,
             state: change::State::Producing { requested: false },
             gates: Box::new([]),

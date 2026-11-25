@@ -152,8 +152,9 @@ temper-box
   internal serve` to adopt them, and a serve given `--box` whose
   descriptor 3 + *n* or 4 + *n* is not an open pipe refuses its start,
   naming the fd, *n* being the `LISTEN_FDS` it was given, 0 without it
-  (a check that reads `/proc/self/fd`, so Linux's alone: on macOS serve
-  takes them as given);
+  (a check of serve's own descriptors' list, `/proc/self/fd` on Linux and
+  `/dev/fd` on macOS, `../../testing/macos.md`, 3, made on both systems
+  before serve reads its standard input or its configuration);
   without `--box`, as under every other arrangement (4), serve has no
   pipe and leaves those descriptors alone. One line each, ending in a line
   feed, `FORGE` the forge's number:

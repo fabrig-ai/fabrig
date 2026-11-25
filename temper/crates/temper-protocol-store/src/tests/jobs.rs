@@ -211,7 +211,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,
-                asks: Box::new([None, None]),
+                previous_asks: Box::new([None, None]),
                 entries: Box::new([]),
                 landing: l::Landing {
                     last_left: None,

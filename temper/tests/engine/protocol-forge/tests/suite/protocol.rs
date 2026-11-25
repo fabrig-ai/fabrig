@@ -26,12 +26,14 @@ fn change_row() -> top::ChangeRow {
         body: Box::from(&b"Fix the file"[..]),
         priority: 1,
         ci: None,
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
-            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
+
             task: 51,
             state: change::State::Producing { requested: false },
             gates: Box::new([]),
@@ -613,6 +615,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::AskDropped { .. }
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
@@ -626,6 +629,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::FailRepair { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LinkDisagreed { .. }
+                | top::Request::ConversionAskDropped { .. }
                 | top::Request::LandingUnmade { .. }
                 | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }

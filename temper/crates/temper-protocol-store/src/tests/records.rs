@@ -1551,7 +1551,9 @@ fn a_turn_change_ready_or_preparing_round_trips_with_its_landing() {
         for landing in [None, Some(8)] {
             let mut row = fixtures::change_row(state.clone());
             row.change.way = Way::Turn;
-            row.change.landing = landing;
+            if landing.is_some() {
+                row.previous = Some(forge::PreviousLink { landing, ask: None });
+            }
             let row = fixtures::change_hot(row);
             let bytes = records::encode(&row);
             assert_eq!(records::decode(&bytes, &bounds), Ok(row));
@@ -1560,23 +1562,68 @@ fn a_turn_change_ready_or_preparing_round_trips_with_its_landing() {
 }
 
 #[test]
-fn a_change_round_trips_the_ask_handed_over_by_its_landing() {
+fn a_change_round_trips_its_previous_link_and_ask() {
     use temper_engine_domain_forge_change::{Ask, Below, Landed, State};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) });
-    row.change.landing = None;
-    row.change.landing_ask = Some(Box::new(Ask::Repair {
-        gate: 3,
-        candidate: [4; 32],
-        below: Some(Below {
-            green: [5; 32],
-            changes: [Some(Landed { change: 6, pull: 7 }), None, None, None],
-            by_test: true,
-            top: false,
+    row.previous = Some(forge::PreviousLink {
+        landing: Some(8),
+        ask: Some(Ask::Repair {
+            gate: 3,
+            candidate: [4; 32],
+            below: Some(Below {
+                green: [5; 32],
+                changes: [Some(Landed { change: 6, pull: 7 }), None, None, None],
+                by_test: true,
+                top: false,
+            }),
         }),
-    }));
+    });
     let stored = fixtures::change_hot(row);
     assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_change_ask_queue_round_trips_and_defaults_at_the_previous_layout() {
+    use temper_engine_domain_forge_change::{Ask, Handed, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) });
+    row.asks = Box::new([
+        Handed { number: 2, landing: 8, round: 1, ask: Ask::Resolve { base: [2; 32] } },
+        Handed { number: 4, landing: 8, round: 2, ask: Ask::Landed { prefix: [3; 32] } },
+    ]);
+    row.handed = 4;
+    let stored = fixtures::change_hot(row.clone());
+    let mut bytes = records::encode(&stored);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+
+    // The layout at the base has both legacy fields but not the queue or its count.
+    let current = crate::OWNER_SET.families.first().expect("temper-store family").current;
+    let before = current
+        .replace("record LandingHanded { number: u32 landing: u64 round: u16 ask: LandingAsk }\n", "")
+        .replace(" asks: list 16 LandingHanded = [] handed: u32 = 0", "");
+    assert_ne!(current, before);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.asks = Box::new([]);
+    row.handed = 0;
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
 }
 
 #[test]
@@ -1596,7 +1643,10 @@ fn a_change_stored_before_handed_over_asks_reads_with_none() {
         head: [1; 32],
         ready_since: skein_lib::Wall::from_nanos(2),
     });
-    row.change.landing_ask = Some(Box::new(temper_engine_domain_forge_change::Ask::Landed { prefix: [3; 32] }));
+    row.previous = Some(forge::PreviousLink {
+        landing: None,
+        ask: Some(temper_engine_domain_forge_change::Ask::Landed { prefix: [3; 32] }),
+    });
     let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
     for (source, target) in [(&new, &old), (&old, &new)] {
         let plan = skein_codec::layout::Plan::derive(
@@ -1614,7 +1664,7 @@ fn a_change_stored_before_handed_over_asks_reads_with_none() {
         plan.convert(&bytes, &mut out, &mut work).unwrap();
         bytes = out.as_slice().into();
     }
-    row.change.landing_ask = None;
+    row.previous = None;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
 }
@@ -1733,7 +1783,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         last_prepare: None,
                         branch: Box::from(b"temper/g1".as_slice()),
                     },
-                    asks: Box::new([ask]),
+                    previous_asks: Box::new([ask]),
                     entries: Box::new([forge::LandingEntry {
                         run: Some(forge::LandingRun { id: 23, attempt: 2, ended: true, clock: None }),
                         preparation: Some(2),
@@ -1775,7 +1825,7 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
             last_left: None,
             searched: None,
         },
-        asks: Box::new([]),
+        previous_asks: Box::new([]),
         entries: Box::new([forge::LandingEntry {
             entry: 7,
             member: 0,
@@ -1789,13 +1839,36 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
 }
 
 #[test]
-fn a_landing_read_hold_keeps_its_exact_reason() {
+fn landing_own_holds_keep_their_exact_reasons() {
+    use temper_engine_domain_forge_landing as l;
+    type HoldCase = (l::Hold, Option<&'static [u8]>, Option<&'static [u8]>);
+    const CASES: &[HoldCase] = &[
+        (l::Hold::Read, Some(b"read: branch main: no answer"), None),
+        (l::Hold::Cleanup, None, Some(b"close item: forge refused permission; resource org/repo #9")),
+    ];
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for &(why, read, cleanup) in CASES {
+        let mut row = landing_with_clock(None);
+        let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
+        landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why };
+        if let Some(read) = read {
+            landing.read_hold = Some(Box::from(read));
+        }
+        if let Some(cleanup) = cleanup {
+            landing.landing.round.cleanup = Some(Box::from(cleanup));
+        }
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn a_landing_claim_hold_round_trips() {
     use temper_engine_domain_forge_landing as l;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let mut row = landing_with_clock(None);
-    let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
-    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why: l::Hold::Read };
-    landing.read_hold = Some(b"read: branch main: no answer".as_slice().into());
+    let forge::Stored::Landing(landing) = &mut row else { unreachable!() };
+    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Proving), why: l::Hold::Claimed { change: 5 } };
     let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
     assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
 }
@@ -1866,7 +1939,7 @@ fn a_landing_run_written_without_a_clock_decodes_with_none() {
     let run = run.unwrap();
     let before = family.current.replace(run, "record LandingRun { id: u64 attempt: u32 ended: bool }");
     assert_ne!(before, family.current);
-    assert_landing_through_layout(family.current, &before, false);
+    assert_landing_through_layout(family.current, &before, false, landing_with_clock(None));
 }
 
 #[test]
@@ -1874,12 +1947,38 @@ fn a_landing_written_before_read_holds_reads_as_before() {
     let family = crate::OWNER_SET.families.first().unwrap();
     let before = family
         .current
+        .replace("cleanup: option bytes 512 = none ", "")
         .replace(" read_hold: option bytes 256 = none", "")
-        .replace(", timeout: LandingTimeout, turn, read }", ", timeout: LandingTimeout, turn }");
-    assert_landing_through_layout(family.current, &before, true);
+        .replace("record LandingClaimed { change: u64 }\n", "")
+        .replace(", read, claimed: LandingClaimed, cleanup", "");
+    assert_landing_through_layout(family.current, &before, true, landing_with_clock(None));
 }
 
-fn assert_landing_through_layout(current: &str, before: &str, added_variant: bool) {
+#[test]
+fn a_landing_written_before_cleanup_holds_reads_as_before() {
+    let family = crate::OWNER_SET.families.first().unwrap();
+    let before = family.current.replace("cleanup: option bytes 512 = none ", "").replace(", cleanup }", " }");
+    assert_landing_through_layout(family.current, &before, true, landing_with_clock(None));
+}
+
+#[test]
+fn a_landing_written_before_claim_holds_reads_as_before() {
+    use temper_engine_domain_forge_landing as l;
+    let family = crate::OWNER_SET.families.first().unwrap();
+    let before = family
+        .current
+        .replace("cleanup: option bytes 512 = none ", "")
+        .replace("record LandingClaimed { change: u64 }\n", "")
+        .replace(", claimed: LandingClaimed, cleanup", "");
+    let mut row = landing_with_clock(None);
+    let forge::Stored::Landing(landing) = &mut row else { unreachable!() };
+    // `read` was the last own-hold variant at the previous layout.
+    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Proving), why: l::Hold::Read };
+    landing.read_hold = Some(b"read: branch main: no answer".as_slice().into());
+    assert_landing_through_layout(family.current, &before, true, row);
+}
+
+fn assert_landing_through_layout(current: &str, before: &str, added_variant: bool, stored: forge::Stored) {
     use skein_codec::layout::{Mode, Plan, Workspace};
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
@@ -1892,7 +1991,6 @@ fn assert_landing_through_layout(current: &str, before: &str, added_variant: boo
     }
     .unwrap();
     let up = Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
-    let stored = landing_with_clock(None);
     let mut work = Workspace::new();
     assert!(work.fit(&down));
     let mut earlier = skein_lib::Buffer::with_capacity(131_072);

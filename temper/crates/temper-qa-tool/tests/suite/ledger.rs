@@ -261,18 +261,21 @@ fn deletion_keeps_unreached_held_and_newest_reached_case_builds() {
     ledger.add_case(number, &case(), 1).expect("case");
     ledger.end_session(number, Exit::Code(0), None, 2, "qa").expect("triaged");
     assert_eq!(deletable(&ledger).len(), 0);
-    landing(&mut ledger, 2);
-    ledger.keep_build("B2", 3).expect("newer");
-    ledger.set_build_holds("B2", vec![1, 2], 2).expect("holds");
-    assert!(deletable(&ledger).is_empty(), "unreached B2 cannot replace B1");
-    let number = session(&mut ledger, 2);
-    ledger.answer_none(number, "no change").expect("none");
-    ledger.end_session(number, Exit::Code(0), None, 4, "qa").expect("triaged");
+    let mut held = ledger.clone();
+    assert_eq!(super::passes::start(&mut held).build, "B1");
+    for ledger in [&mut ledger, &mut held] {
+        landing(ledger, 2);
+        ledger.keep_build("B2", 3).expect("newer");
+        ledger.set_build_holds("B2", vec![1, 2], 2).expect("holds");
+        assert!(deletable(ledger).is_empty(), "unreached B2 cannot replace B1");
+        let number = session(ledger, 2);
+        ledger.answer_none(number, "no change").expect("none");
+        ledger.end_session(number, Exit::Code(0), None, 4, "qa").expect("triaged");
+    }
     assert_eq!(deletable(&ledger), ["B1"]);
-    let mut document = ledger.document();
-    document["builds"][0]["held"] = json!(42);
-    let held = Ledger::decode(&serde_json::to_vec(&document).expect("JSON")).expect("held decoded");
-    assert_eq!(deletable(&held).len(), 0);
+    let held = Ledger::decode(&held.encode().expect("JSON")).expect("running hold decoded");
+    assert_eq!(held.builds[0].held, Some(1));
+    assert_eq!(deletable(&held), ["B2"], "B1 is held by the running pass");
     ledger.keep_build("unknown", 4).expect("unknown holds");
     assert_eq!(ledger.builds_without_holds().len(), 1);
     assert_eq!(deletable(&ledger), ["B1"]);

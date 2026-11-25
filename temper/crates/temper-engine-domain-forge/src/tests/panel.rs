@@ -86,7 +86,7 @@ fn each_step_and_held_step_comes_from_the_retained_record() {
             let got = panel(&d);
             assert_eq!(got.step, step);
             assert_eq!(got.way, row.change.way);
-            assert_eq!(got.in_landing, row.change.landing);
+            assert_eq!(got.in_landing, d.landing_of(row.task));
             assert_eq!(got.hold, hold);
             assert_eq!(got.task, row.task);
             assert_eq!(got.forge, REPO.forge);
@@ -499,14 +499,23 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
     assert_eq!((before.ci, after.ci), (change::Status::Passed, change::Status::Passed));
 }
 
+fn add_panel_landing(d: &mut Domain) {
+    let row = landing_routes::merge_landing_row(false);
+    outputs(d, Event::Restore { record: Stored::Landing(row) });
+    d.landing.restore_memberships().unwrap();
+}
+
 #[test]
 fn a_turn_change_in_ready_has_a_panel_naming_its_landing() {
     for landing in [None, Some(61)] {
         let mut row = fixtures::opening_row();
         row.change.way = change::Way::Turn;
-        row.change.landing = landing;
         row.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
-        let got = panel(&with_row(row));
+        let mut d = with_row(row);
+        if landing.is_some() {
+            add_panel_landing(&mut d);
+        }
+        let got = panel(&d);
         assert_eq!(got.step, PanelStep::Ready { landing });
         assert_eq!(got.way, change::Way::Turn);
         assert_eq!(got.in_landing, landing);
@@ -517,11 +526,12 @@ fn a_preparing_change_has_a_panel() {
     for held in [false, true] {
         let mut row = fixtures::opening_row();
         row.change.way = change::Way::Turn;
-        row.change.landing = Some(61);
         let state = change::State::Preparing { from: fixtures::HEAD, main: fixtures::BASE, ready_since: env().wall };
         row.change.state =
             if held { change::State::Held { was: Box::new(state), why: change::Hold::Stalled } } else { state };
-        let got = panel(&with_row(row));
+        let mut d = with_row(row);
+        add_panel_landing(&mut d);
+        let got = panel(&d);
         assert_eq!(got.step, PanelStep::Preparing { landing: Some(61) });
         assert_eq!(got.way, change::Way::Turn);
         assert_eq!(got.in_landing, Some(61));

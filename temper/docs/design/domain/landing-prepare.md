@@ -37,6 +37,18 @@ This document holds preparing landing candidates and rounds, split from [`landin
   answered, the next step is due at once: the next round's prepare, its
   opening, its proof and turn, or the landing's end, reading no fact of
   the ended round (`landing-waits.md`, 3).
+- **Its cleanup finds first, and holds on a refusal**
+  (`forge/releases.md`): it reads the round's pull request and each
+  branch it would delete before it writes. One closed or merged, or a
+  branch the forge no longer has, is released already; a branch whose
+  hold another task holds is not the landing's, and nothing is written
+  for it. A close or a deletion the forge refuses or fails, or a branch
+  another holds, holds the landing, `cleanup` (`landing.md`, 4.2), its
+  words the account `forge/releases.md`, 2 gives: the write is never
+  sent again on its own. The words are kept with the round, so a
+  restart keeps them. A release of the landing's task, whichever of its
+  holds it lifts, reads the cleanup's pull request and branches afresh
+  and tries again what is left; a refusal again holds again.
 - **The next round** takes the members still in the landing: its job
   stacks only those above the last kept prefix, onto it or onto the
   base (1.2); with none, the last kept prefix is its top, and no job is

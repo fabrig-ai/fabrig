@@ -2,9 +2,13 @@
 
 use std::ptr;
 
-use skein_io::kernel::{Error, Fd, Signal};
+#[cfg(target_os = "linux")]
+use skein_io::kernel::Signal;
+use skein_io::kernel::{Error, Fd};
 
-use crate::{posix, system as native};
+#[cfg(target_os = "linux")]
+use crate::posix;
+use crate::system as native;
 
 pub use crate::readiness::testing as readiness;
 #[cfg(target_os = "macos")]

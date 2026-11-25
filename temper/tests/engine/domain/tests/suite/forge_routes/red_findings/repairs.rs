@@ -429,7 +429,7 @@ fn two_live_repair_goals_refuse_a_third_until_one_ends() {
     assert_eq!(task(&world, triager.task).delegates.as_ref(), &[first, second]);
 
     let goal = assignment(&mut world, first);
-    goal_landing::finish_goal(&mut world, &goal);
+    finish_repair_goal(&mut world, &goal);
     assert_eq!(row(&world, 1).repair.as_ref().expect("first repair").until, None);
     assert!(row(&world, 2).repair.as_ref().expect("second repair").until.is_some());
     let third = repair(&mut world, &triager, 183, 3);
@@ -443,6 +443,40 @@ fn two_live_repair_goals_refuse_a_third_until_one_ends() {
 fn assignment(world: &mut World, goal: u64) -> engine::Assignment {
     until(world, LANDING_TICKS, "repair goal assigned", |world| world.assigned.iter().any(|run| run.task == goal));
     world.assigned.iter().find(|run| run.task == goal).expect("repair goal assignment").clone()
+}
+
+fn finish_repair_goal(world: &mut World, goal: &engine::Assignment) {
+    // The retry is told about its routed red. Unread news wakes a parked goal instead of closing it.
+    world.scripted_read_inbox(goal);
+    let mut event = world.protocol.answer(
+        Token::new(7),
+        goal.task,
+        goal.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Done".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: host::LinkUp::Answer { answer, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        panic!("repair goal finish")
+    };
+    answer.turns = task(world, goal.task).turn;
+    world.send(event);
+    until(world, LANDING_TICKS, "repair goal made its closer", |world| task(world, goal.task).closer.is_some());
+    let closer = task(world, goal.task).closer.expect("repair goal closer");
+    until(world, LANDING_TICKS, "repair goal ended by its closer", |world| {
+        goal_landing::ended(world, goal.task).is_some()
+    });
+    let phase = &goal_landing::ended(world, goal.task).expect("repair goal ended").phase;
+    assert!(matches!(phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    assert_eq!(phase, &goal_landing::ended(world, closer).expect("closer ended").phase);
+    settle(world);
 }
 
 fn repair(world: &mut World, triager: &engine::Assignment, name: u64, number: u32) -> engine::CallAnswer {
@@ -524,7 +558,7 @@ fn a_landed_repair_still_red_returns_for_one_retry_then_asks_before_repairing_ag
     );
     let goal = assignment(&mut world, second);
     let main = goal_branch::branch_tip(&mut world, b"main");
-    goal_landing::finish_goal(&mut world, &goal);
+    finish_repair_goal(&mut world, &goal);
     assert_eq!(goal_branch::branch_tip(&mut world, b"main"), main, "the retry did not land");
     assert_eq!(tier(&world).record.last_run, Some(3), "no new run for the unlanded repair");
     assert_back(&world, triager.task, number, second, 2, 3);

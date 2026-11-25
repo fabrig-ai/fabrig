@@ -1213,6 +1213,8 @@ pub struct TaskRecord {
     pub activation_open: bool,
     /// The live closer's task number (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     pub closer: Option<u64>,
+    /// The live closer-ended task’s most recent judged finish.
+    pub parked_result: Option<TaskResult>,
     /// Why this activation runs (jig/docs/design/domain/tasks/messages.md, 6).
     pub reasons: crate::Reasons,
     /// The kinds the claimed attempt is offered (jig/docs/design/domain/tasks/messages.md, 6).
@@ -1394,8 +1396,6 @@ pub struct TaskRecord {
     pub room_wait: Option<crate::RoomWait>,
     /// A question-form message to its requester has been admitted; never cleared.
     pub asked_requester: bool,
-    /// Newest open question that woke it at a park with a timer or live task watch; never lowered.
-    pub question_woken: u64,
     /// Newest unrecorded words that woke an idle park; 0 for none, never lowered
     /// (jig/docs/design/domain/tasks/lifecycle.md, 2).
     pub words_woken: u64,
@@ -2020,6 +2020,7 @@ pub enum Event {
     DelegateResult {
         task: u64,
         word: Word,
+        wake: bool,
     },
     /// Root verified a newly named retained input against its ended store row.
     RememberStub {
@@ -2348,11 +2349,13 @@ pub enum Event {
         task: u64,
         message: u64,
     },
+    /// Recheck left-alone parks after routing the change's own wakes.
+    RecheckStuck,
     /// Core supplies the oldest open question's bounded reason; no message is numbered.
     QuestionParked {
         task: u64,
         question: u64,
-        reason: Box<[u8]>,
+        reason: Option<Box<[u8]>>,
     },
     /// A caller cancels its own unanswered question.
     CancelQuestion {
@@ -2428,8 +2431,10 @@ pub enum Request {
     QuestionOwedDue { task: u64 },
     /// Number the always-waking notice for an idle result-ended task.
     NothingAwaitedDue { task: u64 },
-    /// Finish an idle park's question wake with words from the core's question cache.
-    QuestionParked { task: u64, question: crate::OpenQuestion },
+    /// Route the change's own wakes before judging the affected parks.
+    RecheckStuck,
+    /// Finish an exhausted park with words from the core's question cache.
+    QuestionParked { task: u64, question: crate::OpenQuestion, chain: Box<[crate::StuckLink]> },
     /// Make the idle task's closer instead of numbering a notice (domain/tasks/lifecycle-endings.md, 3).
     CloserDue { task: u64 },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks/lifecycle-endings.md, 1, and domain/tasks/messages.md, 1).
@@ -2573,6 +2578,8 @@ pub enum Request {
         requester: Party,
         /** Bounded final result/reason; emitted with ended/funder writes in one root decision. */
         ending: Ending,
+        /** Whether the delegate result can wake the requester as usual. */
+        wake: bool,
     },
     /// Owned persistence output for the parent's current atomic decision.
     Save {

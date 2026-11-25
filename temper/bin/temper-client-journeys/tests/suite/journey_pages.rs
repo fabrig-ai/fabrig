@@ -184,7 +184,12 @@ impl Repositories {
             self.git(&self.origin, &["log", "-1", "--format=%an <%ae>", &head]),
             "Journey Writer <writer@example.invalid>"
         );
-        assert_eq!(fs::read_to_string(self.task_file()).expect("kept task number"), "task 42\n");
+        let saved = fs::read_to_string(self.task_file()).expect("kept offer");
+        let started = saved.strip_prefix(&format!("task 42\nrun {tip} {head} ")).expect("task and its printed run");
+        assert!(
+            started.strip_suffix('\n').is_some_and(|value| value.parse::<u64>().is_ok()),
+            "Unix seconds: {saved:?}"
+        );
         let calls = self.calls("temper");
         let call = calls.last().expect("change opened");
         let mut expected = vec![
@@ -203,7 +208,7 @@ impl Repositories {
             &body,
         ];
         expected.extend_from_slice(budget);
-        let key = format!("journey-pages-{tip}");
+        let key = format!("journey-pages-{head}");
         expected.extend_from_slice(&["--key", &key]);
         assert_eq!(call["args"], serde_json::json!(expected));
         assert_eq!(call["stdin"], "");
@@ -219,7 +224,9 @@ fn changed_pages_offer_the_fetched_tip_with_the_given_budget() {
         repos.write("another", "A newer main\n");
         repos.git(&repos.person, &["add", "another"]);
         repos.git(&repos.person, &["commit", "--quiet", "-m", "Advance main"]);
-        repos.git(&repos.person, &["push", "--quiet", repos.origin.to_str().expect("origin path"), "main"]);
+        repos.git(&repos.person, &["push", "--quiet", "origin", "main"]);
+        // Restore the tracking ref to model main advancing in another clone.
+        repos.git(&repos.person, &["update-ref", "refs/remotes/origin/main", &old]);
         let tip = repos.git(&repos.origin, &["rev-parse", "main"]);
         repos.git(&repos.person, &["checkout", "--quiet", "--detach", &old]);
         assert_eq!(repos.git(&repos.person, &["rev-parse", "origin/main"]), old, "stale until fetched");

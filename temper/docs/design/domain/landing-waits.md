@@ -163,9 +163,12 @@ it. A step that acts keeps no wait: `nothing; it steps next`.
   with conflicts, earlier conflicts, head moves, cancels, red gates a
   search narrows to a blame and a cut, and stale bases, a harness
   playing the top keeps each effect the landing started outstanding
-  and answers it some steps later, and each member's change takes its
-  asks. Each wait with no deadline names an outstanding effect, a
-  change's step or a release, and every landing reaches landed,
+  and answers it some steps later, some of its round's closes and
+  deletions refused, and each member's change takes its asks. Each wait
+  with no deadline names an outstanding effect, a change's step or a
+  release; a refused close or deletion holds the landing `cleanup` at
+  its next decision, and is decided again only after a release
+  (`landing-prepare.md`, 1.1); and every landing reaches landed,
   cancelled or held within a bound of steps.
 
 ## 4. What a person reads

@@ -64,6 +64,14 @@ fn read(text: &[u8], shape: Shape, facts: &Facts, base: Option<&File>) -> Result
     {
         file.environment.clone_from(&base.environment);
     }
+    if shape == Shape::WorkerAlone && file.name.is_none() {
+        let bound = temper_service_core::derived::stock().link.name;
+        let bytes = facts.hostname.len();
+        if bytes > usize::try_from(bound).expect("worker name bound fits usize") {
+            let words = format!("the host's name is {bytes} bytes, past its bound of {bound}; give name explicitly");
+            return Err(Refusal::one(reader.keys.render_key("name", &words)));
+        }
+    }
     reader.keys.record_rows(shape, &file, facts);
     let document = document::build(&file, shape, facts)?;
     Ok(Read { file, document, keys: reader.keys })

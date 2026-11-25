@@ -305,7 +305,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
-                asks: Box::new([None]),
+                previous_asks: Box::new([]),
                 entries: Box::new([]),
             },
         },
@@ -656,6 +656,8 @@ fn adoption_reads_permission_before_committing_its_role() {
     let (call, op) = match &sent[0] {
         Request::Call { call, op, .. } => (*call, op.clone()),
         Request::Resource { .. }
+        | Request::LinkDisagreed { .. }
+        | Request::ConversionAskDropped { .. }
         | Request::LandingUnmade { .. }
         | Request::LandingRead(_)
         | Request::HoldDropped { .. }
@@ -692,6 +694,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::CloseDecision { .. }
@@ -768,6 +771,8 @@ fn adoption_reads_permission_before_committing_its_role() {
             *call
         }
         Request::Call { .. }
+        | Request::LinkDisagreed { .. }
+        | Request::ConversionAskDropped { .. }
         | Request::LandingUnmade { .. }
         | Request::LandingRead(_)
         | Request::HoldDropped { .. }
@@ -805,6 +810,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::CloseDecision { .. }
@@ -874,6 +880,8 @@ fn adoption_reads_permission_before_committing_its_role() {
     match &next[0] {
         Request::Call { op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings), .. } => {}
         Request::Call { .. }
+        | Request::LinkDisagreed { .. }
+        | Request::ConversionAskDropped { .. }
         | Request::LandingUnmade { .. }
         | Request::LandingRead(_)
         | Request::HoldDropped { .. }
@@ -911,6 +919,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::AskDropped { .. }
         | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::CloseDecision { .. }
@@ -3576,6 +3585,32 @@ fn another_landing_owns_the_key_while_a_faulted_owner_waits() {
     other.task = 62;
     d.landing.flights.insert(key.clone(), other).expect("flight room");
     assert_eq!(landing::flight_fact(&d.landing, &key, (61, 0, 0)), Flight::Other);
+}
+
+fn release_account(requests: &[Request], task: u64, entry: Option<u64>, parts: &[&str]) {
+    let mut found = false;
+    for request in requests {
+        if let Request::ReleaseFailed { task: owner, entry: source, words } = request
+            && *owner == task
+        {
+            assert!(!found, "one failure per release: {requests:?}");
+            assert_eq!(*source, entry);
+            for part in parts {
+                assert!(has_words(words, part.as_bytes()), "{part:?} missing from {requests:?}");
+            }
+            found = true;
+        }
+    }
+    assert!(found, "no release failure for task {task}: {requests:?}");
+}
+
+fn has_words(words: &[u8], part: &[u8]) -> bool {
+    for window in words.windows(part.len()) {
+        if window == part {
+            return true;
+        }
+    }
+    false
 }
 
 fn release_failed(requests: &[Request], task: u64) -> bool {

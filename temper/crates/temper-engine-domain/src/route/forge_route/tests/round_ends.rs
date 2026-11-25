@@ -1,5 +1,5 @@
 //! A round's follow-up is retried when its procedure step was taken (landing-waits.md, 3).
-use super::{reserved_turn_landing, reserved_turn_landing_with_limits};
+use super::{reserved_turn_landing, reserved_turn_landing_with_limits, task_event};
 use crate::{Domain, Limits, Work, route::forge_route as route};
 use jig_domain_tasks as tasks;
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
@@ -12,6 +12,7 @@ const HEAD: api::Commit = [3; 32];
 const GREEN: api::Commit = [11; 32];
 const RED: api::Commit = [12; 32];
 const TEST: &[u8] = b"test bin broken";
+const STALE_PULL: u64 = 99;
 
 fn has_ready(out: &Queue<forge::Request>) -> bool {
     for r in out {
@@ -53,6 +54,35 @@ enum MainMove {
     Opened,
 }
 
+fn take_call(out: &mut Queue<forge::Request>) -> Option<(Token, Op)> {
+    let mut call = None;
+    while let Some(request) = out.pop() {
+        if let forge::Request::Call { call: token, op, .. } = request {
+            assert!(call.is_none());
+            call = Some((token, op));
+        }
+    }
+    call
+}
+
+fn open_pull(number: u64, head: Box<[u8]>, base: Box<[u8]>, commit: api::Commit) -> api::Pull {
+    api::Pull {
+        number,
+        state: api::State::Open,
+        head,
+        base,
+        commit,
+        base_commit: Some(BASE),
+        merged: None,
+        mergeable: true,
+        ci: api::Ci::Passed,
+        queued: None,
+        dequeued: None,
+        size: None,
+        reviewers: Box::new([]),
+    }
+}
+
 struct Round {
     domain: Domain,
     env: Env<Limits>,
@@ -61,8 +91,18 @@ struct Round {
     prefixes: [Option<api::Commit>; 4],
     pull: Option<api::Pull>,
     main: api::Commit,
+    refuse_deletion: bool,
 }
 impl Round {
+    fn restoring(domain: Domain, env: Env<Limits>, row: &forge::LandingRow) -> Self {
+        let task = row.landing.task;
+        let mut round =
+            Self { domain, env, task, entry: 100, prefixes: [None; 4], pull: None, main: BASE, refuse_deletion: false };
+        while round.domain.work.pop().is_some() {}
+        round.domain.forge.restore_begin(round.env.wall);
+        round
+    }
+
     // The snapshots are at the search boundary, with the prepare's conflicts and
     // the selected search's blame retained. The top tests drive their earlier steps.
     fn cut(number: u16, kept: usize, whole: bool) -> Self {
@@ -73,13 +113,9 @@ impl Round {
         limits.forge.landing_members = 4;
         limits.authority.segments = 8;
         let (domain, env, mut row) = reserved_turn_landing_with_limits(&limits);
-        let task = row.landing.task;
-        let mut r = Self { domain, env, task, entry: 100, prefixes: [None; 4], pull: None, main: BASE };
-        while r.domain.work.pop().is_some() {}
-        r.domain.forge.restore_begin(r.env.wall);
+        let mut r = Self::restoring(domain, env, &row);
         let template = row.landing.members[0].clone();
         let mut members = List::uncapped();
-        let mut asks = List::uncapped();
         for i in 0_usize..if three { 3 } else { 4 } {
             let mut m = template.clone();
             m.change = 7_u64.checked_add(i.try_into().unwrap()).unwrap();
@@ -90,7 +126,7 @@ impl Round {
             m.round = Some(number);
             m.branch = skein_lib::bytes::concat(&[
                 b"temper/1/l",
-                skein_lib::Decimal::of(task).as_bytes(),
+                skein_lib::Decimal::of(r.task).as_bytes(),
                 b"-",
                 skein_lib::Decimal::of(i.try_into().unwrap()).as_bytes(),
             ]);
@@ -118,24 +154,16 @@ impl Round {
                 posted: policy::Posted::Nothing,
                 faults: 0,
             }]);
-            let mut change = r.domain.forge.change(7).unwrap().clone();
-            change.task = m.change;
-            change.change.task = m.change;
-            change.change.state =
-                temper_engine_domain_forge_change::State::Ready { head: HEAD, ready_since: r.env.wall };
-            change.change.gates = Box::new([]);
-            change.pull = Some(m.pull);
+            let mut change = r.ready_change(m.change, m.pull);
             change.branch =
                 skein_lib::bytes::concat(&[b"temper/c", skein_lib::Decimal::of(i.try_into().unwrap()).as_bytes()]);
             r.send(forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) });
             members.push(m).unwrap();
-            asks.push(None).unwrap();
         }
         row.landing.members = members.into_boxed();
-        row.asks = asks.into_boxed();
         row.landing.preparation = number;
         row.landing.phase = policy::Phase::Proving;
-        row.landing.round.pull = Some(99);
+        row.landing.round.pull = Some(STALE_PULL);
         row.landing.round.ending = Some(policy::RoundEnd::Cut);
         row.landing.round.changed = Some(if three {
             2
@@ -236,22 +264,13 @@ impl Round {
     }
     fn stale() -> Self {
         let (domain, env, mut row) = reserved_turn_landing();
-        let task = row.landing.task;
-        let mut r = Self {
-            domain,
-            env,
-            task,
-            entry: 100,
-            prefixes: [Some(GREEN), None, None, None],
-            pull: None,
-            main: [19; 32],
-        };
-        while r.domain.work.pop().is_some() {}
-        r.domain.forge.restore_begin(r.env.wall);
+        let mut r = Self::restoring(domain, env, &row);
+        r.prefixes[0] = Some(GREEN);
+        r.main = [19; 32];
         row.landing.phase = policy::Phase::Turn { at: r.env.wall };
         row.landing.preparation = 1;
         row.landing.branch = b"temper/1/g99".as_slice().into();
-        row.landing.round.pull = Some(99);
+        row.landing.round.pull = Some(STALE_PULL);
         row.landing.round.upstream = Some(BASE);
         let m = &mut row.landing.members[0];
         m.pull = 1;
@@ -259,12 +278,9 @@ impl Round {
         m.base = Some(BASE);
         m.candidate = Some(GREEN);
         m.combined = Some(policy::Combine::Squash);
-        let mut change = r.domain.forge.change(7).unwrap().clone();
+        let mut change = r.ready_change(7, 1);
         change.base = row.landing.branch.clone();
         change.branch = b"temper/c0".as_slice().into();
-        change.change.state = temper_engine_domain_forge_change::State::Ready { head: HEAD, ready_since: r.env.wall };
-        change.change.gates = Box::new([]);
-        change.pull = Some(1);
         r.send(forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) });
         r.send(forge::Event::Restore {
             record: forge::Stored::Hold(forge::Hold {
@@ -288,6 +304,16 @@ impl Round {
         r.install(row);
         r
     }
+    fn ready_change(&self, task: u64, pull: u64) -> forge::ChangeRow {
+        let mut change = self.domain.forge.change(7).unwrap().clone();
+        change.task = task;
+        change.change.task = task;
+        change.change.state =
+            temper_engine_domain_forge_change::State::Ready { head: HEAD, ready_since: self.env.wall };
+        change.change.gates = Box::new([]);
+        change.pull = Some(pull);
+        change
+    }
     fn install(&mut self, row: forge::LandingRow) {
         let mut top = None;
         for member in &row.landing.members {
@@ -296,21 +322,7 @@ impl Round {
             }
         }
         let top = top.unwrap();
-        self.pull = Some(api::Pull {
-            number: 99,
-            state: api::State::Open,
-            head: top.branch.clone(),
-            base: row.landing.branch.clone(),
-            commit: top.candidate.unwrap(),
-            base_commit: Some(BASE),
-            merged: None,
-            mergeable: true,
-            ci: api::Ci::Passed,
-            queued: None,
-            dequeued: None,
-            size: None,
-            reviewers: Box::new([]),
-        });
+        self.pull = Some(open_pull(STALE_PULL, top.branch.clone(), row.landing.branch.clone(), top.candidate.unwrap()));
         self.send(forge::Event::Restore { record: forge::Stored::Landing(row) });
         self.send(forge::Event::Connection {
             forge: 1,
@@ -351,21 +363,11 @@ impl Round {
                 {
                     return Ok(Answer::Pull(pull.clone()));
                 }
-                Ok(Answer::Pull(api::Pull {
-                    number,
-                    state: api::State::Open,
-                    head: Box::new([]),
-                    base: row.landing.branch.clone(),
-                    commit: HEAD,
-                    base_commit: Some(BASE),
-                    merged: if self.main == GREEN { merged_member(row, number) } else { None },
-                    mergeable: true,
-                    ci: api::Ci::Passed,
-                    queued: None,
-                    dequeued: None,
-                    size: None,
-                    reviewers: Box::new([]),
-                }))
+                let mut pull = open_pull(number, Box::new([]), row.landing.branch.clone(), HEAD);
+                if self.main == GREEN {
+                    pull.merged = merged_member(row, number);
+                }
+                Ok(Answer::Pull(pull))
             }
             Read::PullFor { head, .. } => {
                 if let Some(pull) = &self.pull
@@ -396,6 +398,16 @@ impl Round {
                 more: false,
             }),
             Read::Items { .. } => Ok(Answer::Items { items: Box::new([]), more: false, cut: false, now: self.env.now }),
+            Read::Permission { user } => Ok(Answer::Permission(api::UserPermission {
+                user,
+                login: b"bot".as_slice().into(),
+                permission: api::Permission::Write,
+            })),
+            Read::Settings => Ok(Answer::Settings(
+                self.domain.forge.repository(api::Repository { forge: 1, repository: 1 }).unwrap().settings.clone(),
+            )),
+            Read::Protection { .. } => Ok(Answer::Protection(None)),
+            Read::File { .. } => Err(Error::Missing),
             other => panic!("unexpected round read {other:?}"),
         }
     }
@@ -416,11 +428,20 @@ impl Round {
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: Some(preparation),
-                released: false,
+                released: self.domain.core.tasks.task(self.task).unwrap().due_reason == tasks::Why::Released,
                 cancelled: false,
                 kept: Box::new([]),
             },
         });
+        self.read_until_handoff(out)
+    }
+    fn decide(&mut self) -> Queue<forge::Request> {
+        let out = self.gather();
+        if !has_ready(&out) {
+            return out;
+        }
+        let mut out = Queue::uncapped();
+        self.domain.forge.decide_landing(&self.env.with(self.env.limits.forge), self.task, true, &mut out);
         self.read_until_handoff(out)
     }
     fn read_until_handoff(&mut self, mut out: Queue<forge::Request>) -> Queue<forge::Request> {
@@ -437,31 +458,23 @@ impl Round {
             if has_handoff(&out) {
                 return out;
             }
-            let mut call = None;
-            while let Some(r) = out.pop() {
-                if let forge::Request::Call { call: token, op, .. } = r {
-                    assert!(call.is_none());
-                    call = Some((token, op));
-                }
-            }
-            let (call, Op::Read(read)) = call.expect("round reads") else { panic!("only reads before handoff") };
+            let (call, Op::Read(read)) = take_call(&mut out).expect("round reads") else {
+                panic!("only reads before handoff")
+            };
             let result = self.answer(read);
-            out = self.send(forge::Event::Client(skein_forge_client::Event::Answered {
-                call,
-                free: 0,
-                rate: None,
-                cost: 1,
-                result,
-            }));
+            out = self.answered(call, result);
             self.domain.forge.reclaim();
         }
         panic!("round decision");
     }
+    fn step_core(&mut self, event: jig_domain_core::Event) {
+        drop(jig_domain_core::step(&mut self.domain.core, &crate::limits::environment_core(&self.env), event));
+    }
     fn take_step(&mut self) {
         let (_, _, step) = self.domain.core.tasks.procedure_due(self.task).expect("due landing");
-        tasks::step(
-            &mut self.domain.core.tasks,
-            &self.env.with(self.env.limits.tasks),
+        task_event(
+            &mut self.domain,
+            &self.env,
             tasks::Event::Procedure {
                 reads_project: false,
                 reply_to: ReplyTo::new(Token::new(999)),
@@ -470,17 +483,11 @@ impl Round {
                 read: None,
                 decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
             },
-            &mut Queue::uncapped(),
         );
         assert!(self.domain.core.tasks.procedure_due(self.task).is_none());
     }
     fn wake(&mut self) {
-        tasks::step(
-            &mut self.domain.core.tasks,
-            &self.env.with(self.env.limits.tasks),
-            tasks::Event::WakeProcedure { task: self.task },
-            &mut Queue::uncapped(),
-        );
+        task_event(&mut self.domain, &self.env, tasks::Event::WakeProcedure { task: self.task });
         assert!(self.domain.core.tasks.procedure_due(self.task).is_some());
     }
     fn route(&mut self, mut out: Queue<forge::Request>) {
@@ -497,12 +504,7 @@ impl Round {
     }
     #[expect(clippy::wildcard_enum_match_arm, reason = "only the procedure handoff belongs to this fixture")]
     fn forward(&mut self, expected: policy::Decision) {
-        let mut out = self.gather();
-        if has_ready(&out) {
-            out = Queue::uncapped();
-            self.domain.forge.decide_landing(&self.env.with(self.env.limits.forge), self.task, true, &mut out);
-            out = self.read_until_handoff(out);
-        }
+        let mut out = self.decide();
         let mut entry = None;
         let mut handoff = Queue::uncapped();
         while let Some(request) = out.pop() {
@@ -518,11 +520,7 @@ impl Round {
         while let Some(work) = self.domain.work.pop() {
             match work {
                 Work::Core(event @ jig_domain_core::Event::ProcedureStep { .. }) => {
-                    drop(jig_domain_core::step(
-                        &mut self.domain.core,
-                        &crate::limits::environment_core(&self.env),
-                        event,
-                    ));
+                    self.step_core(event);
                 }
                 Work::Core(jig_domain_core::Event::EffectStart { owner, .. }) => {
                     started = true;
@@ -551,12 +549,7 @@ impl Round {
         if self.domain.core.tasks.procedure_due(self.task).is_none() {
             self.wake();
         }
-        let mut out = self.gather();
-        if has_ready(&out) {
-            out = Queue::uncapped();
-            self.domain.forge.decide_landing(&self.env.with(self.env.limits.forge), self.task, true, &mut out);
-            out = self.read_until_handoff(out);
-        }
+        let mut out = self.decide();
         let mut decided = None;
         let mut handoff = Queue::uncapped();
         while let Some(request) = out.pop() {
@@ -576,11 +569,7 @@ impl Round {
                     }
                 }
                 Work::Core(event @ jig_domain_core::Event::ProcedureStep { .. }) => {
-                    drop(jig_domain_core::step(
-                        &mut self.domain.core,
-                        &crate::limits::environment_core(&self.env),
-                        event,
-                    ));
+                    self.step_core(event);
                 }
                 Work::Tasks(tasks::Event::WakeProcedure { task }) if task == self.task => self.wake(),
                 other => panic!("unexpected handoff {other:?}"),
@@ -598,16 +587,13 @@ impl Round {
             if written && self.domain.forge.describe_landing_effect(self.task, entry).is_none() {
                 return;
             }
-            let mut call = None;
-            while let Some(r) = out.pop() {
-                if let forge::Request::Call { call: token, op, .. } = r {
-                    assert!(call.is_none());
-                    call = Some((token, op));
-                }
-            }
-            let (call, op) = call.expect("round effect");
+            let (call, op) = take_call(&mut out).expect("round effect");
             let result = match op {
                 Op::Read(read) => self.answer(read),
+                Op::Write(Write::DeleteBranch { .. }) if self.refuse_deletion => {
+                    self.refused_deletion(call);
+                    return;
+                }
                 Op::Write(write) => {
                     assert!(!written);
                     written = true;
@@ -625,21 +611,7 @@ impl Round {
                         Write::OpenPull { head, base, .. } => {
                             let row = self.domain.forge.landing(self.task).unwrap();
                             let i = member_at(row, &head);
-                            self.pull = Some(api::Pull {
-                                number: entry,
-                                state: api::State::Open,
-                                head,
-                                base,
-                                commit: self.prefixes[i].unwrap(),
-                                base_commit: Some(BASE),
-                                merged: None,
-                                mergeable: true,
-                                ci: api::Ci::Passed,
-                                queued: None,
-                                dequeued: None,
-                                size: None,
-                                reviewers: Box::new([]),
-                            });
+                            self.pull = Some(open_pull(entry, head, base, self.prefixes[i].unwrap()));
                             Answer::Created(entry)
                         }
                         Write::Status { .. } => Answer::Done,
@@ -652,17 +624,37 @@ impl Round {
                     })
                 }
             };
-            self.send(forge::Event::Client(skein_forge_client::Event::Answered {
-                call,
-                free: 0,
-                rate: None,
-                cost: 1,
-                result,
-            }));
+            self.answered(call, result);
             self.domain.forge.reclaim();
         }
         panic!("round effect settles");
     }
+    fn answered(&mut self, call: Token, result: Result<Answer, Error>) -> Queue<forge::Request> {
+        self.send(forge::Event::Client(skein_forge_client::Event::Answered {
+            call,
+            free: 0,
+            rate: None,
+            cost: 1,
+            result,
+        }))
+    }
+    fn refused_deletion(&mut self, call: Token) {
+        let mut out = self.answered(call, Err(Error::Forbidden));
+        let mut outcome = Queue::uncapped();
+        while let Some(request) = out.pop() {
+            if let forge::Request::Outcome { .. } = request {
+                outcome.push(request);
+            }
+        }
+        assert_eq!(outcome.len(), 1, "the refused deletion answers its outbox entry");
+        self.route(outcome);
+        let Some(Work::Core(jig_domain_core::Event::EffectConnector(_))) = self.domain.work.pop() else {
+            panic!("the root settles the connector's outbox entry without a hold")
+        };
+        assert!(self.domain.work.is_empty(), "the outbox answer did not ask for a second hold");
+        self.domain.forge.reclaim();
+    }
+
     fn finish_cut(&mut self, kept: usize) {
         use policy::Decision as D;
         let member = u16::try_from(kept.checked_sub(1).unwrap()).unwrap();
@@ -873,4 +865,34 @@ fn an_ended_prepare_with_no_kept_answer_is_asked_again_once_then_held() {
     }
     assert_eq!(prepares.as_slice(), [prepare, prepare, D::Hold(policy::Hold::Prepare)]);
     assert!(waited, "the replacement waits a poll");
+}
+
+#[test]
+fn a_refused_deletion_holds_once_and_one_release_retries_it() {
+    use policy::Decision as D;
+    let mut r = Round::stale();
+    let Ok(Answer::Pull(mut pull)) = r.answer(Read::Pull { number: STALE_PULL, ci: false }) else {
+        panic!("round pull")
+    };
+    pull.state = api::State::Closed;
+    r.pull = Some(pull);
+    r.forward(D::None);
+    r.refuse_deletion = true;
+    r.forward(D::Delete { member: 0 });
+    r.forward(D::Hold(policy::Hold::Cleanup));
+    let task = r.domain.core.tasks.task(r.task).unwrap();
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &task.phase else {
+        panic!("the round's procedure holds the task: {:?}", task.phase);
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("cleanup hold account") };
+    assert!(words.starts_with(b"cleanup: delete branch"));
+    r.step_core(jig_domain_core::Event::Tasks(tasks::Event::Release {
+        reply_to: ReplyTo::new(Token::new(998)),
+        by: tasks::Party::Person(1),
+        operation: tasks::Release { task: r.task, again: None, message: None },
+    }));
+    r.refuse_deletion = false;
+    r.forward(D::None);
+    r.forward(D::Delete { member: 0 });
+    r.forward(D::Stale);
 }

@@ -1,6 +1,6 @@
 //! Seeded deletion invariants over event sequences (qa/ledger.md, 4.6).
 use super::{case, landing};
-use temper_qa_tool::{BuildState, CaseState, Exit, FindingState, Ledger, PassState};
+use temper_qa_tool::{BuildState, CaseState, Exit, FindingState, Kind, Ledger, PassState, SessionKind};
 
 struct Random(u64);
 impl Random {
@@ -29,7 +29,12 @@ fn run(seed: u64) -> (Ledger, usize) {
                 }
             }
             2..=4 => {
-                if let Some(number) = ledger.running_sessions().first().map(|session| session.number) {
+                if let Some(number) = ledger
+                    .running_sessions()
+                    .iter()
+                    .find(|session| session.kind == SessionKind::Triage)
+                    .map(|session| session.number)
+                {
                     if event == 2 {
                         let _ = ledger.answer_none(number, "internals");
                     }
@@ -59,9 +64,15 @@ fn run(seed: u64) -> (Ledger, usize) {
                 }
             }
             7 => {
-                if !ledger.builds.is_empty() {
-                    let index = usize::try_from(random.next()).expect("64-bit host") % ledger.builds.len();
-                    ledger.builds[index].held = if random.next().is_multiple_of(2) { Some(1) } else { None };
+                if random.next().is_multiple_of(2) {
+                    let _ = ledger.start_pass("places/1", Kind::Box, &["web".into()], "high", now);
+                } else if let Some(number) = ledger
+                    .running_sessions()
+                    .iter()
+                    .find(|session| session.kind == SessionKind::Pass)
+                    .map(|session| session.number)
+                {
+                    ledger.end_pass_session(number, Exit::Unstarted, None, now, "qa", &[]).expect("release");
                 }
             }
             8 => {
@@ -78,42 +89,53 @@ fn run(seed: u64) -> (Ledger, usize) {
             }
             _ => unreachable!("eleven events"),
         }
-        // The referee computes reachability and newest-held-case protection from records,
-        // not by calling the predicates it checks.
-        for build in ledger.deletable_builds() {
-            candidates += 1;
-            assert_eq!(build.state, BuildState::Kept, "seed {seed}, step {step}");
-            assert_eq!(build.held, None, "seed {seed}, step {step}: held");
-            let holds = build.holds.as_ref().expect("deletable has known holds");
-            assert!(
-                holds.iter().all(|number| ledger
-                    .landings
-                    .iter()
-                    .any(|landing| landing.number == *number && landing.triaged.is_some())),
-                "seed {seed}, step {step}: unreached"
-            );
-            let newest = ledger
-                .builds
-                .iter()
-                .filter(|other| other.state == BuildState::Kept)
-                .filter(|other| {
-                    other.holds.as_ref().is_some_and(|holds| {
-                        holds.iter().all(|number| {
-                            ledger.landings.iter().any(|landing| landing.number == *number && landing.triaged.is_some())
-                        })
-                    })
-                })
-                .filter_map(|other| other.order)
-                .max();
-            if build.order == newest {
-                assert!(
-                    !ledger.cases.iter().flat_map(|case| &case.asks).any(|ask| holds.contains(&ask.landing)),
-                    "seed {seed}, step {step}: newest reached case build"
-                );
-            }
-        }
+        check_running_holds(&ledger, seed, step);
+        candidates += check_deletion_candidates(&ledger, seed, step);
     }
     (ledger, candidates)
+}
+
+// The referee computes reachability and newest-held-case protection from records,
+// not by calling the predicates it checks.
+fn check_deletion_candidates(ledger: &Ledger, seed: u64, step: u64) -> usize {
+    let candidates = ledger.deletable_builds();
+    for build in &candidates {
+        assert_eq!(build.state, BuildState::Kept, "seed {seed}, step {step}");
+        assert_eq!(build.held, None, "seed {seed}, step {step}: held");
+        let holds = build.holds.as_ref().expect("deletable has known holds");
+        assert!(
+            holds.iter().all(|number| ledger
+                .landings
+                .iter()
+                .any(|landing| landing.number == *number && landing.triaged.is_some())),
+            "seed {seed}, step {step}: unreached"
+        );
+        let newest = ledger
+            .builds
+            .iter()
+            .filter(|other| other.state == BuildState::Kept)
+            .filter(|other| {
+                other.holds.as_ref().is_some_and(|holds| {
+                    holds.iter().all(|number| {
+                        ledger.landings.iter().any(|landing| landing.number == *number && landing.triaged.is_some())
+                    })
+                })
+            })
+            .filter_map(|other| other.order)
+            .max();
+        if build.order == newest {
+            assert!(
+                !ledger
+                    .cases
+                    .iter()
+                    .filter(|case| case.state == CaseState::Queued)
+                    .flat_map(|case| &case.asks)
+                    .any(|ask| holds.contains(&ask.landing)),
+                "seed {seed}, step {step}: newest reached case build"
+            );
+        }
+    }
+    candidates.len()
 }
 #[test]
 fn deletion_invariants_replay_seeded_event_sequences() {
@@ -125,6 +147,18 @@ fn deletion_invariants_replay_seeded_event_sequences() {
         candidates += first.1;
     }
     assert!(candidates > 0, "deletion was exercised");
+}
+
+fn check_running_holds(ledger: &Ledger, seed: u64, step: u64) {
+    for build in &ledger.builds {
+        if let Some(owner) = build.held {
+            assert!(
+                ledger.passes.iter().any(|pass| pass.number == owner && pass.state == PassState::Running),
+                "seed {seed}, step {step}: build {} held by non-running pass {owner}",
+                build.commit
+            );
+        }
+    }
 }
 
 #[expect(clippy::too_many_lines, reason = "one seeded loop shows the nine events and checks its records after each")]
@@ -309,6 +343,7 @@ fn pass_sequence(seed: u64) -> (Ledger, [u64; 9]) {
                 "seed {seed}, step {step}: assignment stolen from another live session"
             );
         }
+        check_running_holds(&ledger, seed, step);
         for build in &ledger.builds {
             if build.held.is_some() {
                 assert_eq!(build.state, BuildState::Kept, "seed {seed}, step {step}");

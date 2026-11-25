@@ -1,5 +1,5 @@
 //! The browser and its operations, each advanced by one reply or event.
-//! Looking brings its page forward (skein/docs/design/testing/browser.md, 6).
+//! Looking brings its page forward; the kit takes its own inspector refusal (skein/docs/design/testing/browser.md, 6–7).
 
 #![expect(
     clippy::disallowed_types,
@@ -53,7 +53,10 @@ struct Download {
     name: Box<[u8]>,
 }
 
-#[expect(clippy::struct_excessive_bools, reason = "request reporting is an opt-in independent of the page lifecycle")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "request reporting and file mode are independent of the page lifecycle"
+)]
 #[derive(Debug)]
 struct Page {
     token: Token,
@@ -62,6 +65,8 @@ struct Page {
     session: Option<Box<[u8]>>,
     initial_url: Box<[u8]>,
     requests: bool,
+    files: bool,
+    css: render::Css,
     frame: Option<Box<[u8]>>,
     document: document::Root,
     navigating: bool,
@@ -104,6 +109,7 @@ enum OpKind {
     Address,
     Tabs,
     Attribute { selector: Box<[u8]>, name: Box<[u8]>, until: Time },
+    Render { read: render::Read, until: Time },
     Snapshot,
     Screenshot,
 }
@@ -135,6 +141,8 @@ enum PendingKind {
     Attach(Token),
     Enable(Token, u8),
     RequestFrame(Token),
+    Css(Token),
+    Paused(Token),
     Viewport(Token),
     Navigate(Token),
     Step(Token, Step),
@@ -176,6 +184,7 @@ enum Step {
     AttributeRoot,
     AttributeSelector,
     AttributeValue,
+    Render(render::Step),
     Snapshot,
     Screenshot,
 }
@@ -462,13 +471,17 @@ impl Browser {
                 || method.starts_with(b"DOM.")
                 || method == b"Runtime.evaluate"
                 || method == b"Page.bringToFront"
+                || method == b"CSS.getComputedStyleForNode"
                 || address)
         {
             if let Some(command) = self.outgoing.back_mut() {
                 command.read = Some(page);
             }
             if let PendingKind::Step(op, _) = kind
-                && let Some(Operation { kind: OpKind::Find { expect: Some((_, until)), .. }, .. }) = self.op(op)
+                && let Some(Operation {
+                    kind: OpKind::Find { expect: Some((_, until)), .. } | OpKind::Render { until, .. },
+                    ..
+                }) = self.op(op)
             {
                 let until = *until;
                 if let Some(pending) = self.pending.last_mut() {
@@ -591,7 +604,7 @@ impl Browser {
                     self.close_person_local(person);
                 }
             }
-            Request::Page { person, page, url, requests } => {
+            Request::Page { person, page, url, requests, files } => {
                 let context = match self.person(person) {
                     Some(person) if !person.closing => person.context.clone(),
                     Some(_) | None => None,
@@ -612,6 +625,8 @@ impl Browser {
                         session: None,
                         initial_url: url,
                         requests,
+                        files,
+                        css: render::Css::Disabled,
                         frame: None,
                         document: document::Root::Empty,
                         navigating: false,
@@ -761,6 +776,20 @@ impl Browser {
                 }
                 self.issue_step(env, op, b"Page.bringToFront", &Params::Empty, Step::FrontScreenshot);
             }
+            Request::Elements { page, op, selector } => {
+                let limit = usize::try_from(env.limits.text).expect("text fits usize");
+                if let Some(selector) = &selector
+                    && selector.len() > limit
+                {
+                    self.events.push_back(Event::Refused { op, why: Refusal::Limit, detail: Box::default() });
+                    return;
+                }
+                self.read_render(env, page, op, render::Read::Elements { selector, tree: None });
+            }
+            Request::Style { page, op, node } => {
+                self.read_render(env, page, op, render::Read::Style { node, waiting_css: false });
+            }
+            Request::Rect { page, op, node } => self.read_render(env, page, op, render::Read::Rect(node)),
             Request::Close { entity } => self.close(env, entity),
         }
     }
@@ -1171,7 +1200,10 @@ fn ax_property_bool(property: Value<'_>) -> bool {
 fn parse_rect(result: Value<'_>) -> Option<Rect> {
     let mut quads = result.get(b"quads")?.array()?;
     let quad = quads.next()?;
-    let mut points = quad.array()?;
+    quad_rect(quad.array()?)
+}
+
+fn quad_rect(mut points: Array<'_>) -> Option<Rect> {
     let mut left = i64::MAX;
     let mut top = i64::MAX;
     let mut right = i64::MIN;
@@ -1346,6 +1378,8 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
                 }
             }
             PendingKind::Release | PendingKind::Dialog => {}
+            PendingKind::Css(page) => browser.css_refused(env, page, Refusal::Timeout, b""),
+            PendingKind::Paused(page) => browser.interception_failed(page),
             PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => {
                 browser.end(Ending::Unanswered, bounded_detail(pending.method, env.limits.text));
             }
@@ -1372,34 +1406,7 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
             }
         }
         if let Some(op) = due {
-            let is_find = match browser.op(op) {
-                Some(Operation { kind: OpKind::Find { .. }, .. }) => true,
-                Some(Operation {
-                    kind:
-                        OpKind::Go(_)
-                        | OpKind::Press { .. }
-                        | OpKind::Type { .. }
-                        | OpKind::Key { .. }
-                        | OpKind::Attribute { .. }
-                        | OpKind::Tabs
-                        | OpKind::Viewport
-                        | OpKind::Address
-                        | OpKind::Snapshot
-                        | OpKind::Screenshot,
-                    ..
-                })
-                | None => false,
-            };
-            if let Some(op_state) = browser.op_mut(op) {
-                op_state.due = None;
-            }
-            if is_find {
-                browser.start_find(env, op);
-            } else if let Some(Operation { kind: OpKind::Attribute { .. }, .. }) = browser.op(op) {
-                browser.start_attribute(env, op);
-            } else {
-                browser.finish_refused(op, Refusal::Timeout);
-            }
+            browser.fire_op(env, op);
         } else {
             let mut page_due = None;
             for page in browser.pages.iter().flatten() {
@@ -1437,6 +1444,25 @@ fn key_info(key: Key) -> (&'static [u8], &'static [u8], u64, &'static [u8]) {
 }
 
 impl Browser {
+    fn fire_op(&mut self, env: &Env<Limits>, token: Token) {
+        let Some(op) = self.op_mut(token) else { return };
+        op.due = None;
+        match op.kind {
+            OpKind::Find { .. } => self.start_find(env, token),
+            OpKind::Attribute { .. } => self.start_attribute(env, token),
+            OpKind::Render { .. } => self.start_render(env, token),
+            OpKind::Go(_)
+            | OpKind::Press { .. }
+            | OpKind::Type { .. }
+            | OpKind::Key { .. }
+            | OpKind::Tabs
+            | OpKind::Viewport
+            | OpKind::Address
+            | OpKind::Snapshot
+            | OpKind::Screenshot => self.finish_refused(token, Refusal::Timeout),
+        }
+    }
+
     fn keep_stderr(&mut self, env: &Env<Limits>, bytes: &[u8]) {
         let limit = usize::try_from(env.limits.stderr).expect("u32 fits usize");
         let room_for_old = limit.saturating_sub(bytes.len());
@@ -1551,6 +1577,8 @@ impl Browser {
         };
         match kind {
             PendingKind::Release | PendingKind::Dialog => {}
+            PendingKind::Css(page) => self.css_refused(env, page, Refusal::Protocol, &message),
+            PendingKind::Paused(page) => self.interception_failed(page),
             PendingKind::Version | PendingKind::CancelBrowser | PendingKind::CloseBrowser => {
                 self.end(Ending::Refused, protocol_detail(method, &message, env.limits.text));
             }
@@ -1566,7 +1594,12 @@ impl Browser {
             | PendingKind::Navigate(page)
             | PendingKind::ClosePage(page) => self.close_page_local(page),
             PendingKind::Step(op, step) => {
+                if step == Step::Render(render::Step::Rect) && message.as_ref() == b"Could not compute box model." {
+                    self.render_done(op, Event::Rect { op, rect: None });
+                    return;
+                }
                 let reason = if step == Step::AttributeSelector
+                    || step == Step::Render(render::Step::Select)
                     || (why == Refusal::Gone
                         && (step == Step::MouseMove || step == Step::MouseDown || step == Step::MouseUp))
                 {
@@ -1605,14 +1638,17 @@ impl Browser {
             }
             return true;
         }
-        if let PendingKind::Step(op, Step::AttributeSelector | Step::AttributeValue) = kind
+        if let PendingKind::Step(
+            op,
+            Step::AttributeSelector | Step::AttributeValue | Step::Render(render::Step::Select),
+        ) = kind
             && node_missing(message)
         {
-            // A render replaced the element between the selector and its
-            // read: the read starts again from the document until its
-            // deadline.
+            // A replaced node invalidated a frontend id. Start again
+            // from the document, under the original deadline.
             let again = env.now.saturating_add(env.limits.poll);
-            if let Some(Operation { kind: OpKind::Attribute { until, .. }, due, .. }) = self.op_mut(op)
+            if let Some(Operation { kind: OpKind::Attribute { until, .. } | OpKind::Render { until, .. }, due, .. }) =
+                self.op_mut(op)
                 && again < *until
             {
                 *due = Some(again);
@@ -1626,7 +1662,8 @@ impl Browser {
 
     fn reply(&mut self, env: &Env<Limits>, method: &[u8], kind: PendingKind, result: Value<'_>) {
         match kind {
-            PendingKind::Release | PendingKind::Dialog => {}
+            PendingKind::Release | PendingKind::Dialog | PendingKind::Paused(_) => {}
+            PendingKind::Css(page) => self.css_enabled(env, page),
             PendingKind::Version => {
                 let version = field_text(result, b"product").unwrap_or_default();
                 self.phase = Phase::Ready;
@@ -1716,6 +1753,8 @@ impl Browser {
         }
     }
 
+    const ENABLE_FILES: u8 = 6;
+
     fn enable(&mut self, env: &Env<Limits>, page: Token, index: u8) {
         // AX queries only use AX ids within one reply. DOM.getDocument
         // enables DOM events implicitly; other DOM reads need no subscription.
@@ -1731,6 +1770,16 @@ impl Browser {
             }
         } else if position == DOMAINS.len().saturating_add(1) && self.page_requests(page) {
             if !self.queue_page(env, page, b"Page.getFrameTree", &Params::Empty, PendingKind::RequestFrame(page)) {
+                self.close_page_local(page);
+            }
+        } else if index <= Self::ENABLE_FILES && self.page_files(page) {
+            if !self.queue_page(
+                env,
+                page,
+                b"Fetch.enable",
+                &Params::FetchEnable,
+                PendingKind::Enable(page, Self::ENABLE_FILES),
+            ) {
                 self.close_page_local(page);
             }
         } else if !self.queue_page(
@@ -1800,6 +1849,11 @@ impl Browser {
         let page = self.notification_page(session.as_deref());
         let params = root.get(b"params");
         match method {
+            b"Fetch.requestPaused" => {
+                if let (Some(page), Some(params)) = (page, params) {
+                    self.request_paused(env, page, params);
+                }
+            }
             b"Network.requestWillBeSent" => {
                 if let (Some(page), Some(params)) = (page, params) {
                     self.request_sent(env, page, params);
@@ -1894,9 +1948,16 @@ impl Browser {
                     let entry = params.get(b"entry");
                     if opt_text(opt_field(entry, b"level")).as_deref() == Some(b"error") {
                         let text = opt_text(opt_field(entry, b"text")).unwrap_or_default();
+                        let source = opt_field(entry, b"source");
                         if text.starts_with(BLOCKED_LEAVE_PROMPT)
-                            && opt_text(opt_field(entry, b"source")).as_deref() == Some(b"intervention")
+                            && opt_text(source).as_deref() == Some(b"intervention")
                             && self.warn_go(page)
+                        {
+                            return;
+                        }
+                        if let Some(Page { css: render::Css::Enabling, .. }) = self.page(page)
+                            && opt_text(source).as_deref() == Some(b"security")
+                            && inspector_self_load_refused(&text)
                         {
                             return;
                         }
@@ -2366,6 +2427,7 @@ impl Browser {
             Step::AttributeRoot | Step::AttributeSelector | Step::AttributeValue => {
                 self.attribute_reply(env, token, method, step, result);
             }
+            Step::Render(step) => self.render_reply(env, token, method, step, result),
             Step::Tabs => self.tabs_reply(env, token, result),
             Step::Address => {
                 let current = field_i64(result, b"currentIndex");
@@ -2502,6 +2564,7 @@ impl Browser {
             | Step::AttributeRoot
             | Step::AttributeSelector
             | Step::AttributeValue
+            | Step::Render(_)
             | Step::Tabs
             | Step::Viewport
             | Step::Address
@@ -2524,10 +2587,15 @@ mod download_tests;
 
 mod document;
 mod download;
+mod files;
+mod render;
 mod request;
 
 #[cfg(test)]
 mod request_tests;
+
+#[cfg(test)]
+mod cdp_tests;
 
 #[cfg(test)]
 mod credit_tests;
@@ -2537,10 +2605,10 @@ mod ending_tests;
 #[cfg(test)]
 mod press_tests;
 
-fn restarts_on_document(kind: &OpKind, attributes: bool) -> bool {
+fn restarts_on_document(kind: &OpKind, navigation: bool) -> bool {
     match kind {
-        OpKind::Find { query, .. } => attributes || query.within.is_none(),
-        OpKind::Attribute { .. } => attributes,
+        OpKind::Find { query, .. } => navigation || query.within.is_none(),
+        OpKind::Attribute { .. } | OpKind::Render { .. } => navigation,
         OpKind::Go(_)
         | OpKind::Press { .. }
         | OpKind::Type { .. }
@@ -2551,6 +2619,20 @@ fn restarts_on_document(kind: &OpKind, attributes: bool) -> bool {
         | OpKind::Snapshot
         | OpKind::Screenshot => false,
     }
+}
+
+fn inspector_self_load_refused(text: &[u8]) -> bool {
+    const FRAME: &[u8] = b" from frame with URL ";
+    if let Some(urls) = text.strip_prefix(b"Unsafe attempt to load URL ")
+        && let Some(at) = skein_lib::bytes::find(urls, FRAME)
+        && let Some((url, frame)) = urls.split_at_checked(at)
+        && !url.is_empty()
+        && let Some(frame) = frame.strip_prefix(FRAME)
+        && let Some(after_url) = frame.strip_prefix(url)
+    {
+        return after_url.starts_with(b".");
+    }
+    false
 }
 
 fn node_missing(message: &[u8]) -> bool {

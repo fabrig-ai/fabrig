@@ -2,7 +2,7 @@
 
 #![expect(clippy::disallowed_macros, reason = "synthetic CDP replies are formatted from fixture values")]
 
-use super::{Browser, Download, Page, Person, Phase, document, down, fire, up};
+use super::{Browser, Download, Page, Person, Phase, document, down, fire, render, up};
 use crate::boundary::{Below, Down, Ending, Event, Refusal, Request};
 use crate::{Limits, wire::decode::Document};
 use skein_lib::stream::{self, Fault, Read, Up};
@@ -98,6 +98,8 @@ impl Peer {
                 session: Some(b"session".as_slice().into()),
                 initial_url: b"about:blank".as_slice().into(),
                 requests: false,
+                files: false,
+                css: render::Css::Disabled,
                 frame: None,
                 document: document::Root::Empty,
                 navigating: false,

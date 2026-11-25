@@ -9,6 +9,8 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use skein_lib::List;
 
+pub(crate) const MAX_DEPTH: u32 = 64;
+
 /// A malformed or overlong CDP document.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DecodeError {
@@ -354,7 +356,7 @@ impl Parser<'_> {
     }
 
     fn object(&mut self, depth: u32) -> Result<(), DecodeError> {
-        if depth >= 64 {
+        if depth >= MAX_DEPTH {
             return Err(DecodeError::TooDeep);
         }
         self.take(b'{')?;
@@ -380,7 +382,7 @@ impl Parser<'_> {
     }
 
     fn array(&mut self, depth: u32) -> Result<(), DecodeError> {
-        if depth >= 64 {
+        if depth >= MAX_DEPTH {
             return Err(DecodeError::TooDeep);
         }
         self.take(b'[')?;

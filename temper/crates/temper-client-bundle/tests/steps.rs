@@ -220,6 +220,7 @@ fn bundle_reads_page_then_files_before_sorted_subdirectories() {
     ] {
         fs::write(root.join(path), "").expect("sample operation succeeds");
     }
+    let canonical_root = root.canonicalize().expect("canonicalize bundle root");
     let expected = [
         "index.html",
         "0123456789abcdef/b.js",
@@ -227,7 +228,7 @@ fn bundle_reads_page_then_files_before_sorted_subdirectories() {
         "0123456789abcdef/a/a.js",
         "0123456789abcdef/z/z.js",
     ]
-    .map(|path| (path.to_owned(), root.join(path)))
+    .map(|path| (path.to_owned(), canonical_root.join(path)))
     .into();
     assert_eq!(
         steps::bundle(&root).expect("sample operation succeeds"),

@@ -67,6 +67,8 @@ pub struct Domain {
     pub(crate) tasks: Slab<Task>,
     pub(crate) names: Map<u64, Id<Task>>,
     pub(crate) question_changes: List<u64>,
+    pub(crate) question_owners: Map<u64, u64>,
+    pub(crate) stuck: crate::stuck::Index,
     pub(crate) question_ends: Map<u64, List<u64>>,
     pub(crate) live_agents: u32,
     pub(crate) newest: u32,
@@ -271,6 +273,8 @@ impl Domain {
             tasks: Slab::with_capacity(limits.tasks),
             names: Map::with_capacity(limits.tasks),
             question_changes: List::uncapped(),
+            question_owners: Map::uncapped(),
+            stuck: crate::stuck::Index::new(limits),
             question_ends: Map::uncapped(),
             live_agents: 0,
             newest,
@@ -536,7 +540,7 @@ impl Domain {
         let record = record(self, task)?;
         let made_below = record.made.checked_sub(1)?;
         let tasks_left = record.authority.delegation.tasks.checked_sub(made_below)?;
-        let deciding = !crate::run::ends::pending(&[], record.flags.ended_by).open
+        let deciding = !crate::run::ends::pending(&[], record.flags.ended_by).open()
             && !crate::run::ends::kept(self, task).blocks_claims()
             && match record.phase {
                 Phase::Waiting | Phase::Active(_) => match record.executor {
@@ -840,8 +844,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::AuthorizedMessage { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
-        Event::DelegateResult { task, word } => {
-            crate::inbox::delegate_result(domain, env, task, word, out);
+        Event::DelegateResult { task, word, wake } => {
+            crate::inbox::delegate_result(domain, env, task, word, wake, out);
             crate::recurring::after_delegate(domain, env, task, out);
             crate::gathering::settle(domain, env, task, out);
         }
@@ -989,8 +993,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Retained { task, root, holding } => crate::holds::retained(domain, env, task, root, &holding, out),
         Event::Settled { task } => crate::closing::settled(domain, env, task, out),
         Event::QuestionOwedNotice { task, message } => crate::questions::owed(domain, env, task, message, out),
+        Event::RecheckStuck => crate::stuck::review(domain, env, out),
         Event::QuestionParked { task, question, reason } => {
-            crate::run::question_parked(domain, env, task, question, &reason, out);
+            crate::stuck::reasoned(domain, env, task, question, reason, out);
         }
         Event::NothingAwaitedNotice { task, message } => {
             crate::run::nothing_awaited_notice(domain, env, task, message, out);
@@ -1016,6 +1021,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 crate::proposals::wake_restored(domain, env, out);
                 crate::escalation::rearm_all(domain, env);
                 crate::escalation::wake_restored(domain, env, out);
+                crate::stuck::restored(domain, &env.limits);
             }
         }
     }
@@ -1025,6 +1031,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     }
     crate::questions::flush(domain, env, output_start, out);
     crate::settings::released(domain, held, out);
+    crate::stuck::request_review(domain, out);
 }
 
 /// The deadline that admission and wait records use, including time spent suspended.
@@ -1089,6 +1096,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::closing::progress(domain, env, out);
     crate::questions::flush(domain, env, output_start, out);
     crate::settings::released(domain, held, out);
+    crate::stuck::request_review(domain, out);
 }
 
 /// Changed connector facts wake an idle procedure or survive its pending step.
@@ -1461,6 +1469,8 @@ pub(crate) fn schedule_alarm(domain: &mut Domain, env: &Env<Limits>, number: u64
 fn save_live(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     // Compare the waiting holder before replacing the published snapshot.
     crate::escalation::refresh_holder(domain, env, number);
+    crate::questions::index(domain, number);
+    crate::stuck::refresh(domain, number);
     let task = task_mut(domain, number).expect("published task is live");
     save_cold(task, out);
     crate::changed::observe(task, env.wall);
@@ -1706,10 +1716,10 @@ pub(crate) fn make_admitted(
             talk: None,
             activation_open: false,
             closer: None,
+            parked_result: None,
             reasons: crate::Reasons::FIRST,
             offered: crate::Reasons::ALL,
             asked_requester: false,
-            question_woken: 0,
             words_woken: 0,
             unrecorded: Box::new([]),
             open_attempt: None,

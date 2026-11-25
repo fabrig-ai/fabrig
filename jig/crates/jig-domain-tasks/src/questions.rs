@@ -59,38 +59,112 @@ impl QuestionTicket {
 
 /// The bounded reason for an exhausted question wake (domain/tasks/lifecycle.md, 2).
 #[must_use]
-pub fn open_question_reason(question: OpenQuestion, words: &[u8]) -> Box<[u8]> {
+pub fn open_question_reason(question: OpenQuestion, chain: &[crate::StuckLink], words: &[u8]) -> Box<[u8]> {
+    let mut line = words;
+    if let Some(at) = skein_lib::bytes::find(words, b"\n") {
+        line = words.get(..at).expect("first line in words");
+    }
+    let mut measure = Writer::measure(skein_lib::usize_of(crate::REASON_BYTES));
+    write_reason(&mut measure, question, chain, line);
+    let mut writer = Writer::new(measure.written());
+    write_reason(&mut writer, question, chain, line);
+    writer.finish()
+}
+
+fn write_reason(writer: &mut Writer, question: OpenQuestion, chain: &[crate::StuckLink], line: &[u8]) {
     let asker = Decimal::of(question.asker);
     let number = Decimal::of(question.number);
-    let mut line = words;
-    for (at, byte) in words.iter().enumerate() {
-        if *byte == b'\n' {
-            line = words.get(..at).expect("first line in words");
-            break;
+    if !put_reason(writer, &[b"Task ", asker.as_bytes(), b"'s question ", number.as_bytes(), b" is still open"]) {
+        return;
+    }
+    if !chain.is_empty() {
+        if !put_reason(writer, &[b", through tasks "]) {
+            return;
+        }
+        let mut comma = b"".as_slice();
+        for link in chain {
+            let task = Decimal::of(link.task);
+            if !put_reason(writer, &[comma, task.as_bytes()]) {
+                return;
+            }
+            if let Some(question) = link.question {
+                let number = Decimal::of(question);
+                if !put_reason(writer, &[b" (question ", number.as_bytes(), b")"]) {
+                    return;
+                }
+            }
+            comma = b", ";
         }
     }
-    let parts = [b"Task ".as_slice(), asker.as_bytes(), b"'s question ", number.as_bytes(), b" is still open: ", line];
-    let bound = skein_lib::usize_of(crate::REASON_BYTES);
-    let mut length = 0_usize;
-    for part in parts {
-        let prefix = skein_lib::bytes::utf8_prefix(part, bound.checked_sub(length).expect("bounded reason"));
-        length = length.checked_add(prefix.len()).expect("bounded reason");
-        if prefix.len() < part.len() {
-            break;
-        }
-    }
-    let mut writer = Writer::new(length);
+    put_reason(writer, &[b": ", line]);
+}
+
+fn put_reason(writer: &mut Writer, parts: &[&[u8]]) -> bool {
     for part in parts {
         let prefix = skein_lib::bytes::utf8_prefix(part, writer.room());
         writer.put(prefix).expect("bounded question reason");
         if prefix.len() < part.len() {
-            break;
+            return false;
         }
     }
-    writer.finish()
+    true
+}
+
+/// Index only the owner: the credit and received position stay authoritative.
+pub(crate) fn index(domain: &mut Domain, number: u64) {
+    let id = *domain.names.get(&number).expect("indexed task name");
+    let task = domain.tasks.get(id).expect("indexed task");
+    if let Some(previous) = task.published.as_deref() {
+        if previous.questions == task.record.questions {
+            return;
+        }
+        for credit in &previous.questions {
+            domain.question_owners.remove(&credit.number);
+        }
+    }
+    for credit in &task.record.questions {
+        domain.question_owners.insert(credit.number, number).expect("bounded question credits");
+    }
+}
+
+pub(crate) fn unindex(domain: &mut Domain, number: u64) {
+    let id = *domain.names.get(&number).expect("indexed task name");
+    let task = domain.tasks.get(id).expect("indexed task");
+    if let Some(previous) = task.published.as_deref() {
+        for credit in &previous.questions {
+            domain.question_owners.remove(&credit.number);
+        }
+    }
 }
 
 impl Domain {
+    fn open_position(&self, number: u64, position: &crate::QuestionLine) -> Option<OpenQuestion> {
+        if position.answer.is_some() {
+            return None;
+        }
+        let asker = *self.question_owners.get(&position.message)?;
+        let source = record(self, asker)?;
+        for credit in &source.questions {
+            if credit.number == position.message && credit.answerer == Party::Task(number) {
+                return Some(OpenQuestion { asker, number: credit.number, line: credit.line });
+            }
+        }
+        None
+    }
+
+    pub(crate) fn oldest_open_question(&self, row: &crate::TaskRecord) -> Option<OpenQuestion> {
+        let mut oldest: Option<OpenQuestion> = None;
+        for position in &row.question_lines {
+            if let Some(open) = self.open_position(row.number, position) {
+                oldest = match oldest {
+                    Some(old) if old.number < open.number => Some(old),
+                    Some(_) | None => Some(open),
+                };
+            }
+        }
+        oldest
+    }
+
     /// Open questions asked of this task, oldest first (domain/tasks/messages.md, 2).
     #[must_use]
     pub fn open_questions(&self, number: u64) -> List<OpenQuestion> {
@@ -98,24 +172,11 @@ impl Domain {
         let capacity = u32::try_from(row.question_lines.len()).expect("bounded received questions");
         let mut ordered = Map::with_capacity(capacity);
         for position in &row.question_lines {
-            if position.answer.is_some() {
-                continue;
-            }
-            for (asker, _) in &self.names {
-                let source = record(self, *asker).expect("live credit owner");
-                for credit in &source.questions {
-                    if credit.number == position.message && credit.answerer == Party::Task(number) {
-                        ordered
-                            .insert(
-                                credit.number,
-                                OpenQuestion { asker: *asker, number: credit.number, line: credit.line },
-                            )
-                            .expect("one credit per globally numbered question");
-                    }
-                }
+            if let Some(open) = self.open_position(number, position) {
+                ordered.insert(open.number, open).expect("one position per globally numbered question");
             }
         }
-        let mut questions = List::with_capacity(capacity);
+        let mut questions = List::with_capacity(ordered.len());
         for (_, question) in &ordered {
             questions.push(*question).expect("received question subset");
         }

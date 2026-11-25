@@ -3,7 +3,6 @@ use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_codec::Record;
 use skein_lib::{List, Reader, Wall, Writer};
-use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as d;
 use temper_engine_domain_forge_vocabulary as top;
 
@@ -37,7 +36,14 @@ fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
         }
         d::Phase::Held {
             was,
-            why: d::Hold::Prepare | d::Hold::Read | d::Hold::Record { .. } | d::Hold::Timeout { .. } | d::Hold::Turn,
+            why:
+                d::Hold::Cleanup
+                | d::Hold::Prepare
+                | d::Hold::Read
+                | d::Hold::Record { .. }
+                | d::Hold::Timeout { .. }
+                | d::Hold::Turn
+                | d::Hold::Claimed { .. },
         } => (encode_place(was), None),
         d::Phase::Waiting
         | d::Phase::Preparing
@@ -147,12 +153,6 @@ fn decode_member(member: w::LandingMember) -> d::Member {
             None => None,
         },
     }
-}
-pub(super) fn encode_ask(ask: change::Ask) -> w::LandingAsk {
-    crate::generated::store::landing_ask_to_record(&ask)
-}
-pub(super) fn decode_ask(ask: w::LandingAsk) -> change::Ask {
-    crate::generated::store::landing_ask_to_domain(ask)
 }
 fn encode_round(round: &d::Round) -> w::LandingRound {
     crate::generated::store::landing_round_to_record(round)
@@ -439,6 +439,7 @@ pub(super) fn encode_landing_state(landing: &d::Landing) -> w::LandingState {
         branch: landing.branch.clone(),
         round: if landing.round.branch.is_empty() { None } else { Some(encode_round(&landing.round)) },
         own_hold: match landing.phase {
+            d::Phase::Held { why: d::Hold::Cleanup, .. } => Some(w::LandingOwnHold::Cleanup),
             d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
             d::Phase::Held { why: d::Hold::Read, .. } => Some(w::LandingOwnHold::Read),
             d::Phase::Held { why: d::Hold::Record { member }, .. } => {
@@ -448,6 +449,9 @@ pub(super) fn encode_landing_state(landing: &d::Landing) -> w::LandingState {
                 Some(w::LandingOwnHold::Timeout(w::LandingTimeout { member, gate, run }))
             }
             d::Phase::Held { why: d::Hold::Turn, .. } => Some(w::LandingOwnHold::Turn),
+            d::Phase::Held { why: d::Hold::Claimed { change }, .. } => {
+                Some(w::LandingOwnHold::Claimed(w::LandingClaimed { change }))
+            }
             d::Phase::Held { why: d::Hold::Faults { .. }, .. }
             | d::Phase::Waiting
             | d::Phase::Preparing
@@ -488,6 +492,12 @@ pub(super) fn decode_landing_state(landing: w::LandingState) -> Result<d::Landin
         task,
         project,
         phase: match own_hold {
+            Some(w::LandingOwnHold::Cleanup) => {
+                d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Cleanup }
+            }
+            Some(w::LandingOwnHold::Claimed(value)) => {
+                d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Claimed { change: value.change } }
+            }
             Some(w::LandingOwnHold::Read) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Read },
             Some(w::LandingOwnHold::Turn) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn },
             Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {

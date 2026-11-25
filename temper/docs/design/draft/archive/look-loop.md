@@ -1,12 +1,12 @@
 # Look requests, drawn on walks and checked by tools
 
 Draft, 2026-11-21, from a session with the user that day. Now that
-journeys are walks (`../client/journey-walks.md`), the user asked how a
+journeys are walks (`../../client/journey-walks.md`), the user asked how a
 look request should run from end to end: how it is drawn and filed,
 what its goal needs to land it, and what checks the result. The user's
 words: rendered journeys that "I can open from the browser as plain
 HTML files in the fabrig git repo are the most convenient form", and no
-screenshots. `../client/web/look-requests.md` stays the brief for
+screenshots. `../../client/web/look-requests.md` stays the brief for
 whoever lands a request. This draft changes four things in it:
 - a request is drawn on a walk;
 - its goal reads it from a branch that never moves, with words from one
@@ -15,7 +15,7 @@ whoever lands a request. This draft changes four things in it:
 - a check after landing renders it, with no one watching.
 
 It supersedes the draft of 2026-11-04, whose vision
-`../client/web/look-requests.md` carries.
+`../../client/web/look-requests.md` carries.
 
 ## 1. In one page
 
@@ -57,7 +57,7 @@ It supersedes the draft of 2026-11-04, whose vision
 
 ## 2. The request
 
-As `../client/web/look-requests.md`, 2: one commit, one change, with
+As `../../client/web/look-requests.md`, 2: one commit, one change, with
 its trailer, its holds, and its message saying every state in words.
 What changes is where it is drawn and what its commit carries.
 
@@ -66,23 +66,26 @@ What changes is where it is drawn and what its commit carries.
 In this order:
 
 1. **Main's pages,** where a journey's print shows the state: the
-   request edits them in place (`../client/web/journeys.md`, 7;
-   `../client/tui/journeys.md`, 10).
+   request edits them in place (`../../client/web/journeys.md`, 7;
+   `../../client/tui/journeys.md`, 10).
 2. **A walk of the request's own,** where no journey shows it:
    - The request adds a journey's directory under its root: a `walk`
-     of version 2, a `README.md` and, where it needs the fake model's
-     turns, `scripts.json` (`../client/journey-walks.md`, 2.1).
+     of version 2, a `../../domain/README.md` and, where it needs the fake model's
+     turns, `scripts.json` (`../../client/journey-walks.md`, 2.1).
    - The walk starts `after` the journey that comes nearest, so that
-     its own lines are few (`../client/journey-walks.md`, 2.3).
+     its own lines are few (`../../client/journey-walks.md`, 2.3).
    - The person prints it with `cargo run -p temper-client-walk --
      print --out DIR NAME`, copies DIR's pages of NAME into its
      directory, and draws on them.
-3. **A gallery state** (`../client/web/gallery.md`), where the world
+3. **A gallery state** (`../../client/web/gallery.md`), where the world
    can't set the facts: an account's usage, a long name, a box's front.
-   - The gallery's pages carry no overlay. The person copies the page,
-     with the gallery's assets it links, into a hand-made directory and
-     draws there, as for the next rung.
-4. **A hand-made page,** last, in a directory whose `README.md` says
+   - The gallery's pages carry no overlay. The person copies the page
+     into a hand-made directory and draws there, as for the next rung.
+   - The gallery's stylesheets are byte for byte the repository's own,
+     so the copy links those, as a journey's pages do
+     (`../../client/web/journeys.md`, 5.3), and there is no bundle to copy
+     beside it.
+4. **A hand-made page,** last, in a directory whose `../../domain/README.md` says
    it is hand-made and from what. No print meets it, so neither the
    comparison nor the render check compares it (4.3, 5.2).
 
@@ -93,7 +96,7 @@ In this order:
   - the next request draws on it.
 - **What a walk reaches:** what the playground's world reaches by a
   person's acts (presses, typing, approvals) and the fake model's
-  turns. Its facts are fixed (`../client/journey-walks-world.md`, 1.1), so
+  turns. Its facts are fixed (`../../client/journey-walks-world.md`, 1.1), so
   the same tree prints the same bytes. It prints no width: widths are
   the browser's, at the person's own check and the check after landing.
 
@@ -103,8 +106,8 @@ In this order:
   `TEMPER_INTERNAL_BUNDLE=none cargo build -p temper-client-walk`. The
   build takes minutes once and seconds after. It prints the walks of
   the checkout it is built from.
-- **The rest as now** (`../client/web/look-requests.md`, 2;
-  `../client/web/journeys.md`, 7):
+- **The rest as now** (`../../client/web/look-requests.md`, 2;
+  `../../client/web/journeys.md`, 7):
   - the overlay, the pages' edits and the message;
   - the drawer's own check before committing, at 1440 and 420 px and
     each open state. This check is the drawer's, not a report;
@@ -123,7 +126,7 @@ In this order:
 
 - **"Land them":** the person says it to whoever they charge with
   starting look requests' goals. It approves the requests below the
-  first held one (`../client/web/look-requests.md`, 2, *Held, at the
+  first held one (`../../client/web/look-requests.md`, 2, *Held, at the
   top*) that haven't landed, meaning no commit on main carries their
   `Look-landed` (4.4).
 - **A goal each,** in one milestone, each after the one before it,
@@ -161,22 +164,22 @@ as one question whose choices are in the request's own terms.
 
 ## 4. The landing
 
-As `../client/web/look-requests.md`, 3, with these changes.
+As `../../client/web/look-requests.md`, 3, with these changes.
 
 ### 4.1 The walk lands
 
-A walk the request adds lands as its sources: `walk`, `README.md` and
+A walk the request adds lands as its sources: `walk`, `../../domain/README.md` and
 `scripts.json`, as the request has them. A line changes only where the
 landing renames a control the walk presses or a word it sees
-(`../client/journey-writer.md`, 2). Its pages never land: the writer
+(`../../client/journey-writer.md`, 2). Its pages never land: the writer
 prints them after the landing.
 
 ### 4.2 The comparison
 
 `scripts/look-compare.sh NAME C`, beside `look-refresh.sh`, run in the
 landing's own tree. It runs the journeys tool's `look-compare NAME C`
-as `look-refresh.sh` runs `look-refresh` (`../client/journey-writer.md`,
-4 and 6; `../testing/tools.md`, 2): the command asks for each effect
+as `look-refresh.sh` runs `look-refresh` (`../../client/journey-writer.md`,
+4 and 6; `../../testing/tools.md`, 2): the command asks for each effect
 as a value (a child with its arguments, a file) and decides on the
 answer, and its exit is the script's.
 
@@ -189,7 +192,7 @@ answer, and its exit is the script's.
    - A walk that stops is a row, `stopped`, with its line.
    - If the landing's own change stopped it, the landing repairs it.
      Otherwise the account names it. A stopped walk holds no landing
-     (`../client/journey-writer.md`, 1).
+     (`../../client/journey-writer.md`, 1).
 3. **Compares each page three ways, with git:**
    - The three are the page as P holds it (what the person drew on),
      as C holds it (what they drew), and DIR's (what landed).
@@ -214,10 +217,10 @@ answer, and its exit is the script's.
      or missing.
    - A removed rule is landed when no landed rule keeps it.
    - The order the rules cascade in, and the TUI's rules, which land in
-     code, its theme (`../client/tui/journeys.md`, 10), are listed for
+     code, its theme (`../../client/tui/journeys.md`, 10), are listed for
      the landing to account for by reading. The render check sees what
      the order does (5.2).
-5. **Writes the account's rows** (`../client/web/look-requests.md`,
+5. **Writes the account's rows** (`../../client/web/look-requests.md`,
    5): one per page edit, conflict, stopped walk and rule, with its
    result. There is also one row to fill for each state the message
    names in words. A request of rules alone gets rule rows alone.
@@ -228,7 +231,7 @@ answer, and its exit is the script's.
      can't read.
 
 It starts no browser, terminal or box, so a plan runs it
-(`../client/web/look-requests.md`, 3). Its rows are the account's
+(`../../client/web/look-requests.md`, 3). Its rows are the account's
 evidence. The account's judgement stays the landing's.
 
 ### 4.3 What it can't compare
@@ -250,8 +253,8 @@ reach main before the landing's code does.
 
 - **It starts by itself:** a timer ticks every ten minutes, until
   temper runs the writer on each new tip
-  (`../client/journey-writer.md`, 8). A tick runs the writer's run
-  (`../client/journey-writer.md`, 4) when a commit carrying a
+  (`../../client/journey-writer.md`, 8). A tick runs the writer's run
+  (`../../client/journey-writer.md`, 4) when a commit carrying a
   `Look-landed` has reached main since its last finished run, and
   otherwise once an hour has passed since that run. So a verdict comes
   within ten minutes of its landing, and main's many other landings
@@ -292,7 +295,7 @@ reach main before the landing's code does.
   driver, which gains three reads through its protocol: a page's
   elements, one element's computed style, and one element's box.
   `temper-client-journeys` runs it as a command of its own
-  (`../client/web/look-requests.md`, 8).
+  (`../../client/web/look-requests.md`, 8).
   - Widths: 1440, 1000 and 420 px. Every dialog and disclosure is set
     open, and nothing is clicked.
   - Elements: those the request touched, meaning each element its edit
@@ -313,13 +316,13 @@ reach main before the landing's code does.
 - **The TUI's** themed frames are rendered the same way, and the entry
   says these are the browser's frames, not a terminal's. Their text
   was compared at the landing (4.2). A real terminal's look stays the
-  after-landing owner's (`../client/tui/journeys.md`, 11).
+  after-landing owner's (`../../client/tui/journeys.md`, 11).
 
 ### 5.3 The verdict
 
 - **`looks.html`:** one page beside each root's journeys,
   `client/web/journeys/` and `client/tui/journeys/`.
-  - It is written by the writer alone (`../client/journey-writer.md`,
+  - It is written by the writer alone (`../../client/journey-writer.md`,
     2).
   - It holds an entry per check: the request's name, C, the
     `Look-landed` commit, the tip rendered at, its result, and links to
@@ -328,7 +331,7 @@ reach main before the landing's code does.
   - An entry lost is checked again at the next run.
 - **Its three gates** take it as a written file:
   - the run's own list of what it may commit
-    (`../client/journey-writer.md`, 4);
+    (`../../client/journey-writer.md`, 4);
   - the delivery check (`tools/pre-pr/design.md`, 4);
   - the merge job (`tools/merge/README.md`).
 
@@ -340,9 +343,9 @@ reach main before the landing's code does.
 - **Who hears it:** the run opens its change as whoever starts look
   requests' goals, and the change's end brings them the verdict. Each
   difference becomes a repair goal on the person's yes, carrying the
-  request's trailer (`../client/web/look-requests.md`, 4).
+  request's trailer (`../../client/web/look-requests.md`, 4).
 - **A walk that stops** is named in the change's message, as now
-  (`../client/journey-writer.md`, 4), and reaches the same reader. Its
+  (`../../client/journey-writer.md`, 4), and reaches the same reader. Its
   repair is a goal on the person's yes.
 
 ### 5.4 The person's branch
@@ -350,7 +353,7 @@ reach main before the landing's code does.
 `look-refresh.sh` drops a request once main's `looks.html` holds an
 entry for its newest `Look-landed`. A request that landed with no
 `Look-landed`, before this draft, is dropped by `Printed:` as now
-(`../client/journey-writer.md`, 6).
+(`../../client/journey-writer.md`, 6).
 
 ### 5.5 Retiring a journey
 
@@ -361,19 +364,19 @@ whose look no longer matters goes.
 - **Candidates,** listed by the run at the foot of `looks.html`: each
   journey whose directory a request's landing added, whose request's
   newest entry is identical, and that no walk starts `after`
-  (`../client/journey-walks.md`, 2.3). A journey another starts
+  (`../../client/journey-walks.md`, 2.3). A journey another starts
   `after` is never listed, since its going would stop the other.
 - **Who picks:** whoever starts look requests' goals reads the list
   when the person next says "land them", or when the person asks, and
   proposes which go, in the request's own terms. The person says which.
   The list is a mechanism; which look still matters is a judgement.
 - **How it goes:** one change deletes the journey's directory whole:
-  its `walk`, `README.md`, `scripts.json` and pages. The delivery check
+  its `walk`, `../../domain/README.md`, `scripts.json` and pages. The delivery check
   lets it through as written files (`tools/pre-pr/design.md`, 4, check
   8), and refuses a `walk` deleted while its pages stay, which no run
-  would remove (`../client/journey-writer.status.md`). The merge job
+  would remove (`../../client/journey-writer.status.md`). The merge job
   settles a deletion at a written path already
-  (`../client/journey-writer.md`, 5).
+  (`../../client/journey-writer.md`, 5).
 - **Its look stays reachable:** in main's history, and in the request's
   commit at `docs/look/NAME`. A later request can bring its walk back.
 
@@ -395,7 +398,7 @@ Focused and native: no browser, terminal or box starts.
   the `look-compare` command on canned answers (git's output, the
   print's lines and pages), then its rows and exit. Each of its
   effects is a value these steps answer, so its package's suite gains
-  no launch of its own (`../testing/tools.md`, 6). Cases:
+  no launch of its own (`../../testing/tools.md`, 6). Cases:
   - every edit landed: exit 0;
   - an edit missing: its hunk is a row, exit 1;
   - one tag changed by both sides: a conflict row;
@@ -447,7 +450,7 @@ Focused and native: no browser, terminal or box starts.
 
 ## 8. Later
 
-- **temper runs the writer** (`../client/journey-writer.md`, 8), and
+- **temper runs the writer** (`../../client/journey-writer.md`, 8), and
   the timer goes.
 - **A gallery state as a walk:** once the world can set an account's
   usage or show a box's front, the gallery's states become walks, and

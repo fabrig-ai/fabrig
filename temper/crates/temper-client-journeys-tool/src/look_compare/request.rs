@@ -4,13 +4,19 @@ use std::{
 };
 
 use super::{Change, Host, Journey, Side, TUI, WEB, git_ok, text, valid_name, version_two};
+use crate::looks::hash;
 
-pub(super) struct Request {
-    pub(super) parent: String,
-    pub(super) commit: String,
+pub(crate) struct Request {
+    pub(crate) parent: String,
+    pub(crate) commit: String,
 }
 
-pub(super) fn read(arguments: &[Box<[u8]>], host: &mut Host) -> Result<Request, String> {
+pub(crate) enum ReadError {
+    Invalid { commit: String, why: String },
+    Failed(String),
+}
+
+pub(crate) fn read(arguments: &[Box<[u8]>], host: &mut Host) -> Result<Request, String> {
     let [name, prefix] = arguments else { return Err("expected NAME and C".into()) };
     let name =
         std::str::from_utf8(name).ok().filter(|name| valid_name(name)).ok_or("NAME must be [a-z0-9][a-z0-9-]*")?;
@@ -18,27 +24,53 @@ pub(super) fn read(arguments: &[Box<[u8]>], host: &mut Host) -> Result<Request, 
         .ok()
         .filter(|prefix| (7..=64).contains(&prefix.len()) && hex(prefix))
         .ok_or("C must be 7 to 64 lowercase hexadecimal digits")?;
-    let branch = format!("refs/heads/docs/look/{name}");
-    git_ok(host, None, &["fetch", "--no-tags", "--no-recurse-submodules", "--refmap=", "origin", &branch])?;
-    let result = git_ok(host, None, &["rev-parse", "--verify", "FETCH_HEAD^{commit}"])?;
-    let commit = text(&result, "fetched tip")?.trim_end_matches('\n');
-    if !hash(commit) || !commit.starts_with(prefix) {
-        return Err(format!("docs/look/{name} fetched {commit}, not C ({prefix})"));
+    fetch(host, None, &branch(name))?;
+    fetched(host, None, name, Some(prefix)).map_err(|error| match error {
+        ReadError::Invalid { why, .. } | ReadError::Failed(why) => why,
+    })
+}
+
+pub(crate) fn branch(name: &str) -> String {
+    format!("refs/heads/docs/look/{name}")
+}
+
+pub(crate) fn fetch(host: &mut Host, root: Option<&Path>, branch: &str) -> Result<(), String> {
+    git_ok(host, root, &["fetch", "--no-tags", "--no-recurse-submodules", "--refmap=", "origin", branch])?;
+    Ok(())
+}
+
+pub(crate) fn fetched(
+    host: &mut Host,
+    root: Option<&Path>,
+    name: &str,
+    prefix: Option<&str>,
+) -> Result<Request, ReadError> {
+    let result = git_ok(host, root, &["rev-parse", "--verify", "FETCH_HEAD^{commit}"]).map_err(ReadError::Failed)?;
+    let commit = text(&result, "fetched tip").map_err(ReadError::Failed)?.trim_end_matches('\n');
+    if let Some(prefix) = prefix
+        && (!hash(commit) || !commit.starts_with(prefix))
+    {
+        return Err(ReadError::Failed(format!("docs/look/{name} fetched {commit}, not C ({prefix})")));
     }
-    let result = git_ok(host, None, &["show", "-s", "--format=%P", commit])?;
-    let parent = text(&result, "request parent")?.trim_end_matches('\n');
+    if !hash(commit) {
+        return Err(ReadError::Failed(format!("docs/look/{name} fetched an invalid commit: {commit}")));
+    }
+    let invalid = |why| ReadError::Invalid { commit: commit.into(), why };
+    let result = git_ok(host, root, &["show", "-s", "--format=%P", commit]).map_err(ReadError::Failed)?;
+    let parent = text(&result, "request parent").map_err(ReadError::Failed)?.trim_end_matches('\n');
     if !hash(parent) {
-        return Err(format!("{commit} must have exactly one parent"));
+        return Err(invalid(format!("{commit} must have exactly one parent")));
     }
-    let result = git_ok(host, None, &["show", "-s", "--format=%(trailers:key=Look-request,unfold)", commit])?;
-    let trailers = text(&result, "request trailer")?.trim_end_matches('\n');
+    let result = git_ok(host, root, &["show", "-s", "--format=%(trailers:key=Look-request,unfold)", commit])
+        .map_err(ReadError::Failed)?;
+    let trailers = text(&result, "request trailer").map_err(ReadError::Failed)?.trim_end_matches('\n');
     let trailer = trailers.split_once(':');
     if trailers.contains('\n')
         || !trailer.is_some_and(|(key, value)| {
             key.eq_ignore_ascii_case("Look-request") && value.trim_start_matches([' ', '\t']) == name
         })
     {
-        return Err(format!("{commit} must carry exactly one Look-request: {name} trailer"));
+        return Err(invalid(format!("{commit} must carry exactly one Look-request: {name} trailer")));
     }
     Ok(Request { parent: parent.into(), commit: commit.into() })
 }
@@ -47,17 +79,28 @@ fn hex(value: &str) -> bool {
     value.bytes().all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
 
-fn hash(value: &str) -> bool {
-    matches!(value.len(), 40 | 64) && hex(value)
+pub(crate) struct Changes {
+    pub(crate) journeys: BTreeMap<Journey, Change>,
+    pub(crate) overlays: BTreeSet<Side>,
 }
 
-pub(super) struct Changes {
-    pub(super) journeys: BTreeMap<Journey, Change>,
-    pub(super) overlays: BTreeSet<Side>,
+impl Changes {
+    pub(crate) fn stopped(&self, stdout: &[u8]) -> Option<&str> {
+        self.journeys.iter().find_map(|(journey, change)| {
+            if !matches!(change, Change::Pages(_)) {
+                return None;
+            }
+            let prefix = format!("stopped {}: ", journey.name);
+            stdout
+                .split(|&byte| byte == b'\n')
+                .any(|line| line.starts_with(prefix.as_bytes()))
+                .then_some(journey.name.as_str())
+        })
+    }
 }
 
 impl Request {
-    pub(super) fn changes(&self, host: &mut Host, root: &Path) -> Result<Changes, String> {
+    pub(crate) fn changes(&self, host: &mut Host, root: &Path) -> Result<Changes, String> {
         let paths = git_ok(
             host,
             Some(root),
@@ -105,9 +148,18 @@ impl Request {
     }
 }
 
-pub(super) fn blob(host: &mut Host, commit: &str, path: &str) -> Result<Option<Box<[u8]>>, String> {
+pub(crate) fn blob(host: &mut Host, commit: &str, path: &str) -> Result<Option<Box<[u8]>>, String> {
+    blob_at(host, None, commit, path)
+}
+
+pub(crate) fn blob_at(
+    host: &mut Host,
+    root: Option<&Path>,
+    commit: &str,
+    path: &str,
+) -> Result<Option<Box<[u8]>>, String> {
     // ls-tree can distinguish a path the commit lacks from a git failure.
-    let tree = git_ok(host, None, &["--literal-pathspecs", "ls-tree", "--full-tree", "-z", commit, "--", path])?;
+    let tree = git_ok(host, root, &["--literal-pathspecs", "ls-tree", "--full-tree", "-z", commit, "--", path])?;
     if tree.is_empty() {
         return Ok(None);
     }
@@ -122,5 +174,5 @@ pub(super) fn blob(host: &mut Host, commit: &str, path: &str) -> Result<Option<B
     if *kind != "blob" {
         return Ok(None);
     }
-    git_ok(host, None, &["cat-file", "blob", object]).map(Some)
+    git_ok(host, root, &["cat-file", "blob", object]).map(Some)
 }

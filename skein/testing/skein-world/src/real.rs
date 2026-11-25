@@ -2128,16 +2128,24 @@ mod tests {
             tree_waited: None,
         };
         let text = running.deadline_diagnostic(&figures, 11, Time::from_nanos(10), None);
+        let header = if cfg!(target_os = "linux") {
+            "the real loop settles within 1 ms; iterations (including failing iteration): 11; thread CPU elapsed (schedstat): UNAVAILABLE (ns); thread runnable wait elapsed (schedstat): UNAVAILABLE (ns)"
+        } else {
+            "the real loop settles within 1 ms; iterations (including failing iteration): 11; thread CPU elapsed (thread clock): UNAVAILABLE (ns); thread runnable wait elapsed: UNAVAILABLE on macOS"
+        };
         assert_eq!(
             text,
-            concat!(
-                "the real loop settles within 1 ms; iterations (including failing iteration): 11; thread CPU elapsed (schedstat): UNAVAILABLE (ns); thread runnable wait elapsed (schedstat): UNAVAILABLE (ns)\n",
-                "the real loop: patience 1000000 ns; elapsed 2000000 ns; thread runnable wait UNAVAILABLE (ns); thread CPU UNAVAILABLE (ns); tree runnable wait UNAVAILABLE (ns)\n\n",
-                "now: 10 ns\n",
-                "referee: passed=false; last_word=None; next_deadline=Some(0 ns) (due 10 ns ago)\n",
-                "host 0: work_pending=false; next_deadline=None; next_policy_deadline=None; is_empty=true; ring_count=0; work_pending_last_8=0/8\n",
-                "host 1: work_pending=true; next_deadline=None; next_policy_deadline=None; is_empty=false; ring_count=0; work_pending_last_8=8/8\n",
-                "host 2: work_pending=false; next_deadline=Some(0 ns) (due 10 ns ago); next_policy_deadline=Some(20 ns) (in 10 ns); is_empty=false; ring_count=1; work_pending_last_8=4/8\n",
+            format!(
+                concat!(
+                    "{}\n",
+                    "the real loop: patience 1000000 ns; elapsed 2000000 ns; thread runnable wait UNAVAILABLE (ns); thread CPU UNAVAILABLE (ns); tree runnable wait UNAVAILABLE (ns)\n\n",
+                    "now: 10 ns\n",
+                    "referee: passed=false; last_word=None; next_deadline=Some(0 ns) (due 10 ns ago)\n",
+                    "host 0: work_pending=false; next_deadline=None; next_policy_deadline=None; is_empty=true; ring_count=0; work_pending_last_8=0/8\n",
+                    "host 1: work_pending=true; next_deadline=None; next_policy_deadline=None; is_empty=false; ring_count=0; work_pending_last_8=8/8\n",
+                    "host 2: work_pending=false; next_deadline=Some(0 ns) (due 10 ns ago); next_policy_deadline=Some(20 ns) (in 10 ns); is_empty=false; ring_count=1; work_pending_last_8=4/8\n",
+                ),
+                header
             )
         );
         running.living_hosts.remove(&1);
@@ -2161,7 +2169,12 @@ mod tests {
             tree_waited: None,
         };
         let text = running.deadline_diagnostic(&figures, running.iterations, now, None);
-        assert!(text.starts_with("the real loop settles within 0 ms; iterations (including failing iteration): 1; thread CPU elapsed (schedstat): 0 ns; thread runnable wait elapsed (schedstat): 0 ns\n"));
+        let header = if cfg!(target_os = "linux") {
+            "the real loop settles within 0 ms; iterations (including failing iteration): 1; thread CPU elapsed (schedstat): 0 ns; thread runnable wait elapsed (schedstat): 0 ns\n"
+        } else {
+            "the real loop settles within 0 ms; iterations (including failing iteration): 1; thread CPU elapsed (thread clock): 0 ns; thread runnable wait elapsed: UNAVAILABLE on macOS\n"
+        };
+        assert!(text.starts_with(header));
         assert!(running.world.procs.iter().all(|proc| proc.iterations == 0));
         assert!(!running.begin_iteration(now, Time::from_nanos(11)), "one nanosecond of patience admits the pass");
         assert!(running.begin_iteration(Time::from_nanos(11), Time::from_nanos(11)));

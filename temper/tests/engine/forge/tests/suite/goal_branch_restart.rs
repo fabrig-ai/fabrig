@@ -54,7 +54,7 @@ pub(super) fn held_landing() -> top::LandingRow {
             round: landing::Round::new(b"temper/63/l63".as_slice().into()),
             last_prepare: None,
         },
-        asks: Box::new([]),
+        previous_asks: Box::new([]),
         entries: [1, 2]
             .map(|entry| top::LandingEntry {
                 preparation: None,

@@ -10,6 +10,8 @@ use skein_lib::{Decimal, List, Queue, sha256::Sha256};
 pub const SUMS_BYTES: u64 = 65_536;
 pub const SERVED_BYTES: u64 = 134_217_728;
 pub const UNPACKED_BYTES: u64 = 536_870_912;
+const PACKED_NAME: &[u8] = b"/temper-box.zst";
+const PACKED_PART: &[u8] = b".zst.part";
 
 /// The exact stdout of this build's candidate.
 #[must_use]
@@ -162,8 +164,10 @@ impl Progress {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Unpacked {
     File { digest: [u8; 32], bytes: u64 },
+    Truncated,
+    Damaged,
     TooLong,
-    Invalid,
+    Trailing,
 }
 /// One answer per request. Chunk bytes have not yet been written.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -298,7 +302,7 @@ impl Find {
         let major = self.build.version.split('.').next().expect("version component");
         let root = joined(&[b"/temper/v", major.as_bytes(), b"/", self.build.commit.as_bytes(), b"/"]);
         self.path =
-            if sums { joined(&[&root, b"SHA256SUMS"]) } else { joined(&[&root, &self.build.platform, b"/temper-box"]) };
+            if sums { joined(&[&root, b"SHA256SUMS"]) } else { joined(&[&root, &self.build.platform, PACKED_NAME]) };
         self.get()
     }
     fn head(&mut self, status: u16, length: Option<u64>, location: Option<Box<[u8]>>) -> Request {
@@ -333,7 +337,7 @@ impl Find {
             self.read()
         } else {
             self.phase = Phase::Open;
-            Request::Open { file: joined(&[&self.file, b".gz.part"]) }
+            Request::Open { file: joined(&[&self.file, PACKED_PART]) }
         }
     }
     fn bound(&self) -> u64 {
@@ -388,7 +392,7 @@ impl Find {
             }
             Event::Ended => {
                 if self.fetching_sums {
-                    let name = joined(&[&self.build.platform, b"/temper-box"]);
+                    let name = joined(&[&self.build.platform, PACKED_NAME]);
                     match sum(self.sums.as_slice(), &name) {
                         Ok(digest) => {
                             self.served = digest;
@@ -423,7 +427,7 @@ impl Find {
         }
         self.phase = Phase::Unpack;
         Request::Unpack {
-            archive: joined(&[&self.file, b".gz.part"]),
+            archive: joined(&[&self.file, PACKED_PART]),
             part: joined(&[&self.file, b".part"]),
             bound: UNPACKED_BYTES,
         }
@@ -517,7 +521,9 @@ pub fn step(machine: &mut Find, event: Event, out: &mut Queue<Request>) {
                 Unpacked::File { .. } | Unpacked::TooLong => {
                     machine.download_failure(b"unpacked file past 512 MiB".as_slice().into())
                 }
-                Unpacked::Invalid => machine.download_failure(b"invalid gzip stream".as_slice().into()),
+                Unpacked::Truncated => machine.download_failure(b"truncated zstd frame".as_slice().into()),
+                Unpacked::Damaged => machine.download_failure(b"damaged zstd frame".as_slice().into()),
+                Unpacked::Trailing => machine.download_failure(b"zstd frame followed by other bytes".as_slice().into()),
             }
         }
         Phase::PartIdentity => {

@@ -9,11 +9,18 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 pub(crate) enum Params<'a> {
     Empty,
     Network,
+    FetchEnable,
+    FetchAnswer {
+        id: &'a [u8],
+        allow: bool,
+    },
     Dialog {
         accept: bool,
     },
     Document,
     Root,
+    Tree,
+    PushBackend(u64),
     Selector {
         node: u64,
         selector: &'a [u8],
@@ -103,13 +110,32 @@ impl Params<'_> {
                 json.key(b"maxPostDataSize");
                 json.unsigned(0);
             }
+            Params::FetchEnable => {
+                json.key(b"patterns");
+                json.array_start();
+                json.object_start();
+                json.key(b"urlPattern");
+                json.string(b"*");
+                json.key(b"requestStage");
+                json.string(b"Request");
+                json.object_end();
+                json.array_end();
+            }
+            Params::FetchAnswer { id, allow } => {
+                json.key(b"requestId");
+                json.string(id);
+                if !*allow {
+                    json.key(b"errorReason");
+                    json.string(b"BlockedByClient");
+                }
+            }
             Params::Dialog { accept } => {
                 json.key(b"accept");
                 json.boolean(*accept);
             }
-            Params::Root => {
+            Params::Root | Params::Tree => {
                 json.key(b"depth");
-                json.signed(0);
+                json.signed(if let Params::Root = self { 0 } else { -1 });
                 json.key(b"pierce");
                 json.boolean(false);
             }
@@ -118,6 +144,12 @@ impl Params<'_> {
                 json.unsigned(*node);
                 json.key(b"selector");
                 json.string(selector);
+            }
+            Params::PushBackend(node) => {
+                json.key(b"backendNodeIds");
+                json.array_start();
+                json.unsigned(*node);
+                json.array_end();
             }
             Params::Node(node) => {
                 json.key(b"nodeId");

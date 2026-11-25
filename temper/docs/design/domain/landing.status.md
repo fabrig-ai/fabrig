@@ -19,3 +19,4 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   11, 16: GitHub's turn, its
   ref fast-forwarded (kind 19), a squashed member's pull request closed
   there, and its stories on the fake GitHub. 14: `repository receipts`.
+

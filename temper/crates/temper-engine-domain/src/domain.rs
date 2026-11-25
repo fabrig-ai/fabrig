@@ -97,7 +97,7 @@ pub struct Domain {
     pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
     pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
-    pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
+    pub(crate) job_workspaces: Map<u64, crate::boundary::JobWorkspace>,
     pub(crate) forge: forge::Domain,
     pub(crate) forge_limit_holds: Map<u64, forge_route::limit_holds::Waiting>,
     pub(crate) application: Option<(Token, crate::Application)>,
@@ -859,7 +859,7 @@ impl Domain {
             && self.work.is_empty()
             && self.openings.is_empty()
             && self.assignment_parts.is_empty()
-            && self.job_workspaces.is_empty()
+            && self.job_workspaces_offered()
             && self.hub_link.payload_count() == 0
             && self.answer_parts.is_empty()
             && self.refused_calls.is_empty()
@@ -883,6 +883,17 @@ impl Domain {
             && self.brief_connectors.is_empty()
             && self.brief_document_titles.is_empty()
             && !self.forge.is_ready()
+    }
+
+    /// Every kept job item has been offered: a job awaiting a worker's answer
+    /// keeps its items for a busy refusal's next offer.
+    pub(crate) fn job_workspaces_offered(&self) -> bool {
+        for (_, kept) in &self.job_workspaces {
+            if !kept.offered {
+                return false;
+            }
+        }
+        true
     }
 
     /// Whether the forge has immediate internal work ready for the next routing

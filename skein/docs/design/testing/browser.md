@@ -43,6 +43,9 @@ example's browser tier through it, are others (../ui/web/testing.md).
   document load that sent it, and the first answer to each: what a test
   counts a page's round trips by. No header or body is kept, and none
   is judged (sections 5 and 6).
+- **A page's rendering, read for a tool** comparing two renders: its
+  elements, an element's computed style and box. A page kept to files
+  sends nothing outside `file://` (section 5).
 - **Bounded like the rest of skein.** Persons, pages, operations,
   commands in flight and each message are counted under limits, checked
   by `valid`.
@@ -183,8 +186,9 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   nodes, a scope's object, their boxes, the hit test, focus, scrolling
   into view); `Input` (mouse, keys, text, composition); and `Runtime`,
   `Log` and `Inspector` (the document's object, exceptions, console and
-  log entries, crashes); and `Network`, on a page that asks for its
-  requests alone (sections 5 and 6). Several of these commands are experimental in
+  log entries, crashes); `Network`, on a page that asks for its
+  requests alone; `CSS`, for a computed style; and `Fetch`, on a page
+  kept to files (sections 5 and 6). Several of these commands are experimental in
   CDP, which is why the real browser is checked (section 9).
 - **A selector is a parameter, never an expression.** The kit sends an
   attribute read's selector as `DOM.querySelector`'s own, and Chromium
@@ -207,7 +211,7 @@ actions into it.
 ```rust
 pub enum Request {                                       // from the test
     Person { person: Token, downloads: Option<Box<[u8]>> },  // a browser context: its own cookies, storage and downloads
-    Page   { person: Token, page: Token, url: Box<[u8]>, requests: bool },  // requests: report its requests (below)
+    Page   { person: Token, page: Token, url: Box<[u8]>, requests: bool, files: bool },  // requests: report them; files: kept to files (below)
     Go     { page: Token, op: Token, to: Go },           // an address, reload, back, forward
     Find   { page: Token, op: Token, query: Query },     // one look
     Await  { page: Token, op: Token, query: Query, expect: Expect, within: Duration },
@@ -222,6 +226,9 @@ pub enum Request {                                       // from the test
     Attribute { page: Token, op: Token, selector: Box<[u8]>, name: Box<[u8]> },  // of the first element a CSS selector finds
     Snapshot   { page: Token, op: Token },               // the accessibility tree, as text
     Screenshot { page: Token, op: Token },
+    Elements { page: Token, op: Token, selector: Option<Box<[u8]>> },  // none: every element
+    Style  { page: Token, op: Token, node: Node },       // its computed style
+    Rect   { page: Token, op: Token, node: Node },       // its border box
     Close  { entity: Token },                            // a page, a person, or the browser
 }
 
@@ -239,6 +246,9 @@ pub enum Event {                                         // to the test
     Address { op: Token, url: Box<[u8]> },               // the history's current entry
     Tabs    { op: Token, tabs: List<Tab>, more: u32 },   // more: tabs past the limit, counted
     Attribute { op: Token, read: Read },
+    Elements { op: Token, elements: List<Element>, more: u32 },  // more: past the limit, counted
+    Style  { op: Token, style: List<Property> },
+    Rect   { op: Token, rect: Option<Rect> },            // none: it has no box
     Downloaded { person: Token, name: Box<[u8]>, path: Box<[u8]> },  // a file one of its pages saved, complete
     Trouble { page: Token, trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed, a request past the limit
     Sent    { page: Token, id: Box<[u8]>, load: Box<[u8]>, document: bool,
@@ -260,6 +270,8 @@ pub enum Key     { Enter, Escape, Tab, Backspace, ArrowUp, ArrowDown, ArrowLeft,
                    Letter { letter: u8, alt: bool } }   // a to z, by its place on the keyboard
 pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, perhaps empty
 pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: it can still reach the page that opened it
+pub struct Element  { node: Node, depth: u32, name: Box<[u8]> }  // depth: 0, the root element; name: its local name
+pub struct Property { name: Box<[u8]>, value: Box<[u8]> }       // as Chromium writes it
 ```
 
 - **A person is a browser context,** with its own cookies and storage.
@@ -366,6 +378,20 @@ pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: 
   not state: a field a person types into is read by a find, whose `Seen`
   carries its value as the person sees it. No element, an element
   without the attribute, and an empty attribute are three answers.
+- **A page's rendering is read for a tool** comparing two renders
+  (`temper/docs/design/client/journey-writer.md`, 6.2), reading the
+  current document as an attribute read does (section 6):
+  - `Elements`: its elements in document order, every one or those a
+    CSS selector selects, each with its node, its depth below the root
+    element and its local name; at most `Limits::elements`, the rest
+    counted.
+  - `Style`: every property Chromium computes for the node, with its
+    value, each cut to `Limits::text`.
+  - `Rect`: its border box, in whole CSS pixels as `Seen.rect`; none
+    where Chromium lays out no box for it.
+- **A page kept to files** (`files`): each request it sends outside
+  `file://`, a navigation's among them, fails before it leaves the
+  browser, a log error and so its `Trouble` (section 7).
 - **A node's states are Chromium's,** the accessibility properties of
   those names on the node it computed: each is set where its property
   reads `true`. `pressed` is a toggle's, such as a button with
@@ -381,8 +407,8 @@ pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: 
   kit refuses itself says so in its own words. Cut to `Limits::text`.
   Every other refusal's `detail` is empty: its `why` says it all.
 - **Every operation has one terminal event:** `Found`, `Met`, `Missed`,
-  `Done`, `Refused`, `Snapshot`, `Screenshot`, `Address`
-  or `Attribute`. Every person, page and the browser itself ends with one `Closed`. `Warned` is
+  `Done`, `Refused`, `Snapshot`, `Screenshot`, `Address`, `Attribute`,
+  `Elements`, `Style` or `Rect`. Every person, page and the browser itself ends with one `Closed`. `Warned` is
   not terminal: a go reports it at most once, before its terminal
   (section 6).
 
@@ -413,6 +439,10 @@ to the next command, never a closure waiting on a reply:
 | address | the page's navigation history (`Page.getNavigationHistory`); its current entry's URL, `Address` |
 | tabs | the browser's targets (`Target.getTargets`), those of type `page` in the page's person's context that no `Page` request opened, in the reply's order; each one's URL, title and `canAccessOpener`, within `Limits::matches`, the rest counted; `Tabs`. No script runs in them, and the kit attaches to none: what a person's tab strip and address bar show, and the browser's own word on the opener |
 | attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
+| elements | the current document's tree (`DOM.getDocument`, its whole depth), and with a selector the elements it selects among them (`DOM.querySelectorAll`); refused `Protocol` for a selector Chromium cannot parse |
+| style | the node's computed style (`CSS.getComputedStyleForNode`, `CSS` enabled at the page's first) |
+| rect | the node's box model (`DOM.getBoxModel`), its border quad's bounds; none where Chromium computes none |
+| files | not an operation: on a page opened with `files`, `Fetch.enable` for every URL before it navigates; each `Fetch.requestPaused` continued for a `file://` URL, else failed (`BlockedByClient`) |
 | snapshot | the page brought to the front; the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
 | screenshot | the page brought to the front; the viewport as PNG, under `Limits::screenshot` |
 
@@ -461,8 +491,9 @@ to the next command, never a closure waiting on a reply:
   accessibility commands to the page, and the evaluation of `document`,
   until the navigation commits, as a go's does. A find in flight when the
   navigation begins starts again, and asks once it has committed. An
-  attribute read waits and starts again the same way, so that it reads
-  one document from its root to its answer.
+  attribute read, and each read of a page's rendering, waits and starts
+  again the same way, so that it reads one document from its root to
+  its answer.
 - **A press at a point reaches a shape of an inline SVG.** The hit test
   there lands on the shape, inside the node that holds it, and the mouse
   goes down on the shape; something over the shape covers it, as it would
@@ -529,7 +560,8 @@ wrong, and reports each as `Trouble` with its text, cut to
 - a console message at error level;
 - a log entry at error level, which is how a content security policy
   violation, a failed load or a blocked request shows, other than the
-  blocked closing warning a go takes as its own (section 6);
+  blocked closing warning a go takes as its own (section 6) and the
+  refusal of the kit's own inspector request (below);
 - the page crashing, which also fails its operations in flight with
   `Crashed`;
 - a native dialog, other than the closing warning a go accepts (section
@@ -549,6 +581,24 @@ it is. The page goes on, and the test sees it as it stayed. Left open,
 the dialog would hold every operation on the page until its deadline,
 and no request would answer it.
 
+**The kit's own inspector request.** Enabling `CSS` on a page (section
+6, style) makes Chromium's inspector ask the document again for its own
+URL, a same-origin request answered from the cache alone, to hold its
+sources. A page whose origin may not read its own URL refuses that
+request before it leaves the page, and a `file://` page always does,
+since Chromium treats each `file:` document as a unique origin. The
+refusal is a log entry at error level from the `security` source,
+`Unsafe attempt to load URL U from frame with URL U.` and Chromium's
+reason (seen on Chrome for Testing 147.0.7727.117). The page still
+loaded once, as its own origin: the request was the kit's, and never
+sent. So that entry, one URL in both places, on a page whose
+`CSS.enable` awaits its reply, is the kit's and no `Trouble`; the same
+words outside that wait, or naming two URLs, are the page's. Turned
+down: enabling `CSS` before a page navigates, which would only move the
+request to the blank page it opens at, unchecked; and letting `file:`
+pages read files (`--allow-file-access-from-files`), since a page kept
+to files must not read other local files.
+
 A log entry's `url` is the resource it names, cut to `Limits::text`,
 beside its text and never in it, so that a test's expected words are
 read in the text alone and never match a port or a digest. A request's
@@ -564,7 +614,7 @@ example) expects it. That is the test's harness, not the kit.
 
 `Limits` bound persons, pages, operations in flight, commands in flight,
 downloads in flight, requests awaiting their first answer,
-a message each way, matches kept per query, the bytes of a name or
+a message each way, matches kept per query, elements kept per read, the bytes of a name or
 value, a snapshot, a screenshot, a `Trouble`'s text and
 stderr's tail.
 They also set the poll interval and the answer deadline. Commands are
@@ -593,6 +643,14 @@ named scenario ceiling with headroom.
   reported; a request past `Limits::requests` reported `Sent` and as its
   page's `Trouble`, its `url` the request's; a page's close dropping its
   kept requests, none reported after its `Closed`.
+- **A page's rendering and files,** step tests on synthetic replies:
+  elements in order with depths, all and by a selector, past
+  `Limits::elements` counted; a style, a long value cut; a rect, and
+  none; a node gone; `files` enabling `Fetch` before navigating, a
+  `file://` request continued and others failed; the refusal of the
+  kit's own inspector request (section 7) not reported while its
+  `CSS.enable` awaits its reply, and the same entry before it, after its
+  reply or naming two URLs reported as `Trouble`.
 - **The machine world:** the kit against a fake browser, a scripted CDP
   peer over in-memory pipes. Its pages and accessibility trees come from
   the scenario, and the seed drives what goes wrong:
@@ -625,7 +683,11 @@ named scenario ceiling with headroom.
   modifiers and the text it made, and a page whose press opens a tab, names
   it and cuts its opener, and which opens another at its start, with no press;
   and a page whose full-width heading measures 420 then 1440 CSS pixels
-  after its viewport changes; and a page, opened with `requests`, whose
+  after its viewport changes, and in that story's session two `file://`
+  pages kept to files that differ by one declaration, read at 1440, 1000
+  and 420: one element's one property differs at each width, two equal
+  pages differ in none, and an image asking the suite's server is
+  blocked, the server seeing no request; and a page, opened with `requests`, whose
   script fetches a streamed answer that stays open, then is reloaded: its
   document and its fetch reported `Sent` with its load, the streamed one
   `Answered` while it stays open, and the leaving document's request with

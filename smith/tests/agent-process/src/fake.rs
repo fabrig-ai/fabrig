@@ -1,6 +1,6 @@
 //! Scenario configuration and observations of Skein's independent LLM peer.
-//! It reserves real macOS listeners until adoption; the peer owns byte
-//! routing and its script. Contract: smith/docs/design/testing.md, sections 4 and 5.
+//! Only real macOS peers reach the table of listeners held until adoption.
+//! The peer owns byte routing and its script. Contract: smith/docs/design/testing.md, sections 4 and 5.
 use skein_fake_llm_domain::{self as domain, api};
 use skein_fake_llm_protocol::{documents, provider};
 use skein_fake_peers::{Limits, Transport, llm};
@@ -15,7 +15,12 @@ use std::{
 
 static REAL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 static MACOS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(not(test))]
 static LISTENERS: Mutex<BTreeMap<u16, HeldListener>> = Mutex::new(BTreeMap::new());
+
+#[cfg(test)]
+use tests::LISTENERS;
 
 struct HeldListener {
     fd: Fd,
@@ -100,6 +105,9 @@ pub fn address(port: u16) -> SocketAddr {
 /// Startup descriptors to declare before constructing a hosted real peer.
 #[must_use]
 pub fn listener_fds(port: u16) -> Vec<Fd> {
+    if selected(port).port() != 0 {
+        return Vec::new();
+    }
     let _address = address(port);
     LISTENERS.lock().expect("fixture listeners").get(&port).map_or_else(Vec::new, |held| vec![held.fd])
 }
@@ -107,6 +115,9 @@ pub fn listener_fds(port: u16) -> Vec<Fd> {
 /// Transfer the held listener to its peer once, before its first io pass.
 #[must_use]
 pub fn take_listener(port: u16) -> Option<(Fd, SocketAddr)> {
+    if selected(port).port() != 0 {
+        return None;
+    }
     let _address = address(port);
     LISTENERS.lock().expect("fixture listeners").get_mut(&port).map(|held| {
         assert!(!held.adopted, "one fake per reserved port in a scratch scope");
@@ -368,4 +379,70 @@ pub fn context_rejected(peer: &llm::Peer) -> bool {
 /// Admit the observed reasoning turn when it is replayed in the next request.
 pub(crate) fn reasoning(scripts: Box<[api::Script]>) -> llm::Peer {
     Options::default().make(scripts, credential(false))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BTreeMap, Fd, HeldListener, Mutex, address, listener_fds, real_loopback_on, take_listener};
+    use std::{
+        cell::Cell,
+        net::{Ipv4Addr, SocketAddr},
+        sync::{LockResult, MutexGuard},
+    };
+
+    // Provider ports for plaintext and TLS respectively.
+    const PORTS: [u16; 2] = [443, 34_443];
+
+    thread_local! {
+        static LOCK_FORBIDDEN: Cell<bool> = const { Cell::new(false) };
+    }
+
+    // Check every attempted lock before it can block.
+    pub(super) static LISTENERS: ListenerTable = ListenerTable(Mutex::new(BTreeMap::new()));
+
+    pub(super) struct ListenerTable(Mutex<BTreeMap<u16, HeldListener>>);
+
+    impl ListenerTable {
+        pub(super) fn lock(&self) -> LockResult<MutexGuard<'_, BTreeMap<u16, HeldListener>>> {
+            assert!(!LOCK_FORBIDDEN.get(), "unheld peer reached the fixture listener lock");
+            self.0.lock()
+        }
+    }
+
+    struct ForbidListenerLock;
+
+    impl ForbidListenerLock {
+        fn new() -> Self {
+            LOCK_FORBIDDEN.set(true);
+            Self
+        }
+    }
+
+    impl Drop for ForbidListenerLock {
+        fn drop(&mut self) {
+            LOCK_FORBIDDEN.set(false);
+        }
+    }
+
+    fn assert_no_held_listener(port: u16) {
+        assert_eq!(listener_fds(port), Vec::<Fd>::new());
+        assert_eq!(take_listener(port), None);
+    }
+
+    #[test]
+    fn peers_without_held_listeners_do_not_lock_the_table() {
+        {
+            let _no_lock = ForbidListenerLock::new();
+            for port in PORTS {
+                assert_eq!(address(port), SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
+                assert_no_held_listener(port);
+            }
+        }
+
+        let _linux = real_loopback_on(false);
+        let _no_lock = ForbidListenerLock::new();
+        for port in PORTS {
+            assert_no_held_listener(port);
+        }
+    }
 }

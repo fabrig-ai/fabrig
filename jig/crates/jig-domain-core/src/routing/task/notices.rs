@@ -43,10 +43,13 @@ pub(crate) fn question_parked(
     env: &Env<Limits>,
     task: u64,
     question: tasks::OpenQuestion,
+    chain: &[tasks::StuckLink],
     pending: &mut Queue<tasks::Request>,
 ) {
-    let words = core.open_question_words(question).expect("open credit retains its question activity");
-    let reason = tasks::open_question_reason(question, words);
+    let reason = match core.open_question_words(question) {
+        Some(words) => Some(tasks::open_question_reason(question, chain, words)),
+        None => None, // The credit may have closed during the change's own routing.
+    };
     let mut follow = Queue::uncapped();
     crate::routing::step::step_tasks(
         core,

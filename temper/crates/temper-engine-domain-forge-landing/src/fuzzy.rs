@@ -10,10 +10,14 @@ fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
     let mut stale_after_cut = false;
     let mut unkept = false;
     let mut held = false;
+    let mut refused_close = false;
+    let mut refused_delete = false;
     for seed in 0..256 {
         prefix_search(seed);
         let played = run(seed);
-        let [whole, selected, absent] = played.2;
+        let [whole, selected, absent, close, delete] = played.2;
+        refused_close |= close;
+        refused_delete |= delete;
         whole_cut |= whole;
         selected_cut |= selected;
         stale_after_cut |= played.3;
@@ -23,18 +27,19 @@ fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
     }
     assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
     assert!(unkept && held, "the sweep reaches a prepare with no kept answer and its hold");
+    assert!(refused_close && refused_delete, "the sweep refuses both cleanup writes");
     assert!(stale_after_cut, "the sweep moves main after a cut, before the next open is answered");
 }
 
 // Each effect takes 1–3 steps, separately from its result becoming readable.
 // The settling bound is 32 + 20 per member + 24 per drawn disturbance:
 // member steps, round cleanup, and another proof after each disturbance.
-fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 3], bool) {
+fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 5], bool) {
     let mut rng = Rng::new(seed);
     let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
     let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
     let mut landing = stack(count);
-    let mut world = Top::new(rng, count, units);
+    let mut world = Top::new(rng, count, units, Rng::new(seed));
     let mut disturbances = world.disturbances();
     for (index, member) in landing.members.iter_mut().enumerate() {
         member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
@@ -285,6 +290,7 @@ enum StaleAt {
 
 struct Top {
     rng: Rng,
+    cleanup_faults: Rng,
     facts: crate::Facts,
     pending: List<Pending>,
     conflicts: Box<[Option<Outcome>]>,
@@ -302,10 +308,11 @@ struct Coverage {
     cuts: [bool; 2],
     stale_after_cut: bool,
     absent: bool,
+    refused: [bool; 2],
 }
 
 impl Top {
-    fn new(mut rng: Rng, count: usize, units: usize) -> Self {
+    fn new(mut rng: Rng, count: usize, units: usize, cleanup_faults: Rng) -> Self {
         let mut conflicts = List::with_capacity(u32::try_from(count).unwrap());
         let mut noise = List::with_capacity(u32::try_from(count).unwrap());
         for _ in 0..count {
@@ -347,6 +354,7 @@ impl Top {
         facts.preparation = Preparation::Absent;
         Self {
             rng,
+            cleanup_faults,
             facts,
             pending: List::with_capacity(32),
             conflicts: conflicts.into_boxed(),
@@ -355,7 +363,7 @@ impl Top {
             by_test,
             stale,
             cancel,
-            coverage: Coverage { cuts: [false; 2], stale_after_cut: false, absent: false },
+            coverage: Coverage { cuts: [false; 2], stale_after_cut: false, absent: false, refused: [false; 2] },
             unkept,
         }
     }
@@ -370,9 +378,10 @@ impl Top {
             .unwrap()
     }
 
-    fn reached(&self) -> [bool; 3] {
+    fn reached(&self) -> [bool; 5] {
         let [whole, selected] = self.coverage.cuts;
-        [whole, selected, self.coverage.absent]
+        let [close, delete] = self.coverage.refused;
+        [whole, selected, self.coverage.absent, close, delete]
     }
 
     fn merge_pending(&self) -> bool {
@@ -481,8 +490,8 @@ impl Top {
                     self.facts.opened = Some(u64::from(p.round).checked_add(99).unwrap());
                     self.facts.opening = Status::Passed;
                 }
-                Effect::Close => self.facts.closed = Status::Passed,
-                Effect::Delete => self.facts.members[index].deleted = Status::Passed,
+                Effect::Close => self.answer_cleanup(landing, tick, Decision::Close),
+                Effect::Delete => self.answer_cleanup(landing, tick, Decision::Delete { member: p.member }),
                 Effect::Post { candidate } => {
                     if fresh_candidate(&self.facts, index) == Some(candidate) {
                         self.facts.members[index].gates[0].posting = Status::Passed;
@@ -541,6 +550,33 @@ impl Top {
             }
         }
         answered
+    }
+
+    fn answer_cleanup(&mut self, landing: &Landing, tick: u32, write: Decision) {
+        if self.cleanup_faults.below(8) == 0 {
+            self.refuse_cleanup(landing, tick, write);
+            self.coverage.refused[usize::from(write != Decision::Close)] = true;
+        }
+        cleanup_answer(&mut self.facts, write, Status::Passed);
+    }
+
+    // Try a refused answer from this snapshot, then keep the successful path
+    // so the same seeded stacks still exercise their full search and turn.
+    fn refuse_cleanup(&self, landing: &Landing, tick: u32, write: Decision) {
+        let now = Wall::from_nanos(u64::from(tick).checked_mul(1_000_000_000).unwrap());
+        let mut facts = self.facts.clone();
+        cleanup_answer(&mut facts, write, Status::Failed);
+        let held = crate::step(landing, &facts, &crate::Project::DEFAULT, &LIMITS, now);
+        assert_eq!(held.decision, Decision::Hold(crate::Hold::Cleanup), "{write:?}, tick {tick}");
+        let waiting = crate::step(&held.landing, &facts, &crate::Project::DEFAULT, &LIMITS, now);
+        assert_eq!(waiting.decision, Decision::Wait { until: None, on: crate::Awaited::Release });
+        facts.released = true;
+        let released = crate::step(&waiting.landing, &facts, &crate::Project::DEFAULT, &LIMITS, now);
+        assert_eq!(released.decision, Decision::None);
+        facts.released = false;
+        cleanup_answer(&mut facts, write, Status::Unknown);
+        let retried = crate::step(&released.landing, &facts, &crate::Project::DEFAULT, &LIMITS, now);
+        assert_eq!(retried.decision, write);
     }
 
     fn cleanup(&mut self, seed: u64, before: &Landing, after: &Landing) {
@@ -694,6 +730,15 @@ impl Top {
             wake |= awaiting == Some(on);
         }
         assert!(wake, "no wake seed {seed} tick {tick}: {on:?}, {:?}", self.pending);
+    }
+}
+
+#[expect(clippy::wildcard_enum_match_arm, reason = "only the two round cleanup decisions get these answers")]
+fn cleanup_answer(facts: &mut crate::Facts, write: Decision, answer: Status) {
+    match write {
+        Decision::Close => facts.closed = answer,
+        Decision::Delete { member } => facts.members[usize::from(member)].deleted = answer,
+        _ => unreachable!("round cleanup decision"),
     }
 }
 

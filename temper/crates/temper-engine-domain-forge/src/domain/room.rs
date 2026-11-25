@@ -153,7 +153,7 @@ pub(super) fn drop_released(d: &mut Domain, task: u64, parts: bool, out: &mut Qu
     }
     let mut tasks = List::with_capacity(crate::MARKED);
     tasks.push(task).expect("own panel subject");
-    if let Some(landing) = row.change.landing {
+    if let Some(landing) = d.landing_of(row.task) {
         tasks.push(landing).expect("member landing subject");
     }
     if let Some(subjects) = crate::views::changes_mark(d, row.repository) {

@@ -8,7 +8,7 @@ use crate::{ChangeRow, Domain, Limits, Request, history as h};
 
 /// A project's way is taken before first readiness (domain/landing.md, 1).
 pub(crate) fn way(d: &Domain, row: &mut ChangeRow) {
-    if row.change.ready_since.is_some() || row.change.owns_turn || row.change.landing.is_some() {
+    if row.change.ready_since.is_some() || row.change.owns_turn || d.landing_of(row.task).is_some() {
         return;
     }
     match row.change.state {
@@ -51,7 +51,7 @@ pub(crate) fn way(d: &Domain, row: &mut ChangeRow) {
 }
 
 fn landing(d: &Domain, row: &ChangeRow) -> Option<h::InLanding> {
-    let task = row.change.landing?;
+    let task = d.landing_of(row.task)?;
     let landing = &d.landing.rows.get(&task)?.landing;
     if landing.preparation == 0 {
         return None;

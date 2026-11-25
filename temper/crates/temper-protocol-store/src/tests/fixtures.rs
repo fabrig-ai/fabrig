@@ -905,12 +905,13 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         body: Box::new([5]),
         priority: -6,
         ci: None,
+        asks: Box::new([]),
+        handed: 0,
+        previous: None,
         change: Change {
             ended_held: None,
             early: temper_engine_domain_forge_change::Early::None,
-            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
             task: 1,
             state,
             gates: Box::new([Gate {

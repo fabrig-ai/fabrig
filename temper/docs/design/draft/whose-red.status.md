@@ -10,5 +10,4 @@
   - 7: no record of temper's own writes. Drift is judged against the expected head, with a pair of heads beside a branch hold (`../domain/forge/change/drift.md`, 1; `../domain/forge/branches.md`, 3).
   - 8: no design for how the previous build's holds and branches read.
 - **Design departs:** none.
-- **Open:**
-  - 3.3: with `checks.flakes none`, the landing gate's known-flake rerun is off too. The user's word (2026-11-25) named pre-PR's reruns, and the gate runs the same tests.
+- **Open:** none.
