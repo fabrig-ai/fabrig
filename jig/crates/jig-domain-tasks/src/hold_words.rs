@@ -318,8 +318,9 @@ fn minute(wall: Wall) -> [u8; 17] {
     minute
 }
 
-// An opaque or legacy value need not be UTF-8. Check only the part that can fit;
-// on a valid input the most a character can overhang its room is three bytes.
+// Opaque values and values stored without validation may contain invalid UTF-8.
+// Check only the part that can fit; on a valid input the most a character can
+// overhang its room is three bytes.
 fn text_prefix(text: &[u8], room: usize) -> (&[u8], bool) {
     let full = room.min(text.len());
     for back in 0..=3 {

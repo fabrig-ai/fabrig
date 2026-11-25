@@ -215,7 +215,7 @@ fn a_256_kib_placed_reason_is_cut_at_a_character_before_the_start_and_exit() {
 }
 
 #[test]
-fn a_legacy_row_uses_its_latest_hold_line_and_keeps_it_after_another_phase_move() {
+fn a_row_without_held_since_keeps_its_latest_hold_time_across_a_phase_move() {
     let mut h = Harness::new();
     h.make([task(1, &[])].into());
     h.env.wall = DEADLINE;

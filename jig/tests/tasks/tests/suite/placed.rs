@@ -842,7 +842,7 @@ fn restart_leaves_unheld_tasks_in_scope_to_the_referee() {
 }
 
 #[test]
-fn a_legacy_stop_with_no_reason_restores_as_placed() {
+fn a_stop_stored_without_a_reason_restores_as_placed() {
     let mut world = World::new(921, LIMITS);
     goal_tree(&mut world);
     assert_eq!(stop(&mut world, 1, 1, STOP_HOLD), Reply::Done);
@@ -855,5 +855,5 @@ fn a_legacy_stop_with_no_reason_restores_as_placed() {
     for number in 1..=4 {
         placed(&world, number, STOP_HOLD);
     }
-    assert!(world.placed_hold(STOP_HOLD).expect("legacy hold restored").reason.is_empty());
+    assert!(world.placed_hold(STOP_HOLD).expect("placed hold restored").reason.is_empty());
 }
