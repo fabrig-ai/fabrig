@@ -52,6 +52,12 @@ impl Growth {
         }
         false
     }
+    pub(super) fn poll(&self) -> Time {
+        self.poll
+    }
+    pub(super) fn until(&self) -> Option<Time> {
+        self.until
+    }
     pub(super) fn expire(&self, face: &mut BrowserFace<'_>, now: Time) -> bool {
         if self.until.is_some_and(|until| now >= until) {
             face.expire(

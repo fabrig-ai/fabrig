@@ -1,42 +1,12 @@
-use super::{LISTENING, Process, Run, run, server};
+use super::{run_story, setup};
 use skein_fake_person_browser::{
-    Harness, Kept, Outcome, Script, Setup, Step,
-    harness::{Element, Names, Origin, Output, Printed, Scripted, Sent, Shown},
+    Harness, Kept, Outcome, Script, Step,
+    harness::{Element, Origin, Scripted, Shown},
     person,
 };
-use skein_io::kernel::Spawn;
 use skein_lib::{Duration, Time};
-use skein_world::{HostedProgram, Inherited};
 
-const SERVER: &[u8] = b"/scripted-server";
 const SECOND: Duration = Duration::from_secs(1);
-
-fn setup(origins: Vec<Origin>) -> Harness {
-    Harness::new(Setup {
-        server: "/scripted-server".into(),
-        args: vec![],
-        printed: Printed { sent: Sent::Page, prefix: LISTENING.as_bytes(), on: Output::Stderr, names: Names::Address },
-        restart: vec![],
-        chromium: "/not-a-hosted-program".into(),
-        downloads: None,
-        expected: vec![],
-        origins,
-    })
-}
-
-fn server_200<'a, 'p, 'l>(_: &Spawn, inherited: &Inherited) -> Process<'a, 'p, 'l> {
-    Process::Child(Box::new(server(inherited, 200)))
-}
-
-fn run_story(harness: &mut Harness, people: &mut [&mut dyn super::Play], browser: Scripted) -> Run {
-    run(
-        harness,
-        people,
-        &mut [],
-        browser,
-        [HostedProgram { program: SERVER.into(), make: server_200, instances: 1, operations: 8 }],
-    )
-}
 
 fn keep_harness() -> Harness {
     setup(vec![Origin { host: b"localhost".as_slice().into(), pages: vec![] }])

@@ -8,6 +8,8 @@ use std::{
 };
 
 pub(crate) const SCRIPTS: &str = "browser-scripts.json";
+pub(crate) const KEY: &str = "browser-model.key";
+pub(crate) const PROVIDER: u16 = 4;
 
 pub(crate) fn document(socket: &str, key: &Path) -> Value {
     json!({"listen":{"socket":socket}, "key":key, "tls":null,
@@ -43,12 +45,12 @@ pub(crate) fn settings(socket: &str) -> Value {
     // The agent's standard profile admits four endpoints. Keep Anthropic's program
     // endpoint and free its unused direct endpoint for this world's scripted provider.
     json!({"items":[anthropic,
-        {"setting":{"kind":"provider","number":4},"set":{
-            "number":4,"name":"browser","endpoint":"browser","signed_in_plan":false,"sources":{"keys":true},
+        {"setting":{"kind":"provider","number":PROVIDER},"set":{
+            "number":PROVIDER,"name":"browser","endpoint":"browser","signed_in_plan":false,"sources":{"keys":true},
             "endpoints":[{"name":"browser","number":5,"dialect":3,"address":{"socket":socket},
                 "transport":"plaintext","headers":[],"connect_ms":10000,"handshake_ms":10000}]}},
         {"setting":{"kind":"model","number":8},"set":{
-            "number":8,"model":{"provider":4,"endpoint":5,"dialect":3,"program":null,"name":"demo",
+            "number":8,"model":{"provider":PROVIDER,"endpoint":5,"dialect":3,"program":null,"name":"demo",
                 "window":1_048_576,"output":8192,"input_price":1,"cached_price":1,"cache_write_price":null,
                 "output_price":1,"price_unit":1000,"efforts":[],"effort":null},
             "shown":null,"description":null,"picker":true,"withdrawn":false,"source":"person","estimated":false}}
@@ -65,7 +67,7 @@ impl Tier {
     pub(crate) fn scripted_model_with_parking(&self, charter: Option<u32>) -> temper_box_kit::parent::Guard {
         let directory = self.scratch.path();
         let [socket] = temper_fixtures::ports::addresses::<1>(&[]);
-        let key = directory.join("browser-model.key");
+        let key = directory.join(KEY);
         let doc = directory.join("browser-model.json");
         configuration::private(
             &doc,
@@ -104,7 +106,7 @@ impl Tier {
             }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        bootstrap(directory, &key, settings, charter);
+        bootstrap(directory, settings, charter);
         guard
     }
 }
@@ -114,8 +116,8 @@ fn spawn_model(command: &mut Command) -> std::io::Result<std::process::Child> {
     skein_shell::spawn_dying_with_parent(command, skein_io::kernel::Signal::Kill)
 }
 
-/// A no-task sitting commits the settings and restarts before any browser link is held.
-fn bootstrap(directory: &Path, key: &Path, settings: Value, charter: Option<u32>) {
+/// A no-task sitting commits the settings; the story's start takes the provider.
+fn bootstrap(directory: &Path, settings: Value, charter: Option<u32>) {
     use temper_box_kit::{
         boxed,
         ctl::{Call, Step},
@@ -132,41 +134,29 @@ fn bootstrap(directory: &Path, key: &Path, settings: Value, charter: Option<u32>
         settings_calls.push(Step::Run(apply_model_settings(&file, &settings)));
     }
     settings_calls.push(Step::Run(Call::new(&["sign-out"])));
-    let account_calls = vec![
-        Step::Run(Call::sign_in()),
-        Step::Run(Call::new(&[
-            "account",
-            "add-key",
-            "4",
-            key.to_str().expect("model key path"),
-            "--key",
-            "browser-model-key",
-        ])),
-        Step::Run(Call::new(&["account", "list", "--until", "usable"])),
-        Step::Run(Call::new(&["sign-out"])),
-    ];
-    for calls in [settings_calls, account_calls] {
-        let count = calls.len();
-        let flags = configuration::flags(directory)
-            .into_iter()
-            .map(|word| word.into_string().expect("directory flag"))
-            .collect();
-        let outcome = boxed::run_ctl(directory, flags, directory, calls, boxed::BOX_DEADLINE, |_| ());
-        for call in &outcome.calls {
-            assert_eq!(
-                call.exit,
-                Some(skein_io::kernel::Exit::Code(0)),
-                "scripted setup: {}",
-                String::from_utf8_lossy(&call.stderr)
-            );
-        }
-        assert_eq!(outcome.calls.len(), count, "every bootstrap call ran");
-        assert_eq!(outcome.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", String::from_utf8_lossy(&outcome.stderr));
-        assert_eq!(outcome.left, Some(Vec::new()), "scripted setup drained");
-        let held = directory.join("limits-held");
-        if held.is_file() {
-            fs::remove_file(held).expect("release browser limit settings");
-        }
+    let count = settings_calls.len();
+    let flags =
+        configuration::flags(directory).into_iter().map(|word| word.into_string().expect("directory flag")).collect();
+    let outcome = boxed::run_ctl(directory, flags, directory, settings_calls, boxed::BOX_DEADLINE, |_| ());
+    for call in &outcome.calls {
+        assert_eq!(
+            call.exit,
+            Some(skein_io::kernel::Exit::Code(0)),
+            "scripted setup: {}",
+            temper_box_kit::without_secrets(&call.stderr)
+        );
+    }
+    assert_eq!(outcome.calls.len(), count, "every bootstrap call ran");
+    assert_eq!(
+        outcome.exit,
+        Some(skein_io::kernel::Exit::Code(0)),
+        "{}",
+        temper_box_kit::without_secrets(&outcome.stderr)
+    );
+    assert_eq!(outcome.left, Some(Vec::new()), "scripted setup drained");
+    let held = directory.join("limits-held");
+    if held.is_file() {
+        fs::remove_file(held).expect("release browser limit settings");
     }
 }
 

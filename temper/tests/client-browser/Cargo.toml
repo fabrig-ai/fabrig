@@ -9,7 +9,11 @@ publish.workspace = true
 
 [dependencies]
 temper-config-shell.workspace = true
+temper-engine-service-stock.workspace = true
+settings-form.workspace = true
+jig-domain-core-vocabulary.workspace = true
 jig-protocol-config-fixtures.workspace = true
+jig-protocol-engine-clients.workspace = true
 temper-test-env.workspace = true
 temper-shell.workspace = true
 temper-fixtures.workspace = true
@@ -45,7 +49,6 @@ jig-client-fake-person-browser.workspace = true
 [dev-dependencies]
 temper-client-journeys-tool.workspace = true
 temper-client-walk-lines.workspace = true
-settings-form.workspace = true
 jig-domain-core.workspace = true
 temper-init.workspace = true
 temper-client-domain.workspace = true

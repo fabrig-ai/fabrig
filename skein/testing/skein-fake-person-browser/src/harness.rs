@@ -100,6 +100,11 @@ pub struct Asked {
 }
 pub trait Play {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>>;
+    /// Next clock wake for this player. Browser and io events also wake the run.
+    /// `runnable` says whether the harness can call `next`; `check_deadline` can still run.
+    fn next_wake(&self, _face: &BrowserFace<'_>, now: Time, _runnable: bool) -> Option<Time> {
+        Some(now.saturating_add(POLL))
+    }
     fn expected(&self) -> Vec<Box<[u8]>> {
         Vec::new()
     }
@@ -284,7 +289,6 @@ struct Runtime {
     closed: u32,
     spawned: u32,
     server_state: ServerState,
-    stderr: Vec<u8>,
     server_stderr: Vec<u8>,
     address: Option<String>,
     ready: bool,
@@ -301,6 +305,7 @@ struct Runtime {
     close_window: Option<CloseWindow>,
     deadline: Option<Account>,
     step_accounts: Vec<Option<StepAccount>>,
+    step_wakes: Vec<Option<Time>>,
     starved: Option<Starved>,
     spawned_pids: VecDeque<Option<u32>>,
     server_pid: Option<u32>,
@@ -407,7 +412,6 @@ impl Runtime {
             closed: 0,
             spawned: 0,
             server_state: ServerState::Running,
-            stderr: Vec::new(),
             server_stderr: Vec::new(),
             address: None,
             ready: false,
@@ -422,6 +426,7 @@ impl Runtime {
             closing: closing::Closing::new(),
             close_window: None,
             deadline: None,
+            step_wakes: vec![None; people.len()],
             step_accounts: (0..people.len()).map(|_| None).collect(),
             starved: None,
             spawned_pids: VecDeque::new(),
@@ -682,14 +687,14 @@ impl Runtime {
                 let below = if owner == commands {
                     Below::Commands(up)
                 } else if owner == replies {
-                    if let stream::Up::Bytes(bytes) = &up {
-                        self.context |= bytes.windows(16).any(|part| part == b"browserContextId");
+                    if !self.context
+                        && self.opening < self.opened.len()
+                        && let stream::Up::Bytes(bytes) = &up
+                    {
+                        self.context = skein_lib::bytes::find(bytes, b"browserContextId").is_some();
                     }
                     Below::Replies(up)
                 } else if owner == errors {
-                    if let stream::Up::Bytes(bytes) = &up {
-                        tail(&mut self.stderr, bytes);
-                    }
                     Below::Errors(up)
                 } else {
                     return;
@@ -865,6 +870,26 @@ impl Runtime {
             }
         }
     }
+    fn can_play(&self, index: usize) -> bool {
+        !matches!(self.server_state, ServerState::Stopping | ServerState::Starting)
+            && self.exchanges.iter().filter(|exchange| exchange.person == index).take(2).count() < 2
+    }
+    fn play_wake(&self, people: &[&mut dyn Play], faces: &[BrowserFace<'_>], done: &[bool], now: Time) -> Option<Time> {
+        people
+            .iter()
+            .zip(faces)
+            .enumerate()
+            .filter(|(index, _)| self.opened[*index] && !done[*index])
+            .flat_map(|(index, (play, face))| {
+                [
+                    face.press_wake(),
+                    self.step_wakes[index].filter(|at| *at > now),
+                    play.next_wake(face, now, self.can_play(index) && !face.pending()),
+                ]
+            })
+            .flatten()
+            .min()
+    }
     fn play(
         &mut self,
         people: &mut [&mut dyn Play],
@@ -880,7 +905,7 @@ impl Runtime {
             if !self.opened[index] || done[index] {
                 continue;
             }
-            if self.exchanges.iter().filter(|exchange| exchange.person == index).count() >= 2 {
+            if !self.can_play(index) {
                 continue;
             }
             for request in face.requests() {
@@ -900,7 +925,15 @@ impl Runtime {
                 now,
                 native,
             );
+            face.clear_look_wake();
             let next = play.next(face, now);
+            if play.at() != step {
+                face.clear_look_wake();
+            }
+            self.step_wakes[index] = match next {
+                Next::Wait { until } => until,
+                _ => None,
+            };
             if let Some(failure) = face_failure(face, step) {
                 self.step_failed(index, failure);
                 break;
@@ -1207,12 +1240,16 @@ impl Runtime {
     fn report(self) -> (Outcome, Vec<Kept>, Option<Starved>) {
         let mut outcome = self.outcome.expect("terminal outcome");
         if let Outcome::Failed { report, .. } = &mut outcome {
+            let stderr = match &self.browser {
+                BrowserEnd::Chromium(browser) => browser.stderr_tail(),
+                BrowserEnd::Scripted(_) => &[],
+            };
             write!(
                 report,
                 "\nSnapshot:\n{}\nScreenshot: {}\nChromium stderr:\n{}\nServer stderr:\n{}",
                 self.snapshot.as_deref().unwrap_or("unavailable"),
                 self.screenshot.as_ref().map_or_else(|| "unavailable".into(), |p| p.display().to_string()),
-                String::from_utf8_lossy(&self.stderr),
+                String::from_utf8_lossy(stderr),
                 String::from_utf8_lossy(&self.server_stderr)
             )
             .expect("string write");

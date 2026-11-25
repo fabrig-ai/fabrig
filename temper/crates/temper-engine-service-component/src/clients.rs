@@ -770,7 +770,14 @@ impl Clients {
         self.pending = server_pending || admitted || self.server_queued || !self.server_out.is_empty();
         let mount_pending = self.mount.up(&self.mount_env, &mut self.mount_out);
         self.pending |= mount_pending;
-        if self.component_closed && !mount_pending && self.mount_out.is_empty() && self.out.is_empty() {
+        // Finishing can make a held call closable on the next pass. A close
+        // already sent waits for its IO terminal, not another finish.
+        if self.component_closed
+            && !self.server.finished()
+            && !mount_pending
+            && self.mount_out.is_empty()
+            && self.out.is_empty()
+        {
             self.server.finish();
             self.pending = true;
         }
