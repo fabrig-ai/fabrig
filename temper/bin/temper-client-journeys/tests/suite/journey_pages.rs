@@ -224,7 +224,9 @@ fn changed_pages_offer_the_fetched_tip_with_the_given_budget() {
         repos.write("another", "A newer main\n");
         repos.git(&repos.person, &["add", "another"]);
         repos.git(&repos.person, &["commit", "--quiet", "-m", "Advance main"]);
-        repos.git(&repos.person, &["push", "--quiet", repos.origin.to_str().expect("origin path"), "main"]);
+        repos.git(&repos.person, &["push", "--quiet", "origin", "main"]);
+        // Restore the tracking ref to model main advancing in another clone.
+        repos.git(&repos.person, &["update-ref", "refs/remotes/origin/main", &old]);
         let tip = repos.git(&repos.origin, &["rev-parse", "main"]);
         repos.git(&repos.person, &["checkout", "--quiet", "--detach", &old]);
         assert_eq!(repos.git(&repos.person, &["rev-parse", "origin/main"]), old, "stale until fetched");
