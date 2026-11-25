@@ -1075,9 +1075,11 @@ fn refused_answer_reason_reaches_operator_once() {
 /// Restore a job and its procedure parent, then claim it on the fixture channel.
 fn claimed_job() -> (crate::Service, host::JobAssignment) {
     use temper_engine_domain::{Record, Write};
-    let mut store = fixtures::records_store();
+    let settings = fixtures::engine_with_jobs();
+    let merge = crate::limits::merge_bound();
+    let mut store = fixtures::completed_store_for(fixtures::engine_with_jobs());
     let mut task = fixtures::task_record(1);
-    task.executor = tasks::Executor::Job { kind: 3 };
+    task.executor = tasks::Executor::Job { kind: merge.kind.0 };
     task.flags = tasks::Flags::PLAIN;
     task.llm = None;
     task.spec.words = Box::new([]);
@@ -1116,30 +1118,28 @@ fn claimed_job() -> (crate::Service, host::JobAssignment) {
     let Some(jig_protocol_store::Event::Committed { .. }) = store.host.above.pop() else {
         panic!("fixture commit");
     };
-    let mut restored = fixtures::start_with_store(&[(1, 100)], Some(store));
+    let mut restored = fixtures::start_configured(settings, &[(1, 100)], Some(store), false, false);
     fixtures::restart(&mut restored);
-    let jig_protocol_engine_workers::host::Output::Hello { mut hello, .. } = hello_for_loss_notes(0) else {
+    let jig_protocol_engine_workers::host::Output::Hello { mut hello, channel, .. } = hello_for_loss_notes(0) else {
         unreachable!()
     };
-    hello.jobs = Box::new([crate::limits::merge_bound()]);
+    hello.jobs = Box::new([merge]);
     restored.engine.as_mut().unwrap().step(temper_engine_domain::Event::Worker(
         temper_engine_domain::WorkerInput::Link {
-            channel: Token::new(7),
+            channel,
             link: temper_engine_domain::Link::Hello { worker: 0, hello },
         },
     ));
-    let engine = restored.engine.as_mut().unwrap();
-    crate::engine::clock(engine, Time::from_nanos(2_000_000_000), skein_lib::Wall::from_nanos(2_000_000_000));
-    temper_engine_domain::fire(&mut engine.domain, &engine.env);
     let mut delivered = skein_lib::Queue::uncapped();
     fixtures::settle_root(&mut restored, &mut delivered);
     let mut assigned = None;
     while let Some(delivery) = delivered.pop() {
-        if let temper_engine_domain::Delivery::AssignedJob { job, .. } = delivery {
+        if let temper_engine_domain::Delivery::AssignedJob { channel, job, .. } = delivery {
+            assert_eq!(channel, Token::new(7), "the covering worker receives the job");
             assigned = Some(job);
         }
     }
-    (restored, assigned.expect("the restored job is assigned after its first refusal backs off"))
+    (restored, assigned.expect("the restored job is assigned after the covering hello"))
 }
 
 #[test]
