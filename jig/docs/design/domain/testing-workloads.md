@@ -212,6 +212,16 @@ of three goals with their asking delegates needs six of each, so the
 drawn length is capped at two there; a circle of two still checks the
 walk through another goal's delegate by reading.
 
+A watch's reservation doesn't fit the planning fixture's 512-byte inbox
+beside what a goal already reserves: 64 for its news, 128 for each live
+delegate's result, 256 for an open question asked of it, and 128 for
+the watch, so a goal in a circle needs 576 and the control's goal, with
+two delegates, 704. A seed that draws `STUCK_IN_A_CIRCLE` or
+`WATCHES_A_TASK_THAT_CAN_ANSWER` sets the tasks' inbox bytes to 704
+before the world is made; every other bound, the task and walk bounds
+among them, stays the planning fixture's, and a seed that draws neither
+keeps 512.
+
 ## 5. Tables and funds at their bounds
 
 Over the same workload, at the standard profile's tables:
