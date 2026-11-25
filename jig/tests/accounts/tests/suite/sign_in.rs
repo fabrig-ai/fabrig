@@ -106,6 +106,7 @@ fn a_sign_in_to_a_new_subject_makes_an_account_that_restores() {
         "its records restore it, and the component is asked for it"
     );
     assert_eq!((again.domain.account(1).expect("restored").display(), places(&again, 1)), (&b"Al"[..], vec![(0, 0)]));
+    assert!(!again.domain.awaiting_sign_in(1), "restoring the source does not restore the wait");
     world.step(sign_in(2, BOB, 2));
     let long = vec![b'd'; skein_lib::length::usize_of(DISPLAY) + 1];
     world.step(visited(2));
@@ -184,6 +185,7 @@ fn plan_usage_declined_keeps_the_sign_in_and_refuses_the_source() {
     let asked = world.step(signed_in(0, b"alice", b"", true));
     assert_eq!(asked[2..], [save(refused), want(0)]);
     assert_eq!(world.ended(), ended(1, 0, End::Made { account: 1, declined: true }));
+    assert!(world.domain.awaiting_sign_in(1));
     let granted = FromComponent::Granted {
         form: Form::Credential(Scheme::Bearer),
         account: 0,
@@ -191,6 +193,7 @@ fn plan_usage_declined_keeps_the_sign_in_and_refuses_the_source() {
         valid: Duration::from_secs(100),
     };
     world.step(Event::Component(granted));
+    assert!(!world.domain.awaiting_sign_in(1));
     let fact = world.domain.source(0).expect("kept");
     assert_eq!((fact.state, fact.usable, fact.attention), (State::Refused, false, true), "until its holder acts");
 }

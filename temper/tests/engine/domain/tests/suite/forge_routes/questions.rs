@@ -47,6 +47,16 @@ fn plan_world_with_pull_room(
     silent_ci: bool,
     pull_room: Option<u32>,
 ) -> (World, engine::Assignment) {
+    start_plan_world(plan_world_fixture(bound, gate, timing, silent_ci, pull_room), timing.turn)
+}
+
+pub(super) fn plan_world_fixture(
+    bound: Option<u32>,
+    gate: Gate,
+    timing: &StoryLimits,
+    silent_ci: bool,
+    pull_room: Option<u32>,
+) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -67,10 +77,13 @@ fn plan_world_with_pull_room(
             world.env.limits.journal.result_bytes.max(world.env.limits.brief.brief_bytes);
     }
     let client = world.env.limits.forge.client;
-    world = world.with_forge_client(client);
+    world.with_forge_client(client)
+}
+
+pub(super) fn start_plan_world(mut world: World, turn: bool) -> (World, engine::Assignment) {
     world.adopt();
     let mut hello =
-        if timing.turn { super::landing::hello_prepare(3) } else { protocol::hello_slots(CHANNEL, 3, Box::new([])) };
+        if turn { super::landing::hello_prepare(3) } else { protocol::hello_slots(CHANNEL, 3, Box::new([])) };
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
         &mut hello
     else {

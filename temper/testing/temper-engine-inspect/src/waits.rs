@@ -19,11 +19,11 @@ pub(super) fn inspect(view: &View<'_>, into: &mut Inspection) {
     }
     for task in view.forge.inspection_making_waiters() {
         if !view.ended(task) {
-            let mut wakes = room(view, task);
+            let (mut wakes, bound) = room(view, task, false);
             if view.forge.room_asked(task) {
                 wakes.push(Wake::Party("forge: room".into()));
             }
-            into.wait(Wait { waiter: task_name(task), kind: "making: room".into(), wakes, bound: None });
+            into.wait(Wait { waiter: task_name(task), kind: "making: room".into(), wakes, bound });
         }
     }
 }
@@ -39,16 +39,29 @@ fn landing_wait(view: &View<'_>, row: &LandingRow) -> Option<Wait> {
         (row.landing.phase == temper_engine_domain_forge_landing::Phase::Preparing && row.job.is_some())
             .then_some(Awaited::Prepare)
     });
-    let (kind, mut wakes) =
-        if row.room.is_some() { ("landing: room".to_owned(), room(view, task)) } else { landing(view, row, awaited?) };
-    if row.room.is_none() {
-        person_release(view, task, &mut wakes);
-        wakes.extend(view.read_wakes(task));
-        if let Some(due) = view.forge.inspection_landing_due(task) {
-            wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));
+    if row.room.is_some() {
+        let held = matches!(row.landing.phase, temper_engine_domain_forge_landing::Phase::Held { .. });
+        let (wakes, bound) = room(view, task, held);
+        return Some(Wait { waiter: task_name(task), kind: "landing: room".into(), wakes, bound });
+    }
+    let (kind, mut wakes) = landing(view, row, awaited?);
+    person_release(view, task, &mut wakes);
+    wakes.extend(view.read_wakes(task));
+    if let Some(due) = view.forge.inspection_landing_due(task) {
+        wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));
+    }
+    if let Some(at) = view.forge.inspection_landing_stall_wake(task) {
+        let wake = Wake::Timer(at);
+        if !wakes.contains(&wake) {
+            wakes.push(wake);
         }
     }
-    Some(Wait { waiter: task_name(task), kind, wakes, bound: None })
+    let held = view
+        .root
+        .and_then(|root| root.tasks().task(task))
+        .is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. }) || task.placed.is_some());
+    let bound = if held { None } else { view.forge.inspection_landing_bound(task) };
+    Some(Wait { waiter: task_name(task), kind, wakes, bound })
 }
 
 fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option<Wait> {
@@ -60,8 +73,9 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         return None;
     }
     let kind = change_kind(&row.change.state)?;
-    let (kind, mut wakes) = if row.room.is_some() {
-        ("change: room", room(view, task))
+    let (kind, mut wakes, bound) = if row.room.is_some() {
+        let (wakes, bound) = room(view, task, matches!(row.change.state, State::Held { .. }));
+        ("change: room", wakes, bound)
     } else {
         let mut wakes = change_wakes(view, row);
         person_release(view, task, &mut wakes);
@@ -83,10 +97,10 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         if view.root.is_none() && wakes.is_empty() && root_turn(row) {
             wakes.push(Wake::Party("root".into()));
         }
-        (kind, wakes)
+        (kind, wakes, bound(view, row))
     };
     admission(view, task, &mut wakes);
-    Some(Wait { waiter: task_name(task), kind: kind.into(), wakes, bound: bound(view, row) })
+    Some(Wait { waiter: task_name(task), kind: kind.into(), wakes, bound })
 }
 
 // Admission can park the root before a change gets its delegate. Only a kept
@@ -423,14 +437,14 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
     Some(Time::from_nanos(nanos))
 }
 
-fn room(view: &View<'_>, task: u64) -> Vec<Wake> {
+fn room(view: &View<'_>, task: u64, held: bool) -> (Vec<Wake>, Option<Time>) {
     let mut wakes: Vec<Wake> = view
         .forge
         .inspection_entries()
         .iter()
         .filter_map(|number| {
             let entry = view.forge.inspection_entry(*number)?;
-            Some(if view.ended(entry.task) {
+            Some(if view.forge.inspection_entry_owner_ended(*number).is_some() || view.ended(entry.task) {
                 Wake::Ended(format!("entry {number} of task {}", entry.task))
             } else {
                 Wake::Waiter(task_name(entry.task))
@@ -449,8 +463,19 @@ fn room(view: &View<'_>, task: u64) -> Vec<Wake> {
     // decision keeps an entry or leaves the line (domain/forge/room.md, 3;
     // testing/engine-checks.md, 2.2). Those reads still wake their owner.
     wakes.extend(view.read_wakes(task));
+    if held && view.root.is_none() {
+        wakes.push(Wake::Party("person".into()));
+    }
     person_release(view, task, &mut wakes);
-    wakes
+    let held = held
+        || view.root.is_some_and(|root| {
+            root.tasks().task(task).is_some_and(|row| matches!(row.phase, tasks::Phase::Held { .. }))
+        });
+    let bound = if held { None } else { view.forge.inspection_room_wait(task) };
+    if let Some((at, true)) = bound {
+        wakes.push(Wake::Timer(Time::from_nanos(at.as_nanos())));
+    }
+    (wakes, bound.map(|(at, _)| Time::from_nanos(at.as_nanos())))
 }
 
 fn landing(view: &View<'_>, row: &LandingRow, awaited: Awaited) -> (String, Vec<Wake>) {

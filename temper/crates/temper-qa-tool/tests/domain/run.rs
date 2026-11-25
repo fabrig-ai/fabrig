@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use temper_qa_tool::{
-    Answer, BuildState, Exit, Ledger,
+    Answer, BuildState, Exit, Kind, Ledger,
     faces::{Changed, DirectoryMode, FilesFace, PathKind, ProcessOutput, RemoveMode, Signal, WriteMode, WriteOptions},
     runner::Run,
     testing::{self, Agent, Clock, Git, Loop, Range, Tree, World, baseline, id, land},
@@ -430,21 +430,28 @@ fn a_goal_answered_no_qa_finishes_and_its_build_is_deleted_even_if_already_gone(
 fn newer_reached_build_releases_the_old_one_but_a_decoded_hold_keeps_it() {
     for held in [false, true] {
         let world = World::new();
-        let mut run = world.start(baseline(), &[Agent::Case, Agent::None]);
+        let mut run = world.start(baseline(), &[Agent::Case, Agent::Case]);
+        let place = "places/1";
+        let mut files = world.files();
+        let directory = world.home.directory.join(place);
+        files.directory(&directory, DirectoryMode::Parents).expect("place");
+        let _holder = files.hold_lock(directory.join("drive.lock")).expect("keep the loop from taking the case");
         run.tick();
         land(&mut run, 2, 7);
         let old = world.build(2);
         run.tick();
         run.tick();
-        assert!(world.files().exists(&old), "newest reached build for the queued case");
+        assert!(files.exists(&old), "newest reached build for the queued case");
         if held {
-            let mut document = world.ledger().document();
-            document["builds"][0]["held"] = serde_json::json!(91);
-            let decoded = Ledger::decode(&serde_json::to_vec(&document).expect("document")).expect("held document");
             world
-                .files()
-                .write(&world.home.ledger, &decoded.encode().expect("ledger"), WriteOptions::REPLACE, false)
+                .home
+                .transact(&mut files, |ledger, _| {
+                    let pass = ledger.start_pass(place, Kind::Box, &["web".into()], "high", 0).expect("running pass");
+                    assert_eq!(pass.build, id(2));
+                    Ok(())
+                })
                 .expect("held on disk");
+            assert_eq!(world.ledger().builds[0].held, Some(1));
         }
         land(&mut run, 4, 8);
         let new = world.build(4);
@@ -988,6 +995,7 @@ fn a_second_request_names_the_earlier_goal_that_carried_the_finding() {
         .home
         .transact(&mut world.files(), |ledger, _| {
             ledger.end_goal(41, 10)?;
+            testing::passes::build(ledger, &id(1), &[1], 100);
             let resumed =
                 ledger.resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 11).expect("resume");
             ledger.record_check(resumed.session, 1, "holds", "still fails", 12)?;

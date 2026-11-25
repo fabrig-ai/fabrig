@@ -5,6 +5,7 @@ use super::{
     Box, Domain, EffectDescription, EffectForm, Env, Family, LANDING_CODE, Limits, List, ProcedureStep, Recovery,
     StepEnd, Work, append, authority, effect_access, forge, forge_change, landing, resource_name, tasks,
 };
+use temper_engine_domain_translate::prepare::{self, PrepareMember, PrepareRequest};
 
 fn changes(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u64]> {
     let Some(change) = domain.forge.change(task) else { return Box::new([task]) };
@@ -443,10 +444,10 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
         entry,
         heard: forge::LandingHeard {
             job: None,
-            outcomes: prepare_outcomes(context, env.limits.forge.landing_members),
+            outcomes: prepare::outcomes(&context.inbox, env.limits.forge.landing_members),
             dependencies: graph,
             held: held.into_boxed(),
-            failure: prepare_failure(context),
+            failure: prepare::failure(&context.inbox),
             preparation: Some(preparation(domain, context)),
             released,
             cancelled: false,
@@ -612,7 +613,7 @@ pub(super) fn preparation(domain: &Domain, context: &tasks::RunContext) -> landi
                     Some(row) => row.landing.round.branch.is_empty(),
                     None => false,
                 }
-                && conflict_files(&word.words).is_some()
+                && prepare::conflict_files(&word.words).is_some()
             {
                 return landing::Preparation::Conflict;
             }
@@ -686,7 +687,7 @@ fn kept_prepare(domain: &Domain, task: u64) -> bool {
     }
     false
 }
-fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::prepare::PrepareRequest> {
+fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<PrepareRequest> {
     let row = domain.forge.landing(task)?;
     let first = row.landing.members.first()?;
     let provider =
@@ -724,7 +725,7 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
         let message = forge::member_message::commit_message(&text, main);
         let squash = forge::member_message::commit_message(&text, true);
         members
-            .push(super::prepare::PrepareMember {
+            .push(PrepareMember {
                 number: u64::try_from(index).ok()?.checked_add(1)?,
                 branch: change.branch.clone(),
                 prefix: member.branch.clone(),
@@ -753,7 +754,7 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
             }
         }
     };
-    Some(super::prepare::PrepareRequest {
+    Some(PrepareRequest {
         repository: repository.name.clone(),
         main: base,
         from,
@@ -767,7 +768,7 @@ fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Result<sup
     let request = prepare_request(domain, env, task)
         .ok_or(b"landing round or repository cannot form its prepare request".as_slice())?;
     let context = domain.core.tasks.delegation(task).ok_or(b"landing task has no delegation context".as_slice())?;
-    let spec = super::prepare::spec(&request, bound.spec)
+    let spec = prepare::spec(&request, bound.spec)
         .ok_or(b"prepare specification exceeds its declared spec bytes".as_slice())?;
     let mut authority = context.authority;
     authority.tools.0 = 0;
@@ -803,9 +804,21 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
     let member = row.landing.members.first()?;
     let provider =
         skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
-    let root = domain.core.tasks.root(task)?;
-    let workspace = super::prepare::items(&domain.forge, provider, root, task, &request, env.limits.forge.name_bytes)?;
+    domain.core.tasks.root(task)?;
     let repository = domain.forge.repository(provider)?;
+    if repository.name != request.repository {
+        return None;
+    }
+    let mut branches = List::with_capacity(u32::try_from(request.members.len()).ok()?);
+    for member in &request.members {
+        branches.push(member.prefix.clone()).ok()?;
+    }
+    // Start from the request's immutable commit. Its members supply the writable prefixes.
+    let item = domain.forge.prepare_item(provider, branches.as_slice().first()?.clone(), request.from, task)?;
+    let mut checkout = super::workspace_repository(item, None, Box::new([]))?;
+    checkout.prefixes = branches.into_boxed();
+    checkout.save = None;
+    let workspace = super::ForgeWorkspace { repositories: Box::new([checkout]) };
     let mut writes = List::with_capacity(env.limits.forge.landing_members);
     let mut names = List::with_capacity(env.limits.forge.landing_members);
     for member in &request.members {
@@ -837,26 +850,6 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
         own_holds: Box::new([]),
     })
 }
-fn prepare_outcomes(context: &tasks::RunContext, members: u32) -> Box<[forge::preparation::Prepared]> {
-    for word in &context.inbox {
-        if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) {
-            return forge::preparation::outcomes(&word.words, members).unwrap_or(Box::new([]));
-        }
-    }
-    Box::new([])
-}
-fn prepare_failure(context: &tasks::RunContext) -> Box<[u8]> {
-    for word in &context.inbox {
-        if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) {
-            return word.words.clone();
-        }
-        if let tasks::MessageKind::Escalation { .. } = word.kind {
-            return word.words.clone();
-        }
-    }
-    Box::from(b"job failed past its tries".as_slice())
-}
-
 pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, member: u16, step: forge::LandingNews) {
     let Some((change, words)) = domain.forge.landing_news_words(task, member, step) else { return };
     let Some(row) = domain.forge.change(change) else { return };
@@ -864,62 +857,5 @@ pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, member: u1
     let words = forge::text::fit(&words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
     if let Some(event) = domain.core.connector_news(goal, 0, tasks::NewsClass::Kept, words, env.wall) {
         domain.work.push(Work::Tasks(event));
-    }
-}
-
-fn conflict_files(bytes: &[u8]) -> Option<Box<[u8]>> {
-    let length = u32::try_from(bytes.len()).ok()?;
-    let limits = skein_json::tokenizer::Limits { depth: 8, string: length, number: 20, chunk: 256, length };
-    let document =
-        skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
-    let conflicts = document.member(0, b"conflicts")?;
-    if document.token(conflicts)?.kind != skein_json::Kind::ArrayStart {
-        return None;
-    }
-    let end = document.value_end(conflicts)?.checked_sub(1)?;
-    let mut cursor = conflicts.checked_add(1)?;
-    let mut words = List::with_capacity(8192);
-    for at in conflicts.checked_add(1)?..end {
-        if at != cursor {
-            continue;
-        }
-        let files = document.member(at, b"files")?;
-        if document.token(files)?.kind != skein_json::Kind::ArrayStart {
-            return None;
-        }
-        for file in files.checked_add(1)?..document.value_end(files)?.checked_sub(1)? {
-            let token = document.token(file)?;
-            if token.kind != skein_json::Kind::String {
-                return None;
-            }
-            if !words.is_empty() {
-                append(&mut words, b", ");
-            }
-            append(&mut words, document.text(token)?);
-        }
-        cursor = document.value_end(at)?;
-    }
-    Some(words.into_boxed())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::conflict_files;
-
-    #[test]
-    fn conflicts_array_presence_and_each_entries_files_are_read_as_json() {
-        let result = br#"{"combined":[{"member":1,"by":"merge"}],"conflicts":[{"member":2,"with":"branch","files":["code","docs/a,b"],"cut":false},{"member":4,"with":"member","files":["quoted\"name","line\nname"],"cut":true}]}"#;
-        assert_eq!(
-            conflict_files(result).expect("conflict files").as_ref(),
-            b"code, docs/a,b, quoted\"name, line\nname"
-        );
-        assert_eq!(conflict_files(br#"{"conflicts":[]}"#).expect("present array").as_ref(), b"");
-        assert_eq!(conflict_files(br#"{"combined":[{"member":1,"by":"merge"}]}"#), None);
-        assert_eq!(conflict_files(br#"{"message":"\"conflicts\""}"#), None);
-        assert_eq!(conflict_files(br#"{"conflicts":{"files":["code"]}}"#), None);
-        assert_eq!(conflict_files(br#"{"conflicts":[{"files":"code"}]}"#), None);
-        assert_eq!(conflict_files(br#"{"conflicts":[{"files":[7]}]}"#), None);
-        assert_eq!(conflict_files(br#"{"conflict":{"files":["code"]}}"#), None);
-        assert_eq!(conflict_files(b"{not JSON}"), None);
     }
 }

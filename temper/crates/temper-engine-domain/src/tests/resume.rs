@@ -630,7 +630,7 @@ fn an_empty_store_opens_through_every_start_phase_in_order() {
 
 pub(super) use temper_limits_fixtures::start_forge::repository;
 
-fn restored_start_store() -> (super::resume_fixture::StartStore, Env<Limits>) {
+pub(super) fn restored_start_store() -> (super::resume_fixture::StartStore, Env<Limits>) {
     let (mut first, env) = cold();
     let mut store = super::resume_fixture::StartStore::new();
     crate::step(&mut first, &env, Event::Restart { pending: false });

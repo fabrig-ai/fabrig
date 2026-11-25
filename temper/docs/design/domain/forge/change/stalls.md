@@ -70,6 +70,10 @@ never reports within the same sitting.
   the stall counts from that end, and no record left of a cause that
   has ended (a question whose asker ended, a writer slot whose writer
   ended) keeps it from counting.
+- **The stall is a reported wait's bound** (2026-11-24): the forge
+  reports the change's wait to the core as a `step` record whose bound
+  is the instant this section, its execution clock (2.3) or its reads'
+  count would hold it (`../waits.md`, 4).
 
 ## 2. Checking counts CI's running
 

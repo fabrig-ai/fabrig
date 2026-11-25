@@ -90,14 +90,21 @@ fn window_line(label: &[u8], window: c::AccountWindow, now: Wall, w: &Words) -> 
         }
         (Some(_) | None, Some(_) | None) => None,
     };
-    if label == b"five_hour" && !limited && full.is_none() {
+    let model = match label.strip_prefix(b"seven_day_") {
+        Some(model) => model,
+        None => b"",
+    };
+    if (label == b"five_hour" || !model.is_empty()) && !limited && full.is_none() {
         return None;
     }
-    let name = skein_lib::bytes::copy_of(match label {
-        b"five_hour" => b"5 h",
-        b"seven_day" => b"Week",
-        other => other,
-    });
+    let name = match label {
+        b"five_hour" => skein_lib::bytes::copy_of(b"5 h"),
+        b"seven_day" => skein_lib::bytes::copy_of(b"Week"),
+        other => match model {
+            [first, rest @ ..] => words::join(&[&[first.to_ascii_uppercase()], rest]),
+            [] => skein_lib::bytes::copy_of(other),
+        },
+    };
     let share = words::join(&[&number(w, u64::from(used).checked_div(100).expect("nonzero percent")), b"%"]);
     let mut pace = match remaining {
         Some(remaining) => words::join(&[b"resets in ", &span(w, remaining)]),

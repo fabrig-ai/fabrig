@@ -2,7 +2,8 @@
 //! Contract: smith/docs/design/testing-tiers.md, section 1.
 
 use crate::settings::{self, Layer, Source};
-use std::path::PathBuf;
+use skein_scratch::Scratch;
+use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 /// Commands find the test process's rg beside the system shell and git.
 pub(crate) fn commands_path() -> String {
@@ -18,6 +19,25 @@ pub(crate) fn commands_path() -> String {
     .expect("fixture PATH")
     .into_string()
     .expect("fixture PATH is UTF-8")
+}
+
+/// Writes a stand-in for tests that check the program's path but do not run it.
+pub(crate) fn program(scratch: &Scratch) -> PathBuf {
+    let path = scratch.path().join("claude");
+    fs::write(&path, b"#!/bin/sh\nexit 0\n").expect("write the scratch program");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).expect("make the scratch program executable");
+    path
+}
+
+#[test]
+fn the_stand_in_is_an_executable_script_inside_its_scratch() {
+    let scratch = Scratch::new("smith-program");
+    let path = program(&scratch);
+    assert!(path.is_absolute() && path.starts_with(scratch.path()), "absolute path inside the scratch");
+    let metadata = fs::symlink_metadata(&path).expect("scratch program metadata");
+    assert!(metadata.is_file(), "regular scratch program");
+    assert_ne!(metadata.permissions().mode() & 0o111, 0, "executable scratch program");
+    assert_eq!(fs::read(&path).expect("scratch program bytes"), b"#!/bin/sh\nexit 0\n", "no-op shell script");
 }
 
 pub(crate) fn trust() -> PathBuf {

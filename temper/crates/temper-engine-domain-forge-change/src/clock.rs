@@ -90,6 +90,26 @@ impl Clock {
         }
     }
 
+    /// Time to the execution or runner bound if the last reading continues (stalls.md, 2.3).
+    #[must_use]
+    pub fn remaining(&self, now: Wall, limits: &crate::Limits) -> Duration {
+        let unknown = self.unknown(now).as_nanos();
+        let grace = limits.unknown_grace.as_nanos();
+        let counted = self.ran(now).as_nanos().saturating_add(unknown.saturating_sub(grace));
+        let waited = self.waited(now).as_nanos();
+        let stall = limits.stall.as_nanos();
+        let runner = limits.runner_wait.as_nanos();
+        if counted >= stall || waited >= runner {
+            return Duration::ZERO;
+        }
+        let remaining = match self.seen {
+            Execution::Running => stall.saturating_sub(counted),
+            Execution::Unknown => grace.saturating_sub(unknown).saturating_add(stall.saturating_sub(counted)),
+            Execution::Waiting => runner.saturating_sub(waited),
+        };
+        Duration::from_nanos(remaining)
+    }
+
     fn elapsed(&self, now: Wall) -> Duration {
         Duration::from_nanos(now.as_nanos().saturating_sub(self.at.as_nanos()))
     }

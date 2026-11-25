@@ -629,9 +629,25 @@ fn runner_waiting_change() -> (World, engine::Assignment, u64) {
     (world, goal, task)
 }
 
+fn assert_runner_wait_in_document(world: &mut World, task: u64) {
+    use jig_domain_core::{AtBound, Bound, WaitKind, WaitObject};
+    use temper_client_protocol_wire::waits::CHANGE_CHECKING;
+    let clock = row(world, task).change.clock.expect("runner reading");
+    let runner_wait = world.env.limits.forge.change_policy.runner_wait;
+    let at = skein_lib::Wall::from_nanos(clock.at.as_nanos() + runner_wait.as_nanos() - clock.waited.as_nanos());
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task }) else {
+        panic!("live change's document")
+    };
+    let documents::Document::Task(document) = *document else { panic!("task document") };
+    let wait = document.waits.as_slice().iter().find(|wait| wait.kind == WaitKind::Step).expect("checking wait");
+    assert!(matches!(wait.object, WaitObject::Procedure { step: CHANGE_CHECKING, .. }));
+    assert_eq!(wait.bound, Bound::At { at, then: AtBound::Hold });
+}
+
 #[test]
 fn queued_ci_keeps_its_turn_then_running_ci_stalls_from_its_first_reading() {
     let (mut world, goal, task) = runner_waiting_change();
+    assert_runner_wait_in_document(&mut world, task);
     let bound = world.env.limits.forge.change_policy.stall;
     jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
     not_held(&world, task);

@@ -64,7 +64,11 @@ pub struct LandingRules {
 pub const LANDING_ATTEMPTS: u8 = 3;
 
 pub(crate) fn environment_forge(env: &Env<Limits>) -> Env<forge::Limits> {
-    env.with(env.limits.forge)
+    env.with(forge_limits(&env.limits))
+}
+
+pub(crate) const fn forge_limits(limits: &Limits) -> forge::Limits {
+    forge::Limits { waits: limits.waits, ..limits.forge }
 }
 
 pub(crate) fn checked_call(body: Call, limits: &Limits) -> Call {

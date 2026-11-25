@@ -86,7 +86,6 @@ fn the_engines_tables_reach_their_bounds() {
         sweep.ran(&run.ledger);
     }
     eprintln!("holds left out {}", sweep.left_out("a_prepare_is_admitted_when_branch_holds_are_released"));
-    eprintln!("P124 left out {}", sweep.left_out("a_change_waiting_for_room_has_a_bound"));
     sweep.check_fell().expect("every configured table reached its bound");
 }
 

@@ -9,6 +9,8 @@ mod room;
 mod round_ends;
 #[path = "landing/unreported.rs"]
 mod unreported;
+#[path = "landing/wait_reports.rs"]
+mod wait_reports;
 
 #[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
@@ -1441,7 +1443,7 @@ pub(crate) fn member_landing(d: &mut Domain) {
     member_landing_with_gates(d, Box::new([]));
 }
 
-fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
+fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) -> Box<[Request]> {
     let mut row = landing_row(61, policy::Phase::Proving);
     row.landing.members = Box::new([policy::Member {
         round: None,
@@ -1466,7 +1468,75 @@ fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     row.asks = Box::new([None]);
     row.landing.round.pull = Some(2);
     row.landing.round.combined = Some(policy::Combine::Merge);
-    outputs(d, Event::Landing { row });
+    outputs(d, Event::Landing { row })
+}
+
+fn ready_train_waiter(d: &mut Domain) -> Box<[Request]> {
+    use temper_engine_domain_forge_change as change;
+    let mut waiter = fixtures::opening_row();
+    waiter.task = TRAIN_WAITER;
+    waiter.change.task = TRAIN_WAITER;
+    waiter.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    waiter.change.ready_since = Some(env().wall);
+    waiter.pending = None;
+    waiter.pull = Some(3);
+    waiter.effect = change::EffectResult::None;
+    outputs(d, Event::Change { row: waiter })
+}
+
+const TRAIN_WAITER: u64 = 62;
+
+fn active_train() -> Domain {
+    let mut d = landing_fixture_with(fixtures::connected_domain());
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    d
+}
+
+#[test]
+fn a_ready_change_reports_the_landing_holding_its_train() {
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded};
+    use temper_client_protocol_wire::waits as code;
+    const TRAIN_LANDING: u64 = 61; // The landing made by member_landing_with_gates.
+    let mut d = active_train();
+    ready_train_waiter(&mut d);
+    let registered = member_landing_with_gates(&mut d, Box::new([]));
+    let mut landed = d.landing.rows.get(&TRAIN_LANDING).expect("held train").clone();
+    landed.landing.phase = policy::Phase::Landed;
+    landing::save(&mut d, &env(), landed, &mut Queue::uncapped());
+    let freed = ready(&mut d);
+    assert_eq!(
+        wait_report(&registered, TRAIN_WAITER),
+        Some(
+            [step_wait(
+                code::CHANGE_READY,
+                env().wall,
+                ReportedBound::None(Unbounded::Behind(TRAIN_LANDING)),
+                &[wait_thing(code::THING_TASK, TRAIN_LANDING)],
+            )]
+            .as_slice()
+        )
+    );
+    assert_eq!(
+        wait_report(&freed, TRAIN_WAITER),
+        Some([step_wait(code::CHANGE_READY, env().wall, ReportedBound::None(Unbounded::NoDeadline), &[],)].as_slice())
+    );
+}
+
+#[test]
+fn a_ready_change_without_landing_room_has_no_deadline() {
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded};
+    use temper_client_protocol_wire::waits as code;
+    const FIRST_OTHER_LANDING: u64 = 70;
+    let mut d = active_train();
+    for task in FIRST_OTHER_LANDING..FIRST_OTHER_LANDING.saturating_add(u64::from(LIMITS.landings)) {
+        d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("one live landing per place");
+    }
+    let report = ready_train_waiter(&mut d);
+    assert_eq!(
+        wait_report(&report, TRAIN_WAITER),
+        Some([step_wait(code::CHANGE_READY, env().wall, ReportedBound::None(Unbounded::NoDeadline), &[],)].as_slice())
+    );
 }
 
 #[test]
@@ -2662,6 +2732,21 @@ pub(super) fn clocked_gate() -> (Domain, ReceiptKey, skein_forge::api::Run) {
 }
 
 fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api::Run) -> policy::Decision {
+    poll_clocked_gate_with_report(d, clock, run).0
+}
+
+fn owned_wait_report(out: &[Request], task: u64) -> Option<Box<[jig_domain_core_vocabulary::waits::Reported]>> {
+    match wait_report(out, task) {
+        Some(report) => Some(report.into()),
+        None => None,
+    }
+}
+
+fn poll_clocked_gate_with_report(
+    d: &mut Domain,
+    clock: &Env<Limits>,
+    run: &skein_forge::api::Run,
+) -> (policy::Decision, Option<Box<[jig_domain_core_vocabulary::waits::Reported]>>) {
     use skein_forge::api::{Answer, Op, Read};
     let mut out = Queue::uncapped();
     step(
@@ -2700,10 +2785,10 @@ fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api
             }
             Op::Read(_) | Op::Write(_) => panic!("unexpected gate read {op:?}"),
         };
-        let mut answered = fixtures::answer_at(d, clock, call, Ok(answer));
-        while let Some(request) = answered.pop() {
+        let answered = collected(fixtures::answer_at(d, clock, call, Ok(answer)));
+        for request in &answered {
             if let Request::LandingDecision { decision, .. } = request {
-                return decision;
+                return (*decision, owned_wait_report(&answered, 61));
             }
         }
     }
@@ -2714,10 +2799,15 @@ fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api
 fn a_queued_gate_only_expires_after_its_running_time_passes_the_bound() {
     let (mut d, key, mut run) = clocked_gate();
     let mut clock = env();
+    clock.limits.change_policy.stall = Duration::from_secs(2);
     for seconds in [100, 110, 120] {
         clock.now = Time::from_nanos(seconds * 1_000_000_000);
         clock.wall = Wall::from_nanos(clock.now.as_nanos());
-        assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+        assert!(matches!(
+            poll_clocked_gate(&mut d, &clock, &run),
+            policy::Decision::Wait { on: policy::Awaited::Run { .. }, .. }
+        ));
+        assert_eq!(d.inspection_landing_bound(61), None, "the gate's clock owns the wait");
         assert_eq!(d.landing.flights.get(&key).unwrap().clock.unwrap().ran(clock.wall), Duration::ZERO);
     }
     run.state = skein_forge::api::RunState::Running;
@@ -3473,6 +3563,15 @@ pub(super) fn regate_landing() -> (Domain, ReceiptKey, skein_forge::api::Run) {
 }
 
 pub(super) fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_forge::api::Run) -> policy::Decision {
+    step_regate_with_report(d, task, entry, run).0
+}
+
+fn step_regate_with_report(
+    d: &mut Domain,
+    task: u64,
+    entry: u64,
+    run: &skein_forge::api::Run,
+) -> (policy::Decision, Option<Box<[jig_domain_core_vocabulary::waits::Reported]>>) {
     use skein_forge::api::{Answer, Op, Read};
     let mut requests = outputs(
         d,
@@ -3495,7 +3594,7 @@ pub(super) fn step_regate(d: &mut Domain, task: u64, entry: u64, run: &skein_for
     for _ in 0..20_u32 {
         for request in &requests {
             if let Request::LandingDecision { decision, .. } = request {
-                return *decision;
+                return (*decision, owned_wait_report(&requests, task));
             }
         }
         let (call, op) = fixtures::next_call(d);
@@ -3685,6 +3784,8 @@ fn only_a_regate_naming_the_failed_receipts_whole_key_and_run_supersedes_it() {
 
 #[test]
 fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_receipt() {
+    use jig_domain_core_vocabulary::waits::{Reported, ReportedBound, Thing, Unbounded, WaitKind, WaitObject};
+    use temper_client_protocol_wire::waits::{LANDING_RECEIPT, THING_TASK};
     let (mut d, key, mut run) = regate_landing();
     dispatch_regate(&mut d, &key, &run);
     let mut waiter = d.landing.rows.get(&61).unwrap().clone();
@@ -3701,7 +3802,28 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
     d.landing.rows.insert(62, waiter).unwrap();
     run.state = skein_forge::api::RunState::Running;
     run.conclusion = None;
-    assert!(matches!(step_regate(&mut d, 62, 93, &run), policy::Decision::Wait { .. }));
+    let (decision, report) = step_regate_with_report(&mut d, 62, 93, &run);
+    assert!(matches!(decision, policy::Decision::Wait { on: policy::Awaited::Receipt { .. }, .. }));
+    assert_eq!(d.inspection_landing_bound(62), None, "another landing owns the run");
+    assert_eq!(
+        report.as_deref(),
+        Some(
+            [Reported {
+                kind: WaitKind::Step,
+                object: WaitObject::Procedure {
+                    step: LANDING_RECEIPT,
+                    things: skein_lib::List::from_boxed(Box::new([Thing {
+                        what: THING_TASK,
+                        number: 61,
+                        owner: None
+                    }])),
+                },
+                since: env().wall,
+                bound: ReportedBound::None(Unbounded::Behind(61)),
+            }]
+            .as_slice()
+        )
+    );
     assert_eq!(d.receipt(&key).unwrap().run.id, 41);
     run.state = skein_forge::api::RunState::Completed;
     run.conclusion = Some(skein_forge::api::Conclusion::Success);

@@ -149,8 +149,7 @@ class Delivery(unittest.TestCase):
 
     def test_checker_changes_run_only_python_and_write_local_receipt(self):
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
-             mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
-             mock.patch.object(PRE, 'journeys', return_value=[]):
+             mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward:
             selected = PRE.workspace_checks(self.root, ['tools/pre-pr/pre_pr.py'], 'tree',
                                             self.env, self.errors, self.outcomes)
         self.assertEqual([call.args[0][3] for call in run.call_args_list],
@@ -177,8 +176,7 @@ class Delivery(unittest.TestCase):
 
     def test_failed_checker_refuses_and_publishes_reason(self):
         with mock.patch.object(PRE, 'run', side_effect=[(1, 'fixture failed'), (0, '')]), \
-             mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
-             mock.patch.object(PRE, 'journeys', return_value=[]):
+             mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward:
             PRE.workspace_checks(self.root, ['.temper/pre-pr'], 'tree', {}, self.errors, {})
         self.assertEqual(PRE.finish('tree', None, self.errors, self.root, {}, 'delivery', (), None), 1)
         self.assertIn('fixture failed', self.log.getvalue())
@@ -198,9 +196,134 @@ class Delivery(unittest.TestCase):
         overlay = self.root / PRE.JOURNEY_ROOTS[0] / 'overlay.css'
         overlay.parent.mkdir(parents=True)
         overlay.touch()
-        self.assertEqual(PRE.journeys(self.root), [])
+        self.assertEqual(PRE.journeys(self.root, [], 'HEAD'), [])
         overlay.write_text('nonempty')
-        self.assertIn('overlay.css must be empty', PRE.journeys(self.root)[0]['log'])
+        self.assertIn('overlay.css must be empty', PRE.journeys(self.root, [], 'HEAD')[0]['log'])
+
+    def test_written_journey_paths(self):
+        web, tui = PRE.JOURNEY_ROOTS
+        cases = [
+            (f'{web}/chat-draft/03.html', True),
+            (f'{tui}/design-session/12.txt', True),
+            (f'{web}/a/100.html', True),
+            (f'{web}/project-landing/recording', True),
+            (f'{web}/skein-ui.css', True),
+            (f'{web}/journey.js', True),
+            (f'{web}/theme.css', True),
+            (f'{web}/tui-journey.js', True),
+            (f'{tui}/skein-ui.css', True),
+            (f'{tui}/journey.js', True),
+            (f'{tui}/theme.css', True),
+            (f'{tui}/tui-journey.js', True),
+            (f'{web}/chat-draft/3.html', False),
+            (f'{web}/chat-draft/walk', False),
+            (f'{web}/chat-draft/README.md', False),
+            (f'{web}/chat-draft/scripts.json', False),
+            (f'{web}/overlay.css', False),
+            (f'{web}/README.md', False),
+            (f'{web}/03.html', False),
+            (f'{web}/a/b/03.html', False),
+            ('temper/docs/design/client/web/03.html', False),
+            ('skein/journeys/a/03.html', False),
+        ]
+        for path, written in cases:
+            with self.subTest(path=path):
+                self.assertEqual(PRE.written_journey_file(path), written)
+
+    def journey_failure(self, paths, base='HEAD'):
+        errors = PRE.journeys(self.root, paths, base)
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0]['name'], 'journeys')
+        return errors[0]
+
+    def test_mixed_paths_name_both_kinds_and_base_repair(self):
+        web, tui = PRE.JOURNEY_ROOTS
+        paths = [f'{web}/chat-draft/03.html', f'{tui}/theme.css', 'skein/a.rs']
+        base = 'b' * 40
+        error = self.journey_failure(paths, base)
+        self.assertFalse(PRE.settled(error))
+        for path in paths:
+            self.assertIn(path, error['log'])
+        self.assertEqual(error['log'].splitlines()[-1],
+                         "a journey's recording, pages and the files beside them are written on main by "
+                         f"the journeys' writer alone (AGENTS.md, 4): restore them with git checkout {base} -- PATH..., "
+                         'and compare pages by cargo run -p temper-client-walk -- print --out DIR in your own tree')
+
+    def test_deleted_recording_counts_as_written(self):
+        recording = f'{PRE.JOURNEY_ROOTS[0]}/x/recording'
+        error = self.journey_failure([recording, 'skein/a.rs'])
+        self.assertIn(recording, error['log'])
+
+    def test_mixture_names_only_first_twenty_written_paths(self):
+        paths = [f'{PRE.JOURNEY_ROOTS[0]}/x/{number:02}.html' for number in range(25)]
+        error = self.journey_failure(['skein/a.rs', *reversed(paths)])
+        lines = error['log'].splitlines()
+        self.assertEqual(lines[1:22], [*paths[:20], '… and 5 more written files'])
+        for path in paths[20:]:
+            self.assertNotIn(path, error['log'])
+
+    def test_written_paths_alone_pass(self):
+        web, tui = PRE.JOURNEY_ROOTS
+        paths = [f'{web}/chat-draft/03.html', f'{web}/x/recording', f'{tui}/theme.css']
+        self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
+
+    def test_no_written_paths_pass(self):
+        web = PRE.JOURNEY_ROOTS[0]
+        paths = ['skein/a.rs', f'{web}/chat-draft/walk', f'{web}/README.md']
+        self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
+
+    def test_nonempty_overlay_refuses_even_without_changed_paths(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            with self.subTest(prefix=prefix):
+                overlay = self.root / prefix / 'overlay.css'
+                overlay.parent.mkdir(parents=True)
+                overlay.write_text(' ')
+                error = self.journey_failure([])
+                self.assertIn(f'{prefix}/overlay.css must be empty', error['log'])
+                overlay.unlink()
+
+    def test_mixture_and_overlays_give_one_failure(self):
+        overlays = [self.root / prefix / 'overlay.css' for prefix in PRE.JOURNEY_ROOTS]
+        for overlay in overlays:
+            overlay.parent.mkdir(parents=True)
+            overlay.write_text(' ')
+        paths = [f'{PRE.JOURNEY_ROOTS[0]}/chat-draft/03.html', 'skein/a.rs']
+        error = self.journey_failure(paths)
+        for path in paths + [str(overlay.relative_to(self.root)) for overlay in overlays]:
+            self.assertIn(path, error['log'])
+
+    def test_journeys_run_last_even_after_an_earlier_failure(self):
+        def workspace(root, paths, tree, env, errors, outcomes, **options):
+            print('workspace checks finished')
+            if failed:
+                errors.append(PRE.failure('format', 'an earlier failure'))
+            return []
+
+        def goal(*args):
+            print('goal checks finished')
+            return [], [], []
+
+        for args in ([], ['--child'], ['--goal'], ['--close']):
+            for failed in (False, True):
+                with self.subTest(args=args, failed=failed), contextlib.ExitStack() as stack:
+                    out = stack.enter_context(redirect_stdout(io.StringIO()))
+                    stack.enter_context(redirect_stderr(io.StringIO()))
+                    stack.enter_context(mock.patch.object(Path, 'cwd', return_value=self.root))
+                    stack.enter_context(mock.patch.object(PRE, 'checked_git', return_value=b''))
+                    stack.enter_context(mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']))
+                    stack.enter_context(mock.patch.object(PRE, 'scope_base', return_value=('b' * 40, 'base', None)))
+                    stack.enter_context(mock.patch.object(PRE, 'changed_paths', return_value=[]))
+                    stack.enter_context(mock.patch.object(PRE, 'published_counts', return_value=None))
+                    stack.enter_context(mock.patch.object(PRE, 'workspace_checks', side_effect=workspace))
+                    stack.enter_context(mock.patch.object(PRE, 'goal_checks', side_effect=goal))
+                    errors = [PRE.failure('journeys', 'mixture')] if failed else []
+                    stack.enter_context(mock.patch.object(PRE, 'journeys', return_value=errors))
+                    self.assertEqual(PRE.main(args), int(failed))
+                    log = out.getvalue()
+                    previous = 'goal checks' if args == ['--goal'] and not failed else 'workspace checks'
+                    result = 'failed' if failed else 'passed'
+                    self.assertRegex(log, rf'{previous} finished\npre-pr: journeys …\n'
+                                          rf'pre-pr: journeys: {result}, \d+\.\d{{3}} s\n')
 
     def test_snapshot_changed_during_checks_refuses(self):
         for final, expected in [('first', 0), ('other', 1)]:
@@ -237,6 +360,7 @@ class Delivery(unittest.TestCase):
                 self.assertEqual(checks.call_count, 1 - attempt)
                 self.assertEqual(err.getvalue(), 'budgets skein step: +5.00%, allowance 2.00%\n')
         self.assertIn('a retry would measure the same', self.log.getvalue())
+        self.assertEqual(self.log.getvalue().count('pre-pr: journeys: passed,'), 2)
         self.assertEqual(len(list(store.glob('*.json'))), 1)
 
     def test_a_refusal_with_a_test_failure_is_not_saved(self):
@@ -272,7 +396,7 @@ class Delivery(unittest.TestCase):
         (directory / 'test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
-             mock.patch.object(PRE, 'journeys', return_value=[]), mock.patch.object(PRE, 'outward', return_value=(0, [])):
+             mock.patch.object(PRE, 'outward', return_value=(0, [])):
             args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
                     'tree', {}, self.errors, {})
             PRE.workspace_checks(*args)
@@ -306,7 +430,7 @@ class Delivery(unittest.TestCase):
             with self.subTest(paths=paths), mock.patch.object(PRE, 'metadata', return_value=data), \
                  mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
                  mock.patch.object(PRE, 'citations', return_value=(0, [])), \
-                 mock.patch.object(PRE, 'outward', return_value=(0, [])), mock.patch.object(PRE, 'journeys', return_value=[]), \
+                 mock.patch.object(PRE, 'outward', return_value=(0, [])), \
                  mock.patch.object(PRE, 'baselines', return_value=(0, [])):
                 PRE.workspace_checks(self.root, paths, 'tree', {}, self.errors, {}, whole=False)
                 self.assertEqual([call.args[0] for call in run.call_args_list if call.args[0][0] == 'cargo'], expected)
@@ -317,7 +441,7 @@ class Delivery(unittest.TestCase):
         (self.root / 'tools/example/test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
-             mock.patch.object(PRE, 'outward', return_value=(0, [])), mock.patch.object(PRE, 'journeys', return_value=[]):
+             mock.patch.object(PRE, 'outward', return_value=(0, [])):
             self.assertEqual(PRE.workspace_checks(self.root, ['docs/guide.md', 'temper/docs/design/a.md'], 'tree',
                                                   {}, self.errors, {}, completed_goal=True, whole=False), [])
         run.assert_not_called()
@@ -365,8 +489,7 @@ class Delivery(unittest.TestCase):
     def test_known_outward_failure_requires_a_complete_scan(self):
         key = ('test', 'fabrig-boundary::outward', 'no_file_names_the_lab')
         with mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
-             mock.patch.object(PRE, 'citations', return_value=(0, [])), \
-             mock.patch.object(PRE, 'journeys', return_value=[]):
+             mock.patch.object(PRE, 'citations', return_value=(0, [])):
             PRE.workspace_checks(self.root, ['other'], 'tree', {}, self.errors, self.outcomes, [key])
         outward.assert_called_once_with(self.root, {}, None)
         self.assertEqual(self.outcomes[key[1:]], {'outcome': 'passed'})
@@ -509,6 +632,96 @@ class Changes(unittest.TestCase):
                          (self.main, 'merge base of refs/temper/landing and HEAD'))
         self.assertEqual(PRE.changed_paths(self.root, self.env, self.main),
                          ['edited.rs', 'gone.md', 'new.md', 'staged.rs', 'unstaged.md'])
+
+    def commit_journeys(self, *, recording=False):
+        page = self.root / PRE.JOURNEY_ROOTS[0] / 'x' / '01.html'
+        page.parent.mkdir(parents=True)
+        page.write_text('page\n')
+        page.with_name('walk').write_text('walk\n')
+        if recording:
+            page.with_name('recording').write_text('old recording\n')
+        (self.root / '.gitignore').write_text('/target/\n')
+        self.git('add', '-A')
+        self.git('commit', '-q', '--amend', '--no-edit')
+        return page
+
+    def check_journeys(self, args):
+        with mock.patch.object(Path, 'cwd', return_value=self.root), mock.patch.dict(os.environ, self.env), \
+             mock.patch.object(PRE, 'workspace_checks', return_value=[]) as checks, \
+             mock.patch.object(PRE, 'goal_checks', return_value=([], [], [])), redirect_stdout(io.StringIO()) as output:
+            status = PRE.main(args)
+        return status, output.getvalue(), checks.call_args.args[1]
+
+    def test_no_base_refuses_unstaged_page_with_untracked_notes(self):
+        page = self.commit_journeys()
+        page.write_text('edited page\n')
+        (self.root / 'notes.txt').write_text('notes\n')
+        status, output, _ = self.check_journeys(['--goal'])
+        self.assertEqual(status, 1)
+        self.assertIn(str(page.relative_to(self.root)), output)
+        self.assertIn('other path: notes.txt', output)
+        self.assertIn('git checkout HEAD -- PATH...', output)
+
+    def test_no_base_passes_a_staged_page_alone(self):
+        page = self.commit_journeys()
+        page.write_text('edited page\n')
+        self.git('add', str(page.relative_to(self.root)))
+        status, output, _ = self.check_journeys(['--goal'])
+        self.assertEqual(status, 0)
+        self.assertIn('pre-pr: journeys: passed,', output)
+
+    def test_no_base_passes_a_clean_tree(self):
+        self.commit_journeys()
+        status, output, _ = self.check_journeys(['--goal'])
+        self.assertEqual(status, 0)
+        self.assertIn('pre-pr: journeys: passed,', output)
+
+    def merge_journey_edit(self, *, pending):
+        page = self.commit_journeys(recording=True)
+        recording = page.with_name('recording')
+        base = self.git('rev-parse', 'HEAD')
+        self.git('update-ref', 'refs/temper/landing', base)
+        self.git('checkout', '-qb', 'writer')
+        page.write_text('printed by writer\n')
+        recording.unlink()
+        self.git('commit', '-qam', 'printed page')
+        self.git('checkout', '-qb', 'delivery', base)
+        source = self.root / 'skein/a.rs'
+        source.parent.mkdir()
+        source.write_text('source\n')
+        self.git('add', 'skein/a.rs')
+        self.git('commit', '-qm', 'delivery edit')
+        self.git('merge', '-q', '--no-edit', '--no-commit' if pending else '--commit', 'writer')
+        return page, base
+
+    def test_page_from_merge_tip_passes_alongside_source_edit(self):
+        page, _ = self.merge_journey_edit(pending=True)
+        for pending in (True, False):
+            with self.subTest(pending=pending):
+                if not pending:
+                    self.git('commit', '-qm', 'merged writer')
+                status, output, selected = self.check_journeys([])
+                self.assertEqual(status, 0)
+                self.assertIn('pre-pr: journeys: passed,', output)
+                self.assertEqual(selected, ['skein/a.rs', str(page.relative_to(self.root)),
+                                            str(page.with_name('recording').relative_to(self.root))])
+
+    def test_page_edited_after_merge_is_refused_alongside_source(self):
+        page, base = self.merge_journey_edit(pending=False)
+        page.write_text('changed after merge\n')
+        status, output, _ = self.check_journeys([])
+        self.assertEqual(status, 1)
+        self.assertIn(f'written files:\n{page.relative_to(self.root)}\nother path: skein/a.rs', output)
+        self.assertIn(f'git checkout {base} -- PATH...', output)
+
+    def test_page_mode_change_after_merge_counts_as_an_edit(self):
+        page, _ = self.merge_journey_edit(pending=False)
+        page.chmod(page.stat().st_mode | 0o111)
+        name = str(page.relative_to(self.root))
+        self.git('update-index', '--chmod=+x', name)
+        status, output, _ = self.check_journeys([])
+        self.assertEqual(status, 1)
+        self.assertIn(f'written files:\n{name}\nother path: skein/a.rs', output)
 
     def test_close_compares_with_main_not_the_pin(self):
         self.git('update-ref', 'refs/remotes/origin/main', self.main)
@@ -869,7 +1082,6 @@ class CloseBudgets(unittest.TestCase):
              mock.patch.object(PRE, 'format_workspace', return_value=[]), \
              mock.patch.object(PRE, 'baselines', return_value=(0, [])), \
              mock.patch.object(PRE, 'metadata', return_value=metadata), \
-             mock.patch.object(PRE, 'journeys', return_value=[]), \
              mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])):
             PRE.workspace_checks(self.root, [str(source.relative_to(self.root))], 'tree', self.env, errors, {},

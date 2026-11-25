@@ -208,6 +208,13 @@ pub(crate) fn signed_in(
             End::Refused { refusal }
         }
     };
+    match end {
+        End::Made { .. } | End::Renewed { .. } => {
+            domain.sources.get_mut(&source).expect("the sign-in's source is kept").awaiting_sign_in =
+                Some(under_way.by);
+        }
+        End::Refused { .. } | End::Failed { .. } => {}
+    }
     domain.end(Ended { request: under_way.request, source, by: under_way.by, end });
 }
 

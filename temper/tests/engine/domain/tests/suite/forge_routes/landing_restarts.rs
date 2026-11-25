@@ -18,6 +18,10 @@ fn worker_hello(world: &World) -> engine::Event {
 }
 
 fn turn_world() -> World {
+    turn_world_with_gate_latency(None)
+}
+
+fn turn_world_with_gate_latency(landing_gate_latency: Option<Duration>) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -27,6 +31,7 @@ fn turn_world() -> World {
         None,
         StoryLimits {
             turn: true,
+            landing_gate_latency,
             // The provider and store admit four; the initial project's policy below admits one.
             batch: Some(4),
             landing_members: Some(4),
@@ -964,4 +969,51 @@ fn four_goals_land_together_after_loading_batch_four() {
     }
     assert_eq!(world.writes.iter().filter(|write| matches!(write, api::Write::Dispatch { .. })).count(), 1);
     assert_eq!(world.writes.iter().filter(|write| matches!(write, api::Write::Merge { .. })).count(), 1);
+}
+
+#[test]
+fn a_quiet_proving_landing_lists_its_gate_wait_in_the_core_task_document() {
+    use jig_domain_core::{AtBound, Bound, WaitKind, WaitObject, documents, reads};
+    use temper_client_protocol_wire::waits::{LANDING_RUN, THING_GATE, THING_RUN};
+
+    let mut world = turn_world_with_gate_latency(Some(Duration::from_secs(120)));
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("chat") };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(250) };
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let (_, producer) = pushed_change(&mut world, &chat, 95);
+    finish_producer(&mut world, &producer, forge_world::REPO);
+    let landing = await_prepare(&mut world);
+    answer_prepare(&mut world);
+    for _ in 0..PAIR_TICKS {
+        tick(&mut world);
+        if world.events.is_empty()
+            && world.pending.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+            && task_row(&world, landing).is_some_and(|row| row.phase == tasks::Phase::Active(tasks::Active::Idle))
+            && world.root.forge().landing(landing).is_some_and(|row| {
+                row.follows().iter().any(|follow| follow.entry.run.is_some_and(|mark| mark.clock.is_some()))
+            })
+        {
+            break;
+        }
+    }
+    world.drain_cut();
+    assert!(world.root.quiescent());
+    assert_eq!(task_row(&world, landing).expect("landing task").phase, tasks::Phase::Active(tasks::Active::Idle));
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task: landing }) else {
+        panic!("a task document for the proving landing")
+    };
+    let documents::Document::Task(document) = *document else { panic!("task document") };
+    let [wait] = document.waits.as_slice() else { panic!("one gate wait: {:?}", document.waits) };
+    assert_eq!(wait.kind, WaitKind::Step);
+    let WaitObject::Procedure { step, things } = &wait.object else { panic!("procedure wait") };
+    assert_eq!(*step, LANDING_RUN);
+    let [gate, run] = things.as_slice() else { panic!("gate and run: {things:?}") };
+    assert_eq!((gate.what, gate.number, gate.owner), (THING_GATE, 0, None));
+    assert_eq!((run.what, run.owner), (THING_RUN, None));
+    assert_ne!(run.number, 0);
+    assert!(matches!(wait.bound, Bound::At { at, then: AtBound::Hold } if at > world.env.wall));
+    await_landed(&mut world, landing);
+    world.close();
 }

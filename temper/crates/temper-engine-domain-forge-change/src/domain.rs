@@ -5,7 +5,7 @@
 //! a delegate or effect. The top reports Pending while a write is outstanding.
 //! This policy never reads the forge or commits an outbox entry itself.
 use alloc::boxed::Box;
-use skein_lib::{List, Wall, bytes::copy_of};
+use skein_lib::{Duration, List, Wall, bytes::copy_of};
 
 use crate::{
     Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
@@ -1105,24 +1105,9 @@ fn checking(
 /// Bound execution and runner wait without charging queued time to running
 /// (temper/docs/design/domain/forge/change/stalls.md, 2.3).
 fn checking_clock(change: Change, clock: crate::Clock, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
-    let unknown = clock.unknown(now).as_nanos();
-    let counted = clock.ran(now).as_nanos().saturating_add(unknown.saturating_sub(limits.unknown_grace.as_nanos()));
-    let waited = clock.waited(now).as_nanos();
-    let stalled = counted >= limits.stall.as_nanos() || waited >= limits.runner_wait.as_nanos();
-    let remaining = if stalled {
-        0
-    } else {
-        match clock.seen {
-            crate::Execution::Running => limits.stall.as_nanos().saturating_sub(counted),
-            crate::Execution::Unknown => limits
-                .unknown_grace
-                .as_nanos()
-                .saturating_sub(unknown)
-                .saturating_add(limits.stall.as_nanos().saturating_sub(counted)),
-            crate::Execution::Waiting => limits.runner_wait.as_nanos().saturating_sub(waited),
-        }
-    };
-    let due = Wall::from_nanos(now.as_nanos().saturating_add(remaining));
+    let remaining = clock.remaining(now, limits);
+    let stalled = remaining == Duration::ZERO;
+    let due = Wall::from_nanos(now.as_nanos().saturating_add(remaining.as_nanos()));
     if let Some(end) = facts.settling
         && now < end.min(due)
     {

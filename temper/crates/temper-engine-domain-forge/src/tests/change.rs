@@ -7,6 +7,7 @@ mod fence;
 mod flake;
 mod no_test;
 mod released_resolution;
+pub(super) mod waits;
 
 /// Landing mode is selected at readiness, including work restored across a configuration change
 /// (temper/docs/design/domain/landing.md, 1).
@@ -980,7 +981,9 @@ fn a_committed_entry_waiting_for_a_lower_chain_can_be_withdrawn() {
 
 #[test]
 fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
+    use jig_domain_core_vocabulary::waits::Unbounded;
     use skein_forge::api::{Answer, Op, Read};
+    use temper_client_protocol_wire::waits::CHANGE_QUEUED;
     use temper_engine_domain_forge_change as change;
     let mut d = fixtures::opened_during_chain();
     fixtures::step_change(&mut d);
@@ -1003,14 +1006,24 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
             Op::Read(Read::Pull { number: 1, ci: true }),
         ]
     );
+    let tail = finished.last_chunk::<4>();
     let Some(
-        [Request::Save { .. }, Request::Marked { tasks }, Request::ChangeDecision { task, decision, entry, evidence }],
-    ) = finished.last_chunk::<3>()
+        [
+            Request::Save { .. },
+            Request::Marked { tasks },
+            Request::ChangeDecision { task, decision, entry, evidence },
+            Request::Waits { .. },
+        ],
+    ) = tail
     else {
-        panic!("the saved decision follows its history")
+        panic!("the saved decision follows its history and precedes the wait report: {tail:?}")
     };
     assert_eq!(tasks.as_ref(), &[fixtures::CHANGE, changes_subject(5), status_subject(5), APPROVALS_SUBJECT]);
     assert_eq!((*task, decision, entry, evidence), (fixtures::CHANGE, &change::Decision::Ready, &None, &None));
+    assert_eq!(
+        wait_report(&finished, fixtures::CHANGE),
+        Some([step_wait(CHANGE_QUEUED, env().wall, ReportedBound::None(Unbounded::NoDeadline), &[])].as_slice())
+    );
     assert_eq!(ready(&mut d).as_ref(), &[]);
 }
 

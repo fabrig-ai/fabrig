@@ -70,6 +70,7 @@ impl Domain {
                         comparison: None,
                         baseline,
                         state: LostReadState::Restoring,
+                        last_answer: None,
                         kind: LostWriterKind::Retired,
                     },
                 )

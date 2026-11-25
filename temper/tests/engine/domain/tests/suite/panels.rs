@@ -4,13 +4,19 @@ use jig_domain_people::ApplicationScope;
 use skein_lib::{ReplyTo, Token, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{direct::Driver, fixtures};
+use temper_engine_domain_world::{direct::Driver, fixtures, forge_stand::ForgeStand, walking};
+
+use super::panel_before_change::seed_change_procedure;
 
 const WATCHER: Token = Token::new(700);
 const CHANGE: u64 = 51;
+const PRODUCER: u64 = 73;
 
 fn driver() -> Driver {
-    let mut driver = Driver::forge();
+    adopt(Driver::forge())
+}
+
+fn adopt(mut driver: Driver) -> Driver {
     driver.settle();
     driver.sign_in();
     driver.settle();
@@ -24,9 +30,27 @@ fn driver() -> Driver {
         request: temper_engine_domain::Application::Forge(forge::Ask::Adopt(fixtures::adoption(1))),
     }));
     driver.settle();
-    driver.send(root::Event::Forge(Box::new(forge::Event::Change {
-        row: temper_engine_forge_world::changes::change_row(),
-    })));
+    driver.immediate.clear();
+    driver
+}
+
+fn change_driver(producer: Option<u64>) -> Driver {
+    let limits = fixtures::forge_limits();
+    let mut store = fixtures::restored_store(walking::config(71), &limits);
+    // Keep the core stopped before the forge records the producer; these
+    // watches exercise the forge's documents, not procedure scheduling.
+    seed_change_procedure(&mut store, CHANGE, 0, producer, Some(jig_domain_tasks::Hold::Stopped));
+    let mut driver = Driver::configured(store, [walking::config(71), walking::config(71)], &limits);
+    driver.forge = Some(ForgeStand::new());
+    driver.connect_forges();
+    let mut driver = adopt(driver);
+    let mut row = temper_engine_forge_world::changes::change_row();
+    row.change.since = driver.env.wall;
+    if producer.is_some() {
+        row.change.state = temper_engine_domain_forge_change::State::Producing { requested: true };
+        row.producing_charter = 1;
+    }
+    driver.send(root::Event::Forge(Box::new(forge::Event::Change { row })));
     driver.settle();
     driver.immediate.clear();
     driver
@@ -59,7 +83,7 @@ fn panels(driver: &Driver) -> Vec<&forge::Panel> {
 }
 #[test]
 fn a_project_role_admits_the_watch_and_delivers_the_whole_change_panel() {
-    let mut driver = driver();
+    let mut driver = change_driver(None);
     watch(&mut driver, 1, CHANGE);
     driver.settle();
     let got = panels(&driver);
@@ -93,7 +117,7 @@ fn a_project_role_admits_the_watch_and_delivers_the_whole_change_panel() {
 }
 #[test]
 fn a_party_without_a_role_in_the_scope_is_refused_before_the_connector() {
-    let mut driver = driver();
+    let mut driver = change_driver(None);
     watch(&mut driver, 2, CHANGE);
     driver.settle();
     assert_eq!(panels(&driver).len(), 0);
@@ -101,7 +125,7 @@ fn a_party_without_a_role_in_the_scope_is_refused_before_the_connector() {
 }
 #[test]
 fn the_panel_stays_held_until_the_asking_decision_is_durable() {
-    let mut driver = driver();
+    let mut driver = change_driver(Some(PRODUCER));
     watch(&mut driver, 1, CHANGE);
     driver.settle();
     assert_eq!(panels(&driver).len(), 1);
@@ -111,7 +135,7 @@ fn the_panel_stays_held_until_the_asking_decision_is_durable() {
     // This save asks for the marked document in the same decision.
     driver.send(root::Event::Forge(Box::new(forge::Event::Delegated {
         task: CHANGE,
-        child: 73,
+        child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
     })));
     for _ in 0..8 {
@@ -122,11 +146,11 @@ fn the_panel_stays_held_until_the_asking_decision_is_durable() {
     driver.settle();
     let got = panels(&driver);
     assert_eq!(got.len(), 2);
-    assert_eq!(got[1].runs, Some(73));
+    assert_eq!(got[1].runs, Some(PRODUCER));
 }
 #[test]
 fn a_saved_change_marks_the_forges_subject_and_delivers_the_panel_again() {
-    let mut driver = driver();
+    let mut driver = change_driver(Some(PRODUCER));
     watch(&mut driver, 1, CHANGE);
     driver.settle();
     assert_eq!(panels(&driver).len(), 1);
@@ -134,18 +158,18 @@ fn a_saved_change_marks_the_forges_subject_and_delivers_the_panel_again() {
     driver.settle();
     driver.send(root::Event::Forge(Box::new(forge::Event::Delegated {
         task: CHANGE,
-        child: 73,
+        child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
     })));
     driver.settle();
     let got = panels(&driver);
     assert_eq!(got.len(), 2);
     assert_eq!(got[0].runs, None);
-    assert_eq!(got[1].runs, Some(73));
+    assert_eq!(got[1].runs, Some(PRODUCER));
 }
 #[test]
 fn a_task_that_is_no_change_ends_the_watch_as_gone() {
-    let mut driver = driver();
+    let mut driver = change_driver(None);
     watch(&mut driver, 1, 999);
     driver.settle();
     assert_eq!(panels(&driver).len(), 0);
@@ -155,11 +179,11 @@ fn a_task_that_is_no_change_ends_the_watch_as_gone() {
 #[test]
 fn a_project_landings_watch_delivers_its_list_after_the_commit_barrier() {
     for ended in [false, true] {
-        let mut driver = driver();
+        let mut driver = change_driver(Some(PRODUCER));
         // A preceding save supplies the durability barrier for this read-only watch.
         driver.send(root::Event::Forge(Box::new(forge::Event::Delegated {
             task: CHANGE,
-            child: 73,
+            child: PRODUCER,
             kind: temper_engine_domain_forge_change::Delegate::Produce,
         })));
         watch(&mut driver, 1, forge::landings_subject(1, ended));
@@ -192,10 +216,10 @@ fn a_project_landings_watch_delivers_its_list_after_the_commit_barrier() {
 
 #[test]
 fn a_project_changes_watch_delivers_its_document_after_the_commit_barrier() {
-    let mut driver = driver();
+    let mut driver = change_driver(Some(PRODUCER));
     driver.send(root::Event::Forge(Box::new(forge::Event::Delegated {
         task: CHANGE,
-        child: 73,
+        child: PRODUCER,
         kind: temper_engine_domain_forge_change::Delegate::Produce,
     })));
     watch(&mut driver, 1, forge::changes_subject(1));
@@ -226,7 +250,7 @@ fn a_project_changes_watch_delivers_its_document_after_the_commit_barrier() {
 }
 #[test]
 fn a_changes_subject_for_another_project_is_gone() {
-    let mut driver = driver();
+    let mut driver = change_driver(None);
     watch(&mut driver, 1, forge::changes_subject(2));
     driver.settle();
     assert!(driver.delivered.iter().any(|delivery| matches!(delivery, root::Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == WATCHER)));
@@ -737,10 +761,7 @@ fn history_driver() -> (Driver, [u64; 2]) {
     let mut driver = driver();
     let member = driver.session();
     let (_, outsider) = panel_sign_in(&mut driver, OTHER_IDENTITY);
-    driver.store.seed(
-        rows.into_boxed_slice(),
-        Box::new([root::Key::Forge(forge::Key::ChangeHot(CHANGE)), root::Key::Forge(forge::Key::ChangeCold(CHANGE))]),
-    );
+    driver.store.seed(rows.into_boxed_slice(), Box::new([]));
     let driver = restarted_panels(&mut driver);
     assert!(!driver.store.rows.contains_key(&root::Key::Forge(forge::Key::ChangeHot(CHANGE))));
     (driver, [member, outsider])

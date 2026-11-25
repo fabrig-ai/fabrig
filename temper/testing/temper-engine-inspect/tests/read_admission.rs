@@ -3,7 +3,7 @@ use skein_lib::{Duration, Wall};
 use skein_world::inspect::{Moment, Wake, check_waits};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_landing as landing;
-use temper_engine_forge_world::{World, changes, landings};
+use temper_engine_forge_world::{LIMITS, World, changes, landings};
 
 #[test]
 fn a_landing_waits_on_its_read_admission_retry() {
@@ -60,4 +60,32 @@ fn a_landing_waits_on_its_read_admission_retry() {
     assert!(waiting > 0, "at least one gather is waiting for read admission: {inspection:?}");
     check_waits(&[&inspection], Moment { seed: 73, at: world.now(), iteration: 0 })
         .expect("every gather has a live wake");
+}
+
+#[test]
+fn an_unheld_forge_wait_past_the_landings_stall_is_a_finding() {
+    const SEED: u64 = 73;
+    let mut world = World::turn();
+    world.adopt();
+    let mut change = changes::change_row();
+    change.pull = Some(1);
+    let mut row = landings::landing_row(&change);
+    row.waiting = Some(landing::Awaited::Read);
+    let task = row.landing.task;
+    let bound = world.now().saturating_add(LIMITS.change_policy.stall);
+    world.event(forge::Event::Restore { record: forge::Stored::Landing(row) });
+    world.event(forge::Event::CatchUp);
+    let inspection = world.inspection();
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("landing wait");
+    assert_eq!(wait.kind, "landing: read");
+    assert_eq!(wait.bound, Some(bound));
+    assert!(wait.wakes.contains(&Wake::Timer(bound)));
+    check_waits(&[&inspection], Moment { seed: SEED, at: bound, iteration: 0 })
+        .expect("the bound itself is not past it");
+    let at = bound.saturating_add(Duration::from_nanos(1));
+    let failure = check_waits(&[&inspection], Moment { seed: SEED, at, iteration: 1 }).expect_err("past the stall");
+    assert!(
+        failure.contains(&format!("task {task}: waits on landing: read past bound {} ns", bound.as_nanos())),
+        "{failure}"
+    );
 }

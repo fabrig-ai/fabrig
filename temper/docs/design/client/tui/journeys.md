@@ -643,26 +643,33 @@ admits no `ctl` line (`../journey-walks.md`, 2.2).
 As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
 
 - **On the print:** the person serves the checkout, walks a TUI journey,
+  or a walk the request adds and the person prints with
+  `temper-client-walk print` (`../web/look-requests.md`, 2),
   and writes rules in `tui/journeys/overlay.css` (a palette's custom
   property, a class's paint), then reloads; a frame's words, order or
   layout is edited in place, in its `NN.txt` or `NN.html`.
 - **Requests stack** on a branch of the person's own, `tui-requests`,
   apart from the browser's `look-requests`, so that the two are asked
-  for in parallel: one commit each, with a `Look-request: NAME` trailer
+  for in parallel: one commit each, its author naming no person, with a
+  `Look-request: NAME` trailer
   whose NAME starts `tui-`, kept based on `main` by the same
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
-  never landed (`../web/journeys.md`, section 7;
-  `../web/look-requests.md`, 2).
+  never landed itself: a goal of its own lands each, oldest first, read
+  from its copy `docs/look/NAME` on the project's forge
+  (`../web/journeys.md`, section 7; `../web/look-requests.md`, 2 and 7).
 - **Never landed:** the delivery check refuses a request's frames
   beside any other file, and its overlay (`../journey-writer.md`, 5), so
-  `main`'s overlay stays empty.
+  `main`'s overlay stays empty. A walk the request adds lands as its
+  sources, never its frames (`../web/look-requests.md`, 3).
 - **Done** is a landing carrying the request's trailer in commits of its
   own that moves the overlay's rules into `temper-client-tui`'s theme
   (its palette, its tokens' paints, its borders and glyphs) and the
-  frames' changes into its view and words. It compares by
-  `temper-client-walk print --out DIR`, DIR's pages against the request's
-  commit, equal where their facts agree, and commits no frame
-  (`../web/look-requests.md`, 3). The writer prints main after landing.
+  frames' changes into its view and words. It compares with
+  `scripts/look-compare.sh NAME C` (`../journey-writer.md`, 6.1), which
+  lists the theme's rules for reading, and commits no frame
+  (`../web/look-requests.md`, 3). Its last commit, carrying the
+  account, carries `Look-landed: NAME` too. The writer prints main
+  after landing.
 
 ## 11. Open questions
 

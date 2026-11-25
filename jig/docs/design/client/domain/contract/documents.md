@@ -263,7 +263,8 @@
     account which serves the party's work (their own, those whose uses
     name them, and the deployment's: `../../../domain/accounts-uses.md`, 1.3)
     has a source usable on a host, and *settled*, that no sign-in or
-    check the party asked is in progress
+    check the party asked is in progress, a sign-in until the source it
+    made or renewed has the component's first answer
     (`../../../domain/accounts.md`, sections 3 and 5). It holds no value,
     and the words and screens are the application's.
   - *the settings:* the newest revision's number; each setting, by kind,
