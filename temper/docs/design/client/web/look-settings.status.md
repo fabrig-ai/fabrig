@@ -3,8 +3,10 @@
 2026-11-25. Where the tree's code lags or departs from [look-settings.md](look-settings.md).
 
 - **Not yet:** *An account's row*, *Usage*: the `usage-model-week`
-  request's rendered comparison follows landing on main, owned by
-  temper/ui (`look-requests.md`, 4): its hand-made
+  request's rendered comparison follows landing on main, by the check
+  after landing (`../../draft/look-loop.md`, 5.2), which the
+  `Look-landed: usage-model-week` of the commit carrying its account
+  names: its hand-made
   `journeys/usage-model-week/` pages on its own commit, under its
   overlay, against the gallery state `accounts-usage-model-week`
   (`gallery-project-states.md`, 1) at 1440, 1000 and 420 px, each
