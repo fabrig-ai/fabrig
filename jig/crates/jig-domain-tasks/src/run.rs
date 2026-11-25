@@ -785,17 +785,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         && nothing_awaited(domain, record(domain, number).expect("answered task live"));
     let closer = crate::closer::named(record(domain, number).expect("answered task live"));
     if nothing_awaited {
-        let task = task_mut(domain, number).expect("idle task live");
-        task.record.tries = previous_tries;
-        if !closer {
-            task.record.tries.add(Class::Run);
-        }
-        if task.record.tries.of(Class::Run) > env.limits.retries.run.retries {
-            task.record.phase = Phase::Closing(Closing {
-                stage: Stage::Delegates,
-                ending: Ending::Failed { reason: crate::failed::nothing_awaited(&env.limits) },
-            });
-        }
+        task_mut(domain, number).expect("idle task live").record.tries = previous_tries;
     }
     crate::closer::take_available(domain, env, number, out);
     publish(domain, env, number, out);
@@ -1181,7 +1171,7 @@ pub(crate) fn nothing_awaited_notice(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = record(domain, number) else { return };
-    if !nothing_awaited(domain, row) || message == 0 || message <= row.last_message {
+    if !nothing_awaited(domain, row) || crate::closer::named(row) || message == 0 || message <= row.last_message {
         return;
     }
     let word = crate::Word {
@@ -1199,6 +1189,16 @@ pub(crate) fn nothing_awaited_notice(
     task.record.last_message = message;
     task.record.inbox = prepared.inbox;
     crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
-    publish(domain, env, number, out);
-    crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
+    let allowance = env.limits.retries.run.retries;
+    // The notice is recorded even on the park past the allowance, but does not wake a held task.
+    if task.record.tries.of(Class::Run) >= allowance {
+        let reason = crate::failed::nothing_awaited(allowance);
+        let phase = failure(domain, env, number, Class::Run, Some(reason));
+        task_mut(domain, number).expect("idle notice task live").record.phase = phase;
+        publish(domain, env, number, out);
+    } else {
+        task.record.tries.add(Class::Run);
+        publish(domain, env, number, out);
+        crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
+    }
 }

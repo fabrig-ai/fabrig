@@ -1040,31 +1040,72 @@ fn read_inbox(world: &mut World, task: u64, attempt: u64) {
     }
 }
 
-#[test]
-fn parking_with_nothing_awaited_exhausts_run_tries() {
-    let mut world = pair_with_limits(false, &Limits { result_bytes: 256, ..LIMITS });
-    let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
-    for attempt in 1..=attempts {
-        if attempt > ATTEMPT {
-            world.claim(ASKER, attempt);
-        }
-        read_inbox(&mut world, ASKER, attempt);
-        world.terminal(ASKER, End::Parked);
-        if attempt < attempts {
-            assert_eq!(u64::from(world.record(ASKER).tries.run), attempt);
+// The tasks world's LIMITS allow two run retries.
+const PAST_RUN_TRIES: u64 = 3;
+const AFTER_RELEASE: u64 = PAST_RUN_TRIES + 1;
+
+fn park_awaiting_nothing(world: &mut World, attempt: u64) {
+    if attempt > ATTEMPT {
+        world.claim(ASKER, attempt);
+    }
+    read_inbox(world, ASKER, attempt);
+    world.terminal(ASKER, End::Parked);
+}
+
+fn parked_past_run_tries() -> (World, Vec<(u64, u64)>) {
+    // LIMITS.result_bytes is smaller than the hold's reason.
+    let mut world = pair();
+    let mut parks = Vec::new();
+    for attempt in ATTEMPT..=PAST_RUN_TRIES {
+        park_awaiting_nothing(&mut world, attempt);
+        let row = world.record(ASKER);
+        parks.push((u64::from(row.tries.run), row.last_message));
+        if attempt < PAST_RUN_TRIES {
             world.restart();
         }
     }
-    assert_eq!(u64::from(world.record(ASKER).tries.run), attempts);
-    assert!(matches!(world.record(ASKER).phase, Phase::Closing(Closing { ending: Ending::Failed { .. }, .. })));
-    world.settle(ASKER);
-    let words = format!(
-        "Its runs parked with nothing left to await, past its {} run tries.",
-        world.env.limits.retries.run.retries
-    );
-    assert_eq!(world.results[&ASKER], Ending::Failed { reason: words.as_bytes().into() });
-    let Stored::Summary(summary) = &world.records[&Key::Summary(ASKER)] else { panic!("task summary") };
-    assert_eq!(summary.reason.as_ref(), words.as_bytes());
+    (world, parks)
+}
+
+#[test]
+fn parking_with_nothing_awaited_exhausts_run_tries() {
+    let (world, parks) = parked_past_run_tries();
+    let row = world.record(ASKER);
+    let held = Held {
+        was: Was::Active(Active::Due),
+        why: Hold::Failures(Class::Run),
+        source: Some(Box::new(HoldSource::Preparation {
+            words: b"Its runs parked with nothing left to await, past its 2 run tries.".as_slice().into(),
+        })),
+    };
+    assert_eq!(row.phase, Phase::Held { was: held.was.clone(), why: held.why, source: held.source.clone() });
+    assert_eq!(parks, [(1, 1), (2, 2), (3, 3)], "each park spends a try and numbers a notice");
+    assert!(row.inbox.iter().any(|word| word.number == PAST_RUN_TRIES && word.kind == MessageKind::NothingAwaited));
+    let Stored::Hold(saved) = &world.records[&Key::Hold { task: ASKER, position: row.hold }] else {
+        panic!("durable hold row")
+    };
+    assert_eq!(saved.held, held);
+    assert!(!world.activations.contains(&ASKER));
+    assert!(!world.closing.contains(&ASKER));
+    assert!(!world.results.contains_key(&ASKER));
+}
+
+#[test]
+fn releasing_a_nothing_awaited_hold_restarts_the_run_tries() {
+    let (mut world, _) = parked_past_run_tries();
+    world.restart();
+    let released = response(&mut world, |reply_to| Event::Release {
+        reply_to,
+        by: PERSON_PARTY,
+        operation: Release { task: ASKER, again: None, message: None },
+    });
+    assert_eq!(released, Reply::Done);
+    park_awaiting_nothing(&mut world, AFTER_RELEASE);
+    let row = world.record(ASKER);
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(u64::from(row.tries.run), ATTEMPT);
+    assert_eq!(row.last_message, AFTER_RELEASE);
+    assert!(row.inbox.iter().any(|word| word.number == AFTER_RELEASE && word.kind == MessageKind::NothingAwaited));
 }
 
 #[test]
