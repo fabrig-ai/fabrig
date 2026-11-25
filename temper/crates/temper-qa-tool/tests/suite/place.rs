@@ -1,10 +1,11 @@
 //! Real place modes and the system archive (temper/docs/design/testing/qa/README.md, 6).
 use skein_scratch::Scratch;
 use std::{
+    fmt::Write,
     fs,
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Command, Output, Stdio},
 };
 use temper_qa_tool::faces::{FilesFace, Processes, RealFiles, RealProcesses};
 use temper_qa_tool::{
@@ -169,17 +170,28 @@ pub(super) fn under_umasks(name: &str, masks: &[&str]) -> bool {
         return false;
     }
     for mask in masks {
-        let status = Command::new("sh")
+        let output = Command::new("sh")
             .args(["-c", "old=$(umask); umask \"$1\"; \"$2\" --exact \"$3\" --nocapture; result=$?; umask \"$old\"; exit \"$result\"", "qa-umask", mask])
             .arg(std::env::current_exe().expect("test executable"))
             .arg(name)
             .env("QA_TEST_UMASK", mask)
             .stdin(Stdio::null())
-            .status()
+            .output()
             .expect("test under umask");
-        assert!(status.success(), "{name} under umask {mask}: {status}");
+        assert!(output.status.success(), "{name} under umask {mask}: {}\n{}", output.status, umask_output(&output));
     }
     true
+}
+
+// The suite runner treats a bare `test NAME ...` line as a test announcement.
+fn umask_output(output: &Output) -> String {
+    let mut text = String::new();
+    for (stream, bytes) in [("stdout", &output.stdout), ("stderr", &output.stderr)] {
+        for line in String::from_utf8_lossy(bytes).lines() {
+            writeln!(text, "  {stream}: {line}").expect("write child output");
+        }
+    }
+    text
 }
 
 pub(super) fn assert_mode(path: &Path, expected: u32) {
