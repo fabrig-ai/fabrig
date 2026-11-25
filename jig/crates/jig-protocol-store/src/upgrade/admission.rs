@@ -44,7 +44,13 @@ pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
     if let Some(verdict) = store.directory.checked {
         return verdict;
     }
-    let verdict = bounds(&store.owner_sets, store.prepared_schemas);
+    let verdict = match bounds(&store.owner_sets, store.prepared_schemas) {
+        Ok(current) => {
+            store.directory.admitted_schemas = Some(current);
+            Ok(())
+        }
+        Err(owner) => Err(owner),
+    };
     store.directory.checked = Some(verdict);
     verdict
 }
@@ -52,7 +58,7 @@ pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
 /// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening-owners.md, 1): the
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused before a first start writes.
-pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner> {
+pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<List<Schema>, Owner> {
     #[cfg(test)]
     counting::ran();
     let ceilings = &crate::component_v3::CEILINGS;
@@ -73,12 +79,11 @@ pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner>
     }
     let mut current = List::with_capacity(families);
     keys(sets, prepared, &mut current)?;
-    let current = current.as_slice();
-    super::types::check(sets, prepared, current)?;
+    super::types::check(sets, prepared, current.as_slice())?;
     crate::jobs::admission::check(sets)?;
-    check_frames(sets, prepared, current)?;
-    holds(sets, prepared, current)?;
-    Ok(())
+    check_frames(sets, prepared, current.as_slice())?;
+    holds(sets, prepared, current.as_slice())?;
+    Ok(current)
 }
 /// The two transcript roots are owners' data, checked even at equal levels.
 fn check_frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
