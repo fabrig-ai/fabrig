@@ -60,6 +60,9 @@ pub struct Engine {
     aborted: Option<()>,
     #[cfg(test)]
     pub(crate) release_trace: Option<ReleaseTrace>,
+    #[cfg(test)]
+    #[expect(clippy::disallowed_types, reason = "tests count reads of the deadline without changing readiness")]
+    pub(crate) deadline_reads: core::cell::Cell<u32>,
 }
 
 /// Test observations of the release/dispatch order (skein/docs/foundation/programming-model.md, 7.2).
@@ -199,6 +202,9 @@ impl Engine {
             aborted: None,
             #[cfg(test)]
             release_trace: None,
+            #[cfg(test)]
+            #[expect(clippy::disallowed_types, reason = "the deadline read counter is test-only")]
+            deadline_reads: core::cell::Cell::new(0),
         };
         let mut documents =
             core::mem::replace(&mut engine.workers.forges, crate::forges::Forges::with_capacity(own.forge.forges));
@@ -410,6 +416,8 @@ impl Engine {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
+        #[cfg(test)]
+        self.deadline_reads.set(self.deadline_reads.get().saturating_add(1));
         let mut next = skein_lib::earliest(self.store.host.next_deadline(), self.workers.host.next_deadline());
         if self.end.is_none() {
             next = skein_lib::earliest(next, self.domain.next_deadline(&self.env));
@@ -466,10 +474,7 @@ impl Engine {
         if self.end.is_some() || !self.store.opened {
             return components;
         }
-        let due = match self.next_deadline() {
-            Some(deadline) => deadline <= now,
-            None => false,
-        };
+        // A deadline only decides readiness when no other eligible work does.
         components
             || (self.facts_waiting && notes_room > 0)
             || self.room()
@@ -482,8 +487,11 @@ impl Engine {
                                 && (self.passing.is_some()
                                     || self.pending.is_some()
                                     || !self.events.is_empty()
-                                    || due
-                                    || self.domain.ready() && !self.first_periods.is_empty())))
+                                    || self.domain.ready() && !self.first_periods.is_empty()
+                                    || match self.next_deadline() {
+                                        Some(deadline) => deadline <= now,
+                                        None => false,
+                                    })))
     }
     pub fn abort_if_ended(&mut self) {
         if self.end.is_some() {

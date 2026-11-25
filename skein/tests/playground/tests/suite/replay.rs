@@ -121,6 +121,51 @@ fn run(log: &log::Read) -> Result<World<site::Process>, Box<Differs>> {
     replay::replay(world, reach, log, &mut ()).map_err(Box::new)
 }
 
+fn take_large_answer(process: &mut skein_playground_world::scripted::Process, reports: &mut Vec<fetch::Report>) {
+    // One 64 KiB body, well past the diagnostic's 200-byte prefix.
+    const BODY_BYTES: usize = 64 * 1024;
+    skein_playground_world::scripted::take(process, reports);
+    for report in reports {
+        if let fetch::Report::Answered { body, .. } = report {
+            *body = vec![b'a'; BODY_BYTES].into_boxed_slice();
+        }
+    }
+}
+
+#[test]
+fn a_large_report_digests_whole_but_diagnoses_its_prefix() {
+    use skein_playground_world::scripted::{self, Plan};
+    const EXCHANGE: u32 = 4;
+    // SHA-256 of the two empty SHA-256 digests and the zero stopped byte.
+    const EMPTY: log::Said = log::Said([
+        0x82, 0xc0, 0xf0, 0xf2, 0x59, 0xe8, 0xcf, 0xfe, 0xce, 0xad, 0x54, 0x32, 0x5f, 0xad, 0xb4, 0x8f, 0x15, 0xa4,
+        0xe7, 0x61, 0xda, 0xe5, 0xff, 0xaf, 0x31, 0x20, 0x99, 0x93, 0xea, 0xcb, 0xb2, 0x4d,
+    ]);
+    // Same fold, with the complete canonical answer (including its newline) in the reports digest.
+    const ANSWER: log::Said = log::Said([
+        0xb2, 0x4f, 0x56, 0x38, 0x1d, 0x5e, 0x96, 0xf0, 0xb0, 0x4e, 0x0b, 0x34, 0xe5, 0x22, 0x13, 0x21, 0xbb, 0xac,
+        0x30, 0xf3, 0xf5, 0xf2, 0xa3, 0xd2, 0xb6, 0x49, 0x40, 0xfa, 0x5d, 0x6e, 0xbc, 0x2a,
+    ]);
+    let seed = 19;
+    let (world, reach) = scripted::world(seed, &[Plan { steps: 1, delay: Duration::ZERO }], false);
+    let input = scripted::input(EXCHANGE);
+    let read = log::Read {
+        build: None,
+        seed,
+        start: world.wall(),
+        entries: vec![log::Entry { stamp: bridge::Stamp { step: 0, instant: Time::ZERO }, input, said: EMPTY }],
+        end: log::End::At { step: 1, instant: Time::ZERO, said: EMPTY },
+    };
+    let error =
+        replay::replay(world, skein_playground::slices::Reach { take: take_large_answer, ..reach }, &read, &mut ())
+            .expect_err("the end claims the report never arrived");
+    let Why::Said { expected, found, last } = error.why else { panic!("expected a digest mismatch") };
+    assert_eq!((error.line, error.build, error.input, expected, found), (3, None, None, EMPTY, ANSWER));
+    // After the 30-byte prefix, 170 base64 bytes fit: 42 triples of 'a', then 'YW'.
+    let answer_prefix = format!("answered id=4 status=200 body={}YW...", "YWFh".repeat(42));
+    assert!(last.last() == Some(&answer_prefix), "the diagnostic keeps exactly the 200-byte prefix and ...");
+}
+
 #[test]
 fn a_log_recorded_in_slices_replays() {
     for seed in SEEDS {

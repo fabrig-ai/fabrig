@@ -26,10 +26,9 @@ pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema], current: &[sc
                     Some(name) => Some(name.as_bytes()),
                     None => None,
                 };
-                let root = current.root(ty.root.as_bytes(), variant).ok_or(refusal)?;
-                if current.layout(root, &[]).is_err() {
-                    return Err(refusal);
-                }
+                // With no held texts, layout can only refuse an invalid root.
+                // The registry fingerprints the admitted root with its held texts.
+                current.root(ty.root.as_bytes(), variant).ok_or(refusal)?;
                 let start = ty.keys.first().ok_or(refusal)?.from;
                 if let Some(previous) = first
                     && previous >= start

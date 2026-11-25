@@ -1,6 +1,7 @@
 //! The drive session's terminal and save observer (temper/docs/design/client/tui/journeys.md, 8.2).
 use super::super::{Event, Program};
 use crate::tui_driver::{key_bytes, optional_file, replaced, terminal::Terminal};
+use skein_fake_person_browser::harness::session::Pump;
 use skein_lib::{Civil, Duration, Time};
 use skein_ui_screen_terminal::Key;
 use std::{
@@ -9,26 +10,31 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
+// Neither a termios mode change nor an atomic recording replacement is
+// reported by the terminal stream. Observe them only while awaiting one.
+const OBSERVE: Duration = Duration::from_millis(50);
+
 struct Saving {
     earlier: Option<File>,
+    observe_at: Time,
 }
 pub(super) struct Tui {
     session: PathBuf,
     terminal: Option<Terminal>,
-    ready: bool,
+    ready_at: Option<Time>,
     writing: bool,
     save: Option<Saving>,
 }
 impl Tui {
     pub(super) fn new(session: PathBuf) -> Self {
-        Self { session, terminal: None, ready: false, writing: false, save: None }
+        Self { session, terminal: None, ready_at: None, writing: false, save: None }
     }
     fn state(&self) -> PathBuf {
         self.session.join("state/temper/tui")
     }
-    pub(super) fn start(&mut self, program: &Program, rows: u16, columns: u16) -> Result<(), String> {
+    pub(super) fn start(&mut self, pump: &mut Pump, program: &Program, rows: u16, columns: u16) -> Result<(), String> {
         assert_eq!((rows, columns), (24, 80), "the shared terminal's size");
-        self.stop();
+        self.stop(pump);
         // Restarting walks approval again, never reusing the previous run's
         // credential or recording. No credential is read by the driver.
         match fs::remove_dir_all(self.state()) {
@@ -38,61 +44,84 @@ impl Tui {
         }
         let address = program.args.first().ok_or("TUI program has no origin")?;
         self.terminal = Some(
-            Terminal::start(&program.directory, &program.program, address.as_bytes(), &program.environment)
+            Terminal::start(&program.directory, &program.program, address.as_bytes(), &program.environment, pump)
                 .map_err(str::to_owned)?,
         );
+        self.ready_at = Some(pump.now());
         Ok(())
     }
-    pub(super) fn write(&mut self, bytes: Vec<u8>) {
+    pub(super) fn write(&mut self, pump: &mut Pump, bytes: Vec<u8>) {
         if let Some(terminal) = &mut self.terminal {
-            terminal.write(bytes);
+            terminal.write(pump, bytes);
             self.writing = true;
         }
     }
-    pub(super) fn save(&mut self) -> Result<(), String> {
+    fn watch_save(&mut self, now: Time) -> Result<(), String> {
         let latest = latest_recording(&self.state()).and_then(|path| match path {
             Some(path) => optional_file(&path),
             None => Ok(None),
         });
-        self.save = Some(Saving { earlier: latest.map_err(|why| format!("cannot observe TUI save: {why}"))? });
+        self.save =
+            Some(Saving { earlier: latest.map_err(|why| format!("cannot observe TUI save: {why}"))?, observe_at: now });
+        Ok(())
+    }
+    pub(super) fn save(&mut self, pump: &mut Pump) -> Result<(), String> {
+        self.watch_save(pump.now())?;
         if let Some(terminal) = &mut self.terminal {
-            terminal.write(key_bytes(&Key::Alt('S')));
+            terminal.write(pump, key_bytes(&Key::Alt('S')));
         }
         Ok(())
     }
-    pub(super) fn stop(&mut self) {
-        drop(self.terminal.take());
-        self.ready = false;
+    pub(super) fn stop(&mut self, pump: &mut Pump) {
+        if let Some(terminal) = self.terminal.take() {
+            terminal.stop(pump);
+        }
+        self.ready_at = None;
         self.writing = false;
         self.save = None;
     }
-    pub(super) fn deadline(&self, now: Time, deadline: Option<Time>) -> Option<Time> {
-        if self.terminal.is_some() {
-            Some(deadline.map_or(now.saturating_add(Duration::from_millis(50)), |at| {
-                at.min(now.saturating_add(Duration::from_millis(50)))
-            }))
-        } else {
-            deadline
-        }
+    pub(super) fn next_wake(&self) -> Option<Time> {
+        self.ready_at.into_iter().chain(self.save.as_ref().map(|save| save.observe_at)).min()
     }
-    pub(super) fn tick(&mut self) -> Vec<Event> {
+    pub(super) fn progress(&mut self, pump: &mut Pump, now: Time) -> Vec<Event> {
         let Some(terminal) = &mut self.terminal else {
             return vec![];
         };
-        if let Err(why) = terminal.tick() {
-            return vec![Event::TuiFailure(why.into())];
-        }
+        let output = match terminal.progress(pump) {
+            Ok(output) => output,
+            Err(why) => return vec![Event::TuiFailure(why.into())],
+        };
         let mut events = vec![];
-        if !self.ready && terminal.ready() {
-            self.ready = true;
-            events.push(Event::TuiReady);
+        if let Some(at) = self.ready_at
+            && (output || now >= at)
+        {
+            if terminal.ready() {
+                self.ready_at = None;
+                events.push(Event::TuiReady);
+            } else if now >= at {
+                self.ready_at = Some(now.saturating_add(OBSERVE));
+            }
         }
-        if self.writing && terminal.written() {
-            self.writing = false;
-            events.push(Event::TuiWritten);
-        }
-        events.extend(self.poll_save());
+        let written = terminal.written();
+        events.extend(self.written_event(written));
+        events.extend(self.observe_save(now));
         events
+    }
+    fn written_event(&mut self, complete: bool) -> Option<Event> {
+        if self.writing && complete {
+            self.writing = false;
+            Some(Event::TuiWritten)
+        } else {
+            None
+        }
+    }
+    fn observe_save(&mut self, now: Time) -> Option<Event> {
+        let saving = self.save.as_mut()?;
+        if now < saving.observe_at {
+            return None;
+        }
+        saving.observe_at = now.saturating_add(OBSERVE);
+        self.poll_save()
     }
     fn poll_save(&mut self) -> Option<Event> {
         let saving = self.save.as_ref()?;
@@ -152,10 +181,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_tui_key_waits_on_completion_without_a_timer() {
+        let mut tui = Tui::new(PathBuf::new());
+        tui.writing = true;
+        let idle = (tui.next_wake(), tui.written_event(false));
+        let completed = tui.written_event(true);
+        assert!(matches!((idle, completed), ((None, None), Some(Event::TuiWritten))));
+    }
+
+    #[test]
     fn saves_observe_the_newest_tui_run_and_its_replacements() {
         let scratch = skein_scratch::Scratch::new("tui-save-observer");
         let mut tui = Tui::new(scratch.path().join("session"));
-        tui.save().expect("request a save before the TUI creates its directory");
+        tui.watch_save(Time::ZERO).expect("request a save before the TUI creates its directory");
         assert!(tui.poll_save().is_none());
 
         let directory = tui.state();
@@ -171,7 +209,7 @@ mod tests {
         fs::create_dir(directory.join("recording-20261117T000000Z")).expect("not a file");
         assert!(matches!(tui.poll_save(), Some(Event::TuiSaved(bytes)) if bytes.as_ref() == b"latest"));
 
-        tui.save().expect("request another save");
+        tui.watch_save(Time::ZERO).expect("request another save");
         let temporary = directory.join("next");
         fs::write(&temporary, b"updated older").expect("older recording bytes");
         fs::rename(&temporary, earlier).expect("replace older run's file");

@@ -6,9 +6,10 @@ use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Script, Step};
 use skein_ui::Role;
-use temper_client_browser_world::{
-    ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Stories, Tier, WITHIN, first_chat, reading, temper,
-};
+use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Stories, Tier, WITHIN, first_chat, reading};
+
+mod serve;
+use serve::ReadingSteps;
 
 /// Sending keeps the focus in the composer, by a press or a key (client/pages/README.md).
 #[test]
@@ -370,13 +371,16 @@ fn a_chat_opens_at_its_end_and_reads_back_keeping_its_place() {
     steps.extend(short_steps());
     stories.begin("latest", &steps);
     steps.extend(latest_steps(&tier));
-    stories.begin("unanchored", &steps);
-    steps.extend(unanchored_steps(&tier));
-    stories.begin("long", &steps);
-    steps.extend(long_steps(&tier));
-    let mut reader = Script::new(steps.into_boxed_slice());
-    let mut harness = temper_client_browser_world::harness(tier.held_setup());
+    let mut reading = ReadingSteps::new(&tier, steps);
+    stories.begin("unanchored", &reading.browser);
+    unanchored_steps(&mut reading);
+    stories.begin("long", &reading.browser);
+    long_steps(&mut reading);
+    let setup = tier.held_setup();
+    let mut reader = reading.player(&setup);
+    let mut harness = temper_client_browser_world::harness(setup);
     let outcome = harness.run(&mut [&mut ctl, &mut reader]);
+    drop(reader);
     stories.assert_done(outcome);
 
     in_log(&harness, "short", "start");
@@ -480,53 +484,42 @@ fn reading_chat(address: &[u8], last: &[u8], second_last: &[u8]) -> Vec<Step> {
     ]
 }
 
-fn unanchored_steps(tier: &Tier) -> Vec<Step> {
-    let mut steps = reading_chat(
+fn unanchored_steps(steps: &mut ReadingSteps<'_>) {
+    steps.browser.extend(reading_chat(
         b"/chats/2",
         &reading::position_words(reading::POSITION_MESSAGES),
         &reading::position_words(reading::POSITION_MESSAGES - 1),
-    );
-    steps.extend([
+    ));
+    steps.browser.extend([
         gone(Find::exactly_named(Role::Button, b"Older")),
         gone(paragraph(&reading::position_words(1))),
         keep_box(Find::named(Role::Log, b"Conversation"), "unanchored/log-default"),
         reading::anchoring_off(),
     ]);
-    steps.extend(reading_back_steps(
-        tier,
-        "unanchored",
-        reading::POSITION_MESSAGES,
-        reading::position_words,
-        reply_end(1),
-    ));
-    steps.extend([keep_box(Find::named(Role::Log, b"Conversation"), "unanchored/log-end"), reading::anchoring_on()]);
+    reading_back_steps(steps, "unanchored", reading::POSITION_MESSAGES, reading::position_words, reply_end(1));
     steps
+        .browser
+        .extend([keep_box(Find::named(Role::Log, b"Conversation"), "unanchored/log-end"), reading::anchoring_on()]);
 }
 
-fn long_steps(tier: &Tier) -> Vec<Step> {
+fn long_steps(steps: &mut ReadingSteps<'_>) {
     const UP_TO_OVERLAP: u32 = 3;
     let messages = reading::LONG_MESSAGES;
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
-    let mut steps = reading_chat(b"/chats/3", &reading::long_words(messages), &reading::long_words(messages - 1));
-    steps.extend(reading_back_steps(
-        tier,
-        "long",
-        messages,
-        reading::long_words,
-        paragraph(&reading::long_words(messages - 2)),
-    ));
+    steps.browser.extend(reading_chat(b"/chats/3", &reading::long_words(messages), &reading::long_words(messages - 1)));
+    reading_back_steps(steps, "long", messages, reading::long_words, paragraph(&reading::long_words(messages - 2)));
     // Stop short of the opening. A shorter log lets the next PgUp read leave us
     // inside the retained reply but outside the foot's read margin. One PgDown
     // then reaches that margin without leaving the new window near its head.
     let latest = || Find::exactly_named(Role::Button, b"Latest");
-    steps.push(Step::Viewport { width: 1280, height: reading::LATER_HEIGHT });
-    steps.extend(serve_signal(tier, "-STOP"));
+    steps.browser.push(Step::Viewport { width: 1280, height: reading::LATER_HEIGHT });
+    steps.stop();
     for _ in 0..UP_TO_OVERLAP {
-        steps.push(Step::Key(Key::PageUp));
+        steps.browser.push(Step::Key(Key::PageUp));
     }
-    steps.push(see(loading_earlier()));
-    steps.extend(serve_signal(tier, "-CONT"));
-    steps.extend([
+    steps.browser.push(see(loading_earlier()));
+    steps.resume();
+    steps.browser.extend([
         see(paragraph(&reading::long_words(messages - 3))),
         gone(loading_earlier()),
         gone(reply_end(messages)),
@@ -537,10 +530,10 @@ fn long_steps(tier: &Tier) -> Vec<Step> {
     // Both replies carry the numbered paragraph. It belongs to the newer
     // reply before the slide, and to the older reply after it.
     let overlap = || Find::paragraph_text(b"Numbered line 26. Keep this paragraph available while reading.");
-    steps.extend(serve_signal(tier, "-STOP"));
-    steps.extend([Step::Key(Key::PageDown), keep_box(overlap().nth(1), "long/later/before")]);
-    steps.extend(serve_signal(tier, "-CONT"));
-    steps.extend([
+    steps.stop();
+    steps.browser.extend([Step::Key(Key::PageDown), keep_box(overlap().nth(1), "long/later/before")]);
+    steps.resume();
+    steps.browser.extend([
         see(reply_end(messages - 1)),
         keep_box(overlap(), "long/later/after"),
         Step::Focused(composer()),
@@ -550,22 +543,20 @@ fn long_steps(tier: &Tier) -> Vec<Step> {
         gone(latest()),
         keep_box(reply_end(messages), "long/later/latest-end"),
     ]);
-    steps
 }
 
 fn reading_back_steps(
-    tier: &Tier,
+    steps: &mut ReadingSteps<'_>,
     story: &str,
     messages: u32,
     words: fn(u32) -> Box<[u8]>,
     earlier: Find,
-) -> Vec<Step> {
+) {
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
     let anchor = || paragraph(&words(messages - 1));
     let loading = loading_earlier;
     let keep = |find, name: &str| keep_box(find, &format!("{story}/{name}"));
-    let mut steps = Vec::new();
-    steps.extend([
+    steps.browser.extend([
         see(reply_end(messages)),
         keep(Find::named(Role::Log, b"Conversation"), "log"),
         keep(reply_end(messages), "end"),
@@ -573,16 +564,15 @@ fn reading_back_steps(
         Step::Person(PersonStep::Press { find: composer() }),
     ]);
     // Opening and the viewport change must finish reading before this read is held.
-    steps.push(gone(loading()));
-    steps.extend(serve_signal(tier, "-STOP"));
-    steps.extend([Step::Key(Key::PageUp), Step::Focused(composer()), keep(reply_end(messages), "up")]);
+    steps.browser.push(gone(loading()));
+    steps.stop();
+    steps.browser.extend([Step::Key(Key::PageUp), Step::Focused(composer()), keep(reply_end(messages), "up")]);
     for _ in 0..5 {
-        steps.push(Step::Key(Key::PageUp));
+        steps.browser.push(Step::Key(Key::PageUp));
     }
-    steps.extend([Step::Focused(composer()), see(loading()), keep(anchor(), "before-earlier")]);
-    steps.extend(serve_signal(tier, "-CONT"));
-    steps.extend([see(earlier), gone(loading()), keep(anchor(), "after-earlier"), Step::Focused(composer())]);
-    steps
+    steps.browser.extend([Step::Focused(composer()), see(loading()), keep(anchor(), "before-earlier")]);
+    steps.resume();
+    steps.browser.extend([see(earlier), gone(loading()), keep(anchor(), "after-earlier"), Step::Focused(composer())]);
 }
 
 fn reading_measures(harness: &Harness, story: &str) {
@@ -641,32 +631,4 @@ fn held(harness: &Harness, story: &str, before: &str, after: &str) {
     let after = box_of(harness, story, after);
     assert!((before.0 - after.0).abs() <= 1, "{story}: {before:?} -> {after:?}: words moved");
     assert_eq!(before.1, after.1, "{story}: line height stays");
-}
-
-// Stop only this scratch deployment's serve process, leaving its browser running.
-// This holds a read out long enough to measure the words before its answer lands.
-fn serve_signal(tier: &Tier, signal: &str) -> [Step; 2] {
-    use skein_fake_person_browser::{Command, Stdin};
-    let args = tier.box_serve();
-    let args = args.iter().map(|arg| arg.to_str().expect("fixture argument")).collect::<Vec<_>>().join(" ");
-    let command = format!("{} {args}", temper().display());
-    let mut pattern = String::from("^");
-    for ch in command.chars() {
-        if ".^$*+?()[]{}|\\".contains(ch) {
-            pattern.push('\\');
-        }
-        pattern.push(ch);
-    }
-    pattern.push('$');
-    [
-        Step::Run(Command {
-            program: "/usr/bin/pkill".into(),
-            args: vec![signal.into(), "-f".into(), pattern.into()],
-            env: vec![],
-            stdin: Stdin::Closed,
-            opens: None,
-            within: WITHIN,
-        }),
-        Step::Exited { code: 0, within: WITHIN },
-    ]
 }
