@@ -1010,11 +1010,12 @@ disallowed types, macros and methods, and are the full list: 10.3 names
 the families. Warnings are errors. The root of each step crate, and of
 lib, starts with `#![cfg_attr(not(test), no_std)]` (unit tests get std)
 and `#![forbid(unsafe_code)]`. Edition 2024, on the toolchain the
-repository's `rust-toolchain.toml` pins: a dated nightly, with LLVM and
-no other code generator, its clippy and rustfmt, and the
-`wasm32-unknown-unknown` target. The code stays within stable Rust's
-language and library: an unstable feature (`#![feature]`) only in fuzz
-targets (`notes.md`, *Why a pinned nightly*).
+repository's `rust-toolchain.toml` pins: a dated nightly, its clippy and
+rustfmt, and the `wasm32-unknown-unknown` target. Its code generator is
+LLVM; the builders compile dev and test builds with Cranelift, but for
+two crates (`notes.md`, *Why a pinned nightly*). The code stays within
+stable Rust's language and library: an unstable feature (`#![feature]`)
+only in fuzz targets (the same note).
 
 ### 10.2 What is in
 

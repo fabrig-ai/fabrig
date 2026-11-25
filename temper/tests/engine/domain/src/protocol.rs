@@ -203,6 +203,8 @@ pub struct Protocol {
     pub pending_renders: Vec<(ReplyTo, Box<[u8]>)>,
     /// Each account component request the root made.
     pub accounts: Vec<accounts::Request>,
+    /// A source whose `Want` the story answers instead of the fake's automatic grant.
+    pub defer_grant_for: Option<u32>,
     pub key_failure: Option<accounts::KeyFailure>,
     /// Worker channels that received their program-source inventory.
     pub sources: Vec<Token>,
@@ -487,7 +489,11 @@ impl Protocol {
                 None => vec![granted(*source, 1, false)],
             },
             accounts::Request::Component(accounts::ToComponent::Want { account }) => {
-                vec![granted(*account, 1, self.sign_in_sources.contains(account))]
+                if self.defer_grant_for == Some(*account) {
+                    Vec::new()
+                } else {
+                    vec![granted(*account, 1, self.sign_in_sources.contains(account))]
+                }
             }
             accounts::Request::Component(accounts::ToComponent::Rejected { account, generation }) => {
                 vec![granted(*account, generation + 1, self.sign_in_sources.contains(account))]

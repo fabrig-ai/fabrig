@@ -407,7 +407,7 @@ fn account_usage_keeps_the_requested_rules_and_phrasing_elements() {
     let css = include_str!("../../../temper-client-shell-web/temper.css");
     for rule in [
         "#app > .temper-settings .temper-settings-row > summary > .temper-usage { display: grid; gap: 4px; margin-top: 10px; }",
-        "#app > .temper-settings .temper-usage-window { display: grid; grid-template-columns: 40px 120px 36px minmax(0, 1fr); align-items: center; column-gap: 12px; font-size: 13px; line-height: 1.6; color: var(--gf-muted); font-variant-numeric: tabular-nums; }",
+        "#app > .temper-settings .temper-usage-window { display: grid; grid-template-columns: 48px 120px 36px minmax(0, 1fr); align-items: center; column-gap: 12px; font-size: 13px; line-height: 1.6; color: var(--gf-muted); font-variant-numeric: tabular-nums; }",
         "#app > .temper-settings .temper-usage-bar { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--gf-ink-2) 0 var(--skein-ui-progress, 0%), var(--gf-line) var(--skein-ui-progress, 0%) 100%); }",
         "#app > .temper-settings .temper-usage-bar { font-size: 0; overflow: hidden; }",
         "#app > .temper-settings .temper-usage-window.temper-usage-warned > .temper-usage-bar { background: linear-gradient(to right, var(--temper-amber) 0 var(--skein-ui-progress, 0%), var(--gf-line) var(--skein-ui-progress, 0%) 100%); }",
@@ -415,9 +415,15 @@ fn account_usage_keeps_the_requested_rules_and_phrasing_elements() {
         "#app > .temper-settings .temper-usage-used { text-align: right; color: var(--gf-ink); }",
         "#app > .temper-settings .temper-usage-pace { min-width: 0; color: var(--gf-faint); }",
         "#app > .temper-settings .temper-usage-fills { color: var(--temper-amber); }",
-        "@media (max-width: 760px) {\n  #app > .temper-settings .temper-usage-window { grid-template-columns: 40px minmax(0, 1fr) 36px; }\n  #app > .temper-settings .temper-usage-pace { grid-column: 2 / -1; }\n}",
+        "@media (max-width: 760px) {\n  #app > .temper-settings .temper-usage-window { grid-template-columns: 48px minmax(0, 1fr) 36px; }\n  #app > .temper-settings .temper-usage-pace { grid-column: 2 / -1; }\n}",
     ] {
         assert!(css.contains(rule), "missing usage rule: {rule}");
+    }
+    for old in [
+        ".temper-usage-window { display: grid; grid-template-columns: 40px ",
+        ".temper-usage-window { grid-template-columns: 40px ",
+    ] {
+        assert!(!css.contains(old), "replaced usage name column remains: {old}");
     }
     for (role, style) in
         [(Role::Group, USAGE), (Role::Group, USAGE_WINDOW), (Role::Group, USAGE_PACE), (Role::Meter, USAGE_BAR)]

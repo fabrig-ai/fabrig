@@ -279,19 +279,29 @@ fn a_partys_accounts_watch_follows_its_sign_in_from_start_to_end() {
     assert_eq!((pending.source, pending.provider), (source, PROVIDER));
     assert!(!underway.settled);
     take(&mut world, OWN_WATCH);
-    let finished = accounts_document(&world, OWN_WATCH);
-    let account = finished.accounts.get(0).expect("own account");
+    let awaiting = accounts_document(&world, OWN_WATCH);
+    let account = awaiting.accounts.get(0).expect("own account");
     let first_source = account.sources.get(0).expect("the account's first source");
     assert_eq!((first_source.number, first_source.place), (source, 0));
-    assert!(finished.signing.is_empty());
-    assert!(finished.settled);
-    assert_eq!(
-        finished.last_end,
-        Some(core::documents::LastEnd {
-            source,
-            end: accounts::End::Made { account: account.number, declined: false }
-        })
-    );
+    assert!(awaiting.signing.is_empty());
+    assert!(!awaiting.settled, "the made source still awaits its grant");
+    let number = account.number;
+    let last_end =
+        Some(core::documents::LastEnd { source, end: accounts::End::Made { account: number, declined: false } });
+    assert_eq!(awaiting.last_end, last_end);
+
+    take(&mut world, OWN_WATCH);
+    world.send(root::Event::Core(core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
+        account: source,
+        generation: 1,
+        valid: Duration::from_secs(60),
+        form: Form::Credential(Scheme::Bearer),
+    }))));
+    let settled = accounts_document(&world, OWN_WATCH);
+    assert!(settled.settled);
+    assert_eq!(settled.accounts.get(0).expect("own account after the grant").number, number);
+    assert!(settled.signing.is_empty());
+    assert_eq!(settled.last_end, last_end);
     assert!(accounts_document(&world, OTHER_WATCH).accounts.is_empty());
     assert!(accounts_document(&world, OTHER_WATCH).signing.is_empty());
     assert_eq!(accounts_document(&world, OTHER_WATCH).last_end, None);

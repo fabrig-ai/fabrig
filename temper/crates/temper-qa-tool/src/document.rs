@@ -2,7 +2,8 @@
 use crate::SessionKind;
 use crate::pass_document as q;
 use crate::{
-    Answer, Ask, Build, BuildState, Case, Exit, Landing, Ledger, Line, Pages, Refusal, Session, Step, refused,
+    Answer, Ask, Build, BuildState, Case, Exit, Landing, Ledger, Line, Pages, PassState, Refusal, Session, Step,
+    refused,
 };
 use serde_json::{Map, Value, json};
 
@@ -69,7 +70,7 @@ impl Ledger {
                     "place_waits",
                 ],
             )?;
-            Ok(Self {
+            let mut ledger = Self {
                 head: object.get("head").map(string).transpose()?,
                 gaps: q::records(object, "gaps")?.iter().map(crate::gap_document::gap).collect::<Result<_, _>>()?,
                 landings: array(required(object, "landings")?)?.iter().map(landing).collect::<Result<_, _>>()?,
@@ -87,7 +88,13 @@ impl Ledger {
                         Ok(crate::PlaceWait { from: integer(object, "from")?, to: optional_number(object, "to")? })
                     })
                     .collect::<Result<_, Refusal>>()?,
-            })
+            };
+            for build in &mut ledger.builds {
+                build.held = build.held.filter(|number| {
+                    ledger.passes.iter().any(|pass| pass.number == *number && pass.state == PassState::Running)
+                });
+            }
+            Ok(ledger)
         };
         decode().map_err(|why: Refusal| refused(format!("ledger.json: {why}")))
     }

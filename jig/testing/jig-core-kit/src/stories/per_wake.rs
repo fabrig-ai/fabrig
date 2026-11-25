@@ -153,6 +153,11 @@ pub fn rehold(world: &mut World, child: u64) {
 /// Park the named attempt, independently of the last child assigned to the worker.
 pub fn park(world: &mut World, run: (u64, u64), read: Option<u64>) {
     world.await_timer(run.0);
+    park_on_wakes(world, run, read);
+}
+
+/// Park with the task's existing wakes, without adding a timer.
+pub fn park_on_wakes(world: &mut World, run: (u64, u64), read: Option<u64>) {
     world.send(root::Event::Answer {
         channel: Token::new(7),
         task: run.0,

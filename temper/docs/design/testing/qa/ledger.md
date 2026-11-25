@@ -95,8 +95,11 @@ A case's landings are its asks' landings, each once.
   commit, then the numbers of the landings whose merges the commit holds
   (`landings.md`, 5); `order`, set with it, the number of commits the
   commit holds, so that of two kept builds the newer has the greater;
-- `held`: absent, or the number of the pass holding it (4.8, 4.12 and
-  4.13).
+- `held`: absent, or the number of the `running` pass holding it (4.8,
+  4.12 and 4.13). A `held` naming a pass that is not `running`, a
+  waiting pass's in a ledger an earlier build wrote, is read as absent,
+  and the next save drops it, so the build falls under the deletion
+  rule (4.6) at once.
 
 A deleted build's record keeps its `holds`, so that the landings since a
 copy's build stay known (`places.md`, 7).
@@ -284,7 +287,8 @@ it, and either a newer build (greater `order`) that triage has reached
 is kept, or none of its held landings is a landing of a `queued` case
 (`../../draft/archive/landed-qa.md`, 3). Nothing else deletes one. So what is
 kept is the newest reached build while cases wait for it, the builds
-passes hold, and the builds triage has not reached.
+running passes hold, and the builds triage has not reached. A waiting
+pass holds none (4.12).
 
 ### 4.7 A case waiting for a build
 
@@ -381,39 +385,45 @@ this order, in one write:
 3. **Findings' rounds,** in a session that is not the pass's first, as
    4.14 has them.
 4. **The pass,** then:
-   - **with an open finding of its own:** `waiting`, still holding its
-     build; a request made (4.16) of all its open findings and the
-     setups it changed;
-   - **without:** `ended` at that time, its build released (`held`
-     absent); a request made of the setups it changed alone, where it
-     changed any.
+   - **with an open finding of its own:** `waiting`; a request made
+     (4.16) of all its open findings and the setups it changed;
+   - **without:** `ended` at that time; a request made of the setups it
+     changed alone, where it changed any.
 
-   Either way the place is free once its holder has gone
-   (`places.md`, 5).
+   Either way its build is released (`held` absent), and the place is
+   free once its holder has gone (`places.md`, 5). A waiting pass never
+   runs on its build again: it resumes on a build holding its goal's
+   landing, or on the newest (4.13). So its build falls under the
+   deletion rule (4.6) as an ended pass's does, and goes at the next
+   tick unless queued cases still need it.
 
 **Unstarted** (`passes.md`, 3): undone from the session's `before`
 (2.5). A start's pass is `ended` at once, its cases `queued` again,
-uncounted, and its build released; a resume's pass is `waiting` again
-at its build before the resume, which it holds again, the resume's new
-build released unless it is that one, and each case as `before` has it.
-Nothing else of this section applies.
+uncounted, and its build released; a resume's pass is `waiting` again,
+its `place` and `build` as `before` has them, holding no build, the
+resume's build released, and each case as `before` has it. Nothing
+else of this section applies.
 
 ### 4.13 A waiting pass's resume
 
 The loop's third step (`passes.md`, 7), for a free place, before any
 start, waiting passes of the place's kind oldest first. A `waiting` pass
-whose last request is filed may resume when:
+whose last request is filed may resume on a kept build that triage has
+reached and no pass holds, as a start's is (4.8), when:
 
 - **its goal has landed:** a landing whose `goal` is the request's
-  goal, held by a kept build that triage has reached: it resumes on the
-  one with the greatest `order` of those, not necessarily at the
-  landing's own commit; or
+  goal, held by such a build: it resumes on the one with the greatest
+  `order` of those, not necessarily at the landing's own commit; or
 - **its goal ended without landing:** the request's `ended` is set and
-  no landing of its goal is recorded: it resumes on the reached kept
-  build with the greatest `order`.
+  no landing of its goal is recorded: it resumes on such a build with
+  the greatest `order`.
+
+While there is none, since the pass holds no build of its own (4.12),
+it stays `waiting`, as a queued case waits for a build (4.7) but with
+no line, and resumes at the first tick that has one and a free place.
 
 Resuming, in one write: the pass `running` at the place; the new build
-held and the old one released, unless they are one; its `failed` cases
+held; its `failed` cases
 `assigned` again; its cases joined while it waited (4.15) still
 `assigned`; every `queued` case that is the place's (4.8) whose
 landings the new build holds `assigned` to it; and a new session. A case

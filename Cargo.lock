@@ -5876,7 +5876,6 @@ dependencies = [
  "jig-protocol-engine-clients",
  "jig-protocol-store",
  "serde_json",
- "skein-fail-stop",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-machine",

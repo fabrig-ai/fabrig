@@ -1,5 +1,5 @@
 //! The workload's loop keeps scripts separate from independently paced party inputs.
-use super::{Act, Bound, Expect, Moment, Party, TaskKind, Workload};
+use super::{Act, Bound, Expect, Moment, Observation, Party, TaskKind, Workload};
 use crate::{
     bounds, fixtures, open, people,
     world::{Setup, World},
@@ -18,6 +18,7 @@ use skein_world::{
 mod actions;
 mod funds;
 mod parks;
+mod stuck;
 
 #[expect(clippy::struct_excessive_bools, reason = "independent script milestones survive task holds and new attempts")]
 #[derive(Debug)]
@@ -31,6 +32,8 @@ struct Progress {
     asked: bool,
     last: (Time, u64),
     expect: Expect,
+    stuck_words: Option<String>,
+    watch_call: Option<core::CallKey>,
 }
 
 #[derive(Debug)]
@@ -56,6 +59,7 @@ struct Driver {
     seed: u64,
     receipts: Vec<actions::Receipt>,
     parks: Vec<parks::Park>,
+    stuck: Option<stuck::Draw>,
     reads: Vec<(u64, u64, u64)>,
 }
 
@@ -67,7 +71,14 @@ struct Driver {
 /// accepted as completion (jig/docs/design/domain/authority-budgets.md, 1).
 pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<FaultLedger, String> {
     let workload = Workload::draw(streams);
-    let (configuration, limits) = fixture(streams.seed_of(Stream::Scheduling, "core"));
+    let (mut configuration, mut limits) = fixture(streams.seed_of(Stream::Scheduling, "core"));
+    let (parks, stuck) = parks::draw(&workload, streams, configured, &limits.core.tasks);
+    if stuck.as_ref().is_some_and(stuck::Draw::watches) {
+        configuration.core.defaults.charters[0].policy.resume = false;
+        // The tracked goal reserves 64 for news, 256 for the question,
+        // 128 per delegate and 128 for the watch (jig/docs/design/domain/testing-workloads.md, 4).
+        limits.core.tasks.inbox_bytes = 704;
+    }
     let minimum = configuration.core.defaults.rules.minimum_run_spend;
     let mut world = World::new(Setup {
         seed: streams.seed(),
@@ -105,9 +116,10 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
             asked: false,
             last,
             expect: Expect::Ends,
+            stuck_words: None,
+            watch_call: None,
         })
         .collect();
-    let parks = parks::draw(&workload, streams, configured);
     let mut driver = Driver {
         workload,
         progress,
@@ -124,6 +136,7 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         seed: streams.seed(),
         receipts: Vec::new(),
         parks,
+        stuck,
         reads: Vec::new(),
     };
     let bound = Bound::default();
@@ -153,6 +166,7 @@ pub fn run(streams: Streams, configured: &[Kind], sweep: &Sweep) -> Result<Fault
         if driver.finished(&world, bound).inspect_err(|finding| eprintln!("{finding}"))? {
             driver.check_outcomes(&world)?;
             driver.check_parks(&world)?;
+            driver.check_stuck(&world)?;
             return Ok(world.fault_ledger.take().expect("workload ledger"));
         }
         // Waiting on a person's choice does not busy-spin the simulator.
@@ -313,12 +327,17 @@ impl Driver {
             let held = progress.number.and_then(|number| row(world, number)).is_some_and(|row| {
                 row.placed.is_some() || matches!(row.phase, tasks::Phase::Held { why: tasks::Hold::Stopped, .. })
             });
-            progress.expect = if held || never { Expect::Waits } else { Expect::Ends };
+            progress.expect = self.stuck.as_ref().and_then(|draw| draw.expect(index)).unwrap_or(if held || never {
+                Expect::Waits
+            } else {
+                Expect::Ends
+            });
         }
         // A waiting child keeps each ancestor waiting, rather than giving it an independent timeout.
         for index in (0..self.progress.len()).rev() {
             if self.progress[index].expect == Expect::Waits
                 && let Some(parent) = self.workload.tasks[index].parent
+                && self.progress[parent].expect == Expect::Ends
             {
                 self.progress[parent].expect = Expect::Waits;
             }
@@ -482,6 +501,7 @@ impl Driver {
             if self.workload.tasks[index].parent.is_none()
                 && self.progress[index].number.is_none()
                 && !self.progress[index].pruned
+                && self.can_start_stuck_goal(world, index)
             {
                 self.script_target = Some(index);
                 if self.create(world, index, sweep)? {
@@ -489,8 +509,14 @@ impl Driver {
                 }
             }
         }
+        if self.script_stuck(world, sweep)? {
+            return Ok(());
+        }
         for index in 0..self.progress.len() {
-            if self.progress[index].pruned || self.receipts.iter().any(|receipt| self.related(index, receipt.target)) {
+            if self.progress[index].pruned
+                || self.stuck.as_ref().is_some_and(|draw| draw.expect(index).is_some())
+                || self.receipts.iter().any(|receipt| self.related(index, receipt.target))
+            {
                 continue;
             }
             self.script_target = Some(index);
@@ -675,10 +701,12 @@ impl Driver {
 
     fn retire_waiting(&mut self, world: &mut World) -> Result<(), String> {
         // A completed waiting tree can be retired to admit a later drawn goal.
-        // Its expectation is checked before that cleanup cancellation.
         if self.progress.iter().any(|p| p.number.is_none() && !p.pruned) {
             for index in 0..self.progress.len() {
-                if self.workload.tasks[index].parent.is_some() || self.progress[index].expect != Expect::Waits {
+                if self.workload.tasks[index].parent.is_some()
+                    || self.progress[index].expect != Expect::Waits
+                    || self.stuck.as_ref().is_some_and(|draw| draw.goal(index))
+                {
                     continue;
                 }
                 let Some(number) = self.progress[index].number else { continue };
@@ -697,14 +725,6 @@ impl Driver {
                 }) {
                     continue;
                 }
-                self.progress[index].expect.check(
-                    (&self.workload.tasks[index].name, number),
-                    self.seed,
-                    (world.clocks().0, world.iterations()),
-                    self.progress[index].last,
-                    Bound::default(),
-                    false,
-                )?;
                 self.script_target = Some(index);
                 self.ask(
                     world,
@@ -781,7 +801,8 @@ impl Driver {
                 }
                 continue;
             };
-            progress
+            let current = row(world, number);
+            all &= progress
                 .expect
                 .check(
                     (&self.workload.tasks[index].name, number),
@@ -789,7 +810,14 @@ impl Driver {
                     moment,
                     progress.last,
                     bound,
-                    ended(world, number),
+                    Observation {
+                        phase: current.map(|row| &row.phase),
+                        run_tries: current.map_or(0, |row| row.tries.run),
+                        stuck: progress
+                            .stuck_words
+                            .as_deref()
+                            .map(|words| (words, world.env().limits.core.tasks.retries.run.retries)),
+                    },
                 )
                 .map_err(|finding| {
                     format!(
@@ -799,11 +827,11 @@ impl Driver {
                         self.acts
                     )
                 })?;
-            all &= ended(world, number) || progress.expect == Expect::Waits;
         }
         Ok(all
             && self.receipts.is_empty()
             && self.parks_settled(world, bound)?
+            && self.stuck_settled(world, bound)?
             && self.acts.iter().all(|act| {
                 act.fired
                     || self.progress[act.act.target].pruned

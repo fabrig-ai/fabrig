@@ -714,14 +714,18 @@ fn asks_requires_room_for_the_fixed_answer_notice() {
 }
 
 fn read_and_park_requester(world: &mut World, attempt: u64) {
-    world.claim(REQUESTER, attempt);
-    read_inbox(world, REQUESTER, attempt);
-    world.terminal(REQUESTER, End::Parked);
+    read_and_park(world, REQUESTER, attempt);
+}
+
+fn read_and_park(world: &mut World, task: u64, attempt: u64) {
+    world.claim(task, attempt);
+    read_inbox(world, task, attempt);
+    world.terminal(task, End::Parked);
 }
 
 #[test]
 fn a_read_question_left_open_wakes_the_requester_without_a_notice() {
-    let mut world = asked();
+    let mut world = parked();
     let last = world.record(REQUESTER).last_message;
     read_and_park_requester(&mut world, ATTEMPT);
     assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
@@ -733,7 +737,7 @@ fn a_read_question_left_open_wakes_the_requester_without_a_notice() {
 
 #[test]
 fn repeated_parks_with_an_open_question_hold_and_release_counts_again() {
-    let mut world = asked();
+    let mut world = parked();
     let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
     for attempt in 1..=attempts {
         read_and_park_requester(&mut world, attempt);
@@ -784,6 +788,7 @@ fn a_question_hold_keeps_only_the_first_line_at_a_utf8_edge() {
             message_words(&mut world, Party::Task(ASKER), REQUESTER, QUESTION, MessageKind::Question, words.as_bytes()),
             Reply::Done
         );
+        world.terminal(ASKER, End::Parked);
         read_and_park_requester(&mut world, ATTEMPT);
         let Phase::Held { source: Some(source), .. } = &world.record(REQUESTER).phase else {
             panic!("held with question words")
@@ -793,69 +798,54 @@ fn a_question_hold_keeps_only_the_first_line_at_a_utf8_edge() {
     }
 }
 
-/// Two questions read in the claimed run wake once; a second park waits, and
-/// a newer question earns one more wake. Restore keeps the consumed watermark.
+/// A live wake leaves every read question open, without an extra wake for a newer one.
 fn questions_while_awaiting(kind: SubscriptionKind) -> World {
-    const SECOND: u64 = 2;
-    const THIRD: u64 = 3;
-    let limits = Limits {
-        inbox_bytes: 2048,
-        retries: Retries { run: Retry { retries: 0, ..LIMITS.retries.run }, ..LIMITS.retries },
-        ..LIMITS
-    };
+    let limits = Limits { inbox_bytes: 2048, ..LIMITS };
     let mut world = pair_with_limits(false, &limits);
-    assert_eq!(world.record(REQUESTER).question_woken, 0);
-    assert_eq!(
-        response(&mut world, |reply_to| Event::Subscribe {
-            reads_project: false,
-            reply_to,
-            task: REQUESTER,
-            subscription: Subscription { number: 1, kind },
-        }),
-        Reply::Done
-    );
-    world.claim(REQUESTER, ATTEMPT);
-    let tries = world.record(REQUESTER).tries;
-    for number in [QUESTION, SECOND] {
+    subscribe(&mut world, REQUESTER, 1, kind);
+    for number in 1..=2 {
         assert_eq!(message(&mut world, Party::Task(ASKER), REQUESTER, number, MessageKind::Question), Reply::Done);
     }
-    read_inbox(&mut world, REQUESTER, ATTEMPT);
-    world.terminal(REQUESTER, End::Parked);
-    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
-    assert_eq!(world.record(REQUESTER).tries, tries);
-    assert_eq!(world.record(REQUESTER).question_woken, SECOND);
+    read_and_park_requester(&mut world, ATTEMPT);
+    assert_idle_without_tries(&world, REQUESTER);
     assert!(world.record(REQUESTER).inbox.is_empty());
+
+    assert_eq!(message(&mut world, Party::Task(ASKER), REQUESTER, 3, MessageKind::Question), Reply::Done);
     assert!(world.contexts[&REQUESTER].reasons.contains(Reasons::QUESTION));
-
-    // No new read or event: the open questions must not become a poll.
-    world.claim(REQUESTER, SECOND);
-    world.terminal(REQUESTER, End::Parked);
-    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Idle));
-    assert_eq!(world.record(REQUESTER).tries, tries);
-    assert_eq!(world.record(REQUESTER).question_woken, SECOND);
-
-    assert_eq!(message(&mut world, Party::Task(ASKER), REQUESTER, THIRD, MessageKind::Question), Reply::Done);
-    world.claim(REQUESTER, THIRD);
-    read_inbox(&mut world, REQUESTER, THIRD);
-    world.terminal(REQUESTER, End::Parked);
-    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
-    assert_eq!(world.record(REQUESTER).tries, tries);
-    assert_eq!(world.record(REQUESTER).question_woken, THIRD);
+    read_and_park_requester(&mut world, 2);
+    assert_idle_without_tries(&world, REQUESTER);
     assert_eq!(world.record(REQUESTER).question_lines.len(), 3);
     assert!(world.record(REQUESTER).question_lines.iter().all(|line| line.answer.is_none()));
 
     world.restart();
-    assert_eq!(world.record(REQUESTER).question_woken, THIRD);
-    world.claim(REQUESTER, 4);
-    world.terminal(REQUESTER, End::Parked);
-    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Idle));
-    assert_eq!(world.record(REQUESTER).tries, tries);
-    assert_eq!(world.record(REQUESTER).question_woken, THIRD);
+    assert_idle_without_tries(&world, REQUESTER);
     world
 }
 
+fn assert_idle_without_tries(world: &World, task: u64) {
+    assert_eq!(world.record(task).phase, Phase::Active(Active::Idle), "task {task}");
+    assert_eq!(world.record(task).tries, Tries::NONE);
+    assert!(!world.activations.contains(&task));
+}
+
+fn subscribe(world: &mut World, task: u64, number: u64, kind: SubscriptionKind) {
+    assert_eq!(
+        response(world, |reply_to| Event::Subscribe {
+            reads_project: true,
+            reply_to,
+            task,
+            subscription: Subscription { number, kind },
+        }),
+        Reply::Done
+    );
+}
+
+fn watch(world: &mut World, from: u64, number: u64, target: u64, result: bool) {
+    subscribe(world, from, number, SubscriptionKind::Task { target, held: !result, result });
+}
+
 #[test]
-fn open_questions_wake_a_goal_with_a_live_task_watch_once_then_wait_for_its_result() {
+fn open_questions_leave_a_goal_with_a_live_task_watch_idle_until_its_notice() {
     let mut world = questions_while_awaiting(SubscriptionKind::Task { target: ASKER, held: true, result: true });
     for (question, number) in [(1, 4), (2, 5), (3, 6)] {
         assert_eq!(
@@ -867,16 +857,171 @@ fn open_questions_wake_a_goal_with_a_live_task_watch_once_then_wait_for_its_resu
     world.settle(ASKER);
     assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
     assert_eq!(world.record(REQUESTER).tries, Tries::NONE);
-    assert_eq!(world.record(REQUESTER).question_woken, 3);
 }
 
 #[test]
-fn open_questions_wake_a_goal_with_a_taken_timer_once_then_wait_for_a_message() {
+fn open_questions_leave_a_goal_with_a_taken_timer_idle_until_a_wake() {
     let mut world = questions_while_awaiting(SubscriptionKind::Timer { at: Wall::from_nanos(1_000_000), period: None });
     assert_eq!(message(&mut world, Party::Task(ASKER), REQUESTER, 4, MessageKind::Words), Reply::Done);
     assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
     assert_eq!(world.record(REQUESTER).tries, Tries::NONE);
-    assert_eq!(world.record(REQUESTER).question_woken, 3);
+}
+
+const G1: u64 = 1;
+const G2: u64 = 2;
+const C1: u64 = 3;
+const C2: u64 = 4;
+
+fn two_trees(tree_tasks: u32) -> World {
+    let mut world = World::new(884, Limits { tree_tasks, ..LIMITS });
+    let goals = [G1, G2].map(|number| {
+        let mut goal = task(number, &[]);
+        goal.numbers.budget = 1_000;
+        goal.authority.budget.spend = 1_000;
+        goal
+    });
+    assert_eq!(world.make(PERSON_PARTY, goals.into()), Reply::Made(vec![G1, G2]));
+    for (goal, child) in [(G1, C1), (G2, C2)] {
+        let mut new = task(child, &[]);
+        new.funder = Funder::Task(goal);
+        assert_eq!(world.make(Party::Task(goal), vec![new]), Reply::Made(vec![child]));
+    }
+    // Result watches do not wake G1 on G2's hold.
+    watch(&mut world, G1, 1, C2, true);
+    watch(&mut world, G2, 2, C1, true);
+    for (goal, child, question) in [(G1, C1, 1), (G2, C2, 2)] {
+        world.claim(child, ATTEMPT);
+        assert_eq!(message(&mut world, Party::Task(child), goal, question, MessageKind::Question), Reply::Done);
+        world.terminal(child, End::Parked);
+    }
+    read_and_park(&mut world, G1, ATTEMPT);
+    assert_idle_without_tries(&world, G1);
+    world
+}
+
+#[test]
+fn only_the_park_that_closes_a_circle_of_two_trees_spends_tries() {
+    let mut world = two_trees(4);
+    let last = u64::from(world.env.limits.retries.run.retries) + 1;
+    for attempt in 1..=last {
+        read_and_park(&mut world, G2, attempt);
+        assert_eq!(u64::from(world.record(G2).tries.run), attempt);
+        assert_idle_without_tries(&world, G1);
+        if attempt < last {
+            assert_eq!(world.record(G2).phase, Phase::Active(Active::Due));
+        }
+    }
+    let Phase::Held { why: Hold::Failures(Class::Run), source: Some(source), .. } = &world.record(G2).phase else {
+        panic!("the park that closes the circle is held")
+    };
+    assert_eq!(
+        source.as_ref(),
+        &HoldSource::Preparation {
+            words: b"Task 4's question 2 is still open, through tasks 3 (question 1), 1: proceed?".as_slice().into(),
+        }
+    );
+}
+
+#[test]
+fn a_walk_past_the_tree_bound_leaves_the_goal_idle() {
+    let mut world = two_trees(3);
+    read_and_park(&mut world, G2, ATTEMPT);
+    assert_idle_without_tries(&world, G2);
+    assert_idle_without_tries(&world, G1);
+}
+
+fn independent_delegate(world: &mut World) -> u64 {
+    const PRODUCER: u64 = 3;
+    let mut producer = task(PRODUCER, &[]);
+    producer.funder = Funder::Task(REQUESTER);
+    assert_eq!(world.make(Party::Task(REQUESTER), vec![producer]), Reply::Made(vec![PRODUCER]));
+    world.claim(PRODUCER, ATTEMPT);
+    PRODUCER
+}
+
+#[test]
+fn a_live_watch_wakes_by_its_notice_without_spending_a_try() {
+    let mut world = parked();
+    let producer = independent_delegate(&mut world);
+    watch(&mut world, REQUESTER, 1, producer, true);
+    read_and_park_requester(&mut world, ATTEMPT);
+    assert_idle_without_tries(&world, REQUESTER);
+
+    world.finish(producer);
+    world.settle(producer);
+    let goal = world.record(REQUESTER);
+    assert_eq!(goal.phase, Phase::Active(Active::Due));
+    assert_eq!(goal.tries, Tries::NONE, "the ordinary notice takes precedence");
+    assert!(goal.inbox.iter().any(
+        |word| matches!(word.kind, MessageKind::Notice { target, state: NoticeState::Done, .. } if target == producer)
+    ));
+    world.claim(REQUESTER, 2);
+    let answer = world.record(REQUESTER).last_message + 1;
+    assert_eq!(
+        message(&mut world, Party::Task(REQUESTER), ASKER, answer, MessageKind::Answer { question: QUESTION }),
+        Reply::Done
+    );
+    assert!(world.record(ASKER).inbox.iter().any(|word| word.kind == (MessageKind::Answer { question: QUESTION })));
+}
+
+fn goal_waits_for_a_live_asker() -> World {
+    let mut world = asked();
+    watch(&mut world, REQUESTER, 1, ASKER, true);
+    read_and_park_requester(&mut world, ATTEMPT);
+    assert_idle_without_tries(&world, REQUESTER);
+    world
+}
+
+fn assert_first_stuck_wake(world: &World) {
+    let goal = world.record(REQUESTER);
+    assert_eq!(goal.phase, Phase::Active(Active::Due));
+    assert_eq!(goal.tries.run, 1);
+    assert!(goal.inbox.is_empty(), "no new message numbered");
+    assert!(world.contexts[&REQUESTER].reasons.contains(Reasons::QUESTION));
+}
+
+#[test]
+fn a_visited_asker_parking_wakes_the_goal_in_the_same_decision() {
+    let mut world = goal_waits_for_a_live_asker();
+    world.terminal(ASKER, End::Parked);
+    assert_first_stuck_wake(&world);
+}
+
+#[test]
+fn removing_the_only_live_watch_wakes_the_parked_goal() {
+    let mut world = parked();
+    let producer = independent_delegate(&mut world);
+    watch(&mut world, REQUESTER, 1, producer, true);
+    read_and_park_requester(&mut world, ATTEMPT);
+    assert_idle_without_tries(&world, REQUESTER);
+    assert_eq!(
+        response(&mut world, |reply_to| Event::Unsubscribe { reply_to, task: REQUESTER, subscription: 1 }),
+        Reply::Done
+    );
+    assert_first_stuck_wake(&world);
+}
+
+#[test]
+fn restore_judges_a_question_park_the_previous_rule_left_idle() {
+    let mut world = goal_waits_for_a_live_asker();
+    let old_idle = world.records[&Key::Live(REQUESTER)].clone();
+    world.terminal(ASKER, End::Parked);
+    // Restore the coordinator's idle row from before the child parked, as a
+    // build that didn't recheck the watch would have left it.
+    world.records.insert(Key::Live(REQUESTER), old_idle);
+    world.restart();
+    assert_first_stuck_wake(&world);
+}
+
+#[test]
+fn a_long_stuck_chain_puts_names_before_the_line_and_cuts_at_a_character() {
+    let question = OpenQuestion { asker: 2, number: 5, line: 0 };
+    let chain = [StuckLink { task: 1234, question: Some(678) }, StuckLink { task: 150, question: None }];
+    let prefix = "Task 2's question 5 is still open, through tasks 1234 (question 678), 150: ";
+    let line = "é".repeat(100);
+    let expected = format!("{prefix}{}", "é".repeat((skein_lib::usize_of(REASON_BYTES) - prefix.len()) / "é".len()));
+    assert_eq!(open_question_reason(question, &chain, line.as_bytes()).as_ref(), expected.as_bytes());
+    assert!(expected.len() < skein_lib::usize_of(REASON_BYTES), "the bound splits the next character");
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1040,31 +1185,72 @@ fn read_inbox(world: &mut World, task: u64, attempt: u64) {
     }
 }
 
-#[test]
-fn parking_with_nothing_awaited_exhausts_run_tries() {
-    let mut world = pair_with_limits(false, &Limits { result_bytes: 256, ..LIMITS });
-    let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
-    for attempt in 1..=attempts {
-        if attempt > ATTEMPT {
-            world.claim(ASKER, attempt);
-        }
-        read_inbox(&mut world, ASKER, attempt);
-        world.terminal(ASKER, End::Parked);
-        if attempt < attempts {
-            assert_eq!(u64::from(world.record(ASKER).tries.run), attempt);
+// The tasks world's LIMITS allow two run retries.
+const PAST_RUN_TRIES: u64 = 3;
+const AFTER_RELEASE: u64 = PAST_RUN_TRIES + 1;
+
+fn park_awaiting_nothing(world: &mut World, attempt: u64) {
+    if attempt > ATTEMPT {
+        world.claim(ASKER, attempt);
+    }
+    read_inbox(world, ASKER, attempt);
+    world.terminal(ASKER, End::Parked);
+}
+
+fn parked_past_run_tries() -> (World, Vec<(u64, u64)>) {
+    // LIMITS.result_bytes is smaller than the hold's reason.
+    let mut world = pair();
+    let mut parks = Vec::new();
+    for attempt in ATTEMPT..=PAST_RUN_TRIES {
+        park_awaiting_nothing(&mut world, attempt);
+        let row = world.record(ASKER);
+        parks.push((u64::from(row.tries.run), row.last_message));
+        if attempt < PAST_RUN_TRIES {
             world.restart();
         }
     }
-    assert_eq!(u64::from(world.record(ASKER).tries.run), attempts);
-    assert!(matches!(world.record(ASKER).phase, Phase::Closing(Closing { ending: Ending::Failed { .. }, .. })));
-    world.settle(ASKER);
-    let words = format!(
-        "Its runs parked with nothing left to await, past its {} run tries.",
-        world.env.limits.retries.run.retries
-    );
-    assert_eq!(world.results[&ASKER], Ending::Failed { reason: words.as_bytes().into() });
-    let Stored::Summary(summary) = &world.records[&Key::Summary(ASKER)] else { panic!("task summary") };
-    assert_eq!(summary.reason.as_ref(), words.as_bytes());
+    (world, parks)
+}
+
+#[test]
+fn parking_with_nothing_awaited_exhausts_run_tries() {
+    let (world, parks) = parked_past_run_tries();
+    let row = world.record(ASKER);
+    let held = Held {
+        was: Was::Active(Active::Due),
+        why: Hold::Failures(Class::Run),
+        source: Some(Box::new(HoldSource::Preparation {
+            words: b"Its runs parked with nothing left to await, past its 2 run tries.".as_slice().into(),
+        })),
+    };
+    assert_eq!(row.phase, Phase::Held { was: held.was.clone(), why: held.why, source: held.source.clone() });
+    assert_eq!(parks, [(1, 1), (2, 2), (3, 3)], "each park spends a try and numbers a notice");
+    assert!(row.inbox.iter().any(|word| word.number == PAST_RUN_TRIES && word.kind == MessageKind::NothingAwaited));
+    let Stored::Hold(saved) = &world.records[&Key::Hold { task: ASKER, position: row.hold }] else {
+        panic!("durable hold row")
+    };
+    assert_eq!(saved.held, held);
+    assert!(!world.activations.contains(&ASKER));
+    assert!(!world.closing.contains(&ASKER));
+    assert!(!world.results.contains_key(&ASKER));
+}
+
+#[test]
+fn releasing_a_nothing_awaited_hold_restarts_the_run_tries() {
+    let (mut world, _) = parked_past_run_tries();
+    world.restart();
+    let released = response(&mut world, |reply_to| Event::Release {
+        reply_to,
+        by: PERSON_PARTY,
+        operation: Release { task: ASKER, again: None, message: None },
+    });
+    assert_eq!(released, Reply::Done);
+    park_awaiting_nothing(&mut world, AFTER_RELEASE);
+    let row = world.record(ASKER);
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(u64::from(row.tries.run), ATTEMPT);
+    assert_eq!(row.last_message, AFTER_RELEASE);
+    assert!(row.inbox.iter().any(|word| word.number == AFTER_RELEASE && word.kind == MessageKind::NothingAwaited));
 }
 
 #[test]
