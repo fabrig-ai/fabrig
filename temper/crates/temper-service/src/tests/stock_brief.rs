@@ -270,7 +270,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     let assignments = Assignments::new();
     let largest = temper_engine_smith::charter(&assignments.assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 319_641, "charter 5's maximal non-brief host part leaves this room");
+    assert_eq!(room, 319_629, "charter 5's maximal non-brief host part leaves this room");
 
     assert_eq!(brief.brief_bytes, 318_046);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
