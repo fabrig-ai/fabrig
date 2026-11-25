@@ -8,14 +8,20 @@ use super::goal_closer::{
 use super::goal_landing::{ended, finish_run, mine, row, status};
 use super::*;
 use jig_client::contract as c;
+use jig_domain_link::JobBound;
 use jig_domain_notes as notes;
 use temper_engine_domain_forge_change as change;
+use temper_engine_service_vocabulary::limits::close_bound;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
+#[path = "close_wait.rs"]
+mod close_wait;
 #[path = "ends_goals.rs"]
 mod ends;
 
 const CHANNEL: Token = Token::new(7);
+const WORKER_POSITION: u32 = 0;
+const WORKER_SLOTS: u32 = 4;
 const STEPS: u32 = 4000;
 const WORDS: &[u8] = b"Build the draft\n\nDraft: PATH";
 const SINGLE_ATTEMPT: u8 = 1; // The project's bound holds on the first unsuccessful attempt.
@@ -39,10 +45,6 @@ fn goal_world_with_authority(
     goal_world_on_landing(template, branch, attempts, spend, room, b"main")
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one fixture joins the stock template, job capability and person creating offer"
-)]
 fn goal_world_on_landing(
     template: u32,
     branch: bool,
@@ -52,6 +54,23 @@ fn goal_world_on_landing(
     landing: &[u8],
 ) -> (World, engine::Assignment, Box<[u8]>, people::Authority) {
     let defaults = stock_defaults();
+    let mut world = closer_world(landing, attempts, &defaults, None);
+    hello_goal_worker(
+        &mut world,
+        CHANNEL,
+        WORKER_POSITION,
+        defaults.rules.maximum_run_spend,
+        Box::new([close_bound()]),
+    );
+    start_goal(world, template, branch, spend, room, landing)
+}
+
+fn closer_world(
+    landing: &[u8],
+    attempts: u8,
+    defaults: &jig_domain_core::settings::Defaults,
+    worker_settings: Option<Box<[jig_domain_core::settings::WorkerSetting]>>,
+) -> World {
     let model = stock::box_model();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // One repair reaches the held landing without a long repair tree.
@@ -78,10 +97,11 @@ fn goal_world_on_landing(
     }]);
     // Bootstrap the store and root once with the complete closer fixture.
     let mut world = World::configured_stock_limits_with(
-        &defaults,
+        defaults,
         &model,
         &limits,
         StoryLimits {
+            worker_settings,
             close_job: Some((Some(b".temper/close".as_slice().into()), true)),
             goal_closer: true,
             landing_attempts: Some(attempts),
@@ -94,14 +114,19 @@ fn goal_world_on_landing(
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", landing, b"Prepare landing", b"landing", 1)
             .expect("landing differs from the forge default");
     }
-    let mut event = protocol::hello_slots(CHANNEL, 4, Box::new([]));
+    world
+}
+
+fn hello_goal_worker(world: &mut World, channel: Token, position: u32, run_spend: u64, jobs: Box<[JobBound]>) {
+    let model = stock::box_model();
+    let mut event = protocol::hello_at(channel, position, WORKER_SLOTS, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
     else {
         panic!("hello")
     };
     hello.bounds.turns = 800;
     hello.bounds.time = Duration::from_secs(28_800);
-    hello.bounds.spend = defaults.rules.maximum_run_spend;
+    hello.bounds.spend = run_spend;
     hello.bounds.message_bytes = world.env.limits.tasks.message_bytes;
     hello.bounds.inbox = world.env.limits.tasks.run_inbox;
     hello.bounds.endpoints = Box::new([jig_domain_link::EndpointBound {
@@ -109,13 +134,19 @@ fn goal_world_on_landing(
         window: model.window,
         output: model.output,
     }]);
-    hello.jobs = Box::new([jig_domain_link::JobBound {
-        kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
-        spec: 16_384,
-        result: 512,
-        deadline: Duration::from_secs(600),
-    }]);
+    hello.jobs = jobs;
     world.send(event);
+}
+
+fn start_goal(
+    mut world: World,
+    template: u32,
+    branch: bool,
+    spend: Option<u64>,
+    room: Option<u32>,
+    landing: &[u8],
+) -> (World, engine::Assignment, Box<[u8]>, people::Authority) {
+    let model = stock::box_model();
     let jig_domain_core::reads::Answer::Document(document) = world.party_read(jig_domain_core::reads::Read::Frame)
     else {
         panic!("person's frame")
@@ -651,6 +682,11 @@ pub(super) fn park_goal(world: &mut World, run: &engine::Assignment) {
 }
 
 fn park_goal_spent(world: &mut World, run: &engine::Assignment, spent: u64) {
+    answer_parked(world, run, spent);
+    world.until(Until::Ready);
+}
+
+fn answer_parked(world: &mut World, run: &engine::Assignment, spent: u64) {
     world.scripted_read_inbox(run);
     let turns = live_task(world, run.task).turn;
     let mut event =
@@ -664,7 +700,6 @@ fn park_goal_spent(world: &mut World, run: &engine::Assignment, spent: u64) {
     };
     answer.turns = turns;
     world.send(event);
-    world.until(Until::Ready);
 }
 
 fn awakened(world: &mut World, goal: u64) -> engine::Assignment {

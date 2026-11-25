@@ -257,6 +257,8 @@ pub struct StoryLimits {
     pub forge_repositories: Option<u32>,
     pub forge_resources_per_task: Option<u32>,
     pub forge_tasks: Option<u32>,
+    /// Workers configured before startup; individual hellos still admit them.
+    pub worker_settings: Option<Box<[jig_domain_core::settings::WorkerSetting]>>,
     pub close_job: Option<(Option<Box<[u8]>>, bool)>,
     pub goal_closer: bool,
     /// Ceiling for a scripted change tree deeper than the default four levels.
@@ -365,12 +367,7 @@ fn configure_close_job(
     limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(65_536);
     limits.loads.bytes = limits.loads.bytes.max(65_536);
     limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
-    config.core.jobs = Box::new([jig_domain_link::JobBound {
-        kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
-        spec: 16_384,
-        result: 512,
-        deadline: Duration::from_secs(600),
-    }]);
+    config.core.jobs = Box::new([temper_engine_service_vocabulary::limits::close_bound()]);
     if authority {
         let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
         let mut extended = kinds.to_vec();
@@ -1472,6 +1469,9 @@ impl World {
             }
             if let Some(records) = timing.call_records {
                 limits.call_records = records;
+            }
+            if let Some(workers) = &timing.worker_settings {
+                config.core.defaults.workers.clone_from(workers);
             }
             for worker in &mut config.core.defaults.workers {
                 worker.places = limits.fleet.slots;

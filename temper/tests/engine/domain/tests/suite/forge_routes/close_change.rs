@@ -112,8 +112,12 @@ fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
 }
 
 fn finish_job(world: &mut World, job: &host::JobAssignment) {
+    finish_job_on(world, CHANNEL, job);
+}
+
+pub(super) fn finish_job_on(world: &mut World, channel: Token, job: &host::JobAssignment) {
     let event = world.protocol.answer_job(
-        CHANNEL,
+        channel,
         job.run.raw(),
         job.attempt.raw(),
         host::JobEnding::Finished {
