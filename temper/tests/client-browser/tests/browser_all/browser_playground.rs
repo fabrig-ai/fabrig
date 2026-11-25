@@ -6,9 +6,9 @@ use skein_fake_person_browser::{BrowserFace, Outcome, Play, Script, Setup, Step}
 use skein_lib::Time;
 use skein_ui::Role;
 use std::{
-    fs,
+    fs, io,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
 };
 use temper_client_browser_world::{WITHIN, chromium, playground_serve};
 use temper_playground::{programs, story};
@@ -130,28 +130,36 @@ fn story_steps() -> Vec<Step> {
 }
 
 fn download_size(directory: &Path) -> (u64, u64) {
+    let mut files = Vec::new();
+    let raw = download_files(directory, &mut files);
+    if files.is_empty() {
+        return (raw, 0);
+    }
+    // gzip writes a separate member for each file, so the stream's length is the sum of their lengths
+    // (temper/docs/design/playground.md, 9).
+    let mut gzip = Command::new("gzip")
+        .args(["--no-name", "--stdout", "--"])
+        .args(files)
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("gzip is required to measure the compressed download");
+    let bytes = io::copy(&mut gzip.stdout.take().expect("gzip output pipe"), &mut io::sink());
+    assert!(gzip.wait().expect("gzip exit").success(), "gzip failed");
+    (raw, bytes.expect("count gzip output"))
+}
+
+fn download_files(directory: &Path, files: &mut Vec<PathBuf>) -> u64 {
     let mut raw = 0;
-    let mut compressed = 0;
     for entry in fs::read_dir(directory).expect("bundle directory") {
         let entry = entry.expect("bundle entry");
-        let (bytes, gzip) = if entry.file_type().expect("file type").is_dir() {
-            download_size(&entry.path())
+        if entry.file_type().expect("file type").is_dir() {
+            raw += download_files(&entry.path(), files);
         } else {
-            let bytes = entry.metadata().expect("bundle file size").len();
-            // This measures the static download; compression is a tool, outside the code under test
-            // (skein/docs/foundation/testing-strategy.md, 8; temper/docs/design/playground.md, 9).
-            let gzip = Command::new("gzip")
-                .args(["--no-name", "--stdout"])
-                .arg(entry.path())
-                .output()
-                .expect("gzip is required to measure the compressed download");
-            assert!(gzip.status.success(), "gzip: {}", String::from_utf8_lossy(&gzip.stderr));
-            (bytes, u64::try_from(gzip.stdout.len()).expect("gzip size"))
-        };
-        raw += bytes;
-        compressed += gzip;
+            raw += entry.metadata().expect("bundle file size").len();
+            files.push(entry.path());
+        }
     }
-    (raw, compressed)
+    raw
 }
 
 #[test]

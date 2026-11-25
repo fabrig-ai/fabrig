@@ -451,6 +451,10 @@ impl Host {
             _ => {}
         }
     }
+    #[must_use]
+    pub fn needs_draw(&self) -> bool {
+        self.view.needs_build(&self.root, self.env.wall)
+    }
     pub fn build(&mut self) {
         view::build(&mut self.view, &self.root, self.env.wall, &mut self.patches);
     }

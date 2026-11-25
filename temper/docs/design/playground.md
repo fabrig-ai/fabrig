@@ -213,7 +213,10 @@ delegate's phases; the frame's speed changes how long the person waits
   its own on `temper-client-shell-web`'s library, holds skein's worker
   platform where the shipped page holds the browser's (skein's
   `ui/web/README.md`, 15): the page gives the shell's loop its platform
-  through the shell's public seam, and nothing else of the loop changes.
+  through the shell's public seam. The playground draws the shell only
+  when the view needs a build, including when its time words come due
+  (`client/view.md`, 6). It still carries every report and finishes
+  non-drawing duties, and sets the client's timer at most once per turn.
   `scripts/bundle.sh --playground` builds its bundle from it.
 - **The starter:** it shows the frame and the loading line, starts the
   worker with the story, the seed it draws and the browser's time, waits
@@ -223,7 +226,9 @@ delegate's phases; the frame's speed changes how long the person waits
   `protocol/browser/sign-in.md`, section 1). No credential is made by hand.
 - **The frame** wires its controls to the bridge's pace, the worker's
   restart and the story's choice, shows the world's time from the
-  platform's clock, and offers the session's log by a key.
+  platform's clock, and offers the session's log by a key. It writes only
+  the figure texts and selected-pace attributes that change at their
+  displayed precision.
 - **One life per page.** A reload, a reset or a new story ends the
   worker and starts a fresh world; nothing is saved.
 - **A failure** in either module stops the playground: the page says it
@@ -238,7 +243,11 @@ delegate's phases; the frame's speed changes how long the person waits
   glue, the stylesheets; each but the page under its digest's name and
   cached for good, the page with a short lifetime (skein's `ui/web/bundle.md`,
   4). Any path answers with the page, which always starts at the
-  printed link.
+  printed link. The tier's static host reads a request head in bounded
+  chunks, retaining at most 8192 bytes. It ends the head at the first
+  `CRLF CRLF`, even across reads, or uses the prefix at the limit; an
+  earlier EOF without a complete head gets no response. It serves only
+  one request per connection.
 - **At the site's playground address,** which the site's design names.
 - **The page's policy** is temper's (`client/web/serving.md`, 1) with
   `worker-src 'self'`, and no `connect-src` beyond `'self'`: after the
@@ -334,7 +343,9 @@ delegate's phases; the frame's speed changes how long the person waits
   the built playground in headless Chromium (`client/web/testing.md`
   ), and measures the download from the bundle's files (raw,
   and each compressed alone by the machine's `gzip`, a tool beside the
-  code under test), and the memory's high water and the longest slice
+  code under test; one invocation emits an independent gzip member per
+  file and the test counts their concatenated bytes), and the memory's
+  high water and the longest slice
   from what the frame shows, reported against their bars.
 - **By hand, before the release:** Firefox and Safari on a desktop,
   walking story A.
