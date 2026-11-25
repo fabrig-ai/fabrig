@@ -2,7 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [task.md](task.md).
 
-- **Not yet:** 4, *Pause*: it sends no reason [in flight: change 16544].
 
 Section 2's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes

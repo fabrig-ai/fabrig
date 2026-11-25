@@ -2,7 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [acts.md](acts.md).
 
-- **Not yet:** 1, `Stop`: it carries no reason, and its hold's reason is empty [in flight: change 16544].
 
 - **Not yet:** 1: a connector's refusal for its own full table of
   answers, a `Limit` of kind `ApplicationAnswers`: jig's `LimitKind`

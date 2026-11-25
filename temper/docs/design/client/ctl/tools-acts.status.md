@@ -2,7 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [tools-acts.md](tools-acts.md).
 
-- **Not yet:** 1, `task stop TASK REASON`: it takes no reason [in flight: change 16544].
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 
