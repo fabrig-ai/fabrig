@@ -22,4 +22,8 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
 
 - **Not yet:** 4.2 (*It ends*), 4.3 (*Its link goes as it leaves*), 12
   (*A change's state*), 15 (*Members by the rows*): a change stores its
-  landing and one handed-over ask, as `landing-members.status.md` lists.
+  landing and one handed-over ask, and the start drops stale links. [in flight: change 17834]
+- **Not yet:** 15 (*Members by the rows*): a change two live landings
+  claim is not checked at start. [in flight: change 17844]
+- **Not yet:** 15 (*Members by the rows*): the previous build's links
+  and asks are not converted. [in flight: change 17843]

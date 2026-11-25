@@ -4,4 +4,4 @@
 
 - **Not yet:** 2.1, 4: the admission links each member's change to its
   landing, and the unmade pass clears those links
-  (`landing-members.status.md`).
+  (`landing-members.status.md`). [in flight: change 17834]
