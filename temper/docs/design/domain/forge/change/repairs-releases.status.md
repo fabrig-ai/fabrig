@@ -1,7 +1,10 @@
 # repairs-releases: status
 
-2026-11-22. Where the tree's code lags or departs from [repairs-releases.md](repairs-releases.md).
+2026-11-24. Where the tree's code lags or departs from [repairs-releases.md](repairs-releases.md).
 
+- **Not yet:** 1, a close job that fails for good: it stays held as its change's delegate, either task may be released, and a fresh job cancels the held one, `superseded by its change's fresh close job` (`temper-engine-domain/src/route/forge_route/close.rs`, `made` and `saved`). [in flight: change 17061]
+- **Not yet:** 1, a close change's release: it makes a fresh close job at once, whether its closer waits on its goal's new work or nothing it checks has moved, keeps no commits it read, and can ask an agent producer with a head on its branch (`temper-engine-domain-forge-change/src/domain.rs`, `producing`, `released_state`, `request_producer`). [in flight: change 17063]
+- **Design departs:** 1, *Where nothing it checks has moved*: the request (2026-11-24, approved by the user through the lean template's assessment) makes a close job again when the goal's tree, its base or main's counts change. The engine reads no counts, since `refs/temper/counts` reaches only a job's checkout (`../../../protocol/git-operations.md`, 1.3), so main's tip stands for its published counts, which follow its landings: counts published for main's tip after a close failed leave the release replaying until the goal's branch or main moves. Decided by the goal's designer, 2026-11-24.
 - **Not yet:** "A release", under `turn`: `waiting_producer` prepares the released head against the saved main tip. Its fresh snapshot carries the pull's base tip, which can be a goal branch, not main; a fresh main tip is not at hand at this decision (`temper-engine-domain-forge-change/src/domain.rs`, `waiting_producer`; `temper-engine-domain-forge/src/domain.rs`, `step_read`).
 
 - **Not yet:**

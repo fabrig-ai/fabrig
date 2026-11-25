@@ -2,6 +2,7 @@
 
 2026-11-24. Where the tree's code lags or departs from [branches.md](branches.md).
 
+- **Not yet:** 2, *A close step's change that runs no close job* and its attempts: the closer reads a held close change as pending and waits on it, supersedes none once the goal's new work has landed, wakes none, and counts every cancelled close change as an attempt (`temper-engine-domain-forge-closer/src/policy.rs`, `step`; `temper-engine-domain/src/route/forge_route/closer_route.rs`, `child`, `ended_count`). [in flight: change 17059]
 
 
 
