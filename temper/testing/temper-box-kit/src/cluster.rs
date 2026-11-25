@@ -483,9 +483,14 @@ impl Cluster {
         if !self.prepared.contains(process) {
             self.lay_files(process);
         }
-        if process == "engine" && !self.dir(process).join("data/fixture-limits-applied.json").exists() {
+        if process == "engine" {
             let root = self.dir(process);
-            super::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
+            bootstrap_engine_with(
+                &root,
+                root.join("data/fixture-limits-applied.json").exists(),
+                super::limit_settings::install_paths,
+                temper_agent_fixtures::providers::restore,
+            );
         }
         self.render_command(process)
     }
@@ -1267,6 +1272,15 @@ impl Referee<Binary> for Probe {
         self.settled
     }
 }
+fn bootstrap_engine_with(root: &Path, applied: bool, install: impl FnOnce(&[PathBuf; 3]), restore: impl FnOnce(&Path)) {
+    if !applied {
+        let paths = [root.join("config"), root.join("data"), root.join("cache")];
+        install(&paths);
+        // The sitting keeps the store's providers; the fixture starts with its staged providers.
+        restore(&paths[1]);
+    }
+}
+
 fn probe(scratch: &Path) {
     let clock = Clock::new();
     let binary = Binary::start_with_tree(
@@ -1288,6 +1302,37 @@ fn probe(scratch: &Path) {
     let binary = &outcome.procs[0];
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "cgroup probe exits successfully");
     assert_eq!(binary.counts().expect("probe settled").method, Method::Cgroup, "{CGROUPS}");
+}
+
+pub mod bootstrap_tests {
+    use super::{Path, bootstrap_engine_with};
+    use std::cell::Cell;
+
+    pub fn the_engine_stages_fixture_providers_after_bootstrap() {
+        let root = Path::new("/fixture/engine");
+        let kept = Cell::new("fixture providers");
+        bootstrap_engine_with(
+            root,
+            false,
+            |paths| {
+                assert_eq!(paths, &[root.join("config"), root.join("data"), root.join("cache")]);
+                kept.set("store providers");
+            },
+            |data| {
+                assert_eq!(data, root.join("data"));
+                assert_eq!(kept.get(), "store providers", "the sitting has drained before providers are staged");
+                kept.set("fixture providers");
+            },
+        );
+        assert_eq!(kept.get(), "fixture providers", "the fixture copy survives the sitting");
+
+        bootstrap_engine_with(
+            root,
+            true,
+            |_| panic!("do not reinstall applied settings"),
+            |_| panic!("do not restage providers when skipping the bootstrap"),
+        );
+    }
 }
 
 pub mod verdict_tests {

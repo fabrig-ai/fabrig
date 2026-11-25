@@ -868,8 +868,9 @@ fn an_engine_alone_prints_its_lines_and_drains_on_a_signal() {
 fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
     let stderr = std::str::from_utf8(&engine.stderr).map_err(|why| format!("engine lines: {why:?}"))?;
     // configuration/figures.md, 2: beside its listeners the engine reports its composed figures.
-    let figures: Vec<_> =
-        stderr.lines().filter_map(|line| line.strip_prefix("temper serve: figures for workers: ")).collect();
+    let binary = temper_engine_shell::ENGINE.binary;
+    let figures_prefix = format!("{binary} serve: figures for workers: ");
+    let figures: Vec<_> = stderr.lines().filter_map(|line| line.strip_prefix(&figures_prefix)).collect();
     let [figures] = figures.as_slice() else { return Err("exactly one workers' figures line".into()) };
     let counts: Vec<_> = figures.split(", ").collect();
     let [limits, endpoints, "agents setting revision 1"] = counts.as_slice() else {
@@ -882,7 +883,7 @@ fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
     }
     let lines: Vec<_> = stderr.lines().filter(|line| line.starts_with("listening ")).collect();
     // The fixture's kept providers differ from a fresh store's stock (providers.md, 3).
-    let warning = "temper serve: warning: LLM providers changed; they apply at the engine's next start";
+    let warning = format!("{binary} serve: warning: LLM providers changed; they apply at the engine's next start");
     if lines.len() != 3 || stderr.lines().filter(|line| *line == warning).count() != 1 || stderr.lines().count() != 5 {
         return Err(format!("three listeners, workers' figures and one provider-start warning: {stderr}"));
     }

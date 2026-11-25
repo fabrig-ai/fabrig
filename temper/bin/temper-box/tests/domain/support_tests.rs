@@ -136,6 +136,11 @@ fn gate_receipt_waits_for_an_unpublished_status_context() {
 }
 
 #[test]
+fn cluster_stages_fixture_providers_after_the_engine_bootstrap() {
+    support::cluster::bootstrap_tests::the_engine_stages_fixture_providers_after_bootstrap();
+}
+
+#[test]
 fn cluster_passed_accepts_only_a_successful_settled_verdict() {
     support::cluster::verdict_tests::passed_accepts_only_a_successful_settled_verdict();
 }
