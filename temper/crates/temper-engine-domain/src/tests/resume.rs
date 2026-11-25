@@ -953,8 +953,8 @@ fn accepted_statement() -> crate::WorkerStatement {
     crate::WorkerStatement {
         wires: Box::new([crate::OpenedWire {
             name: "example-wire".into(),
-            lowest: 3,
-            layouts: Box::new([[4; 32], [5; 32]]),
+            layout: [4; 32],
+            text: b"worker-stated wire text".as_slice().into(),
         }]),
         output: 4096,
         terms: Box::new([crate::OpenedTerm { kind: 12, largest: 34 }]),

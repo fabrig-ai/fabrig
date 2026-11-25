@@ -1,5 +1,5 @@
 //! Ready's copies on the service (temper/docs/design/testing/tiers.md, 1.5 and temper/docs/design/testing/process-tier.md;
-//! temper/docs/design/domain/forge/adoption.md, 5; temper/docs/design/protocol/setup/box.md, 1).
+//! temper/docs/design/domain/forge/adoption.md, 9; temper/docs/design/protocol/setup/box.md, 1).
 use crate::{
     copy::{self, Source},
     ctl::{Caller, Command},
@@ -265,7 +265,6 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
         &seeds,
         None,
         Some(temper_service::WorkerRuntime {
-            wires: None,
             root: worker,
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),

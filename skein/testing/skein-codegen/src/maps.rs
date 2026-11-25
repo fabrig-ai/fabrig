@@ -27,10 +27,27 @@ struct Item {
     block: Option<Vec<Item>>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Direction {
+    ToRecord,
+    ToDomain,
+}
+
+impl Direction {
+    const ALL: [Self; 2] = [Self::ToRecord, Self::ToDomain];
+
+    fn target(self) -> &'static str {
+        match self {
+            Self::ToRecord => "record",
+            Self::ToDomain => "domain",
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Mode {
     Mirror(String),
-    Stands { field: String, via: Option<String> },
+    Stands { field: String, via: Option<String>, shape: Shape },
     Payload,
     Hand,
 }
@@ -41,7 +58,14 @@ struct Mapping {
     name: String,
     enumeration: bool,
     mode: Mode,
+    direction: Option<Direction>,
     items: Vec<Item>,
+}
+
+impl Mapping {
+    fn applies(&self, direction: Direction) -> bool {
+        self.direction.is_none_or(|only| only == direction)
+    }
 }
 
 #[derive(Default)]
@@ -58,6 +82,15 @@ struct Maps {
 impl Maps {
     fn mapping(&self, name: &str) -> Option<&Mapping> {
         self.declarations.iter().find(|mapping| mapping.name == name)
+    }
+
+    fn in_direction(&self, name: &str, direction: Direction) -> Option<&Mapping> {
+        self.declarations.iter().find(|mapping| mapping.name == name && mapping.applies(direction))
+    }
+
+    fn inline_payload(&self, name: &str, direction: Direction) -> Option<&Mapping> {
+        // Inlining uses the payload's field settings, not its translation function.
+        self.in_direction(name, direction).or_else(|| self.mapping(name))
     }
 
     fn path(&self, path: &str) -> String {
@@ -94,7 +127,7 @@ fn error(schema: &Schema, line: usize, message: impl core::fmt::Display) -> Erro
     Error { line, message: format!("schema {}: {message}", schema.family) }
 }
 
-/// Writes both translation directions, or refuses before producing any output.
+/// Writes the requested translation directions, or refuses before producing any output.
 /// Refusals name the maps line and schema family (data/codec/maps.md, 6-7).
 pub fn translate(schema: &Schema, source: &str) -> Result<String, Error> {
     let maps = parse::parse(schema, source)?;

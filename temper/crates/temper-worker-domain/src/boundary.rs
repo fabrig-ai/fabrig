@@ -209,7 +209,7 @@ pub enum Request {
         attempt: Token,
         failure: host::AgentFailure,
     },
-    /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).
+    /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts-prepare.md, 12.3).
     Unprepared {
         run: Token,
         attempt: Token,

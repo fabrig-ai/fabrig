@@ -1,5 +1,5 @@
 //! One serialized startup record for the hosted agent; parent options describe
-//! channel input independently (smith/docs/design/testing.md, sections 2 and 5).
+//! channel input independently (smith/docs/design/testing-tiers.md and smith/docs/design/testing.md, section 5).
 use super::TraceCase;
 use skein_io::kernel::Spawn;
 use smith_protocol_events::sinks::Capture;
@@ -38,6 +38,8 @@ pub(crate) struct Setup {
     pub provider: skein_llm::Provider,
     pub output: u32,
     pub order_requests: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub watch_channel: bool,
 }
 
 impl Default for Setup {
@@ -49,6 +51,7 @@ impl Default for Setup {
             provider: skein_llm::Provider::OpenAi,
             output: 0,
             order_requests: false,
+            watch_channel: false,
         }
     }
 }

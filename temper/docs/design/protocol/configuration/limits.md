@@ -26,7 +26,7 @@
   are in `jig-protocol-config-fixtures`), and never a document's. Where
   this document gives `standard`'s figure, that is the stock's, and
   `small`'s is the fixtures'. `temper-box init`'s
-  worker part names `standard` (`../setup/init.md`, 3). Their numbers are
+  worker part names `standard` (`../setup/init.md`, 6). Their numbers are
   constants in `temper-service`'s limits module, and the setup's and
   the box's in their own crates, each documented with what it bounds;
   the design names limits and what they bound (jig's
@@ -109,7 +109,7 @@
   its accounts) are smith's own and no configuration changes (smith's
   `smith-domain-run`, `derive`; `smith-agent-service`), and whose largest
   call, its run's `outcome_bytes`, follows from its agent configuration.
-  The owned example's agent is `standard`'s (../setup/init.md, 1): its 48
+  The owned example's agent is `standard`'s (../setup/init.md, 4): its 48
   calls pass `small`'s `hub.run_calls`, 8. Every constant passes the
   checks below with an agent of `small`'s size: the checkout's
   repositories within the agent's directories, the checkout's names
@@ -360,7 +360,7 @@ Moved to [`limits-client.md`](limits-client.md), section 1.
   declaration with a composed sum or names a memory deficit
   (skein/docs/foundation/programming-model.md, 6.3). Edge bounds and compatibility checks
   still refuse invalid limits. The owned example's worker `limits` are
-  ../setup/init.md, 1's.
+  ../setup/init.md, 4's.
 
 - **A worker alone's ring** holds its io's and its worker's kernel
   operations, staged and in flight, independently of its domain's room.

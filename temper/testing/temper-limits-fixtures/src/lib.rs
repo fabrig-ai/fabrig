@@ -13,7 +13,7 @@ use temper_service_core::limits::{FORGE_INSTALLATIONS, FORGE_TOKEN_BYTES, Peer, 
 const CHECKOUT: Checkout = Checkout {
     // Cached or held checkout workspaces, from the checkout world fixture.
     workspaces: 3,
-    // One preparation at a time per worker: redeploys.md, 6.4.
+    // One preparation at a time per worker: draft/archive/redeploys.md, 6.4.
     preparations: 1,
     // Held to the agent's two repository directories.
     repositories: 2,

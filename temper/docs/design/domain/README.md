@@ -43,7 +43,9 @@ all. Then temper's:
    checkout.
    - `worker/hosted-runs.md`: assignments, lifecycle and failures.
    - `worker/agent-processes.md`: the worker's agent processes and their bounds.
-   - `worker/checkouts.md`: workspaces, preparing, delivering and saving, and open questions.
+   - `worker/checkouts.md`: workspaces, their stores and holds, a workspace kept for its run, and the checkout's open questions.
+   - `worker/checkouts-prepare.md`: checkout preparation, starting points and failure diagnostics.
+   - `worker/checkouts-push.md`: delivery, saving and their open questions.
    - `worker/jobs.md`: job kinds, commands and failure diagnostics.
 4. **agent/README.md:** what temper fills in of smith's agent: the charter, the
    host tools, result contracts, conventions and the agents temper runs.
@@ -261,7 +263,7 @@ Each document lists its own; the ones that reach across:
 
 - what temper's root keeps between steps, and the forge's work it does
   that jig's connectors do themselves (root.md, section 12);
-- an assignment naming the head its push must find (`worker/checkouts.md`, section 2);
+- an assignment naming the head its push must find (`worker/checkouts-push.md`, section 9);
 - a person's approval posted on the forge as the person (`../README.md`,
   section 8; forge/README.md, section 11);
 

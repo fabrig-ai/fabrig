@@ -1,0 +1,27 @@
+records smith_charter::v5
+use r = smith_domain::run
+use h = crate::charter
+by hand h
+refuses h::verdict_rule_to_record
+
+record Section = r::Section { body = text }
+record Families by hand
+enum Effect = r::HostEffect
+enum Mode = r::Mode
+record HostTool = r::HostTool { input = schema, deadline = timeout }
+record FieldRule = r::outcome::FieldRule
+record TextRule = r::outcome::TextSpec { fields slice }
+record ItemKind = r::outcome::ItemRule { fields slice }
+record VerdictRule by hand
+record ChangeRule = r::outcome::ChangeSpec { fields slice }
+record Contract = r::outcome::OutcomeSpec { verdicts slice }
+record Tools by hand
+record Conventions = r::Conventions
+record Prices = r::Prices
+record Llm by hand
+record Reserve = r::charter::Reserve
+record Budget by hand
+record Charter by hand
+record Field = r::outcome::Field { text = value }
+record Item = r::outcome::Item { fields slice }
+record RunResult by hand

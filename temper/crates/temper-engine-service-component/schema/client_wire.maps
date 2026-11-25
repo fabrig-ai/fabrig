@@ -1,0 +1,8 @@
+records temper_client_protocol_wire::v1
+use jig = jig_protocol_config::names
+
+direction to record
+
+enum LimitUnit = jig::Unit
+enum LimitApplies = jig::Applies
+record LimitSetting by hand

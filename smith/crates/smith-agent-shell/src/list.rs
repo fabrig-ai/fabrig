@@ -2,6 +2,7 @@
 //! Keeps its I/O queues and one Exchange; holds the credential until the request is written.
 //! `Process::new` adopts the supplied faces; `run_decoded` supplies the native kernel.
 
+use crate::generated::channel;
 use smith_channel::Record;
 #[cfg(unix)]
 use std::{io::Write, path::Path};
@@ -155,13 +156,7 @@ impl Process {
             return;
         };
         let endpoint = self.endpoints.destinations().get(options.index).expect("resolved destination");
-        let credential = ask.credential.map(|value| {
-            let bytes = value.bytes.into_exposed();
-            match value.scheme {
-                wire::Scheme::Bearer => skein_llm::Credential::bearer(bytes),
-                wire::Scheme::Key => skein_llm::Credential::key(bytes),
-            }
-        });
+        let credential = ask.credential.map(channel::credential_value_to_domain);
         let mut exchange = Exchange::new(
             SOCKET,
             endpoint,
@@ -234,6 +229,10 @@ impl Process {
     }
 }
 
+pub(crate) fn secret_to_domain(value: skein_lib::Secret) -> Box<[u8]> {
+    value.into_exposed()
+}
+
 fn failed(failure: wire::ListFailed) -> wire::ListAnswer {
     wire::ListAnswer::Failed(wire::ListFailure { failure })
 }
@@ -243,19 +242,11 @@ fn to_wire(answer: Answer) -> Result<wire::ListAnswer, ()> {
         Answer::Listed(rows) => {
             let mut values = List::with_capacity(CEILINGS.list_rows_rows);
             for row in rows {
-                let mut efforts = List::with_capacity(CEILINGS.list_row_efforts);
-                for effort in row.efforts {
-                    efforts.push(effort).map_err(|_| ())?;
+                if skein_lib::len_u64(row.efforts.len()) > u64::from(CEILINGS.list_row_efforts) {
+                    return Err(());
                 }
-                values
-                    .push(wire::ListRow {
-                        name: row.name,
-                        shown: row.shown,
-                        window: row.window,
-                        output: row.output,
-                        efforts,
-                    })
-                    .map_err(|_| ())?;
+                let row = channel::list_row_to_record(&row).map_err(|_| ())?;
+                values.push(row).map_err(|_| ())?;
             }
             return Ok(wire::ListAnswer::Listed(wire::ListRows { rows: values }));
         }

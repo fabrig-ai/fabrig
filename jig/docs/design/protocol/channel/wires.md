@@ -6,7 +6,7 @@ the wires each speaks, by layout, with the worker's schema texts; the
 engine's check of them before the hello; the kinds' table, kept in the
 schema; terms; and what an assignment refused for a version costs. It
 carries temper's `draft/layouts-both-ways.md`, sections 3 and 5, and
-`draft/redeploys.md`, 3.4, for jig's channel. How the engine then
+`temper/docs/design/draft/archive/redeploys.md`, 3.4, for jig's channel. How the engine then
 converts is `layouts.md`'s; an application names its own wires
 (temper's `protocol/wires.md`).
 
@@ -47,7 +47,7 @@ converts is `layouts.md`'s; an application names its own wires
   `Credential`, `Wire` and `Opening` alike, since the engine reads a
   worker's before it knows its layouts. A change to any of them is a
   change no plan carries, which restarts every part together at its
-  redeploy (temper's `draft/redeploys.md`, 7.3); a focused test holds
+  redeploy (temper's `draft/archive/redeploys.md`, 7.3); a focused test holds
   their layout to a fingerprint written in the test.
 - **Every text, every opening.** The worker cannot know before the
   engine answers which of its layouts differ, and the engine needs the
@@ -60,14 +60,11 @@ converts is `layouts.md`'s; an application names its own wires
   application's, each name once. The engine checks the same list from
   its own side.
 - **A wire's version is frozen** at its header (temper's
-  `draft/layouts-both-ways.md`, 3): `jig-worker-wire` 22, `smith-charter`
-  5, the application's at theirs (temper's `protocol/wires.md`, 3). A
-  versioned record's head keeps that number, so no byte of one layout
-  moves. A focused test in each wire's crate holds its header at its
-  frozen number. `smith-transcript` and `smith-pieces` keep their
-  versions as their crate's patch history moves them (temper's
-  `protocol/wires.md`, 3); the opening states their layouts the same
-  way.
+  `draft/layouts-both-ways.md`, 3): `jig-worker-wire` 22, `smith-pieces`
+  1, `smith-charter` 5, `smith-transcript` 8, the application's at theirs
+  (temper's `protocol/wires.md`, 3.1). A versioned record's head keeps
+  that number, so no byte of one layout moves. A focused test in each
+  wire's crate holds its header at its frozen number.
 - **The channel's own version** is agreed by skein's opening (skein's
   `net/channel.md`, 5.2), each side's range `jig-worker-wire`'s one
   version.
@@ -117,7 +114,7 @@ converts is `layouts.md`'s; an application names its own wires
   owner each refusal it sends at an opening, with its reason and text,
   and the worker's link hands its owner each refusal it hears, with its
   reason and text, before it redials.
-- **The statement handed up whole** (temper's `draft/redeploys.md`,
+- **The statement handed up whole** (temper's `draft/archive/redeploys.md`,
   5.1): with the channel accepted, the engine's side hands its owner
   what the worker stated, its wires as its credential gives them, in
   their order, its `io.output`, and its terms as its channel's ready

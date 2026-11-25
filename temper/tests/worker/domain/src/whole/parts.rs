@@ -1,5 +1,5 @@
 //! Parts cross the worker, and a drained attempt takes up its kept place
-//! (temper/docs/design/draft/worker-restarts.md, section 9, tests 1–3).
+//! (temper/docs/design/draft/archive/worker-restarts.md, section 9, tests 1–3).
 use super::{ATTEMPT, RUN, World, agent, host, protocol, wire};
 use jig_domain_link::{KeptPart, Part, PartKind};
 use skein_lib::{Duration, Token};

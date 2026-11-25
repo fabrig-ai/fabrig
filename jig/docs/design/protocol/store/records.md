@@ -45,7 +45,7 @@ value from the layout it was written at. An added field takes a default,
 a renamed part its former name (`was`), and a change no plan derives
 its owner's written job (`layouts.md`, 6). Formats outside the registry
 stay at their current versions; a change to one designs how the
-store reaches it in that landing (temper's `draft/store-floor.md`, section 5).
+store reaches it in that landing (temper's `draft/archive/store-floor.md`, section 5).
 The settings' version defines every record of the settings family,
 charter versions and pending proposals' sets among them. As every
 family's: each record stored at the top is
@@ -102,7 +102,7 @@ follow from the limits that bound each kind (4).
   their registration on, and change their layouts by defaults, former
   names and written jobs, with no patch; the component's, the secrets'
   and the openings' families stay at their current versions, outside the
-  registry (temper's `draft/store-floor.md`, section 5).
+  registry (temper's `draft/archive/store-floor.md`, section 5).
 - **A collection the domain bounds by its bytes in all is one piece**
   (skein's `data/codec/README.md`, 3), its limit the domain's sum: a verdict's
   fields by the result's bytes, an amendment's lists, an authority's and
@@ -312,7 +312,7 @@ settings (decided 2026-11-03).
   explicitly (`opening-owners.md`, 1): jig's 6, temper's 14, skein's and smith's
   0. No binary moves a level: a registered family changes by
   its registry and its jobs (`layouts.md`; `jobs.md`), and a format
-  outside the registry is fixed (temper's `draft/store-floor.md`, section 5). The row is
+  outside the registry is fixed (temper's `draft/archive/store-floor.md`, section 5). The row is
   the levels and the versions they imply.
 - **The row at open** (temper's `protocol/floor.md`):
   - **Written** by the first commit, with the binary's levels, and by
@@ -342,7 +342,7 @@ settings (decided 2026-11-03).
       and layouts decide;
     - then any owner's store level behind the binary's: `OlderBuild`
       with `Older::Behind`, a store from a build whose patches this
-      one no longer keeps (temper's `draft/store-floor.md`, 4.1), the
+      one no longer keeps (temper's `draft/archive/store-floor.md`, 4.1), the
       first in `Owner`'s order;
     - equal, or both none: the versions must be the binary's, or
       `Format` naming the first family that differs. The levels and
@@ -364,7 +364,7 @@ settings (decided 2026-11-03).
 - **The floor,** in a row of its own beside it (`Floor`, the
   component's, in `component-v3.schema` at `00 0d`): the oldest store this build's code still
   serves, by number, and the build that wrote the row (temper's
-  `draft/store-floor.md`, section 3):
+  `draft/archive/store-floor.md`, section 3):
 
 ```
 # 00 0d: the store's floor
@@ -373,7 +373,7 @@ versioned record Floor { number: u32 build: text 64 }
 
   - **The binary's floor** is the store's constant `FLOOR`, 1,
     moved only by a landing that drops a whole older
-    form (temper's `draft/store-floor.md`, section 6). The build is the
+    form (temper's `draft/archive/store-floor.md`, section 6). The build is the
     name the shell hands the store beside its sets (`opening-owners.md`, 1),
     at most 64 bytes: temper's its build's commit, as its version line
     names it; a shell that hands none has an empty one written.
@@ -388,7 +388,7 @@ versioned record Floor { number: u32 build: text 64 }
     other.
     A reopen leaves the row, and its build, as they are; a landing
     that moves the floor designs how its upgrade writes the new number
-    (temper's `draft/store-floor.md`, section 6).
+    (temper's `draft/archive/store-floor.md`, section 6).
   - **Checked at open,** after the levels (above), and read by the
     census and the rehearsal's decoding as the component's other rows
     are. An empty store is not checked: its first commit writes the
@@ -421,7 +421,7 @@ versioned record Floor { number: u32 build: text 64 }
   name: what the engine last authenticated of each worker's opening
   (`../channel/wires.md`, 3, *The statement handed up whole*), so that
   the tool that rehearses an upgrade can judge, with the engine
-  stopped, whether each worker may stay (temper's `draft/redeploys.md`,
+  stopped, whether each worker may stay (temper's `draft/archive/redeploys.md`,
   5.1; temper's `protocol/wires.md`, 10.2):
 
   ```
@@ -460,7 +460,7 @@ versioned record Floor { number: u32 build: text 64 }
   rehearsal, upgrade or census name reads, and which stays as it is.
   A build that wrote that row reads nothing at open that a store
   without it lacks, so the component's version stays 3 both ways
-  (temper's `draft/codec-shape.md`, 6.1).
+  (temper's `draft/archive/codec-shape.md`, 6.1).
 - **`Older::Layout(family)`** is a component row at the binary's version
   that does not decode, refused before the root starts (`opening.md`,
   1.8). Its words can name each family; for the settings family
@@ -516,7 +516,9 @@ admitted within that edge is never refused as too large.
   A deployment's commit then fits skein-kv's `u32` whenever its map's
   budget does.
 - **The largest value is the largest tasks row,** for any limits that
-  make no larger settings revision or application value: a task's
+  make no larger settings revision, application value or workers'
+  opening (3; its bound is its family's ceilings, eight texts of
+  64 KiB, so small limits' tasks rows can be smaller): a task's
   definition, with its recurring template, its pending proposal, each a
   batch by the batch's bytes (1), its inbox of the inbox's messages
   and two, each item at the larger of a message's and a result's bytes

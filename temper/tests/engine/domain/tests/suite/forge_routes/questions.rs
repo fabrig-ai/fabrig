@@ -1091,7 +1091,7 @@ pub(crate) fn land_sibling_and_resume(story: &mut AddedDependency) {
     both_land(world, *change, *dependency);
 }
 
-// producer-reach.md, 5, story 1; questions.md, 1, Held for a dependency it did not start from.
+// draft/archive/producer-reach.md, 5, story 1; questions.md, 1, Held for a dependency it did not start from.
 #[test]
 fn an_answer_waits_for_an_existing_sibling_and_resumes_at_its_landed_tip() {
     let mut story = existing_sibling_question();

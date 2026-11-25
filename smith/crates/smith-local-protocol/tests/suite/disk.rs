@@ -1,5 +1,5 @@
 //! The real-directory Store/FileIo adapter for the fresh-journal recovery test.
-//! smith/docs/design/testing.md, 2.5.
+//! smith/docs/design/testing-tiers.md, 5.
 
 use skein_io::file_layer::step::down_until;
 use skein_io::{

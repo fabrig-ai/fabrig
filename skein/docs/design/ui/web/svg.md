@@ -5,7 +5,7 @@
 A scene is drawing code's output: a bounded list of marks in preorder,
 in whole pixels from its box's top left (../scenes.md, 2). Scenes as SVG is
 a part, the page part's default for a drawing; an owner's kind may be a
-component instead (`elements.md`, 1).
+component instead (`elements.md`, 5).
 
 - **The page part calls the drawing code** (`README.md`, 3.2; ../scenes.md, 1) with the
   drawing's kind, data and box's size in whole CSS pixels, as it

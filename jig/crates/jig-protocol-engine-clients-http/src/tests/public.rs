@@ -1,6 +1,11 @@
 //! Public HTTP step tests (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md).
 use super::{fixtures as f, *};
-const PATH: &[u8] = b"/jig/v1/public/0/1/1";
+const PATH: &[u8] = b"/jig/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1";
+const DECIMAL_PATH: &[u8] = b"/jig/v1/public/0/1/1";
+const LAYOUT: [u8; 32] = [
+    0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1,
+];
 fn mount() -> Mount {
     let mut env = f::env();
     env.limits.public_calls = 2;
@@ -14,16 +19,42 @@ fn mount() -> Mount {
     mount
 }
 fn read() -> kit::PublicRead {
-    kit::PublicRead { owner: 0, version: 1, kind: 1, ids: Box::new([]) }
+    kit::PublicRead { owner: 0, layout: Some(LAYOUT), kind: 1, ids: Box::new([]) }
 }
 #[test]
 fn canonical_paths_parse_and_others_do_not() {
-    for (path, owner, version, kind, ids) in [
-        (b"/v1/public/0/0/0".as_slice(), 0, 0, 0, &[][..]),
-        (b"/v1/public/65535/1/2/0123456789abcdef".as_slice(), 65535, 1, 2, &[0x0123_4567_89ab_cdef][..]),
-        (b"/v1/public/1/65535/65535/0000000000000000/ffffffffffffffff".as_slice(), 1, 65535, 65535, &[0, u64::MAX][..]),
+    for (path, owner, layout, kind, ids) in [
+        (b"/v1/public/0/0000000000000000000000000000000000000000000000000000000000000000/0".as_slice(), 0, Some([0; 32]), 0, &[][..]),
+        (b"/v1/public/65535/000123456789abcdefff00000000000000000000000000000000000000000001/2/0123456789abcdef".as_slice(), 65535, Some(LAYOUT), 2, &[0x0123_4567_89ab_cdef][..]),
+        (b"/v1/public/1/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/65535/0000000000000000/ffffffffffffffff".as_slice(), 1, Some([0xff; 32]), 65535, &[0, u64::MAX][..]),
+        (b"/v1/public/0/0/0", 0, None, 0, &[][..]),
+        (b"/v1/public/1/65535/2/0123456789abcdef", 1, None, 2, &[0x0123_4567_89ab_cdef][..]),
     ] {
-        assert_eq!(public_path(path), Some(kit::PublicRead { owner, version, kind, ids: Box::from(ids) }));
+        assert_eq!(public_path(path), Some(kit::PublicRead { owner, layout, kind, ids: Box::from(ids) }));
+    }
+    for (name, target) in [
+        (
+            "upper-case layout",
+            b"/jig/v1/public/0/000123456789ABCDEFFF00000000000000000000000000000000000000000001/1".as_slice(),
+        ),
+        ("short layout", b"/jig/v1/public/0/000123456789abcdefff0000000000000000000000000000000000000000000/1"),
+        ("long layout", b"/jig/v1/public/0/000123456789abcdefff000000000000000000000000000000000000000000010/1"),
+    ] {
+        let mut mount = mount();
+        let mut out = Queue::with_capacity(32);
+        f::call(&mut mount, &mut out, Method::Get, target, &[], b"");
+        for request in &out {
+            if let Request::Component(_) = request {
+                panic!("{name} reaches the component");
+            }
+        }
+        let (status, body, headers) = f::answered(&mut mount, &mut out, f::EXCHANGE);
+        assert_eq!((status, body.len()), (404, 0), "{name}");
+        assert_eq!(
+            headers,
+            f::fields(&[(b"cache-control", b"no-store"), (b"x-content-type-options", b"nosniff")]),
+            "{name}"
+        );
     }
     for (name, path) in [
         ("missing prefix", "/public/0/1/1"),
@@ -56,11 +87,12 @@ fn canonical_paths_parse_and_others_do_not() {
 fn answer(reply: kit::PublicReply, now: Time) -> (u16, Box<[u8]>, Box<[skein_http::Header]>) {
     let mut mount = mount();
     let mut out = Queue::with_capacity(32);
-    f::call(&mut mount, &mut out, Method::Get, PATH, &[], b"");
-    assert_eq!(
-        f::component(&mut out).as_ref(),
-        &[kit::FromTransport::PublicRead { exchange: f::EXCHANGE, read: read() }]
-    );
+    let (path, read) = match reply {
+        kit::PublicReply::NotServed { .. } => (DECIMAL_PATH, kit::PublicRead { layout: None, ..read() }),
+        kit::PublicReply::Document { .. } | kit::PublicReply::Unknown | kit::PublicReply::Busy => (PATH, read()),
+    };
+    f::call(&mut mount, &mut out, Method::Get, path, &[], b"");
+    assert_eq!(f::component(&mut out).as_ref(), &[kit::FromTransport::PublicRead { exchange: f::EXCHANGE, read }]);
     let mut env = f::env();
     env.now = now;
     mount.down(&env, Event::Component(kit::ToTransport::Public { exchange: f::EXCHANGE, reply }));

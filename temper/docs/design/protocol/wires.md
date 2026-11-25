@@ -7,7 +7,7 @@ engine and a worker state of them at their opening, how the engine
 converts between its layouts and a worker's, what a mismatch costs, how
 the host tools' contract is answered across versions, and how
 `versions` prints them. It carries `../draft/layouts-both-ways.md`,
-sections 3, 5 and 6, and `../draft/redeploys.md`, sections 3.4, 4.4 and
+sections 3, 5 and 6, and `../draft/archive/redeploys.md`, sections 3.4, 4.4 and
 8, for temper's parts. The mechanisms are skein's
 (`skein/docs/design/data/codec/layouts.md`, plans;
 `skein/docs/design/data/codec/fingerprints.md`, section 1, fingerprints)
@@ -33,8 +33,9 @@ them.
 - **The host tools' contract is versioned whole** (7): a run's charter
   names its version, each call carries it, and the engine answers every
   version from its floor.
-- **Clients' versions move with their layouts** (9), with no kept text
-  and no bridge; a page refused reloads once to the engine's bundle.
+- **Clients' versions are frozen** (9), their layouts compared at the
+  hello, with no kept text and no conversion; a page refused reloads
+  once to the engine's bundle.
 - **`versions` prints each wire's layout** (10), and the store keeps the
   wires the engine's last start spoke and each worker's last opening
   since, with its texts (10.1), by which `upgrade --check` says which
@@ -50,17 +51,16 @@ them.
 | `smith-transcript` | `smith/crates/smith-transcript` | the agent writes turns; the engine keeps them and resumes a window on a worker | by jig |
 | `temper-worker-wire` | `temper/crates/temper-protocol-worker-wire` | temper's payloads in jig's channel: the workspace items, the work, the preparation, a job's spec and a git identity's value (`channel.md`) | by temper, through jig |
 | `temper-host-tools` | `temper/crates/temper-engine-smith` | the host tools the engine offers in a charter and answers when a run calls them (7) | no: the engine's alone |
-| `smith-channel` | `smith/crates/smith-channel` | a worker and its agents, per-build (`../draft/redeploys.md`, 4.4) | no: smith's own opening, between a worker and its agent |
+| `smith-channel` | `smith/crates/smith-channel` | a worker and its agents, per-build (`../draft/archive/redeploys.md`, 4.4) | no: smith's own opening, between a worker and its agent |
 
 - **Each wire's name is its family's,** as its schema's header gives it;
   the host tools' contract, which is no schema, is named
   `temper-host-tools`.
 - **`smith-channel` is per-build:** a worker pins its agent's program
   and configuration at its start, so the channel between them never
-  spans two builds; its version moves with its layout and keeps its
-  text, with no reverse, no floor below its current and no breaking
-  declaration (`schema/wires`, `smith-channel build`). What the engine
-  keeps of it is `smith-pieces`.
+  spans two builds and nothing converts it; its version is frozen at its
+  header's, as every wire's is (3.1). What the engine keeps of it is
+  `smith-pieces`.
 - **Clients' wires** are section 9's.
 
 ## 3. Frozen versions
@@ -68,7 +68,8 @@ them.
 ### 3.1 The rule
 
 - **A worker wire's version is frozen** (`../draft/layouts-both-ways.md`,
-  3): `jig-worker-wire` at 22, `smith-charter` at 5 and
+  3): `jig-worker-wire` at 22, `smith-pieces` at 1, `smith-charter` at
+  5, `smith-transcript` at 8, `smith-channel` at 14 and
   `temper-worker-wire` at 12, their headers'. Their crates keep no old
   text and no patch: no `schema/kept/`, `patches/` or `schema/wires`. A
   layout change is made in the current text alone; what it costs a
@@ -76,25 +77,25 @@ them.
   3), and the common changes cost nothing: a field added with a default,
   a field dropped with its tombstone (`dropped name: type = default`), a
   variant added, a bound widened (skein's `data/codec/layouts.md`, 2).
-- **Three keep their patch history** for what reads it by version:
-  `smith-transcript`, whose turns the engine's store reads by their
-  version until it names their layout (jig's `protocol/store/layouts.md`,
-  1; `../draft/layouts-both-ways.md`, 8.3); `smith-pieces`, whose bytes
-  the engine keeps naming no layout, so a worker whose layout of it is
-  not the engine's is refused at the opening (jig's
-  `protocol/channel/wires.md`, 3); and `smith-channel`, per-build (2).
-  For these the wire rule holds as before: a landing that changes the
-  layout moves the version by one, keeps the old text and brings its
-  forward patch, written by `cargo run -p skein-codegen -- patch <crate>`
-  (skein's `data/codec/command.md`, 2), with its reverse or its breaking
-  declaration; `fabrig-boundary`'s `patches` test (`floor.md`, 6) lists
-  their crates as owners.
+- **`smith-pieces` is compared, never converted:** the engine keeps its
+  bytes naming no layout, so a worker whose layout of it is not the
+  engine's is refused at the opening (jig's `protocol/channel/wires.md`,
+  3), and a change of its layout is met by draining the workers of the
+  build before (`../draft/archive/redeploys.md`, 6.1).
+- **One old text stays, as the store's seed:** transcript frames
+  written before the registry hold turns at `smith-transcript` 7, which
+  the open registers from that text (jig's
+  `protocol/store/transcripts.md`, 6). It is kept as
+  `smith/crates/smith-transcript/schema/seed/smith-transcript-v7.schema`,
+  read by the store alone, never by a wire, and goes once dev.fabrig.ai's
+  store holds the rows (`../draft/archive/store-floor.md`). No other
+  text of a build that isn't running is kept.
 - **Each wire crate says what it speaks,** in a module `wire`:
 
   ```rust
   pub mod wire {
       pub const FAMILY: &str;          // the family's name, as its header gives it
-      pub const VERSION: u16;          // its version, as its header gives it: frozen, but for 3.1's three
+      pub const VERSION: u16;          // its version, as its header gives it: frozen
       pub const TEXT: &str;            // its current schema text, embedded by include_str!
       pub fn layout() -> [u8; 32];     // TEXT's family fingerprint (skein's data/codec/fingerprints.md, 1)
   }
@@ -102,9 +103,9 @@ them.
 
   `layout` parses `TEXT` with `skein_codec::schema::parse` and returns
   its `fingerprints().family().digest()`. A focused test in each crate
-  holds `FAMILY` and `VERSION` equal to the header, and in each frozen
-  wire's crate `VERSION` equal to its frozen number. The three of 3.1's
-  second point keep `FLOOR`, their generated floor. Every writer and
+  holds `FAMILY` and `VERSION` equal to the header and `VERSION` equal to
+  its frozen number. No worker wire has a `FLOOR`; `temper-host-tools`
+  keeps its own (7). Every writer and
   reader that names the version names `wire::VERSION`:
   `Charter::FORMAT_VERSION`, `Turn::FORMAT_VERSION`,
   `smith_domain_session::record::VERSION`, `kind::VERSION`,
@@ -113,7 +114,7 @@ them.
 
 ### 3.2 The landing that freezes them
 
-- **Its redeploy is every part together** (`../draft/redeploys.md`,
+- **Its redeploy is every part together** (`../draft/archive/redeploys.md`,
   7.3): the credential changes (jig's `protocol/channel/wires.md`, 2), so
   a worker of the build before, which states version ranges and no
   texts, is refused at its opening, and a worker of this build is
@@ -122,7 +123,7 @@ them.
 - **From then on** a worker of another build stays across an engine's
   redeploy wherever the engine's plans derive, and is refused at its
   opening by name where one does not, to be drained and restarted on
-  the new build (`../draft/redeploys.md`, 6.1).
+  the new build (`../draft/archive/redeploys.md`, 6.1).
 
 ## 4. At the opening
 
@@ -281,8 +282,8 @@ them.
   naming the tool and the fixes, an adapter or the floor raised by a
   breaking move. And `fabrig-boundary`'s: a kept text the base holds
   never changes, the kept versions run from 1 to the greatest without
-  a gap, and the floor moves by the rules above against the base, read
-  as the `patches` test reads it (`floor.md`, 6).
+  a gap, and the floor moves by the rules above against the base
+  (`floor.md`, 6).
 - **Not stated at the opening:** a worker carries a call's name, tool,
   input and contract as bytes and numbers and reads none of them.
 
@@ -306,27 +307,33 @@ them.
 - **The families:** `jig-client-wire` and `jig-public-wire`
   (`jig/crates/jig-client-protocol-wire`), `jig-engine-cursor`
   (`jig/crates/jig-protocol-engine-clients`), `temper-client-wire` and
-  `temper-public-wire` (`temper/crates/temper-client-protocol-wire`).
-- **Their versions move with their layouts** (`../draft/redeploys.md`,
-  section 8), with no kept text, no patch and no bridge: a landing whose
-  text of a family has another family fingerprint than the base's text
-  of that family, at the same version, is refused by the gate, naming
-  the family and the fix, "move its version". The base is read as the
-  `patches` test reads it (`floor.md`, 6), the family found by its
-  header among the crate's `schema/*.schema`, a family of several files
-  read as its generated code reads them. A family the base lacks, or
-  one whose version moved, passes. A focused test in each crate holds
+  `temper-public-wire` (`temper/crates/temper-client-protocol-wire`),
+  and the reference UI's `jig-client-view-records`
+  (`jig/crates/jig-client-view`).
+- **Their versions are frozen** (`../draft/layouts-both-ways.md`, 3),
+  with no kept text, no patch, no bridge and no list of layouts: a
+  layout is the family's fingerprint, and the gate refuses a landing
+  that moves one of their versions, naming the family. The base is the
+  gate's landing base (`floor.md`, 6), the family found by its header
+  among the crate's `schema/*.schema`, a family of several files
+  read as its generated code reads them; a family the base lacks
+  passes (jig's `protocol/client/versions.md`, section 1). A focused test in each crate holds
   the version constants equal to the header (`VERSION`,
   `PUBLIC_VERSION`, `CLIENT_VERSION`).
-- **An engine serves its one version of each,** and refuses another with
-  *version not served*, naming the ranges served (jig's
-  `protocol/README.md`, section 7).
+- **An engine serves its one version and layout of each,** and refuses
+  another version with *version not served*, naming the ranges served
+  (jig's `protocol/README.md`, section 7). temper declares its owner's
+  client layout beside its version, to the clients' component and to
+  each client it makes, and its public kinds' layout beside theirs: a
+  client at another layout of temper's owner finds that owner not
+  served at the hello, and a public read at another layout is answered
+  not served.
 - **A page refused reloads, once:** when the link turns out of date, or
   one of temper's owners is not served, the browser's page reloads
   itself to load the engine's bundle. A page that reloaded for it and is
   out of date again shows the column (`../client/view.md`, section 1)
   and reloads no more. `temper-client` and the TUI say to upgrade, as
-  they do. A kept request of another version is dropped with a notice
+  they do. A kept request of another layout is dropped with a notice
   (jig's `protocol/client/small-store.md`, section 1).
 
 ## 10. `versions`, the stored wires and the workers' openings
@@ -371,12 +378,12 @@ them.
 - **Never read by the engine:** they are for `upgrade --check` and
   `upgrade --workers` (10.2), which read a stopped deployment or a
   checkpoint of a serving one, the state at one commit
-  (`../draft/redeploys.md`, 5.1; `checkpoints.md`, 2.1 and 3).
+  (`../draft/archive/redeploys.md`, 5.1; `checkpoints.md`, 2.1 and 3).
 
 ### 10.2 Whether the workers may stay
 
 `upgrade --check` (`binaries.md`, section 2) judges each worker by its
-kept opening (`../draft/redeploys.md`, 5.1), after its jobs' and
+kept opening (`../draft/archive/redeploys.md`, 5.1), after its jobs' and
 restores' lines. `upgrade --workers` prints these lines alone, read
 over a checkpoint at the engine's settled stop with no job or restore
 before them, so that a redeploy judges again what may have changed
@@ -395,7 +402,15 @@ changes its exit code.
    `wire NAME: kept V, this binary speaks L..H` or `wire NAME is not
    kept by the copy`, and no worker may stay. A kept wire the table
    lacks is passed over.
-3. **Each worker the configuration names,** in its order, by its kept
+3. **The copy's current workers,** read without a restore: temper's
+   default workers (`Defaults.workers`, the box's `local` where it
+   passes one: `cluster.md`, 1) with the copy's stored worker settings
+   over them (jig's `protocol/store/opening-rehearsal.md`, 1, *The
+   workers kept*), the withdrawn ones left out, in number order. Where
+   a stored worker setting does not decode: `workers may stay: unknown;
+   the copy's workers cannot be read`, and nothing more of this step or
+   the next.
+4. **Each worker the copy names,** in number order, by its kept
    opening, judged by `jig_protocol_engine_workers::judge` (jig's
    `protocol/channel/wires.md`, 3) with this binary's worker wires and
    roots, and the room and limits its engine's workers component would
@@ -411,9 +426,9 @@ changes its exit code.
    - with no opening kept: `worker NAME unknown: no opening kept since
      the engine's last start`, and it may not stay.
 
-   A kept opening of a name the configuration no longer names is not
-   judged.
-4. **The verdict:** `workers may stay: yes` when step 2 passed and every
+   A kept opening of a name the copy no longer names (withdrawn, or
+   never a setting) is passed over.
+5. **The verdict:** `workers may stay: yes` when step 2 passed and every
    worker named may stay, with none named too; else `workers may stay:
    no`.
 
@@ -424,12 +439,12 @@ changes its exit code.
 - **The window is not judged here:** the whole rehearsal/tool time is
   a rehearsal line (`binaries.md`, section 2), and comparing the window
   with the workers' grace is the referee's of a redeploy, its
-  operator's outside this repository (`../draft/redeploys.md`, 7.5).
+  operator's outside this repository (`../draft/archive/redeploys.md`, 7.5).
 
 ## 11. Testing
 
 Focused and fuzzy alone; the drills run on the deployments after landing
-(`../draft/redeploys.md`, 7.5).
+(`../draft/archive/redeploys.md`, 7.5).
 
 - **Each crate's `wire` module:** `FAMILY` and `VERSION` equal the
   header, and a frozen wire's `VERSION` its frozen number; `layout`
@@ -446,11 +461,12 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   field with a default on each side, arriving as itself, and an
   `Identity` whose field the worker lacks holding a value refused.
 - **The host tools' contract and the clients' families:** their gates'
-  mutations over a scratch copy: a declaration's input changed with
-  the version unmoved, a client family's field added with its version
-  unmoved, each refused; with the version moved, passing; a floor
-  passed without a breaking file, refused; an older version's changed
-  tool without its adapter, refused.
+  mutations over a scratch copy. The contract: a declaration's input
+  changed with its version unmoved, refused, and with it moved,
+  passing; a floor passed without a breaking file, refused; an older
+  version's changed tool without its adapter, refused. The clients'
+  freeze (9): a family's field added with its version unmoved, passing;
+  its version moved, refused, naming the family.
 - **`versions`:** its lines for the table, whole, in the binaries' tests.
 - **The openings kept** (10.1): the engine's workers component handing up
   a statement as the worker stated it, its texts among it; the store

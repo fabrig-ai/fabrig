@@ -231,7 +231,6 @@ fn merge_worker_with_details() -> (Worker, fixtures::worker_peers::LinkPeer) {
         &fixtures::worker_limits(),
         &fixtures::worker_files(),
         crate::WorkerRuntime {
-            wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: fixtures::pinned_agent(settings.jig.agent.as_ref().expect("checked worker agent")),

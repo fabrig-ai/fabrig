@@ -466,7 +466,7 @@ with a person in front of a tree, are ../view-state.md's, 10.
   cutting its words. Whether an application grows its bounds for a larger
   deployment, or the engine pages to a client's negotiated bounds. Default: the
   read ends; no bound is negotiated.
-- **A run's wait on a summary row** (`helpers.md`, 1): a row holds no run wait, since
+- **A run's wait on a summary row** (`helpers.md`, 6): a row holds no run wait, since
   a task query carries no run's check per row, so a chat that can't start
   says starting in a list, and its document alone says why. Default: so.
 - **Several clients of one party,** such as two tabs: whether pending

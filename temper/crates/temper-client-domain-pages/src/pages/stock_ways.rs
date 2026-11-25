@@ -295,13 +295,10 @@ impl StockWays {
         let Some(way) = panel.ways.get(index) else { return };
         let mut items = List::uncapped();
         for item in &way.items {
-            let edit = match &item.edit {
-                w::SettingEdit::Set(value) => {
-                    c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(value.value.clone()) })
-                }
-                w::SettingEdit::Removed => c::SettingEdit::Removed,
-                w::SettingEdit::Reset => return,
-            };
+            if let w::SettingEdit::Reset = &item.edit {
+                return;
+            }
+            let edit = crate::generated::client_wire::setting_edit_to_domain(item.edit.clone());
             items
                 .push(c::SettingItem {
                     setting: c::Setting::Application { kind: item.kind, scope: item.scope, number: item.number },
@@ -650,4 +647,8 @@ fn same_stops(old: &Tab, shown: &Tab) -> bool {
         }
     }
     true
+}
+
+pub(crate) fn setting_value_to_domain(record: w::SettingValue) -> c::SettingSet {
+    c::SettingSet { value: c::SettingValue::Application(record.value) }
 }

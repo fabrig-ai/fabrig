@@ -181,7 +181,7 @@ Each lands in skein, with its design, before its smith consumer
   and no shipped binary links a testing crate.
 - **An append sink:** a bounded append stream on the ring, to a file or
   an inherited descriptor, with a write deadline, that counts what it
-  drops and settles exactly at exit (skein's `runtime/io/files.md`, 1). No thread.
+  drops and settles exactly at exit (skein's `runtime/io/files.md`, 9). No thread.
 - **Resource usage:** the CPU time and peak resident size of the process
   and of its reaped children, read by the shell at the end for
   `session.ended` (../protocol/events.md, 3.2).
@@ -322,7 +322,7 @@ closure:
   It has no features (skein/docs/foundation/cli.md, 3). The fake program
   the end-to-end tests run is `smith-fake-claude`'s binary, found beside
   `smith`, and the package takes that crate as a dev-dependency alone
-  (../testing.md, 2.3).
+  (../testing-tiers.md, 3).
 - **Nothing is discovered.** `autobins`, `autotests`, `autobenches` and
   `autoexamples` are off, and every target is declared: the binaries
   above, and the tests `end_to_end` (`tests/end-to-end/end_to_end.rs`),
@@ -377,8 +377,7 @@ closure:
   - `tests/clippy.toml` is unchanged, and `benchmarks/` keeps its own
     (../benchmarks/README.md), since a harness starts processes.
 - **Every `clippy.toml` here bans catching a panic,** whatever its layer,
-  `crates/smith-agent-document/`'s and `tests/transcript-patches/`'
-  among them: its `disallowed-methods` ends with the two entries for
+  `crates/smith-agent-document/`'s among them: its `disallowed-methods` ends with the two entries for
   `std::panic::catch_unwind` and `std::panic::resume_unwind` that
   `tools/lints/design.md`, 4, gives, byte for byte.
 
@@ -478,7 +477,7 @@ section 8):
     exit 2, naming both.
 - **Step tests in `smith-agent-service` and `smith-local-service`:** the
   `standard` profile derives and passes its edge compatibility checks.
-- **The local host's simulated world** (../testing.md, section 2.1):
+- **The local host's simulated world** (../testing-tiers.md, section 1):
   - one headless story per exit code but 2;
   - events against what the fake provider saw: one `response.completed`
     per response, tool records paired by call id, usage summing to the
@@ -496,7 +495,7 @@ section 8):
     with its exit code and last line;
   - a chat of an earlier version refused, and a chat carried over to
     another account.
-- **End to end** (../testing.md, section 2.3), against fakes:
+- **End to end** (../testing-tiers.md, section 3), against fakes:
   - `smith exec --json` to an accepted answer, and to needs input;
   - `smith check --json`, passing and failing;
   - a startup refusal of each layer;

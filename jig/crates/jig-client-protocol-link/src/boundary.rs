@@ -11,11 +11,7 @@ pub struct Record {
     pub key: Box<[u8]>,
     pub bytes: Box<[u8]>,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Saved {
-    pub version: u16,
-    pub record: RequestRecord<jig_client_domain::Held>,
-}
+pub type Saved = RequestRecord<jig_client_domain::Held>;
 pub enum Event {
     SignIn {
         with: With,
@@ -162,6 +158,7 @@ pub enum Request {
     Hello {
         family: Option<u16>,
         versions: Option<contract::VersionRange>,
+        served: bool,
     },
     /// A lost read may be sent once more if its token is still current.
     ReadAgain {

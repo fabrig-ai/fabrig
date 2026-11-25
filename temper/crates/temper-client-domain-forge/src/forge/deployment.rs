@@ -1,5 +1,6 @@
 //! Deployment facts (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::Queue;
@@ -66,12 +67,7 @@ pub fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue<Reques
 }
 fn decode(record: &[u8], limits: Limits) -> Option<Answer> {
     let answer = wire::decode_deployment_answer(record, &wire_limits(&limits)?)?;
-    Some(Answer {
-        welcome: answer.welcome,
-        owned: answer.owned,
-        program_login: answer.program_login,
-        push: answer.push,
-    })
+    Some(maps::deployment_answer_to_domain(answer))
 }
 fn read(side: &mut Side, out: &mut Queue<Request>) {
     side.serial = side.serial.checked_add(1).expect("forge handles fit");

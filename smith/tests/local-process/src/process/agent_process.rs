@@ -1,5 +1,5 @@
 //! Agent trace observation and withheld exits belong to the hosted agent,
-//! leaving process dispatch to skein's Delegate (testing.md, section 2.1).
+//! leaving process dispatch to skein's Delegate (testing-tiers.md, section 1).
 use super::wait_in_trace;
 use skein_io::kernel;
 use skein_lib::{Queue, Time, Wall};

@@ -9,8 +9,6 @@ extern crate alloc;
 pub const SCHEMA: &str = include_str!("../schema/moved-v1.schema");
 
 mod patch_set;
-#[path = "../patches/mod.rs"]
-pub mod patches;
 pub use patch_set::JIG_SET;
 
 pub use jig_protocol_accounts_codec::v1;

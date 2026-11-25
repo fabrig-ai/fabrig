@@ -4,6 +4,8 @@ use serde_json::{Value, json};
 use skein_fake_person_browser::{Script, Step};
 use std::{ffi::OsString, path::Path};
 
+// jig's ToolFamilies::JIG.subscribe, in ctl's settings and the delegate tool's JSON forms.
+pub(crate) const SUBSCRIBE: u64 = 32;
 const CSV_CHAT: &str = "Add CSV export to widget";
 const CSV_TITLE: &str = "Export widget's table as CSV";
 const BOARD_TITLE: &str =
@@ -17,6 +19,14 @@ impl Tier {
         configuration::public_demo(scratch.path(), &temper(), &bundle());
         scripted::write(scratch.path(), &board_scripts());
         Self { scratch, forged: forgery::request() }
+    }
+
+    /// Run the board's model, letting its producer park as soon as it calls `wait`.
+    #[must_use]
+    pub fn public_board_model(&self) -> temper_box_kit::parent::Guard {
+        // The stock producer holds its slot for 10 s before parking. The board
+        // seeds a parked producer, not a measurement of the warm wait.
+        self.scripted_model_with_parking(Some(2))
     }
 
     /// Make and publish Demo through ctl alone, keeping its printed page in `answer`.
@@ -80,6 +90,8 @@ fn board_scripts() -> Value {
     assert_eq!(goal["spec"]["words"], CSV_TITLE);
     goal["tracked"] = json!({"priority": 1});
     goal["spec"]["words"] = BOARD_TITLE.into();
+    let tools = &mut goal["authority"]["tools"];
+    *tools = json!(tools.as_u64().expect("delegation tool families") | SUBSCRIBE);
 
     let original = format!("## Task\n\n{CSV_TITLE}");
     let producer = value["cued"]
@@ -89,7 +101,12 @@ fn board_scripts() -> Value {
         .find(|script| script["cue"] == original)
         .expect("CSV producer");
     producer["cue"] = format!("## Task\n\n{BOARD_TITLE}").into();
-    producer["turns"] = json!([{"lines":[{"call":"wait","arguments":{}}],"finish":"tool_calls","tokens":2}]);
+    // A result-ended agent with nothing to await wakes as soon as it parks.
+    // An armed timer keeps the producer parked throughout the measurement.
+    producer["turns"] = json!([
+        {"lines":[{"call":"subscribe","arguments":{"kind":"timer","at":u64::MAX}}],"finish":"tool_calls","tokens":10},
+        {"lines":[{"call":"wait","arguments":{}}],"finish":"tool_calls","tokens":2}
+    ]);
     value
 }
 
@@ -138,9 +155,13 @@ mod tests {
             .iter()
             .find(|script| script["cue"] == cue)
             .expect("admitted cue for the renamed goal's producer");
-        let [turn] = producer["turns"].as_array().expect("producer turns").as_slice() else {
-            panic!("the delegate must park on its only turn");
+        let [timer, turn] = producer["turns"].as_array().expect("producer turns").as_slice() else {
+            panic!("the delegate arms a timer and then parks");
         };
+        assert_eq!(SUBSCRIBE, jig_domain_core::ToolFamilies::JIG.subscribe.0);
+        assert_eq!(goal["authority"]["tools"].as_u64().expect("tool families") & SUBSCRIBE, SUBSCRIBE);
+        assert_eq!(timer["finish"], "tool_calls");
+        assert_eq!(timer["lines"], json!([{"call":"subscribe","arguments":{"kind":"timer","at":u64::MAX}}]));
         for turn in [waiting, turn] {
             assert_eq!(turn["finish"], "tool_calls");
             assert_eq!(turn["lines"], json!([{"call":"wait","arguments":{}}]), "no work after delegation");

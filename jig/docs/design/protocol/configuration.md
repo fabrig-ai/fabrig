@@ -37,7 +37,7 @@ when configuration is read. What is still open is listed in section 8.
   against the working directory where it gives none (section 9).
 - **No secret in the file.** A secret is a file of its own, which the
   configuration names, read at startup as a private file (skein's
-  `runtime/io/files.md`, 3): owned by the process's user and readable by nobody else,
+  `runtime/io/files.md`, 11): owned by the process's user and readable by nobody else,
   or the start is refused.
 - **What lives in the store is not configuration.** Projects, their
   names, policies and roles, parties and their pools, and LLM accounts

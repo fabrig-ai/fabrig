@@ -256,7 +256,7 @@ spawns one (host.md, section 5.2).
   A fact taken by one sink is never taken from the other.
 - **Written through io, as an append stream.** The shell opens the trace
   file for appending, beneath its root, and io adopts it as a write
-  stream with the configured `write_deadline` (skein's `runtime/io/files.md`, 1). A
+  stream with the configured `write_deadline` (skein's `runtime/io/files.md`, 9). A
   destination that is a pipe or a redirected standard output is adopted
   the same way. Each record is encoded at its final length into the
   stream's output, within its cap. A write that outstays the deadline
@@ -325,7 +325,7 @@ spawns one (host.md, section 5.2).
   what work is pending and whether the process is done both follow:
   - **`Live`:** the run runs. **A termination signal is its host's to
     decide** while the channel is open and the host's cancel is not yet
-    heard (temper's `draft/worker-restarts.md`, section 2): the agent
+    heard (temper's `draft/archive/worker-restarts.md`, section 2): the agent
     tells its host, `signalled` (channel.md, section 4), once, with the
     signal and its sender where the system names one, and the run goes
     on; the host's word, a drain, a cancel or none, is what ends it. One
@@ -335,9 +335,12 @@ spawns one (host.md, section 5.2).
     domain's cancel, as before: the run winds down and answers, as it
     would on the host's cancel. A signal told while the channel was
     open becomes that cancel when the channel goes, if the run is still
-    live; a channel's end cancels a live run in any case. So a service
-    manager's signal to every process of its unit leaves the run to its
-    host, and an agent whose host died stops on its own.
+    live; a channel's end, or a host silent past the link's no-progress
+    deadline, ends a live run in any case, as domain/host.md, section 4,
+    has it: cancel, grace, drop, and the process gone within
+    `orphan_exit` (limits.md, section 7). So a service manager's signal
+    to every process of its unit leaves the run to its host, and an agent
+    whose host died stops on its own.
   - **`Answered`:** the answer is sent, and `run.completed` written. The
     service closes everything it owns at once: the LLM pool, whose idle
     connections close at once and whose busy ones close when their calls
@@ -405,7 +408,7 @@ run has.
   - process groups, signalled whole (skein's `runtime/io/processes.md`), and
     contained trees (skein's `runtime/io/processes.md`, 2–4);
   - append streams on files, with write and close deadlines (skein's
-    `runtime/io/files.md`, 1);
+    `runtime/io/files.md`, 9);
   - owner close, with a closed terminal, for every component the agent
     owns, the LLM connection pool's included (programming-model.md,
     section 5.2; skein's `llm/connection.md`);
@@ -450,6 +453,18 @@ run has.
   - a termination signal after the answer, with a peer that ignores the
     close, ending by abort before io's close deadline;
   - a host that hangs up mid-call: one terminal per call;
+  - a host gone, both its ends closed, while the run awaits its answer
+    with live text held, while a command runs, and while the run waits
+    for a message; and one whose reading end alone closed mid-answer:
+    no completion or command starts after the loss, each call in flight
+    is cut, and the agent exits with failure within `orphan_exit` of it,
+    never at the world's iteration limit; a wind-down that outlasts the
+    cancel's grace, dropped, and still within it;
+  - a host that stops taking the agent's frames, and one that reads but
+    never acknowledges a full window: judged gone at the link's
+    no-progress deadline, then ending as a host gone does; and a host
+    that says nothing past that deadline while the run waits for its
+    next message, the run still waiting;
   - standard error's last line, for each way of ending without an answer
     and for a failed answer;
   - a host slow to acknowledge during a run full of facts: the channel's

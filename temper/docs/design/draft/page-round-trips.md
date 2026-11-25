@@ -250,7 +250,7 @@ All focused, with no walk or measure in a plan.
 
 - jig's client wire and HTTP mapping and temper's client family move their
   versions, unbridged: a page of an earlier version is refused by name and
-  reloads to the engine's bundle (`redeploys.md`, section 8). The hello keeps
+  reloads to the engine's bundle (`archive/redeploys.md`, section 8). The hello keeps
   its served ranges first, so that refusal stays readable whatever `me`'s
   layout.
 - A part is versioned by its owner, as the owner's reads are, so temper's

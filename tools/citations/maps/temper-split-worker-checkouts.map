@@ -1,0 +1,24 @@
+# Split checkout preparation and pushing away from workspace storage and holds.
+title temper/docs/design/domain/worker/checkouts-prepare.md: Preparing a checkout
+temper/docs/design/domain/worker/checkouts.md 8 -> temper/docs/design/domain/worker/checkouts-prepare.md 1
+temper/docs/design/domain/worker/checkouts.md 9 -> temper/docs/design/domain/worker/checkouts-prepare.md 2
+temper/docs/design/domain/worker/checkouts.md 10 -> temper/docs/design/domain/worker/checkouts-prepare.md 3
+temper/docs/design/domain/worker/checkouts.md 11 -> temper/docs/design/domain/worker/checkouts-prepare.md 4
+temper/docs/design/domain/worker/checkouts.md 12 -> temper/docs/design/domain/worker/checkouts-prepare.md 5
+temper/docs/design/domain/worker/checkouts.md 13 -> temper/docs/design/domain/worker/checkouts-prepare.md 6
+temper/docs/design/domain/worker/checkouts.md 14 -> temper/docs/design/domain/worker/checkouts-prepare.md 7
+temper/docs/design/domain/worker/checkouts.md 15 -> temper/docs/design/domain/worker/checkouts-prepare.md 8
+temper/docs/design/domain/worker/checkouts.md 16 -> temper/docs/design/domain/worker/checkouts-prepare.md 9
+temper/docs/design/domain/worker/checkouts.md 17 -> temper/docs/design/domain/worker/checkouts-prepare.md 10
+temper/docs/design/domain/worker/checkouts.md 28 -> temper/docs/design/domain/worker/checkouts-prepare.md 11
+temper/docs/design/domain/worker/checkouts.md 29 -> temper/docs/design/domain/worker/checkouts-prepare.md 12
+
+title temper/docs/design/domain/worker/checkouts-push.md: Pushing from a checkout
+temper/docs/design/domain/worker/checkouts.md 18 -> temper/docs/design/domain/worker/checkouts-push.md 1
+temper/docs/design/domain/worker/checkouts.md 19 -> temper/docs/design/domain/worker/checkouts-push.md 2
+temper/docs/design/domain/worker/checkouts.md 20 -> temper/docs/design/domain/worker/checkouts-push.md 3
+temper/docs/design/domain/worker/checkouts.md 21 -> temper/docs/design/domain/worker/checkouts-push.md 4
+temper/docs/design/domain/worker/checkouts.md 22 -> temper/docs/design/domain/worker/checkouts-push.md 5
+temper/docs/design/domain/worker/checkouts.md 23 -> temper/docs/design/domain/worker/checkouts-push.md 6
+temper/docs/design/domain/worker/checkouts.md 24 -> temper/docs/design/domain/worker/checkouts-push.md 7
+temper/docs/design/domain/worker/checkouts.md 25 -> temper/docs/design/domain/worker/checkouts-push.md 8

@@ -22,3 +22,11 @@ pub fn teardown_bound(limits: &Limits) -> Option<Duration> {
     };
     limits.io.close_timeout.checked_add(limits.io.close_timeout)?.checked_add(stream)
 }
+
+/// The most an agent takes to exit once its host is gone: the link's
+/// cancel grace plus its exit grace (smith/docs/design/protocol/limits.md, section 7).
+/// `None` when the sum overflows.
+#[must_use]
+pub fn orphan_exit(host: &smith_host_domain::Limits) -> Option<Duration> {
+    host.cancel_grace.checked_add(host.exit_grace)
+}

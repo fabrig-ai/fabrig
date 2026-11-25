@@ -1,14 +1,23 @@
 # Module path, then schema texts in command order and optional maps file last. Repository-relative paths.
-jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v45.schema
+jig/crates/jig-client-protocol-http/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v44.schema jig/crates/jig-client-protocol-http/schema/client.maps
+jig/crates/jig-client-protocol-link/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v44.schema jig/crates/jig-client-protocol-link/schema/client.maps
+jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v44.schema
 jig/crates/jig-client-protocol-wire/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema
 jig/crates/jig-client-view-codec/src/generated/records.rs jig/crates/jig-client-view/schema/records-v1.schema
+jig/crates/jig-client-view/src/generated/records.rs jig/crates/jig-client-view/schema/records-v1.schema jig/crates/jig-client-view/schema/records.maps
 jig/crates/jig-protocol-accounts-codec/src/generated/moved.rs jig/crates/jig-protocol-accounts/schema/moved-v1.schema
+jig/crates/jig-protocol-charter/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema jig/crates/jig-protocol-charter/schema/channel.maps
+jig/crates/jig-protocol-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema jig/crates/jig-protocol-charter/schema/charter.maps
 jig/crates/jig-protocol-engine-clients-codec/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema
+jig/crates/jig-protocol-engine-clients/src/generated/client.rs jig/crates/jig-client-protocol-wire/schema/client-v44.schema jig/crates/jig-protocol-engine-clients/schema/client.maps
+jig/crates/jig-protocol-engine-clients/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema jig/crates/jig-protocol-engine-clients/schema/cursor.maps
+jig/crates/jig-protocol-engine-clients/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema jig/crates/jig-protocol-engine-clients/schema/public.maps
+jig/crates/jig-protocol-engine-workers/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema jig/crates/jig-protocol-engine-workers/schema/worker_wire.maps
 jig/crates/jig-protocol-store-core/src/generated/core.rs jig/crates/jig-protocol-store/schema/core-v6.schema
 jig/crates/jig-protocol-store-families/src/generated/accounts.rs jig/crates/jig-protocol-store/schema/accounts-v2.schema
 jig/crates/jig-protocol-store-families/src/generated/component.rs jig/crates/jig-protocol-store/schema/component-v3.schema
 jig/crates/jig-protocol-store-families/src/generated/notes.rs jig/crates/jig-protocol-store/schema/notes-v1.schema
-jig/crates/jig-protocol-store-families/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v1.schema
+jig/crates/jig-protocol-store-families/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v2.schema
 jig/crates/jig-protocol-store-families/src/generated/registry.rs jig/crates/jig-protocol-store/schema/registry-v1.schema
 jig/crates/jig-protocol-store-families/src/generated/secrets.rs jig/crates/jig-protocol-store/schema/secrets-v1.schema
 jig/crates/jig-protocol-store-people/src/generated/people.rs jig/crates/jig-protocol-store/schema/people-v17.schema
@@ -21,7 +30,9 @@ jig/crates/jig-protocol-store-records/src/generated/settings.rs jig/crates/jig-p
 jig/crates/jig-protocol-store-records/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema jig/crates/jig-protocol-store/schema/tasks.maps
 jig/crates/jig-protocol-store-settings/src/generated/settings.rs jig/crates/jig-protocol-store/schema/settings-v3.schema
 jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs jig/crates/jig-protocol-store/schema/tasks-v13.schema
-jig/crates/jig-protocol-store/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v1.schema jig/crates/jig-protocol-store/schema/openings.maps
+jig/crates/jig-protocol-store/src/generated/openings.rs jig/crates/jig-protocol-store/schema/openings-v2.schema jig/crates/jig-protocol-store/schema/openings.maps
+jig/crates/jig-protocol-worker-agents/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema jig/crates/jig-protocol-worker-agents/schema/channel.maps
+jig/crates/jig-protocol-worker-link/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema jig/crates/jig-protocol-worker-link/schema/worker_wire.maps
 jig/crates/jig-protocol-worker-wire/src/generated/worker_wire.rs jig/crates/jig-protocol-worker-wire/schema/worker-wire-v22.schema
 jig/examples/ops/client-protocol-wire/src/generated/ops_client.rs jig/examples/ops/client-protocol-wire/schema/ops-client-v1.schema
 jig/testing/jig-client-test-protocol-wire-codec/src/generated/test_client.rs jig/testing/jig-client-test-protocol-wire/schema/test-client-v2.schema
@@ -31,13 +42,32 @@ skein/examples/ui/view-codec/src/generated/notes.rs skein/examples/ui/view/schem
 skein/tests/codec/src/generated/mapped.rs skein/tests/codec/schema/mapped-v1.schema
 skein/tests/codec/src/generated/maps/mapped.rs skein/tests/codec/schema/mapped-v1.schema skein/tests/codec/schema/mapped.maps
 skein/tests/codec/src/generated/sample.rs skein/tests/codec/schema/sample-v1.schema
+smith/crates/smith-agent-shell/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema smith/crates/smith-agent-shell/schema/channel.maps
 smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema
 smith/crates/smith-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema
+smith/crates/smith-host-protocol/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema smith/crates/smith-host-protocol/schema/channel.maps
 smith/crates/smith-local-protocol-codec/src/generated/local_store.rs smith/crates/smith-local-protocol/schema/local-store-v1.schema
+smith/crates/smith-protocol-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema smith/crates/smith-protocol-channel/schema/channel.maps
+smith/crates/smith-protocol-translate/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema smith/crates/smith-protocol-translate/schema/channel.maps
+smith/crates/smith-protocol-translate/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema smith/crates/smith-protocol-translate/schema/charter.maps
+smith/crates/smith-protocol-translate/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema smith/crates/smith-protocol-translate/schema/transcript.maps
 smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema
+temper/crates/temper-client-domain-forge/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-client-domain-forge/schema/client_wire.maps
+temper/crates/temper-client-domain-pages/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-client-domain-pages/schema/client_wire.maps
 temper/crates/temper-client-protocol-wire/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
 temper/crates/temper-client-protocol-wire/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema
+temper/crates/temper-client-tools/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-client-tools/schema/client_wire.maps
+temper/crates/temper-engine-domain-forge-vocabulary/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-engine-domain-forge-vocabulary/schema/client_wire.maps
+temper/crates/temper-engine-domain-forge/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema temper/crates/temper-engine-domain-forge/schema/public.maps
+temper/crates/temper-engine-service-component/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-engine-service-component/schema/client_wire.maps
+temper/crates/temper-engine-service-vocabulary/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-engine-service-vocabulary/schema/client_wire.maps
+temper/crates/temper-engine-service-vocabulary/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema temper/crates/temper-engine-service-vocabulary/schema/worker_wire.maps
+temper/crates/temper-engine-smith/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-engine-smith/schema/client_wire.maps
+temper/crates/temper-protocol-reaches/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-protocol-reaches/schema/client_wire.maps
 temper/crates/temper-protocol-records/src/generated/secrets.rs temper/crates/temper-protocol-records/schema/secrets-v1.schema
 temper/crates/temper-protocol-store-codec/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema
 temper/crates/temper-protocol-store/src/generated/store.rs temper/crates/temper-protocol-store/schema/store-v25.schema temper/crates/temper-protocol-store/schema/store.maps
 temper/crates/temper-protocol-worker-wire/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema
+temper/crates/temper-settings-form/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema temper/crates/temper-settings-form/schema/client_wire.maps
+temper/crates/temper-worker-service/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema temper/crates/temper-worker-service/schema/channel.maps
+temper/crates/temper-worker-service/src/generated/worker_wire.rs temper/crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema temper/crates/temper-worker-service/schema/worker_wire.maps

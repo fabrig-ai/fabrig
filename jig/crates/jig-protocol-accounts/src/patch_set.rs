@@ -19,7 +19,7 @@ pub const JIG_SET: OwnerSet = {
             secrets,
             KeptFamily {
                 retired: &[],
-                current: crate::patches::kept::jig_accounts::TEXTS.last().expect("kept text"),
+                current: crate::SCHEMA,
                 types: &[],
                 name: "jig-accounts",
                 map: KeptMap::Secrets,

@@ -33,7 +33,6 @@ fn the_deployment_document_is_one_temper_serve_starts() {
             &seeds,
             None,
             Some(temper_service::WorkerRuntime {
-                wires: None,
                 root: skein_io::kernel::Fd::new(2),
                 path: b"/worker".as_slice().into(),
                 agent: documents::pinned_agent(),

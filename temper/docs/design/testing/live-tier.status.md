@@ -73,7 +73,7 @@
   was lost still owes the record; the launcher returns it once the test
   process has ended, starting a box of its own where none is up, where
   the draft has a guard's `Drop` run with the box still up, because
-  nothing catches a panic (`../draft/panics.md`, 5) and a panic through
+  nothing catches a panic (`../draft/archive/panics.md`, 5) and a panic through
   a sitting can end its box; and a `stat` of the record's path settles
   it, where the draft has an explicit export, because a record back at
   its path owes nothing whichever return brought it.

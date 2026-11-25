@@ -58,7 +58,7 @@ pub fn held_reads() -> [(&'static str, w::Read, reads::Read, reads::Answer, w::R
             w::Read::Activity(w::ReadActivity { task: 7, before: None }),
             reads::Read::Activity { task: 7, before: None },
             reads::Answer::Page(Box::new(activity_page())),
-            value_answer(&w::ReadValue::Activity(records::carried_activity_page())),
+            value_answer(&w::ReadValue::Activity(records::carried_activity_page(&crate::cursor_v2::LAYOUT))),
         ),
         (
             "ended",

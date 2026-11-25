@@ -9,8 +9,6 @@ pub const WORKER_B: &[u8] = b"worker-b";
 pub const LIMITS: v22::Limits = v22::Limits {
     ask_bytes: 4,
     ask_bytes_bytes: 4,
-    agreed_wire_name: 32,
-    agreed_wires: 16,
     model_failure_endpoint: v22::CEILINGS.model_failure_endpoint,
     model_failure_model: v22::CEILINGS.model_failure_model,
     model_failure_refusal_some: v22::CEILINGS.model_failure_refusal_some,
@@ -34,7 +32,7 @@ pub const LIMITS: v22::Limits = v22::Limits {
     logins_logins: 2,
     signed_out_name: 32,
     wire_name: v22::CEILINGS.wire_name,
-    wire_layouts: v22::CEILINGS.wire_layouts,
+    wire_text: v22::CEILINGS.wire_text,
     credential_wires: v22::CEILINGS.credential_wires,
     credential_name: 16,
     credential_secret: 32,

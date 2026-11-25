@@ -158,6 +158,13 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         .env
         .iter()
         .find_map(|e| e.strip_prefix(b"GIT_CONFIG_VALUE_0=Authorization: ").map(|value| Secret::new(value.into())));
+    // The argv names paths from Git's working directory, not the disk root.
+    let cwd = if spawn.dir.as_ref() == b"." { b"".as_slice() } else { &spawn.dir };
+    let from_cwd = |name: Box<[u8]>| {
+        if cwd.is_empty() { name } else { crate::answer::path(cwd, &name).into_boxed_slice() }
+    };
+    let git_dir = git_dir.map(from_cwd);
+    let work_tree = work_tree.map(from_cwd);
     Ok(Checked {
         command,
         at: work_tree.or_else(|| git_dir.clone()).unwrap_or_else(|| spawn.dir.clone()),

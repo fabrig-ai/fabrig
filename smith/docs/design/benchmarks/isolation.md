@@ -7,7 +7,7 @@
   directory and never a copy of a refresh token: issuers rotate them,
   and a copy is spent by whichever holder refreshes first.
   - **smith** runs on a credentials directory of the harness's, signed
-    in once with `smith login` as the live suite's is (../testing.md, 2.3),
+    in once with `smith login` as the live suite's is (../testing-tiers.md, 3),
     and shared by attempts under each record's lock (../shell/credentials.md, 3);
     each attempt keeps its own state directory. Its Anthropic models run
     on a key.

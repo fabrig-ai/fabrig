@@ -63,7 +63,7 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 |---|---|
 | The director's first placement on ws, its read question kept unanswered across ws's stop, the retry elsewhere fenced, the person's answer delivered once | `temper-engine-domain-world::suite` `a_stopped_director_keeps_its_read_unanswered_question_once`, `a_stopped_chat_retries_elsewhere_with_a_fenced_journal` and `a_person_answers_a_question_its_task_has_already_read`; `temper-real-loop-world::suite` `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once` |
 | ws's two lives, one link each, the reverse stop | the shortened stories of 1.3 and 2.2 |
-| No worker's input holds the forge's admin token | `temper-box::suite` `support_tests::cluster_turn_worker_inputs_exclude_the_forge_admin_token` (*added*) |
+| No worker's input holds the forge's admin token | `temper-box::domain` `support_tests::cluster_turn_worker_inputs_exclude_the_forge_admin_token` (*added*) |
 
 ## 2. Landing by turn on the cluster
 
@@ -97,6 +97,16 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 | The same attempt: its queries and turns, the released text once, no further query, one interrupted terminal, the saved branch holding the released write | `temper-worker-domain-world::suite` `a_drained_worker_and_a_stray_agent_signal_commit_the_held_turn_once` (*added*: the worker alone signalled, `Way::Signalled`, while its agent's model answer is held, the world as the agent reporting a stray signal of its own); `smith-agent-process-world::suite` `a_signalled_turn_is_committed_before_the_hosts_drain_ends_it`; `temper-worker-domain` lib `an_agents_signal_is_not_a_workers_cancel`; `temper-worker-domain-world::suite` `a_shutdown_drains_the_turn_saves_its_work_and_waits_for_every_acknowledgement` |
 | That interrupted attempt due again with no try spent, no retry and no hold | `temper-one-process-world::suite` `a_signal_mid_run_interrupts_a_coding_run_and_the_next_start_takes_it_again` |
 
+### 2.4 The paced gate and the proof cut
+
+The cluster-turn setup's paced gate (`pace.ci_ms`, `CI_MS` in `testing/temper-box-kit/src/cluster_turn.rs`) and its proof cut (`proof_cut`, beside it) went with 2.1's landing, in the change that shortened these stories (`3ca133e5d5`), and so did the box kit's checks of them, all three in `bin/temper-box/tests/`. Each is **gone with what it tested**: nothing on main paces a gate or cuts a proof for these stories, so nothing is left to hold.
+
+| Test | Fate |
+|---|---|
+| `domain/support_tests.rs` `cluster_turn_proof_cut_refuses_to_pass_after_proving` | **Gone** with `proof_cut`: a panel waiting or preparing read no cut, one proving with a dispatched run read that run, and one past proving refused naming `pace.ci_ms` |
+| `suite/support_tests.rs` `cluster_turn_setup_declares_the_paced_gate_and_prepare_job` | **Shortened** to `temper-box::domain` `cluster_turn_documents_admit_the_worker_and_script_delivery`, which keeps the documents' admission and the sole worker admitting the stock. Gone with the paced gate and the landing by turn: the forge's `gate.yml` workflow, its manual merges and `pace.ci_ms`; the landing settings by `turn`, `batch` 1, with `gate.yml` the repository's gate; the worker's prepare job declared and admitted |
+| `suite/support_tests.rs` `cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields` | **Shortened** to `temper-box::domain` `cluster_turn_settings_point_open_and_coding_runs_at_the_worker`, which keeps the chat's and the producer's charters kept and on the fake provider. Gone with the landing's preparation: the policy's period spend cut from 48,000 to 41,000 to leave 7,000 for preparation, the policy kept, and the turn's test gate the only gate |
+
 ## 3. A deployment restored at its place
 
 `a_stopped_deployment_restored_at_its_place_uses_new_files`: **shortened**. It keeps the copied journeys' fresh walk at the place, the stop, the archive, removal and unpacking of `config/` and `data/`, each file of `bin/` replaced, and one start of the restored deployment from the new `bin/` by `drive --ctl --deployment`, at whose ready every process runs a new file by device and inode, its rendered sockets and agent pin as now, one ctl read finding the project and its repository as they were, no sign-in link in any stream or kept log, exit 0 and nothing left. The check-only walk from the copy, the baseline drive, the fake Forgejo API reads and the other ctl reads go.
@@ -114,9 +124,9 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 
 | Assertion | Holder |
 |---|---|
-| Restoring the safety checkpoint brings the later state back | `jig-store-world::suite` `a_restore_and_its_safety_undo_recover_each_maps_logs_and_transcripts`; `temper-engine-shell::suite` `stopped_restore_switches_generation_and_keeps_source_and_safety_and_refuses_missing` |
+| Restoring the safety checkpoint brings the later state back | `jig-store-world::suite` `a_restore_and_its_safety_undo_recover_each_maps_logs_and_transcripts`; `temper-engine-shell::suite` `stopped_restore_switches_generation_and_keeps_source_and_safety` |
 | The commands' words and exits | `temper-engine-shell` lib `terminals_render_exact_checkpoint_lines_and_child_exits_for_each_binary` and `restore_terminals_render_exact_lines_and_exits_for_each_binary` |
-| A stopped checkpoint's record and its removal | `temper-engine-shell::suite` `stopped_checkpoint_stands_with_its_record_and_removal_reports_missing_twice`; `jig-store-world::suite` `a_snapshot_finishing_under_the_hold_renames_after_release_and_the_copy_keeps_the_old_one` |
+| A stopped checkpoint's record and its removal | `temper-engine-shell::suite` `stopped_checkpoint_stands_with_its_record_and_is_removed`; `jig-store-world::suite` `a_snapshot_finishing_under_the_hold_renames_after_release_and_the_copy_keeps_the_old_one` |
 | `--hold`'s child built from its invocation | `temper-engine-shell` lib `path_resolution_requires_an_executable_and_spawn_uses_the_invocation` |
 
 ## 5. An owned setup cut short
@@ -126,7 +136,7 @@ Unchanged: `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `a_mixed_d
 | Assertion | Holder |
 |---|---|
 | A setup cut at its fetch, its preparation, its run and after its `started` record before the engine hears it: the group and its records as the cut leaves them, the next start's group dormant or restored, a removal answering removed and unlinking the forge's directory, its group file and its started record | `temper-box-machine` lib `an_owned_setup_cut_at_each_step_is_kept_unfinished_and_removed_whole` (*added*); `a_group_file_without_its_record_stays_dormant`; `a_kind_start_writes_then_runs_and_removal_unlinks_both_records` |
-| The engine's half: a forge whose `started` it never heard kept unfinished across its restart, its first repository not made | `temper-engine-domain-world::suite` `a_forge_whose_start_was_never_heard_stays_unfinished_across_a_restart` (*added*); `an_asked_forge_takes_its_handover_at_started_and_connects` |
+| The engine's half: a forge whose `started` it never heard kept unfinished across its restart, its first repository not made | `temper-engine-domain-world::suite` `a_forge_whose_start_was_never_heard_stays_unfinished_across_a_restart` (*added*); `temper-engine-service-component` lib `an_asked_forge_takes_its_handover_at_started_and_connects` |
 | A removal cut after its answer ends whole at the next start | `temper-box-machine` lib `a_removal_cut_after_its_answer_finishes_at_the_next_start` (*added*); `temper-engine-domain-world::suite` `removal_cut_after_decision_ends_whole` and `removal_cut_after_secrets_erased_ends_whole` |
 | A setup after the cuts makes the next number, connects it and makes its first repository, with no download | `temper-engine-domain-world::suite` `a_removed_forges_number_is_never_given_again`; `temper-engine-service-component` lib `reconcile_then_create_then_connect_makes_the_first_repository_and_bot_workflow`; `temper-forge-setup-shell::suite` `local_tls_fetch` |
 | A stop or crash at any moment of the engine's start | `temper-engine-domain-world::suite` `crash_with_an_unanswered_commit_and_forge_call_keeps_or_loses_the_commit` and the engine's restart sweep (`temper/docs/design/testing/restarts.md`, 4 and 9) |

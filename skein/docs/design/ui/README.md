@@ -392,7 +392,7 @@ Moved to [`tree.md`](tree.md), section 2.
   makes cheap (`tree.md`, 2.3); the act refusal (section 6) makes a component on
   the wrong role inert.
 - **On each platform:** on the web, the application's ordinary Rust over
-  a host element (web/elements.md, 1); on iOS, a view (UIKit or SwiftUI); on
+  a host element (web/elements.md, 5); on iOS, a view (UIKit or SwiftUI); on
   Android, a View or a composable.
 
 ## 11. Effects and reports

@@ -7,7 +7,7 @@ under `queue` and under `turn`; kept by change in families the store
 holds and the forge reads on demand, never restored; swept by age and
 by count; and read through `temper ctl landing history`, and by
 `change show` for a change whose row went. It is the draft's milestone
-H1 (`../draft/landing-history.md`, sections 1 to 6, 8, 9 and 10; its
+H1 (`../draft/archive/landing-history.md`, sections 1 to 6 and 8 to 10; its
 execution's H1). Where the time went, `landing times`, is H2's
 (`landing-times.md`), reading only what this document writes. A
 change's steps are `forge/change/README.md`, 2 and
@@ -61,7 +61,7 @@ An event's record, `HistoryEvent`, keyed by its project and number
 | `operation`, `attempt` | its identity (2.3) |
 | `what` | its kind and the kind's fields (2.2) |
 
-Bounded records (`../draft/landing-history.md`, 5): each field is a
+Bounded records (`../draft/archive/landing-history.md`, 5): each field is a
 number, a hash, an enumeration or a reason of at most 256 bytes; a
 `formed` event's members are at most `forge.landing_members`. No event
 carries a log, a body or words.
@@ -449,8 +449,8 @@ of the forge's family (`../client/ctl/tools-reads.md`, 1):
 - **On the wire:** a forge read of the client's family, as
   `RevisionSetting` is (`../client/forge/served.md`), its query the
   project, the change or the landing, the range and the cursor, its
-  answer the page or the refusal; the client's wire moves its version
-  (`../protocol/wires.md`, 8). The root hands the read to the forge,
+  answer the page or the refusal; the client's wire changes its layout
+  (`../protocol/wires.md`, 9). The root hands the read to the forge,
   which loads (4.3) and answers it.
 
 ### 5.2 A change whose row went
@@ -501,8 +501,8 @@ of the forge's family (`../client/ctl/tools-reads.md`, 1):
   demand-loaded families without changing a stored row.
 - **No history before it:** a change live at the upgrade has a partial
   history, from its first step after; nothing is rebuilt or backdated.
-- **ctl's wire** moves its version for the new read
-  (`../protocol/wires.md`, 8); the client's wire carries no bridge.
+- **ctl's wire** changes its layout for the new read, its version
+  frozen (`../protocol/wires.md`, 9); nothing converts for a client.
 
 ## 8. Testing
 
@@ -539,4 +539,4 @@ Focused and fuzzy suites alone, each test failing first:
   request's merge time, read by the forge client and kept as
   `source_at`.
 - **A gate's own steps**, the client's view of a timeline, and a
-  project's figures over time (`../draft/landing-history.md`, 11).
+  project's figures over time (`../draft/archive/landing-history.md`, 11).

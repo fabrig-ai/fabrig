@@ -10,6 +10,7 @@ publish.workspace = true
 smith-agent-document.workspace = true
 smith-protocol-program.workspace = true
 skein-lib.workspace = true
+skein-codec.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 skein-channel.workspace = true

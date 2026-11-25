@@ -1,4 +1,4 @@
-//! Shared schema-default and patch-value encoding (data/codec/patches.md, 2).
+//! Shared schema-default encoding (data/codec/README.md, 3).
 
 use super::{Held, Schema, Shape, Type, TypeIx, VariantIx, add};
 use skein_lib::{List, bytes, usize_of};
@@ -30,7 +30,7 @@ fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, piece
         uint(pool, u64::from(length), 4);
     }
     for &[high, low] in digits.as_chunks::<2>().0 {
-        // A value's hex digits are lower case (data/codec/patches.md, 2), though lib
+        // A default's hex digits are lower case (data/codec/README.md, 3), though lib
         // reads either case.
         if high.is_ascii_uppercase() || low.is_ascii_uppercase() {
             return Err(());

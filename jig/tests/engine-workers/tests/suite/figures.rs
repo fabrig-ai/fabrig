@@ -88,11 +88,8 @@ fn world_with_room(room: u32) -> World {
 }
 fn heard(world: &World, connection: skein_lib::Token) -> w::Figures {
     let records = world.observed(connection);
-    assert_eq!(
-        records.iter().map(|r| r.kind).collect::<Vec<_>>(),
-        [w::Kind::Wires.number(), w::Kind::Figures.number()]
-    );
-    w::Figures::decode(&w::CEILINGS, &mut Reader::new(&records[1].body)).expect("figures")
+    assert_eq!(records.iter().map(|r| r.kind).collect::<Vec<_>>(), [w::Kind::Figures.number()]);
+    w::Figures::decode(&w::CEILINGS, &mut Reader::new(&records[0].body)).expect("figures")
 }
 #[test]
 fn figures_take_no_place_and_replace_no_live_link() {
@@ -164,7 +161,7 @@ fn figures_refusals_check_authentication_and_wires_before_starting() {
     assert_eq!(heard(&world, connection).places, 4);
 }
 #[test]
-fn figures_terms_require_only_wires_and_figures() {
+fn figures_terms_require_only_figures() {
     let mut world = world();
     world.down(Event::Figures { figures: figures() });
     let mut schema = schema();
@@ -175,7 +172,7 @@ fn figures_terms_require_only_wires_and_figures() {
                 .iter()
                 .filter(|kind| {
                     kind.direction == skein_channel::Direction::FromInitiator
-                        || [w::Kind::Wires.number(), w::Kind::Figures.number()].contains(&kind.kind)
+                        || [w::Kind::Figures.number()].contains(&kind.kind)
                 })
                 .copied()
                 .collect::<Vec<_>>()
@@ -192,7 +189,7 @@ fn link_openings_and_new_figures_keep_the_hello_unchanged() {
     let mut world = world();
     let first = world.connect(link_peer(f::WORKER_A, f::SECRET_A));
     world.run();
-    assert_eq!(world.observed(first).iter().map(|r| r.kind).collect::<Vec<_>>(), [w::Kind::Wires.number()]);
+    assert_eq!(world.observed(first).iter().map(|r| r.kind).collect::<Vec<_>>(), [] as [u16; 0]);
     let owner = figures();
     world.down(Event::Figures { figures: owner.clone() });
     world.run();
@@ -209,9 +206,26 @@ fn link_openings_and_new_figures_keep_the_hello_unchanged() {
     world.run();
     for connection in [first, second] {
         let records = world.observed(connection);
-        assert_eq!(records.len(), 3);
-        let got = w::Figures::decode(&w::CEILINGS, &mut Reader::new(&records[2].body)).expect("updated figures");
+        assert_eq!(records.len(), 2);
+        let got = w::Figures::decode(&w::CEILINGS, &mut Reader::new(&records[1].body)).expect("updated figures");
         assert_eq!((&got.agents), (&owner.agents));
         assert_eq!(got.places, 4);
     }
+}
+
+#[test]
+fn figures_are_not_sent_to_a_link_without_the_kind() {
+    let mut world = World::new(&f::limits(), &f::workers(), 1);
+    world.down(jig_protocol_engine_workers::Event::Figures { figures: figures() });
+    let mut peer = f::worker_without(w::Kind::Figures);
+    peer.play(f::hello_frame());
+    let connection = world.connect(peer);
+    world.run();
+    let _ = super::pause::channel(&world);
+    assert_eq!(world.observed(connection), []);
+    let before = world.root().len();
+    world.down(jig_protocol_engine_workers::Event::Figures { figures: figures() });
+    world.run();
+    assert_eq!(world.observed(connection), []);
+    assert!(world.root()[before..].is_empty(), "no diagnostic for a link without figures");
 }

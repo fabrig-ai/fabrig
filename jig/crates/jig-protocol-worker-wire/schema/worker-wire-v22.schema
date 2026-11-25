@@ -3,8 +3,8 @@ family jig-worker-wire 22
 enum Opening { link, figures }
 
 # The worker's credential (protocol/channel/README.md, 4.1).
-record Wire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
-record Credential { name: text 256 secret: secret 1024 wires: list 16 Wire output: u32 opening: Opening }
+record Wire { name: text 32 layout: fixed 32 text: bytes 65536 }
+record Credential { name: text 256 secret: secret 1024 wires: list 8 Wire output: u32 opening: Opening }
 
 # The worker's hello and agent bounds (protocol/channel/records.md, 1).
 record JobBound { kind: u32 spec: u32 result: u32 deadline: duration }
@@ -226,10 +226,6 @@ record ReadUsage { read: u64 source: text 32 }
 # A shutting worker leaves placement (jig/docs/design/protocol/channel/records.md, 1).
 record Draining {}
 
-# The engine states the agreed wires (protocol/channel/bridges.md, 3).
-record AgreedWire { name: text 32 version: u16 }
-record Agreed { wires: list 16 AgreedWire }
-
 # Application reads (domain/hosts/hub.md, 10).
 record Ask { run: u64 attempt: u64 number: u64 bytes: bytes 1048576 }
 record AskBytes { bytes: bytes 1048576 }
@@ -269,5 +265,5 @@ enum FromWorker {
 enum FromEngine {
     assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,
     turn_busy: TurnBusy, acknowledge: Acknowledge, cancel: Cancel, grant: Granted,
-    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed, asked: Asked, restarting: Restarting, figures: Figures, read_usage: ReadUsage, pause: Pause, part_kept: PartKept, part_busy: PartBusy
+    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, asked: Asked, restarting: Restarting, figures: Figures, read_usage: ReadUsage, pause: Pause, part_kept: PartKept, part_busy: PartBusy
 }

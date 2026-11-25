@@ -1,4 +1,4 @@
-//! The data files temper init writes (protocol/setup/init.md, 2).
+//! The data files temper init writes (protocol/setup/init.md, 5).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -15,7 +15,7 @@ mod tests;
 /// Claude Code is fetched when its program is first needed (protocol/setup/owned.md, 6).
 pub use temper_fetch::claude_code::FETCHED;
 
-/// What the binary finds on the machine, each path absolute (protocol/setup/init.md, 2).
+/// What the binary finds on the machine, each path absolute (protocol/setup/init.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Facts<'a> {
     /// The running temper's own path: the playground's git link target.
@@ -28,7 +28,7 @@ pub struct Facts<'a> {
     pub login: Option<&'a [u8]>,
 }
 
-/// What the bare deployment's data files need (protocol/setup/init.md, 2).
+/// What the bare deployment's data files need (protocol/setup/init.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bare<'a> {
     pub binary: &'a [u8],
@@ -109,7 +109,7 @@ pub enum Reason {
     Bound,
 }
 
-/// The data files of protocol/setup/init.md 2, in its table's order:
+/// The data files of protocol/setup/init.md 5, in its table's order:
 /// `worker.secret`, then `demo/bin/git` (a link). The shell renders the configuration last.
 pub fn files(facts: &Facts<'_>, directories: &Directories<'_>, secret: &[u8; 32]) -> Result<Answer, Refusal> {
     check(facts.binary, facts.git, facts.claude, directories)?;

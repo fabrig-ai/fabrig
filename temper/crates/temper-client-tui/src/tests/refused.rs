@@ -35,7 +35,7 @@ fn a_build_refused_replaces_every_page_without_bindings_or_a_tick() {
                 &mut root,
                 Event::Up {
                     up: if family {
-                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None }
+                        Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None, served: false }
                     } else {
                         Up::Served { served: false, versions: None }
                     },

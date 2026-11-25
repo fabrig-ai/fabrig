@@ -1,5 +1,5 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing-runs.md, 1, 2 and 3, and temper/docs/design/domain/after-landing-storage.md, 1).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{
     Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierHeld, TierLanding, TierRow, Topic, What,
 };

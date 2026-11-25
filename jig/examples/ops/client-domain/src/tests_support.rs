@@ -183,10 +183,12 @@ fn callbacks(event: d::Event) -> Vec<d::Event> {
             up(Up::Served { served, versions }),
             up(Up::FamilyServed {
                 family: 1,
+                served: true,
                 versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
             }),
             up(Up::FamilyServed {
                 family: 2,
+                served: true,
                 versions: Some(jig_client::contract::VersionRange { first: 1, last: 1 }),
             }),
         ]),
@@ -254,10 +256,12 @@ pub fn client_limits() -> jig_client::Limits {
         jig_client::Spoken {
             family: jig_ops_domain_connectors::number(jig_ops_domain_connectors::Connector::Observability),
             version: jig_ops_client_protocol_wire::VERSION,
+            layout: jig_ops_client_protocol_wire::LAYOUT,
         },
         jig_client::Spoken {
             family: jig_ops_domain_connectors::number(jig_ops_domain_connectors::Connector::Infrastructure),
             version: jig_ops_client_protocol_wire::VERSION,
+            layout: jig_ops_client_protocol_wire::LAYOUT,
         },
     ];
 

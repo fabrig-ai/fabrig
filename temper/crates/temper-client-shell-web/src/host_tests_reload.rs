@@ -11,13 +11,29 @@ fn starting() -> Host {
     host
 }
 
+fn adopting() -> Host {
+    let mut host = starting();
+    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    // Give `me` a project so the view draws the adoption sheet, not the no-project screen.
+    let frame = temper_client_view_kit::fixture_me(b"Shop");
+    host.client(jig_client::Event::Up {
+        up: jig_client::Up::Watched {
+            watch: Token::new(0),
+            event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(frame))),
+        },
+    });
+    host.went(&print(&Address::Adopt { project: temper_client_view_kit::PROJECT }));
+    host.requests();
+    host
+}
+
 fn refuse_link(host: &mut Host) {
     host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } });
 }
 
 fn refuse_forge(host: &mut Host) {
     host.client(jig_client::Event::Up {
-        up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None },
+        up: jig_client::Up::FamilyServed { family: temper_client_protocol_wire::FORGE, versions: None, served: false },
     });
 }
 
@@ -54,12 +70,12 @@ fn an_out_of_date_link_reloads_once_then_shows_the_column() {
 
 #[test]
 fn an_unserved_forge_reloads_once_even_while_the_link_is_live() {
-    let mut host = fixture_at(b"/projects/1/adopt");
+    let mut host = adopting();
     refuse_forge(&mut host);
     assert_eq!(host.root.client().link().state, jig_client::Link::Live);
     assert_eq!(host.reload(Some(false)), Action::Reload);
 
-    let mut reloaded = fixture_at(b"/projects/1/adopt");
+    let mut reloaded = adopting();
     refuse_forge(&mut reloaded);
     assert_eq!(reloaded.reload(Some(true)), Action::None);
     build(&mut reloaded);

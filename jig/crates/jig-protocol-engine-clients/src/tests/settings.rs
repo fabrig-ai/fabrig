@@ -768,7 +768,7 @@ fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
 fn worker_settings_and_linked_facts_cross_client_wire() {
     use jig_client_domain::contract as c;
     use jig_client_protocol_link::translate::settings as client;
-    assert_eq!(jig_client_protocol_wire::VERSION, 45);
+    assert_eq!(jig_client_protocol_wire::VERSION, 44);
     for digest in [None, Some([9; 32])] {
         let source = s::Value::Worker(Box::new(s::WorkerSetting {
             number: 2,
@@ -839,4 +839,40 @@ fn worker_settings_and_linked_facts_cross_client_wire() {
             since: Some(Wall::from_nanos(123))
         }]
     );
+}
+
+#[test]
+fn provider_program_count_refuses_at_the_provider_setting_path() {
+    let mut limits = f::wire();
+    limits.provider_programs = 0;
+    let value = s::Value::Provider(Box::new(s::ProviderSetting {
+        provider: s::Provider {
+            name: Box::from(b"models".as_slice()),
+            number: 1,
+            endpoint: None,
+            direct: None,
+            list: None,
+            signed_in_plan: false,
+            manage_usage: None,
+            sign_in: None,
+            keys: false,
+            programs: Box::new([Box::from(b"agent".as_slice())]),
+        },
+        endpoints: Box::new([]),
+        withdrawn: false,
+    }));
+    let problem = w::paths::PROVIDER_SETTING_ENDPOINTS.problem(skein_codec::Reason::Bound);
+    assert_eq!(translate::value(&value, &[], &limits).unwrap_err(), problem);
+    let document = reads::SettingDocument {
+        setting: s::Setting::Provider(1),
+        revision: 1,
+        value: Some(value),
+        overlay: None,
+        application: None,
+        proposed: None,
+    };
+    assert_eq!(translate::setting_document(&document, &[], &limits).unwrap_err(), problem);
+    limits.provider_programs = 1;
+    let record = translate::setting_document(&document, &[], &limits).unwrap();
+    record.measure(&limits).expect("one program fits the program count");
 }

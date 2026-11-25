@@ -99,7 +99,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 
 - **The face,** in `skein-fake-person-browser`: the person's `Find`
   (../testing.md, 1.1) over skein's browser kit:
-  - roles through `elements.md`'s mapping, which an override keeps (`elements.md`, 1):
+  - roles through `elements.md`'s mapping, which an override keeps (`elements.md`, 5):
     for each role, the accessible roles its elements compute in
     Chromium, which a find of that role asks the kit for (a text field:
     `textbox`; `spinbutton` for a number's, `Date` for a date's and
@@ -331,7 +331,11 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     a person finds it by, and its `value` attribute is its value. It
     reads markup: what a person typed into a field a find reads, by its
     target. A selector that finds no element, or an element without
-    that attribute, fails the step. The run hands back what each person kept, by name, with each
+    that attribute, fails the step. A selector that nests `:has()`
+    within a `:has()`'s argument, which Chromium refuses as it queries
+    (Selectors 4 forbids the nesting), is refused as its script is
+    made, naming the selector, so that a story meets it where it is
+    written and not at its step. The run hands back what each person kept, by name, with each
     link a command's step opened, so that the test reads a peer's state
     by what the story saw;
   - **awaits a control pressed:** the target the step gives, found as

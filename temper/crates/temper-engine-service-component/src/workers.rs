@@ -13,11 +13,9 @@ use temper_client_protocol_wire::v1::AgentFigures;
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
 use temper_protocol_worker_wire::v1::Record;
-/// Temper's roots, bridge and spoken entry, without constructing the other
+/// Temper's roots and spoken entry, without constructing the other
 /// families in the engine's statement (temper/docs/design/protocol/wires.md, 4 and 10).
-pub fn application(
-    limits: &wire::Limits,
-) -> Result<jig_protocol_worker_wire::Application, skein_codec::bridge::BridgeError> {
+pub fn application(limits: &wire::Limits) -> Result<jig_protocol_worker_wire::Application, wire::Problem> {
     temper_protocol_worker_wire::application(limits)
 }
 
@@ -29,6 +27,8 @@ pub struct Workers {
     pub(crate) bad_parts: u64,
     pub(crate) notes: Queue<crate::Note>,
     opening_limits: kit::Limits,
+    roots: List<jig_protocol_worker_wire::Root>,
+    defaults: List<jig_protocol_store::KeptWorker>,
     figures: temper_engine_service_vocabulary::figures::Composer,
     composed: Option<Composed>,
     copy: Option<AgentsCopy>,
@@ -68,6 +68,7 @@ impl Workers {
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
         let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
+        let roots = application.roots.clone();
         let host = kit::host::Workers::new(config, tokens, application, limits)?;
         let mut table = crate::forges::Forges::with_capacity(own.forge.forges);
         for forge in forges {
@@ -82,6 +83,8 @@ impl Workers {
             bad_parts: 0,
             notes: Queue::uncapped(),
             opening_limits: *limits,
+            roots,
+            defaults: List::with_capacity(0),
             composed: None,
             copy: None,
             local: None,
@@ -269,8 +272,27 @@ impl Workers {
         self.host.close(now);
         self.pull(events);
     }
+    pub(crate) fn default_workers(&mut self, defaults: &[jig_domain_core::settings::WorkerSetting]) {
+        let mut workers = List::with_capacity(u32::try_from(defaults.len()).expect("configured worker count"));
+        for worker in defaults {
+            workers
+                .push(jig_protocol_store::KeptWorker {
+                    number: worker.number,
+                    name: worker.name.clone(),
+                    withdrawn: worker.withdrawn,
+                })
+                .expect("one row per default worker");
+        }
+        self.defaults = workers;
+    }
     pub(crate) fn judgement(&self) -> crate::upgrade::Workers {
-        crate::upgrade::Workers { room: self.opening_limits.room, schema: self.host.component.full_schema().clone() }
+        crate::upgrade::Workers {
+            defaults: self.defaults.clone(),
+            room: self.opening_limits.room,
+            limits: *self.host.component.codec(),
+            spoken: self.host.component.spoken().clone(),
+            roots: self.roots.clone(),
+        }
     }
     fn pull(&mut self, events: &mut Queue<root::Event>) {
         for _ in 0..self.host.pending() {
@@ -287,9 +309,9 @@ impl Workers {
             kit::host::Output::Told { worker, version, wait } => {
                 self.notes.push(crate::Note::WorkerTold { worker, version, wait });
             }
-            kit::host::Output::Opened { worker, wires, statement } => {
+            kit::host::Output::Opened { worker, converted, statement } => {
                 let name = worker_name(&worker);
-                self.notes.push(crate::Note::WorkerOpened { worker, wires });
+                self.notes.push(crate::Note::WorkerOpened { worker, converted });
                 events.push(root::Event::Worker(root::WorkerInput::Opened {
                     worker: name,
                     statement: statement_to_root(statement),
@@ -315,51 +337,13 @@ impl Workers {
                 events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
             }
             kit::host::Output::Unsent { worker, channel, unsent } => {
-                match unsent.bound {
-                    kit::Bound::Room(_) | kit::Bound::Channel(_) => {}
-                    kit::Bound::Translation { .. } => match unsent.kind {
-                        jig_protocol_worker_wire::Kind::Assignment | jig_protocol_worker_wire::Kind::Job => {}
-                        jig_protocol_worker_wire::Kind::Hello
-                        | jig_protocol_worker_wire::Kind::Part
-                        | jig_protocol_worker_wire::Kind::PartKept
-                        | jig_protocol_worker_wire::Kind::PartBusy
-                        | jig_protocol_worker_wire::Kind::Turn
-                        | jig_protocol_worker_wire::Kind::Call
-                        | jig_protocol_worker_wire::Kind::Answer
-                        | jig_protocol_worker_wire::Kind::Fact
-                        | jig_protocol_worker_wire::Kind::Unauthorized
-                        | jig_protocol_worker_wire::Kind::Usage
-                        | jig_protocol_worker_wire::Kind::UsageRead
-                        | jig_protocol_worker_wire::Kind::ReadUsage
-                        | jig_protocol_worker_wire::Kind::Limited
-                        | jig_protocol_worker_wire::Kind::AccountRefused
-                        | jig_protocol_worker_wire::Kind::Message
-                        | jig_protocol_worker_wire::Kind::Relayed
-                        | jig_protocol_worker_wire::Kind::TurnKept
-                        | jig_protocol_worker_wire::Kind::TurnBusy
-                        | jig_protocol_worker_wire::Kind::Acknowledge
-                        | jig_protocol_worker_wire::Kind::Cancel
-                        | jig_protocol_worker_wire::Kind::Grant
-                        | jig_protocol_worker_wire::Kind::Sources
-                        | jig_protocol_worker_wire::Kind::Check
-                        | jig_protocol_worker_wire::Kind::ReadList
-                        | jig_protocol_worker_wire::Kind::ListRead
-                        | jig_protocol_worker_wire::Kind::Draining
-                        | jig_protocol_worker_wire::Kind::SignOut
-                        | jig_protocol_worker_wire::Kind::Logins
-                        | jig_protocol_worker_wire::Kind::SignedOut
-                        | jig_protocol_worker_wire::Kind::JobAnswer
-                        | jig_protocol_worker_wire::Kind::Ask
-                        | jig_protocol_worker_wire::Kind::Figures
-                        | jig_protocol_worker_wire::Kind::Pause
-                        | jig_protocol_worker_wire::Kind::Paused
-                        | jig_protocol_worker_wire::Kind::Restarting
-                        | jig_protocol_worker_wire::Kind::Asked
-                        | jig_protocol_worker_wire::Kind::Wires => events
-                            .push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Mismatch })),
-                    },
+                if unsent.mismatches() {
+                    events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Mismatch }));
                 }
                 self.notes.push(crate::Note::WorkerUnsent { worker, channel, unsent });
+            }
+            kit::host::Output::Unread { worker, kind, problem } => {
+                self.notes.push(crate::Note::WorkerUnread { worker, kind, text: problem.read() });
             }
             kit::host::Output::Ended { worker, channel: Some(channel), why } => {
                 self.notes.push(crate::Note::WorkerLost { worker, channel, why });
@@ -385,7 +369,7 @@ fn statement_to_root(statement: kit::Statement) -> root::WorkerStatement {
     let mut wires = List::with_capacity(statement.wires.len());
     for wire in statement.wires.into_boxed() {
         wires
-            .push(root::OpenedWire { name: wire.name, lowest: wire.lowest, layouts: wire.layouts.into_boxed() })
+            .push(root::OpenedWire { name: wire.name, layout: wire.layout, text: wire.text })
             .expect("one root wire per stated wire");
     }
     let mut terms = List::with_capacity(statement.terms.len());

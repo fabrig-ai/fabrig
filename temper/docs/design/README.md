@@ -213,7 +213,9 @@ forge, temper adds:
   - `domain/worker/README.md`: the worker's root, assignments, runs and world.
   - `domain/worker/hosted-runs.md`: assignments, lifecycle and failures.
   - `domain/worker/agent-processes.md`: the worker's agent processes and their bounds.
-  - `domain/worker/checkouts.md`: workspaces, preparing, delivering, saving and open questions.
+  - `domain/worker/checkouts.md`: workspaces, their stores and holds, a workspace kept for its run, and the checkout's open questions.
+  - `domain/worker/checkouts-prepare.md`: checkout preparation, starting points and failure diagnostics.
+  - `domain/worker/checkouts-push.md`: delivery, saving and their open questions.
   - `domain/worker/jobs.md`: job kinds, commands and failure diagnostics.
   - `testing/README.md`: the testing overview, neighbours and layout.
   - `testing/tiers.md`: temper's testing tiers and their open work.

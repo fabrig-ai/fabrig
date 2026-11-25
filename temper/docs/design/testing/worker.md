@@ -105,7 +105,7 @@ Each is drawn from the world's `Faults` stream, part `worker` (`skein/docs/desig
 ### 3.2 The fake disk filling
 
 - **The fault** [behaviour, reachable]: the fake disk has a capacity in bytes, a world setting, over the contents of the fake checkout's regular files. At or past it, an operation that writes (`Store`, `Clone`, `Fetch`, `Point`, `CheckOut`, `Merge`, `Commit`, `Reset`, a `Reds` write) changes nothing. It fails `Broken`, with git's words, `No space left on device`, where its answer carries a diagnostic. `Make` and `Pack`, which free, and reads never fail for space. The disk fills with the world's own writes and frees as `Make` takes a workspace. A world draws the capacity from the bytes in use at a drawn moment, so that it fills partway through a run.
-- **What the model tests:** an operation refused for space fails `Broken` and its prepare fails, naming its step and git's words (`../domain/worker/checkouts.md`, 1.1). Its workspace is made again at its next use. Every hold is released and no wait hangs. A refused write changes nothing.
+- **What the model tests:** an operation refused for space fails `Broken` and its prepare fails, naming its step and git's words (`../domain/worker/checkouts-prepare.md`, 12.1). Its workspace is made again at its next use. Every hold is released and no wait hangs. A refused write changes nothing.
 - **Outside the proof:** a real file system's pressure, what real git writes and how much, and anything that would free a real disk beyond `Make` (the *worker disk* work).
 - **Ledger:** from the first operation refused for space, stopped at the first that passes once the bytes in use fall below the capacity, or `None` if none does.
 

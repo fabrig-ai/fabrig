@@ -5,6 +5,8 @@ the store and the connectors, and makes nothing twice. The core runs it
 as a script: it asks the root for one step at a time, and asks for the
 next only once the root says this one is done (../root.md, section 8).
 
+## 1. The restart script
+
 1. **The core's records:** the deployment's numbers; the settings,
    checked whole (`settings-store.md`, 1), before every other record; projects, their
    policies and parties' roles; parties with a live sign-in or a role,
@@ -82,6 +84,8 @@ Workers keep the answers and turns they were not acknowledged for, and
 send them again after their hello; the core commits any it does not
 have, and acknowledges each.
 
+## 2. After an upgrade
+
 **After an upgrade.** At or above the floor and at the build's owner
 levels, jig's store registers the build's layouts and runs declared
 jobs in a new generation before the root starts (`../../protocol/store/opening.md`,
@@ -113,6 +117,8 @@ store opens its secrets' gate on it. The fleet's checks of a host's
 programs, which read what a worker reports and start nothing, may go
 before it. Over a generation with nothing pending, the step switches
 nothing and commits the wires alone.
+
+## 3. Load, then link
 
 **Load, then link** (the user, 10-27; temper's `draft/upgrades.md`,
 6.4). A start, over the active generation or an upgraded copy alike,
@@ -206,6 +212,8 @@ as closed and adopts no claim whose proof is crossed (step 3); the
 next attempt starts fresh (`executors-transcripts.md`, 1). Registration and the
 jobs' runner do not infer those marks or close windows.
 
+## 4. The start's interface
+
 **The start's interface** (`jig_domain_core::start`). The root drives
 the start; the core owns its order. `Core::start_begin(pending, at)`
 takes the store's pending flag and the start's time; the core then
@@ -245,7 +253,7 @@ its open, then typed pages, `Event::Page` and `Event::PageRefused`
 connector's own fit, is the application's cause and is never turned
 into a `start::Failure`.
 
-## 1. Stopping
+## 5. Stopping
 
 The engine stops when its service is told to (a signal, an operator), and
 the core hears it from its root before anything closes
@@ -288,7 +296,7 @@ waits for a commit, so the service can close its components. A restart
 then starts from the store as `restart.md` says.
 
 **Settling before the stop.** A root that settles its effects before
-it stops (temper's `domain/root-restart.md`, 1.2; temper's `draft/redeploys.md`,
+it stops (temper's `domain/root-restart.md`, 1.2; temper's `draft/archive/redeploys.md`,
 5.2) first tells the core so, `Event::Settling`, at once on hearing the
 stop, and its stop, `Event::Stopping`, once settled. From `Settling` on,
 the core makes no new work and takes every commit:
@@ -337,7 +345,7 @@ A stopped start is no refused start: it names no `start::Failure`,
 `start_phase()` still names where it stopped, and the next start begins
 again from the store.
 
-**Saying it restarts** (temper's `draft/redeploys.md`, 5.2). A settled
+**Saying it restarts** (temper's `draft/archive/redeploys.md`, 5.2). A settled
 stop tells the workers that the engine restarts, so that each keeps its
 runs through the restart wait rather than its grace
 (`../../protocol/channel/restart.md`):
@@ -351,7 +359,8 @@ runs through the restart wait rather than its grace
 - **Then said.** Once that decision is durable, the core asks its root
   to tell the workers, `Held::Restarting { wait }`, `wait` the
   configured restart wait, a `Duration`. The root has its workers'
-  component send it on each channel whose version has it, and closes
+  component send it on each channel whose worker's layout has it
+  (`../../protocol/channel/layouts.md`, 4.1), and closes
   the workers' part only at `Held::Drained`, which the journal releases
   after it (temper's `domain/root-restart.md`, 1.2).
 - **Kept as** the deployment's numbers record's `restart_wait_ms`, the
@@ -364,7 +373,7 @@ runs through the restart wait rather than its grace
   nothing; nor does a stop whose configuration says its workers are in
   its process (step 3), or whose restart wait is zero.
 
-**Held across starts** (temper's `draft/redeploys.md`, 5.3):
+**Held across starts** (temper's `draft/archive/redeploys.md`, 5.3):
 
 - **Read with the core's records** (step 1): a word kept is the start's
   hold.
@@ -387,7 +396,7 @@ runs through the restart wait rather than its grace
   between them or a shorter wait on the second, shorten no hold.
 - **A build that doesn't know the word** holds for its grace alone, so
   going back past the build that brings it is every part together, each
-  worker drained first (temper's `draft/redeploys.md`, 7.3).
+  worker drained first (temper's `draft/archive/redeploys.md`, 7.3).
 
 Finishing continues while stopping. After routing previously accepted work,
 a Resume at which the core owes finishing closes without taking a new input,

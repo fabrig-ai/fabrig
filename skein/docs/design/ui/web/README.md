@@ -120,7 +120,7 @@ makes them, with no trait:
   `pictures/<owner prefix>/` (`bundle.md`, 2), or none;
 - **its drawing code,** `draw`, a function routing a drawing by its
   kind's owner (../scenes.md, 1; `svg.md`, section 1);
-- **its components and its elements,** if any (`elements.md`, 1).
+- **its components and its elements,** if any (`elements.md`, 5).
 
 Beside it, the shell gives the parts **its name,** for the title
 (`patches.md`, section 1), and **the parts' own words** in the person's language
@@ -149,7 +149,7 @@ Steps from the standard, each needing one before it only where it says.
    digest directory's `files/` (`bundle.md`, 2); and root files, paths outside the
    prefix (`/favicon.ico`, `/robots.txt`), which its server answers from
    them (`bundle.md`, 4).
-6. **Its elements and components** (`elements.md`, 1): another element for a role
+6. **Its elements and components** (`elements.md`, 5): another element for a role
    carrying one of its style tokens; a component for such a node or for
    a drawing of its kinds: a code editor for a text area, a map for a
    drawing.
@@ -451,7 +451,7 @@ the application that needs it.
   `668f7cd3e5`). They wait for a change of the loader that breaks one unseen.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are a component of the application's
-  (`elements.md`, 1), never a part of skein's.
+  (`elements.md`, 5), never a part of skein's.
 
 ## 13. Open questions
 
@@ -489,10 +489,10 @@ step 8) holds the rule itself; a server holds `bundle.md`, 4's.
 
 | Fixed | Why | Instead |
 |---|---|---|
-| text never read as markup (`elements.md`) | A node's text carries what other people, agents and systems wrote; read as markup, it would run as the person, or restyle the page to read its text out. | Markdown, read into runs by skein-ui (../markdown.md); a component building its elements from its node's data (`elements.md`, 1) |
-| an element override keeping the node's role and name (`elements.md`, 1) | A person reads the page with a screen reader as the fake person reads the tree (../testing.md, 1.1): a role lost is a control a screen reader cannot name, and that the face, finding by role, cannot find. | any element, the page part adding ARIA's role where it differs; a component, for what no element gives (`elements.md`, 1) |
+| text never read as markup (`elements.md`) | A node's text carries what other people, agents and systems wrote; read as markup, it would run as the person, or restyle the page to read its text out. | Markdown, read into runs by skein-ui (../markdown.md); a component building its elements from its node's data (`elements.md`, 5) |
+| an element override keeping the node's role and name (`elements.md`, 5) | A person reads the page with a screen reader as the fake person reads the tree (../testing.md, 1.1): a role lost is a control a screen reader cannot name, and that the face, finding by role, cannot find. | any element, the page part adding ARIA's role where it differs; a component, for what no element gives (`elements.md`, 5) |
 | the parts' invariants (4.3) | A request that leaves before it is kept is lost or made twice after a reload; a turn inside a turn steps the state machine on a step half done; a patch applied to another tree than the one it is diffed from shows a page no build made. | its own order for the rest of the turn (4.2); the part replaced, the invariant taken with it and checked by skein's stories for a browser shell (`testing.md`, 2) |
-| nothing inline under the strict policy (`bundle.md`, 4) | A script that runs on the page runs as the person: it can send any exchange the application can. Admitting inline script admits any script injected into the page, and styles injected inline would read the page's text out (by attribute selectors, by a font's ligatures). The parts and the bundle need nothing inline, so any server can send the strict policy, whatever the application. | its JavaScript, from the origin (3.3, step 7); its stylesheets; a component (`elements.md`, 1) |
+| nothing inline under the strict policy (`bundle.md`, 4) | A script that runs on the page runs as the person: it can send any exchange the application can. Admitting inline script admits any script injected into the page, and styles injected inline would read the page's text out (by attribute selectors, by a font's ligatures). The parts and the bundle need nothing inline, so any server can send the strict policy, whatever the application. | its JavaScript, from the origin (3.3, step 7); its stylesheets; a component (`elements.md`, 5) |
 | a navigation away to an origin path or an `https` address (`effects.md`, section 1) | The tab leaves the application for the target, with the person's trust in the page: a plaintext address on the network can be read and rewritten on its way, and a `javascript:` or `data:` one runs on the page or as it. | a link the person presses (`elements.md`); plaintext loopback with the platform's loopback navigation on, for a test's page (`effects.md`, section 1) |
 | the closed list of a bundle's types (`bundle.md`, 4) | With `nosniff`, a file is the type the server says; the list holds only the types a page loads, each weighed under the policy, and keeps off the origin what a browser would run or render (XML, a PDF, a plugin's), which `'self'` would admit. | any file of those types, in the digest directory's `files/`, or at a root path (3.3, step 5) |
 

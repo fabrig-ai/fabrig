@@ -182,7 +182,7 @@ A comment line is one whose first text after blanks is `//`, so a doc comment th
 `#[should_panic(...)]` doesn't count, and `clippy::should_panic_without_expect` in an `#[expect]`
 names no pattern. On main at
 `62b2474b27` the three come to 210 `catch_unwind` lines, 11 `resume_unwind` lines and 463
-`#[should_panic]` attributes, the figures of `temper/docs/design/draft/panics.md`, 2, tree by
+`#[should_panic]` attributes, the figures of `temper/docs/design/draft/archive/panics.md`, 2, tree by
 tree.
 
 ### 7.2 The list
@@ -244,7 +244,7 @@ lowers its line in the same change; another branch that only removes catches nev
   (`.config/gate/always.txt`).
 - **Beside clippy's ban:** `disallowed-methods` lists `catch_unwind` and `resume_unwind` in every
   `clippy.toml` the gate's clippy reads (section 4), and the count alone refuses `#[should_panic]`,
-  which no lint can ban (`temper/docs/design/draft/panics.md`, 7).
+  which no lint can ban (`temper/docs/design/draft/archive/panics.md`, 7).
 
 ## 8. Later
 

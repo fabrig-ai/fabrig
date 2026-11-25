@@ -1,5 +1,6 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{chips, pieces, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
@@ -7,21 +8,7 @@ use jig_domain_views as views;
 use skein_lib::{List, Writer, bytes};
 #[must_use]
 pub fn current_call(value: &views::Call) -> w::CurrentCall {
-    w::CurrentCall {
-        identity: w::CallIdentity {
-            owner: value.identity.owner.raw(),
-            sequence: value.identity.sequence,
-            retry: value.identity.retry,
-            id: bytes::copy_of(&value.identity.id),
-        },
-        tool: bytes::copy_of(&value.tool),
-        input: bytes::copy_of(&value.input),
-        cut: value.cut,
-        began: match value.began {
-            Some(item) => Some(item.as_nanos()),
-            None => None,
-        },
-    }
+    mapped::current_call_to_record(value)
 }
 pub fn writing(value: &views::Writing) -> Result<w::RunText, w::Problem> {
     Ok(w::RunText {
@@ -31,7 +18,7 @@ pub fn writing(value: &views::Writing) -> Result<w::RunText, w::Problem> {
         },
         attempt: value.turn.attempt,
         began: None,
-        turn: w::ProvisionalTurnName { attempt: value.turn.attempt, number: value.turn.turn, retry: value.turn.retry },
+        turn: mapped::provisional_turn_name_to_record(&value.turn),
         from: value.from,
         through: value.to,
         text: bytes::copy_of(&value.text),
@@ -81,19 +68,7 @@ pub fn writing_call(value: &views::WritingCall) -> Result<Option<w::WritingCall>
 }
 
 pub fn run(value: &d::Run) -> Result<w::RunState, w::Problem> {
-    Ok(w::RunState {
-        task: value.task,
-        attempt: value.attempt,
-        committed_turn: value.committed_turn,
-        writing: match &value.writing {
-            Some(item) => Some(writing(item)?),
-            None => None,
-        },
-        call: match &value.call {
-            Some(item) => Some(current_call(item)),
-            None => None,
-        },
-    })
+    mapped::run_state_to_record(value)
 }
 #[must_use]
 pub fn count(value: d::Count) -> w::Count {
@@ -105,18 +80,7 @@ pub fn count(value: d::Count) -> w::Count {
 }
 #[must_use]
 pub fn phases(value: d::PhaseCounts) -> w::PhaseCounts {
-    w::PhaseCounts {
-        waiting: value.waiting,
-        idle: value.idle,
-        starting: value.starting,
-        running: value.running,
-        backing_off: value.backing_off,
-        closing: value.closing,
-        held: value.held,
-        done: value.done,
-        failed: value.failed,
-        cancelled: value.cancelled,
-    }
+    mapped::phase_counts_to_record(&value)
 }
 
 pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w::Problem> {
@@ -148,9 +112,7 @@ pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Res
     let rows = tree_pieces(&rows, limits.tree_rows, w::paths::TREE_ROWS, limits)?;
     let mut folded = List::with_capacity(value.folded.len());
     for row in &value.folded {
-        folded
-            .push(w::TreeFold { parent: row.parent, phases: phases(row.phases), held_below: row.held_below })
-            .expect("supplied folds fit");
+        folded.push(mapped::tree_fold_to_record(row)).expect("supplied folds fit");
     }
     Ok(w::Tree { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next })
 }

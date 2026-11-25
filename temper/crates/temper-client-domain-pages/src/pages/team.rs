@@ -57,12 +57,10 @@ pub fn areas(root: &dyn Root, project: u32) -> Option<HeldAreas> {
         triager: if document.triager.is_some() { Some(area_holder(&document.holder)) } else { None },
     })
 }
-pub(super) fn area_holder(value: &w::Holder) -> Holder {
-    match value {
-        w::Holder::Task(task) => Holder::Task(task.number),
-        w::Holder::Party(party) => Holder::Party(party.number),
-        w::Holder::Role(role) => Holder::Role(role.number),
-    }
+/// The holder of an area, named in the team vocabulary.
+#[must_use]
+pub fn area_holder(value: &w::Holder) -> Holder {
+    crate::generated::client_wire::holder_to_domain(value.clone())
 }
 
 /// The standing roles watch’s window.

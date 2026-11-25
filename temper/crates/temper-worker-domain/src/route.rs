@@ -353,7 +353,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
 }
 
 /// The first answer logs a failed preparation; replay only sends the answer
-/// (temper/docs/design/domain/worker/checkouts.md, 1.3).
+/// (temper/docs/design/domain/worker/checkouts-prepare.md, 12.3).
 fn note_unprepared(run: Token, attempt: Token, ending: &host::Ending, out: &mut Queue<Request>) {
     match ending {
         host::Ending::Failed { failure: host::Failure::Unprepared(failure), detail, .. } => {

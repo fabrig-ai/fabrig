@@ -80,13 +80,12 @@ of domain/host.md, section 2.
   window (section 4); version 11 added a program that
   started without smith's tools to a run's failures, and version 8 a
   model failure's status to its report.
-  From 2026-11-12 the version
-  moves with every change to its layout (the owner, 2026-11-12), as a new
-  kind always moved it. Its `schema/` holds the current text alone, and
-  each version from 7 on is kept as its text in `schema/kept/` (skein's
-  `data/codec/command.md`, section 1). Earlier values are built from
-  those kept texts, not stored golden files; no kept text is a
-  negotiated version.
+  Its version is frozen at 14, as every wire's is (temper's
+  `draft/layouts-both-ways.md`, 3, which the user approved on
+  2026-11-18, in place of the owner's rule of 2026-11-12 that moved it
+  with every change to its layout): a change is made in its current text
+  alone, its `schema/` holds that text and no other, and no older text
+  is kept. Host and agent are one build (below), so nothing converts it.
 - **The host and agent stay on one build.** A consumer that spawns agents
   pins their program and configuration for its lifetime, and never
   adopts a previous host process's agents. In temper, the worker pins
@@ -95,8 +94,8 @@ of domain/host.md, section 2.
   1). The engine talks to the worker on jig's channel, not this one:
   restarting the engine leaves the worker and its agents together;
   replacing the configured agent program cannot change a running
-  worker's later spawns. This is the per-build exemption in temper's
-  bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
+  worker's later spawns. So nothing converts this channel between
+  builds (`temper/docs/design/draft/archive/redeploys.md`, 4.2 and
   4.4). A connected agent spanning builds needs a compatibility contract
   before that shape is supported (README.md, sections 4 and 11).
 - **The credential** is empty over a spawned agent's pipes. A connected
@@ -106,9 +105,10 @@ of domain/host.md, section 2.
 - **Required and optional kinds.** Each version names the kinds it
   requires each side to take, and any it leaves optional: a peer that
   does not take an optional kind leaves it out of its terms, and the
-  writer, refused at its entrance, carries on without it. A kind is
-  never added within a version: a new kind, required or optional, is a
-  new version.
+  writer, refused at its entrance, carries on without it. A new kind,
+  required or optional, changes the channel's layout and not its
+  version, which is frozen (README.md, section 8): a worker and its
+  agents are one build (above), so they take the same kinds.
 - **Terms.** Each side checks the other's terms for every required kind it
   may send, and refuses with *limits*, naming the kind, when one is missing
   or too small. The agent's sending bounds come from its configuration, and
@@ -362,8 +362,8 @@ label, 1 to 32 printable ASCII bytes; its length, an optional
 `duration`; its share used, optional basis points from 0 to 10,000; its
 reset, the provider's optional wall time in Unix seconds, as given, never
 a duration, so that two reports of one reset are equal; and its state,
-`UsageState`: open, warned or limited. The channel is per-build, so the
-version moves with no bridge (temper's `draft/redeploys.md`, 4.4).
+`UsageState`: open, warned or limited. The channel is per-build, so
+nothing converts it across builds (temper's `draft/archive/redeploys.md`, 4.4).
 
 **How a run ended** (domain/run.md, section 9):
 
@@ -596,7 +596,7 @@ a trace is kept is the agent's configuration (agent.md).
 - **The codecs:**
   - records-only drift, under skein's
     `data/codec/golden.md`, section 1; fixed-rule values built from
-    embedded current or kept text, with no generated test targets;
+    embedded current text, with no generated test targets;
   - each decoder fuzzed in the fuzzy suite.
 - **A protocol world:** the agent's half with `smith-domain`, under a
   scripted LLM and machine, against the host's half with

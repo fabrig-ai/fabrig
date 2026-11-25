@@ -92,7 +92,7 @@ The four cover the processes. These commands of today's binary needed a home, an
 
 - **A binary refuses a document that isn't its own.** `temper-engine serve` refuses one with a worker member, and `temper-worker serve` refuses one with an engine member. Each refusal names the binary that would run it. The standalone shape, engine and worker in one process, stays the box's (`../protocol/cluster.md`, 1).
 - **The worker starts `temper-agent`:**
-  - The worker's document names `temper-agent` as the agent's program, in place of today's own executable with `internal agent` (`../protocol/setup/init.md`, 2).
+  - The worker's document names `temper-agent` as the agent's program, in place of today's own executable with `internal agent` (`../protocol/setup/init.md`, 5).
   - The model-list launch runs the same program in its list mode.
   - The fetched Claude Code launcher's `claude` link points at the agent's program, not at the binary that places it. Today the worker's start and `program-login` place it.
 - **The web client is the engine's.** Only `temper-engine` links the browser bundle, embedded.

@@ -2,6 +2,7 @@
 use super::{
     checks,
     http::Answer,
+    jig_target,
     service::{self, Extra, Proc},
     visitor::Visitor,
 };
@@ -12,7 +13,6 @@ use skein_http::Method;
 use skein_lib::{Reader, Time};
 use std::net::SocketAddr;
 
-const PROJECTS: &[u8] = b"/jig/v1/public/0/1/1";
 const HOST: &[u8] = b"one.example";
 pub(super) fn policy(answer: &Answer, cached: bool) -> Result<(), String> {
     checks::no_cors(answer)?;
@@ -173,7 +173,7 @@ impl Judge {
                         _ => {}
                     }
                 }
-                self.send(visitor, fixtures::CLIENTS, Method::Get, PROJECTS);
+                self.send(visitor, fixtures::CLIENTS, Method::Get, jig_target("1").as_bytes());
                 self.setup = true;
                 return Ok(());
             }

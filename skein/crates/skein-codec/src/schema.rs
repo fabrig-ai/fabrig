@@ -512,8 +512,7 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
         return Err(SchemaError { line: 1, at: Span { start: 0, end: 0 }, wrong: Wrong::Long });
     }
     // A token occupies at least one text byte. Allocate once at that bound,
-    // already included by schema_bound, and check characters in the same pass
-    // that retains their spans.
+    // and check characters in the same pass that retains their spans.
     let mut tokens = List::with_capacity(u32::try_from(text.len()).expect("text passed its ceiling"));
     let final_line = tokens::scan(text, &mut tokens)?;
     let parser = grammar::Parser::new(bytes::copy_of(text), tokens, final_line);
@@ -521,34 +520,6 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     layout::check(&mut parsed, text)?;
     metadata::check(&mut parsed.schema)?;
     Ok(parsed.schema.fitted())
-}
-
-/// Bounds schema parse workspace and tables.
-/// Text bounds every token and type; names occupy disjoint spans of the text.
-pub(crate) fn schema_bound(text: u32) -> Option<u64> {
-    let declarations = text.min(MAX_DECLARATIONS);
-    let mut total = u64::from(text).checked_mul(3)?; // owned text and both name sets
-    for bytes in [
-        List::<tokens::Token>::price(text)?,
-        List::<Declaration>::price(declarations)?,
-        List::<Field>::price(text)?,
-        List::<(FieldIx, u32)>::price(declarations)?,
-        List::<bool>::price(text)?,
-        grammar::tombstone_bound(text)?,
-        List::<Variant>::price(text)?,
-        List::<Type>::price(text)?,
-        List::<Span>::price(text)?.checked_mul(4)?, // references and former name ranges
-        List::<Span>::price(declarations)?,
-        List::<Option<Span>>::price(text)?.checked_mul(2)?, // defaults and encoded ranges
-        u64::from(text).checked_mul(8)?,                    // encoded constants
-        List::<Option<Span>>::price(text)?,
-        List::<u32>::price(declarations)?.checked_mul(2)?,
-        Map::<Box<[u8]>, DeclIx>::price(declarations)?,
-        skein_lib::Set::<(u32, Box<[u8]>)>::price(text)?,
-    ] {
-        total = total.checked_add(bytes)?;
-    }
-    Some(total)
 }
 
 fn spelled(text: &[u8], span: Span) -> &[u8] {

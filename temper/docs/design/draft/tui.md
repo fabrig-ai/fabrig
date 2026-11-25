@@ -290,7 +290,7 @@ TUI's host:
 - **The look is asked for on the frames:** the person edits a frame's
   text in place and writes the theme's overlay, which stays empty on
   main as the browser's `overlay.css` does; each request lands as the
-  browser's do (`look-requests.md`; `../client/web/journeys.md`, section 7).
+  browser's do (`archive/look-requests.md`; `../client/web/journeys.md`, section 7).
 - **The first journey:** a fresh fake box, the browser signed in by its
   printed link, `temper` started, the approval's frame, the approval
   given, and the first screen.

@@ -44,6 +44,7 @@ fn ask(world: &mut World, entry: u64) {
         queue_repair_active: false,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

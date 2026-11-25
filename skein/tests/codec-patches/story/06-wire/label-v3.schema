@@ -1,2 +1,0 @@
-family label 3
-record Label { caption: text 32, color: u8 }

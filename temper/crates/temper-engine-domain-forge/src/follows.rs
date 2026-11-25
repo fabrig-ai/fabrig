@@ -1,5 +1,5 @@
 //! Hearing source landings (temper/docs/design/domain/forge/follows.md, 3, 7 and 9).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Domain, Key, Limits, Name, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository};

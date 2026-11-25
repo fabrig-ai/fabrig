@@ -123,6 +123,7 @@ pub fn typed(line: &Line) -> bool {
 }
 
 /// A whole `Kept` value's head length, decoded under the wire ceilings.
+/// Redaction preserves the head at any layout without interpreting its payload.
 #[must_use]
 pub fn kept_head(value: &[u8]) -> Option<usize> {
     if u32::try_from(value.len()).is_err() {

@@ -199,9 +199,7 @@ Focused, in the link's and the host's tests and jig's channel world:
   `retime` waits that long for the next opening's hello, and one already
   waiting keeps its deadline; a zero figure is false.
 - **The record:** generated records' drift, as
-  skein's `data/codec/golden.md`, section 1 has it; patch `0006`'s
-  breaking declaration, held by the wire's patch tests and
-  `fabrig-boundary`'s `patches` test.
+  skein's `data/codec/golden.md`, section 1 has it.
 
 ## 8. Open questions
 

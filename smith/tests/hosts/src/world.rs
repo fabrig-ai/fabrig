@@ -1,5 +1,5 @@
-//! The sample host scenario on Skein's process harness (testing.md, sections
-//! 2.1 and 5). It keeps only configuration and the settled outcome; scheduling,
+//! The sample host scenario on Skein's process harness (testing-tiers.md, section 1, and testing.md, section 5
+//! ). It keeps only configuration and the settled outcome; scheduling,
 //! hosted-child ownership and teardown belong to Skein. The referee watches
 //! parent observations and requests shutdown or scripted child faults.
 use skein_fake_llm_domain::api;

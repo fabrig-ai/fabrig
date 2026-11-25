@@ -1,4 +1,4 @@
-//! A made repository's connector act (temper/docs/design/domain/forge/adoption.md, 5).
+//! A made repository's connector act (temper/docs/design/domain/forge/adoption.md, 9).
 use jig_domain_core as core;
 use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};

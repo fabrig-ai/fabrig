@@ -10,8 +10,9 @@ use crate::Overflow;
 
 /// Bytes whose length is learnt as they are put, reused from one record to the next.
 ///
-/// Its `Debug` shows its length and capacity, never its bytes: a record holding a
-/// secret is built in one (data/codec/patches.md).
+/// A layout plan writes the converted value, including any secret bytes, into its
+/// caller's buffer (data/codec/layouts.md, 4). `Debug` shows the length and capacity,
+/// never the bytes.
 pub struct Buffer {
     bytes: Vec<u8>,
     capacity: u32,

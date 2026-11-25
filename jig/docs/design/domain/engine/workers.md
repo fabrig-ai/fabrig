@@ -150,7 +150,7 @@ as every change's does (`settings.md`, 2).
 - **Places and digest change at the next opening.** A change of a
   linked worker's places or digest is accepted, and the channel keeps
   its admission: its operator restarts the worker, whose drain lets its
-  runs end (temper's `draft/redeploys.md`, 6.1), and its next opening
+  runs end (temper's `draft/archive/redeploys.md`, 6.1), and its next opening
   takes the new setting.
 - **Removing a linked worker is refused** *linked*, naming its setting:
   a decision withdrawing a worker the fleet holds an admitted channel of,
@@ -162,7 +162,7 @@ as every change's does (`settings.md`, 2).
 - **Up or down is its link's,** as the fleet keeps it: up while it has
   an admitted channel, down once that channel is lost.
 - **Paused, drained and taking again** (temper's
-  `draft/worker-restarts.md`, section 2). An owner asks a linked worker
+  `draft/archive/worker-restarts.md`, section 2). An owner asks a linked worker
   to take no new work, to drain, or to take work again:
 
   ```rust
@@ -228,17 +228,18 @@ as every change's does (`settings.md`, 2).
   version (`AGENTS.md`, section 2); the families that name a setting
   (a refusal's facts, a proposal's heads) gain the identity each by its
   own rule.
-- **The client wire** moves its version, unbridged (temper's
-  `draft/redeploys.md`, 3.1 and section 4), once, for all of this
+- **The client wire** changes its layout, its version frozen
+  (`../../protocol/client/versions.md`, 1), for all of this
   document's: `Setting::Worker`, `SettingValue::Worker`,
   `SettingFault::Linked` and `Deployment.worker_settings`.
-- **The worker channel's wire** keeps its version: its credential and
+- **The worker channel's wire** keeps its layout: its credential and
   its reasons are as they were, and only the reason a refused name is
   given changes (4).
-- **The pause** (5) moves the client wire again, unbridged, for
+- **The pause** (5) changes the client wire's layout again, for
   `Ask::PauseWorker`, its refusals and `WorkerState.pause`; and the
-  worker channel's wire to 19, bridged (`../../protocol/channel/pause.md`,
-  2).
+  worker channel's, whose pause the engine sends only where a worker's
+  layout has its kind (`../../protocol/channel/pause.md`, 2;
+  `../../protocol/channel/layouts.md`, 4.1).
 - **The engine's document:** `engine.hosts.workers` is refused by name,
   "workers are settings in the store", as `engine.charters` is
   (`../../protocol/configuration-engine.md`, section 1), and no digest file is

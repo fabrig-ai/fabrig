@@ -92,7 +92,7 @@ fn a_restore_ask_round_trips_through_the_wire_and_the_kept_table() {
         wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let wire = w::Ask::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
         assert_eq!(translate::store::restore_ask(wire, &limits).unwrap(), ask);
-        let saved = fixtures::saved_table(ask);
+        let saved = fixtures::table_record(ask);
         let mut harness = fixtures::Harness::new(&fixtures::limits());
         harness.start_store(fixtures::one_store_read(fixtures::store_read(saved.clone())));
         assert!(harness.restored(&saved));

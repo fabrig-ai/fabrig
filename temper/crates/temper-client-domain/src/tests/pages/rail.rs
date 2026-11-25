@@ -144,6 +144,7 @@ fn project_domain(second: Option<c::PartyKind>) -> Domain {
         &mut root,
         Up::FamilyServed {
             family: wire::FORGE,
+            served: true,
             versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
         },
     );
