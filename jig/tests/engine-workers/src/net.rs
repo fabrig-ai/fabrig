@@ -1,6 +1,6 @@
 //! In-memory native stream, with seeded cuts in both directions.
 use skein_channel::{Control, Lower, LowerEvent, decode_control, parse_header};
-use skein_fake_channel::ScriptedPeer;
+use skein_fake_channel::{Observed, ScriptedPeer};
 use skein_lib::{Intake, Rng, Token, stream};
 use std::collections::VecDeque;
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -22,6 +22,7 @@ pub(crate) struct Net {
     pub ended: bool,
     pub gone: bool,
     pub taken: bool,
+    pub accept: Option<Observed>,
     pub refused: Option<(u16, Box<[u8]>)>,
     events: VecDeque<LowerEvent>,
 }
@@ -39,6 +40,7 @@ impl Net {
             ended: false,
             gone: false,
             taken: false,
+            accept: None,
             refused: None,
             events: VecDeque::new(),
         }
@@ -70,8 +72,12 @@ impl Net {
                     if header.kind < 256 {
                         let control = decode_control(header.kind, &bytes[8..], &super::fixtures::channel_limits())
                             .expect("control");
-                        if let Control::Refuse { reason, text } = control {
-                            self.refused = Some((reason, text));
+                        match control {
+                            Control::Accept { .. } => {
+                                self.accept = Some(Observed { kind: header.kind, body: bytes[8..].into() });
+                            }
+                            Control::Refuse { reason, text } => self.refused = Some((reason, text)),
+                            _ => {}
                         }
                     }
                     let mut at = 0;
@@ -109,15 +115,25 @@ impl Net {
         if self.bytes.is_empty()
             && let Some(bytes) = self.peer.pop_output()
         {
-            self.bytes.extend(bytes);
+            self.bytes = VecDeque::from(bytes.into_vec());
         }
-        while !self.bytes.is_empty() && self.intake.room() > 0 {
-            let count = usize::try_from(rng.between(1, 17))
-                .expect("small cut")
-                .min(self.bytes.len())
-                .min(skein_lib::length::usize_of(self.intake.room()));
-            let cut: Vec<_> = self.bytes.drain(..count).collect();
-            self.intake.append(&cut).expect("room checked");
+        // Take the same seeded cuts before meeting the read. Nothing observes
+        // the intake between cuts, so copy their combined prefix once.
+        let available = self.bytes.len().min(skein_lib::length::usize_of(self.intake.room()));
+        let mut arrived = 0;
+        while arrived < available {
+            let cut = usize::try_from(rng.between(1, 17)).expect("small cut");
+            arrived += cut.min(available - arrived);
+        }
+        if arrived != 0 {
+            let (front, back) = self.bytes.as_slices();
+            let first = front.len().min(arrived);
+            self.intake.append(&front[..first]).expect("room checked");
+            let rest = arrived - first;
+            if rest != 0 {
+                self.intake.append(&back[..rest]).expect("room checked");
+            }
+            drop(self.bytes.drain(..arrived));
         }
         if let Some(bytes) = self.intake.meet(self.read) {
             self.read = stream::Read::Nothing;

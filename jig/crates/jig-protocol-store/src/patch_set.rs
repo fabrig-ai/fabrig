@@ -15,6 +15,8 @@ pub const JIG_STORE_SET: OwnerSet = OwnerSet {
     families: &STORE_FAMILIES,
 };
 
+pub(crate) const CHANGED_SETTINGS: u16 = 1;
+
 /// Every store-owned family, in owner-set order.
 #[expect(
     clippy::disallowed_macros,
@@ -35,7 +37,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
     },
     KeptFamily {
         retired: &[],
-        current: include_str!("../schema/openings-v1.schema"),
+        current: include_str!("../schema/openings-v2.schema"),
         types: &[],
         name: "jig-store-openings",
         map: KeptMap::Store,
@@ -425,7 +427,7 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 keys: &[KeyRange { from: &[1, 0, 8, 0], to: &[1, 0, 8, 1] }],
             },
             ValueType {
-                number: 1,
+                number: CHANGED_SETTINGS,
                 root: "Changed",
                 variant: None,
                 keys: &[

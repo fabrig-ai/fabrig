@@ -1,0 +1,932 @@
+# The link's end of the client wire (skein/docs/design/data/codec/maps.md, 9).
+records jig_client_protocol_wire::v44
+use c = jig_client_domain::contract
+use s = skein_codec::convert
+use h = crate::translate::client
+by hand h
+context crate::Limits
+direction to domain
+# Additional client translation leaves.
+refuses s::text_to_domain
+refuses h::basis_to_domain
+refuses h::decision_to_domain
+with context h::decision_to_domain
+refuses h::charter_to_domain
+refuses h::catalogue_entry_to_domain
+refuses h::overlay_to_domain
+refuses h::setting_policy_to_domain
+with context h::setting_policy_to_domain
+refuses h::model_act_to_domain
+with context h::model_act_to_domain
+refuses h::revision_document_to_domain
+with context h::revision_document_to_domain
+refuses h::document_outcome_to_domain
+with context h::document_outcome_to_domain
+refuses h::made_to_domain
+refuses h::refusal_to_domain
+with context h::refusal_to_domain
+refuses h::bounds_to_domain
+with context h::bounds_to_domain
+refuses h::bounds_create_to_domain
+with context h::bounds_create_to_domain
+refuses h::document_text_to_domain
+with context h::document_text_to_domain
+refuses h::run_work_to_domain
+with context h::run_work_to_domain
+refuses h::retry_notice_to_domain
+refuses h::model_effort_to_domain
+with context h::model_effort_to_domain
+refuses h::hold_reason_to_domain
+with context h::hold_reason_to_domain
+refuses h::activity_to_domain
+with context h::activity_to_domain
+refuses h::word_result_to_domain
+with context h::word_result_to_domain
+with context h::archived_turn_to_domain
+refuses h::chip_to_domain
+with context h::chip_to_domain
+refuses h::authority_to_domain
+with context h::authority_to_domain
+refuses h::document_specification_to_domain
+with context h::document_specification_to_domain
+refuses h::retained_action_to_domain
+with context h::retained_action_to_domain
+refuses h::history_line_to_domain
+with context h::history_line_to_domain
+refuses h::chip_ending_to_domain
+with context h::chip_ending_to_domain
+refuses h::wait_resource_name_to_domain
+with context h::wait_resource_name_to_domain
+refuses h::task_line_to_domain
+with context h::task_line_to_domain
+refuses h::task_contract_document_to_domain
+with context h::task_contract_document_to_domain
+refuses h::result_document_to_domain
+with context h::result_document_to_domain
+refuses h::call_to_domain
+with context h::call_to_domain
+refuses h::current_call_to_domain
+with context h::current_call_to_domain
+refuses h::run_text_to_domain
+with context h::run_text_to_domain
+refuses h::person_proposal_goal_to_domain
+with context h::person_proposal_goal_to_domain
+refuses h::person_proposal_state_to_domain
+with context h::person_proposal_state_to_domain
+refuses h::escalation_decision_to_domain
+with context h::escalation_decision_to_domain
+refuses h::ended_value_to_domain
+with context h::ended_value_to_domain
+
+record Family stands for number
+enum Owner = c::Owner { family tuple }
+record Served = c::Served
+record NotServed = c::NotServed
+enum SignInAnswer by hand
+enum SignOutAnswer by hand
+enum ApprovalAskAnswer by hand
+enum LinkAskAnswer by hand
+enum ApprovalState by hand
+record ApprovalLoopback = crate::Loopback
+enum ApprovalDecided by hand
+enum ApprovalSignInAnswer by hand
+record DocumentText by hand
+record ChipExecutorAgent
+record ChipExecutorProcedure
+record ExecutorParty
+record ExecutorRole
+record ChipExecutorJob
+enum ChipExecutor = c::ChipExecutor
+enum Phase = c::Phase
+record RunStageClaimed
+record RunStageRunning
+record RunStageBackingOff
+enum RunStage = c::RunStage { backing_off { until via s::wall } }
+record PersonAddressParty stands for value
+record PersonAddressRole stands for value
+enum PersonAddress = c::PersonAddress both ways { party tuple, role tuple }
+record ClosingStageRun
+enum ClosingStage = c::ClosingStage
+enum HoldFailure = c::HoldFailure
+record HoldCategoryFailures
+record HoldCategoryDependency
+record HoldCategoryPlaced
+record HoldCategoryUncertain
+record HoldCategoryPoolLost
+enum Bound = c::Bound
+record Exceeded = c::Exceeded
+enum HoldCategory = c::HoldCategory { exceeded tuple }
+record ChipPhaseWaiting
+record ChipPhaseActive stands for value
+record ChipPhasePerson
+record ChipPhaseClosing stands for value
+record ChipPhaseHeld
+enum ChipPhase = c::ChipPhase { active tuple, person { since via s::wall }, closing tuple }
+enum FailureClass = c::FailureClass
+enum RetryNotice by hand
+record CallIdentity by hand
+enum RunWork by hand
+record RunObservation = c::RunObservation { channel via s::token, since via s::wall, reported_at via s::wall, started via s::wall }
+record ActiveRun = c::ActiveRun { phase_since via s::wall, placement via s::wall }
+record ProposerTask stands for value
+record ProposerParty stands for value
+enum Proposer = c::Proposer both ways { task tuple, party tuple }
+record ProposalKey = c::ProposalKey both ways
+record RecipientTask stands for value
+record RecipientParty stands for value
+record RecipientRole
+record RecipientRoles
+enum Recipient = c::Recipient { task tuple, party tuple }
+record Revision = c::Revision both ways
+record ActorParty stands for value
+record ActorTask stands for value
+record ActorProjectDeployment
+enum Actor = c::Actor { party tuple, task tuple }
+enum PartyKind = c::PartyKind
+record Party by hand
+enum Decision by hand
+record AttemptFailure by hand
+record ExecutorAgent
+record ExecutorProcedure
+record ExecutorPerson stands for value
+record ExecutorJob
+enum Executor = c::Executor both ways { person tuple }
+record WakeRuleBatch
+record WakeRulePaced
+enum WakeRule = c::WakeRule both ways
+enum ResultsWake = c::ResultsWake both ways
+record WakePolicy = c::WakePolicy both ways
+record PersonStallNotice = c::PersonStallNotice { at via s::wall }
+record PersonWait = c::PersonWait { since via s::wall, deadline via s::wall }
+enum PartKind = c::PartKind both ways
+record PartKeyPath stands for value
+record PartKeyNumber stands for value
+enum PartKey = c::PartKey both ways { path tuple, number tuple }
+record Part = c::Part both ways
+record PriorPhaseActive stands for value
+record PriorPhaseClosing stands for value
+enum PriorPhase = c::PriorPhase { active tuple, closing tuple }
+record EscalationHolderTask stands for value
+record EscalationHolderPerson stands for value
+record EscalationHolderRole
+enum EscalationHolder = c::EscalationHolder { task tuple, person tuple }
+record HoldEscalationWaiting
+record HoldEscalationRejected
+enum HoldEscalation = c::HoldEscalation { waiting { since via s::wall } }
+record FailureTries = c::FailureTries
+record RequesterTask stands for value
+record RequesterPerson stands for value
+record RequesterDeployment
+enum Requester = c::Requester both ways { task tuple, person tuple }
+enum TaskStatus = c::TaskStatus
+record DependencyAdded = c::DependencyAdded { at via s::wall }
+record Dependency = c::Dependency
+record Circle = c::Circle
+record HoldOwnerParty
+record HoldOwnerTask
+enum HoldOwner = c::HoldOwner
+enum HoldMode = c::HoldMode
+record HoldScopeSubtree
+enum HoldScope = c::HoldScope
+record PlacedLine = c::PlacedHold { placed_at via s::wall, revision via h::revision }
+record ChipHold by hand
+record Numbers = c::Numbers
+record FunderTask stands for value
+record FunderPool
+record FunderRecurring
+record FunderPeriod
+enum Funder = c::Funder { task tuple }
+record Budget = c::Budget { deadline via s::wall }
+record ResourceWriterRun
+record ResourceWriterEffect
+enum ResourceWriter = c::ResourceWriter
+record ResourceLine = c::ResourceLine
+record ChipWorkTool
+enum ChipWork = c::ChipWork
+record ChipObservation = c::ChipObservation { channel via s::token, since via s::wall, reported_at via s::wall, started via s::wall }
+record ResultField = c::ResultField
+record ChipFields by hand
+record ChipPhaseOwnerFields by hand
+record ClosingFields by hand
+enum EndingFields by hand
+enum HeldRuntimeFields by hand
+enum HoldReasonFields by hand
+record ChipDetailsFields by hand
+enum ChipEndingFields by hand
+enum ResultValueFields by hand
+enum Fact by hand
+record Chip by hand
+record ChipPhaseFacts by hand
+record Closing by hand
+record Ending by hand
+record HeldRuntime by hand
+record HoldReason by hand
+record ChipDetails by hand
+record ChipEnding by hand
+record ResultValue by hand
+enum PersonAnswer by hand
+record AddressChange = c::AddressChange both ways
+enum Parameter by hand
+record Specification by hand
+record ModelEffort by hand
+record LlmLater = c::LlmLater both ways
+record LlmChoice = c::LlmChoice both ways
+record PatternEndExact stands for value
+record PatternEndOpen stands for value
+enum PatternEnd = c::PatternEnd both ways { exact tuple, open tuple }
+record Pattern = c::Pattern both ways
+record Grant = c::Grant both ways
+record AuthorityExecutorCharter stands for value
+record AuthorityExecutorProcedure stands for value
+record AuthorityExecutorRole stands for value
+record AuthorityExecutorJob stands for value
+enum AuthorityExecutor = c::AuthorityExecutor both ways { charter tuple, procedure tuple, role tuple, job tuple }
+record Delegation = c::Delegation to record
+record ResourceScope = c::ResourceScope both ways
+enum ModelSet by hand
+record Authority by hand
+record TrackingTracked
+enum Tracking = c::Tracking both ways
+record Amendment by hand
+record SeenResults
+record SeenConversation
+enum SeenThrough = c::SeenThrough both ways
+enum NoteScope by hand
+record PolicyEditRole by hand
+record PolicyJudge = c::PolicyJudge both ways
+record PolicyGuardObserved
+enum PolicyGuard = c::PolicyGuard both ways
+record PolicyRequirement = c::PolicyRequirement both ways
+record PolicyPermission = c::PolicyPermission both ways
+record TemplateCharter stands for value
+enum TemplateExecutor = c::TemplateExecutor both ways { charter tuple }
+record TemplateAmount stands for value
+record TemplateAsAllowed
+enum TemplateBudget = c::TemplateBudget both ways { amount tuple }
+record TemplateSpan stands for value
+enum TemplateDeadline = c::TemplateDeadline both ways { span tuple }
+record TemplateOverride = c::TemplateOverride both ways
+enum PolicyEdit by hand
+record HeldRolePolicy
+enum HeldRole = c::HeldRole both ways
+record Holding = c::Holding both ways
+enum AnswerOn by hand
+enum Running = c::Running both ways
+record DecideProposal
+record DecideEscalation
+enum DecideOn = c::DecideOn both ways
+record Concluded = c::Concluded { at via s::wall }
+enum Operation by hand
+record Compound by hand
+record FieldRule = c::FieldRule both ways
+record VerdictChoice = c::VerdictChoice both ways
+record TaskRefMember stands for value
+record TaskRefTask stands for value
+enum TaskRef = c::TaskRef both ways { member tuple, task tuple }
+record ContractReport
+record ContractVerdict
+record ContractChange
+enum NewContract = c::NewContract both ways
+record BudgetAsAllowed
+enum NewBudget = c::NewBudget both ways
+enum Retention = c::Retention both ways
+record Closer = c::Closer both ways
+enum EndedBy = c::EndedBy both ways { closer tuple }
+record TaskFlags = c::TaskFlags both ways
+record DeadlineSpan stands for value
+enum NewDeadline = c::NewDeadline both ways { span tuple }
+record Symbol = c::Symbol both ways
+record NewTask by hand
+record Create by hand
+record Delegate by hand
+record ProposeSettings by hand
+enum ProposeAction by hand
+record Propose by hand
+enum AskAccountHolder = c::AskAccountHolder both ways
+enum ProposalChoice = c::ProposalChoice
+enum EscalationChoice = c::EscalationChoice
+record CreatedGiven = c::CreatedGiven
+enum AccountHostWhy = c::AccountHostWhy
+record AccountHostFailure by hand
+enum DocumentOutcome by hand
+enum Made by hand
+record OutcomeDocument stands for value
+record OutcomeMade
+record LackingBudget
+record LackingGrantKind
+record LackingAgain
+record LackingRequired
+record LackingFailed
+record LackingUnguarded
+record LackingTaskKind
+record LackingDepth
+record LackingDeadline
+record LackingTasks
+record LackingHoldOwner
+record CeilingRole stands for role
+enum CeilingHolder = c::CeilingHolder { role tuple }
+enum CeilingDimension = c::CeilingDimension
+record LackingCeiling
+enum Lacking = c::Lacking { deadline { asked via s::wall, latest via s::wall } }
+enum AdmissionLimit = c::AdmissionLimit
+record LimitAdmission
+record LimitLiveTasks
+record LimitInbox
+record LimitWords
+enum Limit = c::Limit
+record CurrentHoldDocument stands for value
+record CurrentHoldReason stands for value
+enum CurrentHold = c::CurrentHold { document tuple boxed, reason tuple }
+record MovedHold
+record MovedPlacedHold
+enum Moved = c::Moved { placed_hold { revision via h::revision } }
+enum NameRule = c::NameRule
+record MalformedName stands for rule
+enum LlmWhy = c::LlmWhy
+record RefusalLlm by hand
+enum AccountWhy = c::AccountWhy
+enum SignInRedirectWhy = c::SignInRedirectWhy
+enum AccountMoveWhy = c::AccountMoveWhy
+record Cursor by hand
+record ScopeProject stands for value
+enum Scope = c::Scope both ways { project tuple }
+record Window = c::Window to record
+enum InboxReadGroup = c::InboxReadGroup to record
+enum InboxGroup = c::InboxGroup to record
+record ReadTurn
+record ReadTask
+record ReadProposal
+record ReadEscalation
+record ReadQuestion
+record ReadPersonTask
+record ReadResult
+record ReadEnded
+record ReadHistory
+record ReadActivity
+enum ActivitySide = c::Side to record
+record ReadActivityBeside
+record ReadInbox
+record ReadSpend
+record ReadProject
+record ReadNotes
+enum PhaseClass = c::PhaseClass to record
+enum ExecutorKind = c::ExecutorKind to record
+enum QueryOrder = c::QueryOrder to record
+record PartAsk = c::PartAsk to record
+record TaskQuery = c::TaskQuery to record
+
+# Reads, retained pages and live documents.
+record ReadTasks
+record TurnTooLarge
+record ReadTooLinked
+enum ReadNone = c::ReadNone
+record PeriodTimes = c::PeriodTimes { began via s::wall, next via s::wall }
+record FundingRecord = c::FundingRecord
+record SpendPage by hand
+enum MessageProposalKind = c::MessageProposalKind
+enum NoticeState = c::NoticeState
+enum NewsClass = c::NewsClass
+enum WordResult by hand
+record MessageKindEscalation
+record MessageKindProposal
+record MessageKindPersonStalled
+record MessageKindProposalDecision
+record SettingsAccepted
+record SettingsStale
+enum SettingsOutcome = c::SettingsOutcome
+record MessageKindSettingsDecision
+record MessageKindEffectNotMade
+record MessageKindAmendment
+record MessageKindAnswer
+record MessageKindNotice
+record MessageKindTimer
+record MessageKindNews
+record MessageKindResult stands for value
+record MessageKindMet
+enum MessageKind = c::MessageKind { result tuple }
+record Word by hand
+record RunWhyMessage
+record RunWhyRetry
+enum RunWhy = c::RunWhy
+enum InvalidReason = c::InvalidReason
+record RunEndFailed
+enum SuspendWhy = c::SuspendWhy
+record RunEndSuspended
+enum RunEnd = c::RunEnd
+enum RunFresh = c::RunFresh
+enum SessionEnd = c::SessionEnd
+enum Activity by hand
+record ActivityLine = c::ActivityLine { at via s::wall }
+record TurnName = c::TurnName
+enum TurnBytes by hand
+record ArchivedTurn by hand
+enum TaskContractDocument by hand
+record TaskLinkLive stands for value
+record TaskLinkRetained
+record TaskLinkStored
+enum TaskLink = c::TaskLink { live tuple, retained { at via s::wall } }
+record ResultDetails by hand
+enum ActKind = c::ActKind { move_task = Move }
+record CreateProcedure = c::CreateProcedure
+record KindImplication = c::KindImplication both ways
+record AuthorityDocument = c::AuthorityDocument
+record BoundsCreate by hand
+record BoundsAmend by hand
+enum Bounds by hand
+record BeyondProposed
+record AdmissionProposed
+record ImpactCounts = c::ImpactCounts
+record Impact = c::Impact
+enum ReleaseEffect = c::ReleaseEffect
+record EffectRelease stands for what
+record EffectMove
+enum Effect = c::Effect { release tuple, cancel tuple, move_task = Move }
+record ResultDocument by hand
+record ObjectKeyTask stands for value
+record ObjectKeyProposal stands for value
+record ObjectKeyEscalation stands for value
+record ObjectKeyQuestion
+record ObjectKeyPersonTask stands for value
+record ObjectKeyResult stands for value
+record ObjectKeyNote
+enum ObjectKey = c::ObjectKey { task tuple, proposal tuple, escalation tuple, person_task tuple, result tuple }
+record DecodedActivityLine = c::DecodedActivityLine { source boxed }
+record ActivityPage by hand
+record SpendLine = c::SpendLine
+enum HistoryChange = c::HistoryChange
+record ParameterDocumentNumber
+record ParameterDocumentBytes
+record ParameterDocumentResource
+enum ParameterDocument = c::ParameterDocument
+record DocumentSpecification by hand
+record SpecificationDocument = c::SpecificationDocument
+record ProposedTask by hand
+record RetainedAmendment by hand
+record SettingNumber = c::SettingNumber both ways
+record ApplicationSetting
+record ProjectPolicySetting
+enum Setting = c::Setting both ways { charter tuple, template tuple, policy tuple, model tuple, worker tuple, provider tuple }
+enum RevisionItemEdit = c::RevisionItemEdit
+record RevisionItemHead = c::RevisionItemHead
+record RetainedActionSettings by hand
+enum RetainedAction by hand
+record HistoryHolderTask stands for value
+record HistoryHolderPerson stands for value
+record HistoryHolderPolicy
+enum HistoryHolder = c::HistoryHolder { task tuple, person tuple }
+record ProposalHistoryStatePending
+record ProposalHistoryStateAccepted
+record ProposalHistoryStateRejected
+enum ProposalHistoryState = c::ProposalHistoryState { pending { since via s::wall } }
+record ProposalHistory = c::ProposalHistory
+record AmendmentState by hand
+record HistoryAmendment by hand
+# Check the optional proposal and amendment before the reason.
+record HistoryLine by hand
+record AttemptLine = c::AttemptLine { claimed via s::wall, started via s::wall, ended via s::wall }
+record HoldLine = c::HoldLine { at via s::wall }
+record HistoryRowChange stands for value
+record HistoryRowAttempt stands for value
+record HistoryRowHold stands for value
+enum HistoryRow = c::HistoryRow { change tuple boxed, attempt tuple boxed, hold tuple boxed }
+record HistoryPage by hand
+enum Runtime by hand
+record Count = c::Count
+record WhomPerson stands for value
+record WhomRole
+enum Whom = c::Whom { person tuple }
+enum WaitedFor = c::WaitedFor
+record WaitsOnParty
+record WaitsOnQuestion
+record WaitsOnDependencies
+enum WaitsOn = c::WaitsOn
+record ConversationRead = c::ConversationRead
+record PhaseCounts = c::PhaseCounts
+enum PartFailure = c::PartFailure
+enum RowPart by hand
+record TaskSourceStateUntil { until via s::wall }
+enum TaskSourcePlace = c::AccountPlace
+enum TaskSourceUnread = c::AccountUnread
+record TaskSourceStateUnloaded
+enum TaskSourceState = c::TaskSourceState
+record TaskWaitSource stands for state
+record TaskWaitInvalid stands for why
+record TaskWaitUntooled
+enum TaskWaitWhy = c::TaskWaitWhy { source tuple, invalid tuple }
+record TaskWaitAccount
+enum HostKind = c::HostKind
+record AgentShortfallModel
+record AgentShortfallWindow
+record AgentShortfallOutput
+record AgentShortfallTurns
+record AgentShortfallTime
+record AgentShortfallWaiting
+record AgentShortfallChecks
+enum AgentShortfall = c::AgentShortfall
+record HelloRefusalAgent
+record HelloRefusalWorkers
+record HelloRefusalPosition
+record HelloRefusalStopBound
+enum HelloRefusal = c::HelloRefusal
+record ShortfallFigures = c::Figures
+record TaskWaitHello
+record TaskWaitBounds
+enum TaskWaitRefused = c::TaskWaitRefused { hello { at via s::wall } }
+record TaskRunWaitRefused stands for value
+record TaskWaitWorker
+enum TaskRunWait = c::TaskRunWait { refused tuple, worker { until via s::wall } }
+enum WaitKind = c::WaitKind
+record WaitEntry
+record WaitQuestion
+record WaitTask stands for value
+record WaitResourceName by hand
+record WaitResource
+record WaitNews
+record Thing = c::Thing
+record WaitProcedure
+record WaitRun stands for value
+enum WaitObject = c::WaitObject { task tuple, run tuple, news { timer via s::wall } }
+enum AtBound = c::AtBound
+record UnboundedBehind stands for task
+enum Unbounded = c::Unbounded { behind tuple }
+record WaitAtBound
+record WaitNoBound stands for reason
+enum WaitBound = c::waits::Bound { at { at via s::wall }, none tuple }
+record Wait = c::Wait { since via s::wall }
+record Nearest = c::Nearest { at via s::wall }
+# Check row part envelopes before the chip and structured wait.
+record TaskLine by hand
+record NoteAuthorParty
+record NoteAuthorTask
+enum NoteAuthor = c::NoteAuthor
+record Note by hand
+record NotePage by hand
+record EndedDelegate = c::EndedDelegate { at via s::wall }
+record EndedPage by hand
+record InboxObjectQuestion
+record InboxObjectProposal
+record InboxObjectEscalation
+record InboxObjectTurn
+record InboxObjectResult
+enum InboxObject = c::InboxObject { turn = Reply }
+record InboxCursorNumber
+record InboxCursorInbox
+enum InboxCursor = c::InboxCursor { inbox { at via s::wall } }
+record InboxSelection by hand
+record InboxEntry = c::InboxEntry { reply boxed, at via s::wall }
+record InboxPage by hand
+record PoolLedger = c::PoolLedger { began via s::wall, next via s::wall }
+record MeParty = c::MeParty
+record Needs = c::Needs
+# Sending uses the owner's piece writer with the caller's wire limits.
+record Template = c::Template
+record MePrices = c::ModelPrices
+enum ModelSource = c::ModelSource both ways
+record MeModel by hand
+record MeDefault = c::MeDefault
+record ProviderOffer by hand
+enum Readiness = c::Readiness
+record Me by hand
+record LiveDelegate = c::LiveDelegate
+record TaskContext by hand
+record TaskResultDocument stands for value
+record TaskResultEnding stands for value
+enum TaskResult = c::TaskResult { document tuple boxed, ending tuple boxed }
+record SubscriptionKindTask
+record SubscriptionKindTimer
+record SubscriptionKindTopic
+enum SubscriptionKind = c::SubscriptionKind { timer { at via s::wall } }
+record Subscription = c::Subscription
+record Subscriptions by hand
+record TaskSettings = c::TaskSettings
+record Talk = c::Talk { opened via s::wall, last via s::wall }
+record Session = c::Session { last via s::wall }
+record UnreadWords by hand
+record Task by hand
+record Tasks by hand
+enum EndedGroup by hand
+record TaskPage by hand
+record Call by hand
+record CurrentCall by hand
+record LiveCallDecoded stands for value
+record LiveCallRaw stands for value
+enum LiveCall = c::LiveCall { decoded tuple, raw tuple }
+record ProvisionalTurnName = c::ProvisionalTurnName both ways
+record WritingCall by hand
+record RunText by hand
+record RunState = c::RunState
+record SettingsReview by hand
+record ProposalActionSettings by hand
+enum ProposalAction by hand
+record ProposalWaiting = c::ProposalWaiting { since via s::wall }
+record FundingOffer = c::FundingOffer
+record Proposal by hand
+record Escalation by hand
+record Question by hand
+# Check the result before its task link.
+record ShownResult by hand
+record PersonTask by hand
+enum RecurringOverlap = c::RecurringOverlap
+record Recurring by hand
+enum ProjectResourceRole = c::ProjectResourceRole
+record ProjectResource = c::ProjectResource
+record ProjectPolicyRole = c::ProjectPolicyRole
+record ProjectPolicy by hand
+record ProjectMember = c::ProjectMember
+record ProjectSpend = c::ProjectSpend
+record Project by hand
+enum GoalHolding by hand
+record PersonProposalGoal by hand
+enum PersonProposalState by hand
+record PersonProposal = c::PersonProposal
+record ProposalDecisionCreated by hand
+record ProposalDecision = c::ProposalDecision { at via s::wall }
+enum EscalationDecision by hand
+record EscalationDecisionRecord = c::EscalationDecisionRecord { at via s::wall }
+# Check the optional hold, answer and ending before their required documents.
+enum EndedValue by hand
+record Ended = c::Ended { at via s::wall }
+record TreeRow by hand
+record TreeFold = c::TreeFold
+
+# Tree and later client records.
+record Tree by hand
+record SubjectTask
+record SubjectTree
+record SubjectChips
+record SubjectInbox
+record SubjectTasks
+record SubjectRun
+record SubjectTerminal
+enum Subject = c::Subject to record
+record StoreFill = c::StoreFill
+record CensusHead = c::CensusHead
+record CensusKeyspace = c::CensusKeyspace { name via s::text }
+record StoreCensus by hand
+record Capacity = c::Capacity
+record ProjectCapacity = c::ProjectCapacity
+enum AttemptState = c::AttemptState
+record RunLocationConnected
+record RunLocationAdrift
+enum RunLocation = c::RunLocation { adrift { until via s::wall } }
+record HostRun = c::HostRun { grace_until via s::wall }
+enum ProgramFailure = c::ProgramFailure
+enum ProgramState by hand
+enum ProgramSignOut by hand
+record ProgramLogin by hand
+record ProgramHost by hand
+record HostPerson stands for party
+enum HostRule = c::HostRule { person tuple }
+record Host by hand
+record HelloRefusalLine = c::HelloRefusalLine { at via s::wall }
+record RequestKey = c::RequestKey
+record PersonCapacityActionApplication
+record PersonCapacityActionNote
+record PersonCapacityActionPool
+record PersonCapacityActionEscalation
+record PersonCapacityActionProposal
+record PersonCapacityActionWords
+record PersonCapacityActionQuestion
+record PersonCapacityActionAmend
+record PersonCapacityActionMove
+record PersonCapacityActionTakePerson
+record PersonCapacityActionHandBackPerson
+record PersonCapacityActionAnswerPerson
+record PersonCapacityActionStop
+record PersonCapacityActionCancel
+record PersonCapacityActionConclude
+record PersonCapacityActionRelease
+record PersonCapacityActionMarkSeen
+record PersonCapacityActionLift
+enum PersonCapacityAction = c::PersonCapacityAction { move_task = Move }
+record PersonCapacityCauseRequests
+record PersonCapacityCausePending
+record PersonCapacityCauseWaiters
+record PersonCapacityCauseLimit
+enum PersonCapacityCause = c::PersonCapacityCause
+record PersonCapacityRefusal = c::PersonCapacityRefusal { at via s::wall }
+record TaskCapacityActionBatch
+record TaskCapacityActionProposal
+record TaskCapacityActionPersonProposal
+record TaskCapacityActionMessage
+record Authorize by hand
+record AuthorizeGo
+enum AuthorizeWhy = crate::AuthorizeWhy
+record AuthorizeRefused stands for why
+enum AuthorizeAnswer = crate::Authorized { refused tuple }
+record TaskCapacityActionSource
+record TaskCapacityActionIntroduce
+record TaskCapacityActionSubscription
+record TaskCapacityActionEffect
+record TaskCapacityActionClaim
+record TaskCapacityActionPlace
+enum TaskCapacityAction = c::TaskCapacityAction { move_task = Move }
+record TaskCapacityCauseTasks
+record TaskCapacityCauseCreationFlights
+record TaskCapacityCauseResourceReports
+record TaskCapacityCauseProjectTasks
+record TaskCapacityCauseTree
+record TaskCapacityCauseDelegates
+record TaskCapacityCauseInbox
+record TaskCapacityCauseHoldings
+record TaskCapacityCauseHoldWaiters
+record TaskCapacityCauseProposals
+record TaskCapacityCauseReferences
+record TaskCapacityCauseSubscriptions
+record TaskCapacityCauseFunders
+record TaskCapacityCauseWriters
+record TaskCapacityCausePlacedHolds
+record TaskCapacityCauseProjectPlacedHolds
+record TaskCapacityCausePartyPlacedHolds
+record TaskCapacityCauseExemptions
+enum TaskCapacityCause = c::TaskCapacityCause
+record TaskCapacityRequest = c::TaskCapacityRequest
+record TaskCapacityRefusal = c::TaskCapacityRefusal { at via s::wall }
+enum WatchEnd by hand
+enum WatchRefusal = c::WatchEnd
+record AccountStateLater
+enum AccountPlace = c::AccountPlace
+enum AccountUnread = c::AccountUnread
+record AccountStateUnloaded
+enum AccountState = c::AccountState { later { until via s::wall } }
+record AccountUseParty stands for party
+record AccountUseProject stands for project
+enum AccountUse = c::AccountUse both ways { party tuple, project tuple }
+record PayerReadiness = c::PayerReadiness
+record AccountChangeDeclareProgram
+record AccountChangeCheckProgram
+record AccountChangeAddKey
+record AccountChangeReplaceKey
+record AccountChangeRemoveKey
+record AccountChangeResume
+record AccountChangeRemove
+record AccountChangeMoveAccount
+record AccountChangeMoveSource
+record AccountChangeSetUses
+record AccountChangeMoveOut
+record AccountChangeWritten
+record AccountChangeMoveIn
+record AccountChangeFinishSignIn
+record LoginExitExited
+record LoginExitKilled
+enum LoginExit = c::LoginExit both ways
+record AccountChangeLoginProgram
+record AccountChangeCancelLogin
+record AccountChangeLoginEnded
+enum AccountChange = c::AccountChange both ways { set_uses { uses slice } }
+record AskAccountChange by hand
+record AccountHolderParty stands for party
+enum AccountHolder = c::AccountHolder { party tuple }
+enum AccountKind = c::AccountKind
+enum AccountBound = c::AccountBound
+enum AccountKeyFailure = c::AccountKeyFailure
+enum WorkerPauseMode = c::WorkerPauseMode both ways
+enum WorkerPause = c::WorkerPause
+record PauseWorker by hand
+record OutcomeWorkerPauseAsked
+record AccountRefusalNotKept
+record AccountRefusalLimit
+record AccountRefusalHeld
+record AccountRefusalProvider
+record AccountRefusalKind
+enum AccountRefusal = c::AccountRefusal
+record AccountFailureLater
+record AccountFailureMissingScope
+record AccountFailureUnloaded
+enum AccountFailure = c::AccountFailure
+record AccountEndMade
+record AccountEndRenewed
+record AccountEndRefused
+record AccountEndFailed
+enum AccountEnd = c::AccountEnd
+record AccountSource by hand
+record AccountListRefused
+enum AccountListFailure = c::AccountListFailure
+record AccountList = c::AccountList { read via s::wall, tried via s::wall }
+record AccountFactText stands for text
+record AccountFactCount stands for count
+record AccountFactInstant stands for at via s::wall
+record AccountFactSpan stands for nanos
+record AccountFactShare stands for basis via h::basis
+record AccountWindow = c::AccountWindow { used via h::basis, resets via s::wall }
+enum AccountFactValue = c::AccountFactValue { text tuple, count tuple, instant tuple, span tuple, share tuple, window tuple }
+record AccountFact = c::AccountFact { seen via s::wall }
+record AccountLine by hand
+record AccountSignIn = c::AccountSignIn
+record AccountLastEnd = c::AccountLastEnd
+record TerminalLogin by hand
+record Terminal by hand
+record LoginEndSignedIn
+record LoginEndNotFinished
+record LoginEndRefused
+enum LoginEnd = c::LoginEnd
+record AccountLentEnd = c::AccountLentEnd
+record Accounts by hand
+record Account by hand
+record ProviderText stands for bytes
+record ProviderList = c::ProviderList both ways { keep slice, drop slice }
+record ProviderTls
+enum ProviderTransport = c::Transport both ways
+record ProviderRegistration = c::Registration both ways { scopes slice, must_grant slice }
+record Provider = c::Provider both ways { programs slice }
+enum ProviderAddress by hand
+record ProviderHeader = c::Header both ways
+record ProviderEndpoint = c::Endpoint both ways { headers slice }
+record ProviderSetting = c::ProviderSetting both ways { endpoints slice }
+record WorkerSetting = c::WorkerSetting both ways
+record WorkerState = c::WorkerState { since via s::wall }
+record Deployment by hand
+record TableEntry by hand
+record Inbox by hand
+record SettingModel by hand
+record CatalogueEntry by hand
+enum SettingHosts = c::SettingHosts both ways
+record CharterDocument = c::CharterDocument both ways
+record CharterPart by hand
+record Charter by hand
+record Overlay by hand
+# Check the edited roles before the ceiling.
+record SettingPolicy by hand
+record Rules = c::Rules
+record ApplicationValue stands for bytes
+record Override = c::Override both ways
+record LimitsValue stands for overrides slice
+# Sending uses the caller's wire limits for its piece writers and provider counts.
+enum SettingValue = c::SettingValue { charter tuple boxed, template tuple boxed, policy tuple boxed, rules tuple boxed, application tuple, model tuple boxed, overlay tuple boxed, worker tuple boxed, provider tuple boxed, limits tuple }
+record SettingSet = c::SettingSet
+enum SettingEdit = c::SettingEdit { set tuple }
+record SettingItem = c::SettingItem
+enum ModelAct by hand
+record ChangeModel = c::ChangeModel both ways
+record ChangeSettings by hand
+record OutcomeSettingsChanged = c::OutcomeSettingsChanged
+record RefusalStale = c::RefusalStale
+record RefusalFull = c::RefusalFull
+enum SettingFault = c::SettingFault
+enum SettingMember = c::SettingMember
+enum SettingRule = c::SettingRule
+record SettingDetail = c::SettingDetail
+record MalformedSettings = c::MalformedSettings
+record ReadSetting = c::ReadSetting to record
+record ReadRevision = c::ReadRevision to record
+record ReadRevisions = c::ReadRevisions to record
+enum SettingFollows = c::SettingFollows
+record ApplicationRevision
+enum ApplicationFollows = c::ApplicationFollows
+record ApplicationState = c::ApplicationState
+record SettingLine = c::SettingLine
+record RevisionParty = c::RevisionParty
+record RevisionList
+enum RevisionDecider = c::RevisionDecider { party tuple }
+record RevisionHead = c::RevisionHead { at via s::wall }
+record HeldRevision = c::HeldRevision
+record SettingsProposal = c::SettingsProposal
+record SettingsDocument = c::SettingsDocument
+record ApplicationSize
+enum SizedEdit = c::SizedEdit
+# Check the overlay before the current value.
+record SettingDocument by hand
+record Size = c::Size
+record ApplicationEdit stands for edit
+enum RevisionEdit = c::RevisionEdit { set tuple, too_large tuple, application tuple }
+enum RevisionReplaced = c::RevisionReplaced { value tuple, too_large tuple }
+record RevisionItem = c::RevisionItem
+record RevisionDocument by hand
+record RevisionForgotten = c::RevisionForgotten
+enum RevisionAnswer = c::RevisionAnswer { revision tuple, forgotten tuple }
+record ReadRevisionAnswer = c::ReadRevisionAnswer
+record RevisionRow = c::RevisionRow
+record RevisionsPage = c::RevisionsPage
+record OutcomeMovedToNewest = c::OutcomeMovedToNewest
+record OutcomeRestored
+record AccountReading
+enum AccountAnswer = c::AccountAnswer
+record OutcomeAccount stands for answer
+enum Outcome = c::Outcome { document tuple, settings_changed tuple, moved_to_newest tuple, account tuple }
+enum Malformed = c::Malformed { name tuple, settings tuple }
+enum Refusal by hand
+record Done stands for outcome
+record Refused
+enum Final = c::Answer { done tuple }
+enum TaskTextField = c::TaskTextField both ways
+record ReadTaskText
+record TaskText by hand
+enum Read = c::Read to record { notes { description via h::client_text }, setting tuple, revision tuple, revisions tuple }
+record BeyondRefused stands for value
+enum Beyond = c::Beyond { refused tuple }
+record AdmissionBounded
+record AdmissionRefused stands for value
+enum Admission = c::Admission { refused tuple }
+record Offered = c::Offered
+record CreatingBounds = c::Creating
+record MeProject by hand
+record MoveToNewest = c::MoveToNewest both ways
+record Restore by hand
+enum Ask by hand
+enum ReadValue by hand
+enum DeliveryValue by hand
+record OriginRevision = c::OriginRevision
+enum SettingOrigin = c::SettingOrigin { default tuple, change tuple }
+enum ReviewValue = c::ReviewValue { value tuple, too_large tuple }
+record ApplicationReview = c::ApplicationReview
+record ReviewItem = c::ReviewItem

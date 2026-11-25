@@ -5,6 +5,15 @@
 #![expect(clippy::must_use_candidate, reason = "the vocabulary exposes the forge top's existing value operations")]
 #![expect(clippy::disallowed_macros, reason = "kind 11 requires Default: both flags false with none")]
 extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod client_wire;
+}
 use alloc::boxed::Box;
 
 /// A landing repair found only flakes (domain/forge/change/repairs.md).
@@ -861,6 +870,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             };
             let mut total = closed
                 .checked_add(skein_lib::len_u64(row.close_changes.len()))?
+                .checked_add(skein_lib::len_u64(row.superseded.len()))?
                 .checked_add(skein_lib::len_u64(row.landing_changes.len()))?
                 .checked_mul(8)?
                 .checked_add(skein_lib::len_u64(row.closer.selections.len()).checked_mul(

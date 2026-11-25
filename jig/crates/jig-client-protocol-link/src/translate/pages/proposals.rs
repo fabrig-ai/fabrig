@@ -1,9 +1,10 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{
     Box, Limits, List, Wall, address_change_fields, amendment_state_fields, authority_document_fields,
-    authority_fields, c, chip_fields, ending_fields, history_holder_fields, offered_piece, proposed_task_piece,
-    task_fields, task_link_fields, text, too_large, w,
+    authority_fields, c, chip_fields, ending_fields, offered_piece, proposed_task_piece, task_from_record,
+    task_link_fields, text, too_large, w,
 };
+use crate::generated::client;
 
 pub(crate) fn parameter_fields(value: &w::Parameter, limits: &Limits) -> Result<c::Parameter, w::Problem> {
     Ok(match value {
@@ -140,34 +141,13 @@ pub(crate) fn proposal_action_fields(
     })
 }
 
-pub(crate) fn proposal_waiting_fields(value: &w::ProposalWaiting) -> c::ProposalWaiting {
-    c::ProposalWaiting { holder: history_holder_fields(&value.holder), since: Wall::from_nanos(value.since) }
-}
-
-pub(crate) fn funding_offer_fields(value: &w::FundingOffer) -> c::FundingOffer {
-    let opt0 = match &value.left {
-        Some(item) => Some(*item),
-        None => None,
-    };
-    let opt1 = match &value.after {
-        Some(item) => Some(*item),
-        None => None,
-    };
-    c::FundingOffer {
-        source: crate::translate::facts::funder(&value.source),
-        needed: value.needed,
-        left: opt0,
-        after: opt1,
-    }
-}
-
 pub(crate) fn proposal_fields(value: &w::Proposal, limits: &Limits) -> Result<c::Proposal, w::Problem> {
     if value.funding.len() > limits.client().rows {
         return Err(too_large());
     }
     let mut list0 = List::with_capacity(value.funding.len());
     for item in &value.funding {
-        list0.push(funding_offer_fields(item)).expect("reserved supplied list");
+        list0.push(client::funding_offer_to_domain(item.clone())).expect("reserved supplied list");
     }
     Ok(c::Proposal {
         projects: value.projects.clone(),
@@ -176,16 +156,21 @@ pub(crate) fn proposal_fields(value: &w::Proposal, limits: &Limits) -> Result<c:
         reason: crate::translate::facts::document_text(&value.reason, limits)?,
         action: proposal_action_fields(&value.action, limits)?,
         as_holder: value.as_holder,
-        waiting: proposal_waiting_fields(&value.waiting),
+        waiting: client::proposal_waiting_to_domain(value.waiting.clone()),
         funding: list0,
         acts: offered_piece(&value.acts, limits, c::MAX_OFFERED_ACTS)?,
     })
 }
 
+#[cfg(test)]
 pub(crate) fn escalation_fields(value: &w::Escalation, limits: &Limits) -> Result<c::Escalation, w::Problem> {
+    escalation_from_record(value.clone(), limits)
+}
+
+pub(crate) fn escalation_from_record(value: w::Escalation, limits: &Limits) -> Result<c::Escalation, w::Problem> {
     Ok(c::Escalation {
         acts: offered_piece(&value.acts, limits, c::MAX_OFFERED_ACTS)?,
-        task: Box::new(task_fields(&value.task, limits)?),
+        task: Box::new(task_from_record(value.task, limits)?),
     })
 }
 

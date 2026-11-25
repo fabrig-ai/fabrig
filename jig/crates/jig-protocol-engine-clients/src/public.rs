@@ -1,5 +1,6 @@
 //! Public reading's identifiers and declared kinds (jig/docs/design/protocol/client/public-reads.md).
 mod names;
+pub(crate) mod records;
 use jig_client_protocol_wire::{
     PUBLIC_BOARD, PUBLIC_CARD, PUBLIC_LAYOUT, PUBLIC_PROJECTS, PUBLIC_VERSION, PublicIndexBounds,
 };

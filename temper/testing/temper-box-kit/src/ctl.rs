@@ -113,6 +113,7 @@ impl Call {
     }
 }
 pub type NextCall = Box<dyn FnOnce(&[Ended]) -> Call>;
+pub type MaybeCall = Box<dyn FnOnce(&[Ended]) -> Option<Call>>;
 pub type BoxCall = Box<dyn FnOnce(&[u8]) -> Call>;
 pub enum Step {
     Mark(&'static str),
@@ -125,6 +126,8 @@ pub enum Step {
     Visit,
     /// Form a dependent call from the completed calls' documents.
     Then(NextCall),
+    /// Form a dependent call only when the completed reads require one.
+    ThenIf(MaybeCall),
     /// Form an installed-box story's call from its captured opening lines.
     ThenBox(BoxCall),
     Start(Call),
@@ -737,7 +740,10 @@ impl Calls {
                 bytes
             }
         };
-        let program = call.program.or(call.ctl_program).unwrap_or_else(|| skein_scratch::paths::binary("temper-box"));
+        let program = call
+            .program
+            .or(call.ctl_program)
+            .unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"));
         self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
         if started {
             self.started.as_mut().expect("started call").0.kind = kind;
@@ -1029,7 +1035,7 @@ impl Calls {
                 self.action = Some(Action::Run);
                 let args = super::terminal::open_arguments(Path::new(directory), self.link());
                 self.spawn(
-                    skein_scratch::paths::binary("temper-box").as_os_str().as_bytes().into(),
+                    skein_scratch::paths::built("temper-box", "temper-box").as_os_str().as_bytes().into(),
                     args,
                     Vec::new(),
                     false,
@@ -1052,6 +1058,14 @@ impl Calls {
                 let call = next(&self.ends);
                 self.action = Some(Action::Run);
                 self.start(call, false);
+            }
+            Some(Step::ThenIf(next)) => {
+                if let Some(call) = next(&self.ends) {
+                    self.action = Some(Action::Run);
+                    self.start(call, false);
+                } else {
+                    self.advance_with(now, listening, arm);
+                }
             }
             Some(Step::Start(call)) => self.start(call, true),
             Some(Step::Join) => self.awaiting_started = self.started.is_some(),
@@ -1417,7 +1431,7 @@ pub fn charter_change_file(file: &Path, setting: &Ended, instructions: &str) {
 /// Apply both limit kinds as one revision on a fresh sitting. The caller restarts
 /// after these steps, before doing the work whose limits they change.
 #[must_use]
-pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -> Vec<Step> {
+pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)], local: Option<Vec<u8>>) -> Vec<Step> {
     let directory = directory.to_path_buf();
     let overrides: Vec<_> = overrides
         .iter()
@@ -1427,9 +1441,7 @@ pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -
         Step::Run(Call::new(&["settings", "show", "--json"])),
         Step::Run(Call::new(&["settings", "show", "limits", "--json"])),
         Step::Run(Call::new(&["settings", "show", "temper-limits", "--json"])),
-        Step::Then(Box::new(move |calls| {
-            let local = directory.join("local-worker-settings.json");
-            let local = local.exists().then(|| std::fs::read(local).expect("local worker settings"));
+        Step::ThenIf(Box::new(move |calls| {
             let overrides: Vec<_> = overrides
                 .iter()
                 .map(|(kind, name, value, reason)| (kind.as_str(), name.as_str(), *value, reason.as_str()))
@@ -1439,14 +1451,14 @@ pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -
     ]
 }
 
-/// Compose one settings FILE and one apply call from the three completed reads.
+/// Compose one settings FILE and one apply call only for edits to the completed reads.
 pub fn limit_settings_apply_with(
     directory: &Path,
     overrides: &[(&str, &str, u64, &str)],
     calls: &[Ended],
     local: Option<&[u8]>,
     write: impl FnOnce(&Path, &[u8]),
-) -> Call {
+) -> Option<Call> {
     let reads = &calls[calls.len() - 3..];
     let file = directory.join("limit-settings.json");
     let mut items = Vec::new();
@@ -1457,14 +1469,20 @@ pub fn limit_settings_apply_with(
             .map(|(_, name, value, reason)| serde_json::json!({"name":name,"value":value,"reason":reason}))
             .collect();
         values.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
-        items.push(serde_json::json!({"setting":json(setting)["setting"],"set":values}));
+        let setting = json(setting);
+        if setting["value"].as_array().expect("limit overrides") != &values {
+            items.push(serde_json::json!({"setting":setting["setting"],"set":values}));
+        }
     }
     if let Some(local) = local {
         let local: serde_json::Value = serde_json::from_slice(local).expect("worker settings JSON");
         items.extend(local["items"].as_array().expect("local worker items").iter().cloned());
     }
+    if items.is_empty() {
+        return None;
+    }
     write(&file, &serde_json::to_vec(&serde_json::json!({"items":items})).expect("limit settings JSON"));
-    settings_change(&reads[0], &file, &format!("fixture-limits-{}", newest(&reads[0])))
+    Some(settings_change(&reads[0], &file, &format!("fixture-limits-{}", newest(&reads[0]))))
 }
 
 /// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client/README.md, 3).

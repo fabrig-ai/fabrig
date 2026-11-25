@@ -415,7 +415,6 @@ tests/hosts                      simulated world: a sample host and the agent it
 tests/local-process              simulated world: the local host and its peers
 tests/real                       the real loop
 tests/fake-claude                smith-fake-claude: the fake program a program backend runs (section 4)
-tests/transcript-patches         the transcript patches' fixture family (protocol/transcript.md, section 12)
 tests/machine/tests/simulated/   machine seam checks and fake-kernel stories: step + simulated
 tests/machine/tests/suite/       real rg children and a held job's teardown
 tests/fake-claude/tests/simulated/ encodings and the hosted fake: step + simulated

@@ -92,6 +92,68 @@ class Close(unittest.TestCase):
         self.assertEqual(self.read(), before + b'  \r\n')
         self.assertEqual(self.staged(), [STATUS])
 
+    def test_a_wrapped_tag_settles_as_a_one_line_one(self):
+        wraps = (
+            (b'{nl}  [in flight: change {task}]', b'\n'),
+            (b' [in{nl}  flight: change {task}]', b'\n'),
+            (b' [in flight: \t{nl}  change {task}]', b'\n'),
+            (b' [in flight: change{nl}    {task}]', b'\n'),
+            (b' [in flight: change \t{nl}    {task}]', b'\r\n'),
+        )
+        expected = {}
+        for index, (wrap, newline) in enumerate(wraps):
+            path = f'docs/wrap-{index}.status.md'
+            before = b'# Status' + newline + newline
+            after = newline + b'- **Departs:** 3: stays.' + newline
+            kept_prefix = b'- **Not yet:** 2: gap (`x.rs`)'
+            landed = (b'- **Not yet:** 1: built' + wrap.replace(b'{nl}', newline)
+                      .replace(b'{task}', b'9') + b'.' + newline)
+            unlanded = (kept_prefix + wrap.replace(b'{nl}', newline).replace(b'{task}', b'12')
+                        + b'.!? \t' + newline)
+            self.write(path, before + landed + unlanded + after)
+            expected[path] = before + kept_prefix + b'.!? \t' + newline + after
+        self.commit()
+        self.assert_success(self.run_close({9: True, 12: False}))
+        for path, content in expected.items():
+            with self.subTest(path=path):
+                self.assertEqual(self.read(path), content)
+        self.assertEqual(self.staged(), list(expected))
+        self.assertEqual(self.result(), {'settled': list(expected)})
+
+    def test_wrapped_tags_naming_no_change_are_kept(self):
+        before = (b'# Status\r\n\r\n- **Not yet:** 1: other\r\n'
+                  b'  Its continuation.\r\n'
+                  b'  [in flight: \t\r\n  change \t\r\n    99].\r\n'
+                  b'- **Not yet:** 2: outside [in\r\n'
+                  b'  flight: some\r\n  name];\r\n')
+        self.write(STATUS, before)
+        self.commit()
+        self.assert_success(self.run_close({9: True, 12: False}))
+        self.assertEqual(self.read(), before)
+        self.assertEqual(self.staged(), [])
+        self.assertEqual(self.result(), {'settled': [], 'kept': [
+            f'{STATUS}:5: [in flight: change 99]',
+            f'{STATUS}:8: [in flight: some name]']})
+
+    def test_wrapped_nested_tags_settle_only_their_items(self):
+        label = b'- **Not yet:**\n'
+        built = b'  - 1: built. [in\n    flight: change 9]\n'
+        sibling = b'  - 2: an untagged gap.\n    Its continuation.\n'
+        self.write(STATUS, label + built + sibling)
+        empty = 'docs/empty.status.md'
+        self.write(empty, b'# Empty\n\n' + label + built
+                   + b'  - 2: built too.\n    [in flight: change\n    9].')
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        self.assertEqual(self.read(), label + sibling)
+        self.assertEqual(self.read(empty), b'# Empty\n\n')
+        self.assertEqual(self.staged(), [empty, STATUS])
+        self.assertEqual(self.result(), {'settled': [empty, STATUS]})
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        self.assertEqual(self.staged(), [])
+        self.assertEqual(self.result(), {'settled': []})
+
     def test_a_bare_not_yet_label_settles_each_nested_item(self):
         before = (b'# Status\r\n\r\n- **Not yet:**\r\n'
                   b'  - 1: built\r\n    over two lines. [in flight: change 9]\r\n'
@@ -345,13 +407,21 @@ class Close(unittest.TestCase):
                     punctuation = bytes(rng.choice(b'.,;:!?') for _ in range(rng.randrange(1, 5))) \
                         if rng.randrange(2) else b''
                     spaces = rng.choice((b'', b' ', b'  ', b'\t'))
-                    tagged = bare + f' [in flight: change {task}]'.encode() + punctuation + spaces
+                    tag = []
+                    for word in (b'[in', b'flight:', b'change', f'{task}]'.encode()):
+                        separator = b' '
+                        if rng.randrange(2):
+                            separator = (rng.choice((b'', b' ', b' \t')) + newline
+                                         + rng.choice((b'  ', b'    ', b'  \t')))
+                        tag.append(separator + word)
+                    tagged = bare + b''.join(tag) + punctuation + spaces
                     suffix = newline + newline
                     original.append((tagged if kind in ('tagged', 'departs') else bare) + suffix)
                     if kind != 'tagged':
                         model.append(original[-1])
                     elif task not in ends:
-                        line = sum(chunk.count(b'\n') for chunk in original) - 1
+                        line = (sum(chunk.count(b'\n') for chunk in original[:-1])
+                                + len(lines) + tag[0].count(b'\n'))
                         kept.append(f'{path}:{line}: [in flight: change {task}]')
                         model.append(original[-1])
                     elif ends[task]:

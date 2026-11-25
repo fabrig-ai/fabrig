@@ -1,0 +1,62 @@
+records smith_transcript::v8
+use l = smith_domain_session::llm
+use r = smith_domain_session::record
+use t = smith_domain_tools
+use h = crate::transcript
+by hand h
+context h::MessageContext
+refuses h::block_to_record
+refuses h::block_to_domain
+with context h::block_to_record
+with context h::block_to_domain
+
+record Usage = l::Usage {
+    input = input_tokens
+    output = output_tokens
+    cache_read = cache_read_tokens
+    cache_write = cache_write_tokens
+    reasoning = reasoning_tokens
+}
+record Replay by hand
+record Call by hand
+enum Kind = t::Kind
+record Entry by hand
+record Hit = t::Hit
+record LineNumber stands for number
+enum Next by hand
+enum ReadCut = t::Cut
+enum BytesClamp by hand
+record Found by hand
+record ExitCode
+record ExitSignal
+enum Exit = t::Exit
+enum TimeoutClamp by hand
+record JobExit stands for exit
+enum JobEnd = t::JobEnd { ended tuple }
+enum SizePart = t::SizePart
+record Ambiguous { lines slice }
+enum Mismatch = t::Mismatch
+enum Fault = t::Fault
+enum Resolved by hand
+record Interrupted by hand
+enum Outcome by hand
+record FieldProblem
+record OversizeProblem
+record CutProblem
+record JobsFullProblem
+record UnknownJobProblem
+enum CallProblem = l::Problem
+record CallName stands for name
+record AllowedCalls stands for names slice
+record OutsideChoice { only = choice }
+record AfterFailedWrite
+enum NotRunWhy = l::NotRun
+enum Returned by hand
+enum Block by hand
+enum Role = l::Role
+record Message = l::Message { blocks = content slice }
+record Affinity = l::Affinity
+record Program
+enum Backend = r::Backend
+record Opening by hand
+record Turn by hand

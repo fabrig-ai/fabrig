@@ -28,24 +28,43 @@ pub(super) fn prepare_with(
     files: &mut impl Files,
 ) -> Result<(PathBuf, bool), Refused> {
     migrate(directory, user, files).map_err(|why| refused(directory, &why))?;
-    let relative = relative(origin);
-    let destination = directory.join(&relative);
-    let made = !exists(files, &destination).map_err(|why| refused(&destination, &why))?;
-    for component in
-        [directory.join("at"), destination.parent().expect("origin host").to_path_buf(), destination.clone()]
-    {
-        files.make_private(&component, user).map_err(Refused::Directory)?;
+    open_with(directory, origin, user, files)
+}
+
+pub(super) fn open(directory: &Path, origin: &Origin, user: u32) -> Result<(PathBuf, bool), Refused> {
+    open_with(directory, origin, user, &mut Disk)
+}
+
+pub(super) fn open_with(
+    directory: &Path,
+    origin: &Origin,
+    user: u32,
+    files: &mut impl Files,
+) -> Result<(PathBuf, bool), Refused> {
+    files.private_root(directory, user).map_err(|why| Refused::Directory(format!("{}: {why}", directory.display())))?;
+    let destination = directory.join(relative(origin));
+    for component in [&directory.join("at"), destination.parent().expect("origin host")] {
+        files.make_private(component, user).map_err(Refused::Directory)?;
     }
+    let made = !exists(files, &destination).map_err(|why| refused(&destination, &why))?;
+    files.make_private(&destination, user).map_err(Refused::Directory)?;
     Ok((destination, made))
 }
 
-pub(super) fn theme(directory: &Path, origin: &Origin, user: u32, made: bool) -> Option<jig_client::Record> {
-    theme_with(directory, origin, user, made, &mut Disk)
+pub(super) fn theme(
+    directory: &Path,
+    origin: &Origin,
+    saved: Option<&Origin>,
+    user: u32,
+    made: bool,
+) -> Option<jig_client::Record> {
+    theme_with(directory, origin, saved, user, made, &mut Disk)
 }
 
 pub(super) fn theme_with(
     directory: &Path,
     origin: &Origin,
+    saved: Option<&Origin>,
     user: u32,
     made: bool,
     files: &mut impl Files,
@@ -53,12 +72,11 @@ pub(super) fn theme_with(
     if !made {
         return None;
     }
-    let saved = files.read_private(&directory.join("address"), 300, user)?;
-    let saved = Origin::parse(saved.expose()).ok()?;
-    if &saved == origin {
+    let saved = saved?;
+    if saved == origin {
         return None;
     }
-    let other = directory.join(relative(&saved));
+    let other = directory.join(relative(saved));
     for component in [directory.join("at"), other.parent()?.to_path_buf(), other.clone()] {
         files.private_root(&component, user).ok()?;
     }

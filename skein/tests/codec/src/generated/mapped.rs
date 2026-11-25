@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 1;
 pub const LAYOUT: [u8; 32] = [
-    0xdd, 0x68, 0x86, 0x7a, 0x0d, 0x82, 0x51, 0x66, 0x18, 0x04, 0x9c, 0x86, 0x9a, 0x7f, 0xff, 0x77, 0x6a, 0x8f, 0x66,
-    0x19, 0x28, 0x5b, 0x21, 0x9c, 0xdd, 0xcc, 0x75, 0x07, 0x50, 0x3d, 0x1e, 0x8f,
+    0x81, 0xc3, 0x25, 0x7e, 0xf3, 0xff, 0x52, 0x15, 0x17, 0x0a, 0x58, 0xc6, 0x88, 0x3f, 0x67, 0x09, 0xf5, 0x0d, 0x50,
+    0x80, 0xe5, 0x48, 0x56, 0x7c, 0xa5, 0x23, 0x5c, 0x4c, 0x30, 0x46, 0x83, 0x3c,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -27,6 +27,7 @@ pub struct Limits {
     pub packet_padding: u32,
     pub packet_optional_items_some: u32,
     pub packet_events: u32,
+    pub rows_rows: u32,
 }
 
 pub const CEILINGS: Limits = Limits {
@@ -40,6 +41,7 @@ pub const CEILINGS: Limits = Limits {
     packet_padding: 4,
     packet_optional_items_some: 4,
     packet_events: 8,
+    rows_rows: 4,
 };
 
 pub const LIMIT_NAMES: &[&str] = &[
@@ -53,6 +55,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "packet_padding",
     "packet_optional_items_some",
     "packet_events",
+    "rows_rows",
 ];
 
 impl Limits {
@@ -69,6 +72,7 @@ impl Limits {
             self.packet_padding,
             self.packet_optional_items_some,
             self.packet_events,
+            self.rows_rows,
         ].into())
     }
 
@@ -86,6 +90,7 @@ impl Limits {
             packet_padding: self.packet_padding.min(most),
             packet_optional_items_some: self.packet_optional_items_some.min(most),
             packet_events: self.packet_events.min(most),
+            rows_rows: self.rows_rows.min(most),
         }
     }
 }
@@ -101,6 +106,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::PACKET_PADDING,
     paths::PACKET_OPTIONAL_ITEMS,
     paths::PACKET_EVENTS,
+    paths::ROWS_ROWS,
 ];
 
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
@@ -150,6 +156,12 @@ pub mod paths {
     pub const ROOT_PACKET: Path = Path::new("Root.packet");
     pub const ROOT_TAIL: Path = Path::new("Root (tail)");
     pub const LONG_CHOICE_TAG: Path = Path::new("LongChoice (tag)");
+    pub const ROWS_ROWS: Path = Path::new("Rows.rows");
+    pub const ROWS_TAIL: Path = Path::new("Rows (tail)");
+    pub const ROWS_NOTICE_PAYLOAD: Path = Path::new("RowsNotice.payload");
+    pub const ROWS_NOTICE_TAIL: Path = Path::new("RowsNotice (tail)");
+    pub const ROWS_EXCHANGE_PAYLOAD: Path = Path::new("RowsExchange.payload");
+    pub const ROWS_EXCHANGE_TAIL: Path = Path::new("RowsExchange (tail)");
 }
 
 // Type: Reference.
@@ -1214,6 +1226,157 @@ impl Record for LongChoice {
     }
 }
 
+// Type: Rows.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Rows {
+    pub rows: List<u32>,
+}
+
+// Record: Rows.
+impl Rows {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, rows_rows), item: 0, size: size_of::<u32>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for Rows {
+    type Limits = Limits;
+    const TAIL: Path = paths::ROWS_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Rows")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Rows")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Sequence { limit: limits.rows_rows.min(CEILINGS.rows_rows), minimum: 4, item: field::U32 }, &self.rows, limits, out, paths::ROWS_ROWS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            rows: field::read(field::Sequence { limit: limits.rows_rows.min(CEILINGS.rows_rows), minimum: 4, item: field::U32 }, limits, reader, paths::ROWS_ROWS)?,
+        })
+    }
+}
+
+// Type: RowsNotice.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RowsNotice {
+    pub payload: Rows,
+}
+
+// Record: RowsNotice.
+impl RowsNotice {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Rows"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for RowsNotice {
+    type Limits = Limits;
+    const TAIL: Path = paths::ROWS_NOTICE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RowsNotice")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RowsNotice")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.payload, limits, out, paths::ROWS_NOTICE_PAYLOAD)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            payload: field::read(field::Nested, limits, reader, paths::ROWS_NOTICE_PAYLOAD)?,
+        })
+    }
+}
+
+// Type: RowsExchange.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RowsExchange {
+    pub payload: Rows,
+}
+
+// Record: RowsExchange.
+impl RowsExchange {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Rows"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for RowsExchange {
+    type Limits = Limits;
+    const TAIL: Path = paths::ROWS_EXCHANGE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RowsExchange")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RowsExchange")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.payload, limits, out, paths::ROWS_EXCHANGE_PAYLOAD)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            payload: field::read(field::Nested, limits, reader, paths::ROWS_EXCHANGE_PAYLOAD)?,
+        })
+    }
+}
+
 // Bounds: one postordered shape per declaration, sorted by name.
 pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Checked", nodes: Checked::SHAPE },
@@ -1226,6 +1389,9 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Packet", nodes: Packet::SHAPE },
     skein_codec::bounds::Declaration { name: "Reference", nodes: Reference::SHAPE },
     skein_codec::bounds::Declaration { name: "Root", nodes: Root::SHAPE },
+    skein_codec::bounds::Declaration { name: "Rows", nodes: Rows::SHAPE },
+    skein_codec::bounds::Declaration { name: "RowsExchange", nodes: RowsExchange::SHAPE },
+    skein_codec::bounds::Declaration { name: "RowsNotice", nodes: RowsNotice::SHAPE },
     skein_codec::bounds::Declaration { name: "Shared", nodes: Shared::SHAPE },
 ];
 
@@ -1240,6 +1406,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.packet_padding,
     CEILINGS.packet_optional_items_some,
     CEILINGS.packet_events,
+    CEILINGS.rows_rows,
 ];
 
 #[must_use]

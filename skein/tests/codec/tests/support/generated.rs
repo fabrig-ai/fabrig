@@ -82,7 +82,8 @@ pub fn families() -> [Family; 10] {
         Family {
             name: "mapped",
             text: skein_codec_tests::MAPPED_SCHEMA,
-            roots: lean_roots!(skein_codec_tests::mapped_records; Reference, Label, Item, Empty, Shared, Checked, HandChoice, Event, Packet, Root, LongChoice),
+            roots: lean_roots!(skein_codec_tests::mapped_records; Reference, Label, Item, Empty, Shared, Checked, HandChoice, Event, Packet, Root, LongChoice,
+                Rows, RowsNotice, RowsExchange),
         },
         Family {
             name: "scalars",

@@ -29,8 +29,12 @@ NUM = r"\d+(?:\.\d+)*"
 SEP = r"(?:\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|\s+to\s+|\s*[–-]\s*)"
 SECTION = re.compile(r"(?:\A[ \t]*|^[ \t]*(?:- )?|(?<=\. )[ \t]*)"
                      r"(" + NUM + r"(?:" + SEP + NUM + r")*)\s*:(?!\d)", re.MULTILINE)
-# The tag ends the entry, as in tools/close/close.py's TAG.
-TAG = re.compile(r"\s\[in flight: [^\]\r\n]*\][.,;:!?]*[ \t\r]*$")
+# Keep the tag's form in step with tools/close/close.py's TAG.
+BREAK = r"(?<![ \t])[ \t]*\r?\n[ \t]+"
+SPACE = r"(?:" + BREAK + r"| )"
+TAG = re.compile(r"(?:" + BREAK + r"|[^\S\n])\[in" + SPACE + r"flight:"
+                 + SPACE + r"(?:[^\]\r\n]|\r?\n(?=[ \t]))*\]"
+                 r"[.,;:!?]*[ \t\r]*\n?\Z")
 PAGE = """# Status
 
 The status of each of TREE's design documents and drafts is beside it,

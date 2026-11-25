@@ -1,0 +1,6 @@
+records smith_channel::v14
+use c = crate::worker::credentials
+direction to record
+
+enum Scheme = c::Scheme
+record CredentialValue = c::Value { bytes = token }

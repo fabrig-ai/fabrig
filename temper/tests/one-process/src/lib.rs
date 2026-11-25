@@ -1,5 +1,4 @@
 //! The actual service, native client and hosted programs on the crashing machine.
-pub mod across_versions;
 mod box_listener;
 pub mod fixtures;
 pub mod golden;
@@ -9,6 +8,7 @@ pub mod lost;
 #[doc(hidden)]
 pub mod testing;
 pub mod upgrade;
+pub mod worker_openings;
 
 mod oracle;
 pub mod referee;

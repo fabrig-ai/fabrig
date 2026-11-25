@@ -1,8 +1,8 @@
-//! Completion sorting keeps io's queue across polls, and a spawn's directory goes
-//! beneath the session's root, without a kernel.
+//! Completion sorting keeps io's queue across polls, and Chromium's spawn
+//! is prepared without a kernel.
 use super::{Pump, ROOT_CLOSE, Report, page_report, take_root_close};
 use skein_browser::boundary::{Event, Trouble};
-use skein_io::kernel::{Complete, Done, Error, Op};
+use skein_io::kernel::{Complete, Done, Error, Fd, Op};
 use skein_lib::{Queue, Token};
 use std::path::Path;
 
@@ -124,4 +124,17 @@ fn a_spawn_directory_is_given_beneath_the_root() {
     ] {
         assert_eq!(&*Pump::beneath(Path::new(path)), beneath.as_bytes(), "{path}");
     }
+}
+
+#[test]
+fn chromium_keeps_home_but_not_the_session_tmpdir() {
+    let spawn = Pump::chromium_spawn(
+        Path::new("/usr/bin/chromium"),
+        Path::new("/scratch/session/browser"),
+        &[("HOME".into(), "/scratch/session/home".into()), ("TMPDIR".into(), "/scratch/session/tmp".into())],
+        Fd::new(0),
+    );
+
+    assert!(spawn.env.iter().all(|entry| !entry.starts_with(b"TMPDIR=")), "Chromium uses the host's temp directory");
+    assert!(spawn.env.iter().any(|entry| entry.as_ref() == b"HOME=/scratch/session/home"));
 }

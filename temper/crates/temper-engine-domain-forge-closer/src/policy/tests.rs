@@ -333,6 +333,55 @@ fn a_kept_closer_makes_no_new_step() {
 }
 
 #[test]
+fn an_idle_close_reopens_or_wakes_after_work_ends() {
+    const CLOSE: u64 = 20;
+    const PREVIOUS_LANDINGS: [u64; 1] = [9]; // The first of the two changes in facts().
+    // Pending work, new landings, held on failure, expected decision.
+    for (pending, new, held, expected) in [
+        (true, true, true, Decision::Wait),
+        (true, true, false, Decision::Wait),
+        (true, false, true, Decision::Wait),
+        (true, false, false, Decision::Wait),
+        (false, true, true, Decision::Supersede { change: CLOSE }),
+        (false, true, false, Decision::Supersede { change: CLOSE }),
+        (false, false, true, Decision::Wait),
+        (false, false, false, Decision::Wake { change: CLOSE }),
+    ] {
+        let mut f = facts();
+        f.pending = pending;
+        f.child = Child::Idle { held };
+        let mut c = Closer::new();
+        c.closed = Some(if new { Box::new(PREVIOUS_LANDINGS) } else { f.landed.clone() });
+        c.running = Some(Running { step: Step::Close, change: CLOSE });
+        let s = step(&c, &f);
+        assert_eq!(s.decision, expected, "pending {pending}, new landings {new}, held {held}");
+        assert_eq!(s.closer.closed, c.closed);
+        let running = if !pending && new { None } else { c.running };
+        assert_eq!(s.closer.running, running);
+    }
+}
+
+#[test]
+fn an_idle_close_cannot_bypass_the_report_hold() {
+    const CLOSE: u64 = 20;
+    for (closed, after_release) in
+        [([9, 10], Decision::Supersede { change: CLOSE }), ([9, 12], Decision::Wake { change: CLOSE })]
+    {
+        let mut f = facts();
+        f.child = Child::Idle { held: false };
+        f.report = ReportRead::Read(Some(b"the switch".as_slice().into()));
+        let mut c = Closer::new();
+        c.closed = Some(Box::new(closed));
+        c.running = Some(Running { step: Step::Close, change: CLOSE });
+        let held = step(&c, &f);
+        assert_eq!(held.decision, Decision::HoldReport);
+        assert_eq!(held.closer.running, c.running);
+        f.released = true;
+        assert_eq!(step(&held.closer, &f).decision, after_release);
+    }
+}
+
+#[test]
 fn new_work_closes_again_while_the_landing_is_live() {
     let mut f = facts();
     let mut c = Closer::new();

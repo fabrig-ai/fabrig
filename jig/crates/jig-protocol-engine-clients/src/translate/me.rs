@@ -1,29 +1,19 @@
 //! Served template and creating facts (protocol/configuration-templates.md, 1; client/domain/contract/documents.md, 1).
 use super::{objects, pieces, problem, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::acts;
 use jig_domain_people as p;
 use skein_lib::{List, bytes};
 fn executor(value: p::TemplateExecutor) -> w::TemplateExecutor {
-    match value {
-        p::TemplateExecutor::Charter(value) => w::TemplateExecutor::Charter(w::TemplateCharter { value }),
-        p::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
-    }
+    mapped::template_executor_to_record(&value)
 }
 fn budget(value: p::TemplateBudget) -> w::TemplateBudget {
-    match value {
-        p::TemplateBudget::Amount(value) => w::TemplateBudget::Amount(w::TemplateAmount { value }),
-        p::TemplateBudget::AsAllowed { cap } => w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap }),
-        p::TemplateBudget::Given => w::TemplateBudget::Given,
-    }
+    mapped::template_budget_to_record(&value)
 }
 fn deadline(value: p::TemplateDeadline) -> w::TemplateDeadline {
-    match value {
-        p::TemplateDeadline::None => w::TemplateDeadline::None,
-        p::TemplateDeadline::Span(value) => w::TemplateDeadline::Span(w::TemplateSpan { value }),
-        p::TemplateDeadline::Given => w::TemplateDeadline::Given,
-    }
+    mapped::template_deadline_to_record(&value)
 }
 
 pub fn templates(
@@ -47,22 +37,7 @@ pub fn templates(
 }
 
 pub(super) fn flags(value: jig_domain_tasks::Flags) -> w::TaskFlags {
-    w::TaskFlags {
-        ended_by: match value.ended_by {
-            jig_domain_tasks::EndedBy::Result => w::EndedBy::Result,
-            jig_domain_tasks::EndedBy::Requester => w::EndedBy::Requester,
-            jig_domain_tasks::EndedBy::Standing => w::EndedBy::Standing,
-            jig_domain_tasks::EndedBy::Closer(closer) => {
-                w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code })
-            }
-        },
-        conversation: value.conversation,
-        listed: value.listed,
-        retention: match value.retention {
-            jig_domain_tasks::Retention::Kept => w::Retention::Kept,
-            jig_domain_tasks::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
-        },
-    }
+    mapped::task_flags_to_record(&value)
 }
 pub fn creating(
     models: &[crate::Model],
@@ -84,23 +59,7 @@ pub fn creating(
 pub fn overrides(values: &List<p::TemplateOverride>) -> List<w::TemplateOverride> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        rows.push(w::TemplateOverride {
-            template: value.template,
-            executor: match value.executor {
-                Some(v) => Some(executor(v)),
-                None => None,
-            },
-            budget: match value.budget {
-                Some(v) => Some(budget(v)),
-                None => None,
-            },
-            deadline: match value.deadline {
-                Some(v) => Some(deadline(v)),
-                None => None,
-            },
-            priority: value.priority,
-        })
-        .expect("same capacity");
+        rows.push(mapped::template_override_to_record(value)).expect("same count");
     }
     rows
 }
@@ -112,7 +71,7 @@ pub(super) fn template(
 ) -> Result<w::Template, w::Problem> {
     let mut resources = List::with_capacity(super::count(value.resources.len())?);
     for item in &value.resources {
-        resources.push(w::Symbol { connector: item.connector, symbol: item.symbol }).expect("one row per symbol");
+        resources.push(mapped::symbol_to_record(item)).expect("one row per symbol");
     }
     Ok(w::Template {
         resources,

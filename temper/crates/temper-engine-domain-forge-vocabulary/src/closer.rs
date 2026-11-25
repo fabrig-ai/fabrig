@@ -9,6 +9,7 @@ pub struct CloserRow {
     pub closer: Closer,
     pub making: Option<Step>,
     pub close_changes: Box<[u64]>,
+    pub superseded: Box<[u64]>,
     pub landing_changes: Box<[u64]>,
     pub done: bool,
     pub relay: temper_engine_domain_forge_closer::relay::Relay,

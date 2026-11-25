@@ -51,37 +51,46 @@ fn a_part_waits_for_its_owner_to_acknowledge_it() {
     );
 }
 
-#[test]
-fn part_answers_are_sent_only_where_the_agreed_version_has_them() {
-    for version in [21, 22] {
-        let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
-        let mut peer = super::pause::peer(version);
-        peer.play(super::pause::hello(version));
-        let connection = world.connect(peer);
-        world.run();
-        let channel = super::pause::channel(&world);
-        let sent = world.observed(connection).len();
-        let before = world.root().len();
-        world.down(Event::Down {
+fn part_answer_at_layout(kind: wire::Kind, has_kind: bool) {
+    let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
+    let mut peer = if has_kind {
+        fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::APPLICATION_VERSION)
+    } else {
+        fixtures::worker_without(kind)
+    };
+    peer.play(fixtures::hello_frame());
+    let connection = world.connect(peer);
+    world.run();
+    let channel = super::pause::channel(&world);
+    let sent = world.observed(connection).len();
+    let before = world.root().len();
+    let event = match kind {
+        wire::Kind::PartKept => Event::Down {
             channel,
             down: host::LinkDown::PartKept { run: Token::new(7), attempt: Token::new(2), part: 3 },
             parts: Box::new([]),
             values: Box::new([]),
-        });
-        world.down(Event::PartBusy { channel, run: Token::new(7), attempt: Token::new(2), part: 4 });
-        world.run();
-        let sent = &world.observed(connection)[sent..];
-        if version == 22 {
-            assert_eq!(
-                sent.iter().map(|r| r.kind).collect::<Vec<_>>(),
-                [wire::Kind::PartKept.number(), wire::Kind::PartBusy.number()]
-            );
-        } else {
-            assert_eq!(sent.len(), 0, "no part answer at 21");
-        }
-        assert!(
-            !world.root()[before..].iter().any(|r| matches!(r, Request::Unsent { .. })),
-            "an absent optional kind is no mismatch"
-        );
+        },
+        wire::Kind::PartBusy => Event::PartBusy { channel, run: Token::new(7), attempt: Token::new(2), part: 4 },
+        _ => panic!("a part answer"),
+    };
+    world.down(event);
+    world.run();
+    let expected: &[u16] = if has_kind { &[kind.number()] } else { &[] };
+    assert_eq!(world.observed(connection)[sent..].iter().map(|r| r.kind).collect::<Vec<_>>(), expected);
+    assert!(world.root()[before..].is_empty(), "no diagnostic for an absent optional kind");
+}
+
+#[test]
+fn part_kept_is_sent_only_at_a_layout_that_has_it() {
+    for has_kind in [true, false] {
+        part_answer_at_layout(wire::Kind::PartKept, has_kind);
+    }
+}
+
+#[test]
+fn part_busy_is_sent_only_at_a_layout_that_has_it() {
+    for has_kind in [true, false] {
+        part_answer_at_layout(wire::Kind::PartBusy, has_kind);
     }
 }

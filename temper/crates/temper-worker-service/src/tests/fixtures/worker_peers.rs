@@ -101,13 +101,7 @@ impl LinkPeer {
                 jig_protocol_worker_wire::spoken(),
                 {
                     let mut wires = List::with_capacity(1);
-                    wires
-                        .push(jig_protocol_worker_wire::Spoken::current(
-                            temper_protocol_worker_wire::wire::FAMILY,
-                            temper_protocol_worker_wire::wire::VERSION,
-                            temper_protocol_worker_wire::wire::layout(),
-                        ))
-                        .unwrap();
+                    wires.push(temper_protocol_worker_wire::spoken()).unwrap();
                     jig_protocol_worker_wire::Application::opaque(wires)
                 },
             )
@@ -215,7 +209,9 @@ impl LinkPeer {
                 | engine_link::Request::Take { .. }
                 | engine_link::Request::Close { .. }
                 | engine_link::Request::Abort { .. } => {}
-                request @ engine_link::Request::Unsent { .. } => return Some(request),
+                request @ (engine_link::Request::Unsent { .. } | engine_link::Request::Unread { .. }) => {
+                    return Some(request);
+                }
                 request @ (engine_link::Request::Hello { .. } | engine_link::Request::Up { .. }) => {
                     if let engine_link::Request::Hello { .. } = &request {
                         self.records.push(LinkRecord::Hello).expect("bounded link records");

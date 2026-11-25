@@ -6,70 +6,53 @@ use jig_worker_link_world::{World, fixtures};
 use skein_lib::Duration;
 
 #[test]
-fn parts_are_requested_and_sent_only_at_twenty_two_and_acknowledged_back() {
-    for version in [21, 22] {
-        let mut world = super::translation::world(version, smith_charter::wire::VERSION, 1);
-        world.acknowledge(false);
-        let mut assignment = fixtures::assignment();
-        assignment.assignment.charter = super::translation::charter(1);
-        assignment.turns = Box::new([]);
-        world.engine_down(
-            host::LinkDown::Assign { assignment },
-            fixtures::assignment_parts(),
-            crate::joined_world::values(),
-        );
-        world.run();
-        let Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
-            world.worker_root.last().expect("assignment")
-        else {
-            panic!("assignment")
-        };
-        assert_eq!(assignment.tell_parts, version == 22);
-        assert!(assignment.parts.is_empty());
-        let before = world.worker_records().len();
-        let body = super::translation::fixed_value(
-            smith_transcript::patches::kept::smith_transcript::TEXTS.last().unwrap(),
-            "record_turn_smallest",
-        );
-        world.worker_up(
-            host::LinkUp::Part {
-                run: fixtures::RUN_SEVEN,
-                attempt: fixtures::ATTEMPT_TWO,
-                part: jig_domain_link::Part {
-                    number: 3,
-                    turn: 1,
-                    thread: 0,
-                    call: 4,
-                    kind: jig_domain_link::PartKind::Answer,
-                    body,
-                },
+fn parts_are_requested_sent_and_acknowledged_where_terms_hold_them() {
+    let mut world = crate::joined_world::Joined::new(&fixtures::limits(), 1);
+    world.run();
+    world.acknowledge(false);
+    let mut assignment = fixtures::assignment();
+    assignment.turns = Box::new([]);
+    world.engine_down(
+        host::LinkDown::Assign { assignment },
+        fixtures::assignment_parts(),
+        crate::joined_world::values(),
+    );
+    world.run();
+    let Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
+        world.worker_root.last().expect("assignment")
+    else {
+        panic!("assignment")
+    };
+    assert!(assignment.tell_parts);
+    assert!(assignment.parts.is_empty());
+    let before = world.worker_records().len();
+    world.worker_up(
+        host::LinkUp::Part {
+            run: fixtures::RUN_SEVEN,
+            attempt: fixtures::ATTEMPT_TWO,
+            part: jig_domain_link::Part {
+                number: 3,
+                turn: 1,
+                thread: 0,
+                call: 4,
+                kind: jig_domain_link::PartKind::Answer,
+                body: b"body".as_slice().into(),
             },
-            Box::new([]),
-        );
-        world.run();
-        if version == 22 {
-            assert_eq!(world.worker_records().get(before..), Some([wire::Kind::Part.number()].as_slice()));
-            world.engine_down(
-                host::LinkDown::PartKept { run: fixtures::RUN_SEVEN, attempt: fixtures::ATTEMPT_TWO, part: 3 },
-                Box::new([]),
-                Box::new([]),
-            );
-            world.run();
-            assert!(world.worker_root.iter().any(|r| matches!(r, Request::Down {
-                down: host::LinkDown::PartKept { run, attempt, part: 3 }, ..
-            } if *run == fixtures::RUN_SEVEN && *attempt == fixtures::ATTEMPT_TWO)));
-        } else {
-            assert_eq!(world.worker_records().len(), before);
-            assert!(!world.engine_records().contains(&wire::Kind::PartKept.number()));
-            assert!(
-                world.worker_root.iter().any(|r| matches!(r, Request::Down {
-                down: host::LinkDown::PartKept { run, attempt, part: 3 }, ..
-            } if *run == fixtures::RUN_SEVEN && *attempt == fixtures::ATTEMPT_TWO)),
-                "an older link releases what it cannot carry"
-            );
-        }
-        world.finish();
-    }
+        },
+        Box::new([]),
+    );
+    world.run();
+    assert_eq!(world.worker_records().get(before..), Some([wire::Kind::Part.number()].as_slice()));
+    world.engine_down(
+        host::LinkDown::PartKept { run: fixtures::RUN_SEVEN, attempt: fixtures::ATTEMPT_TWO, part: 3 },
+        Box::new([]),
+        Box::new([]),
+    );
+    world.run();
+    assert!(world.worker_root.iter().any(|r| matches!(r, Request::Down {
+        down: host::LinkDown::PartKept { run, attempt, part: 3 }, ..
+    } if *run == fixtures::RUN_SEVEN && *attempt == fixtures::ATTEMPT_TWO)));
+    world.finish();
 }
 
 #[test]

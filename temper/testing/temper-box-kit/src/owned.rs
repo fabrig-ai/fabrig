@@ -45,7 +45,7 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
 
 #[must_use]
 pub fn prepare_command(directory: &Path, forge: u16) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     command
         .args(["forge", "prepare"])
         .args(super::configuration::flags(directory))
@@ -343,7 +343,7 @@ impl Programs {
 }
 #[must_use]
 pub fn command(directory: &Path, program: &str) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     command
         .args(["forge", "run"])
         .args(super::configuration::flags(directory))
@@ -852,7 +852,6 @@ impl Bounded {
             &self.seeds,
             Some(self.accounts()),
             Some(temper_service::WorkerRuntime {
-                wires: None,
                 root: skein_io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: temper_playground::documents::pinned_agent(),

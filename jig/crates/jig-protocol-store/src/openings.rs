@@ -1,5 +1,5 @@
 //! Openings are read only for rehearsal and erased by Wires (protocol/store/records.md 3).
-use crate::{CommitCheck, Store, WorkerOpening, keys, pages};
+use crate::{CommitCheck, KeptOpening, Store, keys, pages, rows};
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -39,16 +39,22 @@ fn erase(ops: &mut List<skein_kv::Op>, key: Box<[u8]>) -> Option<()> {
     ops.push(skein_kv::Op::Erase { key }).ok()
 }
 
-pub(crate) fn kept(store: &mut Store) -> Option<Box<[WorkerOpening]>> {
+pub(crate) fn kept(store: &mut Store) -> Option<Box<[KeptOpening]>> {
     let mut openings = List::with_capacity(store.stores.store.len());
     let mut start: Box<[u8]> = Box::new([keys::COMPONENT, 5]);
     for _ in 0..=store.stores.store.len() {
         let page = pages::load(store, range(start)).ok()?;
         for row in page.rows {
-            let opening = crate::rows::openings::decode(&row.value)?;
-            if keys::decode_own(&row.key)? != keys::Own::Opening(opening.worker.clone()) {
-                return None;
-            }
+            let keys::Own::Opening(worker) = keys::decode_own(&row.key)? else { return None };
+            let opening = if rows::openings::before_layouts(&row.value) {
+                KeptOpening::BeforeLayouts { worker }
+            } else {
+                let opening = rows::openings::decode(&row.value)?;
+                if opening.worker != worker {
+                    return None;
+                }
+                KeptOpening::Current(opening)
+            };
             // The escaped name suffix preserves the workers' names' order.
             openings.push(opening).ok()?;
         }

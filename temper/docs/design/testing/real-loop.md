@@ -95,64 +95,15 @@ never here (`../draft/slow-tests-down.md`, 4).
   together, forming one landing by `turn` at a `batch` of two and
   landing on one green gate, are the engine's domain world's
   (`../domain/landing.md`, 16).
-- **Moved below** (`../draft/slow-tests-down.md`, 5.4), each former
-  story's checks held by the lower tests named, none of them by
-  failure-worlds' workloads (`../draft/failure-worlds.md`, 5), which
-  may vary them once they land, since each is a pinned path whose
-  oracle a random workload would not keep:
-  - the shipped agent fitting Standard's page with its derived
-    carriers: a step test of this world's library;
-  - a second world in the same process numbering its tasks from one:
-    the engine's domain world, two stores each numbering their first
-    two tasks from one;
-  - a run's live text and a chat's committed reply, read on the line
-    terminal's pages: the client world (`tiers.md`, 1.1), beside the
-    view's step tests and the system world's live text; the terminal
-    signed in by the fresh link printed for a spent one, its DIRECTORY
-    private to its user: the one-process world (`tiers.md`, 1.5);
-  - `chat show` printing a reply only once its turn commits:
-    `temper-client-shell-cli`'s step tests, beside the client world's
-    activity cursor; a signed-in DIRECTORY private to its user, and two
-    end waits open while `me` answers: the one-process world;
-  - a chat's document rewritten whole after its person's follow-up: the
-    system world, its turns and activity as `ctl` prints them
-    `temper-client-tools`' step tests;
-  - a repository adopted through `ctl`, and a hooked repository's
-    webhook answered `204` by the engine's listener: the one-process
-    world;
-  - GitHub's stories: the one-process world's (`tiers.md`, 1.5), with
-    a landing's halves in the forge's protocol world (one pull opened
-    and merged by the App's bot at the checked head), the engine's
-    domain world (two party reads of a landed change's one result), the
-    system world (a chat's reply after hearing the landing), and
-    `temper-client-tools`' and the TUI's tests (an ended change as JSON,
-    the committed reply in its chat);
-  - a model's request hung by its provider after a shell call: the
-    one-process world; the worker's endpoint bounds beside its stock
-    retries, a step test of `temper-worker-shell`;
-  - the judge's forced overdue, and a busy world failing through it:
-    this world's library's step tests, over its checker with scripted
-    records and time;
-  - the ladder's twins, B0's green light and B1's repair: the system
-    world (`tiers.md`, 1.1);
-  - a chat on a program's source landing its change and resuming its
-    session: the one-process world;
-  - a private file's key reaching a chat's model; a call whose answer
-    was lost, asked again under its name from another DIRECTORY; a
-    welcome's model check on a program's source; a service started
-    again on its directory, keeping its chat's reply and its settings:
-    the one-process world;
-  - two one-slot workers each running a chat to its end: the system
-    world; two workers alone taking their figures, linking once and
-    draining: the one-process world; the figures line, a step test of
-    `temper-worker-shell`;
-  - a person's latch answered once, releasing the batch waiting on it:
-    the system world; the turn-landing setup's red top: the forge
-    connector's world (`tests/engine/forge`), its two reviewed changes
-    behind one live latch the engine's domain world's;
-  - a chat made after its home's adoption, delivering to its own run
-    branch: the system world, ignored until a chat's `deliver` before
-    its end is built (`../domain/agent/tools.md`).
+- **Moved below** (`../draft/slow-tests-down.md`, 5.4): each former
+  story, beside the lower tests holding its assertions, is in
+  `../../development/slow-tests-moves-2026-11-24-temper-real-loop.md`.
+  None is held by failure-worlds' workloads
+  (`../draft/failure-worlds.md`, 5), which may vary them once they
+  land, since each is a pinned path whose oracle a random workload
+  would not keep. A drained service leaving nothing for the next one
+  in its process is the one-process world's (`tiers.md`, 1.5): the real
+  loop keeps the native drain and lock alone.
 
 ## 3. Accounts and sign-in
 

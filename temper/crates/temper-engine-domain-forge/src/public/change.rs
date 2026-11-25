@@ -1,6 +1,9 @@
 //! The change source table (temper/docs/design/client/forge/README.md, 9.3).
 use super::{Names, PublicAsk, w};
-use crate::{ChangeRow, Domain, Limits};
+use crate::{
+    ChangeRow, Domain, Limits, PanelGate, PanelUsed,
+    generated::public::{public_ci_to_record, public_gate_to_record, public_used_to_record, public_way_to_record},
+};
 use skein_lib::List;
 use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_change as c;
@@ -46,21 +49,12 @@ impl Domain {
                 verdict = worse(verdict, c::Status::Pending);
             }
             gates
-                .push(w::PublicGate {
+                .push(public_gate_to_record(&PanelGate {
                     number: gate.number,
-                    kind: match gate.kind {
-                        c::GateKind::Agent => w::PublicGateKind::Review,
-                        c::GateKind::Person => w::PublicGateKind::Approval,
-                        c::GateKind::Check | c::GateKind::Follow => w::PublicGateKind::Check,
-                    },
-                    blocks: gate.blocking,
-                    verdict: match verdict {
-                        c::Status::Unknown => w::PublicVerdict::None,
-                        c::Status::Pending => w::PublicVerdict::Pending,
-                        c::Status::Passed => w::PublicVerdict::Approved,
-                        c::Status::Failed => w::PublicVerdict::Changes,
-                    },
-                })
+                    kind: gate.kind,
+                    blocking: gate.blocking,
+                    verdict,
+                }))
                 .ok()?;
         }
         let ci = match if row.terminal() { row.ci.as_ref() } else { self.panel_ci.get(&row.task) } {
@@ -80,20 +74,12 @@ impl Domain {
                 merge: step.merge,
                 tiers: step.tiers,
                 hold,
-                ci: match ci {
-                    c::Status::Unknown => w::PublicCi::Unknown,
-                    c::Status::Pending => w::PublicCi::Pending,
-                    c::Status::Passed => w::PublicCi::Passed,
-                    c::Status::Failed => w::PublicCi::Failed,
-                },
+                ci: public_ci_to_record(&ci),
                 gates,
                 repairs: used(row.change.repairs, limits.change_policy.repairs)?,
                 resolutions: used(row.change.resolutions, limits.change_policy.resolutions)?,
                 updates: used(row.change.updates, limits.change_policy.updates)?,
-                way: match row.change.way {
-                    c::Way::Queue => w::PublicWay::Queue,
-                    c::Way::Turn => w::PublicWay::Turn,
-                },
+                way: public_way_to_record(&row.change.way),
                 in_landing,
             };
             value.measure(l).ok()?;
@@ -166,7 +152,7 @@ impl Domain {
 }
 fn used(used: u32, limit: u32) -> Option<w::PublicUsed> {
     {
-        let value = w::PublicUsed { used, limit };
+        let value = public_used_to_record(&PanelUsed { used, limit });
         value.measure(&w::CEILINGS).ok()?;
         Some(value)
     }

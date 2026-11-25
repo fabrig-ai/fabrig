@@ -32,6 +32,7 @@ pub(crate) fn start(
     let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { return false };
     let released = is_release(domain, task);
     if released {
+        super::close::retire_on_release(domain, env, decision, task);
         domain
             .forge_delegating
             .insert(

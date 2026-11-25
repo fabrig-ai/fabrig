@@ -8,7 +8,9 @@ pub const SECRET_A: &[u8] = b"secret-a";
 #[must_use]
 pub fn application() -> skein_lib::List<wire::Spoken> {
     let mut wires = skein_lib::List::with_capacity(1);
-    wires.push(wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    let text = "family test-worker-wire 3\nrecord Test { value: u32 note: u8 = 0 }\n";
+    let layout = skein_codec::schema::parse(text.as_bytes()).expect("test wire").fingerprints().family().digest();
+    wires.push(wire::Spoken { name: "test-worker-wire", version: 3, layout, text }).expect("application wire");
     wires
 }
 pub const SEED_ONE: u64 = 1;
@@ -115,60 +117,8 @@ fn prepared_spoken() -> &'static List<wire::Spoken> {
     SPOKEN.get_or_init(wire::spoken)
 }
 fn peer(schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
-    let mut peer = skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Responder,
-        engine_channel_limits(),
-        wire::VERSION,
-        Box::new([]),
-    )
-    .expect("scripted engine");
-    peer.play(agreement());
-    peer
-}
-#[must_use]
-pub fn agreement() -> skein_channel::Frame {
-    frame(0x018d, prepared_agreement_body())
-}
-fn prepared_agreement_body() -> &'static [u8] {
-    static BODY: std::sync::OnceLock<Box<[u8]>> = std::sync::OnceLock::new();
-    BODY.get_or_init(|| {
-        let mut wires = List::with_capacity(5);
-        for spoken in prepared_spoken() {
-            wires
-                .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
-                .expect("four jig wires");
-        }
-        wires
-            .push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 })
-            .expect("application wire");
-        let record = wire::v22::Agreed { wires };
-        let mut body = Writer::new(skein_lib::length::usize_of(
-            record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
-        ));
-        record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
-        body.finish()
-    })
-}
-#[must_use]
-pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-    let record = wire::v22::Agreed { wires };
-    let mut body = Writer::new(skein_lib::length::usize_of(
-        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
-    ));
-    record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
-    let mut frame = skein_channel::frame_writer(
-        0x018d,
-        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
-    )
-    .expect("frame");
-    frame.put(&body.finish()).expect("body");
-    frame.finish().expect("measured frame")
-}
-#[must_use]
-pub fn engine_without_statement() -> skein_fake_channel::ScriptedPeer {
     skein_fake_channel::ScriptedPeer::new(
-        schema(),
+        schema,
         skein_channel::Role::Responder,
         engine_channel_limits(),
         wire::VERSION,
@@ -176,6 +126,16 @@ pub fn engine_without_statement() -> skein_fake_channel::ScriptedPeer {
     )
     .expect("scripted engine")
 }
+
+/// The engine's terms do not advertise this sending kind of the worker's.
+#[must_use]
+pub fn engine_without_term(kind: wire::Kind) -> skein_fake_channel::ScriptedPeer {
+    let mut schema = schema();
+    let table = schema.versions.get_mut(0).expect("one version");
+    table.kinds = List::from_boxed(table.kinds.iter().copied().filter(|rule| rule.kind != kind.number()).collect());
+    peer(schema)
+}
+
 #[must_use]
 pub fn engine_accepting() -> skein_fake_channel::ScriptedPeer {
     peer(schema())
@@ -481,16 +441,8 @@ pub fn engine_accepting_with(limits: &Limits) -> skein_fake_channel::ScriptedPee
         output_frames: cap.frames,
         ..jig_protocol_worker_link::channel_limits(limits).expect("channel limits")
     };
-    let mut engine = skein_fake_channel::ScriptedPeer::new(
-        schema,
-        skein_channel::Role::Responder,
-        channel,
-        wire::VERSION,
-        Box::new([]),
-    )
-    .expect("engine");
-    engine.play(agreement());
-    engine
+    skein_fake_channel::ScriptedPeer::new(schema, skein_channel::Role::Responder, channel, wire::VERSION, Box::new([]))
+        .expect("engine")
 }
 
 #[must_use]

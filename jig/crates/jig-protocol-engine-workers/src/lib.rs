@@ -5,15 +5,19 @@ extern crate alloc;
 pub mod boundary;
 mod component;
 mod connection;
+#[rustfmt::skip]
+mod generated {
+    #[expect(clippy::trivially_copy_pass_by_ref, reason = "skein-codegen borrows every domain value on the way to the record")]
+    pub(crate) mod worker_wire;
+}
 pub mod host;
 pub mod limits;
 mod opening;
 mod statement;
 mod translate;
 mod unencoded;
-mod wires;
 pub use boundary::{Bound, Event, GrantValue, Loss, Request, Scheme, Unsent, Worker};
-pub use component::{Component, Unusable};
+pub use component::{Component, PreparedWires, Unusable};
 pub use limits::{Limits, Timers, valid};
 pub use statement::{Stated, Statement, Unfit, judge};
 pub use unencoded::Unencoded;

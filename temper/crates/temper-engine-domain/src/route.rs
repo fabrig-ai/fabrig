@@ -473,7 +473,6 @@ fn route_core_with_job(
                 limit_settings::saved(domain, env, decision, &record);
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
-                forge_route::close_saved(domain, &record);
                 forge_route::job_history::saved(domain, &record, job_answer);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);

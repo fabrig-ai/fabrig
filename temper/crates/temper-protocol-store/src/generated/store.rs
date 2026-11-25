@@ -9551,48 +9551,73 @@ pub fn regate_to_domain(record: crate::v25::Regate) -> temper_engine_domain_forg
     }
 }
 
+#[must_use]
+pub fn close_at_to_record(value: &temper_engine_domain_forge_change::CloseAt) -> crate::v25::CloseAt {
+    let temper_engine_domain_forge_change::CloseAt { branch: field_000000, landing: field_000001 } = value;
+    crate::v25::CloseAt {
+        branch: *field_000000,
+        landing: *field_000001
+    }
+}
+
+#[must_use]
+pub fn close_at_to_domain(record: crate::v25::CloseAt) -> temper_engine_domain_forge_change::CloseAt {
+    let crate::v25::CloseAt { branch: field_000000, landing: field_000001 } = record;
+    temper_engine_domain_forge_change::CloseAt {
+        branch: field_000000,
+        landing: field_000001
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::ChangeHot) -> Result<crate::v25::ChangeHot, crate::v25::Problem> {
-    let temper_engine_domain_forge_vocabulary::ChangeHot { room: field_000000, delegate_head: field_000001, delegate_flake: field_000002, delegate_no_test: field_000003, regate: field_000004, kept: field_000005, task_release: field_000006, job: field_000007, signed: field_000008, ending: field_000009, repair_tasks: field_000010, resolution_tasks: field_000011, result: field_000012, task: field_000013, priority: field_000014, change: field_000015, ci: field_000016, pull: field_000017, pending: field_000018, effect: field_000019, delegate: field_000020, delegate_status: field_000021, spec_revision: field_000022, gate_revision: field_000023, verdicts: field_000024, gate_remarks: field_000025, drift: field_000026, queue_repair: field_000027, queue_repairs: field_000028, effect_account: field_000029, producer_failure: field_000030, questions: field_000031, follow_check: field_000032, merge_result: field_000033, history: field_000034 } = value;
+    let temper_engine_domain_forge_vocabulary::ChangeHot { close_at: field_000000, room: field_000001, delegate_head: field_000002, delegate_flake: field_000003, delegate_no_test: field_000004, regate: field_000005, kept: field_000006, task_release: field_000007, job: field_000008, signed: field_000009, ending: field_000010, repair_tasks: field_000011, resolution_tasks: field_000012, result: field_000013, task: field_000014, priority: field_000015, change: field_000016, ci: field_000017, pull: field_000018, pending: field_000019, effect: field_000020, delegate: field_000021, delegate_status: field_000022, spec_revision: field_000023, gate_revision: field_000024, verdicts: field_000025, gate_remarks: field_000026, drift: field_000027, queue_repair: field_000028, queue_repairs: field_000029, effect_account: field_000030, producer_failure: field_000031, questions: field_000032, follow_check: field_000033, merge_result: field_000034, history: field_000035 } = value;
     Ok(crate::v25::ChangeHot {
-        room: match field_000000 {
+        close_at: match field_000000 {
+            Some(item) => {
+                let converted = close_at_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        room: match field_000001 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        delegate_head: match field_000001 {
+        delegate_head: match field_000002 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        delegate_flake: *field_000002,
-        delegate_no_test: *field_000003,
-        regate: match field_000004 {
+        delegate_flake: *field_000003,
+        delegate_no_test: *field_000004,
+        regate: match field_000005 {
             Some(item) => {
                 let converted = regate_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        kept: match field_000005 {
+        kept: match field_000006 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        task_release: match field_000006 {
+        task_release: match field_000007 {
             Some(item) => {
                 let converted = task_release_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        job: match field_000007 {
+        job: match field_000008 {
             Some(item) => {
                 let converted = crate::records::by_hand::history_job_record_to_record(item);
                 Some(converted)
@@ -9600,7 +9625,7 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
             None => None,
         },
         signed: {
-            let source = field_000008;
+            let source = field_000009;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_SIGNED.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
@@ -9609,7 +9634,7 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
             }
             translated
         },
-        ending: match field_000009 {
+        ending: match field_000010 {
             Some(item) => {
                 let converted = change_ending_to_record(item);
                 Some(converted)
@@ -9617,7 +9642,7 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
             None => None,
         },
         repair_tasks: {
-            let source = field_000010;
+            let source = field_000011;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_REPAIR_TASKS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
@@ -9627,7 +9652,7 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
             translated
         },
         resolution_tasks: {
-            let source = field_000011;
+            let source = field_000012;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_RESOLUTION_TASKS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
@@ -9636,44 +9661,44 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
             }
             translated
         },
-        result: change_result_to_record(field_000012),
-        task: *field_000013,
-        priority: crate::converters::signed_to_record(field_000014),
-        change: crate::records::by_hand::change_to_record(field_000015),
-        ci: match field_000016 {
+        result: change_result_to_record(field_000013),
+        task: *field_000014,
+        priority: crate::converters::signed_to_record(field_000015),
+        change: crate::records::by_hand::change_to_record(field_000016),
+        ci: match field_000017 {
             Some(item) => {
                 let converted = change_ci_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        pull: match field_000017 {
+        pull: match field_000018 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        pending: match field_000018 {
+        pending: match field_000019 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        effect: effect_result_to_record(field_000019),
-        delegate: match field_000020 {
+        effect: effect_result_to_record(field_000020),
+        delegate: match field_000021 {
             Some(item) => {
                 let converted = crate::records::by_hand::delegate_ref_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        delegate_status: change_status_to_record(field_000021),
-        spec_revision: *field_000022,
-        gate_revision: *field_000023,
+        delegate_status: change_status_to_record(field_000022),
+        spec_revision: *field_000023,
+        gate_revision: *field_000024,
         verdicts: {
-            let source = field_000024;
+            let source = field_000025;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_VERDICTS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
@@ -9683,7 +9708,7 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
             translated
         },
         gate_remarks: {
-            let source = field_000025;
+            let source = field_000026;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::CHANGE_HOT_GATE_REMARKS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
@@ -9692,51 +9717,51 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
             }
             translated
         },
-        drift: match field_000026 {
+        drift: match field_000027 {
             Some(item) => {
                 let converted = change_hold_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        queue_repair: match field_000027 {
+        queue_repair: match field_000028 {
             Some(item) => {
                 let converted = *item;
                 Some(converted)
             }
             None => None,
         },
-        queue_repairs: *field_000028,
-        effect_account: match field_000029 {
+        queue_repairs: *field_000029,
+        effect_account: match field_000030 {
             Some(item) => {
                 let converted = effect_account_to_record(item);
                 Some(converted)
             }
             None => None,
         },
-        producer_failure: match field_000030 {
+        producer_failure: match field_000031 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
             }
             None => None,
         },
-        questions: questions_to_record(field_000031)?,
-        follow_check: match field_000032 {
+        questions: questions_to_record(field_000032)?,
+        follow_check: match field_000033 {
             Some(item) => {
                 let converted = follow_check_progress_to_record(item)?;
                 Some(converted)
             }
             None => None,
         },
-        merge_result: match field_000033 {
+        merge_result: match field_000034 {
             Some(item) => {
                 let converted = item.clone();
                 Some(converted)
             }
             None => None,
         },
-        history: match field_000034 {
+        history: match field_000035 {
             Some(item) => {
                 let converted = change_history_to_record(item);
                 Some(converted)
@@ -9748,46 +9773,53 @@ pub fn change_hot_to_record(value: &temper_engine_domain_forge_vocabulary::Chang
 
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engine_domain_forge_vocabulary::ChangeHot, crate::v25::Problem> {
-    let crate::v25::ChangeHot { room: field_000000, delegate_head: field_000001, delegate_flake: field_000002, delegate_no_test: field_000003, regate: field_000004, kept: field_000005, task_release: field_000006, job: field_000007, signed: field_000008, ending: field_000009, repair_tasks: field_000010, resolution_tasks: field_000011, result: field_000012, task: field_000013, priority: field_000014, change: field_000015, ci: field_000016, pull: field_000017, pending: field_000018, effect: field_000019, delegate: field_000020, delegate_status: field_000021, spec_revision: field_000022, gate_revision: field_000023, verdicts: field_000024, gate_remarks: field_000025, drift: field_000026, queue_repair: field_000027, queue_repairs: field_000028, effect_account: field_000029, producer_failure: field_000030, questions: field_000031, follow_check: field_000032, merge_result: field_000033, history: field_000034 } = record;
+    let crate::v25::ChangeHot { close_at: field_000000, room: field_000001, delegate_head: field_000002, delegate_flake: field_000003, delegate_no_test: field_000004, regate: field_000005, kept: field_000006, task_release: field_000007, job: field_000008, signed: field_000009, ending: field_000010, repair_tasks: field_000011, resolution_tasks: field_000012, result: field_000013, task: field_000014, priority: field_000015, change: field_000016, ci: field_000017, pull: field_000018, pending: field_000019, effect: field_000020, delegate: field_000021, delegate_status: field_000022, spec_revision: field_000023, gate_revision: field_000024, verdicts: field_000025, gate_remarks: field_000026, drift: field_000027, queue_repair: field_000028, queue_repairs: field_000029, effect_account: field_000030, producer_failure: field_000031, questions: field_000032, follow_check: field_000033, merge_result: field_000034, history: field_000035 } = record;
     Ok(temper_engine_domain_forge_vocabulary::ChangeHot {
-        room: match field_000000 {
+        close_at: match field_000000 {
+            Some(item) => {
+                let converted = close_at_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        room: match field_000001 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        delegate_head: match field_000001 {
+        delegate_head: match field_000002 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        delegate_flake: field_000002,
-        delegate_no_test: field_000003,
-        regate: match field_000004 {
+        delegate_flake: field_000003,
+        delegate_no_test: field_000004,
+        regate: match field_000005 {
             Some(item) => {
                 let converted = regate_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        kept: match field_000005 {
+        kept: match field_000006 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        task_release: match field_000006 {
+        task_release: match field_000007 {
             Some(item) => {
                 let converted = task_release_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        job: match field_000007 {
+        job: match field_000008 {
             Some(item) => {
                 let converted = crate::records::by_hand::history_job_record_to_domain(item);
                 Some(converted)
@@ -9795,7 +9827,7 @@ pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engi
             None => None,
         },
         signed: {
-            let source = field_000008;
+            let source = field_000009;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
@@ -9804,7 +9836,7 @@ pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engi
             }
             Box::from(translated)
         },
-        ending: match field_000009 {
+        ending: match field_000010 {
             Some(item) => {
                 let converted = change_ending_to_domain(item);
                 Some(converted)
@@ -9812,16 +9844,6 @@ pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engi
             None => None,
         },
         repair_tasks: {
-            let source = field_000010;
-            let count = source.len();
-            let mut translated = skein_lib::List::with_capacity(count);
-            for item in source.into_boxed() {
-                let converted = item;
-                assert!(translated.push(converted).is_ok(), "one output per source item");
-            }
-            Box::from(translated)
-        },
-        resolution_tasks: {
             let source = field_000011;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
@@ -9831,44 +9853,54 @@ pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engi
             }
             Box::from(translated)
         },
-        result: change_result_to_domain(field_000012),
-        task: field_000013,
-        priority: crate::converters::signed_to_domain(field_000014),
-        change: crate::records::by_hand::change_to_domain(field_000015),
-        ci: match field_000016 {
+        resolution_tasks: {
+            let source = field_000012;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        result: change_result_to_domain(field_000013),
+        task: field_000014,
+        priority: crate::converters::signed_to_domain(field_000015),
+        change: crate::records::by_hand::change_to_domain(field_000016),
+        ci: match field_000017 {
             Some(item) => {
                 let converted = change_ci_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        pull: match field_000017 {
+        pull: match field_000018 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        pending: match field_000018 {
+        pending: match field_000019 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        effect: effect_result_to_domain(field_000019),
-        delegate: match field_000020 {
+        effect: effect_result_to_domain(field_000020),
+        delegate: match field_000021 {
             Some(item) => {
                 let converted = crate::records::by_hand::delegate_ref_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        delegate_status: change_status_to_domain(field_000021),
-        spec_revision: field_000022,
-        gate_revision: field_000023,
+        delegate_status: change_status_to_domain(field_000022),
+        spec_revision: field_000023,
+        gate_revision: field_000024,
         verdicts: {
-            let source = field_000024;
+            let source = field_000025;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
@@ -9878,7 +9910,7 @@ pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engi
             Box::from(translated)
         },
         gate_remarks: {
-            let source = field_000025;
+            let source = field_000026;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
@@ -9887,51 +9919,51 @@ pub fn change_hot_to_domain(record: crate::v25::ChangeHot) -> Result<temper_engi
             }
             Box::from(translated)
         },
-        drift: match field_000026 {
+        drift: match field_000027 {
             Some(item) => {
                 let converted = change_hold_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        queue_repair: match field_000027 {
+        queue_repair: match field_000028 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        queue_repairs: field_000028,
-        effect_account: match field_000029 {
+        queue_repairs: field_000029,
+        effect_account: match field_000030 {
             Some(item) => {
                 let converted = effect_account_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        producer_failure: match field_000030 {
+        producer_failure: match field_000031 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        questions: questions_to_domain(field_000031)?,
-        follow_check: match field_000032 {
+        questions: questions_to_domain(field_000032)?,
+        follow_check: match field_000033 {
             Some(item) => {
                 let converted = follow_check_progress_to_domain(item);
                 Some(converted)
             }
             None => None,
         },
-        merge_result: match field_000033 {
+        merge_result: match field_000034 {
             Some(item) => {
                 let converted = item;
                 Some(converted)
             }
             None => None,
         },
-        history: match field_000034 {
+        history: match field_000035 {
             Some(item) => {
                 let converted = change_history_to_domain(item);
                 Some(converted)

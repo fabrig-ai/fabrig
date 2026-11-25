@@ -13,17 +13,14 @@ fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
         data,
         &service::stock::providers(),
     );
+    let trust = skein_tls_kit::pki::client(&[]);
     let agent = temper_worker_shell::agent::prepare_bytes_resolving(
         serde_json::to_vec(&agent).expect("template agent JSON").into_boxed_slice(),
         |_| Ok(()),
         |decoded| {
             decoded.resolve_with(
                 |address| Ok(address.parse().unwrap_or_else(|_| ([127, 0, 0, 1], 9).into())),
-                |_, _| {
-                    let (trust, _) =
-                        skein_tls::Config::from_der(&[skein_tls_kit::pki::ROOT.into()], &[]).expect("fixture trust");
-                    Ok(trust)
-                },
+                Some(&trust),
                 |_| None,
             )
         },

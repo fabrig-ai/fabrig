@@ -28,7 +28,6 @@ pub(super) struct Parsed {
     listener: skein_io::Addr,
     bundle: Option<Box<[u8]>>,
     worker_defaults: Box<[jig_domain_core::settings::WorkerSetting]>,
-    schema: Option<skein_channel::Schema>,
 }
 
 fn problem(path: Path, what: What) -> Problems {
@@ -200,7 +199,6 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
     let first = connector_config(document, *items.get(0).expect("two connectors"), 0, &limits.root.connector)?;
     let second = connector_config(document, *items.get(1).expect("two connectors"), 1, &limits.root.connector)?;
     Ok(Parsed {
-        schema: None,
         engine,
         limits,
         first: first.0,
@@ -407,11 +405,10 @@ fn application(parsed: &Parsed, files: &Files) -> Result<skein_lib::Map<(u32, u6
     Ok(application)
 }
 
-#[expect(clippy::too_many_lines, reason = "startup composes fresh per-reader components from admitted configuration")]
 pub(super) fn engine_startup(
     mut parsed: Parsed,
     files: &Files,
-    _agent: Option<&Agent>,
+    worker_host: Option<crate::workers::PreparedHost>,
     seeds: &Seeds,
     runtime: Option<crate::AccountsRuntime>,
     own_workers: bool,
@@ -467,12 +464,7 @@ pub(super) fn engine_startup(
         None
     };
     let workers = if parsed.workers {
-        Some(crate::workers::Workers::new(
-            &parsed.engine,
-            seeds.deployment,
-            &parsed.limits.workers,
-            parsed.schema.take(),
-        )?)
+        Some(crate::workers::Workers::new(&parsed.engine, seeds.deployment, &parsed.limits.workers, worker_host)?)
     } else {
         None
     };
@@ -682,29 +674,27 @@ pub fn startup_with_workers(
 
 /// Immutable admitted documents and channel tables, with no files, seeds or runtime state.
 /// Every startup copies these values and constructs fresh service components.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Prepared {
     engine: Option<Parsed>,
     workers: List<WorkerSpec>,
+    worker_host: Option<crate::workers::PreparedHost>,
 }
 
 fn parsed_startup(input: &[u8]) -> Result<Prepared, Problems> {
     let document = document(input)?;
     let (has_engine, workers) = worker_specs_in(&document)?;
     let engine = if has_engine { Some(parse_in(&document)?) } else { None };
-    Ok(Prepared { engine, workers })
+    Ok(Prepared { engine, workers, worker_host: None })
 }
 
-/// Prepare only immutable document-derived values; file and runtime checks remain at startup.
+/// Prepare immutable configuration and wire tables; file and runtime checks remain at startup.
 pub fn prepare(document: &[u8]) -> Result<Prepared, Problems> {
     let mut prepared = parsed_startup(document)?;
-    if let Some(parsed) = &mut prepared.engine
+    if let Some(parsed) = &prepared.engine
         && (parsed.workers || !prepared.workers.is_empty())
     {
-        parsed.schema = Some(
-            jig_protocol_engine_workers::limits::schema(&parsed.limits.workers)
-                .ok_or(jig_protocol_engine_workers::host::invalid(What::Bound))?,
-        );
+        prepared.worker_host = Some(crate::workers::PreparedHost::new(&parsed.limits.workers)?);
     }
     for (index, spec) in prepared.workers.iter_mut().enumerate() {
         let path = Path::root()
@@ -719,6 +709,15 @@ pub fn prepare(document: &[u8]) -> Result<Prepared, Problems> {
 }
 
 impl Prepared {
+    #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+    fn fresh(&self) -> Self {
+        let worker_host = match &self.worker_host {
+            Some(host) => Some(host.fresh()),
+            None => None,
+        };
+        Self { engine: self.engine.clone(), workers: self.workers.clone(), worker_host }
+    }
+
     pub fn startup(
         &self,
         files: &Files,
@@ -727,7 +726,7 @@ impl Prepared {
         accounts: Option<crate::AccountsRuntime>,
         runtime: Option<crate::WorkerRuntime>,
     ) -> Result<Service, Problems> {
-        self.clone().start(files, agent, seeds, accounts, runtime, Box::default())
+        self.fresh().start(files, agent, seeds, accounts, runtime, Box::default())
     }
 
     /// Supply fresh default worker settings for this service instance.
@@ -740,7 +739,7 @@ impl Prepared {
         runtime: Option<crate::WorkerRuntime>,
         workers: Box<[jig_domain_core::settings::WorkerSetting]>,
     ) -> Result<Service, Problems> {
-        self.clone().start(files, agent, seeds, accounts, runtime, workers)
+        self.fresh().start(files, agent, seeds, accounts, runtime, workers)
     }
 
     fn start(
@@ -757,7 +756,7 @@ impl Prepared {
         let engine = if let Some(mut parsed) = self.engine {
             parsed.worker_defaults = worker_defaults;
             bundle = parsed.bundle.take();
-            Some(engine_startup(parsed, files, agent, seeds, accounts, !specs.is_empty())?)
+            Some(engine_startup(parsed, files, self.worker_host, seeds, accounts, !specs.is_empty())?)
         } else {
             None
         };
