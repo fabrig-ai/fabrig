@@ -1807,48 +1807,50 @@ impl World {
 
     /// Return the run's first finding, or check its current frozen state.
     pub fn check(&self) -> Result<(), String> {
+        use skein_world::inspect::{Release, Wake};
+
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
-        let frozen = self.inspection();
-        let synthetic = self.synthetic_held_entries();
-        let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
-        for wait in frozen.waits() {
-            let mut wait = wait.clone();
-            if self.owed.iter().any(|task| wait.waiter == format!("task {task}")) {
-                wait.wakes.push(skein_world::inspect::Wake::Party("root".into()));
-            }
-            // A room waiting only on the impossible fixture's held rows cannot
-            // progress; keep its kind and bound checked, but not that injected deadlock.
-            if matches!(wait.kind.as_str(), "change: room" | "landing: room" | "making: room")
-                && !wait.wakes.is_empty()
-                && wait.wakes.iter().all(|wake| {
-                    synthetic.iter().any(|number| {
-                        *wake
-                            == skein_world::inspect::Wake::Ended(format!("entry {number} of task {}", restarts::ENDED))
-                    })
-                })
+        let mut inspection = self.inspection();
+        // All waiter names from the adapter have the form `task N`.
+        for wait in inspection.waits_mut() {
+            if !self.owed.is_empty()
+                && let Some(task) = wait.waiter.strip_prefix("task ").and_then(|task| task.parse().ok())
+                && self.owed.contains(&task)
             {
-                wait.wakes.push(skein_world::inspect::Wake::Party("synthetic ended entries".into()));
+                wait.wakes.push(Wake::Party("root".into()));
             }
-            inspection.wait(wait);
         }
-        for table in frozen.tables() {
-            let mut table = table.clone();
-            if table.name == "forge write entries" {
+        let synthetic = self.synthetic_held_entries();
+        if !synthetic.is_empty() {
+            let ended: Vec<_> = synthetic
+                .iter()
+                .map(|number| Wake::Ended(format!("entry {number} of task {}", restarts::ENDED)))
+                .collect();
+            for wait in inspection.waits_mut() {
+                // A room waiting only on the impossible fixture's held rows cannot
+                // progress; keep its kind and bound checked, but not that injected deadlock.
+                if matches!(wait.kind.as_str(), "change: room" | "landing: room" | "making: room")
+                    && !wait.wakes.is_empty()
+                    && wait.wakes.iter().all(|wake| ended.contains(wake))
+                {
+                    wait.wakes.push(Wake::Party("synthetic ended entries".into()));
+                }
+            }
+            for table in inspection.tables_mut().iter_mut().filter(|table| table.name == "forge write entries") {
                 for entry in &mut table.entries {
-                    if entry.release == skein_world::inspect::Release::Due
+                    if entry.release == Release::Due
                         && synthetic
                             .iter()
                             .any(|number| entry.key == format!("entry {number} (task {})", restarts::ENDED))
                     {
                         // Retain the row for capacity/refusal checks; only its
                         // deliberately broken release rule is left out.
-                        entry.release = skein_world::inspect::Release::Kept;
+                        entry.release = Release::Kept;
                     }
                 }
             }
-            inspection.table(table);
         }
         let moment = skein_world::inspect::Moment { seed: self.seed, at: self.env.now, iteration: self.iteration };
         let waits = skein_world::inspect::check_waits(&[&inspection], moment);

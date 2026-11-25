@@ -107,17 +107,22 @@ impl Snapshot {
     }
 
     pub fn compare_answer(&self, index: usize, answer: Answer) -> Result<(), String> {
-        let (sign_in, read) = &self.queries[index];
-        let mut before = self.answers[index].clone();
+        let before = &self.answers[index];
+        // Exact equality also implies equality under the pair's durable projection.
+        if *before == answer {
+            return Ok(());
+        }
+        let mut before = before.clone();
         let mut after = answer;
         durable::answers(&mut before, &mut after);
-        if before != after {
-            return Err(format!(
-                "assertion `left == right` failed: restart oracle document {read:?}, sign-in {sign_in}, field {}\n  left: {before:?}\n right: {after:?}",
-                difference(&format!("{before:#?}"), &format!("{after:#?}"))
-            ));
+        if before == after {
+            return Ok(());
         }
-        Ok(())
+        let (sign_in, read) = &self.queries[index];
+        Err(format!(
+            "assertion `left == right` failed: restart oracle document {read:?}, sign-in {sign_in}, field {}\n  left: {before:?}\n right: {after:?}",
+            difference(&format!("{before:#?}"), &format!("{after:#?}"))
+        ))
     }
 }
 

@@ -1289,24 +1289,36 @@ impl Domain {
         if self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        match (self.client.next_deadline(), brief::next_deadline(self)) {
-            (Some(client), Some(brief)) => Some(client.min(brief)),
-            (client, brief) => client.or(brief),
+        let common = [
+            self.client.next_deadline(),
+            brief::next_deadline(self),
+            self.watch_due,
+            self.playground_due,
+            self.full.deadline(),
+            catching_up::deadline(self),
+            crate::tiers::deadline(self),
+            goal_branch::deadline(self),
+            self.read_line.deadline(),
+        ];
+        let mut next = common.into_iter().flatten().min();
+        if !self.stopping {
+            for at in [
+                ci_news::deadline(self),
+                crate::follows::deadline(self),
+                outage::deadline(self),
+                crate::landing::read_deadline(self),
+                retry_deadline(self),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                next = Some(match next {
+                    Some(prior) => prior.min(at),
+                    None => at,
+                });
+            }
         }
-        .into_iter()
-        .chain(if self.stopping { None } else { ci_news::deadline(self) })
-        .chain(self.watch_due)
-        .chain(self.playground_due)
-        .chain(if self.stopping { None } else { crate::follows::deadline(self) })
-        .chain(self.full.deadline())
-        .chain(catching_up::deadline(self))
-        .chain(crate::tiers::deadline(self))
-        .chain(goal_branch::deadline(self))
-        .chain(self.read_line.deadline())
-        .chain(if self.stopping { None } else { outage::deadline(self) })
-        .chain(if self.stopping { None } else { crate::landing::read_deadline(self) })
-        .chain(if self.stopping { None } else { retry_deadline(self) })
-        .min()
+        next
     }
 
     /// Earliest procedure or projection wait, reported to the root's clock.
@@ -1321,15 +1333,18 @@ impl Domain {
         if self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        let mut next = read_session::deadline(self)
-            .into_iter()
-            .chain(crate::history::sweep::deadline(self))
-            .chain(crate::findings::judging::deadline(self))
-            .chain(self.room.deadline)
-            .chain(crate::closer::deadline(self))
-            .chain(release_reads::deadline(self))
-            .chain(goal_branch::read_deadline(self))
-            .min();
+        let mut next = [
+            read_session::deadline(self),
+            crate::history::sweep::deadline(self),
+            crate::findings::judging::deadline(self),
+            self.room.deadline,
+            crate::closer::deadline(self),
+            release_reads::deadline(self),
+            goal_branch::read_deadline(self),
+        ]
+        .into_iter()
+        .flatten()
+        .min();
         for (goal, deadline) in &self.projection_due {
             if repository_reads::projection_fresh(self, *goal) {
                 next = Some(match next {

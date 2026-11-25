@@ -661,6 +661,9 @@ pub(super) fn armed(d: &Domain, task: u64) -> Option<Time> {
 }
 
 pub(super) fn deadline(d: &Domain) -> Option<Time> {
+    if d.landing.pending.is_empty() && d.landing.due.is_empty() {
+        return None;
+    }
     let mut next: Option<Time> = None;
     for (task, _) in &d.landing.progress {
         if let Some(until) = armed(d, *task) {
