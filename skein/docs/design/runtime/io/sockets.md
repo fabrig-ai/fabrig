@@ -20,7 +20,8 @@
 
   This matters when a response goes out while the peer is still sending,
   such as a refusal in the middle of an upload: the response reaches the
-  peer instead of being lost to a reset. Abort closes at once.
+  peer instead of being lost to a reset. Abort closes at once. A close
+  without the wait skips step 3 (section 3).
 - **Cancellation is io's to settle.** An operation cancelled by a close, an
   abort or a deadline stays *settling* until its completion arrives, and
   the entity above sees one event (../../../foundation/programming-model.md, 5.3).
@@ -205,6 +206,13 @@ and ciphertext boundaries.
   `Unshut` (a half-close that found no buffer) or `Shut`. **Closing's
   drain** is a `Recv` in flight, `Stalled`, or done; **its flush** is
   `Sending`, `Stalled`, `Shutting`, `Unshut`, or done.
+- **A close without the wait** is its owner's to ask for, where it
+  knows nothing more is to come from the peer: Closing with its flush
+  alone, no drain and no close deadline; flushed, Releasing. Close and
+  Abort keep their meanings. An HTTP server's connection whose last
+  request was read whole is one (`../../net/http/server.md`, 5): a
+  browser leaves such a connection open until it next uses it, so a
+  drain would wait for the close deadline.
 
 | State | Event | Next, and what it does |
 |---|---|---|

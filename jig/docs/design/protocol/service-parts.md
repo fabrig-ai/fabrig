@@ -218,11 +218,12 @@ and the page policy. It knows no route: what a call means is its owner's.
   one call's connection.
   - **A connection `close` ends never waits for its peer** where nothing
     is left to read from it: no call or request begun, or its last
-    request all read below. Once what it queued is sent, it is closed at
-    once, without io's wait for the peer's end
-    (`skein/docs/design/runtime/io/sockets.md`, its close's third step),
-    which guards only a request still coming. A connection with a
-    request still coming keeps that wait.
+    request read whole below, as skein's HTTP server answers it
+    (`skein/docs/design/net/http/server.md`, 5). It is ended with io's
+    close without the wait (`skein/docs/design/runtime/io/sockets.md`, 3):
+    what it queued is sent, and the peer's end is not awaited, since that
+    wait guards only a request still coming. A connection with a request
+    still coming keeps io's graceful close.
   - *Why:* a browser keeps an idle connection open until it next uses
     it, and a page that lost its stream reconnects on its own schedule,
     so a drain that waits on the peer's end lasts until a supervisor's
