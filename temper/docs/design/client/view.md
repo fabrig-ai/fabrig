@@ -13,6 +13,11 @@
   temper's own phrase for what `jig-client`'s `words` does not say (an
   executor, an outcome); temper's bindings for the last tree; its
   limits; the instant its words next change (6).
+- **The built-in English declarations** in `temper-client-view-words`'s
+  `words.rs` are compiled once for each shell: the phrase numbers,
+  literals and hole kinds are fixed. At start the shell gives the
+  connector and text bounds to the phrasebook's construction; the
+  phrasebook still checks the assembled language and its limits.
 - **`build`:** at the shell's time, when the domain's shown count moved
   or that time has reached the instant its words next change (6),
   it builds the page in one outline (skein's `ui/README.md`, section 12), in
