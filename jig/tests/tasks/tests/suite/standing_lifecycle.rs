@@ -162,6 +162,7 @@ fn standing_finishes_park_with_bounded_words_and_no_followups() {
         assert_eq!(world.record(1).tries, Tries::NONE);
         assert_eq!(world.record(1).numbers.spent, 30);
         assert!(world.results.is_empty());
+        assert_eq!(world.record(1).parked_result, None);
         assert_eq!(world.live(), 1, "follow-ups made nowhere");
         assert!(world.record(1).delegates.is_empty());
         assert!(world.record(1).proposal.is_none());

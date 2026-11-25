@@ -143,7 +143,7 @@ KeptLine: ceilings encoded=533 decoded=512; at_most(3) encoded=45 decoded=24
 Last: ceilings encoded=4101 decoded=4096; at_most(3) encoded=8 decoded=3
 Line: ceilings encoded=1572918 decoded=1572864; at_most(3) encoded=73 decoded=24
 LiveCold: ceilings encoded=69339043 decoded=69340160; at_most(3) encoded=213 decoded=171
-LiveHot: ceilings encoded=351421665 decoded=351437520; at_most(3) encoded=2455 decoded=2161
+LiveHot: ceilings encoded=352994543 decoded=353010384; at_most(3) encoded=2483 decoded=2167
 LiveRoom: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 LlmChoice: ceilings encoded=404 decoded=384; at_most(3) encoded=38 decoded=18
 LlmFault: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0

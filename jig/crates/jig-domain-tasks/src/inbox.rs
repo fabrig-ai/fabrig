@@ -548,6 +548,7 @@ pub(crate) fn delegate_result(
     env: &Env<Limits>,
     number: u64,
     word: Word,
+    wake: bool,
     out: &mut Queue<Request>,
 ) {
     let Some(task) = record(domain, number) else {
@@ -586,7 +587,11 @@ pub(crate) fn delegate_result(
         return;
     }
     publish(domain, env, number, out);
-    crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
+    if wake {
+        crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
+    } else {
+        crate::closer::ask(domain, number, out);
+    }
 }
 
 /// Root-authenticated proposal decision consumes the pending proposal's

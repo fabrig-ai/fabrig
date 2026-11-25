@@ -120,6 +120,7 @@ fn say(w: &mut World, number: u64) -> Reply {
 fn an_open_chats_invalid_finish_after_its_reply_parks_once() {
     let mut w = replied(Flags { conversation: true, ended_by: EndedBy::Requester, ..Flags::PLAIN });
     committed_turn(&w);
+    assert_eq!(w.record(1).parked_result, None);
     assert_eq!(w.record(1).tries, Tries::NONE);
     assert_eq!(w.record(1).invalid_result, None);
     assert_eq!(w.record(1).phase, Phase::Active(Active::Idle));

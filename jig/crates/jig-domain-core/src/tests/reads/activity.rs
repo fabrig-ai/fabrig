@@ -156,7 +156,7 @@ fn activity_orders_claim_turns_person_words_and_a_delegate_result_with_their_arc
     records.extend(activity_decision(
         &mut core,
         &env,
-        Event::Tasks(tasks::Event::DelegateResult { task: 1, word: result.clone() }),
+        Event::Tasks(tasks::Event::DelegateResult { task: 1, word: result.clone(), wake: true }),
     ));
     records.extend(activity_decision(
         &mut core,

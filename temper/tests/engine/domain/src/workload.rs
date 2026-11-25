@@ -868,6 +868,7 @@ impl Driver {
     }
 
     fn abandon(&mut self, run: &engine::Assignment) {
+        self.world.scripted_read_inbox(run);
         let event = self.world.protocol.answer(
             CHANNEL,
             run.task,

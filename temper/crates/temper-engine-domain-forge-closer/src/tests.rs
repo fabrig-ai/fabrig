@@ -3,8 +3,8 @@
 #![expect(clippy::disallowed_methods, reason = "tests inspect UTF-8 and construct fixture lists")]
 
 use crate::{
-    LOG_START_BYTES, Landed, Landing, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX, Selection, Unlanded, Why,
-    first_line, goal_left, left_section, selection_line, words,
+    GoalFinish, LOG_START_BYTES, Landed, Landing, Report, SELECTION_LINE_BYTES, SELECTION_PREFIX, Selection, Unlanded,
+    Why, first_line, goal_left, left_section, selection_line, words,
 };
 use alloc::boxed::Box;
 use skein_lib::Rng;
@@ -19,6 +19,7 @@ fn empty_report() -> Report {
         goal_left: None,
         landing: Landing::NoBranch,
         selections: Box::new([]),
+        goal_finish: None,
     }
 }
 
@@ -69,9 +70,31 @@ fn a_report_lists_landed_and_unlanded_changes_the_landing_and_ci_selection() {
 }
 
 #[test]
+fn the_goals_finish_follows_ci_selection() {
+    let mut report = empty_report();
+    report.selections = Box::new([Selection { pull: 50, line: Some(b"selection: full".as_slice().into()) }]);
+    report.goal_finish = Some(GoalFinish::Words(b"Delivered one file.\nNothing else.".as_slice().into()));
+    assert_eq!(
+        words(&report, 8192).as_ref(),
+        b"Goal T7: TITLE\nThe landing: none, no goal branch.\nCI selection:\n- pull request #50: selection: full\nThe goal's finish:\n  Delivered one file.\n  Nothing else.\n"
+    );
+}
+
+#[test]
+fn a_failed_finish_names_its_reason() {
+    let mut report = empty_report();
+    report.goal_finish = Some(GoalFinish::Failed(b"build failed\nno artifact\n".as_slice().into()));
+    assert_eq!(
+        words(&report, 8192).as_ref(),
+        b"Goal T7: TITLE\nThe landing: none, no goal branch.\nThe goal's finish:\n  failed: build failed\n  no artifact\n"
+    );
+}
+
+#[test]
 fn empty_parts_are_left_out() {
     let mut report = empty_report();
     assert_eq!(words(&report, 8192).as_ref(), b"Goal T7: TITLE\nThe landing: none, no goal branch.\n");
+    report.goal_finish = Some(GoalFinish::Words(Box::new([])));
     for (landing, expected) in [
         (Landing::Held, "none, its base already held the goal's branch"),
         (Landing::Ended { pull: Some(50), task: 30, why: Why::Cancelled }, "none, pull request #50 ended cancelled"),
@@ -167,6 +190,19 @@ fn left_sections_are_cut_first_from_the_last_change_back() {
     let both = text.replace(core::str::from_utf8(&section).expect("UTF-8 section"), &replacement);
     assert_eq!(words(&report, bound - 1).as_ref(), both.as_bytes());
     assert_eq!(words(&report, u32::try_from(full.len()).expect("fixture bound")), full);
+}
+
+#[test]
+fn a_bounded_report_cuts_left_before_the_goals_finish() {
+    let mut report = empty_report();
+    let left = format!("Left: {}", "x".repeat(100));
+    report.landed = Box::new([landed(9, b"Parser", 41, Some(left.as_bytes()))]);
+    report.goal_finish =
+        Some(GoalFinish::Words(b"Delivered one file.\nNothing else to add to this report.".as_slice().into()));
+    // The final marker counts the original 109-byte Left section and the 39-byte finish suffix.
+    let expected = b"Goal T7: TITLE\nLanded:\n- T9 Parser: pull request #41 into temper/1/g7\n  Left: [109 bytes cut]\nThe landing: none, no goal branch.\nThe goal's finish:\n  Delivered one file.\n[148 bytes cut]\n";
+    let bound = u32::try_from(expected.len()).expect("fixture bound");
+    assert_eq!(words(&report, bound).as_ref(), expected);
 }
 
 #[test]

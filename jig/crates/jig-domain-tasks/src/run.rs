@@ -551,8 +551,21 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Suspended(_)
         | End::Recheck => None,
     };
-    let parked = invalid.is_none() && kept.run_parks(&end);
+    let kept_park = invalid.is_none() && kept.run_parks(&end);
+    let closer_park = invalid.is_none() && kept.parks_for_closer(&end);
+    let parked = kept_park || closer_park;
+    let mut parked_result = None;
+    let mut cancel_parked_delegates = false;
     let end = match end {
+        End::Finished { result, cancel_delegates } if closer_park => {
+            parked_result = Some(result);
+            cancel_parked_delegates = cancel_delegates;
+            End::Parked
+        }
+        End::FinishedWithFollowups { result, .. } if closer_park => {
+            parked_result = Some(result);
+            End::Parked
+        }
         End::Finished { result, cancel_delegates } => {
             if invalid.is_none() {
                 End::Finished { result, cancel_delegates }
@@ -672,7 +685,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
                 if park {
                     kept.amended(executor, Phase::Active(Active::Due))
                 } else {
-                    if !kept.owes && task.record.flags.ended_by != crate::EndedBy::Standing {
+                    if !kept.owes && !closer_park && task.record.flags.ended_by != crate::EndedBy::Standing {
                         task.record.tries = Tries::NONE;
                     }
                     task.record.refusals = 0;
@@ -733,7 +746,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if let Some(words) = stood {
         crate::activity::append(&mut task.record, env.wall, crate::Line::Stood { attempt, words }, out);
     }
-    if parked && !kept.owes {
+    if kept_park && !kept.owes {
         let pending = task.record.waiting_on.clone();
         crate::activity::append(
             &mut task.record,
@@ -748,10 +761,16 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if let Some(tags) = saved {
         task.record.saved = tags;
     }
+    if let Some(result) = parked_result {
+        task.record.parked_result = Some(result);
+    }
     task.record.phase = match held {
         Some((why, source)) => Phase::Held { was: was(next), why, source },
         None => next,
     };
+    if cancel_parked_delegates {
+        crate::closing::cancel_delegates(domain, env, number, b"", out);
+    }
     crate::writers::answered(domain, env, number, attempt, lost_writer, out);
     if (discarded || parked || !kept.finishes_alone() && end_kind == crate::EndKind::Parked)
         && let Some(grace) = record(domain, number).expect("answered task live").grace.clone()
