@@ -25,6 +25,9 @@ impl Awaiting {
                     && expected.opener.is_none_or(|opener| opener == tab.opener)
             })
     }
+    pub(super) fn wake(&self, pending: bool) -> Time {
+        if pending { self.bound.until } else { self.again.min(self.bound.until) }
+    }
     pub(super) fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
         if let Some(answer) = face.take_tabs() {
             let met = self.matches(&answer.0, answer.1);

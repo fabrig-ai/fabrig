@@ -78,12 +78,22 @@ pub(super) enum Proc {
 }
 
 impl Proc {
-    fn read(&self, path: &str) -> Option<String> {
+    fn read<'a>(&self, path: &str, text: &'a mut String) -> Option<&'a str> {
+        text.clear();
         match self {
-            Self::Live => std::fs::read_to_string(path).ok(),
+            Self::Live => {
+                use std::io::Read;
+                // Proc exposes these records with a size of zero. Use streaming
+                // reads without File::read_to_string's metadata lookup.
+                std::fs::File::open(path).ok()?.take(u64::MAX).read_to_string(text).ok()?;
+            }
             #[cfg(test)]
-            Self::Text(files) => files.iter().find(|(name, _)| *name == path).map(|(_, text)| (*text).into()),
+            Self::Text(files) => {
+                let (_, source) = files.iter().find(|(name, _)| *name == path)?;
+                text.push_str(source);
+            }
         }
+        Some(text)
     }
 
     fn tasks(&self, pid: u32) -> Vec<u32> {
@@ -106,25 +116,26 @@ impl Proc {
         }
     }
 
-    fn stat(&self, pid: u32) -> Option<(u32, u64)> {
-        parse_stat(&self.read(&format!("/proc/{pid}/stat"))?)
+    fn stat(&self, pid: u32, text: &mut String) -> Option<(u32, u64)> {
+        parse_stat(self.read(&format!("/proc/{pid}/stat"), text)?)
     }
 
-    fn owner(&self, pid: &str) -> Option<u32> {
-        let source = self.read(&format!("/proc/{pid}/status"))?;
+    fn owner(&self, pid: &str, text: &mut String) -> Option<u32> {
+        let source = self.read(&format!("/proc/{pid}/status"), text)?;
         source.lines().find_map(|line| line.strip_prefix("Uid:"))?.split_whitespace().nth(1)?.parse().ok()
     }
 
     fn snapshot(&self, roots: &[(u32, u64)]) -> Vec<Thread> {
-        let Some(owner) = self.owner("self") else { return Vec::new() };
+        let mut text = String::new();
+        let Some(owner) = self.owner("self", &mut text) else { return Vec::new() };
         let mut pending: Vec<_> = roots.iter().map(|&(pid, start)| (pid, Some(start), None)).collect();
         let mut seen = BTreeSet::new();
         let mut threads = Vec::new();
         while let Some((pid, expected_start, parent)) = pending.pop() {
-            if !seen.insert(pid) || self.owner(&pid.to_string()) != Some(owner) {
+            if !seen.insert(pid) || self.owner(&pid.to_string(), &mut text) != Some(owner) {
                 continue;
             }
-            let Some((ppid, process_start)) = self.stat(pid) else { continue };
+            let Some((ppid, process_start)) = self.stat(pid, &mut text) else { continue };
             if expected_start.is_some_and(|start| start != process_start) || parent.is_some_and(|parent| parent != ppid)
             {
                 continue;
@@ -133,15 +144,17 @@ impl Proc {
             let mut children = Vec::new();
             for tid in self.tasks(pid) {
                 let base = format!("/proc/{pid}/task/{tid}");
-                if let Some(sched) = self.read(&format!("{base}/schedstat")).and_then(|text| parse_schedstat(&text)) {
+                if let Some(sched) = self.read(&format!("{base}/schedstat"), &mut text).and_then(parse_schedstat) {
                     sampled.push(Thread { pid, process_start, tid, sched });
                 }
-                if let Some(text) = self.read(&format!("{base}/children")) {
+                if let Some(text) = self.read(&format!("{base}/children"), &mut text) {
                     children.extend(text.split_whitespace().filter_map(|pid| pid.parse::<u32>().ok()));
                 }
             }
             // A reused PID cannot lend the previous process its samples or children.
-            if self.stat(pid) == Some((ppid, process_start)) && self.owner(&pid.to_string()) == Some(owner) {
+            if self.stat(pid, &mut text) == Some((ppid, process_start))
+                && self.owner(&pid.to_string(), &mut text) == Some(owner)
+            {
                 threads.extend(sampled);
                 pending.extend(children.into_iter().map(|child| (child, None, Some(pid))));
             }
@@ -161,7 +174,8 @@ fn parse_stat(source: &str) -> Option<(u32, u64)> {
 
 impl Processes {
     pub(super) fn arm(pids: &[u32], proc: &Proc) -> Self {
-        let roots = pids.iter().filter_map(|&pid| Some((pid, proc.stat(pid)?.1))).collect();
+        let mut text = String::new();
+        let roots = pids.iter().filter_map(|&pid| Some((pid, proc.stat(pid, &mut text)?.1))).collect();
         let mut watch = Self { roots, threads: Vec::new() };
         watch.threads = proc.snapshot(&watch.roots);
         watch

@@ -25,6 +25,7 @@ pub struct Scripted {
     shown: BTreeMap<Bytes, Shown>,
     pages: BTreeMap<Token, Bytes>,
     awaits: Vec<Await>,
+    visible_at: BTreeMap<Bytes, Time>,
 }
 
 struct Await {
@@ -47,6 +48,13 @@ impl Scripted {
         self
     }
 
+    /// Withhold a matching name from Find replies before the given time.
+    #[must_use]
+    pub fn find_after(mut self, name: &[u8], at: Time) -> Self {
+        self.visible_at.insert(name.into(), at);
+        self
+    }
+
     fn shown(&self, page: Token) -> Option<&Shown> {
         self.pages.get(&page).and_then(|path| self.shown.get(path))
     }
@@ -62,7 +70,7 @@ impl Scripted {
         self.pages.insert(page, path.into());
     }
 
-    fn find(&self, page: Token, query: &Query, limit: u32) -> (List<Seen>, u32) {
+    fn find(&self, page: Token, query: &Query, limit: u32, now: Option<Time>) -> (List<Seen>, u32) {
         let mut seen = List::with_capacity(limit);
         let cap = usize::try_from(limit).expect("matches fit");
         let mut more = 0_u32;
@@ -73,7 +81,8 @@ impl Scripted {
                     query.name.is_empty() || name.windows(query.name.len()).any(|words| words == query.name.as_ref())
                 }
             };
-            if *role == query.role && matches {
+            let visible = now.is_none_or(|now| self.visible_at.get(name).is_none_or(|at| now >= *at));
+            if *role == query.role && matches && visible {
                 if seen.as_slice().len() == cap {
                     more = more.saturating_add(1);
                 } else {
@@ -112,7 +121,7 @@ impl Scripted {
                 Event::Done { op }
             }
             Request::Find { page, op, query } if query.within.is_none() => {
-                let (seen, more) = self.find(page, &query, limit);
+                let (seen, more) = self.find(page, &query, limit, Some(now));
                 Event::Found { op, seen, more }
             }
             Request::Await { page, op, query, expect, within } if query.within.is_none() => {
@@ -174,7 +183,7 @@ impl Scripted {
     }
 
     fn awaited(&self, wait: &Await, now: Time, limit: u32) -> Option<Event> {
-        let (seen, more) = self.find(wait.page, &wait.query, limit);
+        let (seen, more) = self.find(wait.page, &wait.query, limit, None);
         let count = seen.len().saturating_add(more);
         let met = match wait.expect {
             Expect::Present => count > 0,

@@ -1236,16 +1236,10 @@ pub fn up(browser: &mut Browser, env: &Env<Limits>, event: Below, above: &mut Qu
         }
         Below::Errors(stream::Up::Bytes(bytes)) => {
             browser.errors_demanded = false;
-            for byte in bytes {
-                if browser.stderr.len() == usize::try_from(env.limits.stderr).expect("u32 fits usize")
-                    && !browser.stderr.is_empty()
-                {
-                    browser.stderr.remove(0);
-                }
-                if env.limits.stderr > 0 {
-                    browser.stderr.push(byte);
-                }
-            }
+            let limit = usize::try_from(env.limits.stderr).expect("u32 fits usize");
+            let room_for_old = limit.saturating_sub(bytes.len());
+            browser.stderr.drain(..browser.stderr.len().saturating_sub(room_for_old));
+            browser.stderr.extend_from_slice(bytes.get(bytes.len().saturating_sub(limit)..).unwrap_or_default());
             if browser.phase != Phase::Closed {
                 below.push(Down::Errors(stream::Down::Demand {
                     read: Read::Line { max: env.limits.stderr.max(1) },
