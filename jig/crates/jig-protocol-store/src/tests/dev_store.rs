@@ -539,12 +539,12 @@ fn a_registered_person_wait_opens_with_its_offer_or_the_older_default() {
 }
 
 #[test]
-fn task_parts_read_a_nonzero_legacy_question_watermark_without_keeping_it() {
+fn task_parts_read_a_nonzero_former_question_watermark_without_keeping_it() {
     const DROPPED: &str = "dropped question_woken: u64 = 0";
     let family = crate::STORE_FAMILIES.iter().find(|family| family.name == "jig-store-tasks").expect("tasks family");
     let previous = TEXTS.iter().find(|(name, _)| *name == family.name).expect("dev tasks schema").1;
     let current = schema::parse(family.current.as_bytes()).expect("current tasks schema");
-    let legacy = schema::parse(previous.as_bytes()).expect("previous layout");
+    let old_layout = schema::parse(previous.as_bytes()).expect("previous layout");
     let nonzero = schema::parse(family.current.replace(DROPPED, "dropped question_woken: u64 = 37").as_bytes())
         .expect("fixture writer supplies the previous field at a nonzero value");
     let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
@@ -557,27 +557,27 @@ fn task_parts_read_a_nonzero_legacy_question_watermark_without_keeping_it() {
         (b"ended_talk".as_slice(), tasks::Stored::Ended(Box::new(record))),
     ] {
         let current_bytes = codec::tasks::encode(&row, &limits, &names).expect("current record fits");
-        let old_root = legacy.root(b"Row", Some(variant)).expect("old variant");
+        let old_root = old_layout.root(b"Row", Some(variant)).expect("old variant");
         let new_root = current.root(b"Row", Some(variant)).expect("new variant");
-        let back = Plan::between(Mode::Keep, &current, new_root, &[], &legacy, old_root, &[])
+        let back = Plan::between(Mode::Keep, &current, new_root, &[], &old_layout, old_root, &[])
             .expect("the tombstone supplies a downgrade default");
         let write_nonzero = Plan::between(
             Mode::Keep,
             &nonzero,
             nonzero.root(b"Row", Some(variant)).expect("fixture variant"),
             &[],
-            &legacy,
+            &old_layout,
             old_root,
             &[],
         )
         .expect("encode an old value with the field present and nonzero");
         let zero_bytes = convert_question_layout(&back, &current_bytes);
-        let legacy_bytes = convert_question_layout(&write_nonzero, &current_bytes);
-        assert_ne!(legacy_bytes, zero_bytes, "the fixture really stores 37 rather than 0");
-        assert_eq!(legacy_bytes.len(), zero_bytes.len());
-        let upgrade = Plan::derive(&legacy, old_root, &[], &current, new_root, &[])
+        let old_bytes = convert_question_layout(&write_nonzero, &current_bytes);
+        assert_ne!(old_bytes, zero_bytes, "the fixture really stores 37 rather than 0");
+        assert_eq!(old_bytes.len(), zero_bytes.len());
+        let upgrade = Plan::derive(&old_layout, old_root, &[], &current, new_root, &[])
             .expect("the store can read the previous layout");
-        assert_eq!(convert_question_layout(&upgrade, &legacy_bytes), current_bytes);
+        assert_eq!(convert_question_layout(&upgrade, &old_bytes), current_bytes);
     }
 }
 
