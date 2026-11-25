@@ -798,6 +798,9 @@ impl Runtime {
             | Event::Missed { .. }
             | Event::Done { .. }
             | Event::Refused { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
             | Event::Attribute { .. }
             | Event::Tabs { .. }
             | Event::Address { .. }
@@ -1048,7 +1051,13 @@ impl Runtime {
                 page_with_query(line.url.as_bytes(), &setup.page_query, setup.page_addresses)
             };
             faces[self.opening].first_url = String::from_utf8(url.to_vec()).expect("printed URL is UTF-8");
-            self.ask(Request::Page { person: person(self.opening), page: page(self.opening), url, requests: false });
+            self.ask(Request::Page {
+                person: person(self.opening),
+                page: page(self.opening),
+                url,
+                requests: false,
+                files: false,
+            });
             return true;
         }
         false

@@ -486,8 +486,9 @@ fn tag_tasks(
         tasks::Request::PersonStallRestored { task } => notices::person_stall_restored(core, env, task, pending),
         tasks::Request::QuestionOwedDue { task } => notices::question_owed_due(core, env, task, pending),
         tasks::Request::NothingAwaitedDue { task } => notices::nothing_awaited_due(core, env, task, pending),
-        tasks::Request::QuestionParked { task, question } => {
-            notices::question_parked(core, env, task, question, pending);
+        tasks::Request::RecheckStuck => super::step::step_tasks(core, env, tasks::Event::RecheckStuck, pending),
+        tasks::Request::QuestionParked { task, question, chain } => {
+            notices::question_parked(core, env, task, question, &chain, pending);
         }
         tasks::Request::CloserDue { task } => lifecycle::closer_due(core, env, task, pending),
         tasks::Request::QuestionEndedDue { task, questions } => {

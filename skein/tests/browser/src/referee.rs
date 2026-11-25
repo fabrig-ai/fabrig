@@ -78,6 +78,9 @@ impl Referee {
             | Event::Refused { .. }
             | Event::Address { .. }
             | Event::Tabs { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
@@ -111,6 +114,9 @@ impl Referee {
             | Event::Refused { .. }
             | Event::Address { .. }
             | Event::Tabs { .. }
+            | Event::Elements { .. }
+            | Event::Style { .. }
+            | Event::Rect { .. }
             | Event::Attribute { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. }
@@ -159,6 +165,9 @@ impl Referee {
             | Event::Missed { op, .. }
             | Event::Done { op }
             | Event::Refused { op, .. }
+            | Event::Elements { op, .. }
+            | Event::Style { op, .. }
+            | Event::Rect { op, .. }
             | Event::Attribute { op, .. }
             | Event::Tabs { op, .. }
             | Event::Address { op, .. }

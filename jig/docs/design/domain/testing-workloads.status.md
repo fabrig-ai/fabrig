@@ -1,6 +1,7 @@
 # testing-workloads: status
 
-2026-11-24. Where the tree's code lags or departs from [testing-workloads.md](testing-workloads.md).
+2026-11-25. Where the tree's code lags or departs from [testing-workloads.md](testing-workloads.md).
+
 
 - **Not yet:**
   2, 3: the core world's kinds, its workload and its people's sweep.

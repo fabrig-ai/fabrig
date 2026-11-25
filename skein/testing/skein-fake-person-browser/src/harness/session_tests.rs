@@ -23,7 +23,7 @@ fn page_trouble_reports_kind_text_and_url_without_judging() {
 #[test]
 fn the_session_page_asks_for_requests() {
     let url: Box<[u8]> = b"http://127.0.0.1:9/".as_slice().into();
-    let skein_browser::boundary::Request::Page { person, page, url: opened, requests } =
+    let skein_browser::boundary::Request::Page { person, page, url: opened, requests, files: false } =
         super::session_page(url.clone())
     else {
         panic!("Page")
@@ -137,4 +137,30 @@ fn chromium_keeps_home_but_not_the_session_tmpdir() {
 
     assert!(spawn.env.iter().all(|entry| !entry.starts_with(b"TMPDIR=")), "Chromium uses the host's temp directory");
     assert!(spawn.env.iter().any(|entry| entry.as_ref() == b"HOME=/scratch/session/home"));
+}
+
+#[test]
+fn raw_delivery_keeps_a_browser_read_as_its_event() {
+    use skein_browser::boundary::{Property, Rect};
+    use skein_lib::{List, Time};
+
+    let browser = Token::new(0);
+    let op = Token::new(25);
+    let rect = Rect { x: -4, y: 20, width: 16, height: 30 };
+    // One property in Chromium's style reply.
+    let mut style = List::with_capacity(1);
+    style
+        .push(Property { name: b"color".as_slice().into(), value: b"black".as_slice().into() })
+        .expect("one property fits");
+    let mut events = Vec::new();
+    let mut delivery = super::Delivery::Raw { events: &mut events, wake_on_idle: false, owner: browser };
+    let style_transport = delivery.send(Event::Style { op, style }, Time::ZERO);
+    let rect_transport = delivery.send(Event::Rect { op, rect: Some(rect) }, Time::ZERO);
+
+    assert!(style_transport.is_none() && rect_transport.is_none());
+    let [Event::Style { op: style_op, style }, Event::Rect { op: rect_op, rect: reported }] = events.as_slice() else {
+        panic!("expected the raw style and rect replies in order, got {events:?}");
+    };
+    assert_eq!((*style_op, *rect_op, *reported), (op, op, Some(rect)));
+    assert!(style.iter().eq([Property { name: b"color".as_slice().into(), value: b"black".as_slice().into() }].iter()));
 }

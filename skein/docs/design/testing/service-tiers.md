@@ -46,6 +46,29 @@ and `real::Outcome::peaks()` report each process's peak alone, and
 `Killed::peak()` reports the ended process's peak. An unchecked run
 reports no measurement, never a ceiling or a sentinel.
 
+**What the runtime keeps is made before a base.** A process's own heap
+is exact: what its calls grew by, freed in full by its drop. Storage
+the runtime makes at a first use and keeps for the process's life or
+its thread's is no process's, so a world makes it before its first
+base, never inside a process's call. Some of it is counted on macOS
+alone: there std's `Mutex` is a pthread one, which boxes its
+`pthread_mutex_t`, 64 bytes, on the global allocator at its first lock
+and keeps it while the mutex lives, where Linux's futex allocates
+nothing (`skein/testing/skein-heap/src/lib.rs`, "The runtime's own",
+has std's other such records). So a process-wide lock, a `static` one
+or a standard stream's, first taken inside a process's construction or
+call is charged to that process and never freed by its drop: macOS
+alone shows it, as a leak of exactly those 64 bytes, and Linux cannot.
+Spans and meters take the standard error's lock and std's other
+records before they read their base; the real loop makes Darwin's
+backend tables before its first admission (../runtime/readiness.md,
+5); and a fixture that a process's construction or calls reach takes a
+process-wide lock only where it holds something behind it, so a world
+where it holds nothing takes none. The check excludes nothing the
+runtime makes, by kind or by byte count: each is a first use that a
+world makes before its base, and one made inside a call is the world's
+bug.
+
 **Reuse is counted, never read from an address.** A span also counts
 the allocations its thread made since its start, a reallocation as one
 (`Span::made`). A step test that shows a table kept rather than grown

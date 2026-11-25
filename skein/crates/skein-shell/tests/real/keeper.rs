@@ -18,7 +18,7 @@ mod tests {
         std::hint::black_box(value);
         let after = super::thread_cpu().expect("the calling thread still has a CPU clock");
         assert!(after > before, "busy work consumes this thread's CPU");
-        assert_eq!(crate::system::clock_nanos(-1), None, "an unavailable clock is not an assertion");
+        assert_eq!(crate::system::clock_nanos(libc::clockid_t::MAX), None, "an unavailable clock is not an assertion");
     }
 
     #[test]

@@ -636,8 +636,8 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    `temper/docs/design/client/web/journeys/` or
    `temper/docs/design/client/tui/journeys/`, a journey directory's
    `recording` or a page of it, `NN.html` or `NN.txt` with two digits or
-   more, or, at either root, `skein-ui.css`, `journey.js`, `theme.css`
-   or `tui-journey.js`.
+   more, or, at either root, `skein-ui.css`, `journey.js`, `theme.css`,
+   `tui-journey.js` or `looks.html`, the render check's verdicts.
    - **The delivery's own paths:** with a base, section 3's changed
      paths, which already leave out each whose entry in the tree is the
      one a merged tip holds at that path; without a base,

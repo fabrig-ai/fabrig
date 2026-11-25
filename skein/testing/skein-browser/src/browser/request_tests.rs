@@ -1,6 +1,6 @@
 //! Opt-in request reports on synthetic CDP events (testing/browser.md, 9).
 #![expect(clippy::disallowed_macros, reason = "synthetic CDP events use fixed formatted fixtures")]
-use super::{Browser, Phase};
+use super::{Browser, Phase, field_text};
 use crate::Limits;
 use crate::boundary::{Event, Request, Trouble};
 use crate::wire::decode::Document;
@@ -13,16 +13,21 @@ struct Peer {
     browser: Browser,
     env: Env<Limits>,
     network: usize,
+    fetch: usize,
 }
 impl Peer {
     fn open(requests: bool) -> Self {
+        Self::open_with(requests, false)
+    }
+    fn open_with(requests: bool, files: bool) -> Self {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: Limits::default() };
         let mut browser = Browser::new(Token::new(1), &env.limits);
         browser.phase = Phase::Ready;
         browser.request(&env, Request::Person { person: PERSON, downloads: None });
-        let mut peer = Self { browser, env, network: 0 };
+        let mut peer = Self { browser, env, network: 0, fetch: 0 };
         peer.settle();
-        peer.browser.request(&peer.env, Request::Page { person: PERSON, page: PAGE, url: URL.into(), requests });
+        let url = if files { b"file:///scratch/look.html".as_slice() } else { URL };
+        peer.browser.request(&peer.env, Request::Page { person: PERSON, page: PAGE, url: url.into(), requests, files });
         peer.settle();
         peer.notify("Page.loadEventFired", "{}");
         let Some(Event::Opened { page: PAGE }) = peer.browser.events.pop_front() else { panic!("Opened") };
@@ -51,7 +56,14 @@ impl Peer {
                     self.network = self.network.saturating_add(1);
                     "{}"
                 }
+                b"Fetch.enable" => {
+                    let params = root.get(b"params").expect("Fetch parameters");
+                    assert_eq!(params.raw(), br#"{"patterns":[{"urlPattern":"*","requestStage":"Request"}]}"#);
+                    self.fetch = self.fetch.saturating_add(1);
+                    "{}"
+                }
                 b"Page.navigate" => {
+                    assert_eq!(self.fetch, usize::from(self.browser.page_files(PAGE)), "Fetch precedes navigation");
                     assert_eq!(
                         self.network,
                         usize::from(self.browser.page_requests(PAGE)),
@@ -70,6 +82,9 @@ impl Peer {
             &self.env,
             format!(r#"{{"method":"{method}","sessionId":"session","params":{params}}}"#).as_bytes(),
         );
+    }
+    fn paused(&mut self, url: &str) {
+        self.notify("Fetch.requestPaused", &format!(r#"{{"requestId":"intercept-7.1","request":{{"url":"{url}"}}}}"#));
     }
     fn sent(&mut self, id: &str, load: &str, frame: &str, kind: &str, redirect: bool) {
         let redirect = if redirect { r#", "redirectResponse":{}"# } else { "" };
@@ -107,6 +122,40 @@ fn requests_are_enabled_before_navigation_only_where_the_page_asks() {
             assert!(peer.browser.events.is_empty());
             assert_eq!(peer.browser.requests.capacity(), 0, "opt-out allocates no request table");
         }
+    }
+}
+
+#[test]
+fn only_file_pages_enable_fetch_before_the_first_navigation() {
+    for (requests, files, fetch) in [(false, false, 0), (false, true, 1), (true, false, 0), (true, true, 1)] {
+        let peer = Peer::open_with(requests, files);
+        assert_eq!(peer.fetch, fetch);
+    }
+}
+
+#[test]
+fn file_pages_continue_file_requests_and_block_other_urls() {
+    const ROWS: &[(&str, &[u8], &[u8])] = &[
+        ("file:///scratch/picture.png", b"Fetch.continueRequest", br#"{"requestId":"intercept-7.1"}"#),
+        (
+            "http://127.0.0.1:9/x.png",
+            b"Fetch.failRequest",
+            br#"{"requestId":"intercept-7.1","errorReason":"BlockedByClient"}"#,
+        ),
+    ];
+    let mut peer = Peer::open_with(false, true);
+    for &(url, method, params) in ROWS {
+        peer.paused(url);
+        let command = peer.browser.outgoing.pop_front().expect("every paused request gets an answer");
+        let message =
+            Document::parse(command.bytes.strip_suffix(&[0]).expect("CDP delimiter"), peer.env.limits.command)
+                .expect("encoded Fetch command");
+        let root = message.root();
+        assert_eq!(field_text(root, b"method").as_deref(), Some(method));
+        assert_eq!(field_text(root, b"sessionId").as_deref(), Some(b"session".as_slice()));
+        assert_eq!(root.get(b"params").expect("Fetch parameters").raw(), params);
+        let id = root.get(b"id").expect("command id").u64().expect("integer id");
+        peer.browser.message(&peer.env, format!(r#"{{"id":{id},"result":{{}}}}"#).as_bytes());
     }
 }
 

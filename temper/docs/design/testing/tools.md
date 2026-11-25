@@ -68,7 +68,12 @@ Their forms are today's:
   [--within DURATION]` and `temper-client-journeys look-refresh`, the
   journeys' writer's run and the look requests' refresh, which
   `scripts/journey-pages.sh` and `scripts/look-refresh.sh` run
-  (`../client/journey-writer.md`, 4 and 6);
+  (`../client/journey-writer.md`, 4 and 6); `temper-client-journeys
+  look-compare NAME C`, a look request's comparison, which
+  `scripts/look-compare.sh` runs (`../client/journey-writer.md`, 6.1);
+  `temper-client-journeys look-render NAME C`, a landed request's
+  render check in Chromium, which the writer's run asks
+  (`../client/journey-writer.md`, 6.2);
 - `temper-client-walk print [--out DIR] [NAME]...` and
   `temper-client-walk pages`, the journeys' writer's print
   (`../client/journey-walks.md`, 5; `../client/journey-writer.md`, 3);
@@ -288,7 +293,8 @@ it byte for byte in its crate's tests.
   command's run whose
   effects only a process shows: the journeys' one print from its
   arguments through its report and destination, and the writer's and
-  refresh's scripts (`../client/journey-writer.md`, 7); stage one's
+  refresh's scripts (`../client/journey-writer.md`, 7), not the
+  comparison's, whose effects are all values its steps answer; stage one's
   `collect` naming a `temper` it can't start; the twin's conversion and
   `--from`, each with its report. Every other row is the unit tests'.
   None starts a browser, a forge or a box, and none writes outside its

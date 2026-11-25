@@ -249,7 +249,42 @@ fn a_sign_in_under_way_is_shown_to_the_party_that_asked_and_unsettles_it() {
     finish(&mut core, &env, source);
     let finished = document(&core, &env, ALICE);
     assert!(finished.signing.is_empty());
-    assert!(finished.settled);
+    assert!(!finished.settled);
+    assert!(document(&core, &env, BOB).settled);
+    grant(&mut core, &env, source);
+    assert!(document(&core, &env, ALICE).settled);
+}
+
+#[test]
+fn a_made_sign_in_settles_with_its_sources_first_answer() {
+    const WATCHER: Token = Token::new(78);
+    let (mut core, env) = fixture(vec![]);
+    let source = ask(&mut core, &env, ALICE, 1, people::AccountHolder::Own);
+    finish(&mut core, &env, source);
+    drop(watch_outputs(
+        &mut core,
+        &env.limits,
+        Event::Watch { watcher: WATCHER, sign_in: ALICE_SIGN_IN, subject: Watched::Accounts, window: window() },
+    ));
+    drop(watch_outputs(&mut core, &env.limits, Event::Delivered { watcher: WATCHER }));
+    drop(finish_watch_outputs(&mut core, &env.limits));
+    let subject = core.named_watch(WATCHER).expect("accounts watch").subject;
+    assert!(core.changed_views.is_empty());
+
+    let awaiting = document(&core, &env, ALICE);
+    assert!(awaiting.signing.is_empty());
+    assert!(!awaiting.settled, "making the account does not answer its source's want");
+    let asking = line(0, source, accounts::Kind::SignIn);
+    assert_eq!(awaiting.accounts.get(0).expect("made account").sources.as_slice(), core::slice::from_ref(&asking));
+
+    grant(&mut core, &env, source);
+    assert!(core.changed_views.contains(&subject));
+    let settled = document(&core, &env, ALICE);
+    assert!(settled.settled);
+    assert_eq!(
+        settled.accounts.get(0).expect("made account").sources.as_slice(),
+        &[SourceLine { state: AccountState::Granted, usable: true, ..asking }]
+    );
 }
 
 #[test]

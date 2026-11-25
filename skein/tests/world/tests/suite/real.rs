@@ -134,23 +134,37 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
     let text = world
         .try_run(&Clock::new(), Duration::ZERO)
         .expect_err("zero patience fails before the first script iteration");
-    let accounting = text
+    let header = text
         .lines()
         .next()
         .expect("deadline header")
         .strip_prefix("the real loop settles within 0 ms; ")
-        .expect("the real deadline names its budget")
-        .split_once("; thread CPU elapsed (schedstat): ")
-        .expect("the real deadline reports its thread CPU source")
-        .1;
-    let (cpu, waited) = accounting
-        .split_once("; thread runnable wait elapsed (schedstat): ")
-        .expect("the deadline also names its runnable wait source");
-    for count in [cpu, waited] {
+        .expect("the real deadline names its budget");
+    let check_count = |count: &str| {
         if count != "UNAVAILABLE (ns)" {
             let nanos = count.strip_suffix(" ns").expect("available accounting has nanosecond units");
             assert!(nanos.parse::<u64>().is_ok(), "available accounting is an unsigned elapsed count: {count}");
         }
+    };
+    if cfg!(target_os = "linux") {
+        let accounting = header
+            .split_once("; thread CPU elapsed (schedstat): ")
+            .expect("the real deadline reports its thread CPU source")
+            .1;
+        let (cpu, waited) = accounting
+            .split_once("; thread runnable wait elapsed (schedstat): ")
+            .expect("the deadline also names its runnable wait source");
+        check_count(cpu);
+        check_count(waited);
+    } else {
+        let accounting = header
+            .split_once("; thread CPU elapsed (thread clock): ")
+            .expect("the real deadline reports its thread CPU source")
+            .1;
+        let cpu = accounting
+            .strip_suffix("; thread runnable wait elapsed: UNAVAILABLE on macOS")
+            .expect("the deadline ends with the macOS runnable wait message");
+        check_count(cpu);
     }
 }
 

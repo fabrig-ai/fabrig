@@ -215,6 +215,10 @@ class Delivery(unittest.TestCase):
             (f'{tui}/journey.js', True),
             (f'{tui}/theme.css', True),
             (f'{tui}/tui-journey.js', True),
+            (f'{web}/looks.html', True),
+            (f'{tui}/looks.html', True),
+            (f'{web}/chat-draft/looks.html', False),
+            ('temper/docs/design/client/web/looks.html', False),
             (f'{web}/chat-draft/3.html', False),
             (f'{web}/chat-draft/walk', False),
             (f'{web}/chat-draft/README.md', False),
@@ -266,6 +270,22 @@ class Delivery(unittest.TestCase):
         web, tui = PRE.JOURNEY_ROOTS
         paths = [f'{web}/chat-draft/03.html', f'{web}/x/recording', f'{tui}/theme.css']
         self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
+
+    def test_looks_html_passes_alone_or_with_pages(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            looks = f'{prefix}/looks.html'
+            for paths in ([looks], [looks, f'{prefix}/chat-draft/03.html']):
+                with self.subTest(paths=paths):
+                    self.assertEqual(PRE.journeys(self.root, paths, 'HEAD'), [])
+
+    def test_looks_html_with_a_source_is_refused(self):
+        for prefix in PRE.JOURNEY_ROOTS:
+            looks = f'{prefix}/looks.html'
+            for source in (f'{prefix}/chat-draft/README.md', 'tools/x.py'):
+                with self.subTest(looks=looks, source=source):
+                    error = self.journey_failure([looks, source])
+                    self.assertEqual(error['log'].splitlines()[:3],
+                                     ['written files:', looks, f'other path: {source}'])
 
     def test_no_written_paths_pass(self):
         web = PRE.JOURNEY_ROOTS[0]

@@ -99,9 +99,10 @@ fn the_main_endpoint_keeps_its_models_on_a_program_account() {
 
 #[test]
 fn a_repository_layer_cannot_set_credentials_or_programs() {
-    for (text, key) in
-        [("credentials='/tmp/private'\n", "credentials"), ("[programs]\nclaude_code='/bin/true'\n", "programs")]
-    {
+    let scratch = skein_scratch::Scratch::new("smith-program");
+    let executable = crate::fixture::program(&scratch);
+    let program = format!("[programs]\nclaude_code='{}'\n", executable.display());
+    for (text, key) in [("credentials='/tmp/private'\n", "credentials"), (program.as_str(), "programs")] {
         let refusal = settings(&[source(Layer::Repository, text)]).expect_err("authority");
         assert_eq!(refusal.key, key, "authority key");
         assert_eq!(refusal.problem, super::Problem::RepositoryAuthority, "repository refusal");
