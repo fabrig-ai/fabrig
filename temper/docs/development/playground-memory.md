@@ -1,14 +1,14 @@
 # The playground world's native heap
 
 These are native counting-allocator bytes, not browser memory or resident size.
-The playground binary's test holds the service's first-step held bytes from
-the 2026-11-14 worker-wire v8 table below, and its other bounds from the
-2026-11-14 store-shape S4 merge table, each with a quarter's margin rounded
-up to two significant digits;
-nonservice regression bounds retain their 2026-11-12 figures plus a quarter.
-The prepared schemas' bound uses the 2026-11-23 table below, also plus a
-quarter ([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
-the memory's bar itself to the user.
+The playground memory test takes the service's first-step held bound from
+the 2026-11-14 worker-wire v8 table, its other service bounds from the
+2026-11-14 store-shape S4 merge table, and the fake disk's start bound from
+the 2026-11-25 bounded-waits table. Each adds a quarter and rounds up to two
+significant digits. The prepared schemas use the 2026-11-23 table, and the
+remaining bounds use the 2026-11-12 figures, both with a quarter's margin
+without rounding up ([playground.md, section 9](../design/playground.md)).
+Sections 8 and 11 leave the memory's bar itself to the user.
 
 ## Commands and scope
 
@@ -342,6 +342,42 @@ The test fills the process-wide cache under its own span before either world
 is built, so the service's held bytes no longer carry the cache. Its retained
 heap has a separate ceiling of 832,186 bytes (665,749 plus a quarter, using
 integer division). No existing ceiling moves.
+
+### Fake disk at start after bounded waits
+
+Measured 2026-11-25 UTC with the playground command above, comparing the
+base `975bd2888e` with `78c985f0a4` before moving the ceiling. Both runs kept
+all comparisons enabled and reached the first step after one world step
+and start idle after 181. The base passed; only the disk's start comparison
+failed on the branch.
+
+| Snapshot | Measurement | Base bytes | Branch bytes |
+|---|---|---:|---:|
+| Before start | Prepared schemas retained | 711,346 | 716,053 |
+| Before start | Shared forge retained | 7,453 | 7,453 |
+| First step | Service held / peak | 315,274 / 768,108 | 315,530 / 768,108 |
+| First step | Fake LLM held / peak | 28,193 / 28,193 | 28,193 / 28,193 |
+| First step | Fake forge HTTP held / peak | 31,098 / 31,098 | 31,098 / 31,098 |
+| First step | Visitor held / peak | 1,054 / 1,068 | 1,054 / 1,068 |
+| First step | Fake disk retained | 4,509 | 4,509 |
+| Start idle | Service held / peak | 740,363 / 1,117,706 | 741,734 / 1,122,422 |
+| Start idle | Fake LLM held / peak | 28,929 / 28,929 | 28,929 / 28,929 |
+| Start idle | Fake forge HTTP held / peak | 31,839 / 31,883 | 31,839 / 31,883 |
+| Start idle | Visitor held / peak | 1,054 / 1,068 | 1,054 / 1,068 |
+| Start idle | Hosted git held / peak | 3,530 / 3,530 | 3,530 / 3,530 |
+| Start idle | Fake disk retained | 270,281 | 271,396 |
+
+The disk gains 1,115 bytes as startup writes records with the bounded-waits
+layouts, including the task record's optional hold-start instant. The people
+layout also adds a defaulted stop reason, and the client wire moves to 45.
+The measurement does not attribute bytes to individual fields. The fake disk
+implementation is unchanged: sync trims spare file capacity, shares file
+bytes with the durable view, and clears that file's pending writes. The
+increase is consistent with larger stored records, not an extra retained copy.
+
+Only the exceeded `DISK_START_RETAINED` ceiling moves: 271,396 plus a quarter
+is 339,245, which rounds up to 340,000 bytes at two significant digits,
+replacing 270,797. Every other ceiling stays as it is. No runtime limit changes.
 
 ## Halving the knobs
 
