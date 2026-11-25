@@ -353,7 +353,7 @@ pub struct Property { name: Box<[u8]>, value: Box<[u8]> }       // as Chromium w
   carries its value as the person sees it. No element, an element
   without the attribute, and an empty attribute are three answers.
 - **A page's rendering is read for a tool** comparing two renders
-  (`temper/docs/design/client/journey-writer.md`, 6), reading the
+  (`temper/docs/design/client/journey-writer.md`, 6.2), reading the
   current document as an attribute read does (section 6):
   - `Elements`: its elements in document order, every one or those a
     CSS selector selects, each with its node, its depth below the root
