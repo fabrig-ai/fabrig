@@ -282,8 +282,8 @@ among their own (`../client/domain/contract/watches.md`, 1.1).
   party's accounts stay unsettled (`../client/domain/contract/documents.md`,
   1) until the component's first answer for the source it brought: its
   first generation granted, or a failure (`accounts-sources.md`, 2), or
-  that source's going first (sign out, a renewal replacing it, its
-  account removed, the close). So a party that waits for *settled*
+  that source's going first (sign out, a renewal replacing it, a move
+  out releasing it, its account removed, the close). So a party that waits for *settled*
   reads the source's state, never a source still waiting for its
   grant: the grant is the component's, answered after the sign-in ends,
   and a read between the two would show a made account no run can yet
