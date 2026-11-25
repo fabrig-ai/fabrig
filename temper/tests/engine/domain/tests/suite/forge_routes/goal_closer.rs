@@ -394,20 +394,35 @@ fn numbered_history(world: &mut World, goal: &engine::Assignment, branch: &[u8])
 
 #[test]
 fn a_closer_and_its_goal_end_at_the_landing_without_a_tier_verdict() {
+    let report = report_at_landing(tasks::End::Parked);
+    assert!(!report.contains("The goal's finish:"), "{report}");
+}
+
+#[test]
+fn a_finished_goal_closes_lands_and_reports_its_finish() {
+    let report = report_at_landing(tasks::End::Finished {
+        result: tasks::TaskResult::Report { words: b"Delivered one file.".as_slice().into() },
+        cancel_delegates: false,
+    });
+    assert!(report.ends_with("The goal's finish:\n  Delivered one file.\n"), "{report}");
+}
+
+fn report_at_landing(end: tasks::End) -> String {
     use temper_engine_domain_world::tier_runs;
     let options = tier_runs::Tier { wait: change::Wait::Landed, ..tier_runs::Tier::default() };
     let (mut world, goal, branch) = goal_world_in(true, true, Some(options), false);
     add_change(&mut world, &goal, &branch, 93, b"source", b"implemented");
-    let event = world.protocol.answer(CHANNEL, goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    let event = world.protocol.answer(CHANNEL, goal.task, goal.attempt, 0, end, engine::Parts::none());
     world.send(event);
     tier_runs::until(&mut world, tier_runs::LANDING_TICKS, "goal made its closer", |world| {
         live_task(world, goal.task).closer.is_some()
     });
-    let closer = live_task(&world, goal.task).closer.unwrap();
+    let closer = live_task(&world, goal.task).closer.expect("goal made its closer");
     let job = close_job(&mut world);
     let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
     finish_close(&mut world, close, &branch, &job);
     wait_ended(&mut world, close);
+    assert!(matches!(row(&world, close).change.state, change::State::Landed { .. } | change::State::Cleared { .. }));
     let tip = branch_tip(&mut world, &branch);
     status(&mut world, tip, raw::Check::Passed);
     let landing = wait_landing(&mut world, closer);
@@ -418,12 +433,14 @@ fn a_closer_and_its_goal_end_at_the_landing_without_a_tier_verdict() {
         panic!("landed, not verifying")
     };
     assert!(tiers::result(&world, landing).contains("Ended at landing; after landing judges it later."));
-    assert!(closer_row(&world, closer).unwrap().done);
+    assert!(closer_row(&world, closer).expect("closer row").done);
     assert_eq!(result_words(&world, closer), result_words(&world, goal.task));
-    let report = String::from_utf8_lossy(result_words(&world, goal.task));
-    assert!(report.contains(std::str::from_utf8(&forge_top::commit_text(&merge)).unwrap()), "{report}");
+    let report = String::from_utf8(result_words(&world, goal.task).to_vec()).expect("goal report UTF-8");
+    let commit = forge_top::commit_text(&merge);
+    assert!(report.contains(std::str::from_utf8(&commit).expect("merge commit UTF-8")), "{report}");
     assert_eq!(tier_runs::tier(&world).record.sequence, 0, "no tier verdict before goal completion");
     assert!(!tiers::result(&world, close).contains("Ended at landing;"), "no tier follows the close change's base");
+    report
 }
 
 #[test]
@@ -487,6 +504,7 @@ fn a_closer_closes_lands_and_reports() {
             pull: row(&world, landing).pull.expect("landing pull"),
             line: None,
         }]),
+        goal_finish: None,
     };
     assert_eq!(result_words(&world, closer), closer::words(&expected, 4096).as_ref());
     world.advance_ticks(300);
