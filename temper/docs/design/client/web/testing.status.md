@@ -42,6 +42,9 @@
   preserving calls, partial requests and bounds. Whether that also repairs
   `browser_public`'s earlier visibility-command deadline failure is unverified:
   that story was outside the four selected for this repair.
+- **Not yet:** 3: a story's settings are still committed by sittings of
+  processes, each starting a box, its serve and three or four ctl
+  processes, not hosted in the test's own process. [in flight: change 18126]
 - **Not yet:** 3: no supplied manual proof checks a long chat at the person's
   1,048,576-byte bound. The passing long browser story spans three small
   windows, while the unanchored position history stays within one; neither
