@@ -1,6 +1,6 @@
 # testing-tiers: status
 
-2026-11-24. Where smith's code lags or departs from [testing-tiers.md](testing-tiers.md).
+2026-11-25. Where smith's code lags or departs from [testing-tiers.md](testing-tiers.md).
 
 - **Not yet:**
   - 1: only the local-process world sweeps the simulator's faults

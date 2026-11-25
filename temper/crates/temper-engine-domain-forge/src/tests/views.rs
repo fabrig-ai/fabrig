@@ -1132,7 +1132,7 @@ fn landing_events_keep_their_time_through_the_steps_row_save() {
             &mut out,
         )
         .unwrap();
-        landing::save(&mut d, stale.clone(), &mut out);
+        landing::save(&mut d, &env(), stale.clone(), &mut out);
         assert_eq!(d.landing(61).unwrap().last_event, Some(wall));
         let mut kept = false;
         while let Some(request) = out.pop() {

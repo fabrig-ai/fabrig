@@ -96,7 +96,13 @@
   smith's `domain/turn-parts.md`): the core keeps each part a run sends
   as it keeps a settled call, under its task, attempt and number, with
   its turn, thread, call, kind and bytes, then acknowledges it, a copy
-  already kept acknowledged again and dropped. A committed turn retires
+  already kept acknowledged again and dropped. Parts have a room of their
+  own, `core.call_records` of them, apart from the named calls', so a
+  part never takes a call's room (2026-11-25: sharing it refused named
+  calls on the reference deployment all day). A part that finds its room
+  full never waits: every part its task keeps goes, and the part is
+  acknowledged unkept, so the run goes on and a resume finds no answer
+  for the cut turn and plans it afresh, as before parts. A committed turn retires
   every part of its task from an earlier attempt and those of its own
   attempt whose turn is at most its number; the task's end retires the
   rest. A resumed run is given those kept, by attempt, then number,

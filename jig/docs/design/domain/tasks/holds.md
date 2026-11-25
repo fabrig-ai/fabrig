@@ -233,6 +233,10 @@ circle, each for another of the set, so that none of them could end.
   waits. A task waiting for holds past its bound is held all the same
   (2), and a connector keeps its own queue from circling: a kept task
   leaves it (../connectors.md, 3.3).
+- **Wakes are not these waits.** A circle that runs through a parked
+  task's wakes, its watches, its delegates' results and the questions
+  asked of it, is found when the task parks, not when an edge is made
+  (`stuck.md`).
 
 ## 8. Later
 

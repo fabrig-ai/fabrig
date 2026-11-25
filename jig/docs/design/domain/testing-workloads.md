@@ -67,8 +67,13 @@ with `jig_core_kit::open`'s `AMENDS_A_PASSED_DEADLINE`,
 | `ANSWERED_AFTER_ITS_END` | `a parked run's answer arrives after it ended` |
 | `ANSWERED_TO_ITS_SUCCESSOR` | `a parked run's answer reaches its successor` |
 | `COORDINATOR_ENDS_WHILE_A_CHILD_WAITS` | `a coordinator ends while a child waits for its answer` |
+| `PARKS_WITH_A_QUESTION_OPEN` | `a run parks with a question to its requester open` |
+| `STUCK_IN_A_CIRCLE` | `a circle of questions and watches` |
+| `PARKS_ON_NOTHING` | `a run parks with nothing to await` |
+| `WATCHES_A_TASK_THAT_CAN_ANSWER` | `a watch that can still bring the answer` |
 
-with `jig_core_kit::open::PARKS_WITH_A_QUESTION_OPEN`.
+`PARKS_WITH_A_QUESTION_OPEN` was `jig_core_kit::open`'s while P43 was
+open, its name unchanged (`testing-fakes.md`, 1.3).
 
 `jig_core_kit::bounds`, `FAMILY = "the engine's own bounds"`, a table's
 kind named as its adapter names the table (`testing-fakes.md`, 1.1), in
@@ -133,11 +138,14 @@ pub enum Expect {
     Ends,
     /// A party holds it, or never answers it: it may stay held or waiting.
     Waits,
+    /// Stuck: held past its run tries, its hold's words naming what it waits on.
+    Stuck,
 }
 ```
 
   `Waits` for a task held and never released, or whose question is never
-  answered, and for its ancestors waiting on it; `Ends` for every other.
+  answered, and for its ancestors waiting on it; `Stuck` for the task a
+  circle or a park on nothing holds (section 4); `Ends` for every other.
   The bound is explicit and nonzero: simulated minutes and drain
   iterations, the run's own. A task past its bound, or ended otherwise
   than its expectation allows (a cancelled task held, a released task
@@ -167,9 +175,52 @@ drawn step of its target's life, and recorded as it falls:
   says, woken or ended, never left with no wake (the core world's checks
   hold it).
 
-Each takes `Ends` but where a party never answers. P43's exclusion leaves
-out `PARKS_WITH_A_QUESTION_OPEN` while its requester watches it
-(`testing-fakes.md`, 1.3).
+Each takes `Ends` but where a party never answers. Where
+`PARKS_WITH_A_QUESTION_OPEN` falls while its requester watches it, P43's
+shape, the requester's run answers it as any other's does.
+
+Stuck tasks (`tasks/stuck.md`), each drawn from `Faults`, part `parks`,
+over the same workload, recorded as it is set up:
+
+- **`STUCK_IN_A_CIRCLE`:** a circle of one, two or three goals, each with
+  a delegate that asks its goal a question and parks. Each goal watches
+  the next goal's asking delegate: its own in a circle of one, which is
+  P43's shape, and another goal's by reading in a longer circle, since
+  both parties hold roles in the project (`tasks/messages.md`, 5). Each
+  goal's run reads its question and parks without answering. The goal
+  whose park closes the circle takes `Stuck`: it is held past its run
+  tries for `Failures` of the run's class, and its words name its
+  delegate's question and the circle's other tasks
+  (`tasks/stuck.md`, 5). The circle's other goals and their delegates
+  take `Waits`. They stay idle behind that hold, and none is held by
+  it.
+- **`PARKS_ON_NOTHING`:** a delegate with no child whose run parks at
+  each wake with nothing left to await. It takes `Stuck`: held past its
+  run tries, with Nothing left to await's words (`tasks/lifecycle.md`, 2).
+- **`WATCHES_A_TASK_THAT_CAN_ANSWER`,** the control: a goal with two
+  delegates. The first asks it a question, and the goal watches the
+  second, which works on and then finishes. The goal's run reads the
+  question and parks without answering until its watch's notice comes,
+  and answers then. It takes `Ends`: no unanswered park spends a run
+  try, it is never held, and its first delegate ends with the answer.
+
+The drawn goals are among the workload's, at its profile: a circle
+longer than the goals drawn is cut to their number, and to what the
+profile's bounds admit. At the planning fixture's five live tasks and
+five tasks a tree, which the stuck walk counts from the root, a circle
+of three goals with their asking delegates needs six of each, so the
+drawn length is capped at two there; a circle of two still checks the
+walk through another goal's delegate by reading.
+
+A watch's reservation doesn't fit the planning fixture's 512-byte inbox
+beside what a goal already reserves: 64 for its news, 128 for each live
+delegate's result, 256 for an open question asked of it, and 128 for
+the watch, so a goal in a circle needs 576 and the control's goal, with
+two delegates, 704. A seed that draws `STUCK_IN_A_CIRCLE` or
+`WATCHES_A_TASK_THAT_CAN_ANSWER` sets the tasks' inbox bytes to 704
+before the world is made; every other bound, the task and walk bounds
+among them, stays the planning fixture's, and a seed that draws neither
+keeps 512.
 
 ## 5. Tables and funds at their bounds
 
@@ -214,7 +265,7 @@ its findings returned at once, and `check_fell` after the last.
 | Sweep | World | Family | Configures | Exclusions |
 |---|---|---|---|---|
 | `people_act_on_tasks_at_any_step` | core | people and parties | section 2's `people` kinds, `AMENDS_A_PASSED_DEADLINE`, `WIDENS_GOAL_AUTHORITY`, `NEW_SERVICE_RUNS_ON_AN_ACCOUNT` | S15, P77, P76 |
-| `runs_park_resume_and_move_at_any_step` | core | runs that park, resume and move | section 2's `parks` kinds, `PARKS_WITH_A_QUESTION_OPEN` | P43 |
+| `runs_park_resume_and_move_at_any_step` | core | runs that park, resume and move | section 2's `parks` kinds, `PARKS_WITH_A_QUESTION_OPEN` and the stuck kinds among them | none |
 | `the_cores_tables_and_funds_reach_their_bounds` | core | the engine's own bounds | `SUBSCRIPTIONS`, `CREATION_REPORTS`, `KEPT_ANSWERS`, `START_WITH_NO_BUDGET`, `NEW_PARTY_ASKS_FOR_FUNDS`, `DELEGATING_RUN_AT_ITS_MINIMUM` | P93, P98, P82 |
 | `sign_ins_resend_and_fill_at_any_step` | engine-clients | people and parties; the engine's own bounds | `RESENDS_A_PENDING_REQUEST`, `PENDING_EXCHANGES` | none |
 
@@ -249,7 +300,9 @@ Focused and fuzzy suites only.
   moment allows, and a release only after its hold.
 - **The expectation:** a task held to `Ends` that ends passes, and one
   left held past its bound is a finding naming it; `Waits` passes a task
-  left held.
+  left held; `Stuck` passes a task held past its run tries for `Failures`
+  of the run's class with its words (`tasks/stuck.md`, 5), and a task
+  idle, held otherwise or ended in its place is a finding.
 - **Each sweep,** in its world's fuzzy suite: every configured kind fell,
   and the world's checks and the tasks' expectations held.
 

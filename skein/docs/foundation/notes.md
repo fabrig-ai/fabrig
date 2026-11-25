@@ -189,22 +189,32 @@ reports a result after it has moved on.
 
 ## Why a pinned nightly
 
-The repository builds on a dated nightly with LLVM, by the user's choice
-of 2026-11-12 (temper's `draft/archive/crate-graph.md`, 2). In one
-trial on one builder, that nightly's LLVM compiled the libraries in 17%
-less processor time than stable 1.95's, and two crates' test builds in
-19% less; and Cargo's feature unification across a workspace, which
-keeps one cache key for each external crate whatever a build selects,
-is nightly's alone (the same draft, 3.4). Cranelift compiled in about
-43% less, but failed 151 of the focused suite's tests: it doesn't catch
-panics, and lacks an SSE2 intrinsic a dependency uses. So LLVM stays,
-and no other code generator is installed.
+The repository builds on a dated nightly, by the user's choice of
+2026-11-12 (temper's `draft/archive/crate-graph.md`, 2). In one trial on
+one builder, that nightly's LLVM compiled the libraries in 17% less
+processor time than stable 1.95's, and two crates' test builds in 19%
+less; and Cargo's feature unification across a workspace, which keeps
+one cache key for each external crate whatever a build selects, is
+nightly's alone (the same draft, 3.4). Cranelift compiled in about 43%
+less, but failed 151 of the focused suite's tests: it didn't catch
+panics, and lacks an SSE2 intrinsic a dependency uses.
+
+The pin itself names no code generator but LLVM, so a build from the
+repository alone, a release build and the `wasm32-unknown-unknown`
+target compile with LLVM. The builders compile dev and test builds with
+Cranelift, since 2026-11-12, from their own Cargo configuration rather
+than the repository's: `codegen-backend = "cranelift"` for the `dev` and
+`test` profiles, with LLVM kept for `zmij`, whose x86 SSE2 fast path
+Cranelift lacks, and for `skein-deflate`, for its optimized code. The
+panics no longer stand in the way: nothing catches a panic, tests
+included (programming-model.md, 10.4), so the same tests run under
+either code generator.
 
 The code stays within stable Rust's language and library
 (programming-model.md, 10.1): nightly is for the compiler's speed and
-Cargo's resolution, so the pin moves to a later nightly, or to Cranelift
-once it fits, by `rust-toolchain.toml` alone. Fuzz targets need a
-nightly in any case, for their sanitizers.
+Cargo's resolution, so the pin moves to a later nightly by
+`rust-toolchain.toml` alone. Fuzz targets need a nightly in any case,
+for their sanitizers.
 
 ## Why one feature set for every build
 

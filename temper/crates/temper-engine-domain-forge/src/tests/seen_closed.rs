@@ -101,7 +101,7 @@ fn no_pull_write(out: &[Request]) {
 fn refused_with_account(out: &Queue<Request>) {
     let mut found = false;
     for request in out {
-        if let Request::ReleaseFailed { task, account } = request {
+        if let Request::ReleaseFailed { task, account, .. } = request {
             assert_eq!(*task, TASK);
             assert!(account.is_some(), "{out:?}");
             found = true;
@@ -238,7 +238,7 @@ fn another_ending_of_an_unheld_release_or_another_root_is_still_refused() {
                 Event::Release { task: TASK, root, ending: ReleaseEnding::Failed, reason: None, entry: NEXT }
             };
             let out = outputs(&mut d, event);
-            assert!(out.contains(&Request::ReleaseFailed { task: TASK, account: None }), "{out:?}");
+            assert!(out.contains(&Request::ReleaseFailed { task: TASK, account: None, reason: None }), "{out:?}");
             assert_eq!(d.releases.get(&TASK).unwrap().ending, ReleaseEnding::Cancelled);
         }
     }

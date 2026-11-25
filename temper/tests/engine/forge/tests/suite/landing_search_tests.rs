@@ -384,17 +384,16 @@ fn a_late_selected_red_keeps_its_ids_and_a_later_top_fails_on_its_receipt_withou
     world.push_file(b"temper/c52", b"moved", b"new head");
     next_round(&mut world, 2000);
     world.restart();
-    world.run_for(400);
     world.take_calls();
+    // Step the new round while the superseded probe is still running.
     let mut failed = false;
     for entry in 3000..3060 {
-        if matches!(
-            landings::step_landing(&mut world, LANDING, entry),
-            landing::Decision::Leave { member: 0, why: landing::Leave::Failed { .. } }
-        ) {
+        let decision = landings::step_landing(&mut world, LANDING, entry);
+        if matches!(decision, landing::Decision::Leave { member: 0, why: landing::Leave::Failed { .. } }) {
             failed = true;
             break;
         }
+        landings::wait_for_run_poll(&mut world, decision);
     }
     assert!(failed, "a later whole top takes the late selected red");
     let red = receipt(&world, prefix).expect("fixture value");
@@ -422,14 +421,14 @@ fn selected_jobs_rerun_and_fresh_dispatch_keep_their_inputs_through_restart() {
         } else {
             world.runner_setup_faults(1000);
         }
-        world.run_for(400);
         let mut retried = false;
         for entry in 2000..2060 {
-            if matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Retry { member: 0, .. })
-            {
+            let decision = landings::step_landing(&mut world, LANDING, entry);
+            if matches!(decision, landing::Decision::Retry { member: 0, .. }) {
                 retried = true;
                 break;
             }
+            landings::wait_for_run_poll(&mut world, decision);
         }
         assert!(retried);
         world.runner_setup_faults(0);

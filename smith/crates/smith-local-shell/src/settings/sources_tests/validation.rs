@@ -85,8 +85,8 @@ fn program_documents_use_the_supplied_path() {
         std::path::Path::new("/fixture/root.der"),
         "program",
         true,
+        None,
     );
-    settings.values.remove("programs.claude_code");
     settings.paths.path = Some(path.as_os_str().to_owned());
     settings.values.get_mut("environment.inherit").expect("built-in inheritance").value = toml::Value::Array(vec![]);
     let document = crate::fixture::ready(resolve::agent_document_with(&settings, |path| {

@@ -299,7 +299,6 @@ fn before_talk(
         },
         closer: source.closer,
         asked_requester: source.asked_requester,
-        question_woken: source.question_woken,
         words_woken: source.words_woken,
         held_since: value::wall(source.held_since),
         history: task_history(source, limits)?,
@@ -446,7 +445,6 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         interests,
         outcome,
         asked_requester,
-        question_woken,
         words_woken,
         held_since,
     } = source;
@@ -474,7 +472,6 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         offered,
         reasons,
         asked_requester,
-        question_woken,
         words_woken,
         unrecorded,
         label: definition.label,
@@ -765,7 +762,6 @@ pub fn live_hot(
         phase,
         room_wait,
         asked_requester,
-        question_woken,
         words_woken,
     } = source;
     let history = wire::HotHistory {
@@ -882,7 +878,6 @@ pub fn live_hot(
             None => None,
         },
         asked_requester: *asked_requester,
-        question_woken: *question_woken,
         words_woken: *words_woken,
         held_since: value::wall(*held_since),
         history,
@@ -954,7 +949,6 @@ pub fn read_live(
         interests,
         outcome,
         asked_requester,
-        question_woken,
         words_woken,
         held_since,
         talk,
@@ -1054,7 +1048,6 @@ pub fn read_live(
         interests,
         outcome,
         asked_requester,
-        question_woken,
         words_woken,
         held_since,
     };

@@ -248,6 +248,7 @@ const FORGE: forge::Limits = forge::Limits {
         // Five seconds between an issue projection’s checks, the client’s active polling interval.
         interval: Duration::from_secs(5),
     },
+    waits: forge::STANDALONE_WAIT_FIGURES,
     change_policy: temper_engine_domain_forge_change::Limits {
         reruns: 1,
         // One repair per task in the change's eighty-task lifetime.
@@ -553,6 +554,7 @@ pub fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limits) -> e
         settings: jig.core.settings,
         call_records: jig.core.call_records,
         forge: forge::Limits {
+            waits: jig.core.waits,
             authority_segments: jig.core.authority.segments,
             roles: jig.core.authority.roles,
             setting_proposals: jig.core.settings.proposals,

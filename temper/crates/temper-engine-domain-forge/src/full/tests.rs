@@ -36,7 +36,10 @@ fn entry(number: u64, task: u64) -> Entry {
 }
 fn keep(d: &mut Domain, number: u64, task: u64) {
     d.entries
-        .insert(number, Outboxed { entry: entry(number, task), held: false, handoff: Handoff::Uncommitted })
+        .insert(
+            number,
+            Outboxed { entry: entry(number, task), owner_ended: None, held: false, handoff: Handoff::Uncommitted },
+        )
         .unwrap();
 }
 fn facts(out: &Queue<Request>) -> Vec<String> {
@@ -49,9 +52,8 @@ fn facts(out: &Queue<Request>) -> Vec<String> {
 }
 fn at(env: &mut Env<Limits>, seconds: u64) {
     env.now = crate::tests::env().now.saturating_add(Duration::from_secs(seconds));
-    env.wall = skein_lib::Wall::from_nanos(
-        crate::tests::env().wall.as_nanos().saturating_add(Duration::from_secs(seconds).as_nanos()),
-    );
+    env.wall =
+        Wall::from_nanos(crate::tests::env().wall.as_nanos().saturating_add(Duration::from_secs(seconds).as_nanos()));
 }
 fn full_outbox() -> (Domain, Env<Limits>) {
     // One retained entry fills the only outbox place; reads have spare room.
@@ -101,7 +103,7 @@ fn waiting_making(d: &mut Domain, env: &Env<Limits>, task: u64, order: u64) -> T
         .unwrap();
     domain::goal_branch::start(d, env, name, None, &mut Queue::uncapped());
     let owner = *d.makings.iter().find(|(_, pending)| pending.task == task).unwrap().0;
-    d.makings.get_mut(&owner).unwrap().outbox_wait = Some(domain::goal_branch::RoomWait { order });
+    d.makings.get_mut(&owner).unwrap().outbox_wait = Some(domain::goal_branch::RoomWait { order, since: env.wall });
     owner
 }
 
@@ -111,7 +113,7 @@ fn a_waiter_leaving_between_updates_prunes_its_reservation_on_resume() {
     let waiter = crate::room::Waiter::Change(7);
     waiting_change(&mut d, 7, 1);
     d.room.asked.insert(waiter).unwrap();
-    d.full.reserve(Reservation::Asked(waiter), 7);
+    d.full.reserve(Reservation::Asked(waiter), 7, None);
     update(&mut d, &env, &mut Queue::uncapped());
     assert_eq!(d.inspection_reservations().as_ref(), &[7]);
     d.room.asked.remove(&waiter);
@@ -128,7 +130,7 @@ fn pruning_inside_ask_reports_room_before_admitting_the_next_waiter() {
     let owner = waiting_making(&mut d, &env, 7, 1);
     let waiter = crate::room::Waiter::Making(owner);
     d.room.asked.insert(waiter).unwrap();
-    d.full.reserve(Reservation::Asked(waiter), 7);
+    d.full.reserve(Reservation::Asked(waiter), 7, None);
     waiting_change(&mut d, 8, 2);
     d.room.ready = true;
     update(&mut d, &env, &mut Queue::uncapped());
@@ -210,7 +212,7 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
             .unwrap();
         waiting_change(&mut d, 20, 2);
         d.room.asked.insert(Waiter::Change(20)).unwrap();
-        d.full.reserve(Reservation::Asked(Waiter::Change(20)), 20);
+        d.full.reserve(Reservation::Asked(Waiter::Change(20)), 20, None);
         waiting_change(&mut d, 21, 3);
         crate::room::pass(&mut d, 21);
         waiting_change(&mut d, 22, 4);
@@ -262,7 +264,7 @@ fn ask_keeps_one_first_come_line_and_skips_ineligible_waiters() {
         d.landing.rows.get_mut(&50).unwrap().landing.phase = landing::Phase::Preparing;
         crate::room::ask(&mut d, &env, &mut out);
         assert!(out.iter().eq(&[Request::WakeProcedure { task: 50 }]), "{out:?}");
-        assert_eq!(d.full.reservations.get(&Reservation::Asked(Waiter::Landing(50))), Some(&(5, 50)));
+        assert_eq!(d.full.reservations.get(&Reservation::Asked(Waiter::Landing(50))), Some(&(5, 50, None)));
     }
 }
 
@@ -409,7 +411,7 @@ fn catching_up_reports_both_halves_and_stops_only_when_both_finish() {
         sent: env.now,
         deadline: env.now.saturating_add(Duration::from_secs(600)),
         wall: env.wall,
-        expires: skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(Duration::from_secs(600).as_nanos())),
+        expires: Wall::from_nanos(env.wall.as_nanos().saturating_add(Duration::from_secs(600).as_nanos())),
     });
     outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held: false } });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -484,10 +486,10 @@ fn reservations_follow_entries_in_creation_order_and_only_eight_holders_are_name
     }
     let waiter = crate::room::Waiter::Change(42);
     d.room.asked.insert(waiter).unwrap();
-    d.full.reserve(Reservation::Asked(waiter), 42);
+    d.full.reserve(Reservation::Asked(waiter), 42, None);
     assert!(d.reserve_call(&env, Token::new(1), 43));
     d.projection_room.insert(2).unwrap();
-    d.full.reserve(Reservation::Projection(2), 44);
+    d.full.reserve(Reservation::Projection(2), 44, None);
     let words = outbox_words(&d, 10);
     assert!(words.ends_with(b"room asked for task 42, and 2 more"));
     for number in 1..=7 {
@@ -519,6 +521,7 @@ fn read_admission_reports_oldest_holders_doublings_and_room_after_reclaim() {
                 comparison: None,
                 baseline: None,
                 state: super::super::LostReadState::Asked,
+                last_answer: None,
                 kind: super::super::LostWriterKind::Written,
             },
         )

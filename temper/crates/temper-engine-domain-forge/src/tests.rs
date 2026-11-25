@@ -1,4 +1,7 @@
 use crate::*;
+use jig_domain_core_vocabulary::waits::{
+    Reported as WaitReport, ReportedBound, Thing as WaitThing, WaitKind, WaitObject,
+};
 
 use temper_engine_domain_forge_issues as issues;
 mod admission;
@@ -165,6 +168,7 @@ pub(crate) const LIMITS: Limits = Limits {
         comment_bytes: 256,
         interval: Duration::from_secs(5),
     },
+    waits: STANDALONE_WAIT_FIGURES,
     change_policy: temper_engine_domain_forge_change::Limits {
         reruns: 1,
         repairs: 3,
@@ -395,12 +399,56 @@ pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     }
     let mut out = Queue::uncapped();
     step(d, &env(), event, &mut out);
+    collected(out)
+}
+
+fn collected(mut out: Queue<Request>) -> Box<[Request]> {
     let mut values = skein_lib::List::with_capacity(out.len());
     for _ in 0..out.len() {
         values.push(out.pop().expect("counted output")).expect("sized from queue");
     }
     values.into_boxed()
 }
+fn at_wall(clock: &Env<Limits>, wall: Wall) -> Env<Limits> {
+    Env { wall, ..*clock }
+}
+
+fn advanced_wall(wall: Wall, span: Duration) -> Wall {
+    Wall::from_nanos(wall.as_nanos().saturating_add(span.as_nanos()))
+}
+
+fn fire_at(d: &mut Domain, clock: &Env<Limits>, wall: Wall) -> Box<[Request]> {
+    let mut out = Queue::uncapped();
+    fire(d, &at_wall(clock, wall), &mut out);
+    collected(out)
+}
+
+pub(crate) fn wait_thing(what: u32, number: u64) -> WaitThing {
+    WaitThing { what, number, owner: None }
+}
+
+pub(crate) fn step_wait(step: u32, since: Wall, bound: ReportedBound, things: &[WaitThing]) -> WaitReport {
+    WaitReport {
+        kind: WaitKind::Step,
+        object: WaitObject::Procedure { step, things: skein_lib::List::from_boxed(things.into()) },
+        since,
+        bound,
+    }
+}
+
+pub(crate) fn wait_report(requests: &[Request], task: u64) -> Option<&[WaitReport]> {
+    let mut report = None;
+    for request in requests {
+        if let Request::Waits { task: waiter, waits } = request
+            && *waiter == task
+        {
+            assert!(report.is_none(), "only one report per task in a step: {requests:?}");
+            report = Some(waits.as_slice());
+        }
+    }
+    report
+}
+
 fn ready(d: &mut Domain) -> Box<[Request]> {
     let mut out = Queue::uncapped();
     resume(d, &env(), &mut out);

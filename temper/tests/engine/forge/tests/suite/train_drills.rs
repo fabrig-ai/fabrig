@@ -112,17 +112,26 @@ fn ready(world: &mut World, task: u64, destination: &[u8]) {
     landings::ready_change_into(world, task, name.as_bytes(), destination);
 }
 
-fn until_turn(world: &mut World, task: u64) {
-    for entry in task * 100..task * 100 + 80 {
-        let decision = landings::step_landing_raw(world, task, entry);
-        if matches!(decision, landing::Decision::Prepare { .. }) {
-            world.prepare_landing(task, world.landing(task).landing.branch.as_ref() != b"main");
+fn until_turn(world: &mut World, tasks: &[u64]) {
+    // Give each train a step before taking another step in any one train.
+    for position in 0..80 {
+        let mut all_turning = true;
+        for &task in tasks {
+            if matches!(world.landing(task).landing.phase, landing::Phase::Turn { .. }) {
+                continue;
+            }
+            let decision = landings::step_landing_raw(world, task, task * 100 + position);
+            if matches!(decision, landing::Decision::Prepare { .. }) {
+                world.prepare_landing(task, world.landing(task).landing.branch.as_ref() != b"main");
+            }
+            all_turning &= matches!(world.landing(task).landing.phase, landing::Phase::Turn { .. });
         }
-        if matches!(world.landing(task).landing.phase, landing::Phase::Turn { .. }) {
+        if all_turning {
             return;
         }
     }
-    panic!("train did not reach its turn: {:?}", world.landing(task));
+    let task = tasks.iter().find(|&&task| !matches!(world.landing(task).landing.phase, landing::Phase::Turn { .. }));
+    panic!("train did not reach its turn: {:?}", world.landing(*task.expect("unfinished train")));
 }
 
 fn task(world: &World, change: u64) -> u64 {
@@ -348,26 +357,31 @@ fn drill_13_two_goal_trains_and_main_progress_independently() {
     assert_eq!(world.change(54).change.landing, None);
     for (landing, change) in [(first, 51), (second, 53), (main, 55)] {
         assert_eq!(world.landing(landing).landing.members.iter().map(|m| m.change).collect::<Vec<_>>(), [change]);
-        until_turn(&mut world, landing);
     }
-    // Main takes its turn while both goal trains still own theirs.
+    until_turn(&mut world, &[main]);
+    until_turn(&mut world, &[first, second]);
+    // Main lands while both goal trains still own their turns.
     trains.land(&mut world, main);
     landings::close_landing(&mut world, main);
     assert_eq!(world.landing(main).landing.phase, landing::Phase::Landed);
     assert!(matches!(world.landing(first).landing.phase, landing::Phase::Turn { .. }));
     assert!(matches!(world.landing(second).landing.phase, landing::Phase::Turn { .. }));
+    // Start the first goal's merge before driving the second goal's turn.
+    assert!(matches!(landings::step_landing(&mut world, first, 7000), landing::Decision::Merge { .. }));
     trains.land(&mut world, second);
     landings::close_landing(&mut world, second);
     let next_second = task(&world, 54);
     assert_ne!(next_second, second);
     assert_eq!(world.change(52).change.landing, None);
-    until_turn(&mut world, next_second);
+    // Finish the first goal's live turn before spending time on a successor.
+    // Judge again after the second goal's successor lands.
+    landings::drive_landing(&mut world, first);
+    landings::close_landing(&mut world, first);
+    until_turn(&mut world, &[next_second]);
     trains.land(&mut world, next_second);
     landings::close_landing(&mut world, next_second);
-    trains.land(&mut world, first);
-    landings::close_landing(&mut world, first);
     let next_first = task(&world, 52);
-    until_turn(&mut world, next_first);
+    until_turn(&mut world, &[next_first]);
     trains.land(&mut world, next_first);
     for change in 51..=55 {
         assert!(matches!(world.change(change).change.state, change::State::Landed { .. }));

@@ -91,7 +91,7 @@ pub fn sign_in(scratch: &Scratch) -> Ran {
                 ("HOME".into(), scratch.path().into()),
                 ("XDG_CONFIG_HOME".into(), scratch.path().join("config").into()),
                 ("XDG_STATE_HOME".into(), scratch.path().join("state").into()),
-                ("PATH".into(), "/usr/bin:/bin".into()),
+                ("PATH".into(), super::stories_path()),
             ],
             directory: scratch.path().into(),
         },

@@ -1003,12 +1003,13 @@ fn a_probe_ending_after_its_round_only_makes_a_receipt_and_a_later_probe_uses_it
     assert!(!world.has_receipt_at(prefix), "probe still running after its round");
     assert!(world.landing(LANDING).landing.round.search.is_none());
     world.restart();
-    world.run_for(400);
-    for entry in 2100..2110 {
-        landings::step_landing(&mut world, LANDING, entry);
+    // Drive the current round while the old probe runs to its receipt.
+    for entry in 2100..2500 {
+        let decision = landings::step_landing(&mut world, LANDING, entry);
         if world.has_receipt_at(prefix) {
             break;
         }
+        landings::wait_for_run_poll(&mut world, decision);
     }
     if !world.has_receipt_at(prefix) {
         let calls: Vec<_> = world

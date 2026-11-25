@@ -149,8 +149,8 @@ fn the_ring_keeps_the_last_landings_kept() {
     let mut d = configured_domain(&[(TIER, None)]);
     add_change(&mut d, CHANGE, b"main");
     landing_log::landed(&mut d, env().wall, [99; 32], CHANGE, Box::new([]), &mut Queue::uncapped());
-    d.landing.projects.get_mut(&PROJECT).unwrap().1[0].tiers = Box::new([]);
-    // No tier follows these landings, so each is judged as it is logged.
+    // Set the tier aside so the next landings are judged as they are logged.
+    let settings = core::mem::replace(&mut d.landing.projects.get_mut(&PROJECT).unwrap().1[0].tiers, Box::new([]));
     for number in 1..=17 {
         let out = merged(&mut d, CHANGE, [number; 32]);
         assert_eq!(saved(&out).len(), 1);
@@ -160,6 +160,8 @@ fn the_ring_keeps_the_last_landings_kept() {
     assert_eq!(row.landings[0].commit, [99; 32]);
     assert_eq!(row.landings[1].commit, [2; 32]);
     assert_eq!(row.landings[16].commit, [17; 32]);
+    // The tier must be configured for its verdict to judge the pending landing.
+    d.landing.projects.get_mut(&PROJECT).unwrap().1[0].tiers = settings;
     green(&mut d, 1, &[[99; 32]]);
     let row = d.landing_log(REPO).unwrap();
     assert_eq!(row.landings.len(), 16);
