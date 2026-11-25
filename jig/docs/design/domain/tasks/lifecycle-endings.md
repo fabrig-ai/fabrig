@@ -168,10 +168,11 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   (`lifecycle.md`, 7), a result the contract refuses failing the
   attempt as ever. A result the contract takes is committed as parked,
   as a park by `wait` is: its turns first, then its saved state, no try
-  spent but where the task owes its requester a question (1); its
-  follow-ups and its ask to cancel its delegates discarded, so that its
-  delegates are still awaited; and its result kept, its parked result
-  (below), in place of any kept before. The rule of 2 then finds what
+  spent but where the task owes its requester a question (1); its ask
+  to cancel its delegates honoured, as any finish's is, so that what it
+  leaves live is still awaited; its follow-ups discarded, since they
+  are made only as a result commits; and its result kept, its parked
+  result (below), in place of any kept before. The rule of 2 then finds what
   it finds after any park: nothing left to await makes its closer, at
   once or when the last awaited thing ends (below), and a closer
   already live goes on. A narrowing run's finish is not taken, as ever,
