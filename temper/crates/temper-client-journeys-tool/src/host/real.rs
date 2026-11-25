@@ -6,13 +6,16 @@ use std::{
         fd::{AsFd as _, OwnedFd},
         unix::ffi::OsStrExt as _,
     },
-    path::Path,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
 };
 
 use super::{Answer, Ask, EnvironmentEntry, Program, Ran, Stream};
 
-pub(super) fn ask(environment: &[EnvironmentEntry], ask: Ask) -> Answer {
+mod browser;
+pub(super) use browser::Browser;
+
+pub(super) fn ask(environment: &[EnvironmentEntry], session: &mut Option<Box<Browser>>, ask: Ask) -> Answer {
     match ask {
         Ask::Run(program) => run(environment, &program),
         Ask::Directory(path) => changed(&path, fs::create_dir(&path)),
@@ -38,7 +41,45 @@ pub(super) fn ask(environment: &[EnvironmentEntry], ask: Ask) -> Answer {
             Err(error) => Answer::Failed(format!("cannot check process {pid}: {error:?}")),
         },
         Ask::Clock => Answer::Seconds(skein_shell::Clock::new().now().wall.as_secs()),
+        Ask::Directories(path) => changed(&path, fs::create_dir_all(&path)),
+        Ask::Files { root, tree } => match files(&root, tree) {
+            Ok(files) => Answer::Files(files),
+            Err((path, error)) => file_failed(&path, &error),
+        },
+        Ask::Browser(command) => Answer::Browser(browser::ask(session, environment, command)),
     }
+}
+
+// All returned paths are relative to the checkout. Do not descend through
+// symlinks into a different tree or give the caller a symlink to copy.
+fn files(root: &Path, tree: &str) -> Result<Vec<PathBuf>, (PathBuf, io::Error)> {
+    let mut start = root.to_owned();
+    for name in Path::new(tree) {
+        start.push(name);
+        match fs::symlink_metadata(&start) {
+            Ok(metadata) if metadata.is_dir() => (),
+            Ok(_) => return Err((start, io::Error::from(io::ErrorKind::NotADirectory))),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err((start, error)),
+        }
+    }
+    let mut directories = vec![PathBuf::from(tree)];
+    let mut files = Vec::new();
+    while let Some(directory) = directories.pop() {
+        let disk = root.join(&directory);
+        for entry in fs::read_dir(&disk).map_err(|error| (disk.clone(), error))? {
+            let entry = entry.map_err(|error| (disk.clone(), error))?;
+            let kind = entry.file_type().map_err(|error| (entry.path(), error))?;
+            let path = directory.join(entry.file_name());
+            if kind.is_dir() {
+                directories.push(path);
+            } else if kind.is_file() {
+                files.push(path);
+            }
+        }
+    }
+    files.sort_unstable();
+    Ok(files)
 }
 
 fn changed(path: &Path, result: io::Result<()>) -> Answer {

@@ -1,10 +1,11 @@
-//! Machine requests and answers for the writer and look-refresh runs
+//! Machine requests and answers for the journeys' tools
 //! (temper/docs/design/client/journey-writer.md, 4, 6 and 7).
 
 use std::path::PathBuf;
 
 use crate::EnvironmentEntry;
 
+pub(crate) mod browser;
 mod real;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -17,6 +18,9 @@ pub(crate) enum Ask {
     Exists(PathBuf),
     Alive(u32),
     Clock,
+    Directories(PathBuf),
+    Files { root: PathBuf, tree: &'static str },
+    Browser(browser::Command),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -59,6 +63,8 @@ pub(crate) enum Answer {
     Missing,
     Failed(String),
     Seconds(u64),
+    Files(Vec<PathBuf>),
+    Browser(browser::Answer),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -79,19 +85,22 @@ pub(crate) struct Host {
 }
 
 enum Kind {
-    Real(Box<[EnvironmentEntry]>),
+    Real {
+        environment: Box<[EnvironmentEntry]>,
+        browser: Option<Box<real::Browser>>,
+    },
     #[cfg(test)]
     Canned(Canned),
 }
 
 impl Host {
     pub(crate) fn real(environment: Box<[EnvironmentEntry]>) -> Self {
-        Self { kind: Kind::Real(environment) }
+        Self { kind: Kind::Real { environment, browser: None } }
     }
 
     pub(crate) fn ask(&mut self, ask: Ask) -> Answer {
         match &mut self.kind {
-            Kind::Real(environment) => real::ask(environment, ask),
+            Kind::Real { environment, browser } => real::ask(environment, browser, ask),
             #[cfg(test)]
             Kind::Canned(canned) => canned.try_ask(&ask).unwrap_or_else(|why| panic!("{why}")),
         }
@@ -99,7 +108,7 @@ impl Host {
 
     pub(crate) fn out(&mut self, bytes: &[u8]) {
         match &mut self.kind {
-            Kind::Real(_) => real::out(bytes).expect("write the run's stdout"),
+            Kind::Real { .. } => real::out(bytes).expect("write the run's stdout"),
             #[cfg(test)]
             Kind::Canned(canned) => canned.gathered.stdout.extend_from_slice(bytes),
         }
@@ -107,7 +116,7 @@ impl Host {
 
     pub(crate) fn err(&mut self, bytes: &[u8]) {
         match &mut self.kind {
-            Kind::Real(_) => real::err(bytes).expect("write the run's stderr"),
+            Kind::Real { .. } => real::err(bytes).expect("write the run's stderr"),
             #[cfg(test)]
             Kind::Canned(canned) => canned.gathered.stderr.extend_from_slice(bytes),
         }

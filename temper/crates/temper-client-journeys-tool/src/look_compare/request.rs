@@ -80,8 +80,8 @@ fn hex(value: &str) -> bool {
 }
 
 pub(crate) struct Changes {
-    pub(super) journeys: BTreeMap<Journey, Change>,
-    pub(super) overlays: BTreeSet<Side>,
+    pub(crate) journeys: BTreeMap<Journey, Change>,
+    pub(crate) overlays: BTreeSet<Side>,
 }
 
 impl Changes {
