@@ -190,6 +190,7 @@ fn cancel_change(world: &mut World, task: u64, entry: u64) {
         entry,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

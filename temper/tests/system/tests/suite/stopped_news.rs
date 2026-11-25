@@ -94,7 +94,11 @@ fn only_the_first_query_after_release_carries_both_endings() {
     );
     let children: Vec<_> = world::assignments(&root).into_iter().filter(|run| run.task != owner.task).collect();
     let [implementer, change] = children.as_slice() else { panic!("two running delegates") };
-    person(&mut root, 81, people::Ask::Stop { project: 1, task: owner.task });
+    person(
+        &mut root,
+        81,
+        people::Ask::Stop { project: 1, task: owner.task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     root.answer(CHANNEL, owner.task, owner.attempt, 0, tasks::End::Parked, engine::Parts::none());
     root.settle();
     // Their already-completed answers cross cancellation while the owner stays held.

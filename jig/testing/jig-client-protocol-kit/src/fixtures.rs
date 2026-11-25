@@ -71,8 +71,13 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         heartbeat: Duration::from_millis(50),
         rows,
         served: jig_client_kit::test::list([
-            Served { family: None, first: jig_client_protocol_wire::VERSION, last: jig_client_protocol_wire::VERSION },
-            Served { family: Some(1), first: 2, last: 2 },
+            Served {
+                family: None,
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+                layout: jig_client_protocol_wire::LAYOUT,
+            },
+            Served { family: Some(1), first: 2, last: 2, layout: jig_client_test_protocol_wire::LAYOUT },
         ]),
         providers: jig_client_kit::test::list([0]),
         seed: Secret::new(Box::new([7; 32])),
@@ -183,7 +188,11 @@ pub fn family_world(seed: u64) -> World<Test, Protocol> {
 #[must_use]
 pub fn domain_limits() -> jig_client_domain::Limits {
     jig_client_domain::Limits {
-        owners: &[jig_client_domain::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION }],
+        owners: &[jig_client_domain::Spoken {
+            family: 1,
+            version: jig_client_test_protocol_wire::VERSION,
+            layout: jig_client_test_protocol_wire::LAYOUT,
+        }],
         handles: 8,
         ..jig_client_kit::stories::shared::a_roles::limits().client.domain
     }
@@ -317,7 +326,7 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The task owner's open suspension, accumulated gap and restarted mark occupy 48 inline bytes.
 // The worker proof adds eight bytes to each of Row's two record slots and its charged record carrier.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2937;
+pub const TURN_OVERLAP_BYTES: u64 = 3_072;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

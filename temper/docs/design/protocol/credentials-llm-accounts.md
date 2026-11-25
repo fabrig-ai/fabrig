@@ -47,7 +47,7 @@ sources in its holder's order. temper configures the LLM providers
     prints the address and opens no browser (`../client/pages/README.md` and `../client/line.md`, 5
     ). temper detects no browser on another machine
     (`../client/README.md`, section 5).
-    ChatGPT's registration fixes `127.0.0.1:1455` (setup/init.md, 1): a
+    ChatGPT's registration fixes `127.0.0.1:1455` (setup/init.md, 4): a
     person whose browser is on another machine finishes the sign-in by
     pasting the address that browser was sent to, where nothing
     answers, into the page it started from, which hands it to the
@@ -119,7 +119,7 @@ sources in its holder's order. temper configures the LLM providers
     `protocol/agent.md`, section 4); a programs directory, or a
     `<directory>/NAME`, that exists and is not a directory of the
     user's own with no group or other bits, or is a link at its name
-    (skein's `runtime/io/files.md`, 3). Linked parent directories are accepted.
+    (skein's `runtime/io/files.md`, 11). Linked parent directories are accepted.
   - It makes the programs directory and `<directory>/NAME`, each
     `0o700`, when missing, then replaces itself with the program's own
     sign-in, `claude auth login`, at the configured path. The

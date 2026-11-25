@@ -53,6 +53,7 @@ pub fn refusal_words(words: &Words, value: &c::Refusal) -> Box<[u8]> {
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }
         | c::Refusal::Unlinked { .. }
+        | c::Refusal::QuestionAnswered { .. }
         | c::Refusal::Concluded { .. }
         | c::Refusal::Provider => None,
     };

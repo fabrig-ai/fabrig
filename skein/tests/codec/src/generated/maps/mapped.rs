@@ -508,3 +508,40 @@ pub fn long_choice_to_domain(record: crate::mapped_records::LongChoice) -> crate
     }
 }
 
+pub fn rows_notice_to_record(value: &crate::mapped_domain::SentRows) -> Result<crate::mapped_records::RowsNotice, crate::mapped_records::Problem> {
+    let crate::mapped_domain::SentRows { rows: field_000000 } = value;
+    Ok(crate::mapped_records::RowsNotice {
+        payload: crate::mapped_records::Rows { rows: {
+                let source: &[_] = field_000000;
+                if u32::try_from(source.len()).is_err() {
+                    return Err(crate::mapped_records::paths::ROWS_ROWS.problem(skein_codec::Reason::Bound));
+                }
+                skein_lib::List::from_boxed(Box::from(source))
+            } }
+    })
+}
+
+pub fn rows_exchange_to_record(value: &crate::mapped_domain::SentRows) -> Result<crate::mapped_records::RowsExchange, crate::mapped_records::Problem> {
+    let crate::mapped_domain::SentRows { rows: field_000000 } = value;
+    Ok(crate::mapped_records::RowsExchange {
+        payload: crate::mapped_records::Rows { rows: {
+                let source: &[_] = field_000000;
+                if u32::try_from(source.len()).is_err() {
+                    return Err(crate::mapped_records::paths::ROWS_ROWS.problem(skein_codec::Reason::Bound));
+                }
+                skein_lib::List::from_boxed(Box::from(source))
+            } }
+    })
+}
+
+#[must_use]
+pub fn rows_exchange_to_domain(record: crate::mapped_records::RowsExchange) -> crate::mapped_domain::ReceivedRows {
+    let crate::mapped_records::RowsExchange { payload: field_000000 } = record;
+    crate::mapped_domain::ReceivedRows {
+        received: {
+            let crate::mapped_records::Rows { rows: held } = field_000000;
+            held.into_boxed()
+        }
+    }
+}
+

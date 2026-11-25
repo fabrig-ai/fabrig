@@ -32,6 +32,7 @@ pub(super) fn before_change() -> Driver {
     producer.numbers.budget = producer.authority.budget.spend;
     producer.funder = tasks::Funder::Task(TASK);
     core.send(tasks::Event::Procedure {
+        reads_project: false,
         reply_to: ReplyTo::new(Token::new(99)),
         task: TASK,
         step: 1,

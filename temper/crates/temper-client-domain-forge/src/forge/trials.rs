@@ -1,5 +1,6 @@
 //! Session trial facts and their run's wait (temper/docs/design/domain/trial.md, 6).
 use super::{Limits, Request, Side, wire_limits};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Reader, Token};
@@ -270,32 +271,8 @@ fn rows(record: &Family, limits: &crate::Limits) -> Option<Box<[Row]>> {
     }
     let mut rows = List::with_capacity(bounds.trials_rows);
     for value in document.rows.into_boxed() {
-        let step = match value.step {
-            w::TrialStep::Starts => Step::Starts,
-            w::TrialStep::Answers => Step::Answers,
-        };
-        let state = match value.state {
-            w::TrialState::Running => State::Running,
-            w::TrialState::Answered(value) => State::Answered { seconds: value.seconds },
-            w::TrialState::Failed(value) => State::Failed {
-                why: match value.why {
-                    w::TrialWhy::Refused => Why::Refused,
-                    w::TrialWhy::Waited => Why::Waited,
-                    w::TrialWhy::Ended(value) => Why::Ended {
-                        class: match &value.class {
-                            w::TrialClass::Transient => Class::Transient,
-                            w::TrialClass::Permanent => Class::Permanent,
-                            w::TrialClass::Run => Class::Run,
-                            w::TrialClass::Agent => Class::Agent,
-                            w::TrialClass::Lost => Class::Lost,
-                            w::TrialClass::Invalid => Class::Invalid,
-                            w::TrialClass::Infrastructure => Class::Infrastructure,
-                            w::TrialClass::Refused => Class::Refused,
-                        },
-                    },
-                },
-            },
-        };
+        let step = maps::trial_step_to_domain(value.step);
+        let state = maps::trial_state_to_domain(value.state);
         let run_wait = match value.run_wait {
             Some(bytes) if state == State::Running && value.task.is_some() => run_wait(&bytes, &link),
             Some(_) | None => None,

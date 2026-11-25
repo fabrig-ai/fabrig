@@ -337,10 +337,15 @@ impl App for Ops {
 }
 fn client_limits() -> jig_client::Limits {
     const OWNERS: [jig_client::Spoken; 2] = [
-        jig_client::Spoken { family: number(Connector::Observability), version: jig_ops_client_protocol_wire::VERSION },
+        jig_client::Spoken {
+            family: number(Connector::Observability),
+            version: jig_ops_client_protocol_wire::VERSION,
+            layout: jig_ops_client_protocol_wire::LAYOUT,
+        },
         jig_client::Spoken {
             family: number(Connector::Infrastructure),
             version: jig_ops_client_protocol_wire::VERSION,
+            layout: jig_ops_client_protocol_wire::LAYOUT,
         },
     ];
     let mut client = jig_client_kit::test::limits().client;
@@ -465,12 +470,21 @@ mod tests {
     #[test]
     fn both_ops_routes_keep_ordinary_no_card_requests() {
         for ask in [
-            Ask::Stop { project: PROJECT, task: OBSERVED_TASK },
+            Ask::Stop {
+                project: PROJECT,
+                task: OBSERVED_TASK,
+                reason: Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX).expect("fixture reason fits"),
+            },
             Ask::Take { project: PROJECT, task: OBSERVED_TASK },
             Ask::Compound {
                 project: PROJECT,
                 operations: jig_client_kit::test::list([
-                    Operation::Stop { project: PROJECT, task: OBSERVED_TASK },
+                    Operation::Stop {
+                        project: PROJECT,
+                        task: OBSERVED_TASK,
+                        reason: Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                            .expect("fixture reason fits"),
+                    },
                     Operation::Message {
                         project: PROJECT,
                         task: OBSERVED_TASK,

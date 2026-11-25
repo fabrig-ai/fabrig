@@ -11,6 +11,8 @@ smith's agent processes, and declares in its hello the kinds it runs:
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`../forge/change/repairs.md`) | the command, the head and the base | the files settled, and a record of each left, its kind and, for a deletion or a rename, the side and the commit that made it (`../../protocol/tooling.md`, 4.1), carried as bytes and parsed by no reader |
 | 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command and the close request | the files settled |
 
+## 1. Job declarations, commands and delivery
+
 - **Its kinds are entries** the root gives the capability: each a
   kind's number, the command's verb (its second argument,
   `../../protocol/tooling.md`, section 2) and whether it delivers. The hello
@@ -57,6 +59,9 @@ smith's agent processes, and declares in its hello the kinds it runs:
   its items name as writable, as a fast-forward onto that branch through
   the checkout's push (`checkouts.md`), as a run's delivery is; a push refused
   fails the job as undelivered.
+
+## 2. Limits and command requests
+
 - **The worker's limits** bound a job's spec, its result, its output
   files and its processes, and a job beyond them is refused as invalid.
 - **The merge kind,** kind 3, verb `merge`, delivering, is built first
@@ -153,6 +158,9 @@ smith's agent processes, and declares in its hello the kinds it runs:
   declares it only where its tasks limits hold those bounds, as kind
   3's. The engine learns the prefixes from the branches, read afresh,
   and the conflicts from the result (`../landing-prepare.md`, 1.2).
+
+## 3. Writing the spec and bounding the request
+
 - **The spec is written by the engine's root** as it makes the job, in
   the worker wire's `JobSpec` record, since jig takes a job's spec as
   the application's bytes when the job is made (jig's
@@ -174,6 +182,8 @@ index, never that list, and stages each file it settles, in the run's own
 git directory (`checkouts.md`, *Two git directories*); its delivery scans
 every file the merge left in conflict, in pages past `conflicts`, and
 refuses one still marked (`../../protocol/git-operations.md`, 1.7) (2026-11-09).
+
+## 4. Failure lines
 
 A job's failure is a line on the side that met it, and on the engine's
 too (2026-11-09):
@@ -214,11 +224,13 @@ too (2026-11-09):
   The change's held merge delegate therefore says why it failed, alongside
   its failure class and the way out.
 
+## 5. The delivering job’s checkout
+
 A delivering job's writable repository is the one its items name with a
 branch to push, and the engine names one only for a job its change names
 as its delegate: that change's repository and own branch, on every
-attempt, a released job's too (`../forge/change/repairs.md`, its close job
-held for its failures). Nothing else makes one writable, neither the
+attempt, a released job's too, and a fresh close job's on its change's
+release (`../forge/change/repairs-releases.md`, 1). Nothing else makes one writable, neither the
 job's authority nor the goal's branch, which a close job starts from and
 never pushes. Every other repository of its checkout is read-only, a
 context repository or one whose adopted push the forge has refused

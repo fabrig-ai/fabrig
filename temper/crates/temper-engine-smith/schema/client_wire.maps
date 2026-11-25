@@ -1,0 +1,32 @@
+records temper_client_protocol_wire::v1
+use f = temper_engine_domain_forge
+use s = temper_engine_domain_forge::settings
+
+direction to record
+
+record CharterWords by hand
+record ProjectWords = s::ProjectWords both ways
+
+enum RuleFreshness = f::JudgeFreshness both ways
+record LandingExact stands for value
+record LandingOpen stands for value
+enum LandingLast = f::GateLast both ways { exact tuple, open tuple }
+record LandingPattern = f::GatePattern both ways { segments slice }
+record RuleGate = s::RuleGate both ways
+record RuleApproval = s::RuleApproval both ways
+record LandingRule = s::LandingRule both ways { gates slice, approvals slice, sets slice }
+record ForgeCharter by hand
+record TemplateGoal = s::TemplateGoal both ways
+enum QuestionsRoute = temper_engine_domain_forge_change::Route both ways
+record ProjectQuestions by hand
+record ProjectWays = s::ProjectWays both ways
+record Dependency = s::Dependency both ways
+record AreaTask stands for number
+record AreaParty stands for number
+record AreaRole stands for number
+record AreaCharter stands for number
+enum AreaOwner = s::AreaOwner both ways { task tuple, party tuple, role tuple, charter tuple }
+record Area = s::Area both ways
+record ProjectAreas = s::ProjectAreas both ways { areas slice }
+record ProjectTriager = s::ProjectTriager both ways
+record Welcome = s::Welcome both ways

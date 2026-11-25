@@ -70,7 +70,7 @@ temper's:
     client of temper since dev.fabrig.ai's 0.0.2 takes both forms. A
     client of a build before that one says the page's form is no link;
     it is a client of another build, which an engine refuses and tells
-    to upgrade (`../draft/redeploys.md`, section 8).
+    to upgrade (`../draft/archive/redeploys.md`, section 8).
 - **A sign-in held is kept** (jig's `domain/people/README.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's

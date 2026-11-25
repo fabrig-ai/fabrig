@@ -81,11 +81,9 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
     );
 }
 
-/// P117: a parked act and its resend jam the shared sign-in. Other requests must
-/// still be answered, and the resend must receive the parked act's answer. Today
-/// the gone caller and resend both count as active, so the other request gets busy.
+/// A parked act leaves room on the shared sign-in: the other request can be
+/// answered while the resend waits for the parked act's answer.
 #[test]
-#[ignore = "P117, open: bounded waits (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_parked_act_holds_no_exchange() {
     // jig-protocol-config's standard profile: two exchanges per shared sign-in.
     const STOCK_EXCHANGES_PER_SIGN_IN: u32 = 2;
@@ -401,9 +399,10 @@ fn a_carried_value_is_kept_before_the_application_sees_its_request() {
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         })
         .expect("jig");
-    settings.served.push(Served { family: Some(1), first: 1, last: 1 }).expect("family");
+    settings.served.push(Served { family: Some(1), first: 1, last: 1, layout: [1; 32] }).expect("family");
     let mut peer = Peer::started(&settings);
     let bearer = fixtures::signed_in(&mut peer);
     let socket = peer.post(b"/jig/v1/request", carrying_request(b"a carried key"), Some(&bearer));

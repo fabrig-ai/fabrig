@@ -1,6 +1,6 @@
 # limits: status
 
-2026-11-21. Where smith's code lags or departs from [limits.md](limits.md).
+2026-11-24. Where smith's code lags or departs from [limits.md](limits.md).
 
 `limits-derivation.md`, sections 1.6 and 1.8's `host_limits` and the agent's profile derivation
 are `smith-agent-profile`'s at main's `fdc26f71c6`, re-exported at the

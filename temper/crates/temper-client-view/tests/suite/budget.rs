@@ -337,6 +337,8 @@ mod tests {
                 request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop {
                     project: PROJECT,
                     task: 9001,
+                    reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                        .expect("fixture reason fits"),
                 })),
             },
             jig_client::Event::Send {
@@ -345,6 +347,8 @@ mod tests {
                 request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop {
                     project: PROJECT,
                     task: 9002,
+                    reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                        .expect("fixture reason fits"),
                 })),
             },
         ] {

@@ -274,6 +274,7 @@ pub enum HoldReason {
     /// A configured bound refused the run's model call.
     Exceeded(Exceeded),
     Circle,
+    Waited,
     /// Its retry allowance was exhausted.
     Failures {
         class: FailureClass,

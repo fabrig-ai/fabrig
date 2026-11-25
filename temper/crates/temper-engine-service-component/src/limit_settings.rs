@@ -404,10 +404,12 @@ fn task_bound(bound: &jig_domain_tasks::RestoreBound) -> Option<&'static [u8]> {
     match bound {
         B::Stubs
         | B::Writers
+        | B::Timers
         | B::PersonProposals
         | B::ResultFields
         | B::HoldPathCapacity
         | B::AccountOriginBytes
+        | B::WaitOriginBytes
         | B::PreparationReasonBytes
         | B::Subagents
         | B::SettingsItems
@@ -446,7 +448,6 @@ fn task_bound(bound: &jig_domain_tasks::RestoreBound) -> Option<&'static [u8]> {
         B::Exemptions => Some(b"tasks.exemptions".as_slice()),
         B::Delegates => Some(b"tasks.delegates".as_slice()),
         B::References => Some(b"tasks.references".as_slice()),
-        B::Subscriptions => Some(b"tasks.subscriptions".as_slice()),
         B::InboxMessages => Some(b"tasks.inbox_messages".as_slice()),
         B::SavedResources => Some(b"tasks.saved_resources".as_slice()),
     }

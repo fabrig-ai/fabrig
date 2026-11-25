@@ -1,5 +1,5 @@
 //! Landed drafts (temper/docs/design/domain/forge/drafts.md, sections 1–3).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Commit, Error, Read};

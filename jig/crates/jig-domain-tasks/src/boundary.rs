@@ -69,13 +69,14 @@ pub enum NewsClass {
     Dropped,
 }
 
-/// State of a watched task, distinct from a terminal result.
+/// State reported by a task watch, distinct from a terminal result.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NoticeState {
     Held { revision: u64 },
     Done,
     Failed,
     Cancelled,
+    Unreadable,
 }
 
 /// One bounded standing task, timer or topic interest.
@@ -138,6 +139,11 @@ pub enum MessageKind {
     /// Its person answered the question in their inbox; `Word::from` names its asker
     /// (domain/people/README.md, 5; domain/tasks/lifecycle-endings.md, 1).
     QuestionAnswered { question: u64 },
+    /// A question offered to another task. The word's number orders the offer;
+    /// the question number is the one its answer names.
+    PassedQuestion { question: u64 },
+    /// A question answered by someone other than the task it was asked of.
+    PassedAnswer { question: u64 },
     /// Its requester is owed a question before a done finish (domain/tasks/lifecycle-endings.md, 1).
     QuestionOwed,
     /// Nothing remains to await after a result-ended task parks (domain/tasks/lifecycle.md, 2).
@@ -278,7 +284,7 @@ pub struct SavedResource {
     pub path: Box<[Box<[u8]>]>,
 }
 
-/// An unanswered question and the party allowed to use its reserved answer room.
+/// An unanswered question, its first answerer, and its current offer if passed up.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct QuestionCredit {
     pub number: u64,
@@ -287,6 +293,38 @@ pub struct QuestionCredit {
     pub asked: Party,
     /// Position of the question activity in the owning task record.
     pub line: u64,
+    pub offer: Option<QuestionOffer>,
+}
+
+/// The current holder and its new waiting interval. Only a task needs a relay word.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct QuestionOffer {
+    pub holder: crate::EscalationHolder,
+    pub since: Wall,
+    pub relay: Option<QuestionRelay>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct QuestionRelay {
+    pub entry: u64,
+    pub words: Box<[u8]>,
+}
+
+/// An answer names its first writer, not the party on whose behalf it was sent.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum QuestionAnswerer {
+    Task(u64),
+    Person(u64),
+}
+
+impl QuestionAnswerer {
+    #[must_use]
+    pub fn party(self) -> Party {
+        match self {
+            Self::Task(task) => Party::Task(task),
+            Self::Person(person) => Party::Person(person),
+        }
+    }
 }
 
 /// Root-numbered notices for one asker's retired questions.
@@ -788,6 +826,8 @@ pub enum Hold {
     /// Joining a queue, or the waits a release gives back, would close a circle of waits; the
     /// hold's source names the circle, and the hold lifts once it breaks (domain/tasks/holds.md, 7).
     Circle,
+    /// A wait reached its bound.
+    Waited,
 }
 
 impl Hold {
@@ -812,7 +852,8 @@ impl Hold {
             | Self::ResourceAccess
             | Self::PoolLost { .. }
             | Self::Procedure
-            | Self::Circle => None,
+            | Self::Circle
+            | Self::Waited => None,
         }
     }
 
@@ -835,7 +876,8 @@ impl Hold {
             | Hold::Deadline
             | Hold::HoldsWaited
             | Hold::Procedure
-            | Hold::Circle => true,
+            | Hold::Circle
+            | Hold::Waited => true,
         }
     }
 }
@@ -932,8 +974,8 @@ pub enum Phase {
     Ended(/** Final ending; this phase is excluded from the live restore arena. */ Ending),
 }
 
-/// What explains a hold beyond its reason: a connector account, a failure cause, or a
-/// circle of waits (client/domain/objects.md, 5; domain/tasks/lifecycle-holds.md, 1, and domain/tasks/holds.md, 7).
+/// What explains a hold beyond its reason: a connector account, a failure cause,
+/// a circle of waits, or the waits at a bound (client/domain/objects.md, 5; domain/tasks/lifecycle-holds.md, 1, and domain/tasks/holds.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HoldSource {
     /// Why preparation or activation failed past its allowance, only on `Hold::Failures`.
@@ -952,7 +994,14 @@ pub enum HoldSource {
         entry: Option<u64>,
         words: Box<[u8]>,
     },
+    /// What the task waited for at its bound, in UTF-8.
+    Wait {
+        words: Box<[u8]>,
+    },
 }
+
+/// The most bytes a wait source can carry.
+pub const WAIT_WORDS: u32 = 512;
 
 /// A circle of waits: tasks each waiting for the next, the last for the first, so that none of
 /// them could end (domain/tasks/holds.md, 7).
@@ -1114,6 +1163,25 @@ pub struct PersonWait {
     pub stall: Duration,
     pub deadline: Wall,
     pub notice: Option<PersonStallNotice>,
+    pub offer: Option<PersonOffer>,
+}
+
+/// The current offer, alongside (not instead of) the task's first address.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct PersonOffer {
+    pub holder: PersonAddress,
+    pub since: Wall,
+}
+
+impl PersonWait {
+    /// The stall is counted from arrival at the current holder.
+    #[must_use]
+    pub(crate) fn stall_deadline(self) -> Wall {
+        match self.offer {
+            Some(offer) => Wall::from_nanos(offer.since.as_nanos().saturating_add(self.stall.as_nanos())),
+            None => self.deadline,
+        }
+    }
 }
 
 /// One numbered news item issued when a person task passed its wait.
@@ -1201,6 +1269,8 @@ pub struct TaskRecord {
     pub changed: Wall,
     /// Injected wall time at which the current lifecycle phase began.
     pub phase_since: Wall,
+    /// When the present hold first wrote its line; older rows fall back to `phase_since`.
+    pub held_since: Option<Wall>,
     /// First matching task start report: root reports placement or adoption, not agent or tool start.
     /// Retained through holds and the terminal; a new claim clears it.
     pub run_since: Option<Wall>,
@@ -1539,6 +1609,10 @@ pub enum Refusal {
         question: u64,
     },
     /// Its person answers this question in their inbox (domain/people/README.md, 5).
+    QuestionAnswered {
+        question: u64,
+        by: QuestionAnswerer,
+    },
     PersonAnswers {
         question: u64,
     },
@@ -1767,6 +1841,8 @@ pub enum Event {
     },
     /// Fenced decision from the owner of one due procedure task.
     Procedure {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         reply_to: ReplyTo,
         task: u64,
         step: u64,
@@ -1847,6 +1923,8 @@ pub enum Event {
     },
     /// Root-checked amendment of a live delegate, with a fresh commit-order message number.
     Amend {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Ended dependencies and the ended requesters used to judge their reach.
         places: Box<[crate::DependencyPlace]>,
         reply_to: ReplyTo,
@@ -1864,6 +1942,8 @@ pub enum Event {
     },
     /// Install one root-numbered standing interest for a current task.
     Subscribe {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         reply_to: ReplyTo,
         task: u64,
         subscription: Subscription,
@@ -1874,18 +1954,16 @@ pub enum Event {
         task: u64,
         subscription: Subscription,
     },
-    /// Root-authorized connector topic admitted one past the task's `subscriptions`
-    /// (domain/tasks/messages.md, 4).
-    SubscribeTopicApart {
-        reply_to: ReplyTo,
-        task: u64,
-        subscription: Subscription,
-    },
     /// Remove one interest owned by a current task.
     Unsubscribe {
         reply_to: ReplyTo,
         task: u64,
         subscription: u64,
+    },
+    /// End task watches by reading in trees requested by parties who lost their project role.
+    ReadingLost {
+        project: u32,
+        parties: Box<[u64]>,
     },
     /// Root places a merged state/timer/connector hint in a subscribed inbox.
     Notice {
@@ -1914,6 +1992,18 @@ pub enum Event {
         word: Word,
     },
     /// Deliver an authenticated inbox answer and its notice in one decision.
+    PassQuestion {
+        asker: u64,
+        question: u64,
+        offer: QuestionOffer,
+    },
+    /// Core-admitted answer at a party placement, including a role's holder.
+    AnswerOfferedQuestion {
+        reply_to: ReplyTo,
+        project: u32,
+        asker: u64,
+        word: Word,
+    },
     PersonQuestionAnswer {
         reply_to: ReplyTo,
         project: u32,
@@ -2090,6 +2180,8 @@ pub enum Event {
     /// Create an authorized whole batch and reservations atomically, producing `Made` or
     /// `Refused` plus bounded persistence/lifecycle outputs.
     Make {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Party behind a Delegate; reach and history are theirs, topology remains the creator's
         /// (jig/docs/design/domain/tasks/README.md, 4).
         maker: Option<u64>,
@@ -2106,6 +2198,8 @@ pub enum Event {
     },
     /// Admit the accepted batch of a result-created proposal while its proposer closes.
     MakeResultFollowups {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Destination owed one `Made` or `Refused` terminal for the whole batch.
         reply_to: ReplyTo,
         /// The closing task whose result made this proposal.
@@ -2176,6 +2270,8 @@ pub enum Event {
     /// Admit a root-fenced activation terminal with explicit expense provenance; emits one
     /// `Acknowledged` or `Refused` and atomic resulting saves.
     Activation {
+        /// The core verified that the task tree's requester reads its project at admission.
+        reads_project: bool,
         /// Destination owed one `Acknowledged` or `Refused` terminal; root delays exposure until
         /// the decision is durable.
         reply_to: ReplyTo,
@@ -2242,10 +2338,16 @@ pub enum Event {
         /// including preserved closing while held.
         task: u64,
     },
-    /// Root numbers the news requested by the due person-task timer.
+    /// Root selects the next party and numbers the news at the first stall only.
     PersonStallNotice {
         task: u64,
-        message: u64,
+        message: Option<u64>,
+        offer: Option<PersonAddress>,
+    },
+    /// Root projects the clock again for a restored wait whose notice already ran.
+    RearmPersonStall {
+        task: u64,
+        may_pass: bool,
     },
     /// Root numbers each unanswered-question notice once.
     QuestionEndedNotice {
@@ -2334,6 +2436,8 @@ pub enum Request {
     ProposalRerouteNeeded { proposer: u64, proposal: u64 },
     /// Root supplies one message number for the elapsed person-task wait.
     PersonStallDue { task: u64 },
+    /// A restored wait with a notice may still have a party to pass up to.
+    PersonStallRestored { task: u64 },
     /// One continuation for each asker whose questions ended unanswered.
     QuestionEndedDue { task: u64, questions: Box<[u64]> },
     /// Root supplies the next obligation reminder number.
@@ -2518,6 +2622,8 @@ pub enum Cause {
     /// Loss, fleet refusal or invalid-answer normalization supplied by root; performs lifecycle
     /// admission without charging and still owes one terminal reply.
     Unpriced,
+    /// The core cancelled a waiting attempt at a turn boundary.
+    Parked { cumulative: Option<u64> },
 }
 
 /// A dependency an amendment added to a live task (domain/tasks/changes.md).
@@ -2684,7 +2790,10 @@ impl MessageKind {
             Self::QuestionAnswered { .. } => MessageFamily::Slot(Slot::QuestionAnswered),
             Self::QuestionOwed => MessageFamily::Slot(Slot::QuestionOwed),
             Self::QuestionEnded { .. } => MessageFamily::Slot(Slot::QuestionEnded),
-            Self::Escalation { .. } | Self::Proposal { .. } => MessageFamily::Virtual,
+            Self::Escalation { .. }
+            | Self::Proposal { .. }
+            | Self::PassedQuestion { .. }
+            | Self::PassedAnswer { .. } => MessageFamily::Virtual,
         }
     }
 
@@ -2695,6 +2804,8 @@ impl MessageKind {
             Self::Result(result) => Some(result),
             Self::Escalation { .. }
             | Self::Proposal { .. }
+            | Self::PassedQuestion { .. }
+            | Self::PassedAnswer { .. }
             | Self::PersonStalled { .. }
             | Self::ProposalDecision { .. }
             | Self::SettingsDecision { .. }
@@ -2723,6 +2834,8 @@ impl MessageKind {
             Self::Result(result) => Some(ProcedureInput::Result(result)),
             Self::Escalation { .. }
             | Self::Proposal { .. }
+            | Self::PassedQuestion { .. }
+            | Self::PassedAnswer { .. }
             | Self::SettingsDecision { .. }
             | Self::ProposalDecision { .. }
             | Self::EffectNotMade { .. }

@@ -155,7 +155,7 @@ impl OneShot {
                     temper_client_tools::table::refusal(why, &[], &mut measured).expect("refusal");
                     let mut exact = skein_lib::Writer::new(measured.written());
                     temper_client_tools::table::refusal(why, &[], &mut exact).expect("refusal");
-                    self.fail(&exact.finish());
+                    self.fail_with_status(&exact.finish(), arguments::usage_status(why));
                 }
             },
             Parsed::Call { call, json } if arguments::key_file(&call).is_some() => {

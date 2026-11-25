@@ -196,12 +196,12 @@ fn a_request_lost_while_live_is_sent_again_and_the_link_stays_live() {
     assert_eq!(c.machine.link().state, Link::Live);
 }
 #[test]
-fn a_kept_record_of_another_version_is_dropped_and_told() {
+fn a_kept_record_of_another_layout_is_dropped_and_told() {
     let mut first = Client::signed_in();
     first.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
     let records = fixtures::saved(first.requests());
     let mut record = records.as_slice()[0].clone();
-    fixtures::other_store_version(&mut record);
+    fixtures::other_store_layout(&mut record);
     let mut kept = skein_lib::List::with_capacity(1);
     kept.push(record).unwrap();
     let c = Client::with_kept(kept);

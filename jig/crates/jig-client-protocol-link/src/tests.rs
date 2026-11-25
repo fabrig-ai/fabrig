@@ -29,7 +29,7 @@ fn the_link_serves_the_wire_s_version_alone() {
 }
 
 const TOO_MANY_OWNERS: [jig_client_domain::Spoken; 16] = {
-    let mut owners = [jig_client_domain::Spoken { family: 0, version: 1 }; 16];
+    let mut owners = [jig_client_domain::Spoken { family: 0, version: 1, layout: [1; 32] }; 16];
     let mut index = 0;
     let mut family = 0;
     while index < 16 {
@@ -39,7 +39,8 @@ const TOO_MANY_OWNERS: [jig_client_domain::Spoken; 16] = {
     }
     owners
 };
-const DUPLICATE_OWNERS: [jig_client_domain::Spoken; 2] = [jig_client_domain::Spoken { family: 19, version: 1 }; 2];
+const DUPLICATE_OWNERS: [jig_client_domain::Spoken; 2] =
+    [jig_client_domain::Spoken { family: 19, version: 1, layout: [1; 32] }; 2];
 const INVALID_OWNERS: [&[jig_client_domain::Spoken]; 2] = [&TOO_MANY_OWNERS, &DUPLICATE_OWNERS];
 #[test]
 fn declarations_fit_one_hello_without_duplicates() {

@@ -392,7 +392,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   (skein's `testing/fakes/forgejo.md`, 1, `Config.made_checks`); absent,
   they report none, as before. So the box's fake forges let a person's
   commit decide a head's checks by what it holds
-  (`../protocol/setup/box-backends.md`, 1; `../draft/landed-qa.md`, 6), and how
+  (`../protocol/setup/box-backends.md`, 1; `../draft/archive/landed-qa.md`, 6), and how
   long its run waits for a runner and runs before its verdict: a rule
   may open with phases, as `wait 40m run 5m pass`, so a change's wait
   for a runner shows on a box (skein's `testing/fakes/forge.md`, 2.3;
@@ -430,7 +430,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   document's reach the repositories the forge makes after. So a setup
   declares its gate in its place's forge document, its verdict decided
   by what a member holds at PATH, and a batch proves green or red by its
-  members' content (`../draft/landed-qa.md`, 6 and 10).
+  members' content (`../draft/archive/landed-qa.md`, 6 and 10).
 - **Its state kept, as a process:** `temper-box fake forge --document
   FILE [--state STATE]`. With `--state`, the forge's state lasts across
   its restarts in STATE (skein's `testing/fakes/forge.md`, 2.7 and 5;
@@ -578,7 +578,7 @@ its own:
   `argv[0]`'s last component is `git`, before it reads a command of its
   own: a link named `git` to the binary, the fake setup entry's `git`,
   which the worker spawns by the absolute path each of the forge's
-  repositories' records names (../protocol/setup/init.md, 2;
+  repositories' records names (../protocol/setup/init.md, 5;
   ../protocol/channel.md, section 4), with git's command line as it is.
   A person can run the same program as `temper-box fake git ARGS...`.
 - **Its crates:** the core, `crates/temper-fake-git`, ordinary Rust

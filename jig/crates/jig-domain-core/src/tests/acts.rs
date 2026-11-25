@@ -406,6 +406,7 @@ fn offered_person_handoffs_and_answers_reach_the_child_and_change_the_offer() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(80)),
@@ -513,6 +514,7 @@ fn a_named_person_can_answer_without_project_membership() {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(86)),
@@ -743,6 +745,7 @@ fn adopted_move_task() -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(120)),
@@ -1166,6 +1169,7 @@ fn a_procedure_repeat_is_refused_before_authority_and_its_uncertain_effect_keeps
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(120)),

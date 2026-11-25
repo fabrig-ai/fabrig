@@ -167,11 +167,11 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::Move { reply_to, .. }
         | tasks::Event::Subscribe { reply_to, .. }
         | tasks::Event::SubscribeTopic { reply_to, .. }
-        | tasks::Event::SubscribeTopicApart { reply_to, .. }
         | tasks::Event::Unsubscribe { reply_to, .. }
         | tasks::Event::Introduce { reply_to, .. }
         | tasks::Event::Message { reply_to, .. }
         | tasks::Event::PersonQuestion { reply_to, .. }
+        | tasks::Event::AnswerOfferedQuestion { reply_to, .. }
         | tasks::Event::PersonQuestionAnswer { reply_to, .. }
         | tasks::Event::Talk { reply_to, .. }
         | tasks::Event::Leave { reply_to, .. }
@@ -208,6 +208,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::CloserBatch { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::StalledProposal { .. }
+        | tasks::Event::ReadingLost { .. }
         | tasks::Event::Notice { .. }
         | tasks::Event::DelegateResult { .. }
         | tasks::Event::RememberStub { .. }
@@ -228,8 +229,10 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::Retained { .. }
         | tasks::Event::Settled { .. }
         | tasks::Event::PersonStallNotice { .. }
+        | tasks::Event::RearmPersonStall { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
+        | tasks::Event::PassQuestion { .. }
         | tasks::Event::QuestionParked { .. }
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::MetNotice { .. }

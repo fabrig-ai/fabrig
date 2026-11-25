@@ -394,7 +394,11 @@ fn unrecorded_person_words_survive_a_stopped_run_in_the_next_brief() {
     let tasks::Party::Person(person) = message.from else { panic!("person's message") };
     story::turn(&mut world, run, Some(message.number));
     assert!(live_row(&world, run.0).inbox.is_empty());
-    fixtures::ask(&mut world, 90, people::Ask::Stop { project: 1, task: run.0 });
+    fixtures::ask(
+        &mut world,
+        90,
+        people::Ask::Stop { project: 1, task: run.0, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     assert!(world.cancellations.contains(&run), "the live attempt was stopped");
     world.send(jig_test_domain::Event::Answer {
         channel: skein_lib::Token::new(7),

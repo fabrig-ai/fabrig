@@ -1,9 +1,8 @@
 //! Keep/Read round trips over the `every` texts and one-edit pairs (skein/docs/design/data/codec/layouts.md, 2 and 6).
 
-use super::tests::{accepts_root, roots};
 use crate::support::generated;
 use skein_codec::layout::{Misconverted, Mode, Plan, Refused, Underived, Why, Workspace};
-use skein_codec::schema::{self, DeclIx, FieldIx, Root, Schema, Shape};
+use skein_codec::schema::{self, DeclIx, FieldIx, Root, Schema, Shape, Type, VariantIx};
 use skein_codec::value::Value;
 use skein_lib::{Buffer, Rng};
 
@@ -251,7 +250,8 @@ use Expect::{AllRefused, Exact, Mixed, Restore, Unplanned};
 
 const FLAG: &str = "    flag: bool\n";
 const FLAG_REFUSAL: Refusal = (Refused::Field, "Numbers", "flag");
-const EDITS: [Edit; 16] = [
+const NUMBERS: &str = "record Numbers {\n";
+const EDITS: [Edit; 17] = [
     Edit {
         name: "drop with default",
         root: "Numbers",
@@ -380,6 +380,14 @@ const EDITS: [Edit; 16] = [
         there: Unplanned(Why::Reshaped),
         back: Unplanned(Why::Reshaped),
     },
+    Edit {
+        name: "drop as tombstone with a moved tag",
+        root: "Numbers",
+        source: Some((NUMBERS, "enum Switch { off on }\nrecord Numbers {\n    switch: Switch\n")),
+        target: Replace(NUMBERS, "enum Switch { standby off on }\nrecord Numbers {\n    dropped switch: Switch = on\n"),
+        there: Mixed((Refused::Field, "Numbers", "switch")),
+        back: Exact,
+    },
 ];
 
 fn edited(text: &str, (before, after): (&str, &str)) -> String {
@@ -420,4 +428,46 @@ fn edited_every_layouts_round_trip_seeded_draws() {
             }
         }
     }
+}
+
+fn roots(schema: &Schema, decl: DeclIx) -> Vec<Root> {
+    if let Some(root) = schema.root(schema.spelled(schema.declaration(decl).name), None) {
+        return vec![root];
+    }
+    let leading = match schema.declaration(decl).shape {
+        Shape::Enum { .. } => decl,
+        Shape::Record { first, .. } => match schema.ty(schema.field(first).ty) {
+            Type::Named(at) => at,
+            Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Bool
+            | Type::Duration
+            | Type::Fixed(_)
+            | Type::Secret { .. }
+            | Type::Text(_)
+            | Type::Bytes { .. }
+            | Type::List { .. }
+            | Type::Option(_) => unreachable!("broad record"),
+        },
+    };
+    let Shape::Enum { first, count } = schema.declaration(leading).shape else { unreachable!("leading enum") };
+    (0..count)
+        .map(|offset| Root {
+            decl,
+            variant: Some(VariantIx::new(first.index().checked_add(offset).expect("variant index"))),
+        })
+        .collect()
+}
+
+fn accepts_root(schema: &Schema, root: Root, bytes: &[u8]) -> bool {
+    let Some(variant) = root.variant else { return true };
+    let offset = match schema.declaration(root.decl).shape {
+        Shape::Record { versioned: true, .. } => 2,
+        Shape::Record { versioned: false, .. } | Shape::Enum { .. } => 0,
+    };
+    let tag = bytes.get(offset).copied();
+    let all = roots(schema, root.decl);
+    all.iter().position(|root| root.variant == Some(variant)).map(|index| u8::try_from(index).expect("tag")) == tag
 }

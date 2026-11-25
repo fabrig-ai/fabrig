@@ -601,7 +601,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
 }
 
 /// The engine has settled this claim itself. Releasing its placement does
-/// not tell the host: the service ends it after draining (domain/engine/restart.md, 1).
+/// not tell the host: the service ends it after draining (domain/engine/restart.md, 5).
 /// Relayed calls keep only their answer correlation until the parent answers;
 /// their retired attempt makes that answer a drop (domain/engine/fleet.md).
 pub(crate) fn interrupt(domain: &mut Domain, run: Token, attempt: Token, out: &mut Queue<Request>) {

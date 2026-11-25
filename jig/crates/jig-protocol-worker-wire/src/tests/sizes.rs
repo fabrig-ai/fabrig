@@ -15,12 +15,11 @@ fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
     // eight frame headers add64:350+73+66+28+24+24+162=727.
     // Sources84 + two checks44 + two sign-outs44 add260 and five frames.
     // One read list (read8 + endpoint4 + grant57 + header8) adds77 and one frame.
-    // The statement adds 4 + 16*(4+32+2) + header8 =620 and one frame.
     // Figures adds its fixed schema bound 10,062,736 + header8 and one frame.
     // Two application answers: 2 * (24 + tag1 + length4 + bytes16 + header8) =106.
     // ReadUsage (read8 + source36 + header8) adds52 and one frame.
     // A part acknowledgement adds28 and one frame.
-    assert_eq!(engine_cap(&SIZES_ONE_SLOT, u32::MAX), Some(Cap { bytes: 10_064_634, frames: 20 }));
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT, u32::MAX), Some(Cap { bytes: 10_064_014, frames: 19 }));
 }
 
 #[test]
@@ -154,7 +153,7 @@ fn application_asks_and_answers_have_their_own_limits_and_output_room() {
     let limits = limits(&sizes).expect("application bounds");
     assert_eq!((limits.ask_bytes, limits.ask_bytes_bytes), (4, 5));
     assert_eq!(Kind::Ask.number(), 0x010d);
-    assert_eq!(Kind::Asked.number(), 0x018e);
+    assert_eq!(Kind::Asked.number(), 0x018d);
     assert_eq!(largest_body(&sizes, Kind::Ask), Some(24 + 4 + 4));
     assert_eq!(largest_body(&sizes, Kind::Asked), Some(24 + 1 + 4 + 5));
     crate::Ask { run: 1, attempt: 2, number: 3, bytes: b"xxxx".as_slice().into() }.encode(&limits).unwrap();
@@ -177,8 +176,8 @@ fn application_asks_and_answers_have_their_own_limits_and_output_room() {
 #[test]
 fn the_engine_cap_prices_fitted_assignments_and_part_notices_without_shrinking_terms() {
     // The complete assignment frame is 370 bytes; 70 bytes go at a 300-byte room.
-    assert_eq!(engine_cap(&SIZES_ONE_SLOT, 300), Some(Cap { bytes: 10_064_564, frames: 20 }));
-    assert_eq!(engine_cap(&SIZES_ONE_SLOT, 400), Some(Cap { bytes: 10_064_634, frames: 20 }));
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT, 300), Some(Cap { bytes: 10_063_944, frames: 19 }));
+    assert_eq!(engine_cap(&SIZES_ONE_SLOT, 400), Some(Cap { bytes: 10_064_014, frames: 19 }));
     assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(362));
     let large_window = Sizes { transcript: 64 * 1024 * 1024, ..SIZES_ONE_SLOT };
     let declared = largest_body(&large_window, Kind::Assignment).unwrap() + 8;

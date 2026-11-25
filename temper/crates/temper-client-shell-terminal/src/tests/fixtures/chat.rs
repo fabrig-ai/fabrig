@@ -104,6 +104,7 @@ fn first_run_words(
                 event: jig_client::Event::Up {
                     up: jig_client::Up::FamilyServed {
                         family: temper_client_protocol_wire::FORGE,
+                        served: true,
                         versions: Some(c::VersionRange {
                             first: temper_client_protocol_wire::CLIENT_VERSION,
                             last: temper_client_protocol_wire::CLIENT_VERSION,

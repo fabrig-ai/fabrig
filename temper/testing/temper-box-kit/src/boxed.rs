@@ -235,7 +235,7 @@ pub fn echo_steps(mut flags: Vec<String>) -> Vec<String> {
 #[must_use]
 pub fn run_echo_steps(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
     let mut command = Command {
-        program: skein_scratch::paths::binary("temper-box"),
+        program: skein_scratch::paths::built("temper-box", "temper-box"),
         arguments: super::configuration::flags(directory),
         directory: directory.into(),
         environment: Vec::new(),
@@ -248,7 +248,7 @@ pub fn run_echo_steps(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan,
 pub fn run(directory: &Path, forgejo: Option<SocketAddr>, plan: Plan, deadline: Duration) -> Outcome {
     run_command(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: super::configuration::flags(directory),
             directory: directory.into(),
             environment: Vec::new(),
@@ -301,7 +301,8 @@ pub fn run_command(command: Command, forgejo: Option<SocketAddr>, plan: Plan, de
         forgejo_at_link: forgejo_at_link.clone(),
         forgejo_pids: forgejo_pids.clone(),
         engine_served: engine_served.clone(),
-        temper_program: std::fs::canonicalize(skein_scratch::paths::binary("temper-box")).expect("temper path"),
+        temper_program: std::fs::canonicalize(skein_scratch::paths::built("temper-box", "temper-box"))
+            .expect("temper path"),
         forgejo_program,
         phase: Phase::AwaitingServe,
         next_probe: Time::ZERO,
@@ -533,7 +534,7 @@ pub fn run_story_with_box<T>(
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
             // Init's optional git/claude discovery is exercised without PATH.
@@ -1157,7 +1158,7 @@ fn run_ctl_peers<T>(
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
-    let program = peers.program.unwrap_or_else(|| skein_scratch::paths::binary("temper-box"));
+    let program = peers.program.unwrap_or_else(|| skein_scratch::paths::built("temper-box", "temper-box"));
     let mut binary = Binary::start_with_tree(
         dying_with_program(
             Command {
@@ -1255,7 +1256,7 @@ fn run_ctl_peers<T>(
 #[must_use]
 pub fn dying_with_test(command: Command) -> Command {
     if cfg!(target_os = "linux") {
-        dying_with_program(command, &skein_scratch::paths::binary("temper-box"))
+        dying_with_program(command, &skein_scratch::paths::built("temper-box", "temper-box"))
     } else {
         command
     }
@@ -1369,7 +1370,7 @@ pub fn run_ctl_with_cut(
     let data = PathBuf::from(&pair[1]);
     let mut binary = Binary::start_with_tree(
         dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: flags.into_iter().map(Into::into).collect(),
             directory: directory.into(),
             environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
@@ -1390,7 +1391,7 @@ pub fn run_ctl_with_cut(
     let mut world = real::World::new(CutJudge {
         failed: None,
         inner: CtlJudge {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             failed: None,
             data: data.clone(),
             fail_on_panic: Some(()),

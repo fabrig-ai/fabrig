@@ -1,5 +1,6 @@
 //! The session's approvals (temper/docs/design/client/pages/README.md, temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
@@ -204,60 +205,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
     let document = wire::decode_approvals(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::with_capacity(document.rows.len());
     for value in document.rows.into_boxed() {
-        let mut sets = List::with_capacity(value.sets.len());
-        for set in value.sets.into_boxed() {
-            sets.push(ApprovalSet { number: set.number, name: set.name }).expect("wire bounds approval sets");
-        }
-        rows.push(Row {
-            task: value.task,
-            project: value.project,
-            goal: value.goal,
-            forge: value.forge,
-            kind: match value.kind {
-                w::Kind::Forgejo => super::forges::Kind::Forgejo,
-                w::Kind::Github => super::forges::Kind::GitHub,
-            },
-            owner: value.owner,
-            name: value.name,
-            pull: value.pull,
-            address: value.address,
-            title: value.title,
-            since: Wall::from_nanos(value.since),
-            scope: value.scope,
-            rule: value.rule,
-            role: value.role,
-            required: value.required,
-            counted: value.counted,
-            sets: sets.into_boxed(),
-            whole: value.whole,
-            signed: people(value.signed),
-            can_sign: people(value.can_sign),
-            can_sign_more: value.can_sign_more,
-            size: match value.size {
-                Some(size) => Some(Size {
-                    files: size.files,
-                    additions: size.additions,
-                    deletions: size.deletions,
-                    cut: size.cut,
-                }),
-                None => None,
-            },
-            yours: match value.yours {
-                w::ApprovalYours::Counts => Yours::Counts,
-                w::ApprovalYours::NoAccount => Yours::NoAccount,
-                w::ApprovalYours::TooFew => Yours::TooFew,
-                w::ApprovalYours::OtherRole => Yours::OtherRole,
-            },
-        })
-        .expect("wire bounds approval rows");
+        rows.push(maps::approval_row_to_domain(value)).expect("wire bounds approval rows");
     }
     Some(Event::Rows { rows: rows.into_boxed(), more: document.more })
-}
-
-fn people(values: List<w::ApprovalPerson>) -> Box<[ApprovalPerson]> {
-    let mut people = List::with_capacity(values.len());
-    for value in values.into_boxed() {
-        people.push(ApprovalPerson { person: value.person, name: value.name }).expect("wire bounds approval people");
-    }
-    people.into_boxed()
 }

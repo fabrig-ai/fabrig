@@ -24,6 +24,7 @@ fn project_reads_the_whole_last_created_batch_after_ending_and_refuses_a_partial
         &mut core,
         &limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1)),

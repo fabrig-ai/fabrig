@@ -6,7 +6,7 @@
   - *an insert* creates a subtree's elements under its parent, before
     its sibling or at the end; each link gets its `href` in the turn
     (`README.md`, section 7), each drawing its scene (`svg.md`, section 1) or its component
-    (`elements.md`, 1);
+    (`elements.md`, 5);
   - *a remove* removes the element and its subtree;
   - *a move* moves them, and gives back the focus and the selection of a
     field it moved;

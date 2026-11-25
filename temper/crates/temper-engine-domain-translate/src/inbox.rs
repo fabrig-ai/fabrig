@@ -54,6 +54,8 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
         tasks::MessageKind::Met { dependency, removed } => return met_words(dependency, removed, &word.words),
         tasks::MessageKind::Words
         | tasks::MessageKind::Question
+        | tasks::MessageKind::PassedQuestion { .. }
+        | tasks::MessageKind::PassedAnswer { .. }
         | tasks::MessageKind::Answer { .. }
         | tasks::MessageKind::Notice { .. }
         | tasks::MessageKind::QuestionOwed
@@ -179,7 +181,12 @@ pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
             };
             (b" asks (question ".as_slice(), word.number, b")".as_slice(), show_answer_form)
         }
-        tasks::MessageKind::Answer { question } => (b" answers question ".as_slice(), question, b"".as_slice(), false),
+        tasks::MessageKind::PassedQuestion { question } => {
+            (b" asks (passed-up question ".as_slice(), question, b")".as_slice(), true)
+        }
+        tasks::MessageKind::Answer { question } | tasks::MessageKind::PassedAnswer { question } => {
+            (b" answers question ".as_slice(), question, b"".as_slice(), false)
+        }
         tasks::MessageKind::Words
         | tasks::MessageKind::Result(_)
         | tasks::MessageKind::ProposalDecision { .. }

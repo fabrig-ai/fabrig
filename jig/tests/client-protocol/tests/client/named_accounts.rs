@@ -173,7 +173,15 @@ fn a_move_keeps_a_project_key_covering_the_new_financial_payer() {
     );
     assert!(story.run_until(|s| !s.answered(USES).is_empty(), PROOF_WAIT));
     assert!(matches!(answer(&story, USES), c::Answer::Done(_)));
-    story.send(STOP, Ask::Jig(Box::new(c::Ask::Stop { project: 1, task: original })));
+    story.send(
+        STOP,
+        Ask::Jig(Box::new(c::Ask::Stop {
+            project: 1,
+            task: original,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    );
     assert!(
         story.run_until(|s| s.phase(original) == Some(c::Phase::Held), PROOF_WAIT),
         "stop {:?}, phase {:?}, document {:?}",
@@ -198,7 +206,15 @@ fn a_move_keeps_a_project_key_covering_the_new_financial_payer() {
     );
     assert!(story.run_until(|s| !s.answered(MOVE).is_empty(), PROOF_WAIT));
     assert!(matches!(answer(&story, MOVE), c::Answer::Done(_)));
-    story.send(STOP_PROJECT, Ask::Jig(Box::new(c::Ask::Stop { project: 1, task: PROJECT_PAID })));
+    story.send(
+        STOP_PROJECT,
+        Ask::Jig(Box::new(c::Ask::Stop {
+            project: 1,
+            task: PROJECT_PAID,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    );
     assert!(story.run_until(|s| s.phase(PROJECT_PAID) == Some(c::Phase::Held), PROOF_WAIT));
     story.send(
         RELEASE,
@@ -220,7 +236,15 @@ fn a_move_keeps_a_project_key_covering_the_new_financial_payer() {
 #[test]
 fn a_task_watch_tracks_an_unknown_account_wait() {
     let (mut story, number, first, _) = prepared();
-    story.send(STOP, Ask::Jig(Box::new(c::Ask::Stop { project: 1, task: number })));
+    story.send(
+        STOP,
+        Ask::Jig(Box::new(c::Ask::Stop {
+            project: 1,
+            task: number,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    );
     assert!(story.run_until(|s| s.phase(number) == Some(c::Phase::Held), PROOF_WAIT));
     story.limit_account_source(first.1);
     story.send(

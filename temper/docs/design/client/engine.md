@@ -3,6 +3,8 @@
 The engine's service is `../protocol/README.md`'s (`../protocol/service-routing.md`, section 1). What it
 does for the client:
 
+## 1. The listener, routes and sign-in
+
 - **The clients' listener** is `temper-service`'s: TCP on the loopback
   address temper's configuration names
   (`../protocol/configuration/engine.md`), at a fixed port, never 0,
@@ -54,6 +56,9 @@ does for the client:
   1.2), the Host allow-list holding the listener's own address. The
   terminal sends its credential as a bearer token; the cookie is the
   browser's (`web/README.md`).
+
+## 2. jig client messaging and forge decoding
+
 - **jig's clients' component** (jig's `protocol/client/README.md`) serves jig's
   wire's versions and, for the family `FORGE`, `CLIENT_VERSION` alone
   (`forge/records.md`). temper gives it no `Mint` in standalone: the printed link and
@@ -76,6 +81,9 @@ does for the client:
   keyed request: its reply, its sign-in, its key, the digest of the
   record's bytes, and the adoption, or another of the FORGE requests
   (below) with the number and digest of the value it carried.
+
+## 3. Forge requests and their arguments
+
 - **The FORGE requests** beside `Adopt` (`forge/repositories.md`, 1 and `forge/deployment.md`), each
   keyed, each naming the deployment as its scope, `Dismiss` and `Looked`
   alone naming a project (jig's
@@ -97,7 +105,7 @@ does for the client:
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup/box.md`, 1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge/engine.md`, 2) | setting up |
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge/adoption-connection.md`, 1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
-  | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge/adoption.md`, 5; `../protocol/setup/owned-repositories.md`, 2) | kept; make refused, `MakeRefusal`; then the watched row |
+  | `MakeRepository { forge, org, name, from, into }` | none; its scope the project `into` names, or the deployment | the row kept in the request's decision; the setup then runs `Create` or `Copy` and the connector adopts into `into` (`../domain/forge/adoption.md`, 9; `../protocol/setup/owned-repositories.md`, 2) | kept; make refused, `MakeRefusal`; then the watched row |
   | `SetAway { project, on, until }` | none; its scope the project | the party's `Away` row moved in the request's decision, and the subject `away` marked, a row that comes out the same writing nothing (`../domain/forge/attention.md`, 4) | away; forge refused, too large |
   | `Overturn { project, number }` | none; its scope the project | the party's `Decided` row marked overturned in the request's decision, and the subject `decided` marked (`../domain/forge/attention.md`, 5) | overturned; overturn refused, already or unknown |
   | `SetDraft { project, repository, path, change }` | none; its scope the project | for `ready`, the repository's landing branch read, then the path at its head, the request held in memory while they are out; then the project's `LandedDraft` row made or moved in the request's decision, and the subject `drafts` marked; a row that comes out the same writing nothing (`../domain/forge/drafts.md`, 2) | drafted, with the row; draft refused, no repository, path, missing, not a file, unreachable, unknown or full |
@@ -146,6 +154,9 @@ does for the client:
   since its way goes in a new tab (the look request `github-new-tab`;
   `forge/deployment.md`, *GitHub's way, in a new tab*): the field stays
   for the wire's sake, and the routes still honour one a request names.
+
+## 4. Authorization, routing and outcomes
+
 - **Who may:** a person whose role on project 0 is `Owner`; in
   standalone, the deployment's owner, for every request above. jig admits each by key and
   refuses at admission as for any request, in jig's words; the root
@@ -196,7 +207,7 @@ does for the client:
   requests pending beside them, and is never full for a new request: it
   first drops every outcome past its retention, then, with its places
   still taken, the one whose retention ends first, never a pending
-  request (`../domain/forge/adoption.md`, 9). So no request is refused
+  request (`../domain/forge/adoption.md`, 13). So no request is refused
   for the outcomes kept, and none is answered busy for them while one
   is kept; the key of an outcome dropped early is answered unknown, as
   one past its retention is.
@@ -227,6 +238,9 @@ does for the client:
   again while it is held answers the same outcome and asks the box
   nothing; once a later `SetUp` of that forge replaces it, or after a
   restart, the key answers unknown.
+
+## 5. Setup, watches and panels
+
 - **A forge's set up, answered** (`../protocol/forge/engine.md`, 8): the
   root admits `SetUp` by key, of the deployment's scope, and the forge
   connector by the forge's connection; the routing's box link then
@@ -256,6 +270,9 @@ does for the client:
   that made it, released once that decision's commit is durable, and
   the routing encodes it, building the pull request's address from
   that forge's `web` and its kind (`forge/served.md`, 2).
+
+## 6. Playground and removal requests
+
 - **The playground's read** (`forge/records.md`, `forge/family.md`, 7) is answered by the root's forge
   connector, to any signed-in party, from the `Playground` row
   (`../protocol/setup/playground.md`): none with no row, and otherwise its

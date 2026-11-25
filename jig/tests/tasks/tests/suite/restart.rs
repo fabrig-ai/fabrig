@@ -79,6 +79,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     let mut w = World::new(20, LIMITS);
     let reply_to = w.to();
     w.stage(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to,
@@ -91,6 +92,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     assert_eq!(w.live(), 0);
     let reply_to = w.to();
     w.stage(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to,
@@ -174,6 +176,7 @@ fn stale_claims_and_replayed_terminal_are_and_do_not_mutate() {
     let record = w.record(1).clone();
     let reply_to = w.to();
     w.send(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -197,6 +200,7 @@ fn a_crash_before_finished_decision_resumes_current_attempt() {
     assert!(started.is_some());
     let reply_to = w.to();
     w.stage(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -220,6 +224,7 @@ fn terminal_and_settlement_each_have_a_durable_cut_before_delivery() {
     w.claim_task(1);
     let reply_to = w.to();
     w.stage(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -277,6 +282,7 @@ fn delegate_cancel_cut_after_durability_stops_adopted_runs_then_closes_deepest()
     w.observe(jig_tasks_world::referee::Seen::Cancelled { task: 2 });
     let reply_to = w.to();
     w.stage(Event::Activation {
+        reads_project: false,
         saved: None,
         reply_to,
         task: 1,
@@ -331,7 +337,7 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
         for elapsed in [false, true] {
             let mut env = source.env.with(LIMITS);
             env.wall =
-                Wall::from_nanos(since.as_nanos() + if elapsed { LIMITS.escalation_stall.as_nanos() } else { 1 });
+                Wall::from_nanos(since.as_nanos() + if elapsed { LIMITS.escalation_stall.as_nanos() + 1 } else { 1 });
             let mut domain = jig_tasks_world::domain(&LIMITS, 37);
             let mut out = Queue::uncapped();
             for record in source.records.values().filter(|row| row.key().live()) {
@@ -383,6 +389,9 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
                 assert_eq!(word.at, since);
                 assert_eq!(domain.run_message(2), Some(entry));
             }
+            if let Escalation::Waiting { holder: EscalationHolder::Role { .. }, .. } = state {
+                assert_eq!(domain.next_deadline(), None, "a final role never arms a stall");
+            }
             fire(&mut domain, &env, &mut out);
             let stalled = std::iter::from_fn(|| out.pop())
                 .filter(|row| matches!(row, Request::EscalationStalled { task: 1, revision: 4, .. }))
@@ -393,8 +402,42 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
             );
             assert_eq!(stalled, usize::from(elapsed && timed));
             assert_eq!(domain.task(1).expect("held after timer").escalation, state);
+            if elapsed && let Escalation::Waiting { holder: EscalationHolder::Role { .. }, .. } = state {
+                decide_overdue_escalation(&mut domain, &env, &mut out);
+            }
         }
     }
+}
+
+fn decide_overdue_escalation(
+    domain: &mut tasks::Domain,
+    env: &skein_lib::Env<tasks::Limits>,
+    out: &mut skein_lib::Queue<tasks::Request>,
+) {
+    let reply_to = skein_lib::ReplyTo::new(skein_lib::Token::new(1));
+    let by = tasks::EscalationDecider::Person(1);
+    let reason = b"keep this held".as_slice().into();
+    tasks::step(
+        domain,
+        env,
+        Event::DecideEscalation {
+            reply_to,
+            task: 1,
+            revision: 4,
+            by,
+            entry: None,
+            decision: tasks::EscalationDecision::Reject { reason },
+        },
+        out,
+    );
+    assert!(
+        std::iter::from_fn(|| out.pop()).any(|r| matches!(
+            r,
+            tasks::Request::EscalationDecided { outcome: tasks::EscalationOutcome::Rejected, .. }
+        ))
+    );
+    let escalation = &domain.task(1).expect("rejected escalation remains held").escalation;
+    assert!(matches!(escalation, tasks::Escalation::Rejected { by: winner, .. } if *winner == by));
 }
 
 fn load(
@@ -730,7 +773,8 @@ fn writer_referee_catches_phase_observations_and_positions_that_restore_does_not
             name: "question position",
             expected: "writer lifecycle observations or positions disagree",
             apply: |row| {
-                row.question_lines = Box::new([jig_domain_tasks::QuestionLine { message: 0, line: 0, answer: None }]);
+                row.question_lines =
+                    Box::new([jig_domain_tasks::QuestionLine { message: 0, line: 0, answer: None, resolution: None }]);
             },
         },
         Case {
@@ -839,6 +883,7 @@ fn a_completed_dependency_loaded_for_amendment_restores_without_an_optional_stub
     let reply_to = source.to();
     let call = reply_to.into_token().raw();
     source.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: 2,

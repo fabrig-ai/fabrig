@@ -68,6 +68,7 @@ impl Core {
 
     /// Host or account changes can replace a due agent's next-run wait.
     pub(crate) fn touch_run_waits(&mut self) {
+        self.wait_alarms.changed_run_waits();
         for (_, flight) in &self.flights {
             let crate::routing::flight::Flight::Watch { binding, .. } = flight else { continue };
             let Subject::Task { task } = &self.view_names.get(binding.subject).expect("bound subject").subject else {

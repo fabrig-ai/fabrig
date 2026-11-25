@@ -154,35 +154,40 @@ impl Pump {
     pub fn input(&mut self, fd: Fd) -> Result<Token, Fd> {
         self.io.adopt_read_pipe(fd)
     }
+    fn chromium_spawn(chromium: &Path, profile: &Path, environment: &[(OsString, OsString)], root: Fd) -> Spawn {
+        let command = browser::command::command(chromium.as_os_str().as_bytes(), profile.as_os_str().as_bytes());
+        let mut env = environment.to_vec();
+        // As in the browser tier, leave Chromium's singleton socket to the host's
+        // temporary directory. A deep scratch directory can make its path too long.
+        env.retain(|(key, _)| key != "TMPDIR");
+        for entry in &command.env {
+            env.retain(|(key, _)| key.as_bytes() != entry.name.as_ref());
+            env.push((OsStr::from_bytes(&entry.name).into(), OsStr::from_bytes(&entry.value).into()));
+        }
+        Spawn {
+            reach: None,
+            program: command.program,
+            args: command.args.into_boxed(),
+            env: env.iter().map(|(key, value)| [key.as_bytes(), b"=", value.as_bytes()].concat().into()).collect(),
+            root,
+            dir: Self::beneath(profile),
+            pipes: command
+                .pipes
+                .into_iter()
+                .map(|pipe| Pipe {
+                    child: pipe.descriptor,
+                    way: match pipe.direction {
+                        browser::command::Direction::Read => Way::In,
+                        browser::command::Direction::Write => Way::Out,
+                    },
+                    parent: None,
+                })
+                .collect(),
+        }
+    }
     pub fn open(&mut self, url: Box<[u8]>, face: &mut BrowserFace<'_>) {
         if matches!(self.opening, Opening::Idle) {
-            let command =
-                browser::command::command(self.chromium.as_os_str().as_bytes(), self.profile.as_os_str().as_bytes());
-            let mut env = self.environment.clone();
-            for entry in &command.env {
-                env.retain(|(key, _)| key.as_bytes() != entry.name.as_ref());
-                env.push((OsStr::from_bytes(&entry.name).into(), OsStr::from_bytes(&entry.value).into()));
-            }
-            let spawn = Spawn {
-                reach: None,
-                program: command.program,
-                args: command.args.into_boxed(),
-                env: env.iter().map(|(key, value)| [key.as_bytes(), b"=", value.as_bytes()].concat().into()).collect(),
-                root: self.root(),
-                dir: Self::beneath(&self.profile),
-                pipes: command
-                    .pipes
-                    .into_iter()
-                    .map(|pipe| Pipe {
-                        child: pipe.descriptor,
-                        way: match pipe.direction {
-                            browser::command::Direction::Read => Way::In,
-                            browser::command::Direction::Write => Way::Out,
-                        },
-                        parent: None,
-                    })
-                    .collect(),
-            };
+            let spawn = Self::chromium_spawn(&self.chromium, &self.profile, &self.environment, self.root());
             self.opening = Opening::Starting(url);
             self.request(io::Request::Spawn { owner: PROCESS, spawn });
         } else {
@@ -230,7 +235,7 @@ impl Pump {
             browser::fire(&mut self.browser, &self.benv, time.now, &mut self.events, &mut self.down);
         }
         while let Some(event) = self.events.pop() {
-            face.event(&event);
+            face.event_at(&event, time.now);
             self.browser_event(event);
         }
         // With no page yet, a settled context has no remaining command deadline.

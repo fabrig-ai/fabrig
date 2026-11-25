@@ -35,6 +35,7 @@ fn keep(world: &mut World, release: bool) -> Reply {
     let amendment = amendment(world, release);
     let message = world.record(KEPT).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend { funder: None, task: KEPT, message, stop_run: false, amendment: Box::new(amendment) },
         places: Box::new([]),
         reply_to,
@@ -193,6 +194,7 @@ fn an_escalation_release_reholds_a_circle_and_keeps_its_queue_place() {
     remove.dependencies = Some(Box::new([]));
     let message = world.record(KEPT).last_message + 1;
     response(&mut world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend { funder: None, task: KEPT, message, stop_run: false, amendment: Box::new(remove) },
         places: Box::new([]),
         reply_to,

@@ -295,7 +295,7 @@ serve`'s owned one stay as 4 to 7 say. This is an authentication change, so
 its reasons are kept here.
 
 **What the box's configuration holds,** as `temper-box init --box` writes it
-(`setup/init.md`, 2):
+(`setup/init.md`, 5):
 
 ```
 "engine": {"owners": [{"provider": 1, "subject": "ada@localhost"}],

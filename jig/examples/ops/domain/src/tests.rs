@@ -843,6 +843,7 @@ fn a_new_task_timer_stays_due_at_the_watermark() {
         &mut domain,
         &env,
         Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+            reads_project: false,
             reply_to: ReplyTo::new(Token::new(SUBSCRIPTION)),
             task: CHAT,
             subscription: tasks::Subscription {

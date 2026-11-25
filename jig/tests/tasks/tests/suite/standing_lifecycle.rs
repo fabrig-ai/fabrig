@@ -144,6 +144,7 @@ fn standing_finishes_park_with_bounded_words_and_no_followups() {
         world.claim(1, 1);
         let reply_to = world.to();
         world.stage(Event::Activation {
+            reads_project: false,
             reply_to,
             task: 1,
             attempt: 1,

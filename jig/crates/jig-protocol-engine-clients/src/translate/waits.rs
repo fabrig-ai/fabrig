@@ -1,8 +1,9 @@
 //! Carry the core's wait records without reordering or recomputing them (jig/docs/design/domain/engine/waits.md, 4).
 use super::{chips, task_wait, w};
+use crate::generated::client as mapped;
 use jig_domain_core_vocabulary::waits as d;
 use jig_domain_people::EntryKind;
-use skein_lib::{List, bytes};
+use skein_lib::List;
 
 pub(super) fn first(value: Option<&d::Wait>) -> Result<Option<w::Wait>, w::Problem> {
     match value {
@@ -12,8 +13,7 @@ pub(super) fn first(value: Option<&d::Wait>) -> Result<Option<w::Wait>, w::Probl
 }
 
 pub(super) fn nearest(value: Option<d::Nearest>) -> Option<w::Nearest> {
-    let value = value?;
-    Some(w::Nearest { at: value.at.as_nanos(), then: at_bound(value.then), kind: kind(value.kind) })
+    Some(mapped::nearest_to_record(&value?))
 }
 
 pub(super) fn list(value: &List<d::Wait>) -> Result<List<w::Wait>, w::Problem> {
@@ -27,32 +27,15 @@ pub(super) fn list(value: &List<d::Wait>) -> Result<List<w::Wait>, w::Problem> {
 fn wait(value: &d::Wait) -> Result<w::Wait, w::Problem> {
     Ok(w::Wait {
         task: value.task,
-        kind: kind(value.kind),
+        kind: mapped::wait_kind_to_record(&value.kind),
         object: object(&value.object, value.task)?,
         since: value.since.as_nanos(),
-        bound: bound(value.bound),
+        bound: mapped::wait_bound_to_record(&value.bound),
         hears: match value.hears {
             Some(holder) => Some(chips::holder(holder)),
             None => None,
         },
     })
-}
-
-fn kind(value: d::WaitKind) -> w::WaitKind {
-    match value {
-        d::WaitKind::Party => w::WaitKind::Party,
-        d::WaitKind::Question => w::WaitKind::Question,
-        d::WaitKind::Dependency => w::WaitKind::Dependency,
-        d::WaitKind::Resource => w::WaitKind::Resource,
-        d::WaitKind::Account => w::WaitKind::Account,
-        d::WaitKind::Host => w::WaitKind::Host,
-        d::WaitKind::Delegate => w::WaitKind::Delegate,
-        d::WaitKind::News => w::WaitKind::News,
-        d::WaitKind::Step => w::WaitKind::Step,
-        d::WaitKind::Room => w::WaitKind::Room,
-        d::WaitKind::Turn => w::WaitKind::Turn,
-        d::WaitKind::SignOff => w::WaitKind::SignOff,
-    }
 }
 
 fn object(value: &d::WaitObject, task: u64) -> Result<w::WaitObject, w::Problem> {
@@ -74,14 +57,12 @@ fn object(value: &d::WaitObject, task: u64) -> Result<w::WaitObject, w::Problem>
         }
         d::WaitObject::Task(value) => w::WaitObject::Task(w::WaitTask { value: *value }),
         d::WaitObject::Resource { name, holder } => {
-            let mut path = List::with_capacity(super::count(name.path.len())?);
-            for segment in &name.path {
-                path.push(bytes::copy_of(segment)).expect("supplied path fits");
-            }
-            w::WaitObject::Resource(w::WaitResource {
-                name: w::WaitResourceName { connector: name.connector, path },
-                holder: *holder,
-            })
+            // A path count past u32 is refused at the enclosing record.
+            let name = match mapped::wait_resource_name_to_record(name) {
+                Ok(name) => name,
+                Err(problem) => return Err(super::problem(problem.reason)),
+            };
+            w::WaitObject::Resource(w::WaitResource { name, holder: *holder })
         }
         d::WaitObject::Run(value) => w::WaitObject::Run(w::WaitRun { value: task_wait::run(*value) }),
         d::WaitObject::News { subscriptions, timer } => w::WaitObject::News(w::WaitNews {
@@ -94,33 +75,9 @@ fn object(value: &d::WaitObject, task: u64) -> Result<w::WaitObject, w::Problem>
         d::WaitObject::Procedure { step, things } => {
             let mut rows = List::with_capacity(things.len());
             for row in things {
-                rows.push(w::Thing { what: row.what, number: row.number, owner: row.owner })
-                    .expect("supplied things fit");
+                rows.push(mapped::thing_to_record(row)).expect("supplied things fit");
             }
             w::WaitObject::Procedure(w::WaitProcedure { step: *step, things: rows })
         }
     })
-}
-
-fn bound(value: d::Bound) -> w::WaitBound {
-    match value {
-        d::Bound::At { at, then } => w::WaitBound::At(w::WaitAtBound { at: at.as_nanos(), then: at_bound(then) }),
-        d::Bound::None(why) => w::WaitBound::None(w::WaitNoBound {
-            reason: match why {
-                d::Unbounded::NoDeadline => w::Unbounded::NoDeadline,
-                d::Unbounded::Standing => w::Unbounded::Standing,
-                d::Unbounded::Behind(task) => w::Unbounded::Behind(w::UnboundedBehind { task }),
-                d::Unbounded::OperatorHold => w::Unbounded::OperatorHold,
-            },
-        }),
-    }
-}
-
-fn at_bound(value: d::AtBound) -> w::AtBound {
-    match value {
-        d::AtBound::Hold => w::AtBound::Hold,
-        d::AtBound::PassUp => w::AtBound::PassUp,
-        d::AtBound::Overdue => w::AtBound::Overdue,
-        d::AtBound::GiveUp => w::AtBound::GiveUp,
-    }
 }

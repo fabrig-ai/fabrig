@@ -132,7 +132,8 @@ fn person_release(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
         | tasks::Hold::ResourceUnavailable
         | tasks::Hold::ResourceAccess
         | tasks::Hold::PoolLost { .. }
-        | tasks::Hold::Circle => false,
+        | tasks::Hold::Circle
+        | tasks::Hold::Waited => false,
     };
     let wake = Wake::Party("person".into());
     if released && !wakes.contains(&wake) {
@@ -192,6 +193,15 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
             }
             if matches!(row.change.state, State::Producing { requested: false }) {
                 follow_restart(view, row.task, &mut wakes);
+                if row.close.is_some()
+                    && let Some(root) = view.root
+                    && let Some(task) = root.tasks().task(row.task)
+                    && let tasks::Party::Task(closer) = task.requester
+                    && view.forge.closer(closer).is_some()
+                    && root.tasks().task(closer).is_some_and(|owner| !owner.waiting_on.is_empty())
+                {
+                    wakes.push(view.waiter(closer));
+                }
             }
         }
     }

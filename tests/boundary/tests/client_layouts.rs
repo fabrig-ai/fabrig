@@ -1,4 +1,4 @@
-//! Client versions move with layouts (temper/docs/design/protocol/wires.md, 8).
+//! Client versions are frozen (jig/docs/design/protocol/client/versions.md, 1).
 
 use std::{collections::BTreeMap, fmt, fs, path::Path, process::Command};
 
@@ -9,6 +9,7 @@ const FAMILIES: &[(&str, &str)] = &[
     ("jig-client-wire", "jig/crates/jig-client-protocol-wire"),
     ("jig-public-wire", "jig/crates/jig-client-protocol-wire"),
     ("jig-engine-cursor", "jig/crates/jig-protocol-engine-clients"),
+    ("jig-client-view-records", "jig/crates/jig-client-view"),
     ("temper-client-wire", "temper/crates/temper-client-protocol-wire"),
     ("temper-public-wire", "temper/crates/temper-client-protocol-wire"),
 ];
@@ -16,27 +17,25 @@ const FAMILIES: &[(&str, &str)] = &[
 #[derive(Debug, PartialEq, Eq)]
 struct Finding {
     family: String,
-    version: u16,
+    base: u16,
+    current: u16,
 }
 
 impl fmt::Display for Finding {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} version {} changed layout: move its version", self.family, self.version)
+        write!(f, "{} version {} moved to {}: client versions are frozen", self.family, self.base, self.current)
     }
 }
 
-fn layouts(base_text: &str, current_text: &str) -> Option<Finding> {
-    let base = schema::parse(base_text.as_bytes()).expect("valid base family");
+fn versions(base_text: Option<&str>, current_text: &str) -> Option<Finding> {
+    let base = schema::parse(base_text?.as_bytes()).expect("valid base family");
     let current = schema::parse(current_text.as_bytes()).expect("valid current family");
     assert_eq!(base.spelled(base.family()), current.spelled(current.family()), "compare the same family");
-    if base.version() == current.version() && base.fingerprints().family() != current.fingerprints().family() {
-        Some(Finding {
-            family: String::from_utf8(current.spelled(current.family()).to_vec()).expect("family name is UTF-8"),
-            version: current.version(),
-        })
-    } else {
-        None
-    }
+    (base.version() != current.version()).then(|| Finding {
+        family: String::from_utf8(current.spelled(current.family()).to_vec()).expect("family name is UTF-8"),
+        base: base.version(),
+        current: current.version(),
+    })
 }
 
 fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
@@ -63,7 +62,7 @@ fn base(root: &Path) -> String {
     };
     let reference = String::from_utf8(git(root, &args).expect("read the landed base")).expect("git's base is UTF-8");
     let reference = reference.trim().to_owned();
-    eprintln!("client layout check base: {reference} (git {})", args.join(" "));
+    eprintln!("client version check base: {reference} (git {})", args.join(" "));
     reference
 }
 
@@ -107,7 +106,7 @@ fn header(text: &str) -> Option<&str> {
 fn family_text(files: &BTreeMap<String, String>, family: &str) -> Option<String> {
     let mut roots = files.iter().filter(|(_, text)| header(text) == Some(family));
     let (name, text) = roots.next()?;
-    assert!(roots.next().is_none(), "more than one current header for {family}");
+    assert!(roots.next().is_none(), "more than one header for {family}");
     let mut text = text.clone();
     // The client generator concatenates the header file then its part1 fragment
     // (jig/tests/codec-families.rs), without inserting a separator.
@@ -119,42 +118,51 @@ fn family_text(files: &BTreeMap<String, String>, family: &str) -> Option<String>
 }
 
 #[test]
-fn client_layout_changes_move_their_versions() {
+fn client_versions_are_frozen() {
     let root = paths::workspace();
     let base = base(&root);
     let mut failures = Vec::new();
     for (family, owner) in FAMILIES {
         let owner = root.join(owner);
         let current = family_text(&current_files(&owner), family).expect("current family header exists");
-        if let Some(before) = family_text(&base_files(&owner, &base), family)
-            && let Some(finding) = layouts(&before, &current)
-        {
-            failures.push(format!("{finding} (base {base})"));
+        let before = family_text(&base_files(&owner, &base), family);
+        if let Some(finding) = versions(before.as_deref(), &current) {
+            failures.push(finding.to_string());
         }
     }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    assert!(failures.is_empty(), "base {base}:\n{}", failures.join("\n"));
 }
 
 const BEFORE: &str = "family jig-client-wire 19\n# A client record.\nrecord Value { value: u64 }\n";
 
 #[test]
-fn a_field_added_at_the_same_version_needs_a_version_move() {
+fn a_field_added_at_the_same_version_passes() {
     let changed = BEFORE.replace("value: u64", "value: u64 added: u32");
-    let finding = layouts(BEFORE, &changed).expect("a field added without a version move is refused");
-    assert_eq!(finding, Finding { family: "jig-client-wire".into(), version: 19 });
-    assert_eq!(finding.to_string(), "jig-client-wire version 19 changed layout: move its version");
+    assert_eq!(versions(Some(BEFORE), &changed), None);
 }
 
 #[test]
-fn a_field_added_with_its_version_moved_passes() {
-    let changed = BEFORE.replace("value: u64", "value: u64 added: u32").replace("wire 19", "wire 20");
-    assert_eq!(layouts(BEFORE, &changed), None);
+fn a_version_move_is_refused_with_or_without_a_layout_change() {
+    let with_field = BEFORE.replace("value: u64", "value: u64 added: u32");
+    for (text, current) in [(BEFORE, 20), (&with_field, 18)] {
+        let changed = text.replace("wire 19", &format!("wire {current}"));
+        let finding = versions(Some(BEFORE), &changed).expect("a version move is refused");
+        assert_eq!(
+            finding.to_string(),
+            format!("jig-client-wire version 19 moved to {current}: client versions are frozen")
+        );
+    }
+}
+
+#[test]
+fn a_family_absent_at_the_base_passes() {
+    assert_eq!(versions(None, BEFORE), None);
 }
 
 #[test]
 fn a_comment_change_passes() {
     let changed = BEFORE.replace("A client record.", "Another comment.");
-    assert_eq!(layouts(BEFORE, &changed), None);
+    assert_eq!(versions(Some(BEFORE), &changed), None);
 }
 
 #[test]
@@ -166,8 +174,6 @@ fn headers_find_families_and_include_their_fragments() {
     ]);
     let text = family_text(&files, "jig-client-wire").expect("client found by its header");
     assert!(schema::parse(text.as_bytes()).expect("whole family parses").find(b"Tail").is_some());
-    let changed = text.replace("value: Value", "value: Value added: u32");
-    assert!(layouts(&text, &changed).is_some(), "a fragment's change is part of the layout");
-    assert!(family_text(&files, "temper-client-wire").is_none(), "an absent base family passes");
+    assert!(family_text(&files, "temper-client-wire").is_none());
     assert_eq!(family_text(&files, "jig-public-wire"), files.get("public-v1.schema").cloned());
 }

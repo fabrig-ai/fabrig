@@ -7,7 +7,11 @@ use skein_lib::Queue;
 fn passes_the_client_s_transport_requests_out_in_order() {
     let mut root = ready(81);
     let key = Key { asker: Asker::JIG, number: 99 };
-    let ask = jig_client::Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 9 }));
+    let ask = jig_client::Ask::Jig(Box::new(contract::Ask::Stop {
+        project: 1,
+        task: 9,
+        reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX).expect("fixture reason fits"),
+    }));
     let mut out = Queue::uncapped();
     crate::step(
         &mut root,

@@ -15,6 +15,19 @@ fn a_held_notice_reads_with_its_hold_revision() {
     });
     assert_eq!(crate::words(&word).as_ref(), b"Task 3 is held at hold revision 2:\nHello");
 }
+#[test]
+fn an_unreadable_notice_explains_why_the_watch_ended() {
+    let word = fixtures::word(MessageKind::Notice {
+        subscription: SUBSCRIPTION,
+        target: TARGET,
+        state: NoticeState::Unreadable,
+    });
+    assert_eq!(
+        crate::words(&word).as_ref(),
+        b"The watch on task 3 ended because your tree's requester no longer reads it."
+    );
+}
+
 const DECISIONS: [(bool, &[u8]); 2] =
     [(true, b"Proposal accepted 2:\nHello".as_slice()), (false, b"Proposal rejected 2:\nHello".as_slice())];
 #[test]

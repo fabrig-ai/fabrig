@@ -1,7 +1,7 @@
 //! Whole program facts, admitted against the document's shared byte budget.
 use super::documents::{charge, piece_count};
 use super::piece_problem;
-use crate::Limits;
+use crate::{Limits, generated::client};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
@@ -10,17 +10,6 @@ use skein_lib::{List, Reader, bytes, length::len_u64};
 fn copy(value: &[u8], room: &mut u64) -> Result<Box<[u8]>, w::Problem> {
     charge(room, Some(len_u64(value.len())))?;
     Ok(bytes::copy_of(value))
-}
-fn failure(value: &w::ProgramFailure) -> c::ProgramFailure {
-    match value {
-        w::ProgramFailure::Missing => c::ProgramFailure::Missing,
-        w::ProgramFailure::Deadline => c::ProgramFailure::Deadline,
-        w::ProgramFailure::Unreadable => c::ProgramFailure::Unreadable,
-        w::ProgramFailure::Exited => c::ProgramFailure::Exited,
-        w::ProgramFailure::Unconfigured => c::ProgramFailure::Unconfigured,
-        w::ProgramFailure::Unknown => c::ProgramFailure::Unknown,
-        w::ProgramFailure::Closed => c::ProgramFailure::Closed,
-    }
 }
 fn state(value: &w::ProgramState, room: &mut u64) -> Result<c::ProgramState, w::Problem> {
     Ok(match value {
@@ -32,9 +21,10 @@ fn state(value: &w::ProgramState, room: &mut u64) -> Result<c::ProgramState, w::
             }
             c::ProgramState::SignedInOtherwise { method: copy(&row.method, room)? }
         }
-        w::ProgramState::Failed(row) => {
-            c::ProgramState::Failed { reason: failure(&row.reason), detail: copy(&row.detail, room)? }
-        }
+        w::ProgramState::Failed(row) => c::ProgramState::Failed {
+            reason: client::program_failure_to_domain(row.reason.clone()),
+            detail: copy(&row.detail, room)?,
+        },
     })
 }
 fn login(value: &w::ProgramLogin, room: &mut u64) -> Result<c::ProgramLogin, w::Problem> {
@@ -47,9 +37,10 @@ fn login(value: &w::ProgramLogin, room: &mut u64) -> Result<c::ProgramLogin, w::
     };
     let sign_out = match &value.sign_out {
         Some(w::ProgramSignOut::SignedOut) => Some(c::ProgramSignOut::SignedOut),
-        Some(w::ProgramSignOut::Failed(value)) => {
-            Some(c::ProgramSignOut::Failed { reason: failure(&value.reason), detail: copy(&value.detail, room)? })
-        }
+        Some(w::ProgramSignOut::Failed(value)) => Some(c::ProgramSignOut::Failed {
+            reason: client::program_failure_to_domain(value.reason.clone()),
+            detail: copy(&value.detail, room)?,
+        }),
         None => None,
     };
     Ok(c::ProgramLogin { name: copy(&value.name, room)?, state, sign_out, cleanup: value.cleanup, cut: value.cut })

@@ -1,7 +1,8 @@
 //! One authorization in flight; no retained request (protocol/client/openid.md).
 use crate::{
-    AuthorizeWhy, Authorized, Link, Message, Request,
+    Authorized, Link, Message, Request,
     component::{Attempt, ExchangeKind},
+    generated::client,
 };
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
@@ -53,19 +54,7 @@ impl Link {
     pub(super) fn authorized(&self, body: &[u8], out: &mut Queue<Request>) {
         let mut reader = Reader::new(body);
         let answer = match w::AuthorizeAnswer::decode(self.limits.wire(), &mut reader) {
-            Ok(answer) if reader.is_empty() => match answer {
-                w::AuthorizeAnswer::Go(go) => Authorized::Go { location: go.location },
-                w::AuthorizeAnswer::Refused(refused) => Authorized::Refused(match &refused.why {
-                    w::AuthorizeWhy::Malformed => AuthorizeWhy::Malformed,
-                    w::AuthorizeWhy::UnknownClient => AuthorizeWhy::UnknownClient,
-                    w::AuthorizeWhy::UnknownRedirect => AuthorizeWhy::UnknownRedirect,
-                    w::AuthorizeWhy::NoProvider => AuthorizeWhy::NoProvider,
-                    w::AuthorizeWhy::NotAPerson => AuthorizeWhy::NotAPerson,
-                }),
-                w::AuthorizeAnswer::SignedOut => Authorized::SignedOut,
-                w::AuthorizeAnswer::NotReady => Authorized::NotReady,
-                w::AuthorizeAnswer::Busy => Authorized::Busy,
-            },
+            Ok(answer) if reader.is_empty() => client::authorize_answer_to_domain(answer),
             Ok(_) | Err(_) => Authorized::Lost,
         };
         out.push(Request::Authorized(answer));

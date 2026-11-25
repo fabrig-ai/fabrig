@@ -311,6 +311,7 @@ pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
                 | Read::GoalWords(_)
                 | Read::InputCheck(_)
                 | Read::Parts(_)
+                | Read::CloserReport(_)
                 | Read::Document(_)
                 | Read::Remember(_)
                 | Read::SettingsNote { .. }

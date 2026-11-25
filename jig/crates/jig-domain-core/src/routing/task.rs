@@ -90,6 +90,7 @@ pub(crate) fn route_connector_repair(
         work.push(Work::Event(Event::Tasks(event)));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
@@ -132,6 +133,7 @@ pub(crate) fn route_person_task(
         work.push(Work::Event(Event::Tasks(event)));
     }
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
@@ -195,7 +197,7 @@ fn route_batch(
     {
         return route_proposal(core, env, event);
     }
-    let mut event = if let tasks::Event::Procedure { reply_to, task, step, read, decision } = event {
+    let mut event = if let tasks::Event::Procedure { reply_to, task, step, read, decision, .. } = event {
         return super::effect::procedure::apply(core, env, reply_to, task, step, read, decision);
     } else {
         event
@@ -230,7 +232,7 @@ fn route_batch(
         out.push(tasks::Request::Refused { reply_to, problem });
         return tag_task_outputs(core, env, out);
     }
-    let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places } = event {
+    let event = if let tasks::Event::Make { reply_to, creator, maker, mut batch, places, .. } = event {
         if let Err(problem) = core.admit_batch(creator, &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
@@ -249,7 +251,7 @@ fn route_batch(
                 return tag_task_outputs(core, env, out);
             }
         }
-    } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, mut batch } = event {
+    } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, mut batch, .. } = event {
         if let Err(problem) = core.admit_batch(tasks::Party::Task(proposer), &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
@@ -352,9 +354,12 @@ pub(crate) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u
 }
 
 fn follow(core: &mut Core, env: &Env<Limits>, event: tasks::Event, pending: &mut Queue<tasks::Request>) {
-    let (event, procedure) = if let tasks::Event::Procedure { reply_to, task, step, read, decision } = event {
+    let (event, procedure) = if let tasks::Event::Procedure { reply_to, task, step, read, decision, .. } = event {
         let token = reply_to.into_token();
-        (tasks::Event::Procedure { reply_to: ReplyTo::new(token), task, step, read, decision }, Some(token))
+        (
+            tasks::Event::Procedure { reads_project: false, reply_to: ReplyTo::new(token), task, step, read, decision },
+            Some(token),
+        )
     } else {
         (event, None)
     };
@@ -478,6 +483,7 @@ fn tag_tasks(
         }
         tasks::Request::Refused { reply_to, problem } => refused::refused(core, env, reply_to, problem, pending, out),
         tasks::Request::PersonStallDue { task } => notices::person_stall_due(core, env, task, pending),
+        tasks::Request::PersonStallRestored { task } => notices::person_stall_restored(core, env, task, pending),
         tasks::Request::QuestionOwedDue { task } => notices::question_owed_due(core, env, task, pending),
         tasks::Request::NothingAwaitedDue { task } => notices::nothing_awaited_due(core, env, task, pending),
         tasks::Request::QuestionParked { task, question } => {

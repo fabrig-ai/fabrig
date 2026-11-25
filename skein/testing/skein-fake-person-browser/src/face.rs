@@ -79,6 +79,7 @@ pub struct BrowserFace<'a> {
     now: Time,
     last_find: Option<(NodeId, Find)>,
     look_again: Option<(Find, Time)>,
+    look_wake: Option<Time>,
     press: Option<Press>,
     expected_path: Option<Box<[u8]>>,
     failure: Option<FaceFailure>,
@@ -127,6 +128,7 @@ impl<'a> BrowserFace<'a> {
             now: Time::ZERO,
             last_find: None,
             look_again: None,
+            look_wake: None,
             press: None,
             expected_path: None,
             failure: None,
@@ -228,8 +230,20 @@ impl<'a> BrowserFace<'a> {
             self.answer = Some(Found::Absent);
         }
     }
-    fn look_due(&self, find: &Find) -> bool {
-        self.look_again.as_ref().is_none_or(|(looked, again)| looked != find || self.now >= *again)
+    fn look_due(&mut self, find: &Find) -> bool {
+        // Taking an answer does not start another find. Keep an overdue wake
+        // so the script can take another turn instead of waiting for its bound.
+        self.look_wake = self.look_again.as_ref().and_then(|(looked, again)| (looked == find).then_some(*again));
+        self.look_wake.is_none_or(|again| self.now >= again)
+    }
+    pub(crate) fn clear_look_wake(&mut self) {
+        self.look_wake = None;
+    }
+    pub(crate) fn look_wake(&self) -> Option<Time> {
+        self.look_wake
+    }
+    pub(crate) fn press_wake(&self) -> Option<Time> {
+        self.press.as_ref().map(|press| press.again.map_or(press.until, |again| again.min(press.until)))
     }
     pub(crate) fn command(&mut self, action: crate::harness::CommandAction) {
         self.command = Some(action);
@@ -539,6 +553,11 @@ impl<'a> BrowserFace<'a> {
             self.absent(search.find);
         }
     }
+    /// Use the reply's receipt time without firing timers ahead of it.
+    pub(crate) fn event_at(&mut self, event: &Event, now: Time) {
+        self.now = now;
+        self.event(event);
+    }
     /// Deliver operation events and downloads routed by the harness to this person.
     pub fn event(&mut self, event: &Event) {
         if self.look_event(event) {
@@ -787,6 +806,7 @@ impl<'a> BrowserFace<'a> {
 impl Face for BrowserFace<'_> {
     fn find(&mut self, find: &Find) -> Found {
         if let Some(answer) = self.answer.take() {
+            self.look_due(find);
             return answer;
         }
         if self.failed() || !self.look_due(find) {
@@ -817,6 +837,7 @@ fn target_role(target: &Target) -> Option<Role> {
         Target::Role { role, .. } | Target::ExactRole { role, .. } => Some(*role),
         Target::TextBox { .. } => Some(Role::TextField),
         Target::Text { .. } => None,
+        Target::ParagraphText { .. } => Some(Role::Paragraph),
     }
 }
 fn query_parts(target: &Target) -> (&'static [&'static [u8]], &[u8], Match) {
@@ -825,6 +846,7 @@ fn query_parts(target: &Target) -> (&'static [&'static [u8]], &[u8], Match) {
         Target::ExactRole { role, name } => (accessible(*role), name, Match::Exact),
         Target::TextBox { name } => (accessible(Role::TextField), name, Match::Exact),
         Target::Text { text } => (&[b"StaticText"], text, Match::Words),
+        Target::ParagraphText { text } => (accessible(Role::Paragraph), text, Match::ParagraphText),
     }
 }
 

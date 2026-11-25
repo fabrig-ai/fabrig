@@ -269,6 +269,7 @@ fn a_projection_feed_then_committed_resume_delivers_the_watch() {
             budget: 100,
         },
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),
@@ -404,6 +405,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
             budget: 100,
         },
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(u64::MAX - 3)),
@@ -951,8 +953,8 @@ fn accepted_statement() -> crate::WorkerStatement {
     crate::WorkerStatement {
         wires: Box::new([crate::OpenedWire {
             name: "example-wire".into(),
-            lowest: 3,
-            layouts: Box::new([[4; 32], [5; 32]]),
+            layout: [4; 32],
+            text: b"worker-stated wire text".as_slice().into(),
         }]),
         output: 4096,
         terms: Box::new([crate::OpenedTerm { kind: 12, largest: 34 }]),

@@ -54,6 +54,7 @@ const HOLDS: &[(H, &[u8])] = &[
     (H::Uncertain { entry: TASK }, b"Uncertain outbox entry 7"),
     (H::Budget, b"Insufficient activation budget"),
     (H::Deadline, b"Deadline passed"),
+    (H::Waited, b"A wait passed its bound"),
     (H::HoldsWaited, b"Resource holds waited too long"),
     (H::ResourceUnavailable, b"A required connector resource is unavailable"),
     (H::ResourceAccess, b"Current resource access forbids this action"),
@@ -91,6 +92,7 @@ fn each_hold_category_says_its_own_phrase() {
             | H::EffectFailed
             | H::Budget
             | H::Deadline
+            | H::Waited
             | H::HoldsWaited
             | H::ResourceUnavailable
             | H::ResourceAccess

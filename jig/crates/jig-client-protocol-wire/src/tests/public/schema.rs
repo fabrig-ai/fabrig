@@ -20,7 +20,7 @@ fn source() -> &'static str {
 }
 
 fn golden() -> String {
-    fs::read_to_string(package().join("schema/public-v1.fields")).expect("public fields golden readable")
+    fs::read_to_string(package().join("schema/public-v2.fields")).expect("public fields golden readable")
 }
 
 fn name(declaration: &Declaration) -> &str {

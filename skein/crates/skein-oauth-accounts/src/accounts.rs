@@ -48,7 +48,7 @@ pub enum Keeper {
     /// The owner's store; each candidate goes out as Keep and waits for Kept.
     Owner { kept: Option<SavedToken> },
     /// Private whole-file storage beneath the owner's `FileIo` root; the component closes only its private root.
-    /// The owner configures `FileIo`'s effective user before adopting that startup root (runtime/io/files.md, section 3).
+    /// The owner configures `FileIo`'s effective user before adopting that startup root (runtime/io/files.md, section 11).
     Private { root: Token, directory: Box<[u8]>, file: Box<[u8]> },
 }
 

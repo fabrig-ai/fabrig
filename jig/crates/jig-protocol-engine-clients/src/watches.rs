@@ -308,12 +308,13 @@ impl Component {
             }
             let number = match waiting {
                 Waiting::Watch { sign_in, .. }
-                | Waiting::Ask { sign_in, .. }
-                | Waiting::Carry { sign_in, .. }
                 | Waiting::Read { sign_in, .. }
                 | Waiting::Authorize { sign_in, .. }
                 | Waiting::ApplicationRead { sign_in, .. } => Some(*sign_in),
-                Waiting::Reissue { sign_in, .. } => *sign_in,
+                Waiting::Ask { sign_in, .. } | Waiting::Carry { sign_in, .. } => {
+                    self.keyed_caller(*exchange, Some(*sign_in))
+                }
+                Waiting::Reissue { sign_in, .. } => self.keyed_caller(*exchange, *sign_in),
                 Waiting::LinkAskWhose { .. }
                 | Waiting::AskedWhose { .. }
                 | Waiting::ApprovalWhose { .. }
@@ -381,10 +382,11 @@ impl Component {
         let value = if stream.me == Some(watcher) {
             match value {
                 Ok(w::StreamEvent::Delivery(delivery)) => match stream.hello.take() {
-                    Some(hello) => match Ok(w::Opened { hello, me: delivery.document }) {
-                        Ok(opened) => Ok(w::StreamEvent::Opened(opened)),
-                        Err(problem) => Err(problem),
-                    },
+                    Some(hello) => Ok(w::StreamEvent::Opened(w::Opened {
+                        hello,
+                        layouts: translate::layouts(&self.settings),
+                        me: delivery.document,
+                    })),
                     None => Ok(w::StreamEvent::Delivery(delivery)),
                 },
                 value @ (Ok(

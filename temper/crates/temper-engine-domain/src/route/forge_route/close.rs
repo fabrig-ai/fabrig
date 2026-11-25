@@ -1,6 +1,7 @@
 //! Close request admission and job encoding (temper/docs/design/domain/forge/change/README.md, 1;
-//! temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2).
-use super::{Domain, List, Work, append, decimal, forge, forge_change, tasks};
+//! temper/docs/design/domain/worker/jobs.md; temper/docs/design/protocol/tooling.md, 4.2),
+//! and failure retirement (temper/docs/design/domain/forge/change/repairs-releases.md, 1).
+use super::{Decision, Domain, Env, Limits, Work, forge, forge_change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes::copy_of};
 use temper_protocol_worker_wire::v1::{self, Record};
@@ -68,25 +69,76 @@ pub(super) fn authority(context: &tasks::DelegationContext) -> tasks::Authority 
     authority
 }
 
-// Once jig makes a replacement, cancel the held job before the replacement
-// starts (temper/docs/design/domain/forge/change/repairs.md).
-pub(crate) fn made(domain: &mut Domain, task: u64, fresh: u64) {
-    let Some(row) = domain.forge.change(task) else { return };
-    let Some((child, forge_change::Delegate::Close)) = row.delegate else { return };
-    if child == fresh {
-        return;
+// The change, not the failed job, owns the hold.
+fn failed_delegate(domain: &Domain, task: u64) -> Option<u64> {
+    let row = domain.forge.change(task)?;
+    let Some((child, forge_change::Delegate::Close)) = row.delegate else { return None };
+    let forge_change::State::Held { was, why: forge_change::Hold::Failed } = &row.change.state else { return None };
+    if **was == (forge_change::State::Producing { requested: true })
+        && row.delegate_status == forge_change::Status::Failed
+    {
+        Some(child)
+    } else {
+        None
     }
-    let Some(child_row) = domain.core.tasks.task(child) else { return };
-    if let tasks::Phase::Held { why: tasks::Hold::Failures(_), .. } = child_row.phase {
-        let mut reason = List::with_capacity(96);
-        append(&mut reason, b"superseded by its change's fresh close job, task ");
-        append(&mut reason, &decimal(fresh));
-        domain.work.push(Work::Tasks(tasks::Event::Cancel {
-            reply_to: super::super::internal(u64::MAX),
-            by: tasks::Party::Task(task),
-            operation: tasks::Cancel { task: child, reason: reason.into_boxed(), grace: None, message: None },
-        }));
+}
+
+pub(super) fn replay_words(at: forge_change::CloseAt, failure: &[u8]) -> Box<[u8]> {
+    let mut words = skein_lib::List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    super::append(&mut words, b"not measured again: the goal's branch is at ");
+    short_commit(&mut words, &at.branch);
+    super::append(&mut words, b" and main at ");
+    short_commit(&mut words, &at.landing);
+    super::append(&mut words, b", as when its close job failed; it closes again once either moves.\n\n");
+    let room = usize::try_from(words.room()).expect("hold bound fits usize");
+    super::append(&mut words, &forge::text::fit(failure, room, b""));
+    words.into_boxed()
+}
+
+fn short_commit(words: &mut skein_lib::List<u8>, commit: &[u8; 32]) {
+    for byte in commit.get(..6).expect("six bytes of a commit") {
+        super::append(words, &forge::hex(*byte));
     }
+}
+
+pub(super) fn retire_on_hold(domain: &mut Domain, task: u64) -> Option<jig_domain_core::StepCancel> {
+    let child = failed_delegate(domain, task)?;
+    domain.work.push(Work::Forge(forge::Event::RetireFailedClose { task, child }));
+    let row = domain.core.tasks.task(child)?;
+    if let tasks::Phase::Held { why: tasks::Hold::Failures(_), .. } = row.phase {
+        Some(jig_domain_core::StepCancel {
+            task: child,
+            reason: Box::from(b"its change holds on its failure".as_slice()),
+            grace: None,
+        })
+    } else {
+        None
+    }
+}
+
+pub(super) fn cancel(domain: &mut Domain, task: u64, part: jig_domain_core::StepCancel) {
+    domain.work.push(Work::Tasks(tasks::Event::Cancel {
+        reply_to: super::super::internal(u64::MAX),
+        by: tasks::Party::Task(task),
+        operation: tasks::Cancel { task: part.task, reason: part.reason, grace: part.grace, message: None },
+    }));
+}
+
+// A row saved with the old job still named retires it before the release decides.
+pub(super) fn retire_on_release(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64) {
+    let Some(child) = failed_delegate(domain, task) else { return };
+    if domain.core.tasks.task(child).is_some() {
+        cancel(
+            domain,
+            task,
+            jig_domain_core::StepCancel {
+                task: child,
+                reason: Box::from(b"its change was released".as_slice()),
+                grace: None,
+            },
+        );
+    }
+    super::super::forge_event(domain, env, decision, forge::Event::RetireFailedClose { task, child });
 }
 
 fn failed_words(phase: &tasks::Phase) -> Option<&[u8]> {
@@ -102,45 +154,6 @@ fn preparation_words(why: tasks::Hold, source: Option<&tasks::HoldSource>) -> Op
 
 pub(super) fn failure_words(domain: &Domain, child: u64) -> Option<&[u8]> {
     failed_words(&domain.core.tasks.task(child)?.phase)
-}
-
-fn held_change(domain: &Domain, requester: tasks::Party, child: u64) -> Option<u64> {
-    let tasks::Party::Task(task) = requester else { return None };
-    let row = domain.forge.change(task)?;
-    if row.delegate != Some((child, forge_change::Delegate::Close)) || !super::own_hold(domain.core.tasks.task(task)?) {
-        return None;
-    }
-    let forge_change::State::Held { was, why: forge_change::Hold::Failed } = &row.change.state else { return None };
-    if **was != (forge_change::State::Producing { requested: true }) {
-        return None;
-    }
-    Some(task)
-}
-
-// A held procedure has no due step to read its inbox. Keep its close job's
-// terminal, or its next failure hold, as the core commits it (repairs.md).
-pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
-    if let jig_domain_core::Record::Tasks(tasks::Stored::Ended(child)) = record {
-        let Some(task) = held_change(domain, child.requester, child.number) else { return };
-        let Some(context) = domain.core.tasks.run_context(task) else { return };
-        super::change_results(domain, &context, None);
-    } else if let jig_domain_core::Record::Tasks(tasks::Stored::Hold(hold)) = record {
-        let Some(words) = preparation_words(hold.held.why, hold.held.source.as_deref()) else { return };
-        let Some(child) = domain.core.tasks.task(hold.task) else { return };
-        let Some(task) = held_change(domain, child.requester, child.number) else { return };
-        domain.work.push(Work::Forge(forge::Event::DelegateResult {
-            ended_at: None,
-            task,
-            child: child.number,
-            status: forge_change::Status::Failed,
-            no_change: false,
-            flake: false,
-            no_test: false,
-            failed: true,
-            cancelled: false,
-            words: words.into(),
-        }));
-    }
 }
 
 // Exhausted job tries hold the producer when its escalation reaches the change

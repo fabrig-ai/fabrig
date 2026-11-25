@@ -179,10 +179,10 @@ impl Core {
         };
         let family = self.tool_family(&kind);
         let call = match kind {
-            ToolKind::Message { target } => authority::Call::Message {
-                referenced: task.requester == tasks::Party::Task(target)
-                    || task.delegates.contains(&target)
-                    || task.references.contains(&target),
+            ToolKind::Message { target } => authority::Call::Message { referenced: message_reference(task, target) },
+            ToolKind::AnswerQuestion { target, question } => authority::Call::Message {
+                referenced: message_reference(task, target)
+                    || self.tasks.question_answer_reference(target, key.task, question),
             },
             ToolKind::Note { scope } => {
                 let scope = match scope {
@@ -269,7 +269,9 @@ impl Core {
     fn tool_family(&self, kind: &ToolKind) -> authority::Tools {
         match kind {
             ToolKind::Delegate => self.settings.tools.delegate,
-            ToolKind::Message { .. } | ToolKind::MarkRead => self.settings.tools.message,
+            ToolKind::Message { .. } | ToolKind::AnswerQuestion { .. } | ToolKind::MarkRead => {
+                self.settings.tools.message
+            }
             ToolKind::Control => self.settings.tools.control,
             ToolKind::Decide => self.settings.tools.decide,
             ToolKind::Propose => self.settings.tools.propose,
@@ -367,6 +369,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
         }
     }
     assert!(work.is_empty(), "sibling_routes_drained");
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     core.start_collect_failure();
     if core.start_failure().is_some() {
@@ -388,6 +391,7 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut work = Queue::uncapped();
     let mut out = route_account(core, env, &mut work, accounts::Event::Want);
     assert!(work.is_empty(), "wanting the accounts answers no party");
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     if core.start_phase().is_some() {
         let mut writes = Queue::uncapped();
@@ -452,6 +456,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut out = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -799,6 +804,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
             assert!(work.is_empty(), "people expirations produce no sibling continuations");
             requests
         }
+        Timer::WaitBounds => crate::runs::waits::alarm::fire(core, env),
         Timer::Tasks => {
             let mut out = Queue::uncapped();
             step::fire_tasks(core, env, &mut out);
@@ -865,6 +871,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
     };
     crate::admission::deletion::advance(core, env, &mut out);
+    crate::runs::waits::alarm::refresh(core, env);
     core.finish_extent(oldest, &mut out);
     out
 }
@@ -904,4 +911,10 @@ pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, o
     }
     assert!(work.is_empty(), "deletion sibling routes drained");
     let _previous = core.deletions.route(previous);
+}
+
+fn message_reference(task: &tasks::TaskRecord, target: u64) -> bool {
+    task.requester == tasks::Party::Task(target)
+        || task.delegates.contains(&target)
+        || task.references.contains(&target)
 }

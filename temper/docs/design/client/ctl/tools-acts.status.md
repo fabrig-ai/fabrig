@@ -2,8 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [tools-acts.md](tools-acts.md).
 
-- **Not yet:** 1: `task message` prints `This act is not offered` for a task that takes no words, and names the asked task when another took the words [in flight: change 16476].
-
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 

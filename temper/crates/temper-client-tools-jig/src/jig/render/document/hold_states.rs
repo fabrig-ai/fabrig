@@ -37,6 +37,7 @@ pub(super) fn encode_hold_category(
             out.object_end();
         }
         jig_client::contract::HoldCategory::Circle => out.string(b"circle"),
+        jig_client::contract::HoldCategory::Waited => out.string(b"waited"),
         jig_client::contract::HoldCategory::Stalled => out.string(b"stalled"),
         jig_client::contract::HoldCategory::Dependency { task } => {
             out.object_start();

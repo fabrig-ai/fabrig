@@ -48,7 +48,7 @@ fn a_person_stops_a_smith_run_and_releases_the_chat() {
         reply_to: ReplyTo::new(Token::new(980)),
         sign_in: world.root.session(),
         key: [80; 16],
-        ask: people::Ask::Stop { project: 1, task },
+        ask: people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     world.root.settle();
     assert!(world.root.delivered.iter().any(|item| matches!(item,

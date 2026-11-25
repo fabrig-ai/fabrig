@@ -475,6 +475,7 @@ fn a_closer_closes_lands_and_reports() {
             title: b"Cancelled".as_slice().into(),
             why: closer::Why::Cancelled,
         }]),
+        goal_left: None,
         landing: closer::Landing::Landed {
             pull: row(&world, landing).pull.expect("landing pull"),
             base: b"main".as_slice().into(),

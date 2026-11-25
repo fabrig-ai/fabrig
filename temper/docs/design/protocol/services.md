@@ -2,7 +2,7 @@
 
 Provisional, 2026-11-13, from `../draft/cli.md`, section 6 and
 `../draft/deployment-binaries.md`, section 9's second item; the
-engine's half's pieces from `../draft/crate-graph.md`, 5. The service
+engine's half's pieces from `../draft/archive/crate-graph.md`, 5. The service
 of `service-routing.md`, sections 1 to 2, and `service-process.md`, section 1, is four crates: what both halves share,
 the engine's, the worker's, and the one process that composes them. The
 engine's binary links the engine's alone, the worker's the worker's
@@ -151,7 +151,7 @@ modules, under the engine's name, its history kept by the move.
 
 ### 4.1 Its crates
 
-From `../draft/crate-graph.md`, 5, milestone G4 of its execution file.
+From `../draft/archive/crate-graph.md`, 5, milestone G4 of its execution file.
 The engine's half is five step crates in `temper/crates/`, cut by that
 draft's rules (5.2) so that the parts which change apart compile side
 by side:
@@ -195,7 +195,7 @@ temper-engine-service                 the engine's start: a document read and ch
     forge's, the route's and the workers' functions take `&mut Engine`,
     and four files add its methods), and those modules form one cycle
     through it: a state machine and what lies around it
-    (`../draft/crate-graph.md`, 5.2);
+    (`../draft/archive/crate-graph.md`, 5.2);
   - **the start keeps the name:** `restoring_with`, `restoring_prepared`
     and `with_setup_given` read a document through the startup and build
     the engine alone through the component, so they sit above both, in
@@ -306,7 +306,7 @@ Every piece holds to these:
 
 ### 4.4 Landing the split
 
-As `../draft/crate-graph.md`, 5.3 has it:
+As `../draft/archive/crate-graph.md`, 5.3 has it:
 
 - **Preparation first,** each change behaviour unchanged and landing
   before the move, so that every file goes whole to one piece: the

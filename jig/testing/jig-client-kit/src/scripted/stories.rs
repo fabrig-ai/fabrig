@@ -88,7 +88,8 @@ pub(super) fn request(front: &mut Scripted, party: u64, ask: &Ask, wall: Wall) {
     if proposal_request(front, party, ask) {
         return;
     }
-    let (Ask::Stop { project, task } | Ask::Message { project, task, .. } | Ask::Release { project, task, .. }) = ask
+    let (Ask::Stop { project, task, .. } | Ask::Message { project, task, .. } | Ask::Release { project, task, .. }) =
+        ask
     else {
         return;
     };

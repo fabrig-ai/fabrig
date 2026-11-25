@@ -281,7 +281,13 @@ fn a_persons_words_reach_smith_through_the_live_worker_channel() {
 fn a_persons_stop_crosses_the_worker_and_cancels_smith_before_the_task_answers() {
     let mut world = World::chat(913, report_script(true));
     world.until_call();
-    world.act(jig_fake_parties::Ask::Stop { task: jig_fake_parties::Task::Last }, [43; 16]);
+    world.act(
+        jig_fake_parties::Ask::Stop {
+            task: jig_fake_parties::Task::Last,
+            reason: Box::from(b"Parking the task".as_slice()),
+        },
+        [43; 16],
+    );
     world.run();
     assert_eq!(world.observed.cancels, 1);
     assert!(matches!(

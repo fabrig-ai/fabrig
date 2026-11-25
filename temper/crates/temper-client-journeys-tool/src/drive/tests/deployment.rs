@@ -53,6 +53,12 @@ fn at_engine() -> Machine {
     assert_start(&process_line(&mut machine, Process::Model, Output::Stdout, "listening model\n"), Process::Engine);
     machine
 }
+const EMPTY_WORKER_LIST: &[u8] = br#"{"rows":[],"digest":"1633902c6cbba5e7"}"#;
+
+fn listed(bytes: &[u8]) -> Event {
+    Event::Exited { process: Process::Ctl, code: 0, stdout: bytes.into(), stderr: Box::new([]) }
+}
+
 pub(super) fn admit_worker(machine: &mut Machine) {
     assert!(matches!(
         step(machine, exited(Process::SignIn, 0)).as_slice(),
@@ -62,13 +68,7 @@ pub(super) fn admit_worker(machine: &mut Machine) {
         crate::drive::deployment::Worker::read(b"engine = \"127.0.0.1:4102\"\nname = \"worker\"\n", &[b'a'; 64])
             .expect("worker");
     assert_start(&step(machine, Event::DeploymentWorker(Ok(worker))), Process::Ctl);
-    assert_start(
-        &step(
-            machine,
-            Event::Exited { process: Process::Ctl, code: 0, stdout: b"[]".as_slice().into(), stderr: Box::new([]) },
-        ),
-        Process::Ctl,
-    );
+    assert_start(&step(machine, listed(EMPTY_WORKER_LIST)), Process::Ctl);
     assert_start(&step(machine, exited(Process::Ctl, 0)), Process::Worker);
 }
 fn deployment_ready() -> Machine {

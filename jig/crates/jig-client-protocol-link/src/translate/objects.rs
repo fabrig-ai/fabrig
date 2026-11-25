@@ -1,7 +1,8 @@
 //! Single read documents (client/domain/contract/documents.md and client/domain/contract/reads.md, 1).
-use super::pages::{ended_fields, escalation_fields, person_task_fields, proposal_fields, question_fields};
+use super::pages::{escalation_from_record, person_task_fields, proposal_fields, question_fields};
 use super::{Undecodable, classify};
 use crate::Limits;
+use crate::generated::client;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
@@ -27,7 +28,7 @@ pub fn escalation(record: w::Escalation, limits: &Limits) -> Result<c::Escalatio
     {
         return Err(Undecodable::TooLarge);
     }
-    match escalation_fields(&record, limits) {
+    match escalation_from_record(record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }
@@ -83,7 +84,7 @@ pub fn ended(record: w::Ended, limits: &Limits) -> Result<c::Ended, Undecodable>
     {
         return Err(Undecodable::TooLarge);
     }
-    match ended_fields(&record, limits) {
+    match client::ended_to_domain(record, limits) {
         Ok(value) => Ok(value),
         Err(problem) => Err(classify(problem)),
     }

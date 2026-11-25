@@ -487,6 +487,7 @@ pub(super) fn read_failed(
             },
         ),
         StepStage::Taking
+        | StepStage::CloseLanding
         | StepStage::StallChecks
         | StepStage::StallJobs
         | StepStage::Ci

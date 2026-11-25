@@ -337,9 +337,11 @@ Its rules on a goal's page:
 - **Where they are:** `.acts` in the header (`goal.md`, 2), "Amend", "Pause" or
   "Resume" (`.btn.small`), "Close" (`.btn.quiet.small`), keeping `.btn.small`'s
   height at phone width, wrapping as drawn. Ended, none of the three.
-- **Pause** sends `Ask::Stop` at once, no confirmation. A person's Stop is a
-  placed hold over the goal's subtree. Its toast: "Paused: running tasks stop,
-  nothing new starts."
+- **Pause** sends `Ask::Stop` at once, no confirmation, its reason "Paused
+  from the web", since a placed hold needs one (jig's
+  `domain/tasks/lifecycle-holds.md`, 2). A person's Stop is a placed hold over
+  the goal's subtree. Its toast: "Paused: running tasks stop, nothing new
+  starts."
 - **Resume,** on a goal in state paused alone: `Ask::Release` naming the hold's
   revision, at once, no confirmation. A subtree hold's root released lifts it
   whole. Its toast: "Resumed." A goal held for any other cause has no Resume:

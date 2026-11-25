@@ -829,7 +829,8 @@ fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     let mut world = World::new(Setup { seed: 2210, ..Setup::default() });
     let (task, attempt) = world.assignments[0];
     let sign_in = world.sign_in.expect("signed in requester");
-    ask_as(&mut world, sign_in, 71, people::Ask::Stop { project: 1, task });
+    let stop = people::Ask::Stop { project: 1, task, reason: b"Parking the task".as_slice().into() };
+    ask_as(&mut world, sign_in, 71, stop.clone());
     world.park_for_message(0);
     let hold = live_row(&world, task).placed.expect("placed stop");
     let revision = live_row(&world, task).revisions.hold;
@@ -842,6 +843,17 @@ fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     assert_eq!(world.assignments.len(), assignments);
     assert_eq!(world.store.rows.get(&key), Some(&durable));
     assert_eq!(live_row(&world, task).revisions.hold, revision);
+    let committed = world.store.applied;
+    ask_as(&mut world, sign_in, 71, stop);
+    assert_eq!(world.people_answers.last(), Some(&people::Reply::Outcome(people::Outcome::Stopped { task })));
+    assert_eq!(world.store.applied, committed, "the kept reason makes the replay match without remaking the hold");
+    ask_as(
+        &mut world,
+        sign_in,
+        71,
+        people::Ask::Stop { project: 1, task, reason: b"Different reason".as_slice().into() },
+    );
+    assert_eq!(world.people_answers.last(), Some(&people::Reply::Refused(people::Refusal::KeyConflict)));
     hello(&mut world, Box::new([]));
     account(&mut world);
     ask_as(&mut world, sign_in, 72, people::Ask::Release { project: 1, task, revision, again: None });

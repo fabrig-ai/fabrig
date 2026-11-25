@@ -379,7 +379,11 @@ fn delegate_notes_mark_the_requester_and_delegate_lines_touch_its_row() {
     })));
     assert_eq!(count(&w, 600), 4);
     ack(&mut w, 600);
-    request(&mut w, 42, people::Ask::Stop { project: 1, task: child });
+    request(
+        &mut w,
+        42,
+        people::Ask::Stop { project: 1, task: child, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     assert_eq!(count(&w, 601), 2, "a delegate touched marks its requester's row for delegates");
     ack(&mut w, 600);
     ack(&mut w, 601);

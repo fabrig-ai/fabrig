@@ -393,7 +393,7 @@ fn subscribe(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, ta
     let requests = forge_route::step_core(
         domain,
         env,
-        super::core::Event::Tasks(tasks::Event::SubscribeTopicApart {
+        super::core::Event::Tasks(tasks::Event::SubscribeTopic {
             reply_to: super::internal(u64::MAX),
             task,
             subscription: tasks::Subscription {

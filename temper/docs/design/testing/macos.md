@@ -426,7 +426,7 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   goes on the job's `PATH`, so that smith's suites find it on the test
   process's `PATH`, as smith finds `rg` on the commands' `PATH`
   (`smith/docs/design/protocol/agent.md`, section 2;
-  `smith/docs/design/testing.md`, 2.2). The workflow prints
+  `smith/docs/design/testing-tiers.md`, 2). The workflow prints
   `rg --version` through the runner of checks first, so that a binary
   that does not run shows apart from the suites. A download refused or
   not its digest is a fault (5.4).

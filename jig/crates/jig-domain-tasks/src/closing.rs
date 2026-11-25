@@ -331,7 +331,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     crate::settings::release(domain, &ended);
     ended.settings.run = None;
     for subscription in &subscriptions {
-        domain.timers.cancel(subscription.number);
+        crate::subscriptions::release_timer(domain, *subscription);
         match subscription.kind {
             crate::SubscriptionKind::Topic { connector, .. } => {
                 out.push(Request::EndTopic { task: number, subscription: subscription.number, connector });

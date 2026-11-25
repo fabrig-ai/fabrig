@@ -8,6 +8,10 @@ pub type Path = skein_codec::Path<Limits>;
 pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 1;
+pub const LAYOUT: [u8; 32] = [
+    0x4a, 0x57, 0xa6, 0xf8, 0x42, 0xd8, 0xcd, 0x3f, 0x89, 0xd5, 0x57, 0x8b, 0x9c, 0x2a, 0x89, 0x66, 0x9a, 0x20, 0xa2,
+    0xd3, 0x5a, 0x72, 0x5a, 0x90, 0x3d, 0x98, 0xd8, 0xe8, 0x15, 0xc2, 0xf1, 0x99,
+];
 
 // Limits: the owner's values, checked once against ceilings.
 #[repr(C)]
@@ -355,6 +359,7 @@ pub enum PublicHold {
     Procedure,
     Circle,
     Exceeded,
+    Waited,
 }
 
 // Record: PublicHold.
@@ -378,7 +383,8 @@ impl PublicHold {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -426,6 +432,7 @@ impl Record for PublicHold {
             Self::Procedure => field::put(out, &[15], paths::PUBLIC_HOLD_TAG),
             Self::Circle => field::put(out, &[16], paths::PUBLIC_HOLD_TAG),
             Self::Exceeded => field::put(out, &[17], paths::PUBLIC_HOLD_TAG),
+            Self::Waited => field::put(out, &[18], paths::PUBLIC_HOLD_TAG),
         }
     }
 
@@ -450,7 +457,8 @@ impl Record for PublicHold {
             15 => Ok(Self::Procedure),
             16 => Ok(Self::Circle),
             17 => Ok(Self::Exceeded),
-            18..=u8::MAX => Err(Problem { path: paths::PUBLIC_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            18 => Ok(Self::Waited),
+            19..=u8::MAX => Err(Problem { path: paths::PUBLIC_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

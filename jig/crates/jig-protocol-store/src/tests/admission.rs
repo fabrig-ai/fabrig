@@ -26,9 +26,9 @@ fn prepared_texts_match_self_parsing_admission_and_refusal() {
         }],
     };
     let prepared = [skein_codec::schema::parse(TEXT.as_bytes()).expect("prepared fixture")];
-    for (sets, expected) in [(ACCEPT, Ok(())), (CHANGED, Err(Owner::Application)), (REFUSE, Err(Owner::Application))] {
-        assert_eq!(admission::bounds(&sets, &[]), expected, "self-parsed");
-        assert_eq!(admission::bounds(&sets, &prepared), expected, "prepared, with exact-text fallback");
+    for (sets, refusal) in [(ACCEPT, None), (CHANGED, Some(Owner::Application)), (REFUSE, Some(Owner::Application))] {
+        assert_eq!(admission::bounds(&sets, &[]).err(), refusal, "self-parsed");
+        assert_eq!(admission::bounds(&sets, &prepared).err(), refusal, "prepared, with exact-text fallback");
     }
 }
 

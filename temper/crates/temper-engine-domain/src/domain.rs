@@ -133,6 +133,7 @@ pub struct Domain {
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
+    pub(crate) closer_reports: Map<u64, forge_route::goal_report::Observation>,
     pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     /// One forming drains its make before admission (domain/landing-forming.md, 2).
@@ -708,6 +709,7 @@ impl Domain {
             forge_delegating: Map::with_capacity(limits.forge.changes),
             forge_forming: None,
             forge_refused: Map::with_capacity(limits.forge.changes),
+            closer_reports: Map::uncapped(),
             closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
@@ -1273,7 +1275,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     }
     // From the stop on, nothing that would make a commit is taken: connector
     // work stays with the connector and no run is placed (jig's
-    // `domain/engine/restart.md`, 1).
+    // `domain/engine/restart.md`, 5).
     if domain.core.stopping() {
         if domain.core.finish_owed() {
             domain.settled = None;
@@ -1559,6 +1561,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::GoalWords(_)
         | Read::InputCheck(_)
         | Read::Parts(_)
+        | Read::CloserReport(_)
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }

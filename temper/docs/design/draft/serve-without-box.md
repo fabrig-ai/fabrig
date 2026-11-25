@@ -37,7 +37,7 @@ Ready.
   `temper box`'s first run passes it; a person may pass it too. They
   are the welcome's member; the owned Forgejo, its person and its
   port; and the playground, `application.demo` with its `demo/` files
-  and its two ports (`../protocol/setup/box.md`, 1 and `../protocol/setup/init.md`, 2 and `../protocol/setup/playground.md`). The
+  and its two ports (`../protocol/setup/box.md`, 1 and `../protocol/setup/init.md`, 5 and `../protocol/setup/playground.md`). The
   document keeps them as three members, so that splitting the flag
   later changes no format.
 - **`temper-box init` alone** writes none of them, and its last line says

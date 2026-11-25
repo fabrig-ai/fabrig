@@ -9,7 +9,7 @@
   family's drift test proves that its committed code is the generator's
   output. That schema is skein's `every` fixture (`skein/tests/codec`):
   its current version holds every construct, and its earlier versions
-  stay for the patch story (`patches.md`, 8). Its golden files and the
+  stay as the layout plans' pairs (`layouts.md`, 6). Its golden files and the
   `every` and `secrets` digest literals (`fingerprints.md`, 1.3) pin the bytes and fingerprints: a generator or `skein-codec`
   change that moves either fails there.
 - **Fixed-rule values,** so the generator can change without moving
@@ -25,8 +25,8 @@
   `enum_<enum>_<variant>_<smallest|full>.bin`. Their bytes come
   from the schema alone, not the generated code, so
   `every`'s golden files are the rule written down, and any test builds
-  a schema's values at run time from its text, a kept text's as a
-  current one's.
+  a schema's values at run time from its text, another layout's text as
+  the current one's.
 - **`every`'s own tests:** its drift test compares its records' modules
   and its golden files with the generator's output, and each golden
   decodes by the generated code at the ceilings, measures its length,
@@ -91,8 +91,8 @@
     the allocator's peak against the decoded bound (`README.md`, section 4).
 
   Values are built at run time from schema text (`values`), at given
-  limits (`largest`), or by the test. Older versions use their kept
-  text (`command.md`, 1).
+  limits (`largest`), or by the test. Another layout's values are built
+  from its text the same way.
 - **Each text once.** An owner exports each family's current text as a
   public constant, `SCHEMA`, or `<STEM>_SCHEMA` where it owns several,
   a split schema's parts concatenated; jig's and temper's stores export
@@ -126,13 +126,14 @@
 - **Nothing every change touches:** a generated module holds no array
   whose length counts the schema's items (a `fixed N` field's `[u8; N]`
   is its width), no item named by an ordinal, no position
-  (`README.md`, section 4, "Stable under insertion"), no version in its
-  file's name and no committed fingerprint, and each declaration's code
-  sits in its own place, with family-wide lists one entry a
-  line. So two branches that change different declarations of one
-  family merge its generated module line by line, into the module of
-  the merged schema; where they don't, the merge job writes it again
-  from the merged texts (`temper/docs/design/protocol/tooling.md`, 4.1).
+  (`README.md`, section 4, "Stable under insertion") and no version in its
+  file's name, and each declaration's code sits in its own place, with
+  family-wide lists one entry a line. Its one line that every change of
+  layout moves is `LAYOUT`, the family's fingerprint (`README.md`,
+  section 4). So two branches that change different declarations of one
+  family merge its generated module line by line but for that line; the
+  merge job writes the module again from the merged texts
+  (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **What tests read of the generator:**
 
   ```rust

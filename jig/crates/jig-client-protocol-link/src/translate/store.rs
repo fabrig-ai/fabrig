@@ -1,6 +1,7 @@
 //! The small store's owner records (protocol/client/small-store.md, 1).
 use super::{answers, documents, pages, too_large};
 use crate::Limits;
+use crate::generated::client;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Ask, Family};
@@ -69,15 +70,10 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
     Ok(match value {
         w::Ask::ReadLists(value) => c::Ask::ReadLists { provider: value.provider },
         w::Ask::Restore(value) => super::asks::restore_ask_restore(&value, limits)?,
-        w::Ask::PauseWorker(value) => c::Ask::PauseWorker {
-            worker: value.worker,
-            mode: match value.mode {
-                w::WorkerPauseMode::Resume => c::WorkerPauseMode::Resume,
-                w::WorkerPauseMode::Pause => c::WorkerPauseMode::Pause,
-                w::WorkerPauseMode::Drain => c::WorkerPauseMode::Drain,
-            },
-        },
-        w::Ask::MoveToNewest(value) => c::Ask::MoveToNewest(c::MoveToNewest { revision: value.revision }),
+        w::Ask::PauseWorker(value) => {
+            c::Ask::PauseWorker { worker: value.worker, mode: client::worker_pause_mode_to_domain(value.mode) }
+        }
+        w::Ask::MoveToNewest(value) => c::Ask::MoveToNewest(client::move_to_newest_to_domain(value)),
         w::Ask::ChangeModel(value) => c::Ask::ChangeModel(super::settings::restore_change_model(&value, limits)?),
         w::Ask::ChangeSettings(value) => {
             c::Ask::ChangeSettings(super::settings::restore_change_settings(&value, limits)?)
@@ -109,24 +105,9 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         },
         w::Ask::Take(value) => c::Ask::Take { project: value.project, task: value.task },
         w::Ask::HandBack(value) => c::Ask::HandBack { project: value.project, task: value.task },
-        w::Ask::Decide(value) => c::Ask::Decide {
-            project: value.project,
-            on: match &value.on {
-                w::DecideOn::Proposal(v) => c::DecideOn::Proposal {
-                    running: match &v.running {
-                        Some(value) => Some(super::settings::restore_running(value)),
-                        None => None,
-                    },
-                    proposal: answers::proposal_key(&v.proposal),
-                    decision: answers::decision(&v.decision, limits)?,
-                },
-                w::DecideOn::Escalation(v) => c::DecideOn::Escalation {
-                    task: v.task,
-                    revision: answers::revision(&v.revision),
-                    decision: answers::decision(&v.decision, limits)?,
-                },
-            },
-        },
+        w::Ask::Decide(value) => {
+            c::Ask::Decide { project: value.project, on: client::decide_on_to_domain(value.on, limits)? }
+        }
         w::Ask::Lift(value) => c::Ask::Lift {
             hold: value.hold,
             revision: c::Revision { value: value.revision },
@@ -148,7 +129,9 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
             change: Box::new(pages::amendment_fields(&value.change, limits)?),
             reason: text(value.reason.as_ref(), limits)?,
         },
-        w::Ask::Stop(value) => c::Ask::Stop { project: value.project, task: value.task },
+        w::Ask::Stop(value) => {
+            c::Ask::Stop { project: value.project, task: value.task, reason: pages::long_text(&value.reason, limits)? }
+        }
         w::Ask::Conclude(value) => c::Ask::Conclude { project: value.project, task: value.task },
         w::Ask::Cancel(value) => c::Ask::Cancel {
             project: value.project,
@@ -181,9 +164,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
         w::Ask::SetRoles(value) => {
             let mut holdings = List::with_capacity(value.holdings.len());
             for row in &value.holdings {
-                holdings
-                    .push(c::Holding { party: row.party, role: answers::held_role(&row.role) })
-                    .expect("reserved decoded holdings");
+                holdings.push(client::holding_to_domain(row.clone())).expect("reserved decoded holdings");
             }
             c::Ask::SetRoles { project: value.project, holdings }
         }
@@ -206,17 +187,27 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
     })
 }
 
+fn family_layout(family: u16, version: u32, limits: &Limits) -> Result<[u8; 32], w::Problem> {
+    for owner in limits.client().owners {
+        if owner.family == family && owner.version == version {
+            return Ok(owner.layout);
+        }
+    }
+    Err(super::piece_problem(skein_codec::Reason::Version))
+}
+
 pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) -> Result<w::TableEntry, w::Problem> {
-    let (owner, version, request) = match &value.request.request {
+    let (owner, version, layout, request) = match &value.request.request {
         Ask::Jig(value) => {
             let record = super::asks::ask(value, limits.wire())?;
             let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(limits.wire())?));
             record.write(limits.wire(), &mut writer).expect("measured ask");
-            (w::Owner::Jig, w::VERSION, writer.finish())
+            (w::Owner::Jig, w::VERSION, w::LAYOUT, writer.finish())
         }
         Ask::Family { scope, record: value } => (
             w::Owner::Family(w::Family { number: value.family }),
             value.version,
+            family_layout(value.family, value.version, limits)?,
             super::envelope::request(*scope, value, limits.wire())?,
         ),
     };
@@ -232,6 +223,7 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
         first_sent,
         owner,
         version,
+        layout,
         request,
     })
 }
@@ -241,7 +233,7 @@ pub fn restore_table(
 ) -> Result<RequestRecord<jig_client_domain::Held>, w::Problem> {
     let request = match &value.owner {
         w::Owner::Jig => {
-            if value.version != w::VERSION {
+            if value.version != w::VERSION || value.layout != w::LAYOUT {
                 return Err(super::piece_problem(skein_codec::Reason::Version));
             }
             let mut reader = Reader::new(&value.request);
@@ -252,6 +244,9 @@ pub fn restore_table(
             Ask::Jig(Box::new(restore_ask(ask, limits)?))
         }
         w::Owner::Family(owner) => {
+            if value.layout != family_layout(owner.number, value.version, limits)? {
+                return Err(super::piece_problem(skein_codec::Reason::Version));
+            }
             let (scope, bytes) = super::envelope::restore(&value.request, limits.wire())?;
             Ask::Family { scope, record: Family { family: owner.number, version: value.version, bytes } }
         }
@@ -272,70 +267,40 @@ pub fn restore_table(
 }
 
 fn account_holder(value: &w::AskAccountHolder) -> c::AskAccountHolder {
-    match value {
-        w::AskAccountHolder::Own => c::AskAccountHolder::Own,
-        w::AskAccountHolder::Deployment => c::AskAccountHolder::Deployment,
-    }
+    client::ask_account_holder_to_domain(value.clone())
 }
 
 fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Problem> {
-    Ok(match value {
-        w::AccountChange::DeclareProgram(row) => {
-            if !c::valid_program_name(&row.name) {
-                return Err(w::Problem {
-                    path: w::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME,
-                    reason: skein_codec::Reason::Malformed,
-                });
-            }
-            c::AccountChange::DeclareProgram { provider: row.provider, join: row.join, name: bytes::copy_of(&row.name) }
+    match value {
+        w::AccountChange::DeclareProgram(row) if !c::valid_program_name(&row.name) => {
+            return Err(w::Problem {
+                path: w::paths::ACCOUNT_CHANGE_DECLARE_PROGRAM_NAME,
+                reason: skein_codec::Reason::Malformed,
+            });
         }
-        w::AccountChange::LoginProgram(row) => {
-            if !c::valid_program_name(&row.name) {
-                return Err(w::Problem {
-                    path: w::paths::ACCOUNT_CHANGE_LOGIN_PROGRAM_NAME,
-                    reason: skein_codec::Reason::Malformed,
-                });
-            }
-            c::AccountChange::LoginProgram { provider: row.provider, name: bytes::copy_of(&row.name) }
+        w::AccountChange::LoginProgram(row) if !c::valid_program_name(&row.name) => {
+            return Err(w::Problem {
+                path: w::paths::ACCOUNT_CHANGE_LOGIN_PROGRAM_NAME,
+                reason: skein_codec::Reason::Malformed,
+            });
         }
-        w::AccountChange::CancelLogin(row) => c::AccountChange::CancelLogin { number: row.number },
-        w::AccountChange::LoginEnded(row) => {
-            c::AccountChange::LoginEnded { number: row.number, exit: documents::login_exit(&row.exit) }
-        }
-        w::AccountChange::MoveOut(row) => c::AccountChange::MoveOut { account: row.account },
-        w::AccountChange::Written(row) => c::AccountChange::Written { number: row.number },
-        w::AccountChange::FinishSignIn(row) => {
-            c::AccountChange::FinishSignIn { source: row.source, digest: row.digest }
-        }
-        w::AccountChange::MoveIn(row) => c::AccountChange::MoveIn { digest: row.digest },
-        w::AccountChange::CheckProgram(row) => c::AccountChange::CheckProgram { source: row.source },
-        w::AccountChange::AddKey(row) => {
-            c::AccountChange::AddKey { provider: row.provider, join: row.join, digest: row.digest }
-        }
-        w::AccountChange::ReplaceKey(row) => c::AccountChange::ReplaceKey { source: row.source, digest: row.digest },
-        w::AccountChange::RemoveKey(row) => c::AccountChange::RemoveKey { source: row.source },
-        w::AccountChange::Resume(row) => c::AccountChange::Resume { source: row.source },
-        w::AccountChange::Remove(row) => c::AccountChange::Remove { account: row.account },
-        w::AccountChange::MoveAccount(row) => c::AccountChange::MoveAccount { account: row.account, place: row.place },
-        w::AccountChange::MoveSource(row) => {
-            c::AccountChange::MoveSource { account: row.account, source: row.source, place: row.place }
-        }
-        w::AccountChange::SetUses(row) => c::AccountChange::SetUses {
-            account: row.account,
-            uses: match &row.uses {
-                None => None,
-                Some(uses) => {
-                    let mut rows = List::with_capacity(uses.len());
-                    for use_ in uses {
-                        rows.push(match use_ {
-                            w::AccountUse::Party(value) => c::AccountUse::Party(value.party),
-                            w::AccountUse::Project(value) => c::AccountUse::Project(value.project),
-                        })
-                        .expect("reserved uses");
-                    }
-                    Some(rows.into_boxed())
-                }
-            },
-        },
-    })
+        w::AccountChange::DeclareProgram(_)
+        | w::AccountChange::LoginProgram(_)
+        | w::AccountChange::SetUses(_)
+        | w::AccountChange::AddKey(_)
+        | w::AccountChange::ReplaceKey(_)
+        | w::AccountChange::RemoveKey(_)
+        | w::AccountChange::Resume(_)
+        | w::AccountChange::Remove(_)
+        | w::AccountChange::MoveAccount(_)
+        | w::AccountChange::MoveSource(_)
+        | w::AccountChange::CheckProgram(_)
+        | w::AccountChange::MoveOut(_)
+        | w::AccountChange::Written(_)
+        | w::AccountChange::MoveIn(_)
+        | w::AccountChange::FinishSignIn(_)
+        | w::AccountChange::CancelLogin(_)
+        | w::AccountChange::LoginEnded(_) => {}
+    }
+    Ok(client::account_change_to_domain(value.clone()))
 }

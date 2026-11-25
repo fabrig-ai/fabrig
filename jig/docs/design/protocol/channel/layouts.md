@@ -15,7 +15,7 @@ puts through the channel is its own (temper's `protocol/wires.md`).
 - **The engine converts, the worker does not** (2). Every frame and
   every part of another owner's that crosses a channel is at the
   worker's layout on the wire. The worker, and the agent its build pins
-  (temper's `draft/redeploys.md`, 4.4), know nothing of other builds.
+  (temper's `draft/archive/redeploys.md`, 4.4), know nothing of other builds.
 - **A wire at the engine's layout converts nothing** (2.3): one build's
   parts meet only this case, and no text is parsed for it.
 - **Otherwise a plan for each value type, in each direction it
@@ -49,16 +49,16 @@ in each direction it crosses, and no other:
 | `smith-charter` | `Charter` | — | `Assignment.charter` |
 | `smith-charter` | `RunResult` | an ended run's outcome, `Ended.outcome` in an `Answer` | — |
 | `smith-transcript` | `Turn` | `Turn.body`, `Part.body` | each turn of `Assignment.transcript`, each body of `Assignment.parts` |
-| the application's | each root's declaration (7) | `Left` (`Work.left`), `Saved` (`Work.saved`), `Preparation` (`Resource.resource`), `JobResult` (`JobFinished.result`), `Ask` (`Ask.bytes`) | `Items` (`Workspace.items`, in an assignment or a job), `JobSpec` (`Job.spec`), `Grant` (`ApplicationValue.secret`, at an assignment, a job and each renewal), `Answer` (`Asked.answer`'s bytes) |
+| the application's | each root's declaration (7) | `Left` (`Work.left`), `Saved` (`Work.saved`), `Preparation` (`Resource.resource`), `JobResult` (`JobFinished.result`), `Ask` (`Ask.bytes`) | `Items` (`Workspace.items`, in an assignment or a job), `JobSpec` (`Job.spec`), `Grant` (`ApplicationValue.secret`, at an assignment, a job, a `ReadList` and each renewal), `Answer` (`Asked.answer`'s bytes) |
 
 - **A frame is its kind's enumeration's value:** its tag, one byte, then
   its body, the encoding of that value (skein's `data/codec/README.md`,
   section 3), converted by the plan of `FromWorker` or `FromEngine`
   planned whole, as a broad root without a variant (skein's
-  `data/codec/layouts.md`, 1). So a kind added, dropped, moved or
-  renamed (`was`) is mapped by name, and a kind one side lacks is a
-  variant only one side has: refused per value, never sent under
-  another number.
+  `data/codec/layouts.md`, 1). Where the layouts differ, the plan maps
+  kinds by name, including kinds moved or renamed (`was`). A kind one
+  side lacks is a variant only one side has: refused per value, never
+  sent under another number.
 - **No held texts:** jig's records carry the others' parts as `bytes`,
   which jig's plans copy as they are, held to their bounds; each part is
   converted by its own plan (4).
@@ -76,13 +76,13 @@ in each direction it crosses, and no other:
 
 - **Read, up:** what the engine receives is used as its own; what the
   worker's layout has and the engine's lacks is skipped, and what the
-  engine's has alone takes its default (skein's `data/codec/layouts.md`,
-  2).
+  engine's has alone takes its default, or the default from the worker's
+  tombstone (skein's `data/codec/layouts.md`, 2).
 - **Keep, down:** what the engine sends must mean the same at the
   worker, which acts on it for the engine. What the engine's layout has
-  and the worker's lacks is dropped only at its default or where the
-  engine's text marks it `droppable`; anything else refuses the value
-  (5).
+  and the worker's lacks is dropped only at the default the way back
+  writes (from the engine's field or the worker's tombstone), or where
+  the engine's text marks it `droppable`; anything else refuses the value (5).
 - **The modes are temper's draft's** (`draft/layouts-both-ways.md`,
   4.4): the engine receives through Read plans and sends through Keep
   plans, whichever of the two builds is newer.
@@ -91,10 +91,13 @@ in each direction it crosses, and no other:
 
 A wire whose stated layout, its family fingerprint (`wires.md`, 2), is
 the engine's own converts nothing: its bytes cross as they are, no plan
-is made, and the worker's text is not parsed. Every part of one build,
-the in-process worker of `temper-box serve` among them, meets this case
-alone. A wire at another layout whose value types' plans all keep
-(skein's `data/codec/layouts.md`, 2) converts by their heads alone.
+is made, and the worker's text is not parsed. Swapping the names of
+kinds of one shape leaves the layout unchanged (skein's
+`data/codec/fingerprints.md`, 1), so nothing maps their tags: an old tag
+now selects the other kind. Every part of one build, the in-process
+worker of `temper-box serve` among them, meets this case alone. A wire
+at another layout whose value types' plans all keep (skein's
+`data/codec/layouts.md`, 2) converts by their heads alone.
 
 ## 3. At the opening
 
@@ -112,7 +115,7 @@ alone. A wire at another layout whose value types' plans all keep
   `wires.md`, 3 gives it. A value type with no plan, and no written
   converter (6), names the wire, the value type, the direction and the
   change, so the operator knows which worker to drain and restart on the
-  new build (temper's `draft/redeploys.md`, 6.1).
+  new build (temper's `draft/archive/redeploys.md`, 6.1).
 - **The worker's kinds' table** comes from its `jig-worker-wire` text
   (`wires.md`, 4), and the engine accepts the channel with it.
 - **Kept by the worker's text:** the engine's workers component keeps,
@@ -121,8 +124,7 @@ alone. A wire at another layout whose value types' plans all keep
   one met longest ago dropped first. A plan depends on its two texts, not
   their fingerprints alone (skein's `data/codec/layouts.md`, 1), so a
   fleet on one build derives once, and a worker of another text derives
-  its own. The engine's own texts are parsed once, when the component is
-  made.
+  its own. The engine parses its own texts when the service builds.
 - **Each channel holds its plans** and one `Workspace` fitted to all of
   them (skein's `data/codec/layouts.md`, 3 and 4), so that no pass
   allocates; a workspace that cannot be fitted refuses the opening as a
@@ -141,9 +143,10 @@ alone. A wire at another layout whose value types' plans all keep
 - **A resumed window:** each turn of `Assignment.transcript` is
   converted on its own, in its length; one that refuses refuses the
   assignment (5.1).
-- **A resumed run's parts:** a part of `Assignment.parts` whose body
-  refuses is dropped, and the run resumes from its window alone, its
-  cut turn planned again, as before parts (`records.md`, 5).
+- **A resumed run's parts** (`records.md`, 5): the engine drops the kept
+  parts the worker's layout refuses and sends the rest; where the
+  worker's layout has no `parts` field, an assignment with kept parts is
+  refused.
 - **Within bounds:** each conversion writes into a buffer bounded by the
   field that holds its result, or for a frame by the worker's largest
   body of that kind (`wires.md`, 4); a result past it refuses the value,
@@ -183,10 +186,10 @@ alone. A wire at another layout whose value types' plans all keep
 
 ## 5. Refusals
 
-The texts below name the part by the engine's text, as skein's
-`Plan::refusal` gives it, and the kind of refusal by skein's `Refused`:
-`variant`, `field`, `narrowed`, `absent`, or `too large` for a result
-past its bound.
+A plan's refusal names its part by the plan's source text, as skein's
+`Plan::refusal` gives it: the engine's for what it sends and the worker's
+for what it receives. Its kind is skein's `Refused`: `variant`, `field`,
+`narrowed` or `absent`. A result past its bound is `too large`.
 
 ### 5.1 An assignment or a job
 
@@ -208,17 +211,18 @@ past its bound.
 ### 5.2 To a running attempt
 
 - **Everything sent to a run already on a worker:** `message`,
-  `relayed`, `turn_kept`, `turn_busy`, `acknowledge`, `cancel` and
-  `grant`, with the host's own `sources`, `check`, `sign_out` and
-  `read_list`, which cannot wait. One whose conversion refuses is
-  discarded, the engine logs `cannot send KIND to worker NAME: TEXT`,
-  TEXT as 5.1's, and the channel is marked mismatched, so the fleet
-  places nothing more there while what it hosts goes on (`wires.md`, 6).
+  `relayed`, `turn_kept`, `turn_busy`, `part_kept`, `part_busy`,
+  `acknowledge`, `cancel`, `grant` and `asked`, with the host's own
+  `sources`, `check`, `sign_out` and `read_list`, which cannot wait. One
+  whose conversion refuses is discarded, the engine logs `cannot send
+  KIND to worker NAME: TEXT`, TEXT as 5.1's, and the channel is marked
+  mismatched, so the fleet places nothing more there while what it
+  hosts goes on (`wires.md`, 6).
 - **A redeploy's order costs refusals, never correctness**
   (`draft/layouts-both-ways.md`, 6.1): no gate holds these kinds total
   across layouts. A change that a running attempt's messages cannot
   carry to the previous build's workers is met by draining them
-  (temper's `draft/redeploys.md`, 6.1).
+  (temper's `draft/archive/redeploys.md`, 6.1).
 
 ### 5.3 What the engine receives
 
@@ -269,14 +273,14 @@ impl Application {
 
 - **A `Spoken` is its crate's current text:** `jig_protocol_worker_wire::spoken()`
   gives jig's four, `jig-worker-wire`, `smith-pieces`, `smith-charter`
-  and `smith-transcript`, each from its crate's embedded text, its layout
-  computed from it once per service, which builds it once and hands it
-  to each part that reads it (temper's `testing/checks.md`, 1). An
-  application gives its own the same way.
+  and `smith-transcript`, each from its crate's embedded text, their
+  layouts computed from the texts when the service builds (temper's
+  `testing/checks.md`, 1). An application gives its own the same way.
 - **Both components take the application** where they did, and check
   its roots when they are made: a root naming a wire with no `Spoken`,
   or a declaration that wire's text lacks, refuses the component's
-  construction (`Unusable`). The worker's link reads only `spoken`.
+  construction (`Unusable`). After this check, the worker's link states
+  `spoken` at the opening and uses no roots for conversion.
 - **A part's direction is its `Carried`'s** (2.1); the engine derives
   that one direction's plan for it.
 
@@ -285,14 +289,15 @@ impl Application {
 Focused and fuzzy alone; a story through temper's parts is temper's
 (`protocol/wires.md`, 11).
 
-- **Another layout of every wire,** in the tests: each wire's current
-  text, and a text derived from it by edits of skein's
+- **Another layout of each wire that converts,** in the tests: each such
+  wire's current text, and a text derived from it by edits of skein's
   `data/codec/layouts.md`, 2 that plan both ways: a field with a default
   the derived text lacks, a field it alone has with a default, a kind
   each side alone has. The worker's side of a test at the derived layout
   is the current codec behind a shim converting each frame and part it
   sends by the Keep plan from its current text to the derived one, and
-  each it receives by the Read plan back.
+  each it receives by the Read plan back. An altered `smith-pieces`
+  layout is refused at the opening (2.1).
 - **At the wire crate:** every kind of `FromEngine` and `FromWorker`, and
   each part of 2.1, converted both ways between the current and the
   derived texts arrives as itself; each refusal of 5 with its text: a
@@ -302,13 +307,15 @@ Focused and fuzzy alone; a story through temper's parts is temper's
   parsing nothing; a second worker of the same text deriving nothing; a
   workspace fitted once allocating nothing per pass.
 - **At the components and in the worker-link world:** an engine and a
-  worker at the derived layout of every wire exchange every kind, both
-  ways, through both components and the channel; an assignment the
-  worker's layout cannot keep refused *untranslated* with no frame sent,
-  its task claiming again with no try spent and placed on another
-  channel; a message to a running attempt that cannot be kept discarded
-  and the channel marked mismatched; a worker's optional kind not sent
-  where the engine's terms lack it.
+  worker at derived layouts exchange every kind, both ways, through both
+  components and the channel; an assignment the worker's layout cannot
+  keep refused *untranslated* with no frame sent; a message to a running
+  attempt that cannot be kept discarded and reported as a mismatch; a
+  worker's optional kind not sent where the engine's terms lack it. In
+  separate domain tests, an injected *untranslated* refusal checks that
+  the task claims again with no try spent and is placed on another
+  channel; an injected mismatch checks that the fleet marks the channel
+  and puts nothing more there while its running attempt can finish.
 - **Fuzzy:** drawn records of every kind, at the derived layout, through
   both components: each arrives as itself or is refused, never altered.
 
@@ -321,3 +328,5 @@ Focused and fuzzy alone; a story through temper's parts is temper's
 - **`smith-pieces` converted** once the store keeps the layout of the
   pieces it holds.
 - **Clients converted the same way** (`draft/layouts-both-ways.md`, 10).
+- **Names at the opening:** should it compare names as well as layouts,
+  so a swap of names between kinds of one shape is visible (2.3)?

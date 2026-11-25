@@ -1,6 +1,7 @@
 //! Values and edits of the forge's kinds of settings
 //! (temper/docs/design/protocol/configuration/settings-kinds.md, 1, and temper/docs/design/protocol/configuration/settings.md, 3;
 //! temper/docs/design/domain/forge/change/gates.md, 3).
+use crate::generated::client_wire::{project_ways_to_record, questions_route_to_record};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::settings::{Override, OverrideFault, check_overrides};
 use temper_client_protocol_wire::v1::Record;
@@ -286,16 +287,16 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
     use temper_client_protocol_wire::v1;
     match kind {
         6 => {
-            let record = v1::ProjectQuestions { route: v1::QuestionsRoute::None };
+            let route = temper_engine_domain_forge_change::Route::None;
+            let record = v1::ProjectQuestions { route: questions_route_to_record(&route) };
             Some(SizedValue {
-                value: Value::Questions(temper_engine_domain_forge_change::Route::None),
+                value: Value::Questions(route),
                 size: record.measure(&v1::CEILINGS).expect("stock value within ceilings"),
             })
         }
         7 => {
             let ways = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
-            let record =
-                v1::ProjectWays { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way };
+            let record = project_ways_to_record(&ways);
             Some(SizedValue {
                 value: Value::Ways(ways),
                 size: record.measure(&v1::CEILINGS).expect("stock value within ceilings"),
@@ -1233,7 +1234,7 @@ pub fn retired_words(key: SettingKey) -> Box<[u8]> {
 pub use temper_client_protocol_wire::v1::{AgentEndpointLimits, AgentFigure, AgentFigures, AgentLimits, Oversized};
 #[path = "settings/agents.rs"]
 pub mod agents;
-mod landing;
+pub(crate) mod landing;
 mod repairs;
 pub use landing::{
     CARRIER, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,

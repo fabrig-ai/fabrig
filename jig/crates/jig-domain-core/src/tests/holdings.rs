@@ -308,6 +308,7 @@ fn refused_procedure(refused: Option<HoldingsRefusal>, expected: tasks::Problem)
         &mut core,
         &env.limits,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: ReplyTo::new(Token::new(7301)),

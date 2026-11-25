@@ -10,6 +10,9 @@ use smith_protocol_machine as machine;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive root-domain request translation")]
 pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>, request: domain::Request) {
+    if service.host.gone() && super::orphan::refuse_start(service, &request) {
+        return;
+    }
     match request {
         domain::Request::Lower(domain::Lower::Classify {
             owner,

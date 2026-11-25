@@ -1,5 +1,6 @@
 //! The session's settings and project values (temper/docs/design/client/pages/settings.md, 2).
 use super::{Limits, Request, Side, wire_limits};
+use crate::generated::client_wire as maps;
 use alloc::boxed::Box;
 use jig_client::{Handle, Latest, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Duration, List, Queue, Reader, Time, Token};
@@ -592,14 +593,11 @@ fn setting_value(bytes: Option<&[u8]>, control: Control, limits: Limits) -> Opti
     let value = match control {
         Control::Ways => {
             let value = w::ProjectWays::decode(&wire_limits(&limits)?, &mut reader).ok()?;
-            Asked::Ways(Ways { drafts: value.drafts, goals: value.goals, changes: value.changes, way: value.way })
+            Asked::Ways(maps::project_ways_to_domain(value))
         }
         Control::Questions => {
             let value = w::ProjectQuestions::decode(&wire_limits(&limits)?, &mut reader).ok()?;
-            Asked::Questions(match value.route {
-                w::QuestionsRoute::None => Route::None,
-                w::QuestionsRoute::Up => Route::Up,
-            })
+            Asked::Questions(maps::questions_route_to_domain(value.route))
         }
         Control::Classes => {
             let record = w::ProjectClasses::decode(&wire_limits(&limits)?, &mut reader).ok()?;
@@ -637,18 +635,9 @@ const fn control(asked: &Asked) -> Control {
 fn bytes(asked: &Asked, limits: Limits) -> Option<Box<[u8]>> {
     let bounds = wire_limits(&limits)?;
     Some(match asked {
-        Asked::Ways(value) => {
-            let record =
-                w::ProjectWays { drafts: value.drafts, goals: value.goals, changes: value.changes, way: value.way };
-            record.encode(&bounds).ok()?
-        }
+        Asked::Ways(value) => maps::project_ways_to_record(value).encode(&bounds).ok()?,
         Asked::Questions(value) => {
-            let record = w::ProjectQuestions {
-                route: match value {
-                    Route::None => w::QuestionsRoute::None,
-                    Route::Up => w::QuestionsRoute::Up,
-                },
-            };
+            let record = w::ProjectQuestions { route: maps::questions_route_to_record(value) };
             record.encode(&bounds).ok()?
         }
         Asked::Classes(classes) => {

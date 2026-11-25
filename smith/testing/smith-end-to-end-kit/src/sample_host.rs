@@ -41,7 +41,8 @@ pub fn run() {
     let bytes = serde_json::to_vec(&smith_local_process_world::process::agent_document(&scenario.launch))
         .expect("sample host fixture");
     std::fs::write(&document, bytes).expect("sample host fixture");
-    let kind = smith_local_shell::compose::AgentKind::Spawned { program: skein_scratch::paths::binary("smith-agent") };
+    let kind =
+        smith_local_shell::compose::AgentKind::Spawned { program: skein_scratch::paths::built("smith", "smith-agent") };
     let root = skein_shell::open_root(scratch.path()).expect("sample host fixture");
     let clock = Clock::new();
     let at = clock.now();

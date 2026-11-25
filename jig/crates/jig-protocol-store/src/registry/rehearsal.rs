@@ -65,7 +65,7 @@ impl Decoder {
         Err(version)
     }
 
-    fn decoded(
+    pub(crate) fn decoded(
         &mut self,
         family: &str,
         number: u16,

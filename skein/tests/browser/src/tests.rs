@@ -355,11 +355,18 @@ fn page_crash_mid_operation_reports_trouble_and_one_refusal() {
 
 mod navigation;
 
-fn native_dialog(world: &mut World, kind: &str, message: &str) {
-    let bytes = format!(
+fn dialog_opening(kind: &str, message: &str) -> String {
+    format!(
         r#"{{"method":"Page.javascriptDialogOpening","sessionId":"s1","params":{{"type":"{kind}","message":"{message}"}}}}"#
-    );
-    let mut bytes = bytes.into_bytes();
+    )
+}
+
+fn native_dialog(world: &mut World, kind: &str, message: &str) {
+    notify_before_drive(world, dialog_opening(kind, message));
+}
+
+fn notify_before_drive(world: &mut World, json: String) {
+    let mut bytes = json.into_bytes();
     bytes.push(0);
     up(
         &mut world.browser,
@@ -412,6 +419,97 @@ fn a_go_accepts_its_pages_closing_warning() {
         other => panic!("expected Done, got {other:?}"),
     }
 }
+const LEAVING_PAGE: Token = Token::new(3);
+const RELOAD: Token = Token::new(8);
+const BLOCKED_LEAVE_TEXT: &str = "Blocked attempt to show a 'beforeunload' confirmation panel for a frame that never had a user gesture since its load. https://www.chromestatus.com/feature/5082396709879808";
+
+fn log_entry(source: &str, text: &str) -> String {
+    format!(
+        r#"{{"method":"Log.entryAdded","sessionId":"s1","params":{{"entry":{{"source":"{source}","level":"error","text":"{text}"}}}}}}"#
+    )
+}
+
+fn opened_page() -> World {
+    let mut world = World::new();
+    world.start();
+    world.open();
+    world
+}
+
+fn reloading_page() -> World {
+    let mut world = opened_page();
+    down(
+        &mut world.browser,
+        &world.env,
+        Request::Go { page: LEAVING_PAGE, op: RELOAD, to: skein_browser::boundary::Go::Reload },
+        &mut world.above,
+        &mut world.below,
+    );
+    world
+}
+
+fn expect_one_warning_before_done(world: &mut World) {
+    match world.above.pop() {
+        Some(Event::Warned { op }) => assert_eq!(op, RELOAD),
+        other => panic!("expected Warned, got {other:?}"),
+    }
+    world.drive();
+    match world.above.pop() {
+        Some(Event::Done { op }) => assert_eq!(op, RELOAD),
+        other => panic!("expected Done after one warning, got {other:?}"),
+    }
+    assert!(world.above.is_empty());
+}
+
+#[test]
+fn a_go_takes_repeated_blocked_entries_as_one_warning() {
+    let mut world = reloading_page();
+    let entry = log_entry("intervention", BLOCKED_LEAVE_TEXT);
+    notify_before_drive(&mut world, entry.clone());
+    notify_before_drive(&mut world, entry);
+    expect_one_warning_before_done(&mut world);
+}
+
+#[test]
+fn a_prompt_and_blocked_entry_share_one_go_warning() {
+    let entry = log_entry("intervention", BLOCKED_LEAVE_TEXT);
+    let prompt = dialog_opening("beforeunload", "");
+    for (first, second) in [(&entry, &prompt), (&prompt, &entry)] {
+        let mut world = reloading_page();
+        notify_before_drive(&mut world, first.clone());
+        notify_before_drive(&mut world, second.clone());
+        expect_one_warning_before_done(&mut world);
+    }
+}
+
+fn expect_log_trouble(world: &mut World, expected: &str) {
+    match world.above.pop() {
+        Some(Event::Trouble { page, trouble: Trouble::Log, text, .. }) => {
+            assert_eq!((page, text.as_ref()), (LEAVING_PAGE, expected.as_bytes()));
+        }
+        other => panic!("expected log trouble, got {other:?}"),
+    }
+    assert!(world.above.is_empty());
+}
+
+#[test]
+fn a_blocked_leave_entry_without_a_go_is_trouble() {
+    let mut world = opened_page();
+    world.notify(log_entry("intervention", BLOCKED_LEAVE_TEXT));
+    expect_log_trouble(&mut world, BLOCKED_LEAVE_TEXT);
+}
+
+#[test]
+fn other_log_errors_during_a_go_are_still_trouble() {
+    for (source, text) in
+        [("network", BLOCKED_LEAVE_TEXT), ("intervention", "Failed to load resource: net::ERR_CONNECTION_REFUSED")]
+    {
+        let mut world = reloading_page();
+        notify_before_drive(&mut world, log_entry(source, text));
+        expect_log_trouble(&mut world, text);
+    }
+}
+
 const DISMISSED_DIALOGS: &[(&str, &str, &[u8])] =
     &[("confirm", "Delete it?", b"confirm: Delete it?"), ("beforeunload", "", b"beforeunload: ")];
 #[test]

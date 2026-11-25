@@ -122,7 +122,7 @@
   above the composer. An agent's task's page, which keeps its
   own composer (`../task.md`, 2), keeps the line (`../accounts-words.md`, 1) and the picker together in it. A refused next run says "Next run refused
   · WHY", WHY the refusal's cause in the words of jig's reference view
-  (jig's `client/domain/client/helpers.md`, 1), each sentence ending with a
+  (jig's `client/domain/client/helpers.md`, 6), each sentence ending with a
   full stop: for a host's hello, "An engine host was refused at HH:MM"
   or "A worker was refused at HH:MM" (`../../view.md`, 6's clock), then its cause, in
   the words jig's reference view gives a hello's refusal. A run no worker

@@ -49,6 +49,7 @@ pub(crate) fn source_task(words: &[u8]) -> (core::Core, core::Limits, tasks::Tas
         &mut core.tasks,
         &task_env,
         tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),

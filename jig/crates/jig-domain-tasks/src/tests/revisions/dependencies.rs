@@ -29,6 +29,7 @@ fn family() -> Harness {
     let mut parent = wealthy(AMENDER);
     parent.funder = Funder::Task(ROOT);
     test.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),
@@ -39,6 +40,7 @@ fn family() -> Harness {
         let mut child = task(number, &[]);
         child.funder = Funder::Task(requester);
         test.send(Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: to(),
@@ -71,6 +73,7 @@ fn an_unreachable_dependency_is_named_and_count_or_repeat_refusals_name_none() {
         let mut change = amendment();
         change.dependencies = Some(dependencies.into_boxed_slice());
         let out = test.send(Event::Amend {
+            reads_project: false,
             operation: crate::Amend {
                 funder: None,
                 task: TARGET,
@@ -196,6 +199,7 @@ fn ended_dependencies_are_judged_only_on_their_places() {
         let mut change = amendment();
         change.dependencies = Some(Box::new([DEPENDENCY]));
         let out = test.send(Event::Amend {
+            reads_project: false,
             operation: crate::Amend {
                 funder: None,
                 task: TARGET,

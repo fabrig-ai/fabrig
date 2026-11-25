@@ -467,3 +467,26 @@ fn delegate_needs_no_escalation_holder_and_refuses_a_task_requested_conversation
     delegate(&mut world, 109, G, Box::new([requester]));
     refusal(&world, people::Refusal::NotWellFormed { at: 0, why: people::Malformed::EndedBy });
 }
+
+#[test]
+fn a_gatherings_question_passes_from_its_person_at_eight_hours() {
+    const PARTY_SPAN: skein_lib::Duration = skein_lib::Duration::from_secs(8 * 3600);
+    const ESCALATION_ROLE: u32 = 0; // The plan fixture's policy.
+    let mut world = question_world(391);
+    finish(&mut world);
+    let (now, wall) = world.clocks();
+    world.set_clock(now, wall);
+    let question = gathering_question(&mut world);
+    let bound = Wall::from_nanos(wall.as_nanos() + PARTY_SPAN.as_nanos());
+    world.fire_due(now.saturating_add(PARTY_SPAN), bound);
+    let row = live_row(&world, A);
+    assert_eq!(row.questions[0].number, question);
+    assert_eq!(
+        row.questions[0].offer,
+        Some(tasks::QuestionOffer {
+            holder: tasks::EscalationHolder::Role { project: PROJECT, role: ESCALATION_ROLE },
+            since: bound,
+            relay: None,
+        })
+    );
+}

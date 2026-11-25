@@ -40,7 +40,17 @@ fn a_key_ask_without_a_value_is_malformed() {
 #[test]
 fn a_value_on_another_ask_is_not_a_record() {
     let mut story = Story::live(fixtures::SEED);
-    story.carry(STOP, NAME, Ask::Jig(Box::new(c::Ask::Stop { project: 1, task: 9 })), VALUE);
+    story.carry(
+        STOP,
+        NAME,
+        Ask::Jig(Box::new(c::Ask::Stop {
+            project: 1,
+            task: 9,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+        VALUE,
+    );
     assert!(story.run_until(|s| s.malformed_requests() == 1, WAIT));
     assert_eq!(story.account_key_inputs(), []);
     assert_eq!(story.carried().len(), 0);

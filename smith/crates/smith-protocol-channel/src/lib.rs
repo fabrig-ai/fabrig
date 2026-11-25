@@ -27,6 +27,17 @@
 
 extern crate alloc;
 
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated to-record functions uniformly borrow input (skein/docs/design/data/codec/maps.md, 4.1)"
+    )]
+    pub mod channel {
+        include!("generated/channel.rs");
+    }
+}
+
 #[cfg(test)]
 mod fixture;
 

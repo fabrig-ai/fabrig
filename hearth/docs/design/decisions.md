@@ -3,8 +3,12 @@
 Questions the brainstorm left open (its section 13), and others met
 while writing, with where each is answered.
 
+## 1. Decided with the user's input
+
 **Decided with the user's input** (2026-10-09), each with consequences
 that last:
+
+### 1.1 Slot ownership, secrets and persistent data
 
 - **Ownership across the user namespace.** The builder stays
   unprivileged. Its layers are owned on disk by its subordinate id range,
@@ -35,6 +39,9 @@ that last:
   entry is restored by copying its directory out of a snapshot, a class
   by swapping its subvolume. A subvolume per entry is not in the design
   (hearth/docs/design/domain/machine/README.md, section 6).
+
+### 1.2 Live changes, development and boot
+
 - **Live changes, with hearth's own overlays** (hearth/docs/design/domain/slots/trial.md, 6 to 9;
   hearth/docs/design/protocol/format/tasks-live.md, 1), built in M3, a container's in M5. A change confined
   to `/etc`, `/usr/local` and `/opt`, over the same packages layer, with a
@@ -72,6 +79,9 @@ that last:
     GRUB's files and its env, which GRUB cannot write on btrfs, so that
     `next_entry` is a one-shot; two env files, so a torn write never
     loses the default (hearth/docs/design/domain/machine/boot.md, sections 1 and 2).
+
+### 1.3 System paths, the steward and its builder
+
 - **`/usr` is the packages', but `/usr/local`** (2026-10-16; hearth/docs/design/protocol/format/tasks.md,
   5; hearth/docs/design/domain/build/README.md, 7.3). Above the packages layer, tasks' files,
   downloads, scripts and hearth itself write `/usr` only under
@@ -96,7 +106,11 @@ that last:
   the slot's own revision, so a release that cannot render what built
   it never becomes the default.
 
+## 2. Other decisions
+
 **Others:**
+
+### 2.1 Digests, state and layers
 
 - **SHA-256 for every digest:** skein has it, and Debian's archive and
   snapshot.debian.org speak it (hearth/docs/design/domain/store/digests.md, section 1).
@@ -115,6 +129,9 @@ that last:
   brainstorm's activation templates (its 7.9).
 - **The device leaves the output.** `root=` and fstab name the
   filesystem by UUID, supplied at prepare (hearth/docs/design/domain/machine/boot.md, section 3).
+
+### 2.2 The tree helper, sandboxes and subordinate IDs
+
 - **A tree helper runs inside the builder's user namespace,** as the
   namespace's root. The builder cannot read every file its layers hold,
   and only the owner of a subvolume's root may snapshot it or make it
@@ -132,6 +149,9 @@ that last:
   containers' ranges (hearth/docs/design/domain/store/README.md, 7.2). The `hearth` user is declared by
   the hearth task, which every target but a container has
   (hearth/docs/design/protocol/format/tasks-hearth.md, 1).
+
+### 2.3 Updates, placement and activation
+
 - **The kernel is unchanged** when the kernel image, the modules' tree,
   the initramfs's inputs (not its bytes, which are not reproducible) and
   the command line without the slot's own tokens all are; then a soft
@@ -148,6 +168,9 @@ that last:
   (`BTRFS_IOC_GET_SUBVOL_INFO` on `/`), cross-checked with the slot
   record inside the root; never from `/proc/cmdline`
   (hearth/docs/design/domain/slots/README.md, section 3).
+
+### 2.4 Trials, boot and fresh installs
+
 - **Trials always end:** `panic=N` on a trial's command line, a hardware
   watchdog where there is one, and a dead-man timer in the trial slot
   that forces a reboot unless the slot's hearth blesses it first
@@ -172,6 +195,9 @@ that last:
   hearth migrates os's data or machines (hearth/docs/design/domain/machine/bootstrap.md).
 - **Root tests run on Incus VMs** with their own disk and OVMF, until the
   lab exists (hearth/docs/design/testing/vm.md).
+
+### 2.5 Standalone and engine operation
+
 - **Standalone mode follows a desired revision set locally:** a commit,
   or a branch to follow, with `trial: auto|manual`, so a laptop such as
   `x1-prod` reboots into a new slot only when its user chooses
@@ -190,6 +216,9 @@ that last:
   supplementary groups, `systemd-journal` among them, and no
   capabilities; its builder runs with none (hearth/docs/design/domain/activator/README.md, 3.2;
   hearth/docs/design/domain/steward.md, 2.3).
+
+### 2.6 Persistent owners and seeded data
+
 - **Users a package makes** (`postfix`) are declared by the task that
   installs it, so render knows them and the activator checks they exist
   at prepare (hearth/docs/design/protocol/format/tasks.md, 6; hearth/docs/design/domain/slots/prepare.md, 7).
@@ -201,6 +230,9 @@ that last:
 - **A data entry is seeded once,** from the output's tree at its path,
   when its directory is first made in its class, so its bind never hides
   what packages put there (hearth/docs/design/domain/slots/prepare.md, 3).
+
+### 2.7 Trial recovery and the activator boundary
+
 - **Trials end even in emergency mode:** the trial units survive
   isolation, and arm from a `/run` marker or a `hearth.trial=` token on
   the command line, never from a mount; each EFI slot has a normal and a
@@ -226,6 +258,9 @@ that last:
 - **The repository's read credential is the builder's own,** imported at
   bootstrap and kept in the store, never in the secret store
   (hearth/docs/design/domain/render/README.md, 2.2).
+
+### 2.8 Layer durability and package reconciliation
+
 - **A layer is durable before it is recorded:** `syncfs` on the store
   between its walk and its record, as the last step of the tree helper's
   freeze (hearth/docs/design/domain/store/README.md, section 4.2).
@@ -236,6 +271,9 @@ that last:
   one, and built from scratch instead, never in addition, when there is
   no base, when a reconcile fails, and now and then to bound the history
   a line carries; comparing the two is the lab's (hearth/docs/design/domain/build/README.md, 4.2).
+
+### 2.9 Bless criteria and hosted containers
+
 - **Failed units a target expects** are listed as task data
   (`bless.ignore_failed`); the minimal bless counts only the others
   (hearth/docs/design/protocol/format/tasks.md; hearth/docs/design/domain/slots/bless.md, 1.1).
@@ -268,6 +306,9 @@ that last:
   ceiling in a fall back run by the host's activator, and a unit's
   restart goes through `systemctl --machine=` (hearth/docs/design/domain/slots/bless.md, 1.4;
   hearth/docs/design/domain/activator/operations.md, 9).
+
+### 2.10 A build environment is a container with no host
+
 - **A build environment is a container with no host** [M6]: its output
   is only a sandbox's root, never an nspawn container
   (hearth/docs/design/domain/build/artifacts.md, 2.3; hearth/docs/design/protocol/format/targets.md, 1.4).

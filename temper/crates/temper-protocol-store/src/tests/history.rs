@@ -1,4 +1,4 @@
-//! History records (landing-history.md, 2, 4 and 7).
+//! History records (domain/landing-history.md, 2, 4 and 7).
 use super::fixtures;
 use crate::{keys, records, v25};
 use skein_lib::Wall;

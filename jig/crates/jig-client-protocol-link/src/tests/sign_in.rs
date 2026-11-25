@@ -95,6 +95,32 @@ fn a_signed_out_answer_drops_the_credential() {
 }
 
 #[test]
+fn a_keyed_request_leaves_without_a_credential_after_sign_out() {
+    let limits = limits();
+    let mut h = Harness::new(&limits);
+    h.sign_in(held());
+    h.open_with_hello();
+    let exchange = h.sign_out();
+    let answer = w::SignOutAnswer::SignedOut.encode(limits.wire()).expect("sign-out answer");
+    h.answer(exchange, &answer);
+    h.clear();
+
+    h.link.step(
+        Time::ZERO,
+        Event::Send { attempt: ATTEMPT, key: KEY, ask: Ask::Jig(Box::new(message())), value: None },
+        &mut h.out,
+    );
+    h.link.settle(&mut h.out);
+
+    let Some(Request::Exchange { credential: None, message: Message::Request(bytes), .. }) = h.out.pop() else {
+        panic!("expected an uncredentialed keyed exchange after sign-out")
+    };
+    assert!(h.out.is_empty(), "only one exchange");
+    let record = w::Keyed::decode(limits.wire(), &mut Reader::new(&bytes)).expect("keyed request");
+    assert_eq!((record.key, record.owner), (KEY, w::Owner::Jig));
+}
+
+#[test]
 fn an_old_sign_out_cannot_end_a_new_held_credential() {
     for (label, lost) in [("signed out", false), ("lost", true)] {
         let mut h = Harness::new(&limits());

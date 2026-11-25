@@ -30,6 +30,7 @@ fn delegate(h: &mut Harness, parent: u64, mut child: crate::New) {
         places: Box::new([]),
         reply_to: to(),
         creator: Party::Task(parent),
+        reads_project: false,
         batch: Box::new([child]),
     });
     assert!(
@@ -82,6 +83,7 @@ fn step(h: &mut Harness, messages: Box<[ProcedureMessage]>) -> Vec<Request> {
         task: ASKER,
         step: attempt.checked_add(1).expect("next fixture step"),
         read,
+        reads_project: false,
         decision: ProcedureDecision { messages, ..ProcedureDecision::new(ProcedureEnd::Wait) },
     })
 }

@@ -365,6 +365,7 @@ pub(super) fn encode_hold_reason(value: &d::application_core::HoldReason) -> w::
         }
         d::application_core::HoldReason::Procedure => w::HoldReason::Procedure,
         d::application_core::HoldReason::Circle => w::HoldReason::Circle,
+        d::application_core::HoldReason::Waited => w::HoldReason::Waited,
     }
 }
 pub(super) fn decode_hold_reason(value: w::HoldReason) -> d::application_core::HoldReason {
@@ -415,6 +416,7 @@ pub(super) fn decode_hold_reason(value: w::HoldReason) -> d::application_core::H
         }
         w::HoldReason::Procedure => d::application_core::HoldReason::Procedure,
         w::HoldReason::Circle => d::application_core::HoldReason::Circle,
+        w::HoldReason::Waited => d::application_core::HoldReason::Waited,
     }
 }
 pub(super) fn encode_failure_class(value: d::application_core::FailureClass) -> w::FailureClass {

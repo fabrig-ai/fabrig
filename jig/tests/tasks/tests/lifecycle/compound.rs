@@ -129,7 +129,12 @@ fn the_deployments_compound_refuses_any_other_operation_or_project_whole() {
             }),
             PROJECT,
         ),
-        ("stop", Party::Deployment { project: PROJECT }, Operation::Stop { task: CHILD, hold: 100 + CHILD }, PROJECT),
+        (
+            "stop",
+            Party::Deployment { project: PROJECT },
+            Operation::Stop { task: CHILD, hold: 100 + CHILD, reason: Box::from(b"Parking the task".as_slice()) },
+            PROJECT,
+        ),
         (
             "move",
             Party::Deployment { project: PROJECT },

@@ -284,6 +284,24 @@ impl Domain {
         self.tickets
     }
 
+    /// Whether a pending record or completion needs durable host credit.
+    #[must_use]
+    pub fn waits_for_host_credit(&self) -> bool {
+        for (_, context) in &self.starts {
+            if context.flow.waits_for_host() {
+                return true;
+            }
+        }
+        for (owner, _) in &self.pending {
+            let id = *self.sessions.get(owner).expect("held session");
+            let conversation = self.peers.get(id).expect("held peer").conversation;
+            if run::completion_waits_for_host(&self.run, conversation) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// When the earliest alarm falls due.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {

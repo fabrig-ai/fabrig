@@ -48,8 +48,8 @@ fn unanswered_questions_survive_reads_and_refuse_past_the_position_bound() {
     assert_eq!(
         live(&h, 2).question_lines.as_ref(),
         [
-            crate::QuestionLine { message: 3, line: 5, answer: None },
-            crate::QuestionLine { message: 1, line: 3, answer: None },
+            crate::QuestionLine { message: 3, line: 5, answer: None, resolution: None },
+            crate::QuestionLine { message: 1, line: 3, answer: None, resolution: None },
         ]
     );
     h.env.limits = LIMITS;
@@ -108,6 +108,7 @@ fn question_cohort(last: u64) -> Harness {
         })
         .collect::<Vec<_>>();
     let out = h.send(Event::Make {
+        reads_project: false,
         maker: None,
         places: Box::new([]),
         reply_to: to(),

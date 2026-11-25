@@ -1,4 +1,4 @@
-// A third world: a person's first run, after `temper box` (protocol/setup/init.md, 2 and protocol/setup/playground.md
+// A third world: a person's first run, after `temper box` (protocol/setup/init.md, 5 and protocol/setup/playground.md
 // ). The default document's deployment: one project, the chat and
 // coding charters, one worker in temper's process, three forges (the
 // demo's fake, GitHub, an owned Forgejo not set up). The welcome offers
@@ -16,7 +16,7 @@
       now: 0,
       person: 'Sam',
       // The project `temper init` seeds, unnamed, so "Project 1"
-      // (protocol/setup/init.md, 3); with none until the playground's start or the
+      // (protocol/setup/init.md, 6); with none until the playground's start or the
       // first repository makes one (draft draft/archive/first-run.md, 2.4), its
       // place reads "No project yet", under View → Future.
       project: 'Project 1',
@@ -29,7 +29,7 @@
         allotment: 100,
         ops: false,
         // The default document's providers: OpenAI, by its ChatGPT sign-in
-        // and by keys (protocol/setup/init.md, 1), and the playground's. The ways are
+        // and by keys (protocol/setup/init.md, 4), and the playground's. The ways are
         // client README 5.5's, the playground's provider left out.
         ways: ['Continue with ChatGPT', 'Use an API key'],
         providers: ['OpenAI'],
@@ -47,7 +47,7 @@
 
       repos: {},
 
-      // The default document's forges, by number (protocol/setup/init.md, 3).
+      // The default document's forges, by number (protocol/setup/init.md, 6).
       forges: [
         { n: 1, kind: 'Forgejo', name: 'Playground forge', web: 'http://127.0.0.1:8369', mode: 'fake', state: 'not started' },
         { n: 2, kind: 'GitHub', web: 'https://github.com', mode: 'connected', state: 'not connected' },
@@ -223,7 +223,7 @@
     },
     {
       id: '5', label: '5', hour: 15 / 60, act: 2, title: 'A model connected',
-      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and finishes the sign-in by pasting from the browser on another computer. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6.1-sol on the ChatGPT plan (protocol/setup/init.md, 3). The scripted model steps aside: it is gone from Accounts.',
+      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and finishes the sign-in by pasting from the browser on another computer. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6.1-sol on the ChatGPT plan (protocol/setup/init.md, 6). The scripted model steps aside: it is gone from Accounts.',
       look: [
         ['connect-model.html?way=chatgpt', 'Connect a model: signed in to ChatGPT'],
         ['accounts.html', 'Accounts: ChatGPT · sam@example.com, folded; the scripted model gone'],

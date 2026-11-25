@@ -231,10 +231,13 @@ fn documents(driver: &Driver) -> Vec<&forge::Findings> {
         .collect()
 }
 
-fn holder_waiting_on_four_people() -> (Driver, engine::Assignment) {
+const PERSON_WATCHES: usize = 4;
+const SUBSCRIPTION_ROOM: usize = 5;
+
+fn four_person_fixture(fifth_tool_interest: bool) -> (Driver, engine::Assignment) {
     let mut limits = limits();
     limits.tasks.subscriptions = 4;
-    limits.call_records = 5;
+    limits.call_records = if fifth_tool_interest { 6 } else { 5 };
     limits.tasks.tasks = 5;
     limits.tasks.project_tasks = 5;
     limits.tasks.tree_tasks = 5;
@@ -266,19 +269,22 @@ fn holder_waiting_on_four_people() -> (Driver, engine::Assignment) {
         role.authority.delegation.tasks = 5;
         role.authority.delegation.depth = 2;
     }
-    let (mut driver, run) = configured_driver(&limits, config, 0, 1);
-    let batch = (0..4)
+    configured_driver(&limits, config, 0, 1)
+}
+
+fn watch_four_person_tasks(driver: &mut Driver, run: &engine::Assignment) {
+    let batch = (0..PERSON_WATCHES)
         .map(|_| {
             let mut question = report_delegate(b"Should we keep this rule?", Box::default());
             question.executor = tasks::Executor::Person(tasks::PersonAddress::Role(0));
             question
         })
         .collect();
-    tool_call(&mut driver, &run, 201, engine::Tool::Delegate { batch });
+    tool_call(driver, run, 201, engine::Tool::Delegate { batch });
     let Some(engine::CallAnswer::Delegated(made)) = driver.answered(201).cloned() else {
         panic!("four person delegates: {:?}", driver.answered(201))
     };
-    assert_eq!(made.len(), 4);
+    assert_eq!(made.len(), PERSON_WATCHES);
     for (index, made) in made.iter().enumerate() {
         let person = driver.root.tasks().task(made.task).expect("waiting person task");
         assert!(matches!(person.executor, tasks::Executor::Person(_)));
@@ -288,7 +294,7 @@ fn holder_waiting_on_four_people() -> (Driver, engine::Assignment) {
         assert_eq!(person.requester, tasks::Party::Task(run.task));
         let kind = tasks::SubscriptionKind::Task { target: made.task, held: true, result: true };
         let call = 202 + u64::try_from(index).expect("four subscription calls");
-        tool_call(&mut driver, &run, call, engine::Tool::Subscribe { kind });
+        tool_call(driver, run, call, engine::Tool::Subscribe { kind });
         assert!(
             matches!(driver.answered(call), Some(engine::CallAnswer::Subscribed { .. })),
             "subscription {call}: {:?}",
@@ -297,31 +303,40 @@ fn holder_waiting_on_four_people() -> (Driver, engine::Assignment) {
     }
     let holder = driver.root.tasks().task(run.task).expect("standing holder");
     assert_eq!(holder.flags.ended_by, tasks::EndedBy::Standing);
-    assert_eq!(holder.subscriptions.len(), 4);
-    assert!(holder.subscriptions.iter().all(|s| matches!(s.kind, tasks::SubscriptionKind::Task { .. })));
+    assert_eq!(task_watches(&holder.subscriptions), PERSON_WATCHES);
+}
+
+fn task_watches(subscriptions: &[tasks::Subscription]) -> usize {
+    subscriptions.iter().filter(|s| matches!(s.kind, tasks::SubscriptionKind::Task { .. })).count()
+}
+
+fn holder_waiting_on_four_people() -> (Driver, engine::Assignment) {
+    let (mut driver, run) = four_person_fixture(false);
+    watch_four_person_tasks(&mut driver, &run);
+    assert_eq!(driver.root.tasks().task(run.task).expect("holder live").subscriptions.len(), PERSON_WATCHES);
     (driver, run)
 }
+
+fn findings_subscriber(driver: &Driver, task: u64) -> Option<&forge::Subscriber> {
+    driver.store.rows.values().find_map(|record| {
+        if let Record::Forge { row } = record
+            && let forge::Stored::Subscription(row) = row.as_ref()
+            && row.task == task
+            && row.topic == (forge::Topic::Findings { project: 1 })
+        {
+            Some(row)
+        } else {
+            None
+        }
+    })
+}
+
 fn assert_finding_subscription(driver: &Driver, task: u64) {
-    let subscriber = driver
-        .store
-        .rows
-        .values()
-        .find_map(|record| {
-            if let Record::Forge { row } = record
-                && let forge::Stored::Subscription(row) = row.as_ref()
-                && row.task == task
-                && row.topic == (forge::Topic::Findings { project: 1 })
-            {
-                Some(row)
-            } else {
-                None
-            }
-        })
-        .expect("forge findings subscriber");
+    let subscriber = findings_subscriber(driver, task).expect("forge findings subscriber");
     let subscriptions = &driver.root.tasks().task(task).expect("finding holder").subscriptions;
-    assert_eq!(subscriptions.len(), 5);
+    assert_eq!(subscriptions.len(), SUBSCRIPTION_ROOM);
     assert!(subscriptions.iter().any(|s| s.number == subscriber.number));
-    assert_eq!(subscriptions.iter().filter(|s| matches!(s.kind, tasks::SubscriptionKind::Task { .. })).count(), 4);
+    assert_eq!(task_watches(subscriptions), PERSON_WATCHES);
     assert!(news(driver, task).iter().any(|word| matches!(word.kind, tasks::MessageKind::News { subscription, class: tasks::NewsClass::Wakes } if subscription == subscriber.number)));
 }
 #[test]
@@ -368,6 +383,47 @@ fn an_area_owner_waiting_on_four_people_takes_a_hand_and_its_news() {
                 .windows(b"Handed on by party 1: your suite\n".len())
                 .any(|w| w == b"Handed on by party 1: your suite\n")
     }));
+}
+
+#[test]
+fn a_triager_holding_findings_first_watches_four_people() {
+    let (mut driver, run) = four_person_fixture(false);
+    settings(&mut driver, None, Some(s::AreaOwner::Task(run.task)));
+    assert_eq!(
+        application(&mut driver, Application::FileFinding(file(None))),
+        ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 1 })
+    );
+    let number = findings_subscriber(&driver, run.task).expect("findings subscribed first").number;
+    assert_eq!(driver.root.tasks().task(run.task).expect("holder live").subscriptions.len(), 1);
+    watch_four_person_tasks(&mut driver, &run);
+    assert_eq!(
+        application(&mut driver, Application::FileFinding(file(None))),
+        ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 2 })
+    );
+    assert_finding_subscription(&driver, run.task);
+    assert!(news(&driver, run.task).iter().any(|word| {
+        word.words.starts_with(b"Finding 1/2 is yours: Broken test\n")
+            && word.kind == (tasks::MessageKind::News { subscription: number, class: tasks::NewsClass::Wakes })
+    }));
+}
+
+#[test]
+fn a_holder_with_no_subscription_room_keeps_a_filing_unheard() {
+    let (mut driver, run) = four_person_fixture(true);
+    watch_four_person_tasks(&mut driver, &run);
+    let kind = tasks::SubscriptionKind::Timer { at: skein_lib::Wall::from_nanos(u64::MAX), period: None };
+    tool_call(&mut driver, &run, 206, engine::Tool::Subscribe { kind });
+    assert!(matches!(driver.answered(206), Some(engine::CallAnswer::Subscribed { .. })));
+    settings(&mut driver, None, Some(s::AreaOwner::Task(run.task)));
+    assert_eq!(
+        application(&mut driver, Application::FileFinding(file(None))),
+        ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 1 })
+    );
+    assert_eq!(row(&driver, 1).state, forge::FindingState::New);
+    assert_eq!(engine::finding_holder(&driver.root, 1, None), forge::Holder::Task(run.task));
+    assert_eq!(driver.root.tasks().task(run.task).expect("holder live").subscriptions.len(), SUBSCRIPTION_ROOM);
+    assert!(findings_subscriber(&driver, run.task).is_none());
+    assert_eq!(news(&driver, run.task).as_slice(), &[] as &[&tasks::Word]);
 }
 
 #[test]

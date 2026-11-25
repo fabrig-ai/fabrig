@@ -1,5 +1,5 @@
 //! The forge's milestone row (temper/docs/design/domain/milestones.md, 8).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Domain, Key, MilestoneLanding, MilestoneRow, Request, Stored};
 use skein_lib::{List, Map, Queue, Wall};
 pub(crate) use temper_engine_domain_forge_vocabulary::milestones::{MILESTONE_NAME_BYTES, MILESTONES_PER_PROJECT};

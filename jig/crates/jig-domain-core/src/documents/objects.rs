@@ -447,30 +447,57 @@ pub(super) fn question(
     if !crate::inbox::questions_live(&row.phase) {
         return Err(Missing::Ended);
     }
+    if let Some(ticket) = core.tasks.question_ticket(number, message)
+        && ticket.by.is_none()
+        && party_question(ticket.holder)
+        && ticket.asker == number
+    {
+        let fact = core.question_activity.get(&(number, ticket.line)).ok_or(Missing::Ended)?;
+        return question_from_fact(core, limits, party, number, message, decision, fact);
+    }
     for line in &row.question_lines {
         if line.message != message || line.answer.is_some() {
             continue;
         }
         let fact = core.question_activity.get(&(number, line.line)).ok_or(Missing::Ended)?;
-        let tasks::Line::Words { by, kind: tasks::MessageKind::Question, words, .. } = &fact.line else {
-            return Err(Missing::Unknown);
-        };
-        return Ok(Question {
-            acts: super::offers::subject(
-                core,
-                limits,
-                party,
-                &super::Subject::Question { task: number, message },
-                decision,
-            )?,
-            task: super::small::chip(core, limits, party, number)?,
-            message,
-            from: *by,
-            at: fact.at,
-            words: super::small::text(words, limits.documents.text_bytes),
-        });
+        return question_from_fact(core, limits, party, number, message, decision, fact);
     }
     Err(Missing::Ended)
+}
+
+fn party_question(holder: Option<tasks::EscalationHolder>) -> bool {
+    match holder {
+        Some(tasks::EscalationHolder::Person(_) | tasks::EscalationHolder::Role { .. }) => true,
+        Some(tasks::EscalationHolder::Task(_)) | None => false,
+    }
+}
+
+fn question_from_fact(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    number: u64,
+    message: u64,
+    decision: Wall,
+    fact: &tasks::ActivityLine,
+) -> Result<Question, Missing> {
+    let tasks::Line::Words { by, kind: tasks::MessageKind::Question, words, .. } = &fact.line else {
+        return Err(Missing::Unknown);
+    };
+    Ok(Question {
+        acts: super::offers::subject(
+            core,
+            limits,
+            party,
+            &super::Subject::Question { task: number, message },
+            decision,
+        )?,
+        task: super::small::chip(core, limits, party, number)?,
+        message,
+        from: *by,
+        at: fact.at,
+        words: super::small::text(words, limits.documents.text_bytes),
+    })
 }
 
 pub(super) fn person(

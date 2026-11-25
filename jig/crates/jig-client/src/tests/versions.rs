@@ -1,7 +1,7 @@
 use super::fixtures::{self, CREDENTIAL, Client};
 use crate::*;
 use skein_lib::List;
-const OWNERS: &[Spoken] = &[Spoken { family: 19, version: 1 }];
+const OWNERS: &[Spoken] = &[Spoken { family: 19, version: 1, layout: [1; 32] }];
 
 #[test]
 fn a_declared_owner_the_hello_does_not_name_is_not_served_before_any_send() {

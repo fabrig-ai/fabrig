@@ -1,14 +1,16 @@
 //! Browser harness stories on simulated processes (skein/docs/design/ui/web/testing.md, 2).
 use skein_fake_person_browser::{
-    Harness, Lent, Outcome, Play,
-    harness::{Hosted, Scripted},
+    Harness, Lent, Outcome, Play, Setup,
+    harness::{Hosted, Names, Origin, Output, Printed, Scripted, Sent},
 };
+use skein_io::kernel::Spawn;
 use skein_lib::Time;
 use skein_world::{Delegate, Host, HostedProgram, Inherited, Memory, Referee, World};
 use skein_world_tests::hosted::{Act, RootMachine, Script};
 
 mod commands;
 mod keeps;
+mod wake;
 mod peers {
     mod lending;
     mod peer;
@@ -87,6 +89,35 @@ pub(super) fn run<'a, 'p, 'l>(
             })
             .collect(),
     }
+}
+
+const SERVER: &[u8] = b"/scripted-server";
+
+fn setup(origins: Vec<Origin>) -> Harness {
+    Harness::new(Setup {
+        server: "/scripted-server".into(),
+        args: vec![],
+        printed: Printed { sent: Sent::Page, prefix: LISTENING.as_bytes(), on: Output::Stderr, names: Names::Address },
+        restart: vec![],
+        chromium: "/not-a-hosted-program".into(),
+        downloads: None,
+        expected: vec![],
+        origins,
+    })
+}
+
+fn server_200<'a, 'p, 'l>(_: &Spawn, inherited: &Inherited) -> Process<'a, 'p, 'l> {
+    Process::Child(Box::new(server(inherited, 200)))
+}
+
+fn run_story(harness: &mut Harness, people: &mut [&mut dyn Play], browser: Scripted) -> Run {
+    run(
+        harness,
+        people,
+        &mut [],
+        browser,
+        [HostedProgram { program: SERVER.into(), make: server_200, instances: 1, operations: 8 }],
+    )
 }
 
 pub(super) const LISTENING: &str = "listening ";

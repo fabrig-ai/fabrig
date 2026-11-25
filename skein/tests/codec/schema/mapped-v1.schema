@@ -140,3 +140,7 @@ enum LongChoice {
     slot_97
     slot_98
 }
+
+record Rows { rows: list 4 u32 }
+record RowsNotice { payload: Rows }
+record RowsExchange { payload: Rows }

@@ -91,7 +91,11 @@ fn explicit_start_one_row_pages_hold_no_expired_keys_as_the_range_grows() {
                         Stored::Answer {
                             key: RequestKey { person: 999, key },
                             models: Box::new([]),
-                            ask: Box::new(Ask::Stop { project: 0, task: 0 }),
+                            ask: Box::new(Ask::Stop {
+                                project: 0,
+                                task: 0,
+                                reason: Box::from(b"Parking the task".as_slice()),
+                            }),
                             outcome: Outcome::Stopped { task: 0 },
                             at: Wall::EPOCH,
                         },

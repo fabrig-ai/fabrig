@@ -11,9 +11,6 @@ fn sign_ins_resend_and_fill_at_any_step() {
     let mut sweep = Sweep::new("sign_ins_resend_and_fill_at_any_step");
     sweep.configure(open::RESENDS_A_PENDING_REQUEST);
     sweep.configure(PENDING_EXCHANGES);
-    for exclusion in open::EXCLUSIONS {
-        sweep.exclude(exclusion).expect("P117's narrow exclusion");
-    }
     // One seed is enough for both kinds to fall.
     each_seed(1..2, |seed| {
         eprintln!("seed {seed}");
@@ -21,5 +18,4 @@ fn sign_ins_resend_and_fill_at_any_step() {
         sweep.ran(&ledger);
     });
     sweep.check_fell().expect("both the resend and the pending bound fell");
-    assert!(sweep.left_out("a_parked_act_holds_no_exchange") > 0, "P117 leaves out a parked first request's resend");
 }

@@ -151,9 +151,10 @@ fn link_preserves_the_deciders_kind_and_its_hold_projection() {
         linked(link(&mut core, &env));
         assert_eq!(core.tasks.task(1), Some(&row));
         assert_eq!(core.start_failure(), None);
-        let hold = crate::documents::task_tree::hold(&env.limits, core.tasks.task(1).expect("held task"))
-            .expect("hold projection")
-            .expect("task held");
+        let hold =
+            crate::documents::task_tree::hold(&env.limits, core.tasks.task(1).expect("held task"), Some(&core.tasks))
+                .expect("hold projection")
+                .expect("task held");
         let Some(crate::documents::EscalationState::Rejected { by: shown, reason }) = hold.escalation else {
             panic!("hold line retains the rejection");
         };

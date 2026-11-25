@@ -28,7 +28,15 @@ fn start(h: &mut Harness, attempt: u64, at: u64) -> Vec<Request> {
 }
 fn end(h: &mut Harness, attempt: u64, at: u64, end: End) -> Vec<Request> {
     h.env.wall = Wall::from_nanos(at);
-    h.send(Event::Activation { reply_to: to(), task: 1, attempt, end, saved: None, cause: Cause::Unpriced })
+    h.send(Event::Activation {
+        reads_project: false,
+        reply_to: to(),
+        task: 1,
+        attempt,
+        end,
+        saved: None,
+        cause: Cause::Unpriced,
+    })
 }
 fn row(h: &Harness, attempt: u64) -> &AttemptRow {
     let Stored::Attempt(row) = &h.stored[&Key::Attempt { task: 1, attempt }] else { panic!("attempt row") };

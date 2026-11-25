@@ -1,5 +1,5 @@
 //! Serial Store requests and independent no-follow read-back of the focused cases.
-//! smith/docs/design/testing.md, 2.5.
+//! smith/docs/design/testing-tiers.md, 5.
 
 use crate::store_world::{Disk, Next, Owner, Policy};
 use skein_fake_machine::{How, Is, Item, Machine as Files, Node, Opened};

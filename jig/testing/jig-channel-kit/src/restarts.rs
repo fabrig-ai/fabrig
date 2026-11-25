@@ -8,7 +8,7 @@ use crate::{
 use jig_domain_core as core;
 use jig_protocol_worker_wire::{self as wire, Record};
 use skein_io::kernel;
-use skein_lib::{Queue, Time, Token, Wall};
+use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -16,6 +16,12 @@ pub enum Point {
     Answer,
     Check,
     Command,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CrashScope {
+    Unit,
+    Worker,
 }
 
 pub(crate) const PATH: &[u8] = b"/restart-workspace";
@@ -47,6 +53,22 @@ pub struct Evidence {
     pub answer_after_drain: bool,
     pub drain_to_end: Option<skein_lib::Duration>,
     pub acknowledged_parts: usize,
+    pub orphan_exit: Option<OrphanExit>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct OrphanExit {
+    pub cut_at: Time,
+    pub exited_at: Time,
+    pub exit: kernel::Exit,
+    pub bound: Duration,
+}
+
+struct Orphan {
+    process: usize,
+    output: kernel::Fd,
+    bound: Duration,
+    wrote_to_host: bool,
 }
 
 #[derive(Default)]
@@ -64,10 +86,49 @@ pub struct State {
     pub(crate) check_marked: bool,
     pub(crate) killed_at: Option<Time>,
     pub(crate) killed_agents: usize,
+    orphan: Option<Orphan>,
     pub(crate) saved_wire: Option<crate::processes::Wire>,
 }
 
 impl State {
+    pub(crate) fn orphan_deadline(&self) -> Option<Time> {
+        let orphan = self.orphan.as_ref()?;
+        self.evidence.orphan_exit.is_none().then(|| self.killed_at.expect("worker cut").saturating_add(orphan.bound))
+    }
+
+    // With the host gone, a receiver could not distinguish a suppressed answer
+    // from a failed write. Watch the orphan's stdout submissions instead.
+    pub(crate) fn observe_orphan_submissions(&mut self, process: usize, submissions: &Queue<kernel::Submit>) {
+        if let Some(orphan) = &mut self.orphan
+            && orphan.process == process
+        {
+            orphan.wrote_to_host |= submissions.iter().any(|submit| {
+                matches!(&submit.kind, kernel::Op::Write { fd, .. } | kernel::Op::PipeWrite { fd, .. } if *fd == orphan.output)
+            });
+        }
+    }
+
+    fn observe_orphan(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        let Some(orphan) = &self.orphan else { return Ok(()) };
+        if orphan.wrote_to_host {
+            return Err("the orphan wrote to its host after the worker was killed".into());
+        }
+        if self.evidence.orphan_exit.is_none() {
+            let Some(Proc::Agent { host, .. }) = procs.get(orphan.process) else {
+                return Err("the orphan was removed before exiting on its own".into());
+            };
+            if let Some(exit) = host.exit() {
+                self.evidence.orphan_exit = Some(OrphanExit {
+                    cut_at: self.killed_at.expect("worker cut"),
+                    exited_at: now,
+                    exit,
+                    bound: orphan.bound,
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// Worker frames are append-only, including across the worker's replacement.
     /// Decode each assignment once, retaining the second one's carried parts.
     pub fn observe_assignments(&mut self, frames: &[(Time, u16, Box<[u8]>)]) -> Result<(), String> {
@@ -176,13 +237,30 @@ pub(crate) fn worker_restarting(inherited: &skein_world::Inherited) -> Proc {
     proc
 }
 
-pub(crate) fn agent(_: &kernel::Spawn, inherited: &skein_world::Inherited) -> Proc {
+fn agent_configuration() -> smith_agent_service::Config {
     let mut config = fixtures::agent_configuration();
-    config.limits.domain.run.check_timeout = skein_lib::Duration::from_secs(4);
+    config.limits.domain.run.check_timeout = Duration::from_secs(4);
+    config
+}
+
+fn orphan_exit_bound() -> Duration {
+    let config = agent_configuration();
+    let limits =
+        smith_agent_profile::host_limits(&smith_agent_process_world::profile(), &config.limits, &config.domain.limits)
+            .expect("the restart agent's host limits derive");
+    smith_agent_profile::orphan_exit(&limits).expect("the restart agent's orphan exit derives")
+}
+
+pub(crate) fn agent(_: &kernel::Spawn, inherited: &skein_world::Inherited) -> Proc {
+    let config = agent_configuration();
     let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(fd);
     let agent = smith_agent_process_world::configured(config, fixtures::SEED, inherited, errors.clone());
-    Proc::Agent { host: Box::new(capture.host(agent)), errors }
+    Proc::Agent {
+        host: Box::new(capture.host(agent)),
+        errors,
+        output: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
+    }
 }
 
 pub(crate) fn roots(_: &kernel::Spawn) -> Vec<skein_world::StartupRoot> {
@@ -299,9 +377,16 @@ fn ready(point: Point, procs: &[Proc], state: &State) -> bool {
     }
 }
 
-/// Kill the worker's unit, including its agent and commands, without a drain
-/// or settle. The worker alone starts again through its registered factory.
-pub(crate) fn crash(point: Point, now: Time, procs: &mut [Proc], state: &mut State, controls: &skein_world::Controls) {
+/// Kill without a drain or settle. Only the worker starts again through
+/// its registered factory, whether or not its unit was killed with it.
+pub(crate) fn crash(
+    point: Point,
+    scope: CrashScope,
+    now: Time,
+    procs: &mut [Proc],
+    state: &mut State,
+    controls: &skein_world::Controls,
+) {
     if let Some(previous) = state.saved_wire.take() {
         let host = procs
             .iter_mut()
@@ -311,8 +396,9 @@ pub(crate) fn crash(point: Point, now: Time, procs: &mut [Proc], state: &mut Sta
     }
     if state.killed_at.is_some() {
         // The provider scripts by conversation position, so the abandoned turn
-        // is asked again. Release only after the resumed query has arrived.
-        if point == Point::Answer && state.evidence.queries >= 3 {
+        // is asked again. Release only after the resumed query has arrived
+        // and the orphan (if any) has cancelled its own completion.
+        if point == Point::Answer && state.evidence.queries >= 3 && state.orphan_deadline().is_none() {
             for proc in procs {
                 if let Proc::Peer(peer) = proc
                     && peer.is_held(HOLD)
@@ -337,11 +423,26 @@ pub(crate) fn crash(point: Point, now: Time, procs: &mut [Proc], state: &mut Sta
     }
     state.killed_at = Some(now);
     state.saved_wire = Some(std::mem::take(&mut host.wire));
-    state.killed_agents = procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count();
-    controls.kill_unit(worker_at);
+    match scope {
+        CrashScope::Unit => {
+            state.killed_agents = procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count();
+            controls.kill_unit(worker_at);
+        }
+        CrashScope::Worker => {
+            let mut agents = procs.iter().enumerate().filter_map(|(process, proc)| match proc {
+                Proc::Agent { host, output, .. } if host.exit().is_none() => Some((process, *output)),
+                _ => None,
+            });
+            let (process, output) = agents.next().expect("the worker's agent is still running at the cut");
+            assert!(agents.next().is_none(), "there is just one agent to orphan");
+            state.orphan = Some(Orphan { process, output, bound: orphan_exit_bound(), wrote_to_host: false });
+            controls.cut(worker_at, skein_world::Cut::Kill);
+        }
+    }
 }
 
 pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut State) -> Result<(), String> {
+    state.observe_orphan(now, procs)?;
     let worker = crate::world::check_worker_wire(procs)?;
     state.observe_assignments(&worker.frames)?;
     for part in store.parts() {

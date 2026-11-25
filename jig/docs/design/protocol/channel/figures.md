@@ -10,23 +10,23 @@ the application's (temper's `protocol/configuration/figures.md`).
 
 ## 1. In one page
 
-- **The engine's answer carries them.** First of what it sends once
-  the channel is ready, the engine sends `figures` (2): the places it
-  admits that worker at, every limit by its name, and its agents' profile
-  and endpoints, converted to the worker's layout as any record
-  (`layouts.md`, 4.1). A worker builds its host from them, not from its
-  own document.
+- **The engine's answer carries them.** When the engine has figures
+  and the worker's layout has the kind, `figures` is the engine's first
+  record once the channel is ready (2): the worker's places, every limit
+  by its name, and its agents' profile and endpoints, converted to the
+  worker's layout as any record (`layouts.md`, 4.1). A worker builds its
+  host from them, not from its own document.
 - **A worker with no figures opens for them alone** (4). Its credential
   says `opening: figures`. The engine answers with `figures` and closes
   the channel. Nothing is admitted, and the fleet
   hears nothing. The worker then builds, and opens its link as today,
   saying `opening: link`.
-- **At every link opening, and when they change.** The engine sends
-  `figures` first at each link opening, and to every linked
-  worker whenever its owner gives new ones (3). A running worker tells
-  its owner each one it hears. The owner applies the live ones at once,
-  through `retime` for the link's timers (4), and the rest at its next
-  start (temper's `protocol/configuration/figures.md`, 3.2).
+- **At link openings, and when they change.** The engine sends new
+  figures from its owner to each ready link whose worker's layout has
+  the kind (3). A running worker tells its owner each one it hears. The
+  owner applies the live ones at once, through `retime` for the link's
+  timers (4), and the rest at its next start (temper's
+  `protocol/configuration/figures.md`, 3.2).
 - **Live timers on both sides.** The link's handshake, stall, backoff,
   ceiling, proved and busy timers, and the engine host's handshake,
   hello and stall, are read at each use, so each side takes new ones
@@ -46,32 +46,28 @@ the application's (temper's `protocol/configuration/figures.md`).
 
 ```
 enum Opening { link, figures }
-record Credential { name: text 256 secret: secret 1024 wires: list 16 Wire output: u32 opening: Opening }
+record Credential { name: text 256 secret: secret 1024 wires: list 8 Wire output: u32 opening: Opening }
 
 record Limit { name: text 64 value: u64 }
-record Header { name: text H value: text V }
-record Tls { server_name: text S trust: option text T }
+record Header { name: text 4096 value: text 4096 }
+record Tls { server_name: text 4096 trust: option text 4096 }
 enum Transport { tls: Tls, plaintext }
 enum Oversized { fail, drop }
 record EndpointLimits { window: u32 output: u32 reasoning_item: u32 head: duration idle: duration oversized: Oversized }
 record AgentEndpoint {
-    name: text N number: u32 dialect: u32 provider: text N program: option text N
-    host: text A port: u16 transport: Transport headers: list 16 Header
+    name: text 4096 number: u32 dialect: u32 provider: text 4096 program: option text 4096
+    host: text 4096 port: u16 transport: Transport headers: list 16 Header
     connect: duration handshake: duration limits: EndpointLimits
 }
 record Agents { profile: list 128 Limit endpoints: list 64 AgentEndpoint }
 record Figures { places: u32 limits: list 1024 Limit agents: Agents }
 ```
 
-`Credential` gains `opening`, its last member. `FromEngine` gains
-`figures: Figures` after `restarting`, so its kind is `0x0180` plus that tag.
-Each text bound written as a letter above is at least the bound jig's
-configuration reader gives the member it carries
-(`jig/crates/jig-protocol-config/src/llm.rs`). The landing that adds
-them picks each one, and the schema then fixes it.
+`Credential` holds `opening`. `FromEngine` has `figures: Figures`,
+numbered by its tag at the worker's layout (`wires.md`, 4).
 
-- **`places`** is the most runs the engine admits this worker to at
-  once (3).
+- **`places`** is the worker setting's cap on how many runs this
+  worker may host at once (3).
 - **`limits`** is every limit the engine holds, each by its dotted name
   as a configuration's overrides name it (`../limits.md`), jig's and the
   application's alike, at its figure in force: the value the engine
@@ -94,30 +90,33 @@ them picks each one, and the schema then fixes it.
 ## 3. The engine's side
 
 - **A figures opening** is checked as any opening, in order
-  (`README.md`, 4.1): the name and the secret, then the wires. Its
-  `io.output` isn't compared with the engine's stream room: a worker
-  that fetches its figures states its stock room, before it knows the
-  engine's limits, and what the engine sends it is bounded by the
-  schema's ceilings, not by `io.output`. It takes no channel's place,
-  so it's never *busy* and replaces nothing. Its terms are judged for
-  `figures` alone, the only kind it sends. The engine sends
-  `figures` with that worker's places, then finishes the channel and
-  closes it once drained. No hello is awaited, and the fleet hears
-  nothing. The engine's log says `worker NAME took its figures`.
+  (`README.md`, 4.1): the name and the secret, then the wires. A wrong
+  secret, an unknown name and a withdrawn worker are all *not admitted*
+  (260); a credential that does not decode is *unauthorized* (256).
+  Its `io.output` isn't compared with the engine's stream room: a worker
+  that fetches its figures states its stock room before it knows the
+  engine's limits. The record is encoded within the schema's ceilings,
+  but the frame at the worker's layout must fit the engine's stream room.
+  A frame past that room is unsent and the connection closes as full
+  (`Loss::Full`). The opening takes no link's place, so it's never
+  *busy* and replaces nothing. Its terms are judged for `figures` alone,
+  the only kind the engine sends. The engine sends `figures` with that
+  worker's places, then finishes the channel and closes it once drained.
+  No hello is awaited, and the fleet hears nothing. The application's
+  engine logs `worker NAME took its figures`.
 - ***starting*** is jig's reason 262, after *stopping*: the host has no
   figures from its owner yet. The worker redials after its pause, as
   after any refusal.
-- **A link opening** is as today, with `figures` sent first once the
-  channel is ready, when the host has figures. Then the hello is awaited
-  as before (`README.md`, 4.3).
-- **New figures from the owner** go to every channel that is ready, and
-  every later opening sends them.
-- **Places** are what the fleet admits a worker at whatever its hello's
-  slots: today the fleet's per-worker `slots` limit, one figure for
-  every worker (`../../domain/engine/fleet.md`). Workers made settings
-  give each worker its own (temper's `draft/config.md`,
-  6.7). The hello's admission is unchanged: the smaller of the hello's
-  slots and that figure.
+- **A link opening** sends `figures` first once the channel is ready,
+  if the host has figures and the worker's layout has the kind. Then
+  the engine awaits the hello (`README.md`, 4.3).
+- **New figures from the owner** go to ready links whose worker's layout
+  has the kind, whether or not the engine has heard the hello. Later
+  openings send the new figures too, where the worker's layout has it.
+- **Places** come from each worker's setting
+  (`../../domain/engine/workers.md`, 4). The fleet caps admission at the
+  smallest of the hello's slots, that worker's places and `fleet.slots`
+  (`../../domain/engine/fleet.md`).
 - **The owner gives the figures whole,** as data, each time they change:
   an input of the workers host carrying the generated `Figures` record,
   whose `places` the host sets for each worker as it sends. There's no
@@ -139,11 +138,11 @@ them picks each one, and the schema then fixes it.
 - **The link's figures form.** `jig_protocol_worker_link`'s component
   can be made to open for figures alone: its credential says
   `opening: figures`, and its table and terms come from the link's own
-  stock limits. Since `Figures`' bounds are the schema's literals, any
-  table takes it. Once it hears `figures`, it reports them to its owner
-  and is done: it closes and doesn't redial. A refusal, a loss or a
-  deadline before then is reported as a link's is, and it redials after
-  its pause, as a link does.
+  stock limits. Its `figures` term is bounded by the schema's ceilings
+  rather than by limits it has yet to fetch. Once it hears `figures`, it
+  reports them to its owner and is done: it closes and doesn't redial.
+  A refusal, a loss or a deadline before then is reported as a link's
+  is, and it redials after its pause, as a link does.
 - **The link form** reports each `figures` it hears to its owner, at
   each opening and whenever they come. It goes on as today; the owner
   compares them with the figures in force on it.
@@ -187,9 +186,10 @@ Focused, in the link's and the host's tests and jig's channel world:
   link under that worker's name stays.
 - **Before figures:** a figures opening is refused as *starting*; the
   worker redials, and takes them once the owner gives them.
-- **A link opening** hears `figures` first, then sends its hello. New
-  figures given to the host reach every linked worker.
-- **Refusals:** a wrong secret is refused *unauthorized*.
+- **A link opening:** `figures` is the engine's first outgoing record
+  when it has figures and the worker's layout has the kind. New figures
+  reach those links; no figures are sent on a link without the kind.
+- **Refusals:** a wrong secret is refused *not admitted* (260).
 - **Timers, live:** a running link given a longer handshake by `retime`
   keeps the deadline of the dial in flight and gives its next dial the
   new one; a longer backoff and ceiling make its next redial wait the
@@ -199,9 +199,7 @@ Focused, in the link's and the host's tests and jig's channel world:
   `retime` waits that long for the next opening's hello, and one already
   waiting keeps its deadline; a zero figure is false.
 - **The record:** generated records' drift, as
-  skein's `data/codec/golden.md`, section 1 has it; patch `0006`'s
-  breaking declaration, held by the wire's patch tests and
-  `fabrig-boundary`'s `patches` test.
+  skein's `data/codec/golden.md`, section 1 has it.
 
 ## 8. Open questions
 

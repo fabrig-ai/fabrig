@@ -268,6 +268,7 @@ fn uncommitted_queue_step(
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -904,6 +905,7 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1030,6 +1032,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1377,6 +1380,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1407,6 +1411,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -1447,6 +1452,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 no_test: false,
                 delegate_live: false,
                 review_request: None,
+                closer_waiting: false,
                 start_conflict: None,
                 lacking: None,
                 spend: None,
@@ -1494,6 +1500,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::CloseDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
@@ -2280,6 +2287,7 @@ fn a_change_rides_a_long_forge_outage_and_reads_ci_posted_without_a_delivery() {
         entry: 1,
         heard: change::Heard {
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -2692,6 +2700,7 @@ fn a_watched_pulls_mergeable_turning_true_at_the_same_head_wakes_its_change() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one story follows the held branch across a move and its reread")]
 fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     let mut world = World::new(31);
     world.adopt();
@@ -2744,6 +2753,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,
@@ -2774,6 +2784,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
             no_test: false,
             delegate_live: false,
             review_request: None,
+            closer_waiting: false,
             start_conflict: None,
             lacking: None,
             spend: None,

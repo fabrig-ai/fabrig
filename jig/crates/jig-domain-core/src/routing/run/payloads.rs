@@ -112,6 +112,7 @@ pub(crate) fn route_answer_payload(
     proof.terminal =
         Some(crate::TerminalRecord { task: run.raw(), attempt: attempt.raw(), cumulative, end: end.clone() });
     work.push(Work::Event(Event::Tasks(tasks::Event::Activation {
+        reads_project: false,
         reply_to: ReplyTo::new(payload),
         task: run.raw(),
         attempt: attempt.raw(),

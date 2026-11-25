@@ -70,7 +70,12 @@ fn hidden_answers_have_notices_and_lingers_and_coalesced_saves_end_on_deadlines(
         &mut domain.ui,
         key,
         ActKind::Stop,
-        Box::new(Ask::Stop { project: 1, task: 8 }),
+        Box::new(Ask::Stop {
+            project: 1,
+            task: 8,
+            reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        }),
         &mut out,
         &domain.client,
     )

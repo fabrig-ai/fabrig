@@ -192,6 +192,7 @@ fn sparse_current_hold_facts_keep_only_supplied_categories_and_numeric_identitie
             | HoldCategory::EffectFailed
             | HoldCategory::Budget
             | HoldCategory::Deadline
+            | HoldCategory::Waited
             | HoldCategory::HoldsWaited
             | HoldCategory::ResourceUnavailable
             | HoldCategory::ResourceAccess

@@ -189,7 +189,11 @@ fn a_repair_with_neither_section_ends_held_naming_the_reason() {
     let documents::Document::Task(document) = *document else { panic!("task document") };
     let hold = document.hold.expect("held preparation");
     assert_eq!(hold.reason, tasks::Hold::Failures(tasks::Class::Permanent));
-    assert_eq!(hold.words.expect("fixed preparation reason").bytes.as_ref(), REASON);
+    assert_eq!(
+        hold.words.expect("complete hold explanation").bytes.as_ref(),
+        b"It ran out of tries for permanent failures: pull: the forge's answer did not match its read. \
+          Held since 1970-01-01T00:00Z. Release it to try again; amend it first if its instructions failed it."
+    );
     let change_row = super::questions::row(&world, change);
     assert!(matches!(change_row.change.state, temper_engine_domain_forge_change::State::Repairing { .. }));
     let panel = world.oracle_document(world.signed_in.expect("owner"), 1, change).expect("change panel");

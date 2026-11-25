@@ -55,6 +55,7 @@ fn moment(store: &mut Store, when: When) {
                 answerer: tasks::Party::Task(7),
                 asked: tasks::Party::Task(7),
                 line: 1,
+                offer: None,
             }]);
         }
         let row = if when == When::ProducerEnded {

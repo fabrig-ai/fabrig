@@ -20,7 +20,7 @@ ready ones and starts a goal from each (`../../client/pages/work.md`, 1,
   restart, as each family's is. It holds:
   - `project`, the repository's project when the row was written;
   - `branch`, the landing branch read: the repository's landing branch,
-    `Repository.landing` (`adoption.md`, 8), as a tier following the
+    `Repository.landing` (`adoption.md`, 12), as a tier following the
     landing resolves it (`../after-landing.md`), at most 1024 bytes;
   - `commit`, that branch's head when the file was read there, the
     forge's id of it;

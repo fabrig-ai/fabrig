@@ -389,18 +389,20 @@ fn the_component_prints_one_sign_in_link_at_start() {
     );
     assert!(clients.links.is_empty());
 }
-#[test]
-fn closing_a_listener_during_start_closes_the_component() {
-    let mut clients = super::fixtures::clients();
-    let mut events = skein_lib::Queue::uncapped();
+fn client_close_turn(clients: &mut crate::clients::Clients) {
     clients.iterate(
         skein_lib::Time::ZERO,
         skein_lib::Wall::EPOCH,
-        &mut events,
-        &crate::tests::fixtures::forge_table(&[]),
+        &mut skein_lib::Queue::uncapped(),
+        &super::fixtures::forge_table(&[]),
         None,
         &mut None,
     );
+}
+
+fn clients_with_listener_in_flight() -> (crate::clients::Clients, Token, skein_io::Addr) {
+    let mut clients = super::fixtures::clients();
+    client_close_turn(&mut clients);
     let Some(skein_io::Request::Listen { owner, addr }) = clients.io.pop() else { panic!("listen") };
     let Some(kit::SecretsRequest::Get { owner: kit::SecretOwner::PublicNames }) = clients.secrets.pop() else {
         panic!("startup public names lookup")
@@ -412,27 +414,55 @@ fn closing_a_listener_during_start_closes_the_component() {
             expires: skein_lib::Wall::from_nanos(u64::MAX),
         }),
     }));
+    (clients, owner, addr)
+}
+
+#[test]
+fn closing_a_listener_during_start_closes_the_component() {
+    let (mut clients, owner, addr) = clients_with_listener_in_flight();
     clients.down(kit::Event::Close);
     assert!(clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
-    clients.iterate(
-        skein_lib::Time::ZERO,
-        skein_lib::Wall::EPOCH,
-        &mut events,
-        &crate::tests::fixtures::forge_table(&[]),
-        None,
-        &mut None,
-    );
+    client_close_turn(&mut clients);
     let Some(skein_io::Request::Close { entity }) = clients.io.pop() else { panic!("late listener close") };
     assert_eq!(entity, LISTENER);
     assert!(clients.up(skein_io::Event::Closed { owner }));
-    clients.iterate(
-        skein_lib::Time::ZERO,
-        skein_lib::Wall::EPOCH,
-        &mut events,
-        &crate::tests::fixtures::forge_table(&[]),
-        None,
-        &mut None,
-    );
+    client_close_turn(&mut clients);
+    assert!(clients.closed);
+}
+
+#[test]
+fn closing_clients_wait_idle_for_the_socket_terminal() {
+    const SOCKET: Token = Token::new(78);
+    // One turn each for the component's Closed and the server's finish,
+    // with room for the listener and socket close requests to drain.
+    const CLOSE_TURNS: u32 = 4;
+    let now = skein_lib::Time::ZERO;
+    let (mut clients, listener_owner, addr) = clients_with_listener_in_flight();
+    clients.up(skein_io::Event::Listening { owner: listener_owner, listener: LISTENER, addr });
+    clients.up(skein_io::Event::Accepted { owner: listener_owner, socket: SOCKET, peer: addr });
+    client_close_turn(&mut clients);
+    let Some(skein_io::Request::Bind { owner: socket_owner, .. }) = clients.io.pop() else { panic!("socket bound") };
+    clients.down(kit::Event::Stop);
+    clients.down(kit::Event::Close);
+    client_close_turn(&mut clients);
+    let Some(skein_io::Request::Close { entity: listener }) = clients.io.pop() else { panic!("listener close") };
+    let Some(skein_io::Request::Close { entity: socket }) = clients.io.pop() else { panic!("socket close") };
+    assert_eq!((listener, socket), (LISTENER, SOCKET));
+    clients.up(skein_io::Event::Closed { owner: listener_owner });
+
+    for _ in 0..CLOSE_TURNS {
+        if !clients.work_pending(now) {
+            break;
+        }
+        client_close_turn(&mut clients);
+    }
+    assert!(!clients.work_pending(now), "an unanswered close must not keep the loop awake");
+    assert!(!clients.closed);
+    assert_eq!(clients.next_deadline(), None);
+    assert!(clients.io.is_empty(), "the close is sent only once");
+
+    clients.up(skein_io::Event::Closed { owner: socket_owner });
+    client_close_turn(&mut clients);
     assert!(clients.closed);
 }
 

@@ -95,6 +95,7 @@ impl RepairSeed {
         }
         authority.budget.spend = goal.budget;
         Ok(tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),
@@ -149,6 +150,7 @@ impl RepairSeed {
             return Err(tasks::Refusal::Funding);
         }
         Ok(tasks::Event::Make {
+            reads_project: false,
             maker: None,
             places: Box::new([]),
             reply_to: skein_lib::ReplyTo::new(Token::new(self.number)),

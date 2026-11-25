@@ -1,13 +1,7 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{Limits, List, Reader, Wall, c, cursor_fields, offered_piece, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
-
-pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {
-    match value {
-        w::NoteAuthor::Party(row) => c::NoteAuthor::Party { party: row.party },
-        w::NoteAuthor::Task(row) => c::NoteAuthor::Task { task: row.task, attempt: row.attempt },
-    }
-}
 
 pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w::Problem> {
     if value.tasks.len() > limits.client().rows {
@@ -27,7 +21,7 @@ pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w
         scope: crate::translate::answers::note_scope(&value.scope)?,
         description: crate::translate::facts::document_text(&value.description, limits)?,
         body: crate::translate::facts::document_text(&value.body, limits)?,
-        writer: note_author_fields(&value.writer),
+        writer: client::note_author_to_domain(value.writer.clone()),
         tasks: list0,
         changed: opt1,
         acts: offered_piece(&value.acts, limits, c::MAX_OFFERED_ACTS)?,

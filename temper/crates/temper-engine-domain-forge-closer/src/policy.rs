@@ -13,6 +13,20 @@ pub enum Hold {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ReportCheck {
+    Unread,
+    Held,
+    Released,
+}
+
+#[derive(Debug)]
+pub enum ReportRead {
+    Unread,
+    Failed,
+    Read(Option<Box<[u8]>>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Running {
     pub step: Step,
     pub change: u64,
@@ -26,19 +40,31 @@ pub struct Closer {
     pub hold: Option<Hold>,
     pub retry: Option<Step>,
     pub selections: Box<[crate::PullSelection]>,
+    pub report_check: ReportCheck,
+    pub goal_left: Option<Box<[u8]>>,
 }
 
 impl Closer {
     #[must_use]
     #[expect(clippy::new_without_default, reason = "step values use named constructors, not user-defined traits")]
     pub fn new() -> Self {
-        Self { closed: None, running: None, landing: None, hold: None, retry: None, selections: Box::new([]) }
+        Self {
+            closed: None,
+            running: None,
+            landing: None,
+            hold: None,
+            retry: None,
+            selections: Box::new([]),
+            report_check: ReportCheck::Unread,
+            goal_left: None,
+        }
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Child {
     Pending,
+    Idle { held: bool },
     Done,
     Ended { branch: bool },
 }
@@ -46,6 +72,7 @@ pub enum Child {
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "the root supplies independent observations to the pure policy")]
 pub struct Facts {
+    pub report: ReportRead,
     pub goal_branch: bool,
     pub close_job: bool,
     pub pending: bool,
@@ -61,9 +88,13 @@ pub struct Facts {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Decision {
+    ReadReport,
+    HoldReport,
     Check,
     Wait,
     Make(Step),
+    Supersede { change: u64 },
+    Wake { change: u64 },
     Report,
     Hold(Hold),
 }
@@ -77,6 +108,12 @@ pub struct Stepped {
 #[must_use]
 pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
     let mut closer = closer.clone();
+    if closer.report_check == ReportCheck::Held {
+        if !facts.released {
+            return Stepped { closer, decision: Decision::HoldReport };
+        }
+        closer.report_check = ReportCheck::Released;
+    }
     if let Some(hold) = &closer.hold {
         if !facts.released {
             let decision = Decision::Hold(hold.clone());
@@ -86,6 +123,38 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
         let Some(running) = closer.running.take() else { unreachable!("a closing hold names the running change") };
         closer.retry = Some(running.step);
     }
+    let mut stepped = closing_step(closer.clone(), facts);
+    match stepped.decision {
+        Decision::ReadReport | Decision::HoldReport => unreachable!("only the report gate requests a note read"),
+        Decision::Wait | Decision::Hold(_) => stepped,
+        // An ended landing may still need containment to judge its ending.
+        Decision::Check if facts.pending => stepped,
+        Decision::Check
+        | Decision::Make(Step::Close | Step::Land)
+        | Decision::Supersede { .. }
+        | Decision::Wake { .. }
+        | Decision::Report => {
+            if facts.pending {
+                return Stepped { closer, decision: Decision::Wait };
+            }
+            match &facts.report {
+                ReportRead::Unread => Stepped { closer, decision: Decision::ReadReport },
+                ReportRead::Failed => Stepped { closer, decision: Decision::Wait },
+                ReportRead::Read(left) if left.is_some() && closer.report_check != ReportCheck::Released => {
+                    closer.goal_left.clone_from(left);
+                    closer.report_check = ReportCheck::Held;
+                    Stepped { closer, decision: Decision::HoldReport }
+                }
+                ReportRead::Read(left) => {
+                    stepped.closer.goal_left.clone_from(left);
+                    stepped
+                }
+            }
+        }
+    }
+}
+
+fn closing_step(mut closer: Closer, facts: &Facts) -> Stepped {
     if let Some(retry) = closer.retry {
         let decision = retry_step(&mut closer, facts, retry);
         return Stepped { closer, decision };
@@ -102,6 +171,19 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
                     return Stepped { closer, decision: Decision::Make(Step::Close) };
                 }
                 return Stepped { closer, decision: Decision::Wait };
+            }
+            Child::Idle { held } => {
+                let decision = if facts.pending || running.step != Step::Close {
+                    Decision::Wait
+                } else if closer.closed.as_deref() != Some(facts.landed.as_ref()) {
+                    closer.running = None;
+                    Decision::Supersede { change: running.change }
+                } else if held {
+                    Decision::Wait
+                } else {
+                    Decision::Wake { change: running.change }
+                };
+                return Stepped { closer, decision };
             }
             Child::Ended { branch } => match running.step {
                 Step::Close => {
@@ -123,7 +205,7 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
         Decision::Make(Step::Close)
     } else if let Some(change) = closer.landing {
         match facts.landing_child {
-            Child::Pending => Decision::Wait,
+            Child::Pending | Child::Idle { .. } => Decision::Wait,
             Child::Ended { branch } => match ended_landing(&mut closer, facts, change, branch) {
                 Some(decision) => decision,
                 None => land(facts),
@@ -165,8 +247,13 @@ fn retry_step(closer: &mut Closer, facts: &Facts, kind: Step) -> Decision {
         Step::Land => land(facts),
     };
     match decision {
-        Decision::Check => {}
-        Decision::Make(Step::Close | Step::Land) | Decision::Report | Decision::Wait | Decision::Hold(_) => {
+        Decision::ReadReport | Decision::HoldReport | Decision::Check => {}
+        Decision::Make(Step::Close | Step::Land)
+        | Decision::Supersede { .. }
+        | Decision::Wake { .. }
+        | Decision::Report
+        | Decision::Wait
+        | Decision::Hold(_) => {
             closer.retry = None;
         }
     }
@@ -197,7 +284,13 @@ fn ended_landing(closer: &mut Closer, facts: &Facts, change: u64, branch: bool) 
             closer.landing = None;
             None
         }
-        Decision::Make(Step::Close) | Decision::Wait | Decision::Hold(_) => {
+        Decision::ReadReport
+        | Decision::HoldReport
+        | Decision::Make(Step::Close)
+        | Decision::Supersede { .. }
+        | Decision::Wake { .. }
+        | Decision::Wait
+        | Decision::Hold(_) => {
             unreachable!("containment reports, lands or asks a fresh read")
         }
     }

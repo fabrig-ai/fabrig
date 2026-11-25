@@ -195,8 +195,8 @@ to a file.
   bans them all.
 - **No threads, and no file written beside the ring.** The shell starts
   no thread and writes no file on the service's behalf. A trace or a log
-  is an io stream on a file opened to append (../design/runtime/io/files.md, 1); a record kept
-  between runs is replaced whole through io (../design/runtime/io/files.md, 2); what the shell
+  is an io stream on a file opened to append (../design/runtime/io/files.md, 9); a record kept
+  between runs is replaced whole through io (../design/runtime/io/files.md, 10); what the shell
   reads off the service between iterations, it reads in the loop's hook
   (../design/runtime/shell.md, 11). Before the loop, startup reads its configuration and
   certificates with the kit (../design/runtime/shell-startup.md, 1).

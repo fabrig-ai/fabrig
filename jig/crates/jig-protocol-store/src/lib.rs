@@ -369,6 +369,7 @@ impl Store {
     }
 
     fn open_failed(&mut self, failure: restore::OpenFailure) {
+        self.directory.admitted_schemas = None;
         if self.start_open_failure.is_none() {
             self.start_open_failure = Some(Box::new(failure));
         }
@@ -385,14 +386,14 @@ impl Store {
 
     /// Supplies the owners' static families, jobs, levels and frames (protocol/store/opening-owners.md 1).
     pub fn owner_sets(&mut self, sets: OwnerSets) {
-        self.directory.checked = None;
+        self.directory.reset_admission();
         self.owner_sets = sets;
     }
 
     /// Optional parsed schemas for every step of an open that reads a text (protocol/store/opening-owners.md, 1).
     /// Only an exact text match is used; other texts are parsed by this open.
     pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
-        self.directory.checked = None;
+        self.directory.reset_admission();
         self.prepared_schemas = schemas;
     }
 
@@ -575,6 +576,7 @@ fn accounted(store: &mut Store, env: &Env<Limits>, lengths: [u32; 4], above: &mu
 }
 fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
     if let Request::Close { owner } = request {
+        store.directory.admitted_schemas = None;
         if checkpoints::named::close(store, owner, below) {
             return;
         }
@@ -726,9 +728,10 @@ pub mod keys;
 mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
-    CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
-    OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WorkerOpening, Write,
+    CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptOpening, KeptWire, KeptWorker, Load, Older,
+    OpenRefusal, OpenedTerm, OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row,
+    SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WorkerOpening,
+    Write,
 };
 
 #[cfg(test)]
@@ -738,4 +741,4 @@ pub use jig_protocol_store_families::component_v3;
 pub use jig_protocol_store_families::secrets_v1;
 pub use jig_protocol_store_settings::settings_v3;
 
-pub use jig_protocol_store_families::{openings_v1, registry_v1};
+pub use jig_protocol_store_families::{openings_v2, registry_v1};

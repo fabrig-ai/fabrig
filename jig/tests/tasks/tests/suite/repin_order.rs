@@ -21,6 +21,7 @@ fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
 fn amend(world: &mut World, by: Party, task: u64, dependencies: &[u64]) -> Reply {
     let message = world.record(task).last_message + 1;
     response(world, |reply_to| Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task,

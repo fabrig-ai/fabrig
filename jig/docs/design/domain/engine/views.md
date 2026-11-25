@@ -56,7 +56,7 @@ computes for them is said below (1 to 5).
   awaiting its delivery or stream acknowledgement waits on its child;
   repeating its ending is not finishing work. Sign-in expiry reaches the
   core through the people's timer (../people/README.md, section 3); stopping still
-  completes watch endings and the drain notification (`restart.md`, section 1).
+  completes watch endings and the drain notification (`restart.md`, section 5).
 - **An ended task or tree opens as a finished read**
   (`../../client/domain/contract/watches.md`, 1.2). Construction uses a bounded
   task load (`decisions.md`, 1.3), held behind preceding commits. The core

@@ -17,11 +17,7 @@ pub(super) fn decode(
     let mut out = List::with_capacity(rows.len());
     for row in rows {
         let name = super::programs::name(&row.name, &mut room)?;
-        let why = match &row.why {
-            w::AccountHostWhy::NotInContact => c::AccountHostWhy::NotInContact,
-            w::AccountHostWhy::Lost => c::AccountHostWhy::Lost,
-            w::AccountHostWhy::Failed => c::AccountHostWhy::Failed,
-        };
+        let why = crate::generated::client::account_host_why_to_domain(row.why.clone());
         out.push(c::AccountHostFailure { name, why }).expect("one decoded host per wire row");
     }
     Ok(out.into_boxed())

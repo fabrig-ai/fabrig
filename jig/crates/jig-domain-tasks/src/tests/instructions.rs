@@ -32,6 +32,7 @@ fn change(instructions: &[u8]) -> Amendment {
 }
 fn amend(h: &mut Harness, change: Amendment) -> Vec<Request> {
     h.send(Event::Amend {
+        reads_project: false,
         operation: crate::Amend {
             funder: None,
             task: 1,

@@ -62,8 +62,19 @@ fn sent(seed: u64) -> Key {
         &mut fixture,
         Event::Start { seed, place: Place::Jig(Address::Inbox { project: None }), records: List::with_capacity(0) },
     );
-    let out =
-        cards::drive(&mut fixture, crate::tests::fixtures::intent(7, 1, contract::Ask::Stop { project: 1, task: 9 }));
+    let out = cards::drive(
+        &mut fixture,
+        crate::tests::fixtures::intent(
+            7,
+            1,
+            contract::Ask::Stop {
+                project: 1,
+                task: 9,
+                reason: contract::Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            },
+        ),
+    );
     let Request::Client { asked: jig_client::Event::Send { key, .. } } = out[0] else { panic!("send") };
     key
 }

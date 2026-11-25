@@ -37,6 +37,7 @@ fn amend(w: &mut World, llm: LlmChoice, instructions: Option<Box<[u8]>>) {
     let reply_to = w.to();
     let call = reply_to.into_token();
     w.send(Event::Amend {
+        reads_project: false,
         operation: tasks::Amend {
             funder: None,
             task: 1,
@@ -219,6 +220,7 @@ fn a_finite_tasks_new_choice_is_heard_as_ever() {
     let mut idle = listening(Flags::PLAIN);
     let reply_to = idle.to();
     idle.send(Event::Subscribe {
+        reads_project: false,
         reply_to,
         task: 1,
         subscription: tasks::Subscription {

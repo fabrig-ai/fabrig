@@ -7,8 +7,12 @@ use skein_lib::List;
 
 fn compound() -> Ask {
     let mut operations = List::with_capacity(2);
-    operations.push(Operation::Stop { task: 1 }).expect("first operation");
-    operations.push(Operation::Stop { task: 2 }).expect("second operation");
+    operations
+        .push(Operation::Stop { task: 1, reason: Box::from(b"Parking the task".as_slice()) })
+        .expect("first operation");
+    operations
+        .push(Operation::Stop { task: 2, reason: Box::from(b"Parking the task".as_slice()) })
+        .expect("second operation");
     Ask::Compound { project: PROJECT, operations }
 }
 #[test]

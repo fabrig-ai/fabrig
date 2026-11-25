@@ -1684,7 +1684,7 @@ fn stands(stands: &w::Stands) -> &'static [u8] {
     match stands {
         w::Stands::Taken => b"taken",
         w::Stands::Asked => b"asked",
-        w::Stands::Held(_) => b"held",
+        w::Stands::Held => b"held",
     }
 }
 fn encode_questions(questions: &w::Questions, out: &mut Encoder) {
@@ -1708,8 +1708,8 @@ fn encode_questions(questions: &w::Questions, out: &mut Encoder) {
         out.string(&question.line);
         out.key(b"stands");
         out.string(stands(&question.stands));
-        if let w::Stands::Held(held) = &question.stands
-            && let Some(blocked) = &held.blocked
+        if question.stands == w::Stands::Held
+            && let Some(blocked) = &question.blocked
         {
             out.key(b"held");
             out.object_start();
@@ -1757,9 +1757,9 @@ fn text_questions(questions: &w::Questions, out: &mut Text) {
         match &question.stands {
             w::Stands::Taken => out.put(b"taken"),
             w::Stands::Asked => out.put(b"asked of requester"),
-            w::Stands::Held(held) => {
+            w::Stands::Held => {
                 out.put(b"answered, held");
-                if let Some(blocked) = &held.blocked {
+                if let Some(blocked) = &question.blocked {
                     match blocked.dependency {
                         Some(task) => {
                             out.put(b" until task ");

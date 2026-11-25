@@ -10,6 +10,13 @@ use skein_lib::{Duration, Wall};
 /// A forge commit identifier, translated at the connector top.
 pub type Commit = [u8; 32];
 
+/// What a close job measures (temper/docs/design/domain/forge/change/repairs-releases.md, 1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CloseAt {
+    pub branch: Commit,
+    pub landing: Commit,
+}
+
 /// The status of a fact or requirement at the named head.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Status {
@@ -438,6 +445,10 @@ pub struct Facts {
     pub follows: bool,
     /// A close job produces this change (temper/docs/design/domain/forge/change/README.md, 1).
     pub close: bool,
+    /// The goal and landing tips, both read by this step.
+    pub close_tips: Option<CloseAt>,
+    /// The tips read for the last close job that was admitted.
+    pub close_at: Option<CloseAt>,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge/change/README.md, 2).
     pub contains_catch_up: Status,
     /// Whether its landing branch's rules ask up to date (domain/forge/change/gates.md, 2).
@@ -524,6 +535,8 @@ pub struct Heard {
     /// Any pushing child (producer, repair, resolution or merge job) is still live,
     /// independent of the current delegate slot (domain/forge/change/repairs.md).
     pub delegate_live: bool,
+    /// The requesting closer is waiting on the goal's new work.
+    pub closer_waiting: bool,
     pub effect: EffectResult,
     pub released: bool,
     pub cancelled: bool,

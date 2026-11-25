@@ -38,6 +38,6 @@ next step. Its git and forge are the fakes, its command the world's
 merge's listing as the git layer does (`../protocol/git.status.md`).
 
 - **Departs:** the whole document: the case library's purpose is retired: the reference
-  case it was written from is replaced (`../draft/reference-case.md`), and
+  case it was written from is replaced (`../draft/archive/reference-case.md`), and
   its code awaits removal with its design.
    the fake-git tokenizer departure remains `fakes.status.md`, 3.

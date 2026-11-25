@@ -297,7 +297,7 @@ impl FileIo {
         }
     }
 
-    /// Configures the shell's effective user read once at startup (runtime/io/files.md, section 3).
+    /// Configures the shell's effective user read once at startup (runtime/io/files.md, section 11).
     #[must_use]
     pub fn with_effective_user(mut self, effective_user: u32) -> FileIo {
         assert!(self.takes() && self.files.is_empty(), "configure the user before adopting roots");

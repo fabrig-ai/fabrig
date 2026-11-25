@@ -197,8 +197,8 @@ The module `workload` of `jig-engine-clients-kit`, over its `Peer`
   (`Peer::post_signed`), some answered only after a drawn delay.
 - **The acts,** from `Stream::Parties`, each party its own part:
   `RESENDS_A_PENDING_REQUEST`, a party sending a request again under the
-  same key while the first is pending, at any pass after it was sent;
-  P117's exclusion leaves it out while the first is parked.
+  same key while the first is pending, at any pass after it was sent,
+  the first parked included.
 - **The bound:** the run calls `FaultLedger::saturation` with
   `PENDING_EXCHANGES` after each quiet point's inspection.
 - **What a run asserts:** the `Peer`'s checks as they stand; each request
@@ -216,7 +216,7 @@ its findings returned at once, and `check_fell` after the last.
 | `people_act_on_tasks_at_any_step` | core | people and parties | section 2's `people` kinds, `AMENDS_A_PASSED_DEADLINE`, `WIDENS_GOAL_AUTHORITY`, `NEW_SERVICE_RUNS_ON_AN_ACCOUNT` | S15, P77, P76 |
 | `runs_park_resume_and_move_at_any_step` | core | runs that park, resume and move | section 2's `parks` kinds, `PARKS_WITH_A_QUESTION_OPEN` | P43 |
 | `the_cores_tables_and_funds_reach_their_bounds` | core | the engine's own bounds | `SUBSCRIPTIONS`, `CREATION_REPORTS`, `KEPT_ANSWERS`, `START_WITH_NO_BUDGET`, `NEW_PARTY_ASKS_FOR_FUNDS`, `DELEGATING_RUN_AT_ITS_MINIMUM` | P93, P98, P82 |
-| `sign_ins_resend_and_fill_at_any_step` | engine-clients | people and parties; the engine's own bounds | `RESENDS_A_PENDING_REQUEST`, `PENDING_EXCHANGES` | P117 |
+| `sign_ins_resend_and_fill_at_any_step` | engine-clients | people and parties; the engine's own bounds | `RESENDS_A_PENDING_REQUEST`, `PENDING_EXCHANGES` | none |
 
 - **The engine-clients sweep** holds both families: the world is the
   cheapest for each, and its one bound and one act are drawn by the same

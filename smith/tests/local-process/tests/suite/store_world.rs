@@ -1,5 +1,5 @@
 //! The Store/FileIo host and disk shared by the focused cases and the power-loss sweeps.
-//! smith/docs/design/testing.md, 2.5.
+//! smith/docs/design/testing-tiers.md, 5.
 
 use skein_fake_machine::{Item, Machine as Files, Opened};
 use skein_io::{

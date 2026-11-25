@@ -71,7 +71,7 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   has its labels made in its home by temper's own setup, not an effect:
   once its findings are on and its home adopted, temper writes each
   label it lacks through the forge client directly, as an adoption's
-  access on a managed Forgejo is the setup's (`forge/adoption.md`, 2), with no
+  access on a managed Forgejo is the setup's (`forge/adoption.md`, 6), with no
   grant; a label that exists counts as made, each retried until made,
   the progress kept on the project's findings record.
 - **Its body:** the key's marker; the reproduction, from a fresh start;

@@ -1,4 +1,5 @@
 //! Task wait facts are already joined and translated to wall time by the core.
+use crate::generated::client as mapped;
 use jig_client_protocol_wire as w;
 use jig_domain_core_vocabulary::documents as d;
 
@@ -9,95 +10,5 @@ pub fn waiting(value: Option<d::TaskRunWait>) -> Option<w::TaskRunWait> {
 }
 
 pub(super) fn run(value: d::TaskRunWait) -> w::TaskRunWait {
-    match value {
-        d::TaskRunWait::Credential => w::TaskRunWait::Credential,
-        d::TaskRunWait::Host => w::TaskRunWait::Host,
-        d::TaskRunWait::Worker { worker, until } => {
-            w::TaskRunWait::Worker(w::TaskWaitWorker { worker, until: until.as_nanos() })
-        }
-        d::TaskRunWait::Refused(value) => w::TaskRunWait::Refused(w::TaskRunWaitRefused {
-            value: match value {
-                d::TaskWaitRefused::Hello { kind, at, why, figures } => w::TaskWaitRefused::Hello(w::TaskWaitHello {
-                    kind: super::deployment::host_kind(kind),
-                    at: at.as_nanos(),
-                    why: super::deployment::hello(why),
-                    figures: shortfall_figures(figures),
-                }),
-                d::TaskWaitRefused::Bounds { kind, why, figures } => w::TaskWaitRefused::Bounds(w::TaskWaitBounds {
-                    kind: super::deployment::host_kind(kind),
-                    why: match why {
-                        Some(why) => Some(super::deployment::shortfall(why)),
-                        None => None,
-                    },
-                    figures: shortfall_figures(figures),
-                }),
-            },
-        }),
-        d::TaskRunWait::Account { account, source, why } => w::TaskRunWait::Account(w::TaskWaitAccount {
-            account,
-            source,
-            why: match why {
-                d::TaskWaitWhy::Untooled { worker } => w::TaskWaitWhy::Untooled(w::TaskWaitUntooled { worker }),
-                d::TaskWaitWhy::Refreshing => w::TaskWaitWhy::Refreshing,
-                d::TaskWaitWhy::Host => w::TaskWaitWhy::Host,
-                d::TaskWaitWhy::Empty => w::TaskWaitWhy::Empty,
-                d::TaskWaitWhy::Invalid(why) => w::TaskWaitWhy::Invalid(w::TaskWaitInvalid {
-                    why: match why {
-                        jig_domain_tasks::AccountWhy::Unknown => w::AccountWhy::Unknown,
-                        jig_domain_tasks::AccountWhy::Provider => w::AccountWhy::Provider,
-                        jig_domain_tasks::AccountWhy::Uses => w::AccountWhy::Uses,
-                        jig_domain_tasks::AccountWhy::Limited => w::AccountWhy::Limited,
-                    },
-                }),
-                d::TaskWaitWhy::Source(state) => {
-                    w::TaskWaitWhy::Source(w::TaskWaitSource { state: source_state(state) })
-                }
-            },
-        }),
-    }
-}
-fn source_state(value: d::TaskSourceState) -> w::TaskSourceState {
-    use jig_domain_accounts::{Place, Unread};
-    match value {
-        d::TaskSourceState::Asking => w::TaskSourceState::Asking,
-        d::TaskSourceState::Granted => w::TaskSourceState::Granted,
-        d::TaskSourceState::Later { until } => {
-            w::TaskSourceState::Later(w::TaskSourceStateUntil { until: wall(until) })
-        }
-        d::TaskSourceState::Limited { until } => {
-            w::TaskSourceState::Limited(w::TaskSourceStateUntil { until: wall(until) })
-        }
-        d::TaskSourceState::Refused => w::TaskSourceState::Refused,
-        d::TaskSourceState::NeedsSignIn => w::TaskSourceState::NeedsSignIn,
-        d::TaskSourceState::Misconfigured => w::TaskSourceState::Misconfigured,
-        d::TaskSourceState::Cancelled => w::TaskSourceState::Cancelled,
-        d::TaskSourceState::Moving => w::TaskSourceState::Moving,
-        d::TaskSourceState::Closing => w::TaskSourceState::Closing,
-        d::TaskSourceState::Unloaded { at, why } => w::TaskSourceState::Unloaded(w::TaskSourceStateUnloaded {
-            at: match at {
-                Place::Directory => w::TaskSourcePlace::Directory,
-                Place::File => w::TaskSourcePlace::File,
-            },
-            why: match why {
-                Unread::Unreadable => w::TaskSourceUnread::Unreadable,
-                Unread::Refused => w::TaskSourceUnread::Refused,
-                Unread::Failed => w::TaskSourceUnread::Failed,
-                Unread::Stalled => w::TaskSourceUnread::Stalled,
-                Unread::TooLarge => w::TaskSourceUnread::TooLarge,
-            },
-        }),
-    }
-}
-fn wall(value: Option<skein_lib::Wall>) -> Option<u64> {
-    match value {
-        Some(value) => Some(value.as_nanos()),
-        None => None,
-    }
-}
-
-fn shortfall_figures(value: Option<jig_domain_fleet::Figures>) -> Option<w::ShortfallFigures> {
-    match value {
-        Some(value) => Some(w::ShortfallFigures { required: value.required, offered: value.offered }),
-        None => None,
-    }
+    mapped::task_run_wait_to_record(&value)
 }

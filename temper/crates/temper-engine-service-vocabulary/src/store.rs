@@ -3,6 +3,7 @@
 mod ranges;
 pub mod route;
 mod unreadable;
+use alloc::boxed::Box;
 use jig_protocol_store as protocol;
 use protocol::host::{check_read_page, max_whole};
 use skein_lib::{List, Token};
@@ -32,27 +33,59 @@ pub const WIRES: [protocol::Wire; 6] = [
     },
 ];
 
-/// The engine's wires from their floors, in statement order (protocol/wires.md, 10).
-#[must_use]
-pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
-    use jig_protocol_worker_wire::Spoken;
-    let mut wires = List::with_capacity(6);
-    for wire in jig_protocol_worker_wire::spoken().into_boxed() {
-        wires.push(wire).expect("six wire slots");
+/// One entry in the engine's wires table (protocol/wires.md, 10).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Wire {
+    pub name: &'static str,
+    pub lowest: u16,
+    pub layouts: List<[u8; 32]>,
+}
+
+impl Wire {
+    /// The last version in this entry.
+    #[must_use]
+    pub fn highest(&self) -> u16 {
+        let last = self.layouts.len().checked_sub(1).expect("one or more layouts per wire");
+        self.lowest.checked_add(u16::try_from(last).expect("a wire range fits u16")).expect("a wire range fits u16")
     }
-    wires.push(temper_protocol_worker_wire::spoken()).expect("six wire slots");
-    let mut layouts = List::with_capacity(u32::from(temper_engine_smith::wire::VERSION));
-    for (index, text) in temper_engine_smith::wire::TEXTS.iter().enumerate() {
+
+    /// This version's layout, if it is in this entry.
+    #[must_use]
+    pub fn layout(&self, version: u16) -> Option<[u8; 32]> {
+        self.layouts.get(u32::from(version.checked_sub(self.lowest)?)).copied()
+    }
+}
+
+fn worker_entry(wire: &jig_protocol_worker_wire::Spoken) -> Wire {
+    Wire { name: wire.name, lowest: wire.version, layouts: List::from_boxed(Box::new([wire.layout])) }
+}
+
+/// The engine's wires in statement order, followed by its host tools.
+#[must_use]
+pub fn wires() -> List<Wire> {
+    let jig = jig_protocol_worker_wire::spoken();
+    let mut wires = List::with_capacity(jig.len().checked_add(2).expect("two more wires"));
+    for wire in &jig {
+        wires.push(worker_entry(wire)).expect("one slot per wire");
+    }
+    wires.push(worker_entry(&temper_protocol_worker_wire::spoken())).expect("worker wire slot");
+    wires.push(host_tools_wire()).expect("host tools slot");
+    wires
+}
+
+/// The versioned host-tools contract, separate from the worker channel.
+#[must_use]
+pub fn host_tools_wire() -> Wire {
+    use temper_engine_smith::wire;
+    let mut layouts = List::with_capacity(u32::from(wire::VERSION));
+    for (index, text) in wire::TEXTS.iter().enumerate() {
         let version =
             u16::try_from(index).expect("kept contract index fits u16").checked_add(1).expect("contract version");
-        if version >= temper_engine_smith::wire::FLOOR {
+        if version >= wire::FLOOR {
             layouts.push(skein_lib::sha256::digest(text.as_bytes())).expect("one layout per kept contract");
         }
     }
-    wires
-        .push(Spoken { name: temper_engine_smith::wire::FAMILY, lowest: temper_engine_smith::wire::FLOOR, layouts })
-        .expect("six wire slots");
-    wires
+    Wire { name: wire::FAMILY, lowest: wire::FLOOR, layouts }
 }
 /// Owners kept by every engine shape, upstream first (protocol/floor.md, 3).
 pub const OWNER_SETS: protocol::OwnerSets = protocol::OwnerSets {
@@ -228,7 +261,8 @@ mod sizing_tests {
                 entry = Some(wire);
             }
         }
-        assert_eq!(application.spoken.get(0), Some(entry.expect("engine's worker wire")));
+        let worker = application.spoken.get(0).expect("worker application wire");
+        assert_eq!(super::worker_entry(worker), *entry.expect("engine's worker wire"));
     }
 
     #[test]
