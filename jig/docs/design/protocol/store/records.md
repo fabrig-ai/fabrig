@@ -266,7 +266,7 @@ record PartRecord { key: PartKey turn: u32 thread: u32 call: u32 kind: PartKind 
 
 Its body is held as a turn's, so the store converts it with its
 holder's layout as it reads it (`layouts.md`, 1 and 4), and a restart
-restores the parts with the calls, within the start's room.
+restores the parts with the calls, each within its own room.
 
 A settings revision's items, each with its edit and replaced state, cross as
 one aggregate byte field of length-prefixed `RevisionItem` pieces, not a

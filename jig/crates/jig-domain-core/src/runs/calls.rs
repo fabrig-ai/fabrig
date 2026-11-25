@@ -63,13 +63,13 @@ impl Core {
     }
 
     /// Whether a named call can proceed or replay its retained answer.
-    /// Pending calls wait; new calls share the configured record bound.
+    /// Pending calls wait; new calls share the configured record bound with
+    /// each other alone, never with kept parts (domain/engine/executors-transcripts.md, 1).
     #[must_use]
     pub fn call_room(&self, key: CallKey) -> bool {
         !self.pending_calls.contains_key(&key)
             && (self.call_parts.contains_key(&key)
-                || self.call_parts.len().saturating_add(self.kept_parts.len()).saturating_add(self.pending_calls.len())
-                    < self.call_parts.capacity())
+                || self.call_parts.len().saturating_add(self.pending_calls.len()) < self.call_parts.capacity())
     }
 
     /// Retain one newly accepted named call decision. The application saves
@@ -90,7 +90,7 @@ impl Core {
             if !self.start_room(
                 start::LiveSet::Calls,
                 Key::Core(CoreKey::Call(key)),
-                self.call_parts.len().saturating_add(self.kept_parts.len()),
+                self.call_parts.len(),
                 self.call_parts.capacity(),
             ) {
                 return false;
