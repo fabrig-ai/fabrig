@@ -444,6 +444,13 @@ why = "The core step binary drives referee and store controls, direct Core steps
 [gate.fuzzy]
 references = { step = 10, domain = 10, system = 10, machine = 10, protocol = 10, io = 10, simulated = 10, real-loop = 10, end-to-end = 10 }
 
+[[gate.fuzzy.check_reasons]]
+binary = "smith-codecs-world::suite"
+checks = { seed = 1 }
+kind = "removed"
+why = "The Smith worker wire patch histories are gone, so the codec suite no longer draws a seed to exercise the retired transcript patch path."
+by = "Change 16307"
+
 [[gate.fuzzy.moves]]
 from = "temper.real-loop"
 to = "temper.domain"

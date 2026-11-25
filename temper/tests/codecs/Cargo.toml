@@ -41,6 +41,7 @@ jig-client-protocol-wire.workspace = true
 temper-client-protocol-wire.workspace = true
 temper-protocol-store.workspace = true
 skein-codegen.workspace = true
+smith-channel.workspace = true
 temper-protocol-worker-wire.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

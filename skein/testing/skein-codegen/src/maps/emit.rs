@@ -2,7 +2,7 @@
 
 use alloc::collections::{BTreeMap, BTreeSet};
 
-use super::{Item, Mapping, Maps, Mode, Shape, check, error, name};
+use super::{Direction, Item, Mapping, Maps, Mode, Shape, check, error, name};
 use crate::{Declaration, Enumeration, Error, Field, Record, Schema, Type, Variant, pascal, snake};
 
 #[derive(Clone, Copy, Default)]
@@ -25,11 +25,11 @@ impl Reach {
 struct Emitter<'a> {
     schema: &'a Schema,
     maps: &'a Maps,
-    domain: bool,
+    direction: Direction,
     reach: Reach,
     // A schema only names earlier declarations. Keep each direction's reach
     // once it has been emitted, so nested calls inherit just those effects.
-    generated: BTreeMap<(&'a str, bool), Reach>,
+    generated: BTreeMap<(&'a str, Direction), Reach>,
     converters_called: BTreeSet<String>,
     hand_called: BTreeSet<String>,
 }
@@ -53,12 +53,12 @@ impl<'a> Emitter<'a> {
         format!("{}::paths::{constant}", self.maps.path(&self.maps.records))
     }
 
-    fn direction(&self) -> &'static str {
-        if self.domain { "domain" } else { "record" }
+    fn to_domain(&self) -> bool {
+        self.direction == Direction::ToDomain
     }
 
     fn convert(&mut self, input: &str, via: &str, path: &str) -> String {
-        let function = format!("{}_to_{}", self.maps.path(via), self.direction());
+        let function = format!("{}_to_{}", self.maps.path(via), self.direction.target());
         let refuses = self.maps.refuses.contains_key(&function);
         let call = format!("{function}({input})");
         self.converters_called.insert(function);
@@ -83,16 +83,16 @@ impl<'a> Emitter<'a> {
             Type::List(_, inner) => self.list(inner, input, via, shape, path),
             Type::Named(name) => {
                 let value = self.named(name, input);
-                if self.domain && shape == Shape::Boxed { format!("Box::new({value})") } else { value }
+                if self.to_domain() && shape == Shape::Boxed { format!("Box::new({value})") } else { value }
             }
             Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_) => match via {
                 Some(via) => self.convert(input, via, path),
-                None if self.domain => input.to_owned(),
+                None if self.to_domain() => input.to_owned(),
                 None => format!("*{input}"),
             },
             Type::Bytes(_) | Type::Secret(_) | Type::Text(_) => match via {
                 Some(via) => self.convert(input, via, path),
-                None if self.domain => input.to_owned(),
+                None if self.to_domain() => input.to_owned(),
                 None => format!("{input}.clone()"),
             },
         }
@@ -101,9 +101,9 @@ impl<'a> Emitter<'a> {
     fn list(&mut self, inner: &Type, input: &str, via: Option<&str>, shape: Shape, path: &str) -> String {
         // A plain-value list already is the domain list, unless the maps mark a slice.
         if via.is_none() && plain(inner) && shape == Shape::Same {
-            return if self.domain { input.to_owned() } else { format!("{input}.clone()") };
+            return if self.to_domain() { input.to_owned() } else { format!("{input}.clone()") };
         }
-        let count = if self.domain || shape == Shape::Same {
+        let count = if self.to_domain() || shape == Shape::Same {
             "source.len()".to_owned()
         } else {
             self.reach.refuses = true;
@@ -111,7 +111,7 @@ impl<'a> Emitter<'a> {
                 "match u32::try_from(source.len()) {{ Ok(count) => count, Err(_error) => return Err({path}.problem(skein_codec::Reason::Bound)) }}"
             )
         };
-        let iteration = if self.domain {
+        let iteration = if self.to_domain() {
             "source.into_boxed()"
         } else if shape == Shape::Slice {
             "source.as_ref()"
@@ -119,30 +119,47 @@ impl<'a> Emitter<'a> {
             "source"
         };
         let converted = self.value(inner, "item", via, Shape::Same, path);
-        let result = if self.domain && shape == Shape::Slice { "Box::from(translated)" } else { "translated" };
+        let result = if self.to_domain() && shape == Shape::Slice { "Box::from(translated)" } else { "translated" };
         format!(
             "{{\nlet source = {input};\nlet count = {count};\nlet mut translated = skein_lib::List::with_capacity(count);\nfor item in {iteration} {{\nlet converted = {converted};\nassert!(translated.push(converted).is_ok(), \"one output per source item\");\n}}\n{result}\n}}"
         )
     }
 
+    fn held(&mut self, ty: &Type, input: &str, via: Option<&str>, shape: Shape, path: &str) -> String {
+        if shape == Shape::Slice
+            && via.is_none()
+            && let Type::List(_, inner) = ty
+            && plain(inner)
+        {
+            if self.to_domain() {
+                return format!("{input}.into_boxed()");
+            }
+            self.reach.refuses = true;
+            return format!(
+                "{{\nlet source: &[_] = {input};\nif u32::try_from(source.len()).is_err() {{\nreturn Err({path}.problem(skein_codec::Reason::Bound));\n}}\nskein_lib::List::from_boxed(Box::from(source))\n}}"
+            );
+        }
+        self.value(ty, input, via, shape, path)
+    }
+
     fn named(&mut self, name: &str, input: &str) -> String {
-        let mapping = self.maps.mapping(name).expect("validated dependency");
+        let mapping = self.maps.in_direction(name, self.direction).expect("validated directional dependency");
         match &mapping.mode {
-            Mode::Stands { field, via } => {
+            Mode::Stands { field, via, shape } => {
                 let record = check::record(self.schema, name);
                 let ty = &record.fields.first().expect("one-field stands for").ty;
                 let path = self.path(name, field);
                 let record_type = self.record_type(name);
-                if self.domain {
-                    let value = self.value(ty, "held", via.as_deref(), Shape::Same, &path);
+                if self.to_domain() {
+                    let value = self.held(ty, "held", via.as_deref(), *shape, &path);
                     format!("{{\nlet {record_type} {{ {field}: held }} = {input};\n{value}\n}}")
                 } else {
-                    let value = self.value(ty, input, via.as_deref(), Shape::Same, &path);
+                    let value = self.held(ty, input, via.as_deref(), *shape, &path);
                     format!("{record_type} {{ {field}: {value} }}")
                 }
             }
             Mode::Mirror(_) | Mode::Hand => {
-                let stem = format!("{}_to_{}", snake(name), self.direction());
+                let stem = format!("{}_to_{}", snake(name), self.direction.target());
                 let (function, reach) = if matches!(mapping.mode, Mode::Hand) {
                     let module = self.maps.hand.as_deref().expect("validated by-hand module");
                     let function = format!("{}::{stem}", self.maps.path(module));
@@ -153,7 +170,7 @@ impl<'a> Emitter<'a> {
                     self.hand_called.insert(function.clone());
                     (function, reach)
                 } else {
-                    (stem, *self.generated.get(&(name, self.domain)).expect("earlier generated pair"))
+                    (stem, *self.generated.get(&(name, self.direction)).expect("earlier generated pair"))
                 };
                 self.reach.include(reach);
                 let context = if reach.context { ", context" } else { "" };
@@ -179,8 +196,8 @@ impl<'a> Emitter<'a> {
                 Binding {
                     field,
                     source: format!("field_{index:06}"),
-                    source_name: if self.domain { &field.name } else { rename },
-                    target: if self.domain { rename } else { &field.name },
+                    source_name: if self.to_domain() { &field.name } else { rename },
+                    target: if self.to_domain() { rename } else { &field.name },
                     via: over
                         .and_then(|item| item.via.as_deref())
                         .or_else(|| default.and_then(|item| item.via.as_deref())),
@@ -224,26 +241,26 @@ impl<'a> Emitter<'a> {
         let domain_variant = settings.and_then(|item| item.rename.as_deref()).unwrap_or(&record_variant);
         let record = format!("{}::{record_variant}", self.record_type(&mapping.name));
         let domain = format!("{domain}::{domain_variant}");
-        let (from, to) = if self.domain { (&record, &domain) } else { (&domain, &record) };
+        let (from, to) = if self.to_domain() { (&record, &domain) } else { (&domain, &record) };
         let Some(payload) = &variant.record else {
             return format!("{from} => {to},\n");
         };
         let record_type = self.record_type(payload);
         let tuple = settings.is_some_and(|item| item.tuple);
         if tuple {
-            let input = if self.domain && variant.boxed { "*held" } else { "held" };
+            let input = if self.to_domain() && variant.boxed { "*held" } else { "held" };
             let value = self.named(payload, input);
             let box_output =
-                if self.domain { settings.is_some_and(|item| item.shape == Shape::Boxed) } else { variant.boxed };
+                if self.to_domain() { settings.is_some_and(|item| item.shape == Shape::Boxed) } else { variant.boxed };
             let value = if box_output { format!("Box::new({value})") } else { value };
             return format!("{from}(held) => {to}({value}),\n");
         }
         let payload_record = check::record(self.schema, payload);
-        let payload_map = self.maps.mapping(payload).expect("validated payload");
+        let payload_map = self.maps.inline_payload(payload, self.direction).expect("validated payload");
         let overrides = settings.and_then(|item| item.block.as_deref()).unwrap_or_default();
         let bindings = self.bindings(payload_record, payload_map, overrides);
         let pattern = Self::pattern(&bindings);
-        if self.domain {
+        if self.to_domain() {
             let input = if variant.boxed { "*held" } else { "held" };
             let value = self.fields(payload_record, &bindings, to);
             format!("{from}(held) => {{\nlet {record_type} {{ {pattern} }} = {input};\n{value}\n}},\n")
@@ -264,13 +281,13 @@ impl<'a> Emitter<'a> {
         self.reach = Reach::default();
         let decl_name = name(declaration);
         let record = self.record_type(decl_name);
-        let direction = self.direction();
-        let parameter = if self.domain { format!("record: {record}") } else { format!("value: &{domain}") };
-        let result = if self.domain { domain } else { &record };
-        let input = if self.domain { "record" } else { "value" };
+        let direction = self.direction.target();
+        let parameter = if self.to_domain() { format!("record: {record}") } else { format!("value: &{domain}") };
+        let result = if self.to_domain() { domain } else { &record };
+        let input = if self.to_domain() { "record" } else { "value" };
         let body = match declaration {
             Declaration::Record(record_decl) => {
-                let (from, to) = if self.domain { (record.as_str(), domain) } else { (domain, record.as_str()) };
+                let (from, to) = if self.to_domain() { (record.as_str(), domain) } else { (domain, record.as_str()) };
                 let bindings = self.bindings(record_decl, mapping, &[]);
                 let pattern = Self::pattern(&bindings);
                 let value = self.fields(record_decl, &bindings, to);
@@ -282,7 +299,7 @@ impl<'a> Emitter<'a> {
                 self.reach.result(value)
             }
         };
-        self.generated.insert((decl_name, self.domain), self.reach);
+        self.generated.insert((decl_name, self.direction), self.reach);
         let context = if self.reach.context {
             let (_, ty) = self.maps.context.as_ref().expect("validated context type");
             format!(", context: &{}", self.maps.path(ty))
@@ -332,7 +349,7 @@ pub(super) fn generate(schema: &Schema, maps: &Maps) -> Result<String, Error> {
     let mut emitter = Emitter {
         schema,
         maps,
-        domain: false,
+        direction: Direction::ToRecord,
         reach: Reach::default(),
         generated: BTreeMap::new(),
         converters_called: BTreeSet::new(),
@@ -340,14 +357,14 @@ pub(super) fn generate(schema: &Schema, maps: &Maps) -> Result<String, Error> {
     };
     let mut body = String::new();
     for declaration in &schema.declarations {
-        if let Some(mapping) = maps.mapping(name(declaration))
-            && let Mode::Mirror(path) = &mapping.mode
-        {
-            let domain = maps.path(path);
-            emitter.domain = false;
-            body.push_str(&emitter.function(declaration, mapping, &domain));
-            emitter.domain = true;
-            body.push_str(&emitter.function(declaration, mapping, &domain));
+        for direction in Direction::ALL {
+            if let Some(mapping) = maps.in_direction(name(declaration), direction)
+                && let Mode::Mirror(path) = &mapping.mode
+            {
+                let domain = maps.path(path);
+                emitter.direction = direction;
+                body.push_str(&emitter.function(declaration, mapping, &domain));
+            }
         }
     }
     for (path, line) in &maps.refuses {

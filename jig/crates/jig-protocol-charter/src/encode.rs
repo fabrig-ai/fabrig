@@ -2,7 +2,9 @@
 //! (domain/hosts/charters.md; smith's `protocol/charter.md`, section 5).
 //! The configured endpoint table supplies names; the charter keeps numbers.
 
+use crate::generated::charter as mapped;
 use alloc::boxed::Box;
+use skein_codec::Reason;
 use skein_lib::List;
 use smith_charter::Record;
 use smith_charter::v5 as wire;
@@ -31,13 +33,6 @@ fn endpoint(value: &run::charter::Llm, names: &[EndpointName]) -> Option<Box<[u8
 
 fn llm(value: run::charter::Llm, names: &[EndpointName]) -> Option<wire::Llm> {
     let name = endpoint(&value, names)?;
-    let prices = wire::Prices {
-        input: value.prices.input,
-        cached: value.prices.cached,
-        cache_write: value.prices.cache_write,
-        output: value.prices.output,
-        unit: value.prices.unit,
-    };
     Some(wire::Llm {
         endpoint: name,
         account: value.account,
@@ -45,60 +40,29 @@ fn llm(value: run::charter::Llm, names: &[EndpointName]) -> Option<wire::Llm> {
         effort: value.effort,
         window: value.window,
         output: value.output,
-        prices,
+        prices: mapped::prices_to_record(&value.prices),
     })
 }
 
-fn fields(source: Box<[run::outcome::FieldRule]>) -> Option<List<wire::FieldRule>> {
-    let mut out = List::with_capacity(count(source.len())?);
-    for field in source {
-        out.push(wire::FieldRule { name: field.name, max: field.max }).ok()?;
+pub(super) fn verdict_rule_to_record(source: &run::outcome::VerdictRule) -> Result<wire::VerdictRule, wire::Problem> {
+    let kind_count =
+        u32::try_from(source.items.kinds.len()).or(Err(wire::paths::VERDICT_RULE_KINDS.problem(Reason::Bound)))?;
+    let mut kinds = List::with_capacity(kind_count);
+    for kind in &source.items.kinds {
+        assert!(kinds.push(mapped::item_kind_to_record(kind)?).is_ok(), "one output per item kind");
     }
-    Some(out)
-}
-
-fn text(source: run::outcome::TextSpec) -> Option<wire::TextRule> {
-    Some(wire::TextRule { max: source.max, fields: fields(source.fields)? })
-}
-
-fn change(source: run::outcome::ChangeSpec) -> Option<wire::ChangeRule> {
-    Some(wire::ChangeRule { checks_must_pass: source.checks_must_pass, fields: fields(source.fields)? })
-}
-
-fn verdict(source: run::outcome::VerdictRule) -> Option<wire::VerdictRule> {
-    let mut kinds = List::with_capacity(count(source.items.kinds.len())?);
-    for kind in source.items.kinds {
-        kinds.push(wire::ItemKind { kind: kind.kind, fields: fields(kind.fields)? }).ok()?;
+    let count = u32::try_from(source.fields.len()).or(Err(wire::paths::VERDICT_RULE_FIELDS.problem(Reason::Bound)))?;
+    let mut fields = List::with_capacity(count);
+    for field in &source.fields {
+        assert!(fields.push(mapped::field_rule_to_record(field)).is_ok(), "one output per field rule");
     }
-    Some(wire::VerdictRule {
-        label: source.name,
+    Ok(wire::VerdictRule {
+        label: source.name.clone(),
         text_max: source.text_max,
-        fields: fields(source.fields)?,
+        fields,
         least: source.items.min,
         most: source.items.max,
         kinds,
-    })
-}
-
-fn contract(source: run::outcome::OutcomeSpec) -> Option<wire::Contract> {
-    let mut verdicts = List::with_capacity(count(source.verdicts.len())?);
-    for item in source.verdicts {
-        verdicts.push(verdict(item)?).ok()?;
-    }
-    Some(wire::Contract {
-        report: match source.report {
-            Some(rule) => Some(text(rule)?),
-            None => None,
-        },
-        verdicts,
-        change: match source.change {
-            Some(rule) => Some(change(rule)?),
-            None => None,
-        },
-        failure: match source.failure {
-            Some(rule) => Some(text(rule)?),
-            None => None,
-        },
     })
 }
 
@@ -111,26 +75,14 @@ fn tools(source: run::charter::Grants) -> Option<wire::Tools> {
     };
     let mut host = List::with_capacity(count(source.host_tools.len())?);
     for tool in source.host_tools {
-        let effect = match tool.effect {
-            run::HostEffect::Read => wire::Effect::Read,
-            run::HostEffect::Write => wire::Effect::Write,
-        };
-        host.push(wire::HostTool {
-            reserve: tool.reserve,
-            name: tool.name,
-            description: tool.description,
-            input: tool.schema,
-            effect,
-            deadline: tool.timeout,
-        })
-        .ok()?;
+        host.push(mapped::host_tool_to_record(&tool)).ok()?;
     }
     Some(wire::Tools {
         families,
         wait: source.wait,
         save: source.save,
         deliver: match source.deliver {
-            Some(rule) => Some(change(rule)?),
+            Some(rule) => Some(mapped::change_rule_to_record(&rule).ok()?),
             None => None,
         },
         host,
@@ -141,32 +93,33 @@ fn tools(source: run::charter::Grants) -> Option<wire::Tools> {
 /// Encode the complete charter for worker transport or an inline start.
 /// The endpoint identities must match their configured Smith wire names.
 #[must_use]
+#[expect(
+    clippy::manual_map,
+    reason = "an Option is mapped without a closure in step code (programming-model.md, 10.3)"
+)]
 pub fn encode(source: run::Charter, names: &[EndpointName], limits: &wire::Limits) -> Option<Box<[u8]>> {
     let mut brief = List::with_capacity(count(source.brief.sections.len())?);
     for section in source.brief.sections {
-        brief.push(wire::Section { title: section.title, body: section.text }).ok()?;
+        brief.push(mapped::section_to_record(&section)).ok()?;
     }
     let mut models = List::with_capacity(count(source.models.len())?);
     for candidate in source.models {
         models.push(llm(candidate, names)?).ok()?;
     }
     let conventions = match source.conventions {
-        Some(paths) => Some(wire::Conventions { guide: paths.guide, checks: paths.checks }),
+        Some(paths) => Some(mapped::conventions_to_record(&paths)),
         None => None,
     };
-    let reserve = wire::Reserve { turns: source.reserve.turns, time: source.reserve.time };
+    let reserve = mapped::reserve_to_record(&source.reserve);
     let budget =
         wire::Budget { turns: source.budget.turns, spend: source.budget.spend, time: source.budget.time, reserve };
     let charter = wire::Charter {
         check_timeout: None,
-        mode: match source.mode {
-            run::Mode::Finite => wire::Mode::Finite,
-            run::Mode::Open => wire::Mode::Open,
-        },
+        mode: mapped::mode_to_record(&source.mode),
         instructions: source.instructions,
         brief,
         tools: tools(source.grants)?,
-        contract: contract(source.outcome)?,
+        contract: mapped::contract_to_record(&source.outcome).ok()?,
         conventions,
         budget,
         main: llm(source.llm, names)?,

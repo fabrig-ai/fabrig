@@ -1,0 +1,83 @@
+records temper_client_protocol_wire::v1
+use f = crate::forge
+use g = crate::forge::forges
+use s = skein_codec::convert
+by hand crate::forge::dismissed
+direction to domain
+
+enum Role = f::Role both ways
+record Adopt = f::Adoption to record { checks slice }
+record CopyAddresses
+record SetUp by hand
+enum TrialStep = f::trials::Step
+enum TrialClass = f::trials::Class
+record TrialEnded
+enum TrialWhy = f::trials::Why
+record TrialAnswered
+record TrialFailed
+enum TrialState = f::trials::State
+record TrialRow by hand
+enum Kind = g::Kind { github = GitHub }
+enum ApprovalYours = f::approvals::Yours
+record ApprovalSet = f::approvals::ApprovalSet
+record ApprovalPerson = f::approvals::ApprovalPerson
+record ApprovalSize = f::approvals::Size
+record ApprovalRow = f::approvals::Row { since via s::wall, sets slice, signed slice, can_sign slice }
+# The shared reaches crate owns this map.
+enum ClassSubject by hand
+record ToBegin
+record GoalFrom
+record KeepAsking { at via s::wall }
+enum PersonFact = f::dismissed::PersonFact both ways
+record AwayRow = f::away::AwayRow { since via s::wall, until via s::wall, off via s::wall }
+record DeviceRow = f::devices::Row { at via s::wall }
+enum SetUpRefusal = g::SetUpRefusal
+record GroupFailed stands for why
+enum StartFailure = f::playground::StartFailure { group tuple }
+enum Mode = g::Mode
+enum SetUpStep = g::Step
+enum SetUpBinary = g::Binary
+record SetUpFetched by hand
+enum FailedStep = g::FailedStep
+enum Connection by hand
+enum Offer = g::Offer
+enum CreateStep = g::CreateStep
+record Made
+record CreateFailed
+enum FirstState = g::FirstState
+record FirstRepository = g::First
+record Account = g::Account
+record Installation = g::Installation
+enum SetupStage = g::SetupStage
+record AdminRefused
+enum AdminStop = g::AdminStop
+enum AppWay = g::AppWay
+record Adoption = g::Adoption
+record OwnedForge = g::Owned
+# Its nested records are already the domain vocabulary.
+record RepositoryMaking by hand
+enum StartsWith = g::StartsWith { copies { addresses slice } }
+record ForgeRow by hand
+record Forges by hand
+record ProposalItem by hand
+record ProposalItemsAnswer by hand
+record MilestoneGoal by hand
+record MilestonePart by hand
+enum Read by hand
+enum PlaygroundState = f::PlaygroundState
+record PlaygroundAnswer = f::Playground { cues slice }
+record DeploymentAnswer = f::deployment::Answer
+record ChangeSubject by hand
+record Kinds = f::Kinds
+record Rule = f::Rule { contexts slice }
+enum Protection = f::Protection { rule tuple }
+record Adopted = f::Adopted
+record CoreRefused by hand
+enum ForgeReason = f::Reason
+record Reached = f::family::Reached
+record Page = f::family::Page { rows slice }
+enum Outcome by hand
+enum QuestionsRoute = f::ways::Route both ways
+# The entry frames the route as a one-field record.
+record ProjectQuestions by hand
+record ProjectWays = f::ways::Ways both ways

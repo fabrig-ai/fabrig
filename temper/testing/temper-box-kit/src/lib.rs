@@ -262,7 +262,7 @@ pub fn serve(directory: &Path) -> Binary {
 fn serve_command(directory: &Path) -> Command {
     temper_agent_fixtures::providers::restore(directory);
     Command {
-        program: skein_scratch::paths::binary("temper-box"),
+        program: skein_scratch::paths::built("temper-box", "temper-box"),
         arguments: std::iter::once("serve".into()).chain(configuration::flags(directory)).collect(),
         directory: directory.into(),
         environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
@@ -272,7 +272,7 @@ fn serve_command(directory: &Path) -> Command {
 #[must_use]
 pub fn serve_engine(directory: &Path) -> Binary {
     temper_agent_fixtures::providers::restore(&directory.join("data"));
-    let engine = skein_scratch::paths::binary("temper-box").with_file_name("temper-engine");
+    let engine = skein_scratch::paths::built("temper-box", "temper-box").with_file_name("temper-engine");
     assert!(engine.is_file(), "build the deployment's binary: cargo build -p temper-engine --bin temper-engine");
     Binary::start(
         Command {

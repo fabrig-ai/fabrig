@@ -2649,6 +2649,72 @@ fn a_version_refusal_pauses_without_closing_the_window_or_counting_a_try() {
     );
 }
 
+#[test]
+fn an_untranslated_run_claims_again_without_a_try_on_another_channel() {
+    let (mut core, limits) = ready(false);
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    let run = Token::new(OPEN_TASK);
+    let attempt = Token::new(OPEN_ATTEMPT);
+    let version = core.charter_version(OPEN_TASK).unwrap();
+    let payload = Token::new(99);
+    let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let start = |attempt, placement| fleet::Event::Start {
+        placement,
+        version,
+        grants: Box::new([]),
+        reply_to: ReplyTo::new(FIRST),
+        run,
+        attempt,
+        workstream: OPEN_TASK,
+        kinds: fleet::Kinds::Workers,
+        assignment: fleet::Assignment { turns: FIRST, answered: SECOND },
+    };
+    let mut out = Queue::uncapped();
+    fleet::step(
+        &mut core.fleet,
+        &env.with(limits.fleet),
+        start(attempt, Some(fleet::PlacementConstraint { channel: FIRST, kind: fleet::HostKind::Worker })),
+        &mut out,
+    );
+    fleet::resume(&mut core.fleet, &env.with(limits.fleet), true, &mut out);
+    let Some(fleet::Request::Assign { channel, .. }) = out.pop() else { panic!("first placement") };
+    assert_eq!(channel, FIRST);
+    drop(out.pop()); // Placed
+    fleet::step(
+        &mut core.fleet,
+        &env.with(limits.fleet),
+        fleet::Event::Answer { channel: FIRST, run, attempt, answer: fleet::Answer::Untranslated, payload },
+        &mut out,
+    );
+    let Some(fleet::Request::Answered { answer, .. }) = out.pop() else { panic!("fleet's answer") };
+    assert_eq!(answer, fleet::Answer::Untranslated);
+    // The hub link delivers this payload for the fleet's Answered request.
+    let reason: Box<[u8]> =
+        b"the worker's layout cannot keep smith-charter Charter.check_timeout: field".as_slice().into();
+    let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+    let Event::AnswerPayload { end, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::RefusedWithReason { reason: reason.clone() };
+    drop(step(&mut core, &env, answer));
+    let task = core.tasks.task(OPEN_TASK).unwrap();
+    assert_eq!(task.tries, tasks::Tries::NONE);
+    assert_eq!(task.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason) }));
+    let tasks::Phase::Active(tasks::Active::BackingOff { until }) = task.phase else { panic!("pause before claiming") };
+    env.now = core.tasks.next_deadline().unwrap();
+    env.wall = until;
+    drop(fire(&mut core, &env, Timer::Tasks));
+    let retry = core.run_choice(OPEN_TASK).expect("another host may take the task");
+    assert_eq!(retry.placement.channel, SECOND);
+    assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST, "other tasks can still use the first channel");
+    let next = OPEN_ATTEMPT + 1;
+    claim_existing_open(&mut core, &limits, next);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().attempt, next);
+    assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries, tasks::Tries::NONE);
+    fleet::step(&mut core.fleet, &env.with(limits.fleet), start(Token::new(next), None), &mut out);
+    fleet::resume(&mut core.fleet, &env.with(limits.fleet), true, &mut out);
+    let Some(fleet::Request::Assign { channel, .. }) = out.pop() else { panic!("retry placement") };
+    assert_eq!(channel, SECOND, "the fleet places the retry elsewhere");
+}
+
 fn untooled_fixture() -> (Core, Limits) {
     let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
     inventory(&mut core, &limits, SECOND, Box::new([login(b"personal", LoginState::Usable)]));

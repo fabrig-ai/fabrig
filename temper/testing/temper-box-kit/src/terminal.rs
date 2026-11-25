@@ -36,7 +36,7 @@ pub(super) fn open_arguments(private: &Path, link: &[u8]) -> Vec<Box<[u8]>> {
 pub fn open(directory: &Path, private: &Path, link: &[u8]) -> Binary {
     Binary::start(
         Command {
-            program: skein_scratch::paths::binary("temper-box"),
+            program: skein_scratch::paths::built("temper-box", "temper-box"),
             arguments: open_arguments(private, link)
                 .iter()
                 .map(|word| std::ffi::OsStr::from_bytes(word).into())

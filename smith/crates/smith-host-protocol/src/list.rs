@@ -3,12 +3,13 @@
 //! right; holds the credential until it is written. `new`, `from_io` and `fire` drive
 //! the command, and `answer` translates its settled record into the host's vocabulary.
 
+use crate::generated::channel;
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_lib::{List, Queue, Reader, Secret, Time, Token};
 use smith_channel::Record;
 use smith_channel::{self as wire, CEILINGS, CredentialValue as Credential};
-use smith_host_domain::{ListFailure, ListOutcome, ListedModel};
+use smith_host_domain::{ListFailure, ListOutcome};
 use smith_protocol_program::{self as program, Command, Ended};
 
 /// The agent binding supplied by the host; the half prefixes its arguments with `--list`.
@@ -125,27 +126,5 @@ fn translate(ended: Ended<'_>) -> ListOutcome {
     let Ok(answer) = wire::ListAnswer::decode(&CEILINGS, &mut Reader::new(stdout)) else {
         return ListOutcome::Failed(ListFailure::Agent);
     };
-    match answer {
-        wire::ListAnswer::Listed(rows) => {
-            let mut models = List::with_capacity(rows.rows.len());
-            for row in rows.rows.into_boxed() {
-                models
-                    .push(ListedModel {
-                        name: row.name,
-                        shown: row.shown,
-                        window: row.window,
-                        output: row.output,
-                        efforts: row.efforts.into_boxed(),
-                    })
-                    .expect("decoded model count");
-            }
-            ListOutcome::Listed(models.into_boxed())
-        }
-        wire::ListAnswer::Failed(failure) => ListOutcome::Failed(match failure.failure {
-            wire::ListFailed::Refused(refused) => ListFailure::Refused { status: refused.status },
-            wire::ListFailed::Unreachable => ListFailure::Unreachable,
-            wire::ListFailed::Unreadable => ListFailure::Unreadable,
-            wire::ListFailed::Deadline => ListFailure::Deadline,
-        }),
-    }
+    channel::list_answer_to_domain(answer)
 }

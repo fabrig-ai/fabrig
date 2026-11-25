@@ -79,22 +79,14 @@ fn a_prepared_link_refuses_an_invalid_table() {
 }
 
 #[test]
-fn a_prepared_link_requires_the_stated_worker_wire_range() {
-    use jig_protocol_worker_wire as wire;
-    use skein_lib::List;
-    for lowest in [None, Some(wire::wire::FLOOR.saturating_sub(1)), Some(wire::VERSION.saturating_add(1))] {
-        let mut wires = List::uncapped();
-        for spoken in &wire::spoken() {
-            if spoken.name != wire::wire::FAMILY {
-                wires.push(spoken.clone()).expect("uncapped wires");
-            } else if let Some(lowest) = lowest {
-                wires.push(wire::Spoken::current(spoken.name, lowest, [0; 32])).expect("uncapped wires");
-            }
-        }
-        let table = wire::schema(&fixtures::codec()).expect("table");
+fn a_link_rejects_a_root_of_an_unspoken_wire_or_missing_declaration() {
+    use jig_protocol_worker_wire::{self as wire, Carried, Root};
+    for (name, declaration) in [("unspoken", "Test"), ("test-worker-wire", "Missing")] {
+        let mut credential = fixtures::credential();
+        credential.application.roots.push(Root { carried: Carried::Items, wire: name, declaration }).expect("one root");
         assert_eq!(
-            crate::Component::with_schema(&fixtures::LIMITS, wires, fixtures::credential(), 1, table).err(),
-            Some(crate::Unusable::Limits),
+            crate::Component::new(&fixtures::LIMITS, wire::spoken(), credential, 1).err(),
+            Some(crate::Unusable::Application),
         );
     }
 }

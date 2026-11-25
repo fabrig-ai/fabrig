@@ -1,34 +1,7 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
-use super::{Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, long_text, text, too_large, w};
+use super::{Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, long_text, text, too_large, w};
+use crate::generated::client;
 use jig_client_protocol_wire::Record as _;
-
-pub(crate) fn message_proposal_kind_fields(value: &w::MessageProposalKind) -> c::MessageProposalKind {
-    match value {
-        w::MessageProposalKind::Settings => c::MessageProposalKind::Settings,
-        w::MessageProposalKind::Batch => c::MessageProposalKind::Batch,
-        w::MessageProposalKind::Effect => c::MessageProposalKind::Effect,
-        w::MessageProposalKind::Amend => c::MessageProposalKind::Amend,
-        w::MessageProposalKind::Widen => c::MessageProposalKind::Widen,
-        w::MessageProposalKind::Release => c::MessageProposalKind::Release,
-    }
-}
-
-pub(crate) fn notice_state_fields(value: &w::NoticeState) -> c::NoticeState {
-    match value {
-        w::NoticeState::Held => c::NoticeState::Held,
-        w::NoticeState::Done => c::NoticeState::Done,
-        w::NoticeState::Failed => c::NoticeState::Failed,
-        w::NoticeState::Cancelled => c::NoticeState::Cancelled,
-    }
-}
-
-pub(crate) fn news_class_fields(value: &w::NewsClass) -> c::NewsClass {
-    match value {
-        w::NewsClass::Wakes => c::NewsClass::Wakes,
-        w::NewsClass::Kept => c::NewsClass::Kept,
-        w::NewsClass::Dropped => c::NewsClass::Dropped,
-    }
-}
 
 pub(crate) fn word_result_fields(value: &w::WordResult, limits: &Limits) -> Result<c::WordResult, w::Problem> {
     Ok(match value {
@@ -55,54 +28,16 @@ pub(crate) fn word_result_fields(value: &w::WordResult, limits: &Limits) -> Resu
     })
 }
 
+#[cfg(test)]
 pub(crate) fn message_kind_fields(value: &w::MessageKind, limits: &Limits) -> Result<c::MessageKind, w::Problem> {
-    Ok(match value {
-        w::MessageKind::SettingsDecision(row) => c::MessageKind::SettingsDecision {
-            proposal: row.proposal,
-            outcome: match &row.outcome {
-                w::SettingsOutcome::Accepted(value) => c::SettingsOutcome::Accepted { revision: value.revision },
-                w::SettingsOutcome::Rejected => c::SettingsOutcome::Rejected,
-                w::SettingsOutcome::Stale(value) => c::SettingsOutcome::Stale { newest: value.newest },
-            },
-        },
-        w::MessageKind::Escalation(row) => c::MessageKind::Escalation { task: row.task, revision: row.revision },
-        w::MessageKind::Proposal(row) => c::MessageKind::Proposal {
-            proposer: row.proposer,
-            proposal: row.proposal,
-            kind: message_proposal_kind_fields(&row.kind),
-        },
-        w::MessageKind::PersonStalled(row) => c::MessageKind::PersonStalled { task: row.task },
-        w::MessageKind::ProposalDecision(row) => {
-            c::MessageKind::ProposalDecision { proposal: row.proposal, accepted: row.accepted }
-        }
-        w::MessageKind::Met(row) => c::MessageKind::Met { dependency: row.dependency, removed: row.removed },
-        w::MessageKind::QuestionAnswered(row) => c::MessageKind::QuestionAnswered { question: row.question },
-        w::MessageKind::QuestionOwed => c::MessageKind::QuestionOwed,
-        w::MessageKind::NothingAwaited => c::MessageKind::NothingAwaited,
-        w::MessageKind::QuestionEnded(row) => c::MessageKind::QuestionEnded { question: row.question },
-        w::MessageKind::Words => c::MessageKind::Words,
-        w::MessageKind::EffectNotMade(row) => c::MessageKind::EffectNotMade { entry: row.entry },
-        w::MessageKind::Amendment(row) => c::MessageKind::Amendment { revision: row.revision },
-        w::MessageKind::Question => c::MessageKind::Question,
-        w::MessageKind::Answer(row) => c::MessageKind::Answer { question: row.question },
-        w::MessageKind::Notice(row) => c::MessageKind::Notice {
-            subscription: row.subscription,
-            target: row.target,
-            state: notice_state_fields(&row.state),
-        },
-        w::MessageKind::Timer(row) => c::MessageKind::Timer { subscription: row.subscription },
-        w::MessageKind::News(row) => {
-            c::MessageKind::News { subscription: row.subscription, class: news_class_fields(&row.class) }
-        }
-        w::MessageKind::Result(row) => c::MessageKind::Result(word_result_fields(&row.value, limits)?),
-    })
+    client::message_kind_to_domain(value.clone(), limits)
 }
 
-pub(crate) fn word_fields(value: &w::Word, limits: &Limits) -> Result<c::Word, w::Problem> {
+pub(crate) fn word_fields(value: w::Word, limits: &Limits) -> Result<c::Word, w::Problem> {
     Ok(c::Word {
         number: value.number,
         from: crate::translate::facts::requester(&value.from),
-        kind: message_kind_fields(&value.kind, limits)?,
+        kind: client::message_kind_to_domain(value.kind, limits)?,
         words: long_text(&value.words, limits)?,
         at: Wall::from_nanos(value.at),
         hits: value.hits,
@@ -110,86 +45,32 @@ pub(crate) fn word_fields(value: &w::Word, limits: &Limits) -> Result<c::Word, w
     })
 }
 
-pub(crate) fn run_why_fields(value: &w::RunWhy) -> c::RunWhy {
-    match value {
-        w::RunWhy::Made => c::RunWhy::Made,
-        w::RunWhy::Ready => c::RunWhy::Ready,
-        w::RunWhy::Message(row) => c::RunWhy::Message { message: row.message },
-        w::RunWhy::Released => c::RunWhy::Released,
-        w::RunWhy::Retry(row) => c::RunWhy::Retry { tries: crate::translate::facts::failure_tries(&row.tries) },
-        w::RunWhy::Narrowed => c::RunWhy::Narrowed,
-        w::RunWhy::Changed => c::RunWhy::Changed,
-    }
-}
-
-fn invalid_reason(value: &w::InvalidReason) -> c::InvalidReason {
-    match value {
-        w::InvalidReason::Form => c::InvalidReason::Form,
-        w::InvalidReason::Verdict => c::InvalidReason::Verdict,
-        w::InvalidReason::Words => c::InvalidReason::Words,
-        w::InvalidReason::Change => c::InvalidReason::Change,
-        w::InvalidReason::Followups => c::InvalidReason::Followups,
-        w::InvalidReason::UnreadableResult => c::InvalidReason::UnreadableResult,
-    }
-}
-
-pub(crate) fn run_end_fields(value: &w::RunEnd) -> c::RunEnd {
-    match value {
-        w::RunEnd::Parked => c::RunEnd::Parked,
-        w::RunEnd::Finished => c::RunEnd::Finished,
-        w::RunEnd::Cancelled => c::RunEnd::Cancelled,
-        w::RunEnd::Failed(row) => c::RunEnd::Failed {
-            class: crate::translate::answers::hold_failure(&row.class),
-            invalid_reason: match &row.invalid_reason {
-                Some(reason) => Some(invalid_reason(reason)),
-                None => None,
-            },
-        },
-        w::RunEnd::Refused => c::RunEnd::Refused,
-        w::RunEnd::Suspended(row) => c::RunEnd::Suspended {
-            worker: row.worker,
-            why: match row.why {
-                w::SuspendWhy::Stopped => c::SuspendWhy::Stopped,
-                w::SuspendWhy::Restarted => c::SuspendWhy::Restarted,
-            },
-        },
-    }
-}
-
-fn session_end(value: &w::SessionEnd) -> c::SessionEnd {
-    match value {
-        w::SessionEnd::Quiet => c::SessionEnd::Quiet,
-        w::SessionEnd::Bound => c::SessionEnd::Bound,
-        w::SessionEnd::Unoffered => c::SessionEnd::Unoffered,
-        w::SessionEnd::Fresh => c::SessionEnd::Fresh,
-        w::SessionEnd::Closed => c::SessionEnd::Closed,
-        w::SessionEnd::Talk => c::SessionEnd::Talk,
-        w::SessionEnd::Left => c::SessionEnd::Left,
-        w::SessionEnd::Rules => c::SessionEnd::Rules,
-    }
-}
-
+#[cfg(test)]
 pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c::Activity, w::Problem> {
+    activity_from_record(value.clone(), limits)
+}
+
+pub(crate) fn activity_from_record(value: w::Activity, limits: &Limits) -> Result<c::Activity, w::Problem> {
     Ok(match value {
         w::Activity::Words(row) => c::Activity::Words {
             message: row.message,
             by: crate::translate::facts::requester(&row.by),
-            kind: message_kind_fields(&row.kind, limits)?,
+            kind: client::message_kind_to_domain(row.kind, limits)?,
             words: long_text(&row.words, limits)?,
         },
-        w::Activity::Heard(row) => c::Activity::Heard(word_fields(&row.value, limits)?),
+        w::Activity::Heard(row) => c::Activity::Heard(word_fields(row.value, limits)?),
         w::Activity::Notified(row) => c::Activity::Notified {
             recipient: crate::translate::facts::requester(&row.recipient),
-            word: word_fields(&row.word, limits)?,
+            word: word_fields(row.word, limits)?,
         },
         w::Activity::RunBegan(row) => c::Activity::RunBegan {
             attempt: row.attempt,
-            why: run_why_fields(&row.why),
+            why: client::run_why_to_domain(row.why),
             resumed: row.resumed,
             fresh: read_fresh(row.fresh.as_ref()),
         },
         w::Activity::RunEnded(row) => {
-            c::Activity::RunEnded { attempt: row.attempt, end: run_end_fields(&row.end), spent: row.spent }
+            c::Activity::RunEnded { attempt: row.attempt, end: client::run_end_to_domain(row.end), spent: row.spent }
         }
         w::Activity::Turn(row) => {
             let opt0 = match &row.read {
@@ -212,21 +93,12 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
         w::Activity::TalkOpened(row) => c::Activity::TalkOpened { party: row.party },
         w::Activity::TalkEnded(row) => c::Activity::TalkEnded { party: row.party, lapsed: row.lapsed },
         w::Activity::SessionEnded(row) => {
-            c::Activity::SessionEnded { attempt: row.attempt, end: session_end(&row.end) }
+            c::Activity::SessionEnded { attempt: row.attempt, end: client::session_end_to_domain(row.end) }
         }
         w::Activity::Kept(row) => {
             c::Activity::Kept { attempt: row.attempt, pending: row.pending.clone(), question: row.question }
         }
         w::Activity::Milestone(row) => c::Activity::Milestone { position: row.position },
-    })
-}
-
-pub(crate) fn activity_line_fields(value: &w::ActivityLine, limits: &Limits) -> Result<c::ActivityLine, w::Problem> {
-    Ok(c::ActivityLine {
-        task: value.task,
-        position: value.position,
-        at: Wall::from_nanos(value.at),
-        line: activity_fields(&value.line, limits)?,
     })
 }
 
@@ -237,7 +109,7 @@ pub(crate) fn archived_turn_fields(value: &w::ArchivedTurn, limits: &Limits) -> 
     };
     c::ArchivedTurn {
         task: value.task,
-        name: turn_name_fields(&value.name),
+        name: client::turn_name_to_domain(value.name.clone()),
         cumulative: value.cumulative,
         read: opt0,
         at: Wall::from_nanos(value.at),
@@ -248,10 +120,6 @@ pub(crate) fn archived_turn_fields(value: &w::ArchivedTurn, limits: &Limits) -> 
             }
         },
     }
-}
-
-pub(crate) fn turn_name_fields(value: &w::TurnName) -> c::TurnName {
-    c::TurnName { attempt: value.attempt, number: value.number }
 }
 
 pub(crate) fn activity_page_fields(value: &w::ActivityPage, limits: &Limits) -> Result<c::ActivityPage, w::Problem> {
@@ -282,7 +150,7 @@ pub(crate) fn activity_line_piece(
     for _ in 0..=bound {
         let Some(item) = crate::translate::next_piece(&mut reader, &mut sum, limits)? else { return Ok(rows) };
         let row = w::DecodedActivityLine::decode(limits.receiving(), &mut Reader::new(&item))?;
-        let row = decoded_activity_line_fields(&row, limits)?;
+        let row = client::decoded_activity_line_to_domain(row, limits)?;
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -290,26 +158,6 @@ pub(crate) fn activity_line_piece(
     Err(too_large())
 }
 
-pub(crate) fn decoded_activity_line_fields(
-    value: &w::DecodedActivityLine,
-    limits: &Limits,
-) -> Result<c::DecodedActivityLine, w::Problem> {
-    let decoded = match &value.decoded {
-        Some(item) => Some(archived_turn_fields(item, limits)),
-        None => None,
-    };
-    Ok(c::DecodedActivityLine { source: Box::new(activity_line_fields(&value.source, limits)?), decoded })
-}
-
 fn read_fresh(value: Option<&w::RunFresh>) -> Option<c::RunFresh> {
-    match value {
-        None => None,
-        Some(value) => Some(match value {
-            w::RunFresh::Moved => c::RunFresh::Moved,
-            w::RunFresh::Closed => c::RunFresh::Closed,
-            w::RunFresh::Cut => c::RunFresh::Cut,
-            w::RunFresh::Limit => c::RunFresh::Limit,
-            w::RunFresh::Session => c::RunFresh::Session,
-        }),
-    }
+    Some(client::run_fresh_to_domain(value?.clone()))
 }

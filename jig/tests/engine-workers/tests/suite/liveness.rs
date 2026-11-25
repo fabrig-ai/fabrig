@@ -62,9 +62,9 @@ fn an_idle_channel_sends_a_ping_after_the_interval() {
     let mut world = world();
     let (connection, _) = reporting(&mut world);
     world.advance(Duration::from_millis(4_999));
-    assert_eq!((world.observed(connection)).len(), 1);
+    assert_eq!(world.observed_with_accept(connection).iter().map(|r| r.kind).collect::<Vec<_>>(), [2]);
     world.advance(Duration::from_millis(1));
-    assert_eq!(observed(&world, connection), [0x018d, 5]);
+    assert_eq!(observed(&world, connection), [5]);
     assert_eq!(world.root().len(), 1);
 }
 
@@ -118,9 +118,9 @@ fn a_drained_record_restarts_the_ping_interval() {
     busy(&mut world, channel);
     world.run();
     world.advance(Duration::from_millis(4_999));
-    assert_eq!(observed(&world, connection), [0x018d, 0x0184]);
+    assert_eq!(observed(&world, connection), [0x0184]);
     world.advance(Duration::from_millis(1));
-    assert_eq!(observed(&world, connection), [0x018d, 0x0184, 5]);
+    assert_eq!(observed(&world, connection), [0x0184, 5]);
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn a_start_past_the_room_is_answered_and_the_link_lives() {
             .iter()
             .filter_map(|r| {
                 if let Request::Unsent { worker, channel, unsent } = r {
-                    Some((*worker, *channel, *unsent))
+                    Some((*worker, *channel, unsent.clone()))
                 } else {
                     None
                 }

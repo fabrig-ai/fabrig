@@ -144,6 +144,16 @@ impl Domain {
         Some(writer.finish())
     }
 }
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "generated outbound translations call the owner with a borrow")]
+pub(crate) fn public_gate_kind_to_record(kind: &temper_engine_domain_forge_change::GateKind) -> w::PublicGateKind {
+    use temper_engine_domain_forge_change::GateKind;
+    match kind {
+        GateKind::Agent => w::PublicGateKind::Review,
+        GateKind::Person => w::PublicGateKind::Approval,
+        GateKind::Check | GateKind::Follow => w::PublicGateKind::Check,
+    }
+}
+
 fn phase(phase: &policy::Phase) -> w::PublicLandingPhase {
     match phase {
         policy::Phase::Waiting => w::PublicLandingPhase::Waiting,

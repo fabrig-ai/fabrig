@@ -262,7 +262,7 @@ fn life(root: &Path, restarted: bool) {
     let clock = Clock::new();
     let began = clock.now().now;
     let command = Command {
-        program: skein_scratch::paths::binary("temper-box"),
+        program: skein_scratch::paths::built("temper-box", "temper-box"),
         arguments: vec![
             "serve".into(),
             "--config".into(),

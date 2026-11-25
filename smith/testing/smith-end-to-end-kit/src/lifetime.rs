@@ -173,7 +173,7 @@ pub fn abort_agent(scratch: &Scratch) {
     let start = clock.now().now;
     let binary = Binary::start_with_tree(
         Command {
-            program: skein_scratch::paths::binary("smith"),
+            program: skein_scratch::paths::built("smith", "smith"),
             arguments: vec!["exec".into(), "Hang until the agent ends".into()],
             environment: vec![
                 ("HOME".into(), scratch.path().into()),

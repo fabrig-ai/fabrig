@@ -62,8 +62,6 @@ pub fn limits(sizes: &Sizes) -> Option<v22::Limits> {
     let limits = v22::Limits {
         ask_bytes: sizes.application_ask,
         ask_bytes_bytes: sizes.application_answer,
-        agreed_wire_name: v22::CEILINGS.agreed_wire_name,
-        agreed_wires: v22::CEILINGS.agreed_wires,
         model_failure_endpoint: v22::CEILINGS.model_failure_endpoint,
         model_failure_model: v22::CEILINGS.model_failure_model,
         model_failure_refusal_some: v22::CEILINGS.model_failure_refusal_some,
@@ -91,7 +89,7 @@ pub fn limits(sizes: &Sizes) -> Option<v22::Limits> {
         logins_logins: sizes.program_sources,
         signed_out_name: 32,
         wire_name: v22::CEILINGS.wire_name,
-        wire_layouts: v22::CEILINGS.wire_layouts,
+        wire_text: v22::CEILINGS.wire_text,
         credential_wires: v22::CEILINGS.credential_wires,
         credential_name: sizes.name,
         credential_secret: sizes.secret,
@@ -172,7 +170,6 @@ pub(crate) fn body(limits: &v22::Limits, kind: Kind) -> Option<u32> {
         Kind::Paused => v22::Paused::encoded_bound(limits),
         Kind::Figures => v22::Figures::encoded_bound(&v22::CEILINGS),
         Kind::Restarting => v22::Restarting::encoded_bound(limits),
-        Kind::Wires => v22::Agreed::encoded_bound(limits),
         Kind::Draining => v22::Draining::encoded_bound(limits),
         Kind::Hello => v22::Hello::encoded_bound(limits),
         Kind::Part => v22::Part::encoded_bound(limits),
@@ -242,12 +239,11 @@ pub fn engine_cap(sizes: &Sizes, room: u32) -> Option<Cap> {
             .checked_add(commands)?
             .checked_add(frame(&limits, Kind::ReadList)?)?
             .checked_add(frame(&limits, Kind::ReadUsage)?)?
-            .checked_add(frame(&limits, Kind::Wires)?)?
             .checked_add(frame(&limits, Kind::Figures)?)?
             // The channel admits its declared largest frame even when the
             // stream's smaller room makes the component fit it before sending.
             .max(frame(&limits, Kind::Assignment)?),
-        frames: frames.checked_add(5)?.checked_add(sizes.program_sources.checked_mul(2)?)?,
+        frames: frames.checked_add(4)?.checked_add(sizes.program_sources.checked_mul(2)?)?,
     })
 }
 

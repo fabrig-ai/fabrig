@@ -430,11 +430,14 @@ fn items_of_another_version_name_the_wire_and_worker_range() {
 #[test]
 fn charter_versions_are_not_malformed_charters() {
     let current = smith_charter::wire::VERSION;
+    let previous = current.checked_sub(1).unwrap();
+    let next = current.checked_add(1).unwrap();
     let agent = fixtures::agent();
-    for bytes in [
-        Box::<[u8]>::from(current.to_be_bytes()),
-        Box::from([0]),
-        Box::from(current.checked_add(1).unwrap().to_be_bytes()),
+    for (bytes, version) in [
+        (Box::<[u8]>::from(current.to_be_bytes()), None),
+        (Box::from([0]), None),
+        (Box::from(previous.to_be_bytes()), Some(previous)),
+        (Box::from(next.to_be_bytes()), Some(next)),
     ] {
         let jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
             fixtures::chat_assignment()
@@ -442,12 +445,12 @@ fn charter_versions_are_not_malformed_charters() {
             panic!("fixture")
         };
         let mut source = start(assignment.assignment, host::LiveAsk::NONE);
-        source.charter = bytes.clone();
-        let expected = if bytes.len() == 2 && bytes.as_ref() != current.to_be_bytes() {
+        source.charter = bytes;
+        let expected = if let Some(version) = version {
             host::Undecoded::Version(host::Mismatch {
                 wire: b"smith-charter".as_slice().into(),
-                version: current.checked_add(1).unwrap(),
-                lowest: 4, // The first kept charter, not only the current one.
+                version,
+                lowest: current,
                 highest: current,
             })
         } else {
@@ -460,11 +463,14 @@ fn charter_versions_are_not_malformed_charters() {
 #[test]
 fn resumed_turn_versions_are_not_malformed_transcripts() {
     let current = smith_transcript::wire::VERSION;
+    let previous = current.checked_sub(1).unwrap();
+    let next = current.checked_add(1).unwrap();
     let agent = fixtures::agent();
-    for bytes in [
-        Box::<[u8]>::from(current.to_be_bytes()),
-        Box::from([0]),
-        Box::from(current.checked_add(1).unwrap().to_be_bytes()),
+    for (bytes, version) in [
+        (Box::<[u8]>::from(current.to_be_bytes()), None),
+        (Box::from([0]), None),
+        (Box::from(previous.to_be_bytes()), Some(previous)),
+        (Box::from(next.to_be_bytes()), Some(next)),
     ] {
         let jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
             fixtures::chat_assignment()
@@ -473,12 +479,12 @@ fn resumed_turn_versions_are_not_malformed_transcripts() {
         };
         let mut source = start(assignment.assignment, host::LiveAsk::NONE);
         // Inspect every resumed turn, not only the first prefix.
-        source.turns = Box::new([Box::from(current.to_be_bytes()), bytes.clone()]);
-        let expected = if bytes.len() == 2 && bytes.as_ref() != current.to_be_bytes() {
+        source.turns = Box::new([Box::from(current.to_be_bytes()), bytes]);
+        let expected = if let Some(version) = version {
             host::Undecoded::Version(host::Mismatch {
                 wire: b"smith-transcript".as_slice().into(),
-                version: current.checked_add(1).unwrap(),
-                lowest: smith_transcript::wire::FLOOR,
+                version,
+                lowest: current,
                 highest: current,
             })
         } else {

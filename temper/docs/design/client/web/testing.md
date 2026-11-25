@@ -426,7 +426,10 @@ functions in `tests/client-browser/tests/browser_all` are:
     below.
 15. **A project's rename** closed by Escape, Enter and Save returns the
     focus to its summary, and never to the page's `main`: on 4's setup, at
-    Home, after 4's stories.
+    Home, after 4's stories and before 5's. A load in the tab that showed
+    5's failure page shows it again until its restarts are past their
+    minute (`shell.md`, 1; skein's `ui/web/README.md`, 4), so nothing
+    follows the panic in that tab.
 
 16. **The repository sheet** (`../forge/family.md`, 4; `../forge/repositories.md`, 1): scrolling
     the last loaded row into view reads the second page without changing the

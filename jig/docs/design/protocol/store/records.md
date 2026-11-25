@@ -516,7 +516,9 @@ admitted within that edge is never refused as too large.
   A deployment's commit then fits skein-kv's `u32` whenever its map's
   budget does.
 - **The largest value is the largest tasks row,** for any limits that
-  make no larger settings revision or application value: a task's
+  make no larger settings revision, application value or workers'
+  opening (3; its bound is its family's ceilings, eight texts of
+  64 KiB, so small limits' tasks rows can be smaller): a task's
   definition, with its recurring template, its pending proposal, each a
   batch by the batch's bytes (1), its inbox of the inbox's messages
   and two, each item at the larger of a message's and a result's bytes

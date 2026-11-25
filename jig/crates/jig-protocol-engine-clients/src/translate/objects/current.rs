@@ -1,5 +1,6 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{chips, owner, task, w};
+use crate::generated::client as mapped;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
@@ -91,15 +92,7 @@ pub fn person_task(
 ) -> Result<w::PersonTask, w::Problem> {
     let mut results = List::with_capacity(value.results.len());
     for row in &value.results {
-        results
-            .push(w::ShownResult {
-                task: task::link(&row.task, limits)?,
-                result: match &row.result {
-                    Some(item) => Some(result(models, item, limits)?),
-                    None => None,
-                },
-            })
-            .expect("supplied rows fit");
+        results.push(mapped::shown_result_to_record(row, &(models, limits))?).expect("supplied rows fit");
     }
     let results = shown_result_pieces(&results, limits.person_task_results, w::paths::PERSON_TASK_RESULTS, limits)?;
 

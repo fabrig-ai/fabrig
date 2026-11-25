@@ -59,7 +59,7 @@ pub fn add_to_file(file: &mut temper_config_shell::File, forge: &str, temper: &s
 
 #[must_use]
 pub fn command(directory: &Path) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper-box"));
+    let mut command = Command::new(skein_scratch::paths::built("temper-box", "temper-box"));
     command.args(["forge", "sign-in"]).args(configuration::flags(directory)).arg("1").current_dir(directory);
     command
 }

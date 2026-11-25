@@ -2,7 +2,7 @@
 //! declarations (smith/docs/design/protocol/README.md, 8). No separate codec or
 //! runtime state is kept: readers and writers use the channel's record types.
 
-/// The kept pieces' family, version, floor and layout.
+/// The kept pieces' family, version and layout.
 pub mod wire {
     /// The family named by the current schema's header.
     pub const FAMILY: &str = "smith-pieces";
@@ -10,10 +10,8 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 1;
 
-    /// The lowest version this build speaks.
-    pub const FLOOR: u16 = crate::patches::kept::smith_pieces::FLOOR;
-
-    const TEXT: &str = crate::PIECES_SCHEMA;
+    /// The embedded current schema text.
+    pub const TEXT: &str = crate::PIECES_SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]
@@ -27,7 +25,7 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
+        use super::{FAMILY, TEXT, VERSION, layout};
         use skein_codec::schema::{DeclIx, parse};
 
         #[test]
@@ -37,8 +35,6 @@ pub mod wire {
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
             assert_eq!(VERSION, 1);
-            assert_eq!(FLOOR, 1);
-            assert_eq!(FLOOR, crate::patches::kept::smith_pieces::FLOOR);
             assert_eq!(layout(), schema.fingerprints().family().digest());
         }
 

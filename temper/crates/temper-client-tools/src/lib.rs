@@ -3,6 +3,13 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
+
+/// Generated client wire translations (skein/docs/design/data/codec/maps.md, 9).
+#[rustfmt::skip]
+mod generated {
+    pub(crate) mod client_wire;
+}
+
 pub mod adopt;
 mod amend;
 mod change;

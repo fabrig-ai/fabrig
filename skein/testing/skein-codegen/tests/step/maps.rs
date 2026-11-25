@@ -18,7 +18,12 @@ fn maps_refusals_name_the_line_and_schema_without_writing() {
         ("missing records", "record Scalar = d::Scalar", 1, "records"),
         ("unknown declaration", "records r\nrecord Absent = d::Absent", 2, "Absent"),
         ("wrong kind", "records r\nenum Scalar = d::Scalar", 2, "kind"),
-        ("duplicate declaration", "records r\nrecord Scalar = d::Scalar\nrecord Scalar = d::Scalar", 3, "order"),
+        (
+            "duplicate declaration",
+            "records r\nrecord Scalar = d::Scalar\nrecord Scalar = d::Scalar",
+            3,
+            "already has a line",
+        ),
         ("declaration order", "records r\nrecord Pair = d::Pair\nrecord Scalar = d::Scalar", 3, "order"),
         ("unknown field", "records r\nrecord Pair = d::Pair { absent }", 2, "absent"),
         ("duplicate field", "records r\nrecord Pair = d::Pair { first, first }", 2, "order"),
@@ -83,6 +88,139 @@ fn maps_refusals_name_the_line_and_schema_without_writing() {
         assert!(error.message.contains(reason), "{label}: {error}");
         assert!(error.to_string().contains(&format!("line {line}: schema refusal")), "{label}: {error}");
     }
+}
+
+#[test]
+fn maps_refuse_invalid_directions_and_stands_for_slice() {
+    let schema = parse(
+        "family directions 1
+record Scalar { value: u32 }
+record Alias { scalar: Scalar }
+record Holder { value: option list 2 Alias }
+enum Choice { held: Scalar }",
+    )
+    .expect("schema");
+    let cases = [
+        (
+            "records r\nrecord Scalar = d::Out to record\nrecord Scalar = d::Other to record",
+            3,
+            "Scalar already has a line to record",
+        ),
+        (
+            "records r\nrecord Scalar = d::Out to record\nrecord Scalar = d::In to domain\nrecord Scalar = d::Other to domain",
+            4,
+            "Scalar already has a line to domain",
+        ),
+        ("records r\ndirection to record\ndirection to domain", 3, "repeated header"),
+        ("records r\nrecord Scalar stands for value to record", 2, "mirrored declaration"),
+        ("records r\nrecord Scalar to domain", 2, "mirrored declaration"),
+        ("records r\nrecord Scalar by hand to record", 2, "mirrored declaration"),
+        ("records r\nrecord Scalar = d::Scalar both ways", 2, "both ways requires a direction header"),
+        (
+            "records r\nrecord Scalar = d::Scalar to record\nrecord Alias = d::Alias to domain",
+            3,
+            "Scalar is not mapped to domain",
+        ),
+        (
+            "records r\nrecord Scalar = d::Scalar to domain\nenum Choice = d::Choice to record { held tuple }",
+            3,
+            "Scalar is not mapped to record",
+        ),
+        (
+            "records r\nrecord Scalar = d::Scalar to record\nrecord Alias stands for scalar\nrecord Holder = d::Holder to domain",
+            4,
+            "Scalar is not mapped to domain",
+        ),
+        ("records r\nrecord Scalar stands for value slice", 2, "Scalar.value: stands for slice requires a list"),
+    ];
+    for (maps, line, reason) in cases {
+        let error = translate(&schema, maps).expect_err(maps);
+        assert_eq!(error.line, line, "{error}: {maps}");
+        assert!(error.message.contains("schema directions"), "{error}");
+        assert!(error.message.contains(reason), "{error}: expected {reason}");
+    }
+}
+
+#[test]
+fn direction_header_selects_defaults_and_lines_override_it() {
+    let schema = parse(
+        "family directions 1
+record Row { value: u32 }
+enum Choice { none }
+record Incoming { value: u32 }
+enum Duplex { none }",
+    )
+    .expect("schema");
+    let output = translate(
+        &schema,
+        "records r
+ direction to record
+ record Row = d::Row
+ enum Choice = d::Choice
+ record Incoming = d::Incoming to domain
+ enum Duplex = d::Duplex both ways",
+    )
+    .expect("maps");
+    let functions: Vec<_> = output
+        .lines()
+        .filter_map(|line| line.strip_prefix("pub fn "))
+        .map(|signature| signature.split_once('(').expect("parameter list").0)
+        .collect();
+    assert_eq!(
+        functions,
+        ["row_to_record", "choice_to_record", "incoming_to_domain", "duplex_to_record", "duplex_to_domain"]
+    );
+}
+
+#[test]
+fn split_directions_use_their_own_types_and_fields() {
+    let schema = parse("family split 1\nrecord X { value: u32 }").expect("schema");
+    let output = translate(
+        &schema,
+        "records r
+ record X = a::X to record { value = sent }
+ record X = b::Y to domain { value = received }",
+    )
+    .expect("maps");
+    assert_eq!(output.matches("pub fn ").count(), 2);
+    assert!(output.contains("pub fn x_to_record(value: &a::X) -> r::X"));
+    assert!(output.contains("let a::X { sent: field_000000 } = value;"));
+    assert!(output.contains("pub fn x_to_domain(record: r::X) -> b::Y"));
+    assert!(output.contains("b::Y {\n        received: field_000000"));
+}
+
+#[test]
+fn one_way_signatures_and_hand_calls_follow_directional_reach() {
+    let schema = parse(
+        "family oneway 1
+record Hand { value: u32 }
+record Text { text: bytes 8 }
+record Outer { text: Text hand: Hand }",
+    )
+    .expect("schema");
+    let output = translate(
+        &schema,
+        "records r
+ direction to record
+ use s = skein_codec::convert
+ by hand h
+ context d::Context
+ with context h::hand_to_record
+ refuses h::hand_to_record
+ record Hand by hand
+ record Text = d::Text { text via s::text }
+ record Outer = d::Outer",
+    )
+    .expect("maps");
+    assert!(output.contains("pub fn text_to_record(value: &d::Text) -> r::Text"));
+    assert!(output.contains("text: skein_codec::convert::text_to_record(field_000000)"));
+    assert!(
+        output
+            .contains("pub fn outer_to_record(value: &d::Outer, context: &d::Context) -> Result<r::Outer, r::Problem>")
+    );
+    assert!(output.contains("text: text_to_record(field_000000)"));
+    assert!(output.contains("hand: h::hand_to_record(field_000001, context)?"));
+    assert!(!output.contains("_to_domain"));
 }
 
 #[test]

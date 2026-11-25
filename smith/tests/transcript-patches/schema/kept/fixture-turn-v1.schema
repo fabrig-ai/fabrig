@@ -1,2 +1,0 @@
-family fixture-turn 1
-versioned record Turn { said: text 64 replay: bytes 64 }

@@ -1,19 +1,20 @@
 //! Ordered authentication, wires and link-only room and capacity checks (protocol/channel/README.md, 4.1).
-use crate::{Component, Statement};
+use crate::{
+    Component, Statement,
+    statement::{self, Fitted},
+};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::Record;
-use jig_protocol_worker_wire::{Agreed, Credential, Reason};
+use jig_protocol_worker_wire::{Credential, Opening, Reason};
 use skein_lib::sha256;
-use skein_lib::{List, Reader, Token};
-#[derive(Clone, PartialEq, Eq, Debug)]
+use skein_lib::{Reader, Token};
 pub(crate) enum Verdict {
-    Accept { worker: u32, wires: List<Agreed>, statement: Statement },
+    Accept { worker: u32, opening: Opening, older: Option<Token>, fitted: Box<Fitted>, statement: Statement },
     Refuse { worker: Option<u32>, reason: Reason, text: Box<[u8]> },
     OutputRoom { worker: u32, output: u32, text: Box<[u8]> },
-    Replace { worker: u32, older: Token, wires: List<Agreed>, statement: Statement },
 }
 impl Component {
-    pub(crate) fn judge(&self, credential: &[u8], in_process: bool) -> Verdict {
+    pub(crate) fn judge(&mut self, credential: &[u8], in_process: bool) -> Verdict {
         let Ok(credential) = Credential::decode(&self.codec, &mut Reader::new(credential)) else {
             return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
         };
@@ -31,34 +32,35 @@ impl Component {
         let Some(worker) = found else {
             return Verdict::Refuse { worker: None, reason: Reason::NotAdmitted, text: Box::new([]) };
         };
-        let statement = Statement::credential(&credential);
-        let wires = match crate::wires::agree(&self.wires, &statement.wires) {
-            Ok(wires) => wires,
+        let opening = credential.opening.clone();
+        let statement = Statement::credential(credential);
+        let fitted = match statement::wires(&mut self.plans, &self.wires, &self.codec, &statement.wires) {
+            Ok(fitted) => Box::new(fitted),
             Err(text) => return Verdict::Refuse { worker: Some(worker), reason: Reason::Wires, text },
         };
-        if credential.opening == jig_protocol_worker_wire::Opening::Figures {
+        if opening == Opening::Figures {
             return if self.figures.is_some() {
-                Verdict::Accept { worker, wires, statement }
+                Verdict::Accept { worker, opening, older: None, fitted, statement }
             } else {
                 Verdict::Refuse { worker: Some(worker), reason: Reason::Starting, text: Box::new([]) }
             };
         }
-        if let Err(text) = crate::statement::output(self.limits.room, statement.output) {
+        if let Err(text) = statement::output(self.limits.room, statement.output) {
             return Verdict::OutputRoom { worker, output: statement.output, text };
         }
         let mut open = 0_u32;
         for (token, connection) in &self.connections {
-            if connection.worker == Some(worker) && connection.opening == jig_protocol_worker_wire::Opening::Link {
-                return Verdict::Replace { worker, older: *token, wires, statement };
+            if connection.worker == Some(worker) && connection.opening == Opening::Link {
+                return Verdict::Accept { worker, opening, older: Some(*token), fitted, statement };
             }
-            if connection.worker.is_some() && connection.opening == jig_protocol_worker_wire::Opening::Link {
+            if connection.worker.is_some() && connection.opening == Opening::Link {
                 open = open.saturating_add(1);
             }
         }
         if open >= self.limits.workers {
             Verdict::Refuse { worker: Some(worker), reason: Reason::Busy, text: Box::new([]) }
         } else {
-            Verdict::Accept { worker, wires, statement }
+            Verdict::Accept { worker, opening, older: None, fitted, statement }
         }
     }
 }

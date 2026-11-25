@@ -80,10 +80,6 @@ pub enum Note {
         wire: &'static str,
         version: u16,
     },
-    Untranslated {
-        kind: u16,
-        halt: skein_codec::patch::Halt,
-    },
     StopBoundPassed {
         abandoned: u64,
     },

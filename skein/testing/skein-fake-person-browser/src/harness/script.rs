@@ -4,6 +4,7 @@ use crate::BrowserFace;
 use skein_fake_person::{Next, Person};
 use skein_lib::{Duration, Time};
 use std::collections::VecDeque;
+use std::fmt;
 mod growth;
 mod keep_box;
 mod tabs;
@@ -110,6 +111,60 @@ enum Awaited {
     Trouble(Box<[u8]>),
     Status(u16),
 }
+// A lexical check for the forbidden nesting alone; Chromium parses the selector at the step.
+fn nests_has(mut selector: &[u8]) -> bool {
+    let mut depth = 0; // Parentheses still open since the first :has(.
+    let mut quote = None;
+    while let [byte, rest @ ..] = selector {
+        let tail = selector;
+        selector = rest;
+        if *byte == b'\\' {
+            selector = rest.get(1..).unwrap_or_default();
+        } else if let Some(end) = quote {
+            if *byte == end {
+                quote = None;
+            }
+        } else if let [b'/', b'*', comment @ ..] = tail {
+            selector = match comment.windows(2).position(|pair| pair == b"*/") {
+                Some(end) => &comment[end + 2..],
+                None => &[],
+            };
+        } else {
+            match byte {
+                b'\'' | b'"' => quote = Some(*byte),
+                b':' => {
+                    if let Some((name, after)) = rest.split_at_checked(4)
+                        && name.eq_ignore_ascii_case(b"has(")
+                    {
+                        if depth != 0 {
+                            return true;
+                        }
+                        depth = 1;
+                        selector = after;
+                    }
+                }
+                b'(' if depth != 0 => depth += 1,
+                b')' if depth != 0 => depth -= 1,
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
+/// A keep selector refused at construction because it nests `:has()`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct NestedHas {
+    /// The refused selector, byte for byte.
+    pub selector: Box<[u8]>,
+}
+impl fmt::Display for NestedHas {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "keep selector {} nests :has()", String::from_utf8_lossy(&self.selector))
+    }
+}
+
+/// A browser story with keep selectors checked at construction (skein/docs/design/ui/web/testing.md, 2).
 pub struct Script {
     steps: VecDeque<Step>,
     person: Option<Person<Box<[u8]>>>,
@@ -131,9 +186,25 @@ pub struct Script {
     text: Option<(skein_fake_person::Find, Box<[u8]>, bool)>,
 }
 impl Script {
+    /// Make a script, panicking if a keep selector nests `:has()`.
     #[must_use]
     pub fn new(steps: Box<[Step]>) -> Self {
-        Self {
+        match Self::try_new(steps) {
+            Ok(script) => script,
+            Err(refusal) => panic!("{refusal}"),
+        }
+    }
+
+    /// Make a script, returning the first keep selector that nests `:has()`.
+    pub fn try_new(mut steps: Box<[Step]>) -> Result<Self, NestedHas> {
+        for step in &mut steps {
+            if let Step::Keep { selector, .. } = step
+                && nests_has(selector)
+            {
+                return Err(NestedHas { selector: std::mem::take(selector) });
+            }
+        }
+        Ok(Self {
             steps: steps.into_vec().into(),
             person: None,
             person_until: None,
@@ -152,7 +223,7 @@ impl Script {
             awaited: None,
             request: None,
             status: None,
-        }
+        })
     }
     fn tabs_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
         let Some(mut tabs) = self.tabs.take() else { return false };

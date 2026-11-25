@@ -331,7 +331,11 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     a person finds it by, and its `value` attribute is its value. It
     reads markup: what a person typed into a field a find reads, by its
     target. A selector that finds no element, or an element without
-    that attribute, fails the step. The run hands back what each person kept, by name, with each
+    that attribute, fails the step. A selector that nests `:has()`
+    within a `:has()`'s argument, which Chromium refuses as it queries
+    (Selectors 4 forbids the nesting), is refused as its script is
+    made, naming the selector, so that a story meets it where it is
+    written and not at its step. The run hands back what each person kept, by name, with each
     link a command's step opened, so that the test reads a peer's state
     by what the story saw;
   - **awaits a control pressed:** the target the step gives, found as

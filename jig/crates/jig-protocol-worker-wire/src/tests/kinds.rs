@@ -38,7 +38,6 @@ fn record(kind: Kind) -> &'static [u8] {
         Kind::Ask => b"Ask",
         Kind::Asked => b"Asked",
         Kind::Restarting => b"Restarting",
-        Kind::Wires => b"Agreed",
         Kind::Figures => b"Figures",
         Kind::Hello => b"Hello",
         Kind::Turn => b"Turn",

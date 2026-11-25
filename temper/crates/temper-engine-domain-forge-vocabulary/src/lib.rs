@@ -5,6 +5,15 @@
 #![expect(clippy::must_use_candidate, reason = "the vocabulary exposes the forge top's existing value operations")]
 #![expect(clippy::disallowed_macros, reason = "kind 11 requires Default: both flags false with none")]
 extern crate alloc;
+
+#[rustfmt::skip]
+mod generated {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "generated outbound translations uniformly borrow the domain value"
+    )]
+    pub(crate) mod client_wire;
+}
 use alloc::boxed::Box;
 
 /// A landing repair found only flakes (domain/forge/change/repairs.md).

@@ -91,7 +91,7 @@ pub fn export_pending(directory: &Path, upstream: SocketAddr, account: u32, file
     let relay = Relay::start(upstream);
     super::write_private(&client.join("address"), format!("http://{}\n", relay.address).as_bytes());
     let gate = relay.arm(2, Boundary::BeforeRequest);
-    let child = Command::new(skein_scratch::paths::binary("temper-box"))
+    let child = Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
         .arg("ctl")
         .arg(&client)
         .args(["account", "export"])
@@ -112,7 +112,7 @@ pub fn export_pending(directory: &Path, upstream: SocketAddr, account: u32, file
     gate.release(false);
     super::write_private(&client.join("address"), format!("http://{upstream}\n").as_bytes());
     drop(relay);
-    let output = Command::new(skein_scratch::paths::binary("temper-box"))
+    let output = Command::new(skein_scratch::paths::built("temper-box", "temper-box"))
         .arg("ctl")
         .arg(&client)
         .args(["account", "list", "--json"])
