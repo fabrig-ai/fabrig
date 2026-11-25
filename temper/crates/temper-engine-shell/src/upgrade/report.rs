@@ -1,11 +1,14 @@
-//! One report renderer for shells and worlds (protocol/binaries.md, upgrade).
+//! One report renderer for shells and worlds (temper/docs/design/protocol/wires.md, 10.2).
+use jig_domain_fleet::{JobShort, JobShortfall, job_short};
+use jig_domain_link::{JobBound, JobKind};
+use jig_protocol_engine_workers::{Site, Stated, Statement, Unfit, gaps, judge};
 use jig_protocol_store::{
     BackRefusal, Event, KeptMap, KeptOpening, KeptWire, KeptWorker, Owner, Undecoded, WorkerOpening,
 };
 #[cfg(test)]
 #[path = "report/tests.rs"]
 mod decode_tests;
-use jig_protocol_engine_workers::{Stated, Statement, Unfit, judge};
+use jig_protocol_worker_wire::Carried;
 use skein_lib::{List, Wall};
 use std::{collections::BTreeMap, fmt::Write};
 use temper_engine_service::upgrade::{Report, Workers};
@@ -285,25 +288,131 @@ fn workers(
                 continue;
             }
         };
-        match judge(&configured.spoken, &configured.roots, configured.room, &configured.limits, &statement(opening)) {
-            Ok(_) => writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
-                .expect("string write"),
-            Err(unfit) => {
-                allowed = false;
-                let (kind, words) = match unfit {
-                    Unfit::Wires(words) => ("wires", words),
-                    Unfit::Limits(words) => ("limits", words),
-                };
-                writeln!(
-                    text,
-                    "{binary} upgrade: worker {name} may not stay: {kind}: {}",
-                    String::from_utf8_lossy(&words)
-                )
+        let statement = statement(opening);
+        if let Err(unfit) =
+            judge(&configured.spoken, &configured.roots, configured.room, &configured.limits, &statement)
+        {
+            allowed = false;
+            let (kind, words) = match unfit {
+                Unfit::Wires(words) => ("wires", words),
+                Unfit::Limits(words) => ("limits", words),
+            };
+            writeln!(text, "{binary} upgrade: worker {name} may not stay: {kind}: {}", String::from_utf8_lossy(&words))
                 .expect("string write");
-            }
+            continue;
+        }
+        if worker_work(text, binary, &name, configured, opening, &statement.wires) {
+            writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
+                .expect("string write");
+        } else {
+            allowed = false;
         }
     }
     writeln!(text, "{binary} upgrade: workers may stay: {}", if allowed { "yes" } else { "no" }).expect("string write");
+}
+
+fn worker_work(
+    text: &mut String,
+    binary: &str,
+    name: &str,
+    configured: &Workers,
+    opening: &WorkerOpening,
+    wires: &List<Stated>,
+) -> bool {
+    let mut covered = true;
+    // The engine declares its kinds in ascending order.
+    for &bound in &configured.jobs {
+        if let Some(short) = job_short(&opening.jobs, bound) {
+            covered = false;
+            writeln!(
+                text,
+                "{binary} upgrade: worker {name} must restart: job kind {}: {}",
+                job_kind(bound.kind),
+                shortage(short),
+            )
+            .expect("string write");
+        }
+    }
+    let gaps = gaps(&configured.spoken, &configured.roots, &configured.limits, wires)
+        .expect("the opening's judge already accepted the same wires");
+    if !gaps.is_empty() {
+        let kinds = job_kinds(&configured.jobs);
+        for gap in &gaps {
+            let wire =
+                configured.spoken.iter().find(|wire| wire.name == gap.wire.as_ref()).expect("gap in a spoken wire");
+            let where_sent = sent_in(gap.site, &kinds);
+            write!(
+                text,
+                "{binary} upgrade: worker {name} must restart: {}, sent in {where_sent}; this binary's {} is at ",
+                String::from_utf8_lossy(&gap.words()),
+                wire.name,
+            )
+            .expect("string write");
+            for byte in &wire.layout[..8] {
+                write!(text, "{byte:02x}").expect("string write");
+            }
+            text.push('\n');
+        }
+    }
+    covered && gaps.is_empty()
+}
+
+fn job_kind(kind: JobKind) -> String {
+    use temper_engine_domain_forge::{CLOSE_KIND, MERGE_KIND, PREPARE_KIND};
+    let verb = match kind.0 {
+        PREPARE_KIND => "prepare",
+        2 => "key",
+        MERGE_KIND => "merge",
+        CLOSE_KIND => "close",
+        _ => return kind.0.to_string(),
+    };
+    format!("{} ({verb})", kind.0)
+}
+
+fn shortage(short: JobShortfall) -> String {
+    let what = match short.why {
+        JobShort::Kind => return "it runs none".into(),
+        JobShort::Spec => "its spec takes",
+        JobShort::Result => "its result takes",
+        JobShort::Deadline => "its deadline is",
+    };
+    let figures = short.figures.expect("a bound shortfall carries figures");
+    if short.why == JobShort::Deadline {
+        format!("{what} {}, this binary's {}", deadline(figures.offered), deadline(figures.required))
+    } else {
+        format!("{what} {} bytes, this binary's {} bytes", figures.offered, figures.required)
+    }
+}
+
+fn deadline(millis: u64) -> String {
+    if millis.is_multiple_of(1000) { format!("{} s", millis / 1000) } else { format!("{millis} ms") }
+}
+
+fn job_kinds(jobs: &[JobBound]) -> String {
+    match jobs.split_last() {
+        None => "none".into(),
+        Some((last, [])) => job_kind(last.kind),
+        Some((last, rest)) => {
+            let mut kinds = rest.iter().map(|job| job_kind(job.kind)).collect::<Vec<_>>().join(", ");
+            write!(kinds, " and {}", job_kind(last.kind)).expect("string write");
+            kinds
+        }
+    }
+}
+
+fn sent_in(site: Site, kinds: &str) -> String {
+    match site {
+        Site::Frame => "frames to workers".into(),
+        Site::Charter => "assignments".into(),
+        Site::Turn => "resumed assignments".into(),
+        Site::Carried(Carried::Items) => format!("assignments and jobs of kinds {kinds}"),
+        Site::Carried(Carried::JobSpec) => format!("jobs of kinds {kinds}"),
+        Site::Carried(Carried::Grant) => format!("assignments, jobs of kinds {kinds}, list reads and renewals"),
+        Site::Carried(Carried::Answer) => "answers to asks".into(),
+        Site::Carried(Carried::Left | Carried::Saved | Carried::Preparation | Carried::JobResult | Carried::Ask) => {
+            unreachable!("gaps list only what the engine sends")
+        }
+    }
 }
 
 fn host_tools(text: &mut String, binary: &str, kept: &[KeptWire]) -> bool {

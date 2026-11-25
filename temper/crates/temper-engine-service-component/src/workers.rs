@@ -29,6 +29,7 @@ pub struct Workers {
     opening_limits: kit::Limits,
     roots: List<jig_protocol_worker_wire::Root>,
     defaults: List<jig_protocol_store::KeptWorker>,
+    pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     figures: temper_engine_service_vocabulary::figures::Composer,
     composed: Option<Composed>,
     copy: Option<AgentsCopy>,
@@ -85,6 +86,7 @@ impl Workers {
             opening_limits: *limits,
             roots,
             defaults: List::with_capacity(0),
+            jobs: crate::limits::jobs(&config.limits),
             composed: None,
             copy: None,
             local: None,
@@ -292,6 +294,7 @@ impl Workers {
             limits: *self.host.component.codec(),
             spoken: self.host.component.spoken().clone(),
             roots: self.roots.clone(),
+            jobs: self.jobs.clone(),
         }
     }
     fn pull(&mut self, events: &mut Queue<root::Event>) {
