@@ -1,7 +1,7 @@
 # A deployment at its place
 
-Provisional, 2026-11-14, revised 2026-11-17, from `../../draft/landed-qa.md`, sections 2, 5,
-6 and 10, milestones Q6 and Q7 of `../../draft/landed-qa.execution.md`. A place
+Provisional, 2026-11-14, revised 2026-11-17, from `../../draft/archive/landed-qa.md`, sections 2, 5,
+6 and 10, milestones Q6 and Q7 of `../../draft/archive/landed-qa.execution.md`. A place
 of the deployment's kind: temper's engine, worker and agent, each its own
 process from its own document, with the fake Forgejo and the fake model
 as processes of their own beside them, started from a setup's `config/`
@@ -48,7 +48,7 @@ deployment's engine rather than a box of their own.
 A deployment's root recipe holds `config/` (`../../client/recipe.md`,
 2): the documents its processes start from, as a deployment writes
 them, with the fakes in place of real backends
-(`../../draft/landed-qa.md`, 5 and 6): the engine's and the worker's
+(`../../draft/archive/landed-qa.md`, 5 and 6): the engine's and the worker's
 each a `temper.toml` of its binary's shape
 (`../../protocol/configuration/file.md`), the fakes' JSON.
 
@@ -68,7 +68,7 @@ each a `temper.toml` of its binary's shape
   (`../../protocol/configuration/figures.md`, 6 and 7). A setup's
   `config/agent.json` is refused as any other unexpected file is.
 - **No credential:** no document holds a key, a token or a secret
-  (`../../draft/landed-qa.md`, 5). The worker's secret and its digest are
+  (`../../draft/archive/landed-qa.md`, 5). The worker's secret and its digest are
   the place's (section 4); the model's key and the forge's admin token
   are outputs the fakes write where their documents say; accounts and
   forges are made by the recipe's lines, as a person makes them.
@@ -243,7 +243,7 @@ nowhere. Each within its bound; a failure is the deployment's (section
 Every link the engine prints but its first and, in a full session, the
 fresh one step 7 takes is read and dropped, and the engine's stdout is
 written nowhere. So no link is printed, logged, answered or kept, and no
-copy holds a sign-in (`../../draft/landed-qa.md`, 5 and 11).
+copy holds a sign-in (`../../draft/archive/landed-qa.md`, 5 and 11).
 
 While a step waits, any process's exit ends the wait as the
 deployment's failure.
@@ -282,7 +282,7 @@ session's, never the deployment's: no copy holds it.
 ### 6.2 `deployment patch`
 
 `deployment patch DOCUMENT PATH`, an owner's change to the deployment's
-configuration between two of its starts (`../../draft/landed-qa.md`,
+configuration between two of its starts (`../../draft/archive/landed-qa.md`,
 10): DOCUMENT `engine` or `worker`, the documents an owner writes
 (section 2); PATH a file of the files
 directory as a `forge commit` line's is, the session's `--files DIR` or,

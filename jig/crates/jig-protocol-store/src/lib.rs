@@ -726,9 +726,10 @@ pub mod keys;
 mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CheckpointRefusal, Checkpointed, CommitCheck,
-    CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm,
-    OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WorkerOpening, Write,
+    CommitFailure, Cursor, Event, Family, Generations, Get, HELD, Io, KeptOpening, KeptWire, KeptWorker, Load, Older,
+    OpenRefusal, OpenedTerm, OpenedWire, Purpose, Reach, Request, Restore, RestoreRefusal, Restored, Root, Row,
+    SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, Unkept, Unplanned, Unready, WorkerOpening,
+    Write,
 };
 
 #[cfg(test)]
@@ -738,4 +739,4 @@ pub use jig_protocol_store_families::component_v3;
 pub use jig_protocol_store_families::secrets_v1;
 pub use jig_protocol_store_settings::settings_v3;
 
-pub use jig_protocol_store_families::{openings_v1, registry_v1};
+pub use jig_protocol_store_families::{openings_v2, registry_v1};

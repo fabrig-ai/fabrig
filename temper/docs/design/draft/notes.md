@@ -3,7 +3,7 @@
 2026-11-04. The reasons behind temper's drafts (`AGENTS.md`, section 6):
 the choices they make, each with its reasons. `reference-code-production.notes.md`, sections 1, 4, 5 and 6 are
 the reference's: `reference-code-production.md`, `archive/reference-landing.md`
-and `reference-case.md` cite its choices, N1 to N24, by number. Where the
+and `archive/reference-case.md` cite its choices, N1 to N24, by number. Where the
 design still lags a draft is that draft's status, not these notes. Section
 22's moved beside its draft, as `test-budgets.notes.md`, this file being near
 the size limit (`DESIGN.md`, 4 and 5).
@@ -63,15 +63,15 @@ Moved to [`claude-api.notes.md`](claude-api.notes.md).
 
 ## 15. The crate graph
 
-Moved to [`crate-graph.notes.md`](crate-graph.notes.md).
+Moved to [`archive/crate-graph.notes.md`](archive/crate-graph.notes.md).
 
 ## 16. A gate's compile
 
-Moved to [`gate-compile.notes.md`](gate-compile.notes.md).
+Moved to [`archive/gate-compile.notes.md`](archive/gate-compile.notes.md).
 
 ## 17. Panics
 
-Moved to [`panics.notes.md`](panics.notes.md).
+Moved to [`archive/panics.notes.md`](archive/panics.notes.md).
 
 ## 18. Design economy
 
@@ -83,7 +83,7 @@ Moved to [`probes-by-test.notes.md`](probes-by-test.notes.md).
 
 ## 20. Tools by role
 
-Moved to [`tools-by-role.notes.md`](tools-by-role.notes.md).
+Moved to [`archive/tools-by-role.notes.md`](archive/tools-by-role.notes.md).
 
 ## 21. The configuration
 

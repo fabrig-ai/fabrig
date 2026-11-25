@@ -17,10 +17,10 @@ This document holds smith's testing tiers, split from [`testing.md`](testing.md)
 
 Domain worlds use domains and fakes only, never protocol crates. Codec
 tests build values with public fields or fixed-rule encodings from
-embedded schema text; earlier versions use their kept texts. Drift compares
+embedded schema text. Drift compares
 the records' module with the committed code (skein's
 `data/codec/golden.md`, section 1). Families keep no golden files or
-generated test targets; event JSONL and patch goldens remain. Memory and
+generated test targets; event JSONL goldens remain. Memory and
 boundary tests check the generated `encoded_bound` and `decoded_bound`
 vocabulary.
 
@@ -282,7 +282,7 @@ vocabulary.
       without them;
     - with a remote named, the push lands, and the test removes the
       branch once it has seen it land. Nothing in the test catches a
-      panic to remove it (`temper/docs/design/draft/panics.md`, 5): a
+      panic to remove it (`temper/docs/design/draft/archive/panics.md`, 5): a
       failed run leaves its `smith-live-` branch, and the next run
       removes every `smith-live-` branch the remote holds before it
       pushes its own, live runs on one remote being one at a time.

@@ -1,8 +1,7 @@
 //! Declared environment names (skein/docs/foundation/cli.md, 5 and 9, check 5).
 //! Tracked UTF-8 files outside docs name only variables declared by their tree,
 //! in the set their names say. Owner-set constants are Rust
-//! constants, not variables. Generated `patches/mod.rs` modules are not read;
-//! authored patch functions and context are. Every declaration is read or set outside docs.
+//! constants, not variables. Every declaration is read or set outside docs.
 //! Each file is split into maximal ASCII words in one pass, looking each word up
 //! among the trees' prefixes and declared names (cli.md, 9, check 5).
 //! The document parser reads skein/docs/design/runtime/shell-table.md, 1.3's headings and
@@ -38,10 +37,8 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "JIG_WORLD_TRACE", until: "jig's round" },
     Exception { what: "JIG_WRAPPER", until: "jig's round" },
     Exception { what: "SKEIN_CODEGEN_WRITE", until: "skein's round" },
-    Exception { what: "SKEIN_DIFF_WRITE", until: "skein's round" },
     Exception { what: "SKEIN_FORGEJO", until: "skein's round" },
     Exception { what: "SKEIN_LISTENER_TEST", until: "skein's round" },
-    Exception { what: "SKEIN_PATCH_WRITE", until: "skein's round" },
     Exception { what: "SKEIN_STARVED_PASS_CHILD", until: "skein's round" },
     Exception { what: "SKEIN_STARVED_REFEREE_CHILD", until: "skein's round" },
     Exception { what: "SKEIN_TEST_CHROMIUM", until: "skein's round" },
@@ -224,11 +221,6 @@ fn document_tree(path: &str) -> Option<&str> {
     }
 }
 
-/// Only the patch command's generated module, not authored patch sources.
-fn generated_patch_module(path: &str) -> bool {
-    Path::new(path).ends_with("patches/mod.rs")
-}
-
 struct Scan {
     names: Names,
     skipped: Vec<String>,
@@ -263,7 +255,7 @@ fn scan(root: &Path) -> Result<Scan, String> {
     let declared: BTreeSet<String> = scan.names.declarations.iter().map(|entry| entry.name.clone()).collect();
     let declared = declared.iter().map(String::as_str).collect();
     for path in paths {
-        if path == OWN || path.split('/').any(|part| part == "docs") || generated_patch_module(path) {
+        if path == OWN || path.split('/').any(|part| part == "docs") {
             continue;
         }
         let absolute = root.join(path);
@@ -297,27 +289,14 @@ fn every_name_is_declared() {
 }
 
 #[test]
-fn only_generated_patch_modules_are_skipped() {
-    for (path, skipped) in [
-        ("jig/crates/jig-protocol-store/patches/mod.rs", true),
-        ("jig/crates/jig-protocol-store/patches/p0001.rs", false),
-        ("jig/crates/jig-protocol-store/patches/context.rs", false),
-        ("jig/crates/jig-protocol-store/src/mod.rs", false),
-        ("jig/crates/jig-protocol-store/other-patches/mod.rs", false),
-    ] {
-        assert_eq!(generated_patch_module(path), skipped, "{path}");
-    }
-}
-
-#[test]
-fn owner_set_constants_are_not_environment_names_but_patch_names_are() {
+fn owner_set_constants_are_not_environment_names() {
     let mut names = Names::default();
     names.file(
-        "JIG_SET SKEIN_SET SMITH_SET JIG_STORE_SET TEMPER_PATCH_SET HEARTH_PATCH_SET JIG_SETTING",
+        "JIG_SET SKEIN_SET SMITH_SET JIG_STORE_SET TEMPER_WORKER_SET HEARTH_BUILDER_SET JIG_SETTING",
         TREES,
         &BTreeSet::new(),
     );
-    assert_eq!(names.findings(TREES), ["HEARTH_PATCH_SET", "JIG_SETTING", "TEMPER_PATCH_SET"]);
+    assert_eq!(names.findings(TREES), ["HEARTH_BUILDER_SET", "JIG_SETTING", "TEMPER_WORKER_SET"]);
 }
 
 #[test]
@@ -429,7 +408,7 @@ fn one_pass_matches_per_name_search() {
 
         let mut count = 1;
         if remaining > 0 {
-            for fragment in ["DEMO", "_", "DEMO_A", "HOST_HOME", "x", "1", " ", "é", "_PATCH_SET", "OTHER_2", "DEMO_"]
+            for fragment in ["DEMO", "_", "DEMO_A", "HOST_HOME", "x", "1", " ", "é", "_STORE_SET", "OTHER_2", "DEMO_"]
             {
                 count += compare(&format!("{text}{fragment}"), remaining - 1, trees, declared);
             }

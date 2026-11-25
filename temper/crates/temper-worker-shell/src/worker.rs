@@ -173,7 +173,7 @@ fn root_with(
         },
         configuration,
     )?;
-    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into(), agent, wires: None })
+    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into(), agent })
 }
 
 /// Write a fresh, private agent from the start's checked bytes

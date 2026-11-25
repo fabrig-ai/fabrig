@@ -136,8 +136,11 @@ fn refusals(values: Box<[host::Refused]>) -> Box<[u64]> {
 pub(crate) fn ending(ending: &host::Ending, worker: Option<u32>, window: skein_lib::Duration) -> tasks::End {
     match ending {
         host::Ending::Refused(host::Refusal::Busy) => tasks::End::Refused,
-        host::Ending::Refused(host::Refusal::Version(mismatch) | host::Refusal::Untranslated(mismatch)) => {
+        host::Ending::Refused(host::Refusal::Version(mismatch)) => {
             tasks::End::RefusedWithReason { reason: mismatch.reason() }
+        }
+        host::Ending::Refused(host::Refusal::Untranslated(reason)) => {
+            tasks::End::RefusedWithReason { reason: reason.clone() }
         }
         host::Ending::Refused(host::Refusal::Invalid(
             host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
@@ -407,8 +410,8 @@ pub(crate) fn job_end(ending: &host::JobEnding, worker: Option<u32>, window: ske
             tasks::End::Finished { result: tasks::TaskResult::Job { bytes: result.clone() }, cancel_delegates: false }
         }
         host::JobEnding::Refused(host::JobRefusal::Busy) => tasks::End::Refused,
-        host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch)) => {
-            tasks::End::RefusedWithReason { reason: mismatch.reason() }
+        host::JobEnding::Refused(host::JobRefusal::Untranslated(reason)) => {
+            tasks::End::RefusedWithReason { reason: reason.clone() }
         }
         host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::JobEnding::Failed { failure, .. } => match failure {

@@ -40,7 +40,7 @@ temper-box
   step directly, so a box killed outright leaves them running, and its
   next start refuses on the ports they hold.
 - **An empty configuration directory,** absent or with no entry, is
-  written first by `temper-box init --box` (`init.md`, 2), in the box's own process, before
+  written first by `temper-box init --box` (`init.md`, 5), in the box's own process, before
   the document is read; the box says so in its own log, `First run:
   wrote the configuration, <path>` (`box-supervision.md`, 1), and goes on to its steps.
   Otherwise the box
@@ -114,12 +114,12 @@ temper-box
 - **The listeners are the box's,** every step's, from the box's start,
   or a group's first ask (`place.md`, 5), to its end: so that the port a step
   reports is its own from before it starts, and a second first run's
-  init finds the first one's ports taken (`init.md`, 2). Each step names its
+  init finds the first one's ports taken (`init.md`, 5). Each step names its
   listeners, the socket addresses the document gives it (3): `temper-box
   serve` the clients' and the webhooks' listeners, the fake LLM and the
   fake forge their ports, and, on Linux, `temper-box forge run N forgejo` the
   owned Forgejo's port, its setup file's (`place.md`, 3; `owned.md`, 4). On a
-  first run the box keeps the sockets `temper-box init` chose (`init.md`, 2); on a later
+  first run the box keeps the sockets `temper-box init` chose (`init.md`, 5); on a later
   start it opens each at the document's address before any step, with
   skein's `open_listener`, and a port taken refuses its start, naming
   the port and the document, as any start is refused. A box started with
@@ -217,7 +217,7 @@ temper-box
 - **A group's failure** before `started` answers `failed`, and the group
   is dormant again, to be asked again; the box runs on. Once started,
   its long steps are restarted, and given up on, as `box-supervision.md`, 1 says.
-- **A first run's steps** (`init.md`, 3): `temper-box serve` alone runs at the
+- **A first run's steps** (`init.md`, 6): `temper-box serve` alone runs at the
   start; the fake kind's group is dormant until the person tries the
   playground (`playground.md`), and the owned kind's until the person sets up an
   owned Forgejo (`owned.md`, 5). No step is a link: serve's links are the

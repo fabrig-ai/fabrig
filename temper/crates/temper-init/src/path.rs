@@ -1,4 +1,4 @@
-//! Paths are checked before any output is built (protocol/setup/init.md, 2).
+//! Paths are checked before any output is built (protocol/setup/init.md, 5).
 use crate::{Fact, Reason, Refusal};
 
 #[expect(clippy::disallowed_methods, reason = "init validates its machine paths as UTF-8")]

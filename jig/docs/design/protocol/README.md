@@ -359,7 +359,7 @@ Moved to [`needs.md`](needs.md), section 2.
 
 What the protocol layer relies on from jig's domain is designed there:
 
-- **the engine stopping:** `../domain/engine/restart.md`, 1;
+- **the engine stopping:** `../domain/engine/restart.md`, 5;
 - **credential grants pushed and resent, and LLM accounts:**
   `../domain/engine/fleet.md` and `../domain/engine/README.md`, section 6; `../domain/accounts.md`;
   `llm.md`, section 5;

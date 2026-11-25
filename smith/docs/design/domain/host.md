@@ -253,7 +253,7 @@ policy.
   (`temper/docs/design/domain/worker/README.md`, section 2); smith's
   local host writes it to its log and goes on. So a stray signal, as a
   service manager's that signals every process of a unit, never cuts a
-  run its host means to keep (temper's `draft/worker-restarts.md`,
+  run its host means to keep (temper's `draft/archive/worker-restarts.md`,
   section 2).
 - **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2). A parent whose start asked for parts may give the drain a grace, which the kit carries down as it is: the run then answers at its answer, the calls in flight cut after the grace (turn-parts.md, section 4), and the kit still arms nothing for it.
 - **An answered agent exits on its own.** After its answer, the agent
@@ -268,7 +268,7 @@ policy.
   reader: once the host is gone, nothing hears the run's turns or
   answers its calls, and nothing will stop it. So the agent stops
   spending and exits by itself, leaving what its host kept for the next
-  activation (temper's `draft/worker-restarts.md`, sections 2 and 7).
+  activation (temper's `draft/archive/worker-restarts.md`, sections 2 and 7).
   - **Gone** is either of two things. **The channel's end:** its input
     read to its end, or a write to it failing; the loss of either half
     is the loss of the channel, and the agent abandons the other.
@@ -301,7 +301,7 @@ policy.
   - **What stays** is what its host kept: the turns it acknowledged and
     the parts it kept are the next activation's (turn-parts.md, section
     5), and the workspace is as the cut left it, for the host's next
-    start to save (temper's `draft/worker-restarts.md`, section 7). An
+    start to save (temper's `draft/archive/worker-restarts.md`, section 7). An
     agent that outlives its host to be adopted by the host's next start
     is later (same draft, section 10).
 - **How the agent ended** is evidence, not a guess: its end carries

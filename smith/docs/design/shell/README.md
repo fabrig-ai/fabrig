@@ -181,7 +181,7 @@ Each lands in skein, with its design, before its smith consumer
   and no shipped binary links a testing crate.
 - **An append sink:** a bounded append stream on the ring, to a file or
   an inherited descriptor, with a write deadline, that counts what it
-  drops and settles exactly at exit (skein's `runtime/io/files.md`, 1). No thread.
+  drops and settles exactly at exit (skein's `runtime/io/files.md`, 9). No thread.
 - **Resource usage:** the CPU time and peak resident size of the process
   and of its reaped children, read by the shell at the end for
   `session.ended` (../protocol/events.md, 3.2).
@@ -377,8 +377,7 @@ closure:
   - `tests/clippy.toml` is unchanged, and `benchmarks/` keeps its own
     (../benchmarks/README.md), since a harness starts processes.
 - **Every `clippy.toml` here bans catching a panic,** whatever its layer,
-  `crates/smith-agent-document/`'s and `tests/transcript-patches/`'
-  among them: its `disallowed-methods` ends with the two entries for
+  `crates/smith-agent-document/`'s among them: its `disallowed-methods` ends with the two entries for
   `std::panic::catch_unwind` and `std::panic::resume_unwind` that
   `tools/lints/design.md`, 4, gives, byte for byte.
 

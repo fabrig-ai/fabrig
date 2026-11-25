@@ -142,7 +142,7 @@ pub enum Event {
     },
     /// Iterate offers progress requested by ready owners.
     Resume,
-    /// The service begins its drain (jig's `domain/engine/restart.md`, 1).
+    /// The service begins its drain (jig's `domain/engine/restart.md`, 5).
     Stop,
 }
 /// A window turn's text or its omitted body's length (temper/docs/design/domain/root.md, 7).
@@ -683,7 +683,7 @@ pub enum Request {
         kind: forge::BoxKind,
         login: Box<[u8]>,
     },
-    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 5).
+    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 9).
     MakingCopied {
         key: forge::MakingKey,
     },
@@ -783,13 +783,13 @@ pub enum Request {
     ),
     ToChild(Released),
     /// A forge input the drain does not decide, returned to its owner (jig's
-    /// `domain/engine/restart.md`, 1).
+    /// `domain/engine/restart.md`, 5).
     Busy(Box<forge::Event>),
     /// Tell workers after the word is durable and before closing their links (domain/root-restart.md, 1.2).
     Restarting {
         wait: skein_lib::Duration,
     },
-    /// Every commit before the drain is durable (jig's `domain/engine/restart.md`, 1).
+    /// Every commit before the drain is durable (jig's `domain/engine/restart.md`, 5).
     Drained,
     Stop,
 }

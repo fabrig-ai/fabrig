@@ -50,7 +50,7 @@ first. `start/links.rs`'s `link_resource_projects` stays an assertion:
 it reads connectors' reports held in memory, which no stored row holds.
 A duplicate key, which the store's map cannot hold, also stays an
 assertion, as does a call out of the start's order or a stale
-continuation; none has a test (`temper/docs/design/draft/panics.md`,
+continuation; none has a test (`temper/docs/design/draft/archive/panics.md`,
 3.3). temper's forge link refuses as jig's do
 (`temper/docs/design/domain/root-restart.md`, 1.1).
 

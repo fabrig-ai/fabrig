@@ -262,7 +262,7 @@ first rows at 150 by 39, dark; and 02, after):
   *Ready*: "Claude subscription", "ChatGPT plan", "OpenAI API key"),
   and for a program's source ", through Claude Code" after it: "✓ 3
   Model · Claude subscription, through Claude Code"
-  (`../../draft/claude-sign-in.md`, 3, t3).
+  (`../../draft/archive/claude-sign-in.md`, 3, t3).
 
 ## 4. Open questions
 

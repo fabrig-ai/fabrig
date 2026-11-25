@@ -1,6 +1,6 @@
 # The outbox's room
 
-Provisional, 2026-11-16, from `../../draft/outbox-room-wait.md`. How the
+Provisional, 2026-11-16, from `../../draft/archive/outbox-room-wait.md`. How the
 forge's outbox, bounded by `forge.entries` (`effects.md`, section 1),
 gives its room to the writes that ask for it: a write that finds no room
 waits for it in one line, first come first served, and a hold stays only
@@ -189,7 +189,7 @@ Decided by the user, 2026-11-16.
 - **A full outbox refuses no one:** the limit's refusal for
   `forge.entries`, and the hold its words named (raise the limit,
   restart, release), are no longer reached by a write. The figure stays
-  the user's (`../../draft/outbox-room-wait.md`, 2).
+  the user's (`../../draft/archive/outbox-room-wait.md`, 2).
 
 ## 7. A waiting change's panel
 

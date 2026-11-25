@@ -1273,7 +1273,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     }
     // From the stop on, nothing that would make a commit is taken: connector
     // work stays with the connector and no run is placed (jig's
-    // `domain/engine/restart.md`, 1).
+    // `domain/engine/restart.md`, 5).
     if domain.core.stopping() {
         if domain.core.finish_owed() {
             domain.settled = None;

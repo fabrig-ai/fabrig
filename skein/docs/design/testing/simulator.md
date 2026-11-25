@@ -186,7 +186,7 @@ the kernel's: each child's pidfd, its pipes, its exit and its group.
 ### 3.3 Cuts at an operation
 
 A world may cut a process at any operation, as a power loss or a kill
-would: to show that what a service keeps durably survives (../runtime/io/files.md, 2).
+would: to show that what a service keeps durably survives (../runtime/io/files.md, 10).
 
 - **The cut** is at a chosen point in the process's submissions: the
   process is dropped with what it has in flight, which never completes,
@@ -283,7 +283,7 @@ accept queues, descriptors, connect timeouts) and each fault's chance:
   files before the machine is asked; and a filesystem that hangs an
   `Open`, `Read`, `Write`, `Append` or `Sync` until a `Cancel` stops it,
   the machine never asked: an append stream's write deadline, and its
-  close deadline while it closes, meet it there (../runtime/io/files.md, 1). The records
+  close deadline while it closes, meet it there (../runtime/io/files.md, 9). The records
   of a tree's metadata and of the filesystem meet the disk's faults as
   the others do, those that read only its I/O error and the kernel out
   of memory; none of them hangs, as none can be cancelled (../runtime/kernel-files.md,

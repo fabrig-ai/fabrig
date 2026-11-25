@@ -1,6 +1,7 @@
 //! Openings reads the recovered verdict rows, never the task logs (protocol/store/opening-rehearsal.md, 1).
 #![expect(
     clippy::disallowed_methods,
+    clippy::disallowed_macros,
     clippy::disallowed_types,
     clippy::match_like_matches_macro,
     reason = "step test fixtures and event assertions are ordinary Rust"
@@ -9,7 +10,7 @@ use super::fixtures::{
     self,
     disk::{Disk, Seen},
 };
-use crate::{Event, Generations, KeptWire, OpenRefusal, Reach, Request, WorkerOpening, Write};
+use crate::{Event, Generations, KeptOpening, KeptWire, KeptWorker, OpenRefusal, Reach, Request, WorkerOpening, Write};
 use skein_fake_machine::Item;
 use skein_io::kernel::Error;
 use skein_lib::{Token, Wall};
@@ -22,7 +23,11 @@ const LINKS_AFTER_REFUSAL: u32 = 2;
 fn opening(name: &str) -> WorkerOpening {
     WorkerOpening {
         worker: name.into(),
-        wires: Box::new([crate::OpenedWire { name: "fixture-wire".into(), lowest: 1, layouts: Box::new([[7; 32]]) }]),
+        wires: Box::new([crate::OpenedWire {
+            name: "fixture-wire".into(),
+            layout: [7; 32],
+            text: b"kept text".as_slice().into(),
+        }]),
         output: 4096,
         terms: Box::new([crate::OpenedTerm { kind: 3, largest: 64 }]),
         at: Wall::from_nanos(17),
@@ -97,7 +102,7 @@ fn openings_matches_whole_rows_and_self_closes_without_copying_task_logs() {
     );
     let whole_events = rehearse(&mut whole, Reach::Whole);
     assert_eq!(whole.contents(), before);
-    let Some(Event::Rehearsing { wires, openings, linked: 0, copied, .. }) = whole_events.first() else {
+    let Some(Event::Rehearsing { wires, openings, workers, linked: 0, copied, .. }) = whole_events.first() else {
         panic!("{whole_events:?}")
     };
     let files = before
@@ -109,7 +114,8 @@ fn openings_matches_whole_rows_and_self_closes_without_copying_task_logs() {
         .count();
     assert_eq!(usize::try_from(*copied).expect("fixture count fits"), files);
     assert_eq!(*wires, Some(Box::from([KeptWire { name: "fixture-wire".into(), version: 1 }])));
-    assert_eq!(openings.as_ref(), &[opening("w1"), opening("w2")]);
+    assert_eq!(openings.as_ref(), &[opening("w1"), opening("w2")].map(KeptOpening::Current));
+    assert_eq!(workers.as_deref(), Some([].as_slice()));
     assert!(
         whole_events.iter().any(|event| { if let Event::Opened { .. } = event { true } else { false } }),
         "{whole_events:?}"
@@ -123,13 +129,16 @@ fn openings_matches_whole_rows_and_self_closes_without_copying_task_logs() {
 
     let mut shallow = Disk::new(&items);
     let events = rehearse(&mut shallow, Reach::Openings);
-    let [Event::Rehearsing { wires: found_wires, openings: found_openings, .. }, Event::Closed { removed: true, .. }] =
-        events.as_ref()
+    let [
+        Event::Rehearsing { wires: found_wires, openings: found_openings, workers: found_workers, .. },
+        Event::Closed { removed: true, .. },
+    ] = events.as_ref()
     else {
         panic!("{events:?}")
     };
     assert_eq!(found_wires, wires);
     assert_eq!(found_openings, openings);
+    assert_eq!(found_workers, workers);
     assert!(
         !shallow
             .requests()
@@ -181,7 +190,11 @@ fn openings_links_the_same_files_as_a_patch() {
         };
         assert_eq!(*linked, if refused { LINKS_AFTER_REFUSAL } else { LINKED_FILES });
         assert_eq!(usize::try_from(linked + copied).expect("fixture count fits"), files);
-        assert_eq!(openings.as_ref(), [opening("w1"), opening("w2")], "scratch recovered the rows");
+        assert_eq!(
+            openings.as_ref(),
+            [opening("w1"), opening("w2")].map(KeptOpening::Current),
+            "scratch recovered the rows"
+        );
         // Link requests include the refused attempt; only the reported counts change.
         assert_eq!(disk.linked(), patch.linked());
         assert_eq!(disk.contents(), before, "recovery, fallback and close leave the source unchanged");
@@ -239,5 +252,142 @@ fn openings_keeps_busy_and_unfinished_refusals_before_reading_rows() {
             "{events:?}"
         );
         assert_eq!(disk.contents(), before);
+    }
+}
+
+fn registered(disk: &Disk) -> crate::Store {
+    let mut store = disk.store_with_limits(&fixtures::registered_store_limits());
+    store.owner_sets(crate::OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SET, crate::JIG_STORE_SET] });
+    store
+}
+
+fn rehearse_registered(disk: &mut Disk, reach: Reach) -> Box<[Event]> {
+    let mut store = registered(disk);
+    let directory = disk.root();
+    let scratch = disk.scratch_root();
+    disk.request(
+        &mut store,
+        Request::Rehearse { owner: Token::new(1), directory, scratch, installation: fixtures::INSTALLATION, reach },
+    )
+}
+
+fn raw(disk: &mut Disk, store: &mut crate::Store, key: Box<[u8]>, value: Box<[u8]>) {
+    let number = store.stores.store.last().checked_add(1).unwrap();
+    let header = fixtures::header_record(number);
+    let header_key = crate::keys::encode(&header.key(), store.limits.store.key).unwrap();
+    let mut header_value = crate::codec::encode(&header, &store.codec_limits, &store.names).unwrap();
+    store.registry.write(&header_key, &mut header_value).unwrap();
+    let ops = Box::new([skein_kv::Op::Put { key: header_key, value: header_value }, skein_kv::Op::Put { key, value }]);
+    let env = crate::memory_env(store.limits.store);
+    let mut above = skein_lib::Queue::uncapped();
+    let mut below = fixtures::below();
+    skein_kv::down(
+        &mut store.stores.store,
+        &env,
+        skein_kv::Request::Commit { owner: Token::new(1), ops },
+        &mut above,
+        &mut below.store,
+    );
+    disk.drive(&mut below, |io, below| {
+        let crate::Io::Store(arrived) = io else { panic!("raw public-map write") };
+        skein_kv::up(&mut store.stores.store, &env, arrived.event, &mut above, &mut below.store);
+    });
+    let Some(skein_kv::Event::Committed { .. }) = above.pop() else { panic!("raw write: {above:?}") };
+}
+
+#[test]
+fn an_earlier_openings_head_is_enough_for_both_reaches_and_the_next_start_clears_it() {
+    let mut source = Disk::new(&[]);
+    let mut store = registered(&source);
+    let events = source.open(&mut store);
+    let Some(Event::Opened { .. }) = events.first() else { panic!("{events:?}") };
+    let writes = Box::new([fixtures::header(1), Write::Wires, Write::Opening(opening("current"))]);
+    let events = source.request(&mut store, fixtures::commit(1, writes));
+    let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let old = crate::keys::encode_own(&crate::keys::Own::Opening("earlier".into()), store.limits.store.key).unwrap();
+    // Nothing resembling a body, so even attempting a v1 decode would refuse it.
+    raw(&mut source, &mut store, old.clone(), Box::new([0, 1]));
+    let items = source.items();
+    for reach in [Reach::Openings, Reach::Whole] {
+        let events = rehearse_registered(&mut Disk::new(&items), reach);
+        let Some(Event::Rehearsing { openings, .. }) = events.first() else { panic!("{events:?}") };
+        assert_eq!(
+            openings.as_ref(),
+            [KeptOpening::Current(opening("current")), KeptOpening::BeforeLayouts { worker: "earlier".into() },]
+        );
+        if reach == Reach::Whole {
+            let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else { panic!("{events:?}") };
+        }
+    }
+    let mut disk = Disk::new(&items);
+    let mut store = registered(&disk);
+    let events = disk.open(&mut store);
+    let Some(Event::Opened { last: 2, .. }) = events.first() else { panic!("{events:?}") };
+    let events = disk.request(&mut store, fixtures::commit(3, Box::new([fixtures::header(3), Write::Wires])));
+    let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let page = crate::pages::load(&mut store, skein_kv::Range::prefix(&[0, 5])).unwrap();
+    assert!(page.rows.is_empty(), "both openings are cleared with the start's wires");
+}
+
+#[test]
+fn both_reaches_read_worker_changes_in_number_order_and_report_an_undecodable_change() {
+    use jig_domain_core_vocabulary::{self as core, settings as s};
+    let mut disk = Disk::new(&[]);
+    let mut store = registered(&disk);
+    let events = disk.open(&mut store);
+    let Some(Event::Opened { .. }) = events.first() else { panic!("{events:?}") };
+    let expected = [
+        KeptWorker { number: 1, name: b"changed".as_slice().into(), withdrawn: false },
+        KeptWorker { number: 2, name: b"added".as_slice().into(), withdrawn: false },
+        KeptWorker { number: 3, name: b"withdrawn".as_slice().into(), withdrawn: true },
+    ];
+    let setting = |worker: &KeptWorker| {
+        s::Value::Worker(Box::new(s::WorkerSetting {
+            number: worker.number,
+            name: worker.name.clone(),
+            places: 1,
+            digest: Some([5; 32]),
+            withdrawn: worker.withdrawn,
+        }))
+    };
+    let default = s::Record::Default {
+        setting: s::Setting::Worker(1),
+        default: s::Default { revision: 1, value: setting(&expected[0]) },
+    };
+    let save = |record| Write::Save(core::Record::Core(core::CoreRecord::Settings(record)));
+    let writes = Box::new([fixtures::header(1), Write::Wires, save(default)]);
+    let events = disk.request(&mut store, fixtures::commit(1, writes));
+    let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let mut writes = vec![fixtures::header(2)];
+    for worker in expected.iter().rev() {
+        writes.push(save(s::Record::Changed {
+            setting: s::Setting::Worker(worker.number),
+            changed: s::Changed { revision: 2, value: Some(setting(worker)) },
+        }));
+    }
+    let events = disk.request(&mut store, fixtures::commit(2, writes.into_boxed_slice()));
+    let [Event::Committed { .. }] = events.as_ref() else { panic!("{events:?}") };
+    let items = disk.items();
+    for reach in [Reach::Openings, Reach::Whole] {
+        let events = rehearse_registered(&mut Disk::new(&items), reach);
+        let Some(Event::Rehearsing { workers, .. }) = events.first() else { panic!("{events:?}") };
+        assert_eq!(workers.as_deref(), Some(expected.as_slice()));
+    }
+    let key = core::Key::Core(core::CoreKey::Settings(s::Key::Changed(s::Setting::Worker(2))));
+    let key = crate::keys::encode(&key, store.limits.store.key).unwrap();
+    raw(&mut disk, &mut store, key, Box::new([0, 3]));
+    let items = disk.items();
+    for reach in [Reach::Openings, Reach::Whole] {
+        let events = rehearse_registered(&mut Disk::new(&items), reach);
+        let Some(Event::Rehearsing { workers: None, .. }) = events.first() else { panic!("{events:?}") };
+        match reach {
+            Reach::Openings => {
+                let Some(Event::Closed { removed: true, .. }) = events.last() else { panic!("{events:?}") };
+            }
+            Reach::Whole => {
+                let Some(Event::Undecodable { family, .. }) = events.last() else { panic!("{events:?}") };
+                assert_eq!(family.as_ref(), "jig-store-settings");
+            }
+        }
     }
 }

@@ -12,7 +12,6 @@ smith-local-protocol.workspace = true
 skein-scratch.workspace = true
 skein-codegen.workspace = true
 skein-lib.workspace = true
-skein-checks.workspace = true
 skein-json.workspace = true
 skein-codec.workspace = true
 skein-channel.workspace = true
@@ -25,7 +24,6 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 smith-protocol-translate.workspace = true
 smith-protocol-llm.workspace = true
-smith-transcript-patches.workspace = true
 smith-channel.workspace = true
 
 [lints.rust]

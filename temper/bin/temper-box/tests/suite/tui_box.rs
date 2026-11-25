@@ -168,6 +168,7 @@ enum Case {
 #[derive(Debug)]
 enum Phase {
     Connecting,
+    WaitingForToken,
     SettingUp,
     Project,
     Chat,
@@ -181,6 +182,7 @@ struct Judge {
     phase: Phase,
     root: PathBuf,
     client: PathBuf,
+    token: PathBuf,
     patience: support::patience::Patience,
     settled: bool,
 }
@@ -195,7 +197,7 @@ impl Referee<Root> for Judge {
             };
             terminal.client_exit = client.exit_status();
             match self.phase {
-                Phase::Connecting if terminal.screen.has(b"Live") && !terminal.writing => {
+                Phase::Connecting | Phase::WaitingForToken if terminal.screen.has(b"Live") && !terminal.writing => {
                     if !box_link::link_path(&self.root).is_file() {
                         return Err(String::from("the handed link signed in and serve renewed it"));
                     }
@@ -211,12 +213,12 @@ impl Referee<Root> for Judge {
                             self.phase = Phase::Stopping;
                         }
                         Case::Working => {
-                            let token = self.root.join("state/temper/tui/token");
-                            if !token.is_file() {
+                            self.phase = Phase::WaitingForToken;
+                            if !self.token.is_file() {
                                 return Ok(());
                             }
                             // ctl has its own directory and acts as the TUI's person.
-                            fs::copy(token, self.root.join("ctl/token"))
+                            fs::copy(&self.token, self.root.join("ctl/token"))
                                 .map_err(|error| format!("copy fixture credential without printing it: {error:?}"))?;
                             calls.push(support::ctl::Step::Run(
                                 support::ctl::Call::new(&["playground", "start", "--key", "tui-playground"])
@@ -274,6 +276,7 @@ impl Referee<Root> for Judge {
                     self.phase = Phase::Done;
                 }
                 Phase::Connecting
+                | Phase::WaitingForToken
                 | Phase::SettingUp
                 | Phase::Project
                 | Phase::Chat
@@ -296,6 +299,12 @@ impl Referee<Root> for Judge {
         if !self.settled
             && let Some(figures) = self.patience.failed()
         {
+            if matches!(self.phase, Phase::WaitingForToken) {
+                return Err(format!(
+                    "TUI's box went Live but did not write token at {}: {figures}",
+                    self.token.display()
+                ));
+            }
             return Err(format!("TUI's box did not settle in {:?}: {figures}", self.phase));
         }
 
@@ -329,7 +338,10 @@ fn run(case: Case, name: &str) {
     let address = document
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)
-        .expect("engine address");
+        .expect("engine address")
+        .parse::<std::net::SocketAddr>()
+        .expect("engine socket address");
+    let token = root.join(format!("state/temper/tui/at/{}/{}/token", address.ip(), address.port()));
     let ctl = root.join("ctl");
     fs::DirBuilder::new().recursive(true).mode(0o700).create(&ctl).expect("ctl directory");
     support::write_private(&ctl.join("address"), format!("http://{address}\n").as_bytes());
@@ -384,6 +396,7 @@ fn run(case: Case, name: &str) {
         phase: Phase::Connecting,
         root: root.into(),
         client,
+        token,
         patience: support::patience::Patience::watching("TUI in front of a box", support::WITHIN, &binary),
         settled: false,
     });

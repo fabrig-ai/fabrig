@@ -139,14 +139,12 @@ This document holds checkout delivery and saving, split from [`checkouts.md`](ch
     one at a time per hold. `temper-worker-wire`'s `Ask` gains `landed`,
     `Head { head }`, `head` a full object id in 32 bytes as the items
     carry a merged head (`../../protocol/channel.md`, 4); its `Answer`
-    gains `landed` and `unlanded`, which carry nothing. The family moves
-    by one, from 9 to 10, its floor kept, with its kept text and patch
-    (`../../protocol/wires.md`, 3.1). A worker of the previous version
-    never asks, so it refuses as before; a worker of this version
-    meeting an engine of the previous one can't send `landed` up, so it
-    closes at the statement, `Ask` among the parts a worker sends whole,
-    and the engine goes first, as for the report (`../forge/reds.md`,
-    5.6).
+    gains `landed` and `unlanded`, which carry nothing, with no version
+    move (`../../protocol/wires.md`, 3.1). A worker whose layout lacks
+    them never asks, so it refuses as before; an engine whose layout
+    lacks `landed` cannot read an ask that holds it (jig's
+    `protocol/channel/layouts.md`, 5.3), so the engine goes first, as for
+    the report (`../forge/reds.md`, 5.6).
 
 ## 5. Each repository lands on its own
 
@@ -171,7 +169,7 @@ This document holds checkout delivery and saving, split from [`checkouts.md`](ch
 ## 6. A task's own delivery outlives its hold
 
 - **A task's own delivery outlives its hold**
-  (`../../draft/delivered-across-runs.md`, 2). A run that delivered and
+  (`../../draft/archive/delivered-across-runs.md`, 2). A run that delivered and
   then parked ends its hold, and its next run's hold starts with nothing
   of its own pushed, at the head that run delivered. So the assignment
   names, for each writable repository, the task's own delivery,

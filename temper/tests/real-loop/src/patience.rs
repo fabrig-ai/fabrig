@@ -321,7 +321,6 @@ mod tests {
                 &seeds,
                 None,
                 Some(temper_service::WorkerRuntime {
-                    wires: None,
                     root: Fd::new(2),
                     path: b"/worker".as_slice().into(),
                     agent: documents::pinned_agent(),

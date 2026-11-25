@@ -36,8 +36,6 @@ pub struct WorkerRuntime {
     pub root: Fd,
     pub path: Box<[u8]>,
     pub agent: jig_protocol_config::Agent,
-    /// A world's wire statement and bridges; production uses the build's whole ranges.
-    pub wires: Option<worker_settings::Wires>,
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
@@ -157,16 +155,9 @@ impl Worker {
         if bytes.len() > usize::try_from(config_limits.link.secret).expect("secret bound") {
             return Err(problem(b"secret", What::Bound));
         }
-        let mut credential = worker_settings::credential(settings, secret, &prepared.payload)
-            .or(Err(problem(b"limits", What::Bound)))?;
-        let jig = match runtime.wires {
-            Some(wires) => {
-                credential.application = wires.application;
-                wires.jig
-            }
-            None => jig_protocol_worker_wire::spoken(),
-        };
-        let link = link::Component::with_schema(&prepared.link, jig, credential, seed, prepared.schema)
+        let wires = prepared.wires;
+        let credential = worker_settings::credential(settings, secret, wires.application);
+        let link = link::Component::with_schema(&prepared.link, wires.jig, credential, seed, prepared.schema)
             .or(Err(problem(b"limits", What::Bound)))?;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
@@ -576,12 +567,6 @@ impl Worker {
     #[expect(clippy::too_many_lines, reason = "the worker link dispatch keeps every protocol request arm together")]
     pub fn link(&mut self, _now: Time, request: link::Request) {
         match request {
-            link::Request::CannotSendWhole { wire, version } => {
-                self.notes.push(crate::worker_alone::Note::CannotSendWhole { wire, version });
-            }
-            link::Request::Untranslated { kind, halt } => {
-                self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
-            }
             link::Request::Figures { figures } => self.hear_figures(figures),
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
@@ -709,7 +694,6 @@ impl Worker {
                     | link::Loss::Full
                     | link::Loss::Busy
                     | link::Loss::Fault
-                    | link::Loss::EngineStatesNoWires
                     | link::Loss::Unreachable => None,
                 };
                 if let Some(reason) = reason
@@ -1554,6 +1538,7 @@ mod prepared_tests {
         let connection = Token::new(1);
         worker.link.down(Time::ZERO, Event::Dialled { connection }, &mut out);
         let mut writes = List::uncapped();
+        let mut ready = false;
         for _ in 0_u8..32 {
             let Some(request) = out.pop() else { break };
             match request {
@@ -1589,11 +1574,13 @@ mod prepared_tests {
                     }
                 }
                 Request::Lower { lower: Lower::Read(_), .. } => {}
+                Request::Ready => ready = true,
                 other => panic!("unexpected opening request: {other:?}"),
             }
         }
         assert!(out.is_empty());
         assert_eq!(remaining, b"");
+        assert!(ready, "the terms complete the opening");
         let mut sent = 0_u8;
         for write in &writes {
             match write {
@@ -1607,110 +1594,56 @@ mod prepared_tests {
         writes
     }
 
-    fn cap(wire: &jig_protocol_worker_wire::Spoken, versions: &[(&str, u16)]) -> jig_protocol_worker_wire::Spoken {
-        let mut version = wire.lowest;
-        for (name, chosen) in versions {
-            if *name == wire.name {
-                version = *chosen;
-                break;
-            }
-        }
-        jig_protocol_worker_wire::Spoken::current(
-            wire.name,
-            version,
-            wire.layout(version).expect("chosen version is kept"),
-        )
-    }
-
     #[test]
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the test refuses every unexpected opening request")]
-    fn the_worker_s_opening_states_chosen_versions() {
-        use jig_protocol_worker_link as link;
-        use skein_lib::Reader;
-
+    #[expect(clippy::disallowed_macros, reason = "the test appends a newline to the owner's schema text")]
+    fn a_prepared_worker_states_each_prepared_layout_and_text() {
+        use jig_protocol_worker_wire as wire;
+        use temper_protocol_worker_wire::SCHEMA;
         let settings = fixtures::worker_settings();
-        let prepared =
-            crate::worker_settings::prepare(&settings, &fixtures::worker_agent(), &fixtures::worker_limits())
-                .expect("worker bounds");
-        // The seam accepts chosen versions too, not just the default floors.
-        let chosen = [("smith-charter", 5)];
-        let mut application = temper_protocol_worker_wire::application(&prepared.payload).expect("worker application");
-        for wire in application.spoken.iter_mut() {
-            *wire = cap(wire, &chosen);
-        }
-        let mut jig = jig_protocol_worker_wire::spoken();
-        for wire in jig.iter_mut() {
-            *wire = cap(wire, &chosen);
-        }
-        let expected_jig = jig.clone();
-        let expected_application = application.spoken.clone();
-        let mut credential = crate::worker_settings::credential(&settings, fixtures::WORKER_SECRET, &prepared.payload)
-            .expect("worker credential");
-        credential.application = application;
+        let agent = fixtures::worker_agent();
+        let limits = fixtures::worker_limits();
+        let files = fixtures::worker_files();
+        let mut prepared = crate::worker_settings::prepare(&settings, &agent, &limits).expect("prepared bounds");
+        assert_eq!(prepared.wires.jig, wire::spoken());
+        // A distinct equivalent text proves construction uses the prepared description, not a fresh one.
+        let application = prepared.wires.application.spoken.get_mut(0).expect("application wire");
+        application.text = format!("{SCHEMA}\n").leak();
+        let application = application.clone();
+        let expected = prepared.wires.jig.clone();
+        let table = prepared.schema.clone();
+        let link = prepared.link;
         let mut worker =
-            link::Component::with_schema(&prepared.link, jig, credential, 7, prepared.schema).expect("worker link");
-        let mut out = Queue::uncapped();
-        worker.fire(Time::ZERO, &mut out);
-        let Request::Dial = out.pop().expect("first dial") else { panic!("first dial") };
-        let connection = Token::new(1);
-        worker.down(Time::ZERO, Event::Dialled { connection }, &mut out);
-        let mut opening = None;
-        for _ in 0_u8..32 {
-            let Some(request) = out.pop() else { break };
-            match request {
-                Request::Lower { lower: Lower::Write(stream::OutputDown::Room { right, .. }), .. } => worker.down(
-                    Time::ZERO,
-                    Event::Lower {
-                        connection,
-                        event: LowerEvent::Write(stream::OutputUp::Settled {
-                            right,
-                            outcome: stream::OutputOutcome::Granted,
-                        }),
-                    },
-                    &mut out,
-                ),
-                Request::Lower { lower: Lower::Write(stream::OutputDown::Send { bytes, .. }), .. } => {
-                    let (header, body) = bytes.split_at_checked(8).expect("channel frame header");
-                    let header = skein_channel::parse_header(header).expect("channel frame");
-                    let channel_limits = link::channel_limits(&prepared.link).expect("channel limits");
-                    let skein_channel::Control::Open { credential, lowest, highest, .. } =
-                        skein_channel::decode_control(header.kind, body, &channel_limits).expect("opening frame")
-                    else {
-                        panic!("open control")
-                    };
-                    assert_eq!((lowest, highest), (16, 16));
-                    opening = Some(
-                        jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v22::CEILINGS,
-                            &mut Reader::new(&credential),
-                        )
-                        .expect("worker credential"),
+            super::Worker::prepared(&settings, &agent, &limits, &files, fixtures::worker_runtime(), 7, prepared)
+                .expect("prepared worker");
+        let writes = opening(&mut worker, &link, &table);
+        let channel_limits = jig_protocol_worker_link::channel_limits(&link).expect("channel limits");
+        let mut found = None;
+        for write in &writes {
+            if let stream::OutputDown::Send { bytes, .. } = write {
+                let (header, body) = bytes.split_at_checked(8).expect("channel frame header");
+                let header = skein_channel::parse_header(header).expect("channel frame");
+                if let Ok(skein_channel::Control::Open { credential, lowest, highest, .. }) =
+                    skein_channel::decode_control(header.kind, body, &channel_limits)
+                {
+                    assert_eq!((lowest, highest), (wire::VERSION, wire::VERSION));
+                    found = Some(
+                        wire::Credential::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(&credential))
+                            .expect("credential"),
                     );
+                    break;
                 }
-                Request::Lower { lower: Lower::Read(_) | Lower::FinishWrite, .. }
-                | Request::Lower {
-                    lower: Lower::Write(stream::OutputDown::Cancel { .. } | stream::OutputDown::Release { .. }),
-                    ..
-                } => {}
-                other => panic!("unexpected opening request: {other:?}"),
             }
         }
-        let opening = opening.expect("the worker sent an opening");
-        assert_eq!(opening.wires.len(), 5);
-        let mut charter = None;
-        for wire in &opening.wires {
-            if wire.name.as_ref() == b"smith-charter" {
-                charter = Some(wire);
-                break;
-            }
-        }
-        let charter = charter.expect("charter stated");
-        assert_eq!(charter.lowest, 5, "the chosen version overrides the floor");
-        for (stated, wire) in opening.wires.iter().zip(expected_jig.iter().chain(expected_application.iter())) {
-            assert_eq!(stated.name.as_ref(), wire.name.as_bytes());
-            assert_eq!(stated.lowest, wire.lowest);
-            assert_eq!(stated.layouts.as_slice(), wire.layouts.as_slice());
-            assert_eq!(stated.layouts.len(), 1, "one version of every wire");
+        let statement = found.expect("the worker sent the opening");
+        assert_eq!(statement.wires.len(), 5);
+        for (stated, spoken) in statement.wires.iter().zip(expected.iter().chain(core::iter::once(&application))) {
+            assert_eq!(stated.name.as_ref(), spoken.name.as_bytes());
+            assert_eq!(stated.layout, spoken.layout);
+            assert!(
+                stated.text.as_ref() == spoken.text.as_bytes(),
+                "the opening carries {}’s prepared text",
+                spoken.name
+            );
         }
     }
 

@@ -412,7 +412,7 @@ terminal client, the captures and the faults.
        minted for `acme`'s installation, the branch's head the coder's
        one new commit; `umbra/tool`'s adoption refused (`NoAccess` on
        the client's wire until it names `NotInstalled`:
-       ../domain/forge/adoption.md, 3), with no git call and no token
+       ../domain/forge/adoption.md, 7), with no git call and no token
        for `umbra`;
     7. a repository granted on GitHub appearing in the picker;
     8. Forgejo connected, managed and owned from the client.

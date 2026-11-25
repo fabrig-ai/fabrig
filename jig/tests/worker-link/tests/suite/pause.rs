@@ -1,4 +1,4 @@
-//! Pause notices retain the channel's ordering and version gate (protocol/channel/pause.md, 4).
+//! Pause notices retain the channel's ordering and terms gate (protocol/channel/pause.md, 4).
 use jig_domain_host as host;
 use jig_domain_link::{PauseMode, PauseState};
 use jig_protocol_worker_link::Request;
@@ -40,49 +40,25 @@ fn every_pause_mode_reaches_the_owner_between_the_records_around_it() {
 }
 
 #[test]
-fn paused_states_are_sent_only_where_the_agreed_version_has_the_kind() {
-    // Usage notices are required from 19; older engines refuse this worker at opening.
-    for version in [19, 20] {
-        let mut world = crate::joined_world::Joined::with_wires(
-            &super::translation::limits(),
-            1,
-            super::translation::capped(version, smith_charter::wire::VERSION),
-            wire::spoken(),
-        );
+fn paused_states_are_sent_only_where_the_engines_terms_list_the_kind() {
+    for has_pause in [true, false] {
+        let mut world = World::new(&fixtures::limits(), 1);
+        world.script_root();
+        let peer =
+            if has_pause { fixtures::engine_accepting() } else { fixtures::engine_without_term(wire::Kind::Paused) };
+        world.engine(peer);
         world.run();
-        world.acknowledge(false);
-        assert_eq!(
-            world.engine_channels().len(),
-            1,
-            "range-stating worker admits engine {version}: engine={:?}, worker={:?}",
-            world.engine_root,
-            world.worker_root
-        );
+        assert!(world.root().iter().any(|r| matches!(r, Request::Ready)));
         for state in [PauseState::Taking, PauseState::Paused, PauseState::Draining, PauseState::Drained] {
-            let before = world.worker_records().len();
-            world.worker_up(host::LinkUp::Paused { state }, Box::new([]));
+            world.down(jig_protocol_worker_link::Event::Up { up: host::LinkUp::Paused { state }, parts: Box::new([]) });
             world.run();
-            if version == 20 {
-                assert_eq!(world.worker_records().get(before..), Some([wire::Kind::Paused.number()].as_slice()));
-                assert!(matches!(world.engine_root.last(),
-                    Some(jig_protocol_engine_workers::Request::Up { up: host::LinkUp::Paused { state: got }, .. }) if *got == state));
-            } else {
-                assert_eq!(world.worker_records().len(), before);
-            }
         }
-        assert!(
-            !world
-                .worker_root
-                .iter()
-                .any(|request| matches!(request, Request::Untranslated { .. } | Request::Fact { .. } | Request::Lost))
-        );
-        world.worker_up(host::LinkUp::Draining, Box::new([]));
+        let records = world.records();
+        let noticed = records[0].iter().filter(|record| record.kind == wire::Kind::Paused.number()).count();
+        assert_eq!(noticed, if has_pause { 4 } else { 0 });
+        assert!(!world.root().iter().any(|r| matches!(r, Request::Lost)));
+        world.down(jig_protocol_worker_link::Event::Up { up: host::LinkUp::Draining, parts: Box::new([]) });
         world.run();
-        assert_eq!(world.worker_records().last(), Some(&wire::Kind::Draining.number()));
-        assert!(matches!(
-            world.engine_root.last(),
-            Some(jig_protocol_engine_workers::Request::Up { up: host::LinkUp::Draining, .. })
-        ));
-        world.finish();
+        assert_eq!(world.records()[0].last().map(|record| record.kind), Some(wire::Kind::Draining.number()));
     }
 }

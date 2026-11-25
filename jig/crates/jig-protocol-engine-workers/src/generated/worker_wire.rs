@@ -4,11 +4,11 @@
 use alloc::boxed::Box;
 
 pub fn wire_to_domain(record: jig_protocol_worker_wire::v22::Wire) -> Result<crate::Stated, jig_protocol_worker_wire::v22::Problem> {
-    let jig_protocol_worker_wire::v22::Wire { name: field_000000, lowest: field_000001, layouts: field_000002 } = record;
+    let jig_protocol_worker_wire::v22::Wire { name: field_000000, layout: field_000001, text: field_000002 } = record;
     Ok(crate::Stated {
         name: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(jig_protocol_worker_wire::v22::paths::WIRE_NAME.problem(reason)) },
-        lowest: field_000001,
-        layouts: field_000002
+        layout: field_000001,
+        text: field_000002
     })
 }
 

@@ -437,7 +437,7 @@ other module is safe Rust, the same on both systems.
     hard-linked there, whose relative target would then resolve beneath
     their own directory: it is not passed. A user's own link is refused
     as on Linux, the path's owner's included. The bits read are the
-    mode's, as io's private-file checks read them (io/files.md, 3).
+    mode's, as io's private-file checks read them (io/files.md, 11).
   - **Not the canonical path.** Making a path canonical (`realpath`)
     before the open would follow every link, a user's too, and leave
     `O_NOFOLLOW_ANY` nothing to refuse; making only each root canonical

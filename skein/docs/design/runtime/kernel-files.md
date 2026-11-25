@@ -58,7 +58,7 @@ documentation, with each operation's errors; the decisions behind it:
   entry itself, a symbolic link included, and needs search permission on
   the directories above it and none on the entry, so it opens another
   user's `0o700` directory or `0o600` file that `Read` cannot (io/files.md,
-  3). Only `Stat` and `Close` take it; any other operation on it is an
+  11). Only `Stat` and `Close` take it; any other operation on it is an
   invalid record. Its `Stat` may answer a symbolic link or a special
   file (a device, a FIFO, a socket), which otherwise only `List` and
   `StatEntry` show. It does no I/O, so the ring keeps whatever
@@ -75,7 +75,7 @@ documentation, with each operation's errors; the decisions behind it:
   invalid record: the kernel's offsets are signed, and the ring would read
   `u64::MAX` as the descriptor's position.
 - **`Append` is the one write at the descriptor's position.** It is for a
-  file written as a stream (io/files.md, 1): a descriptor the shell opened at
+  file written as a stream (io/files.md, 9): a descriptor the shell opened at
   startup to write at its end (`O_WRONLY | O_APPEND`, created with the
   mode its configuration gives), or a standard output that is a regular
   file. The ring writes at the position (offset −1): with `O_APPEND` the
@@ -100,7 +100,7 @@ documentation, with each operation's errors; the decisions behind it:
   permission on the directory and none on the entry. It is the ring's
   `statx` on the directory and the name. The checks of a private file
   need the owner and the links: one link, and the owner of the directory
-  it lies in (io/files.md, 3); a tree's walk needs the rest (2).
+  it lies in (io/files.md, 11); a tree's walk needs the rest (2).
 - **A kind for each thing a name may be:** a file, a directory, a
   symbolic link, a character or a block device, a FIFO, a socket. `Other`
   is left for a `List` entry whose kind neither its directory nor a stat
@@ -127,7 +127,7 @@ documentation, with each operation's errors; the decisions behind it:
   (io/files.md): the temporary's name drawn from the seed, drawn again on
   `Exists`; the old file's bits kept, which is why `Create` takes a mode
   and `Stat` answers one (and why `MakeDirectory` takes one too: a private
-  directory is made `0o700`, io/files.md, 3); a symbolic link at the target replaced by the
+  directory is made `0o700`, io/files.md, 11); a symbolic link at the target replaced by the
   file, as `Rename` replaces a link and does not follow it, since writing
   through links is not offered.
 - **`List` hands back entries as plain values,** `getdents64`'s structures

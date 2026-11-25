@@ -1,6 +1,6 @@
 //! Root translation for the forge connector. Its store rows and released API
 //! calls cross one root decision; the connector never owns the store.
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use super::{
     CallAnswer, CallKey, Decision, Delivery, Domain, Env, Family, ForgeWorkspace, Id, Key, Limits, List, ProcedureStep,
     Queue, Record, ReplyTo, Request, StepEnd, Token, Work, Write, authority, connector_answer, core_call, decide_call,

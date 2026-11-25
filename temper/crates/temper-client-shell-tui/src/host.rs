@@ -69,6 +69,15 @@ pub struct Start {
     pub box_log: Box<[u8]>,
 }
 
+/// The startup files that belong to one engine, not to the front's preview.
+#[derive(Clone)]
+pub(crate) struct OriginFiles {
+    pub address: tui::Origin,
+    pub kept: Vec<jig_client::Record>,
+    pub credential: Option<Secret>,
+    pub note: Option<tui::Note>,
+}
+
 pub enum Report {
     Start(Start),
     Due,
@@ -179,6 +188,8 @@ pub struct Host {
     closed: bool,
     stopping: bool,
     handed: bool,
+    front_files: Option<OriginFiles>,
+    front_theme: Option<ThemeChoice>,
     terminal_number: u64,
 }
 
@@ -236,6 +247,8 @@ impl Host {
             closed: false,
             stopping: false,
             handed: false,
+            front_files: None,
+            front_theme: None,
             terminal_number: skein_lib::Rng::new(seed).next_u64(),
         }
     }
@@ -459,7 +472,10 @@ impl Host {
 
     fn start(&mut self, start: Start, duties: &mut Duties) {
         assert!(self.state.is_none(), "the TUI starts once");
-        let mut state = tui::Tui::new(&start.address);
+        // The front can draw and take terminal keys before it knows its engine.
+        let preview =
+            if start.front { crate::start::selected_address(None, None, None) } else { start.address.clone() };
+        let mut state = tui::Tui::new(&preview);
         state.header(start.plain, start.version);
         self.state = Some(state);
         if start.front {
@@ -475,23 +491,53 @@ impl Host {
             self.tell(Told::Boxed);
         }
         self.tell(Told::Size { columns: start.size.columns });
-        self.credential.clone_from(&start.credential);
         self.local = start.front || start.local;
-        self.note = start.note;
-        let mut kept = List::with_capacity(u32::try_from(start.kept.len()).expect("bounded store"));
-        for record in start.kept {
+        let files =
+            OriginFiles { address: start.address, kept: start.kept, credential: start.credential, note: start.note };
+        if start.front {
+            self.front_files = Some(files);
+            self.look();
+            self.step(Event::Launchpad);
+            self.step(Event::Lends { terminal: self.terminal_number });
+            self.need_local(true, duties);
+        } else {
+            self.start_client(files, false);
+            if self.credential.is_none() {
+                self.begin_local(duties);
+            }
+        }
+    }
+
+    pub(crate) fn front_files(&mut self, files: OriginFiles) {
+        assert!(self.handed, "files are supplied before the handed link");
+        self.front_files = Some(files);
+    }
+
+    fn start_client(&mut self, files: OriginFiles, front: bool) {
+        self.credential.clone_from(&files.credential);
+        self.note = files.note;
+        let mut kept = List::with_capacity(u32::try_from(files.kept.len()).expect("bounded store"));
+        for record in files.kept {
             if record.key.as_ref() == THEME_KEY {
                 self.choice = ThemeChoice::read(&record.bytes);
             } else {
                 kept.push(record).expect("counted store");
             }
         }
-        self.tell(Told::Theme { choice: self.choice, terminal: self.terminal });
+        if let Some(choice) = self.front_theme.take() {
+            self.choice = choice;
+        }
         self.step(Event::Start {
             address: Address::Inbox { filter: Filter::ALL },
             kept,
-            with: if start.front { None } else { start.credential.map(With::Held) },
+            with: if front { None } else { files.credential.map(With::Held) },
         });
+        self.look();
+        self.step(Event::Launchpad);
+    }
+
+    fn look(&mut self) {
+        self.tell(Told::Theme { choice: self.choice, terminal: self.terminal });
         self.step(Event::LookKept {
             look: Look {
                 terminal: true,
@@ -503,13 +549,6 @@ impl Host {
                 night: false,
             },
         });
-        self.step(Event::Launchpad);
-        if start.front {
-            self.step(Event::Lends { terminal: self.terminal_number });
-            self.need_local(true, duties);
-        } else if self.credential.is_none() {
-            self.begin_local(duties);
-        }
     }
 
     fn lending(&mut self, duties: &mut Duties) {
@@ -593,11 +632,12 @@ impl Host {
                 self.end_local();
                 return;
             };
-            if !same_origin(self.state().address(), &link.host) {
-                self.note = None;
-            }
+            let files = self.front_files.take().filter(|files| files.address == address).unwrap_or_else(|| {
+                OriginFiles { address: address.clone(), kept: Vec::new(), credential: None, note: None }
+            });
             self.tell(Told::Address { address });
             self.handed = false;
+            self.start_client(files, true);
         } else if !same_origin(self.state().address(), &link.host) {
             self.end_local();
             return;
@@ -1535,6 +1575,9 @@ impl Host {
     }
 
     fn keep_theme(&mut self, choice: ThemeChoice, duties: &mut Duties) {
+        if self.handed {
+            self.front_theme = Some(choice);
+        }
         self.choice = choice;
         self.tell(Told::Theme { choice, terminal: self.terminal });
         let theme = match choice.scheme(self.terminal) {

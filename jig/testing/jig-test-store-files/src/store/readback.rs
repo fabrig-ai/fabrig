@@ -272,9 +272,10 @@ impl Store {
                         protocol::registry_v1::Job::decode(&protocol::registry_v1::CEILINGS, &mut Reader::new(value))
                             .expect("job row");
                     }
+                    keys::Own::Opening(_) if value.starts_with(&1_u16.to_be_bytes()) => {}
                     keys::Own::Opening(worker) => {
-                        let opening = protocol::openings_v1::WorkerOpening::decode(
-                            &protocol::openings_v1::CEILINGS,
+                        let opening = protocol::openings_v2::WorkerOpening::decode(
+                            &protocol::openings_v2::CEILINGS,
                             &mut Reader::new(value),
                         )
                         .map_err(|failure| inventory(key, format!("opening row: {failure:?}")))?;

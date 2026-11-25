@@ -23,7 +23,7 @@ Serving the browser's page and bundle is split from [the browser overview](READM
      terminal with temper-box open DIRECTORY LINK." and "To serve the
      browser, build temper with the wasm32-unknown-unknown target, or
      name a bundle's directory in application.clients.bundle, and
-     restart temper." (`../../protocol/setup/init.md`, 2);
+     restart temper." (`../../protocol/setup/init.md`, 5);
   3. a request other than `GET`: `405`;
   4. `/bundle/<digest>/…`: the bundle's files, immutable, each in the
      form the request takes (skein's `ui/web/bundle.md`, 4); any other path

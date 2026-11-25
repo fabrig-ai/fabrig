@@ -59,7 +59,7 @@ every setting is, its decision that project's owners'. Its value, a
 
 | Member | What it holds | Absent or empty |
 |---|---|---|
-| `source` | a repository, by its forge's number and the forge's id for it (`adoption.md`), its project adopting it as context; `branch`, a branch of it; `paths`, at most `follow_paths` path prefixes of whole segments (`src`, `include/vsr.h`), each at most 256 bytes, with no leading, trailing or doubled `/` | `branch`: the repository's landing branch, as its record keeps it (`adoption.md`, 8); `paths`: every path |
+| `source` | a repository, by its forge's number and the forge's id for it (`adoption.md`), its project adopting it as context; `branch`, a branch of it; `paths`, at most `follow_paths` path prefixes of whole segments (`src`, `include/vsr.h`), each at most 256 bytes, with no leading, trailing or doubled `/` | `branch`: the repository's landing branch, as its record keeps it (`adoption.md`, 12); `paths`: every path |
 | `target` | a repository the project owns and temper writes (`adoption.md`); `branch`, the branch its follow changes land into | `branch`: the repository's landing branch |
 | `owner` | `person`: a person of the project, by number, with any role in it; or `task`: a standing role of the project (`../agent/standing.md`), by its task's number, a live task of the project labelled 3 | refused |
 | `start` | `owner`, each follow change waiting for its owner's word; or `code`, each starting once the one before it has landed | `owner` |

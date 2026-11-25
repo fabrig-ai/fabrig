@@ -9,7 +9,7 @@ a person is in. It adopts jig's `draft/notes-memory.md`, section 4, for a
 standing role's Now, as the user took it up on 2026-11-08 for standing roles
 alone (that draft's head and status record it). It widens
 `../domain/findings.md`, section 6's one triager per project to an owner per
-area. It revises `stock-ways.md`, section 2, where a way sets how work starts
+area. It revises `archive/stock-ways.md`, section 2, where a way sets how work starts
 and lands and nothing else: a way may now bring standing roles (section 10).
 It departs from jig's `domain/tasks/messages.md`, 6,
 where a charter whose runs resume holds no parts, and from jig's
@@ -304,8 +304,8 @@ Each is a design lag, by its status file.
 
 ## 10. Stock roles and ways
 
-- **A way may bring standing roles,** revising `stock-ways.md`, section 2,
-  as Draft first brings its coordinator and goal template (`stock-ways.md`,
+- **A way may bring standing roles,** revising `archive/stock-ways.md`, section 2,
+  as Draft first brings its coordinator and goal template (`archive/stock-ways.md`,
   3.3). Draft first brings a triager, a standing role that routes what comes
   in and owns what has no area, with a small budget a week. A project with no standing role keeps
   its person as the owner of everything, as at Pair.

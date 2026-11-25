@@ -76,12 +76,8 @@ impl Taking {
         let WorkerStart { mut part, files, root, seed } = self.startup.take().expect("start the worker once");
         figures::apply(&mut part, figures)
             .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&startup::lines(&why))));
-        let runtime = temper_service::WorkerRuntime {
-            root,
-            path: part.worker.root.clone(),
-            agent: documents::pinned_agent(),
-            wires: None,
-        };
+        let runtime =
+            temper_service::WorkerRuntime { root, path: part.worker.root.clone(), agent: documents::pinned_agent() };
         let service = temper_service::startup::worker_alone(part, &files, &documents::agent(), runtime, seed)
             .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
         Some(Worker { service, places, linked: 0 })

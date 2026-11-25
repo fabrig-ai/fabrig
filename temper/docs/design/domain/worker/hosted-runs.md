@@ -361,7 +361,7 @@ stay the operator's.
 ## 2. Open questions
 
 - **A hold naming an agent run's last failure.** Settled for a model
-  call's failure (the user, 2026-11-13; `../../draft/run-provider-outage.md`,
+  call's failure (the user, 2026-11-13; `../../draft/archive/run-provider-outage.md`,
   2): its hold names the call from structured fields alone, the endpoint,
   model, kind, evidence and status (`hosted-runs.md`, 1.3; jig's `domain/hosts/hub.md`, 3),
   and no free text. For any other run failure the question stands: an agent task held

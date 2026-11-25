@@ -55,7 +55,7 @@ pub use domain::{Domain, Refused, StartStop, fire, refused, release, step};
 pub use jig_domain_core::{Charter, Delegate, Dependency, Model, ProcedureStep, RunCharter, RunPolicy, StepEnd};
 pub use limits::{
     BriefBudgets, BriefLimits, FACTS, Limits, TRANSCRIPT_TAIL_BYTES, VIEWS, WATCHES_PER_STREAM, core_limits,
-    default_watermark, policy_row_bound, valid, views_for,
+    default_watermark, policy_row_bound, row_bound, valid, views_for,
 };
 pub use link::{inbox_sender, inbox_words};
 pub use route::{

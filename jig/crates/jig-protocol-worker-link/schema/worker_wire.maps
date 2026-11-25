@@ -149,10 +149,6 @@ enum UsageOutcome = l::UsageOutcome { read tuple }
 record UsageRead by hand
 record ReadUsage by hand
 
-# The engine states the agreed wires
-record AgreedWire by hand
-record Agreed by hand
-
 # Application reads
 record Ask by hand
 record AskBytes stands for bytes

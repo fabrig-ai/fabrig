@@ -127,6 +127,10 @@ impl Shell {
     pub fn refused(&self) -> Option<tls::Error> {
         self.transport.refused
     }
+    /// Choose the private directory beneath the adopted root before the first iteration.
+    pub fn use_directory(&mut self, directory: Box<[u8]>) {
+        self.files.use_directory(directory);
+    }
     /// Adopt the caller's directory descriptor and effective user, before startup.
     pub fn adopt(&mut self, root: Fd, user: u32, seed: u64) {
         self.files.adopt(root, user, seed);

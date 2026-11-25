@@ -208,7 +208,7 @@ open is section 9.
   Where a gateway session lives is 9's *Credentials outside the
   environment*.
 - **The settings file** in the directory is the agent's (`programs-claude-code.md`, 1.3): written
-  whole, by durable replace (skein's `runtime/io/files.md`, 2), with the same content
+  whole, by durable replace (skein's `runtime/io/files.md`, 10), with the same content
   for every run, so that runs on one source never race over it.
 
 ## 5. Running Claude Code

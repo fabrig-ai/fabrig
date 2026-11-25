@@ -315,7 +315,7 @@ Ask temper is reached from the rail and tab bar (`../view-navigation.md`, 1), an
   words, `full` and a person who is no owner too, the control back at its
   value. A `stale` refusal is sent once more against the revision it names.
   Answered, the client takes the value at once and reads it again.
-- **A way's acts** (`../../draft/stock-ways.md`, section 5;
+- **A way's acts** (`../../draft/archive/stock-ways.md`, section 5;
   `../../protocol/configuration/settings.md`, 8): Ask temper's page and How work
   runs each watch the project's `ways` (`../forge/records.md`) while open, its state the
   page's. *"Use this"* on a

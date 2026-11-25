@@ -466,8 +466,7 @@ pub(crate) fn down(
         | wire::Kind::AccountRefused
         | wire::Kind::Ask
         | wire::Kind::Figures
-        | wire::Kind::Restarting
-        | wire::Kind::Wires => return None,
+        | wire::Kind::Restarting => return None,
     };
     Some(down)
 }
@@ -645,27 +644,6 @@ fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wi
     let outcome = mapped::list_outcome_to_record(&outcome).ok()?;
     let record = wire::ListRead { read, outcome };
     frame(wire::Kind::ListRead.number(), record.encode(limits).ok()?)
-}
-
-/// Byte bridges surround this component's current-value/domain translation (bridges.md, 5).
-pub(crate) fn send(
-    machine: &mut wire::translation::Translation,
-    frame: Frame,
-    version: u16,
-    agreed: &[wire::Agreed],
-    limits: &wire::v22::Limits,
-) -> Result<Frame, wire::translation::Untranslated> {
-    machine.send(frame, version, agreed, limits)
-}
-pub(crate) fn receive(
-    machine: &mut wire::translation::Translation,
-    kind: u16,
-    body: &[u8],
-    version: u16,
-    agreed: &[wire::Agreed],
-    limits: &wire::v22::Limits,
-) -> Result<Frame, wire::translation::Untranslated> {
-    machine.receive(kind, body, version, agreed, limits)
 }
 
 fn usage_read_frame(read: u64, outcome: UsageOutcome, limits: &wire::v22::Limits) -> Option<Frame> {

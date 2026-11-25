@@ -32,7 +32,7 @@ const fn older(package: &'static str, file: &'static str) -> Exception {
         package,
         what: file,
         reason: "an older version's record file, keeping its test module until C2 removes it",
-        until: "milestone C2 of temper/docs/design/draft/gate-compile.execution.md removes the older version",
+        until: "milestone C2 of temper/docs/design/draft/archive/gate-compile.execution.md removes the older version",
     }
 }
 
@@ -44,8 +44,6 @@ const EXCEPTIONS: &[Exception] = &[
     library("smith-charter", "private record helpers have library tests"),
     library("smith-channel", "private kind and record helpers have library tests"),
     library("smith-transcript", "private record helpers have library tests"),
-    library("temper-protocol-records", "patch golden tests remain in the library"),
-    library("skein-codec-tests", "patch golden tests remain in the library"),
 ];
 
 #[derive(Default)]

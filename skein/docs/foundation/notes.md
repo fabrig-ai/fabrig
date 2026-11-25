@@ -90,7 +90,7 @@ counts, or backpressures through its stream, by its declared policy.
 
 What it gives up: while a sink that backpressures is slow, its facts
 wait in memory, and a stalled one would keep them for good, so a stream
-that can stall has a deadline that abandons it (../design/runtime/io/files.md, 1), and the
+that can stall has a deadline that abandons it (../design/runtime/io/files.md, 9), and the
 sink records that it was abandoned.
 
 ## Why limits at the edges and owned bytes
@@ -190,7 +190,7 @@ reports a result after it has moved on.
 ## Why a pinned nightly
 
 The repository builds on a dated nightly with LLVM, by the user's choice
-of 2026-11-12 (temper's `docs/design/draft/crate-graph.md`, 2). In one
+of 2026-11-12 (temper's `draft/archive/crate-graph.md`, 2). In one
 trial on one builder, that nightly's LLVM compiled the libraries in 17%
 less processor time than stable 1.95's, and two crates' test builds in
 19% less; and Cargo's feature unification across a workspace, which
@@ -215,7 +215,7 @@ than the workspace's build with tests did, so 206 of the 380 members,
 about 450 s of the libraries' 741 s, compiled under keys the other build
 never asked for. The delivery check builds with `-p` for the packages a
 change reaches, so a change's builds rarely shared main's keys (temper's
-`docs/design/draft/crate-graph.md`, 2). The user's plan of that day: no
+`draft/archive/crate-graph.md`, 2). The user's plan of that day: no
 features anywhere, and an external crate that needs features gets the
 same ones everywhere (cli.md, 3).
 

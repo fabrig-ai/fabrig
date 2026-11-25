@@ -225,12 +225,11 @@ let s = "missing.md";
                     self.assertIn('comment:actual: count 2, baseline 1', result.stderr)
                     self.assertEqual(baseline.read_bytes(), before)
 
-    def test_generated_patch_module_is_omitted_but_authored_patch_files_count(self):
+    def test_only_generated_path_components_are_omitted(self):
         for name, expected in (
-            ('crates/owner/patches/mod.rs', 0),
-            ('crates/owner/patches/context.rs', 1),
-            ('crates/owner/patches/p0001.rs', 2),
-            ('crates/owner/patches/helper/mod.rs', 3),
+            ('crates/owner/src/generated/records.rs', 0),
+            ('crates/owner/src/mod.rs', 1),
+            ('crates/owner/src/generated_names.rs', 2),
         ):
             with self.subTest(name=name):
                 path = self.root / name

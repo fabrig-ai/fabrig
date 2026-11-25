@@ -1,6 +1,6 @@
 # A turn told in parts
 
-Provisional, 2026-11-21, from temper's `draft/worker-restarts.md`,
+Provisional, 2026-11-21, from temper's `draft/archive/worker-restarts.md`,
 sections 3, 6 and 7 (a crash, 2026-11-24). A turn is told whole once its last call has answered
 (run.md, section 4, step 6). A host that keeps a run's place across its
 own restart needs more: the LLM's answer kept as soon as it arrives, and

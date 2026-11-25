@@ -3,8 +3,8 @@
 2026-11-16, revised 2026-11-17 and 2026-11-22 (going back past a new
 build's first commit, 2.5, once the redeploy tool left the repository).
 temper's part of taking a checkpoint
-and restoring one (`draft/checkpoints.md`, sections 3.4, 4, 5.1 and
-5.3; milestones C1 and C2 of `draft/checkpoints.execution.md`): the
+and restoring one (`../draft/archive/checkpoints.md`, sections 3.4, 4, 5.1 and
+5.3; milestones C1 and C2 of `../draft/archive/checkpoints.execution.md`): the
 deployment's binaries' commands, the owner's act through `temper ctl`,
 and the setting. What a checkpoint is and how the store takes it are
 jig's `protocol/store/checkpoints.md`, and how it restores one is jig's
@@ -24,7 +24,7 @@ jig's `protocol/store/checkpoints.md`, and how it restores one is jig's
   takes a safety checkpoint first, then makes NAME's state the
   deployment's, crash-safe (2.5).
 - **The setting:** `store.checkpoints.keep`, default 2 (4).
-- **A redeploy,** its operator's (`draft/redeploys.md`, 7), takes one
+- **A redeploy,** its operator's (`../draft/archive/redeploys.md`, 7), takes one
   through the act while the old build serves, for the new build's
   `upgrade --check` (3; `binaries.md`, 2); one at the engine's settled
   stop with the installed build, as its backup (2.1); and goes back
@@ -163,7 +163,7 @@ does: no worker, no listener, no root.
 - **Its request** is temper's client family's (`../client/forge/records.md`):
   `Checkpoint`, with no field, keyed as an act is, the key optional. It
   moves `CLIENT_VERSION` by one, unbridged, as a client's wire moves
-  (`draft/redeploys.md`, 8).
+  (`../draft/archive/redeploys.md`, 8).
 - **Its outcome:**
 
 ```

@@ -49,7 +49,7 @@ standing task's Now alone.
   template's start and a restart alike. A run's tools take no
   `ended_by` (`../../protocol/configuration-templates.md`, 2), so only a party's
   batch, or a template a party starts, makes one.
-- **It runs Open** (`../hosts/charters.md`, 1): granted the wait and never
+- **It runs Open** (`../hosts/charters.md`, 4): granted the wait and never
   delivery, as a task its requester ends.
 - **Never told that nothing is awaited.** `lifecycle.md`, 2's rule passes
   it by, as it passes a task its requester ends: idle with nothing
@@ -252,7 +252,7 @@ the session by its `first` and saying which end it was.
 
 A person talking with a standing task, in the terminal or on the web:
 their words wake it, its runs answer in their ordinary text, as an Open
-run's reply is (`../hosts/charters.md`, 1), and the session stays warm
+run's reply is (`../hosts/charters.md`, 4), and the session stays warm
 while they are there.
 
 - **Opened by their words.** A party's `Talk` (`../people/acts.md`, 1)

@@ -1,4 +1,4 @@
-//! Landing history is written by transitions, not by rediscovery (landing-history.md, 3).
+//! Landing history is written by transitions, not by rediscovery (domain/landing-history.md, 3).
 use temper_engine_domain_forge::{self as top, history as h};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_forge_world::{

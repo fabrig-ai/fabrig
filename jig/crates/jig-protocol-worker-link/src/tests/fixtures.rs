@@ -6,7 +6,9 @@ pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
 pub fn application() -> List<wire::Spoken> {
     let mut wires = List::with_capacity(1);
-    wires.push(wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    let text = "family test-worker-wire 3\nrecord Test { value: u32 }\n";
+    let layout = skein_codec::schema::parse(text.as_bytes()).expect("test wire").fingerprints().family().digest();
+    wires.push(wire::Spoken { name: "test-worker-wire", version: 3, layout, text }).expect("application wire");
     wires
 }
 pub const SEED_ONE: u64 = 1;

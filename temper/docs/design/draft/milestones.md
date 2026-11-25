@@ -43,7 +43,7 @@ differ until its plans fold it in.
 |---|---|---|---|
 | Is | one piece of work: one pull request | a set of changes, which its agent plans | a set of goals |
 | Made by | a chat, the rail's "Change", a goal | a chat's or a landed draft, a finding, `temper ctl goal start` | `temper ctl`, by a person or their scripts |
-| Runs | its producer, CI, its reviews, its repairs, the queue | a coordinator that wakes for judgement alone (`goal-runs-itself.md`, section 1) | nothing of its own: its goals run |
+| Runs | its producer, CI, its reviews, its repairs, the queue | a coordinator that wakes for judgement alone (`archive/goal-runs-itself.md`, section 1) | nothing of its own: its goals run |
 | Lands | on its own | each change on its own, or whole from its branch, by its way | each goal on its own, by that goal's way |
 | Done | once landed | once it has ended done (section 3) | once no more goals will join and every goal in it is done |
 | On the forge | a pull request | an issue (`../domain/forge/issues.md`) | nothing yet: its goals' issues alone (section 11) |

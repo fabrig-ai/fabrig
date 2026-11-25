@@ -159,15 +159,13 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   it requires nothing of the remote, and the worker takes it as
   evidence only where its prepare fetched the push branch at that head
   and starts on it (`../domain/worker/checkouts.md`, *A task's own
-  delivery outlives its hold*). `Writable` gains it last; the family
-  moves by one, from 10 to 11, its floor kept, with its kept text and
-  patch (`wires.md`, 3.1). Its reverse is derived (skein's
-  `data/codec/bridges.md`, 2): an item whose `delivered` is none goes
-  down to a worker of version 10 as it was, and one that names a head is
-  `Unheld` there, refused at the engine as untranslated, and waits for a
-  worker that reads it (`wires.md`, section 5). Only an assignment
+  delivery outlives its hold*). `Writable` gains it last, its default
+  none, with no version move (`wires.md`, 3.1): to a worker whose layout
+  lacks it, an item whose `delivered` is none goes down as it was, and
+  one that names a head is refused at the engine as untranslated, and
+  waits for a worker that reads it (`wires.md`, section 5). Only an assignment
   carries it, never a message to a running attempt, so the change is not
-  breaking (`../draft/redeploys.md`, 4.3).
+  breaking (`../draft/archive/redeploys.md`, 4.3).
 - **A named pin.** `pin` is the commit prepare points
   `refs/temper/landing` at in place of the head the delivery replaces
   (`../domain/worker/checkouts.md`, *A named pin*). The engine's item
@@ -176,13 +174,12 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   1.2), where the receipt resolves and keeps one; every other item none,
   and an item naming a pin names no `landing`. It is a full object id, as
   the other heads, independent of `expected` and `delivered`. `Writable`
-  gains it last; the family moves by one, from 11 to 12, its floor kept,
-  with its kept text and patch (`wires.md`, 3.1). Its reverse is derived:
-  an item whose `pin` is none goes down to a worker of version 11 as it
-  was, and one that names a commit is `Unheld` there, refused at the
+  gains it last, its default none, with no version move (`wires.md`,
+  3.1): to a worker whose layout lacks it, an item whose `pin` is none
+  goes down as it was, and one that names a commit is refused at the
   engine as untranslated, and waits for a worker that reads it
   (`wires.md`, section 5). Only an assignment carries it, so the change
-  is not breaking (`../draft/redeploys.md`, 4.3).
+  is not breaking (`../draft/archive/redeploys.md`, 4.3).
 - **Saving.** The engine's routing sets jig's `save` from the typed
   `run.policy.resume`, including the first attempt before a transcript
   exists, and carries each repository's destination in its `save`

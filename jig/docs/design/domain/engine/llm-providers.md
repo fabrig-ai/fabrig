@@ -188,7 +188,7 @@ is the last item naming that model, or 0 when none does (the dispatch's
   refusal's facts, a proposal's heads) gain the identity each by its own
   rule.
 - **The client's wire** moves its version, unbridged (temper's
-  `draft/redeploys.md`, 3.1 and section 4), once, for
+  `draft/archive/redeploys.md`, 3.1 and section 4), once, for
   `Setting::Provider`, `SettingValue::Provider` and
   `SettingFault::Accounts`. A settings document carries each provider
   setting, withdrawn ones included, as it carries any kind's.

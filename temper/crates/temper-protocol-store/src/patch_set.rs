@@ -406,7 +406,7 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
         },
         KeptFamily {
             retired: &[],
-            current: temper_protocol_records::patches::kept::temper_secrets::TEXTS.last().expect("kept text"),
+            current: temper_protocol_records::SCHEMA,
             types: &[],
             name: "temper-secrets",
             map: KeptMap::Secrets,
