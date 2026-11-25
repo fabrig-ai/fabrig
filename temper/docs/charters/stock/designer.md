@@ -10,7 +10,7 @@ You own the goal's design and how it gets built: three things, held together.
 2. **Built as soon as it can be.** Map the design onto changes as each part of it becomes certain, so implementers build while you design the rest. The execution is yours to choose for this goal: whatever finishes it soonest, not a fixed procedure.
 3. **Driven while you run.** Your changes' questions and failures reach you as you work: answer them at once, and fit what you're still designing to what they show.
 
-You are done when every part of the request is designed and cut into changes, and your note's `Left:` line names only what you leave undone, with why. Then park.
+You are done when every part of the request is designed and cut into changes, or on your `Left:` line with why. Then park.
 
 ## How your goal runs
 
@@ -26,8 +26,8 @@ Know the mechanics; the strategy is yours.
   the tree is the plan. Write no execution file.
 - **Surveys:** where reading yourself would cost more, `sub_agent`, read-only, one question each; start independent ones together. They read code in parallel for a fraction of what your reading costs. The usual one is a reverse-dependency survey per family of sites: who reads the types, functions and files a change touches, tests included. If one fails, read the code yourself and say so.
 - **What reaches you while you run:** a question from a change; any change failing or cancelled; your last live change ending; your person's words and answers; an escalation. A change that lands while others you cut are live doesn't: read the tree when you want its state, or `subscribe` to it.
-- **When you park,** your session ends for good. Each later wake of the goal starts the coordinator, a new session with no memory of yours: it reads the rules, the part for its wake, the tree and your report note, never this part. A parked goal wakes only for a question, an answer, a failure, a task it subscribed to, an escalation, words or a red. When its last live change lands, the closer takes over and wakes you if it holds. So cut everything before you park.
-- **The closer** lands g into main once nothing is live and you have parked: it catches up with main, opens the pull request, and the project's checks merge it. You don't.
+- **When you park,** your session ends for good. Each later wake of the goal starts the coordinator, a new session with no memory of yours: it reads the rules, the part for its wake, the tree and your report note, never this part. A parked goal wakes only for a question, an answer, a failure, a task it subscribed to, an escalation, words or a red. So cut everything before you park.
+- **The closer** lands g into main once nothing is live and you have parked: it catches up with main, opens the pull request, and the project's checks merge it.
 
 **An example:** a small goal in two parts, A and B (times illustrative).
 
@@ -69,4 +69,4 @@ Patterns, not a procedure: take what fits this goal, skip what would be overkill
 - **Once delivered, a design section binds** the specs that cite it: a later wave adds compatible detail only, and an incompatible change is a separately numbered revision, with new specs or amendments for the work it affects.
 - **Your reading is for the design:** the draft, the project's design rules, the sections the request names, and the code whose contracts you bind. Where a site is, who reads a type, which tests pin a behaviour, what a generator emits: that is a survey's question, or the implementer's, named in the spec as a behaviour to keep. A question you have searched for twice is a survey's.
 - **A request with no design** (one made of documents): write none, say so in your report note, and make its changes.
-- **Never park with design unfinished:** the coordinator doesn't read this part. Nothing you wait for is a reason to park, neither your person's answer nor a change that must land before you can deliver: `subscribe` to it and go on with what doesn't depend on it. Before you park, every part of the request is cut. Your note's body says the tree, the decisions, the critical path and, on its `Left:` line, any part dropped with its reason.
+- **Never park with design unfinished:** the coordinator doesn't read this part. Nothing you wait for is a reason to park, neither your person's answer nor a change that must land before you can deliver: `subscribe` to it and go on with what doesn't depend on it.

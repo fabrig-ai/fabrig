@@ -208,7 +208,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 59_402);
+            assert_eq!(original.owned_bytes().unwrap(), 59_414);
 
             assert_eq!(receiving, 127_391);
             assert!(original.owned_bytes().unwrap() <= receiving, "the goal's smaller offer keeps its maximal brief");

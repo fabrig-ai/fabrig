@@ -86,11 +86,6 @@ fn the_goals_report_headline_says_whats_done_and_left_for_a_person() {
     assert!(!report.contains("5 of its 7 changes"));
     assert!(instructions.contains("plain words saying what it does, at most 30 characters, no Markdown, codes or internal names (\"Cancel a landed change's runs\")"));
     let designer = core::str::from_utf8(&assembled.parts.first().unwrap().text).unwrap();
-    let last_bullet =
-        designer.lines().find(|line| line.starts_with("- **Never park with design unfinished:**")).unwrap();
-    assert!(last_bullet.ends_with(
-        "Your note's body says the tree, the decisions, the critical path and, on its `Left:` line, any part dropped with its reason."
-    ));
     assert!(!designer.contains("Your note's headline says the tree"));
 }
 
@@ -103,7 +98,7 @@ fn the_goals_report_left_line_names_uncut_and_undone_work() {
         .find(|paragraph| paragraph.starts_with("**Your report note:**"))
         .expect("goal report note");
     assert!(report.contains(
-        "A line `Left: ` names each part you planned and haven't cut, and what you leave undone, with why; with nothing left, write none: your closer holds on it before g lands."
+        "A `Left: ` line names what you planned and haven't cut or leave undone, and why; none if nothing: the closer holds on it."
     ));
 }
 
@@ -113,7 +108,7 @@ fn the_designer_parks_when_only_undone_work_is_left() {
     let designer = core::str::from_utf8(&assembled.parts.first().unwrap().text).unwrap();
     assert!(!designer.contains("designed and cut into changes. Then park."));
     assert!(designer.contains(
-        "You are done when every part of the request is designed and cut into changes, and your note's `Left:` line names only what you leave undone, with why. Then park."
+        "You are done when every part of the request is designed and cut into changes, or on your `Left:` line with why. Then park."
     ));
 }
 
@@ -131,12 +126,10 @@ fn the_coordinator_settles_left_work_before_releasing_the_closer() {
         .find(|line| line.starts_with("- **Your closer's escalation**"))
         .expect("closer escalation bullet");
     assert!(closer.contains(
-        "Held on your note's `Left:` line: cut what it names into g and take it off the line; for a part you drop, have the design's status record it as not built and say why on the line; then release, once: the closer goes on and its report names the line."
+        "Held on your `Left:` line: cut what it names, or have the status mark a dropped part not built, why on the line; then release once."
     ));
     let ended = words.lines().find(|line| line.starts_with("- **A change ended**")).expect("change ended bullet");
-    assert!(ended.ends_with(
-        "With nothing left to cut and nothing on your note's `Left:` line but what you leave undone, park: the closer lands the goal."
-    ));
+    assert!(ended.ends_with("With nothing left to cut, park: the closer lands the goal."));
 }
 
 #[test]
