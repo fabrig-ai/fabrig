@@ -102,7 +102,13 @@ pub(crate) fn task_line_to_record(
     super::queries::line(value, limits)
 }
 
-#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "client maps borrow values even below Clippy's 64-bit size limit"
+    )
+)]
 pub(crate) fn count_to_record(value: &d::Count) -> w::Count {
     super::live::count(*value)
 }
@@ -163,7 +169,13 @@ pub(crate) use super::settings::{
 };
 pub(crate) use super::settings::{provider_address_to_domain, provider_address_to_record};
 
-#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "client maps borrow values even below Clippy's 64-bit size limit"
+    )
+)]
 pub(crate) fn account_refusal_to_record(value: &jig_domain_accounts::Refusal) -> w::AccountRefusal {
     super::accounts::refusal(*value)
 }

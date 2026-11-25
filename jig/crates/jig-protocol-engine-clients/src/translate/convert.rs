@@ -3,7 +3,13 @@ use alloc::boxed::Box;
 use jig_domain_authority as a;
 use jig_domain_tasks as t;
 
-#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "client maps borrow values even below Clippy's 64-bit size limit"
+    )
+)]
 pub(crate) fn tools_to_record(value: &t::Tools) -> u64 {
     value.0
 }

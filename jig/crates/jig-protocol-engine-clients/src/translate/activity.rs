@@ -71,7 +71,13 @@ pub(crate) fn activity_to_record(value: &t::Line) -> Result<w::Activity, w::Prob
         t::Line::Milestone { position } => w::Activity::Milestone(w::ActivityMilestone { position: *position }),
     })
 }
-#[expect(clippy::trivially_copy_pass_by_ref, reason = "client maps pass domain values by reference")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "client maps borrow values even below Clippy's 64-bit size limit"
+    )
+)]
 pub(crate) fn run_end_to_record(value: &t::EndKind) -> w::RunEnd {
     match *value {
         t::EndKind::Parked => w::RunEnd::Parked,
