@@ -573,3 +573,102 @@ sign-in and the playground walk had the largest median CPU reductions.
 The GitHub manifest difference was less than 1 ms, within the observed
 spread. Host load was generally lower in the later passes; the difference
 between snapshots does not identify the contribution of each repair.
+
+## After the Wasm, layout and event stream repairs: 08:07:22 UTC
+
+**Host:** one Debian 13 builder, AMD EPYC-Genoa Processor,
+8 logical CPUs. **Browser:** Chromium 147.0.7727.101. **Date:** 2026-11-25 (UTC).
+
+- **Reference:** `39d5b23dfc511e9be232761c19e87484a7874be1`.
+- **After:** `5f0f08e81454583548eec0159aebafbab79c0d81`. The checkout log contains
+  the baseline Wasm tier (`8b87613046`), layout (`4196bd056f`) and event
+  stream (`cf5370d034`) repairs. The measured tree matches `8b87613046`.
+
+Both snapshots had their own dev web bundle, playground bundle and native
+binaries built before timing, as listed in `tools/tiers/bundles.toml` and
+`tools/tiers/packages.toml`. Builds used `TEMPER_INTERNAL_BUNDLE=none`.
+Each attempt used that snapshot's `TEMPER_TEST_BUNDLE`,
+`TEMPER_TEST_PLAYGROUND` and binaries beside the test's build outputs.
+Neither snapshot's browser-temper binary list specifies environment overrides.
+
+Each nextest invocation selected one exact story in `browser_all`, using
+`default` with the default filter ignored, one test thread and zero retries.
+The CPU wrapper (`tools/tiers/design.md`, 7) counted the test and its
+waited-and-reaped descendants, excluding Cargo, nextest and the wrapper.
+Wall includes settlement. Settlement does not prove that CPU for
+any automatically reaped descendants was included.
+
+All 72 attempts passed and settled. Each invocation had one JUnit result and
+one matching complete wrapper record; none reported a leak.
+
+### Pass totals
+
+Passes ran **Reference, After, After, Reference, After, After**, in the same
+story order each time. Load is the host's 1/5/15-minute average at the start
+and end of the pass. Ranges include the samples at both ends of each nextest
+invocation. Timing cells are **user / system / total CPU / wall**, in seconds.
+Totals sum unrounded story figures; total wall is the sum of story walls,
+not the full interval. The comparison uses 127.5 CPU s from
+`tools/tiers/budgets.toml` (`[browser-temper]`).
+
+| Pass | Snapshot | UTC window | Load before → after | Within-pass load ranges | Total timing | CPU s below 127.5 |
+| ---: | --- | --- | --- | --- | --- | ---: |
+| 1 | Reference | 08:07:22–08:09:02 | 4.53/3.42/3.13 → 3.40/3.30/3.11 | 3.33–4.53 / 3.26–3.42 / 3.08–3.13 | 72.284975 / 29.577175 / 101.862150 / 84.278876 | 25.637850 |
+| 2 | After | 08:09:02–08:10:41 | 3.40/3.30/3.11 → 4.12/3.49/3.19 | 3.03–4.22 / 3.23–3.50 / 3.09–3.19 | 67.380860 / 27.341238 / 94.722098 / 84.040346 | 32.777902 |
+| 3 | After | 08:10:41–08:12:20 | 4.12/3.49/3.19 → 3.02/3.20/3.10 | 2.62–4.12 / 3.15–3.49 / 3.09–3.19 | 67.600460 / 27.321802 / 94.922262 / 84.338067 | 32.577738 |
+| 4 | Reference | 08:12:20–08:13:58 | 3.02/3.20/3.10 → 3.73/3.47/3.22 | 3.02–4.04 / 3.20–3.52 / 3.10–3.23 | 70.226003 / 30.260678 / 100.486681 / 83.107034 | 27.013319 |
+| 5 | After | 08:13:58–08:15:36 | 3.73/3.47/3.22 → 3.56/3.36/3.19 | 2.47–3.73 / 3.17–3.47 / 3.13–3.22 | 67.359077 / 27.472046 / 94.831123 / 83.619013 | 32.668877 |
+| 6 | After | 08:15:36–08:17:14 | 3.56/3.36/3.19 → 3.40/3.30/3.18 | 2.68–3.67 / 3.15–3.36 / 3.13–3.20 | 66.161980 / 26.882258 / 93.044238 / 83.768466 | 34.455762 |
+
+All four after passes were below 127.5 CPU s on this host.
+The mean pass CPU was **101.174416 s reference** and **94.379930 s after**;
+mean pass system time was **29.918926 s reference** and **27.254336 s after**.
+The after/reference CPU ratio was **0.932844** (6.72% lower).
+Multiplying that ratio by the historical tier mean of 127.7 CPU s gives
+**119.12 CPU s**, **not below 118 CPU s**. This is an **estimate, not a tier
+run**: the serial measurements do not verify the same proportional change on
+the tier machine.
+
+### Individual attempts
+
+Story numbers are the execution order and match the exact names in the median
+table. Cells are **user / system / total CPU / wall** in seconds.
+
+| Story | 1 Reference | 2 After | 3 After | 4 Reference | 5 After | 6 After |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 6.6744 / 2.7359 / 9.4102 / 16.4964 | 6.4544 / 2.7287 / 9.1831 / 16.2708 | 6.4526 / 2.7059 / 9.1585 / 16.1047 | 6.2834 / 2.8860 / 9.1694 / 15.6601 | 6.2910 / 2.6641 / 8.9551 / 16.3022 | 6.0094 / 2.6988 / 8.7082 / 16.1957 |
+| 2 | 9.0103 / 3.3958 / 12.4061 / 6.5588 | 8.6516 / 3.5977 / 12.2493 / 6.6904 | 8.9471 / 3.4662 / 12.4133 / 7.1952 | 9.0437 / 3.8449 / 12.8887 / 6.8125 | 8.8741 / 3.5817 / 12.4558 / 6.8436 | 8.8920 / 3.4103 / 12.3022 / 6.8635 |
+| 3 | 5.2908 / 2.3991 / 7.6899 / 4.7378 | 5.0857 / 2.3564 / 7.4421 / 4.7991 | 5.2971 / 2.3645 / 7.6616 / 4.8140 | 5.3770 / 2.5069 / 7.8839 / 4.6979 | 4.9408 / 2.4248 / 7.3656 / 4.8132 | 5.3239 / 2.2612 / 7.5851 / 4.9533 |
+| 4 | 4.3314 / 2.2761 / 6.6075 / 3.2725 | 3.6416 / 2.0303 / 5.6719 / 2.9606 | 4.1385 / 1.9795 / 6.1180 / 3.0933 | 4.2268 / 2.1894 / 6.4162 / 3.1426 | 3.7583 / 2.0046 / 5.7629 / 2.9735 | 3.8702 / 1.9120 / 5.7821 / 3.0336 |
+| 5 | 3.8905 / 1.8993 / 5.7898 / 12.7824 | 3.1771 / 1.6788 / 4.8559 / 12.5227 | 3.6141 / 1.9127 / 5.5268 / 12.8190 | 3.9430 / 1.9580 / 5.9010 / 12.8561 | 3.4480 / 1.7680 / 5.2160 / 12.8066 | 3.6733 / 1.6744 / 5.3476 / 12.9195 |
+| 6 | 7.3455 / 3.2407 / 10.5862 / 5.8222 | 6.7670 / 3.0107 / 9.7777 / 5.9156 | 6.6238 / 3.0391 / 9.6629 / 5.8951 | 6.7718 / 3.2004 / 9.9722 / 5.8156 | 6.9285 / 3.1732 / 10.1017 / 5.5877 | 6.4615 / 3.0351 / 9.4967 / 5.7855 |
+| 7 | 1.3992 / 0.9306 / 2.3298 / 1.5794 | 1.4310 / 0.8809 / 2.3119 / 1.6145 | 1.2587 / 0.7399 / 1.9986 / 1.4618 | 1.4705 / 0.9531 / 2.4236 / 1.6020 | 1.4778 / 0.9225 / 2.4002 / 1.6499 | 1.3158 / 0.8106 / 2.1264 / 1.4652 |
+| 8 | 12.0571 / 1.7728 / 13.8299 / 11.5475 | 10.2454 / 1.1786 / 11.4240 / 11.4811 | 9.3315 / 1.0510 / 10.3826 / 10.9678 | 11.8004 / 1.9415 / 13.7418 / 11.4579 | 10.4571 / 1.2259 / 11.6831 / 11.4790 | 9.2466 / 1.0961 / 10.3427 / 10.9591 |
+| 9 | 3.1497 / 2.0682 / 5.2179 / 3.5233 | 3.2989 / 1.8605 / 5.1594 / 3.6102 | 2.9127 / 2.0020 / 4.9147 / 3.5826 | 3.0189 / 2.0051 / 5.0240 / 3.5002 | 3.0653 / 1.8478 / 4.9131 / 3.6500 | 3.0833 / 1.9229 / 5.0062 / 3.6159 |
+| 10 | 10.5280 / 5.1181 / 15.6461 / 9.7340 | 10.4081 / 4.4354 / 14.8435 / 9.9323 | 10.3350 / 4.3489 / 14.6839 / 9.9599 | 9.9912 / 5.0648 / 15.0559 / 9.5939 | 9.9608 / 4.0844 / 14.0452 / 9.3973 | 10.1157 / 4.4262 / 14.5420 / 9.7187 |
+| 11 | 4.4741 / 1.9211 / 6.3952 / 3.6747 | 4.0436 / 1.7874 / 5.8311 / 3.6142 | 4.3968 / 1.9413 / 6.3381 / 3.7745 | 4.0072 / 2.0028 / 6.0099 / 3.4644 | 4.2502 / 1.8980 / 6.1481 / 3.6736 | 3.9989 / 1.7427 / 5.7416 / 3.5820 |
+| 12 | 4.1341 / 1.8195 / 5.9535 / 4.5500 | 4.1765 / 1.7957 / 5.9722 / 4.6288 | 4.2926 / 1.7707 / 6.0632 / 4.6703 | 4.2922 / 1.7078 / 6.0000 / 4.5037 | 3.9073 / 1.8770 / 5.7843 / 4.4423 | 4.1713 / 1.8921 / 6.0634 / 4.6765 |
+
+### Story medians
+
+Independent medians in the same four units, ordered by CPU saved (reference
+minus after). The differences do not isolate the contribution of each repair.
+
+| # | Story | Reference (2) | After (4) | CPU s saved |
+| ---: | --- | ---: | ---: | ---: |
+| 8 | `browser_playground::story_a_walks_on_the_built_playground` | 11.9287 / 1.8571 / 13.7858 / 11.5027 | 9.7884 / 1.1374 / 10.9033 / 11.2234 | +2.8826 |
+| 4 | `browser_attacks::cross_origin_requests_and_framing_cannot_act_as_the_person` | 4.2791 / 2.2328 / 6.5118 / 3.2075 | 3.8142 / 1.9921 / 5.7725 / 3.0036 | +0.7393 |
+| 10 | `browser_pages::a_chat_opens_at_its_end_and_reads_back_keeping_its_place` | 10.2596 / 5.0914 / 15.3510 / 9.6640 | 10.2254 / 4.3876 / 14.6129 / 9.8255 | +0.7381 |
+| 5 | `browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state` | 3.9168 / 1.9286 / 5.8454 / 12.8193 | 3.5311 / 1.7234 / 5.2818 / 12.8128 | +0.5636 |
+| 6 | `browser_accounts::the_sign_in_opens_a_tab_and_lands_on_accounts` | 7.0586 / 3.2206 / 10.2792 / 5.8189 | 6.6954 / 3.0371 / 9.7203 / 5.8403 | +0.5589 |
+| 2 | `browser_pages::history_keeps_the_chat_focus_and_filter_across_reload_and_back` | 9.0270 / 3.6204 / 12.6474 / 6.6856 | 8.8830 / 3.5239 / 12.3578 / 6.8536 | +0.2896 |
+| 3 | `browser_pages::enter_starts_one_chat_and_the_composer_keeps_the_focus` | 5.3339 / 2.4530 / 7.7869 / 4.7179 | 5.1914 / 2.3604 / 7.5136 / 4.8136 | +0.2733 |
+| 1 | `browser_sign_in::signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` | 6.4789 / 2.8109 / 9.2898 / 16.0783 | 6.3718 / 2.7024 / 9.0568 / 16.2332 | +0.2330 |
+| 11 | `browser_connect_flows::scrolling_the_sheet_reads_more_then_search_picks_and_adopts` | 4.2406 / 1.9619 / 6.2026 / 3.5695 | 4.1469 / 1.8427 / 5.9896 / 3.6439 | +0.2130 |
+| 9 | `browser_public::public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` | 3.0843 / 2.0367 / 5.1210 / 3.5118 | 3.0743 / 1.8917 / 4.9605 / 3.6130 | +0.1605 |
+| 7 | `browser_github::the_manifest_posts_once_and_history_waits_for_continue` | 1.4348 / 0.9419 / 2.3767 / 1.5907 | 1.3734 / 0.8458 / 2.2192 / 1.5398 | +0.1575 |
+| 12 | `browser_journeys::a_browser_journey_looks_and_a_tui_journey_is_approved_in_chromium` | 4.2131 / 1.7636 / 5.9768 / 4.5269 | 4.1739 / 1.8364 / 6.0177 / 4.6496 | -0.0409 |
+
+All four after passes used less CPU than either reference pass. The playground
+walk saved the most at the median (2.8826 CPU s); the journeys median rose by
+0.0409 CPU s, within the observed after-pass spread.
