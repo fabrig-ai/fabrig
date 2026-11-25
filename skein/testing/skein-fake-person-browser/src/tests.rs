@@ -115,6 +115,23 @@ fn text_is_found_by_words_within_one_run() {
     );
 }
 #[test]
+fn a_paragraph_box_asks_for_rendered_text_not_an_exact_accessible_name() {
+    let mut face = face();
+    let find = Find::paragraph_text(b"Read this.").nth(1);
+    assert_eq!(face.find_boxed(&find), Found::Pending);
+    assert_eq!(
+        query(&mut face),
+        Query {
+            role: b"paragraph".as_slice().into(),
+            name: b"Read this.".as_slice().into(),
+            matching: Match::ParagraphText,
+            within: None,
+            boxes: true,
+        }
+    );
+}
+
+#[test]
 fn a_press_becomes_the_kits_press_at_the_centre() {
     let mut face = face();
     let find = Find::named(Role::Button, b"Title");

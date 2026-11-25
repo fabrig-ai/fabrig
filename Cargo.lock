@@ -5964,6 +5964,7 @@ dependencies = [
  "skein-oauth",
  "skein-playground",
  "skein-scratch",
+ "skein-shell",
  "skein-sim",
  "skein-tls-kit",
  "skein-ui",

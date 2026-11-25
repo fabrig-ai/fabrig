@@ -118,6 +118,21 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Forward,
         address(FIRST_CHAT_ADDRESS),
     ]);
+    // The phone steps need To begin's Start; the Home history checks need the
+    // full rail. Seed Ask temper after the T1 checks so its chat completes To begin.
+    steps.extend(tier.ctl(&[
+        "chat",
+        "start",
+        "--project",
+        "1",
+        "--template",
+        "5",
+        "--model",
+        "demo",
+        "--key",
+        "history-ask",
+        "Tell temper how you work",
+    ]));
     steps.extend(home_replaces(b"/", FIRST_CHAT_ADDRESS));
     steps.extend(filter_steps());
     steps.extend(home_replaces(b"/nowhere", b"/chats"));
@@ -487,7 +502,6 @@ fn unanchored_steps(tier: &Tier) -> Vec<Step> {
 }
 
 fn long_steps(tier: &Tier) -> Vec<Step> {
-    const LATER_HEIGHT: u32 = 600;
     const UP_TO_OVERLAP: u32 = 3;
     let messages = reading::LONG_MESSAGES;
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
@@ -503,7 +517,7 @@ fn long_steps(tier: &Tier) -> Vec<Step> {
     // inside the retained reply but outside the foot's read margin. One PgDown
     // then reaches that margin without leaving the new window near its head.
     let latest = || Find::exactly_named(Role::Button, b"Latest");
-    steps.push(Step::Viewport { width: 1280, height: LATER_HEIGHT });
+    steps.push(Step::Viewport { width: 1280, height: reading::LATER_HEIGHT });
     steps.extend(serve_signal(tier, "-STOP"));
     for _ in 0..UP_TO_OVERLAP {
         steps.push(Step::Key(Key::PageUp));
@@ -520,7 +534,7 @@ fn long_steps(tier: &Tier) -> Vec<Step> {
 
     // Both replies carry the numbered paragraph. It belongs to the newer
     // reply before the slide, and to the older reply after it.
-    let overlap = || paragraph(b"Numbered line 26. Keep this paragraph available while reading.");
+    let overlap = || Find::paragraph_text(b"Numbered line 26. Keep this paragraph available while reading.");
     steps.extend(serve_signal(tier, "-STOP"));
     steps.extend([Step::Key(Key::PageDown), keep_box(overlap().nth(1), "long/later/before")]);
     steps.extend(serve_signal(tier, "-CONT"));
