@@ -24,6 +24,11 @@ fn holding_fixture_limits_creates_a_private_data_directory() {
 }
 
 #[test]
+fn bootstrap_holds_fixture_limits_in_a_private_data_directory() {
+    support::limit_settings::tests::bootstrap_holds_fixture_limits_in_a_private_data_directory();
+}
+
+#[test]
 fn readiness_eof_reports_child_status_and_stderr() {
     use std::os::unix::process::ExitStatusExt;
     let finding = temper_box_kit::fake_readiness::read_with(&mut b"".as_slice(), &"fake fixture", |kind| {
