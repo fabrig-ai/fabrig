@@ -17,17 +17,9 @@
     main holding it is read. The last run read, at main
     `df41529d3ee1`, passed every other story it runs, its Claude Code
     release unknown.
-  - 3: a story's `PATH` is `/usr/bin` and `/bin` alone, without the
-    directory of the test process's rg, so on macOS, whose pinned rg
-    lies elsewhere, smith refuses for want of rg.
-    [in flight: change 17920]
   - 5: the chat store's layout cases run over a real directory in
     `smith-local-protocol::suite`, not on the fake disk.
     [in flight: change 13947]
-  - 5: smith-local-shell's tests and `smith::step`'s live trace test
-    name `/bin/true` as `programs.claude_code`, a path macOS lacks,
-    not a stand-in in their scratch.
-    [in flight: change 17919]
 - **Departs:**
   - the whole document: domain worlds use domains and fakes only, never protocol crates,
     but `tests/agent/src/backend.rs` uses `smith-protocol-llm`,
