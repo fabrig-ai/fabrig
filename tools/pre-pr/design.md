@@ -36,8 +36,8 @@ worker's landing pin, `refs/temper/landing`, else `refs/remotes/origin/main`.
 A close job's pin is the goal branch itself, and its checkout rarely holds
 main, so a close starts from the newest of main's published commits
 (`refs/temper/counts`, read or fetched as for its budgets) that `HEAD`
-holds: main as the goal last merged it. Without one it takes
-`refs/remotes/origin/main` where the checkout has it. A merge of main brings main's paths in too,
+holds: main as the goal last merged it. Without one, or without counts
+to read, it breaks (4.1). A merge of main brings main's paths in too,
 which only widens the checks. With no base reference, outside a git
 checkout, or at a close whose base is `HEAD` itself, the check breaks
 (section 6, *Its outcome*) and names what's missing, checking nothing: the
@@ -79,8 +79,9 @@ supplied by the gate in `CI_GATE_LANDING_BASE`. Their current-tree validators an
 Close reads main's published counts from the checkout's `refs/temper/counts`,
 else fetches that one ref from the public repository into private scratch,
 once a run, for its base and its budgets alike. If
-the source has no commit or the counts are unavailable, close reports that it
-could not judge growth. The
+the source has no commit, the counts are unavailable, or its `HEAD` holds
+no commit of their window, close breaks before it builds or tests anything
+(4.1). The
 landing gate still enforces its budget. The explicit goal diagnostic runs workspace Clippy and both
 suites with the tree's budgets. Receipts name the snapshot tree and its
 base, with `comparison` set to `changes`, or to `tree-only` with a null base
@@ -716,11 +717,22 @@ with the same filterset (each profile's `default()` is its own filter), and
 each profile's layers are judged against main's published counts for that
 profile and its `gate.<profile>` table.
 
-After the focused steps pass, read `refs/temper/counts` locally in the
-goal's checkout and find its base (`tools/tiers/budgets.md`, 7.1). A missing
-counts file warns of an infrastructure fault and leaves judgment to the
-gate. A base outside the window refuses close and asks for an update from
-main. Unavailable counting warns with its reason and gives no verdict.
+Close reads main's published counts first, before any build or test, as
+its base does (section 1): `refs/temper/counts` in the goal's checkout,
+else the one ref fetched from the public repository, and finds its base
+in their window (`tools/tiers/budgets.md`, 7.1). Counts it can't read (no
+source commit, a read or fetch that fails, counts marked unavailable) and
+a `HEAD` holding no commit of their window, a goal older than main's last
+twenty landings, are not judged: close breaks at once (section 6, *Its
+outcome*), naming which, and for the second asks for an update from
+main. Neither refuses nor passes with a warning, since a refusal holds
+until the goal's branch or main moves
+(`temper/docs/design/domain/forge/change/repairs-releases.md`, 1), and
+none may stand on counts that weren't there yet; a check that broke is
+tried again in its job's class (the goal's requester, 2026-11-25). After
+the focused steps pass, the budgets are judged at that base. A profile
+missing from the counts, and instruction counting this machine can't do,
+warn with their reason and give no verdict, the gate judging.
 
 In each layer measured, replace the base counts of binaries measured whole
 with the sum of their `tests` and `fresh` processes. Carry forward the other
@@ -1021,7 +1033,8 @@ cause.
     a listing that failed to build, or leaving no `results.json` to
     read); or a checkout without what it needs to judge (section 1: no
     base reference, outside a git checkout, a close whose base is
-    `HEAD`). The change was not judged;
+    `HEAD`; at a close, main's counts it can't read or whose window its
+    `HEAD` holds no commit of, 4.1). The change was not judged;
   - **passed** otherwise, inherited failures and flakes included.
 - **Its exit:** 0 passed; 1 refused or broke; and in close mode with
   `TEMPER_CLOSE_REFUSAL=3`, 3 refused and 2 broke (section 4.1). Broke,
