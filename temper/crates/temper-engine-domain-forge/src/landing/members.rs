@@ -1,7 +1,8 @@
 //! The live membership index and the change's ask queue (temper/docs/design/domain/landing-members.md, 2.1 and 3).
-use super::{State, matches_terminal};
+use super::{State, commit_hex, concat, matches_terminal};
 use crate::{ChangeRow, Domain, LandingRow, RecordKind, Request, RestoreFit, RestoreSet};
-use skein_lib::{List, Queue};
+use alloc::boxed::Box;
+use skein_lib::{Decimal, List, Queue};
 use temper_engine_domain_forge_change as change;
 
 const ASKS: u32 = 16;
@@ -202,7 +203,7 @@ pub(crate) fn hand(d: &mut Domain, row: &LandingRow, member: u16, ask: change::A
 }
 
 /// Remove exactly the number returned by the policy, not the current head.
-pub(crate) fn take(row: &mut ChangeRow, took: change::Took) {
+pub(crate) fn take(row: &mut ChangeRow, took: change::Took, out: &mut Queue<Request>) {
     let number = match took {
         change::Took::Taken(number) | change::Took::Dropped(number) => number,
     };
@@ -210,9 +211,43 @@ pub(crate) fn take(row: &mut ChangeRow, took: change::Took) {
     for ask in &row.asks {
         if ask.number != number {
             asks.push(ask.clone()).expect("bounded asks");
+        } else if let change::Took::Dropped(_) = took {
+            let words = dropped_words(row, &ask.ask);
+            out.push(Request::AskDropped { change: row.task, words });
         }
     }
     row.asks = asks.into_boxed();
+}
+
+fn dropped_words(row: &ChangeRow, ask: &change::Ask) -> Box<[u8]> {
+    let task = Decimal::of(row.task);
+    match ask {
+        change::Ask::Prepare { head: expected, .. } => {
+            let change::State::Ready { head, .. } = row.change.state else {
+                unreachable!("a prepare is dropped only at a ready head");
+            };
+            concat(&[
+                b"change ",
+                task.as_bytes(),
+                b": prepare for ",
+                &commit_hex(*expected),
+                b" dropped: the head is now ",
+                &commit_hex(head),
+            ])
+        }
+        change::Ask::Judge(target) => concat(&[
+            b"change ",
+            task.as_bytes(),
+            b": judgement of landing ",
+            Decimal::of(target.landing).as_bytes(),
+            b", round ",
+            Decimal::of(u64::from(target.round)).as_bytes(),
+            b", dropped: the change is in that landing no longer",
+        ]),
+        change::Ask::Repair { .. } | change::Ask::Resolve { .. } | change::Ask::Landed { .. } => {
+            unreachable!("the policy never drops a repair, resolve or landed ask")
+        }
+    }
 }
 
 pub(crate) fn end(d: &mut Domain, row: &LandingRow, out: &mut Queue<Request>) {

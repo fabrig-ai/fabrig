@@ -4405,6 +4405,7 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::LandingNews { task, member, step } => landing_route::tell(domain, env, task, member, step),
+            forge::Request::AskDropped { change, words } => landing_route::tell_change(domain, env, change, &words),
             forge::Request::FileRedFinding { task, follow, mut finding } => {
                 if let Some(follow) = follow {
                     finding.area = super::findings::follow_area(domain, finding.project, follow);

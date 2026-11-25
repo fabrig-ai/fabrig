@@ -1725,11 +1725,7 @@ fn a_turn_merges_landed_owner_survives_rebuild() {
 
     assert_eq!(restarted.landed.get(&fixtures::HEAD), Some(&fixtures::CHANGE));
 }
-fn take_departed_change(
-    d: &mut Domain,
-    head: [u8; 32],
-    cancelled: bool,
-) -> temper_engine_domain_forge_change::Decision {
+fn step_departed_change(d: &mut Domain, head: [u8; 32], cancelled: bool) -> Box<[Request]> {
     use skein_forge::api::{Answer, Op, Read};
     let mut event = fixtures::change_step();
     if let Event::StepChange { heard, .. } = &mut event {
@@ -1738,8 +1734,8 @@ fn take_departed_change(
     let mut requests = outputs(d, event);
     for _ in 0..20_u32 {
         for request in &requests {
-            if let Request::ChangeDecision { decision, .. } = request {
-                return *decision;
+            if let Request::ChangeDecision { .. } = request {
+                return requests;
             }
         }
         let (call, op) = fixtures::next_call(d);
@@ -1879,7 +1875,7 @@ fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
         assert_eq!(row.change.ready_since, Some(since));
         assert!(d.landing(61).unwrap().previous_asks.is_empty(), "no slot written");
         let head = if let policy::Leave::HeadMoved { head } = why { head } else { fixtures::HEAD };
-        take_departed_change(&mut d, head, why == policy::Leave::Cancelled);
+        drop(step_departed_change(&mut d, head, why == policy::Leave::Cancelled));
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.change.state, departed_state(why, since));
         assert!(row.asks.is_empty(), "taken once");
@@ -1950,7 +1946,7 @@ fn ending_a_landing_frees_members_and_keeps_their_queued_results() {
         assert_eq!(waiting.len(), 1, "handed-over landing results must be consumed before a change can wait again");
         assert_eq!(waiting.first().unwrap().task, OTHER_CHANGE + 1);
         assert_eq!(d.first_waiting(REPO, b"main", &[], env().wall), Some(OTHER_CHANGE + 1));
-        take_departed_change(&mut d, fixtures::HEAD, false);
+        drop(step_departed_change(&mut d, fixtures::HEAD, false));
         assert!(
             matches!(d.change(fixtures::CHANGE).unwrap().change.state, c::State::Landed { merge, .. } if merge == fixtures::HEAD)
         );

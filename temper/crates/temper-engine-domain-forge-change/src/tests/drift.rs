@@ -88,11 +88,13 @@ fn a_step_reading_its_branch_missing_holds_as_deleted_not_moved() {
 }
 
 #[test]
-fn a_stale_prepare_request_is_not_a_branch_move() {
-    let c = change(State::Ready { head: HEAD, ready_since: at(0) });
+fn a_stale_prepare_is_dropped_without_holding_the_change() {
+    let mut c = change(State::Ready { head: HEAD, ready_since: at(0) });
+    c.way = crate::Way::Turn;
     let f = Facts { ask: Some(handed(crate::Ask::Prepare { head: NEW, main: BASE })), ..facts() };
-    let next = decide(&c, &f, &heard());
-    assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+    let next = step(&c, &f, &heard(), at(60), &LIMITS);
+    assert_eq!(next.decision, Decision::Wait { until: None });
+    assert_eq!(next.took, Some(crate::Took::Dropped(17)));
     assert_eq!(next.change, c);
 }
 

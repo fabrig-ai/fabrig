@@ -5434,7 +5434,7 @@ fn step_verified(
     let prior = row.change.clone();
     row.change = stepped.change;
     if let Some(took) = stepped.took {
-        crate::landing::members::take(&mut row, took);
+        crate::landing::members::take(&mut row, took, out);
     }
     crate::landing::change_advanced(d, &row, &prior, out);
     if landed_commit(&prior.state).is_none() && landed_commit(&row.change.state).is_some() {
@@ -6583,7 +6583,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         }
         row.change = stepped.change;
         if let Some(took) = stepped.took {
-            crate::landing::members::take(&mut row, took);
+            crate::landing::members::take(&mut row, took, out);
             facts.ask = crate::landing::members::head(&row).cloned();
         }
         if let change::Decision::Delegate(change::Delegate::Gate { .. }) = stepped.decision {

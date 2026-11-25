@@ -1267,15 +1267,17 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
             now
         }
     };
+    let mut took = None;
     if change.way == Way::Turn {
         change.state = State::Ready { head, ready_since: since };
+        took = dropped_ask(head, facts);
     } else if change.owns_turn {
         change.state = State::First { head, ready_since: since };
     } else {
         change.state = State::Queued { head, ready_since: since };
     }
     change.since = now;
-    Stepped { took: None, change, decision: Decision::Ready }
+    Stepped { took, change, decision: Decision::Ready }
 }
 
 fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
@@ -2074,6 +2076,17 @@ fn pushed(change: &Change, head: [u8; 32]) -> State {
     }
 }
 
+/// An ask the change cannot answer at its ready head (domain/landing-members.md, 3.4).
+fn dropped_ask(head: [u8; 32], facts: &Facts) -> Option<Took> {
+    let handed = facts.ask.as_ref()?;
+    let unanswerable = match &handed.ask {
+        Ask::Prepare { head: expected, .. } => *expected != head,
+        Ask::Judge(target) => facts.landing != Some(target.landing),
+        Ask::Repair { .. } | Ask::Resolve { .. } | Ask::Landed { .. } => false,
+    };
+    if unanswerable { Some(Took::Dropped(handed.number)) } else { None }
+}
+
 fn ready(
     mut change: Change,
     head: [u8; 32],
@@ -2100,9 +2113,11 @@ fn ready(
         }
         return hold(change, Hold::BranchMoved);
     }
+    let dropped = dropped_ask(head, facts);
+    let ask = if dropped.is_some() { None } else { facts.ask.as_ref() };
     // A ready change uses its existing gate-asking path after an amendment; a
     // landing's judge asks at its target instead (gates.md, 1, Valid at a spec revision).
-    let judging = match facts.ask {
+    let judging = match ask {
         Some(Handed { ask: Ask::Judge(_), .. }) => true,
         Some(Handed {
             ask: Ask::Prepare { .. } | Ask::Repair { .. } | Ask::Resolve { .. } | Ask::Landed { .. },
@@ -2115,8 +2130,8 @@ fn ready(
         change.owns_turn = false;
         return Stepped { took: None, change, decision: Decision::None };
     }
-    let Some(handed) = &facts.ask else {
-        return Stepped { took: None, change, decision: Decision::Wait { until: None } };
+    let Some(handed) = ask else {
+        return Stepped { took: dropped, change, decision: Decision::Wait { until: None } };
     };
     match &handed.ask {
         Ask::Judge(target) => {
@@ -2124,10 +2139,7 @@ fn ready(
             change.since = now;
             Stepped { took: Some(Took::Taken(handed.number)), change, decision: Decision::None }
         }
-        Ask::Prepare { head: expected, main } => {
-            if head != *expected {
-                return waiting(change, facts, now, limits);
-            }
+        Ask::Prepare { main, .. } => {
             let mut stepped = prepare_due(change, head, *main, ready_since, now, limits);
             if let Decision::Effect(Effect::Prepare { .. }) = stepped.decision {
                 stepped.took = Some(Took::Taken(handed.number));

@@ -3064,6 +3064,10 @@ pub enum Request {
         member: u16,
         step: LandingNews,
     },
+    AskDropped {
+        change: u64,
+        words: Box<[u8]>,
+    },
     /// Facts are gathered; the root admits the decision in its due procedure step.
     LandingReady {
         task: u64,

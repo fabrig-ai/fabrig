@@ -849,9 +849,13 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
 }
 pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, member: u16, step: forge::LandingNews) {
     let Some((change, words)) = domain.forge.landing_news_words(task, member, step) else { return };
+    tell_change(domain, env, change, &words);
+}
+
+pub(super) fn tell_change(domain: &mut Domain, env: &Env<Limits>, change: u64, words: &[u8]) {
     let Some(row) = domain.forge.change(change) else { return };
     let Some(goal) = row.goal else { return };
-    let words = forge::text::fit(&words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
+    let words = forge::text::fit(words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
     if let Some(event) = domain.core.connector_news(goal, 0, tasks::NewsClass::Kept, words, env.wall) {
         domain.work.push(Work::Tasks(event));
     }

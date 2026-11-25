@@ -80,14 +80,11 @@ fn a_prepare_ask_makes_a_rebase_update() {
 }
 
 #[test]
-fn a_prepare_ask_requires_its_head_and_the_writer_slot() {
-    let mut f = prepare_facts();
-    f.writer_taken = true;
+fn a_prepare_ask_requires_the_writer_slot() {
+    let f = Facts { writer_taken: true, ..prepare_facts() };
     let blocked = step(&ready(), &f, &heard(), at(60), &LIMITS);
     assert_eq!(blocked.decision, Decision::Hold(Hold::Stalled));
-    f.writer_taken = false;
-    f.ask = Some(handed(Ask::Prepare { head: NEW, main: BASE }));
-    assert_eq!(decide(&ready(), &f, &heard()).decision, Decision::Wait { until: Some(at(30)) });
+    assert_eq!(blocked.took, None);
 }
 
 #[test]
@@ -185,16 +182,44 @@ fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
     assert_eq!(again.decision, Decision::Ready);
 }
 
-#[test]
-fn numbered_judgement_and_resolution_are_taken_only_when_started() {
-    let target = crate::Judgement {
+fn judgement() -> crate::Judgement {
+    crate::Judgement {
         landing: 8,
         round: 1,
         pull: 3,
         branch: b"prefix".as_slice().into(),
         base: b"main".as_slice().into(),
         prefix: NEW,
-    };
+    }
+}
+
+#[test]
+fn a_judgement_of_another_landing_is_dropped_while_ready() {
+    let c = ready();
+    let target = judgement();
+    for landing in [None, Some(9)] {
+        let f = Facts { ask: Some(handed(Ask::Judge(target.clone()))), landing, ..facts() };
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.took, Some(Took::Dropped(17)));
+        assert_eq!(next.change, c);
+        assert_eq!(next.decision, Decision::Wait { until: None });
+    }
+}
+
+#[test]
+fn a_held_change_keeps_unanswerable_asks() {
+    let mut c = ready();
+    c.state = State::Held { was: Box::new(c.state), why: Hold::Stalled };
+    for ask in [Ask::Prepare { head: NEW, main: BASE }, Ask::Judge(judgement())] {
+        let next = decide(&c, &Facts { ask: Some(handed(ask)), ..facts() }, &heard());
+        assert_eq!(next.took, None);
+        assert_eq!(next.change, c);
+    }
+}
+
+#[test]
+fn numbered_judgement_and_resolution_are_taken_only_when_started() {
+    let target = judgement();
     let mut f = Facts { ask: Some(handed(Ask::Judge(target.clone()))), landing: Some(8), ..facts() };
     let live = Heard { delegate_live: true, ..heard() };
     assert_eq!(decide(&ready(), &f, &live).took, None);
