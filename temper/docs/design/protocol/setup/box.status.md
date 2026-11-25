@@ -12,9 +12,6 @@
     unknown. The separate source-update and lifetime tests do not establish
     the complete sequence. The real-box sign-in story's runtime check is
     still pending as `../openid-provider.status.md`, 9 records.
-  - 1: serve's `--box` pipe check is still Linux's alone: on macOS serve
-    takes the pipes as given and reads its standard input and its
-    configuration first [in flight: change 18207].
 
 `owned.md`, sections 2 and 3 have no known implementation gap in the hour-long
 owned session or the later preparation's best-effort source update.
