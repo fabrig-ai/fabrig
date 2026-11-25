@@ -315,7 +315,7 @@ fn saving_a_landing_marks_its_subject_and_its_projects_lists() {
         if let Request::Marked { tasks } = request {
             landing_marked |=
                 tasks.as_ref() == [61, landings_subject(5, false), landings_subject(5, true), changes_subject(5)];
-            member_marked |= tasks.as_ref() == [51, 61];
+            member_marked |= tasks.as_ref() == [fixtures::CHANGE];
         }
     }
     assert!(landing_marked && member_marked);
@@ -921,6 +921,7 @@ fn turn_changes_are_grouped_by_train_with_the_landing_before_its_waiters() {
         row(61, policy::Phase::Held { was: Box::new(policy::Phase::Proving), why: policy::Hold::Prepare });
     landing.landing.preparation = 2;
     outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    d.landing.restore_memberships().unwrap();
     let got = changes(&d);
     assert_eq!(got.queues.len(), 2);
     let busy = &got.queues[0];

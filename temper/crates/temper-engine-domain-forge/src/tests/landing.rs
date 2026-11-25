@@ -310,6 +310,13 @@ pub(super) fn landing_fixture_with(mut d: Domain) -> Domain {
     ));
     d
 }
+
+pub(crate) fn erase_landing(d: &mut Domain, task: u64) -> LandingRow {
+    let row = d.landing.erase(task).expect("fixture landing");
+    landing::members::end(d, &row, &mut Queue::uncapped());
+    row
+}
+
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         read_hold: None,

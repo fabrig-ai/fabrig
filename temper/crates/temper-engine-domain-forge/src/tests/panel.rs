@@ -502,6 +502,7 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
 fn add_panel_landing(d: &mut Domain) {
     let row = landing_routes::merge_landing_row(false);
     outputs(d, Event::Restore { record: Stored::Landing(row) });
+    d.landing.restore_memberships().unwrap();
 }
 
 #[test]

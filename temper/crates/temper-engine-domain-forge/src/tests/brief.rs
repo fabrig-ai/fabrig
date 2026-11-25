@@ -2524,7 +2524,7 @@ fn landing_failure_pins_the_candidate_or_the_kept_rounds_run() {
     d.landing.rows.get_mut(&61).unwrap().landing.members[0].left =
         Some(Leave::Blamed { gate: 0, run: 7, red: [8; 32], green: [6; 32] });
     assert_eq!(d.landing_failure(fixtures::CHANGE, blamed), Some(expected.clone()));
-    d.landing.rows.remove(&61).unwrap();
+    landing_routes::erase_landing(&mut d, 61);
     assert_eq!(d.landing_failure(fixtures::CHANGE, blamed), None);
     assert_eq!(d.landing_failure(fixtures::CHANGE, why), Some(expected));
     d.landing.receipts.get_mut(&key).unwrap().passed = true;
