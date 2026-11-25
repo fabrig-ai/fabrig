@@ -369,7 +369,7 @@ to the next command, never a closure waiting on a reply:
 | Viewport | `Emulation.setDeviceMetricsOverride` with the requested width and height, `mobile: false`; `Done` after its reply, or `Refused` |
 | a person | a browser context created; with a downloads directory, its downloads allowed there under the browser's own names, with their events (`Browser.setDownloadBehavior`, `allowAndName`, `eventsEnabled`), else denied |
 | opening a page | create a target in the person's context, attach to it, enable the domains it reports on, set the viewport, navigate; `Opened` once the load event fires |
-| go | navigate, reload, or move through the history; the page's `beforeunload` prompt, if it opens meanwhile, accepted, and `Warned`; `Done` once the navigation commits: the load event for a new document, the same-document event for one that stays |
+| go | navigate, reload, or move through the history; the page's `beforeunload` prompt, if it opens meanwhile, accepted, and `Warned`, or Chromium's entry that it blocked one taken as `Warned` (section 6); `Done` once the navigation commits: the load event for a new document, the same-document event for one that stays |
 | find | the page brought to the front (`Page.bringToFront`); the accessibility nodes matching the role and the name, under the scope or the page's current document, either asked by its object in that document (below): exactly, both asked of CDP; by words, the role's nodes asked without a name, their names compared in the kit; at most `Limits::matches` kept, the rest counted in `more`; their properties; their boxes, if asked |
 | await | a find, again every `Limits::poll`, until the expectation holds (`Met`) or `within` passes (`Missed`) |
 | press | the node scrolled into view, its named point with it; its box's centre, or the named point in the box; layout metrics turn the viewport point into document coordinates for the hit test; refused `Hidden` without a box or with a point outside it, `Disabled` if its accessibility node says so, `Covered` unless the hit test at that point lands on the node or inside it; then the mouse moved, pressed and released at the viewport point |
@@ -464,8 +464,13 @@ to the next command, never a closure waiting on a reply:
   - A test sees by `Warned`, or by its absence, whether the page warned
     when the person left it.
   - Chromium shows the prompt only on a page that has had a person's
-    input since it loaded. A test that looks for no warning acts on the
-    page first.
+    input since it loaded. On any other page it leaves without one, and
+    logs at error level, from source `intervention`, that it blocked it:
+    the entry's text begins `Blocked attempt to show a 'beforeunload'
+    confirmation panel`. While a go of the page is in flight, the kit
+    takes that entry as the prompt it would have accepted: `Warned`,
+    once, before the go's `Done`, and no `Trouble`. So a page that warns
+    is seen to warn whether or not the person acted on it first.
   - Closing a page closes its target, which runs no `beforeunload`
     handler, so a close is never warned.
   - No request answers a dialog. A person who stays on a page that
@@ -483,7 +488,8 @@ wrong, and reports each as `Trouble` with its text, cut to
 - an exception thrown and not caught;
 - a console message at error level;
 - a log entry at error level, which is how a content security policy
-  violation, a failed load or a blocked request shows;
+  violation, a failed load or a blocked request shows, other than the
+  blocked closing warning a go takes as its own (section 6);
 - the page crashing, which also fails its operations in flight with
   `Crashed`;
 - a native dialog, other than the closing warning a go accepts (section
