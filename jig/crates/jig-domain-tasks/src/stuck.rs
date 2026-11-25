@@ -81,6 +81,9 @@ impl Index {
     }
 
     fn changed(&mut self, task: u64, include_task: bool) {
+        if self.readers.is_empty() {
+            return;
+        }
         for (&(_, order, reader), ()) in self.readers.range((task, 0, 0)..=(task, u64::MAX, u64::MAX)) {
             if reader != task || include_task {
                 self.dirty.insert((order, reader)).expect("one review per left-alone task");
@@ -112,6 +115,13 @@ pub(crate) fn refresh(domain: &mut Domain, number: u64) {
         Some(old) => old.executor != executor,
         None => true,
     };
+    // With no retained walk, only the executor index can need updating.
+    if domain.stuck.left.is_empty() {
+        if executor_changed {
+            index_executor(domain, number, executor);
+        }
+        return;
+    }
     let (changed, idle_before) = match task.published.as_deref() {
         None => (true, false),
         Some(old) => (
@@ -194,6 +204,7 @@ pub(crate) fn review(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
 fn oldest(domain: &Domain, row: &TaskRecord) -> Option<OpenQuestion> {
     if row.phase != Phase::Active(Active::Idle)
         || !row.wake.questions
+        || row.question_lines.is_empty()
         || !crate::words::keeping(domain, row)
         || !crate::run::ends::for_record(row).finishes_alone()
     {
