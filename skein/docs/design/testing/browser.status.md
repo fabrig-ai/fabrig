@@ -10,9 +10,6 @@ those five forms. No implementation gap remains for that state.
 
 - **Not yet:** 9: the real-Chromium viewport story is compiled; its runtime
   check awaits the browser tier after landing.
-- **Not yet:** 3, 5: a browser that ends on its own reports no `Ended`
-  and its `Ending`, and the command lacks `--use-mock-keychain`.
-  [in flight: change 18056]
 - **Design departs:** 9: the real-Chromium story's leaving document sends
   its request after the reload's document request, signalled over its
   still-open stream, in place of a `keepalive` request at `pagehide`: on
