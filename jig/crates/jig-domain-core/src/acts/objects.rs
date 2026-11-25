@@ -12,7 +12,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
 pub(crate) use decisions::{escalation, proposal};
-pub(crate) use task::{person, question, write, write_in};
+pub(crate) use task::{at_question_offer, person, question, write, write_in};
 
 pub(super) fn admit(
     core: &Core,

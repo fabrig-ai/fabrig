@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 2;
 pub const LAYOUT: [u8; 32] = [
-    0x46, 0xac, 0x3b, 0x9a, 0xa8, 0xa5, 0x07, 0x4b, 0x8e, 0x65, 0x74, 0x00, 0x24, 0x6d, 0xab, 0x6d, 0x4c, 0x98, 0x21,
-    0x5b, 0x7b, 0xcc, 0x72, 0xcc, 0xa8, 0x62, 0x57, 0xf7, 0x5c, 0x6c, 0xc7, 0xf3,
+    0x50, 0xb2, 0xfa, 0xaa, 0x47, 0x28, 0x1e, 0x47, 0xbe, 0x71, 0x7d, 0xbb, 0x94, 0x8e, 0xdf, 0xcf, 0x7b, 0xd0, 0xf1,
+    0xdd, 0x2c, 0x39, 0xce, 0x77, 0x9c, 0xba, 0xb4, 0x7d, 0x83, 0xa7, 0x7a, 0x6d,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3353,6 +3353,7 @@ pub enum HoldReason {
     Procedure,
     Circle,
     Exceeded(Exceeded),
+    Waited,
 }
 
 // Record: HoldReason.
@@ -3376,7 +3377,8 @@ impl HoldReason {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("Exceeded"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -3424,6 +3426,7 @@ impl Record for HoldReason {
             Self::Procedure => field::put(out, &[15], paths::HOLD_REASON_TAG),
             Self::Circle => field::put(out, &[16], paths::HOLD_REASON_TAG),
             Self::Exceeded(value) => { field::put(out, &[17], paths::HOLD_REASON_TAG)?; value.write(limits, out) },
+            Self::Waited => field::put(out, &[18], paths::HOLD_REASON_TAG),
         }
     }
 
@@ -3448,7 +3451,8 @@ impl Record for HoldReason {
             15 => Ok(Self::Procedure),
             16 => Ok(Self::Circle),
             17 => Ok(Self::Exceeded(Exceeded::read(limits, reader)?)),
-            18..=u8::MAX => Err(Problem { path: paths::HOLD_REASON_TAG, reason: skein_codec::Reason::Tag }),
+            18 => Ok(Self::Waited),
+            19..=u8::MAX => Err(Problem { path: paths::HOLD_REASON_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

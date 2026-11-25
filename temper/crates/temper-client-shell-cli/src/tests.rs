@@ -827,7 +827,7 @@ fn close_kept_line() {
 
 #[test]
 fn a_drawn_key_is_resent_before_a_new_unnamed_request() {
-    let words = &[b"task", b"stop".as_slice(), b"7"];
+    let words = &[b"task", b"stop".as_slice(), b"7", b"Parked"];
     let mut first = fixtures::Disk::act_words_with(words, fixtures::small_store(&[]));
     first.sign_in_then_deliver_me();
     first.advance_past(crate::limits::DEADLINE);
@@ -1560,4 +1560,14 @@ fn invalid_history_filters_and_cursors_open_no_directory_and_send_nothing() {
         assert!(frame.no_directory());
         assert_eq!(frame.requests(), 0);
     }
+}
+
+#[test]
+fn a_stop_call_without_a_reason_exits_two_before_opening_directory() {
+    let mut f = fixtures::Frame::read(&["--call", "-"]);
+    f.input = br#"{"tool":"task stop","arguments":{"task":41}}"#;
+    f.drain();
+    assert_eq!(f.exit(), Some(Exit::Code(2)));
+    assert!(f.no_directory());
+    assert_eq!(f.requests(), 0);
 }

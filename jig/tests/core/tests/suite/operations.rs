@@ -191,7 +191,10 @@ fn a_compound_naming_another_projects_task_is_refused_at_its_place() {
     request(
         &mut world,
         14,
-        compound([people::Operation::Stop { task: first }, people::Operation::Stop { task: second }]),
+        compound([
+            people::Operation::Stop { task: first, reason: Box::from(b"Parking the task".as_slice()) },
+            people::Operation::Stop { task: second, reason: Box::from(b"Parking the task".as_slice()) },
+        ]),
     );
     assert_eq!(
         world.people_answers.last(),
@@ -269,7 +272,7 @@ fn a_tasks_refusal_precedes_a_later_core_refusal_in_a_compound() {
                 }),
                 release: None,
             },
-            people::Operation::Stop { task: u64::MAX },
+            people::Operation::Stop { task: u64::MAX, reason: Box::from(b"Parking the task".as_slice()) },
         ]),
     );
     assert_eq!(

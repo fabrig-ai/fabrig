@@ -1702,7 +1702,7 @@ fn place(task: u64, person: u64, number: u64) -> Event {
             owner: crate::Owner::Party { person },
             mode: crate::Mode::Stop,
             scope: crate::Scope::Subtree { task },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),

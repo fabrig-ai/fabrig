@@ -277,7 +277,11 @@ pub(crate) const OTHER_ENGINE_KEY: skein_lib::RequestKey = [2; 16];
 pub(crate) const NAME: skein_lib::RequestKey = [3; 16];
 pub(crate) const ME_WATCH: Token = Token::new(0);
 pub(crate) fn stop() -> Ask {
-    Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: SUBJECT_TASK }))
+    Ask::Jig(Box::new(contract::Ask::Stop {
+        project: 1,
+        task: SUBJECT_TASK,
+        reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX).expect("fixture reason fits"),
+    }))
 }
 pub(crate) fn seen() -> Ask {
     Ask::Jig(Box::new(contract::Ask::Seen {

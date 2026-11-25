@@ -286,8 +286,8 @@ const ROOT: Root = Root {
         writes: 12288,
         // Outputs at the journal's door, counted in the default admission watermark.
         deliveries: 512,
-        // The stock’s deep task row before source derivation; derive() supplies the resume carrier.
-        transcript_bytes: 22_468_344,
+        // stock() fills this from the deep row bound; derive() supplies the resume carrier.
+        transcript_bytes: 0,
         // At least brief.brief_bytes and jig stock people.words: the root's worst case.
         result_bytes: BRIEF.brief_bytes,
         // Holds the stock goal agent's charter and room for an overlay.
@@ -362,7 +362,7 @@ pub const SOCKETS: u32 = 256;
 #[must_use]
 pub fn stock() -> Limits {
     let shared = temper_service_core::limits::stock();
-    Limits {
+    let mut limits = Limits {
         live_goals: temper_service_core::derived::LIVE_GOALS,
         tool_payload: temper_service_core::derived::STOCK.payload,
         picker: Picker { page: 30 },
@@ -385,7 +385,11 @@ pub fn stock() -> Limits {
             url_bytes: 2048,
             secret_bytes: 512,
         },
-    }
+    };
+    let root = engine_candidate(&jig_protocol_config::stock(), &limits);
+    let bytes = temper_engine_domain_limits::row_bound(&root).expect("the stock row bound fits u64");
+    limits.root.journal.transcript_bytes = u32::try_from(bytes).expect("the stock row fits the journal carrier");
+    limits
 }
 /// The one deployment store base (configuration/limit-settings.md, 3).
 /// Typed bases retain their profile's ceilings; the stock's value and page

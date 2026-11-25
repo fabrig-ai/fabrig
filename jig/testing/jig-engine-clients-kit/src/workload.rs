@@ -58,8 +58,8 @@ pub fn acts(streams: &Streams, party: &Party) -> Acts {
     }
 }
 
-/// Run each sign-in's requests against one peer, keeping its two exchange slots
-/// available to the original and its resend. Later requests use the released slots.
+/// Run each sign-in's requests against one peer. A live original and its
+/// resend use both exchange slots; a parked original leaves its slot free.
 pub fn run(streams: Streams, sweep: &Sweep) -> Result<FaultLedger, String> {
     let workload = draw(&streams);
     let mut peer = Peer::started(&fixtures::settings());
@@ -114,6 +114,7 @@ fn exchange(
         if request == 0 && pass == acts.resend_at {
             if acts.park_first {
                 peer.cut_exchange(first);
+                assert!(peer.inspection().tables().is_empty(), "a parked original uses no sign-in slot");
                 parked = true;
             }
             let holding = if parked { ["the first is parked"].as_slice() } else { &[] };

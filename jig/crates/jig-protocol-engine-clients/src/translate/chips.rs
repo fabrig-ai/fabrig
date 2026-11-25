@@ -123,7 +123,16 @@ pub fn person_notice(value: t::PersonStallNotice) -> w::PersonStallNotice {
 }
 #[must_use]
 pub fn person_wait(value: t::PersonWait) -> w::PersonWait {
-    mapped::person_wait_to_record(&value)
+    // The current offer is owner state; the client receives the waiting interval.
+    w::PersonWait {
+        since: value.since.as_nanos(),
+        stall: value.stall,
+        deadline: value.deadline.as_nanos(),
+        notice: match value.notice {
+            Some(item) => Some(person_notice(item)),
+            None => None,
+        },
+    }
 }
 fn compact(value: &d::PhaseLine) -> w::Phase {
     match value {

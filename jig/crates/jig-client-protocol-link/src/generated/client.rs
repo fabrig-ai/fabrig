@@ -257,6 +257,7 @@ pub fn hold_category_to_domain(record: jig_client_protocol_wire::v44::HoldCatego
         jig_client_protocol_wire::v44::HoldCategory::Procedure => jig_client_domain::contract::HoldCategory::Procedure,
         jig_client_protocol_wire::v44::HoldCategory::Circle => jig_client_domain::contract::HoldCategory::Circle,
         jig_client_protocol_wire::v44::HoldCategory::Exceeded(held) => jig_client_domain::contract::HoldCategory::Exceeded(exceeded_to_domain(held)),
+        jig_client_protocol_wire::v44::HoldCategory::Waited => jig_client_domain::contract::HoldCategory::Waited,
     }
 }
 

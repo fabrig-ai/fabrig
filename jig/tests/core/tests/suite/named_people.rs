@@ -167,7 +167,9 @@ fn roles(world: &mut World, person: u64) -> Option<Refusal> {
 fn compound_amend(world: &mut World, person: u64) -> Option<Refusal> {
     // A staged first operation must not escape a later unknown-person refusal.
     let mut operations = List::with_capacity(2);
-    operations.push(people::Operation::Stop { task: 1 }).expect("first operation");
+    operations
+        .push(people::Operation::Stop { task: 1, reason: Box::from(b"Parking the task".as_slice()) })
+        .expect("first operation");
     operations
         .push(people::Operation::Amend {
             task: PERSON_TASK,

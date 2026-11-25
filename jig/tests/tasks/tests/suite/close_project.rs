@@ -111,7 +111,7 @@ fn its_project_holds_go_and_other_projects_stay() {
             owner: Owner::Party { person: 8 },
             mode: Mode::Stop,
             scope: Scope::Subtree { task: 2 },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),

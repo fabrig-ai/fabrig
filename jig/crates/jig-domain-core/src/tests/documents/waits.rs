@@ -35,7 +35,8 @@ fn question(number: u64, at: u64) -> tasks::Word {
 fn an_askers_credit_keeps_question_words_while_it_closes() {
     let (mut core, limits) = pair();
     let mut parent = core.tasks.task(1).unwrap().clone();
-    parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
+    parent.question_lines =
+        Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None, resolution: None }]);
     let mut child = core.tasks.task(2).unwrap().clone();
     let question = tasks::OpenQuestion { asker: 2, number: 3, line: child.activity };
     child.questions = Box::new([tasks::QuestionCredit {
@@ -43,6 +44,7 @@ fn an_askers_credit_keeps_question_words_while_it_closes() {
         answerer: tasks::Party::Task(1),
         asked: tasks::Party::Task(1),
         line: child.activity,
+        offer: None,
     }]);
     child.phase = tasks::Phase::Closing(tasks::Closing {
         stage: tasks::Stage::Effects,
@@ -81,7 +83,8 @@ fn a_question_to_the_requester_names_that_party_and_one_entry() {
     parent.questions = Box::new([own_credit(&parent, 7)]);
     parent.inbox = Box::new([question(3, 10)]);
     parent.last_message = 3;
-    parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
+    parent.question_lines =
+        Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None, resolution: None }]);
     let child = core.tasks.task(2).unwrap().clone();
     restore(&mut core, &limits, Box::new([parent, child]));
     let position = core.tasks.task(1).unwrap().activity;
@@ -115,7 +118,8 @@ fn the_oldest_of_two_waiting_entries_names_whom() {
     parent.questions = Box::new([own_credit(&parent, 7)]);
     parent.inbox = Box::new([question(3, 10)]);
     parent.last_message = 3;
-    parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
+    parent.question_lines =
+        Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None, resolution: None }]);
     let mut child = core.tasks.task(2).unwrap().clone();
     child.revisions.hold = 1;
     child.escalation = tasks::Escalation::Waiting {
@@ -190,6 +194,7 @@ fn a_person_task_below_names_its_role() {
         stall: Duration::from_secs(1),
         deadline: Wall::from_nanos(1_000_000_000),
         notice: None,
+        offer: None,
     });
     restore(&mut core, &limits, Box::new([parent, child]));
     assert_eq!(
@@ -259,7 +264,7 @@ fn a_kept_idle_row_waits_on_dependencies_before_delegates_and_cuts_oldest_first(
 }
 
 fn own_credit(row: &tasks::TaskRecord, number: u64) -> tasks::QuestionCredit {
-    tasks::QuestionCredit { number, answerer: row.requester, asked: row.requester, line: row.activity }
+    tasks::QuestionCredit { number, answerer: row.requester, asked: row.requester, line: row.activity, offer: None }
 }
 
 #[test]
@@ -367,7 +372,8 @@ fn remember(core: &mut Core, task: u64, line: u64, message: u64) {
 fn party_question_uses_asking_time_and_distinguishes_pass_up_from_overdue() {
     let (mut core, limits) = pair();
     let mut row = core.tasks.task(1).unwrap().clone();
-    row.question_lines = Box::new([tasks::QuestionLine { message: 7, line: row.activity, answer: None }]);
+    row.question_lines =
+        Box::new([tasks::QuestionLine { message: 7, line: row.activity, answer: None, resolution: None }]);
     remember(&mut core, row.number, row.activity, 7);
     let mut expected = Wait {
         task: 1,
@@ -429,12 +435,28 @@ fn party_entries_keep_the_escalation_proposal_and_person_clocks() {
             },
         ]
     );
+    row.escalation = tasks::Escalation::Waiting { holder: FINAL, revision: 1, entry: 7, since: SINCE };
+    let stalls = limits.tasks.escalation_stall.max(limits.tasks.proposal_stall);
+    let past = Wall::from_nanos(SINCE.as_nanos() + stalls.as_nanos() + 1);
+    let document = task_from_row(&core, &limits, 1, &row, past).unwrap();
+    let expected = [limits.tasks.escalation_stall, limits.tasks.proposal_stall];
+    assert_eq!(document.waits.len(), 2);
+    for (record, stall) in document.waits.iter().zip(expected) {
+        assert_eq!(record.bound, at(SINCE, stall, AtBound::Overdue));
+        let Bound::At { at, .. } = record.bound else { panic!("a final role has a stall bound") };
+        assert!(at < past);
+    }
     row.escalation = tasks::Escalation::Unheld { revision: 1 };
     row.proposal = None;
     row.executor = tasks::Executor::Person(tasks::PersonAddress::Role(0));
     row.phase = tasks::Phase::Active(tasks::Active::Idle);
-    row.person_wait =
-        Some(tasks::PersonWait { since: SINCE, stall: limits.tasks.person_stall, deadline: SOON, notice: None });
+    row.person_wait = Some(tasks::PersonWait {
+        since: SINCE,
+        stall: limits.tasks.person_stall,
+        deadline: SOON,
+        notice: None,
+        offer: None,
+    });
     let document = document_matching_line(&core, &limits, &row);
     assert_eq!(
         document.wait,
@@ -447,6 +469,44 @@ fn party_entries_keep_the_escalation_proposal_and_person_clocks() {
             hears: Some(PARENT),
         })
     );
+}
+
+#[test]
+fn a_person_offer_moves_the_one_party_wait_and_its_bound() {
+    const ADDRESSEE: u64 = 6;
+    const FIRST_OFFER: Wall = Wall::from_nanos(200);
+    const FINAL_OFFER: Wall = Wall::from_nanos(300);
+    let (core, limits) = pair();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.phase = tasks::Phase::Active(tasks::Active::Due);
+    row.executor = tasks::Executor::Person(tasks::PersonAddress::Person(ADDRESSEE));
+    let stall = limits.tasks.person_stall;
+    let deadline = Wall::from_nanos(SINCE.as_nanos() + stall.as_nanos());
+    let notice = tasks::PersonStallNotice { message: 7, at: FIRST_OFFER, activity: 1 };
+    let cases = [
+        (None, Holder::Person(ADDRESSEE), SINCE, AtBound::PassUp),
+        (Some(tasks::PersonAddress::Person(1)), REQUESTER, FIRST_OFFER, AtBound::PassUp),
+        (Some(tasks::PersonAddress::Role(0)), FINAL, FINAL_OFFER, AtBound::Overdue),
+    ];
+    for (address, holder, since, then) in cases {
+        let offer = match address {
+            Some(holder) => Some(tasks::PersonOffer { holder, since }),
+            None => None,
+        };
+        row.person_wait =
+            Some(tasks::PersonWait { since: SINCE, stall, deadline, notice: offer.is_some().then_some(notice), offer });
+        let document = document_matching_line(&core, &limits, &row);
+        let expected = Wait {
+            task: row.number,
+            kind: WaitKind::Party,
+            object: WaitObject::Entry { kind: people::EntryKind::PersonTask, at: holder },
+            since,
+            bound: at(since, stall, then),
+            hears: Some(PARENT),
+        };
+        assert_eq!(document.waits.as_slice(), core::slice::from_ref(&expected));
+        assert_eq!(document.wait, Some(expected));
+    }
 }
 
 #[test]
@@ -631,6 +691,9 @@ fn a_goal_names_a_descendants_escalation_but_its_own_nearer_bound() {
     parent.waiting_on = Box::new([2]);
     parent.authority.budget.deadline = Some(SOON);
     let mut child = core.tasks.task(2).unwrap().clone();
+    child.phase =
+        tasks::Phase::Held { was: tasks::Was::Active(tasks::Active::Due), why: tasks::Hold::Budget, source: None };
+    child.revisions.hold = 1;
     child.escalation = tasks::Escalation::Waiting { holder: Holder::Person(1), revision: 1, entry: 7, since: SINCE };
     restore(&mut core, &limits, Box::new([child]));
     let document = document_matching_line(&core, &limits, &parent);
@@ -649,7 +712,8 @@ fn a_goal_keeps_its_descendants_question_and_the_earliest_bound() {
     let leaf = new_row(&core, 3, tasks::Funder::Period { project: 1, period: 1 }, None);
     make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([leaf]));
     let mut leaf = core.tasks.task(3).unwrap().clone();
-    leaf.question_lines = Box::new([tasks::QuestionLine { message: 7, line: leaf.activity, answer: None }]);
+    leaf.question_lines =
+        Box::new([tasks::QuestionLine { message: 7, line: leaf.activity, answer: None, resolution: None }]);
     remember(&mut core, leaf.number, leaf.activity, 7);
     let mut child = core.tasks.task(2).unwrap().clone();
     // Supply the wait walk with a person-facing question below the direct delegate.

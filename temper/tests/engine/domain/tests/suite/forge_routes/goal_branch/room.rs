@@ -35,7 +35,11 @@ pub(crate) fn passed_making() -> (World, u64, Box<[u8]>) {
     assert!(forge_hold(&world, &branch).is_some(), "the waiting goal took its branch");
     assert_eq!(creations(&world, &branch), 0);
     assert_eq!(
-        ask(&mut world, 95, people::Ask::Stop { project: 1, task: goal }),
+        ask(
+            &mut world,
+            95,
+            people::Ask::Stop { project: 1, task: goal, reason: Box::from(b"Parking the task".as_slice()) }
+        ),
         people::Outcome::Stopped { task: goal }
     );
     world.advance_ticks(20);

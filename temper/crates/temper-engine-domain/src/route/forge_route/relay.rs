@@ -394,6 +394,8 @@ fn take<'a>(
             | tasks::MessageKind::FinishRequested { .. }
             | tasks::MessageKind::Met { .. }
             | tasks::MessageKind::Notice { .. }
+            | tasks::MessageKind::PassedQuestion { .. }
+            | tasks::MessageKind::PassedAnswer { .. }
             | tasks::MessageKind::QuestionAnswered { .. }
             | tasks::MessageKind::QuestionOwed
             | tasks::MessageKind::NothingAwaited

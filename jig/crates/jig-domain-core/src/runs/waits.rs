@@ -1,6 +1,7 @@
 //! Task waits and their readings (jig/docs/design/domain/engine/waits.md, 4).
 pub use jig_domain_core_vocabulary::runs::waits::*;
 
+pub(crate) mod alarm;
 mod own;
 mod reports;
 
@@ -57,17 +58,28 @@ impl Core {
     /// A task's own records for the quiet-point check, including those beyond document lines.
     #[must_use]
     pub fn inspection_wait_records(&self, row: &tasks::TaskRecord) -> Box<[Wait]> {
+        self.own_waits(row, activity(self, row), true).into_boxed()
+    }
+
+    /// The same wait objects and clocks without a projection of who would hear about a hold.
+    #[must_use]
+    pub fn inspection_wait_facts(&self, row: &tasks::TaskRecord) -> Box<[Wait]> {
+        self.own_waits(row, activity(self, row), false).into_boxed()
+    }
+
+    fn own_waits(
+        &self,
+        row: &tasks::TaskRecord,
+        (working, parked): (bool, Option<Wall>),
+        address: bool,
+    ) -> own::Records {
         let limits = &self.wait_limits;
-        let mut own = own::Own::new();
-        let inbox = self.waiting_entries(limits, row);
-        for entry in inbox.iter().chain(own::policy_entry(row, &inbox).iter()) {
-            if party_entry(entry.kind) {
-                own.party(self, limits, row, entry);
-            }
+        let mut own = if address { own::Own::new() } else { own::Own::unaddressed() };
+        for fact in &own::party_entries(self, limits, row) {
+            own.party(self, limits, row, fact);
         }
-        let (working, parked) = activity(self, row);
         own.finish(self, limits, row, working, parked, due_wait(self, row));
-        own.into_records().into_boxed()
+        own.into_records()
     }
 
     /// The compatibility summary of the waits in a live subtree.
@@ -117,21 +129,18 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
             candidate
         };
         phases.add(&candidate.phase);
-        let inbox = core.waiting_entries(limits, candidate);
-        for entry in inbox.iter().chain(own::policy_entry(candidate, &inbox).iter()) {
-            if !party_entry(entry.kind) {
-                continue;
-            }
+        for entry in &own::party_entries(core, limits, candidate) {
+            let entry = *entry;
             entries = entries.saturating_add(1);
             let earlier = match oldest {
                 Some((previous, _)) => (entry.at, entry.task) < (previous.at, previous.task),
                 None => true,
             };
             if earlier {
-                oldest = Some((*entry, candidate));
+                oldest = Some((entry, candidate));
             }
             if number == row.number {
-                own.party(core, limits, row, entry);
+                own.party(core, limits, row, &entry);
             }
         }
         for delegate in candidate.delegates.iter().rev() {
@@ -185,16 +194,6 @@ fn due_wait(core: &Core, row: &tasks::TaskRecord) -> Option<crate::documents::Ta
         | tasks::Phase::Held { .. }
         | tasks::Phase::Closing(_)
         | tasks::Phase::Ended(_) => None,
-    }
-}
-
-fn party_entry(kind: people::EntryKind) -> bool {
-    match kind {
-        people::EntryKind::Question { .. }
-        | people::EntryKind::Proposal { .. }
-        | people::EntryKind::Escalation { .. }
-        | people::EntryKind::PersonTask => true,
-        people::EntryKind::ChatReply { .. } | people::EntryKind::Reply { .. } => false,
     }
 }
 

@@ -3991,7 +3991,7 @@ fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
             owner: tasks::Owner::Party { person },
             mode: tasks::Mode::Stop,
             scope: tasks::Scope::Subtree { task },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),

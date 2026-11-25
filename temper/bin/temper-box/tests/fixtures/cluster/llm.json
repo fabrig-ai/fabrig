@@ -111,6 +111,13 @@
       ]
     }},
     {{
+      "cue": "Are you still there?",
+      "turns": [
+        {{"lines":[{{"text":"Same worker replied after relink."}},{{"call":"wait","arguments":{{}}}}],"finish":"tool_calls","tokens":1}},
+        {{"lines":[{{"text":"First chat closed."}}],"finish":"stop","tokens":1}}
+      ]
+    }},
+    {{
       "cue": "cluster-second-chat",
       "turns": [
         {{

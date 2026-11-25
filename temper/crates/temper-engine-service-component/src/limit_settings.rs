@@ -409,6 +409,7 @@ fn task_bound(bound: &jig_domain_tasks::RestoreBound) -> Option<&'static [u8]> {
         | B::ResultFields
         | B::HoldPathCapacity
         | B::AccountOriginBytes
+        | B::WaitOriginBytes
         | B::PreparationReasonBytes
         | B::Subagents
         | B::SettingsItems

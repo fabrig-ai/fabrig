@@ -195,6 +195,7 @@ fn phase(value: &Phase, limits: &Limits) -> Result<(), RestoreCause> {
             HoldSource::Account { words, .. } => {
                 count(RestoreBound::AccountOriginBytes, words.len(), crate::hold_origin::ACCOUNT_BYTES)?;
             }
+            HoldSource::Wait { words } => count(RestoreBound::WaitOriginBytes, words.len(), crate::WAIT_WORDS)?,
             HoldSource::Circle(circle) => count(RestoreBound::Circle, circle.tasks.len(), limits.circle)?,
             HoldSource::Resource(resource) => name(resource, limits)?,
             HoldSource::Effect { .. } => {}
@@ -302,6 +303,7 @@ fn holdings(value: &[crate::Holding], limits: &Limits) -> Result<(), RestoreCaus
     Ok(())
 }
 
+#[expect(clippy::too_many_lines, reason = "one task restore checks every durable field bound")]
 pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCause> {
     if value.flags.ended_by == crate::EndedBy::Standing
         && (!crate::flags::valid(value.flags, value.executor, value.requester) || value.tracked.is_some())
@@ -317,6 +319,17 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
             return Err(RestoreCause::Accounting);
         }
     } else if value.spec.job.is_some() || crate::batch::job_contract(&value.contract) {
+        return Err(RestoreCause::Accounting);
+    }
+    if let Some(wait) = value.person_wait
+        && let Some(offer) = wait.offer
+        && (wait.notice.is_none()
+            || !crate::control::valid_address(offer.holder)
+            || match value.executor {
+                Executor::Person(address) => address == offer.holder,
+                Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => true,
+            })
+    {
         return Err(RestoreCause::Accounting);
     }
     numbers(value.numbers)?;
@@ -341,6 +354,32 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     count(RestoreBound::Dependencies, value.added.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.started_from.len(), limits.dependencies)?;
     count(RestoreBound::InboxMessages, value.questions.len(), limits.inbox_messages)?;
+    for credit in &value.questions {
+        if let Some(offer) = &credit.offer {
+            match (&offer.holder, &offer.relay) {
+                (crate::EscalationHolder::Task(holder), Some(relay)) if *holder != 0 && relay.entry > credit.number => {
+                    count(RestoreBound::MessageBytes, relay.words.len(), limits.message_bytes)?;
+                }
+                (crate::EscalationHolder::Person(person), None) if *person != 0 => {}
+                (crate::EscalationHolder::Role { project, .. }, None) if *project == value.project => {}
+                _ => return Err(RestoreCause::Accounting),
+            }
+        }
+    }
+    for line in &value.question_lines {
+        if let Some(resolution) = &line.resolution {
+            if line.answer.is_none() {
+                return Err(RestoreCause::Accounting);
+            }
+            if let Some(notice) = &resolution.notice {
+                bound(
+                    RestoreBound::MessageBytes,
+                    len_u64(notice.words.len()),
+                    u64::try_from(crate::questions::ANSWER_NOTICE_BYTES).expect("question notice bound fits"),
+                )?;
+            }
+        }
+    }
     count(RestoreBound::InboxMessages, value.question_lines.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.proposal_rows.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.replies.len(), limits.inbox_messages)?;
@@ -469,6 +508,8 @@ fn payload_bound(value: &TaskRecord, word: &crate::Word, limits: &Limits) -> (Re
             }
         }
         MessageKind::EffectNotMade { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
         | MessageKind::Escalation { .. }
         | MessageKind::Proposal { .. }
         | MessageKind::PersonStalled { .. }

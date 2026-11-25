@@ -914,7 +914,7 @@ fn application(outcome: forge::ApplicationOutcome) -> forge::Stored {
 fn application_refusals() -> Box<[jig_domain_people::Refusal]> {
     use jig_domain_people as p;
     // The refusal fixtures include three ceiling cases under all three proposal verdicts.
-    const REFUSAL_CASES: u32 = 201;
+    const REFUSAL_CASES: u32 = 202;
     let mut rows = skein_lib::List::with_capacity(REFUSAL_CASES);
     rows.push(p::Refusal::NameTaken).expect("bounded application cases");
     for rule in [p::NameRule::Empty, p::NameRule::Long, p::NameRule::Control, p::NameRule::Space, p::NameRule::Digits] {
@@ -1108,6 +1108,7 @@ fn application_moved_and_ended(rows: &mut skein_lib::List<jig_domain_people::Ref
         p::HoldReason::Uncertain { entry: u64::MAX },
         p::HoldReason::Budget,
         p::HoldReason::Deadline,
+        p::HoldReason::Waited,
         p::HoldReason::HoldsWaited,
         p::HoldReason::ResourceUnavailable,
         p::HoldReason::ResourceAccess,

@@ -21,7 +21,11 @@ pub fn chip_title(row: &tasks::TaskRecord, maximum: u32) -> Text {
     text(row.spec.words.get(..first).expect("first line prefix"), maximum)
 }
 
-pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, Missing> {
+pub fn chip_from_row(
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+    domain: Option<&tasks::Domain>,
+) -> Result<Chip, Missing> {
     let number = row.number;
     let title = chip_title(row, limits.documents.text_bytes);
     let executor = executor_kind(row.executor);
@@ -54,7 +58,7 @@ pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, M
         tasks::Phase::Held { why, .. } => PhaseLine::Held { reason: *why, revision: row.revisions.hold },
         tasks::Phase::Ended(_) => PhaseLine::Ended,
     };
-    Ok(Chip { number, title, executor, phase, details: Box::new(super::chip_phase::from_row(limits, row)?) })
+    Ok(Chip { number, title, executor, phase, details: Box::new(super::chip_phase::from_row(limits, row, domain)?) })
 }
 
 /// Kept title and terminal chip facts only (protocol/store/retention.md, 7).

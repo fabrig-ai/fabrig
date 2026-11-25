@@ -33,6 +33,7 @@ enum PublicHold pool_lost tag=14 payload=-
 enum PublicHold procedure tag=15 payload=-
 enum PublicHold circle tag=16 payload=-
 enum PublicHold exceeded tag=17 payload=-
+enum PublicHold waited tag=18 payload=-
 record PublicCounts working u32 tag=- default=-
 record PublicCounts waiting u32 tag=- default=-
 record PublicCounts held u32 tag=- default=-

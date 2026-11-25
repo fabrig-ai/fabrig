@@ -4,14 +4,32 @@ use crate::{
     TaskRecord, Word,
 };
 use alloc::boxed::Box;
-use skein_lib::{Env, List, Map, Queue};
+use skein_lib::{Env, List, Map, Queue, Wall};
 
 /// A question this task heard and the positions of its original lines.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct QuestionLine {
     pub message: u64,
     pub line: u64,
     pub answer: Option<AnswerLine>,
+    pub resolution: Option<QuestionResolution>,
+}
+
+/// Kept with the first holder's position for late answers from either holder.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct QuestionResolution {
+    pub by: crate::QuestionAnswerer,
+    pub first: crate::QuestionAnswerer,
+    pub holder: Option<crate::EscalationHolder>,
+    pub notice: Option<QuestionAnswerNotice>,
+}
+
+/// A virtual notice where the first task kept no room for a person's answer.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct QuestionAnswerNotice {
+    pub number: u64,
+    pub at: Wall,
+    pub words: Box<[u8]>,
 }
 
 /// The task and position where a question's first answer was heard.
@@ -49,7 +67,7 @@ pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32) {
 /// Retain a question's existing history position, including when Move carries it.
 pub(crate) fn question(task: &mut TaskRecord, message: u64, position: u64, bound: u32) {
     let mut kept = List::with_capacity(bound);
-    kept.push(QuestionLine { message, line: position, answer: None }).expect("one question fits");
+    kept.push(QuestionLine { message, line: position, answer: None, resolution: None }).expect("one question fits");
     for answered in [false, true] {
         for line in &task.question_lines {
             if line.answer.is_some() != answered {
@@ -59,7 +77,7 @@ pub(crate) fn question(task: &mut TaskRecord, message: u64, position: u64, bound
                 assert!(answered, "unanswered question admitted within its bound");
                 break;
             }
-            kept.push(*line).expect("bounded question positions");
+            kept.push(line.clone()).expect("bounded question positions");
         }
     }
     task.question_lines = kept.into_boxed();
@@ -136,30 +154,27 @@ fn order_questions(task: &mut TaskRecord) {
     let mut ordered = Map::with_capacity(capacity);
     for line in &task.question_lines {
         ordered
-            .insert((line.answer.is_some(), core::cmp::Reverse(line.line)), *line)
+            .insert((line.answer.is_some(), core::cmp::Reverse(line.line)), line.clone())
             .expect("unique question positions");
     }
     let mut kept = List::with_capacity(capacity);
     for (_, line) in &ordered {
-        kept.push(*line).expect("same bounded positions");
+        kept.push(line.clone()).expect("same bounded positions");
     }
     task.question_lines = kept.into_boxed();
 }
 
-pub(crate) fn sent_answer(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    sender: Party,
-    question: u64,
-    heard: AnswerLine,
-    out: &mut Queue<Request>,
-) {
-    let number = match sender {
-        Party::Task(number) => number,
-        Party::Person(_) | Party::Deployment { .. } => return,
-    };
-    let task = crate::domain::task_mut(domain, number).expect("answering task is live");
-    if answer(&mut task.record, question, heard) {
-        crate::domain::publish(domain, env, number, out);
+pub(crate) fn settle(task: &mut TaskRecord, question: u64, heard: AnswerLine, resolution: QuestionResolution) -> bool {
+    for line in &mut task.question_lines {
+        if line.message == question
+            && line.resolution.is_none()
+            && (line.answer.is_none() || line.answer == Some(heard))
+        {
+            line.answer = Some(heard);
+            line.resolution = Some(resolution);
+            order_questions(task);
+            return true;
+        }
     }
+    false
 }

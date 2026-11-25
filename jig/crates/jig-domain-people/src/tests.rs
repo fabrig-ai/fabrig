@@ -2848,7 +2848,7 @@ fn model_selectors_fold_all_carriers_and_distinguish_omitted_all_and_empty() {
             Operation::Move { task: 9, reason: Box::new([]) },
             Operation::Release { task: 9, revision: 8, again: None },
             Operation::Message { task: 9, words: Box::new([]) },
-            Operation::Stop { task: 9 },
+            Operation::Stop { task: 9, reason: Box::from(b"Paused".as_slice()) },
             Operation::Amend { task: 9, revision: 8, amendment: Box::new(amendment.clone()), release: None },
             Operation::Amend { task: 8, revision: 7, amendment: Box::new(fixtures::unchanged(b"work")), release: None },
         ] {

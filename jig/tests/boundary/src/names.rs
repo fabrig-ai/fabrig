@@ -1,6 +1,13 @@
 //! Scan source names, comments and literals for the kit vocabulary.
 
-use std::path::Path;
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::Path,
+};
+
+const CLIENT_SCHEMA: &str = "crates/jig-client-protocol-wire/schema/client-v45.schema";
+const PUBLIC_SCHEMA: &str = "crates/jig-client-protocol-wire/schema/public-v2.schema";
 
 const BANNED_WORDS: [&str; 2] = [concat!("leg", "acy"), concat!("hist", "orical")];
 
@@ -13,6 +20,17 @@ fn codec_module(name: &str) -> bool {
         return false;
     };
     let root = super::tests::kit_root();
+    // Client layouts can have a different path suffix from the frozen family version.
+    let wire_schema = match family {
+        "client" => Some(CLIENT_SCHEMA),
+        "public" => Some(PUBLIC_SCHEMA),
+        _ => None,
+    };
+    if let Some(schema) = wire_schema {
+        let Ok(file) = File::open(root.join(schema)) else { return false };
+        let header = format!("family jig-{family}-wire {version}");
+        return BufReader::new(file).lines().next().is_some_and(|line| line.is_ok_and(|line| line == header));
+    }
     [
         "crates/jig-protocol-store/schema",
         "crates/jig-client-view/schema",
@@ -288,7 +306,7 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
                     prefix.chars().next_back().is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_'))
                 }))
                 || (name == "typed"
-                    && path.ends_with("crates/jig-client-protocol-wire/schema/client-v44.schema")
+                    && path.ends_with(CLIENT_SCHEMA)
                     && source[..start].ends_with("enum ApprovalKind { listener, returned, ")
                     && source[index..].starts_with(" }"));
             if !foreign_ip
@@ -358,7 +376,7 @@ fn approval_input_bound_keeps_its_contract_name_only_in_the_wire_module() {
 
 #[test]
 fn approval_kind_keeps_only_its_contract_member_name() {
-    let schema = "crates/jig-client-protocol-wire/schema/client-v44.schema";
+    let schema = CLIENT_SCHEMA;
     let declaration = "enum ApprovalKind { listener, returned, typed }";
     for (site, source, rejected) in [
         ("fixture/source.rs", "ApprovalKind::Typed", false),
@@ -376,12 +394,13 @@ fn approval_kind_keeps_only_its_contract_member_name() {
 #[test]
 fn versioned_codec_names_require_a_schema() {
     let path = Path::new("fixture/codecs.rs");
-    let source = "use crate::{public_v1, cursor_v2, unknown_v1, public_v2, cursor_v3};";
+    let source = "use crate::{public_v1, client_v44, cursor_v2, unknown_v1, public_v2, client_v45, cursor_v3};";
     assert_eq!(
         breaches(path, source),
         [
             "fixture/codecs.rs:1: identifier unknown_v1",
             "fixture/codecs.rs:1: identifier public_v2",
+            "fixture/codecs.rs:1: identifier client_v45",
             "fixture/codecs.rs:1: identifier cursor_v3",
         ]
     );

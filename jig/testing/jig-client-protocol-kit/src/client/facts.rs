@@ -39,10 +39,14 @@ impl Story {
             .rules()
             .clone();
         config.core.seed_projects[0].policy.policy = policy;
+        // The delegate first waits for the conversation. Only at its question
+        // bound does the question pass to the conversation's requester.
+        let mut limits = fixtures::owner_limits();
+        limits.core.waits.question = Duration::from_millis(200);
         let mut story = Self {
             front: Front::new(seed),
             second: None,
-            engine: Engine::with_peers(seed, &fixtures::owner_limits(), config, peers),
+            engine: Engine::with_peers(seed, &limits, config, peers),
             net: Net::new(seed),
             now: Time::ZERO,
             seen: Vec::new(),

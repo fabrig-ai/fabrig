@@ -51,6 +51,8 @@ pub fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change
         | tasks::MessageKind::Answer { .. }
         | tasks::MessageKind::Met { .. }
         | tasks::MessageKind::Notice { .. }
+        | tasks::MessageKind::PassedQuestion { .. }
+        | tasks::MessageKind::PassedAnswer { .. }
         | tasks::MessageKind::QuestionAnswered { .. }
         | tasks::MessageKind::QuestionOwed
         | tasks::MessageKind::NothingAwaited

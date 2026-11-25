@@ -185,6 +185,7 @@ pub(super) fn hold(value: tasks::Hold) -> Box<[u8]> {
         tasks::Hold::PoolLost { .. } => b"the pool lost its allocation",
         tasks::Hold::Procedure => b"the procedure needs a decision",
         tasks::Hold::Circle => b"the work forms a circle of waits",
+        tasks::Hold::Waited => b"a wait passed its bound",
     };
     words.into()
 }

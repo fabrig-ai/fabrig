@@ -245,24 +245,11 @@ fn fire(h: &mut Harness, nanos: u64) -> Vec<Request> {
 }
 
 #[test]
-fn a_parked_task_is_made_due_just_past_its_wall() {
+fn a_parked_task_does_not_arm_a_competing_deadline_in_the_tasks_child() {
     let mut h = parked_at_a_wall();
-    assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(201)));
-    assert_eq!(fire(&mut h, 1100).len(), 0);
-    assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Idle));
-    let out = fire(&mut h, 1101);
-    assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
-    assert_eq!(
-        out.iter()
-            .filter(|r| match r {
-                Request::Activate { .. } => true,
-                _ => false,
-            })
-            .count(),
-        1
-    );
     assert_eq!(h.domain.next_deadline(), None);
-    assert_eq!(fire(&mut h, 1102).len(), 0);
+    assert_eq!(fire(&mut h, 1101), []);
+    assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Idle));
 }
 
 #[test]
@@ -274,30 +261,19 @@ fn a_running_task_is_not_woken_at_its_wall() {
 }
 
 #[test]
-fn restoring_a_parked_task_rearms_its_wall() {
+fn restoring_a_parked_task_leaves_its_deadline_to_the_core() {
     let mut h = parked_at_a_wall();
     h.env.now = Time::from_nanos(500);
     h.env.wall = Wall::from_nanos(1050);
     let mut h = restore(h);
-    assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(551)));
-    h.env.now = Time::from_nanos(550);
-    h.env.wall = TASK_WALL;
-    let mut out = skein_lib::Queue::uncapped();
-    crate::fire(&mut h.domain, &h.env, &mut out);
+    assert_eq!(h.domain.next_deadline(), None);
+    assert_eq!(fire(&mut h, 1101), []);
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Idle));
-    h.env.now = Time::from_nanos(551);
-    h.env.wall = Wall::from_nanos(1101);
-    crate::fire(&mut h.domain, &h.env, &mut out);
-    assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
-    assert!(core::iter::from_fn(|| out.pop()).any(|r| match r {
-        Request::Activate { .. } => true,
-        _ => false,
-    }));
 }
 
 #[test]
-fn backoff_arms_the_earlier_of_retry_and_wall() {
-    for until in [1050, 1150] {
+fn backoff_arms_only_the_retry_even_when_the_tasks_deadline_comes_first() {
+    for until in [1050_u64, 1150] {
         let mut h = parked_at_a_wall();
         let mut row = h.domain.task(1).unwrap().clone();
         row.phase = Phase::Active(Active::BackingOff { until: Wall::from_nanos(until) });
@@ -305,9 +281,9 @@ fn backoff_arms_the_earlier_of_retry_and_wall() {
         row.retry_notice = Some(RetryNotice::Refused { count: 1, reason: None });
         h.stored.insert(Key::Live(1), Stored::Live(Box::new(row)));
         let mut h = restore(h);
-        let wake = until.min(1101);
-        assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(wake.checked_sub(900).unwrap())));
-        fire(&mut h, wake);
+        assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(until - 900)));
+        assert_eq!(fire(&mut h, until - 1), []);
+        fire(&mut h, until);
         assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
     }
 }
@@ -388,9 +364,9 @@ fn a_suspensions_window_rearms_on_restore_and_activates_once_at_its_end() {
     assert_eq!(fire(&mut h, 1051).len(), 0);
 }
 
-/// Both alarm owners use the moved task deadline, not the authority's (executors.md, 6.3).
+/// The deadline used by records and the alarm does not depend on the task's phase.
 #[test]
-fn a_closed_gap_moves_idle_and_backoff_deadline_alarms() {
+fn a_closed_gap_moves_the_deadline_of_idle_and_backing_off_tasks() {
     for phase in [Phase::Active(Active::Idle), Phase::Active(Active::BackingOff { until: Wall::from_nanos(1500) })] {
         let mut h = parked_at_a_wall();
         let mut row = h.domain.task(1).unwrap().clone();
@@ -398,11 +374,9 @@ fn a_closed_gap_moves_idle_and_backoff_deadline_alarms() {
         row.suspended = 100;
         h.stored.insert(Key::Live(1), Stored::Live(Box::new(row)));
         let mut h = restore(h);
-        assert_eq!(h.domain.next_deadline(), Some(Time::from_nanos(301)));
-        assert_eq!(fire(&mut h, 1101).len(), 0);
-        let out = fire(&mut h, 1201);
-        assert!(out.iter().any(|r| if let Request::Activate { context } = r { context.task == 1 } else { false }));
-        assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
+        assert_eq!(h.domain.deadline(1, Wall::from_nanos(1100)), Some(Wall::from_nanos(1200)));
+        assert_eq!(fire(&mut h, 1101), []);
+        assert_eq!(fire(&mut h, 1201), []);
     }
 }
 

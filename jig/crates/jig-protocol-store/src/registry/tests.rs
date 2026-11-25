@@ -166,16 +166,24 @@ fn held_rows() -> Store {
 }
 
 #[test]
+fn a_fresh_open_reuses_the_schema_parsed_by_admission() {
+    let store = opened(&mut Disk::new(&[]));
+    assert_counts(&[], 1);
+    assert_schemas_dropped(&store.registry);
+}
+
+#[test]
 fn held_rows_reuse_each_parse_and_layout() {
     let mut store = held_rows();
     assert_eq!(super::open(&mut store, false), Ok(true));
-    assert_counts(&[KEPT, CURRENT], 2);
+    assert_counts(&[KEPT], 2);
     assert_schemas_dropped(&store.registry);
     persist_registry(&mut store);
 
     // The old row is still held by its values, beside the binary's stored row.
+    store.directory.reset_admission();
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[KEPT, CURRENT], 2);
+    assert_counts(&[KEPT], 2);
     assert_eq!(store.registry.rows.len(), 2);
     assert_schemas_dropped(&store.registry);
 }
@@ -197,7 +205,7 @@ fn planning_parses_only_texts_missing_from_prepared_schemas() {
 fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[CURRENT], 1);
+    assert_counts(&[], 1);
     let value = store.registry.rows.get(&(Box::from(FAMILY.name), 0, 2)).expect("binary row").value.clone();
     let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&crate::registry_v1::CEILINGS).unwrap()));
     value.write(&crate::registry_v1::CEILINGS, &mut writer).expect("fixture row encodes");
@@ -214,8 +222,9 @@ fn seeded_reopen_computes_one_binary_layout_for_many_rows() {
             skein_kv::Op::Put { key: Box::from(b"\x02a/1".as_slice()), value: Box::from([0, 2, 0, 42, 7]) },
         ],
     );
+    store.directory.reset_admission();
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[CURRENT], 1);
+    assert_counts(&[], 1);
     assert_eq!(store.registry.rows.len(), 2);
     for (_, row) in &store.registry.rows {
         assert!(!row.retire, "both stored ids have values and need their checks");
@@ -262,7 +271,7 @@ fn registered_families_share_held_parses_and_keep_distinct_layout_inputs() {
     };
     let mut store = planning_store(SETS);
     assert_eq!(super::open(&mut store, false), Ok(false));
-    assert_counts(&[CURRENT, HOLDER, CHILD_CURRENT, OTHER], 4);
+    assert_counts(&[], 4);
     assert_eq!(counting::get().held.len(), 3);
     assert_schemas_dropped(&store.registry);
 }
@@ -290,6 +299,7 @@ fn refused_planning_keeps_no_unfinished_registry_in_the_store() {
 }
 
 fn assert_schemas_dropped(layouts: &Layouts) {
+    assert!(layouts.admitted_schemas.is_none());
     assert!(!layouts.texts.is_empty(), "inspect the open before settlement drops its texts");
     for (_, text) in &layouts.texts {
         assert!(text.schema.is_none(), "plans release every schema");

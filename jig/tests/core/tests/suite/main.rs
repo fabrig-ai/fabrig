@@ -100,6 +100,7 @@ mod switch_step;
 mod task_queries;
 mod templates;
 mod topics;
+mod wait_bounds;
 
 mod fuzzy {
     mod amendment_funding;

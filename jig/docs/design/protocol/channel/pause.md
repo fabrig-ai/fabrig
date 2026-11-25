@@ -88,11 +88,10 @@ record Paused { state: PauseState }
   host::LinkDown::Pause { mode }, .. }`, which the root gives its hub
   (`../../domain/hosts/hub.md`, 7).
 - **Up:** the hub's `Request::Up(LinkUp::Paused { state })` goes as
-  `paused` where the engine's terms list the kind. Where they do not, it
-  is not sent: only an engine whose layout has `pause` can have asked,
-  so the worker has since linked to one without it, which places on it
-  and has its assignments refused as busy while the pause stands,
-  spending no try.
+  `paused` where the engine's terms list the kind, and is not sent
+  otherwise. If a paused worker links to an engine without `pause`,
+  that engine can still place on it. The worker refuses those assignments
+  as busy while the pause stands, spending no try.
 - **After each hello** while it is not taking, the hub says its state
   again, before anything its runs send after that hello, as it says
   `draining` again while it shuts down.
@@ -102,16 +101,18 @@ record Paused { state: PauseState }
 Focused, in the worlds that own each side:
 
 - **The wire:** generated records' drift, as
-  skein's `data/codec/golden.md`, section 1 has it; both kinds refused
-  per value to and from a layout without them (`layouts.md`, 8); `KINDS`
-  against the schema (`wires.md`, 7).
+  skein's `data/codec/golden.md`, section 1 has it; per-value refusals
+  for `pause` to a worker's layout without it and `paused` up to an
+  engine's layout without it (`layouts.md`, 8); `KINDS` against the
+  schema (`wires.md`, 7).
 - **The worker's link:** a `pause` of each mode handed up as
   `LinkDown::Pause`, in order with the records around it; `paused` sent
-  at 19, and not at 18.
-- **The engine's component:** a worker at 19 sent `Pause` for each mode;
-  one at 18 sent nothing and `Unpaused` with 18; a connection whose
-  hello is not heard sent and told nothing; `paused` read up as
-  `LinkUp::Paused` with each state.
+  only where the engine's terms list it.
+- **The engine's component:** at the frozen wire version, a worker whose
+  layout has `pause` is sent `Pause` for each mode; a layout without it
+  gets no frame, and the owner gets `Unpaused` with that same version.
+  A connection whose hello is not heard is sent and told nothing;
+  `paused` is read up as `LinkUp::Paused` with each state.
 - **The hub's states and the fleet's placement** are their worlds'
   (`../../domain/hosts/hub.md`, 7; `../../domain/engine/fleet.md`).
 

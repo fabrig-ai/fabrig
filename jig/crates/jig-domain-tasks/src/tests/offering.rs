@@ -212,6 +212,7 @@ fn setup(h: &mut Harness, actions: &[Setup]) {
                         answerer: Party::Person(PERSON),
                         asked: Party::Person(PERSON),
                         line: 1,
+                        offer: None,
                     }])
                 } else {
                     Box::new([])

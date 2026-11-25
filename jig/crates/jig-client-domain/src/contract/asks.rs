@@ -186,6 +186,7 @@ pub enum Ask {
     Stop {
         project: u32,
         task: u64,
+        reason: Text,
     },
     /// Cancel a task and its subtree.
     Cancel {

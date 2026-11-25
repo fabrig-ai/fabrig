@@ -118,7 +118,7 @@ pub use policy_value::{
 };
 pub use refusals::{
     Accepter, Again, CeilingDimension, CeilingHolder, DependencyStatus, Ending, HoldOwner, Lack, LimitKind, Malformed,
-    NAMED_TASKS, Party, Refusal,
+    NAMED_TASKS, Party, QuestionAnswerer, Refusal,
 };
 
 /// The deployment’s roster, not a project (domain/people/README.md, 3: the deployment’s roles).

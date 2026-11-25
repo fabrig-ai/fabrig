@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 44;
 pub const LAYOUT: [u8; 32] = [
-    0x97, 0x08, 0x82, 0x8b, 0x30, 0x71, 0x1a, 0x68, 0xf3, 0x8e, 0x0c, 0xe9, 0xf2, 0x67, 0xa1, 0x30, 0x13, 0x0d, 0xbc,
-    0x4e, 0x9a, 0xd6, 0x8c, 0x0d, 0x33, 0x33, 0x31, 0x56, 0x16, 0x55, 0x7f, 0xa4,
+    0x16, 0x0d, 0xe8, 0xc3, 0x02, 0xd7, 0x2e, 0x23, 0x3d, 0xe9, 0x3a, 0xec, 0x09, 0x9f, 0x64, 0x73, 0xe9, 0xfc, 0x5c,
+    0x46, 0x5d, 0x4e, 0x25, 0x2b, 0x53, 0x8b, 0x0e, 0x1d, 0x27, 0xdc, 0x01, 0x40,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -102,6 +102,7 @@ pub struct Limits {
     pub message_words: u32,
     pub answer_question_words: u32,
     pub amend_reason: u32,
+    pub stop_reason: u32,
     pub cancel_reason: u32,
     pub move_reason: u32,
     pub edit_note_description: u32,
@@ -494,6 +495,7 @@ pub const CEILINGS: Limits = Limits {
     message_words: 65_536,
     answer_question_words: 65_536,
     amend_reason: 65_536,
+    stop_reason: 65_536,
     cancel_reason: 65_536,
     move_reason: 65_536,
     edit_note_description: 65_536,
@@ -886,6 +888,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "message_words",
     "answer_question_words",
     "amend_reason",
+    "stop_reason",
     "cancel_reason",
     "move_reason",
     "edit_note_description",
@@ -1282,6 +1285,7 @@ impl Limits {
             self.message_words,
             self.answer_question_words,
             self.amend_reason,
+            self.stop_reason,
             self.cancel_reason,
             self.move_reason,
             self.edit_note_description,
@@ -1679,6 +1683,7 @@ impl Limits {
             message_words: self.message_words.min(most),
             answer_question_words: self.answer_question_words.min(most),
             amend_reason: self.amend_reason.min(most),
+            stop_reason: self.stop_reason.min(most),
             cancel_reason: self.cancel_reason.min(most),
             move_reason: self.move_reason.min(most),
             edit_note_description: self.edit_note_description.min(most),
@@ -2073,6 +2078,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::MESSAGE_WORDS,
     paths::ANSWER_QUESTION_WORDS,
     paths::AMEND_REASON,
+    paths::STOP_REASON,
     paths::CANCEL_REASON,
     paths::MOVE_REASON,
     paths::EDIT_NOTE_DESCRIPTION,
@@ -3171,7 +3177,11 @@ pub mod paths {
     pub const AMEND_TAIL: Path = Path::new("Amend (tail)");
     pub const STOP_PROJECT: Path = Path::new("Stop.project");
     pub const STOP_TASK: Path = Path::new("Stop.task");
+    pub const STOP_REASON: Path = Path::new("Stop.reason");
     pub const STOP_TAIL: Path = Path::new("Stop (tail)");
+    pub const LEAVE_PROJECT: Path = Path::new("Leave.project");
+    pub const LEAVE_TASK: Path = Path::new("Leave.task");
+    pub const LEAVE_TAIL: Path = Path::new("Leave (tail)");
     pub const CONCLUDE_PROJECT: Path = Path::new("Conclude.project");
     pub const CONCLUDE_TASK: Path = Path::new("Conclude.task");
     pub const CONCLUDE_TAIL: Path = Path::new("Conclude (tail)");
@@ -5782,6 +5792,12 @@ pub mod paths {
     pub const REFUSAL_MALFORMED_TAIL: Path = Path::new("RefusalMalformed (tail)");
     pub const REFUSAL_FORGOTTEN_OLDEST: Path = Path::new("RefusalForgotten.oldest");
     pub const REFUSAL_FORGOTTEN_TAIL: Path = Path::new("RefusalForgotten (tail)");
+    pub const ANSWERER_NUMBER_NUMBER: Path = Path::new("AnswererNumber.number");
+    pub const ANSWERER_NUMBER_TAIL: Path = Path::new("AnswererNumber (tail)");
+    pub const QUESTION_ANSWERER_TAG: Path = Path::new("QuestionAnswerer (tag)");
+    pub const REFUSAL_QUESTION_ANSWERED_QUESTION: Path = Path::new("RefusalQuestionAnswered.question");
+    pub const REFUSAL_QUESTION_ANSWERED_BY: Path = Path::new("RefusalQuestionAnswered.by");
+    pub const REFUSAL_QUESTION_ANSWERED_TAIL: Path = Path::new("RefusalQuestionAnswered (tail)");
     pub const REFUSAL_TAG: Path = Path::new("Refusal (tag)");
     pub const DONE_OUTCOME: Path = Path::new("Done.outcome");
     pub const DONE_TAIL: Path = Path::new("Done (tail)");
@@ -9211,6 +9227,7 @@ pub enum HoldCategory {
     Procedure,
     Circle,
     Exceeded(Exceeded),
+    Waited,
 }
 
 // Record: HoldCategory.
@@ -9234,7 +9251,8 @@ impl HoldCategory {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("Exceeded"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -9282,6 +9300,7 @@ impl Record for HoldCategory {
             Self::Procedure => field::put(out, &[15], paths::HOLD_CATEGORY_TAG),
             Self::Circle => field::put(out, &[16], paths::HOLD_CATEGORY_TAG),
             Self::Exceeded(value) => { field::put(out, &[17], paths::HOLD_CATEGORY_TAG)?; value.write(limits, out) },
+            Self::Waited => field::put(out, &[18], paths::HOLD_CATEGORY_TAG),
         }
     }
 
@@ -9306,7 +9325,8 @@ impl Record for HoldCategory {
             15 => Ok(Self::Procedure),
             16 => Ok(Self::Circle),
             17 => Ok(Self::Exceeded(Exceeded::read(limits, reader)?)),
-            18..=u8::MAX => Err(Problem { path: paths::HOLD_CATEGORY_TAG, reason: skein_codec::Reason::Tag }),
+            18 => Ok(Self::Waited),
+            19..=u8::MAX => Err(Problem { path: paths::HOLD_CATEGORY_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -22518,6 +22538,7 @@ impl Record for Amend {
 pub struct Stop {
     pub project: u32,
     pub task: u64,
+    pub reason: Box<[u8]>,
 }
 
 // Record: Stop.
@@ -22525,11 +22546,12 @@ impl Stop {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stop_reason) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 12;
+    pub const ENCODED_AT_ZERO: u64 = 16;
 }
 
 impl Record for Stop {
@@ -22556,6 +22578,7 @@ impl Record for Stop {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U32, &self.project, limits, out, paths::STOP_PROJECT)?;
         field::write(field::U64, &self.task, limits, out, paths::STOP_TASK)?;
+        field::write(field::Text { limit: limits.stop_reason.min(CEILINGS.stop_reason) }, &self.reason, limits, out, paths::STOP_REASON)?;
         Ok(())
     }
 
@@ -22563,6 +22586,61 @@ impl Record for Stop {
         Ok(Self {
             project: field::read(field::U32, limits, reader, paths::STOP_PROJECT)?,
             task: field::read(field::U64, limits, reader, paths::STOP_TASK)?,
+            reason: field::read(field::Text { limit: limits.stop_reason.min(CEILINGS.stop_reason) }, limits, reader, paths::STOP_REASON)?,
+        })
+    }
+}
+
+// Type: Leave.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Leave {
+    pub project: u32,
+    pub task: u64,
+}
+
+// Record: Leave.
+impl Leave {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
+impl Record for Leave {
+    type Limits = Limits;
+    const TAIL: Path = paths::LEAVE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Leave")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Leave")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::LEAVE_PROJECT)?;
+        field::write(field::U64, &self.task, limits, out, paths::LEAVE_TASK)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::LEAVE_PROJECT)?,
+            task: field::read(field::U64, limits, reader, paths::LEAVE_TASK)?,
         })
     }
 }
@@ -70825,6 +70903,167 @@ impl Record for RefusalForgotten {
     }
 }
 
+// Type: AnswererNumber.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AnswererNumber {
+    pub number: u64,
+}
+
+// Record: AnswererNumber.
+impl AnswererNumber {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for AnswererNumber {
+    type Limits = Limits;
+    const TAIL: Path = paths::ANSWERER_NUMBER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AnswererNumber")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AnswererNumber")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.number, limits, out, paths::ANSWERER_NUMBER_NUMBER)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            number: field::read(field::U64, limits, reader, paths::ANSWERER_NUMBER_NUMBER)?,
+        })
+    }
+}
+
+// Type: QuestionAnswerer.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum QuestionAnswerer {
+    Task(AnswererNumber),
+    Person(AnswererNumber),
+}
+
+// Record: QuestionAnswerer.
+impl QuestionAnswerer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("AnswererNumber"),
+        skein_codec::bounds::Node::Named("AnswererNumber"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for QuestionAnswerer {
+    type Limits = Limits;
+    const TAIL: Path = paths::QUESTION_ANSWERER_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionAnswerer")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionAnswerer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Task(value) => { field::put(out, &[0], paths::QUESTION_ANSWERER_TAG)?; value.write(limits, out) },
+            Self::Person(value) => { field::put(out, &[1], paths::QUESTION_ANSWERER_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::QUESTION_ANSWERER_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Task(AnswererNumber::read(limits, reader)?)),
+            1 => Ok(Self::Person(AnswererNumber::read(limits, reader)?)),
+            2..=u8::MAX => Err(Problem { path: paths::QUESTION_ANSWERER_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: RefusalQuestionAnswered.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalQuestionAnswered {
+    pub question: u64,
+    pub by: QuestionAnswerer,
+}
+
+// Record: RefusalQuestionAnswered.
+impl RefusalQuestionAnswered {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("QuestionAnswerer"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
+impl Record for RefusalQuestionAnswered {
+    type Limits = Limits;
+    const TAIL: Path = paths::REFUSAL_QUESTION_ANSWERED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusalQuestionAnswered")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusalQuestionAnswered")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.question, limits, out, paths::REFUSAL_QUESTION_ANSWERED_QUESTION)?;
+        field::write(field::Nested, &self.by, limits, out, paths::REFUSAL_QUESTION_ANSWERED_BY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            question: field::read(field::U64, limits, reader, paths::REFUSAL_QUESTION_ANSWERED_QUESTION)?,
+            by: field::read(field::Nested, limits, reader, paths::REFUSAL_QUESTION_ANSWERED_BY)?,
+        })
+    }
+}
+
 // Type: Refusal.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
@@ -70861,6 +71100,7 @@ pub enum Refusal {
     NotLending,
     Concluded(RefusalConcluded),
     Unlinked(RefusalUnlinked),
+    QuestionAnswered(RefusalQuestionAnswered),
 }
 
 // Record: Refusal.
@@ -70899,7 +71139,8 @@ impl Refusal {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("RefusalConcluded"),
         skein_codec::bounds::Node::Named("RefusalUnlinked"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32] },
+        skein_codec::bounds::Node::Named("RefusalQuestionAnswered"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -70962,6 +71203,7 @@ impl Record for Refusal {
             Self::NotLending => field::put(out, &[30], paths::REFUSAL_TAG),
             Self::Concluded(value) => { field::put(out, &[31], paths::REFUSAL_TAG)?; value.write(limits, out) },
             Self::Unlinked(value) => { field::put(out, &[32], paths::REFUSAL_TAG)?; value.write(limits, out) },
+            Self::QuestionAnswered(value) => { field::put(out, &[33], paths::REFUSAL_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -71001,7 +71243,8 @@ impl Record for Refusal {
             30 => Ok(Self::NotLending),
             31 => Ok(Self::Concluded(RefusalConcluded::read(limits, reader)?)),
             32 => Ok(Self::Unlinked(RefusalUnlinked::read(limits, reader)?)),
-            33..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
+            33 => Ok(Self::QuestionAnswered(RefusalQuestionAnswered::read(limits, reader)?)),
+            34..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -72330,7 +72573,7 @@ pub enum Ask {
     ChangeModel(ChangeModel),
     ReadLists(ReadLists),
     Talk(Message),
-    Leave(Stop),
+    Leave(Leave),
     Conclude(Conclude),
     Delegate(Delegate),
     PauseWorker(PauseWorker),
@@ -72376,7 +72619,7 @@ impl Ask {
         skein_codec::bounds::Node::Named("ChangeModel"),
         skein_codec::bounds::Node::Named("ReadLists"),
         skein_codec::bounds::Node::Named("Message"),
-        skein_codec::bounds::Node::Named("Stop"),
+        skein_codec::bounds::Node::Named("Leave"),
         skein_codec::bounds::Node::Named("Conclude"),
         skein_codec::bounds::Node::Named("Delegate"),
         skein_codec::bounds::Node::Named("PauseWorker"),
@@ -72492,7 +72735,7 @@ impl Record for Ask {
             32 => Ok(Self::ChangeModel(ChangeModel::read(limits, reader)?)),
             33 => Ok(Self::ReadLists(ReadLists::read(limits, reader)?)),
             34 => Ok(Self::Talk(Message::read(limits, reader)?)),
-            35 => Ok(Self::Leave(Stop::read(limits, reader)?)),
+            35 => Ok(Self::Leave(Leave::read(limits, reader)?)),
             36 => Ok(Self::Conclude(Conclude::read(limits, reader)?)),
             37 => Ok(Self::Delegate(Delegate::read(limits, reader)?)),
             38 => Ok(Self::PauseWorker(PauseWorker::read(limits, reader)?)),
@@ -73160,6 +73403,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "AnswerOn", nodes: AnswerOn::SHAPE },
     skein_codec::bounds::Declaration { name: "AnswerPerson", nodes: AnswerPerson::SHAPE },
     skein_codec::bounds::Declaration { name: "AnswerQuestion", nodes: AnswerQuestion::SHAPE },
+    skein_codec::bounds::Declaration { name: "AnswererNumber", nodes: AnswererNumber::SHAPE },
     skein_codec::bounds::Declaration { name: "AnswersFull", nodes: AnswersFull::SHAPE },
     skein_codec::bounds::Declaration { name: "ApplicationEdit", nodes: ApplicationEdit::SHAPE },
     skein_codec::bounds::Declaration { name: "ApplicationFollows", nodes: ApplicationFollows::SHAPE },
@@ -73470,6 +73714,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "LackingTasks", nodes: LackingTasks::SHAPE },
     skein_codec::bounds::Declaration { name: "LackingUnguarded", nodes: LackingUnguarded::SHAPE },
     skein_codec::bounds::Declaration { name: "Layout", nodes: Layout::SHAPE },
+    skein_codec::bounds::Declaration { name: "Leave", nodes: Leave::SHAPE },
     skein_codec::bounds::Declaration { name: "Lift", nodes: Lift::SHAPE },
     skein_codec::bounds::Declaration { name: "Limit", nodes: Limit::SHAPE },
     skein_codec::bounds::Declaration { name: "LimitAdmission", nodes: LimitAdmission::SHAPE },
@@ -73782,6 +74027,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ProvisionalTurnName", nodes: ProvisionalTurnName::SHAPE },
     skein_codec::bounds::Declaration { name: "QueryOrder", nodes: QueryOrder::SHAPE },
     skein_codec::bounds::Declaration { name: "Question", nodes: Question::SHAPE },
+    skein_codec::bounds::Declaration { name: "QuestionAnswerer", nodes: QuestionAnswerer::SHAPE },
     skein_codec::bounds::Declaration { name: "Read", nodes: Read::SHAPE },
     skein_codec::bounds::Declaration { name: "ReadActivity", nodes: ReadActivity::SHAPE },
     skein_codec::bounds::Declaration { name: "ReadActivityBeside", nodes: ReadActivityBeside::SHAPE },
@@ -73836,6 +74082,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "RefusalLlm", nodes: RefusalLlm::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusalMalformed", nodes: RefusalMalformed::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusalMoved", nodes: RefusalMoved::SHAPE },
+    skein_codec::bounds::Declaration { name: "RefusalQuestionAnswered", nodes: RefusalQuestionAnswered::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusalRole", nodes: RefusalRole::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusalSignInRedirect", nodes: RefusalSignInRedirect::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusalStale", nodes: RefusalStale::SHAPE },
@@ -74242,6 +74489,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.message_words,
     CEILINGS.answer_question_words,
     CEILINGS.amend_reason,
+    CEILINGS.stop_reason,
     CEILINGS.cancel_reason,
     CEILINGS.move_reason,
     CEILINGS.edit_note_description,

@@ -867,6 +867,8 @@ fn object(
                     | tasks::MessageKind::Proposal { .. }
                     | tasks::MessageKind::SettingsDecision { .. }
                     | tasks::MessageKind::ProposalDecision { .. }
+                    | tasks::MessageKind::PassedQuestion { .. }
+                    | tasks::MessageKind::PassedAnswer { .. }
                     | tasks::MessageKind::Escalation { .. }
                     | tasks::MessageKind::Notice { .. }
                     | tasks::MessageKind::Timer { .. }

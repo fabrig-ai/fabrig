@@ -169,7 +169,7 @@ fn a_placed_hold_keeps_a_concluded_gathering_until_lift_or_release() {
                     owner: t::Owner::Party { person: PERSON },
                     mode: t::Mode::Stop,
                     scope: t::Scope::Subtree { task: 1 },
-                    reason: Box::new([]),
+                    reason: Box::from(b"Parked".as_slice()),
                     placed_at: 0,
                     revision: 1,
                     exempt: Box::new([]),

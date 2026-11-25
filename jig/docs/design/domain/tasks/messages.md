@@ -58,6 +58,36 @@ again when a run leaves one undecided only as 6 says.
   message (../engine/briefs.md, 1.2). It is among
   every run's reasons (6), and, left open by a run that parks idle,
   wakes the task again (`lifecycle.md`, 2).
+- **A question left past its bound passes up**
+  (`temper/docs/design/draft/bounded-waits.md`, 4.2). One asked of a task,
+  unanswered `waits.question` after its asking, and one waiting at a
+  person (`../people/README.md`, 5), unanswered `waits.party` after it
+  reached them, each capped by its asker's deadline
+  (`../engine/waits.md`, 5), is offered to the next holder that covers
+  it, found as its asker's escalation would be past that holder
+  (`proposals.md`, *Where they wait*): the nearest task above that may
+  decide, then the tree's requesting person, then the project's
+  escalation role. The core's bound alarm does it
+  (`lifecycle-holds.md`, 1). It stays one question:
+  - *Who may answer:* its first holder, the task or person it was asked
+    of, and its current holder, each as its first holder may: a task in
+    the answer form, naming its number; a party with `Answer` in their
+    inbox, a role's holder as a person. The first answer settles it and
+    reaches its asker as its answer; a later one is refused, naming who
+    answered.
+  - *Where it shows:* at a task, as an entry, as an escalation is,
+    relayed and read in order with its messages, taking none of their
+    room, and waking it on arrival; at a party, as a question in their
+    inbox. Its first holder keeps it as before.
+  - *Onward:* at its current holder it has that holder's bound again,
+    `waits.question` at a task and `waits.party` at a party, from its
+    arrival there, and passes on; at the project's last holder it is
+    overdue (`proposals.md`, *Overdue at the last holder*), with no timer
+    after. Its asker's wait follows it: one wait, at its current holder.
+  - *Kept:* its asker's credit keeps its current holder and since when,
+    an optional member that the previous build's records lack, read as
+    none, so a restart finds the same, and its asker hears nothing of a
+    move but the answer.
 - **Words that direct it stay until a run records them.** A task
   **keeps words** when it is an agent task whose runs start from a
   brief, never resuming (../engine/executors-transcripts.md, 1), that is no

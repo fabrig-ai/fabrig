@@ -158,6 +158,11 @@ fn files(root: &Path) -> Files {
 /// Prepare fixture agent bytes with an unopened programs path, fixture addresses and fixture trust.
 #[must_use]
 pub fn prepare_agent(bytes: Box<[u8]>) -> temper_worker_shell::agent::Prepared {
+    try_prepare_agent(bytes).expect("prospective fixture agent")
+}
+
+/// The same preparation, keeping a refusal for a caller to label.
+pub fn try_prepare_agent(bytes: Box<[u8]>) -> Result<temper_worker_shell::agent::Prepared, String> {
     let trust = skein_tls_kit::pki::client(&[]);
     temper_worker_shell::agent::prepare_bytes_resolving(
         bytes,
@@ -170,5 +175,4 @@ pub fn prepare_agent(bytes: Box<[u8]>) -> temper_worker_shell::agent::Prepared {
             )
         },
     )
-    .expect("prospective fixture agent")
 }

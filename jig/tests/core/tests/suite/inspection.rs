@@ -500,7 +500,11 @@ fn a_held_task_wakes_its_escalation_holder() {
 fn a_placed_hold_waits_on_its_owner_without_an_escalation_alarm() {
     let mut world = super::stories::plan_world(11736);
     let task = world.assignments[0].0;
-    jig_core_world::fixtures::ask(&mut world, 91, jig_domain_people::Ask::Stop { project: 1, task });
+    jig_core_world::fixtures::ask(
+        &mut world,
+        91,
+        jig_domain_people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let inspection = inspect(&world, 11736);
     let wait = waiting(&inspection, task, "held: placed");
     assert_eq!(wait.wakes, [Wake::Party("person 1".into())]);

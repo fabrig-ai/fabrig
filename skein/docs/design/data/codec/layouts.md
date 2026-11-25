@@ -37,8 +37,8 @@ written converter (jig's `protocol/channel/layouts.md`, 6).
 - **A pass over the bytes** (3): copy, insert a default's bytes, skip a
   dropped field, widen or narrow an integer, write a moved tag or a new
   head, convert a held record or a piece in its length. No generic
-  value, no index of nodes, no machine: one pass, its stack as deep as
-  the layouts' nesting.
+  value, no index of nodes, no machine: one pass, as deep as the
+  layouts' nesting.
 - **Step code,** in `skein-codec`'s `layout` module, bounded by its
   texts and the value's room (5).
 
@@ -81,11 +81,12 @@ holder that keeps plans for reuse keys them by the two texts.
   matched to none is added, or dropped. A field of
   either text that no field of the other matches is matched, the same
   way, against the other record's tombstones (`README.md`, section 3),
-  in both modes alike, so the two modes plan the same pairs. Only
-  what the root's reach holds is matched and judged: a sibling variant
-  of a broad root, and the declarations no value of the root can hold,
-  are not, so a variant dropped beside the value type's own is no change
-  of it. Comments, `boxed`, the text's layout and the declarations'
+  in both modes alike, so the two modes plan the same pairs. Each pair
+  of texts a plan reaches has every target declaration matched by
+  name; only what the root's reach holds has its parts matched, and
+  is judged: a sibling variant of a broad root, and the declarations no
+  value of the root can hold, are not, so a variant dropped beside the
+  value type's own is no change of it. Comments, `boxed`, the text's layout and the declarations'
   order are in no layout and change nothing.
 - **Types compare level by level,** outermost first, a named type equal
   to the one it matches whatever that one's own changes:
@@ -119,7 +120,7 @@ holder that keeps plans for reuse keys them by the two texts.
 | Between source and target | Read | Keep |
 |---|---|---|
 | A field only the source has | skipped | dropped where its bytes are its compared default's, or where the source marks it `droppable`; otherwise the value is refused (`Refused::Field`) |
-| A field only the target has | the target's default, else the source's tombstone for it; with neither, no plan (`NoDefault`) | the same |
+| A field only the target has | the target's default, else the source's tombstone's default converted to the target's layout (below); with neither, no plan (`NoDefault`) | the same |
 | An integer narrower at the target, or a bound narrower (a list's count, a `text`'s, a `bytes`' or a `secret`'s length) | converted where the value fits; otherwise the value is refused (`Refused::Narrowed`) | the same |
 | A variant of the reach only the source has | a value holding it is refused (`Refused::Variant`) | the same |
 | A variant only the target has | its tags mapped by name | the same |
@@ -129,13 +130,27 @@ holder that keeps plans for reuse keys them by the two texts.
 
 - **A field's compared default,** in Keep, is the value the way back
   writes for it: the source field's own default, else the target
-  record's tombstone for it. A tombstone stands for a field only where
-  its type is the field's, level for level and bound for bound;
-  matched to a field of another type, it gives no plan in either mode
-  (`Retyped`, naming the field). A source field the target lacks, with
-  no compared default and no `droppable` mark, refuses every value in
-  Keep, and is still a plan. `droppable` is the source's mark alone,
-  read in Keep alone.
+  record's tombstone's default converted to the source's layout, as
+  the Read plan from the target to the source converts it. A source
+  field the target lacks, with no compared default and no `droppable`
+  mark, refuses every value in Keep, and is still a plan. `droppable`
+  is the source's mark alone, read in Keep alone.
+- **A tombstone's default is at its own text's layout,** encoded as
+  that text is read (`README.md`, section 3), so a plan converts it to
+  the other text's layout before it uses it: a source tombstone's,
+  written for a field only the target has, by the field type's
+  conversion from the source to the target in the plan's mode; a
+  target tombstone's, compared in Keep, from the target to the source
+  as the way back's Read plan converts it. It converts as one value of
+  its type: a part of the type the default does not hold (a sibling
+  variant, an `option`'s value where it is `none`) refuses nothing, in
+  `derive` too. A tombstone stands for a field only where its type is
+  the field's, level for level and bound for bound, and its default
+  converts. Matched to a field of another type, it gives no plan in
+  either mode; where its default does not convert (it holds a variant
+  the other text lacks), it gives no plan where its default is used:
+  for a field only the target has in both modes, and for a compared
+  default in Keep. Either is `Retyped`, naming the field.
 - **A round trip holds:** a value the Keep plan from a source to a
   target converts, converted back by the Read plan from that target to
   the source, is the value itself, but for the fields the source marks
@@ -155,21 +170,12 @@ holder that keeps plans for reuse keys them by the two texts.
   mode's, equal to it, and refuses no value. A store reads with it
   (jig's `protocol/store/layouts.md`), since a stored value no plan
   can convert is its owner's written job.
-- **What a plan keeps** for its pass, per source declaration of the reach:
-  its target declaration; per target field, its source field and that field's
-  conversion, or the default's bytes; per source field the target lacks,
-  in Keep, its compared default's bytes or its `droppable` mark; per
-  source variant, its target tag or its refusal; per type, its conversion
-  level by level (as it is, widened, narrowed, wrapped, unwrapped,
-  named, held, pieces); per refusal, its kind and its declaration's and
-  part's names in the source text, by an index (`Plan::refusal`); and
-  whether the declaration's conversion **keeps**: every source value of
-  it is, byte for byte, a value of the target, with no head moved,
-  nested heads included. A root that
-  keeps converts by its caller's head alone. A declaration whose
-  conversion can refuse a value does not keep, and neither does any
-  declaration enclosing it in the reach, so no copy of a span passes
-  over it.
+- **A declaration's conversion keeps** where every source value of it
+  is, byte for byte, a value of the target, with no head moved, nested
+  heads included. A root that keeps converts by its caller's head alone
+  (`keeps`, 4). A declaration whose conversion can refuse a value does
+  not keep, and neither does any declaration enclosing it in the reach,
+  so no copy of a span passes over it.
 - **Pieces** are copied as their bytes where their item's conversion
   keeps, and opened otherwise, each piece converted as its item type
   and written with its new length (3).
@@ -197,9 +203,7 @@ the target value's into the caller's buffer:
   compared default's bytes, unless it is `droppable`, before anything
   of the record is written; then the target fields written in the
   target order, each from its source field's span by its conversion or
-  as its default's bytes; a field the target lacks is skipped. A
-  record's spans sit in a table the plan sizes by the most fields any
-  record of the reach has, one table per level of the stack.
+  as its default's bytes; a field the target lacks is skipped.
 - **An enumeration:** the source tag read, its target tag written, then its
   record converted; a tag the source text lacks is `Misconverted::Tag`; a
   variant the target lacks is `Misconverted::Refused`, read before
@@ -228,13 +232,12 @@ the target value's into the caller's buffer:
   and a narrowed bound need, since the target value's decoder checks
   every field of what the pass writes.
 
-Nothing recurses: a list's items, a record's fields and a held record's
-reach are entered on an explicit stack whose depth the plan computes
-from the reach's nesting, and refused past `MAX_DEPTH` when planned.
-The stack and its span tables are the caller's `Workspace`, fitted to
-the plan before the pass, so the plan stays shared and unchanged by a
-pass and the pass allocates nothing; a workspace too small for the plan
-is refused at once (`Room`), before a byte is read.
+Nothing recurses, and a reach nested past `MAX_DEPTH` is refused when
+planned (`Deep`). What the pass needs beside the plan is the caller's
+`Workspace`, fitted to the plan before the pass, so the plan stays
+shared and unchanged by a pass and the pass allocates nothing; a
+workspace too small for the plan is refused at once (`Room`), before a
+byte is read.
 
 ## 4. The interface
 
@@ -267,10 +270,10 @@ impl Plan {
     pub fn variant_tag(&self, old: u8) -> Result<u8, Misconverted>; // a whole enumeration's: a source tag's target tag
     pub fn convert_variant(&self, old: u8, payload: &[u8], out: &mut Buffer, work: &mut Workspace)
         -> Result<u8, Misconverted>;                   // a whole enumeration's: the payload alone into `out`, its target tag returned
-    pub fn workspace_bound(&self) -> Option<u64>;      // its stack's tables, in bytes
+    pub fn workspace_bound(&self) -> Option<u64>;      // what a workspace fitted to it holds, in bytes
 }
 
-pub struct Workspace { /* the pass's stack and its span tables, reused from pass to pass */ }
+pub struct Workspace { /* what the pass needs beside the plan, reused from pass to pass */ }
 impl Workspace {
     pub fn new() -> Workspace;                         // empty: allocates nothing
     pub fn fit(&mut self, plan: &Plan) -> bool;        // grows to the plan's need, never shrinks; false: its bound overflows
@@ -286,11 +289,15 @@ impl Workspace {
   plan it holds at open and allocates nothing per read. A pass leaves
   nothing in it the next pass reads.
 
-- `derive` and `between` judge what both roots reach and nothing else,
-  so their cost is that reach's parts, not the texts'; the plan holds no
-  reference to either text, and records no mode: the two modes' plans
-  for a pair whose source has no field the target lacks and no `option`
-  the target takes away are equal.
+- `derive` and `between` judge what both roots reach and nothing else.
+  A plan's cost is what its derivation matches: every target
+  declaration of each pair of texts it reaches, and the parts of the
+  reach (2). The plan holds no reference to either text, and records no
+  mode. The two modes' plans for a pair differ where Keep checks a
+  source field the target lacks, and where Read takes the outer default
+  for an absent `option` the target takes away and Keep refuses it;
+  Keep has no plan where a target tombstone's default does not convert
+  back (2). Elsewhere they are equal.
 - `convert` writes into lib's reusable `Buffer`
   (../../runtime/lib-bytes.md, section 1), whose capacity bounds the new
   value (`Room` past it): its caller gives the most bytes it admits for
@@ -306,65 +313,31 @@ impl Workspace {
   `convert` writes after the tag, bounded by `out`'s capacity alone, and
   the errors are the same. A plan whose root is no whole enumeration
   answers `Tag` to both.
-- The types derive `Clone` and `Debug`, and equality besides; `Mode`,
-  `Why` and `Refused` are `Copy`. A plan with the same two layouts on
-  both sides is the identity, keeps, and converts by the head alone.
+- A plan with the same two layouts on both sides is the identity,
+  keeps, and converts by the head alone.
 
 ## 5. Bounds
 
 - **A plan's tables** are per declaration and part of the reach, at most
-  `MAX_DECLARATIONS` per text it reaches, and the defaults' bytes, the
-  target text's pool's, and the compared defaults', the source's or the
-  target's.
+  `MAX_DECLARATIONS` per text it reaches, and the bytes of the defaults
+  it writes and compares (2).
 - **Its refusals** are at most `MAX_DECLARATIONS`, each named by a `u16`
   index; a reach with more is refused when planned (`Deep`).
-- **A workspace** is the caller's, `workspace_bound` bytes for its plan:
-  the plan's stack depth in levels (at most `MAX_DEPTH`), each a
-  record's span table at the reach's most fields, allocated by `fit`
-  outside any pass.
+- **A workspace** is the caller's, `workspace_bound` bytes for its plan,
+  allocated by `fit` outside any pass.
 - **A pass's output** is the caller's `Buffer`, within its capacity; it
   allocates nothing else, in the buffer, the workspace or elsewhere.
 
 ## 6. Tests
 
-- **Step tests,** in `skein-codec`, from both sides, one small pair of
-  texts each, the converted bytes compared with bytes written by hand:
-  each derived change of 2 beside the nearest that is not derived (a
-  field added with a default and one without, a variant appended, an
-  integer widened, a `wrap` and a `retype`), a broad root whose sibling
-  variant changed and keeps, a held record converted in its length,
-  pieces copied and opened, former names matched, each `Underived` and
-  each `Misconverted`.
-- **Each row of 2's table in each mode,** step tests beside them: a
-  value the row converts, to bytes written by hand, and one it refuses,
-  `Refused(index)` whose `refusal` names its kind and its parts by the
-  source text's names; a refusing part before, between and after kept
-  ones, and nested in a record of the reach; the plan does not keep
-  though every other part does. In Keep, a field the target lacks at
-  its own default, at the target's tombstone's, at neither, and marked
-  `droppable`; in both modes, a field the target has from the source's
-  tombstone, and a tombstone of another type (`Retyped`).
-- **The store's derivation unchanged:** for each pair of those texts,
-  `derive` gives what it gave before modes, plan or `Underived`; where
-  it plans, `between` in Read mode gives an equal plan that refuses
-  nothing; where the Read plan can refuse a value, `derive` is the
-  `Underived` of 2. In `temper-codecs-world`, the same over every
-  registered family's texts at the builds its deployed directories keep,
-  to the binary's.
-- **Round trips,** in the fuzzy suite of `skein-codec-tests`: for each
-  ordered pair of `every`'s texts (`golden.md`, section 1), and for pairs
-  derived from each by the changes of 2's table, a tombstone and a
-  `droppable` mark among them, values drawn from the source text by the
-  seeded generator convert by the Keep plan and back by the Read plan
-  to themselves, as 2's round trip says, or are refused by the Keep
-  plan at a part the target lacks or narrows; what the Keep plan writes
-  the target text's generic decoder takes. A pair 2 does not derive is
-  refused by both modes alike.
-- **Keeps:** a plan that keeps converts each drawn value to itself but
-  for its head.
-- **Memory:** a pass allocates nothing past its buffer and a fitted
-  workspace, counted by the counting allocator; a workspace that does
-  not fit is `Room`.
+Which cases the tests take is the code's. The step tests in
+`skein-codec` convert to bytes written by hand and pin each
+`Underived`, each `Misconverted` and each row of 2's table in each mode;
+the fuzzy suite of `skein-codec-tests` holds 2's round trip over the
+ordered pairs of `every`'s texts (`golden.md`, section 1), which keep
+their older versions as its pairs, and over pairs derived from them;
+`temper-codecs-world` derives every registered family's texts at the
+builds its deployed directories keep to the binary's.
 
 ## 7. Open questions
 

@@ -1653,3 +1653,41 @@ fn standing_reads_the_cards_report_again_on_line_delivery() {
     page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(52) } });
     assert_eq!(f.reports.len(), count + 1, "reopening reads anew");
 }
+
+#[test]
+fn a_standing_roles_pause_sends_the_web_reason() {
+    let mut f = reads_fixture();
+    feed(&mut f, Feed::Open);
+    let (handle, watch) = f.roles.unwrap();
+    let mut line = super::chats::chat_line();
+    line.chip.task = 52;
+    line.project = PROJECT;
+    line.label = 3;
+    line.ended_at = None;
+    delivered(
+        &mut f,
+        handle,
+        watch,
+        c::Delivery::Tasks(Box::new(c::Tasks { ended_mark: 0, rows: List::from_boxed(Box::new([line])), more: false })),
+    );
+    let (_, handle, watch) = f.card.unwrap();
+    let mut document = fixtures::chat::task();
+    document.chip.task = 52;
+    document.project = PROJECT;
+    document.acts = List::from_boxed(Box::new([c::Offered {
+        act: c::ActKind::Stop,
+        admission: c::Admission::Allowed,
+        effect: None,
+    }]));
+    delivered(&mut f, handle, watch, c::Delivery::Task(Box::new(document)));
+    let mut out = Queue::uncapped();
+    pages::step(&mut f.root.pages, &f.env, &f.root.client, Event::Act { act: pages::Act::Pause }, &mut out);
+    assert_eq!(
+        fixtures::acts::sent(&mut out).as_ref(),
+        [c::Ask::Stop {
+            project: PROJECT,
+            task: 52,
+            reason: c::Text::new(b"Paused from the web".as_slice().into(), u32::MAX).unwrap(),
+        }]
+    );
+}

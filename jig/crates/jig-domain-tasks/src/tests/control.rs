@@ -61,7 +61,7 @@ fn place_control_hold(test: &mut Harness) {
             owner: crate::Owner::Party { person: PERSON },
             mode: crate::Mode::Stop,
             scope: crate::Scope::Subtree { task: CONTROLLED },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),
@@ -299,4 +299,31 @@ fn cancel_permission_is_checked_before_its_shape() {
     });
     let [Request::Refused { problem, .. }] = out.as_slice() else { panic!("one refusal") };
     assert_eq!(problem.why, Refusal::Reference);
+}
+
+#[test]
+fn an_empty_placed_reason_does_not_stop_or_change_the_task() {
+    let mut test = control_task(PROCEDURE);
+    let before = test.domain.task(CONTROLLED).unwrap().clone();
+    for owner in [crate::Owner::Party { person: PERSON }, crate::Owner::Task { task: CONTROLLED }] {
+        let out = test.send(Event::Place {
+            reply_to: to(),
+            hold: crate::PlacedHold {
+                number: PLACED,
+                project: PROJECT,
+                owner,
+                mode: crate::Mode::Stop,
+                scope: crate::Scope::Subtree { task: CONTROLLED },
+                reason: Box::new([]),
+                placed_at: 0,
+                revision: 1,
+                exempt: Box::new([]),
+                lifted: false,
+            },
+        });
+        let [Request::Refused { problem, .. }] = out.as_slice() else { panic!("only a refusal: {out:?}") };
+        assert_eq!(problem.why, Refusal::Empty);
+        assert_eq!(test.domain.task(CONTROLLED), Some(&before));
+        assert!(test.domain.placed_hold(PLACED).is_none());
+    }
 }

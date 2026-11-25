@@ -51,7 +51,24 @@ pub(crate) fn step_tasks(core: &mut Core, env: &Env<Limits>, mut event: tasks::E
             *reads_project = core.task_reads_project(*task);
         }
     }
-    tasks::step(&mut core.tasks, &env.with(env.limits.tasks), event, out);
+    let park = core.wait_alarms.park_terminal(&mut event);
+    let before = out.len();
+    let env = env.with(env.limits.tasks);
+    tasks::step(&mut core.tasks, &env, event, out);
+    if let Some(task) = park {
+        for request in out.iter().skip(skein_lib::usize_of(before)) {
+            if let tasks::Request::Acknowledged {
+                task: acknowledged, accepted: tasks::Accepted::New, parked: true, ..
+            } = request
+                && *acknowledged == task
+            {
+                if let Some(hold) = core.wait_alarms.parked(&core.tasks, task) {
+                    tasks::step(&mut core.tasks, &env, hold, out);
+                }
+                break;
+            }
+        }
+    }
 }
 
 pub(crate) fn step_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<people::Request>) {

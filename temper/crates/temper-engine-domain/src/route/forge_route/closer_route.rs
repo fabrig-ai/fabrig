@@ -618,6 +618,7 @@ fn short_refusal(why: tasks::Refusal, left: u64, minimum: u64, room: u32) -> Sho
         | Refusal::Concluded { .. }
         | Refusal::KeptQuestion { .. }
         | Refusal::PersonAnswers { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Executor
         | Refusal::Spec
         | Refusal::Contract

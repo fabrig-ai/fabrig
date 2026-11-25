@@ -87,6 +87,26 @@ fn read_docs_counts_topics_not_calls() {
 }
 
 #[test]
+fn read_docs_run_describes_only_whole_seconds() {
+    let hold = call(1, b"read_docs", br#"{"topic":"hold"}"#, None);
+    let chat = call(2, b"read_docs", br#"{"topic":"chat"}"#, None);
+    let words = fixtures::browser_words();
+    let first = Wall::from_nanos(500_000_000);
+    for (elapsed_nanos, description) in [(999_999_999, None), (1_000_000_000, Some(b"1 s".as_slice()))] {
+        let last = Wall::from_nanos(first.as_nanos().checked_add(elapsed_nanos).expect("test time fits"));
+        let mut b = Builder::new(&fixtures::tree_limits());
+        let mut run = Run::with_capacity(CALLS);
+        run.call(&hold, first, None);
+        run.call(&chat, last, None);
+        run.flush(&mut b, None, false, &words, false);
+        let tree = b.finish();
+        let line = disclosure(&tree);
+        assert_eq!(line.name.as_deref(), Some(b"Read 2 docs".as_slice()), "at {elapsed_nanos} ns");
+        assert_eq!(line.description.as_deref(), description, "at {elapsed_nanos} ns");
+    }
+}
+
+#[test]
 fn one_call_alone_says_what_it_touched() {
     for (tool, input, expected) in [
         (b"read_docs".as_slice(), br#"{"topic":"hold"}"#.as_slice(), b"Read the page hold".as_slice()),

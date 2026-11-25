@@ -95,11 +95,13 @@
   phone keeps the heading above the controls.
 - **A person's pause** is a chat held by a placed hold of that person's own,
   mode Stop, over the chat's own subtree: the chip's hold names it, not lifted,
-  its owner the party reading (jig's `client/domain/contract/documents.md`, 6). Nothing
-  else is a pause: a hold of another's, of a task above it, or with a reason of
-  its own says "Held", with its card and why, and has no "Resume": the card
-  keeps its acts.
-  - "Pause" is `Ask::Stop`, while Stop is allowed and the chat isn't paused.
+  its owner the party reading (jig's `client/domain/contract/documents.md`, 6),
+  whatever its reason. Nothing else is a pause: a hold of another's, of a task
+  above it, or of another mode or scope says "Held", with its card and why, and
+  has no "Resume": the card keeps its acts.
+  - "Pause" is `Ask::Stop`, with the reason "Paused from the web" (jig's
+    `domain/tasks/lifecycle-holds.md`, 2), while Stop is allowed and the chat
+    isn't paused.
     "Resume" takes its place on a paused chat where Release is allowed, and is
     `Ask::Release` naming the hold's revision. Each is sent at once (`../../root.md`, 1.6). The
     status says it happened: an accepted Pause or Resume draws no status under

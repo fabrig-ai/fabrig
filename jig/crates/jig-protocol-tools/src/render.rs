@@ -615,6 +615,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
         HoldReason::PoolLost { .. } => b"for a lost pool",
         HoldReason::Procedure => b"for its procedure",
         HoldReason::Circle => b"for a circle of waits",
+        HoldReason::Waited => b"because a wait passed its bound",
     }
 }
 

@@ -1046,7 +1046,9 @@ impl World {
                     parties::Ask::Say { task: parties::Task::Number(task), words, release } => {
                         say(project, task, words, release)
                     }
-                    parties::Ask::Stop { task: parties::Task::Number(task) } => people::Ask::Stop { project, task },
+                    parties::Ask::Stop { task: parties::Task::Number(task), reason } => {
+                        people::Ask::Stop { project, task, reason }
+                    }
                     parties::Ask::Cancel { task: parties::Task::Number(task), grace } => {
                         people::Ask::Cancel { project, task, grace, reason: b"Close the chat.".as_slice().into() }
                     }

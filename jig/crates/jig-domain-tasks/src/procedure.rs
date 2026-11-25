@@ -3,10 +3,7 @@
 //! executor identity, live topology, result contract and the step's offered inbox fence. It never
 //! knows connector facts or effects. A due step may make one whole batch,
 //! finish after its delegates, hold, or wait for changed facts.
-#![cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")
-)]
+#![expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")]
 use crate::domain::{Domain, make_admitted, publish, record, task_mut};
 use crate::{
     Active, Closing, Executor, Limits, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Request, Stage,

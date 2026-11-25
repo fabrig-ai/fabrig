@@ -239,3 +239,44 @@ fn a_proposed_batch_past_its_bytes_is_refused() {
         }
     }
 }
+
+#[test]
+fn a_policy_proposal_is_decidable_past_its_unarmed_stall() {
+    const GOAL: u64 = 1;
+    const PROPOSER: u64 = 2;
+    const PROPOSAL: u64 = 100;
+    let mut world = World::new(802, LIMITS);
+    assert_eq!(world.make(PERSON_PARTY, vec![task(GOAL, &[])]), Reply::Made(vec![GOAL]));
+    assert_eq!(world.make(Party::Task(GOAL), vec![task(PROPOSER, &[])]), Reply::Made(vec![PROPOSER]));
+    let holder = ProposalHolder::Policy { project: 1, kind: ProposalKind::Batch };
+    let mut delegate = task(3, &[]);
+    delegate.funder = Funder::Task(PROPOSER);
+    let state = ProposalState::Pending { holder, since: world.env.wall };
+    let proposal = Proposal {
+        number: PROPOSAL,
+        proposer: PROPOSER,
+        project: 1,
+        action: ProposalAction::Batch(Box::new([delegate])),
+        reason: b"need one delegate".as_slice().into(),
+        as_holder: false,
+        state: state.clone(),
+    };
+    let reply_to = world.to();
+    world.send(Event::Propose { reply_to, proposal });
+    assert_eq!(world.next_deadline(), None);
+    world.restart();
+    assert_eq!(world.next_deadline(), None);
+    world.elapse(skein_lib::Duration::from_nanos(LIMITS.proposal_stall.as_nanos() + 1));
+    assert_eq!(world.record(PROPOSER).proposal.as_ref().unwrap().state, state);
+    let reply_to = world.to();
+    world.send(Event::DecideProposal {
+        reply_to,
+        proposer: PROPOSER,
+        proposal: PROPOSAL,
+        message: Some(PROPOSAL + 1),
+        by: PERSON_PARTY,
+        decision: ProposalDecision::Reject { reason: b"not now".as_slice().into() },
+    });
+    assert_eq!(world.replies.last_key_value().unwrap().1, &Reply::Done);
+    assert!(world.record(PROPOSER).proposal.is_none());
+}

@@ -250,7 +250,8 @@ use Expect::{AllRefused, Exact, Mixed, Restore, Unplanned};
 
 const FLAG: &str = "    flag: bool\n";
 const FLAG_REFUSAL: Refusal = (Refused::Field, "Numbers", "flag");
-const EDITS: [Edit; 16] = [
+const NUMBERS: &str = "record Numbers {\n";
+const EDITS: [Edit; 17] = [
     Edit {
         name: "drop with default",
         root: "Numbers",
@@ -378,6 +379,14 @@ const EDITS: [Edit; 16] = [
         target: Line("enum Light {", "record Light {}"),
         there: Unplanned(Why::Reshaped),
         back: Unplanned(Why::Reshaped),
+    },
+    Edit {
+        name: "drop as tombstone with a moved tag",
+        root: "Numbers",
+        source: Some((NUMBERS, "enum Switch { off on }\nrecord Numbers {\n    switch: Switch\n")),
+        target: Replace(NUMBERS, "enum Switch { standby off on }\nrecord Numbers {\n    dropped switch: Switch = on\n"),
+        there: Mixed((Refused::Field, "Numbers", "switch")),
+        back: Exact,
     },
 ];
 

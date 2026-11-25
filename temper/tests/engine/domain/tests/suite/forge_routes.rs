@@ -642,7 +642,11 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool, stopped: bool) {
     }
     let mut gate = world.assigned.get(2).expect("agent gate assigned").clone();
     if stopped {
-        review_person(&mut world, 180, people::Ask::Stop { project: 1, task: change });
+        review_person(
+            &mut world,
+            180,
+            people::Ask::Stop { project: 1, task: change, reason: Box::from(b"Parking the task".as_slice()) },
+        );
         world.advance_ticks(100);
         let event =
             world.protocol.answer(Token::new(7), gate.task, gate.attempt, 0, tasks::End::Parked, engine::Parts::none());
@@ -4123,7 +4127,7 @@ fn an_overlapping_landing_waits_in_a_held_goals_inbox_until_release() {
         reply_to: ReplyTo::new(Token::new(801)),
         sign_in: world.signed_in.expect("person"),
         key: [81; 16],
-        ask: people::Ask::Stop { project: 1, task: goal.task },
+        ask: people::Ask::Stop { project: 1, task: goal.task, reason: Box::from(b"Parking the task".as_slice()) },
     }));
     world.advance_ticks(30);
     let terminal = world.protocol.answer(

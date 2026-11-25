@@ -502,7 +502,7 @@ fn a_call_with_a_refused_key_name_says_what_a_key_is() {
             b"temper ctl: task message: --key KEY takes 1 to 64 lower-case letters, digits or hyphens; temper ctl help task message\n".as_slice(),
         ),
         (
-            br#"{"tool":"task stop","arguments":{"task":41,"key":"Bad"}}"#,
+            br#"{"tool":"task stop","arguments":{"task":41,"reason":"Parked","key":"Bad"}}"#,
             b"temper ctl: task stop: --key KEY takes 1 to 64 lower-case letters, digits or hyphens; temper ctl help task stop\n",
         ),
     ] {

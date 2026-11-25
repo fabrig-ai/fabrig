@@ -3240,6 +3240,7 @@ impl World {
                 answerer: tasks::Party::Task(change),
                 asked: tasks::Party::Task(change),
                 line: sender.activity,
+                offer: None,
             });
             sender.questions = credits.into_boxed_slice();
         }

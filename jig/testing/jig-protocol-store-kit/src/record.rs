@@ -57,6 +57,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         created_at: Wall::from_nanos(11),
         changed: Wall::from_nanos(13),
         phase_since: Wall::from_nanos(17),
+        held_since: None,
         run_since: Some(Wall::from_nanos(19)),
         retry_notice: Some(task::RetryNotice::Failed {
             class: task::Class::Agent,
@@ -97,6 +98,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
             stall: Duration::from_nanos(3),
             deadline: Wall::from_nanos(62),
             notice: Some(task::PersonStallNotice { message: 67, at: Wall::from_nanos(71), activity: 73 }),
+            offer: None,
         }),
         recurring: Some(Box::new(task::RecurringState {
             template: task_template(),
@@ -164,10 +166,11 @@ fn task_question_lines() -> Box<[jig_domain_tasks::QuestionLine]> {
         message: 5,
         line: 7,
         answer: Some(jig_domain_tasks::AnswerLine { task: 19, position: 11 }),
+        resolution: None,
     }])
 }
 
 fn task_credit() -> jig_domain_tasks::QuestionCredit {
     use jig_domain_tasks::{Party, QuestionCredit};
-    QuestionCredit { number: 5, answerer: Party::Task(19), asked: Party::Task(19), line: 7 }
+    QuestionCredit { number: 5, answerer: Party::Task(19), asked: Party::Task(19), line: 7, offer: None }
 }

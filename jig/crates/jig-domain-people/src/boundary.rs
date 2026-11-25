@@ -329,6 +329,7 @@ pub enum Ask {
     Stop {
         project: u32,
         task: u64,
+        reason: Box<[u8]>,
     },
     /// Cancel a task and its descendants with a bounded reason, at once or after a grace.
     Cancel {

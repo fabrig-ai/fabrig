@@ -93,6 +93,8 @@ pub use flags::shaped;
 pub use flags::{Closer, EndedBy, Flags, Retention};
 mod funders;
 mod hold_origin;
+mod hold_words;
+pub use hold_words::{HOLD_WORDS, HoldWords, hold_words};
 mod holds;
 mod inbox;
 mod words;
@@ -113,7 +115,7 @@ mod periods;
 mod placed;
 mod positions;
 pub use placed::{Mode, Owner, PlacedHold, Scope};
-pub use positions::{AnswerLine, ProposalRow, QuestionLine};
+pub use positions::{AnswerLine, ProposalRow, QuestionAnswerNotice, QuestionLine, QuestionResolution};
 mod person;
 mod person_proposals;
 mod procedure;
@@ -158,21 +160,21 @@ pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
     InvalidResult, JobSpec, KeptStart, Key, Kind, Message, MessageKind, Name, New, NewsClass, NoticeState, Parameter,
-    Party, PersonAddress, PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureDecision,
-    ProcedureEnd, ProcedureInput, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState, RecurringTemplate,
-    Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions,
-    RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind,
-    SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer,
-    WriterSlot,
+    Party, PersonAddress, PersonAnswer, PersonOffer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem,
+    ProcedureDecision, ProcedureEnd, ProcedureInput, QuestionAnswerer, QuestionCredit, QuestionNotice, QuestionOffer,
+    QuestionRelay, RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess,
+    ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision,
+    Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy, Suspended, Suspension, Taken,
+    TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
-pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken};
+pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
 
 pub use control::{
     AddressChange, Amend, Amendment, AmendmentHistory, AttemptRow, Cancel, Change, DependencyPlace, Fail, Held,
     History, HoldRow, OpenAttempt, Release, Settings, Tracking, address_admit, instruction_admit,
 };
-pub use domain::{Domain, ViewTask, fire, step, view_phase};
+pub use domain::{Domain, ViewTask, deadline, fire, step, view_phase};
 pub use escalation::{
     Escalation, EscalationContext, EscalationDecider, EscalationDecision, EscalationHolder, EscalationOutcome,
 };
@@ -192,7 +194,7 @@ pub use proposals::{
     ProposalDecision, ProposalHolder, ProposalKind, ProposalOutcome, ProposalState, SETTINGS_ITEMS, Setting,
     SettingEdit, SettingHead, SettingsDecision, SettingsOutcome,
 };
-pub use questions::{OpenQuestion, open_question_reason};
+pub use questions::{OpenQuestion, QuestionTicket, open_question_reason};
 pub use runtime::{REASON_BYTES, RetryNotice};
 pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,

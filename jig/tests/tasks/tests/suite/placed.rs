@@ -18,7 +18,7 @@ fn stop(w: &mut World, task: u64, by: u64, hold: u64) -> Reply {
             owner: Owner::Party { person: by },
             mode: Mode::Stop,
             scope: Scope::Subtree { task },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: w.env.wall.as_nanos() / 1_000_000,
             revision: 1,
             exempt: Box::new([]),
@@ -572,7 +572,7 @@ fn task_owned_holds_may_be_lifted_by_the_owner_its_ancestors_and_its_person() {
             owner: Owner::Task { task: 2 },
             mode: Mode::Stop,
             scope: Scope::Subtree { task: 4 },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),
@@ -604,7 +604,7 @@ fn unoffered_and_malformed_placements_change_nothing() {
         owner: Owner::Party { person: 1 },
         mode: Mode::Stop,
         scope: Scope::Subtree { task: 1 },
-        reason: Box::new([]),
+        reason: Box::from(b"Parked".as_slice()),
         placed_at: 0,
         revision: 1,
         exempt: Box::new([]),
@@ -638,11 +638,15 @@ fn a_compound_cannot_stop_and_release_the_same_subtree_in_one_decision() {
     let mut w = World::new(919, LIMITS);
     goal_tree(&mut w);
     let mut operations = skein_lib::List::with_capacity(3);
-    operations.push(tasks::Operation::Stop { task: 1, hold: STOP_HOLD }).expect("placed test setup");
+    operations
+        .push(tasks::Operation::Stop { task: 1, hold: STOP_HOLD, reason: Box::from(b"Parking the task".as_slice()) })
+        .expect("placed test setup");
     operations
         .push(tasks::Operation::Release(tasks::Release { task: 1, again: None, message: None }))
         .expect("placed test setup");
-    operations.push(tasks::Operation::Stop { task: 2, hold: 101 }).expect("placed test setup");
+    operations
+        .push(tasks::Operation::Stop { task: 2, hold: 101, reason: Box::from(b"Parking the task".as_slice()) })
+        .expect("placed test setup");
     let reply_to = w.to();
     let token = reply_to.into_token();
     w.send(Event::Compound {
@@ -836,4 +840,21 @@ fn restart_leaves_unheld_tasks_in_scope_to_the_referee() {
         &mut Vec::new(),
     );
     assert!(matches!(referee.verdict(), skein_world::domain::Verdict::Failed(_)));
+}
+
+#[test]
+fn a_stop_stored_without_a_reason_restores_as_placed() {
+    let mut world = World::new(921, LIMITS);
+    goal_tree(&mut world);
+    assert_eq!(stop(&mut world, 1, 1, STOP_HOLD), Reply::Done);
+    park(&mut world);
+    let Some(Stored::PlacedHold(hold)) = world.records.get_mut(&Key::PlacedHold(STOP_HOLD)) else {
+        panic!("placed hold saved");
+    };
+    hold.reason = Box::new([]);
+    world.restart();
+    for number in 1..=4 {
+        placed(&world, number, STOP_HOLD);
+    }
+    assert!(world.placed_hold(STOP_HOLD).expect("placed hold restored").reason.is_empty());
 }

@@ -121,8 +121,9 @@ Focused, in the worlds that own each side, with their simulated clocks:
   up once per record.
 - **The engine's component:** a worker whose layout has the kind told,
   its frame sent and `Told` with the wait; one at a layout without it
-  sent nothing, `Told` with none; a connection whose hello is not heard
-  told nothing; a second ask sent again.
+  sent nothing, `Told` with none; a connection whose hello is not heard,
+  or one that was open and is closing, sent and told nothing; a second
+  ask sent again.
 - **The wire:** generated records' drift, as skein's
   `data/codec/golden.md`, section 1 has it; the kind refused per value
   to a layout without it (`layouts.md`, 8), and `KINDS` against the

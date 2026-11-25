@@ -515,7 +515,6 @@ a sweep configuring each fault accepts each.
 | Problem | Scenario | World | Fixed by | Fault left out, and while |
 |---|---|---|---|---|
 | P43 | `a_coordinator_watching_its_asker_is_woken` | core | bounded waits | runs that park, resume and move: `a run parks with a question to its requester open`, while `its requester watches it` |
-| P117 | `a_parked_act_holds_no_exchange` | engine-clients | bounded waits | people and parties: `a sign-in sends a request again while the first is pending`, while `the first is parked` |
 | S15 | `a_party_extends_its_goals_deadline` | core | provider failures | people and parties: `amending a deadline after it has passed`, while `the amending party started the goal` |
 | P77 | `an_owners_widening_is_never_proposed_to_itself` | core; its reading and decision, client-protocol | provider failures | people and parties: `a party widens a goal's authority`, while `the widening party is the project's owner` |
 | P76 | `a_new_party_gets_account_uses` | core | provider failures | people and parties: `a new service party runs on an account`, while `the account's uses were set before the service was made` |

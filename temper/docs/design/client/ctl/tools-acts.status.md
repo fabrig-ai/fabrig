@@ -1,6 +1,6 @@
 # tools-acts: status
 
-2026-11-22. Where the tree's code lags or departs from [tools-acts.md](tools-acts.md).
+2026-11-24. Where the tree's code lags or departs from [tools-acts.md](tools-acts.md).
 
 - **Not yet:** 1: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].

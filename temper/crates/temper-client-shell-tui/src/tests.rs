@@ -1628,7 +1628,12 @@ fn a_theme_write_answer_never_reaches_the_root() {
             event: jig_client::Event::Send {
                 key,
                 name: None,
-                request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop { project: 3, task: 9 })),
+                request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop {
+                    project: 3,
+                    task: 9,
+                    reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                        .expect("fixture reason fits"),
+                })),
             },
         };
         key_words(&mut host, "/theme");

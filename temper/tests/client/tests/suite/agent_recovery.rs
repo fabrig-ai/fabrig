@@ -104,7 +104,7 @@ fn an_unkeyed_stop_cut_before_its_answer_is_resent_with_its_kept_line() {
     let mut world = world();
     let agent = fixtures::agent(&mut world);
     let task = fixtures::done_task(&call(&mut world, agent, CHAT));
-    fixtures::cut(&mut world, agent, &[b"task", b"stop", task.to_string().as_bytes()]);
+    fixtures::cut(&mut world, agent, &[b"task", b"stop", task.to_string().as_bytes(), b"Parked"]);
     world.reload(agent);
     let printed = call(&mut world, agent, AGAIN);
     let expected = format!("kept: stop, done: task {task}, stop\n");

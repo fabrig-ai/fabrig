@@ -102,7 +102,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
         Command::Repack { .. } | Command::MergeHistory { .. } => Answer::success(Vec::new()),
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Origin { directory } => {
-            let directory = path(&checked.root, directory);
+            let directory = explicit_path(&checked.root, directory);
             if let Some(remote) = checkout.content(&path(&directory, b"temper-remote")) {
                 Answer::success([remote, b"\n"].concat())
             } else if checkout.exists(&path(&directory, b"HEAD")) {
@@ -390,6 +390,13 @@ fn count_bytes(bytes: &[u8]) -> u64 {
 }
 pub(crate) fn path(at: &[u8], name: &[u8]) -> Vec<u8> {
     if at.is_empty() { name.to_vec() } else { [at, b"/", name].concat() }
+}
+/// Resolve a Git option beneath the program's file root.
+pub(crate) fn explicit_path(at: &[u8], name: &[u8]) -> Vec<u8> {
+    if let Some(absolute) = name.strip_prefix(b"/") {
+        return absolute.to_vec();
+    }
+    path(if at == b"." { b"" } else { at }, name)
 }
 pub(crate) fn meta(checkout: &Checkout, at: &[u8], name: &[u8]) -> Vec<u8> {
     path(&git::directory(checkout, at), name)

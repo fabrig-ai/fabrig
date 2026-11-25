@@ -199,7 +199,7 @@ fn restart_census_joins_positions_results_and_question_lines_from_logs() {
     let Record::Tasks(tasks::Stored::Live(mut questioner)) = fixtures::live_task(GRANDCHILD) else {
         panic!("live questioner");
     };
-    questioner.question_lines = Box::new([tasks::QuestionLine { message: 5, line: 7, answer: None }]);
+    questioner.question_lines = Box::new([tasks::QuestionLine { message: 5, line: 7, answer: None, resolution: None }]);
     fixtures::committed(
         &mut store,
         Box::new([

@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 13;
 pub const LAYOUT: [u8; 32] = [
-    0xbd, 0xd4, 0x37, 0xe2, 0x59, 0xb3, 0x2d, 0xbf, 0xba, 0x38, 0xc2, 0x0d, 0x3c, 0x7c, 0xb7, 0x16, 0x80, 0x31, 0x8b,
-    0x67, 0xbc, 0x02, 0x93, 0xa2, 0x1d, 0xa8, 0x77, 0x8f, 0xb8, 0x9e, 0x45, 0x45,
+    0x0c, 0x7e, 0x53, 0x21, 0xb5, 0x4e, 0x5a, 0x33, 0xca, 0x26, 0xc6, 0x39, 0x57, 0xee, 0x87, 0x35, 0xc7, 0xa1, 0x15,
+    0x3f, 0x3f, 0x98, 0xc6, 0x52, 0xd4, 0x51, 0x5e, 0x62, 0x91, 0x8f, 0x2d, 0x94,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -56,6 +56,7 @@ pub struct Limits {
     pub circle_tasks: u32,
     pub hold_account_words: u32,
     pub hold_preparation_words: u32,
+    pub hold_wait_words: u32,
     pub rejected_proposal_reason: u32,
     pub amendment_instructions_some: u32,
     pub amendment_dependencies_some: u32,
@@ -81,7 +82,9 @@ pub struct Limits {
     pub stood_line_words: u32,
     pub rejected_escalation_reason: u32,
     pub recurring_state_last_batch: u32,
+    pub question_relay_words: u32,
     pub saved_resource_path: u32,
+    pub question_answer_notice_words: u32,
     pub task_history_question_lines: u32,
     pub task_history_proposal_rows: u32,
     pub task_history_instructions_some: u32,
@@ -159,6 +162,7 @@ pub const CEILINGS: Limits = Limits {
     circle_tasks: 32,
     hold_account_words: 512,
     hold_preparation_words: 128,
+    hold_wait_words: 512,
     rejected_proposal_reason: 524_288,
     amendment_instructions_some: 524_288,
     amendment_dependencies_some: 64,
@@ -184,7 +188,9 @@ pub const CEILINGS: Limits = Limits {
     stood_line_words: 512,
     rejected_escalation_reason: 524_288,
     recurring_state_last_batch: 1_024,
+    question_relay_words: 524_288,
     saved_resource_path: 65_536,
+    question_answer_notice_words: 256,
     task_history_question_lines: 128,
     task_history_proposal_rows: 128,
     task_history_instructions_some: 524_288,
@@ -262,6 +268,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "circle_tasks",
     "hold_account_words",
     "hold_preparation_words",
+    "hold_wait_words",
     "rejected_proposal_reason",
     "amendment_instructions_some",
     "amendment_dependencies_some",
@@ -287,7 +294,9 @@ pub const LIMIT_NAMES: &[&str] = &[
     "stood_line_words",
     "rejected_escalation_reason",
     "recurring_state_last_batch",
+    "question_relay_words",
     "saved_resource_path",
+    "question_answer_notice_words",
     "task_history_question_lines",
     "task_history_proposal_rows",
     "task_history_instructions_some",
@@ -369,6 +378,7 @@ impl Limits {
             self.circle_tasks,
             self.hold_account_words,
             self.hold_preparation_words,
+            self.hold_wait_words,
             self.rejected_proposal_reason,
             self.amendment_instructions_some,
             self.amendment_dependencies_some,
@@ -394,7 +404,9 @@ impl Limits {
             self.stood_line_words,
             self.rejected_escalation_reason,
             self.recurring_state_last_batch,
+            self.question_relay_words,
             self.saved_resource_path,
+            self.question_answer_notice_words,
             self.task_history_question_lines,
             self.task_history_proposal_rows,
             self.task_history_instructions_some,
@@ -477,6 +489,7 @@ impl Limits {
             circle_tasks: self.circle_tasks.min(most),
             hold_account_words: self.hold_account_words.min(most),
             hold_preparation_words: self.hold_preparation_words.min(most),
+            hold_wait_words: self.hold_wait_words.min(most),
             rejected_proposal_reason: self.rejected_proposal_reason.min(most),
             amendment_instructions_some: self.amendment_instructions_some.min(most),
             amendment_dependencies_some: self.amendment_dependencies_some.min(most),
@@ -502,7 +515,9 @@ impl Limits {
             stood_line_words: self.stood_line_words.min(most),
             rejected_escalation_reason: self.rejected_escalation_reason.min(most),
             recurring_state_last_batch: self.recurring_state_last_batch.min(most),
+            question_relay_words: self.question_relay_words.min(most),
             saved_resource_path: self.saved_resource_path.min(most),
+            question_answer_notice_words: self.question_answer_notice_words.min(most),
             task_history_question_lines: self.task_history_question_lines.min(most),
             task_history_proposal_rows: self.task_history_proposal_rows.min(most),
             task_history_instructions_some: self.task_history_instructions_some.min(most),
@@ -582,6 +597,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CIRCLE_TASKS,
     paths::HOLD_ACCOUNT_WORDS,
     paths::HOLD_PREPARATION_WORDS,
+    paths::HOLD_WAIT_WORDS,
     paths::REJECTED_PROPOSAL_REASON,
     paths::AMENDMENT_INSTRUCTIONS,
     paths::AMENDMENT_DEPENDENCIES,
@@ -607,7 +623,9 @@ const LIMIT_PATHS: &[Path] = &[
     paths::STOOD_LINE_WORDS,
     paths::REJECTED_ESCALATION_REASON,
     paths::RECURRING_STATE_LAST_BATCH,
+    paths::QUESTION_RELAY_WORDS,
     paths::SAVED_RESOURCE_PATH,
+    paths::QUESTION_ANSWER_NOTICE_WORDS,
     paths::TASK_HISTORY_QUESTION_LINES,
     paths::TASK_HISTORY_PROPOSAL_ROWS,
     paths::TASK_HISTORY_INSTRUCTIONS,
@@ -960,6 +978,8 @@ pub mod paths {
     pub const HOLD_ACCOUNT_TAIL: Path = Path::new("HoldAccount (tail)");
     pub const HOLD_PREPARATION_WORDS: Path = Path::new("HoldPreparation.words");
     pub const HOLD_PREPARATION_TAIL: Path = Path::new("HoldPreparation (tail)");
+    pub const HOLD_WAIT_WORDS: Path = Path::new("HoldWait.words");
+    pub const HOLD_WAIT_TAIL: Path = Path::new("HoldWait (tail)");
     pub const HOLD_SOURCE_TAG: Path = Path::new("HoldSource (tag)");
     pub const HELD_WAS: Path = Path::new("Held.was");
     pub const HELD_WHY: Path = Path::new("Held.why");
@@ -1305,20 +1325,32 @@ pub mod paths {
     pub const PERSON_STALL_NOTICE_AT: Path = Path::new("PersonStallNotice.at");
     pub const PERSON_STALL_NOTICE_ACTIVITY: Path = Path::new("PersonStallNotice.activity");
     pub const PERSON_STALL_NOTICE_TAIL: Path = Path::new("PersonStallNotice (tail)");
+    pub const PERSON_OFFER_HOLDER: Path = Path::new("PersonOffer.holder");
+    pub const PERSON_OFFER_SINCE: Path = Path::new("PersonOffer.since");
+    pub const PERSON_OFFER_TAIL: Path = Path::new("PersonOffer (tail)");
     pub const PERSON_WAIT_SINCE: Path = Path::new("PersonWait.since");
     pub const PERSON_WAIT_STALL: Path = Path::new("PersonWait.stall");
     pub const PERSON_WAIT_DEADLINE: Path = Path::new("PersonWait.deadline");
     pub const PERSON_WAIT_NOTICE: Path = Path::new("PersonWait.notice");
+    pub const PERSON_WAIT_OFFER: Path = Path::new("PersonWait.offer");
     pub const PERSON_WAIT_TAIL: Path = Path::new("PersonWait (tail)");
     pub const RECURRING_STATE_TEMPLATE: Path = Path::new("RecurringState.template");
     pub const RECURRING_STATE_LAST_BATCH: Path = Path::new("RecurringState.last_batch");
     pub const RECURRING_STATE_LAST_PERIOD: Path = Path::new("RecurringState.last_period");
     pub const RECURRING_STATE_PENDING_PERIOD: Path = Path::new("RecurringState.pending_period");
     pub const RECURRING_STATE_TAIL: Path = Path::new("RecurringState (tail)");
+    pub const QUESTION_RELAY_ENTRY: Path = Path::new("QuestionRelay.entry");
+    pub const QUESTION_RELAY_WORDS: Path = Path::new("QuestionRelay.words");
+    pub const QUESTION_RELAY_TAIL: Path = Path::new("QuestionRelay (tail)");
+    pub const QUESTION_OFFER_HOLDER: Path = Path::new("QuestionOffer.holder");
+    pub const QUESTION_OFFER_SINCE: Path = Path::new("QuestionOffer.since");
+    pub const QUESTION_OFFER_RELAY: Path = Path::new("QuestionOffer.relay");
+    pub const QUESTION_OFFER_TAIL: Path = Path::new("QuestionOffer (tail)");
     pub const QUESTION_CREDIT_NUMBER: Path = Path::new("QuestionCredit.number");
     pub const QUESTION_CREDIT_ANSWERER: Path = Path::new("QuestionCredit.answerer");
     pub const QUESTION_CREDIT_ASKED: Path = Path::new("QuestionCredit.asked");
     pub const QUESTION_CREDIT_LINE: Path = Path::new("QuestionCredit.line");
+    pub const QUESTION_CREDIT_OFFER: Path = Path::new("QuestionCredit.offer");
     pub const QUESTION_CREDIT_TAIL: Path = Path::new("QuestionCredit (tail)");
     pub const TASK_INTEREST_TARGET: Path = Path::new("TaskInterest.target");
     pub const TASK_INTEREST_HELD: Path = Path::new("TaskInterest.held");
@@ -1340,9 +1372,20 @@ pub mod paths {
     pub const ANSWER_LINE_TASK: Path = Path::new("AnswerLine.task");
     pub const ANSWER_LINE_POSITION: Path = Path::new("AnswerLine.position");
     pub const ANSWER_LINE_TAIL: Path = Path::new("AnswerLine (tail)");
+    pub const QUESTION_ANSWERER_TAG: Path = Path::new("QuestionAnswerer (tag)");
+    pub const QUESTION_ANSWER_NOTICE_NUMBER: Path = Path::new("QuestionAnswerNotice.number");
+    pub const QUESTION_ANSWER_NOTICE_AT: Path = Path::new("QuestionAnswerNotice.at");
+    pub const QUESTION_ANSWER_NOTICE_WORDS: Path = Path::new("QuestionAnswerNotice.words");
+    pub const QUESTION_ANSWER_NOTICE_TAIL: Path = Path::new("QuestionAnswerNotice (tail)");
+    pub const QUESTION_RESOLUTION_BY: Path = Path::new("QuestionResolution.by");
+    pub const QUESTION_RESOLUTION_FIRST: Path = Path::new("QuestionResolution.first");
+    pub const QUESTION_RESOLUTION_HOLDER: Path = Path::new("QuestionResolution.holder");
+    pub const QUESTION_RESOLUTION_NOTICE: Path = Path::new("QuestionResolution.notice");
+    pub const QUESTION_RESOLUTION_TAIL: Path = Path::new("QuestionResolution (tail)");
     pub const QUESTION_LINE_MESSAGE: Path = Path::new("QuestionLine.message");
     pub const QUESTION_LINE_LINE: Path = Path::new("QuestionLine.line");
     pub const QUESTION_LINE_ANSWER: Path = Path::new("QuestionLine.answer");
+    pub const QUESTION_LINE_RESOLUTION: Path = Path::new("QuestionLine.resolution");
     pub const QUESTION_LINE_TAIL: Path = Path::new("QuestionLine (tail)");
     pub const PROPOSAL_ROW_PROPOSAL: Path = Path::new("ProposalRow.proposal");
     pub const PROPOSAL_ROW_REVISION: Path = Path::new("ProposalRow.revision");
@@ -1490,6 +1533,7 @@ pub mod paths {
     pub const BEFORE_TALK_ASKED_REQUESTER: Path = Path::new("BeforeTalk.asked_requester");
     pub const BEFORE_TALK_QUESTION_WOKEN: Path = Path::new("BeforeTalk.question_woken");
     pub const BEFORE_TALK_WORDS_WOKEN: Path = Path::new("BeforeTalk.words_woken");
+    pub const BEFORE_TALK_HELD_SINCE: Path = Path::new("BeforeTalk.held_since");
     pub const BEFORE_TALK_TAIL: Path = Path::new("BeforeTalk (tail)");
     pub const CONCLUDED_BY: Path = Path::new("Concluded.by");
     pub const CONCLUDED_AT: Path = Path::new("Concluded.at");
@@ -1549,6 +1593,7 @@ pub mod paths {
     pub const LIVE_HOT_TALK: Path = Path::new("LiveHot.talk");
     pub const LIVE_HOT_CONCLUDED: Path = Path::new("LiveHot.concluded");
     pub const LIVE_HOT_WORDS_WOKEN: Path = Path::new("LiveHot.words_woken");
+    pub const LIVE_HOT_HELD_SINCE: Path = Path::new("LiveHot.held_since");
     pub const LIVE_HOT_TAIL: Path = Path::new("LiveHot (tail)");
     pub const LIVE_COLD_SPEC: Path = Path::new("LiveCold.spec");
     pub const LIVE_COLD_CONTRACT: Path = Path::new("LiveCold.contract");
@@ -1729,6 +1774,9 @@ pub mod paths {
     pub const TALK_OPEN_TAIL: Path = Path::new("TalkOpen (tail)");
     pub const REFUSAL_CONCLUDED_AT: Path = Path::new("RefusalConcluded.at");
     pub const REFUSAL_CONCLUDED_TAIL: Path = Path::new("RefusalConcluded (tail)");
+    pub const REFUSAL_QUESTION_ANSWERED_QUESTION: Path = Path::new("RefusalQuestionAnswered.question");
+    pub const REFUSAL_QUESTION_ANSWERED_BY: Path = Path::new("RefusalQuestionAnswered.by");
+    pub const REFUSAL_QUESTION_ANSWERED_TAIL: Path = Path::new("RefusalQuestionAnswered (tail)");
     pub const REFUSAL_TAG: Path = Path::new("Refusal (tag)");
     pub const TASK_PROBLEM_TASK: Path = Path::new("TaskProblem.task");
     pub const TASK_PROBLEM_WHY: Path = Path::new("TaskProblem.why");
@@ -7486,6 +7534,7 @@ pub enum Hold {
     Procedure,
     Circle,
     Exceeded(Exceeded),
+    Waited,
 }
 
 // Record: Hold.
@@ -7509,7 +7558,8 @@ impl Hold {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("Exceeded"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -7557,6 +7607,7 @@ impl Record for Hold {
             Self::Procedure => field::put(out, &[15], paths::HOLD_TAG),
             Self::Circle => field::put(out, &[16], paths::HOLD_TAG),
             Self::Exceeded(value) => { field::put(out, &[17], paths::HOLD_TAG)?; value.write(limits, out) },
+            Self::Waited => field::put(out, &[18], paths::HOLD_TAG),
         }
     }
 
@@ -7581,7 +7632,8 @@ impl Record for Hold {
             15 => Ok(Self::Procedure),
             16 => Ok(Self::Circle),
             17 => Ok(Self::Exceeded(Exceeded::read(limits, reader)?)),
-            18..=u8::MAX => Err(Problem { path: paths::HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            18 => Ok(Self::Waited),
+            19..=u8::MAX => Err(Problem { path: paths::HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -8111,6 +8163,56 @@ impl Record for HoldPreparation {
     }
 }
 
+// Type: HoldWait.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HoldWait {
+    pub words: Box<[u8]>,
+}
+
+// Record: HoldWait.
+impl HoldWait {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, hold_wait_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 4;
+}
+
+impl Record for HoldWait {
+    type Limits = Limits;
+    const TAIL: Path = paths::HOLD_WAIT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HoldWait")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HoldWait")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Bytes { limit: limits.hold_wait_words.min(CEILINGS.hold_wait_words) }, &self.words, limits, out, paths::HOLD_WAIT_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            words: field::read(field::Bytes { limit: limits.hold_wait_words.min(CEILINGS.hold_wait_words) }, limits, reader, paths::HOLD_WAIT_WORDS)?,
+        })
+    }
+}
+
 // Type: HoldSource.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum HoldSource {
@@ -8119,6 +8221,7 @@ pub enum HoldSource {
     Circle(Circle),
     Account(HoldAccount),
     Preparation(HoldPreparation),
+    Wait(HoldWait),
 }
 
 // Record: HoldSource.
@@ -8129,7 +8232,8 @@ impl HoldSource {
         skein_codec::bounds::Node::Named("Circle"),
         skein_codec::bounds::Node::Named("HoldAccount"),
         skein_codec::bounds::Node::Named("HoldPreparation"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+        skein_codec::bounds::Node::Named("HoldWait"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -8164,6 +8268,7 @@ impl Record for HoldSource {
             Self::Circle(value) => { field::put(out, &[2], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
             Self::Account(value) => { field::put(out, &[3], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
             Self::Preparation(value) => { field::put(out, &[4], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
+            Self::Wait(value) => { field::put(out, &[5], paths::HOLD_SOURCE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -8175,7 +8280,8 @@ impl Record for HoldSource {
             2 => Ok(Self::Circle(Circle::read(limits, reader)?)),
             3 => Ok(Self::Account(HoldAccount::read(limits, reader)?)),
             4 => Ok(Self::Preparation(HoldPreparation::read(limits, reader)?)),
-            5..=u8::MAX => Err(Problem { path: paths::HOLD_SOURCE_TAG, reason: skein_codec::Reason::Tag }),
+            5 => Ok(Self::Wait(HoldWait::read(limits, reader)?)),
+            6..=u8::MAX => Err(Problem { path: paths::HOLD_SOURCE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -12281,6 +12387,8 @@ pub enum MessageKind {
     QuestionAnswered(AnswerMessage),
     QuestionOwed,
     NothingAwaited,
+    PassedQuestion(AnswerMessage),
+    PassedAnswer(AnswerMessage),
 }
 
 // Record: MessageKind.
@@ -12306,7 +12414,9 @@ impl MessageKind {
         skein_codec::bounds::Node::Named("AnswerMessage"),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] },
+        skein_codec::bounds::Node::Named("AnswerMessage"),
+        skein_codec::bounds::Node::Named("AnswerMessage"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -12356,6 +12466,8 @@ impl Record for MessageKind {
             Self::QuestionAnswered(value) => { field::put(out, &[17], paths::MESSAGE_KIND_TAG)?; value.write(limits, out) },
             Self::QuestionOwed => field::put(out, &[18], paths::MESSAGE_KIND_TAG),
             Self::NothingAwaited => field::put(out, &[19], paths::MESSAGE_KIND_TAG),
+            Self::PassedQuestion(value) => { field::put(out, &[20], paths::MESSAGE_KIND_TAG)?; value.write(limits, out) },
+            Self::PassedAnswer(value) => { field::put(out, &[21], paths::MESSAGE_KIND_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -12382,7 +12494,9 @@ impl Record for MessageKind {
             17 => Ok(Self::QuestionAnswered(AnswerMessage::read(limits, reader)?)),
             18 => Ok(Self::QuestionOwed),
             19 => Ok(Self::NothingAwaited),
-            20..=u8::MAX => Err(Problem { path: paths::MESSAGE_KIND_TAG, reason: skein_codec::Reason::Tag }),
+            20 => Ok(Self::PassedQuestion(AnswerMessage::read(limits, reader)?)),
+            21 => Ok(Self::PassedAnswer(AnswerMessage::read(limits, reader)?)),
+            22..=u8::MAX => Err(Problem { path: paths::MESSAGE_KIND_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -14985,6 +15099,60 @@ impl Record for PersonStallNotice {
     }
 }
 
+// Type: PersonOffer.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PersonOffer {
+    pub holder: PersonAddress,
+    pub since: u64,
+}
+
+// Record: PersonOffer.
+impl PersonOffer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("PersonAddress"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
+impl Record for PersonOffer {
+    type Limits = Limits;
+    const TAIL: Path = paths::PERSON_OFFER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PersonOffer")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PersonOffer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.holder, limits, out, paths::PERSON_OFFER_HOLDER)?;
+        field::write(field::U64, &self.since, limits, out, paths::PERSON_OFFER_SINCE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            holder: field::read(field::Nested, limits, reader, paths::PERSON_OFFER_HOLDER)?,
+            since: field::read(field::U64, limits, reader, paths::PERSON_OFFER_SINCE)?,
+        })
+    }
+}
+
 // Type: PersonWait.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PersonWait {
@@ -14992,6 +15160,7 @@ pub struct PersonWait {
     pub stall: skein_lib::Duration,
     pub deadline: u64,
     pub notice: Option<PersonStallNotice>,
+    pub offer: Option<PersonOffer>,
 }
 
 // Record: PersonWait.
@@ -15002,11 +15171,13 @@ impl PersonWait {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("PersonStallNotice"),
         skein_codec::bounds::Node::Option { item: 3 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4] },
+        skein_codec::bounds::Node::Named("PersonOffer"),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 49;
+    pub const ENCODED_AT_ZERO: u64 = 67;
 }
 
 impl Record for PersonWait {
@@ -15035,6 +15206,7 @@ impl Record for PersonWait {
         field::write(field::Span, &self.stall, limits, out, paths::PERSON_WAIT_STALL)?;
         field::write(field::U64, &self.deadline, limits, out, paths::PERSON_WAIT_DEADLINE)?;
         field::write(field::Optional { item: field::Nested }, &self.notice, limits, out, paths::PERSON_WAIT_NOTICE)?;
+        field::write(field::Optional { item: field::Nested }, &self.offer, limits, out, paths::PERSON_WAIT_OFFER)?;
         Ok(())
     }
 
@@ -15044,6 +15216,7 @@ impl Record for PersonWait {
             stall: field::read(field::Span, limits, reader, paths::PERSON_WAIT_STALL)?,
             deadline: field::read(field::U64, limits, reader, paths::PERSON_WAIT_DEADLINE)?,
             notice: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PERSON_WAIT_NOTICE)?,
+            offer: field::read(field::Optional { item: field::Nested }, limits, reader, paths::PERSON_WAIT_OFFER)?,
         })
     }
 }
@@ -15112,6 +15285,119 @@ impl Record for RecurringState {
     }
 }
 
+// Type: QuestionRelay.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct QuestionRelay {
+    pub entry: u64,
+    pub words: Box<[u8]>,
+}
+
+// Record: QuestionRelay.
+impl QuestionRelay {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, question_relay_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
+impl Record for QuestionRelay {
+    type Limits = Limits;
+    const TAIL: Path = paths::QUESTION_RELAY_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionRelay")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionRelay")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.entry, limits, out, paths::QUESTION_RELAY_ENTRY)?;
+        field::write(field::Bytes { limit: limits.question_relay_words.min(CEILINGS.question_relay_words) }, &self.words, limits, out, paths::QUESTION_RELAY_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            entry: field::read(field::U64, limits, reader, paths::QUESTION_RELAY_ENTRY)?,
+            words: field::read(field::Bytes { limit: limits.question_relay_words.min(CEILINGS.question_relay_words) }, limits, reader, paths::QUESTION_RELAY_WORDS)?,
+        })
+    }
+}
+
+// Type: QuestionOffer.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct QuestionOffer {
+    pub holder: EscalationHolder,
+    pub since: u64,
+    pub relay: Option<QuestionRelay>,
+}
+
+// Record: QuestionOffer.
+impl QuestionOffer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("EscalationHolder"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("QuestionRelay"),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 30;
+}
+
+impl Record for QuestionOffer {
+    type Limits = Limits;
+    const TAIL: Path = paths::QUESTION_OFFER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionOffer")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionOffer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.holder, limits, out, paths::QUESTION_OFFER_HOLDER)?;
+        field::write(field::U64, &self.since, limits, out, paths::QUESTION_OFFER_SINCE)?;
+        field::write(field::Optional { item: field::Nested }, &self.relay, limits, out, paths::QUESTION_OFFER_RELAY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            holder: field::read(field::Nested, limits, reader, paths::QUESTION_OFFER_HOLDER)?,
+            since: field::read(field::U64, limits, reader, paths::QUESTION_OFFER_SINCE)?,
+            relay: field::read(field::Optional { item: field::Nested }, limits, reader, paths::QUESTION_OFFER_RELAY)?,
+        })
+    }
+}
+
 // Type: QuestionCredit.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct QuestionCredit {
@@ -15119,6 +15405,7 @@ pub struct QuestionCredit {
     pub answerer: Party,
     pub asked: Party,
     pub line: u64,
+    pub offer: Option<QuestionOffer>,
 }
 
 // Record: QuestionCredit.
@@ -15128,11 +15415,13 @@ impl QuestionCredit {
         skein_codec::bounds::Node::Named("Party"),
         skein_codec::bounds::Node::Named("Party"),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Named("QuestionOffer"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 34;
+    pub const ENCODED_AT_ZERO: u64 = 65;
 }
 
 impl Record for QuestionCredit {
@@ -15161,6 +15450,7 @@ impl Record for QuestionCredit {
         field::write(field::Nested, &self.answerer, limits, out, paths::QUESTION_CREDIT_ANSWERER)?;
         field::write(field::Nested, &self.asked, limits, out, paths::QUESTION_CREDIT_ASKED)?;
         field::write(field::U64, &self.line, limits, out, paths::QUESTION_CREDIT_LINE)?;
+        field::write(field::Optional { item: field::Nested }, &self.offer, limits, out, paths::QUESTION_CREDIT_OFFER)?;
         Ok(())
     }
 
@@ -15170,6 +15460,7 @@ impl Record for QuestionCredit {
             answerer: field::read(field::Nested, limits, reader, paths::QUESTION_CREDIT_ANSWERER)?,
             asked: field::read(field::Nested, limits, reader, paths::QUESTION_CREDIT_ASKED)?,
             line: field::read(field::U64, limits, reader, paths::QUESTION_CREDIT_LINE)?,
+            offer: field::read(field::Optional { item: field::Nested }, limits, reader, paths::QUESTION_CREDIT_OFFER)?,
         })
     }
 }
@@ -15564,12 +15855,192 @@ impl Record for AnswerLine {
     }
 }
 
+// Type: QuestionAnswerer.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum QuestionAnswerer {
+    Task(Number),
+    Person(Number),
+}
+
+// Record: QuestionAnswerer.
+impl QuestionAnswerer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Number"),
+        skein_codec::bounds::Node::Named("Number"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for QuestionAnswerer {
+    type Limits = Limits;
+    const TAIL: Path = paths::QUESTION_ANSWERER_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionAnswerer")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionAnswerer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Task(value) => { field::put(out, &[0], paths::QUESTION_ANSWERER_TAG)?; value.write(limits, out) },
+            Self::Person(value) => { field::put(out, &[1], paths::QUESTION_ANSWERER_TAG)?; value.write(limits, out) },
+        }
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::QUESTION_ANSWERER_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Task(Number::read(limits, reader)?)),
+            1 => Ok(Self::Person(Number::read(limits, reader)?)),
+            2..=u8::MAX => Err(Problem { path: paths::QUESTION_ANSWERER_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: QuestionAnswerNotice.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct QuestionAnswerNotice {
+    pub number: u64,
+    pub at: u64,
+    pub words: Box<[u8]>,
+}
+
+// Record: QuestionAnswerNotice.
+impl QuestionAnswerNotice {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, question_answer_notice_words) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 20;
+}
+
+impl Record for QuestionAnswerNotice {
+    type Limits = Limits;
+    const TAIL: Path = paths::QUESTION_ANSWER_NOTICE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionAnswerNotice")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionAnswerNotice")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.number, limits, out, paths::QUESTION_ANSWER_NOTICE_NUMBER)?;
+        field::write(field::U64, &self.at, limits, out, paths::QUESTION_ANSWER_NOTICE_AT)?;
+        field::write(field::Bytes { limit: limits.question_answer_notice_words.min(CEILINGS.question_answer_notice_words) }, &self.words, limits, out, paths::QUESTION_ANSWER_NOTICE_WORDS)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            number: field::read(field::U64, limits, reader, paths::QUESTION_ANSWER_NOTICE_NUMBER)?,
+            at: field::read(field::U64, limits, reader, paths::QUESTION_ANSWER_NOTICE_AT)?,
+            words: field::read(field::Bytes { limit: limits.question_answer_notice_words.min(CEILINGS.question_answer_notice_words) }, limits, reader, paths::QUESTION_ANSWER_NOTICE_WORDS)?,
+        })
+    }
+}
+
+// Type: QuestionResolution.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct QuestionResolution {
+    pub by: QuestionAnswerer,
+    pub first: QuestionAnswerer,
+    pub holder: Option<EscalationHolder>,
+    pub notice: Option<QuestionAnswerNotice>,
+}
+
+// Record: QuestionResolution.
+impl QuestionResolution {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("QuestionAnswerer"),
+        skein_codec::bounds::Node::Named("QuestionAnswerer"),
+        skein_codec::bounds::Node::Named("EscalationHolder"),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Named("QuestionAnswerNotice"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 49;
+}
+
+impl Record for QuestionResolution {
+    type Limits = Limits;
+    const TAIL: Path = paths::QUESTION_RESOLUTION_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionResolution")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "QuestionResolution")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Nested, &self.by, limits, out, paths::QUESTION_RESOLUTION_BY)?;
+        field::write(field::Nested, &self.first, limits, out, paths::QUESTION_RESOLUTION_FIRST)?;
+        field::write(field::Optional { item: field::Nested }, &self.holder, limits, out, paths::QUESTION_RESOLUTION_HOLDER)?;
+        field::write(field::Optional { item: field::Nested }, &self.notice, limits, out, paths::QUESTION_RESOLUTION_NOTICE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            by: field::read(field::Nested, limits, reader, paths::QUESTION_RESOLUTION_BY)?,
+            first: field::read(field::Nested, limits, reader, paths::QUESTION_RESOLUTION_FIRST)?,
+            holder: field::read(field::Optional { item: field::Nested }, limits, reader, paths::QUESTION_RESOLUTION_HOLDER)?,
+            notice: field::read(field::Optional { item: field::Nested }, limits, reader, paths::QUESTION_RESOLUTION_NOTICE)?,
+        })
+    }
+}
+
 // Type: QuestionLine.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct QuestionLine {
     pub message: u64,
     pub line: u64,
     pub answer: Option<AnswerLine>,
+    pub resolution: Option<QuestionResolution>,
 }
 
 // Record: QuestionLine.
@@ -15579,11 +16050,13 @@ impl QuestionLine {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("AnswerLine"),
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+        skein_codec::bounds::Node::Named("QuestionResolution"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 33;
+    pub const ENCODED_AT_ZERO: u64 = 83;
 }
 
 impl Record for QuestionLine {
@@ -15611,6 +16084,7 @@ impl Record for QuestionLine {
         field::write(field::U64, &self.message, limits, out, paths::QUESTION_LINE_MESSAGE)?;
         field::write(field::U64, &self.line, limits, out, paths::QUESTION_LINE_LINE)?;
         field::write(field::Optional { item: field::Nested }, &self.answer, limits, out, paths::QUESTION_LINE_ANSWER)?;
+        field::write(field::Optional { item: field::Nested }, &self.resolution, limits, out, paths::QUESTION_LINE_RESOLUTION)?;
         Ok(())
     }
 
@@ -15619,6 +16093,7 @@ impl Record for QuestionLine {
             message: field::read(field::U64, limits, reader, paths::QUESTION_LINE_MESSAGE)?,
             line: field::read(field::U64, limits, reader, paths::QUESTION_LINE_LINE)?,
             answer: field::read(field::Optional { item: field::Nested }, limits, reader, paths::QUESTION_LINE_ANSWER)?,
+            resolution: field::read(field::Optional { item: field::Nested }, limits, reader, paths::QUESTION_LINE_RESOLUTION)?,
         })
     }
 }
@@ -16211,7 +16686,7 @@ impl Record for TaskHistory {
         field::write(field::U64, &self.last_activity, limits, out, paths::TASK_HISTORY_LAST_ACTIVITY)?;
         field::write(field::Nested, &self.ended_below, limits, out, paths::TASK_HISTORY_ENDED_BELOW)?;
         field::write(field::Nested, &self.ended_delegates, limits, out, paths::TASK_HISTORY_ENDED_DELEGATES)?;
-        field::write(field::Sequence { limit: limits.task_history_question_lines.min(CEILINGS.task_history_question_lines), minimum: 17, item: field::Nested }, &self.question_lines, limits, out, paths::TASK_HISTORY_QUESTION_LINES)?;
+        field::write(field::Sequence { limit: limits.task_history_question_lines.min(CEILINGS.task_history_question_lines), minimum: 18, item: field::Nested }, &self.question_lines, limits, out, paths::TASK_HISTORY_QUESTION_LINES)?;
         field::write(field::U64, &self.hold, limits, out, paths::TASK_HISTORY_HOLD)?;
         field::write(field::Optional { item: field::U64 }, &self.placed, limits, out, paths::TASK_HISTORY_PLACED)?;
         field::write(field::Sequence { limit: limits.task_history_proposal_rows.min(CEILINGS.task_history_proposal_rows), minimum: 16, item: field::Nested }, &self.proposal_rows, limits, out, paths::TASK_HISTORY_PROPOSAL_ROWS)?;
@@ -16235,7 +16710,7 @@ impl Record for TaskHistory {
             last_activity: field::read(field::U64, limits, reader, paths::TASK_HISTORY_LAST_ACTIVITY)?,
             ended_below: field::read(field::Nested, limits, reader, paths::TASK_HISTORY_ENDED_BELOW)?,
             ended_delegates: field::read(field::Nested, limits, reader, paths::TASK_HISTORY_ENDED_DELEGATES)?,
-            question_lines: field::read(field::Sequence { limit: limits.task_history_question_lines.min(CEILINGS.task_history_question_lines), minimum: 17, item: field::Nested }, limits, reader, paths::TASK_HISTORY_QUESTION_LINES)?,
+            question_lines: field::read(field::Sequence { limit: limits.task_history_question_lines.min(CEILINGS.task_history_question_lines), minimum: 18, item: field::Nested }, limits, reader, paths::TASK_HISTORY_QUESTION_LINES)?,
             hold: field::read(field::U64, limits, reader, paths::TASK_HISTORY_HOLD)?,
             placed: field::read(field::Optional { item: field::U64 }, limits, reader, paths::TASK_HISTORY_PLACED)?,
             proposal_rows: field::read(field::Sequence { limit: limits.task_history_proposal_rows.min(CEILINGS.task_history_proposal_rows), minimum: 16, item: field::Nested }, limits, reader, paths::TASK_HISTORY_PROPOSAL_ROWS)?,
@@ -16514,7 +16989,7 @@ impl TaskDefinition {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 337;
+    pub const ENCODED_AT_ZERO: u64 = 355;
 }
 
 impl Record for TaskDefinition {
@@ -16606,7 +17081,7 @@ impl InboxItem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 61;
+    pub const ENCODED_AT_ZERO: u64 = 66;
 }
 
 impl Record for InboxItem {
@@ -16736,7 +17211,7 @@ impl Record for TaskInterests {
         field::write(field::Nested, &self.wake, limits, out, paths::TASK_INTERESTS_WAKE)?;
         field::write(field::U32, &self.turn, limits, out, paths::TASK_INTERESTS_TURN)?;
         field::write(field::U64, &self.last_message, limits, out, paths::TASK_INTERESTS_LAST_MESSAGE)?;
-        field::write(field::Sequence { limit: limits.task_interests_inbox.min(CEILINGS.task_interests_inbox), minimum: 27, item: field::Nested }, &self.inbox, limits, out, paths::TASK_INTERESTS_INBOX)?;
+        field::write(field::Sequence { limit: limits.task_interests_inbox.min(CEILINGS.task_interests_inbox), minimum: 28, item: field::Nested }, &self.inbox, limits, out, paths::TASK_INTERESTS_INBOX)?;
         field::write(field::Sequence { limit: limits.task_interests_saved.min(CEILINGS.task_interests_saved), minimum: 6, item: field::Nested }, &self.saved, limits, out, paths::TASK_INTERESTS_SAVED)?;
         field::write(field::Nested, &self.ever_turned, limits, out, paths::TASK_INTERESTS_EVER_TURNED)?;
         field::write(field::U32, &self.made, limits, out, paths::TASK_INTERESTS_MADE)?;
@@ -16756,7 +17231,7 @@ impl Record for TaskInterests {
             wake: field::read(field::Nested, limits, reader, paths::TASK_INTERESTS_WAKE)?,
             turn: field::read(field::U32, limits, reader, paths::TASK_INTERESTS_TURN)?,
             last_message: field::read(field::U64, limits, reader, paths::TASK_INTERESTS_LAST_MESSAGE)?,
-            inbox: field::read(field::Sequence { limit: limits.task_interests_inbox.min(CEILINGS.task_interests_inbox), minimum: 27, item: field::Nested }, limits, reader, paths::TASK_INTERESTS_INBOX)?,
+            inbox: field::read(field::Sequence { limit: limits.task_interests_inbox.min(CEILINGS.task_interests_inbox), minimum: 28, item: field::Nested }, limits, reader, paths::TASK_INTERESTS_INBOX)?,
             saved: field::read(field::Sequence { limit: limits.task_interests_saved.min(CEILINGS.task_interests_saved), minimum: 6, item: field::Nested }, limits, reader, paths::TASK_INTERESTS_SAVED)?,
             ever_turned: field::read(field::Nested, limits, reader, paths::TASK_INTERESTS_EVER_TURNED)?,
             made: field::read(field::U32, limits, reader, paths::TASK_INTERESTS_MADE)?,
@@ -17133,6 +17608,7 @@ pub struct BeforeTalk {
     pub asked_requester: bool,
     pub question_woken: u64,
     pub words_woken: u64,
+    pub held_since: Option<u64>,
 }
 
 // Record: BeforeTalk.
@@ -17153,11 +17629,13 @@ impl BeforeTalk {
         skein_codec::bounds::Node::Scalar(1),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 15 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 16] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1313;
+    pub const ENCODED_AT_ZERO: u64 = 1340;
 }
 
 impl Record for BeforeTalk {
@@ -17194,6 +17672,7 @@ impl Record for BeforeTalk {
         field::write(field::Boolean, &self.asked_requester, limits, out, paths::BEFORE_TALK_ASKED_REQUESTER)?;
         field::write(field::U64, &self.question_woken, limits, out, paths::BEFORE_TALK_QUESTION_WOKEN)?;
         field::write(field::U64, &self.words_woken, limits, out, paths::BEFORE_TALK_WORDS_WOKEN)?;
+        field::write(field::Optional { item: field::U64 }, &self.held_since, limits, out, paths::BEFORE_TALK_HELD_SINCE)?;
         Ok(())
     }
 
@@ -17211,6 +17690,7 @@ impl Record for BeforeTalk {
             asked_requester: field::read(field::Boolean, limits, reader, paths::BEFORE_TALK_ASKED_REQUESTER)?,
             question_woken: field::read(field::U64, limits, reader, paths::BEFORE_TALK_QUESTION_WOKEN)?,
             words_woken: field::read(field::U64, limits, reader, paths::BEFORE_TALK_WORDS_WOKEN)?,
+            held_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::BEFORE_TALK_HELD_SINCE)?,
         })
     }
 }
@@ -17289,7 +17769,7 @@ impl TaskRecord {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1355;
+    pub const ENCODED_AT_ZERO: u64 = 1382;
 }
 
 impl Record for TaskRecord {
@@ -17413,7 +17893,7 @@ impl Record for HotHistory {
         field::write(field::U64, &self.last_activity, limits, out, paths::HOT_HISTORY_LAST_ACTIVITY)?;
         field::write(field::Nested, &self.ended_below, limits, out, paths::HOT_HISTORY_ENDED_BELOW)?;
         field::write(field::Nested, &self.ended_delegates, limits, out, paths::HOT_HISTORY_ENDED_DELEGATES)?;
-        field::write(field::Sequence { limit: limits.hot_history_question_lines.min(CEILINGS.hot_history_question_lines), minimum: 17, item: field::Nested }, &self.question_lines, limits, out, paths::HOT_HISTORY_QUESTION_LINES)?;
+        field::write(field::Sequence { limit: limits.hot_history_question_lines.min(CEILINGS.hot_history_question_lines), minimum: 18, item: field::Nested }, &self.question_lines, limits, out, paths::HOT_HISTORY_QUESTION_LINES)?;
         field::write(field::U64, &self.hold, limits, out, paths::HOT_HISTORY_HOLD)?;
         field::write(field::Optional { item: field::U64 }, &self.placed, limits, out, paths::HOT_HISTORY_PLACED)?;
         field::write(field::Sequence { limit: limits.hot_history_proposal_rows.min(CEILINGS.hot_history_proposal_rows), minimum: 16, item: field::Nested }, &self.proposal_rows, limits, out, paths::HOT_HISTORY_PROPOSAL_ROWS)?;
@@ -17436,7 +17916,7 @@ impl Record for HotHistory {
             last_activity: field::read(field::U64, limits, reader, paths::HOT_HISTORY_LAST_ACTIVITY)?,
             ended_below: field::read(field::Nested, limits, reader, paths::HOT_HISTORY_ENDED_BELOW)?,
             ended_delegates: field::read(field::Nested, limits, reader, paths::HOT_HISTORY_ENDED_DELEGATES)?,
-            question_lines: field::read(field::Sequence { limit: limits.hot_history_question_lines.min(CEILINGS.hot_history_question_lines), minimum: 17, item: field::Nested }, limits, reader, paths::HOT_HISTORY_QUESTION_LINES)?,
+            question_lines: field::read(field::Sequence { limit: limits.hot_history_question_lines.min(CEILINGS.hot_history_question_lines), minimum: 18, item: field::Nested }, limits, reader, paths::HOT_HISTORY_QUESTION_LINES)?,
             hold: field::read(field::U64, limits, reader, paths::HOT_HISTORY_HOLD)?,
             placed: field::read(field::Optional { item: field::U64 }, limits, reader, paths::HOT_HISTORY_PLACED)?,
             proposal_rows: field::read(field::Sequence { limit: limits.hot_history_proposal_rows.min(CEILINGS.hot_history_proposal_rows), minimum: 16, item: field::Nested }, limits, reader, paths::HOT_HISTORY_PROPOSAL_ROWS)?,
@@ -17511,7 +17991,7 @@ impl HotDefinition {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 239;
+    pub const ENCODED_AT_ZERO: u64 = 257;
 }
 
 impl Record for HotDefinition {
@@ -17596,6 +18076,7 @@ pub struct LiveHot {
     pub talk: Option<Talk>,
     pub concluded: Option<Concluded>,
     pub words_woken: u64,
+    pub held_since: Option<u64>,
 }
 
 // Record: LiveHot.
@@ -17620,11 +18101,13 @@ impl LiveHot {
         skein_codec::bounds::Node::Named("Concluded"),
         skein_codec::bounds::Node::Option { item: 16 },
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 17, 18] },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 19 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 17, 18, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1252;
+    pub const ENCODED_AT_ZERO: u64 = 1279;
 }
 
 impl Record for LiveHot {
@@ -17663,6 +18146,7 @@ impl Record for LiveHot {
         field::write(field::Optional { item: field::Nested }, &self.talk, limits, out, paths::LIVE_HOT_TALK)?;
         field::write(field::Optional { item: field::Nested }, &self.concluded, limits, out, paths::LIVE_HOT_CONCLUDED)?;
         field::write(field::U64, &self.words_woken, limits, out, paths::LIVE_HOT_WORDS_WOKEN)?;
+        field::write(field::Optional { item: field::U64 }, &self.held_since, limits, out, paths::LIVE_HOT_HELD_SINCE)?;
         Ok(())
     }
 
@@ -17682,6 +18166,7 @@ impl Record for LiveHot {
             talk: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LIVE_HOT_TALK)?,
             concluded: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LIVE_HOT_CONCLUDED)?,
             words_woken: field::read(field::U64, limits, reader, paths::LIVE_HOT_WORDS_WOKEN)?,
+            held_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LIVE_HOT_HELD_SINCE)?,
         })
     }
 }
@@ -18931,7 +19416,7 @@ impl Value {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1356;
+    pub const ENCODED_AT_ZERO: u64 = 1383;
 }
 
 impl Record for Value {
@@ -19083,7 +19568,7 @@ impl Row {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1362;
+    pub const ENCODED_AT_ZERO: u64 = 1389;
 }
 
 impl Record for Row {
@@ -21471,6 +21956,60 @@ impl Record for RefusalConcluded {
     }
 }
 
+// Type: RefusalQuestionAnswered.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct RefusalQuestionAnswered {
+    pub question: u64,
+    pub by: QuestionAnswerer,
+}
+
+// Record: RefusalQuestionAnswered.
+impl RefusalQuestionAnswered {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("QuestionAnswerer"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 17;
+}
+
+impl Record for RefusalQuestionAnswered {
+    type Limits = Limits;
+    const TAIL: Path = paths::REFUSAL_QUESTION_ANSWERED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusalQuestionAnswered")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "RefusalQuestionAnswered")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.question, limits, out, paths::REFUSAL_QUESTION_ANSWERED_QUESTION)?;
+        field::write(field::Nested, &self.by, limits, out, paths::REFUSAL_QUESTION_ANSWERED_BY)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            question: field::read(field::U64, limits, reader, paths::REFUSAL_QUESTION_ANSWERED_QUESTION)?,
+            by: field::read(field::Nested, limits, reader, paths::REFUSAL_QUESTION_ANSWERED_BY)?,
+        })
+    }
+}
+
 // Type: Refusal.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Refusal {
@@ -21523,6 +22062,7 @@ pub enum Refusal {
     NoTalk,
     Concluded(RefusalConcluded),
     Unreported,
+    QuestionAnswered(RefusalQuestionAnswered),
 }
 
 // Record: Refusal.
@@ -21577,11 +22117,12 @@ impl Refusal {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Named("RefusalConcluded"),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48] },
+        skein_codec::bounds::Node::Named("RefusalQuestionAnswered"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 9;
+    pub const ENCODED_AT_ZERO: u64 = 18;
 }
 
 impl Record for Refusal {
@@ -21656,6 +22197,7 @@ impl Record for Refusal {
             Self::NoTalk => field::put(out, &[46], paths::REFUSAL_TAG),
             Self::Concluded(value) => { field::put(out, &[47], paths::REFUSAL_TAG)?; value.write(limits, out) },
             Self::Unreported => field::put(out, &[48], paths::REFUSAL_TAG),
+            Self::QuestionAnswered(value) => { field::put(out, &[49], paths::REFUSAL_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -21711,7 +22253,8 @@ impl Record for Refusal {
             46 => Ok(Self::NoTalk),
             47 => Ok(Self::Concluded(RefusalConcluded::read(limits, reader)?)),
             48 => Ok(Self::Unreported),
-            49..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
+            49 => Ok(Self::QuestionAnswered(RefusalQuestionAnswered::read(limits, reader)?)),
+            50..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -21740,7 +22283,7 @@ impl TaskProblem {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 79;
+    pub const ENCODED_AT_ZERO: u64 = 88;
 }
 
 impl Record for TaskProblem {
@@ -22641,6 +23184,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "HoldRow", nodes: HoldRow::SHAPE },
     skein_codec::bounds::Declaration { name: "HoldScope", nodes: HoldScope::SHAPE },
     skein_codec::bounds::Declaration { name: "HoldSource", nodes: HoldSource::SHAPE },
+    skein_codec::bounds::Declaration { name: "HoldWait", nodes: HoldWait::SHAPE },
     skein_codec::bounds::Declaration { name: "Holding", nodes: Holding::SHAPE },
     skein_codec::bounds::Declaration { name: "HotDefinition", nodes: HotDefinition::SHAPE },
     skein_codec::bounds::Declaration { name: "HotHistory", nodes: HotHistory::SHAPE },
@@ -22695,6 +23239,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "PersonAddress", nodes: PersonAddress::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonAnswer", nodes: PersonAnswer::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonExecutor", nodes: PersonExecutor::SHAPE },
+    skein_codec::bounds::Declaration { name: "PersonOffer", nodes: PersonOffer::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonProposal", nodes: PersonProposal::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonProposalState", nodes: PersonProposalState::SHAPE },
     skein_codec::bounds::Declaration { name: "PersonStallNotice", nodes: PersonStallNotice::SHAPE },
@@ -22721,8 +23266,13 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "ProposedProcedureEffect", nodes: ProposedProcedureEffect::SHAPE },
     skein_codec::bounds::Declaration { name: "ProposedSettings", nodes: ProposedSettings::SHAPE },
     skein_codec::bounds::Declaration { name: "ProposedWidening", nodes: ProposedWidening::SHAPE },
+    skein_codec::bounds::Declaration { name: "QuestionAnswerNotice", nodes: QuestionAnswerNotice::SHAPE },
+    skein_codec::bounds::Declaration { name: "QuestionAnswerer", nodes: QuestionAnswerer::SHAPE },
     skein_codec::bounds::Declaration { name: "QuestionCredit", nodes: QuestionCredit::SHAPE },
     skein_codec::bounds::Declaration { name: "QuestionLine", nodes: QuestionLine::SHAPE },
+    skein_codec::bounds::Declaration { name: "QuestionOffer", nodes: QuestionOffer::SHAPE },
+    skein_codec::bounds::Declaration { name: "QuestionRelay", nodes: QuestionRelay::SHAPE },
+    skein_codec::bounds::Declaration { name: "QuestionResolution", nodes: QuestionResolution::SHAPE },
     skein_codec::bounds::Declaration { name: "Recurring", nodes: Recurring::SHAPE },
     skein_codec::bounds::Declaration { name: "RecurringOverlap", nodes: RecurringOverlap::SHAPE },
     skein_codec::bounds::Declaration { name: "RecurringState", nodes: RecurringState::SHAPE },
@@ -22737,6 +23287,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "RefusalLlm", nodes: RefusalLlm::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusalPersonRevision", nodes: RefusalPersonRevision::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusalPlaced", nodes: RefusalPlaced::SHAPE },
+    skein_codec::bounds::Declaration { name: "RefusalQuestionAnswered", nodes: RefusalQuestionAnswered::SHAPE },
     skein_codec::bounds::Declaration { name: "RefusedRetry", nodes: RefusedRetry::SHAPE },
     skein_codec::bounds::Declaration { name: "RejectedEscalation", nodes: RejectedEscalation::SHAPE },
     skein_codec::bounds::Declaration { name: "RejectedPersonProposal", nodes: RejectedPersonProposal::SHAPE },
@@ -22890,6 +23441,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.circle_tasks,
     CEILINGS.hold_account_words,
     CEILINGS.hold_preparation_words,
+    CEILINGS.hold_wait_words,
     CEILINGS.rejected_proposal_reason,
     CEILINGS.amendment_instructions_some,
     CEILINGS.amendment_dependencies_some,
@@ -22915,7 +23467,9 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.stood_line_words,
     CEILINGS.rejected_escalation_reason,
     CEILINGS.recurring_state_last_batch,
+    CEILINGS.question_relay_words,
     CEILINGS.saved_resource_path,
+    CEILINGS.question_answer_notice_words,
     CEILINGS.task_history_question_lines,
     CEILINGS.task_history_proposal_rows,
     CEILINGS.task_history_instructions_some,

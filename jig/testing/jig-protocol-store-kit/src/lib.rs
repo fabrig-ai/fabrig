@@ -605,7 +605,7 @@ pub fn people_asks() -> Box<[people::Ask]> {
         Ask::AccountSignIn { holder: people::AccountHolder::Own, provider: 2 },
         Ask::AccountSignOut { holder: people::AccountHolder::Deployment, source: 3 },
         holds::adopt(),
-        Ask::Stop { project: 1, task: 2 },
+        Ask::Stop { project: 1, task: 2, reason: b"Parking the task".as_slice().into() },
         Ask::Cancel { project: 1, task: 2, reason: Box::new([3]), grace: Some(skein_lib::Duration::from_secs(5)) },
         Ask::Release { project: 1, task: 2, revision: 3, again: Some(true) },
         Ask::TakePerson { project: 1, task: 2 },
@@ -848,7 +848,7 @@ fn people_compounds() -> [people::Ask; 3] {
         ]),
         people_compound([
             people::Operation::Message { task: 2, words: Box::new([3]) },
-            people::Operation::Stop { task: 2 },
+            people::Operation::Stop { task: 2, reason: b"Parking the task".as_slice().into() },
         ]),
     ]
 }
