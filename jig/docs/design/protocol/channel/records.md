@@ -8,24 +8,24 @@ answer, and a **notice** is not answered.
 
 | Record | Fields | Shape |
 |---|---|---|
-| hello | slots; stop bound, a duration; the agent's bounds: for each endpoint it serves, its number and the largest window and output a charter may name on it; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (`README.md`, 4.3); the longest host answer its agent takes, in bytes, if it names one (`../../domain/hosts/README.md`, section 2); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement; `fresh`, whether no hello of the worker's process has yet been admitted, from the workers' wire 19 (`../../domain/engine/executors.md`, 6.5) | first, once |
+| hello | slots; stop bound, a duration; the agent's bounds: for each endpoint it serves, its number and the largest window and output a charter may name on it; the endpoint numbers that serve programs; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (`README.md`, 4.3); the longest host answer its agent takes, in bytes, if it names one (`../../domain/hosts/README.md`, section 2); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns, parts or answer wait for acknowledgement; `fresh`, whether no hello of the worker's process has yet been admitted (`../../domain/engine/executors.md`, 6.5), with the schema's default `false` for a layout without the field (`layouts.md`, 2.2) | first, once |
 | turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (jig/docs/design/protocol/channel/owners.md, 1.1) | notice, kept by the hub until acknowledged |
 | part | task, attempt; its number within the attempt, apart from turns; the turn it belongs to, as a turn's number in the attempt; its thread and its call, numbers smith gives; its kind, `answer`, `result` or `window`; its bytes, smith's turn (smith's `domain/turn-parts.md`, section 2), (5) | notice, kept by the hub until acknowledged; sent only where the engine's terms list it (`layouts.md`, 4.2) |
-| call | task, attempt; the run's name for the call, as bytes (`README.md`, section 6); the host tool's name; whether it writes; its input; the time left on its deadline; the version of the host's tools contract its run's charter names (`../../domain/hosts/hub.md`, 8), 1 for a call from an older worker | call |
+| call | task, attempt; the run's name for the call, as bytes (`README.md`, section 6); the host tool's name; whether it writes; its input; the time left on its deadline; `contract`, the required `u16` version of the host's tools contract its run's charter names (`../../domain/hosts/hub.md`, 8), with no default: no Read plan derives from a layout without the field (`layouts.md`, sections 2.2 and 3) | call |
 | answer | task, attempt; the turns it took; what it spent; the last message it read, by name, if any: the unread fence; the messages refused since the run's last turn, each by name with smith's reason, as a turn carries them; how it ended: refused (busy, or invalid and what), ended with its result, smith's bytes (`owners.md`, 1.1), parked, or failed with its typed failure and bounded detail, and, for a failure of its model, the model call where its application names one: endpoint and model, each at most 40 bytes, its kind, its evidence, its HTTP status, if one came, and the name of its refusal's cause, if it was refused before it was sent (`../../domain/hosts/hub.md`, 3); what it left on resources and what it saved, each the application's bytes (`owners.md`, 1.2) | answer to an assignment, kept by the hub until acknowledged; a refusal, kept by nothing (below) |
 | job answer | task, attempt; how it ended: refused (busy, or invalid and what), finished with its result, the application's bytes, or failed with its typed failure and bounded detail (4); what it left on resources, the application's bytes (`owners.md`, 1.2) | answer to a job, kept by the hub until acknowledged; a refusal, kept by nothing |
 | fact | task, attempt; its value, activity or a piece (the schema's `FactValue`, so that "activity" stays the name of what carries no content): activity: the run's phase, a long operation begun (checks, an LLM completion or a command, with its span) or ended, or a count from smith's channel facts (its kind, its time, its count), all jig's typed activity, never smith's bytes; or a piece of live content: its turn, retry, kind (`text`, `reasoning` or `input`) and offset, and its bytes, when the assignment asked; or, from a host that gives it, a tool begun with its call's name, its tool and its input (`owners.md`, 1.4) | notice, best effort |
-| limited | task, attempt; an LLM account and its source; how long until it may be used again, only where its provider said | notice |
-| refused | task, attempt; an LLM account and its source; its provider's code and reason, as text within the detail's bound | notice |
-| unauthorized | task, attempt; an LLM account and its source; the generation its provider refused, or whose program login was lost | notice |
-| usage | task, attempt; an LLM account and its source, as limited's; one usage window (below) | notice |
+| limited | task, attempt; the LLM grant's source number (`account`); how long until it may be used again, only where its provider said | notice |
+| refused | task, attempt; the LLM grant's source number, as limited's; its provider's code and reason, as text within the detail's bound and their respective wire ceilings of 128 and 512 bytes | notice |
+| unauthorized | task, attempt; the LLM grant's source number, as limited's; the generation its provider refused, or whose program login was lost | notice |
+| usage | task, attempt; the LLM grant's source number, as limited's; one usage window (below) | notice |
 | logins | for each program source the engine named (2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/host.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../../domain/accounts-lists.md`, 1) | notice: once checked after each `sources`, then on each change |
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
-| list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../../domain/hosts/README.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
+| list read | a read's number; at most 256 rows, each a name of at most 128 bytes, an optional shown name of at most 64, an optional window, an optional output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../../domain/hosts/README.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
 | usage read | a read's number; at most 8 usage windows (below), or not signed in, spent, or failed with the source's failure and bounded detail, as `logins`' (`../../domain/hosts/README.md`, 5.1) | answer to a read usage, best effort as a list read's |
 | draining | none: the worker has started to shut down, and the fleet places nothing more on this channel (`../../domain/engine/fleet.md`) | notice: once as its shutdown begins, before anything its cancelled runs send, and again after each hello while it shuts down (`../../domain/hosts/hub.md`, 7) |
 | ask | task, attempt; the ask's number, the hub's for that attempt; the application's bytes, within the application's largest ask (`../../domain/hosts/hub.md`, 10) | call, answered by `asked` |
-| paused | the worker's state: taking, paused, draining or drained (`pause.md`) | notice: at each change of its state, and again after each hello while it is not taking, where the engine's terms list it (`../../domain/hosts/hub.md`, 7) |
+| paused | the worker's state: taking, paused, draining or drained (`pause.md`) | notice: at each change of its state, after every pause request while not shutting down even if the state stays the same, and again after each hello while it is not taking, where the engine's terms list it (`../../domain/hosts/hub.md`, 7) |
 
 - **A usage window** is a program's report of one window
   (`../../domain/accounts-lists.md`, 1): its label, 1 to 32 printable ASCII
@@ -45,9 +45,9 @@ answer, and a **notice** is not answered.
   distinguish these ordered replacements.
 
 Transcript refusal keeps its typed reason on the channel: `StartCause`
-appends `transcript`, and `RunFailure` appends a unit `transcript` variant.
-The failure's bounded detail carries the diagnostic. Existing variant
-tags stay fixed (`../README.md`, 7).
+has `transcript`, and `RunFailure` has a unit `transcript` variant.
+The failure's bounded detail carries the diagnostic. Plans map variants
+by name across layouts (`layouts.md`, 2.1).
 
 A program that started without its tools keeps its typed reason too:
 `RunFailure` has a unit `untooled` variant
@@ -83,8 +83,10 @@ has `refusal: option text 24 = none`
 - **A refused start is not kept.** An answer that refuses its start
   (busy, a duplicate among them, or invalid, at the entrance or as a
   start the agent refuses; `../../domain/hosts/hub.md`, 1 and 3) crosses
-  once, and no acknowledge follows it (`../../domain/hosts/hub.md`, 2;
-  `../../domain/engine/fleet.md`).
+  once. No acknowledge follows a matched refusal; the fleet acknowledges
+  and drops one for an unknown, crossed, fenced or already acknowledged
+  attempt
+  (`../../domain/hosts/hub.md`, 2; `../../domain/engine/fleet.md`).
 - **A call the run withdraws** ends on the worker: the hub answers the run
   that it is withdrawn, or unsent where the link never carried it, and
   drops the engine's answer if one comes (`../../domain/hosts/hub.md`, 2
@@ -106,9 +108,9 @@ has `refusal: option text 24 = none`
   hello.
 - **The accounts' notices are relayed as the run's agent sends them**
   (smith's `protocol/channel.md`, section 4): limited, refused,
-  unauthorized and usage, each naming the account and source by the grant's
-  number. They are LLM accounts' only (`README.md`, section 7), and the core decides
-  what each changes (`../../domain/accounts-sources.md`, 2). Unsupported is the
+  unauthorized and usage, each carrying the grant's source number in
+  `account`. They are LLM accounts' only (`README.md`, section 7), and the
+  core decides what each changes (`../../domain/accounts-sources.md`, 2). Unsupported is the
   run's failure, never a notice. A limited notice preserves an absent
   reset as absent; an explicit zero span is a supplied reset. The core
   converts a supplied span to engine time once on receipt, and the accounts
@@ -119,16 +121,16 @@ has `refusal: option text 24 = none`
 
 | Record | Fields | Shape |
 |---|---|---|
-| assignment | task, attempt; the run's identity, 16 bytes (`README.md`, section 6); the workstream key and the workspace's items, the application's bytes; whether to save unfinished work; the ask for live content, a boolean for each kind (`../../domain/hosts/README.md`, section 2); the charter, smith's bytes; the transcript, when the run resumes: its current window's turns, smith's bytes, from the last that opens a window (`owners.md`, 1.1); the calls committed since its last turn, each with its name, its tool and its answer; the parts kept since its last turn, from the workers' wire 22, each with the attempt that told it, its turn, thread, call, kind and bytes, as a part has them (5); the start's messages: those waiting in the task's inbox, oldest first, as many as the run's inbox takes, each with its name, its sender's label and its words, the rest relayed as message records as the run reads (`../../domain/tasks/messages.md`, 2); its credential grants, each naming its form, which selects the table its value comes from, with their values: a credential with its scheme, or a program source's name (`README.md`, section 7) | call |
-| job | task, attempt; its kind; its spec, the application's bytes; its deadline; the workstream key and the workspace's items, the application's bytes; its credential grants, the application's only (`README.md`, section 7) (4) | call |
-| message | task, attempt; the message's name; its sender's label; its words | notice |
+| assignment | task, attempt; the run's identity, 16 bytes (`README.md`, section 6); an optional workspace: its workstream key and items, the application's bytes; whether to save unfinished work; the ask for live content, a boolean for each kind (`../../domain/hosts/README.md`, section 2); the charter, smith's bytes; the transcript, when the run resumes: its current window's turns, smith's bytes, from the last that opens a window (`owners.md`, 1.1); the calls committed since its last turn, each with its name, its tool and its answer; the parts kept since its last turn, each with the attempt that told it, its turn, thread, call, kind and bytes, as a part has them (5); the start's messages: those waiting in the task's inbox, oldest first, as many as the run's inbox takes, each with its name, its sender's label, its words and `finish_requested`, whether it asks the run to finish (`README.md`, 4.1), the rest relayed as message records as the run reads (`../../domain/tasks/messages.md`, 2); its credential grants, each naming its form, which selects the table its value comes from, with their values: a credential with its scheme, the application's secret, or a program source's name (`README.md`, section 7) | call |
+| job | task, attempt; its kind; its spec, the application's bytes; its deadline; an optional workspace: its workstream key and items, the application's bytes; its credential grants, the application's only (`README.md`, section 7) (4) | call |
+| message | task, attempt; the message's name; its sender's label; its words; `finish_requested`, whether it asks the run to finish (`README.md`, 4.1) | notice |
 | relayed | task, attempt; the call's name; the engine's answer: its text for the LLM and whether it is an error, or busy, to ask again after a backoff | answer to a call |
 | turn kept | task, attempt; the turn's number | notice |
 | turn busy | task, attempt; the turn's number: send it again after a backoff | notice |
-| part kept | task, attempt; the part's number: it and every part before it are durable (5) | notice, where the worker's layout has it |
+| part kept | task, attempt; the part's number: the worker may forget it and every earlier part of the attempt. The engine has durably settled the prefix (a moot body need not be stored), or wants none of it for an unknown or fenced attempt (5) | notice, where the worker's layout has it |
 | part busy | task, attempt; the part's number: send it again after a backoff, as a turn busy | notice, where the worker's layout has it |
 | acknowledge | task, attempt: the answer is durable, or not wanted | notice |
-| cancel | task, attempt | notice, at most one per attempt |
+| cancel | task, attempt | notice, at most one per attempt on each connection; sent again on a redial that lists the still-unanswered attempt to be cancelled |
 | grant | task, attempt; its form, which selects the table its value comes from, jig's accounts' or the application's; its number there, generation, how long it is valid, if it lapses; its value: a credential with its scheme, a program source's name, or the application's secret (`README.md`, section 7) | notice |
 | sources | the program sources this worker may be given, each by its name, the whole list: a source not in it is none of the worker's | notice, after each hello and on each change |
 | check | a program source's name: check its login now, at its holder's asking | notice; `logins` follows |
@@ -137,6 +139,7 @@ has `refusal: option text 24 = none`
 | read usage | a read's number; a program source's name: run the program's usage command on it once (`../../domain/hosts/README.md`, 5.1) | call, answered by `usage read`; where the worker's layout has it |
 | asked | task, attempt; the ask's number; the application's answer, its bytes within the application's largest answer, or refused: the attempt is not its task's live one, or the application answers none (`../../domain/hosts/hub.md`, 10) | answer to an ask, best effort: a number the hub no longer holds is dropped |
 | restarting | the restart wait, in milliseconds: the engine restarts, and asks the worker to keep its runs that long after the link drops (`restart.md`) | notice: at the engine's settled stop, where the worker's layout has it |
+| figures | the worker's places, the engine's limits and its agent settings (`figures.md`, 2) | notice: for a figures opening, or on a link where the worker's layout has it (`figures.md`, 3) |
 | pause | the mode: pause, take no new run or job; drain, pause and drain; resume, take work again (`pause.md`) | notice: at an owner's ask (`../../domain/engine/workers.md`, 5), where the worker's layout has it |
 
 - **The fleet's refusals travel as the records above:** a turn answered
@@ -150,8 +153,10 @@ has `refusal: option text 24 = none`
   parts. Its diagnostic is its reason's words (below), shortened to the
   configured detail bound, empty at zero. The fleet settles this
   refusal through its usual answer route, releasing the reservation;
-  the worker has no start to cancel. Other records that cannot encode
-  are counted and discarded.
+  the worker has no start to cancel. A `read list` that cannot encode is
+  counted and dropped, and answered upward as `ListFailure::Agent` for
+  that read. Except for such requests answered upward, records that
+  cannot encode are counted and discarded.
 - **A record that cannot encode says why.** `jig-protocol-engine-workers`'
   `translate::down` and the records it builds return
   `Result<_, Unencoded>`, never a bare none, and its component renders
@@ -247,13 +252,15 @@ has `refusal: option text 24 = none`
   worker's draining before the answers of the runs its shutdown cancels
   (`../../domain/hosts/hub.md`, 7), and acknowledgements in the order of the
   commits they follow.
-- **After a redial, everything kept goes again,** in order, after the
-  hello: the hub's unacknowledged turns and answers, with the refusals
-  they carry, and its relays still waiting; the engine's program
-  sources, whole, and its current credential grants for every attempt it
-  keeps (`README.md`, section 12 says what the fleet owes for them). A sign out lost
-  with its channel is not sent again: its answer names the host as not
-  signed out. The domains drop what they have seen
+- **After a redial, kept records go again,** in order, after the
+  hello: the hub's unacknowledged turns, parts and answers, with the
+  refusals the turns and answers carry, and its relays still waiting.
+  A retained part is settled locally instead where the engine's terms
+  lack `part` (5). The engine sends its program sources, whole, and its
+  current credential grants for every attempt it keeps (`README.md`,
+  section 12 says what the fleet owes for them). A sign out lost with its
+  channel is not sent again: its answer names the host as not signed out.
+  The domains drop what they have seen
   (`../../domain/engine/fleet.md`; `../../domain/hosts/hub.md`, 6).
 
 ## 4. Jobs
@@ -279,9 +286,9 @@ its own where a run's carry an agent's parts:
   failed, as the job said; its deadline passed; its result past its
   kind's bound; not started, or ended without its capability's word;
   undelivered, its delivery stale, refused or failed; cancelled, by the
-  engine, for lost contact or for shutdown. Invalid, at the entrance,
-  adds to a run's: a kind the worker does not run, and a spec or a
-  deadline past its kind's bounds.
+  engine, for lost contact or for shutdown. A job's invalid start has its
+  own reasons: a kind the worker does not run, a spec or deadline past its
+  kind's bounds, invalid grants, or a start refused with bounded detail.
 - **Hosted, it is listed** in the hello as a run is, its phase preparing,
   starting, active, ending or answered, never waiting, and its answer
   goes again after a redial until acknowledged (3).
@@ -290,9 +297,11 @@ its own where a run's carry an agent's parts:
 
 ## 5. Parts
 
-From the workers' wire 22, a run whose agent tells its turns' parts
-(smith's `domain/turn-parts.md`) sends them up, and a resumed run is
-given back those kept since its last turn.
+A run whose agent tells its turns' parts (smith's `domain/turn-parts.md`)
+sends them up, and a resumed run is given back those kept since its last
+turn. `Assignment.parts` has an empty default; plans judge the two
+layouts, not the field's place (`layouts.md`, 2.2; skein's
+`data/codec/README.md`, sections 3 and 5).
 
 ```
 enum PartKind { answer, result, window }
@@ -300,18 +309,21 @@ record Part { task: u64 attempt: u64 number: u32 turn: u32 thread: u32 call: u32
 record PartKept { task: u64 attempt: u64 number: u32 }
 record PartBusy { task: u64 attempt: u64 number: u32 }
 record KeptPart { attempt: u64 turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 }
-# Assignment, appended last: parts: list 4096 KeptPart = []
+# Assignment's field: parts: bytes 134217728 = 0x
 ```
 
-- **The engine reads none of a part's fields but its numbers and size,**
-  and keeps the rest as it came: its thread, call and kind are smith's
-  numbers, which jig names and never interprets, and its body a turn's
-  bytes in smith's vocabulary (`owners.md`, 1.1; `layouts.md`, 2.1).
-- **Kept until acknowledged, as a turn:** sent at once, again after
-  every hello and after a backoff when the engine answers it busy, and
-  counted with the run's turns against what the hub keeps unacknowledged
-  (`../../domain/hosts/hub.md`, 4). Parts and turns go up in the order
-  the agent told them.
+- **An assignment's parts travel inside one byte envelope.** It holds at
+  most 4,096 `KeptPart` records, each preceded by its four-byte length.
+- **The engine uses the part's numbers and size.** It treats thread zero
+  as the main thread and groups sub-agent parts by call when selecting
+  and fitting them. The core keeps the body's turn bytes opaque; the
+  engine's protocol converts the body as a `Turn` across layouts
+  (`owners.md`, 1.1; `layouts.md`, 2.1).
+- **Kept until acknowledged, as a turn:** where the engine's terms take
+  it, a part goes up at once, again after each hello, and after a backoff
+  when the engine answers it busy. It counts with the run's turns against
+  what the hub keeps unacknowledged (`../../domain/hosts/hub.md`, 4).
+  Parts and turns go up in the order the agent told them.
 - **Numbered apart from turns,** from one in each attempt. Its `turn`
   is the number the turn it belongs to will have in that attempt, the
   last turn told plus one, so a part of turn `n` is moot once turn `n`
@@ -329,7 +341,10 @@ record KeptPart { attempt: u64 turn: u32 thread: u32 call: u32 kind: PartKind bo
   core keeps the parts as it keeps the calls.
 - **Only where the other side has them.** A worker whose engine's terms
   lack `part` asks its agents for no parts, so it sends none
-  (`layouts.md`, 4.2); `part kept` and `part busy` go only to a worker
-  that sent the part they answer; an assignment's part whose body the
-  worker's layout cannot keep is dropped, and that worker's run resumes
-  from its window alone, its cut turn planned again (`layouts.md`, 4.1).
+  (`layouts.md`, 4.2). After a redial whose terms lack `part`, the
+  worker's link answers a retained part with `PartKept` locally instead
+  of sending it. `part kept` and `part busy` go only to a worker that
+  sent the part they answer. For an assignment, the engine drops the kept
+  parts the worker's layout refuses and sends the rest; where the worker's
+  layout has no `parts` field, an assignment with kept parts is refused
+  (`layouts.md`, 4.1).
