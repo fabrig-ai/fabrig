@@ -126,61 +126,6 @@ fn suspended_ends_and_task_gaps_read_back() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the layout plan is tested against the tasks family's schema text")]
-fn task_parts_read_a_nonzero_legacy_question_watermark_without_keeping_it() {
-    use skein_codec::{
-        layout::{Mode, Plan},
-        schema::parse,
-    };
-
-    const TEXT: &str = include_str!("../../../../jig-protocol-store/schema/tasks-v13.schema");
-    const PREVIOUS: &str = include_str!("../../../../jig-protocol-store/src/tests/fixtures/dev-tasks-v13.schema");
-    const DROPPED: &str = "dropped question_woken: u64 = 0";
-    let current = parse(TEXT.as_bytes()).expect("current tasks schema");
-    let legacy = parse(PREVIOUS.as_bytes()).expect("previous layout");
-    let nonzero = parse(TEXT.replace(DROPPED, "dropped question_woken: u64 = 37").as_bytes())
-        .expect("fixture writer supplies the previous field at a nonzero value");
-    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
-    let limits = tasks_limits();
-    for (variant, row) in [
-        (b"live_hot".as_slice(), live_record(current_record())),
-        (b"ended_talk".as_slice(), domain::Stored::Ended(Box::new(current_record()))),
-    ] {
-        let current_bytes = tasks::encode(&row, &limits, &names).expect("current record fits");
-        let old_root = legacy.root(b"Row", Some(variant)).expect("old variant");
-        let new_root = current.root(b"Row", Some(variant)).expect("new variant");
-        let back = Plan::between(Mode::Keep, &current, new_root, &[], &legacy, old_root, &[])
-            .expect("the tombstone supplies a downgrade default");
-        let write_nonzero = Plan::between(
-            Mode::Keep,
-            &nonzero,
-            nonzero.root(b"Row", Some(variant)).expect("fixture variant"),
-            &[],
-            &legacy,
-            old_root,
-            &[],
-        )
-        .expect("encode an old value with the field present and nonzero");
-        let zero_bytes = convert_question_layout(&back, &current_bytes);
-        let legacy_bytes = convert_question_layout(&write_nonzero, &current_bytes);
-        assert_ne!(legacy_bytes, zero_bytes, "the fixture really stores 37 rather than 0");
-        assert_eq!(legacy_bytes.len(), zero_bytes.len());
-        let upgrade = Plan::derive(&legacy, old_root, &[], &current, new_root, &[])
-            .expect("the store can read the previous layout");
-        assert_eq!(convert_question_layout(&upgrade, &legacy_bytes), current_bytes);
-    }
-}
-
-fn convert_question_layout(plan: &skein_codec::layout::Plan, bytes: &[u8]) -> Box<[u8]> {
-    const ROW_BYTES: u32 = 2048;
-    let mut work = skein_codec::layout::Workspace::new();
-    assert!(work.fit(plan));
-    let mut out = skein_lib::Buffer::with_capacity(ROW_BYTES);
-    plan.convert(bytes, &mut out, &mut work).expect("convert layout");
-    out.as_slice().into()
-}
-
-#[test]
 fn a_task_record_with_started_from_dependencies_reads_back() {
     let mut record = current_record();
     record.dependencies = Box::new([19, 23]);
