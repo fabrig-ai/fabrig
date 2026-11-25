@@ -3,29 +3,29 @@ use super::{
     program,
 };
 
-const WEB: &str = "temper/docs/design/client/web/journeys";
-const TUI: &str = "temper/docs/design/client/tui/journeys";
-const WEB_LOOKS: &str = "temper/docs/design/client/web/journeys/looks.html";
-const TUI_LOOKS: &str = "temper/docs/design/client/tui/journeys/looks.html";
+pub(super) const WEB: &str = "temper/docs/design/client/web/journeys";
+pub(super) const TUI: &str = "temper/docs/design/client/tui/journeys";
+pub(super) const WEB_LOOKS: &str = "temper/docs/design/client/web/journeys/looks.html";
+pub(super) const TUI_LOOKS: &str = "temper/docs/design/client/tui/journeys/looks.html";
 const HEADER: &str = "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Look requests rendered · temper</title>\n</head>\n<body>\n<h1>Look requests rendered · temper</h1>\n";
 const FOOTER: &str = "</body>\n</html>\n";
 const STATES: &str = "<p>States the request names in words aren't rendered: its landing's account covers them.</p>\n";
 const TUI_NOTE: &str = "<p>These are the browser's renders of the TUI's frames, not a terminal's.</p>\n";
-const NAME: &str = "calmer-banner";
-const TUI_NAME: &str = "tui-terminal";
-const REQUEST: &str = "1111111111111111111111111111111111111111";
-const BLOB: &str = "2222222222222222222222222222222222222222";
+pub(super) const NAME: &str = "calmer-banner";
+pub(super) const TUI_NAME: &str = "tui-terminal";
+pub(super) const REQUEST: &str = "1111111111111111111111111111111111111111";
+pub(super) const BLOB: &str = "2222222222222222222222222222222222222222";
 const RESTORE: &str = "/writer/.git/journey-pages.lock/restore-paths";
 
 impl Script {
-    fn preserved_git(&mut self, args: &[&str], code: i32, stdout: &str) {
+    pub(super) fn preserved_git(&mut self, args: &[&str], code: i32, stdout: &str) {
         let mut git = program("git", args);
         git.directory = Some(CHECKOUT.into());
         git.stderr = Stream::Keep;
         self.ask(Ask::Run(git), Answer::Ran(Ran::new(Some(code), stdout.as_bytes())));
     }
 
-    fn blob(&mut self, revision: &str, path: &str, contents: Option<&str>) {
+    pub(super) fn blob(&mut self, revision: &str, path: &str, contents: Option<&str>) {
         self.preserved_git(
             &["--literal-pathspecs", "ls-tree", "--full-tree", "-z", revision, "--", path],
             0,
@@ -36,7 +36,7 @@ impl Script {
         }
     }
 
-    fn request_fetch(&mut self, name: &str, exists: bool, code: i32) {
+    pub(super) fn request_fetch(&mut self, name: &str, exists: bool, code: i32) {
         let branch = format!("refs/heads/docs/look/{name}");
         self.command(
             "git",
@@ -54,7 +54,7 @@ impl Script {
         }
     }
 
-    fn request_tip(&mut self, parents: &str, trailers: Option<&str>) {
+    pub(super) fn request_tip(&mut self, parents: &str, trailers: Option<&str>) {
         self.preserved_git(&["rev-parse", "--verify", "FETCH_HEAD^{commit}"], 0, &format!("{REQUEST}\n"));
         self.preserved_git(&["show", "-s", "--format=%P", REQUEST], 0, &format!("{parents}\n"));
         if let Some(trailers) = trailers {
@@ -68,37 +68,64 @@ impl Script {
     }
 
     fn render(&mut self, code: i32, stdout: &str) {
+        self.render_request(NAME, code, stdout);
+    }
+
+    pub(super) fn render_request(&mut self, name: &str, code: i32, stdout: &str) {
         self.command(
             "cargo",
-            &["run", "--locked", "--quiet", "-p", "temper-client-journeys", "--", "look-render", NAME, REQUEST],
+            &["run", "--locked", "--quiet", "-p", "temper-client-journeys", "--", "look-render", name, REQUEST],
             code,
             stdout,
             Stream::Keep,
         );
     }
 
-    fn verdict_only(&mut self, path: &str, line: &str) {
+    pub(super) fn verdict_only(&mut self, path: &str, line: &str) {
         self.status(&format!(" M {path}\0"));
-        let body = format!("{line}\n\nPrinted: {TIP}");
+        let body = if line.is_empty() { format!("Printed: {TIP}") } else { format!("{line}\n\nPrinted: {TIP}") };
         self.commit(&format!("{path}\0"), &body, COMMIT);
         self.push("origin", BRANCH, true);
         self.open(BRANCH, COMMIT, &body, ALLOWED);
     }
+
+    pub(super) fn restore_journeys(&mut self) {
+        let paths = format!("{PAGE}\0{TUI}/terminal/01.txt\0");
+        self.git(&["diff", "--name-only", "--no-renames", "-z", TIP, "--", WEB, TUI], &paths);
+        self.write(RESTORE, &paths);
+        self.command(
+            "git",
+            &[
+                "--literal-pathspecs",
+                "restore",
+                "--source",
+                TIP,
+                "--staged",
+                "--worktree",
+                &format!("--pathspec-from-file={RESTORE}"),
+                "--pathspec-file-nul",
+            ],
+            0,
+            "",
+            Stream::Err,
+        );
+        self.command("git", &["clean", "-ffdx", "--", WEB, TUI], 0, "", Stream::Err);
+    }
 }
 
-fn section(name: &str, commit: &str, landed: &str, result: &str, detail: &str) -> String {
+pub(super) fn section(name: &str, commit: &str, landed: &str, result: &str, detail: &str) -> String {
     let tui = if name == TUI_NAME { TUI_NOTE } else { "" };
     format!(
         "<section data-look-request=\"{name}\" data-look-commit=\"{commit}\" data-look-landed=\"{landed}\" data-look-tip=\"{TIP}\" data-look-result=\"{result}\">\n<h2>{name}</h2>\n<p>Request {commit}, landed by {landed}, printed at {TIP}: {result}.</p>\n{detail}{STATES}{tui}</section>\n"
     )
 }
 
-fn page(entries: &str) -> String {
+pub(super) fn page(entries: &str) -> String {
     let compact = format!("{HEADER}{entries}{FOOTER}").lines().skip(1).collect::<String>();
     format!("<!doctype html>\n{}\n", compact.replace('>', "\n>"))
 }
 
-fn start_with_print(code: i32, lines: &str, landings: &[(&str, &[&str])]) -> Script {
+pub(super) fn start_with_print(code: i32, lines: &str, landings: &[(&str, &[&str])]) -> Script {
     let mut script = Script::fresh(BRANCH, None);
     script.checkout(BRANCH, TIP);
     script.print(code, lines);
@@ -137,6 +164,8 @@ fn a_verdict_for_the_newest_landing_skips_the_request() {
     let mut script = start_with_print(0, FRESH, &[(TIP, &[NAME]), (OTHER, &[NAME])]);
     let html = section(NAME, REQUEST, TIP, "identical", "");
     script.blob(TIP, WEB_LOOKS, Some(&page(&html)));
+    script.request_commit(0);
+    script.added_paths(0, "");
     script.unchanged(TIP, START);
     script.locked_run(&[], 0, &format!("{FRESH}main's pages are {TIP}'s print\n"), "");
 }
@@ -202,29 +231,36 @@ fn an_invalid_request_names_its_tip_instead_of_running_the_renderer() {
     }
 }
 
+pub(super) const STOPPED: &str = "stopped welcome: line 4: missing mark\n";
+
+impl Script {
+    pub(super) fn stopped_request(&mut self) {
+        self.request();
+        self.preserved_git(
+            &["diff-tree", "--no-commit-id", "--name-only", "--no-renames", "-r", "-z", OTHER, REQUEST, "--", WEB, TUI],
+            0,
+            &format!("{PAGE}\0"),
+        );
+        let walk = format!("{WEB}/welcome/walk");
+        let mut tree = program("git", &["--literal-pathspecs", "ls-tree", "--full-tree", "-z", REQUEST, "--", &walk]);
+        tree.stderr = Stream::Keep;
+        self.ask(Ask::Run(tree), Answer::Ran(Ran::new(Some(0), format!("100644 blob {BLOB}\t{walk}\0").as_bytes())));
+        let mut cat = program("git", &["cat-file", "blob", BLOB]);
+        cat.stderr = Stream::Keep;
+        self.ask(Ask::Run(cat), Answer::Ran(Ran::new(Some(0), b"walk 2\n")));
+    }
+}
+
 #[test]
 fn a_request_for_a_stopped_walk_is_pending_without_an_entry() {
-    let printed = "stopped welcome: line 4: missing mark\n";
-    let mut script = start_with_print(1, printed, &[(TIP, &[NAME])]);
+    let mut script = start_with_print(1, STOPPED, &[(TIP, &[NAME])]);
     script.blob(TIP, WEB_LOOKS, None);
-    script.request();
-    script.preserved_git(
-        &["diff-tree", "--no-commit-id", "--name-only", "--no-renames", "-r", "-z", OTHER, REQUEST, "--", WEB, TUI],
-        0,
-        &format!("{PAGE}\0"),
-    );
-    let walk = format!("{WEB}/welcome/walk");
-    let mut tree = program("git", &["--literal-pathspecs", "ls-tree", "--full-tree", "-z", REQUEST, "--", &walk]);
-    tree.stderr = Stream::Keep;
-    script.ask(Ask::Run(tree), Answer::Ran(Ran::new(Some(0), format!("100644 blob {BLOB}\t{walk}\0").as_bytes())));
-    let mut cat = program("git", &["cat-file", "blob", BLOB]);
-    cat.stderr = Stream::Keep;
-    script.ask(Ask::Run(cat), Answer::Ran(Ran::new(Some(0), b"walk 2\n")));
+    script.stopped_request();
     script.unchanged(TIP, START);
     script.locked_run(
         PROJECT,
         1,
-        &format!("{printed}pending {NAME}: welcome stopped\nmain's pages are {TIP}'s print\n"),
+        &format!("{STOPPED}pending {NAME}: welcome stopped\nmain's pages are {TIP}'s print\n"),
         "",
     );
 }
@@ -244,26 +280,7 @@ fn a_failed_fetch_or_render_restores_both_roots_without_finishing_or_offering() 
             script.render(3, "");
             format!("look-render could not check {NAME}")
         };
-        let paths = format!("{PAGE}\0{TUI}/terminal/01.txt\0");
-        script.git(&["diff", "--name-only", "--no-renames", "-z", TIP, "--", WEB, TUI], &paths);
-        script.write(RESTORE, &paths);
-        script.command(
-            "git",
-            &[
-                "--literal-pathspecs",
-                "restore",
-                "--source",
-                TIP,
-                "--staged",
-                "--worktree",
-                &format!("--pathspec-from-file={RESTORE}"),
-                "--pathspec-file-nul",
-            ],
-            0,
-            "",
-            Stream::Err,
-        );
-        script.command("git", &["clean", "-ffdx", "--", WEB, TUI], 0, "", Stream::Err);
+        script.restore_journeys();
         script.locked_run(PROJECT, 1, super::PRINTED, &format!("journey-pages: {why}\n"));
     }
 }
