@@ -139,19 +139,7 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v22::Limits) -
             frame(0x0107, record.encode(limits).ok()?)
         }
         host::LinkUp::Part { run, attempt, part } => part_frame(run, attempt, part, limits),
-        host::LinkUp::Turn { run, attempt, turn } => {
-            let record = wire::Turn {
-                task: token_to_record(&run),
-                attempt: token_to_record(&attempt),
-                number: turn.turn,
-                spent: turn.spent,
-                read: name(turn.read),
-                opens_window: turn.opens_window,
-                refused: refused(turn.refused, limits)?,
-                body: turn.body,
-            };
-            frame(0x0101, record.encode(limits).ok()?)
-        }
+        host::LinkUp::Turn { run, attempt, turn } => turn_frame(run, attempt, turn, limits),
         host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
             let record = wire::Call {
                 task: token_to_record(&run),
@@ -178,6 +166,19 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v22::Limits) -
             frame(0x0103, record.encode(limits).ok()?)
         }
     }
+}
+fn turn_frame(run: Token, attempt: Token, turn: host::Turn, limits: &wire::v22::Limits) -> Option<Frame> {
+    let record = wire::Turn {
+        task: token_to_record(&run),
+        attempt: token_to_record(&attempt),
+        number: turn.turn,
+        spent: turn.spent,
+        read: name(turn.read),
+        opens_window: turn.opens_window,
+        refused: refused(turn.refused, limits)?,
+        body: turn.body,
+    };
+    frame(0x0101, record.encode(limits).ok()?)
 }
 fn job_answer_frame(
     run: Token,
