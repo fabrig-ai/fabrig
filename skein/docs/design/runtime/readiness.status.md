@@ -2,12 +2,6 @@
 
 2026-11-25. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
-- **Not yet:** 3: the backend makes non-blocking and records only the
-  parent's end of each pipe a `Spawn` makes. Today its success handler
-  expects a parent end for every way but an inherited stream, so a
-  `Spawn` handing the child `/dev/null` (`Way::Null`), which has none,
-  panics. That stops `temper box` at its first spawn on macOS, and on
-  Linux without io_uring. [in flight: change 18357]
 - **Departs:**  the trust-count reporting departure remains `shell-startup.status.md`, 1.2.
    the user's request of 2026-11-04 asked each part of its
   round to end with fewer lines than it started; the part that built `store_file`
