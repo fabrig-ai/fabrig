@@ -58,7 +58,7 @@ Code judges each outcome once, by one function, the same at every site (3.4):
 
 - **A project setting**, `checks.flakes`: `none`, or `rerun N`, N at most the deployment's `checkout.rerun_processes`. Stock: `rerun` at that figure, as today.
 - **With `none`:** every checkout temper prepares or dispatches for the project's checks, on a worker or a CI runner, has `temper-rerun 1 0` (`../domain/forge/reds.md`, 5.2). The landing gate runs no known-flake rerun (`../domain/landing-regate.md`, 2), and no flake finding is filed for the project. A test that fails is the change's red, or a repair shows it isn't (5). A test that passes alone after failing beside others is still red, its log naming the tests before it, as today.
-- **fabrig's is `none`** (the user, 2026-11-25: pre-PR "is deterministic and shouldn't flake"): its checks run only tests that replay, which own their clock, seeds and kernel (`tools/tiers/layers.md`, 6.1). A test that fails and then passes is a determinism bug, to be fixed where it lies.
+- **fabrig's is `none`** (the user, 2026-11-25: pre-PR "is deterministic and shouldn't flake", and the landing gate's known-flake rerun goes with it): its checks run only tests that replay, which own their clock, seeds and kernel (`tools/tiers/layers.md`, 6.1). A test that fails and then passes is a determinism bug, to be fixed where it lies.
 
 ### 3.4 At each site
 
