@@ -25,7 +25,8 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **Files in, files out:** a request file in JSON, the repositories as
   git directories, and a result file in JSON, each bounded.
 - **The exit code says which:** 0, a candidate, a merge settled, or a
-  goal's branch settled; 3, a conflict it could not settle; anything
+  goal's branch settled; 3, a conflict it could not settle, or a goal's
+  close check refused where temper asked for that (4.2); anything
   else, the command's own failure.
 - **Deterministic by contract:** the same request gives the same
   candidate's tree, so that a candidate prepared again keeps its keys.
@@ -40,8 +41,9 @@ what they write, and how they end. temper runs them as jobs on a worker
   `close`.
 - **Its environment** is `PATH` from the worker's configuration,
   `HOME` the job's directory, `LANG=C.UTF-8`, `TEMPER_JOB` the job's
-  directory, and nothing else: no credential, no token, no variable of
-  the worker's.
+  directory, `TEMPER_CLOSE_REFUSAL=3` for a close whose job asks for a
+  typed refusal (4.2), and nothing else: no credential, no token, no
+  variable of the worker's.
 - **Its time** is the project's `prepare_timeout`, or for `merge` and
   `close` its kind's deadline (4.1, 4.2), after which it and its
   children are killed and the job fails.
@@ -334,14 +336,51 @@ keeps of a goal's work in its own files.
   all the same: its entry is deleted when its change landed, and
   otherwise the tag alone goes, with the space before it, the
   punctuation staying.
+- **A close may check what it settles,** as fabrig's `.temper/checked-close`
+  does: it settles, then runs pre-PR's close check over the staged tree
+  (`tools/pre-pr/design.md`, 4.1). The check's verdict is the close's:
+  passed, refused by the goal's own failures, or not judged, the check
+  having broken (`../draft/whose-red.md`, 3.1).
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
   change ends with no change (`../domain/forge/change/README.md`, 1).
-- **Any other exit,** or a result missing or past its bound: the
-  command's failure, its stderr's last `tooling_log_bytes` kept; the
-  close change's producer fails and holds it (`../domain/forge/change/repairs.md`),
-  which escalates to the goal (11.2 there).
+- **`result.json`, exit 3, refused,** only where the command's
+  environment holds `TEMPER_CLOSE_REFUSAL=3`: the goal's branch was
+  checked and refused,
+  `{"refused":{"head":H,"tree":T,"base":B,"counts":C,"failures":[NAME],"more":N}}`.
+  H is the commit the job's checkout was at, the goal's branch's tip it
+  settled; T the tree it checked, the settled one; B the base it compared
+  with, `null` without one; C the commit of `refs/temper/counts` whose
+  counts it judged against, `null` where it read none there; each NAME a
+  failure of the goal's own, as the check names it, in the check's order.
+  It is compact JSON with ASCII escapes, members in that order, within
+  the kind's result bound with its newline, the names that fit kept whole
+  and the rest counted in `more`, absent when none is omitted, as
+  `merge`'s are (4.1, *Bounded whole*). Nothing is committed or pushed.
+  The job finishes, spending no try, and the close change holds at once
+  on the refusal (`../domain/forge/change/repairs-releases.md`, 1).
+- **Any other exit,** a signal, the job's deadline, or a result missing
+  or past its bound: the command's failure, the check broke, its stderr's
+  last `tooling_log_bytes` kept. The job fails in the run's own class and
+  is tried again within its tries; past them the close change holds, its
+  words naming the check, not the goal's changes, and escalates to the
+  goal (`../domain/forge/change/repairs-releases.md`, 1).
+- **Asked for at both ends.** `request.json` stays version 1, since a
+  command of an earlier build refuses any other. The engine asks for the
+  refusal in the close job's spec, which only a worker whose layout keeps
+  the ask is sent (`wires.md`, 8; `../domain/worker/jobs.md`, 2), and
+  that worker sets `TEMPER_CLOSE_REFUSAL=3` (2). A command that doesn't
+  see it exits as before, so a refusal never reaches a build that would
+  read a finished close with nothing pushed as one with nothing to
+  settle.
+- **Checked against its attempt.** The engine takes a finished close as a
+  refusal only when its job asked for one, its result is `refused`, its
+  `head` is the commit that job's checkout started at, and nothing was
+  pushed; as settlement it takes only `settled`. Any other finished
+  result is the command's failure. The engine knows the commit, not the
+  tree settlement makes of it; the close is deterministic by contract,
+  so the commit and the job's fixed request give the tree.
 - **Deterministic by contract,** as `merge`: the same tree and request
   give the same staged tree, and a second run over its own commit stages
   nothing.

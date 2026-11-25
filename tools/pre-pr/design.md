@@ -39,9 +39,10 @@ main, so a close starts from the newest of main's published commits
 holds: main as the goal last merged it. Without one it takes
 `refs/remotes/origin/main` where the checkout has it. A merge of main brings main's paths in too,
 which only widens the checks. With no base reference, outside a git
-checkout, or at a close whose base is `HEAD` itself, the check refuses and
-names what's missing, checking nothing: the worker's checkout is then not
-what it should be, and is repaired rather than checked whole. The explicit
+checkout, or at a close whose base is `HEAD` itself, the check breaks
+(section 6, *Its outcome*) and names what's missing, checking nothing: the
+worker's checkout is then not what it should be, and is repaired rather
+than checked whole. The explicit
 goal diagnostic alone checks the whole tree.
 
 Rust formatting runs `cargo fmt -p … -- --check` for the workspace
@@ -734,13 +735,41 @@ differently (cargo-spawning boundary tests about 7% lower, client worlds up
 to 22% higher, 2026-11-23), so a layer's sum can swing about 2% between
 them, and a red at close is one the gate would also give.
 
-Temper retries a close that refused as it would one that failed, and each
-attempt gets a fresh checkout. So close saves a refusal made of its own
-verdicts alone (budgets, formatting, old forms, citations, outward names) in
-the worker user's `~/.cache/fabrig-pre-pr/close/`, keyed by the checked tree,
-the base and main's published counts, for a day. An attempt with the same
-key prints that refusal again, with its figures, and checks nothing; a test
-failure, a build or listing fault, or any other input runs afresh.
+**Its typed refusal.** Close exits as any check does (section 6): 0
+passed, 1 refused or broke. A worker that carries a close's typed
+refusal sets `TEMPER_CLOSE_REFUSAL=3` in the job's environment
+(`temper/docs/design/protocol/tooling.md`, 2 and 4.2); with exactly that
+value, and in close mode alone:
+
+- **Refused,** it writes its refusal over the job's
+  `$TEMPER_JOB/result.json`, the settlement's result, once its record
+  (`goal-close-pre-pr 1`) and summary are out, and exits 3.
+- **Broke,** it exits 2 and leaves the result as settlement wrote it.
+- **Passed,** it exits 0, and settlement's result stands.
+- **A refusal it can't write** (no `TEMPER_JOB`, a write that fails) is
+  an error of its own: it exits 2.
+
+The refusal is the tooling protocol's form
+(`temper/docs/design/protocol/tooling.md`, 4.2),
+`{"refused":{"head":H,"tree":T,"base":B,"counts":C,"failures":[NAME],"more":N}}`:
+H the commit its checkout's `HEAD` is at, the goal's tip it settled (the
+record's `goal_head`); T and B the record's tree and base, B `null`
+without one; C the commit `refs/temper/counts` names in its checkout
+where it read main's counts there, else `null` (fetched from the public
+repository, or none); each NAME a new failure's `name` as the record
+lists it, in its order, flakes and inherited ones left out. It is compact
+JSON, `,` and `:` with no spaces and ASCII escapes, members in that
+order, ending in a newline, at most 512 bytes: the names that fit are
+kept whole, in order, the first that doesn't and every one after it
+omitted and counted in `more`, which is absent when none is.
+
+**Nothing is replayed.** A refusal finishes the close job with its
+verdict and holds the close at once, spending no try, and a released
+refusal checks again only once what it judged has moved
+(`temper/docs/design/domain/forge/change/repairs-releases.md`, 1). So the
+cache of hard refusals each worker kept under
+`~/.cache/fabrig-pre-pr/close/` is retired: close reads and writes
+nothing there, and leaves what an earlier build left.
 
 ## 5. Inherited failures
 
@@ -868,16 +897,17 @@ cause.
   but a session may later fit those words to a shorter prefix, so the
   summary's start is what survives, and what must never be lost comes
   first:
-  - `pre-pr: passed` or `pre-pr: refused`, with the base (`base <id>,
+  - `pre-pr: passed`, `pre-pr: refused` or `pre-pr: broke` (*Its
+    outcome*, below), with the base (`base <id>,
     merge base of refs/temper/landing and HEAD`) or that there was none;
   - the failures line, naming the failures file (below) and counting
     its entries by class, the same counts as the file's:
-    `failures: <N> new, <F> flakes, <I> inherited; every key in
+    `failures: <N> new, <F> flakes, <I> inherited, <B> broke; every key in
     target/temper/pre-pr-failures.json`, the file's path from the
     checkout's root, as an agent's `read` takes it in its workspace
     (smith's `smith-protocol-machine` refuses any path with a `.git`
     part, and the check names no such path). Where the file could not be
-    written: `failures: <N> new, <F> flakes, <I> inherited; not written
+    written: `failures: <N> new, <F> flakes, <I> inherited, <B> broke; not written
     to target/temper/pre-pr-failures.json: <error>`, `<error>` the
     error's first line, at most 512 bytes, cut at a character's end;
   - the sets: `lints: <packages>`, `tests: <packages>`;
@@ -904,6 +934,10 @@ cause.
     `inherited: test <binary id> <name> (red, temper/reds)` or
     `inherited: clippy <package> <code> <file> (red, temper/reds)`,
     or an exceeded count as `inherited: old-forms <tree> <form>`;
+  - then each error of the check's own (*Its outcome*): `broke: check
+    <what>`, `<what>` the step it was in (`workspace checks` for an
+    exception of its code, the helper's name for one it couldn't run),
+    then the error's text within the same bound;
   - past 8,192 bytes, the failures it has not room for are counted in
     one line, `[… N more failures]`, the first kept whole; the
     failures file holds each of them.
@@ -929,7 +963,7 @@ cause.
     removed. temper's own files, `temper/reds`, `temper/rerun` and
     `temper/check-results`, stay in the git directory (sections 5 and 6).
   - **When:** after the checks and before the summary prints, by every
-    run that prints a summary, passed or refused, with no failure as with
+    run that prints a summary, passed, refused or broke, with no failure as with
     hundreds, with or without temper's marker; and by a cache hit, marked
     as one (section 7). A run stopped, interrupted or failed before its
     summary writes none, so the last completed check's file stays until
@@ -950,13 +984,15 @@ cause.
 
     - `tree`, the tree the check ran on (section 3; the cache's
       `<tree>`), and `base`, section 2's base, or `null` without one;
-    - `cached`, `true` on a cache hit alone; `verdict`, `passed` or
-      `refused`, as the summary's first line;
-    - `counts`, the entries of each class;
+    - `cached`, `true` on a cache hit alone; `verdict`, `passed`,
+      `refused` or `broke`, as the summary's first line;
+    - `counts`, the entries of each class, `broke` among them;
     - `failures`, one entry for each failure the summary shows or would
       show with room, in its order: the new ones, then the flakes, then
-      the inherited ones. `class` is `new` (this delivery's, refusing),
-      `flake` (section 5) or `inherited`; `name` is the summary's name
+      the inherited ones, then the check's own errors. `class` is `new`
+      (this delivery's, refusing), `flake` (section 5), `inherited` or
+      `broke` (the check's own, with its error's first line as `detail`);
+      `name` is the summary's name
       for it; `key` its structured key: a test's `{"kind": "test",
       "binary", "test"}`, a lint's `{"kind": "lint", "package", "code",
       "file", "message"}` (`code` and `file` empty where the compiler
@@ -970,10 +1006,30 @@ cause.
   - **A write that fails,** the path's lookup included, is named in the
     failures line and changes nothing else: the exit, the summary's
     other lines and the results file are as they would have been.
-- **Its exit:** 0 when nothing this delivery made failed, inherited
-  failures and flakes included; 1 otherwise. Each tests run's end line,
-  the focused and the fuzzy, says `inherited` where each of its own
-  failures was inherited or a flake.
+- **Its outcome,** one of three, so that `refused` always means the
+  change was judged (`temper/docs/design/draft/whose-red.md`, 3.1):
+  - **refused** where any failure this delivery made is the candidate's:
+    a compiler error, a lint, a test failure, an exceeded count, a
+    format, citation, outward-name, budget or journey refusal, a helper
+    built from the candidate's tree that fails to build; whatever else
+    broke beside it, since a shown red stands;
+  - **broke** where none is, and the check met an error of its own: an
+    exception of its own code, at its start, in a check or at its end;
+    a helper it couldn't run for its machine's reasons, one not found or
+    not executable, one killed by a signal, or a tests run that ended
+    outside its verdicts (one-process exiting other than 0 or 100, save
+    a listing that failed to build, or leaving no `results.json` to
+    read); or a checkout without what it needs to judge (section 1: no
+    base reference, outside a git checkout, a close whose base is
+    `HEAD`). The change was not judged;
+  - **passed** otherwise, inherited failures and flakes included.
+- **Its exit:** 0 passed; 1 refused or broke; and in close mode with
+  `TEMPER_CLOSE_REFUSAL=3`, 3 refused and 2 broke (section 4.1). Broke,
+  its last line on stderr is `pre-pr: broke: <error>`, its first error's
+  first line, within 127 bytes and a newline, since a failed job keeps
+  the last 128 bytes of the command's stderr as its reason. Each tests
+  run's end line, the focused and the fuzzy, says `inherited` where each
+  of its own failures was inherited or a flake.
 - **The results file,** for temper (`temper/docs/design/domain/forge/reds.md`,
   5.5, its form): where the check found a marker `temper/reds-wait` of
   its form (section 5), after the summary, passed or refused, it writes
@@ -995,7 +1051,9 @@ cause.
     cuts it, each line `| <text>`, an empty one `|`.
 
   CPU warnings appear in the streamed run output. A cache hit writes no record, nor does a
-  check that wrote no summary.
+  check that wrote no summary. A check that broke writes none, and
+  removes one left there, since it judged nothing: a missing record
+  reports nothing (`temper/docs/design/domain/forge/reds.md`, 5.6).
 
 ## 7. The passed-tree cache
 
