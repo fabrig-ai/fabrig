@@ -156,6 +156,7 @@ pub(crate) fn answer(
     worker: Option<u32>,
     window: skein_lib::Duration,
 ) {
+    forget_job_workspace(domain, run.raw(), attempt.raw());
     if let Some(Payload::Answer { task, end, .. }) = domain.hub_link.payload(payload) {
         match end {
             hub::Ending::Link(host::Ending::Failed { failure, detail, .. }) => {
@@ -214,6 +215,15 @@ pub(crate) fn answer(
         return;
     }
     route(domain, hub::Event::AnswerPayload { run, attempt, payload, worker, window });
+}
+
+/// An answered job attempt's items go, as the link forgets its job at its answer.
+fn forget_job_workspace(domain: &mut Domain, task: u64, attempt: u64) {
+    if let Some(kept) = domain.job_workspaces.get(&task)
+        && kept.attempt == attempt
+    {
+        drop(domain.job_workspaces.remove(&task));
+    }
 }
 
 /// The root applies immediate outputs to its work queue and protocol door.
@@ -319,7 +329,15 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
             crate::Delivery::Assigned { channel, assignment: assignment(domain, value) }
         }
         hub::Request::AssignedJob { channel, job } => {
-            let workspace = domain.job_workspaces.remove(&job.task);
+            // Every offer of the attempt carries its items, a busy refusal's next one included.
+            let workspace = match domain.job_workspaces.get_mut(&job.task) {
+                Some(kept) => {
+                    assert_eq!(kept.attempt, job.attempt, "the offered attempt's job items");
+                    kept.offered = true;
+                    Some(kept.workspace.clone())
+                }
+                None => None,
+            };
             assert_eq!(workspace.is_some(), job.workspace.is_some(), "prepared job items");
             crate::Delivery::AssignedJob { channel, workspace, job: hub::job_assignment(job) }
         }
@@ -571,6 +589,59 @@ mod tests {
             status: Some(403),
             refusal: None,
         }
+    }
+
+    // A worker that answers a job busy has the same attempt offered again, and
+    // that offer needs the same items: on 2026-11-25 the second offer found none
+    // and the engine aborted (jig's `domain/engine/executors.md`, 5).
+    #[test]
+    fn every_offer_of_a_job_attempt_carries_its_items_until_it_answers() {
+        let (mut domain, task) = review_root();
+        let mut out = Queue::uncapped();
+        hub::step(
+            &mut domain.hub_link,
+            skein_lib::Time::ZERO,
+            hub::Event::StartJob {
+                job: hub::JobStart {
+                    task,
+                    attempt: 1,
+                    workstream: task,
+                    kind: jig_domain_link::JobKind(4),
+                    spec: Box::from(b"spec".as_slice()),
+                    deadline: skein_lib::Duration::from_secs(600),
+                    result: 64,
+                    grants: Box::new([]),
+                    workspace: Some(Box::from(b"items".as_slice())),
+                },
+            },
+            &mut out,
+        );
+        let items = crate::ForgeWorkspace { repositories: Box::new([]) };
+        let kept = crate::boundary::JobWorkspace { attempt: 1, workspace: items.clone(), offered: false };
+        domain.job_workspaces.insert(task, kept).unwrap();
+        assert!(!domain.job_workspaces_offered(), "a job not yet offered is unfinished work");
+        for channel in [Token::new(1), Token::new(2)] {
+            let event = hub::Event::Assign { channel, run: Token::new(task), attempt: Token::new(1) };
+            let crate::Delivery::AssignedJob { channel: offered, workspace, .. } = delivery(&mut domain, event) else {
+                panic!("job offer")
+            };
+            assert_eq!((offered, workspace.as_ref()), (channel, Some(&items)), "each offer carries the items");
+        }
+        assert!(domain.job_workspaces_offered(), "an offered job awaits its worker's answer");
+        let payload = domain.hub_link.retain(Payload::Answer {
+            task,
+            attempt: 1,
+            cumulative: 0,
+            read: None,
+            refused: Box::new([]),
+            end: hub::Ending::Job(host::JobEnding::Finished {
+                result: Box::from(b"{}".as_slice()),
+                work: host::Work { left: None, saved: None },
+            }),
+        });
+        domain.answer_parts.insert(payload, Parts::none()).unwrap();
+        answer(&mut domain, Token::new(task), Token::new(1), payload, None, skein_lib::Duration::ZERO);
+        assert!(domain.job_workspaces.get(&task).is_none(), "the answered attempt's items go");
     }
 
     fn review_root() -> (Domain, u64) {
