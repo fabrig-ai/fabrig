@@ -3,10 +3,12 @@ use super::{World, forge, raw, top};
 use skein_lib::{Duration, Time};
 use skein_world::faults::{Injection, Kind, Struck};
 use temper_engine_domain_forge_landing::{Hold, Phase};
+use temper_faults::forge::BUSY;
 
 #[derive(Default)]
 pub(super) struct Faults {
     calls: Option<(Time, forge::Config)>,
+    busy_read_fell: bool,
     merge: Option<(Time, forge::Config)>,
     fell: Vec<(Kind, forge::Called)>,
     refusal: Option<Duration>,
@@ -94,12 +96,17 @@ impl World {
         self.sweep_faults.excluded_merge = Some((exclusion.fault, exclusion.scenario));
     }
 
-    /// A person's release is only for a held record of a member whose fault
-    /// this world has restored. Other holds remain findings of the workload.
+    /// Script a person's retry after a busy read or restored record fault.
+    /// Other holds remain findings of the workload.
     pub fn release_restored_fault(&mut self, task: u64) -> bool {
-        let row = &self.landing(task).landing;
-        let Phase::Held { why: Hold::Record { member }, .. } = row.phase else { return false };
-        let pull = row.members[usize::from(member)].pull;
+        // Each landing step must encounter a fresh busy read fault to merit a retry.
+        let busy_read_fell = std::mem::take(&mut self.sweep_faults.busy_read_fell);
+        let row = self.landing(task);
+        if busy_read_fell && row.room.is_none() && matches!(row.landing.phase, Phase::Held { why: Hold::Read, .. }) {
+            return true;
+        }
+        let Phase::Held { why: Hold::Record { member }, .. } = row.landing.phase else { return false };
+        let pull = row.landing.members[usize::from(member)].pull;
         let Some(index) = self.sweep_faults.restored.iter().position(|number| *number == pull) else { return false };
         self.sweep_faults.restored.remove(index);
         self.sweep_faults.released += 1;
@@ -127,7 +134,14 @@ impl World {
 
     pub(super) fn track_sweep_call(&mut self, fell: &forge::Fell) {
         if let Some(call) = fell.call {
-            let struck = (Kind { family: fell.fault.family(), name: fell.fault.name() }, call);
+            let kind = Kind { family: fell.fault.family(), name: fell.fault.name() };
+            if call == forge::Called::Read
+                && BUSY.contains(&kind)
+                && self.sweep_faults.calls.as_ref().is_some_and(|(until, _)| fell.at < *until)
+            {
+                self.sweep_faults.busy_read_fell = true;
+            }
+            let struck = (kind, call);
             if !self.sweep_faults.fell.contains(&struck) {
                 self.sweep_faults.fell.push(struck);
             }
