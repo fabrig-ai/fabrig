@@ -11,6 +11,15 @@ use temper_worker_domain::{
 pub mod fixtures;
 pub use crate::worker::testing::{jobs_deadline, jobs_empty, jobs_fire};
 
+/// Take the built worker's hello at the domain boundary, without running its service.
+#[must_use]
+pub fn startup_hello(service: &mut crate::worker_alone::Service) -> Option<jig_domain_link::Hello> {
+    let worker = &mut service.worker;
+    let mut out = skein_lib::Queue::uncapped();
+    root::step(&mut worker.root, &worker.env, root::Event::Ready, &mut out);
+    if let Some(root::Request::Hello(hello)) = out.pop() { Some(hello) } else { None }
+}
+
 pub const JOB: Token = Token::new(81);
 
 pub fn launch_args(worker: &mut Worker, args: Box<[Box<[u8]>]>, deadline: Time) -> (Token, kernel::Spawn) {

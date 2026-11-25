@@ -934,6 +934,14 @@ fn rendered_files(
     asked: Box<[jig_protocol_config::File]>,
     rendered: &[(std::path::PathBuf, Vec<u8>)],
 ) -> temper_service::settings::Files {
+    read_rendered_files(required, asked, rendered).expect("composed named files")
+}
+
+fn read_rendered_files(
+    required: Box<[jig_protocol_config::File]>,
+    asked: Box<[jig_protocol_config::File]>,
+    rendered: &[(std::path::PathBuf, Vec<u8>)],
+) -> Result<temper_service::settings::Files, String> {
     temper_service_shell::read_files_with_asked_using(required, asked, 1000, |path, _, _| {
         rendered
             .iter()
@@ -941,7 +949,6 @@ fn rendered_files(
             .map(|(_, bytes)| skein_lib::Secret::new(bytes.as_slice().into()))
             .ok_or(skein_shell::Unread::Absent)
     })
-    .expect("composed named files")
 }
 
 #[test]
