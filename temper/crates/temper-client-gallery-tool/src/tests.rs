@@ -8,6 +8,7 @@ fn usage_gallery_states_hold_windows_at_their_fixed_now() {
     for (name, meters, pace, colour) in [
         ("accounts-usage", &["Week"][..], "resets in 4 d 14 h · 0.5%/h · about 84% at reset", None),
         ("accounts-usage-filling", &["5 h", "Week"][..], "full in 1 h", Some(look::USAGE_WARNED)),
+        ("accounts-usage-model-week", &["5 h", "Week", "Fable"][..], "full in 22 h 30 min", Some(look::USAGE_WARNED)),
         ("accounts-usage-calm", &["Week"][..], "resets in 2 d · 0.4%/h · about 59% at reset", None),
         ("accounts-usage-limited", &["5 h"][..], "resets in 40 min", Some(look::USAGE_LIMITED)),
     ] {
@@ -26,6 +27,12 @@ fn usage_gallery_states_hold_windows_at_their_fixed_now() {
             }
         }
         assert!(facts > 0);
+        if name == "accounts-usage-model-week" {
+            let sonnet = account.facts.iter().find(|fact| fact.label.as_ref() == b"seven_day_sonnet").unwrap();
+            let jig_client::contract::AccountFactValue::Window(window) = sonnet.value else { panic!("window fact") };
+            assert_eq!(window.used, Some(0));
+            assert_eq!(window.rate, None);
+        }
         let view = view(&sample);
         let actual: Vec<_> = view
             .tree()

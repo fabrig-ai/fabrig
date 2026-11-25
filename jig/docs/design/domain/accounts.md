@@ -276,6 +276,20 @@ among their own (`../client/domain/contract/watches.md`, 1.1).
 - **Plan usage declined** keeps the sign-in and marks the source
   refused, and the answer offers its two ways on: sign in again with
   the scope, or another source (providers.md, 2.2).
+- **A sign-in settles with its source's first answer.** One that makes
+  or renews an account ends there, as its party is told (made,
+  renewed), and leaves the sign-ins under way and their bound; but the
+  party's accounts stay unsettled (`../client/domain/contract/documents.md`,
+  1) until the component's first answer for the source it brought: its
+  first generation granted, or a failure (`accounts-sources.md`, 2), or
+  that source's going first (sign out, a renewal replacing it, a move
+  out releasing it, its account removed, the close). So a party that waits for *settled*
+  reads the source's state, never a source still waiting for its
+  grant: the grant is the component's, answered after the sign-in ends,
+  and a read between the two would show a made account no run can yet
+  use. A refused sign-in brings no source and settles as it ends. What
+  is awaited is kept with the source's number and the party who asked,
+  in memory, and forgotten at restart, as the sign-in is.
 - **The terms' disclosures are facts:** whether an account is a plan's,
   its LLM provider's name and manage-usage address, the first use of a
   plan, so that the application can show them where its pages need them

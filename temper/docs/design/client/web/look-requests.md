@@ -25,11 +25,12 @@ A look request's round trip: drawing it, landing it, accounting for it and check
   request names, at every width, in the browser and the terminal. A
   walk it adds lands as its sources, never its pages, and its last
   commit says the request has landed (section 3).
-- **Compared by a print into scratch, never committed:** whoever lands
-  a request prints every journey in its own tree and compares by
-  reading, until a script compares for it (section 8); main's pages
-  follow from the journeys' writer (`../journey-writer.md`) after the
-  landing (section 3).
+- **Compared by a script, never committed:** whoever lands a request
+  runs `scripts/look-compare.sh NAME C` in its own tree. It prints the
+  request's journeys into scratch, compares each page three ways and
+  the rules with the landed stylesheets, and writes the account's
+  rows; main's pages follow from the journeys' writer
+  (`../journey-writer.md`) after the landing (section 3).
 - **The render check follows the writer's print:** the request's pages
   under their overlay against main's pages under the landed stylesheets,
   at three widths with each disclosure and menu open; what differs goes
@@ -62,9 +63,11 @@ A look request's round trip: drawing it, landing it, accounting for it and check
      pages of NAME into its directory, and draws on them.
   3. **A gallery state** (`gallery.md`), where the world can't set the
      facts: an account's usage, a long name, a box's front. The
-     gallery's pages carry no overlay: the person copies the page, with
-     the gallery's assets it links, into a hand-made directory and
-     draws there, as for the next.
+     gallery's pages carry no overlay: the person copies the page into a
+     hand-made directory and draws there, as for the next. The
+     gallery's stylesheets are byte for byte the repository's own, so
+     the copy links those, as a journey's pages do (`journeys.md`, 5.3),
+     and there is no bundle to copy beside it.
   4. **A hand-made page,** last, in a directory of its own under
      `journeys/` whose `README.md` says it is hand-made and from what.
      Its values are written in by hand, and no journey's print will
@@ -154,18 +157,23 @@ starts no browser to compare, and is complete when it lands:
 5. **The terminal:** a region, heading or order the request moves or
    removes is checked in the terminal's prints, which keep their
    meaning: a heading the browser drops by style stays a heading.
-6. **Compare by a print into scratch,** `cargo run -p
-   temper-client-walk -- print --out DIR`, in the landing's own tree,
-   for every journey (`../journey-walks.md`, 5.1): each page the request
-   changes, from DIR, against the request's commit's, a walk it adds
-   printed from its landed sources. They are equal where their facts
-   agree; a hand-made page's values need not be a journey's. The
-   comparison is this reading until a script makes it (section 8). The
-   print walks in a world, with no box or replay of a committed
-   recording. A walk that stops is repaired, not replaced by a
-   comparison against main's earlier pages. The landing commits no
-   page or file printed beside one: the journeys' writer writes main's
-   pages after it lands (`../journey-writer.md`, 6).
+6. **Compare with `scripts/look-compare.sh NAME C`,** in the landing's
+   own tree (`../journey-writer.md`, 6.1). It prints the journeys whose
+   pages C changes into scratch with `temper-client-walk print`
+   (`../journey-walks.md`, 5.1), a walk the request adds from its
+   landed sources. It compares each page three ways with git, as C's
+   parent holds it, as C holds it and as printed, and each rule C
+   changes in an overlay with the landed stylesheets. Then it writes
+   the account's rows (section 5), its exit 0 where every edit and
+   rule landed. A row that differs is landed or explained; a conflict,
+   the rules' cascade order and the TUI's rules are read. A walk that
+   stops is repaired where the landing stopped it and named
+   otherwise, never replaced by a comparison against main's earlier
+   pages. A hand-made page is not compared: its values need not be a
+   journey's. The print walks in a world, with no box or replay of a
+   committed recording. The landing commits no page or file printed
+   beside one: the journeys' writer writes main's pages after it lands
+   (`../journey-writer.md`, 6).
 7. **Account** (section 5), and bring the design text in line: the
    client's `../README.md` and `README.md`, the journeys' `README.md`
    files, `journeys.md`, 9, and the mockups' `../mockups/STATUS.md`.
@@ -210,6 +218,11 @@ byte for byte establishes no rendered equality with a request.
 
 The landing's last commit carries a table: one row per overlay rule,
 per page change and per state the message names.
+`scripts/look-compare.sh` writes its rows (section 3, step 6): one per
+page, hunk, conflict, stopped walk and rule, with its result, and one
+to fill for the states. The landing fills that one, a row each, and
+gives each row that differs, conflicts or is to read its result here.
+The script's rows are the evidence; the judgement is the landing's.
 
 | Item | Result |
 |---|---|
@@ -260,7 +273,7 @@ per page change and per state the message names.
   Land the look request NAME by temper/docs/design/client/web/look-requests.md,
   which is the whole brief: its commit C, on the forge's docs/look/NAME, drawn
   over main M. A walk it adds lands as its sources; its pages and overlay never
-  land. Compare by a print into scratch, as its section 3, step 6, says.
+  land. Compare with scripts/look-compare.sh NAME C.
 
   <the request's message as its commit holds it, its trailers dropped>
 
@@ -285,11 +298,6 @@ per page change and per state the message names.
 
 ## 8. Later
 
-- **A comparison script,** `scripts/look-compare.sh NAME C`
-  (`../../draft/look-loop.md`, 4.2): it prints the journeys whose pages
-  C changes, compares each page three ways with git and the request's
-  rules with the landed stylesheets, and writes the account's rows.
-  Section 3, step 6, and the goal's words (section 7) then name it.
 - **A render-check command:** in `temper-client-journeys`, taking a
   request's name, so that section 4 is one command rather than each
   after-landing check's own script.

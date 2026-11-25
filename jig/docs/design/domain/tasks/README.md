@@ -16,6 +16,7 @@ is still open is listed in `README.md`, section 8.
 
 - [`lifecycle-holds.md`](lifecycle-holds.md): failures and placed holds.
 - [`lifecycle-endings.md`](lifecycle-endings.md): added dependencies and ending a task.
+- [`stuck.md`](stuck.md): a parked task whose every wake is dead, or that has none, judged when it parks.
 
 ## 1. In one page
 

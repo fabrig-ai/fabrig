@@ -3,8 +3,6 @@
 
 use skein_world::{faults::Kind, sweep::Exclusion};
 
-pub const PARKS_WITH_A_QUESTION_OPEN: Kind =
-    Kind { family: "runs that park, resume and move", name: "a run parks with a question to its requester open" };
 pub const AMENDS_A_PASSED_DEADLINE: Kind =
     Kind { family: "people and parties", name: "amending a deadline after it has passed" };
 pub const WIDENS_GOAL_AUTHORITY: Kind =
@@ -17,13 +15,7 @@ pub const NEW_PARTY_ASKS_FOR_FUNDS: Kind =
 pub const DELEGATING_RUN_AT_ITS_MINIMUM: Kind =
     Kind { family: "the engine's own bounds", name: "a delegating task's run at its minimum" };
 
-pub const EXCLUSIONS: [Exclusion; 7] = [
-    Exclusion::new(
-        "a_coordinator_watching_its_asker_is_woken",
-        "bounded waits",
-        PARKS_WITH_A_QUESTION_OPEN,
-        &["its requester watches it"],
-    ),
+pub const EXCLUSIONS: [Exclusion; 6] = [
     Exclusion::new(
         "a_party_extends_its_goals_deadline",
         "provider failures",

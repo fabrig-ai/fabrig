@@ -174,7 +174,14 @@ Every component's files and processes go through it:
   (skein's fake peers' `adopt_listener`; `temper/docs/design/draft/macos.md`,
   4.1). The simulated worlds keep `127.0.0.1` and their fixed ports on
   both. A fake whose listener fails says the address it was given and the
-  error, never only that it must bind.
+  error, never only that it must bind. The held listeners are the test
+  process's, in one table behind a process-wide lock, which a fake
+  reaches only where it holds a listener there: a real host's, on
+  macOS. A simulated world, and a real one on Linux, holds none, and
+  making or adopting its fakes takes no lock: that lock's first use
+  inside a peer's construction would be charged to the peer, which its
+  drop never frees, on macOS alone
+  (`skein/docs/design/testing/service-tiers.md`, 1).
 
 ## 5. Scenarios and the referee
 

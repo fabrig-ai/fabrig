@@ -12,8 +12,8 @@ impl Core {
         if !self.start_room(
             start::LiveSet::Parts,
             Key::Core(CoreKey::Part(record.key)),
-            self.call_parts.len().saturating_add(self.kept_parts.len()),
-            self.call_parts.capacity(),
+            self.kept_parts.len(),
+            self.kept_parts.capacity(),
         ) {
             return false;
         }
@@ -40,14 +40,15 @@ impl Core {
             None => 0,
         };
         if record.turn > committed && !self.kept_parts.contains_key(&key) {
-            if self.call_parts.len().saturating_add(self.kept_parts.len()).saturating_add(self.pending_calls.len())
-                >= self.call_parts.capacity()
-            {
-                out.push(Request::Now(Box::new(crate::Now::PartBusy { key })));
-                return out;
+            if self.kept_parts.len() >= self.kept_parts.capacity() {
+                // A full room never stops the run: its task's parts go and this
+                // one is acknowledged unkept, so a resume finds no answer for
+                // the cut turn and plans it afresh (domain/engine/executors-transcripts.md, 1).
+                self.retire_parts(key.task, None, &mut out);
+            } else {
+                assert!(self.kept_parts.insert(key, record.clone()).is_ok(), "kept part room checked");
+                out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Part(record)))));
             }
-            assert!(self.kept_parts.insert(key, record.clone()).is_ok(), "shared call room checked");
-            out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Part(record)))));
         }
         let proof = self.proofs.get_mut(&key.task).expect("current part proof");
         if key.number > proof.kept_part {

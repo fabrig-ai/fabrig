@@ -1,5 +1,6 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing-runs.md, 1, 2 and 3, and temper/docs/design/domain/after-landing-storage.md, 1).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
+use crate::purpose::EffectPurpose;
 use crate::{
     Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierHeld, TierLanding, TierRow, Topic, What,
 };
@@ -76,13 +77,17 @@ pub(crate) fn configured_all(d: &Domain, repository: Repository) -> &[Tier] {
     }
     &[]
 }
-fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
-    for tier in configured_all(d, row.repository) {
-        if tier.name == row.tier {
-            return Some(tier.clone());
+fn setting<'a>(d: &'a Domain, repository: Repository, name: &[u8]) -> Option<(u16, &'a Tier)> {
+    for (index, tier) in configured_all(d, repository).iter().enumerate() {
+        if tier.name.as_ref() == name {
+            return Some((u16::try_from(index).expect("tier index"), tier));
         }
     }
     None
+}
+fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
+    let (_, tier) = setting(d, row.repository, &row.tier)?;
+    Some(tier.clone())
 }
 pub(crate) fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
     match &tier.follows {
@@ -453,6 +458,7 @@ fn tree_answer(
     if d.stopping {
         return;
     }
+    let Some((_, tier)) = setting(d, key.0, &key.1) else { return };
     if answer == Err(api::Error::Busy) {
         walk.next = Some(d.poll_at(env, key.0));
         d.tier_ops.walks.insert(key, walk).expect("replaces walk");
@@ -491,12 +497,10 @@ fn tree_answer(
         if fits {
             let entries = core::mem::replace(&mut walk.entries, List::with_capacity(env.limits.key_entries));
             if walk.trees.push(landing::Tree { object: walk.object, entries: entries.into_boxed() }).is_ok() {
-                let row = d.tiers.get(&key).expect("walk tier");
-                let tier = configured(d, row).expect("configured walk");
                 keyed = landing::key(
                     landing::Repository { forge: key.0.forge, repository: key.0.repository },
                     &tier.name,
-                    &definition(&tier),
+                    &definition(tier),
                     &tier.ignored,
                     walk.commit,
                     walk.trees.as_slice(),
@@ -688,20 +692,23 @@ pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     }
     bytes.into_boxed()
 }
-fn purpose(d: &Domain, row: &TierRow, operation: u8, part: u16) -> crate::purpose::EffectPurpose {
-    let mut tier = None;
-    for (at, item) in configured_all(d, row.repository).iter().enumerate() {
-        if item.name == row.tier {
-            tier = Some(u16::try_from(at).expect("tier index"));
-        }
-    }
-    crate::purpose::EffectPurpose::Tier {
-        repository: row.repository,
-        tier: tier.expect("configured tier"),
-        run: row.record.run.as_ref().expect("live run").number,
-        operation,
-        part,
-    }
+fn purpose(d: &Domain, row: &TierRow, operation: u8, part: u16) -> EffectPurpose {
+    let (tier, _) = setting(d, row.repository, &row.tier).expect("configured tier");
+    let run = row.record.run.as_ref().expect("live run").number;
+    EffectPurpose::Tier { repository: row.repository, tier, run, operation, part }
+}
+
+fn described_purpose(d: &Domain, row: &TierRow, operation: u8, part: u16) -> Option<EffectPurpose> {
+    let kept = row.purpose.as_ref()?;
+    let EffectPurpose::Tier { tier, .. } = kept else { return None };
+    // An issued effect retains its index even when the settings no longer name the tier.
+    let tier = match setting(d, row.repository, &row.tier) {
+        Some((index, _)) => index,
+        None => *tier,
+    };
+    let run = row.record.run.as_ref()?.number;
+    let expected = EffectPurpose::Tier { repository: row.repository, tier, run, operation, part };
+    if *kept == expected { Some(expected) } else { None }
 }
 fn following(d: &Domain, row: &TierRow) -> crate::runs::Follow {
     let run = row.record.run.as_ref().expect("live run");
@@ -983,7 +990,9 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         | Write::Update { .. } => unreachable!("tier run operations"),
     };
     let part = match &write {
-        Write::Status { .. } | Write::Post { .. } => u32::from(post::identity(row).1),
+        Write::Status { .. } | Write::Post { .. } => {
+            u32::from(post::identity(row.posting.as_ref().expect("posting effect")).1)
+        }
         Write::DeleteBranch { branch: name }
             if *name == branch(&row.tier, row.record.run.as_ref().expect("live run").number) =>
         {
@@ -1224,6 +1233,10 @@ pub(crate) fn step(
         );
         return;
     };
+    if setting(d, key.0, &key.1).is_none() {
+        end_unconfigured(d, env, key, task, out);
+        return;
+    }
     if crate::domain::wait_fresh(d, task, &[key.0]) || !crate::domain::entries_looked(d, task) {
         wait(task, out);
         return;
@@ -1361,6 +1374,22 @@ pub(crate) fn answered(
     if !d.repositories.contains_key(&key.0) {
         return;
     }
+    if let Some(walk) = d.tier_ops.walks.get(&key)
+        && walk.owner == owner
+    {
+        tree_answer(d, env, key, answer, out);
+        return;
+    }
+    let Some((_, tier)) = setting(d, key.0, &key.1) else {
+        d.tier_ops.reds.remove(&key);
+        if !d.stopping
+            && let Some(row) = d.tiers.get(&key)
+            && let Some(task) = row.task
+        {
+            out.push(Request::WakeProcedure { task });
+        }
+        return;
+    };
     if read.job_state {
         if let Some(row) = d.tiers.get(&key)
             && row.held.is_some()
@@ -1373,13 +1402,7 @@ pub(crate) fn answered(
         return;
     }
     if read.baseline {
-        let branch = match d.tiers.get(&key) {
-            Some(row) => match configured(d, row) {
-                Some(tier) => followed(d, key.0, &tier),
-                None => None,
-            },
-            None => None,
-        };
+        let branch = followed(d, key.0, tier);
         let Some(row) = d.tiers.get_mut(&key) else { return };
         if !d.stopping
             && row.record.judged.is_none()
@@ -1397,12 +1420,6 @@ pub(crate) fn answered(
             }
             walk(d, env, &key, out);
         }
-        return;
-    }
-    if let Some(walk) = d.tier_ops.walks.get(&key)
-        && walk.owner == owner
-    {
-        tree_answer(d, env, key, answer, out);
         return;
     }
     if d.tier_ops.reds.contains_key(&key) {
@@ -1549,9 +1566,11 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     }
     if let Some(key) = due {
         let mut walk = d.tier_ops.walks.remove(&key).expect("due walk");
-        walk.next = None;
-        ask_tree(d, env, key, walk, out);
-        return;
+        if setting(d, key.0, &key.1).is_some() {
+            walk.next = None;
+            ask_tree(d, env, key, walk, out);
+            return;
+        }
     }
     let mut found = None;
     for (key, row) in &d.tiers {
@@ -1592,10 +1611,6 @@ fn branch_write(write: &Write) -> Option<(&[u8], bool)> {
         | Write::Status { .. } => None,
     }
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "a tier effect answers its branch or its flight, classifying dispatch refusals"
-)]
 pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome, out: &mut Queue<Request>) {
     use skein_forge_client::Outcome;
     let made_branch = match outcome {
@@ -1677,50 +1692,7 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
             row.held = Some(TierHeld::Faults(landing::Fault::Lost));
         }
     } else {
-        let mut follow = match d.tier_ops.follows.remove(&key) {
-            Some(follow) => follow,
-            None => following(d, &row),
-        };
-        follow.waiting = false;
-        if let Some(kept) = d.entries.get(&entry) {
-            if let Write::Dispatch { .. } = kept.entry.effect.write
-                && let Some(start) = kept.entry.start
-            {
-                follow.start = Some(start.at);
-            }
-            if let Some(attempt) = kept.entry.attempt {
-                follow.since = Some(attempt.sent);
-                follow.wall = Some(attempt.wall);
-            }
-        }
-        if !made {
-            let fault = match d.entries.get(&entry) {
-                Some(kept) => match &kept.entry.effect.write {
-                    Write::Dispatch { .. } if outcome == Outcome::Failed(api::Error::Missing) => {
-                        landing::Fault::MissingWorkflow
-                    }
-                    Write::Dispatch { .. }
-                    | Write::Rerun { .. }
-                    | Write::CreateBranch { .. }
-                    | Write::DeleteBranch { .. }
-                    | Write::CreateIssue { .. }
-                    | Write::OpenPull { .. }
-                    | Write::Post { .. }
-                    | Write::Review { .. }
-                    | Write::Edit { .. }
-                    | Write::SetReviewers { .. }
-                    | Write::Close { .. }
-                    | Write::Reopen { .. }
-                    | Write::Merge { .. }
-                    | Write::Update { .. }
-                    | Write::Status { .. } => landing::Fault::Lost,
-                },
-                None => landing::Fault::Lost,
-            };
-            follow.outcome = Some(landing::Verdict::Fault(fault));
-        }
-        remember(&mut row, &follow);
-        d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
+        settle_flight(d, &key, &mut row, entry, outcome, made);
     }
     save(&row, out);
     if let Some(task) = row.task {
@@ -1728,6 +1700,63 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
     }
     d.tiers.insert(key, row).expect("replaces tier");
 }
+fn settle_flight(
+    d: &mut Domain,
+    key: &(Repository, Box<[u8]>),
+    row: &mut TierRow,
+    entry: u64,
+    outcome: skein_forge_client::Outcome,
+    made: bool,
+) {
+    let mut start = None;
+    let mut attempt = None;
+    let mut fault = landing::Fault::Lost;
+    if let Some(kept) = d.entries.get(&entry) {
+        attempt = kept.entry.attempt;
+        if let Write::Dispatch { .. } = kept.entry.effect.write {
+            if let Some(position) = kept.entry.start {
+                start = Some(position.at);
+            }
+            if outcome == skein_forge_client::Outcome::Failed(api::Error::Missing) {
+                fault = landing::Fault::MissingWorkflow;
+            }
+        }
+    }
+    let follow = d.tier_ops.follows.remove(key);
+    if setting(d, key.0, &key.1).is_none() {
+        // Keep the receipt's progress, but don't restore or advance an unconfigured follower.
+        let flight = row.flight.as_mut().expect("settled flight");
+        flight.waiting = false;
+        if start.is_some() {
+            flight.start = start;
+        }
+        if let Some(attempt) = attempt {
+            flight.since = Some(attempt.sent);
+        }
+        if !made {
+            flight.fault = Some(fault);
+        }
+        return;
+    }
+    let mut follow = match follow {
+        Some(follow) => follow,
+        None => following(d, row),
+    };
+    follow.waiting = false;
+    if start.is_some() {
+        follow.start = start;
+    }
+    if let Some(attempt) = attempt {
+        follow.since = Some(attempt.sent);
+        follow.wall = Some(attempt.wall);
+    }
+    if !made {
+        follow.outcome = Some(landing::Verdict::Fault(fault));
+    }
+    remember(row, &follow);
+    d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
+}
+
 pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
     let Some(key) = task_key(d, task) else { return };
     let Some(kept) = d.entries.get(&entry) else { return };
@@ -1822,13 +1851,15 @@ pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
         let row = d.tiers.get(&key).expect("restored tier");
         // A repaired row is saved even when its tier is no longer configured.
         save(row, out);
-        if row.flight.is_some() && row.task.is_some() && row.result.is_none() && row.held.is_none() {
-            d.tier_ops.follows.insert(key.clone(), following(d, row)).expect("bounded followers");
-        }
         if let Some(task) = row.task {
             out.push(Request::WakeProcedure { task });
         }
-        walk(d, env, &key, out);
+        if setting(d, key.0, &key.1).is_some() {
+            if row.flight.is_some() && row.task.is_some() && row.result.is_none() && row.held.is_none() {
+                d.tier_ops.follows.insert(key.clone(), following(d, row)).expect("bounded followers");
+            }
+            walk(d, env, &key, out);
+        }
     }
     let mut repositories = List::with_capacity(d.repositories.len());
     for (repository, _) in &d.repositories {
@@ -1922,10 +1953,14 @@ impl Domain {
             Write::Dispatch { workflow, branch: name, inputs }
                 if row.flight.as_ref()?.entry == entry
                     && row.flight.as_ref()?.waiting
-                    && *workflow == configured(self, row)?.workflow
                     && *name == part_branch(row)
                     && *inputs == part_inputs(commit, key, tests) =>
             {
+                if let Some((_, tier)) = setting(self, row.repository, &row.tier)
+                    && *workflow != tier.workflow
+                {
+                    return None;
+                }
                 (16, What::Repository)
             }
             Write::Rerun { attempt }
@@ -1962,9 +1997,7 @@ impl Domain {
             17 => 2,
             _ => return None,
         };
-        if row.purpose != Some(purpose(self, row, operation, part_number(&run.part))) {
-            return None;
-        }
+        described_purpose(self, row, operation, part_number(&run.part))?;
         let (form, recovery) = crate::effect_shape(kind)?;
         let state = match &kept.effect.write {
             Write::CreateBranch { commit, .. } => *commit,
@@ -2278,6 +2311,35 @@ fn drop_run(d: &mut Domain, row: &mut TierRow, limits: &Limits) {
     row.cancelled = false;
     row.baseline = None;
     row.observations = Box::new([]);
+}
+
+fn end_unconfigured(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    key: (Repository, Box<[u8]>),
+    task: u64,
+    out: &mut Queue<Request>,
+) {
+    // Pending entries can still answer; held entries take the task's normal close path.
+    for (_, kept) in &d.entries {
+        if kept.entry.task == task && !kept.held {
+            wait(task, out);
+            return;
+        }
+    }
+    let mut row = d.tiers.remove(&key).expect("unconfigured tier");
+    let run = row.record.run.as_ref().expect("live run");
+    let words = joined(&[
+        b"Tier ",
+        &row.tier,
+        b" run ",
+        skein_lib::Decimal::of(run.number).as_bytes(),
+        b": ended, its tier is no longer configured",
+    ]);
+    drop_run(d, &mut row, &env.limits);
+    save(&row, out);
+    d.tiers.insert(key, row).expect("replaces unconfigured tier");
+    decision(task, crate::TierDecision::Done { words }, None, out);
 }
 
 pub(crate) fn closing(
