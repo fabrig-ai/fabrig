@@ -267,8 +267,8 @@ pub(crate) const BUNDLE: Variable = Variable {
     name: "TEMPER_INTERNAL_BUNDLE",
     set: Set::Internal,
     form: "none",
-    line: "The writer sets this for the page print so it builds no browser bundle.",
-    absent: "The writer sets none even where the caller gives no value.",
+    line: "The writer and comparison set this for the page print so it builds no browser bundle.",
+    absent: "They set none even where the caller gives no value.",
     notes: "The journeys tool itself builds no bundle.",
     way: Way::Sets,
 };
@@ -358,13 +358,29 @@ pub(crate) const LOOK_REFRESH: Command = Command {
     ..BASE
 };
 
+pub(crate) const LOOK_COMPARE: Command = Command {
+    reach: Reach::Words(&["look-compare"]),
+    forms: &["NAME C"],
+    line: "Compare a look request's commit with this tree's print and stylesheets and write the account's rows.",
+    arguments: &[
+        Argument {
+            shown: "NAME",
+            line: "Look request name, [a-z0-9][a-z0-9-]*, fetched from origin's docs/look/NAME.",
+        },
+        Argument { shown: "C", line: "The request's commit hash, 7 to 64 lowercase hexadecimal digits." },
+    ],
+    variables: &[&BUNDLE, &PATH],
+    notes: "Sets TEMPER_INTERNAL_BUNDLE=none for the print. No browser, terminal or box. Exit 0: landed or left for the account; 1: differs, missing, conflict or stopped; 2: refused or unreadable request; 3: comparison couldn't finish. See temper/docs/design/client/journey-writer.md, 6.1.",
+    ..BASE
+};
+
 /// The internal journeys binary's table (temper/docs/design/testing/tools.md, 4.1).
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST, WRITER, LOOK_REFRESH],
+    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST, WRITER, LOOK_REFRESH, LOOK_COMPARE],
     settings: &[],
     variables: &[&CHROMIUM, &PATH, &BUNDLE],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

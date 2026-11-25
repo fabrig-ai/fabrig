@@ -147,7 +147,7 @@ pub(crate) fn hooks(engine: &mut Engine) {
 pub(crate) fn root(engine: &mut Engine) {
     let stopped = match engine.domain.start_stop() {
         Some(root::StartStop::Core { phase, failure }) => Stop::StartRefused { phase, failure },
-        Some(root::StartStop::Room(short)) => Stop::Room(short),
+        Some(root::StartStop::Room(refusal)) => Stop::Room(refusal),
         Some(root::StartStop::Load(failure)) => match engine.store.routes.row_failure() {
             Some(row) => Stop::StoreRow { row: row.clone() },
             None => Stop::RestorePage { range: failure.range, failure: engine.store.routes.page_failure().cloned() },

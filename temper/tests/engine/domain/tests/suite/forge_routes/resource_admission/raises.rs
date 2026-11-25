@@ -75,6 +75,27 @@ fn fill_outbox(world: &mut World, chat: &engine::Assignment) {
     assert!(!world.held_write_answers.is_empty(), "the first outbox entry stays in flight");
 }
 
+fn check_outbox_wait(world: &World, task: u64) {
+    use jig_domain_core::{Bound, Unbounded, WaitKind, WaitObject};
+    use skein_world::inspect::Moment;
+    use temper_client_protocol_wire::waits::THING_ENTRY;
+
+    let core = world.root.core();
+    let row = live_task(world, task);
+    let [number] = *world.root.forge().inspection_entries() else { panic!("one holder fills this outbox") };
+    let entry = world.root.forge().inspection_entry(number).expect("holder");
+    let waits = core.inspection_wait_records(row);
+    let wait = waits.iter().find(|wait| wait.kind == WaitKind::Room).expect("forge room report reached the core");
+    let WaitObject::Procedure { things, .. } = &wait.object else { panic!("procedure object") };
+    assert_eq!(things.len(), 1);
+    assert_eq!(things.as_slice()[0].what, THING_ENTRY);
+    assert_eq!(things.as_slice()[0].number, number);
+    assert_eq!(things.as_slice()[0].owner, Some(entry.task));
+    assert_eq!(wait.bound, Bound::None(Unbounded::Behind(entry.task)));
+    jig_inspect::records(core, Moment { seed: 91, at: world.env.now, iteration: 0 }, world.env.wall)
+        .expect("the core's records pass with a change waiting on the outbox");
+}
+
 #[expect(clippy::too_many_lines, reason = "one story keeps its filled bound, durable raise and resumed work together")]
 fn held_work(member: &[u8], figure: u32) {
     let owner = forge_top::user_key(1, 7_u64);
@@ -127,6 +148,7 @@ fn held_work(member: &[u8], figure: u32) {
     let waiting = if member == b"forge.entries" {
         assert!(row(&world, task).room.is_some(), "a full outbox waits for room without a limit hold");
         assert!(world.root.forge_limit_holds().is_empty());
+        check_outbox_wait(&world, task);
         task
     } else {
         let waits = world.root.forge_limit_holds();

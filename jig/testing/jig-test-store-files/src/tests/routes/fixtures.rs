@@ -239,7 +239,6 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         reasons: jig_domain_tasks::Reasons::FIRST,
         started_from: Box::new([]),
         asked_requester: false,
-        question_woken: 0,
         words_woken: 0,
         unrecorded: Box::new([]),
         open_attempt: None,

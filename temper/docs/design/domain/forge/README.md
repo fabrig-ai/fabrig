@@ -106,6 +106,7 @@ Documents:
 - `drafts.md`: landed drafts.
 - `reds.md`: a goal's reds.
 - `room.md`: the outbox's room.
+- `waits.md`: a procedure's waits, as the core's records, and their bounds.
 - `walkthrough.md`: a change through the forge connector.
 
 ## 2. What it gives

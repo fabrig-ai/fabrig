@@ -17,7 +17,7 @@ use core::mem::size_of;
 pub use jig_domain_core::{Counters, fresh};
 use jig_domain_link::{SignOutResult, SourceName};
 use jig_domain_people as people;
-use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Queue, ReplyTo, Token};
+use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Map, Queue, ReplyTo, Token};
 
 pub use temper_engine_domain_limits::{JournalLimits as Limits, journal_valid as valid};
 
@@ -309,12 +309,23 @@ pub enum JournalOutput {
 pub struct Decision {
     limits: Limits,
     writes: List<Write>,
+    positions: Option<Box<Map<Key, u32>>>,
     deliveries: Queue<Delivery>,
     /// Only a write overrun: jig's store refuses commits past `journal.writes`
     /// (jig-protocol-store's `commits::operations`), including the header's slot.
     overrun: bool,
     batch: SkeinDecision<Write, crate::Output>,
 }
+
+fn replace_write(previous: &mut Write, write: Write) -> u64 {
+    let bytes = crate::budget::turn_bytes(previous);
+    *previous = write;
+    bytes
+}
+
+// Short decisions avoid allocating an index. Larger cohorts look up a key
+// without walking their owner's writes or changing their submission order.
+const SCAN_WRITES: u32 = 4;
 
 /// skein-lib's commit barrier, over the root's wrapped writes and outputs.
 pub type Journal = SkeinJournal<Write, crate::Output>;
@@ -364,6 +375,7 @@ impl Decision {
         Decision {
             limits: *limits,
             writes: List::with_capacity(limits.writes.checked_sub(1).expect("header slot reserved")),
+            positions: None,
             deliveries: Queue::uncapped(),
             overrun: false,
             batch: journal.decide(),
@@ -476,26 +488,41 @@ impl Decision {
     pub(crate) fn carry_write(&mut self, limits: &Limits, write: Write) -> Result<u64, Write> {
         assert!(*limits == self.limits, "decision uses configured limits");
         let key = write.key();
-        for at in 0..self.writes.len() {
-            let previous = self.writes.get_mut(at).expect("bounded write index");
-            if previous.key() == key {
-                let bytes = crate::budget::turn_bytes(previous);
-                *previous = write;
-                return Ok(bytes);
+        match &self.positions {
+            Some(positions) => {
+                if let Some(at) = positions.get(&key) {
+                    let previous = self.writes.get_mut(*at).expect("indexed decision write");
+                    return Ok(replace_write(previous, write));
+                }
+            }
+            None => {
+                for previous in self.writes.iter_mut() {
+                    if previous.key() == key {
+                        return Ok(replace_write(previous, write));
+                    }
+                }
             }
         }
-        if self.writes.len() >= self.limits.writes.checked_sub(1).expect("header slot reserved") {
+        let at = self.writes.len();
+        if let Err(write) = self.writes.push(write) {
             self.overrun = true;
             return Err(write);
         }
-        let result = self.writes.push(write);
-        if result.is_err() {
-            self.overrun = true;
+        match &mut self.positions {
+            Some(positions) => {
+                positions.insert(key, at).expect("one index entry per admitted write");
+            }
+            None if at == SCAN_WRITES => {
+                let mut positions = Map::with_capacity(self.writes.capacity());
+                for (index, prior) in self.writes.iter().enumerate() {
+                    let index = u32::try_from(index).expect("bounded write index");
+                    positions.insert(prior.key(), index).expect("one index entry per admitted write");
+                }
+                self.positions = Some(Box::new(positions));
+            }
+            None => {}
         }
-        match result {
-            Ok(()) => Ok(0),
-            Err(write) => Err(write),
-        }
+        Ok(0)
     }
 
     /// Retain one root effect for the decision, without releasing or issuing it. Per-delivery
@@ -660,20 +687,15 @@ pub fn accept_routed(
     if decision.limits != *limits || decision.writes.len() >= limits.writes {
         return Err(decision);
     }
+    // The index is only for coalescing. Release it before growing the commit batch.
+    drop(decision.positions);
     let mut batch = decision.batch;
     if writing {
         let jig_domain_core::Write::Save(header) = counters.commit_header() else {
             unreachable!("a deployment header is a save");
         };
-        batch.push_write(Write::Save(Record::Core(header)));
-        for at in 0..decision.writes.len() {
-            let source = decision.writes.get_mut(at).expect("admitted write index");
-            let key = source.key();
-            // The source list is consumed in this step. An erase is a
-            // payload-free terminal placeholder, never submitted again.
-            let write = core::mem::replace(source, Write::Erase(key));
-            batch.push_write(write);
-        }
+        decision.writes.raise(limits.writes);
+        batch.write_batch(Write::Save(Record::Core(header)), decision.writes);
     }
     for _ in 0..decision.deliveries.len() {
         let delivery = decision.deliveries.pop().expect("admitted delivery count");
@@ -686,12 +708,8 @@ pub fn accept_routed(
 /// Take the next numbered journal commit for the store.
 pub fn commit(journal: &mut Journal, limits: &Limits) -> Option<Output> {
     let commit = journal.commit()?;
-    let mut writes = List::with_capacity(limits.writes);
-    let mut rows = commit.writes;
-    while let Some(write) = rows.pop() {
-        writes.push(write).expect("commit writes bounded by journal limits");
-    }
-    Some(Output::Commit { number: commit.number, writes: writes.into_boxed() })
+    assert!(commit.writes.len() <= limits.writes, "commit writes bounded by journal limits");
+    Some(Output::Commit { number: commit.number, writes: commit.writes.into_boxed() })
 }
 
 /// A cumulative store answer only makes outputs ready. The ready pass releases one per call; it

@@ -782,19 +782,12 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     if !park && (!parked || !kept.owes) {
         crate::wake::after_run(domain, env, number, out);
     }
-    let question = if end_kind == crate::EndKind::Parked && !narrowed && !park {
-        question_left_open(domain, record(domain, number).expect("answered task live"))
-    } else {
-        None
-    };
-    if question.is_some() {
-        task_mut(domain, number).expect("idle question task").record.tries = previous_tries;
-    }
-    let words = end_kind == crate::EndKind::Parked
+    let question = end_kind == crate::EndKind::Parked
         && !narrowed
         && !park
-        && question.is_none()
-        && words_left_unrecorded(domain, number);
+        && crate::stuck::park(domain, env, number, previous_tries, out);
+    let words =
+        end_kind == crate::EndKind::Parked && !narrowed && !park && !question && words_left_unrecorded(domain, number);
     if words {
         task_mut(domain, number).expect("idle words task").record.tries = previous_tries;
     }
@@ -804,26 +797,12 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         && nothing_awaited(domain, record(domain, number).expect("answered task live"));
     let closer = crate::closer::named(record(domain, number).expect("answered task live"));
     if nothing_awaited {
-        let task = task_mut(domain, number).expect("idle task live");
-        task.record.tries = previous_tries;
-        if !closer {
-            task.record.tries.add(Class::Run);
-        }
-        if task.record.tries.of(Class::Run) > env.limits.retries.run.retries {
-            task.record.phase = Phase::Closing(Closing {
-                stage: Stage::Delegates,
-                ending: Ending::Failed { reason: crate::failed::nothing_awaited(&env.limits) },
-            });
-        }
+        task_mut(domain, number).expect("idle task live").record.tries = previous_tries;
     }
     crate::closer::take_available(domain, env, number, out);
     publish(domain, env, number, out);
-    if words {
+    if words || question && record(domain, number).expect("stuck task live").phase == Phase::Active(Active::Due) {
         crate::domain::activate(domain, number, out);
-    }
-    if let Some(question) = question {
-        let (QuestionWake::Awaits(question) | QuestionWake::Alone(question)) = question;
-        out.push(Request::QuestionParked { task: number, question });
     }
     if nothing_awaited && record(domain, number).expect("idle task live").phase == Phase::Active(Active::Idle) {
         if closer {
@@ -1032,105 +1011,17 @@ fn exceeded(domain: &mut Domain, number: u64, exceeded: crate::Exceeded) -> Phas
     Phase::Held { was: Was::Active(Active::Due), why, source: None }
 }
 
-/// A timer or live task watch permits one wake per question; alone, each park
-/// polls again (domain/tasks/lifecycle.md, 2).
-enum QuestionWake {
-    Awaits(crate::OpenQuestion),
-    Alone(crate::OpenQuestion),
-}
-
-/// The received positions and the asker's credits are the same predicate used
-/// by reasons and briefs (domain/tasks/lifecycle.md, 2).
-fn question_left_open(domain: &Domain, row: &crate::TaskRecord) -> Option<QuestionWake> {
-    if row.phase != Phase::Active(Active::Idle)
-        || !row.wake.questions
-        || !crate::words::keeping(domain, row)
-        || !ends::for_record(row).finishes_alone()
-    {
-        return None;
-    }
-    if let Some(proposal) = &row.proposal {
-        match proposal.state {
-            crate::ProposalState::Pending { .. } => return None,
-            crate::ProposalState::Accepted { .. }
-            | crate::ProposalState::Rejected { .. }
-            | crate::ProposalState::Withdrawn => {}
-        }
-    }
-    for delegate in &row.delegates {
-        if let Some(child) = record(domain, *delegate) {
-            match child.executor {
-                crate::Executor::Person(_) => return None,
-                crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {}
-            }
-        }
-    }
-    let mut awaits = false;
-    for subscription in &row.subscriptions {
-        match subscription.kind {
-            crate::SubscriptionKind::Timer { .. } => awaits = true,
-            crate::SubscriptionKind::Task { target, .. } => {
-                awaits |= record(domain, target).is_some();
-            }
-            crate::SubscriptionKind::Topic { .. } => {}
-        }
-    }
-    let questions = domain.open_questions(row.number);
-    if awaits {
-        let mut newest = None;
-        for question in &questions {
-            if question.number > row.question_woken {
-                newest = Some(*question);
-            }
-        }
-        match newest {
-            Some(question) => Some(QuestionWake::Awaits(question)),
-            None => None,
-        }
-    } else {
-        match questions.get(0) {
-            Some(question) => Some(QuestionWake::Alone(*question)),
-            None => None,
-        }
-    }
-}
-
-pub(crate) fn question_parked(
+/// The walk has exhausted its run tries. Hold it without ending its delegates.
+pub(crate) fn hold_stuck(
     domain: &mut Domain,
     env: &Env<Limits>,
-    number: u64,
-    question: u64,
-    reason: &[u8],
+    task: u64,
+    reason: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
-    let Some(row) = record(domain, number) else { return };
-    let Some(wake) = question_left_open(domain, row) else { return };
-    let (QuestionWake::Awaits(open) | QuestionWake::Alone(open)) = &wake;
-    if open.number != question {
-        return;
-    }
-    match wake {
-        QuestionWake::Awaits(open) => {
-            let task = task_mut(domain, number).expect("idle question task");
-            task.record.question_woken = open.number;
-            task.record.phase = Phase::Active(Active::Due);
-            publish(domain, env, number, out);
-            crate::domain::activate(domain, number, out);
-            return;
-        }
-        QuestionWake::Alone(_) => {}
-    }
-    if row.tries.of(Class::Run) >= env.limits.retries.run.retries {
-        let phase = failure(domain, env, number, Class::Run, Some(preparation_reason(reason)));
-        task_mut(domain, number).expect("idle question task").record.phase = phase;
-        publish(domain, env, number, out);
-    } else {
-        let task = task_mut(domain, number).expect("idle question task");
-        task.record.tries.add(Class::Run);
-        task.record.phase = Phase::Active(Active::Due);
-        publish(domain, env, number, out);
-        crate::domain::activate(domain, number, out);
-    }
+    let phase = failure(domain, env, task, Class::Run, Some(reason));
+    task_mut(domain, task).expect("stuck task live").record.phase = phase;
+    publish(domain, env, task, out);
 }
 
 /// A fence-taken directing word earns one idle wake, never a poll
@@ -1200,7 +1091,7 @@ pub(crate) fn nothing_awaited_notice(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = record(domain, number) else { return };
-    if !nothing_awaited(domain, row) || message == 0 || message <= row.last_message {
+    if !nothing_awaited(domain, row) || crate::closer::named(row) || message == 0 || message <= row.last_message {
         return;
     }
     let word = crate::Word {
@@ -1218,6 +1109,16 @@ pub(crate) fn nothing_awaited_notice(
     task.record.last_message = message;
     task.record.inbox = prepared.inbox;
     crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
-    publish(domain, env, number, out);
-    crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
+    let allowance = env.limits.retries.run.retries;
+    // The notice is recorded even on the park past the allowance, but does not wake a held task.
+    if task.record.tries.of(Class::Run) >= allowance {
+        let reason = crate::failed::nothing_awaited(allowance);
+        let phase = failure(domain, env, number, Class::Run, Some(reason));
+        task_mut(domain, number).expect("idle notice task live").record.phase = phase;
+        publish(domain, env, number, out);
+    } else {
+        task.record.tries.add(Class::Run);
+        publish(domain, env, number, out);
+        crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
+    }
 }

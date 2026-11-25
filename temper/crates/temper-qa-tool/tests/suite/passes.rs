@@ -232,7 +232,7 @@ fn failed_linked_cases_move_to_the_other_live_pass_for_its_resume() {
 fn resumes_joined_and_queued_cases_on_newest_build_then_closes_or_hands_findings() {
     let (mut ledger, pass) = waiting();
     assert_eq!(ledger.passes[0].state, PassState::Waiting);
-    assert_eq!(ledger.builds[0].held, Some(pass.pass));
+    assert_eq!(ledger.builds[0].held, None);
     assert_eq!(ledger.passes[0].requests[0].findings, [1]);
     assert_eq!(ledger.passes[0].requests[0].recipes, ["recipe"]);
     let before = ledger.clone();
@@ -337,10 +337,24 @@ fn unstarted_start_and_resume_undo_from_persisted_before_records() {
     assert_eq!(ledger.passes[0].state, PassState::Waiting);
     assert_eq!(ledger.passes[0].place, "places/1");
     assert_eq!(ledger.passes[0].build, "A");
-    assert_eq!(ledger.builds[0].held, Some(pass.pass));
+    assert_eq!(ledger.builds[0].held, None);
     assert_eq!(ledger.builds[1].held, None);
     assert_eq!(ledger.lines.len(), 0);
     assert_eq!(ledger.passes[0].requests.len(), 1);
+}
+
+#[test]
+fn a_legacy_waiting_pass_hold_decodes_and_saves_as_absent() {
+    let (ledger, pass) = waiting();
+    let mut document = ledger.document();
+    document["builds"][0]["held"] = serde_json::json!(pass.pass);
+    let bytes = serde_json::to_vec(&document).expect("legacy ledger JSON");
+    let decoded = Ledger::decode(&bytes).expect("legacy ledger decodes");
+    assert_eq!(decoded.passes[0].state, PassState::Waiting);
+    assert_eq!(decoded.passes[0].build, "A");
+    assert_eq!(decoded.builds[0].held, None);
+    let saved: serde_json::Value = serde_json::from_slice(&decoded.encode().expect("save ledger")).expect("saved JSON");
+    assert!(saved["builds"][0].get("held").is_none());
 }
 
 #[test]

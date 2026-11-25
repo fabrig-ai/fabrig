@@ -234,6 +234,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::QuestionOwedNotice { .. }
         | tasks::Event::PassQuestion { .. }
         | tasks::Event::QuestionParked { .. }
+        | tasks::Event::RecheckStuck
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::Restore { .. }

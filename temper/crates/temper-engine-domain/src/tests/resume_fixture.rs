@@ -92,7 +92,10 @@ pub fn limits() -> engine::Limits {
         },
         accounts: temper_limits_fixtures::root_resume::accounts(),
         notes: temper_limits_fixtures::root_resume::notes(),
-        forge: temper_limits_fixtures::root_resume::FORGE_LIMITS,
+        forge: temper_engine_domain_forge::Limits {
+            waits: jig_protocol_config_fixtures::small().core.waits,
+            ..temper_limits_fixtures::root_resume::FORGE_LIMITS
+        },
     }
 }
 

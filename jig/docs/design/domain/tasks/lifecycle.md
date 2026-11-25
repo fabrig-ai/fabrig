@@ -102,7 +102,12 @@ will come: your delegates have ended and no question waits. Finish with
 your result." It always wakes and merges in the dependency-met notice
 slot: an unread dependency-met notice already wakes it before this rule
 is reached. Each such park consumes a run try, retained across these
-wakes; exhausting the run tries ends the task failed, saying so (7). A task ended by its requester may remain idle (9), and so may a standing one (`standing.md`, section 2). A task ended by its closer is
+wakes. Such a task is stuck, with no wake at all (`stuck.md`, 4): past
+its run tries it is held, as a task past its tries is (6), for
+`Failures` of the run's class, its hold's words `Its runs parked with
+nothing left to await, past its N run tries.`, N the run tries its
+class allows, cut as a hold's reason is (`REASON_BYTES`). It is not
+failed: whoever its hold reaches decides what follows (`stuck.md`, 5). A task ended by its requester may remain idle (9), and so may a standing one (`standing.md`, section 2). A task ended by its closer is
 not due by this rule: where it would be, jig makes its closer instead,
 and numbers no notice (11).
 
@@ -118,39 +123,34 @@ these hold:
   would bring it nothing new;
 - it is no conversation, does not stand (`standing.md`), and is not
   ended by its requester (9): each waits on its person or its session;
-- it awaits no decision that would bring the answer: it is not kept
-  (8), and has no pending proposal and no live person delegate, each a
-  person's or a holder's decision whose end wakes it.
+- it is not kept (8).
 
 A question is read in a run, never settled by it: its delivery leaves
 the inbox with the run's committed read (`messages.md`, 2), and this
 rule is what brings it back until it is answered or ends. Its next
 run's brief shows each open question (../engine/briefs.md, 1.2). No
-notice is numbered: the open question is the reason. How often it wakes
-the task depends on what else the task awaits:
+notice is numbered: the open question is the reason. Whether it wakes
+the task is whether the task is stuck (`stuck.md`, 4), judged in the
+decision that parks it:
 
-- **A task that awaits nothing else** is woken at each such park. Each
-  consumes a run try, retained across these wakes as Nothing left to
-  await's are. Past its run tries the task is held, as a task past its
-  tries is (6), for `Failures` of the run's class, its hold's words
-  `Task A's question N is still open: LINE`, A, N and LINE the oldest
-  open question's asker, number and first line, cut at a character's
-  edge to the 128 bytes a hold's reason keeps (`REASON_BYTES`), so that
+- **A stuck task,** every wake of which is dead or which has none, is
+  woken at each such park. Each consumes a run try, retained across
+  these wakes as Nothing left to await's are. Past its run tries the
+  task is held, as a task past its tries is (6), for `Failures` of the
+  run's class, its hold's words naming the oldest open question and the
+  chain that leaves it stuck, by task and question, cut to the 128
+  bytes a hold's reason keeps (`REASON_BYTES`; `stuck.md`, 5), so that
   whoever the hold reaches sees what waits. A task held so is not
   failed: its delegates go on, and a release counts its tries again from
-  it. With nothing else to wake it, waiting would leave it stopped.
-- **A task with an executor-taken timer or a task watch naming a live
-  task** is woken once for each question, never polled: those bring no
-  answer, since the question waits on this task alone, but a task
-  holding one means to go on at that event. A park leaving open a
-  question newer than the task's `question_woken` (the newest question
-  that has woken it so, 0 for none, never lowered) makes it due again at
-  once, spending no run try, and `question_woken` takes the newest open
-  question's number. A park leaving open only questions at or below it
-  leaves the task idle, spending no try, until its next event: its
-  watch's news or result, its timer, a message. A goal that means to
-  answer once a change lands costs one more run, not its tries (the
-  user, 2026-11-14).
+  it.
+- **A task with a live wake,** a timer, an entry waiting at a party, or
+  a task that can still move without its answer (`stuck.md`, 2 and 3),
+  stays idle, spending no try, until that wake comes. It is judged again
+  when a task its walk visited changes (`stuck.md`, 6), so a watch that
+  turns dead wakes it then. A goal that means to answer once a change
+  lands costs no run until then: a watch that can still bring the answer
+  leaves the task alone (`temper/docs/design/draft/bounded-waits.md`,
+  5.2).
 
 **Words left unrecorded wake it once.** After the ordinary
 unread-message wake rules and the question rule above, a task that keeps
@@ -286,8 +286,6 @@ Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 1.
   run, `person` for a person's answer and `procedure` for a procedure's
   step. Each failed ending jig makes itself carries
   its words, N the run tries its class allows (6):
-  - past its tries parked with nothing left to await (2): `Its runs
-    parked with nothing left to await, past its N run tries.`;
   - past its tries owing its requester a question (8): `Its runs
     finished without asking its requester the question it owes, past
     its N run tries.`;
@@ -295,6 +293,8 @@ Moved to [`lifecycle-holds.md`](lifecycle-holds.md), section 1.
     past its N run tries: REASON`, REASON the closer's own failure's,
     the colon and REASON left out where that is empty.
 
+  A task past its tries parked with nothing left to await is held, not
+  failed (2), its hold's words those of Nothing left to await.
   Any other ending jig makes failed with no reason of its own takes the
   nearest of these, never none. Each is cut at a character's edge to
   the bound every failed reason has, `tasks.result_bytes`, as a reason

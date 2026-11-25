@@ -437,14 +437,14 @@ impl World {
         }
     }
 
-    fn question_parked(&mut self, task: u64, question: tasks::OpenQuestion) {
-        let Some(Stored::Activity(line)) =
-            self.records.get(&Key::Activity { task: question.asker, position: question.line })
-        else {
-            panic!("open question activity")
+    fn question_parked(&mut self, task: u64, question: tasks::OpenQuestion, chain: &[tasks::StuckLink]) {
+        let reason = match self.records.get(&Key::Activity { task: question.asker, position: question.line }) {
+            Some(Stored::Activity(line)) => {
+                let tasks::Line::Words { words, .. } = &line.line else { panic!("question words") };
+                Some(tasks::open_question_reason(question, chain, words))
+            }
+            Some(_) | None => None,
         };
-        let tasks::Line::Words { words, .. } = &line.line else { panic!("question words") };
-        let reason = tasks::open_question_reason(question, words);
         tasks::step(
             &mut self.domain,
             &self.env,
@@ -489,7 +489,8 @@ impl World {
                 );
             }
             Request::CloserDue { task } => self.closer_due(*task),
-            Request::QuestionParked { task, question } => self.question_parked(*task, *question),
+            Request::RecheckStuck => tasks::step(&mut self.domain, &self.env, Event::RecheckStuck, &mut self.out),
+            Request::QuestionParked { task, question, chain } => self.question_parked(*task, *question, chain),
             Request::QuestionOwedDue { task } | Request::NothingAwaitedDue { task } => {
                 self.message = self.message.checked_add(1).expect("reminder number room");
                 let event = if matches!(request, Request::QuestionOwedDue { .. }) {
@@ -691,6 +692,7 @@ impl World {
             | Event::MetNotice { .. }
             | Event::QuestionOwedNotice { .. }
             | Event::QuestionParked { .. }
+            | Event::RecheckStuck
             | Event::NothingAwaitedNotice { .. }
             | Event::QuestionEndedNotice { .. }
             | Event::CancelQuestion { .. }
@@ -801,6 +803,7 @@ impl World {
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
             | Event::QuestionParked { .. }
+            | Event::RecheckStuck
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
             | Event::ReadingLost { .. }
@@ -970,6 +973,7 @@ impl World {
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
                 | Request::QuestionParked { .. }
+                | Request::RecheckStuck
                 | Request::CloserDue { .. }
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
@@ -1068,6 +1072,7 @@ impl World {
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
                 | Request::QuestionParked { .. }
+                | Request::RecheckStuck
                 | Request::CloserDue { .. }
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }

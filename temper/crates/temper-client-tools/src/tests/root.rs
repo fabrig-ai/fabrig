@@ -1,5 +1,17 @@
-use crate::tests::fixtures;
+use crate::{jig::render::Parts as _, tests::fixtures};
 use jig_client::{self as client, contract as c};
+use temper_client_protocol_wire::waits;
+
+#[test]
+fn procedure_wait_vocabulary_names_only_known_codes() {
+    const UNKNOWN: u32 = u32::MAX;
+    let parts = super::Parts;
+    assert_eq!(parts.wait_step(waits::CHANGE_CHECKING), Some(b"checking".as_slice()));
+    assert_eq!(parts.wait_thing(waits::THING_TASK), Some((b"task".as_slice(), b" ".as_slice())));
+    assert_eq!(parts.wait_thing(waits::THING_PULL), Some((b"pull request".as_slice(), b" #".as_slice())));
+    assert_eq!(parts.wait_step(UNKNOWN), None);
+    assert_eq!(parts.wait_thing(UNKNOWN), None);
+}
 
 // Queue the last delivery and its terminal before routing either notification,
 // as the native client can do when it drains several wire events together.

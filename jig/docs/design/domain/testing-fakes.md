@@ -503,7 +503,7 @@ checks' form, and fails the driver as theirs do.
 
 Each open problem of the draft's section 7 that a jig world shows has its
 scenario, named as the draft names it, ignored with the problem and the
-work that fixes it (`#[ignore = "P43, open: bounded waits
+work that fixes it (`#[ignore = "S15, open: provider failures
 (jig/docs/design/domain/testing-fakes.md, 1.3)"]`), and an exclusion of
 skein's form (`skein/docs/design/testing/sweeps.md`, 5) in the kit of the
 world whose sweeps draw its fault: `jig_core_kit::open::EXCLUSIONS` and
@@ -514,7 +514,6 @@ a sweep configuring each fault accepts each.
 
 | Problem | Scenario | World | Fixed by | Fault left out, and while |
 |---|---|---|---|---|
-| P43 | `a_coordinator_watching_its_asker_is_woken` | core | bounded waits | runs that park, resume and move: `a run parks with a question to its requester open`, while `its requester watches it` |
 | S15 | `a_party_extends_its_goals_deadline` | core | provider failures | people and parties: `amending a deadline after it has passed`, while `the amending party started the goal` |
 | P77 | `an_owners_widening_is_never_proposed_to_itself` | core; its reading and decision, client-protocol | provider failures | people and parties: `a party widens a goal's authority`, while `the widening party is the project's owner` |
 | P76 | `a_new_party_gets_account_uses` | core | provider failures | people and parties: `a new service party runs on an account`, while `the account's uses were set before the service was made` |
@@ -535,4 +534,9 @@ a sweep configuring each fault accepts each.
   passes today, it runs, as a regression of P77's repaired part, and the
   row's ignored scenario is the core world's.
 - **The fixing work** removes the `#[ignore]` and the exclusion together
-  (the draft, 6).
+  (the draft, 6), and its row leaves the table: the scenario runs as a
+  regression, under its name. P43's, `a_coordinator_watching_its_asker_is_woken`,
+  runs so in the core world, held past its run tries with its child's
+  question's words (`tasks/stuck.md`, 5), and the parks' sweep draws
+  `PARKS_WITH_A_QUESTION_OPEN` while the requester watches
+  (`testing-workloads.md`, 4).

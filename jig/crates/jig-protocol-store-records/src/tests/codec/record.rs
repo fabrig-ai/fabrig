@@ -140,16 +140,6 @@ fn suspended_ends_and_task_gaps_read_back() {
 }
 
 #[test]
-fn a_tasks_question_wake_watermark_reads_back() {
-    for question_woken in [0, 37, u64::MAX] {
-        let mut record = current_record();
-        record.question_woken = question_woken;
-        let row = live_record(record);
-        assert_eq!(saved_tasks(&row), Ok(row));
-    }
-}
-
-#[test]
 fn a_task_record_with_started_from_dependencies_reads_back() {
     let mut record = current_record();
     record.dependencies = Box::new([19, 23]);

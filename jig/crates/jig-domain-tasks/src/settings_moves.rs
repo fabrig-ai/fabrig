@@ -95,6 +95,7 @@ pub(crate) fn move_tasks(domain: &mut Domain, env: &Env<Limits>, from: Option<u3
     }
     crate::settings::recount(domain);
     for &number in &moving {
+        crate::stuck::refresh(domain, number);
         let task = task_mut(domain, number).expect("moving task");
         crate::changed::observe(task, env.wall);
         out.push(Request::Save { record: Stored::Live(Box::new(task.record.clone())) });

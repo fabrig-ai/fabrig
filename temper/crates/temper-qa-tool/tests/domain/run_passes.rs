@@ -1,9 +1,9 @@
 //! The loop's pass step over commits, recorded agent actions and movable time (qa/passes.md, 9).
 use std::{io::Write, path::Path};
 use temper_qa_tool::{
-    CaseState, Exit, PassState,
+    BuildState, CaseState, Exit, PassState,
     faces::{DirectoryMode, FilesFace, Mode, PathKind, RemoveMode, Signal, WriteMode, WriteOptions},
-    testing::{Agent, Lock, Loop, Tree, World, baseline, id, land},
+    testing::{Agent, FileOp, Lock, Loop, Tree, World, baseline, id, land},
 };
 
 const SETUPS: &str = "temper/docs/development/qa/setups";
@@ -188,6 +188,8 @@ fn pass_brief_explains_web_requests_on_start_and_resume() {
                     ledger.end_goal(99, 2)
                 })
                 .expect("ended goal");
+            run.git.commit(3, &[2], "build for the resume");
+            world.installable_build(3);
             run.processes.next.push_back(Agent::Never);
             run.tick();
             assert_eq!(world.ledger().passes[0].sessions.len(), 2, "resumed the pass");
@@ -215,6 +217,8 @@ fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
             ledger.end_goal(99, 2)
         })
         .expect("ended goal");
+    run.git.commit(3, &[2], "build for the resume");
+    world.installable_build(3);
     run.processes.next.push_back(Agent::Never);
     run.tick();
     assert_eq!(world.ledger().passes[0].sessions.len(), 2, "resumed the pass");
@@ -450,10 +454,11 @@ fn agent_exits_apply_recorded_outcomes_or_nothing_and_write_the_report() {
         assert_eq!(report, ledger.report(1).expect("report value"));
         if pass_state == PassState::Waiting {
             assert_eq!(ledger.passes[0].requests[0].findings, [1]);
-            assert_eq!(ledger.builds[0].held, Some(1));
-        } else {
-            assert_eq!(ledger.builds[0].held, None);
+            assert_eq!(ledger.findings[0].state, temper_qa_tool::FindingState::Open);
+            assert_eq!(ledger.builds[0].state, BuildState::Deleted);
+            assert!(!files.exists(world.home.builds.join(id(2))));
         }
+        assert_eq!(ledger.builds[0].held, None);
         if matches!(agent, Agent::Blocked) {
             drop(holder);
             run.processes.next.push_back(Agent::Blocked);
@@ -465,6 +470,65 @@ fn agent_exits_apply_recorded_outcomes_or_nothing_and_write_the_report() {
             assert!(ledger.lines.iter().any(|line| line.words.contains("blocked twice")));
         }
     }
+}
+
+#[test]
+fn a_waiting_pass_releases_a_build_kept_for_a_queued_case_it_partly_holds() {
+    let world = World::new();
+    let mut files = world.files();
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never, Agent::Empty]);
+    run.tick();
+    land(&mut run, 2, 7);
+    let build = world.installable_build(2);
+    let mut tui = super::case();
+    tui.surface = "tui".into();
+    tui.page = "chat".into();
+    run.tick();
+    world.home.transact(&mut files, |ledger, _| ledger.add_case(1, &tui, 0)).expect("first tui ask");
+    let surfaces = std::mem::replace(&mut run.home.configuration.surfaces, vec!["web".into()]);
+    run.tick();
+
+    run.home.configuration.surfaces = surfaces;
+    land(&mut run, 4, 8);
+    run.tick();
+    world.home.transact(&mut files, |ledger, _| ledger.add_case(3, &tui, 0)).expect("second tui ask");
+    run.processes.finish(2, Agent::Fail);
+    run.tick();
+
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes.len(), 1, "no build can run the queued case");
+    assert_eq!(ledger.passes[0].state, PassState::Waiting);
+    let queued = ledger.cases.iter().find(|case| case.state == CaseState::Queued).expect("queued case");
+    assert_eq!(queued.landings(), [1, 2]);
+    assert_eq!(ledger.builds[0].holds.as_deref(), Some([1].as_slice()));
+    assert_eq!(ledger.builds[0].held, None);
+    assert_eq!(ledger.builds[0].state, BuildState::Kept);
+    assert!(files.exists(build));
+}
+
+#[test]
+fn a_tick_deletes_a_legacy_waiting_pass_build_without_queued_cases() {
+    let world = World::new();
+    let mut files = world.files();
+    let mut run = ready(&world, Agent::Fail);
+    let build = world.home.builds.join(id(2));
+    files.inject(&build, FileOp::Remove, std::io::ErrorKind::PermissionDenied);
+    run.tick();
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes[0].state, PassState::Waiting);
+    assert!(files.exists(&build), "the failed deletion left the build on disk");
+
+    let mut legacy = ledger.document();
+    legacy["builds"][0]["held"] = serde_json::json!(1);
+    let bytes = serde_json::to_vec(&legacy).expect("legacy ledger JSON");
+    files.write(&world.home.ledger, &bytes, WriteOptions::REPLACE, false).expect("legacy ledger on disk");
+    run.tick();
+
+    assert_eq!(world.ledger().builds[0].state, BuildState::Deleted);
+    assert!(!files.exists(&build));
+    let saved: serde_json::Value =
+        serde_json::from_slice(&files.read(&world.home.ledger).expect("saved ledger")).expect("saved ledger JSON");
+    assert!(saved["builds"][0].get("held").is_none());
 }
 
 #[test]
@@ -539,6 +603,11 @@ fn a_waiting_pass_resumes_before_a_start_on_a_later_build_with_findings_first() 
     let mut files = world.files();
     let mut run = ready(&world, Agent::Fail);
     run.tick();
+    assert_eq!(
+        world.ledger().builds[0].state,
+        BuildState::Deleted,
+        "waiting released the old build before the landing"
+    );
     world.home.transact(&mut files, |ledger, _| ledger.file_request(1, 1, Some(99), 1)).expect("filed request");
     land(&mut run, 4, 99);
     run.git.commit(5, &[4], "later than the goal's landing");
@@ -566,6 +635,7 @@ fn a_waiting_pass_resumes_before_a_start_on_a_later_build_with_findings_first() 
     assert_eq!(ledger.passes[0].cases, [1, 3, 2]);
     assert!(ledger.cases.iter().all(|case| case.state == CaseState::Assigned && case.pass == Some(1)));
     assert_eq!(ledger.builds[0].held, None);
+    assert_eq!(ledger.builds[0].state, BuildState::Deleted);
     assert_eq!(ledger.builds[1].held, Some(1));
     assert_eq!(files.read_to_string(&setups.join("project/README.md")).expect("new setups"), "An updated project.");
     assert_eq!(files.read(&setups.join("project/recipe")).expect("reset recipe"), b"recipe 1\nweb see Ready\n");
@@ -598,7 +668,45 @@ fn a_waiting_pass_resumes_before_a_start_on_a_later_build_with_findings_first() 
 }
 
 #[test]
-fn an_unstarted_resume_restores_the_waiting_build_and_retries_without_a_landing() {
+fn a_goal_ended_without_landing_waits_for_a_build_then_resumes_on_the_newest() {
+    let world = World::new();
+    let mut files = world.files();
+    let mut run = ready(&world, Agent::Fail);
+    run.tick();
+    world
+        .home
+        .transact(&mut files, |ledger, _| {
+            ledger.file_request(1, 1, Some(99), 1)?;
+            ledger.end_goal(99, 2)
+        })
+        .expect("goal ended without landing");
+    for _ in 0..2 {
+        run.tick();
+        let ledger = world.ledger();
+        assert_eq!(ledger.passes[0].state, PassState::Waiting);
+        assert_eq!(ledger.sessions.len(), 2, "no build to resume on");
+        assert_eq!(ledger.builds[0].state, BuildState::Deleted);
+        assert_eq!(ledger.lines.len(), 0);
+    }
+
+    run.git.commit(3, &[2], "older available build");
+    run.git.commit(4, &[3], "newest available build");
+    world.installable_build(3);
+    world.installable_build(4);
+    run.processes.next.push_back(Agent::Never);
+    run.tick();
+
+    let ledger = world.ledger();
+    assert_eq!(ledger.passes.len(), 1);
+    assert_eq!(ledger.passes[0].state, PassState::Running);
+    assert_eq!(ledger.passes[0].build, id(4));
+    assert_eq!(ledger.passes[0].sessions, [2, 3]);
+    assert_eq!(ledger.builds[1].held, None);
+    assert_eq!(ledger.builds[2].held, Some(1));
+}
+
+#[test]
+fn an_unstarted_resume_restores_the_waiting_pass_without_a_hold_then_retries() {
     let world = World::new();
     let mut files = world.files();
     let mut run = ready(&world, Agent::Fail);
@@ -621,17 +729,19 @@ fn an_unstarted_resume_restores_the_waiting_build_and_retries_without_a_landing(
     assert_eq!(ledger.passes[0].build, id(2));
     assert_eq!(ledger.cases[0].state, CaseState::Failed);
     assert_eq!(ledger.cases[0].blocks, 0);
-    assert_eq!(ledger.builds[0].held, Some(1));
+    assert_eq!(ledger.builds[0].held, None);
     assert_eq!(ledger.builds[1].held, None);
+    assert_eq!(ledger.builds[0].state, BuildState::Deleted);
+    assert_eq!(ledger.builds[1].state, BuildState::Deleted);
     assert_eq!(files.kind(world.home.pass_tree("places/1")), Some(PathKind::Directory));
+    run.git.commit(4, &[3], "build for the retry");
+    world.installable_build(4);
     run.tick();
     let ledger = world.ledger();
     assert_eq!(ledger.passes.len(), 1);
     assert_eq!(ledger.passes[0].state, PassState::Running);
-    // The released build has no queued cases and the builds step deletes it;
-    // a goal ended without landing may retry on the still-kept prior build.
-    assert_eq!(ledger.builds[1].state, temper_qa_tool::BuildState::Deleted);
-    assert_eq!(ledger.passes[0].build, id(2));
+    assert_eq!(ledger.passes[0].build, id(4));
+    assert_eq!(ledger.builds[2].held, Some(1));
     assert_eq!(ledger.sessions[3].exit, None);
     let brief = files.read_to_string(&world.home.session_directory(4).join("brief")).expect("resume brief");
     assert!(brief.contains("Resumed after goal 99: ended without landing"));

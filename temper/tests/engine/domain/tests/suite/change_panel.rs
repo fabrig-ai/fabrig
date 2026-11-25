@@ -237,8 +237,12 @@ fn clean_update_carries_the_gate_verdict_to_the_current_head() {
 )]
 fn restart_forgets_ci_until_the_next_step_reads_it() {
     use temper_engine_domain_forge_change as change;
-    use temper_engine_domain_world::{forge_stand::ForgeStand, store::Store};
-    let mut driver = Driver::configured(Store::new(), [config(), config()], &fixtures::forge_limits());
+    use temper_engine_domain_world::forge_stand::ForgeStand;
+    let limits = fixtures::forge_limits();
+    let mut store = fixtures::restored_store(config(), &limits);
+    // Only the test's explicit forge steps read CI, including after restart.
+    super::panel_before_change::seed_change_procedure(&mut store, 51, 1, None, Some(jig_domain_tasks::Hold::Stopped));
+    let mut driver = Driver::configured(store, [config(), config()], &limits);
     driver.forge = Some(ForgeStand::with_checks(&[(b"org", b"repo", 2), (b"org", b"private", 3)], &[b"build"]));
     driver.connect_forges();
     driver.settle();

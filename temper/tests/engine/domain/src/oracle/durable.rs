@@ -1,4 +1,5 @@
-//! Each restart-rebuilt document field is declared here (jig jig/docs/design/domain/engine/world.md, 1).
+//! Restart-rebuilt document fields (jig/docs/design/domain/engine/world.md, 1;
+//! temper/docs/design/domain/forge/waits.md, 2 and 10).
 use jig_domain_core::{WaitKind, documents as docs, reads::Answer};
 use jig_domain_tasks::Active;
 
@@ -6,8 +7,18 @@ pub(super) fn answers(before: &mut Answer, after: &mut Answer) {
     if let (Answer::Document(left), Answer::Document(right)) = (&mut *before, &mut *after)
         && let (docs::Document::Task(left), docs::Document::Task(right)) = (left.as_mut(), right.as_mut())
     {
-        let (left_wait, left_bound) = durable_waits(left);
-        let (right_wait, right_bound) = durable_waits(right);
+        let without_report = left.waits.iter().chain(&right.waits).any(|wait| procedure_wait(wait.kind));
+        let project = |task: &mut docs::Task| {
+            let (wait, bound) = durable_waits(task);
+            if without_report {
+                let (reported_wait, reported_bound) = without_procedure_report(task);
+                (wait || reported_wait, bound || reported_bound)
+            } else {
+                (wait, bound)
+            }
+        };
+        let (left_wait, left_bound) = project(left);
+        let (right_wait, right_bound) = project(right);
         // A discarded winner can expose a different wait on the other side. The
         // retained wait lines still compare; only the affected projection is masked.
         if left_wait || right_wait {
@@ -76,6 +87,32 @@ fn durable_task(task: &mut docs::Task) {
     for i in 0..task.lineage.len() {
         durable_chip(task.lineage.get_mut(i).expect("lineage index"));
     }
+}
+
+fn procedure_wait(kind: WaitKind) -> bool {
+    matches!(kind, WaitKind::Step | WaitKind::Room | WaitKind::Turn | WaitKind::SignOff)
+}
+
+/// Compare the retained prefix, not the procedure reports assembled at startup.
+/// Their deadlines and objects can use live observations even when their since
+/// comes from a stored change clock, which the row inventory still compares.
+fn without_procedure_report(task: &mut docs::Task) -> (bool, bool) {
+    // A visible report means the durable prefix fits. News is the alternative
+    // to a report in this last group (jig/docs/design/domain/engine/waits.md, 4).
+    let reported_group = |kind| procedure_wait(kind) || kind == WaitKind::News;
+    let prefix = task.waits.iter().take_while(|wait| !reported_group(wait.kind)).count();
+    let prefix = u32::try_from(prefix).expect("bounded wait lines");
+    if prefix < task.waits.len() {
+        task.wait_count = prefix;
+        task.waits.truncate(prefix);
+    }
+    if task.waits_on == docs::WaitsOn::News {
+        task.waits_on = docs::WaitsOn::Nothing;
+    }
+    (
+        task.wait.as_ref().is_some_and(|wait| reported_group(wait.kind)),
+        task.nearest.is_some_and(|bound| reported_group(bound.kind)),
+    )
 }
 
 /// Keep durable wait episodes and report whether first or nearest projected a

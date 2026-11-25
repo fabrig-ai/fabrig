@@ -62,12 +62,14 @@ impl Account {
 }
 
 /// A source, with its own state (domain/accounts-sources.md, 2): what the component says of a signed-in
-/// source's grant, and what runs' agents noticed of any source.
+/// source's grant, and what runs' agents noticed of any source. The sign-in that brought it
+/// keeps its asker here until the component answers (domain/accounts.md, section 5).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Source {
     pub(crate) account: u32,
     pub(crate) kind: Kind,
     pub(crate) name: Box<[u8]>,
+    pub(crate) awaiting_sign_in: Option<u64>,
     /// Stored position awaiting the start's link pass (domain/engine/restart.md).
     pub(crate) restore_place: u32,
     state: State,
@@ -88,6 +90,7 @@ impl Source {
             account,
             kind,
             name,
+            awaiting_sign_in: None,
             restore_place: 0,
             state: match kind {
                 Kind::None => State::Granted,
@@ -573,6 +576,17 @@ impl Domain {
         }
         result
     }
+    /// Whether a source made or renewed by this party's sign-in still awaits its first answer.
+    #[must_use]
+    pub fn awaiting_sign_in(&self, by: u64) -> bool {
+        for (_, source) in &self.sources {
+            if source.awaiting_sign_in == Some(by) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// The newest retained end asked by this person; forgotten at restart.
     #[must_use]
     pub fn last_end(&self, by: u64) -> Option<Ended> {
@@ -988,6 +1002,7 @@ fn close(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for number in &numbers {
         let entry = domain.sources.get_mut(number).expect("a listed source");
         entry.state = State::Closing;
+        entry.awaiting_sign_in = None;
         entry.grant = None;
         entry.retry = None;
         entry.hold = None;
@@ -1054,6 +1069,7 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
     match event {
         FromComponent::Granted { account: _, generation, valid, form } => {
             let valid = if entry.kind == Kind::Key { crate::KEY_VALID } else { valid };
+            entry.awaiting_sign_in = None;
             entry.grant = Some(Granted { generation, expires: env.now.saturating_add(valid), form });
             entry.state = State::Granted;
             if entry.hold == Some(Hold::Moving) {
@@ -1076,7 +1092,10 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
             }
             entry.expiring = true;
         }
-        FromComponent::Failed { account: _, failure } => failed(entry, env, failure),
+        FromComponent::Failed { account: _, failure } => {
+            entry.awaiting_sign_in = None;
+            failed(entry, env, failure);
+        }
         FromComponent::KeepFailed { .. } | FromComponent::Refreshed { .. } | FromComponent::Closed => return,
     }
     changed(domain, env, source, before, out);
@@ -1347,6 +1366,7 @@ pub(crate) fn moving(domain: &mut Domain, env: &Env<Limits>, source: u32, out: &
     let entry = domain.sources.get_mut(&source).expect("a move's checked source");
     let before = entry.hold;
     entry.hold = Some(Hold::Moving);
+    entry.awaiting_sign_in = None;
     entry.grant = None;
     entry.expiring = false;
     entry.retry = None;

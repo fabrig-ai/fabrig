@@ -60,17 +60,7 @@ fn held_windows_give_their_share_pace_and_colour_without_history() {
         (b"five_hour", hours(2), 7500, 1, Some(2500), "5 h", "resets in 2 h · 25%/h · ", "full in 1 h", Look::Plain),
         (b"seven_day", hours(48), 8300, 1, Some(70), "Week", "resets in 2 d · 0.7%/h · ", "full in 1 d", Look::Warned),
         (b"five_hour", 40 * MINUTE, 10000, c::WINDOW_LIMITED, Some(200), "5 h", "resets in 40 min", "", Look::Limited),
-        (
-            b"seven_day_opus",
-            hours(110),
-            2900,
-            1,
-            Some(50),
-            "seven_day_opus",
-            "resets in 4 d 14 h · 0.5%/h · about 84% at reset",
-            "",
-            Look::Plain,
-        ),
+        (b"seven_day_", hours(48), 100, 1, None, "seven_day_", "resets in 2 d", "", Look::Plain),
     ] {
         let line = only(fact(label, None, Some(remaining), Some(used), state, rate));
         assert_eq!(text(&line.name), name);
@@ -80,6 +70,9 @@ fn held_windows_give_their_share_pace_and_colour_without_history() {
         assert_eq!(text(&line.fills), fills);
         assert_eq!(line.look, look);
     }
+    let lasting_model = fact(b"seven_day_opus", Some(hours(168)), Some(hours(110)), Some(2900), 1, Some(50));
+    assert!(windows(&List::from_boxed(Box::new([lasting_model])), Wall::EPOCH, &fixtures::words()).is_empty());
+
     let week = only(fact(b"seven_day", Some(hours(168)), Some(hours(110)), Some(2900), 1, Some(50)));
     assert_eq!(text(&week.line), "Week: 29% used · resets in 4 d 14 h · 0.5%/h · about 84% at reset");
     assert_eq!(only(fact(b"seven_day", None, None, Some(2999), 1, None)).share.as_ref(), b"29%");
@@ -112,6 +105,48 @@ fn windows_only_draw_held_current_usage_shortest_first() {
     let lines = windows(&facts, Wall::EPOCH, &fixtures::words());
     let names: Vec<_> = lines.iter().map(|line| text(&line.name)).collect();
     assert_eq!(names, ["5 h", "Week", "a", "z"]);
+}
+
+#[test]
+fn model_weeks_are_drawn_only_while_limited_or_filling_before_reset() {
+    let length = Some(hours(168));
+    let reset = Some(hours(48));
+    let absent = List::from_boxed(Box::new([
+        fact(b"seven_day_sonnet", length, reset, Some(0), 1, None),
+        fact(b"seven_day_fable", length, reset, Some(0), 1, Some(0)),
+        fact(b"seven_day_fable", length, reset, Some(6400), 1, None),
+        fact(b"seven_day_fable", length, reset, Some(6400), 1, Some(75)),
+    ]));
+    assert!(windows(&absent, Wall::EPOCH, &fixtures::words()).is_empty());
+
+    let fable = only(fact(b"seven_day_fable", length, reset, Some(6400), 1, Some(160)));
+    assert_eq!(text(&fable.name), "Fable");
+    assert_eq!(fable.look, Look::Plain);
+    assert_eq!(text(&fable.fills), "full in 22 h 30 min");
+    assert_eq!(text(&fable.line), "Fable: 64% used · resets in 2 d · 1.6%/h · full in 22 h 30 min");
+
+    for (label, rate, name) in [(b"seven_day_sonnet".as_slice(), Some(50), "Sonnet"), (b"seven_day_opus", None, "Opus")]
+    {
+        let limited = only(fact(label, length, reset, Some(10000), c::WINDOW_LIMITED, rate));
+        assert_eq!(text(&limited.name), name);
+        assert_eq!(limited.look, Look::Limited);
+        assert_eq!(text(&limited.pace), "resets in 2 d");
+        assert!(limited.fills.is_empty());
+    }
+}
+
+#[test]
+fn model_weeks_follow_week_at_the_same_length() {
+    let week = Some(hours(168));
+    let facts = List::from_boxed(Box::new([
+        fact(b"seven_day_sonnet", week, Some(hours(48)), Some(0), 1, None),
+        fact(b"seven_day_fable", week, Some(hours(48)), Some(6400), 1, Some(160)),
+        fact(b"seven_day", week, Some(hours(110)), Some(2900), 1, Some(50)),
+        fact(b"five_hour", Some(hours(5)), Some(hours(2)), Some(7500), 1, Some(2500)),
+    ]));
+    let lines = windows(&facts, Wall::EPOCH, &fixtures::words());
+    let names: Vec<_> = lines.iter().map(|line| text(&line.name)).collect();
+    assert_eq!(names, ["5 h", "Week", "Fable"]);
 }
 
 #[test]

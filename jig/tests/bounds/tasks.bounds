@@ -20,7 +20,7 @@ Authority: ceilings encoded=131447 decoded=131584; at_most(3) encoded=76 decoded
 AuthorityExecutor: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 AuthorityJob: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 AuthoritySegment: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
-BeforeTalk: ceilings encoded=420760674 decoded=420777680; at_most(3) encoded=2634 decoded=2332
+BeforeTalk: ceilings encoded=420760666 decoded=420777680; at_most(3) encoded=2626 decoded=2332
 BeganLine: ceilings encoded=40 decoded=0; at_most(3) encoded=40 decoded=0
 Bound: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Budget: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
@@ -143,7 +143,7 @@ KeptLine: ceilings encoded=533 decoded=512; at_most(3) encoded=45 decoded=24
 Last: ceilings encoded=4101 decoded=4096; at_most(3) encoded=8 decoded=3
 Line: ceilings encoded=1572918 decoded=1572864; at_most(3) encoded=73 decoded=24
 LiveCold: ceilings encoded=69339043 decoded=69340160; at_most(3) encoded=213 decoded=171
-LiveHot: ceilings encoded=352994551 decoded=353010384; at_most(3) encoded=2491 decoded=2167
+LiveHot: ceilings encoded=352994543 decoded=353010384; at_most(3) encoded=2483 decoded=2167
 LiveRoom: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 LlmChoice: ceilings encoded=404 decoded=384; at_most(3) encoded=38 decoded=18
 LlmFault: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -261,7 +261,7 @@ Role: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 RoomProject: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 RoomWait: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
 RoutingEscalation: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
-Row: ceilings encoded=421023123 decoded=421040848; at_most(3) encoded=2704 decoded=2389
+Row: ceilings encoded=421023115 decoded=421040848; at_most(3) encoded=2696 decoded=2389
 Run: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 SavedResource: ceilings encoded=65542 decoded=65536; at_most(3) encoded=9 decoded=3
 Scopes: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -312,7 +312,7 @@ TaskInterest: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 TaskInterests: ceilings encoded=212880261 decoded=212891344; at_most(3) encoded=527 decoded=708
 TaskOutcome: ceilings encoded=2162818 decoded=2162688; at_most(3) encoded=170 decoded=33
 TaskProblem: ceilings encoded=65624 decoded=65536; at_most(3) encoded=112 decoded=24
-TaskRecord: ceilings encoded=420760716 decoded=420777680; at_most(3) encoded=2676 decoded=2332
+TaskRecord: ceilings encoded=420760708 decoded=420777680; at_most(3) encoded=2668 decoded=2332
 TaskResult: ceilings encoded=1572877 decoded=1572864; at_most(3) encoded=27 decoded=6
 TaskRun: ceilings encoded=68686588 decoded=68686848; at_most(3) encoded=688 decoded=760
 TaskSummary: ceilings encoded=1009 decoded=768; at_most(3) encoded=250 decoded=9
@@ -328,7 +328,7 @@ TurnLine: ceilings encoded=29 decoded=0; at_most(3) encoded=29 decoded=0
 UnheldEscalation: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Update: ceilings encoded=41 decoded=0; at_most(3) encoded=41 decoded=0
 UpdateObject: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
-Value: ceilings encoded=420760717 decoded=420777680; at_most(3) encoded=2677 decoded=2332
+Value: ceilings encoded=420760709 decoded=420777680; at_most(3) encoded=2669 decoded=2332
 Verdict: ceilings encoded=1048592 decoded=1048576; at_most(3) encoded=19 decoded=3
 VerdictMessage: ceilings encoded=1048584 decoded=1048576; at_most(3) encoded=11 decoded=3
 VerdictResult: ceilings encoded=1572876 decoded=1572864; at_most(3) encoded=18 decoded=6
@@ -344,4 +344,4 @@ Word: ceilings encoded=1572908 decoded=1572864; at_most(3) encoded=63 decoded=6
 WriteHolding: ceilings encoded=65544 decoded=65536; at_most(3) encoded=11 decoded=3
 Writer: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 WriterSlot: ceilings encoded=65568 decoded=65536; at_most(3) encoded=35 decoded=3
-family: ceilings encoded=421023123 decoded=421040848; at_most(3) encoded=2704 decoded=2389
+family: ceilings encoded=421023115 decoded=421040848; at_most(3) encoded=2696 decoded=2389
