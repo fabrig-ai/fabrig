@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0x81, 0x71, 0x39, 0xc8, 0xf8, 0x60, 0xd5, 0xff, 0x07, 0x78, 0x95, 0xd3, 0xf9, 0x25, 0xbc, 0x7d, 0x4b, 0x9f, 0x78,
-    0x45, 0xe5, 0x88, 0x85, 0xb1, 0x86, 0x59, 0xf2, 0xbc, 0x07, 0x08, 0x62, 0x9f,
+    0x4c, 0x6a, 0x3e, 0x72, 0x25, 0x03, 0x2f, 0xf4, 0xee, 0xfb, 0x7d, 0x73, 0x24, 0xf2, 0x0e, 0x48, 0x0e, 0xf6, 0x6c,
+    0x52, 0x43, 0x67, 0x4f, 0x3e, 0xb4, 0xc7, 0xfc, 0xad, 0xb5, 0x40, 0x6d, 0xe5,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -3170,6 +3170,8 @@ pub mod paths {
     pub const LANDING_ROUND_END_TAG: Path = Path::new("LandingRoundEnd (tag)");
     pub const LANDING_RECORD_HOLD_MEMBER: Path = Path::new("LandingRecordHold.member");
     pub const LANDING_RECORD_HOLD_TAIL: Path = Path::new("LandingRecordHold (tail)");
+    pub const LANDING_CLAIMED_CHANGE: Path = Path::new("LandingClaimed.change");
+    pub const LANDING_CLAIMED_TAIL: Path = Path::new("LandingClaimed (tail)");
     pub const LANDING_OWN_HOLD_TAG: Path = Path::new("LandingOwnHold (tag)");
     pub const FAILING_TEST_TEST_ID: Path = Path::new("FailingTest.test_id");
     pub const FAILING_TEST_TAIL: Path = Path::new("FailingTest (tail)");
@@ -20848,6 +20850,56 @@ impl Record for LandingRecordHold {
     }
 }
 
+// Type: LandingClaimed.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingClaimed {
+    pub change: u64,
+}
+
+// Record: LandingClaimed.
+impl LandingClaimed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 8;
+}
+
+impl Record for LandingClaimed {
+    type Limits = Limits;
+    const TAIL: Path = paths::LANDING_CLAIMED_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingClaimed")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LandingClaimed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.change, limits, out, paths::LANDING_CLAIMED_CHANGE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            change: field::read(field::U64, limits, reader, paths::LANDING_CLAIMED_CHANGE)?,
+        })
+    }
+}
+
 // Type: LandingOwnHold.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum LandingOwnHold {
@@ -20856,6 +20908,7 @@ pub enum LandingOwnHold {
     Timeout(LandingTimeout),
     Turn,
     Read,
+    Claimed(LandingClaimed),
 }
 
 // Record: LandingOwnHold.
@@ -20866,7 +20919,8 @@ impl LandingOwnHold {
         skein_codec::bounds::Node::Named("LandingTimeout"),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+        skein_codec::bounds::Node::Named("LandingClaimed"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -20901,6 +20955,7 @@ impl Record for LandingOwnHold {
             Self::Timeout(value) => { field::put(out, &[2], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
             Self::Turn => field::put(out, &[3], paths::LANDING_OWN_HOLD_TAG),
             Self::Read => field::put(out, &[4], paths::LANDING_OWN_HOLD_TAG),
+            Self::Claimed(value) => { field::put(out, &[5], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -20912,7 +20967,8 @@ impl Record for LandingOwnHold {
             2 => Ok(Self::Timeout(LandingTimeout::read(limits, reader)?)),
             3 => Ok(Self::Turn),
             4 => Ok(Self::Read),
-            5..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            5 => Ok(Self::Claimed(LandingClaimed::read(limits, reader)?)),
+            6..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -41174,6 +41230,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "LandingBelow", nodes: LandingBelow::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingBlamed", nodes: LandingBlamed::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingByTest", nodes: LandingByTest::SHAPE },
+    skein_codec::bounds::Declaration { name: "LandingClaimed", nodes: LandingClaimed::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingCombine", nodes: LandingCombine::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingEntry", nodes: LandingEntry::SHAPE },
     skein_codec::bounds::Declaration { name: "LandingFallback", nodes: LandingFallback::SHAPE },

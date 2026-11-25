@@ -1,8 +1,8 @@
 //! The live membership index and the change's ask queue (temper/docs/design/domain/landing-members.md, 2.1 and 3).
-use super::{State, commit_hex, concat, matches_terminal};
+use super::{State, commit_hex, concat, matches_terminal, policy};
 use crate::{ChangeRow, Domain, LandingRow, RecordKind, Request, RestoreFit, RestoreSet};
 use alloc::boxed::Box;
-use skein_lib::{Decimal, List, Queue};
+use skein_lib::{Decimal, List, Map, Queue};
 use temper_engine_domain_forge_change as change;
 
 const ASKS: u32 = 16;
@@ -51,7 +51,47 @@ pub(super) fn same_members(prior: &LandingRow, row: &LandingRow) -> bool {
 }
 
 impl State {
-    /// Replace a row and its projection together, including when rows are read at start.
+    pub(crate) fn restore_row(&mut self, row: LandingRow) {
+        self.rows.insert(row.landing.task, row).expect("restored landing row was admitted");
+        self.memberships_unbuilt = true;
+    }
+
+    /// Check claims in task order before publishing the index (domain/landing-members.md, 2.2).
+    pub(crate) fn restore_memberships(&mut self) -> Result<(), RestoreFit> {
+        if !self.memberships_unbuilt {
+            return Ok(());
+        }
+        let mut memberships = Map::with_capacity(self.memberships.capacity());
+        let mut claims = Map::with_capacity(self.claims.capacity());
+        for (task, row) in &self.rows {
+            if matches_terminal(&row.landing.phase) {
+                continue;
+            }
+            for member in &row.landing.members {
+                if member.left.is_some() {
+                    continue;
+                }
+                match memberships.get(&member.change) {
+                    Some(older) if older < task => {
+                        if let policy::Phase::Held { why: policy::Hold::Claimed { .. }, .. } = row.landing.phase {
+                            continue;
+                        }
+                        if !claims.contains_key(task) {
+                            claims.insert(*task, member.change).expect("one claim mark per admitted row");
+                        }
+                    }
+                    Some(_) => {}
+                    None => record(&mut memberships, member.change, *task)?,
+                }
+            }
+        }
+        self.claims = claims;
+        self.memberships = memberships;
+        self.memberships_unbuilt = false;
+        Ok(())
+    }
+
+    /// Replace a row and its projection together.
     pub(crate) fn remember(&mut self, row: LandingRow) -> Result<Option<LandingRow>, RestoreFit> {
         let task = row.landing.task;
         let prior = self.rows.insert(task, row).expect("landing row was admitted");
@@ -62,17 +102,13 @@ impl State {
             self.departed(old);
         }
         let row = self.rows.get(&task).expect("inserted landing");
-        if !matches_terminal(&row.landing.phase) {
+        if matches_terminal(&row.landing.phase) {
+            self.claims.remove(&task);
+        } else {
             for member in &row.landing.members {
                 let change = member.change;
                 if member.left.is_none() && self.memberships.get(&change).copied().unwrap_or(u64::MAX) >= task {
-                    self.memberships.insert(change, task).or(Err(RestoreFit {
-                        family: Some(RecordKind::Landing),
-                        set: RestoreSet::LandingMemberships,
-                        held: u64::from(self.memberships.len()),
-                        additional: 1,
-                        limit: u64::from(self.memberships.capacity()),
-                    }))?;
+                    record(&mut self.memberships, change, task)?;
                 }
             }
         }
@@ -81,6 +117,7 @@ impl State {
 
     pub(crate) fn erase(&mut self, task: u64) -> Option<LandingRow> {
         let row = self.rows.remove(&task)?;
+        self.claims.remove(&task);
         self.departed(&row);
         Some(row)
     }
@@ -108,6 +145,31 @@ impl State {
             }
         }
     }
+}
+
+fn record(memberships: &mut Map<u64, u64>, change: u64, task: u64) -> Result<(), RestoreFit> {
+    memberships.insert(change, task).or(Err(RestoreFit {
+        family: Some(RecordKind::Landing),
+        set: RestoreSet::LandingMemberships,
+        held: u64::from(memberships.len()),
+        additional: 1,
+        limit: u64::from(memberships.capacity()),
+    }))?;
+    Ok(())
+}
+
+pub(super) fn older(d: &Domain, task: u64, change: u64) -> Option<u64> {
+    let owner = d.landing_of(change)?;
+    if owner < task { Some(owner) } else { None }
+}
+
+pub(super) fn conflict(d: &Domain, row: &LandingRow) -> Option<u64> {
+    for member in &row.landing.members {
+        if member.left.is_none() && older(d, row.landing.task, member.change).is_some() {
+            return Some(member.change);
+        }
+    }
+    None
 }
 
 pub(crate) fn head(row: &ChangeRow) -> Option<&change::Handed> {

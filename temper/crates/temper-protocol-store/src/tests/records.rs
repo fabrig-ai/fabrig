@@ -1851,6 +1851,17 @@ fn a_landing_read_hold_keeps_its_exact_reason() {
 }
 
 #[test]
+fn a_landing_claim_hold_round_trips() {
+    use temper_engine_domain_forge_landing as l;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let mut row = landing_with_clock(None);
+    let forge::Stored::Landing(landing) = &mut row else { unreachable!() };
+    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Proving), why: l::Hold::Claimed { change: 5 } };
+    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+    assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
 fn a_landing_runs_execution_clock_round_trips() {
     use skein_lib::{Duration, Wall};
     use temper_engine_domain_forge_change::{Clock, Execution};
@@ -1916,7 +1927,7 @@ fn a_landing_run_written_without_a_clock_decodes_with_none() {
     let run = run.unwrap();
     let before = family.current.replace(run, "record LandingRun { id: u64 attempt: u32 ended: bool }");
     assert_ne!(before, family.current);
-    assert_landing_through_layout(family.current, &before, false);
+    assert_landing_through_layout(family.current, &before, false, landing_with_clock(None));
 }
 
 #[test]
@@ -1925,11 +1936,25 @@ fn a_landing_written_before_read_holds_reads_as_before() {
     let before = family
         .current
         .replace(" read_hold: option bytes 256 = none", "")
-        .replace(", timeout: LandingTimeout, turn, read }", ", timeout: LandingTimeout, turn }");
-    assert_landing_through_layout(family.current, &before, true);
+        .replace(", read, claimed: LandingClaimed }", " }");
+    assert_landing_through_layout(family.current, &before, true, landing_with_clock(None));
 }
 
-fn assert_landing_through_layout(current: &str, before: &str, added_variant: bool) {
+#[test]
+fn a_landing_written_before_claim_holds_reads_as_before() {
+    use temper_engine_domain_forge_landing as l;
+    let family = crate::OWNER_SET.families.first().unwrap();
+    let before =
+        family.current.replace("record LandingClaimed { change: u64 }\n", "").replace(", claimed: LandingClaimed", "");
+    let mut row = landing_with_clock(None);
+    let forge::Stored::Landing(landing) = &mut row else { unreachable!() };
+    // `read` was the last own-hold variant at the previous layout.
+    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Proving), why: l::Hold::Read };
+    landing.read_hold = Some(b"read: branch main: no answer".as_slice().into());
+    assert_landing_through_layout(family.current, &before, true, row);
+}
+
+fn assert_landing_through_layout(current: &str, before: &str, added_variant: bool, stored: forge::Stored) {
     use skein_codec::layout::{Mode, Plan, Workspace};
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
@@ -1942,7 +1967,6 @@ fn assert_landing_through_layout(current: &str, before: &str, added_variant: boo
     }
     .unwrap();
     let up = Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
-    let stored = landing_with_clock(None);
     let mut work = Workspace::new();
     assert!(work.fit(&down));
     let mut earlier = skein_lib::Buffer::with_capacity(131_072);

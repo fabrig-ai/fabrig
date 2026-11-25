@@ -38,6 +38,8 @@ type ProjectLanding = (
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
     memberships: Map<u64, u64>,
+    memberships_unbuilt: bool,
+    claims: Map<u64, u64>,
     pub(crate) due: Map<u64, Wall>,
     pub(crate) receipts: Map<ReceiptKey, Receipt>,
     pub(crate) projects: Map<u32, ProjectLanding>,
@@ -63,6 +65,7 @@ pub(crate) struct State {
 enum Ready {
     Gathered { owner: Token, pending: Pending },
     Read(ReadStep),
+    Claimed { released: bool },
 }
 #[derive(Hash, Debug)]
 enum ReadStep {
@@ -250,6 +253,8 @@ impl State {
         Self {
             rows: Map::with_capacity(l.landings),
             memberships: Map::with_capacity(l.changes),
+            memberships_unbuilt: false,
+            claims: Map::with_capacity(l.landings),
             due: Map::with_capacity(l.landings),
             receipts: Map::with_capacity(receipt_slots(l).expect("receipt bounds")),
             projects: Map::with_capacity(l.judge_projects),
@@ -1287,6 +1292,10 @@ pub(crate) fn step(
         return;
     }
     crate::room::stepping(d, task);
+    if d.landing.claims.contains_key(&task) {
+        claim_step(d, task, entry, heard.released, out);
+        return;
+    }
     if d.landing.held {
         emit_decision(
             out,
@@ -1299,6 +1308,12 @@ pub(crate) fn step(
             d,
             env,
         );
+        return;
+    }
+    if let Some(row) = d.landing.rows.get(&task)
+        && let policy::Phase::Held { why: policy::Hold::Claimed { .. }, .. } = row.landing.phase
+    {
+        claim_step(d, task, entry, heard.released, out);
         return;
     }
     let pending = pending_for(d, task);
@@ -1552,6 +1567,58 @@ fn read_failed(d: &mut Domain, row: &LandingRow, p: &Pending, error: Option<api:
     wait(d, p.task, p.entry, failure, out);
 }
 
+fn claim_step(d: &mut Domain, task: u64, entry: u64, released: bool, out: &mut Queue<Request>) {
+    if entry == 0 {
+        emit(out, Request::WakeProcedure { task });
+    } else {
+        ready(d, task, Ready::Claimed { released }, out);
+    }
+}
+
+fn claim_decision(d: &mut Domain, env: &Env<Limits>, task: u64, released: bool, out: &mut Queue<Request>) {
+    let Some(mut row) = d.landing.rows.get(&task).cloned() else { return };
+    let prior = row.clone();
+    // The first decision observes the start's claim. Only release checks again.
+    let conflict = match d.landing.claims.remove(&task) {
+        Some(change) => Some(change),
+        None if released => members::conflict(d, &row),
+        None => None,
+    };
+    let decision = if let Some(change) = conflict {
+        leave_room(d, &mut row);
+        row.read_hold = None;
+        let stepped = policy::claim(row.landing, change);
+        row.landing = stepped.landing;
+        stepped.decision
+    } else {
+        let stepped = policy::held(row.landing, released, env.wall);
+        row.landing = stepped.landing;
+        stepped.decision
+    };
+    if row != prior {
+        crate::landing_history::transition(d, env.wall, &prior, &row, out);
+        save(d, env, row, out);
+    }
+    if let policy::Decision::Hold(policy::Hold::Claimed { .. }) = decision {
+        held_news(task, &prior, out);
+    }
+    emit_decision(out, Request::LandingDecision { task, decision, entry: None, evidence: None }, d, env);
+    crate::waits::changed(d, task);
+}
+
+fn held_news(task: u64, row: &LandingRow, out: &mut Queue<Request>) {
+    for (member, _) in row.landing.members.iter().enumerate() {
+        emit(
+            out,
+            Request::LandingNews {
+                task,
+                member: u16::try_from(member).expect("bounded members"),
+                step: crate::LandingNews::Held,
+            },
+        );
+    }
+}
+
 fn read_ready(d: &mut Domain, task: u64, step: ReadStep, out: &mut Queue<Request>) {
     ready(d, task, Ready::Read(step), out);
 }
@@ -1619,16 +1686,7 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
         save(d, env, row, out);
     }
     if let policy::Decision::Hold(policy::Hold::Read) = decision {
-        for (member, _) in prior.landing.members.iter().enumerate() {
-            emit(
-                out,
-                Request::LandingNews {
-                    task,
-                    member: u16::try_from(member).expect("bounded members"),
-                    step: crate::LandingNews::Held,
-                },
-            );
-        }
+        held_news(task, &prior, out);
     }
     emit_decision(out, Request::LandingDecision { task, decision, entry: None, evidence: None }, d, env);
     crate::waits::changed(d, task);
@@ -2985,6 +3043,7 @@ impl Domain {
                     crate::waits::report(self, env, task, out);
                 }
                 Ready::Read(step) => read_decision(self, env, task, step, out),
+                Ready::Claimed { released } => claim_decision(self, env, task, released, out),
             }
         } else {
             emit(out, Request::WakeProcedure { task });
@@ -5153,6 +5212,19 @@ impl Domain {
         let failure = crate::preparation::failure(&row.landing.round.failure);
         let policy::Phase::Held { why, .. } = row.landing.phase else { return None };
         match why {
+            policy::Hold::Claimed { change } => {
+                let change_words = skein_lib::Decimal::of(change);
+                Some(match members::older(self, row.landing.task, change) {
+                    Some(owner) => concat(&[
+                        b"change ",
+                        change_words.as_bytes(),
+                        b" is a member of landing ",
+                        skein_lib::Decimal::of(owner).as_bytes(),
+                        b" too, which keeps it",
+                    ]),
+                    None => concat(&[b"change ", change_words.as_bytes(), b" was claimed by an older landing"]),
+                })
+            }
             policy::Hold::Read => row.read_hold.clone(),
             policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &failure])),
             policy::Hold::Record { member } => Some(concat(&[
@@ -5206,9 +5278,11 @@ impl Domain {
                             jig_domain_tasks::HOLD_ACCOUNT_BYTES,
                         ));
                     }
-                    policy::Hold::Prepare | policy::Hold::Read | policy::Hold::Record { .. } | policy::Hold::Turn => {
-                        unreachable!("gate hold")
-                    }
+                    policy::Hold::Prepare
+                    | policy::Hold::Read
+                    | policy::Hold::Record { .. }
+                    | policy::Hold::Turn
+                    | policy::Hold::Claimed { .. } => unreachable!("gate hold"),
                 }
                 Some(words.into_boxed())
             }

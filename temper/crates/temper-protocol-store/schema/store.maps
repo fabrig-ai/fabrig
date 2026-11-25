@@ -319,6 +319,7 @@ enum LandingCombine = l::Combine
 record LandingMember by hand
 enum LandingRoundEnd = l::RoundEnd
 record LandingRecordHold
+record LandingClaimed
 enum LandingOwnHold by hand
 record FailingTest stands for test_id
 record ShownTest stands for test_id

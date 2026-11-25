@@ -10337,9 +10337,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                 row.room = None;
             }
             crate::landing::restoring(d, env, &row);
-            if let Err(failure) = d.landing.remember(row) {
-                d.restore_fit = Some(Box::new(failure));
-            }
+            d.landing.restore_row(row);
         }
         Stored::Receipt { key, receipt } => {
             d.landing.receipts.insert(key, receipt).expect("restored receipt within limits");

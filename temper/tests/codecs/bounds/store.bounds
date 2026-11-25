@@ -288,6 +288,7 @@ LandingAwaited: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 LandingBelow: ceilings encoded=102 decoded=64; at_most(3) encoded=86 decoded=48
 LandingBlamed: ceilings encoded=74 decoded=0; at_most(3) encoded=74 decoded=0
 LandingByTest: ceilings encoded=67424584 decoded=68225024; at_most(3) encoded=125 decoded=315
+LandingClaimed: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 LandingCombine: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 LandingEntry: ceilings encoded=149 decoded=0; at_most(3) encoded=149 decoded=0
 LandingFallback: ceilings encoded=34 decoded=0; at_most(3) encoded=34 decoded=0

@@ -86,6 +86,7 @@ pub enum Hold {
     Record { member: u16 },
     Timeout { member: u16, gate: u16, run: u64 },
     Turn,
+    Claimed { change: u64 },
 }
 
 /// One gate's proof at a member's candidate (domain/landing-proof.md, 2).

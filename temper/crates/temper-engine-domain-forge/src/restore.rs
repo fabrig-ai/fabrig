@@ -26,6 +26,9 @@ impl Domain {
         }
         self.link_names(tasks, &env.limits);
         self.link_tiers(tasks, &env.limits);
+        if let Err(failure) = self.restore_memberships() {
+            return Err(StartLink::Fit(failure));
+        }
         self.link_landings(tasks, env, out);
         self.link_writers(tasks, env);
         if let Err(failure) = self.fit_restored(&env.limits) {
@@ -119,12 +122,20 @@ impl Domain {
             self.changes.insert(task, row).expect("change room checked");
         }
     }
-    /// Fit reconstruction before reference linking or client recovery.
-    pub fn fit_restored(&mut self, limits: &Limits) -> Result<(), RestoreFit> {
+    fn restore_memberships(&mut self) -> Result<(), RestoreFit> {
         if let Some(failure) = self.restore_fit_failure() {
             return Err(*failure);
         }
         self.join_changes();
+        if let Err(failure) = self.landing.restore_memberships() {
+            self.restore_fit = Some(Box::new(failure));
+            return Err(failure);
+        }
+        Ok(())
+    }
+    /// Fit reconstruction before reference linking or client recovery.
+    pub fn fit_restored(&mut self, limits: &Limits) -> Result<(), RestoreFit> {
+        self.restore_memberships()?;
         let result = derived(self, limits);
         if let Err(failure) = result {
             self.restore_fit = Some(Box::new(failure));

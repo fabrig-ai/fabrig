@@ -383,11 +383,33 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
     }
 }
 
+/// Hold before stepping a row with a member claimed by an older landing.
+#[must_use]
+pub fn claim(mut landing: Landing, change: u64) -> Stepped {
+    let was = match landing.phase {
+        Phase::Held { was, .. } => was,
+        phase @ (Phase::Waiting
+        | Phase::Preparing
+        | Phase::Proving
+        | Phase::Proved { .. }
+        | Phase::Turn { .. }
+        | Phase::Landed
+        | Phase::Cancelled) => Box::new(phase),
+    };
+    let why = Hold::Claimed { change };
+    landing.phase = Phase::Held { was, why };
+    Stepped { landing, decision: Decision::Hold(why) }
+}
+
 /// A held landing waits for its release; no fresh forge facts are needed.
 #[must_use]
 pub fn held(mut landing: Landing, released: bool, now: Wall) -> Stepped {
     if !released {
         return Stepped { landing, decision: Decision::Wait { until: None, on: Awaited::Release } };
+    }
+    if let Phase::Held { was, why: Hold::Claimed { .. } } = landing.phase {
+        landing.phase = *was;
+        return Stepped { landing, decision: Decision::None };
     }
     if landing.round.branch.is_empty() {
         landing.phase = Phase::Preparing;

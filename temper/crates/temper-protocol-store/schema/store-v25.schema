@@ -303,7 +303,8 @@ enum LandingCombine { merge, squash }
 record LandingMember { round: option u16 change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 left: option LandingLeave unit: u16 branch: bytes 4096 combined: option LandingCombine recorded: bool told: bool judging: bool leave_told: bool }
 enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
-enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn, read }
+record LandingClaimed { change: u64 }
+enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn, read, claimed: LandingClaimed }
 record FailingTest { test_id: bytes 1024 }
 record ShownTest { test_id: bytes 1024 }
 record ManyTests { tests: list 64 ShownTest more: u32 cut: bool }

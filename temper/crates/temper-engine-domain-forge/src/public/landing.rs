@@ -63,7 +63,7 @@ impl Domain {
                         policy::Hold::Record { .. } => Some(w::PublicLandingHold::Record),
                         policy::Hold::Timeout { .. } => Some(w::PublicLandingHold::Timeout),
                         policy::Hold::Turn => Some(w::PublicLandingHold::Turn),
-                        policy::Hold::Read => None,
+                        policy::Hold::Read | policy::Hold::Claimed { .. } => None,
                     },
                     policy::Phase::Waiting
                     | policy::Phase::Preparing

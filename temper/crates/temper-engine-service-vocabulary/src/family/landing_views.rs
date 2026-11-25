@@ -110,6 +110,7 @@ pub(super) fn hold(
             }
             forge::LandingHold::Turn => w::LandingHold::Turn,
             forge::LandingHold::Read => w::LandingHold::Read(w::HeldRead { reason: read_hold? }),
+            forge::LandingHold::Claimed { .. } => return None,
         })
     }?;
     value.measure(limits).ok()?;
