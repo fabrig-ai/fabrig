@@ -1,4 +1,4 @@
-//! Level-by-level comparison cases (skein/docs/design/data/codec/diff.md, 3).
+//! Level-by-level comparison cases (skein/docs/design/data/codec/layouts.md, 2).
 
 #![expect(clippy::disallowed_macros, reason = "table rows assemble schema fixtures")]
 

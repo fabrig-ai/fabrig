@@ -1,4 +1,4 @@
-//! Limits by name and kept-version bounds (data/codec/README.md, section 4, and data/codec/run-time.md, section 1.3).
+//! Limits by name and a schema's encoded-size bounds (data/codec/README.md, 4; data/codec/run-time.md, 1.3).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Writer};
