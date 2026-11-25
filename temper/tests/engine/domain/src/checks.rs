@@ -9,6 +9,7 @@ use skein_world::inspect::{Inspection, Moment, check_tables, check_waits};
 pub struct Checks {
     seed: u64,
     bounded: Vec<(String, String, Time)>,
+    earliest: Option<Time>,
     // Wall corrections do not make an already observed wait start in the future.
     record_wall: Wall,
     finding: Option<String>,
@@ -17,7 +18,7 @@ pub struct Checks {
 impl Checks {
     #[must_use]
     pub fn new(seed: u64) -> Checks {
-        Checks { seed, bounded: Vec::new(), record_wall: Wall::EPOCH, finding: None }
+        Checks { seed, bounded: Vec::new(), earliest: None, record_wall: Wall::EPOCH, finding: None }
     }
 
     /// Remember a wall reading the core has seen, including before a cold restart.
@@ -46,23 +47,29 @@ impl Checks {
         let moment = Moment { seed: self.seed, at, iteration };
         let core = root.core();
         self.observe_wall(core.inspection_wall());
-        let mut inspections = Vec::with_capacity(others.len() + 1);
-        inspections.push(&inspection);
-        inspections.extend_from_slice(others);
         let result = if let Some((task, why)) = root.forge().inspection_wait_refusal() {
             Err(inspection.finding(moment, &format!("task {task}"), &format!("wait report refused: {why:?}")))
         } else {
-            check_waits(&inspections, moment)
-                .and_then(|()| check_tables(&inspections, moment))
+            let primary = [&inspection];
+            let combined;
+            let inspections = if others.is_empty() {
+                &primary[..]
+            } else {
+                combined = [&primary[..], others].concat();
+                &combined
+            };
+            check_waits(inspections, moment)
+                .and_then(|()| check_tables(inspections, moment))
                 .and_then(|()| jig_inspect::records(core, moment, self.record_wall))
         };
         self.bounded.clear();
-        self.bounded.extend(
-            inspection
-                .waits()
-                .iter()
-                .filter_map(|wait| wait.bound.map(|bound| (wait.waiter.clone(), wait.kind.clone(), bound))),
-        );
+        self.earliest = None;
+        for wait in inspection.waits_mut() {
+            if let Some(bound) = wait.bound {
+                self.earliest = Some(self.earliest.map_or(bound, |earliest| earliest.min(bound)));
+                self.bounded.push((std::mem::take(&mut wait.waiter), std::mem::take(&mut wait.kind), bound));
+            }
+        }
         if let Err(finding) = &result {
             self.finding = Some(finding.clone());
         }
@@ -71,8 +78,8 @@ impl Checks {
 
     /// The next moment a driver must visit before it can move past it.
     #[must_use]
-    pub fn next_bound(&self) -> Option<Time> {
-        self.bounded.iter().map(|(_, _, bound)| *bound).min()
+    pub const fn next_bound(&self) -> Option<Time> {
+        self.earliest
     }
 
     /// A bounded wait cannot be starved past its bound between quiet points.
@@ -80,7 +87,9 @@ impl Checks {
         if let Some(finding) = &self.finding {
             return Err(finding.clone());
         }
-        if let Some((waiter, kind, bound)) = self.bounded.iter().find(|(_, _, bound)| *bound < at) {
+        if self.earliest.is_some_and(|bound| bound < at)
+            && let Some((waiter, kind, bound)) = self.bounded.iter().find(|(_, _, bound)| *bound < at)
+        {
             let inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
             let finding = inspection.finding(
                 Moment { seed: self.seed, at, iteration },

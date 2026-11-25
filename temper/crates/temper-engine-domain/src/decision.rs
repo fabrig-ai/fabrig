@@ -309,7 +309,7 @@ pub enum JournalOutput {
 pub struct Decision {
     limits: Limits,
     writes: List<Write>,
-    positions: Option<Map<Key, u32>>,
+    positions: Option<Box<Map<Key, u32>>>,
     deliveries: Queue<Delivery>,
     /// Only a write overrun: jig's store refuses commits past `journal.writes`
     /// (jig-protocol-store's `commits::operations`), including the header's slot.
@@ -518,7 +518,7 @@ impl Decision {
                     let index = u32::try_from(index).expect("bounded write index");
                     positions.insert(prior.key(), index).expect("one index entry per admitted write");
                 }
-                self.positions = Some(positions);
+                self.positions = Some(Box::new(positions));
             }
             None => {}
         }
@@ -687,18 +687,15 @@ pub fn accept_routed(
     if decision.limits != *limits || decision.writes.len() >= limits.writes {
         return Err(decision);
     }
+    // The index is only for coalescing. Release it before growing the commit batch.
+    drop(decision.positions);
     let mut batch = decision.batch;
     if writing {
         let jig_domain_core::Write::Save(header) = counters.commit_header() else {
             unreachable!("a deployment header is a save");
         };
-        batch.push_write(Write::Save(Record::Core(header)));
-        for source in decision.writes.iter_mut() {
-            // The source list is consumed in this step. Leave a payload-free
-            // placeholder; only the write it replaced reaches the batch.
-            let write = core::mem::replace(source, Write::Wires);
-            batch.push_write(write);
-        }
+        decision.writes.raise(limits.writes);
+        batch.write_batch(Write::Save(Record::Core(header)), decision.writes);
     }
     for _ in 0..decision.deliveries.len() {
         let delivery = decision.deliveries.pop().expect("admitted delivery count");
@@ -711,12 +708,8 @@ pub fn accept_routed(
 /// Take the next numbered journal commit for the store.
 pub fn commit(journal: &mut Journal, limits: &Limits) -> Option<Output> {
     let commit = journal.commit()?;
-    let mut writes = List::with_capacity(limits.writes);
-    let mut rows = commit.writes;
-    while let Some(write) = rows.pop() {
-        writes.push(write).expect("commit writes bounded by journal limits");
-    }
-    Some(Output::Commit { number: commit.number, writes: writes.into_boxed() })
+    assert!(commit.writes.len() <= limits.writes, "commit writes bounded by journal limits");
+    Some(Output::Commit { number: commit.number, writes: commit.writes.into_boxed() })
 }
 
 /// A cumulative store answer only makes outputs ready. The ready pass releases one per call; it
