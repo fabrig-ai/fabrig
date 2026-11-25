@@ -1,9 +1,7 @@
 # codec-shape: status
 
-2026-11-24. Where the design lags or departs from [codec-shape.md](codec-shape.md).
+2026-11-25. Where the design lags or departs from [codec-shape.md](codec-shape.md).
 
-- **Design lags:**
-  - 6.1: the `.layouts` lists, the patches' tables and the kept texts stay while versions move (`skein/docs/design/data/codec/command.md`, 1 and 2), until `layouts-both-ways.md`'s goals remove them.
 - **Design departs:**
   - 4.3: a mapped declaration is translated in the directions its maps line says, both by default, and may name a domain type for each direction (`skein/docs/design/data/codec/maps.md`, 2 and 4.1). The wires' count found most of each end's translation going one way, about 890 of jig's engine end's 1,020 declarations, and some declarations sent from one type and received into another (`temper/docs/development/layouts-both-ways-l5-count.md`, 3); both directions everywhere would leave half the wires' generated functions uncalled, which their private modules' lints refuse. Each function stays exhaustive over both types. Decided by goal L5's designer, 2026-11-24.
   - 4.4: an end is each crate that translates a wire's records, so an end of several crates keeps a maps file in each, and a crate that uses the records as its vocabulary, or whose every declaration is its own shape, keeps none (`skein/docs/design/data/codec/maps.md`, 9): temper's client views draw its wire's records, every client reads the public wires' records, and `jig-protocol-transcript` only projects smith's turns for display. Decided by goal L5's designer, 2026-11-24, as K5's designer decided for jig's registry and secrets.
@@ -21,7 +19,7 @@
   - 5.2: the values a family's tests decode are built by `skein-codegen`'s fixed rule from the schema's text (`fixed_values` and `largest`), not by `skein-codec`'s generic values, which build a value only through a patch's machine (`skein/docs/design/data/codec/golden.md`, 1, and `skein/docs/design/data/codec/run-time.md`, 2). The goal K1's designer, 2026-11-18.
   - 5.2: a family keeps the fuzzing tests it has; one with none gains none, its bytes being its kinds', which `every` pins. The goal K1's designer, 2026-11-18.
   - 5.1: the completeness check lists the grammar's constructs and no shape of the output: lean code groups no booleans and splits no function, so neither has a construct to pin. Decided by the drafter, 2026-11-19.
-  - 5.1: `every` is completed as a third version, `every-v3.schema`, since its second is frozen by the landed patch that names it (`skein/docs/design/data/codec/command.md`, 2); its first two versions stay for the patch story. The goal K1's designer, 2026-11-18.
+  - 5.1: `every` is completed as a third version, `every-v3.schema`, since a landed patch had frozen its second when K1 ran; its first two versions stay as the layout plans' pairs (`skein/docs/design/data/codec/layouts.md`, 6). The goal K1's designer, 2026-11-18.
   - 5.3: `jig-client-view`'s rendered views stay under its `golden/rendered/`, snapshots of their own subject, which 5.3 leaves aside; its codec goldens beside them go. The goal K1's designer, 2026-11-18.
   - 6.1: a `fixed N` field's value stays `[u8; N]`: N is the field's width, a value's shape that only that field's change touches, not a count of what the schema holds. Every other array whose length counts the schema's items goes. Decided by goal K2's designer, 2026-11-18.
   - 6.1: skein's codec fixtures outside `src/generated/` (`skein/tests/codec/src/every/`, `lints/`, `scalars/`, `secrets/`) keep files named by version, since each holds several versions of one family side by side for its stories (`skein/docs/design/data/codec/command.md`, 1). Decided by goal K2's designer, 2026-11-18.

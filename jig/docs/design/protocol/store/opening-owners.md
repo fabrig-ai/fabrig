@@ -7,8 +7,8 @@
   records (`records.md`, 3): for each owner whose records it keeps, its
   families, their value types, its jobs and its level, and for a
   frames' family its frames' root, number and texts, the generated
-  modules' constants (skein's `data/codec/command.md`, 3), no function. A set
-  carries no map patch, no older text of a map family, no fresh mark
+  modules' constants (skein's `data/codec/README.md`, section 4), no
+  function. A set carries no older text of a map family, no fresh mark
   and no effects in flight (temper's `draft/archive/store-floor.md`, 4.1 and
   4.2): no map record is rewritten but by a job or the seal, and a
   format outside the registry is fixed (temper's `draft/archive/store-floor.md`, section 5).
@@ -18,7 +18,7 @@
 pub enum Owner { Skein, Smith, Jig, Application }   // upstream first
 pub struct OwnerSet {
     pub owner: Owner,
-    pub name: &'static str,               // the owner, as its frames' patches' headers spell it
+    pub name: &'static str,               // the owner's name
     pub families: &'static [KeptFamily],
     pub jobs: &'static [Job],             // its jobs at open, in the order they run (`jobs.md`, 1)
     pub level: Option<u32>,               // its level (`records.md`, 3): none for an owner the row records no level of

@@ -342,12 +342,7 @@ otherwise.
    is declared in a table or in the test set's document, in the set its
    name says. Every declared variable is read or set somewhere.
    Made-up names in tests' data take no tree's prefix, so the check
-   needs no exclusion for them. Each crate's `patches/mod.rs` is not
-   read: the patch command generates it from kept texts, whose part
-   names (a stored field `skein_oauth` as `SKEIN_OAUTH`) never change
-   once landed and name no variable
-   (`skein/docs/design/data/codec/command.md`, 3); a patch author's
-   `pNNNN.rs` and `context.rs` are read. The tokens `SKEIN_SET`,
+   needs no exclusion for them. The tokens `SKEIN_SET`,
    `SMITH_SET`, `JIG_STORE_SET` and `JIG_SET` name owner sets, Rust
    constants (`jig/docs/design/protocol/store/opening-owners.md`, 1), not
    variables, and are not findings. This exemption is those four names,

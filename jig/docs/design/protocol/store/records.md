@@ -460,7 +460,7 @@ versioned record Floor { number: u32 build: text 64 }
   rehearsal, upgrade or census name reads, and which stays as it is.
   A build that wrote that row reads nothing at open that a store
   without it lacks, so the component's version stays 3 both ways
-  (temper's `draft/codec-shape.md`, 6.1).
+  (temper's `draft/archive/codec-shape.md`, 6.1).
 - **`Older::Layout(family)`** is a component row at the binary's version
   that does not decode, refused before the root starts (`opening.md`,
   1.8). Its words can name each family; for the settings family

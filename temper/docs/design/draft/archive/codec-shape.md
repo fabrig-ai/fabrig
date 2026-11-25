@@ -1,6 +1,6 @@
 # codec-shape: generated code that stays small, merges itself, and pins its bytes once
 
-Draft, 2026-11-17, from a session with the user, for the store and every wire alike. The user's aim: "a good end story across the board (store and wire)", "eliminating at the root all debt/pain we have accumulated due to the wrong approaches taken in the past (conflicts, generated code, goldens, etc)". This draft is the code's half: what the generator writes, what is still written by hand, how it is tested, and how it merges. [layouts-both-ways.md](layouts-both-ways.md) is the data's half: how a value or a message at one layout is read or written at another, in both directions. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
+Draft, 2026-11-17, from a session with the user, for the store and every wire alike. The user's aim: "a good end story across the board (store and wire)", "eliminating at the root all debt/pain we have accumulated due to the wrong approaches taken in the past (conflicts, generated code, goldens, etc)". This draft is the code's half: what the generator writes, what is still written by hand, how it is tested, and how it merges. [../layouts-both-ways.md](../layouts-both-ways.md) is the data's half: how a value or a message at one layout is read or written at another, in both directions. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
 
 Where they differ, this draft wins over skein's codec design (`skein/docs/design/data/codec/README.md`, sections 1 and 4, and `skein/docs/design/data/codec/golden.md`, section 1; `skein/docs/design/data/codec/command.md`, 2), the subset (`skein/docs/foundation/programming-model.md`, 10.2 and 10.3) and jig's store records (`jig/docs/design/protocol/store/records.md`, 1), until its goals fold it into them.
 
@@ -11,7 +11,7 @@ Where they differ, this draft wins over skein's codec design (`skein/docs/design
 - **A schema per family** says each record's fields and bounds. It is the only specification of the bytes.
 - **A generated record** is the schema as a Rust type, with encode and decode generated on it. It is the one type that knows bytes.
 - **A translation** maps each record to the domain's type and back. It is generated where the two have the same fields, and written by hand only where the meaning changes or the shape is the owner's own.
-- **A layout is named by its fingerprint** everywhere: in the store and on every wire. A reader at another layout converts by a plan derived from two schema texts. The old text travels with the data or with the peer, so no build keeps old texts, and no version number moves ([layouts-both-ways.md](layouts-both-ways.md)).
+- **A layout is named by its fingerprint** everywhere: in the store and on every wire. A reader at another layout converts by a plan derived from two schema texts. The old text travels with the data or with the peer, so no build keeps old texts, and no version number moves ([../layouts-both-ways.md](../layouts-both-ways.md)).
 
 **Today:**
 
@@ -165,7 +165,7 @@ The first two are mechanical, and the generator writes them. The third stays wri
 
 ### 5.3 What goes
 
-- **Every codec family's golden directory** but `every`'s: about 24,000 files across the stores, the wires and smith (survey, 1). The views' snapshots are left aside (below). The patches' golden directories, about 8,000 files more, go with the patches ([layouts-both-ways.md](layouts-both-ways.md), 9).
+- **Every codec family's golden directory** but `every`'s: about 24,000 files across the stores, the wires and smith (survey, 1). The views' snapshots are left aside (below). The patches' golden directories, about 8,000 files more, go with the patches ([../layouts-both-ways.md](../layouts-both-ways.md), 9).
 - **Every generated test,** 21,239 lines, and the generator's test emitter, with the drift test's inventory of golden files.
 - **The hand-written tests that pin bytes from golden files** are rewritten to build their values, or go where they only repeat what drift and `every` hold:
   - the store's checkpoints, manifests and history records;
@@ -181,8 +181,8 @@ The first two are mechanical, and the generator writes them. The third stays wri
 ### 6.1 Nothing that every change touches
 
 - **No count:** no `[T; N]` in generated code. Family-wide lists are slices, and functions loop to their end.
-- **No file named by a version:** a family's module is `src/generated/<family>.rs`, its tests' `tests/generated/` go (5.3), and its version is a constant inside it. Since versions no longer move ([layouts-both-ways.md](layouts-both-ways.md), 3), the constant doesn't change either.
-- **No appended list:** the `.layouts` lists, the patches' tables and the kept texts go with versions ([layouts-both-ways.md](layouts-both-ways.md), 9).
+- **No file named by a version:** a family's module is `src/generated/<family>.rs`, its tests' `tests/generated/` go (5.3), and its version is a constant inside it. Since versions no longer move ([../layouts-both-ways.md](../layouts-both-ways.md), 3), the constant doesn't change either.
+- **No appended list:** the `.layouts` lists, the patches' tables and the kept texts go with versions ([../layouts-both-ways.md](../layouts-both-ways.md), 9).
 - **No committed fingerprints:** a build computes its families' fingerprints from the schema texts it embeds, when it first needs them. `jig/crates/jig-protocol-store/src/generated/layouts.rs` goes, and so does the store's `Layouts` row, which no open reads (`jig/docs/design/protocol/store/records.md`, 3).
 - **No numbered pieces:** helper calls keep functions short, so long functions no longer split into numbered parts that shift when a field is inserted. A function that must still split is split by declaration, never by number.
 - **Schema order throughout:** every table and list in a module follows the schema's order. Two goals that change different records change different places in it.
@@ -215,4 +215,4 @@ Two goals that change different records of one family conflict only where they e
 - **A careful review for changes to the generator and `skein-codec`.** Such a change is rare and moves every family at once, so the gate should flag it for a reviewer. The user's word, for later.
 - **Compile figures** for the helpers are K3's (3.3). If the gate's compile grows, the helpers' boundary moves, not the aim.
 - **Snapshot golden files** outside the codecs (5.3) are a question of their own.
-- **The component's own rows, the secrets' store and the host tools' contract** keep their fixed formats ([layouts-both-ways.md](layouts-both-ways.md), 10).
+- **The component's own rows, the secrets' store and the host tools' contract** keep their fixed formats ([../layouts-both-ways.md](../layouts-both-ways.md), 10).

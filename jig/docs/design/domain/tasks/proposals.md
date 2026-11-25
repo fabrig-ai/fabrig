@@ -171,9 +171,9 @@ proposed, what an action needs, and what an acceptance funds.
   (`HoldEscalationRejected.by`), the engine giving a task's or a
   person's number alike, and the client's contract and words show it so
   (`../../client/domain/contract/documents.md`, 1). Showing its kind, a
-  `Requester`'s `Task` or `Person`, moves the client wire's version
+  `Requester`'s `Task` or `Person`, changes the client wire's layout
   (`../../protocol/client/versions.md`, 1) and records again the journeys
-  that show a task's chip; whether and when is a later move of the
+  that show a task's chip; whether and when is a later change of the
   client wire's (B1's requester, 2026-11-18).
 - **A proposal waiting for a change.** An escalation waiting for a task
   makes every message wake it (`messages.md`, 3); a proposal its holder's

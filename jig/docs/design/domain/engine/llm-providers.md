@@ -187,8 +187,8 @@ is the last item naming that model, or 0 when none does (the dispatch's
   version (`AGENTS.md`, section 2); the families that name a setting (a
   refusal's facts, a proposal's heads) gain the identity each by its own
   rule.
-- **The client's wire** moves its version, unbridged (temper's
-  `draft/archive/redeploys.md`, 3.1 and section 4), once, for
+- **The client's wire** changes its layout, its version frozen
+  (`../../protocol/client/versions.md`, 1), for
   `Setting::Provider`, `SettingValue::Provider` and
   `SettingFault::Accounts`. A settings document carries each provider
   setting, withdrawn ones included, as it carries any kind's.

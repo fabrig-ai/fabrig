@@ -17,8 +17,8 @@
   in `fabrig-boundary`, `client_layouts`, holds the freeze: a listed
   family whose version differs from the base's is refused, naming the
   family and both versions, "client versions are frozen". The base is
-  git's merge base of the branch with `origin/main`, as the patch check
-  takes it (`.config/gate/README.md`), each family found by its header among its crate's
+  the gate's (`.config/gate/README.md`), else git's merge base of the
+  branch with `origin/main`, each family found by its header among its crate's
   `schema/*.schema`; a family the base lacks passes. Each crate's own
   tests hold its version constants equal to its schema's `family` line:
   jig's `VERSION` and `PUBLIC_VERSION`, temper's `CLIENT_VERSION` and

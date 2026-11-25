@@ -1,6 +1,6 @@
 # K3: lean tasks records, measured
 
-2026-11-19. Source, compile and decode figures for jig's tasks store family, for `temper/docs/design/draft/codec-shape.md`, sections 2 and 3.3. **The line criterion holds. The compile criterion is unproven on builder elapsed time: the two store-build spreads overlap. User+system CPU is not available through the build wrapper.** The isolated tasks build and clippy are faster beyond their spreads; the selected decode-test medians are slower. These figures do not establish the whole 3.3 gate for K4.
+2026-11-19. Source, compile and decode figures for jig's tasks store family, for `temper/docs/design/draft/archive/codec-shape.md`, sections 2 and 3.3. **The line criterion holds. The compile criterion is unproven on builder elapsed time: the two store-build spreads overlap. User+system CPU is not available through the build wrapper.** The isolated tasks build and clippy are faster beyond their spreads; the selected decode-test medians are slower. These figures do not establish the whole 3.3 gate for K4.
 
 ## 1. Trees, environment and method
 
@@ -20,7 +20,7 @@ File on both sides: `jig/crates/jig-protocol-store-tasks/src/generated/tasks.rs`
 
 | Baseline | Baseline lines | Lean lines | Lean / baseline | Reduction | At most half? |
 |---|---:|---:|---:|---:|---|
-| Survey, the draft's “today” (`codec-shape.md`, 2) | 42,813 | 18,090 | 0.4225 (42.25%) | 57.75% | yes |
+| Survey, the draft's “today” (`../design/draft/archive/codec-shape.md`, 2) | 42,813 | 18,090 | 0.4225 (42.25%) | 57.75% | yes |
 | Post-K2 sealed tree, measured S (reference was 46,324) | 46,328 | 18,090 | 0.3905 (39.05%) | 60.95% | yes |
 
 Lean parts partition the entire file. Each section includes its marker, attributes and following blank lines up to the next section marker. The 333 `// Type:` and 333 `// Record:` blocks alternate from line 5,016 to EOF; count each block up to the next marker.

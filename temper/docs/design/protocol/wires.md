@@ -33,8 +33,9 @@ them.
 - **The host tools' contract is versioned whole** (7): a run's charter
   names its version, each call carries it, and the engine answers every
   version from its floor.
-- **Clients' versions move with their layouts** (9), with no kept text
-  and no bridge; a page refused reloads once to the engine's bundle.
+- **Clients' versions are frozen** (9), their layouts compared at the
+  hello, with no kept text and no conversion; a page refused reloads
+  once to the engine's bundle.
 - **`versions` prints each wire's layout** (10), and the store keeps the
   wires the engine's last start spoke and each worker's last opening
   since, with its texts (10.1), by which `upgrade --check` says which
@@ -460,11 +461,12 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   field with a default on each side, arriving as itself, and an
   `Identity` whose field the worker lacks holding a value refused.
 - **The host tools' contract and the clients' families:** their gates'
-  mutations over a scratch copy: a declaration's input changed with
-  the version unmoved, a client family's field added with its version
-  unmoved, each refused; with the version moved, passing; a floor
-  passed without a breaking file, refused; an older version's changed
-  tool without its adapter, refused.
+  mutations over a scratch copy. The contract: a declaration's input
+  changed with its version unmoved, refused, and with it moved,
+  passing; a floor passed without a breaking file, refused; an older
+  version's changed tool without its adapter, refused. The clients'
+  freeze (9): a family's field added with its version unmoved, passing;
+  its version moved, refused, naming the family.
 - **`versions`:** its lines for the table, whole, in the binaries' tests.
 - **The openings kept** (10.1): the engine's workers component handing up
   a statement as the worker stated it, its texts among it; the store

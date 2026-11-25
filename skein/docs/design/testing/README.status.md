@@ -17,8 +17,8 @@ one-process mode and children remove both runner variables when checking
 failure. `README.md`, section 9 leaves caller adoption and suite CPU measurement separate.
 A span counts its thread's allocations (`Span::made`, held by
 `skein/tests/heap`'s `a_span_counts_the_allocations_its_thread_made`),
-and skein-codec's patcher step tests show reuse by rooms and by none
-counted around each reused pass, never by an address.
+and skein-codec's layout step tests show a shared workspace reused with
+none counted around each reused pass, never by an address.
 
 - **Not yet:** 4: the probe's report of a contained tree.
   4: the probe for a reach, `skein_fake_machine::probe`, and the machine honouring a reach.
