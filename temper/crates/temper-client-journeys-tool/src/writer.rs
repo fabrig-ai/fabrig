@@ -10,7 +10,9 @@ use crate::{
     table::{BUNDLE, TABLE, WRITER},
 };
 
+mod checks;
 mod print;
+mod state;
 #[cfg(test)]
 mod tests;
 
@@ -144,7 +146,8 @@ fn start(arguments: &[Box<[u8]>], host: &mut Host, pid: u32) -> Result<u8, Stop>
     let root = path(chomp(&root));
     let offer = git_path(host, &root, b"journey-pages")?;
     let lock = git_path(host, &root, b"journey-pages.lock")?;
-    let checkout = Checkout { offer: root.join(&offer), lock: root.join(&lock), root };
+    let finished = git_path(host, &root, b"journey-pages.finished")?;
+    let checkout = Checkout { offer: root.join(&offer), lock: root.join(&lock), finished: root.join(finished), root };
     checkout.take_lock(host, &lock)?;
     let result = match changed(host, Ask::Write(checkout.lock.join("pid"), format!("{pid}\n").into_bytes().into())) {
         Ok(()) => checkout.write_pages(host, &options, force, &offer),
@@ -160,6 +163,7 @@ struct Checkout {
     root: PathBuf,
     offer: PathBuf,
     lock: PathBuf,
+    finished: PathBuf,
 }
 
 impl Checkout {
@@ -194,23 +198,9 @@ impl Checkout {
     }
 
     fn write_pages(&self, host: &mut Host, options: &Options, force: bool, offer: &Path) -> Result<u8, Stop> {
-        if self.waiting(host, offer)? {
-            return Ok(0);
-        }
-        for state in [b"rebase-merge".as_slice(), b"rebase-apply", b"MERGE_HEAD", b"CHERRY_PICK_HEAD", b"sequencer"] {
-            let path = git_path(host, &self.root, state)?;
-            if host.ask(Ask::Exists(self.root.join(path))) == Answer::Is(true) {
-                return Err(refuse(&[state, b" is in progress"]));
-            }
-        }
-        let tracked = self.git(host, &[b"status", b"--porcelain", b"--untracked-files=no"], Stream::Keep)?;
-        if !chomp(&tracked).is_empty() {
-            return Err(refuse(&[b"tracked files must be clean"]));
-        }
-        self.fetch(host)?;
-        self.git(host, &[b"checkout", b"-B", &options.branch, b"origin/main"], Stream::Err)?;
-        let tip = self.git(host, &[b"rev-parse", b"HEAD"], Stream::Keep)?;
-        let tip = chomp(&tip);
+        let Some(run) = self.plan(host, offer)? else { return Ok(0) };
+        let tip = run.tip.as_bytes();
+        self.git(host, &[b"checkout", b"-B", &options.branch, tip], Stream::Err)?;
 
         let mut program = Program::new(b"cargo", &[b"run", b"--locked", b"-p", b"temper-client-walk", b"--", b"pages"]);
         program.environment.push((BUNDLE.name.as_bytes().into(), b"none".as_slice().into()));
@@ -221,6 +211,7 @@ impl Checkout {
             Some(1) => 1,
             _ => return Err(Stop::Child),
         };
+        let check_lines = self.check_requests(host, &run.tip, &printed.stdout)?;
         let changes = self.git(
             host,
             &[b"status", b"--porcelain", b"-z", b"--untracked-files=all", b"--no-renames"],
@@ -228,78 +219,27 @@ impl Checkout {
         )?;
         let paths = print::paths(&changes)?;
         if paths.is_empty() {
-            host.out(&[b"main's pages are ".as_slice(), tip, b"'s print\n"].concat());
+            self.finish_run(host, &run)?;
+            state::current(host, tip);
             return Ok(status);
         }
 
         let subject = [b"Journey pages printed at ".as_slice(), &tip[..tip.len().min(12)]].concat();
-        let body = print::body(&printed.stdout, tip);
-        let commit = self.commit(host, paths, &subject, &body)?;
+        let body = print::body(&check_lines, &printed.stdout, tip);
+        let commit = self.commit(host, paths, &subject, &body, tip)?;
         let commit = chomp(&commit);
         if !options.push.is_empty() {
             self.push(host, options, force, commit)?;
         }
-        let kept = if options.project.is_empty() {
+        let mut kept = if options.project.is_empty() {
             [b"commit ".as_slice(), commit, b"\n"].concat()
         } else {
-            self.open(host, options, tip, commit, &subject, &body)?
+            self.open(host, options, commit, &subject, &body)?
         };
+        kept.extend_from_slice(&[b"run ", tip, b" ", commit, format!(" {}\n", run.seconds).as_bytes()].concat());
         changed(host, Ask::Write(self.offer.clone(), kept.into_boxed_slice()))?;
         host.out(&[b"wrote ".as_slice(), &options.branch, b" ", commit, b"\n"].concat());
         Ok(status)
-    }
-
-    fn waiting(&self, host: &mut Host, shown: &Path) -> Result<bool, Stop> {
-        match host.ask(Ask::Exists(self.offer.clone())) {
-            Answer::Is(false) => return Ok(false),
-            Answer::Is(true) => (),
-            Answer::Failed(why) => return Err(Stop::Host(why)),
-            _ => unreachable!("host answers Exists with Is or Failed"),
-        }
-        let shown = shown.as_os_str().as_bytes();
-        let unreadable = || fail(&[b"cannot read kept offer in ", shown]);
-        let Answer::Bytes(bytes) = host.ask(Ask::Read(self.offer.clone())) else { return Err(unreadable()) };
-        // The file's text reader accepts LF, CRLF and CR as line endings.
-        let line =
-            bytes.strip_suffix(b"\r\n").or_else(|| bytes.strip_suffix(b"\n")).or_else(|| bytes.strip_suffix(b"\r"));
-        if let Some(task) = line.and_then(task_number) {
-            let doc = checked(host, self.here(Program::new(b"temper", &[b"ctl", b"task", b"show", task, b"--json"])))?;
-            match phase(&doc) {
-                Some(Phase::Ended) => (),
-                Some(Phase::Live) => {
-                    host.out(&[b"waiting on change ".as_slice(), task, b"\n"].concat());
-                    return Ok(true);
-                }
-                None => return Err(fail(&[b"cannot read the task document's phase"])),
-            }
-        } else if let Some(kept) = line.and_then(kept_commit) {
-            if !self.commit_held(host, kept, shown)? {
-                host.out(&[b"waiting on ".as_slice(), kept, b"\n"].concat());
-                return Ok(true);
-            }
-        } else {
-            return Err(unreadable());
-        }
-        changed(host, Ask::Remove(self.offer.clone()))?;
-        Ok(false)
-    }
-
-    fn commit_held(&self, host: &mut Host, kept: &[u8], offer: &[u8]) -> Result<bool, Stop> {
-        let mut cat = self.here(Program::new(b"git", &[b"cat-file", b"-e", &[kept, b"^{commit}"].concat()]));
-        cat.stderr = Stream::Keep;
-        if checked(host, cat).is_err() {
-            return Err(fail(&[b"kept commit ", kept, b" is missing (", offer, b")"]));
-        }
-        let parent = self
-            .git(host, &[b"rev-parse", &[kept, b"^"].concat()], Stream::Keep)
-            .map_err(|_| fail(&[b"cannot read parent of kept commit ", kept]))?;
-        self.fetch(host)?;
-        if self.git(host, &[b"merge-base", b"--is-ancestor", kept, b"origin/main"], Stream::Keep).is_ok() {
-            return Ok(true);
-        }
-        let messages = self.git(host, &[b"log", b"--format=%B", b"origin/main"], Stream::Keep)?;
-        let trailer = [b"Printed: ".as_slice(), chomp(&parent)].concat();
-        Ok(messages.split(|&b| b == b'\n').any(|line| line == trailer))
     }
 
     fn fetch(&self, host: &mut Host) -> Result<(), Stop> {
@@ -307,7 +247,14 @@ impl Checkout {
         Ok(())
     }
 
-    fn commit(&self, host: &mut Host, paths: Vec<u8>, subject: &[u8], body: &[u8]) -> Result<Box<[u8]>, Stop> {
+    fn commit(
+        &self,
+        host: &mut Host,
+        paths: Vec<u8>,
+        subject: &[u8],
+        body: &[u8],
+        tip: &[u8],
+    ) -> Result<Box<[u8]>, Stop> {
         // Git needs files for its NUL pathspecs and verbatim message. Both go with the lock.
         let paths_file = self.lock.join("paths");
         let message = self.lock.join("message");
@@ -315,11 +262,15 @@ impl Checkout {
         changed(host, Ask::Write(message.clone(), [subject, b"\n\n", body, b"\n"].concat().into_boxed_slice()))?;
         let pathspec = [b"--pathspec-from-file=".as_slice(), paths_file.as_os_str().as_bytes()].concat();
         self.git(host, &[b"--literal-pathspecs", b"add", b"-A", &pathspec, b"--pathspec-file-nul"], Stream::Err)?;
-        self.git(
-            host,
-            &[b"-c", b"commit.cleanup=verbatim", b"commit", b"-F", message.as_os_str().as_bytes()],
-            Stream::Err,
-        )?;
+        let date = self.git(host, &[b"show", b"-s", b"--format=%cI", tip], Stream::Keep)?;
+        let arguments =
+            [b"-c".as_slice(), b"commit.cleanup=verbatim", b"commit", b"-F", message.as_os_str().as_bytes()];
+        let mut commit = self.here(Program::new(b"git", &arguments));
+        commit.stdout = Stream::Err;
+        for name in [b"GIT_AUTHOR_DATE".as_slice(), b"GIT_COMMITTER_DATE"] {
+            commit.environment.push((name.into(), chomp(&date).into()));
+        }
+        checked(host, commit)?;
         self.git(host, &[b"rev-parse", b"HEAD"], Stream::Keep)
     }
 
@@ -352,7 +303,6 @@ impl Checkout {
         &self,
         host: &mut Host,
         options: &Options,
-        tip: &[u8],
         commit: &[u8],
         subject: &[u8],
         body: &[u8],
@@ -377,7 +327,7 @@ impl Checkout {
         } else {
             arguments.extend_from_slice(&[b"--budget", &options.budget]);
         }
-        let key = [b"journey-pages-".as_slice(), tip].concat();
+        let key = [b"journey-pages-".as_slice(), commit].concat();
         arguments.extend_from_slice(&[b"--key", &key]);
         let answer = checked(host, self.here(Program::new(b"temper", &arguments)))?;
         let task = task_number(chomp(&answer)).ok_or_else(|| fail(&[b"cannot read change open answer"]))?;
@@ -457,11 +407,6 @@ fn decimal(bytes: &[u8]) -> bool {
 
 fn task_number(line: &[u8]) -> Option<&[u8]> {
     line.strip_prefix(b"task ").filter(|number| decimal(number))
-}
-
-fn kept_commit(line: &[u8]) -> Option<&[u8]> {
-    line.strip_prefix(b"commit ")
-        .filter(|hash| matches!(hash.len(), 40 | 64) && hash.iter().all(|&b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
 }
 
 enum Phase {

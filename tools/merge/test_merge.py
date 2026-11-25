@@ -217,7 +217,9 @@ class Merge(unittest.TestCase):
                  JOURNEYS + 'x/recording', JOURNEYS + 'skein-ui.css',
                  JOURNEYS + 'journey.js',
                  JOURNEYS.replace('/web/', '/tui/') + 'theme.css',
-                 JOURNEYS.replace('/web/', '/tui/') + 'tui-journey.js')
+                 JOURNEYS.replace('/web/', '/tui/') + 'tui-journey.js',
+                 JOURNEYS + 'looks.html',
+                 JOURNEYS.replace('/web/', '/tui/') + 'looks.html')
         for index, path in enumerate(paths):
             with self.subTest(path=path):
                 self.setUp()
@@ -296,7 +298,7 @@ class Merge(unittest.TestCase):
     def test_journey_sources_and_near_matches_are_left_with_their_records(self):
         for relative in ('x/README.md', 'x/setup', 'x/walk', 'overlay.css',
                          'x/1.html', 'x/01.html.bak', 'x/nested/01.html',
-                         'x/skein-ui.css', 'recording'):
+                         'x/skein-ui.css', 'x/looks.html', 'recording'):
             with self.subTest(path=relative):
                 self.setUp()
                 self.forbid_journey_generation()

@@ -177,6 +177,9 @@ impl Scripted {
             Request::Address { op, .. } => refused(op, "Address"),
             Request::Tabs { op, .. } => refused(op, "Tabs"),
             Request::Screenshot { op, .. } => refused(op, "Screenshot"),
+            Request::Elements { op, .. } => refused(op, "Elements"),
+            Request::Style { op, .. } => refused(op, "Style"),
+            Request::Rect { op, .. } => refused(op, "Rect"),
         };
         events.push(event);
         false

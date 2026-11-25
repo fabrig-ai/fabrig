@@ -106,6 +106,27 @@ impl Steps {
     }
 
     fn history(&mut self, commits: &[(&str, &[&str], &[&str])]) {
+        self.look_landings("");
+        self.legacy_history(commits);
+    }
+
+    fn look_landings(&mut self, log: &str) {
+        self.git(
+            &["log", "--topo-order", "-z", "--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)", "origin/main"],
+            log,
+        );
+    }
+
+    fn verdicts(&mut self, root: &str, entries: Option<&str>) {
+        let path = format!("temper/docs/design/client/{root}/journeys/looks.html");
+        let tree = entries.map_or_else(String::new, |_| format!("100644 blob {SIDE}\t{path}\0"));
+        self.quiet(&["--literal-pathspecs", "ls-tree", "--full-tree", "-z", "origin/main", "--", &path], &tree, 0);
+        if let Some(entries) = entries {
+            self.quiet(&["cat-file", "blob", SIDE], entries, 0);
+        }
+    }
+
+    fn legacy_history(&mut self, commits: &[(&str, &[&str], &[&str])]) {
         let mut done = String::new();
         let mut prints = String::new();
         for &(id, requests, printed) in commits {
@@ -527,7 +548,7 @@ fn a_completed_stack_can_be_refreshed_again() {
 
     let mut steps = Steps::default();
     steps.begin(LOOK, PRINT, &[]);
-    steps.history(&[
+    steps.legacy_history(&[
         (TIP, &[], &[]),
         (PRINT, &[], &[DONE]),
         (DONE, &["tighter-cards", "calmer-banner"], &[]),
@@ -539,6 +560,57 @@ fn a_completed_stack_can_be_refreshed_again() {
     steps.check(
         0,
         "pages printed at 222222222222, 1 landings since\npushed look-requests at 5555555\n",
+        &format!("{FETCH}{REBASED}{push}"),
+    );
+}
+
+fn verdict(name: &str, landed: &str, result: &str) -> String {
+    format!(
+        "<section data-look-request=\"{name}\" data-look-commit=\"{TIGHTER}\" data-look-landed=\"{landed}\" data-look-tip=\"{TIP}\" data-look-result=\"{result}\">\n</section>\n"
+    )
+}
+
+#[test]
+fn a_landed_request_stays_until_main_has_the_newest_landing_verdict() {
+    let old = verdict("tighter-cards", DONE, "differs");
+    let checked = format!("{}{old}", verdict("tighter-cards", LATER, "differs"));
+    for (entries, has_newest) in [(None, false), (Some(old.as_str()), false), (Some(checked.as_str()), true)] {
+        let mut steps = stack();
+        steps.look_landings(&format!("{TIP}\n\0{LATER}\ntighter-cards\n\0{DONE}\ntighter-cards\n\0"));
+        steps.verdicts("web", entries);
+        // Printed covers the old request, but only the newest Look-landed's verdict can drop it.
+        steps.legacy_history(&[(TIP, &[], &[LATER]), (LATER, &[], &[]), (DONE, &["tighter-cards"], &[])]);
+        steps.valid_print(LATER);
+        steps.first_parent(TIP, &[TIP], &[LATER, DONE, ROOT], "0");
+        let (todo, report, head) = if has_newest {
+            ("drop", "dropped tighter-cards, landed by 444444444444, checked: differs", TIP)
+        } else {
+            ("pick", "kept tighter-cards, landed by 444444444444, not yet checked", REBASED_HEAD)
+        };
+        let push = steps.pushed(LOOK, ROOT, &format!("{todo} {TIGHTER}\n"), TIGHTER, head, true);
+        steps.check(
+            0,
+            &format!("pages printed at 444444444444, 0 landings since\n{report}\npushed look-requests at {head:.7}\n"),
+            &format!("{FETCH}{REBASED}{push}"),
+        );
+    }
+}
+
+#[test]
+fn tui_refresh_drops_a_landed_request_with_a_not_checked_verdict() {
+    let name = "tui-tighter-cards";
+    let mut steps = Steps::default();
+    steps.begin(TUI, TIGHTER, &[TIGHTER]);
+    steps.request(TIGHTER, ROOT, &format!("Look-request: {name}\n\n"));
+    steps.look_landings(&format!("{LATER}\n{name}\n\0"));
+    steps.verdicts("tui", Some(&verdict(name, LATER, "not checked").replace(TIGHTER, &"0".repeat(TIP.len()))));
+    steps.legacy_history(&[(LATER, &[], &[])]);
+    let push = steps.pushed(TUI, ROOT, &format!("drop {TIGHTER}\n"), TIGHTER, LATER, true);
+    steps.check(
+        0,
+        &format!(
+            "{NO_PRINT}dropped {name}, landed by 444444444444, checked: not checked\npushed tui-requests at 4444444\n"
+        ),
         &format!("{FETCH}{REBASED}{push}"),
     );
 }

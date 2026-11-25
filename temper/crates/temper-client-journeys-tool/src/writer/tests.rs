@@ -6,8 +6,14 @@ use crate::{
 use skein_shell::Front;
 use std::path::Path;
 
+mod cadence;
+mod verdicts;
+
 const CHECKOUT: &str = "/writer";
 const OFFER: &str = "/writer/.git/journey-pages";
+const FINISHED: &str = "/writer/.git/journey-pages.finished";
+const START: u64 = 7000;
+const DATE: &str = "2026-11-17T06:12:33+02:00";
 const LOCK: &str = "/writer/.git/journey-pages.lock";
 const PID_FILE: &str = "/writer/.git/journey-pages.lock/pid";
 const PATHS: &str = "/writer/.git/journey-pages.lock/paths";
@@ -33,6 +39,7 @@ const FRESH: &str = "fresh welcome\n";
 #[derive(Default)]
 struct Script {
     steps: Vec<Step>,
+    now: u64,
 }
 
 impl Script {
@@ -74,6 +81,7 @@ impl Script {
         );
         self.git_path("journey-pages");
         self.git_path("journey-pages.lock");
+        self.git_path("journey-pages.finished");
     }
 
     fn take_lock(&mut self) {
@@ -98,6 +106,9 @@ impl Script {
         let mut script = Self::fresh(branch, remote);
         script.checkout(branch, tip);
         script.print(code, lines);
+        if matches!(code, 0 | 1) {
+            script.landings(tip, &[(tip, &[])]);
+        }
         script
     }
 
@@ -129,9 +140,24 @@ impl Script {
         self.states(None);
         self.git(&["status", "--porcelain", "--untracked-files=no"], "");
         self.fetch();
-        // The commit's parent is the fetched origin/main, never the pre-fetch HEAD.
-        self.command("git", &["checkout", "-B", branch, "origin/main"], 0, "", Stream::Err);
-        self.git(&["rev-parse", "HEAD"], &format!("{tip}\n"));
+        self.clock(tip, START);
+        self.last(Answer::Missing);
+        self.checkout_at(branch, tip);
+    }
+
+    fn clock(&mut self, tip: &str, now: u64) {
+        self.now = now;
+        self.git(&["rev-parse", "origin/main"], &format!("{tip}\n"));
+        self.ask(Ask::Clock, Answer::Seconds(now));
+    }
+
+    fn last(&mut self, answer: Answer) {
+        self.ask(Ask::Read(FINISHED.into()), answer);
+    }
+
+    fn checkout_at(&mut self, branch: &str, tip: &str) {
+        // The parent is the fetched tip, never the pre-fetch HEAD.
+        self.command("git", &["checkout", "-B", branch, tip], 0, "", Stream::Err);
     }
 
     fn print(&mut self, code: i32, lines: &str) {
@@ -142,8 +168,33 @@ impl Script {
         self.ask(Ask::Run(program), Answer::Ran(Ran::new(Some(code), lines.as_bytes())));
     }
 
+    fn landings(&mut self, tip: &str, landings: &[(&str, &[&str])]) {
+        let mut output = String::new();
+        for (commit, names) in landings {
+            use std::fmt::Write as _;
+            writeln!(output, "{commit}").expect("write to String");
+            for name in *names {
+                writeln!(output, "{name}").expect("write to String");
+            }
+            output.push('\0');
+        }
+        self.git(
+            &["log", "--topo-order", "-z", "--format=%H%n%(trailers:key=Look-landed,valueonly,unfold)", tip],
+            &output,
+        );
+    }
+
     fn status(&mut self, status: &str) {
         self.git(&["status", "--porcelain", "-z", "--untracked-files=all", "--no-renames"], status);
+    }
+
+    fn finished(&mut self, tip: &str, seconds: u64) {
+        self.write(FINISHED, &format!("{tip} {seconds}\n"));
+    }
+
+    fn unchanged(&mut self, tip: &str, seconds: u64) {
+        self.status("");
+        self.finished(tip, seconds);
     }
 
     fn commit(&mut self, paths: &str, body: &str, head: &str) {
@@ -156,7 +207,15 @@ impl Script {
             "",
             Stream::Err,
         );
-        self.command("git", &["-c", "commit.cleanup=verbatim", "commit", "-F", MESSAGE], 0, "", Stream::Err);
+        self.git(&["show", "-s", "--format=%cI", TIP], &format!("{DATE}\n"));
+        let mut commit = program("git", &["-c", "commit.cleanup=verbatim", "commit", "-F", MESSAGE]);
+        commit.directory = Some(CHECKOUT.into());
+        commit.stdout = Stream::Err;
+        commit.environment = ["GIT_AUTHOR_DATE", "GIT_COMMITTER_DATE"]
+            .into_iter()
+            .map(|key| (key.as_bytes().into(), DATE.as_bytes().into()))
+            .collect();
+        self.ask(Ask::Run(commit), Answer::Ran(Ran::new(Some(0), b"")));
         self.git(&["rev-parse", "HEAD"], &format!("{head}\n"));
     }
 
@@ -190,10 +249,10 @@ impl Script {
             body,
         ];
         arguments.extend_from_slice(budget);
-        let key = format!("journey-pages-{TIP}");
+        let key = format!("journey-pages-{head}");
         arguments.extend_from_slice(&["--key", &key]);
         self.command("temper", &arguments, 0, "task 42\n", Stream::Keep);
-        self.write(OFFER, "task 42\n");
+        self.write(OFFER, &format!("task 42\nrun {TIP} {head} {}\n", self.now));
     }
 
     fn offer_page(&mut self, head: &str) {
@@ -261,7 +320,7 @@ fn unchanged_pages_start_no_change() {
     let lines = "fresh welcome\nstopped blocked: still stale after its walk\n";
     for (arguments, status) in [(PROJECT, 0), (&[][..], 1)] {
         let mut script = Script::print_on(BRANCH, None, TIP, i32::from(status), lines);
-        script.status("");
+        script.unchanged(TIP, START);
         script.locked_run(arguments, status, &format!("{lines}main's pages are {TIP}'s print\n"), "");
     }
 }
@@ -329,10 +388,12 @@ fn a_live_change_waits_and_every_ended_phase_releases_it() {
         script.checkout(BRANCH, TIP);
         if head.is_empty() {
             script.print(0, "");
-            script.status("");
+            script.landings(TIP, &[(TIP, &[])]);
+            script.unchanged(TIP, START);
             script.locked_run(PROJECT, 0, &format!("main's pages are {TIP}'s print\n"), "");
         } else {
             script.print(0, PRINTED);
+            script.landings(TIP, &[(TIP, &[])]);
             script.offer_page(head);
             script.locked_run(PROJECT, 0, &format!("{PRINTED}wrote {BRANCH} {head}\n"), "");
         }
@@ -355,6 +416,8 @@ fn paths_outside_the_written_set_are_never_offered() {
         README,
         "outside",
         "temper/docs/design/client/web/journeys/welcome/1.html",
+        "temper/docs/design/client/web/journeys/welcome/looks.html",
+        "temper/docs/design/client/tui/journeys/example/looks.html",
         "temper/docs/design/client/web/journeys/welcome/nested/01.html",
         "temper/docs/design/client/web/journeys/welcome/01.txt",
         "temper/docs/design/client/web/journeys/theme.css",
@@ -444,7 +507,7 @@ fn refused_arguments_start_nothing() {
     for &(arguments, error) in cases {
         Script::default().run(arguments, 2, "", &format!("journey-pages: {error}\n"));
     }
-    Script { steps: vec![quiet(&["check-ref-format", "--branch", "bad..name"], 1)] }.run(
+    Script { steps: vec![quiet(&["check-ref-format", "--branch", "bad..name"], 1)], ..Script::default() }.run(
         &["--branch", "bad..name"],
         2,
         "",
@@ -452,6 +515,7 @@ fn refused_arguments_start_nothing() {
     );
     Script {
         steps: vec![quiet(&["check-ref-format", "--branch", BRANCH], 0), quiet(&["remote", "get-url", "absent"], 2)],
+        ..Script::default()
     }
     .run(&["--push", "absent"], 2, "", "journey-pages: not a configured remote: absent\n");
 }
@@ -489,7 +553,7 @@ fn without_a_project_the_commit_is_local_unless_a_push_is_asked() {
             script.ls_remote(remote, branch, None);
             script.push(remote, branch, false);
         }
-        script.write(OFFER, &format!("commit {COMMIT}\n"));
+        script.write(OFFER, &format!("commit {COMMIT}\nrun {TIP} {COMMIT} {START}\n"));
         script.locked_run(args, 0, &format!("{FRESH}wrote {branch} {COMMIT}\n"), "");
     }
 }
@@ -515,7 +579,7 @@ fn a_kept_commit_waits_until_main_holds_that_print_merged_or_squashed() {
     let mut first = Script::print_on(BRANCH, None, TIP, 0, "");
     first.status(&format!(" M {PAGE}\0"));
     first.commit(&format!("{PAGE}\0"), &format!("Printed: {TIP}"), COMMIT);
-    first.write(OFFER, &format!("commit {COMMIT}\n"));
+    first.write(OFFER, &format!("commit {COMMIT}\nrun {TIP} {COMMIT} {START}\n"));
     first.locked_run(&[], 0, &format!("wrote {BRANCH} {COMMIT}\n"), "");
 
     let mut waiting = Script::locked(BRANCH, None);
@@ -534,9 +598,14 @@ fn a_kept_commit_waits_until_main_holds_that_print_merged_or_squashed() {
             );
         }
         script.remove(OFFER);
-        script.checkout(BRANCH, NEXT);
+        script.states(None);
+        script.git(&["status", "--porcelain", "--untracked-files=no"], "");
+        script.clock(NEXT, START);
+        script.last(Answer::Missing);
+        script.checkout_at(BRANCH, NEXT);
         script.print(0, FRESH);
-        script.status("");
+        script.landings(NEXT, &[(NEXT, &[])]);
+        script.unchanged(NEXT, START);
         script.locked_run(&[], 0, &format!("{FRESH}main's pages are {NEXT}'s print\n"), "");
     }
 }
@@ -573,7 +642,8 @@ fn a_live_lock_is_left_alone_and_a_gone_process_is_replaced() {
             script.ask(Ask::Exists(OFFER.into()), Answer::Is(false));
             script.checkout(BRANCH, TIP);
             script.print(0, "");
-            script.status("");
+            script.landings(TIP, &[(TIP, &[])]);
+            script.unchanged(TIP, START);
             script.locked_run(&[], 0, &format!("main's pages are {TIP}'s print\n"), "");
         }
     }
@@ -588,7 +658,7 @@ fn prepared_and_within_are_validated_but_affect_neither_print_nor_commit() {
         script.status(&format!(" M {PAGE}\0"));
         // The same parent, paths, and message bytes are requested in all four rows.
         script.commit(&format!("{PAGE}\0"), &format!("Printed: {TIP}"), COMMIT);
-        script.write(OFFER, &format!("commit {COMMIT}\n"));
+        script.write(OFFER, &format!("commit {COMMIT}\nrun {TIP} {COMMIT} {START}\n"));
         let expected: String =
             ["--prepared", "--within"].into_iter().filter(|option| arguments.contains(option)).map(warning).collect();
         script.locked_run(arguments, 0, &format!("{PRINTED}wrote {BRANCH} {COMMIT}\n"), &expected);

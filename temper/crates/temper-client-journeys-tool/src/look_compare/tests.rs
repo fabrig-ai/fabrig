@@ -4,19 +4,19 @@ use crate::host::{Answer, Ask, Gathered, Host, Program, Ran, Step, Stream};
 
 use super::run;
 
-const NAME: &str = "look-request";
-const TIP: &str = "abcdef0123456789abcdef0123456789abcdef01";
-const PARENT: &str = "0123456789abcdef0123456789abcdef01234567";
-const SHORT: &str = "abcdef0";
-const ROOT: &str = "/landing tree";
+pub(crate) const NAME: &str = "look-request";
+pub(crate) const TIP: &str = "abcdef0123456789abcdef0123456789abcdef01";
+pub(crate) const PARENT: &str = "0123456789abcdef0123456789abcdef01234567";
+pub(crate) const SHORT: &str = "abcdef0";
+pub(crate) const ROOT: &str = "/landing tree";
 const SCRATCH: &str = "/landing tree/.git/look-compare";
 const PRINT: &str = "/landing tree/.git/look-compare/print";
-const WEB: &str = "temper/docs/design/client/web/journeys";
-const TUI: &str = "temper/docs/design/client/tui/journeys";
-const SHELL_WEB: &str = "temper/crates/temper-client-shell-web";
-const ON_DISK_WALK: &str = "walk 2\nweb mark\n";
+pub(crate) const WEB: &str = "temper/docs/design/client/web/journeys";
+pub(crate) const TUI: &str = "temper/docs/design/client/tui/journeys";
+pub(crate) const SHELL_WEB: &str = "temper/crates/temper-client-shell-web";
+pub(crate) const ON_DISK_WALK: &str = "walk 2\nweb mark\n";
 const SIGN_IN: &str = "sign-in";
-const SIGN_IN_PAGE: &str = "temper/docs/design/client/web/journeys/sign-in/02.html";
+pub(crate) const SIGN_IN_PAGE: &str = "temper/docs/design/client/web/journeys/sign-in/02.html";
 const SIGN_IN_SCRATCH: &str = "/landing tree/.git/look-compare/web--sign-in--02.html";
 const SIGN_IN_P: &str = "a\nb\nc\n";
 const SIGN_IN_C: &str = "a\nB\nc\n";
@@ -24,18 +24,18 @@ const HEADER: &str = "| Item | Result |\n|---|---|\n";
 const FILL: &str = "| each state the message names in words | to fill, a row each |\n";
 
 #[derive(Default)]
-struct Steps(Vec<Step>);
+pub(crate) struct Steps(pub(crate) Vec<Step>);
 
 impl Steps {
-    fn step(&mut self, ask: Ask, answer: Answer) {
+    pub(crate) fn step(&mut self, ask: Ask, answer: Answer) {
         self.0.push(Step { ask, answer });
     }
 
-    fn git(&mut self, args: &[&str], directory: Option<&str>, stdout: &str) {
+    pub(crate) fn git(&mut self, args: &[&str], directory: Option<&str>, stdout: &str) {
         self.git_reply(args, directory, 0, stdout, "");
     }
 
-    fn git_reply(&mut self, args: &[&str], directory: Option<&str>, code: i32, stdout: &str, stderr: &str) {
+    pub(crate) fn git_reply(&mut self, args: &[&str], directory: Option<&str>, code: i32, stdout: &str, stderr: &str) {
         let mut program = Program::new(b"git", &args.iter().map(|arg| arg.as_bytes()).collect::<Vec<_>>());
         program.directory = directory.map(PathBuf::from);
         program.stderr = Stream::Keep;
@@ -45,7 +45,7 @@ impl Steps {
         );
     }
 
-    fn fetch(&mut self, tip: &str) {
+    pub(crate) fn fetch(&mut self, tip: &str) {
         self.git(
             &[
                 "fetch",
@@ -89,7 +89,7 @@ impl Steps {
         self.step(Ask::Directory(SCRATCH.into()), Answer::Done);
     }
 
-    fn blob(&mut self, commit: &str, path: &str, bytes: Option<&str>) {
+    pub(crate) fn blob(&mut self, commit: &str, path: &str, bytes: Option<&str>) {
         const OBJECT: &str = "aaaaabbbbbcccccdddddeeeeefffff0000011111";
         let tree = if bytes.is_some() { format!("100644 blob {OBJECT}\t{path}\0") } else { String::new() };
         self.git(&["--literal-pathspecs", "ls-tree", "--full-tree", "-z", commit, "--", path], None, &tree);
@@ -98,12 +98,12 @@ impl Steps {
         }
     }
 
-    fn read(&mut self, path: &str, bytes: Option<&str>) {
+    pub(crate) fn read(&mut self, path: &str, bytes: Option<&str>) {
         let answer = bytes.map_or(Answer::Missing, |bytes| Answer::Bytes(bytes.as_bytes().into()));
         self.step(Ask::Read(path.into()), answer);
     }
 
-    fn write(&mut self, directory: &str, leaf: &str, content: &str) {
+    pub(crate) fn write(&mut self, directory: &str, leaf: &str, content: &str) {
         self.step(Ask::Write(Path::new(directory).join(leaf), content.as_bytes().into()), Answer::Done);
     }
 
@@ -178,7 +178,7 @@ impl Steps {
         self.write(directory, "merged", merged);
     }
 
-    fn diff(&mut self, directory: &str, expected: &str, patch: &str) {
+    pub(crate) fn diff(&mut self, directory: &str, expected: &str, patch: &str) {
         self.git_reply(
             &[
                 "diff",

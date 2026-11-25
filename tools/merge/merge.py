@@ -23,7 +23,7 @@ MARKER = re.compile(rb'^(?:<{7}|={7}|>{7}|\|{7})(?:[ \r\n]|$)', re.MULTILINE)
 JOURNEY_WRITTEN = re.compile(
     r'temper/docs/design/client/(?:web|tui)/journeys/'
     r'(?:[^/]+/(?:recording|[0-9]{2,}\.(?:html|txt))'
-    r'|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js)')
+    r'|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js|looks\.html)')
 
 
 class GitError(subprocess.CalledProcessError):

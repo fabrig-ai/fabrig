@@ -155,6 +155,7 @@ impl SeeStory {
             page: page(0),
             url: b"http://example.test/".as_slice().into(),
             requests: false,
+            files: false,
         });
         let mut story =
             Self { setup, runtime, script, faces: [BrowserFace::new(page(0), "example.test")], done: [false] };

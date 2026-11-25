@@ -172,8 +172,8 @@ fn separate_conflicts(merged: &str, size: usize) -> Result<Merge, String> {
 }
 
 #[derive(Clone, Copy)]
-struct Span {
-    after: usize,
+pub(crate) struct Span {
+    pub(crate) after: usize,
     count: usize,
 }
 
@@ -188,7 +188,7 @@ impl Span {
         Some(Self { after, count })
     }
 
-    fn end(self) -> usize {
+    pub(crate) fn end(self) -> usize {
         self.after + self.count
     }
 
@@ -201,13 +201,19 @@ impl Span {
     }
 }
 
-struct Hunk {
-    from: Span,
-    to: Span,
+pub(crate) struct Hunk {
+    pub(crate) from: Span,
+    pub(crate) to: Span,
     evidence: String,
 }
 
-fn diff(host: &mut Host, directory: &Path, expected: &str, landed: &str, clean: &str) -> Result<Vec<Hunk>, String> {
+pub(crate) fn diff(
+    host: &mut Host,
+    directory: &Path,
+    expected: &str,
+    landed: &str,
+    clean: &str,
+) -> Result<Vec<Hunk>, String> {
     if landed == clean {
         return Ok(Vec::new());
     }
@@ -236,7 +242,7 @@ fn diff(host: &mut Host, directory: &Path, expected: &str, landed: &str, clean: 
     }
 }
 
-fn hunks(patch: &str) -> Result<Vec<Hunk>, String> {
+pub(crate) fn hunks(patch: &str) -> Result<Vec<Hunk>, String> {
     let mut hunks: Vec<Hunk> = Vec::new();
     for line in patch.split_inclusive('\n') {
         if let Some(header) = line.strip_prefix("@@ ") {
